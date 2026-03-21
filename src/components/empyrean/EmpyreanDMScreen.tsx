@@ -1245,6 +1245,37 @@ export function EmpyreanDMScreen({
           .filter(m => m.role === 'assistant')
           .slice(-5)
           .map(m => m.content.length > 500 ? m.content.slice(0, 500) + '…' : m.content)}
+        onRequestOpinion={async () => {
+          const recentAssistant = messages
+            .filter(m => m.role === 'assistant')
+            .slice(-3)
+            .map(m => m.content.length > 500 ? m.content.slice(0, 500) + '…' : m.content);
+          if (recentAssistant.length === 0) return null;
+          try {
+            const dragon = config?.dragonName || 'Dragon';
+            const opinionPrompt = `You are ${dragon}. Based on recent events, share ONE unsolicited thought — a warning, an opinion about an NPC, or a feeling. Keep it under 2 sentences. Use your current mood and trust level to determine tone. Do not ask a question. Just state what is on your mind.\n\nRecent events:\n${recentAssistant.join('\n---\n')}`;
+            const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
+            const token = (await supabase.auth.getSession()).data.session?.access_token;
+            const resp = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              },
+              body: JSON.stringify({
+                messages: [{ role: 'user', content: 'What is on your mind right now?' }],
+                systemPromptOverride: opinionPrompt,
+                model: 'google/gemini-2.5-flash',
+              }),
+            });
+            if (!resp.ok) return null;
+            const data = await resp.json();
+            return data?.response || data?.content || null;
+          } catch {
+            return null;
+          }
+        }}
       />
 
       <AnimatePresence>

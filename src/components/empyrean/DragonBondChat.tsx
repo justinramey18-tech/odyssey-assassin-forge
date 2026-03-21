@@ -267,6 +267,18 @@ export default function DragonBondChat({
           </div>
         ) : (
           <div className="space-y-0">
+            {/* Dragon opening opinion */}
+            {dragonOpening && (
+              <div className="mb-6 pr-12">
+                <div className="border-l-2 border-cyan-500/30 pl-3">
+                  <div className="text-cyan-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1 prose-strong:text-cyan-100/90">
+                    <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                      {renderVisionBlocks(stripDragonTags(dragonOpening))}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+              </div>
+            )}
             {messages.map(msg => {
               const isDragon = msg.role === 'assistant';
               const cleaned = stripDragonTags(msg.content);
