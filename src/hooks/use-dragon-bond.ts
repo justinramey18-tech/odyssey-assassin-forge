@@ -4,6 +4,7 @@ import {
   saveBondState,
   addTrust,
   reduceTrust,
+  detectTrustBreak,
   addBond,
   addMemory,
   type DragonBondState,
@@ -100,11 +101,22 @@ export function useDragonBond({ dragonName, characterName, onTrustChange, onBond
         reason = 'respecting autonomy';
       }
 
-      // Cap
-      trustDelta = Math.min(trustDelta, MAX_TRUST_PER_EXCHANGE);
+      // Trust-breaking overrides trust-building
+      const trustBreak = detectTrustBreak(playerMessage);
+      if (trustBreak.broken) {
+        trustDelta = -trustBreak.severity;
+        reason = trustBreak.reason;
+        state = { ...state, mood: 'distant' as const };
+      } else {
+        // Cap positive trust
+        trustDelta = Math.min(trustDelta, MAX_TRUST_PER_EXCHANGE);
+      }
 
       if (trustDelta > 0) {
         state = addTrust(state, trustDelta);
+        onTrustChangeRef.current?.(trustDelta, reason);
+      } else if (trustDelta < 0) {
+        state = reduceTrust(state, Math.abs(trustDelta));
         onTrustChangeRef.current?.(trustDelta, reason);
       }
 
