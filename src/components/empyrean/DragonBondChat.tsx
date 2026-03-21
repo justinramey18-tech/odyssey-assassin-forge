@@ -301,36 +301,43 @@ export default function DragonBondChat({
             )}
             {messages.map(msg => {
               const isDragon = msg.role === 'assistant';
+              const bondSense = isDragon ? extractBondSense(msg.content) : null;
               const cleaned = stripDragonTags(msg.content);
               if (!cleaned) return null;
 
               return (
-                <div
-                  key={msg.id}
-                  className={cn(
-                    isDragon ? 'mb-6' : 'mb-5',
-                    isDragon ? 'pr-12' : 'pl-12',
-                  )}
-                >
+                <div key={msg.id}>
                   <div
                     className={cn(
-                      isDragon
-                        ? 'border-l-2 border-cyan-500/30 pl-3'
-                        : 'border-r-2 border-white/[0.12] pr-3 text-right',
+                      isDragon ? 'mb-6' : 'mb-5',
+                      isDragon ? 'pr-12' : 'pl-12',
                     )}
                   >
-                    {isDragon ? (
-                      <div className="text-cyan-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1 prose-strong:text-cyan-100/90">
-                        <ReactMarkdown rehypePlugins={[rehypeRaw]}>
-                          {renderVisionBlocks(cleaned)}
-                        </ReactMarkdown>
-                      </div>
-                    ) : (
-                      <p className="text-white/70 font-medium text-sm leading-relaxed whitespace-pre-wrap">
-                        {cleaned}
-                      </p>
-                    )}
+                    <div
+                      className={cn(
+                        isDragon
+                          ? 'border-l-2 border-cyan-500/30 pl-3'
+                          : 'border-r-2 border-white/[0.12] pr-3 text-right',
+                      )}
+                    >
+                      {isDragon ? (
+                        <div className="text-cyan-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1 prose-strong:text-cyan-100/90">
+                          <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                            {renderVisionBlocks(cleaned)}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="text-white/70 font-medium text-sm leading-relaxed whitespace-pre-wrap">
+                          {cleaned}
+                        </p>
+                      )}
+                    </div>
                   </div>
+                  {bondSense && (
+                    <div className="text-center text-[11px] italic text-cyan-300/40 py-2 px-4 mb-4">
+                      {bondSense}
+                    </div>
+                  )}
                 </div>
               );
             })}
