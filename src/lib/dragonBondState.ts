@@ -22,6 +22,7 @@ export interface DragonBondState {
   lastContactTimestamp: string | null;
   unreadDragonMessages: string[];
   speechHabits?: string[];
+  riderEmotionalLog?: Array<{ tag: string; timestamp: string }>;
 }
 
 // ── STORAGE ──
