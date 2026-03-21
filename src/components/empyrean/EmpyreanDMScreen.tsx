@@ -558,13 +558,15 @@ export function EmpyreanDMScreen({
     sendMessage(filled);
     setShowPrompts(false);
   }, [characterName, sendMessage]);
+  const npcMention = useNPCMentionState(messages, textareaRef, setInputValue, inputValue);
 
   // Auto-resize textarea
   const handleTextareaInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
     e.target.style.height = 'auto';
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
-  }, []);
+    npcMention.trackCursor();
+  }, [npcMention.trackCursor]);
 
   const groupedPrompts = useMemo(() => groupPromptsByCategory(empyreanPrompts), []);
 
