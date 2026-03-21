@@ -109,6 +109,34 @@ export function addMemory(state: DragonBondState, text: string, source: 'campaig
   return { ...state, memories };
 }
 
+// ── TRUST-BREAKING PATTERNS ──
+
+export const DISMISSAL_PATTERNS = [
+  'shut up', 'be quiet', 'silence', 'just obey', 'do as i say',
+  'i dont care what you think', 'i dont care', 'enough',
+  'stop talking', 'not now', 'go away',
+];
+
+export const DISRESPECT_PATTERNS = [
+  'youre just a', 'just a dragon', 'just a mount', 'just a beast',
+  'know your place', 'you dont understand', 'stupid dragon',
+  'dumb animal', 'i dont need you', 'youre nothing',
+];
+
+export const COMMAND_PATTERNS = [
+  'thats an order', 'i command you', 'do it now', 'im ordering you',
+  'you will obey', 'i own you', 'youre mine',
+];
+
+export function detectTrustBreak(text: string): { broken: boolean; severity: number; reason: string } {
+  const lower = text.toLowerCase().replace(/['']/g, '');
+  const check = (patterns: string[]) => patterns.some(p => lower.includes(p));
+  if (check(DISRESPECT_PATTERNS)) return { broken: true, severity: 3, reason: 'disrespect' };
+  if (check(COMMAND_PATTERNS)) return { broken: true, severity: 2, reason: 'domination' };
+  if (check(DISMISSAL_PATTERNS)) return { broken: true, severity: 1, reason: 'dismissal' };
+  return { broken: false, severity: 0, reason: '' };
+}
+
 // ── DRAGON CHAT SYSTEM PROMPT BUILDER ──
 
 export function buildDragonChatPrompt(
