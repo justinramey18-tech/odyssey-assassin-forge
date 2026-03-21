@@ -2279,7 +2279,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                           partyDm.voiceNPC(npcNames.length === 1 ? npcNames[0] : npcNames, message);
                         }
                       } else {
-                      } else {
                         partyDm.sendDialogueMessage(dialogueText.trim());
                       }
                     }
