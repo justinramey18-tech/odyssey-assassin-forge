@@ -127,11 +127,27 @@ export default function DragonBondChat({
   });
 
   // Reload bond state when opened
+  const opinionFiredRef = useRef(false);
   useEffect(() => {
     if (open) {
       setBondState(loadBondState());
+      opinionFiredRef.current = false;
     }
   }, [open]);
+
+  // Request dragon opinion on open when narrative exists
+  useEffect(() => {
+    if (!open || opinionFiredRef.current || !onRequestOpinion) return;
+    if (!recentNarrative || recentNarrative.length === 0) return;
+    if (messages.length > 0) return; // only on empty chat or fresh open
+    
+    opinionFiredRef.current = true;
+    onRequestOpinion().then(opinion => {
+      if (opinion) {
+        sendMessage('', opinion); // inject as assistant message via the hook — but we need a different approach
+      }
+    }).catch(() => {});
+  }, [open, onRequestOpinion, recentNarrative, messages.length, sendMessage]);
 
   // Auto-scroll on new messages
   useEffect(() => {
