@@ -10,6 +10,7 @@ function stripDragonTags(content: string): string {
   return content
     .replace(/<!--DRAGON_MOOD:\w+-->/g, '')
     .replace(/<!--DRAGON_MEMORY:.+?-->/g, '')
+    .replace(/<!--DRAGON_HABIT:.+?-->/g, '')
     .trim();
 }
 
