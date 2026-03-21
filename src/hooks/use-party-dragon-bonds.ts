@@ -270,7 +270,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
       if (moodMatch) {
         const validMoods: DragonMood[] = ['calm', 'alert', 'protective', 'distant', 'ancestral', 'playful'];
         if (validMoods.includes(moodMatch[1] as DragonMood)) {
-          updatedDragon = { ...updatedDragon, mood: moodMatch[1] };
+          updatedDragon = { ...updatedDragon, mood: moodMatch[1] as DragonMood };
         }
       }
 
