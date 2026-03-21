@@ -6,6 +6,7 @@ import { usePartyDm } from '@/hooks/use-party-dm';
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { useCampaignSessions } from '@/hooks/use-campaign-sessions';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { PartyDMScreen } from './PartyDMScreen';
 import { GMGuidesManager } from './GMGuidesManager';
 
@@ -186,6 +187,15 @@ export function StandalonePartyDMScreen({
     });
   }, [dragonBonds.allDragonConfigs, partyMembers]);
 
+  const handleBurnoutDetected = useCallback((level: number) => {
+    dragonBonds.updateBurnout(level);
+  }, [dragonBonds.updateBurnout]);
+
+  const handleBondStrainDetected = useCallback((reason: string) => {
+    dragonBonds.updateBondAndTrust(0, -5);
+    toast.error(`Bond strained: ${reason}`);
+  }, [dragonBonds.updateBondAndTrust]);
+
   // Party DM hook — pass isHost as isCreator so co-hosts get host abilities
   const partyDm = usePartyDm({
     partyId: partyId || null,
@@ -198,6 +208,8 @@ export function StandalonePartyDMScreen({
     memoryAnchorsContent: memoryAnchors.formattedForOracle,
     partyDragonConfigs,
     myDragonName: dragonBonds.myDragon?.dragonName,
+    onBurnoutDetected: handleBurnoutDetected,
+    onBondStrainDetected: handleBondStrainDetected,
   });
 
   // Auto-extract memory anchors from new DM responses (host-only to avoid duplicates)

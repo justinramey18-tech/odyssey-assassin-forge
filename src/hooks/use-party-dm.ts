@@ -62,10 +62,15 @@ export interface PartyDmMessage {
  * Parse whispers from an assistant message, filter by character name,
  * and return the message with clean content + filtered whispers.
  */
+const BURNOUT_TAG_RE = /<!--BURNOUT:\d-->/g;
+const BOND_STRAIN_TAG_RE = /<!--BOND_STRAIN:.+?-->/g;
+
 function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string, myDragonName?: string): PartyDmMessage {
   if (msg.role !== 'assistant') return msg;
   const { narrative, whispers } = parseWhispers(msg.content);
-  if (whispers.length === 0) return { ...msg, content: narrative };
+  // Strip burnout and bond strain tags from narrative
+  const cleanNarrative = narrative.replace(BURNOUT_TAG_RE, '').replace(BOND_STRAIN_TAG_RE, '').trim();
+  if (whispers.length === 0) return { ...msg, content: cleanNarrative };
 
   // Filter: keep actions + tactics (shared), and whispers targeted at this player or their dragon
   const filtered = whispers.filter(w => {
@@ -77,7 +82,7 @@ function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string
 
   return {
     ...msg,
-    content: narrative,
+    content: cleanNarrative,
     whispers: filtered.length > 0 ? filtered : undefined,
   };
 }
@@ -143,9 +148,11 @@ interface UsePartyDmOptions {
   memoryAnchorsContent?: string;
   partyDragonConfigs?: Array<{ userId: string; characterName: string; config: { dragonName: string; signetType: string; bond: number; trust: number; mood: string; burnout: number } }>;
   myDragonName?: string;
+  onBurnoutDetected?: (level: number) => void;
+  onBondStrainDetected?: (reason: string) => void;
 }
 
-export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, partyDragonConfigs, myDragonName }: UsePartyDmOptions) {
+export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, partyDragonConfigs, myDragonName, onBurnoutDetected, onBondStrainDetected }: UsePartyDmOptions) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
   const [currentPrompts, setCurrentPrompts] = useState<PartyDmPrompt[]>([]);
@@ -171,6 +178,33 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       }
     } catch {}
   }, [pendingDraft]);
+
+  // Detect BURNOUT and BOND_STRAIN tags from new assistant messages in Empyrean campaigns
+  const onBurnoutRef = useRef(onBurnoutDetected);
+  const onBondStrainRef = useRef(onBondStrainDetected);
+  useEffect(() => { onBurnoutRef.current = onBurnoutDetected; }, [onBurnoutDetected]);
+  useEffect(() => { onBondStrainRef.current = onBondStrainDetected; }, [onBondStrainDetected]);
+  const lastParsedMsgIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (sessionConfig?.campaignType !== 'empyrean') return;
+    if (messages.length === 0) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role !== 'assistant') return;
+    if (lastMsg.id === lastParsedMsgIdRef.current) return;
+    lastParsedMsgIdRef.current = lastMsg.id;
+
+    const burnoutMatch = lastMsg.content.match(/<!--BURNOUT:(\d)-->/);
+    if (burnoutMatch) {
+      const level = parseInt(burnoutMatch[1], 10);
+      if (level >= 0 && level <= 5) onBurnoutRef.current?.(level);
+    }
+
+    const strainMatch = lastMsg.content.match(/<!--BOND_STRAIN:(.+?)-->/);
+    if (strainMatch) {
+      onBondStrainRef.current?.(strainMatch[1]);
+    }
+  }, [messages, sessionConfig?.campaignType]);
 
 
   const abortRef = useRef<AbortController | null>(null);
