@@ -118,6 +118,18 @@ export interface DmSessionConfig {
   empyreanFocus?: 'combat' | 'political' | 'romance' | 'mystery' | 'survival' | 'balanced';
 }
 
+export interface PartyDragonConfig {
+  dragonName: string;
+  signetType: string;
+  yearAtBasgiath: string;
+  dragonNotes: string;
+  bond: number; // 0-100
+  trust: number; // 0-100
+  mood: 'calm' | 'alert' | 'protective' | 'distant' | 'ancestral' | 'playful';
+  burnout: number; // 0-5
+  memories: Array<{ id: string; text: string; createdAt: string }>;
+}
+
 interface UsePartyDmOptions {
   partyId: string | null;
   isCreator: boolean;
