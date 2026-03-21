@@ -143,7 +143,7 @@ interface UsePartyDmOptions {
   partyDragonConfigs?: Array<{ userId: string; characterName: string; config: { dragonName: string; signetType: string; bond: number; trust: number; mood: string; burnout: number } }>;
 }
 
-export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent }: UsePartyDmOptions) {
+export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, partyDragonConfigs }: UsePartyDmOptions) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
   const [currentPrompts, setCurrentPrompts] = useState<PartyDmPrompt[]>([]);
