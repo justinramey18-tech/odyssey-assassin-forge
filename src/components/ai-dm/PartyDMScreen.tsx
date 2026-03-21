@@ -2338,6 +2338,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             onPickVideo={() => { sessionStorage.setItem('pending-file-picker', 'video'); videoInputRef.current?.click(); }}
             onPickAudio={() => setShowAudioRecorder(true)}
             onCreatePoll={() => setShowPollCreator(true)}
+            npcNames={partyNPCNames}
           />
         ) : !isReady ? (
           <div className="space-y-2 max-w-2xl mx-auto">
