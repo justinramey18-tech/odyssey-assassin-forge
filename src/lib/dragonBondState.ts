@@ -219,6 +219,12 @@ You and this rider share something rare. Your communication is almost seamless �
     sections.push(`## YOUR MEMORIES\nThese are things you remember and care about. Reference them naturally when relevant:\n${memoryLines}`);
   }
 
+  // Recent campaign narrative
+  if (recentNarrative && recentNarrative.length > 0) {
+    const narrativeText = recentNarrative.slice(-5).join('\n\n---\n\n');
+    sections.push('## RECENT CAMPAIGN EVENTS\nThese things just happened in the main narrative. You experienced them through the bond. You were THERE — you felt the danger, saw through your rider\'s eyes, sensed their emotions. Reference these events if relevant. Have opinions about NPCs, decisions, and dangers. Do NOT simply summarize what happened — react to it as someone who lived through it:\n\n' + narrativeText);
+  }
+
   // Output format
   sections.push(`## OUTPUT FORMAT
 After each response, include exactly one mood tag indicating your current emotional state:
