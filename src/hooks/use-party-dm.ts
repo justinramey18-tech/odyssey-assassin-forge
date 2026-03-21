@@ -15,6 +15,7 @@ import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
 import { getAlignmentZone, type AlignmentScore } from '@/lib/alignmentSpectrum';
 import { buildEmpyreanDMPersona } from '@/lib/empyreanDMPersona';
+import { getBondDescriptor } from '@/lib/dragonBondState';
 
 function loadAlignmentDrift(): { position: AlignmentScore; zone: string } | null {
   try {
@@ -139,9 +140,10 @@ interface UsePartyDmOptions {
   partyMembers: Array<{ character_name: string; character_status: Record<string, unknown>; user_id: string }>;
   customGuidesContent?: string;
   memoryAnchorsContent?: string;
+  partyDragonConfigs?: Array<{ userId: string; characterName: string; config: { dragonName: string; signetType: string; bond: number; trust: number; mood: string; burnout: number } }>;
 }
 
-export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent }: UsePartyDmOptions) {
+export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, partyDragonConfigs }: UsePartyDmOptions) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
   const [currentPrompts, setCurrentPrompts] = useState<PartyDmPrompt[]>([]);
@@ -1017,12 +1019,31 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const relevantMembers = memberIds
       ? partyMembers.filter(m => memberIds.includes(m.user_id))
       : partyMembers;
+    const isEmpyrean = sessionConfig?.campaignType === 'empyrean';
     const partyMembersSummary = relevantMembers.map(m => {
       const s = m.character_status as Record<string, unknown>;
-      return `- ${m.character_name} (Level ${s.level || '?'} ${s.className || 'Adventurer'}, ${s.currentHP || '?'}/${s.maxHP || '?'} HP)`;
+      let line = `- ${m.character_name} (Level ${s.level || '?'} ${s.className || 'Adventurer'}, ${s.currentHP || '?'}/${s.maxHP || '?'} HP)`;
+      if (isEmpyrean && partyDragonConfigs) {
+        const dc = partyDragonConfigs.find(d => d.userId === m.user_id);
+        if (dc) {
+          line += ` | Dragon: ${dc.config.dragonName}, Signet: ${dc.config.signetType || 'unknown'}, Bond: ${getBondDescriptor(dc.config.bond)}, Burnout: ${dc.config.burnout}/5`;
+        }
+      }
+      return line;
     }).join('\n');
     return partyMembersSummary;
-  }, [partyMembers]);
+  }, [partyMembers, sessionConfig?.campaignType, partyDragonConfigs]);
+
+  // Build dragon bonds context section for Empyrean campaigns
+  const buildDragonBondsSection = useCallback(() => {
+    if (sessionConfig?.campaignType !== 'empyrean' || !partyDragonConfigs || partyDragonConfigs.length === 0) return '';
+    const bondedRiders = partyDragonConfigs.filter(d => d.config.dragonName);
+    if (bondedRiders.length === 0) return '';
+    const lines = bondedRiders.map(d =>
+      `- ${d.config.dragonName} (bonded to ${d.characterName}): Use whisper tag ">>${d.characterName}" to send dragon telepathy`
+    ).join('\n');
+    return `## PARTY DRAGON BONDS\nMultiple riders have bonded dragons. Generate whisper tags for each rider's dragon when appropriate:\n${lines}\n\nEach dragon has its own personality. Address their riders by name through the bond. Dragon whispers should feel telepathic — sensory impressions, emotions, short warnings.`;
+  }, [sessionConfig?.campaignType, partyDragonConfigs]);
 
   // Generate split summary for a team
   const generateSplitSummary = useCallback(async (teamMessages: PartyDmMessage[], previousSummary: string | null): Promise<string | null> => {
@@ -1386,8 +1407,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         const campaignIntro = sessionConfig.campaignType === 'empyrean'
           ? 'This is a multiplayer Empyrean campaign set at Basgiath War College. Players are dragon riders in training. '
           : '';
+        const dragonBondsSection = buildDragonBondsSection();
         const partyContextStr = [
           `## PARTY MEMBERS\n${campaignIntro}This is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
+          dragonBondsSection,
           afkGuidesSection,
           responseModePrompt,
         ].filter(Boolean).join('\n\n');
@@ -1497,7 +1520,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsGenerating(false);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave, isSplitActive, splitState, streamAIResponse, buildPartyMembersGuide, generateSplitSummary, buildAfkGuidesContext, consumeCascadePrompts, insertPartyMessageHelper, empyreanPersonaPrompt]);
+  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave, isSplitActive, splitState, streamAIResponse, buildPartyMembersGuide, generateSplitSummary, buildAfkGuidesContext, consumeCascadePrompts, insertPartyMessageHelper, empyreanPersonaPrompt, buildDragonBondsSection]);
 
   // Auto-trigger generation when all ready (host only) — only in AI mode
   const currentDmMode = sessionConfig?.dmMode || 'ai';
@@ -1606,8 +1629,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       const campaignIntro = sessionConfig.campaignType === 'empyrean'
         ? 'This is a multiplayer Empyrean campaign set at Basgiath War College. Players are dragon riders in training. '
         : '';
+      const dragonBondsSection = buildDragonBondsSection();
       const partyContextStr = [
         `## PARTY MEMBERS\n${campaignIntro}This is a multiplayer session in dialogue mode. Players speak in-character directly. Respond to their dialogue naturally and advance the narrative.\n${partyMembersSummary}\nAddress each player character by name.`,
+        dragonBondsSection,
         responseModePrompt,
       ].filter(Boolean).join('\n\n');
 
@@ -1651,7 +1676,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsGenerating(false);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, customGuidesContent, streamAIResponse, buildPartyMembersGuide, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper, empyreanPersonaPrompt]);
+  }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, customGuidesContent, streamAIResponse, buildPartyMembersGuide, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper, empyreanPersonaPrompt, buildDragonBondsSection]);
 
   // === DIALOGUE MODE: Voice an NPC in response to player dialogue ===
   const voiceNPC = useCallback(async (npcName: string, playerMessage: string) => {
