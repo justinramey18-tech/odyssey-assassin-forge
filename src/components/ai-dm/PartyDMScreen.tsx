@@ -754,6 +754,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const spotify = useSpotify();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const dmPolls = useDmPolls(partyId || null);
+  const isEmpyrean = partyDm.sessionConfig?.campaignType === 'empyrean';
+  const dragonBonds = usePartyDragonBonds(isEmpyrean ? (partyId || null) : null, currentUserId || null);
+  const [showDragonSetup, setShowDragonSetup] = useState(false);
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
   const lastProcessedMsgIdRef = useRef<string | null>(null);
