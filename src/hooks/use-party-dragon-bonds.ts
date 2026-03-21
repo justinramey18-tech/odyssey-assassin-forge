@@ -180,7 +180,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     }
   }, [partyId, userId, chatRowId]);
 
-  const sendDragonMessage = useCallback(async (text: string, characterName: string) => {
+  const sendDragonMessage = useCallback(async (text: string, characterName: string, recentNarrative?: string[]) => {
     if (!partyId || !userId || !myDragon?.dragonName || isSending) return;
 
     setIsSending(true);
@@ -197,6 +197,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         myDragon.mood as DragonMood,
         (myDragon.memories || []) as DragonMemory[],
         myDragon.dragonNotes || '',
+        recentNarrative,
       );
 
       // Build API messages - only last 40 messages for context window
