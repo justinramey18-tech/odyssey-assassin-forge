@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { type PartyDragonConfig } from '@/hooks/use-party-dm';
 import { getAuthToken } from '@/lib/auth-token';
-import { buildDragonChatPrompt, addMemory, type DragonMood, type DragonMemory } from '@/lib/dragonBondState';
+import { buildDragonChatPrompt, addMemory, detectTrustBreak, type DragonMood, type DragonMemory } from '@/lib/dragonBondState';
 import { loadSelectedModel } from '@/lib/dm-models';
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
@@ -295,10 +295,16 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
       if (matchesAny(text, AUTONOMY_PATTERNS)) trustDelta += 1;
       trustDelta = Math.min(trustDelta, MAX_TRUST_PER_EXCHANGE);
 
-      if (trustDelta > 0) {
+      const trustBreak = detectTrustBreak(text);
+      if (trustBreak.broken) {
+        trustDelta = -trustBreak.severity;
+        updatedDragon = { ...updatedDragon, mood: 'distant' };
+      }
+
+      if (trustDelta !== 0) {
         updatedDragon = {
           ...updatedDragon,
-          trust: Math.min(100, (updatedDragon.trust || 10) + trustDelta),
+          trust: Math.max(0, Math.min(100, (updatedDragon.trust || 10) + trustDelta)),
         };
       }
 
