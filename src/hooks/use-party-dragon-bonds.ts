@@ -96,20 +96,21 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
 
     setMyDragon(config);
 
+    const stateData = JSON.parse(JSON.stringify(config));
     if (myRowId) {
       await supabase
         .from('party_shared_state')
-        .update({ state_data: config as unknown as Record<string, unknown>, updated_at: new Date().toISOString() })
+        .update({ state_data: stateData, updated_at: new Date().toISOString() })
         .eq('id', myRowId);
     } else {
       const { data } = await supabase
         .from('party_shared_state')
-        .insert({
+        .insert([{
           party_id: partyId,
           user_id: userId,
           state_type: 'dragon_bond',
-          state_data: config as unknown as Record<string, unknown>,
-        })
+          state_data: stateData,
+        }])
         .select('id')
         .single();
       if (data) setMyRowId(data.id);
