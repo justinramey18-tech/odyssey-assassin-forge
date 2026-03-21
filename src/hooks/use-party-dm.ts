@@ -1717,12 +1717,15 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, customGuidesContent, streamAIResponse, buildPartyMembersGuide, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper, empyreanPersonaPrompt, buildDragonBondsSection]);
 
   // === DIALOGUE MODE: Voice an NPC in response to player dialogue ===
-  const voiceNPC = useCallback(async (npcName: string, playerMessage: string) => {
+  const voiceNPC = useCallback(async (npcNames: string | string[], playerMessage: string) => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
+
+    const names = Array.isArray(npcNames) ? npcNames : [npcNames];
+    const nameLabel = names.join(' & ');
 
     setIsGenerating(true);
 
-    const formattedContent = `[${characterName}]: (to ${npcName}) "${playerMessage.trim()}"`;
+    const formattedContent = `[${characterName}]: (to ${nameLabel}) "${playerMessage.trim()}"`;
 
     // Insert user message
     await insertPartyMessageHelper(partyId, {
@@ -1756,7 +1759,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         content: formattedContent,
       }].map(m => ({ role: m.role, content: m.content }));
 
-      const npcContext = `## NPC VOICING MODE\nYou are responding AS the NPC named ${npcName} ONLY.\nWrite 1-3 sentences of in-character dialogue from their perspective.\nDo NOT write scene narration, do NOT describe player character actions, do NOT include mechanical information.\nJust write what they say, prefixed with their name in bold.\nFormat: **${npcName}:** Their dialogue here.\nStay consistent with how this NPC has been portrayed in the campaign so far.`;
+      const npcContext = names.length === 1
+        ? `## NPC VOICING MODE\nYou are responding AS the NPC named ${names[0]} ONLY.\nWrite 1-3 sentences of in-character dialogue from their perspective.\nDo NOT write scene narration, do NOT describe player character actions, do NOT include mechanical information.\nJust write what they say, prefixed with their name in bold.\nFormat: **${names[0]}:** Their dialogue here.\nStay consistent with how this NPC has been portrayed in the campaign so far.`
+        : `## NPC VOICING MODE\nYou are responding AS the following NPCs: ${names.join(', ')}.\nWrite exactly 1 sentence of pure in-character dialogue PER NPC.\nDo NOT write scene narration, do NOT describe player character actions, do NOT include mechanical information.\nFormat each line as: **NPC Name:** Their dialogue here.\nOrder: ${names.map((n, i) => `${i + 1}. ${n}`).join(', ')}.\nEach NPC must respond on a separate line.\nStay consistent with how each NPC has been portrayed in the campaign so far.`;
 
       const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, npcContext, undefined, empyreanPersonaPrompt);
 
@@ -1766,12 +1771,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           role: 'assistant',
           content: assistantContent,
           sender_user_id: null,
-          sender_name: npcName,
+          sender_name: nameLabel,
         });
 
         const updatedMessages = [...messages,
           { id: '', party_id: partyId, role: 'user' as const, content: formattedContent, sender_user_id: user.id, sender_name: characterName, created_at: '' },
-          { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: npcName, created_at: '' },
+          { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: nameLabel, created_at: '' },
         ];
         triggerSummaryIfNeeded(updatedMessages);
         silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
