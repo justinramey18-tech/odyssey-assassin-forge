@@ -30,11 +30,19 @@ interface DragonBondChatProps {
   onRequestOpinion?: () => Promise<string | null>;
 }
 
+const BOND_SENSE_RE = /<!--BOND_SENSE:(.+?)-->/g;
+
+function extractBondSense(content: string): string | null {
+  const match = content.match(/<!--BOND_SENSE:(.+?)-->/);
+  return match ? match[1] : null;
+}
+
 function stripDragonTags(content: string): string {
   return content
     .replace(/<!--DRAGON_MOOD:\w+-->/g, '')
     .replace(/<!--DRAGON_MEMORY:.+?-->/g, '')
     .replace(/<!--DRAGON_HABIT:.+?-->/g, '')
+    .replace(BOND_SENSE_RE, '')
     .trim();
 }
 

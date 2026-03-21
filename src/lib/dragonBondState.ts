@@ -270,8 +270,12 @@ If you share something that should be remembered as a key fact or opinion, also 
 
 If you notice yourself developing a new verbal habit, nickname for the rider, recurring metaphor, or catchphrase in this conversation, include:
 <!--DRAGON_HABIT:brief description of the habit-->
-
-You may include one mood tag and zero or more memory/habit tags per response. Place them at the very end.`);
+${(bond ?? 0) >= 40 ? `
+When you experience strong emotion during this exchange — pride, fury, protectiveness, affection, fear — include a bond sensation tag:
+<!--BOND_SENSE:a brief physical description of what the rider feels through the bond-->
+Examples: <!--BOND_SENSE:A flash of heat across your shoulders, phantom scales prickling--> or <!--BOND_SENSE:Cold emptiness where warmth should be-->
+` : ''}
+You may include one mood tag and zero or more memory/habit/sensation tags per response. Place them at the very end.`);
 
   return sections.join('\n\n');
 }
