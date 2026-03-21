@@ -1259,7 +1259,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           </>
         )}
         {isEmpyrean && dragonBonds.myDragon?.dragonName && (
-          <>
+          <button
+            onClick={() => {
+              dragonBonds.loadDragonChat();
+              setShowDragonChat(true);
+            }}
+            className="flex items-center gap-1 hover:bg-white/5 rounded px-1 py-0.5 transition-colors"
+            style={{ touchAction: 'manipulation' }}
+          >
             <span className="text-[11px] text-white/20">•</span>
             <Flame className="w-3 h-3 text-amber-400 shrink-0" />
             <span className="text-[11px] text-amber-300/70 whitespace-nowrap truncate max-w-[80px]">
@@ -1274,7 +1281,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             )}>
               🔥{dragonBonds.myDragon.burnout}
             </span>
-          </>
+            <MessageCircle className="w-3 h-3 text-cyan-400/50 shrink-0" />
+          </button>
         )}
         {broadcastPlaylist && (
           <>
