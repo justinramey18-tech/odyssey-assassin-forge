@@ -1034,6 +1034,17 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     return partyMembersSummary;
   }, [partyMembers, sessionConfig?.campaignType, partyDragonConfigs]);
 
+  // Build dragon bonds context section for Empyrean campaigns
+  const buildDragonBondsSection = useCallback(() => {
+    if (sessionConfig?.campaignType !== 'empyrean' || !partyDragonConfigs || partyDragonConfigs.length === 0) return '';
+    const bondedRiders = partyDragonConfigs.filter(d => d.config.dragonName);
+    if (bondedRiders.length === 0) return '';
+    const lines = bondedRiders.map(d =>
+      `- ${d.config.dragonName} (bonded to ${d.characterName}): Use whisper tag ">>${d.characterName}" to send dragon telepathy`
+    ).join('\n');
+    return `## PARTY DRAGON BONDS\nMultiple riders have bonded dragons. Generate whisper tags for each rider's dragon when appropriate:\n${lines}\n\nEach dragon has its own personality. Address their riders by name through the bond. Dragon whispers should feel telepathic — sensory impressions, emotions, short warnings.`;
+  }, [sessionConfig?.campaignType, partyDragonConfigs]);
+
   // Generate split summary for a team
   const generateSplitSummary = useCallback(async (teamMessages: PartyDmMessage[], previousSummary: string | null): Promise<string | null> => {
     try {
