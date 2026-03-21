@@ -2518,7 +2518,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
 
     if (data) {
-      const enriched = enrichMessageWithWhispers(data as PartyDmMessage, characterName);
+      const enriched = enrichMessageWithWhispers(data as PartyDmMessage, characterName, myDragonName);
       setMessages(prev => {
         if (prev.some(m => m.id === enriched.id)) return prev;
         return [...prev, enriched];
