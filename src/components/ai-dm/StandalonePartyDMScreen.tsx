@@ -199,6 +199,13 @@ export function StandalonePartyDMScreen({
     memoryAnchorsContent: memoryAnchors.formattedForOracle,
     partyDragonConfigs,
     myDragonName: dragonBonds.myDragon?.dragonName,
+    onBurnoutDetected: useCallback((level: number) => {
+      dragonBonds.updateBurnout(level);
+    }, [dragonBonds.updateBurnout]),
+    onBondStrainDetected: useCallback((reason: string) => {
+      dragonBonds.updateBondAndTrust(0, -5);
+      toast.error(`Bond strained: ${reason}`);
+    }, [dragonBonds.updateBondAndTrust]),
   });
 
   // Auto-extract memory anchors from new DM responses (host-only to avoid duplicates)
