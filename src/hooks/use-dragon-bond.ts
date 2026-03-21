@@ -6,6 +6,7 @@ import {
   reduceTrust,
   detectTrustBreak,
   detectRiderDeclaration,
+  classifyRiderEmotion,
   addBond,
   addMemory,
   type DragonBondState,
