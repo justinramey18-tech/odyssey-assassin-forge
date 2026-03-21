@@ -2791,6 +2791,23 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onBack={() => setShowQuests(false)}
         />
       )}
+      {/* Dragon Rider Setup Sheet */}
+      <DragonRiderSetupSheet
+        open={showDragonSetup}
+        onOpenChange={setShowDragonSetup}
+        initialConfig={dragonBonds.myDragon}
+        characterName={members.find(m => m.user_id === currentUserId)?.character_name || 'Rider'}
+        onSave={(formData) => {
+          dragonBonds.saveMyDragon({
+            ...formData,
+            bond: dragonBonds.myDragon?.bond ?? 15,
+            trust: dragonBonds.myDragon?.trust ?? 10,
+            mood: dragonBonds.myDragon?.mood ?? 'calm',
+            burnout: dragonBonds.myDragon?.burnout ?? 0,
+            memories: dragonBonds.myDragon?.memories ?? [],
+          });
+        }}
+      />
     </div>
   );
 }
