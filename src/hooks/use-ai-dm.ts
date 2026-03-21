@@ -526,7 +526,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           model: selectedModel || undefined,
           user_api_key: loadApiKey('anthropic') || undefined,
           user_openai_key: loadApiKey('openai') || undefined,
-          npcVoicingContext: `## NPC VOICING MODE\nYou are responding AS the NPC named ${npcName} ONLY.\nWrite 1-3 sentences of in-character dialogue from their perspective.\nDo NOT write scene narration, do NOT describe player character actions, do NOT include mechanical information.\nJust write what they say, prefixed with their name in bold.\nFormat: **${npcName}:** Their dialogue here.\nStay consistent with how this NPC has been portrayed in the campaign so far.`,
+          npcVoicingContext: `## NPC VOICING MODE — ABSOLUTE PRIORITY\nThis overrides ALL narrative style instructions below. Do NOT write novelistic prose. Do NOT write scene description, atmosphere, sensory detail, or action narration.\n\nYou are responding AS the NPC named ${npcName} ONLY.\nWrite 1-3 sentences of pure in-character dialogue. Nothing else.\nFormat: **${npcName}:** Their dialogue here.\nIf the NPC would react physically (a shrug, a glare), include it as a single parenthetical action beat, not a paragraph of description.\nDo NOT exceed 3 sentences under any circumstances.\nStay consistent with how this NPC has been portrayed in the campaign so far.`,
           ...(() => {
             const cs = loadCombatSettings();
             const feats: string[] = [];
