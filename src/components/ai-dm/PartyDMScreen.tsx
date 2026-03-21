@@ -47,6 +47,9 @@ import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
 import { useBroadcastPlaylist } from '@/hooks/use-broadcast-playlist';
 import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { WildShapeSection } from '@/components/drawers/QuickActionsDrawer';
+import { usePartyDragonBonds } from '@/hooks/use-party-dragon-bonds';
+import { DragonRiderSetupSheet } from './DragonRiderSetupSheet';
+import { Flame } from 'lucide-react';
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
 
@@ -751,6 +754,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const spotify = useSpotify();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const dmPolls = useDmPolls(partyId || null);
+  const isEmpyrean = partyDm.sessionConfig?.campaignType === 'empyrean';
+  const dragonBonds = usePartyDragonBonds(isEmpyrean ? (partyId || null) : null, currentUserId || null);
+  const [showDragonSetup, setShowDragonSetup] = useState(false);
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
   const lastProcessedMsgIdRef = useRef<string | null>(null);
@@ -1250,6 +1256,24 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             </span>
           </>
         )}
+        {isEmpyrean && dragonBonds.myDragon?.dragonName && (
+          <>
+            <span className="text-[11px] text-white/20">•</span>
+            <Flame className="w-3 h-3 text-amber-400 shrink-0" />
+            <span className="text-[11px] text-amber-300/70 whitespace-nowrap truncate max-w-[80px]">
+              {dragonBonds.myDragon.dragonName}
+            </span>
+            <span className={cn(
+              "text-[10px] font-mono whitespace-nowrap",
+              dragonBonds.myDragon.burnout === 0 ? "text-emerald-400"
+                : dragonBonds.myDragon.burnout <= 2 ? "text-yellow-400"
+                : dragonBonds.myDragon.burnout <= 4 ? "text-orange-400"
+                : "text-red-400"
+            )}>
+              🔥{dragonBonds.myDragon.burnout}
+            </span>
+          </>
+        )}
         {broadcastPlaylist && (
           <>
             <span className="text-[11px] text-white/20">•</span>
@@ -1325,6 +1349,22 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           members={members}
           onShowPreSplitChat={() => setShowPreSplitChat(true)}
         />
+      )}
+
+      {/* Dragon Rider Setup Banner */}
+      {isEmpyrean && !dragonBonds.isSetup && (
+        <div className="mx-3 my-2 p-3 rounded-lg bg-amber-950/40 border border-amber-500/30 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Flame className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="text-xs text-amber-200 font-cinzel">Set up your dragon rider</span>
+          </div>
+          <button
+            onClick={() => setShowDragonSetup(true)}
+            className="px-3 py-1.5 rounded-md bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium transition-colors whitespace-nowrap min-h-[36px]"
+          >
+            Configure
+          </button>
+        </div>
       )}
 
       {/* Messages */}
@@ -2751,6 +2791,23 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onBack={() => setShowQuests(false)}
         />
       )}
+      {/* Dragon Rider Setup Sheet */}
+      <DragonRiderSetupSheet
+        open={showDragonSetup}
+        onOpenChange={setShowDragonSetup}
+        initialConfig={dragonBonds.myDragon}
+        characterName={members.find(m => m.user_id === currentUserId)?.character_name || 'Rider'}
+        onSave={(formData) => {
+          dragonBonds.saveMyDragon({
+            ...formData,
+            bond: dragonBonds.myDragon?.bond ?? 15,
+            trust: dragonBonds.myDragon?.trust ?? 10,
+            mood: dragonBonds.myDragon?.mood ?? 'calm',
+            burnout: dragonBonds.myDragon?.burnout ?? 0,
+            memories: dragonBonds.myDragon?.memories ?? [],
+          });
+        }}
+      />
     </div>
   );
 }
