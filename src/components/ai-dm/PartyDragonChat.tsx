@@ -171,7 +171,7 @@ export default function PartyDragonChat({
 
       {/* Messages Area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6">
-        {messages.length === 0 && !isLoading ? (
+        {messages.length === 0 && !dragonOpening && !isLoading ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
             <p className="text-sm italic text-cyan-200/40 leading-relaxed">
               The bond hums quietly. {dragonName || 'Your dragon'} is aware of you.
@@ -186,6 +186,18 @@ export default function PartyDragonChat({
           </div>
         ) : (
           <div className="space-y-0">
+            {/* Dragon opening opinion */}
+            {dragonOpening && (
+              <div className="mb-6 pr-12">
+                <div className="border-l-2 border-cyan-500/30 pl-3">
+                  <div className="text-cyan-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1 prose-strong:text-cyan-100/90">
+                    <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                      {renderVisionBlocks(stripDragonTags(dragonOpening))}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+              </div>
+            )}
             {messages.map((msg, idx) => {
               const isDragon = msg.role === 'assistant';
               const cleaned = stripDragonTags(msg.content);
