@@ -164,6 +164,7 @@ export function buildDragonChatPrompt(
   mood: DragonMood,
   memories: DragonMemory[],
   dragonNotes: string,
+  speechHabits?: string[],
   recentNarrative?: string[],
 ): string {
   const sections: string[] = [];
