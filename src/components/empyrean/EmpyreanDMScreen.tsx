@@ -428,9 +428,16 @@ export function EmpyreanDMScreen({
 
   const handleSend = useCallback(() => {
     if (!inputValue.trim() || isLoading) return;
-    const npcMatch = inputValue.trim().match(/^@(\S+)\s+(.+)$/s);
-    if (npcMatch && voiceNPC) {
-      voiceNPC(npcMatch[1], npcMatch[2]);
+    // Support multiple @NPC tags: @NPC1 @NPC2 message
+    const multiNpcMatch = inputValue.trim().match(/^((?:@\S+\s+)+)(.+)$/s);
+    if (multiNpcMatch && voiceNPC) {
+      const npcNames = [...multiNpcMatch[1].matchAll(/@(\S+)/g)].map(m => m[1]);
+      const message = multiNpcMatch[2];
+      if (npcNames.length > 0 && message.trim()) {
+        voiceNPC(npcNames.length === 1 ? npcNames[0] : npcNames, message);
+      } else {
+        sendMessage(inputValue.trim());
+      }
     } else {
       sendMessage(inputValue.trim());
     }

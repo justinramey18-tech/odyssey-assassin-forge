@@ -478,13 +478,16 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     }
   }, [messages, characterContext, customGuidesContent, campaignSummary, isLoading, triggerSummaryIfNeeded]);
 
-  const voiceNPC = useCallback(async (npcName: string, playerMessage: string) => {
+  const voiceNPC = useCallback(async (npcNames: string | string[], playerMessage: string) => {
     if (!playerMessage.trim() || isLoading) return;
+
+    const names = Array.isArray(npcNames) ? npcNames : [npcNames];
+    const nameLabel = names.join(' & ');
 
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: `(to ${npcName}) "${playerMessage.trim()}"`,
+      content: `(to ${nameLabel}) "${playerMessage.trim()}"`,
       timestamp: new Date(),
     };
 
@@ -507,6 +510,10 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     let usageAccum = { input_tokens: 0, output_tokens: 0 };
     setLastUsage(null);
 
+    const npcVoicingPrompt = names.length === 1
+      ? `## NPC VOICING MODE — ABSOLUTE PRIORITY\nThis overrides ALL narrative style instructions below. Do NOT write novelistic prose. Do NOT write scene description, atmosphere, sensory detail, or action narration.\n\nYou are responding AS the NPC named ${names[0]} ONLY.\nWrite exactly 1 sentence of pure in-character dialogue. Nothing else.\nFormat: **${names[0]}:** Their dialogue here.\nIf the NPC would react physically (a shrug, a glare), include it as a brief parenthetical, not a separate sentence.\nDo NOT exceed 1 sentence under any circumstances.\nStay consistent with how this NPC has been portrayed in the campaign so far.`
+      : `## NPC VOICING MODE — ABSOLUTE PRIORITY\nThis overrides ALL narrative style instructions below. Do NOT write novelistic prose. Do NOT write scene description, atmosphere, sensory detail, or action narration.\n\nYou are responding AS the following NPCs: ${names.join(', ')}.\nWrite exactly 1 sentence of pure in-character dialogue PER NPC. Nothing else.\nFormat each line as: **NPC Name:** Their dialogue here.\nOrder: ${names.map((n, i) => `${i + 1}. ${n}`).join(', ')}.\nIf an NPC would react physically (a shrug, a glare), include it as a brief parenthetical, not a separate sentence.\nDo NOT exceed 1 sentence per NPC under any circumstances.\nEach NPC must respond on a separate line.\nStay consistent with how each NPC has been portrayed in the campaign so far.`;
+
     try {
       const authToken = await getAuthToken();
       const response = await fetch(AI_DM_URL, {
@@ -526,7 +533,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           model: selectedModel || undefined,
           user_api_key: loadApiKey('anthropic') || undefined,
           user_openai_key: loadApiKey('openai') || undefined,
-          npcVoicingContext: `## NPC VOICING MODE — ABSOLUTE PRIORITY\nThis overrides ALL narrative style instructions below. Do NOT write novelistic prose. Do NOT write scene description, atmosphere, sensory detail, or action narration.\n\nYou are responding AS the NPC named ${npcName} ONLY.\nWrite exactly 1 sentence of pure in-character dialogue. Nothing else.\nFormat: **${npcName}:** Their dialogue here.\nIf the NPC would react physically (a shrug, a glare), include it as a brief parenthetical, not a separate sentence.\nDo NOT exceed 1 sentence under any circumstances.\nStay consistent with how this NPC has been portrayed in the campaign so far.`,
+          npcVoicingContext: npcVoicingPrompt,
           ...(() => {
             const cs = loadCombatSettings();
             const feats: string[] = [];
@@ -567,7 +574,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           role: 'assistant',
           content: '',
           timestamp: new Date(),
-          senderName: npcName,
+          senderName: nameLabel,
         },
       ]);
 

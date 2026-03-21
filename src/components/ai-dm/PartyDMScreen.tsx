@@ -2260,7 +2260,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                       setWhisperTarget(null);
                     } else {
                       const whisperMatch = dialogueText.trim().match(/^>(\S+)\s+(.+)$/s);
-                      const npcMatch = dialogueText.trim().match(/^@(\S+)\s+(.+)$/s);
+                      const npcMultiMatch = dialogueText.trim().match(/^((?:@\S+\s+)+)(.+)$/s);
                       if (whisperMatch) {
                         const targetMember = members.find(m => m.character_name.toLowerCase() === whisperMatch[1].toLowerCase());
                         if (targetMember && targetMember.user_id !== currentUserId) {
@@ -2272,8 +2272,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                           toast.error('You cannot whisper to yourself');
                           return;
                         }
-                      } else if (npcMatch) {
-                        partyDm.voiceNPC(npcMatch[1], npcMatch[2]);
+                      } else if (npcMultiMatch) {
+                        const npcNames = [...npcMultiMatch[1].matchAll(/@(\S+)/g)].map(m => m[1]);
+                        const message = npcMultiMatch[2];
+                        if (npcNames.length > 0 && message.trim()) {
+                          partyDm.voiceNPC(npcNames.length === 1 ? npcNames[0] : npcNames, message);
+                        }
+                      } else {
                       } else {
                         partyDm.sendDialogueMessage(dialogueText.trim());
                       }
