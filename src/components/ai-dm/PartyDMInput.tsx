@@ -148,11 +148,27 @@ export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProp
           {interimText}…
         </div>
       )}
-      <div className="flex items-end gap-2">
+      <div className="relative flex items-end gap-2">
+        {showAc && (
+          <NPCAutocomplete
+            names={acSuggestions}
+            onSelect={selectNPC}
+            activeIndex={acActiveIndex}
+          />
+        )}
         <textarea
           ref={inputRef}
           value={input}
           onChange={handleInputChange}
+          onSelect={trackCursor}
+          onKeyDown={(e) => {
+            if (showAc) {
+              if (e.key === 'ArrowDown') { e.preventDefault(); setAcActiveIndex(i => (i + 1) % acSuggestions.length); return; }
+              if (e.key === 'ArrowUp') { e.preventDefault(); setAcActiveIndex(i => (i - 1 + acSuggestions.length) % acSuggestions.length); return; }
+              if (e.key === 'Tab' || (e.key === 'Enter' && showAc)) { e.preventDefault(); selectNPC(acSuggestions[acActiveIndex]); return; }
+              if (e.key === 'Escape') { e.preventDefault(); setCursorPos(0); return; }
+            }
+          }}
           onPaste={onPaste}
           placeholder="What does your character do?"
           rows={1}
