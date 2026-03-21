@@ -2,6 +2,8 @@ import { useState, useCallback, useRef, useImperativeHandle, forwardRef, memo } 
 import { Send, Check, Paperclip, Loader2, Camera, Film, ImageIcon, BarChart3, Ghost, Music, Mic, MicOff } from 'lucide-react';
 import { useDraftPersist } from '@/hooks/use-draft-persist';
 import { useSpeechToText } from '@/hooks/use-speech-to-text';
+import { getAtMentionQuery, filterNPCNames } from '@/hooks/use-npc-autocomplete';
+import { NPCAutocomplete } from './NPCAutocomplete';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Image as LucideImage } from 'lucide-react';
