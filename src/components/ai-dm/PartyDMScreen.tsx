@@ -1256,7 +1256,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             </span>
           </>
         )}
-        )}
         {isEmpyrean && dragonBonds.myDragon?.dragonName && (
           <>
             <span className="text-[11px] text-white/20">•</span>
