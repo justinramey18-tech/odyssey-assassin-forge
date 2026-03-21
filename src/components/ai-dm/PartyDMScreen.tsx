@@ -2834,6 +2834,24 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           });
         }}
       />
+
+      {/* Party Dragon Chat */}
+      {isEmpyrean && dragonBonds.isSetup && (
+        <PartyDragonChat
+          open={showDragonChat}
+          onClose={() => setShowDragonChat(false)}
+          dragonName={dragonBonds.myDragon?.dragonName || ''}
+          characterName={members.find(m => m.user_id === currentUserId)?.character_name || 'Rider'}
+          messages={dragonBonds.dragonChatMessages}
+          onSend={(text) => dragonBonds.sendDragonMessage(text, members.find(m => m.user_id === currentUserId)?.character_name || 'Rider')}
+          isLoading={dragonBonds.isSending}
+          bondState={{
+            bond: dragonBonds.myDragon?.bond ?? 15,
+            trust: dragonBonds.myDragon?.trust ?? 10,
+            mood: dragonBonds.myDragon?.mood ?? 'calm',
+          }}
+        />
+      )}
     </div>
   );
 }
