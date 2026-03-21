@@ -281,6 +281,19 @@ You and this rider share something rare. Your communication is almost seamless �
     sections.push('## RECENT CAMPAIGN EVENTS\nThese things just happened in the main narrative. You experienced them through the bond. You were THERE — you felt the danger, saw through your rider\'s eyes, sensed their emotions. Reference these events if relevant. Have opinions about NPCs, decisions, and dangers. Do NOT simply summarize what happened — react to it as someone who lived through it:\n\n' + narrativeText);
   }
 
+  // Rider emotional patterns
+  if (riderEmotionalLog && riderEmotionalLog.length >= 3) {
+    const counts: Record<string, number> = {};
+    for (const entry of riderEmotionalLog) {
+      counts[entry.tag] = (counts[entry.tag] || 0) + 1;
+    }
+    const summary = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([tag, count]) => `${tag}: ${count}`)
+      .join(', ');
+    sections.push(`## RIDER EMOTIONAL PATTERNS\nOver recent conversations, your rider has shown these emotional patterns:\n${summary}\n\nIf you notice a pattern — the rider being afraid often, or suddenly becoming hostile after a period of openness — comment on it. You feel these shifts through the bond. You do not ignore them.`);
+  }
+
   // Output format
   sections.push(`## OUTPUT FORMAT
 After each response, include exactly one mood tag indicating your current emotional state:
