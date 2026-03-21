@@ -26,6 +26,7 @@ interface DragonBondChatProps {
   dragonName: string;
   dragonNotes: string;
   characterContext: CharacterContext;
+  recentNarrative?: string[];
 }
 
 function stripDragonTags(content: string): string {
@@ -50,6 +51,7 @@ export default function DragonBondChat({
   dragonName,
   dragonNotes,
   characterContext,
+  recentNarrative,
 }: DragonBondChatProps) {
   const [bondState, setBondState] = useState<DragonBondState>(() => loadBondState());
   const [statsExpanded, setStatsExpanded] = useState(false);
@@ -67,8 +69,9 @@ export default function DragonBondChat({
         bondState.mood,
         bondState.memories,
         dragonNotes,
+        recentNarrative,
       ),
-    [dragonName, characterName, bondState.trust, bondState.mood, bondState.memories, dragonNotes],
+    [dragonName, characterName, bondState.trust, bondState.mood, bondState.memories, dragonNotes, recentNarrative],
   );
 
   // Parse tags from new assistant messages

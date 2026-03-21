@@ -1241,6 +1241,10 @@ export function EmpyreanDMScreen({
         dragonName={config?.dragonName || 'Dragon'}
         dragonNotes={dragonNotes}
         characterContext={characterContext}
+        recentNarrative={messages
+          .filter(m => m.role === 'assistant')
+          .slice(-5)
+          .map(m => m.content.length > 500 ? m.content.slice(0, 500) + '…' : m.content)}
       />
 
       <AnimatePresence>
