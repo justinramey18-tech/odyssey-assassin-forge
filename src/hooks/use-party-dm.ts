@@ -161,6 +161,29 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isFullSummarizing, setIsFullSummarizing] = useState(false);
   const [sessionConfig, setSessionConfig] = useState<DmSessionConfig | null>(null);
+  const sessionConfigRef = useRef<DmSessionConfig | null>(null);
+
+  // Keep ref in sync for use in async callbacks
+  useEffect(() => {
+    sessionConfigRef.current = sessionConfig;
+  }, [sessionConfig]);
+
+  /** Resolve sessionConfig from memory or DB fallback */
+  const resolveSessionConfig = useCallback(async (): Promise<DmSessionConfig | null> => {
+    if (sessionConfigRef.current) return sessionConfigRef.current;
+    if (!partyId) return null;
+    const { data } = await (supabase.from('party_shared_state') as any)
+      .select('state_data')
+      .eq('party_id', partyId)
+      .eq('state_type', 'dm_session')
+      .maybeSingle();
+    if (data?.state_data) {
+      const config = data.state_data as DmSessionConfig;
+      setSessionConfig(config);
+      return config;
+    }
+    return null;
+  }, [partyId]);
   const [isGenerating, setIsGenerating] = useState(false);
   const PENDING_DRAFT_KEY = 'odyssey-pending-draft';
 
