@@ -8,11 +8,12 @@ interface CampaignBuilderChatProps {
   partyMembers?: Array<{ character_name: string; character_status?: Record<string, unknown> }>;
   characterName?: string;
   characterLevel?: number;
+  existingGuidesContent?: string;
   onComplete: (data: CampaignBuildData) => void;
   onSkip: () => void;
 }
 
-export default function CampaignBuilderChat({ partyMembers, characterName, characterLevel, onComplete, onSkip }: CampaignBuilderChatProps) {
+export default function CampaignBuilderChat({ partyMembers, characterName, characterLevel, existingGuidesContent, onComplete, onSkip }: CampaignBuilderChatProps) {
   const { messages, isLoading, buildData, error, suggestions, sendMessage, reset } = useAICampaignChat();
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -41,6 +42,10 @@ export default function CampaignBuilderChat({ partyMembers, characterName, chara
         const name = characterName || 'Adventurer';
         const lvl = characterLevel || 1;
         greeting = `Hello! I'm setting up a new solo campaign for my character ${name} (Level ${lvl}).`;
+      }
+      if (existingGuidesContent && existingGuidesContent.trim().length > 0) {
+        const trimmed = existingGuidesContent.trim().slice(0, 6000);
+        greeting += `\n\nI already have existing GM guides/lore for my world that I'd like you to build upon and stay consistent with:\n\n${trimmed}`;
       }
       sendMessage(greeting);
     }

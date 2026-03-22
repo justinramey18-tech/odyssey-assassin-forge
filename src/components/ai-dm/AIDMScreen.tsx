@@ -1287,6 +1287,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           <CampaignBuilderChat
             characterName={characterContext.name || characterName}
             characterLevel={characterContext.level || 1}
+            existingGuidesContent={gmGuides.enabledContent}
             onComplete={async (data: CampaignBuildData) => {
               setShowWorldBuilder(false);
               await newGame();
