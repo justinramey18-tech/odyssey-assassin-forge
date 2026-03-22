@@ -383,6 +383,7 @@ export function StandalonePartyDMScreen({
           <CampaignBuilderChat
             partyMembers={partyMembers}
             existingGuidesContent={gmGuides.enabledContent}
+            onComplete={handleCampaignBuilderComplete}
             onSkip={() => {
               setShowCampaignBuilder(false);
               partyDm.startNewCampaign();
