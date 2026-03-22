@@ -8,6 +8,7 @@ interface CampaignBuilderChatProps {
   partyMembers?: Array<{ character_name: string; character_status?: Record<string, unknown> }>;
   characterName?: string;
   characterLevel?: number;
+  existingGuidesContent?: string;
   onComplete: (data: CampaignBuildData) => void;
   onSkip: () => void;
 }
