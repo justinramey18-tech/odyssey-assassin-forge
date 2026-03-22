@@ -868,7 +868,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         .update({ is_ready: false })
         .eq('id', myPrompt.id);
     }
-  }, [partyId, user, sessionConfig, currentPrompts]);
+  }, [partyId, user, resolveSessionConfig, currentPrompts]);
 
   const editPrompt = useCallback(async (newText: string) => {
     if (!user) return;
