@@ -790,7 +790,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       toast.error('Failed to submit prompt');
     }
     submitLockRef.current = false;
-  }, [partyId, user, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
+  }, [partyId, user, resolveSessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 
   const setReady = useCallback(async () => {
     if (!user || !partyId || !sessionConfig) return;
