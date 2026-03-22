@@ -857,7 +857,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   }, [user, partyId, resolveSessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 
   const unready = useCallback(async () => {
-    if (!user || !partyId || !sessionConfig) return;
+    if (!user || !partyId) return;
+    const resolvedConfig = await resolveSessionConfig();
+    if (!resolvedConfig) return;
     const myPrompt = currentPrompts.find(p => p.user_id === user.id);
     if (myPrompt && myPrompt.is_ready) {
       // Optimistic update
