@@ -825,7 +825,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         character_name: characterName,
         prompt: '',
         is_ready: true,
-        round_id: sessionConfig.currentRoundId,
+        round_id: resolvedConfig.currentRoundId,
         created_at: new Date().toISOString(),
         team: (isSplitActive && myTeam) ? myTeam : null,
       };
