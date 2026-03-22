@@ -44,7 +44,7 @@ export default function CampaignBuilderChat({ partyMembers, characterName, chara
         greeting = `Hello! I'm setting up a new solo campaign for my character ${name} (Level ${lvl}).`;
       }
       if (existingGuidesContent && existingGuidesContent.trim().length > 0) {
-        const trimmed = existingGuidesContent.trim().slice(0, 6000);
+        const trimmed = existingGuidesContent.trim().slice(0, 150000);
         greeting += `\n\nI already have existing GM guides/lore for my world that I'd like you to build upon and stay consistent with:\n\n${trimmed}`;
       }
       sendMessage(greeting);
