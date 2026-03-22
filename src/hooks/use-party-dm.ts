@@ -764,7 +764,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       character_name: characterName,
       prompt: text.trim(),
       is_ready: false,
-      round_id: sessionConfig.currentRoundId,
+      round_id: resolvedConfig.currentRoundId,
     };
     // Tag with team if split is active
     if (isSplitActive && myTeam) {
