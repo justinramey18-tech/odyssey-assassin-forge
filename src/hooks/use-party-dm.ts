@@ -161,6 +161,29 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isFullSummarizing, setIsFullSummarizing] = useState(false);
   const [sessionConfig, setSessionConfig] = useState<DmSessionConfig | null>(null);
+  const sessionConfigRef = useRef<DmSessionConfig | null>(null);
+
+  // Keep ref in sync for use in async callbacks
+  useEffect(() => {
+    sessionConfigRef.current = sessionConfig;
+  }, [sessionConfig]);
+
+  /** Resolve sessionConfig from memory or DB fallback */
+  const resolveSessionConfig = useCallback(async (): Promise<DmSessionConfig | null> => {
+    if (sessionConfigRef.current) return sessionConfigRef.current;
+    if (!partyId) return null;
+    const { data } = await (supabase.from('party_shared_state') as any)
+      .select('state_data')
+      .eq('party_id', partyId)
+      .eq('state_type', 'dm_session')
+      .maybeSingle();
+    if (data?.state_data) {
+      const config = data.state_data as DmSessionConfig;
+      setSessionConfig(config);
+      return config;
+    }
+    return null;
+  }, [partyId]);
   const [isGenerating, setIsGenerating] = useState(false);
   const PENDING_DRAFT_KEY = 'odyssey-pending-draft';
 
@@ -723,8 +746,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const submitLockRef = useRef(false);
 
   const submitPrompt = useCallback(async (text: string) => {
-    if (!partyId || !user || !sessionConfig) return;
+    if (!partyId || !user) return;
     if (submitLockRef.current) return;
+    const resolvedConfig = await resolveSessionConfig();
+    if (!resolvedConfig) { toast.error('No active session'); return; }
     const existing = currentPrompts.find(p => p.user_id === user.id);
     if (existing) {
       toast.error('You already submitted a prompt this round');
@@ -739,7 +764,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       character_name: characterName,
       prompt: text.trim(),
       is_ready: false,
-      round_id: sessionConfig.currentRoundId,
+      round_id: resolvedConfig.currentRoundId,
     };
     // Tag with team if split is active
     if (isSplitActive && myTeam) {
@@ -753,7 +778,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       character_name: characterName,
       prompt: text.trim(),
       is_ready: false,
-      round_id: sessionConfig.currentRoundId,
+      round_id: resolvedConfig.currentRoundId,
       created_at: new Date().toISOString(),
       team: (isSplitActive && myTeam) ? myTeam : null,
     };
@@ -765,10 +790,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       toast.error('Failed to submit prompt');
     }
     submitLockRef.current = false;
-  }, [partyId, user, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
+  }, [partyId, user, resolveSessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 
   const setReady = useCallback(async () => {
-    if (!user || !partyId || !sessionConfig) return;
+    if (!user || !partyId) return;
+    const resolvedConfig = await resolveSessionConfig();
+    if (!resolvedConfig) { toast.error('No active session'); return; }
     const myPrompt = currentPrompts.find(p => p.user_id === user.id);
     if (myPrompt) {
       // Optimistic update
@@ -785,7 +812,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         character_name: characterName,
         prompt: '',
         is_ready: true,
-        round_id: sessionConfig.currentRoundId,
+        round_id: resolvedConfig.currentRoundId,
       };
       if (isSplitActive && myTeam) {
         insertData.team = myTeam;
@@ -798,7 +825,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         character_name: characterName,
         prompt: '',
         is_ready: true,
-        round_id: sessionConfig.currentRoundId,
+        round_id: resolvedConfig.currentRoundId,
         created_at: new Date().toISOString(),
         team: (isSplitActive && myTeam) ? myTeam : null,
       };
@@ -827,10 +854,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       body: notificationBody,
       mode: 'party',
     });
-  }, [user, partyId, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
+  }, [user, partyId, resolveSessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 
   const unready = useCallback(async () => {
-    if (!user || !partyId || !sessionConfig) return;
+    if (!user || !partyId) return;
+    const resolvedConfig = await resolveSessionConfig();
+    if (!resolvedConfig) return;
     const myPrompt = currentPrompts.find(p => p.user_id === user.id);
     if (myPrompt && myPrompt.is_ready) {
       // Optimistic update
@@ -839,7 +868,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         .update({ is_ready: false })
         .eq('id', myPrompt.id);
     }
-  }, [partyId, user, sessionConfig, currentPrompts]);
+  }, [partyId, user, resolveSessionConfig, currentPrompts]);
 
   const editPrompt = useCallback(async (newText: string) => {
     if (!user) return;
@@ -2310,20 +2339,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const updateSessionConfig = useCallback(async (patch: Partial<DmSessionConfig>) => {
     if (!partyId) return;
 
-    // If we don't have sessionConfig in memory, try fetching from DB first
-    let base = sessionConfig;
+    const base = await resolveSessionConfig();
     if (!base) {
-      const { data } = await (supabase.from('party_shared_state') as any)
-        .select('state_data')
-        .eq('party_id', partyId)
-        .eq('state_type', 'dm_session')
-        .maybeSingle();
-      if (data?.state_data) {
-        base = data.state_data as DmSessionConfig;
-      } else {
-        console.warn('[PartyDM] updateSessionConfig: no session config found, cannot update');
-        return;
-      }
+      console.warn('[PartyDM] updateSessionConfig: no session config found, cannot update');
+      return;
     }
 
     const updated: DmSessionConfig = { ...base, ...patch };
@@ -2332,7 +2351,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       .eq('party_id', partyId)
       .eq('state_type', 'dm_session');
     setSessionConfig(updated);
-  }, [partyId, sessionConfig]);
+  }, [partyId, resolveSessionConfig]);
 
   // Full campaign summarization — processes entire chat history in batches
   const fullSummarize = useCallback(async () => {
