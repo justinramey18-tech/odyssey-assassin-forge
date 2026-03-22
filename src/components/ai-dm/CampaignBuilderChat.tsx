@@ -39,15 +39,28 @@ export default function CampaignBuilderChat({ partyMembers, characterName, chara
     if (!hasSentGreeting.current && messages.length === 0) {
       hasSentGreeting.current = true;
       let greeting: string;
+      // Build identity string for the host character
+      const identityParts: string[] = [];
+      if (characterIdentity?.gender) identityParts.push(characterIdentity.gender);
+      if (characterIdentity?.race) identityParts.push(characterIdentity.race);
+      if (characterIdentity?.class) identityParts.push(characterIdentity.class);
+      const identityStr = identityParts.length > 0 ? ` (${identityParts.join(' ')})` : '';
+
       if (partyMembers && partyMembers.length > 0) {
         const levelInfo = partyMembers.some(m => (m.character_status as any)?.level)
           ? ` Levels: ${partyMembers.map(m => `${m.character_name} (Lvl ${(m.character_status as any)?.level || '?'})`).join(', ')}.`
           : '';
         greeting = `Hello! I'm setting up a new campaign for my party. We have ${partyMembers.length} players: ${partyMembers.map(m => m.character_name).join(', ')}.${levelInfo}`;
+        const name = characterName || 'Adventurer';
+        const lvl = characterLevel || 1;
+        greeting += ` My character is ${name}${identityStr}, Level ${lvl}.`;
       } else {
         const name = characterName || 'Adventurer';
         const lvl = characterLevel || 1;
-        greeting = `Hello! I'm setting up a new solo campaign for my character ${name} (Level ${lvl}).`;
+        greeting = `Hello! I'm setting up a new solo campaign for my character ${name}${identityStr} (Level ${lvl}).`;
+      }
+      if (characterIdentity?.backstory && characterIdentity.backstory.trim().length > 0) {
+        greeting += `\n\nMy character's backstory:\n${characterIdentity.backstory.trim().slice(0, 2000)}`;
       }
       if (existingGuidesContent && existingGuidesContent.trim().length > 0) {
         const trimmed = existingGuidesContent.trim().slice(0, 150000);
