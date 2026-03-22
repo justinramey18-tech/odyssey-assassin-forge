@@ -854,7 +854,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       body: notificationBody,
       mode: 'party',
     });
-  }, [user, partyId, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
+  }, [user, partyId, resolveSessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 
   const unready = useCallback(async () => {
     if (!user || !partyId || !sessionConfig) return;
