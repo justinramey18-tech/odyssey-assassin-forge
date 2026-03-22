@@ -1303,6 +1303,7 @@ export function EmpyreanDMScreen({
           <CampaignBuilderChat
             characterName={characterName}
             characterLevel={characterContext.level || 1}
+            existingGuidesContent={enabledContent}
             onComplete={handleCampaignBuilderComplete}
             onSkip={() => {
               setShowCampaignBuilder(false);
