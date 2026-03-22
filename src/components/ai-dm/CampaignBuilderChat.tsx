@@ -19,7 +19,7 @@ interface CampaignBuilderChatProps {
   onSkip: () => void;
 }
 
-export default function CampaignBuilderChat({ partyMembers, characterName, characterLevel, existingGuidesContent, onComplete, onSkip }: CampaignBuilderChatProps) {
+export default function CampaignBuilderChat({ partyMembers, characterName, characterLevel, characterIdentity, existingGuidesContent, onComplete, onSkip }: CampaignBuilderChatProps) {
   const { messages, isLoading, buildData, error, suggestions, sendMessage, reset } = useAICampaignChat();
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
