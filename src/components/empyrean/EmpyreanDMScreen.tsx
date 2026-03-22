@@ -1303,6 +1303,12 @@ export function EmpyreanDMScreen({
           <CampaignBuilderChat
             characterName={characterName}
             characterLevel={characterContext.level || 1}
+            characterIdentity={{
+              race: characterContext.race || undefined,
+              gender: characterContext.gender || undefined,
+              class: characterContext.characterClass || undefined,
+              backstory: characterContext.backstory || undefined,
+            }}
             existingGuidesContent={enabledContent}
             onComplete={handleCampaignBuilderComplete}
             onSkip={() => {
