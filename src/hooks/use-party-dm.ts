@@ -793,7 +793,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   }, [partyId, user, resolveSessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 
   const setReady = useCallback(async () => {
-    if (!user || !partyId || !sessionConfig) return;
+    if (!user || !partyId) return;
+    const resolvedConfig = await resolveSessionConfig();
+    if (!resolvedConfig) { toast.error('No active session'); return; }
     const myPrompt = currentPrompts.find(p => p.user_id === user.id);
     if (myPrompt) {
       // Optimistic update
