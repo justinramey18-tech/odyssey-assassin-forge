@@ -746,8 +746,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const submitLockRef = useRef(false);
 
   const submitPrompt = useCallback(async (text: string) => {
-    if (!partyId || !user || !sessionConfig) return;
+    if (!partyId || !user) return;
     if (submitLockRef.current) return;
+    const resolvedConfig = await resolveSessionConfig();
+    if (!resolvedConfig) { toast.error('No active session'); return; }
     const existing = currentPrompts.find(p => p.user_id === user.id);
     if (existing) {
       toast.error('You already submitted a prompt this round');
