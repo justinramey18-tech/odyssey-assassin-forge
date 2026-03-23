@@ -1852,12 +1852,19 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                               <span className="flex items-center gap-0.5 shrink-0">
                                 <span className="text-[9px]">🐉</span>
                                 <span className="text-[8px] text-purple-300/80 truncate max-w-[40px]">{dc.config.dragonName}</span>
-                                {(dc.config.burnout ?? 0) >= 3 && (
-                                  <span className={cn(
-                                    "w-1.5 h-1.5 rounded-full shrink-0",
-                                    (dc.config.burnout ?? 0) >= 5 ? "bg-red-500" : "bg-orange-400"
-                                  )} />
-                                )}
+                                {(() => {
+                                  const mBurnout = dc.config.burnout ?? 0;
+                                  const mBond = dc.config.bond ?? 50;
+                                  const mMax = mBond >= 76 ? 9 : mBond >= 51 ? 7 : mBond >= 26 ? 5 : 4;
+                                  const mRatio = mMax > 0 ? mBurnout / mMax : 0;
+                                  if (mRatio < 0.35) return null;
+                                  return (
+                                    <span className={cn(
+                                      "w-1.5 h-1.5 rounded-full shrink-0",
+                                      mRatio >= 0.85 ? "bg-red-500" : "bg-orange-400"
+                                    )} />
+                                  );
+                                })()}
                               </span>
                             );
                           })()}

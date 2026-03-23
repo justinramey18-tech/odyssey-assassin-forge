@@ -420,9 +420,9 @@ export function EmpyreanDMScreen({
   useEffect(() => {
     const lastMsg = messages[messages.length - 1];
     if (lastMsg?.role === 'assistant' && lastMsg.content) {
-      const match = lastMsg.content.match(/<!--BURNOUT:(\d)-->/);
+      const match = lastMsg.content.match(/<!--BURNOUT:(\d+)-->/);
       if (match) {
-        const level = Math.min(5, Math.max(0, parseInt(match[1], 10)));
+        const level = Math.min(maxBurnout, Math.max(0, parseInt(match[1], 10)));
         setBurnoutLevel(level);
       }
       const situationMatch = lastMsg.content.match(/<!--SITUATION:(\w+)-->/);
