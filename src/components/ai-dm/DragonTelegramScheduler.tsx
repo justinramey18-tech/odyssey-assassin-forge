@@ -217,7 +217,6 @@ export default function DragonTelegramScheduler({
       sendTelegramNotification({
         type: 'dragon_message',
         partyId,
-        targetUserIds: [selectedDragon.userId],
         title: `🐉 ${selectedDragon.dragonName} speaks`,
         body,
         dragonName: selectedDragon.dragonName,
