@@ -888,21 +888,25 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [questsCount, setQuestsCount] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Load party quest count
+  // Load party quest count — Fix B: guard with currentUserId
   useEffect(() => {
-    if (!partyId) return;
+    if (!partyId || !currentUserId) return;
     (supabase.from('party_shared_state') as any)
       .select('state_data')
       .eq('party_id', partyId)
       .eq('state_type', 'quest_flags')
       .maybeSingle()
-      .then(({ data }: any) => {
+      .then(({ data, error }: any) => {
+        if (error) {
+          console.error('[PartyDM] Quest load error:', error);
+          return;
+        }
         if (data?.state_data) {
           const active = Object.values(data.state_data).filter((q: any) => q.status === 'active').length;
           setQuestsCount(active);
         }
       });
-  }, [partyId, showQuests]);
+  }, [partyId, currentUserId, showQuests]);
 
   // Chat unread badge tracking
   const [chatTotalCount, setChatTotalCount] = useState(0);
