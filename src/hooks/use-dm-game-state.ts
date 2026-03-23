@@ -360,7 +360,7 @@ export function useDMGameState(campaignId: string | null, mode?: 'solo' | 'solo-
   useEffect(() => {
     const handleBeforeUnload = () => {
       try {
-        localStorage.setItem(LOCAL_KEY, JSON.stringify(stateRef.current));
+        localStorage.setItem(localKey, JSON.stringify(stateRef.current));
       } catch {
         // ignore
       }
