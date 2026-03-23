@@ -709,7 +709,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       toast.error('Failed to save campaign');
       return null;
     }
-  }, [partyId, user, messages, sessionConfig]);
+  }, [partyId, user, messages, sessionConfig, isSoloEmpyrean]);
 
   const loadCampaign = useCallback(async (campaignId: string, campaignMessages: any[], campaignSummary: string | null) => {
     if (!partyId || !user || !isCreator) return;
