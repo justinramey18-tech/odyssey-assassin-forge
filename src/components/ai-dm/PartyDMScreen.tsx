@@ -52,6 +52,7 @@ import { WildShapeSection } from '@/components/drawers/QuickActionsDrawer';
 import { usePartyDragonBonds } from '@/hooks/use-party-dragon-bonds';
 import { DragonRiderSetupSheet } from './DragonRiderSetupSheet';
 import PartyDragonChat from './PartyDragonChat';
+import DragonTelegramScheduler from './DragonTelegramScheduler';
 import { Flame } from 'lucide-react';
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
@@ -784,6 +785,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   }, [currentUserId]);
   const [showDragonSetup, setShowDragonSetup] = useState(false);
   const [showDragonChat, setShowDragonChat] = useState(false);
+  const [showDragonTelegramScheduler, setShowDragonTelegramScheduler] = useState(false);
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
   const lastProcessedMsgIdRef = useRef<string | null>(null);
@@ -1365,6 +1367,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               );
             })()}
             <MessageCircle className="w-3 h-3 text-cyan-400/50 shrink-0" />
+          </button>
+        )}
+        {isCreator && isEmpyrean && dragonBonds.allDragonConfigs.length > 0 && (
+          <button
+            onClick={() => setShowDragonTelegramScheduler(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-950/60 border border-orange-700/40 text-orange-300 text-xs font-cinzel hover:bg-orange-900/60 transition-colors"
+            title="Dragon Telegram Scheduler"
+          >
+            <Flame className="w-3 h-3" />
+            Dragon Msgs
           </button>
         )}
         {broadcastPlaylist && (
@@ -2934,6 +2946,24 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           });
         }}
       />
+
+      {/* Dragon Telegram Scheduler (host only, empyrean mode) */}
+      {isCreator && isEmpyrean && partyId && (
+        <DragonTelegramScheduler
+          open={showDragonTelegramScheduler}
+          onOpenChange={setShowDragonTelegramScheduler}
+          partyId={partyId}
+          dragons={dragonBonds.allDragonConfigs.filter(d => d.config.dragonName).map(d => ({
+            userId: d.userId,
+            dragonName: d.config.dragonName,
+            signetType: d.config.signetType,
+            mood: d.config.mood ?? 'calm',
+            bond: d.config.bond ?? 15,
+            trust: d.config.trust ?? 10,
+          }))}
+          isCreator={isCreator}
+        />
+      )}
 
       {/* Party Dragon Chat */}
       {isEmpyrean && dragonBonds.isSetup && (
