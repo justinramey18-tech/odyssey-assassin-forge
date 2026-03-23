@@ -606,7 +606,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     } catch (error) {
       console.warn('[Party Auto-Save] Failed:', error);
     }
-  }, [user]);
+  }, [user, isSoloEmpyrean]);
 
   const startNewCampaign = useCallback(async (campaignName?: string) => {
     if (!partyId || !user || !isCreator) return;
