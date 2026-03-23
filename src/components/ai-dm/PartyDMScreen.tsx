@@ -2558,6 +2558,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           showGeralt={isMomo}
           showWildShape={isMomoMoonDruid}
           isWildShapeActive={wildShape?.state.isTransformed}
+          afkLabel={isEmpyrean && dragonBonds.isSetup && dragonBonds.myDragon?.dragonName
+            ? dragonBonds.myDragon.dragonName.toUpperCase()
+            : undefined}
+          afkColor={isEmpyrean && dragonBonds.isSetup ? 'text-amber-400' : undefined}
+          afkActiveBg={isEmpyrean && dragonBonds.isSetup ? 'bg-amber-500/10' : undefined}
           diceContent={showDiceContent ? (
             <DMDiceRoller
               characterContext={characterContext!}

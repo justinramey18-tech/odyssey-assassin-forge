@@ -64,15 +64,21 @@ const activeIndicatorColors: Record<DMNavTab, string> = {
   settings: 'bg-white/50',
 };
 
-export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive, oracleLabel, oracleColor, oracleActiveBg }: DMBottomNavProps) {
+export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive, oracleLabel, oracleColor, oracleActiveBg, afkLabel, afkColor, afkActiveBg }: DMBottomNavProps) {
   const afkOrWildShape = showWildShape ? WILDSHAPE_TAB : AFK_TAB;
+  const afkTab = {
+    ...afkOrWildShape,
+    label: (!showWildShape && afkLabel) ? afkLabel : afkOrWildShape.label,
+    color: (!showWildShape && afkColor) ? afkColor : afkOrWildShape.color,
+    activeBg: (!showWildShape && afkActiveBg) ? afkActiveBg : afkOrWildShape.activeBg,
+  };
   const oracleTab = {
     ...ORACLE_TAB,
     label: oracleLabel || ORACLE_TAB.label,
     color: oracleColor || ORACLE_TAB.color,
     activeBg: oracleActiveBg || ORACLE_TAB.activeBg,
   };
-  const tabs = [...BASE_TABS, afkOrWildShape, oracleTab, ...(showGeralt ? [GERALT_TAB] : []), SETTINGS_TAB];
+  const tabs = [...BASE_TABS, afkTab, oracleTab, ...(showGeralt ? [GERALT_TAB] : []), SETTINGS_TAB];
   const touchStartY = useRef(0);
   const touchStartTime = useRef(0);
 
