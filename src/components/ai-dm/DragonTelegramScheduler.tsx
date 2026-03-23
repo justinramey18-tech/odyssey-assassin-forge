@@ -217,10 +217,11 @@ export default function DragonTelegramScheduler({
         status: 'active',
         ai_model: 'google/gemini-2.5-flash',
         include_campaign_context: true,
+        dragon_mood: selectedDragon.mood,
+        dragon_bond: selectedDragon.bond,
+        dragon_notes: selectedDragon.dragonNotes || null,
+        dragon_signet: selectedDragon.signetType || null,
       } as any);
-
-      // Note: dragon_notes, dragon_signet, dragon_mood, dragon_bond are encoded in the job_name
-      // and parsed by the dispatch function. The job_name format is "[DragonName] Dragon Message".
 
       if (error) throw error;
       toast.success('Dragon message scheduled');

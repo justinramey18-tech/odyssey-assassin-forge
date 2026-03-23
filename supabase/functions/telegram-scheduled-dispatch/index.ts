@@ -87,14 +87,14 @@ Deno.serve(async (req) => {
         if (mode === 'empyrean_dragon') {
           // Extract dragon metadata from job_name fallback: "[DragonName] Dragon Message"
           const dragonName = job.job_name?.replace(/ Dragon Message$/i, '') || 'Unknown Dragon';
-          const metadata = (job as any).metadata || {};
-          const dragonMood = metadata?.dragon_mood || 'calm';
-          const dragonBond = metadata?.dragon_bond || 50;
-          const personaNotes = metadata?.dragon_notes?.trim();
+          const dragonMood = (job as any).dragon_mood || 'calm';
+          const dragonBond = (job as any).dragon_bond || 50;
+          const personaNotes = ((job as any).dragon_notes || '').trim();
+          const dragonSignet = (job as any).dragon_signet || 'unknown';
 
           systemPrompt = [
             `You are ${dragonName}, a powerful bonded dragon in the Empyrean world of Basgiath War College.`,
-            `Your signet ability is: ${metadata?.dragon_signet || 'unknown'}.`,
+            `Your signet ability is: ${dragonSignet}.`,
             `Your current mood is: ${dragonMood}.`,
             `Your bond level with your rider is ${dragonBond}/100.`,
             personaNotes ? `Your rider has described you as: "${personaNotes}".` : '',
