@@ -353,8 +353,8 @@ export function useDMGameState(campaignId: string | null, mode?: 'solo' | 'solo-
   const resetForNewCampaign = useCallback((newCampaignId: string | null) => {
     const fresh = { ...DEFAULT_STATE, campaign_id: newCampaignId };
     setGameState(fresh);
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(fresh));
-  }, []);
+    localStorage.setItem(localKey, JSON.stringify(fresh));
+  }, [localKey]);
 
   // Flush localStorage on page close (synchronous, guaranteed to run)
   useEffect(() => {
