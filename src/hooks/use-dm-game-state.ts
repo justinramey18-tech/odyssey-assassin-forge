@@ -119,7 +119,7 @@ export function useDMGameState(campaignId: string | null, mode?: 'solo' | 'solo-
           session_turn: row.session_turn ?? 0,
         };
         setGameState(loaded);
-        localStorage.setItem(LOCAL_KEY, JSON.stringify(loaded));
+        localStorage.setItem(localKey, JSON.stringify(loaded));
       }
     } catch (err) {
       console.warn('[DMGameState] Load exception:', err);
