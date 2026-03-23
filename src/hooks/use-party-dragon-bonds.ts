@@ -30,6 +30,18 @@ export interface DragonChatMessage {
   timestamp: string;
 }
 
+export interface DragonNetworkMessage {
+  id: string;
+  fromDragon: string;
+  fromUserId: string;
+  toDragon: string;
+  toUserId: string;
+  riderMessage: string;
+  dragonExchange: string;
+  toRiderDelivery?: string;
+  timestamp: string;
+}
+
 // Trust-building keyword patterns (same as use-dragon-bond.ts)
 const QUESTION_PATTERNS = [
   'how do you feel', 'what do you think', 'are you okay',
@@ -64,6 +76,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
   const [chatRowId, setChatRowId] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [sessionChatCount, setSessionChatCount] = useState(0);
+  const [dragonNetworkMessages, setDragonNetworkMessages] = useState<DragonNetworkMessage[]>([]);
   const mountedRef = useRef(true);
 
   useEffect(() => {
