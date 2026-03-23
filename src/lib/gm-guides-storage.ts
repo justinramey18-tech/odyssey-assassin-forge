@@ -13,7 +13,7 @@ function getStorageKey(mode?: 'solo' | 'solo-empyrean' | 'party'): string {
   return mode ? `dnd-ai-dm-guides-${mode}` : 'dnd-ai-dm-guides';
 }
 
-export function loadGMGuides(mode?: string): GMGuide[] {
+export function loadGMGuides(mode?: 'solo' | 'solo-empyrean' | 'party'): GMGuide[] {
   try {
     const raw = localStorage.getItem(getStorageKey(mode));
     if (!raw) return [];
