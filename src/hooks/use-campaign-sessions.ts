@@ -39,13 +39,13 @@ export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
       const baseQuery = mode
         ? (supabase
             .from('ai_dm_campaigns')
-            .select('id, name, messages, campaign_summary, gm_guide_ids, created_at, updated_at')
+            .select('id, name, messages, campaign_summary, gm_guide_ids, memory_anchors, created_at, updated_at')
             .eq('user_id', userId) as any)
             .eq('mode', mode)
             .order('updated_at', { ascending: false })
         : supabase
             .from('ai_dm_campaigns')
-            .select('id, name, messages, campaign_summary, gm_guide_ids, created_at, updated_at')
+            .select('id, name, messages, campaign_summary, gm_guide_ids, memory_anchors, created_at, updated_at')
             .eq('user_id', userId)
             .order('updated_at', { ascending: false });
 
