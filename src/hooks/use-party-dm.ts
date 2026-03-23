@@ -219,10 +219,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (lastMsg.id === lastParsedMsgIdRef.current) return;
     lastParsedMsgIdRef.current = lastMsg.id;
 
-    const burnoutMatch = lastMsg.content.match(/<!--BURNOUT:(\d)-->/);
+    const burnoutMatch = lastMsg.content.match(/<!--BURNOUT:(\d+)-->/);
     if (burnoutMatch) {
       const level = parseInt(burnoutMatch[1], 10);
-      if (level >= 0 && level <= 5) onBurnoutRef.current?.(level);
+      if (level >= 0 && level <= 9) onBurnoutRef.current?.(level);
     }
 
     const strainMatch = lastMsg.content.match(/<!--BOND_STRAIN:(.+?)-->/);
