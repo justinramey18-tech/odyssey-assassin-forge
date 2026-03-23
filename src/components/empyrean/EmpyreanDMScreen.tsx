@@ -162,6 +162,8 @@ export function EmpyreanDMScreen({
   const [inputValue, setInputValue] = useState('');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [burnoutLevel, setBurnoutLevel] = useState(0);
+  const bondValue = dragonBond.bondState.bond;
+  const maxBurnout = bondValue >= 76 ? 9 : bondValue >= 51 ? 7 : bondValue >= 26 ? 5 : 4;
   const [currentSituation, setCurrentSituation] = useState<string>('exploration');
   const [dragonNotes, setDragonNotes] = useState(() => loadDragonNotes());
   const [initialSent, setInitialSent] = useState(false);
