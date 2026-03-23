@@ -481,7 +481,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     updateVitals,
     updateGold,
     resetForNewCampaign,
-  } = useDMGameState(gameStateCampaignId);
+  } = useDMGameState(gameStateCampaignId, 'solo');
 
   // Memory extraction hook — silently extracts NPCs, locations, consequences from DM responses
   const { extractMemory } = useDmMemoryExtraction({ addMemoryAnchor });

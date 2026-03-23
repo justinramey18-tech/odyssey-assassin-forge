@@ -50,14 +50,18 @@ const DEFAULT_STATE: Omit<DMGameState, 'campaign_id'> = {
   session_turn: 0,
 };
 
-const LOCAL_KEY = 'odyssey-dm-game-state';
+function getLocalKey(mode?: 'solo' | 'solo-empyrean'): string {
+  return mode ? `odyssey-dm-game-state-${mode}` : 'odyssey-dm-game-state';
+}
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useDMGameState(campaignId: string | null) {
+export function useDMGameState(campaignId: string | null, mode?: 'solo' | 'solo-empyrean') {
+  const localKey = getLocalKey(mode);
+
   const [gameState, setGameState] = useState<DMGameState>(() => {
     try {
-      const raw = localStorage.getItem(LOCAL_KEY);
+      const raw = localStorage.getItem(localKey);
       if (!raw) return { ...DEFAULT_STATE, campaign_id: campaignId };
       const parsed = JSON.parse(raw);
       // Migrate if campaign changed
@@ -115,7 +119,7 @@ export function useDMGameState(campaignId: string | null) {
           session_turn: row.session_turn ?? 0,
         };
         setGameState(loaded);
-        localStorage.setItem(LOCAL_KEY, JSON.stringify(loaded));
+        localStorage.setItem(localKey, JSON.stringify(loaded));
       }
     } catch (err) {
       console.warn('[DMGameState] Load exception:', err);
@@ -134,6 +138,18 @@ export function useDMGameState(campaignId: string | null) {
     setGameState(fresh);
     loadFromCloud(campaignId);
   }, [campaignId, loadFromCloud]);
+
+  // Reset memory anchors when mode changes
+  const lastModeRef = useRef(mode);
+  useEffect(() => {
+    if (lastModeRef.current !== mode) {
+      lastModeRef.current = mode;
+      const fresh: DMGameState = { ...DEFAULT_STATE, campaign_id: campaignId };
+      setGameState(fresh);
+      localStorage.setItem(localKey, JSON.stringify(fresh));
+      loadFromCloud(campaignId);
+    }
+  }, [mode, campaignId, localKey, loadFromCloud]);
 
   // ── Save to cloud (debounced) ────────────────────────────────────────────────
   const saveToCloud = useCallback(async (state: DMGameState) => {
@@ -208,7 +224,7 @@ export function useDMGameState(campaignId: string | null) {
   const scheduleSave = useCallback((state: DMGameState) => {
     // Always persist locally immediately (synchronous — survives page close)
     try {
-      localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
+      localStorage.setItem(localKey, JSON.stringify(state));
     } catch (e) {
       console.warn('[DMGameState] localStorage write failed:', e);
     }
@@ -337,14 +353,14 @@ export function useDMGameState(campaignId: string | null) {
   const resetForNewCampaign = useCallback((newCampaignId: string | null) => {
     const fresh = { ...DEFAULT_STATE, campaign_id: newCampaignId };
     setGameState(fresh);
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(fresh));
-  }, []);
+    localStorage.setItem(localKey, JSON.stringify(fresh));
+  }, [localKey]);
 
   // Flush localStorage on page close (synchronous, guaranteed to run)
   useEffect(() => {
     const handleBeforeUnload = () => {
       try {
-        localStorage.setItem(LOCAL_KEY, JSON.stringify(stateRef.current));
+        localStorage.setItem(localKey, JSON.stringify(stateRef.current));
       } catch {
         // ignore
       }
