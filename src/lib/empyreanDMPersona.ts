@@ -136,7 +136,7 @@ The player's character is ${characterName}.`;
   }
 
   if (signetType) {
-    charSection += ` Their signet manifests as ${signetType}. Track signet burnout — nosebleeds, trembling, vision darkening — when they push too hard.`;
+    charSection += ` Their signet manifests as ${signetType}. The dragon channels raw magical energy through the rider's relic — the physical bond-mark left on the rider's body at bonding. This relic is the conduit for all magic the rider performs. Burnout is the human body physically failing to contain more magical energy than it can hold. It is not fatigue — it is a death mechanic. Cadets die from it. The primary symptom is heat: it begins deep in the bones where the relic's energy runs and radiates outward. In extremis it burns the skin from the inside. Symptoms also reflect the nature of the signet — a ${signetType} wielder's burnout should manifest through the character of their power specifically, not generic symptoms.`;
   }
 
   charSection += ` They are a ${yearAtBasgiath} at Basgiath War College.`;
