@@ -62,7 +62,7 @@ export interface PartyDmMessage {
  * Parse whispers from an assistant message, filter by character name,
  * and return the message with clean content + filtered whispers.
  */
-const BURNOUT_TAG_RE = /<!--BURNOUT:\d-->/g;
+const BURNOUT_TAG_RE = /<!--BURNOUT:\d+-->/g;
 const BOND_STRAIN_TAG_RE = /<!--BOND_STRAIN:.+?-->/g;
 
 function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string, myDragonName?: string): PartyDmMessage {
@@ -219,10 +219,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (lastMsg.id === lastParsedMsgIdRef.current) return;
     lastParsedMsgIdRef.current = lastMsg.id;
 
-    const burnoutMatch = lastMsg.content.match(/<!--BURNOUT:(\d)-->/);
+    const burnoutMatch = lastMsg.content.match(/<!--BURNOUT:(\d+)-->/);
     if (burnoutMatch) {
       const level = parseInt(burnoutMatch[1], 10);
-      if (level >= 0 && level <= 5) onBurnoutRef.current?.(level);
+      if (level >= 0 && level <= 9) onBurnoutRef.current?.(level);
     }
 
     const strainMatch = lastMsg.content.match(/<!--BOND_STRAIN:(.+?)-->/);
@@ -1093,7 +1093,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       if (isEmpyrean && partyDragonConfigs) {
         const dc = partyDragonConfigs.find(d => d.userId === m.user_id);
         if (dc) {
-          line += ` | Dragon: ${dc.config.dragonName}, Signet: ${dc.config.signetType || 'unknown'}, Bond: ${getBondDescriptor(dc.config.bond)}, Burnout: ${dc.config.burnout}/5`;
+          line += ` | Dragon: ${dc.config.dragonName}, Signet: ${dc.config.signetType || 'unknown'}, Bond: ${getBondDescriptor(dc.config.bond)}, Burnout: ${dc.config.burnout}/${dc.config.bond >= 76 ? 9 : dc.config.bond >= 51 ? 7 : dc.config.bond >= 26 ? 5 : 4}`;
         }
       }
       return line;
