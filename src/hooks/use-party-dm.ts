@@ -1638,7 +1638,18 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       sender_user_id: user.id,
       sender_name: characterName,
     });
-  }, [partyId, user, characterName, insertPartyMessageHelper]);
+
+    sendTelegramNotification({
+      type: 'custom',
+      partyId: partyId ?? undefined,
+      targetUserIds: partyMembers
+        .filter(m => m.user_id !== user.id)
+        .map(m => m.user_id),
+      title: '💬 Dialogue',
+      body: `[${characterName}]: ${content.trim().substring(0, 200)}${content.trim().length > 200 ? '…' : ''}`,
+      mode: 'party',
+    });
+  }, [partyId, user, characterName, partyMembers, insertPartyMessageHelper]);
 
   // === DIALOGUE MODE: Send a whisper to another player ===
   const sendWhisper = useCallback(async (content: string, targetUserId: string, targetName: string) => {
