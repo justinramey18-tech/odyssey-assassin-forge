@@ -694,7 +694,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             name,
             messages: serializedMessages as any,
             campaign_summary: sessionConfig?.campaignSummary || null,
-            mode: 'party',
+            mode: isSoloEmpyrean ? 'solo-empyrean' : 'party',
           } as any)
           .select('id')
           .single();
