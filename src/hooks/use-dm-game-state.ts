@@ -139,6 +139,18 @@ export function useDMGameState(campaignId: string | null, mode?: 'solo' | 'solo-
     loadFromCloud(campaignId);
   }, [campaignId, loadFromCloud]);
 
+  // Reset memory anchors when mode changes
+  const lastModeRef = useRef(mode);
+  useEffect(() => {
+    if (lastModeRef.current !== mode) {
+      lastModeRef.current = mode;
+      const fresh: DMGameState = { ...DEFAULT_STATE, campaign_id: campaignId };
+      setGameState(fresh);
+      localStorage.setItem(localKey, JSON.stringify(fresh));
+      loadFromCloud(campaignId);
+    }
+  }, [mode, campaignId, localKey, loadFromCloud]);
+
   // ── Save to cloud (debounced) ────────────────────────────────────────────────
   const saveToCloud = useCallback(async (state: DMGameState) => {
     try {
