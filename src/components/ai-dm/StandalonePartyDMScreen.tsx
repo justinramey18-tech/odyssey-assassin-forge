@@ -277,6 +277,13 @@ export function StandalonePartyDMScreen({
     partyDm.loadCampaign(session.id, session.messages, session.campaign_summary);
   }, [partyDm.messages.length, partyDm.saveCampaign, partyDm.activeCampaignId, partyDm.loadCampaign]);
 
+  const empyreanGuidesContent = useMemo(() => {
+    if (partyDm.sessionConfig?.campaignType !== 'empyrean') return '';
+    return EMPYREAN_LORE_GUIDES
+      .map(g => g.content)
+      .join('\n\n');
+  }, [partyDm.sessionConfig?.campaignType]);
+
   // Non-hosts (and non-co-hosts) wait for session to start
   if (!partyDm.isActive && !isHost) {
     return (
@@ -300,12 +307,6 @@ export function StandalonePartyDMScreen({
       </div>
     );
   }
-  const empyreanGuidesContent = useMemo(() => {
-    if (partyDm.sessionConfig?.campaignType !== 'empyrean') return '';
-    return EMPYREAN_LORE_GUIDES
-      .map(g => g.content)
-      .join('\n\n');
-  }, [partyDm.sessionConfig?.campaignType]);
 
   return (
     <div className="fixed inset-0 z-[60]">
