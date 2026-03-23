@@ -147,10 +147,52 @@ export default function DragonTelegramScheduler({
         }),
       });
 
-      if (!resp.ok) throw new Error('AI generation failed');
-      const data = await resp.json();
-      const raw: string = data?.response || data?.content || '';
-      setPreviewMessage(raw.trim() || 'No response generated.');
+      if (!resp.ok) throw new Error(`AI generation failed: ${resp.status}`);
+      if (!resp.body) throw new Error('No response body');
+
+      // ai-dm always returns a streaming SSE response — read it properly
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = '';
+      let assembled = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.startsWith(':') || line.trim() === '') continue;
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (delta) assembled += delta;
+          } catch { /* ignore malformed chunks */ }
+        }
+      }
+
+      // Final flush for any remaining buffer
+      if (textBuffer.trim()) {
+        for (let raw of textBuffer.split('\n')) {
+          if (!raw || !raw.startsWith('data: ')) continue;
+          const jsonStr = raw.slice(6).trim();
+          if (jsonStr === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (delta) assembled += delta;
+          } catch { /* ignore */ }
+        }
+      }
+
+      setPreviewMessage(assembled.trim() || 'No response generated.');
     } catch (err) {
       console.error('[DragonScheduler] Preview error:', err);
       toast.error('Failed to generate dragon voice preview');
