@@ -46,6 +46,7 @@ interface StandalonePartyDMScreenProps {
   };
   wildShape?: UseWildShapeReturn;
   isMomoMoonDruid?: boolean;
+  isSoloEmpyrean?: boolean;
 }
 
 export function StandalonePartyDMScreen({
