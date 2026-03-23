@@ -93,12 +93,16 @@ Deno.serve(async (req) => {
 
   const col = notifyColumn[payload.type] || 'notify_ready_up';
 
-  // Get linked Telegram users who have this notification type enabled
-  const { data: allLinks } = await supabase
+  // For dragon_message, fetch all linked accounts — the host is deliberately
+  // sending this message and it should not be blocked by a player's notification prefs.
+  const linkQuery = supabase
     .from('telegram_user_links')
     .select('chat_id, user_id, notify_modes')
-    .in('user_id', userIds)
-    .eq(col, true);
+    .in('user_id', userIds);
+
+  const { data: allLinks } = payload.type === 'dragon_message'
+    ? await linkQuery
+    : await linkQuery.eq(col, true);
 
   // Filter by game mode if specified.
   // Exception: dragon_message always bypasses the notify_modes filter —
