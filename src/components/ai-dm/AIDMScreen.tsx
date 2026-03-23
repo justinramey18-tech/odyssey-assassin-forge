@@ -549,14 +549,24 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
 
   const handleLoadCampaign = useCallback((session: CampaignSession) => {
     loadCampaign(session.messages, session.campaign_summary, session.id, session.gm_guide_ids);
+    // Restore memory anchors from the saved campaign
+    resetForNewCampaign(session.id);
+    if (session.memory_anchors?.length) {
+      // Allow game state to initialize first, then restore anchors
+      setTimeout(() => {
+        for (const anchor of session.memory_anchors) {
+          addMemoryAnchor(anchor);
+        }
+      }, 100);
+    }
     setShowSessions(false);
-  }, [loadCampaign]);
+  }, [loadCampaign, resetForNewCampaign, addMemoryAnchor]);
 
   const handleSaveCampaign = useCallback(async (name: string, msgs: Message[], summary: string | null, existingId?: string) => {
-    const id = await campaignSessions.saveSession(name, msgs, summary, existingId);
+    const id = await campaignSessions.saveSession(name, msgs, summary, existingId, gameState.memory_anchors);
     if (id) setActiveCampaignId(id);
     return id;
-  }, [campaignSessions]);
+  }, [campaignSessions, gameState.memory_anchors]);
 
   useEffect(() => {
     if (scrollRef.current) {
