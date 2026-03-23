@@ -9,11 +9,11 @@ export interface GMGuide {
 
 export const MAX_GUIDE_CHARS = 30000;
 export const MAX_TOTAL_CHARS = 200000;
-function getStorageKey(mode?: string): string {
+function getStorageKey(mode?: 'solo' | 'solo-empyrean' | 'party'): string {
   return mode ? `dnd-ai-dm-guides-${mode}` : 'dnd-ai-dm-guides';
 }
 
-export function loadGMGuides(mode?: string): GMGuide[] {
+export function loadGMGuides(mode?: 'solo' | 'solo-empyrean' | 'party'): GMGuide[] {
   try {
     const raw = localStorage.getItem(getStorageKey(mode));
     if (!raw) return [];
@@ -25,7 +25,7 @@ export function loadGMGuides(mode?: string): GMGuide[] {
   }
 }
 
-export function saveGMGuides(guides: GMGuide[], mode?: string): void {
+export function saveGMGuides(guides: GMGuide[], mode?: 'solo' | 'solo-empyrean' | 'party'): void {
   try {
     localStorage.setItem(getStorageKey(mode), JSON.stringify(guides));
   } catch (error) {
