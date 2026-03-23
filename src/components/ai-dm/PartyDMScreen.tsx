@@ -1231,6 +1231,18 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const dialogueInputRef = useRef<HTMLTextAreaElement>(null);
   const showDiceContent = activeNavTab === 'dice' && characterContext && !partyDm.isGenerating;
 
+  // Fix C: Loading guard to prevent frozen overlays when auth/party hasn't resolved
+  if (!currentUserId || !partyId) {
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
+          <p className="text-sm text-white/50">Loading session...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
       {/* Header */}
