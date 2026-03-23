@@ -218,6 +218,7 @@ export function EmpyreanDMScreen({
       config.yearAtBasgiath,
       config.campaignFocus,
       dragonNotes,
+      bs.bond,
       getBondDescriptor(bs.bond),
       getTrustDescriptor(bs.trust),
       undefined, // recentDragonChatSummary — populated when dragon chat has a summary
