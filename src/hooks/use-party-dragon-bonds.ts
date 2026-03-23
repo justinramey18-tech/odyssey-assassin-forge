@@ -455,6 +455,101 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     }
   }, [myDragon]);
 
+  const sendDragonNetworkMessage = useCallback(async (
+    targetDragonName: string,
+    targetUserId: string,
+    targetCharacterName: string,
+    riderMessage: string,
+    myCharacterName: string,
+    recentNarrative?: string[],
+  ): Promise<void> => {
+    if (!partyId || !userId || !myDragon?.dragonName || isSending) return;
+    setIsSending(true);
+
+    const pendingId = `pending-${Date.now()}`;
+    setDragonNetworkMessages(prev => [...prev, {
+      id: pendingId,
+      fromDragon: myDragon.dragonName,
+      fromUserId: userId,
+      toDragon: targetDragonName,
+      toUserId: targetUserId,
+      riderMessage,
+      dragonExchange: '',
+      timestamp: new Date().toISOString(),
+    }]);
+
+    try {
+      const narrativeCtx = recentNarrative?.length
+        ? `\n\nRecent events:\n${recentNarrative.slice(-3).join('\n---\n')}`
+        : '';
+
+      const authToken = await getAuthToken();
+
+      const systemPrompt = `You are ${myDragon.dragonName}, a dragon. Your rider ${myCharacterName} has asked you to use the dragon network to reach ${targetDragonName}. The request: "${riderMessage}"\n\nRespond with a JSON object ONLY (no markdown, no backticks):\n{\n  "dragonToDragon": "what you say to ${targetDragonName} dragon-to-dragon (1-2 sentences, ancient proud tone)",\n  "targetDragonReply": "how ${targetDragonName} replies to you dragon-to-dragon (1-2 sentences, their own personality)",\n  "riderDelivery": "if the message is meant for ${targetCharacterName}, what ${targetDragonName} says to ${targetCharacterName} through their bond — phrased as if ${targetDragonName} thought of it unprompted, zero mention of ${myCharacterName} or ${myDragon.dragonName}. Empty string if this is purely dragon-to-dragon."\n}${narrativeCtx}`;
+
+      const resp = await fetch(AI_DM_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: riderMessage }],
+          systemPromptOverride: systemPrompt,
+          model: loadSelectedModel(),
+        }),
+      });
+
+      if (!resp.ok) throw new Error('Dragon network request failed');
+      const data = await resp.json();
+      const raw: string = data?.response || data?.content || '';
+
+      let parsed: { dragonToDragon: string; targetDragonReply: string; riderDelivery: string };
+      try {
+        parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+      } catch {
+        parsed = {
+          dragonToDragon: `${myDragon.dragonName} sends a thought through the network.`,
+          targetDragonReply: `${targetDragonName} acknowledges.`,
+          riderDelivery: '',
+        };
+      }
+
+      const finalMsg: DragonNetworkMessage = {
+        id: `net-${Date.now()}`,
+        fromDragon: myDragon.dragonName,
+        fromUserId: userId,
+        toDragon: targetDragonName,
+        toUserId: targetUserId,
+        riderMessage,
+        dragonExchange: `*${myDragon.dragonName} → ${targetDragonName}:* ${parsed.dragonToDragon}\n\n*${targetDragonName} → ${myDragon.dragonName}:* ${parsed.targetDragonReply}`,
+        toRiderDelivery: parsed.riderDelivery?.trim() || undefined,
+        timestamp: new Date().toISOString(),
+      };
+
+      setDragonNetworkMessages(prev => prev.map(m => m.id === pendingId ? finalMsg : m));
+
+      await supabase.from('party_shared_state').insert([{
+        party_id: partyId,
+        user_id: userId,
+        state_type: 'dragon_network_message',
+        state_data: finalMsg as any,
+      }]);
+
+      if (finalMsg.toRiderDelivery) {
+        await supabase.from('party_shared_state').insert([{
+          party_id: partyId,
+          user_id: targetUserId,
+          state_type: 'dragon_network_message',
+          state_data: { ...finalMsg, id: `net-recv-${Date.now()}` } as any,
+        }]);
+      }
+
+    } catch (err) {
+      console.error('[DragonNetwork] Error:', err);
+      setDragonNetworkMessages(prev => prev.filter(m => m.id !== pendingId));
+    } finally {
+      if (mountedRef.current) setIsSending(false);
+    }
+  }, [partyId, userId, myDragon, isSending]);
+
   const isSetup = Boolean(myDragon && myDragon.dragonName);
 
   return useMemo(() => ({
@@ -471,5 +566,8 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     sendDragonMessage,
     loadDragonChat,
     generateDragonOpinion,
-  }), [myDragon, isSetup, allDragonConfigs, saveMyDragon, updateMyDragon, updateBurnout, updateBondAndTrust, dragonChatMessages, isSending, sendDragonMessage, loadDragonChat, generateDragonOpinion]);
+    // Dragon network
+    dragonNetworkMessages,
+    sendDragonNetworkMessage,
+  }), [myDragon, isSetup, allDragonConfigs, saveMyDragon, updateMyDragon, updateBurnout, updateBondAndTrust, dragonChatMessages, isSending, sendDragonMessage, loadDragonChat, generateDragonOpinion, dragonNetworkMessages, sendDragonNetworkMessage]);
 }
