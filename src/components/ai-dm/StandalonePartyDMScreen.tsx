@@ -149,11 +149,12 @@ export function StandalonePartyDMScreen({
   }, [partyId, userId, isPartyCreator, coHostIds]);
 
   // Campaign sessions (for dropdown)
-  const campaignSessions = useCampaignSessions('party');
+  const sessionMode = isSoloEmpyrean ? 'solo-empyrean' as const : 'party' as const;
+  const campaignSessions = useCampaignSessions(sessionMode);
 
   // GM Guides — co-hosts load the host's guides via ownerUserId
   const gmGuidesOwner = isCoHost && partyCreatorId ? partyCreatorId : undefined;
-  const gmGuides = useGMGuides(gmGuidesOwner, 'party');
+  const gmGuides = useGMGuides(gmGuidesOwner, sessionMode);
 
   // Memory Anchors — long-term campaign facts shared across party
   const memoryAnchors = usePartyMemoryAnchors({ partyId: partyId || null });
