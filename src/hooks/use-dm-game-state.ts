@@ -224,7 +224,7 @@ export function useDMGameState(campaignId: string | null, mode?: 'solo' | 'solo-
   const scheduleSave = useCallback((state: DMGameState) => {
     // Always persist locally immediately (synchronous — survives page close)
     try {
-      localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
+      localStorage.setItem(localKey, JSON.stringify(state));
     } catch (e) {
       console.warn('[DMGameState] localStorage write failed:', e);
     }
