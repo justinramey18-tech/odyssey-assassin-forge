@@ -13,7 +13,7 @@ export interface CampaignSession {
   updated_at: string;
 }
 
-export function useCampaignSessions(mode?: 'solo' | 'party') {
+export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
   const [sessions, setSessions] = useState<CampaignSession[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);

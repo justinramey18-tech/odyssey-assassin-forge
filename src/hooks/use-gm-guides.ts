@@ -19,7 +19,7 @@ import {
  *   'solo' = purely localStorage, no cloud sync.
  *   'party' = cloud-backed via gm_guides table.
  */
-export function useGMGuides(ownerUserId?: string, mode?: 'solo' | 'party') {
+export function useGMGuides(ownerUserId?: string, mode?: 'solo' | 'solo-empyrean' | 'party') {
   const isCloudMode = mode === 'party' || !!ownerUserId;
 
   const [guides, setGuides] = useState<GMGuide[]>(() => ownerUserId ? [] : loadGMGuides(mode));

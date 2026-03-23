@@ -25,7 +25,7 @@ export function loadGMGuides(mode?: 'solo' | 'solo-empyrean' | 'party'): GMGuide
   }
 }
 
-export function saveGMGuides(guides: GMGuide[], mode?: string): void {
+export function saveGMGuides(guides: GMGuide[], mode?: 'solo' | 'solo-empyrean' | 'party'): void {
   try {
     localStorage.setItem(getStorageKey(mode), JSON.stringify(guides));
   } catch (error) {
