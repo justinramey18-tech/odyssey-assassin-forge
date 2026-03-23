@@ -213,6 +213,7 @@ export function StandalonePartyDMScreen({
     myDragonName: dragonBonds.myDragon?.dragonName,
     onBurnoutDetected: handleBurnoutDetected,
     onBondStrainDetected: handleBondStrainDetected,
+    isSoloEmpyrean,
   });
 
   // Auto-extract memory anchors from new DM responses (host-only to avoid duplicates)
