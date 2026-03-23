@@ -210,6 +210,9 @@ export function EmpyreanDMScreen({
     characterName,
   });
 
+  const bondValue = dragonBond.bondState.bond;
+  const maxBurnout = bondValue >= 76 ? 9 : bondValue >= 51 ? 7 : bondValue >= 26 ? 5 : 4;
+
   const dmPersonaPrompt = useMemo(() => {
     if (!config) return undefined;
     const bs = dragonBond.bondState;
