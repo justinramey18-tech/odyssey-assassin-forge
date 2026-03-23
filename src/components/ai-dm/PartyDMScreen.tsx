@@ -2957,6 +2957,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             userId: d.userId,
             dragonName: d.config.dragonName,
             signetType: d.config.signetType,
+            dragonNotes: (d.config as any).dragonNotes ?? '',
             mood: d.config.mood ?? 'calm',
             bond: d.config.bond ?? 15,
             trust: d.config.trust ?? 10,

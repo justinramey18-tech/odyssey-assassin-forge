@@ -21,6 +21,7 @@ interface DragonInfo {
   userId: string;
   dragonName: string;
   signetType: string;
+  dragonNotes: string;
   mood: string;
   bond: number;
   trust: number;
@@ -123,7 +124,18 @@ export default function DragonTelegramScheduler({
     setIsEditingPreview(false);
     try {
       const authToken = await getAuthToken();
-      const systemPrompt = `You are ${selectedDragon.dragonName}, a bonded dragon in the Empyrean world. Mood: ${selectedDragon.mood}. Bond with rider: ${selectedDragon.bond}/100. Speak in first person, ancient and proud. Max 2-3 sentences. Use plain text only, no markdown.`;
+      const personaNotes = selectedDragon.dragonNotes?.trim();
+      const systemPrompt = [
+        `You are ${selectedDragon.dragonName}, a powerful bonded dragon in the Empyrean world of Basgiath War College.`,
+        `Your signet ability is: ${selectedDragon.signetType || 'unknown'}.`,
+        `Your current mood is: ${selectedDragon.mood}.`,
+        `Your bond level with your rider is ${selectedDragon.bond}/100 and trust is ${selectedDragon.trust}/100.`,
+        personaNotes ? `Your rider has described you as: "${personaNotes}".` : '',
+        `Speak entirely in first person as this dragon. Be ancient, proud, and emotionally layered — your voice should reflect your mood and bond level.`,
+        `If bond is below 30, be cold and guarded. If above 70, be warmer but still ancient and powerful.`,
+        `Keep your message to 2-3 sentences maximum. Never break character. Never mention being an AI.`,
+        `Use plain text only, no markdown.`,
+      ].filter(Boolean).join(' ');
 
       const resp = await fetch(AI_DM_URL, {
         method: 'POST',
@@ -205,7 +217,10 @@ export default function DragonTelegramScheduler({
         status: 'active',
         ai_model: 'google/gemini-2.5-flash',
         include_campaign_context: true,
-      });
+      } as any);
+
+      // Note: dragon_notes, dragon_signet, dragon_mood, dragon_bond are encoded in the job_name
+      // and parsed by the dispatch function. The job_name format is "[DragonName] Dragon Message".
 
       if (error) throw error;
       toast.success('Dragon message scheduled');
