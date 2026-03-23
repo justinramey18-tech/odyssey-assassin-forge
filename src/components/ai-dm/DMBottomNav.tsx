@@ -33,6 +33,12 @@ interface DMBottomNavProps {
   oracleColor?: string;
   /** Override the Oracle tab active bg class */
   oracleActiveBg?: string;
+  /** Override the AFK tab label (e.g. dragon name in party mode) */
+  afkLabel?: string;
+  /** Override the AFK tab color class */
+  afkColor?: string;
+  /** Override the AFK tab active bg class */
+  afkActiveBg?: string;
 }
 
 const BASE_TABS = [
