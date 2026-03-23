@@ -61,6 +61,7 @@ export function StandalonePartyDMScreen({
   autoSyncCallbacks,
   wildShape,
   isMomoMoonDruid,
+  isSoloEmpyrean,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
