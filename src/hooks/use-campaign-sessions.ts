@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Message } from '@/components/oracle/types';
+import type { MemoryAnchor } from '@/hooks/use-dm-game-state';
 
 export interface CampaignSession {
   id: string;
@@ -9,6 +10,7 @@ export interface CampaignSession {
   messages: Message[];
   campaign_summary: string | null;
   gm_guide_ids: string[] | null;
+  memory_anchors: MemoryAnchor[];
   created_at: string;
   updated_at: string;
 }
