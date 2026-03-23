@@ -1217,6 +1217,10 @@ export type Database = {
           ai_prompt: string | null
           created_at: string
           dm_context_mode: string
+          dragon_bond: number | null
+          dragon_mood: string | null
+          dragon_notes: string | null
+          dragon_signet: string | null
           error_message: string | null
           id: string
           include_campaign_context: boolean
@@ -1240,6 +1244,10 @@ export type Database = {
           ai_prompt?: string | null
           created_at?: string
           dm_context_mode?: string
+          dragon_bond?: number | null
+          dragon_mood?: string | null
+          dragon_notes?: string | null
+          dragon_signet?: string | null
           error_message?: string | null
           id?: string
           include_campaign_context?: boolean
@@ -1263,6 +1271,10 @@ export type Database = {
           ai_prompt?: string | null
           created_at?: string
           dm_context_mode?: string
+          dragon_bond?: number | null
+          dragon_mood?: string | null
+          dragon_notes?: string | null
+          dragon_signet?: string | null
           error_message?: string | null
           id?: string
           include_campaign_context?: boolean
