@@ -84,7 +84,15 @@ Deno.serve(async (req) => {
         let systemPrompt: string;
         let userMessage = job.ai_prompt;
 
-        if (mode === 'solo') {
+        if (mode === 'empyrean_dragon') {
+          // Extract dragon metadata from job_name fallback: "[DragonName] Dragon Message"
+          const dragonName = job.job_name?.replace(/ Dragon Message$/i, '') || 'Unknown Dragon';
+          const dragonMood = 'calm';
+          const dragonBond = 50;
+
+          systemPrompt =
+            `You are ${dragonName}, a powerful bonded dragon in the Empyrean world of Basgiath War College. Your mood is ${dragonMood}. Your bond level with your rider is ${dragonBond}/100. Speak in first person as the dragon — ancient, proud, and emotionally layered. Keep the message under 3 sentences. Do not break character. Reference the rider's prompt naturally. Use HTML formatting: <b>bold</b>, <i>italic</i>. Do NOT use markdown. Keep the response under 3000 characters.`;
+        } else if (mode === 'solo') {
           systemPrompt =
             'You are an expert Dungeon Master running a D&D 5e session. You are immersive, adaptive, and mechanically precise. The user has scheduled an automated task. Execute their request and write the output as a Telegram message. Use HTML formatting: <b>bold</b>, <i>italic</i>, <u>underline</u>. Do NOT use markdown. Keep the response under 3000 characters.';
         } else if (mode === 'empyrean') {
@@ -328,14 +336,22 @@ Deno.serve(async (req) => {
         finalMessage = job.static_message || 'No message configured.';
       }
 
+      // Prefix dragon name for empyrean_dragon mode
+      const mode = job.dm_context_mode || 'party';
+      if (mode === 'empyrean_dragon') {
+        const dragonName = job.job_name?.replace(/ Dragon Message$/i, '') || 'Unknown Dragon';
+        finalMessage = `🐉 ${dragonName}: ${finalMessage}`;
+      }
+
       // c. Send via telegram-notify
       const notifyPayload: Record<string, unknown> = {
-        type: 'custom',
+        type: mode === 'empyrean_dragon' ? 'dragon_message' : 'custom',
         title: job.job_name,
         body: finalMessage,
         targetUserIds: job.target_user_ids || [job.user_id],
         partyId: job.party_id || undefined,
-        mode: job.dm_context_mode || undefined,
+        mode: mode === 'empyrean_dragon' ? 'empyrean' : (mode || undefined),
+        dragonName: mode === 'empyrean_dragon' ? job.job_name?.replace(/ Dragon Message$/i, '') : undefined,
       };
 
       // If specific chat IDs are targeted, pass them through
