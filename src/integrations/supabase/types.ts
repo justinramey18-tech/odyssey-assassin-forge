@@ -20,6 +20,7 @@ export type Database = {
           created_at: string
           gm_guide_ids: string[] | null
           id: string
+          memory_anchors: Json
           messages: Json
           mode: string
           name: string
@@ -31,6 +32,7 @@ export type Database = {
           created_at?: string
           gm_guide_ids?: string[] | null
           id?: string
+          memory_anchors?: Json
           messages?: Json
           mode?: string
           name?: string
@@ -42,6 +44,7 @@ export type Database = {
           created_at?: string
           gm_guide_ids?: string[] | null
           id?: string
+          memory_anchors?: Json
           messages?: Json
           mode?: string
           name?: string
