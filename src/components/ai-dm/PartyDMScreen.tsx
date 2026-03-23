@@ -2960,7 +2960,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             const narrative = partyDm.messages
               .filter(m => m.role === 'assistant' && m.sender_name === 'DM')
               .slice(-3)
-              .map(m => m.content.length > 500 ? m.content.slice(0, 500) + '…' : m.content);
+              .map(m => m.content.length > 15000 ? m.content.slice(0, 15000) + '…' : m.content);
             if (narrative.length === 0) return null;
             return dragonBonds.generateDragonOpinion(
               members.find(m => m.user_id === currentUserId)?.character_name || 'Rider',
