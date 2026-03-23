@@ -9,7 +9,7 @@ export interface GMGuide {
 
 export const MAX_GUIDE_CHARS = 30000;
 export const MAX_TOTAL_CHARS = 200000;
-function getStorageKey(mode?: string): string {
+function getStorageKey(mode?: 'solo' | 'solo-empyrean' | 'party'): string {
   return mode ? `dnd-ai-dm-guides-${mode}` : 'dnd-ai-dm-guides';
 }
 
