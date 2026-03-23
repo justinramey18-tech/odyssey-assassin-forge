@@ -1224,8 +1224,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
     // Dice, wildshape, oracle, settings tabs toggle full-screen content
     setActiveNavTab(prev => prev === tab ? null : tab);
-  }, []);
-
+  }, [isEmpyrean, dragonBonds.isSetup]);
   const hasSubmitted = !!partyDm.myPrompt;
   const isReady = partyDm.myPrompt?.is_ready ?? false;
   const isDialogueMode = partyDm.sessionConfig?.dmMode === 'dialogue';
