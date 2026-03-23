@@ -1369,6 +1369,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             <MessageCircle className="w-3 h-3 text-cyan-400/50 shrink-0" />
           </button>
         )}
+        {isCreator && isEmpyrean && dragonBonds.allDragonConfigs.length > 0 && (
+          <button
+            onClick={() => setShowDragonTelegramScheduler(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-950/60 border border-orange-700/40 text-orange-300 text-xs font-cinzel hover:bg-orange-900/60 transition-colors"
+            title="Dragon Telegram Scheduler"
+          >
+            <Flame className="w-3 h-3" />
+            Dragon Msgs
+          </button>
+        )}
         {broadcastPlaylist && (
           <>
             <span className="text-[11px] text-white/20">•</span>
