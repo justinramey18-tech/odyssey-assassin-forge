@@ -2947,6 +2947,24 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         }}
       />
 
+      {/* Dragon Telegram Scheduler (host only, empyrean mode) */}
+      {isCreator && isEmpyrean && partyId && (
+        <DragonTelegramScheduler
+          open={showDragonTelegramScheduler}
+          onOpenChange={setShowDragonTelegramScheduler}
+          partyId={partyId}
+          dragons={dragonBonds.allDragonConfigs.filter(d => d.config.dragonName).map(d => ({
+            userId: d.userId,
+            dragonName: d.config.dragonName,
+            signetType: d.config.signetType,
+            mood: d.config.mood ?? 'calm',
+            bond: d.config.bond ?? 15,
+            trust: d.config.trust ?? 10,
+          }))}
+          isCreator={isCreator}
+        />
+      )}
+
       {/* Party Dragon Chat */}
       {isEmpyrean && dragonBonds.isSetup && (
         <PartyDragonChat
