@@ -593,7 +593,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             name: `Party Campaign ${new Date().toLocaleDateString()}`,
             messages: serializedMessages as any,
             campaign_summary: summary,
-            mode: 'party',
+            mode: isSoloEmpyrean ? 'solo-empyrean' : 'party',
           } as any)
           .select('id')
           .single();
