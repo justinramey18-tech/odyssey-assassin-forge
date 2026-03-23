@@ -908,22 +908,20 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       });
   }, [partyId, currentUserId, showQuests]);
 
-  // Chat unread badge tracking
+  // Chat unread badge tracking — Fix B: guard with currentUserId
   const [chatTotalCount, setChatTotalCount] = useState(0);
   const chatLastSeen = useRef(0);
   useEffect(() => {
-    if (!partyId) return;
+    if (!partyId || !currentUserId) return;
     try { chatLastSeen.current = parseInt(localStorage.getItem(`odyssey_chat_lastSeen_${partyId}`) || '0', 10) || 0; } catch { chatLastSeen.current = 0; }
-    // Fetch current count
     supabase.from('party_messages').select('id', { count: 'exact', head: true }).eq('party_id', partyId).then(({ count }) => {
       setChatTotalCount(count ?? 0);
     });
-    // Subscribe to new messages
     const ch = supabase.channel(`chat-badge-${partyId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'party_messages', filter: `party_id=eq.${partyId}` }, () => {
       setChatTotalCount(prev => prev + 1);
     }).subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [partyId]);
+  }, [partyId, currentUserId]);
   const chatUnreadCount = Math.max(0, chatTotalCount - chatLastSeen.current);
   const [myAfkGuide, setMyAfkGuide] = useState<string | null>(() => {
     const me = members.find(m => m.user_id === currentUserId);
