@@ -1080,12 +1080,39 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       }
     }
 
+    // Check plain text for direct image URLs
     const text = e.clipboardData?.getData('text/plain')?.trim();
     if (text && /^https?:\/\/.+\.(gif|png|jpg|jpeg|webp)(\?.*)?$/i.test(text)) {
       e.preventDefault();
       const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
       await partyDmRef.current.addMediaMessage(`[image:${text}]`, senderName);
       return;
+    }
+
+    // Check for Giphy/Tenor URLs (various formats including share pages)
+    if (text && /^https?:\/\/(media\d*\.giphy\.com|giphy\.com|media\.tenor\.com|tenor\.com)\//i.test(text)) {
+      e.preventDefault();
+      let gifUrl = text;
+      // Convert giphy.com/gifs/ page URLs to direct media URLs
+      if (/giphy\.com\/gifs\//i.test(text)) {
+        const slug = text.split('/').pop()?.split('-').pop();
+        if (slug) gifUrl = `https://media.giphy.com/media/${slug}/giphy.gif`;
+      }
+      const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+      await partyDmRef.current.addMediaMessage(`[image:${gifUrl}]`, senderName);
+      return;
+    }
+
+    // Check HTML content for embedded GIF images (e.g. drag from Giphy)
+    const html = e.clipboardData?.getData('text/html');
+    if (html) {
+      const imgMatch = html.match(/<img[^>]+src=["']([^"']+\.gif[^"']*)["']/i);
+      if (imgMatch) {
+        e.preventDefault();
+        const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+        await partyDmRef.current.addMediaMessage(`[image:${imgMatch[1]}]`, senderName);
+        return;
+      }
     }
   }, [members, currentUserId]);
 
