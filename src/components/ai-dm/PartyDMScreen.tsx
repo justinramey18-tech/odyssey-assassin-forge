@@ -2967,6 +2967,26 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               narrative,
             );
           }}
+          myUserId={currentUserId}
+          dragonNetworkMessages={dragonBonds.dragonNetworkMessages}
+          otherDragons={dragonBonds.allDragonConfigs
+            .filter(d => d.userId !== currentUserId && d.config.dragonName)
+            .map(d => ({
+              dragonName: d.config.dragonName,
+              userId: d.userId,
+              characterName: members.find(m => m.user_id === d.userId)?.character_name || 'Unknown',
+            }))}
+          onSendNetworkMessage={(targetDragonName, targetUserId, targetCharacterName, message) => {
+            const narrative = partyDm.messages
+              .filter(m => m.role === 'assistant' && m.sender_name === 'DM')
+              .slice(-5)
+              .map(m => m.content.length > 15000 ? m.content.slice(0, 15000) + '…' : m.content);
+            dragonBonds.sendDragonNetworkMessage(
+              targetDragonName, targetUserId, targetCharacterName, message,
+              members.find(m => m.user_id === currentUserId)?.character_name || 'Rider',
+              narrative,
+            );
+          }}
         />
       )}
     </div>
