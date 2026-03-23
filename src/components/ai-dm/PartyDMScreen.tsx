@@ -785,6 +785,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   }, [currentUserId]);
   const [showDragonSetup, setShowDragonSetup] = useState(false);
   const [showDragonChat, setShowDragonChat] = useState(false);
+  const [showDragonTelegramScheduler, setShowDragonTelegramScheduler] = useState(false);
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
   const lastProcessedMsgIdRef = useRef<string | null>(null);
