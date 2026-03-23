@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { SCOPED_KEYS } from '@/lib/scoped-keys';
 import { useDmPolls } from '@/hooks/use-dm-polls';
 import { useNPCAutocomplete } from '@/hooks/use-npc-autocomplete';
 import { PartyDMInput, type PartyDMInputHandle } from './PartyDMInput';
@@ -759,6 +760,28 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const partyNPCNames = useNPCAutocomplete(partyDm.messages as any);
   const isEmpyrean = partyDm.sessionConfig?.campaignType === 'empyrean';
   const dragonBonds = usePartyDragonBonds(isEmpyrean ? (partyId || null) : null, currentUserId || null);
+
+  // Fix A: Clear scoped localStorage when user identity changes (prevents data bleed between accounts)
+  const lastUserIdRef = useRef<string | null>(currentUserId ?? null);
+  useEffect(() => {
+    if (!currentUserId) {
+      lastUserIdRef.current = null;
+      return;
+    }
+    if (lastUserIdRef.current && lastUserIdRef.current !== currentUserId) {
+      console.log('[PartyDM] User changed, clearing scoped data');
+      SCOPED_KEYS.forEach(key => {
+        localStorage.removeItem(key);
+        Object.keys(localStorage).forEach(lsKey => {
+          if (lsKey.startsWith(`${key}::`)) {
+            localStorage.removeItem(lsKey);
+          }
+        });
+      });
+      localStorage.removeItem('odyssey-active-cloud-save-id');
+    }
+    lastUserIdRef.current = currentUserId;
+  }, [currentUserId]);
   const [showDragonSetup, setShowDragonSetup] = useState(false);
   const [showDragonChat, setShowDragonChat] = useState(false);
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
@@ -865,38 +888,40 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [questsCount, setQuestsCount] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Load party quest count
+  // Load party quest count — Fix B: guard with currentUserId
   useEffect(() => {
-    if (!partyId) return;
+    if (!partyId || !currentUserId) return;
     (supabase.from('party_shared_state') as any)
       .select('state_data')
       .eq('party_id', partyId)
       .eq('state_type', 'quest_flags')
       .maybeSingle()
-      .then(({ data }: any) => {
+      .then(({ data, error }: any) => {
+        if (error) {
+          console.error('[PartyDM] Quest load error:', error);
+          return;
+        }
         if (data?.state_data) {
           const active = Object.values(data.state_data).filter((q: any) => q.status === 'active').length;
           setQuestsCount(active);
         }
       });
-  }, [partyId, showQuests]);
+  }, [partyId, currentUserId, showQuests]);
 
-  // Chat unread badge tracking
+  // Chat unread badge tracking — Fix B: guard with currentUserId
   const [chatTotalCount, setChatTotalCount] = useState(0);
   const chatLastSeen = useRef(0);
   useEffect(() => {
-    if (!partyId) return;
+    if (!partyId || !currentUserId) return;
     try { chatLastSeen.current = parseInt(localStorage.getItem(`odyssey_chat_lastSeen_${partyId}`) || '0', 10) || 0; } catch { chatLastSeen.current = 0; }
-    // Fetch current count
     supabase.from('party_messages').select('id', { count: 'exact', head: true }).eq('party_id', partyId).then(({ count }) => {
       setChatTotalCount(count ?? 0);
     });
-    // Subscribe to new messages
     const ch = supabase.channel(`chat-badge-${partyId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'party_messages', filter: `party_id=eq.${partyId}` }, () => {
       setChatTotalCount(prev => prev + 1);
     }).subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [partyId]);
+  }, [partyId, currentUserId]);
   const chatUnreadCount = Math.max(0, chatTotalCount - chatLastSeen.current);
   const [myAfkGuide, setMyAfkGuide] = useState<string | null>(() => {
     const me = members.find(m => m.user_id === currentUserId);
@@ -906,6 +931,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     const me = members.find(m => m.user_id === currentUserId);
     return (me?.character_status?.afkPromptCascade as string[]) || null;
   });
+
+  // Fix D: Reset character-specific state when currentUserId changes
+  useEffect(() => {
+    if (!currentUserId) return;
+    const me = members.find(m => m.user_id === currentUserId);
+    setMyAfkGuide((me?.character_status?.afkPersonalityGuide as string) || null);
+    setMyAfkCascade((me?.character_status?.afkPromptCascade as string[]) || null);
+  }, [currentUserId, members]);
   const [localTimerEnabled, setLocalTimerEnabled] = useState(partyDm.sessionConfig?.timerEnabled ?? false);
   const [localTimerDuration, setLocalTimerDuration] = useState(partyDm.sessionConfig?.timerDurationSeconds ?? 120);
 
@@ -1197,6 +1230,18 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [dialogueAttachOpen, setDialogueAttachOpen] = useState(false);
   const dialogueInputRef = useRef<HTMLTextAreaElement>(null);
   const showDiceContent = activeNavTab === 'dice' && characterContext && !partyDm.isGenerating;
+
+  // Fix C: Loading guard to prevent frozen overlays when auth/party hasn't resolved
+  if (!currentUserId || !partyId) {
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
+          <p className="text-sm text-white/50">Loading session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
