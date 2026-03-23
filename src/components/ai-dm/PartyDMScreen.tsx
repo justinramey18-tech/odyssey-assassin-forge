@@ -1350,15 +1350,20 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             <span className="text-[11px] text-amber-300/70 whitespace-nowrap truncate max-w-[80px]">
               {dragonBonds.myDragon.dragonName}
             </span>
-            <span className={cn(
-              "text-[10px] font-mono whitespace-nowrap",
-              dragonBonds.myDragon.burnout === 0 ? "text-emerald-400"
-                : dragonBonds.myDragon.burnout <= 2 ? "text-yellow-400"
-                : dragonBonds.myDragon.burnout <= 4 ? "text-orange-400"
-                : "text-red-400"
-            )}>
-              🔥{dragonBonds.myDragon.burnout}
-            </span>
+            {(() => {
+              const bLevel = dragonBonds.myDragon.burnout;
+              const bBond = dragonBonds.myDragon.bond ?? 50;
+              const bMax = bBond >= 76 ? 9 : bBond >= 51 ? 7 : bBond >= 26 ? 5 : 4;
+              const bRatio = bMax > 0 ? bLevel / bMax : 0;
+              return (
+                <span className={cn(
+                  "text-[10px] font-mono whitespace-nowrap",
+                  bRatio === 0 ? "text-emerald-400" : bRatio < 0.4 ? "text-yellow-400" : bRatio < 0.75 ? "text-orange-400" : "text-red-400"
+                )}>
+                  🔥{bLevel}/{bMax}
+                </span>
+              );
+            })()}
             <MessageCircle className="w-3 h-3 text-cyan-400/50 shrink-0" />
           </button>
         )}
