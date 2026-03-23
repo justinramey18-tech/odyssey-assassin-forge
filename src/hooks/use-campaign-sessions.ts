@@ -82,6 +82,7 @@ export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
     messages: Message[],
     campaignSummary: string | null,
     existingId?: string,
+    memoryAnchors?: MemoryAnchor[],
   ): Promise<string | null> => {
     if (!userId) {
       toast.error('Sign in to save campaigns');
