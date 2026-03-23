@@ -76,6 +76,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
   const [chatRowId, setChatRowId] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [sessionChatCount, setSessionChatCount] = useState(0);
+  const [dragonNetworkMessages, setDragonNetworkMessages] = useState<DragonNetworkMessage[]>([]);
   const mountedRef = useRef(true);
 
   useEffect(() => {
