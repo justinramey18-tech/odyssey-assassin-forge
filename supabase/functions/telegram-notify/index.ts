@@ -100,9 +100,12 @@ Deno.serve(async (req) => {
     .in('user_id', userIds)
     .eq(col, true);
 
-  // Filter by game mode if specified
+  // Filter by game mode if specified.
+  // Exception: dragon_message always bypasses the notify_modes filter —
+  // these are host-authored messages that should always reach the target
+  // regardless of whether the player has configured empyrean mode notifications.
   let links = allLinks;
-  if (links && payload.mode) {
+  if (links && payload.mode && payload.type !== 'dragon_message') {
     links = links.filter((l: any) => {
       const modes: string[] = l.notify_modes ?? [];
       return modes.includes(payload.mode!);
