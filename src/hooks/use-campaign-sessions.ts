@@ -61,6 +61,7 @@ export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
           : [],
         campaign_summary: row.campaign_summary,
         gm_guide_ids: row.gm_guide_ids,
+        memory_anchors: Array.isArray(row.memory_anchors) ? row.memory_anchors : [],
         created_at: row.created_at,
         updated_at: row.updated_at,
       }));
