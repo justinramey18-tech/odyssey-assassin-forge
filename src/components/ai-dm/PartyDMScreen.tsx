@@ -760,6 +760,28 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const partyNPCNames = useNPCAutocomplete(partyDm.messages as any);
   const isEmpyrean = partyDm.sessionConfig?.campaignType === 'empyrean';
   const dragonBonds = usePartyDragonBonds(isEmpyrean ? (partyId || null) : null, currentUserId || null);
+
+  // Fix A: Clear scoped localStorage when user identity changes (prevents data bleed between accounts)
+  const lastUserIdRef = useRef<string | null>(currentUserId ?? null);
+  useEffect(() => {
+    if (!currentUserId) {
+      lastUserIdRef.current = null;
+      return;
+    }
+    if (lastUserIdRef.current && lastUserIdRef.current !== currentUserId) {
+      console.log('[PartyDM] User changed, clearing scoped data');
+      SCOPED_KEYS.forEach(key => {
+        localStorage.removeItem(key);
+        Object.keys(localStorage).forEach(lsKey => {
+          if (lsKey.startsWith(`${key}::`)) {
+            localStorage.removeItem(lsKey);
+          }
+        });
+      });
+      localStorage.removeItem('odyssey-active-cloud-save-id');
+    }
+    lastUserIdRef.current = currentUserId;
+  }, [currentUserId]);
   const [showDragonSetup, setShowDragonSetup] = useState(false);
   const [showDragonChat, setShowDragonChat] = useState(false);
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
