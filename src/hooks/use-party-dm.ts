@@ -152,9 +152,10 @@ interface UsePartyDmOptions {
   myDragonName?: string;
   onBurnoutDetected?: (level: number) => void;
   onBondStrainDetected?: (reason: string) => void;
+  isSoloEmpyrean?: boolean;
 }
 
-export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, partyDragonConfigs, myDragonName, onBurnoutDetected, onBondStrainDetected }: UsePartyDmOptions) {
+export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, partyDragonConfigs, myDragonName, onBurnoutDetected, onBondStrainDetected, isSoloEmpyrean }: UsePartyDmOptions) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
   const [currentPrompts, setCurrentPrompts] = useState<PartyDmPrompt[]>([]);
@@ -592,7 +593,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             name: `Party Campaign ${new Date().toLocaleDateString()}`,
             messages: serializedMessages as any,
             campaign_summary: summary,
-            mode: 'party',
+            mode: isSoloEmpyrean ? 'solo-empyrean' : 'party',
           } as any)
           .select('id')
           .single();
@@ -605,7 +606,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     } catch (error) {
       console.warn('[Party Auto-Save] Failed:', error);
     }
-  }, [user]);
+  }, [user, isSoloEmpyrean]);
 
   const startNewCampaign = useCallback(async (campaignName?: string) => {
     if (!partyId || !user || !isCreator) return;
@@ -693,7 +694,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             name,
             messages: serializedMessages as any,
             campaign_summary: sessionConfig?.campaignSummary || null,
-            mode: 'party',
+            mode: isSoloEmpyrean ? 'solo-empyrean' : 'party',
           } as any)
           .select('id')
           .single();
@@ -708,7 +709,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       toast.error('Failed to save campaign');
       return null;
     }
-  }, [partyId, user, messages, sessionConfig]);
+  }, [partyId, user, messages, sessionConfig, isSoloEmpyrean]);
 
   const loadCampaign = useCallback(async (campaignId: string, campaignMessages: any[], campaignSummary: string | null) => {
     if (!partyId || !user || !isCreator) return;

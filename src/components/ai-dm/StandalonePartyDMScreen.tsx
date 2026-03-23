@@ -46,6 +46,7 @@ interface StandalonePartyDMScreenProps {
   };
   wildShape?: UseWildShapeReturn;
   isMomoMoonDruid?: boolean;
+  isSoloEmpyrean?: boolean;
 }
 
 export function StandalonePartyDMScreen({
@@ -60,6 +61,7 @@ export function StandalonePartyDMScreen({
   autoSyncCallbacks,
   wildShape,
   isMomoMoonDruid,
+  isSoloEmpyrean,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
@@ -147,11 +149,12 @@ export function StandalonePartyDMScreen({
   }, [partyId, userId, isPartyCreator, coHostIds]);
 
   // Campaign sessions (for dropdown)
-  const campaignSessions = useCampaignSessions('party');
+  const sessionMode = isSoloEmpyrean ? 'solo-empyrean' as const : 'party' as const;
+  const campaignSessions = useCampaignSessions(sessionMode);
 
   // GM Guides — co-hosts load the host's guides via ownerUserId
   const gmGuidesOwner = isCoHost && partyCreatorId ? partyCreatorId : undefined;
-  const gmGuides = useGMGuides(gmGuidesOwner, 'party');
+  const gmGuides = useGMGuides(gmGuidesOwner, sessionMode);
 
   // Memory Anchors — long-term campaign facts shared across party
   const memoryAnchors = usePartyMemoryAnchors({ partyId: partyId || null });
@@ -210,6 +213,7 @@ export function StandalonePartyDMScreen({
     myDragonName: dragonBonds.myDragon?.dragonName,
     onBurnoutDetected: handleBurnoutDetected,
     onBondStrainDetected: handleBondStrainDetected,
+    isSoloEmpyrean,
   });
 
   // Auto-extract memory anchors from new DM responses (host-only to avoid duplicates)
