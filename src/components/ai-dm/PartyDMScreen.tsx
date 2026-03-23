@@ -931,6 +931,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     const me = members.find(m => m.user_id === currentUserId);
     return (me?.character_status?.afkPromptCascade as string[]) || null;
   });
+
+  // Fix D: Reset character-specific state when currentUserId changes
+  useEffect(() => {
+    if (!currentUserId) return;
+    const me = members.find(m => m.user_id === currentUserId);
+    setMyAfkGuide((me?.character_status?.afkPersonalityGuide as string) || null);
+    setMyAfkCascade((me?.character_status?.afkPromptCascade as string[]) || null);
+  }, [currentUserId, members]);
   const [localTimerEnabled, setLocalTimerEnabled] = useState(partyDm.sessionConfig?.timerEnabled ?? false);
   const [localTimerDuration, setLocalTimerDuration] = useState(partyDm.sessionConfig?.timerDurationSeconds ?? 120);
 
