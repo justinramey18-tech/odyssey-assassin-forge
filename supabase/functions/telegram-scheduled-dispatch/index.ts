@@ -84,7 +84,15 @@ Deno.serve(async (req) => {
         let systemPrompt: string;
         let userMessage = job.ai_prompt;
 
-        if (mode === 'solo') {
+        if (mode === 'empyrean_dragon') {
+          // Extract dragon metadata from job_name fallback: "[DragonName] Dragon Message"
+          const dragonName = job.job_name?.replace(/ Dragon Message$/i, '') || 'Unknown Dragon';
+          const dragonMood = 'calm';
+          const dragonBond = 50;
+
+          systemPrompt =
+            `You are ${dragonName}, a powerful bonded dragon in the Empyrean world of Basgiath War College. Your mood is ${dragonMood}. Your bond level with your rider is ${dragonBond}/100. Speak in first person as the dragon — ancient, proud, and emotionally layered. Keep the message under 3 sentences. Do not break character. Reference the rider's prompt naturally. Use HTML formatting: <b>bold</b>, <i>italic</i>. Do NOT use markdown. Keep the response under 3000 characters.`;
+        } else if (mode === 'solo') {
           systemPrompt =
             'You are an expert Dungeon Master running a D&D 5e session. You are immersive, adaptive, and mechanically precise. The user has scheduled an automated task. Execute their request and write the output as a Telegram message. Use HTML formatting: <b>bold</b>, <i>italic</i>, <u>underline</u>. Do NOT use markdown. Keep the response under 3000 characters.';
         } else if (mode === 'empyrean') {
