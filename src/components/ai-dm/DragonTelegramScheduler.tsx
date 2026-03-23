@@ -21,6 +21,7 @@ interface DragonInfo {
   userId: string;
   dragonName: string;
   signetType: string;
+  dragonNotes: string;
   mood: string;
   bond: number;
   trust: number;
