@@ -62,7 +62,7 @@ export interface PartyDmMessage {
  * Parse whispers from an assistant message, filter by character name,
  * and return the message with clean content + filtered whispers.
  */
-const BURNOUT_TAG_RE = /<!--BURNOUT:\d-->/g;
+const BURNOUT_TAG_RE = /<!--BURNOUT:\d+-->/g;
 const BOND_STRAIN_TAG_RE = /<!--BOND_STRAIN:.+?-->/g;
 
 function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string, myDragonName?: string): PartyDmMessage {
