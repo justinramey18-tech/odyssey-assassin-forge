@@ -1214,7 +1214,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       return;
     }
     if (tab === 'afk') {
-      setShowAfkGuide(true);
+      if (isEmpyrean && dragonBonds.isSetup) {
+        dragonBonds.loadDragonChat();
+        setShowDragonChat(true);
+      } else {
+        setShowAfkGuide(true);
+      }
       return;
     }
     // Dice, wildshape, oracle, settings tabs toggle full-screen content
