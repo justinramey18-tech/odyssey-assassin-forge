@@ -118,20 +118,25 @@ function stripBondStrainTags(content: string): string {
 }
 
 const BURNOUT_LABELS = [
-  'Fresh — no strain',
-  'Mild strain',
-  'Moderate strain',
-  'Heavy strain',
-  'Critical strain',
-  'Overload',
+  'No strain',
+  'Relic warmth — bone-deep heat',
+  'Heat spreading — nosebleed, unsteady',
+  'Bones burning — collapse risk',
+  'Skin burning — dragon alarmed',
+  'Body at limit — dragon buffering',
+  'Dragon absorbing overflow — bond straining',
+  'Rider and dragon both near limit',
+  'Critical co-overload',
+  'Maximum capacity — sever or die',
 ];
 
-function BurnoutIndicator({ level }: { level: number }) {
-  const color = level <= 1 ? 'text-emerald-400' : level <= 3 ? 'text-amber-400' : 'text-red-400';
-  const emptyColor = level <= 1 ? 'text-emerald-400/20' : level <= 3 ? 'text-amber-400/20' : 'text-red-400/20';
+function BurnoutIndicator({ level, maxBurnout }: { level: number; maxBurnout: number }) {
+  const ratio = maxBurnout > 0 ? level / maxBurnout : 0;
+  const color = ratio < 0.35 ? 'text-emerald-400' : ratio < 0.65 ? 'text-amber-400' : ratio < 0.85 ? 'text-orange-500' : 'text-red-500';
+  const emptyColor = ratio < 0.35 ? 'text-emerald-400/20' : ratio < 0.65 ? 'text-amber-400/20' : ratio < 0.85 ? 'text-orange-500/20' : 'text-red-500/20';
   return (
-    <div className="flex items-center gap-0.5" title={`Signet Strain: ${BURNOUT_LABELS[level]}`}>
-      {Array.from({ length: 5 }, (_, i) => (
+    <div className="flex items-center gap-0.5" title={`Signet Strain (${level}/${maxBurnout}): ${BURNOUT_LABELS[level] ?? BURNOUT_LABELS[BURNOUT_LABELS.length - 1]}`}>
+      {Array.from({ length: maxBurnout }, (_, i) => (
         <Flame key={i} className={cn('w-3 h-3', i < level ? color : emptyColor)} />
       ))}
     </div>
