@@ -336,14 +336,22 @@ Deno.serve(async (req) => {
         finalMessage = job.static_message || 'No message configured.';
       }
 
+      // Prefix dragon name for empyrean_dragon mode
+      const mode = job.dm_context_mode || 'party';
+      if (mode === 'empyrean_dragon') {
+        const dragonName = job.job_name?.replace(/ Dragon Message$/i, '') || 'Unknown Dragon';
+        finalMessage = `🐉 ${dragonName}: ${finalMessage}`;
+      }
+
       // c. Send via telegram-notify
       const notifyPayload: Record<string, unknown> = {
-        type: 'custom',
+        type: mode === 'empyrean_dragon' ? 'dragon_message' : 'custom',
         title: job.job_name,
         body: finalMessage,
         targetUserIds: job.target_user_ids || [job.user_id],
         partyId: job.party_id || undefined,
-        mode: job.dm_context_mode || undefined,
+        mode: mode === 'empyrean_dragon' ? 'empyrean' : (mode || undefined),
+        dragonName: mode === 'empyrean_dragon' ? job.job_name?.replace(/ Dragon Message$/i, '') : undefined,
       };
 
       // If specific chat IDs are targeted, pass them through
