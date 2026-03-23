@@ -113,6 +113,7 @@ export function buildEmpyreanDMPersona(
   yearAtBasgiath: string = 'first-year',
   campaignFocus: CampaignFocus = 'balanced',
   dragonNotes: string = '',
+  bondLevel: number = 50,
   bondDescriptor?: string,
   trustDescriptor?: string,
   recentDragonChatSummary?: string,
@@ -135,7 +136,7 @@ The player's character is ${characterName}.`;
   }
 
   if (signetType) {
-    charSection += ` Their signet manifests as ${signetType}. Track signet burnout — nosebleeds, trembling, vision darkening — when they push too hard.`;
+    charSection += ` Their signet manifests as ${signetType}. The dragon channels raw magical energy through the rider's relic — the physical bond-mark left on the rider's body at bonding. This relic is the conduit for all magic the rider performs. Burnout is the human body physically failing to contain more magical energy than it can hold. It is not fatigue — it is a death mechanic. Cadets die from it. The primary symptom is heat: it begins deep in the bones where the relic's energy runs and radiates outward. In extremis it burns the skin from the inside. Symptoms also reflect the nature of the signet — a ${signetType} wielder's burnout should manifest through the character of their power specifically, not generic symptoms.`;
   }
 
   charSection += ` They are a ${yearAtBasgiath} at Basgiath War College.`;
@@ -179,20 +180,46 @@ Dragon communication rules:
   sections.push(dragonSection);
 
   // 7. Signet Burnout Tracking
+  // Compute bond-scaled burnout ceiling
+  const maxBurnout = bondLevel >= 76 ? 9 : bondLevel >= 51 ? 7 : bondLevel >= 26 ? 5 : 4;
+
   sections.push(`## SIGNET BURNOUT TRACKING
 
-After any scene where the character uses their signet ability, include a burnout tag:
+The rider's dragon bond (${bondLevel}/100) determines their burnout ceiling. A stronger bond means the dragon actively buffers the rider's capacity. A weaker bond means the channel is unstable and the ceiling is actually lower than normal.
+
+Maximum burnout level for this rider: ${maxBurnout}
+
+After any scene where the character uses their signet, output exactly one hidden tag:
 <!--BURNOUT:X-->
+where X is a whole number from 0 to ${maxBurnout}. Place it at the very end of your response, after any SITUATION tag.
 
-Where X is a number from 0 to 5:
-0 = Fresh, no strain
-1 = Mild strain (tingling, slight headache)
-2 = Moderate strain (nosebleed, trembling hands)
-3 = Heavy strain (vision blurring, muscle spasms, difficulty concentrating)
-4 = Critical strain (collapse risk, bleeding from ears, blackout flashes)
-5 = Overload (immediate collapse, potential permanent damage)
+POWER SOURCE RULES:
+- Lesser magic (lighting mage lights, nudging small objects via relic) costs NOTHING. Never increase burnout for lesser magic. Only the signet ability costs burnout.
+- Controlled, brief signet use: +1
+- Sustained or hard use: +2
+- Desperate overextension past visible limits: +3
+- If the rider is distant from their dragon, treat their effective bond as 25 lower — the channel attenuates with distance.
 
-Burnout increases by 1-2 for each signet use depending on intensity. It decreases by 1 for each rest scene or downtime. Never let burnout drop below 0 or exceed 5. Describe burnout symptoms in the narrative — never state the number directly to the player.`);
+SCALE (describe symptoms in narrative, never state the number):
+0 = No strain. Relic is warm, nothing more.
+1 = Bone-deep heat at the relic site. Minor, ignorable.
+2 = Heat spreading through chest and limbs. Nosebleed from pressure. Hands unsteady.
+3 = Bones feel like they are burning. Vision strobing. Muscle lock risk. The dragon notices through the bond.
+4 = Skin hot to the touch, visibly reddening near the relic. Collapse imminent. The dragon is alarmed and pushing back through the bond.
+5 = The body cannot contain the energy. For a weak-bonded rider (bond < 26) this is death without immediate intervention. For others the dragon is now actively absorbing overflow — describe the dragon's physical distress alongside the rider's.
+${maxBurnout >= 6 ? `6 = Dragon is absorbing excess to keep the rider alive. The bond itself is straining. The dragon's pain bleeds back through.` : ''}
+${maxBurnout >= 7 ? `7 = Rider and dragon are both near their limit. The rider is barely conscious. The dragon's scales are burning hot. The bond feels like it is tearing.` : ''}
+${maxBurnout >= 8 ? `8 = Critical co-overload. Rider is seizing or unconscious. Dragon is in visible physical distress. Survival possible but not guaranteed.` : ''}
+${maxBurnout >= 9 ? `9 = Maximum theoretical capacity — only the deepest bonds have ever reached this and survived. The dragon must sever the channel or both die.` : ''}
+
+RECOVERY:
+- Levels 1–2: One rest or sleep scene.
+- Levels 3–4: Multiple rest scenes. Dragon proximity is required — the bond actively helps the body process the residual energy.
+- Levels 5+: Emergency care, extended rest, dragon must also recover. May leave permanent physical damage even with full recovery.
+
+SIGNET-SPECIFIC SYMPTOMS: Always derive the physical experience from the nature of the power. Heat and lightning signets — uncontrolled discharge, muscle seizure, metallic taste, the relic site burning. Shadow and stealth signets — sensory dissolution, inability to distinguish what is real. Mental and truth-sense signets — involuntary intrusion of others' thoughts, inability to block sensation. Physical enhancement signets — bones and muscle pushed past structural tolerance. Elemental signets — the body experiences the inverse of the element at high burnout (a cold wielder overheats; a fire wielder may go cold).
+
+DRAGON BEHAVIOR AT HIGH BURNOUT: At level 3+, the dragon will actively resist the power flow — describe this as the bond pulling back, the dragon's voice cutting through with urgency. At level 5+ for strong-bonded riders, the dragon is absorbing overflow and suffering for it. At level 7+, the dragon may physically land and refuse to let the rider continue, overriding the rider's will.`);
 
   // 7b. Scene Situation Tagging
   sections.push(`## SCENE SITUATION TAGGING
