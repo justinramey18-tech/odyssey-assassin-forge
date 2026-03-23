@@ -50,14 +50,18 @@ const DEFAULT_STATE: Omit<DMGameState, 'campaign_id'> = {
   session_turn: 0,
 };
 
-const LOCAL_KEY = 'odyssey-dm-game-state';
+function getLocalKey(mode?: 'solo' | 'solo-empyrean'): string {
+  return mode ? `odyssey-dm-game-state-${mode}` : 'odyssey-dm-game-state';
+}
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useDMGameState(campaignId: string | null) {
+export function useDMGameState(campaignId: string | null, mode?: 'solo' | 'solo-empyrean') {
+  const localKey = getLocalKey(mode);
+
   const [gameState, setGameState] = useState<DMGameState>(() => {
     try {
-      const raw = localStorage.getItem(LOCAL_KEY);
+      const raw = localStorage.getItem(localKey);
       if (!raw) return { ...DEFAULT_STATE, campaign_id: campaignId };
       const parsed = JSON.parse(raw);
       // Migrate if campaign changed
