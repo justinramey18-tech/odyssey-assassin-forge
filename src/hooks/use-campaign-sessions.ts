@@ -178,6 +178,7 @@ export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
     messages: Message[],
     campaignSummary: string | null,
     existingId?: string,
+    memoryAnchors?: MemoryAnchor[],
   ): Promise<string | null> => {
     if (!userId) return null;
     try {
@@ -195,6 +196,7 @@ export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
             name,
             messages: serializedMessages as any,
             campaign_summary: campaignSummary,
+            memory_anchors: (memoryAnchors ?? []) as any,
           })
           .eq('id', existingId)
           .eq('user_id', userId);
@@ -208,6 +210,7 @@ export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
             name,
             messages: serializedMessages as any,
             campaign_summary: campaignSummary,
+            memory_anchors: (memoryAnchors ?? []) as any,
             mode: mode || 'solo',
           } as any)
           .select('id')
