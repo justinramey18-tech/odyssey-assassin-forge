@@ -288,6 +288,19 @@ export function StandalonePartyDMScreen({
       .join('\n\n');
   }, [partyDm.sessionConfig?.campaignType]);
 
+  // Build dragon chat transcript for DM awareness
+  const dragonChatTranscript = useMemo(() => {
+    if (!dragonBonds.dragonChatMessages?.length || !dragonBonds.myDragon?.dragonName) return '';
+    const DRAGON_TAG_RE = /<!--(?:DRAGON_MOOD|DRAGON_MEMORY|DRAGON_HABIT|BOND_SENSE):[^>]*-->/g;
+    const last10 = dragonBonds.dragonChatMessages.slice(-10);
+    const lines = last10.map(m => {
+      const cleanContent = m.content.replace(DRAGON_TAG_RE, '').trim();
+      return m.role === 'user' ? `Rider: ${cleanContent}` : `Dragon: ${cleanContent}`;
+    }).join('\n');
+    const truncated = lines.length > 2000 ? lines.slice(0, 2000) + '…' : lines;
+    return `\n\n## RECENT DRAGON-RIDER PRIVATE COMMUNICATION\nThe rider recently had this private telepathic exchange with their dragon (outside the main narrative). Use this context to inform dragon behavior in scenes:\n${truncated}`;
+  }, [dragonBonds.dragonChatMessages, dragonBonds.myDragon?.dragonName]);
+
   // Non-hosts (and non-co-hosts) wait for session to start
   if (!partyDm.isActive && !isHost) {
     return (
@@ -334,7 +347,7 @@ export function StandalonePartyDMScreen({
         onToggleAutoSync={autoSync.toggleAutoSync}
         isExtracting={autoSync.isExtracting}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
-        gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '')}
+        gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '') + dragonChatTranscript}
         memoryAnchorsContent={memoryAnchors.formattedForOracle}
         memoryAnchors={memoryAnchors.anchors}
         onAddMemoryAnchor={memoryAnchors.addMemoryAnchor}

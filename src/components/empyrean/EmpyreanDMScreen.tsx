@@ -42,7 +42,8 @@ import {
   saveDragonNotes,
 } from '@/lib/empyreanDMPersona';
 import { useDragonBond } from '@/hooks/use-dragon-bond';
-import { getBondDescriptor, getTrustDescriptor } from '@/lib/dragonBondState';
+import { getBondDescriptor, getTrustDescriptor, DRAGON_CHAT_SUMMARY_KEY } from '@/lib/dragonBondState';
+import { getScopedItem } from '@/lib/scoped-storage';
 import { empyreanPrompts } from '@/lib/empyreanPrompts';
 import { EMPYREAN_SESSION_GUIDES } from '@/lib/empyreanGMGuides';
 import { DM_MODELS } from '@/lib/dm-models';
@@ -216,6 +217,7 @@ export function EmpyreanDMScreen({
   const dmPersonaPrompt = useMemo(() => {
     if (!config) return undefined;
     const bs = dragonBond.bondState;
+    const recentDragonChatSummaryRaw = getScopedItem(DRAGON_CHAT_SUMMARY_KEY);
     let persona = buildEmpyreanDMPersona(
       config.selectedLoreGuides,
       config.selectedToneGuides,
@@ -229,12 +231,11 @@ export function EmpyreanDMScreen({
       bs.bond,
       getBondDescriptor(bs.bond),
       getTrustDescriptor(bs.trust),
-      undefined, // recentDragonChatSummary — populated when dragon chat has a summary
+      recentDragonChatSummaryRaw?.trim() ? recentDragonChatSummaryRaw : undefined,
       bs.memories.map(m => m.text),
     );
     return persona;
-    return persona;
-  }, [config, characterName, dragonNotes, dragonBond.bondState]);
+  }, [config, characterName, dragonNotes, dragonBond.bondState, dragonBond.bondState.totalChatExchanges]);
 
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
   const gameState = useDMGameState(trackingCampaignId);
