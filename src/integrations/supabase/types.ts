@@ -887,7 +887,7 @@ export type Database = {
             foreignKeyName: "party_message_reactions_message_id_fkey"
             columns: ["message_id"]
             isOneToOne: false
-            referencedRelation: "party_messages"
+            referencedRelation: "party_dm_messages"
             referencedColumns: ["id"]
           },
           {
