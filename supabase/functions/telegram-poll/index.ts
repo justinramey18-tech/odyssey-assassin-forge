@@ -158,7 +158,7 @@ async function processCommand(
       // Already linked — just update
       const { error } = await supabase
         .from('telegram_user_links')
-        .update({ username: username || null, linked_at: new Date().toISOString() })
+        .update({ username: username || null, linked_at: new Date().toISOString(), notify_modes: ['solo', 'party', 'empyrean'] })
         .eq('id', existingLink.id);
       linkErr = error;
     } else {
@@ -170,6 +170,7 @@ async function processCommand(
           chat_id: chatId,
           username: username || null,
           linked_at: new Date().toISOString(),
+          notify_modes: ['solo', 'party', 'empyrean'],
         });
       linkErr = error;
     }
@@ -180,7 +181,7 @@ async function processCommand(
     }
     await supabase.from('telegram_link_codes').delete().eq('id', linkCode.id);
     await sendTelegram(chatId,
-      `✅ <b>Account linked!</b>\n\nYou'll now receive party notifications here. Type /character to see your sheet.`,
+      `✅ <b>Account linked!</b>\n\nYou'll receive notifications for all game modes (solo, party, empyrean). Manage preferences in the app under Settings → Telegram.\n\nType /character to see your sheet.`,
       lovableKey, telegramKey,
     );
     return;
