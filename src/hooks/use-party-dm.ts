@@ -1096,6 +1096,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         partyContext: partyContext || undefined,
         memoryAnchors: memoryAnchorsContent || undefined,
         recentPartyChat: recentPartyChat.length > 0 ? recentPartyChat : undefined,
+        recentDragonChat: recentDragonChat.length > 0 ? recentDragonChat : undefined,
         responseModePrompt: responseModePrompt || undefined,
         dmPersonaPrompt: dmPersonaPrompt || undefined,
         model: loadSelectedModel(),
