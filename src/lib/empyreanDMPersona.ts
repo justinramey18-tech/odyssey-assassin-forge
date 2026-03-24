@@ -116,6 +116,7 @@ export function buildEmpyreanDMPersona(
   bondLevel: number = 50,
   bondDescriptor?: string,
   trustDescriptor?: string,
+  dragonMood?: string,
   recentDragonChatSummary?: string,
   dragonMemories?: string[],
 ): string {
