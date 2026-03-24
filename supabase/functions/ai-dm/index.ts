@@ -151,6 +151,7 @@ interface DMRequest {
   partyContext?: string;
   npcVoicingContext?: string;
   recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>;
+  recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
