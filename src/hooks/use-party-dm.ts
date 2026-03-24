@@ -1393,6 +1393,57 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       return;
     }
 
+    // Re-fetch latest dragon configs right before generation for accuracy
+    let freshDragonConfigs = partyDragonConfigs;
+    if (sessionConfig?.campaignType === 'empyrean' && partyId) {
+      try {
+        const { data: freshBonds } = await (supabase.from('party_shared_state') as any)
+          .select('user_id, state_data')
+          .eq('party_id', partyId)
+          .eq('state_type', 'dragon_bond');
+        if (freshBonds && freshBonds.length > 0) {
+          freshDragonConfigs = freshBonds.map((row: any) => ({
+            userId: row.user_id,
+            characterName: partyMembers.find(m => m.user_id === row.user_id)?.character_name || 'Unknown',
+            config: {
+              dragonName: row.state_data?.dragonName || '',
+              signetType: row.state_data?.signetType || '',
+              bond: row.state_data?.bond ?? 15,
+              trust: row.state_data?.trust ?? 10,
+              mood: row.state_data?.mood || 'calm',
+              burnout: row.state_data?.burnout ?? 0,
+            },
+          }));
+        }
+      } catch (err) {
+        console.warn('[PartyDM] Failed to refresh dragon configs, using cached:', err);
+      }
+    }
+
+    let freshDragonBondsSection = '';
+    if (sessionConfig?.campaignType === 'empyrean' && freshDragonConfigs && freshDragonConfigs.length > 0) {
+      const bondedRiders = freshDragonConfigs.filter((d: any) => d.config.dragonName);
+      if (bondedRiders.length > 0) {
+        const lines = bondedRiders.map((d: any) => {
+          const bondDesc = getBondDescriptor(d.config.bond);
+          return `- ${d.config.dragonName} (bonded to ${d.characterName}, mood: ${d.config.mood}, bond: ${bondDesc}): Use whisper tag ">>${d.characterName}" to send dragon telepathy`;
+        }).join('\n');
+        freshDragonBondsSection = `## PARTY DRAGON BONDS\nMultiple riders have bonded dragons. Generate whisper tags for each rider's dragon when appropriate:\n${lines}\n\nEach dragon has its own personality. Address their riders by name through the bond. Dragon whispers should feel telepathic — sensory impressions, emotions, short warnings.\n\nReflect each dragon's current mood in its telepathic whispers:\n- distant: colder, shorter, more withholding\n- protective: more urgent about threats, proactive warnings\n- alert: heightened sensory impressions, vigilance\n- playful: dry humor, teasing (still dragon-like)\n- ancestral: older voice, echoes of ancient memories/visions\n- calm: measured, steady, unhurried`;
+      }
+    }
+
+    const freshPartyMembersSummary = partyMembers.map(m => {
+      const s = m.character_status as Record<string, unknown>;
+      let line = `- ${m.character_name} (Level ${s.level || '?'} ${s.className || 'Adventurer'}, ${s.currentHP || '?'}/${s.maxHP || '?'} HP)`;
+      if (sessionConfig?.campaignType === 'empyrean' && freshDragonConfigs) {
+        const dc = freshDragonConfigs.find((d: any) => d.userId === m.user_id);
+        if (dc) {
+          line += ` | Dragon: ${dc.config.dragonName}, Signet: ${dc.config.signetType || 'unknown'}, Bond: ${getBondDescriptor(dc.config.bond)}, Burnout: ${dc.config.burnout}/${dc.config.bond >= 76 ? 9 : dc.config.bond >= 51 ? 7 : dc.config.bond >= 26 ? 5 : 4}`;
+        }
+      }
+      return line;
+    }).join('\n');
+
     abortRef.current = new AbortController();
     try {
       if (isSplitActive && splitState) {
