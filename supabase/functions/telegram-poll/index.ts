@@ -119,6 +119,8 @@ async function processCommand(
       `/heal N — Heal N HP\n` +
       `/cast LEVEL — Use a spell slot\n` +
       `/initiative — Roll initiative\n` +
+      `/ready — Ready up (no action)\n` +
+      `/ready TEXT — Submit action & ready up\n` +
       `/roll NdS+M — Roll dice\n\n` +
       `<b>📖 Campaign</b>\n` +
       `/party — Party status & members\n` +
