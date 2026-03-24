@@ -9,6 +9,7 @@ interface CharacterNamePlaqueProps {
   name: string;
   level: number;
   primaryClass?: string;
+  dragonName?: string;
   onOpenSettings?: () => void;
 }
 
