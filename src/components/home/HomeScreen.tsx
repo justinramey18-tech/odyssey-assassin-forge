@@ -32,6 +32,7 @@ import { FAQDrawer } from './FAQDrawer';
 
 import { EmpyreanScreen } from '@/components/empyrean/EmpyreanScreen';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
+import { loadEmpyreanDMConfig } from '@/lib/empyreanDMPersona';
 import { GeraltCompanionScreen } from '@/components/companion';
 // New redesigned components
 import { CharacterNamePlaque } from './CharacterNamePlaque';
