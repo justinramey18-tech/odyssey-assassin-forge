@@ -70,6 +70,17 @@ const MAX_TRUST_PER_EXCHANGE = 4;
 
 const COMBAT_WORDS = ['fight', 'danger', 'battle', 'enemy', 'attack', 'die', 'kill'];
 
+const AFFINITY_DELTAS: Record<string, number> = {
+  agree: 0.05, warn: 0.03, tease: 0.02, rival: -0.03, dismiss: -0.05,
+};
+
+function getAffinityDescription(affinity: number, dragonName: string): string {
+  if (affinity > 0.3) return `You have developed a grudging respect for ${dragonName}. You would not admit it openly.`;
+  if (affinity >= 0.0) return `You are aware of ${dragonName} but have no strong feelings.`;
+  if (affinity >= -0.3) return `You find ${dragonName} irritating and do not hide it.`;
+  return `You openly disdain ${dragonName}. You consider them beneath you.`;
+}
+
 export function usePartyDragonBonds(partyId: string | null, userId: string | null, partyMembers?: Array<{ user_id: string; character_name: string }>) {
   const [myDragon, setMyDragon] = useState<PartyDragonConfig | null>(null);
   const [allDragonConfigs, setAllDragonConfigs] = useState<DragonEntry[]>([]);
