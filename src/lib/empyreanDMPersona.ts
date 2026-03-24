@@ -259,10 +259,12 @@ When starting a new scene or session, ground it in a specific Basgiath location 
 
   // 10. Dragon-rider bond status (from bond chat system)
   if (bondDescriptor) {
+    const effectiveMood = dragonMood || 'calm';
     let bondSection = `## DRAGON-RIDER BOND STATUS
 
 Bond Level: ${bondDescriptor}
 Trust Level: ${trustDescriptor || 'Unknown'}
+Dragon Mood: ${effectiveMood}
 
 Narrate the dragon-rider dynamic based on these levels. `;
 
@@ -277,6 +279,14 @@ Narrate the dragon-rider dynamic based on these levels. `;
     } else {
       bondSection += 'The dragon is still evaluating this rider. It may hesitate on commands, refuse risky maneuvers, or ignore requests it considers beneath it.';
     }
+
+    bondSection += `\n\nReflect the dragon's current mood (${effectiveMood}) in all telepathic whispers and bond impressions:
+- distant: colder, shorter, more withholding — the dragon offers minimal communication and pulls back emotionally
+- protective: more urgent about threats, proactive warnings, the dragon inserts itself into danger assessment unprompted
+- alert: heightened sensory impressions, vigilance — the dragon shares environmental details and potential threats constantly
+- playful: dry humor, teasing (still dragon-like, never silly) — the dragon needles the rider with wry observations
+- ancestral: older voice, echoes of ancient memories and visions — the dragon speaks as if channeling something far older than itself
+- calm: measured, steady, unhurried — the dragon communicates with quiet confidence`;
 
     sections.push(bondSection);
   }
