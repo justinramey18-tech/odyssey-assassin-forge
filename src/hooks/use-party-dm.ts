@@ -1111,10 +1111,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (sessionConfig?.campaignType !== 'empyrean' || !partyDragonConfigs || partyDragonConfigs.length === 0) return '';
     const bondedRiders = partyDragonConfigs.filter(d => d.config.dragonName);
     if (bondedRiders.length === 0) return '';
-    const lines = bondedRiders.map(d =>
-      `- ${d.config.dragonName} (bonded to ${d.characterName}): Use whisper tag ">>${d.characterName}" to send dragon telepathy`
-    ).join('\n');
-    return `## PARTY DRAGON BONDS\nMultiple riders have bonded dragons. Generate whisper tags for each rider's dragon when appropriate:\n${lines}\n\nEach dragon has its own personality. Address their riders by name through the bond. Dragon whispers should feel telepathic — sensory impressions, emotions, short warnings.`;
+    const lines = bondedRiders.map(d => {
+      const mood = d.config.mood || 'calm';
+      const bondDesc = getBondDescriptor(d.config.bond);
+      return `- ${d.config.dragonName} (bonded to ${d.characterName}, mood: ${mood}, bond: ${bondDesc}): Use whisper tag ">>${d.characterName}" to send dragon telepathy`;
+    }).join('\n');
+    return `## PARTY DRAGON BONDS\nMultiple riders have bonded dragons. Generate whisper tags for each rider's dragon when appropriate:\n${lines}\n\nEach dragon has its own personality. Address their riders by name through the bond. Dragon whispers should feel telepathic — sensory impressions, emotions, short warnings.\n\nReflect each dragon's current mood in its telepathic whispers:\n- distant: colder, shorter, more withholding\n- protective: more urgent about threats, proactive warnings\n- alert: heightened sensory impressions, vigilance\n- playful: dry humor, teasing (still dragon-like)\n- ancestral: older voice, echoes of ancient memories/visions\n- calm: measured, steady, unhurried`;
   }, [sessionConfig?.campaignType, partyDragonConfigs]);
 
   // Generate split summary for a team
