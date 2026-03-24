@@ -726,14 +726,23 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
       // Process dragon response tags and trust
       let updatedDragon = { ...myDragon };
 
-      // Parse mood tag
+      // Parse mood tag — validate against allowed transitions
       const moodMatch = assistantContent.match(/<!--DRAGON_MOOD:(\w+)-->/);
+      let finalMood: DragonMood = recommendedMood;
       if (moodMatch) {
+        const parsedMood = moodMatch[1] as DragonMood;
         const validMoods: DragonMood[] = ['calm', 'alert', 'protective', 'distant', 'ancestral', 'playful'];
-        if (validMoods.includes(moodMatch[1] as DragonMood)) {
-          updatedDragon = { ...updatedDragon, mood: moodMatch[1] as DragonMood };
+        if (validMoods.includes(parsedMood) && validTransitions.includes(parsedMood)) {
+          finalMood = parsedMood;
         }
       }
+      // Track mood duration
+      if (finalMood === (myDragon.mood || 'calm')) {
+        moodDurationRef.current += 1;
+      } else {
+        moodDurationRef.current = 0;
+      }
+      updatedDragon = { ...updatedDragon, mood: finalMood };
 
       // Parse memory tags
       const memoryMatches = [...assistantContent.matchAll(/<!--DRAGON_MEMORY:(.+?)-->/g)];
