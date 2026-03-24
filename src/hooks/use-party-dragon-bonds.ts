@@ -122,7 +122,155 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     fetchAll();
   }, [fetchAll]);
 
-  // Realtime subscription
+  // ── Dragon cross-reaction logic ──
+  const triggerDragonReaction = useCallback(async (incomingMsg: DragonNetworkMessage) => {
+    if (!partyId || !userId || reactingRef.current) return;
+    if (allDragonConfigs.length < 2) return;
+
+    const senderUserId = incomingMsg.fromUserId;
+    const senderDragonName = incomingMsg.fromDragon;
+    const messageText = incomingMsg.dragonExchange || incomingMsg.riderMessage || '';
+    const lowerMsg = messageText.toLowerCase();
+
+    // Decrement all cooldowns by 1
+    const cooldowns = reactionCooldownRef.current;
+    for (const [key, val] of cooldowns.entries()) {
+      if (val <= 1) cooldowns.delete(key);
+      else cooldowns.set(key, val - 1);
+    }
+
+    // Find sender's config for bond comparison
+    const senderEntry = allDragonConfigs.find(d => d.userId === senderUserId);
+    const senderBond = senderEntry?.config.bond ?? 15;
+
+    // Evaluate each OTHER dragon
+    type Candidate = { entry: DragonEntry; roll: number; reactionType: string };
+    const candidates: Candidate[] = [];
+
+    for (const entry of allDragonConfigs) {
+      if (!entry.config.dragonName || entry.userId === senderUserId) continue;
+      // Skip if on cooldown
+      if ((cooldowns.get(entry.userId) ?? 0) > 0) continue;
+
+      const personality = (entry.config.dragonNotes || '').toLowerCase();
+      let baseRate = 0.15;
+      if (/aggressive|dominant/.test(personality)) baseRate = 0.3;
+      else if (/playful/.test(personality)) baseRate = 0.25;
+      else if (/reserved|shy/.test(personality)) baseRate = 0.1;
+
+      let chance = baseRate;
+      if ((entry.config.bond ?? 15) >= 50) chance += 0.1;
+      if (lowerMsg.includes(entry.config.dragonName.toLowerCase()) || COMBAT_WORDS.some(w => lowerMsg.includes(w))) chance += 0.2;
+      chance = Math.min(chance, 0.7);
+
+      const roll = Math.random();
+      if (roll < chance) {
+        // Determine reaction type
+        const reactorBond = entry.config.bond ?? 15;
+        let reactionType = 'agree';
+        if (Math.abs(reactorBond - senderBond) <= 10) reactionType = 'rival';
+        else if (reactorBond >= senderBond + 20) reactionType = 'dismiss';
+        else if (COMBAT_WORDS.some(w => lowerMsg.includes(w))) reactionType = 'warn';
+        else if (/playful/.test(personality)) reactionType = 'tease';
+
+        candidates.push({ entry, roll, reactionType });
+      }
+    }
+
+    if (candidates.length === 0) return;
+
+    // Pick the top roller only
+    candidates.sort((a, b) => b.roll - a.roll);
+    const winner = candidates[0];
+    const reactor = winner.entry;
+
+    // Set cooldown
+    cooldowns.set(reactor.userId, 4);
+    reactingRef.current = true;
+
+    // Random delay 2-4 seconds
+    const delay = 2000 + Math.random() * 2000;
+    await new Promise(resolve => setTimeout(resolve, delay));
+
+    if (!mountedRef.current) { reactingRef.current = false; return; }
+
+    try {
+      const reactorCharName = partyMembers?.find(m => m.user_id === reactor.userId)?.character_name || 'Rider';
+      const partyContext = allDragonConfigs
+        .filter(d => d.config.dragonName && d.userId !== reactor.userId)
+        .map(d => ({
+          characterName: partyMembers?.find(m => m.user_id === d.userId)?.character_name || d.userId,
+          dragonName: d.config.dragonName,
+          signetType: d.config.signetType,
+          mood: d.config.mood,
+          bond: d.config.bond,
+        }));
+
+      let systemPrompt = buildDragonChatPrompt(
+        reactor.config.dragonName,
+        reactorCharName,
+        reactor.config.trust,
+        reactor.config.mood as DragonMood,
+        (reactor.config.memories || []) as DragonMemory[],
+        reactor.config.dragonNotes || '',
+        reactor.config.speechHabits,
+        undefined,
+        reactor.config.bond,
+        reactor.config.riderEmotionalLog,
+        partyContext,
+      );
+      systemPrompt += `\n\nAnother dragon just said: '${messageText.slice(0, 500)}'. React with a brief ${winner.reactionType} response. 1-2 sentences maximum. Do not repeat or paraphrase what was said. Stay fully in character.`;
+
+      const authToken = await getAuthToken();
+      const resp = await fetch(AI_DM_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: `React to what ${senderDragonName} just said.` }],
+          systemPromptOverride: systemPrompt,
+          model: 'google/gemini-2.5-flash',
+        }),
+      });
+
+      if (!resp.ok) { reactingRef.current = false; return; }
+      const data = await resp.json();
+      const reactionText: string = (data?.response || data?.content || '').replace(/<!--.*?-->/g, '').trim();
+      if (!reactionText) { reactingRef.current = false; return; }
+
+      const reactionMsg: DragonNetworkMessage = {
+        id: `react-${Date.now()}`,
+        fromDragon: reactor.config.dragonName,
+        fromUserId: reactor.userId,
+        toDragon: senderDragonName,
+        toUserId: senderUserId,
+        riderMessage: '',
+        dragonExchange: `*${reactor.config.dragonName}:* ${reactionText}`,
+        timestamp: new Date().toISOString(),
+      };
+
+      // Insert for reactor's own view
+      await supabase.from('party_shared_state').insert([{
+        party_id: partyId,
+        user_id: reactor.userId,
+        state_type: 'dragon_network_message',
+        state_data: reactionMsg as any,
+      }]);
+
+      // Insert for sender's view
+      await supabase.from('party_shared_state').insert([{
+        party_id: partyId,
+        user_id: senderUserId,
+        state_type: 'dragon_network_message',
+        state_data: { ...reactionMsg, id: `react-recv-${Date.now()}` } as any,
+      }]);
+    } catch (err) {
+      console.error('[DragonReaction] Error:', err);
+    } finally {
+      reactingRef.current = false;
+    }
+  }, [partyId, userId, allDragonConfigs, partyMembers]);
+
+  // Realtime subscription for dragon bond changes
   useEffect(() => {
     if (!partyId) return;
 
@@ -138,12 +286,22 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         },
         (payload) => {
           const row = (payload.new as Record<string, unknown>) || {};
-          if (row.state_type === 'dragon_network_message' && row.user_id === userId) {
-            const incoming = row.state_data as unknown as DragonNetworkMessage;
-            setDragonNetworkMessages(prev => {
-              if (prev.some(m => m.id === incoming.id)) return prev;
-              return [...prev, incoming];
-            });
+          if (row.state_type === 'dragon_network_message') {
+            if (row.user_id === userId) {
+              const incoming = row.state_data as unknown as DragonNetworkMessage;
+              setDragonNetworkMessages(prev => {
+                if (prev.some(m => m.id === incoming.id)) return prev;
+                return [...prev, incoming];
+              });
+            }
+            // Trigger cross-reaction if this user is the party host / first evaluator
+            // Only react to messages from OTHER users, not our own reactions
+            if (payload.eventType === 'INSERT' && row.user_id !== userId) {
+              const incoming = row.state_data as unknown as DragonNetworkMessage;
+              if (incoming?.fromUserId && incoming.fromUserId !== userId && !incoming.id?.toString().startsWith('react-')) {
+                triggerDragonReaction(incoming);
+              }
+            }
             return;
           }
           if (row.state_type !== 'dragon_bond') return;
@@ -153,7 +311,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [partyId, fetchAll]);
+  }, [partyId, fetchAll, userId, triggerDragonReaction]);
 
   // ── Dragon Chat ──
   const loadDragonChat = useCallback(async () => {
