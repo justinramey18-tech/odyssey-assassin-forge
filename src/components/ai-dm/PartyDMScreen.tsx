@@ -8,7 +8,7 @@ import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause, MessageCircle } from 'lucide-react';
+import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause, MessageCircle, SmilePlus } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer, PreSplitChatViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -279,7 +279,82 @@ function AfkAnnotatedContent({ content, afkNames }: { content: string; afkNames?
   );
 }
 
-const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage }: {
+type ReactionData = { id: string; message_id: string; emoji: string; user_id: string; sender_name: string };
+
+const EMOJI_SET = ['🤣','😅','🤪','🙄','😬','😏','🤮','🥵','🥶','🤯','🧐','😎','😱','😭','🤬','😈','❤️','💯','👏','🙌','🤝','🖕','🫦','🗣','🍑','🍆'];
+
+function MessageReactions({ messageId, reactions, currentUserId, onAddReaction, onRemoveReaction }: {
+  messageId: string;
+  reactions: ReactionData[];
+  currentUserId?: string;
+  onAddReaction: (messageId: string, emoji: string) => void;
+  onRemoveReaction: (messageId: string, emoji: string) => void;
+}) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, { emoji: string; count: number; users: string[]; isMine: boolean }>();
+    for (const r of reactions) {
+      const existing = map.get(r.emoji);
+      if (existing) {
+        existing.count++;
+        existing.users.push(r.sender_name);
+        if (r.user_id === currentUserId) existing.isMine = true;
+      } else {
+        map.set(r.emoji, { emoji: r.emoji, count: 1, users: [r.sender_name], isMine: r.user_id === currentUserId });
+      }
+    }
+    return Array.from(map.values());
+  }, [reactions, currentUserId]);
+
+  return (
+    <div className="flex flex-wrap gap-1 mt-1 items-center">
+      {grouped.map(g => (
+        <button
+          key={g.emoji}
+          onClick={() => g.isMine ? onRemoveReaction(messageId, g.emoji) : onAddReaction(messageId, g.emoji)}
+          className={cn(
+            "h-6 px-1.5 text-xs rounded-full border flex items-center gap-0.5 transition-colors",
+            g.isMine
+              ? "bg-amber-900/30 border-amber-500/30 hover:bg-amber-900/50"
+              : "bg-white/5 border-white/10 hover:bg-white/10"
+          )}
+          title={g.users.join(', ')}
+          style={{ touchAction: 'manipulation' }}
+        >
+          <span>{g.emoji}</span>
+          <span className="text-white/70">{g.count}</span>
+        </button>
+      ))}
+      <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+        <PopoverTrigger asChild>
+          <button
+            className="h-6 w-6 rounded-full flex items-center justify-center text-white/20 hover:text-white/50 hover:bg-white/5 transition-colors"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <SmilePlus className="w-3.5 h-3.5" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[280px] p-2 bg-black/95 border border-white/10 backdrop-blur-md" side="top" align="start">
+          <div className="grid grid-cols-7 gap-0.5">
+            {EMOJI_SET.map(emoji => (
+              <button
+                key={emoji}
+                onClick={() => { onAddReaction(messageId, emoji); setPickerOpen(false); }}
+                className="w-8 h-8 rounded hover:bg-white/10 flex items-center justify-center text-base transition-colors"
+                style={{ touchAction: 'manipulation' }}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -299,6 +374,9 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   isBookmarked?: boolean;
   onBookmark?: (messageId: string) => void;
   isDialogueMessage?: boolean;
+  reactions?: ReactionData[];
+  onAddReaction?: (messageId: string, emoji: string) => void;
+  onRemoveReaction?: (messageId: string, emoji: string) => void;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
@@ -465,6 +543,11 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                   </ReactMarkdown>
                 )}
               </div>
+            )}
+
+            {/* Reactions (assistant messages) */}
+            {reactions && onAddReaction && onRemoveReaction && (
+              <MessageReactions messageId={message.id} reactions={reactions} currentUserId={currentUserId} onAddReaction={onAddReaction} onRemoveReaction={onRemoveReaction} />
             )}
 
             {/* Bookmark button (all users) */}
@@ -681,6 +764,11 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
         </p>
         )}
 
+        {/* Reactions (user messages) */}
+        {reactions && onAddReaction && onRemoveReaction && (
+          <MessageReactions messageId={message.id} reactions={reactions} currentUserId={currentUserId} onAddReaction={onAddReaction} onRemoveReaction={onRemoveReaction} />
+        )}
+
         {/* Bookmark button (all users) */}
         {!isEditingMsg && onBookmark && (
           <button
@@ -747,7 +835,9 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.mode === next.mode
     && prev.showTeamTag === next.showTeamTag
     && prev.currentUserId === next.currentUserId
-    && prev.isBookmarked === next.isBookmarked;
+    && prev.isBookmarked === next.isBookmarked
+    && (prev.reactions?.length ?? 0) === (next.reactions?.length ?? 0)
+    && prev.reactions?.every((r, i) => r.id === next.reactions?.[i]?.id);
 });
 
 export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid }: PartyDMScreenProps) {
@@ -786,6 +876,76 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [showDragonSetup, setShowDragonSetup] = useState(false);
   const [showDragonChat, setShowDragonChat] = useState(false);
   const [showDragonTelegramScheduler, setShowDragonTelegramScheduler] = useState(false);
+
+  // === Emoji Reactions ===
+  const [messageReactions, setMessageReactions] = useState<ReactionData[]>([]);
+
+  // Load reactions on mount
+  useEffect(() => {
+    if (!partyId) return;
+    supabase
+      .from('party_message_reactions')
+      .select('id, message_id, emoji, user_id, sender_name')
+      .eq('party_id', partyId)
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        if (data) setMessageReactions(data);
+      });
+  }, [partyId]);
+
+  // Realtime subscription for reactions
+  useEffect(() => {
+    if (!partyId) return;
+    const channel = supabase
+      .channel(`dm-reactions-${partyId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'party_message_reactions',
+        filter: `party_id=eq.${partyId}`,
+      }, (payload: any) => {
+        const row = payload.new as ReactionData;
+        setMessageReactions(prev => {
+          if (prev.some(r => r.id === row.id)) return prev;
+          return [...prev, row];
+        });
+      })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'party_message_reactions',
+        filter: `party_id=eq.${partyId}`,
+      }, (payload: any) => {
+        const oldId = (payload.old as any)?.id;
+        if (oldId) setMessageReactions(prev => prev.filter(r => r.id !== oldId));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [partyId]);
+
+  const addReaction = useCallback(async (messageId: string, emoji: string) => {
+    if (!partyId || !currentUserId) return;
+    const charName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+    const { error } = await supabase.from('party_message_reactions').upsert({
+      message_id: messageId,
+      party_id: partyId,
+      user_id: currentUserId,
+      emoji,
+      sender_name: charName,
+    } as any, { onConflict: 'message_id,user_id,emoji' } as any);
+    if (error) console.error('[Reactions] add error:', error);
+  }, [partyId, currentUserId, members]);
+
+  const removeReaction = useCallback(async (messageId: string, emoji: string) => {
+    if (!currentUserId) return;
+    const { error } = await supabase
+      .from('party_message_reactions')
+      .delete()
+      .eq('message_id', messageId)
+      .eq('user_id', currentUserId)
+      .eq('emoji', emoji);
+    if (error) console.error('[Reactions] remove error:', error);
+  }, [currentUserId]);
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
   const lastProcessedMsgIdRef = useRef<string | null>(null);
@@ -1527,6 +1687,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     isBookmarked={msg.id === bookmarkedMessageId}
                     onBookmark={handleSetBookmark}
                     isDialogueMessage={msg.role === 'user' && msg.sender_name !== 'Party' && msg.sender_name !== 'System' && msg.content.startsWith('[' + msg.sender_name + ']: ')}
+                    reactions={messageReactions.filter(r => r.message_id === msg.id)}
+                    onAddReaction={addReaction}
+                    onRemoveReaction={removeReaction}
                   />
                 </React.Fragment>
                 );
