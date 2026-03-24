@@ -338,10 +338,10 @@ ${memories.map(m => '- ' + m.text).join('\n')}`);
     const chatMessages = dragonBonds.dragonChatMessages;
     if (chatMessages?.length) {
       const DRAGON_TAG_RE = /<!--(?:DRAGON_MOOD|DRAGON_MEMORY|DRAGON_HABIT|BOND_SENSE):[^>]*-->/g;
-      const last10 = chatMessages.slice(-10);
-      const lines = last10.map(m => {
+      const last15 = chatMessages.slice(-15);
+      const lines = last15.map(m => {
         const cleanContent = m.content.replace(DRAGON_TAG_RE, '').trim();
-        return m.role === 'user' ? `Rider: ${cleanContent}` : `Dragon: ${cleanContent}`;
+        return m.role === 'user' ? `${characterName}: ${cleanContent}` : `${dragon.dragonName}: ${cleanContent}`;
       }).join('\n');
       const truncated = lines.length > 2000 ? lines.slice(0, 2000) + '…' : lines;
       sections.push(`## RECENT DRAGON-RIDER PRIVATE COMMUNICATION
@@ -355,6 +355,21 @@ ${truncated}`);
       const shiftAge = Date.now() - new Date(shift.timestamp).getTime();
       if (shiftAge < 5 * 60 * 1000) {
         sections.push(`[Dragon mood shift: ${dragon.dragonName} shifted from ${shift.from} to ${shift.to}. Reflect this in dragon whispers and behavior this scene.]`);
+      }
+    }
+
+    // Rider emotional state from bond log
+    const emotionalLog = (dragon as any).riderEmotionalLog ?? [];
+    if (emotionalLog.length > 0) {
+      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+      const recentEmotions = emotionalLog
+        .filter((e: any) => new Date(e.timestamp).getTime() > fiveMinutesAgo)
+        .map((e: any) => e.tag);
+      if (recentEmotions.length > 0) {
+        const counts: Record<string, number> = {};
+        recentEmotions.forEach((tag: string) => { counts[tag] = (counts[tag] ?? 0) + 1; });
+        const summary = Object.entries(counts).map(([tag, n]) => n > 1 ? `${tag} (×${n})` : tag).join(', ');
+        sections.push(`## RIDER EMOTIONAL STATE (from bond log)\nRecent emotional signals detected through the bond: ${summary}\nLet this color the scene's atmosphere and any NPC reactions to the rider.`);
       }
     }
 
