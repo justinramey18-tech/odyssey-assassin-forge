@@ -20,7 +20,7 @@ export function isMomoEasterEgg(name: string): boolean {
   return name.toLowerCase().trim().includes('momo');
 }
 
-/** Easter egg: detect if the character name is "ellie" */
+/** Easter egg: detect if the dragon name is "ellie" */
 export function isEllieEasterEgg(name: string): boolean {
   return name.toLowerCase().trim().includes('ellie');
 }
