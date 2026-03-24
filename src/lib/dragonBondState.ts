@@ -191,6 +191,7 @@ export function buildDragonChatPrompt(
   recentNarrative?: string[],
   bond?: number,
   riderEmotionalLog?: Array<{ tag: string; timestamp: string }>,
+  partyContext?: Array<{ characterName: string; dragonName: string; signetType: string; mood: string; bond: number }>,
 ): string {
   const sections: string[] = [];
 
@@ -255,6 +256,17 @@ You and this rider share something rare. Your communication is almost seamless �
   // Dragon personality notes from the user
   if (dragonNotes.trim()) {
     sections.push(`## PERSONALITY NOTES FROM THE RIDER\n${dragonNotes.trim()}`);
+  }
+
+  // Party context — other dragons and riders
+  if (partyContext && partyContext.length > 0) {
+    const otherDragons = partyContext.filter(d => d.dragonName && d.dragonName !== dragonName);
+    if (otherDragons.length > 0) {
+      const lines = otherDragons.map(d =>
+        `- ${d.dragonName} bonded to ${d.characterName} (signet: ${d.signetType || 'unknown'}, mood: ${d.mood || 'unknown'}, bond strength: ${getBondDescriptor(d.bond)})`
+      );
+      sections.push(`## OTHER DRAGONS IN THE PARTY\nYou are not alone. Other riders and their bonded dragons fly with your rider:\n${lines.join('\n')}\n\nYou may have opinions about these dragons and their riders. Reference them when relevant — warn your rider about a dragon whose mood is "distant", express rivalry or respect, comment on the party's collective strength or weakness. You experience their presence through the ambient bond network.`);
+    }
   }
 
   // Speech habits

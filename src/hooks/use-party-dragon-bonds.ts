@@ -68,7 +68,7 @@ function matchesAny(text: string, patterns: string[]): boolean {
 const SESSION_CHAT_CAP = 5;
 const MAX_TRUST_PER_EXCHANGE = 4;
 
-export function usePartyDragonBonds(partyId: string | null, userId: string | null) {
+export function usePartyDragonBonds(partyId: string | null, userId: string | null, partyMembers?: Array<{ user_id: string; character_name: string }>) {
   const [myDragon, setMyDragon] = useState<PartyDragonConfig | null>(null);
   const [allDragonConfigs, setAllDragonConfigs] = useState<DragonEntry[]>([]);
   const [myRowId, setMyRowId] = useState<string | null>(null);
@@ -227,6 +227,17 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
 
     try {
       // Build system prompt
+      // Build party context for other dragons
+      const partyContext = allDragonConfigs
+        .filter(d => d.config.dragonName && d.userId !== userId)
+        .map(d => ({
+          characterName: partyMembers?.find(m => m.user_id === d.userId)?.character_name || d.userId,
+          dragonName: d.config.dragonName,
+          signetType: d.config.signetType,
+          mood: d.config.mood,
+          bond: d.config.bond,
+        }));
+
       const systemPrompt = buildDragonChatPrompt(
         myDragon.dragonName,
         characterName,
@@ -238,6 +249,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         recentNarrative,
         myDragon.bond,
         myDragon.riderEmotionalLog,
+        partyContext,
       );
 
       // Build API messages - only last 40 messages for context window
@@ -403,7 +415,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     } finally {
       if (mountedRef.current) setIsSending(false);
     }
-  }, [partyId, userId, myDragon, isSending, dragonChatMessages, sessionChatCount, saveDragonChat, myRowId]);
+  }, [partyId, userId, myDragon, isSending, dragonChatMessages, sessionChatCount, saveDragonChat, myRowId, allDragonConfigs, partyMembers]);
 
   // Save full dragon config
   const saveMyDragon = useCallback(async (config: PartyDragonConfig) => {
