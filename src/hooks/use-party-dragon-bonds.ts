@@ -221,6 +221,14 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
 
     const reactor = winner.entry;
 
+    // V3: Update relationship tracking
+    const rels = dragonRelationshipsRef.current;
+    if (!rels[reactor.userId]) rels[reactor.userId] = {};
+    if (!rels[reactor.userId][senderUserId]) rels[reactor.userId][senderUserId] = { affinity: 0, interactions: 0 };
+    const rel = rels[reactor.userId][senderUserId];
+    rel.interactions += 1;
+    rel.affinity = Math.max(-1, Math.min(1, rel.affinity + (AFFINITY_DELTAS[winner.reactionType] ?? 0)));
+
     // Set cooldown
     cooldowns.set(reactor.userId, 4);
     reactingRef.current = true;
@@ -257,6 +265,11 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         reactor.config.riderEmotionalLog,
         partyContext,
       );
+
+      // V3: Inject relationship context if sufficient interactions
+      if (rel.interactions >= 3) {
+        systemPrompt += `\n\n${getAffinityDescription(rel.affinity, senderDragonName)}`;
+      }
 
       if (mode === 'chain') {
         systemPrompt += `\n\nAnother dragon just responded to something you said: '${messageText.slice(0, 500)}'. Fire back with a brief ${winner.reactionType} retort. 1-2 sentences maximum. Stay in character.`;
