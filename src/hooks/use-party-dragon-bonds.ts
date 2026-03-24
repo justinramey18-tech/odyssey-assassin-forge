@@ -525,7 +525,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
           bond: d.config.bond,
         }));
 
-      const systemPrompt = buildDragonChatPrompt(
+      let systemPrompt = buildDragonChatPrompt(
         myDragon.dragonName,
         characterName,
         myDragon.trust,
@@ -538,6 +538,24 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         myDragon.riderEmotionalLog,
         partyContext,
       );
+
+      // V3: Inject relationship context for rider-initiated chat
+      if (userId) {
+        const myRels = dragonRelationshipsRef.current[userId];
+        if (myRels) {
+          const relLines: string[] = [];
+          for (const otherEntry of allDragonConfigs) {
+            if (otherEntry.userId === userId || !otherEntry.config.dragonName) continue;
+            const rel = myRels[otherEntry.userId];
+            if (rel && rel.interactions >= 3) {
+              relLines.push(`- ${otherEntry.config.dragonName}: ${getAffinityDescription(rel.affinity, otherEntry.config.dragonName)}`);
+            }
+          }
+          if (relLines.length > 0) {
+            systemPrompt += `\n\n## YOUR FEELINGS ABOUT OTHER DRAGONS\n${relLines.join('\n')}`;
+          }
+        }
+      }
 
       // Build API messages - only last 40 messages for context window
       const apiMessages = updatedMessages.slice(-40).map(m => ({ role: m.role, content: m.content }));
