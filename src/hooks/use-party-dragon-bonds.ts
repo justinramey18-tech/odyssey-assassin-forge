@@ -474,7 +474,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [partyId, fetchAll, userId, triggerDragonReaction]);
+  }, [partyId, fetchAll, userId, triggerDragonReaction, persistDragonRelationships]);
 
   // ── Dragon Chat ──
   const loadDragonChat = useCallback(async () => {
