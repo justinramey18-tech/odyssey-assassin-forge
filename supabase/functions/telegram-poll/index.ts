@@ -121,6 +121,7 @@ async function processCommand(
       `/initiative — Roll initiative\n` +
       `/roll NdS+M — Roll dice\n\n` +
       `<b>📖 Campaign</b>\n` +
+      `/party — Party status & members\n` +
       `/quests [mode] — Quest log (solo/party/empyrean)\n` +
       `/lore QUESTION — AI lore lookup\n` +
       `/recap — AI session recap`,
@@ -440,6 +441,99 @@ async function processCommand(
 
       if (d.bond < 25) msg += `\n\n⚠️ <i>Your bond is fragile. Tread carefully.</i>`;
       else if (d.bond >= 75) msg += `\n\n✨ <i>Your bond burns bright.</i>`;
+
+      await sendTelegram(chatId, msg, lovableKey, telegramKey);
+    }
+    return;
+  }
+
+  // /party
+  if (cmd === '/party') {
+    const userId = await getUserIdFromChat(chatId, supabase);
+    if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+
+    const { data: memberships } = await supabase
+      .from('party_members')
+      .select('party_id')
+      .eq('user_id', userId);
+
+    if (!memberships || memberships.length === 0) {
+      await sendTelegram(chatId, '👥 You are not in any party. Join or create one in the app!', lovableKey, telegramKey);
+      return;
+    }
+
+    for (const membership of memberships.slice(0, 3)) {
+      const partyId = membership.party_id;
+
+      const { data: party } = await supabase
+        .from('parties')
+        .select('link_code, created_by')
+        .eq('id', partyId)
+        .maybeSingle();
+
+      const { data: members } = await supabase
+        .from('party_members')
+        .select('user_id, character_name, character_status')
+        .eq('party_id', partyId);
+
+      const { data: sessionState } = await supabase
+        .from('party_shared_state')
+        .select('state_data')
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session')
+        .maybeSingle();
+
+      const session = sessionState?.state_data as any;
+      const isSessionActive = session?.active === true;
+      const dmMode = session?.dmMode || 'ai';
+      const campaignType = session?.campaignType || 'dnd';
+
+      let msg = `👥 <b>Party</b> (${party?.link_code || '???'})\n`;
+
+      if (isSessionActive) {
+        const modeLabel = dmMode === 'human' ? 'Human DM' : dmMode === 'dialogue' ? 'Dialogue' : dmMode === 'ai-approval' ? 'AI + Approval' : 'AI DM';
+        const typeLabel = campaignType === 'empyrean' ? '🐉 Empyrean' : '⚔️ D&D';
+        msg += `${typeLabel} • ${modeLabel} • Session Active\n`;
+      } else {
+        msg += `No active DM session\n`;
+      }
+
+      msg += `\n`;
+
+      if (members && members.length > 0) {
+        for (const m of members) {
+          const cs = m.character_status as any;
+          const className = cs?.className || cs?.class || '?';
+          const level = cs?.level || '?';
+          const currentHP = cs?.currentHP || '?';
+          const maxHP = cs?.maxHP || '?';
+          const isHost = m.user_id === party?.created_by;
+          const hostBadge = isHost ? ' 👑' : '';
+
+          msg += `• ${m.character_name}${hostBadge}\n`;
+          msg += `    Level ${level} ${className} • ${currentHP}/${maxHP} HP\n`;
+        }
+      } else {
+        msg += `No members found\n`;
+      }
+
+      if (isSessionActive && session?.currentRoundId) {
+        const { data: prompts } = await supabase
+          .from('party_dm_prompts')
+          .select('user_id, is_ready, character_name')
+          .eq('party_id', partyId)
+          .eq('round_id', session.currentRoundId);
+
+        if (prompts && prompts.length > 0) {
+          const readyCount = prompts.filter((p: any) => p.is_ready).length;
+          const totalMembers = members?.length || 0;
+          msg += `\n⚔️ Ready: ${readyCount}/${totalMembers}`;
+          const readyNames = prompts.filter((p: any) => p.is_ready).map((p: any) => p.character_name);
+          if (readyNames.length > 0) {
+            msg += ` (${readyNames.join(', ')})`;
+          }
+        }
+      }
 
       await sendTelegram(chatId, msg, lovableKey, telegramKey);
     }
