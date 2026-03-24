@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { type PartyDragonConfig } from '@/hooks/use-party-dm';
 import { getAuthToken } from '@/lib/auth-token';
-import { buildDragonChatPrompt, addMemory, detectTrustBreak, detectRiderDeclaration, classifyRiderEmotion, type DragonMood, type DragonMemory } from '@/lib/dragonBondState';
+import { buildDragonChatPrompt, addMemory, detectTrustBreak, detectRiderDeclaration, classifyRiderEmotion, computeMoodPressure, buildConstrainedMoodOptions, type DragonMood, type DragonMemory } from '@/lib/dragonBondState';
 import { loadSelectedModel } from '@/lib/dm-models';
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
