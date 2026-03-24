@@ -191,6 +191,7 @@ export function buildDragonChatPrompt(
   recentNarrative?: string[],
   bond?: number,
   riderEmotionalLog?: Array<{ tag: string; timestamp: string }>,
+  partyContext?: Array<{ characterName: string; dragonName: string; signetType: string; mood: string; bond: number }>,
 ): string {
   const sections: string[] = [];
 
