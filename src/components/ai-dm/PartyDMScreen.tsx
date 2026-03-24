@@ -335,7 +335,7 @@ function MessageReactions({ messageId, reactions, currentUserId, onAddReaction, 
             <SmilePlus className="w-3.5 h-3.5" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-[280px] p-2 bg-black/95 border border-white/10 backdrop-blur-md" side="top" align="start">
+        <PopoverContent className="w-[280px] p-2 bg-black/95 border border-white/10 backdrop-blur-md z-[200]" side="top" align="start">
           <div className="grid grid-cols-7 gap-0.5">
             {EMOJI_SET.map(emoji => (
               <button
