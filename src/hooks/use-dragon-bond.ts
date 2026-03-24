@@ -52,9 +52,9 @@ const MAX_TRUST_PER_EXCHANGE = 4;
 export function useDragonBond({ dragonName, characterName, onTrustChange, onBondChange }: UseDragonBondOptions) {
   const [bondState, setBondState] = useState<DragonBondState>(() => {
     const state = loadBondState();
-    // Ellie Easter egg: if the character name includes "ellie" and bond state is
+    // Ellie Easter egg: if the dragon name includes "ellie" and bond state is
     // still at defaults (trust === 10, bond === 15), apply the elevated starting state.
-    if (isEllieEasterEgg(characterName) && state.trust === DEFAULT_TRUST && state.bond === DEFAULT_BOND) {
+    if (isEllieEasterEgg(dragonName) && state.trust === DEFAULT_TRUST && state.bond === DEFAULT_BOND) {
       return { ...state, trust: 25, mood: 'playful' as const };
     }
     return state;
