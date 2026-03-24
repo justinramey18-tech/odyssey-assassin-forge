@@ -84,6 +84,8 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
   const reactingRef = useRef(false);
   // Track reaction vs chain IDs locally: 'reaction' = depth 0 reaction, 'chain' = depth 1 (terminal)
   const reactionDepthRef = useRef<Map<string, 'reaction' | 'chain'>>(new Map());
+  // V3: Emergent dragon relationship tracking (session-only)
+  const dragonRelationshipsRef = useRef<Record<string, Record<string, { affinity: number; interactions: number }>>>({});
 
   useEffect(() => {
     mountedRef.current = true;
