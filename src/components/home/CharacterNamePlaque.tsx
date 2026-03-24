@@ -23,8 +23,8 @@ const CLASS_LABELS: Record<string, string> = {
   bard: 'Bard',
 };
 
-export function CharacterNamePlaque({ name, level, primaryClass, onOpenSettings }: CharacterNamePlaqueProps) {
-  const badges = [...getThistleBadges(name || ''), ...getEllieBadges(name || '')];
+export function CharacterNamePlaque({ name, level, primaryClass, dragonName, onOpenSettings }: CharacterNamePlaqueProps) {
+  const badges = [...getThistleBadges(name || ''), ...getEllieBadges(dragonName || '')];
   const { driftPosition, historyCount } = useAlignmentDrift();
   const { gender, race } = useCharacterIdentity();
 

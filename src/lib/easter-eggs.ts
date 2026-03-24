@@ -25,8 +25,8 @@ export function isEllieEasterEgg(name: string): boolean {
   return name.toLowerCase().trim().includes('ellie');
 }
 
-export function getEllieBadges(name: string): readonly EasterEggBadge[] {
-  if (isEllieEasterEgg(name)) {
+export function getEllieBadges(dragonName: string): readonly EasterEggBadge[] {
+  if (isEllieEasterEgg(dragonName)) {
     return [{ label: "🐉 Ellie's Bond", color: 'rose' }];
   }
   return [];
