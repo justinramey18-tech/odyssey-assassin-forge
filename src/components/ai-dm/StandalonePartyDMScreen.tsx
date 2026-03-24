@@ -338,10 +338,10 @@ ${memories.map(m => '- ' + m.text).join('\n')}`);
     const chatMessages = dragonBonds.dragonChatMessages;
     if (chatMessages?.length) {
       const DRAGON_TAG_RE = /<!--(?:DRAGON_MOOD|DRAGON_MEMORY|DRAGON_HABIT|BOND_SENSE):[^>]*-->/g;
-      const last10 = chatMessages.slice(-10);
-      const lines = last10.map(m => {
+      const last15 = chatMessages.slice(-15);
+      const lines = last15.map(m => {
         const cleanContent = m.content.replace(DRAGON_TAG_RE, '').trim();
-        return m.role === 'user' ? `Rider: ${cleanContent}` : `Dragon: ${cleanContent}`;
+        return m.role === 'user' ? `${characterName}: ${cleanContent}` : `${dragon.dragonName}: ${cleanContent}`;
       }).join('\n');
       const truncated = lines.length > 2000 ? lines.slice(0, 2000) + '…' : lines;
       sections.push(`## RECENT DRAGON-RIDER PRIVATE COMMUNICATION
