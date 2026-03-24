@@ -926,26 +926,66 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const addReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!partyId || !currentUserId) return;
     const charName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
-    const { error } = await supabase.from('party_message_reactions').upsert({
+    const optimisticReaction: ReactionData = {
+      id: `optimistic-${messageId}-${currentUserId}-${emoji}`,
       message_id: messageId,
       party_id: partyId,
       user_id: currentUserId,
       emoji,
       sender_name: charName,
-    } as any, { onConflict: 'message_id,user_id,emoji' } as any);
-    if (error) console.error('[Reactions] add error:', error);
+    } as ReactionData & { party_id: string };
+
+    setMessageReactions(prev => {
+      if (prev.some(r => r.message_id === messageId && r.user_id === currentUserId && r.emoji === emoji)) return prev;
+      return [...prev, optimisticReaction];
+    });
+
+    const { data, error } = await supabase.from('party_message_reactions').upsert({
+      message_id: messageId,
+      party_id: partyId,
+      user_id: currentUserId,
+      emoji,
+      sender_name: charName,
+    } as any, { onConflict: 'message_id,user_id,emoji' } as any)
+      .select('id, message_id, emoji, user_id, sender_name')
+      .single();
+
+    if (error) {
+      console.error('[Reactions] add error:', error);
+      setMessageReactions(prev => prev.filter(r => !(r.message_id === messageId && r.user_id === currentUserId && r.emoji === emoji)));
+      return;
+    }
+
+    if (data) {
+      setMessageReactions(prev => {
+        const filtered = prev.filter(r => !(r.message_id === messageId && r.user_id === currentUserId && r.emoji === emoji));
+        return [...filtered, data as ReactionData];
+      });
+    }
   }, [partyId, currentUserId, members]);
 
   const removeReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!currentUserId) return;
+    const removedReaction = messageReactions.find(r => r.message_id === messageId && r.user_id === currentUserId && r.emoji === emoji);
+
+    setMessageReactions(prev => prev.filter(r => !(r.message_id === messageId && r.user_id === currentUserId && r.emoji === emoji)));
+
     const { error } = await supabase
       .from('party_message_reactions')
       .delete()
       .eq('message_id', messageId)
       .eq('user_id', currentUserId)
       .eq('emoji', emoji);
-    if (error) console.error('[Reactions] remove error:', error);
-  }, [currentUserId]);
+    if (error) {
+      console.error('[Reactions] remove error:', error);
+      if (removedReaction) {
+        setMessageReactions(prev => {
+          if (prev.some(r => r.id === removedReaction.id)) return prev;
+          return [...prev, removedReaction];
+        });
+      }
+    }
+  }, [currentUserId, messageReactions]);
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
   const lastProcessedMsgIdRef = useRef<string | null>(null);
