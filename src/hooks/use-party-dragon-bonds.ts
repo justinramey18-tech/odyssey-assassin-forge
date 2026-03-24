@@ -612,6 +612,11 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
       );
       const { recommendedMood, validTransitions } = moodPressureResult;
 
+      // Capture mood shift event if mood is changing
+      const fromMood = (myDragon.mood || 'calm') as string;
+      if (recommendedMood !== fromMood) {
+        lastMoodShiftRef.current = { from: fromMood, to: recommendedMood, timestamp: new Date().toISOString() };
+      }
       // Build system prompt
       // Build party context for other dragons
       const partyContext = allDragonConfigs
