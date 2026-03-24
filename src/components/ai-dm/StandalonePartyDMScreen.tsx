@@ -358,6 +358,21 @@ ${truncated}`);
       }
     }
 
+    // Rider emotional state from bond log
+    const emotionalLog = (dragon as any).riderEmotionalLog ?? [];
+    if (emotionalLog.length > 0) {
+      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+      const recentEmotions = emotionalLog
+        .filter((e: any) => new Date(e.timestamp).getTime() > fiveMinutesAgo)
+        .map((e: any) => e.tag);
+      if (recentEmotions.length > 0) {
+        const counts: Record<string, number> = {};
+        recentEmotions.forEach((tag: string) => { counts[tag] = (counts[tag] ?? 0) + 1; });
+        const summary = Object.entries(counts).map(([tag, n]) => n > 1 ? `${tag} (×${n})` : tag).join(', ');
+        sections.push(`## RIDER EMOTIONAL STATE (from bond log)\nRecent emotional signals detected through the bond: ${summary}\nLet this color the scene's atmosphere and any NPC reactions to the rider.`);
+      }
+    }
+
     return '\n\n' + sections.join('\n\n');
   }, [dragonBonds.myDragon, dragonBonds.dragonChatMessages, dragonBonds.lastMoodShift]);
 
