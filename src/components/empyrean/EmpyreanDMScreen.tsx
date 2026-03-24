@@ -281,6 +281,14 @@ export function EmpyreanDMScreen({
         toast('Dragon bond strained: ' + strainMatch[1], { icon: '💔' });
       }
 
+      // Extract burnout tick events
+      const burnoutTickMatch = content.match(/<!--BURNOUT_TICK:(.+?)-->/);
+      if (burnoutTickMatch) {
+        const nextBurnout = Math.min((burnoutLevel ?? 0) + 1, maxBurnout);
+        setBurnoutLevel(nextBurnout);
+        toast('Signet strain: ' + burnoutTickMatch[1], { icon: '🔥' });
+      }
+
       // Extract dragon whispers and forward to bond chat as incoming messages
       const whisperRegex = /<!--WHISPER:([^>]+?)-->([\s\S]*?)<!--\/WHISPER:\1-->/g;
       let whisperMatch;
