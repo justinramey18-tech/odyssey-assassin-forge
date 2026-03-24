@@ -367,6 +367,29 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
               const msgId = incoming.id?.toString() || '';
               const depthMap = reactionDepthRef.current;
 
+              // ── Reverse relationship tracking: how MY dragon feels about the sender ──
+              if (userId) {
+                if (!dragonRelationshipsRef.current[userId]) {
+                  dragonRelationshipsRef.current[userId] = {};
+                }
+                const senderKey = incoming.fromUserId;
+                if (!dragonRelationshipsRef.current[userId][senderKey]) {
+                  dragonRelationshipsRef.current[userId][senderKey] = { affinity: 0, interactions: 0 };
+                }
+                const rel = dragonRelationshipsRef.current[userId][senderKey];
+                rel.interactions += 1;
+
+                let delta = 0;
+                if (msgId.startsWith('chain-')) {
+                  delta = -0.03;
+                } else if (msgId.startsWith('react-')) {
+                  delta = (incoming as any).toUserId === userId ? -0.02 : 0.01;
+                } else {
+                  delta = 0.01;
+                }
+                rel.affinity = Math.max(-1, Math.min(1, rel.affinity + delta));
+              }
+
               // Check if this is a chain reaction (depth 1) — terminal, no further reactions
               if (msgId.startsWith('chain-') || depthMap.get(msgId) === 'chain') return;
 
