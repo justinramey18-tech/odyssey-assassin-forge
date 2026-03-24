@@ -10,6 +10,8 @@ import {
   loadBondState,
   saveBondState,
   buildDragonChatPrompt,
+  computeMoodPressure,
+  buildConstrainedMoodOptions,
   getMoodDescriptor,
   getBondDescriptor,
   getTrustDescriptor,
