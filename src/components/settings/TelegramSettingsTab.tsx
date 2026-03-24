@@ -266,10 +266,11 @@ export function TelegramSettingsTab() {
       const hh = String(hours).padStart(2, '0');
       const min = String(minutes).padStart(2, '0');
 
-      // Find the UTC time that corresponds to this time in America/New_York
+      // Find the UTC time that corresponds to this time in the user's timezone
+      const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const naiveUtc = new Date(`${yyyy}-${mm}-${dd}T${hh}:${min}:00Z`);
-      const nyTimeAtNaive = new Date(naiveUtc.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-      const offsetMs = naiveUtc.getTime() - nyTimeAtNaive.getTime();
+      const tzTimeAtNaive = new Date(naiveUtc.toLocaleString('en-US', { timeZone: userTz }));
+      const offsetMs = naiveUtc.getTime() - tzTimeAtNaive.getTime();
       let runAt = new Date(naiveUtc.getTime() + offsetMs);
 
       if (newJobRepeatDaily && runAt.getTime() <= Date.now()) {
@@ -289,7 +290,7 @@ export function TelegramSettingsTab() {
           include_campaign_context: newJobIncludeContext,
           dm_context_mode: newJobDmContext,
           ai_model: newJobAiModel,
-          timezone: 'America/New_York',
+          timezone: userTz,
           status: 'pending',
           run_at: runAt.toISOString(),
           repeat_daily: newJobRepeatDaily,
