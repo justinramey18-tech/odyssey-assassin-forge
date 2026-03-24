@@ -125,7 +125,10 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
   }, [fetchAll]);
 
   // ── Dragon cross-reaction logic ──
-  const triggerDragonReaction = useCallback(async (incomingMsg: DragonNetworkMessage) => {
+  const triggerDragonReaction = useCallback(async (
+    incomingMsg: DragonNetworkMessage,
+    mode: 'normal' | 'chain' = 'normal',
+  ) => {
     if (!partyId || !userId || reactingRef.current) return;
     if (allDragonConfigs.length < 2) return;
 
@@ -145,53 +148,73 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     const senderEntry = allDragonConfigs.find(d => d.userId === senderUserId);
     const senderBond = senderEntry?.config.bond ?? 15;
 
-    // Evaluate each OTHER dragon
-    type Candidate = { entry: DragonEntry; roll: number; reactionType: string };
-    const candidates: Candidate[] = [];
+    let winner: { entry: DragonEntry; reactionType: string } | null = null;
 
-    for (const entry of allDragonConfigs) {
-      if (!entry.config.dragonName || entry.userId === senderUserId) continue;
-      // Skip if on cooldown
-      if ((cooldowns.get(entry.userId) ?? 0) > 0) continue;
-
-      const personality = (entry.config.dragonNotes || '').toLowerCase();
-      let baseRate = 0.15;
-      if (/aggressive|dominant/.test(personality)) baseRate = 0.3;
-      else if (/playful/.test(personality)) baseRate = 0.25;
-      else if (/reserved|shy/.test(personality)) baseRate = 0.1;
-
-      let chance = baseRate;
-      if ((entry.config.bond ?? 15) >= 50) chance += 0.1;
-      if (lowerMsg.includes(entry.config.dragonName.toLowerCase()) || COMBAT_WORDS.some(w => lowerMsg.includes(w))) chance += 0.2;
-      chance = Math.min(chance, 0.7);
+    if (mode === 'chain') {
+      // Chain mode: only the original speaker (the dragon being reacted TO) can respond
+      // incomingMsg.toUserId is the original speaker
+      const originalSpeakerUserId = incomingMsg.toUserId;
+      const originalEntry = allDragonConfigs.find(d => d.userId === originalSpeakerUserId);
+      if (!originalEntry?.config.dragonName) return;
+      if ((cooldowns.get(originalSpeakerUserId) ?? 0) > 0) return;
 
       const roll = Math.random();
-      if (roll < chance) {
-        // Determine reaction type
-        const reactorBond = entry.config.bond ?? 15;
-        let reactionType = 'agree';
-        if (Math.abs(reactorBond - senderBond) <= 10) reactionType = 'rival';
-        else if (reactorBond >= senderBond + 20) reactionType = 'dismiss';
-        else if (COMBAT_WORDS.some(w => lowerMsg.includes(w))) reactionType = 'warn';
-        else if (/playful/.test(personality)) reactionType = 'tease';
+      if (roll >= 0.35) return; // flat 35% chance
 
-        candidates.push({ entry, roll, reactionType });
+      const originalBond = originalEntry.config.bond ?? 15;
+      const reactorBond = senderEntry?.config.bond ?? 15;
+      const reactionType = Math.abs(originalBond - reactorBond) <= 15 ? 'rival' : 'dismiss';
+
+      winner = { entry: originalEntry, reactionType };
+    } else {
+      // Normal mode: evaluate each OTHER dragon (V1 logic)
+      type Candidate = { entry: DragonEntry; roll: number; reactionType: string };
+      const candidates: Candidate[] = [];
+
+      for (const entry of allDragonConfigs) {
+        if (!entry.config.dragonName || entry.userId === senderUserId) continue;
+        if ((cooldowns.get(entry.userId) ?? 0) > 0) continue;
+
+        const personality = (entry.config.dragonNotes || '').toLowerCase();
+        let baseRate = 0.15;
+        if (/aggressive|dominant/.test(personality)) baseRate = 0.3;
+        else if (/playful/.test(personality)) baseRate = 0.25;
+        else if (/reserved|shy/.test(personality)) baseRate = 0.1;
+
+        let chance = baseRate;
+        if ((entry.config.bond ?? 15) >= 50) chance += 0.1;
+        if (lowerMsg.includes(entry.config.dragonName.toLowerCase()) || COMBAT_WORDS.some(w => lowerMsg.includes(w))) chance += 0.2;
+        chance = Math.min(chance, 0.7);
+
+        const roll = Math.random();
+        if (roll < chance) {
+          const reactorBond = entry.config.bond ?? 15;
+          let reactionType = 'agree';
+          if (Math.abs(reactorBond - senderBond) <= 10) reactionType = 'rival';
+          else if (reactorBond >= senderBond + 20) reactionType = 'dismiss';
+          else if (COMBAT_WORDS.some(w => lowerMsg.includes(w))) reactionType = 'warn';
+          else if (/playful/.test(personality)) reactionType = 'tease';
+
+          candidates.push({ entry, roll, reactionType });
+        }
       }
+
+      if (candidates.length === 0) return;
+      candidates.sort((a, b) => b.roll - a.roll);
+      winner = candidates[0];
     }
 
-    if (candidates.length === 0) return;
+    if (!winner) return;
 
-    // Pick the top roller only
-    candidates.sort((a, b) => b.roll - a.roll);
-    const winner = candidates[0];
     const reactor = winner.entry;
 
     // Set cooldown
     cooldowns.set(reactor.userId, 4);
     reactingRef.current = true;
 
-    // Random delay 2-4 seconds
-    const delay = 2000 + Math.random() * 2000;
+    // Random delay: 2-4s for normal, 3-5s for chain
+    const delayBase = mode === 'chain' ? 3000 : 2000;
+    const delay = delayBase + Math.random() * 2000;
     await new Promise(resolve => setTimeout(resolve, delay));
 
     if (!mountedRef.current) { reactingRef.current = false; return; }
@@ -221,7 +244,12 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         reactor.config.riderEmotionalLog,
         partyContext,
       );
-      systemPrompt += `\n\nAnother dragon just said: '${messageText.slice(0, 500)}'. React with a brief ${winner.reactionType} response. 1-2 sentences maximum. Do not repeat or paraphrase what was said. Stay fully in character.`;
+
+      if (mode === 'chain') {
+        systemPrompt += `\n\nAnother dragon just responded to something you said: '${messageText.slice(0, 500)}'. Fire back with a brief ${winner.reactionType} retort. 1-2 sentences maximum. Stay in character.`;
+      } else {
+        systemPrompt += `\n\nAnother dragon just said: '${messageText.slice(0, 500)}'. React with a brief ${winner.reactionType} response. 1-2 sentences maximum. Do not repeat or paraphrase what was said. Stay fully in character.`;
+      }
 
       const authToken = await getAuthToken();
       const resp = await fetch(AI_DM_URL, {
@@ -239,8 +267,17 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
       const reactionText: string = (data?.response || data?.content || '').replace(/<!--.*?-->/g, '').trim();
       if (!reactionText) { reactingRef.current = false; return; }
 
+      const depthTag = mode === 'chain' ? 'chain' : 'react';
+      const msgId = `${depthTag}-${Date.now()}`;
+      const recvId = `${depthTag}-recv-${Date.now()}`;
+
+      // Track depth locally
+      const depthMap = reactionDepthRef.current;
+      depthMap.set(msgId, mode === 'chain' ? 'chain' : 'reaction');
+      depthMap.set(recvId, mode === 'chain' ? 'chain' : 'reaction');
+
       const reactionMsg: DragonNetworkMessage = {
-        id: `react-${Date.now()}`,
+        id: msgId,
         fromDragon: reactor.config.dragonName,
         fromUserId: reactor.userId,
         toDragon: senderDragonName,
@@ -263,7 +300,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         party_id: partyId,
         user_id: senderUserId,
         state_type: 'dragon_network_message',
-        state_data: { ...reactionMsg, id: `react-recv-${Date.now()}` } as any,
+        state_data: { ...reactionMsg, id: recvId } as any,
       }]);
     } catch (err) {
       console.error('[DragonReaction] Error:', err);
@@ -296,13 +333,25 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
                 return [...prev, incoming];
               });
             }
-            // Trigger cross-reaction if this user is the party host / first evaluator
-            // Only react to messages from OTHER users, not our own reactions
+            // Evaluate cross-reactions / chain reactions for INSERTs from other users
             if (payload.eventType === 'INSERT' && row.user_id !== userId) {
               const incoming = row.state_data as unknown as DragonNetworkMessage;
-              if (incoming?.fromUserId && incoming.fromUserId !== userId && !incoming.id?.toString().startsWith('react-')) {
-                triggerDragonReaction(incoming);
+              if (!incoming?.fromUserId || incoming.fromUserId === userId) return;
+
+              const msgId = incoming.id?.toString() || '';
+              const depthMap = reactionDepthRef.current;
+
+              // Check if this is a chain reaction (depth 1) — terminal, no further reactions
+              if (msgId.startsWith('chain-') || depthMap.get(msgId) === 'chain') return;
+
+              // Check if this is a reaction (depth 0) — eligible for ONE chain response
+              if (msgId.startsWith('react-') || depthMap.get(msgId) === 'reaction') {
+                triggerDragonReaction(incoming, 'chain');
+                return;
               }
+
+              // Original message — normal reaction evaluation
+              triggerDragonReaction(incoming, 'normal');
             }
             return;
           }
