@@ -338,7 +338,9 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
       // Process trust from player message
       const newSessionCount = sessionChatCount + 1;
       setSessionChatCount(newSessionCount);
-      let trustDelta = newSessionCount <= SESSION_CHAT_CAP ? 1 : 0;
+      const bondLevel = myDragon.bond ?? 15;
+      const effectiveChatCap = bondLevel >= 76 ? 12 : bondLevel >= 51 ? 9 : bondLevel >= 26 ? 7 : 5;
+      let trustDelta = newSessionCount <= effectiveChatCap ? 1 : 0;
 
       const questionMatch = matchesAny(text, QUESTION_PATTERNS);
       const gratitudeMatch = matchesAny(text, GRATITUDE_PATTERNS);

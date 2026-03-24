@@ -92,8 +92,10 @@ export function useDragonBond({ dragonName, characterName, onTrustChange, onBond
         lastContactTimestamp: new Date().toISOString(),
       };
 
-      // Base trust (capped by session count)
-      let trustDelta = state.sessionChatCount <= SESSION_CHAT_CAP ? 1 : 0;
+      // Base trust (capped by dynamic session count based on bond level)
+      const bondLevel = state.bond ?? 15;
+      const effectiveChatCap = bondLevel >= 76 ? 12 : bondLevel >= 51 ? 9 : bondLevel >= 26 ? 7 : 5;
+      let trustDelta = state.sessionChatCount <= effectiveChatCap ? 1 : 0;
       let reason = 'conversation';
 
       // Bonus patterns
