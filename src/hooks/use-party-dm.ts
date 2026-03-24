@@ -1641,7 +1641,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           insertedUserMsgId = insertedMsg?.id || null;
         }
 
-        const partyMembersSummary = buildPartyMembersGuide();
         const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
         apiMessages.push({ role: 'user', content: combined });
 
@@ -1649,9 +1648,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         const campaignIntro = sessionConfig.campaignType === 'empyrean'
           ? 'This is a multiplayer Empyrean campaign set at Basgiath War College. Players are dragon riders in training. '
           : '';
-        const dragonBondsSection = buildDragonBondsSection();
+        const dragonBondsSection = freshDragonBondsSection;
         const partyContextStr = [
-          `## PARTY MEMBERS\n${campaignIntro}This is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
+          `## PARTY MEMBERS\n${campaignIntro}This is a multiplayer session. Multiple players are acting simultaneously each round.\n${freshPartyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
           dragonBondsSection,
           afkGuidesSection,
           responseModePrompt,
