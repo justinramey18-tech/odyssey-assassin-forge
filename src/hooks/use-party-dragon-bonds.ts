@@ -1030,5 +1030,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     // Dragon network
     dragonNetworkMessages,
     sendDragonNetworkMessage,
+    // Mood shift (in-memory only)
+    lastMoodShift: lastMoodShiftRef.current,
   }), [myDragon, isSetup, allDragonConfigs, saveMyDragon, updateMyDragon, updateBurnout, updateBondAndTrust, dragonChatMessages, isSending, sendDragonMessage, loadDragonChat, generateDragonOpinion, dragonNetworkMessages, sendDragonNetworkMessage]);
 }
