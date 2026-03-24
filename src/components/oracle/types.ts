@@ -1,4 +1,4 @@
-export type Personality = 'thunderhead' | 'jarvis' | 'deadpool' | 'gandalf' | 'jarlaxle' | 'investigator';
+export type Personality = 'thunderhead' | 'jarvis' | 'deadpool' | 'gandalf' | 'jarlaxle' | 'investigator' | 'ellie';
 
 export type OracleMode = 'chat' | 'plan' | 'choice' | 'analyze' | 'quick' | 'recap' | 'quest';
 

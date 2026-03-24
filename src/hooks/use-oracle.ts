@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { getAuthToken } from '@/lib/auth-token';
 import { getEverywhereKey } from '@/lib/api-keys';
 import { supabase } from '@/integrations/supabase/client';
+import { isEllieEasterEgg } from '@/lib/easter-eggs';
 
 const ORACLE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/oracle-assistant`;
 
@@ -15,7 +16,9 @@ interface UseOracleOptions {
 export function useOracle({ characterContext, onQuestExtracted }: UseOracleOptions) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [personality, setPersonality] = useState<Personality>('deadpool');
+  const [personality, setPersonality] = useState<Personality>(() =>
+    isEllieEasterEgg(characterContext.name) ? 'ellie' : 'deadpool'
+  );
   const [mode, setMode] = useState<OracleMode>('recap');
   const abortControllerRef = useRef<AbortController | null>(null);
   const onQuestExtractedRef = useRef(onQuestExtracted);

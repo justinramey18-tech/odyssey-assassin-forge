@@ -91,6 +91,21 @@ export const personalities: PersonalityConfig[] = [
       'I need to understand the deeper meaning here',
     ],
   },
+  {
+    id: 'ellie',
+    name: "Ellie's Bond",
+    subtitle: 'Dragon Through the Bond',
+    icon: '🐉',
+    color: '#F43F5E', // rose-500 for the dragon bond
+    bgGradient: 'from-rose-950/80 via-pink-900/60 to-slate-950/80',
+    borderColor: 'border-rose-500/50',
+    quickPrompts: [
+      'What do you sense about this situation?',
+      'Guide me through this danger',
+      'What do you feel through our bond?',
+      'I need your strength right now',
+    ],
+  },
 ];
 
 export function getPersonalityConfig(id: string): PersonalityConfig {
