@@ -660,6 +660,7 @@ export function HomeScreen({
           name={character.name} 
           level={character.level}
           primaryClass={character.primaryClass}
+          dragonName={loadEmpyreanDMConfig()?.dragonName}
           onOpenSettings={onOpenSettings}
         />
         <AlignmentDriftIndicator className="px-4 py-1" />
