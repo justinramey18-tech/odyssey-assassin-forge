@@ -579,6 +579,11 @@ RULES:
     prompt += `\n\n## RECENT DRAGON BOND CONVERSATIONS\nThese are excerpts from private telepathic conversations between riders and their dragons. Use this for narrative consistency — if a dragon expressed a feeling or warning here, do NOT contradict it in your narration. You may subtly reference or build on these exchanges through dragon whisper tags (>>RiderName), but never reveal that you "overheard" private bond conversations.\n\n${chatLines}`;
   }
 
+  if (recentDragonNetwork && recentDragonNetwork.length > 0) {
+    const networkLines = recentDragonNetwork.map(n => n.exchange.slice(0, 400)).join('\n---\n');
+    prompt += `\n\n## DRAGON NETWORK ACTIVITY\nThese are recent dragon-to-dragon telepathic exchanges across the party. Dragons communicate through an ancient network invisible to riders unless their dragon chooses to share. Use this for narrative texture — you may describe "a ripple through the telepathic web" or have dragons react to network chatter through whisper tags. Never expose the full content of private dragon exchanges to riders unless a dragon explicitly relays it.\n\n${networkLines}`;
+  }
+
   if (responseModePrompt && responseModePrompt.trim()) {
     prompt += `\n\n${responseModePrompt.slice(0, 2000)}`;
   }
