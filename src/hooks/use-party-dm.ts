@@ -1200,7 +1200,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       }
     }
     return assistantContent;
-  }, [characterContext, sessionConfig?.campaignSummary, memoryAnchorsContent, mergeConsecutiveRoles, fetchRecentPartyChat, fetchRecentDragonChat]);
+  }, [characterContext, sessionConfig?.campaignSummary, memoryAnchorsContent, mergeConsecutiveRoles, fetchRecentPartyChat, fetchRecentDragonChat, fetchRecentDragonNetwork]);
 
 
   // Build party members system prompt section
