@@ -1065,6 +1065,47 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId, partyMembers]);
 
+  // Helper: fetch recent dragon network messages for DM context
+  const fetchRecentDragonNetwork = useCallback(async (): Promise<Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>> => {
+    if (!partyId) return [];
+    try {
+      const { data } = await supabase
+        .from('party_shared_state')
+        .select('state_data')
+        .eq('party_id', partyId)
+        .eq('state_type', 'dragon_network_message')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (!data || data.length === 0) return [];
+
+      const seen = new Set<string>();
+      const result: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }> = [];
+
+      for (const row of data) {
+        if (result.length >= 5) break;
+        const sd = row.state_data as Record<string, unknown>;
+        const msgId = sd?.id as string;
+        if (!msgId || seen.has(msgId)) continue;
+        seen.add(msgId);
+
+        const exchange = (sd?.dragonExchange as string) || '';
+        if (!exchange.trim()) continue;
+
+        result.push({
+          fromDragon: (sd?.fromDragon as string) || 'Dragon',
+          toDragon: (sd?.toDragon as string) || 'Dragon',
+          exchange,
+          timestamp: (sd?.timestamp as string) || '',
+        });
+      }
+
+      return result;
+    } catch {
+      return [];
+    }
+  }, [partyId]);
+
   // Helper: stream an AI response and return the content
   const streamAIResponse = useCallback(async (
     apiMessages: Array<{ role: string; content: string }>,
@@ -1080,6 +1121,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     // Fetch recent party chat for DM awareness
     const recentPartyChat = await fetchRecentPartyChat();
     const recentDragonChat = await fetchRecentDragonChat();
+    const recentDragonNetwork = await fetchRecentDragonNetwork();
 
     const authToken = await getAuthToken();
     const response = await fetch(AI_DM_URL, {
@@ -1097,6 +1139,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         memoryAnchors: memoryAnchorsContent || undefined,
         recentPartyChat: recentPartyChat.length > 0 ? recentPartyChat : undefined,
         recentDragonChat: recentDragonChat.length > 0 ? recentDragonChat : undefined,
+        recentDragonNetwork: recentDragonNetwork.length > 0 ? recentDragonNetwork : undefined,
         responseModePrompt: responseModePrompt || undefined,
         dmPersonaPrompt: dmPersonaPrompt || undefined,
         model: loadSelectedModel(),
@@ -1157,7 +1200,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       }
     }
     return assistantContent;
-  }, [characterContext, sessionConfig?.campaignSummary, memoryAnchorsContent, mergeConsecutiveRoles, fetchRecentPartyChat, fetchRecentDragonChat]);
+  }, [characterContext, sessionConfig?.campaignSummary, memoryAnchorsContent, mergeConsecutiveRoles, fetchRecentPartyChat, fetchRecentDragonChat, fetchRecentDragonNetwork]);
 
 
   // Build party members system prompt section
