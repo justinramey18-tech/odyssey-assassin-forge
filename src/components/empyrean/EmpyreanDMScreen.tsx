@@ -231,6 +231,7 @@ export function EmpyreanDMScreen({
       bs.bond,
       getBondDescriptor(bs.bond),
       getTrustDescriptor(bs.trust),
+      bs.mood,
       recentDragonChatSummaryRaw?.trim() ? recentDragonChatSummaryRaw : undefined,
       bs.memories.map(m => m.text),
     );
