@@ -600,6 +600,17 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     setDragonChatMessages(updatedMessages);
 
     try {
+      // Compute mood pressure before LLM call
+      const moodPressureResult = computeMoodPressure(
+        (myDragon.mood || 'calm') as DragonMood,
+        myDragon.trust || 10,
+        myDragon.riderEmotionalLog || [],
+        recentNarrative || [],
+        myDragon.burnout || 0,
+        moodDurationRef.current,
+      );
+      const { recommendedMood, validTransitions } = moodPressureResult;
+
       // Build system prompt
       // Build party context for other dragons
       const partyContext = allDragonConfigs
@@ -616,7 +627,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         myDragon.dragonName,
         characterName,
         myDragon.trust,
-        myDragon.mood as DragonMood,
+        recommendedMood,
         (myDragon.memories || []) as DragonMemory[],
         myDragon.dragonNotes || '',
         myDragon.speechHabits,
@@ -625,6 +636,11 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         myDragon.riderEmotionalLog,
         partyContext,
       );
+
+      // Replace the default mood tag instruction with constrained options
+      const moodTagPattern = /After each response, include exactly one mood tag indicating your current emotional state:\s*\n<!--DRAGON_MOOD:calm-->.*?<!--DRAGON_MOOD:playful-->/s;
+      const constrainedMoodText = buildConstrainedMoodOptions(recommendedMood, validTransitions);
+      systemPrompt = systemPrompt.replace(moodTagPattern, constrainedMoodText);
 
       // V3: Inject relationship context for rider-initiated chat
       if (userId) {
