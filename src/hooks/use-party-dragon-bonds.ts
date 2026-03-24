@@ -281,7 +281,8 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     rel.interactions += 1;
     rel.affinity = Math.max(-1, Math.min(1, rel.affinity + (AFFINITY_DELTAS[winner.reactionType] ?? 0)));
 
-    // Set cooldown
+    // Persist relationships (fire-and-forget, debounced)
+    try { persistDragonRelationships(); } catch { /* never block reaction */ }
     cooldowns.set(reactor.userId, 4);
     reactingRef.current = true;
 
