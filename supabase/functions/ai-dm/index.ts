@@ -150,6 +150,7 @@ interface DMRequest {
   responseModePrompt?: string;
   partyContext?: string;
   npcVoicingContext?: string;
+  recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -375,7 +376,7 @@ function buildContextSummary(ctx: CharacterContext): string {
 
 // ── System Prompt Builder ──────────────────────────────────────────────────────
 
-function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>, responseModePrompt?: string, partyContext?: string): string {
+function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>, responseModePrompt?: string, partyContext?: string, recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>): string {
   const contextSummary = buildContextSummary(ctx);
   
   let prompt = `You are an expert Dungeon Master running a live D&D 5e session for a single player. You are immersive, adaptive, and mechanically precise.
@@ -569,6 +570,14 @@ RULES:
     prompt += `\n\n## RECENT PARTY CHAT\nThese are the most recent out-of-character messages from the party chat. Use them for situational awareness — players may be discussing plans, asking questions, or coordinating. Do NOT repeat or quote these messages directly; just factor them into your narrative awareness:\n\n${chatLines}`;
   }
 
+  if (recentDragonChat && recentDragonChat.length > 0) {
+    const chatLines = recentDragonChat.slice(0, 15).map(c => {
+      const speaker = c.role === 'assistant' ? c.dragonName : c.riderName;
+      return `${speaker}: ${c.content.slice(0, 300)}`;
+    }).join('\n');
+    prompt += `\n\n## RECENT DRAGON BOND CONVERSATIONS\nThese are excerpts from private telepathic conversations between riders and their dragons. Use this for narrative consistency — if a dragon expressed a feeling or warning here, do NOT contradict it in your narration. You may subtly reference or build on these exchanges through dragon whisper tags (>>RiderName), but never reveal that you "overheard" private bond conversations.\n\n${chatLines}`;
+  }
+
   if (responseModePrompt && responseModePrompt.trim()) {
     prompt += `\n\n${responseModePrompt.slice(0, 2000)}`;
   }
@@ -720,7 +729,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, recentDragonChat } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages, then cap by total character count
     let trimmedMessages = messages.length > MAX_MESSAGES
@@ -738,7 +747,7 @@ serve(async (req) => {
     console.log(`[ai-dm] Messages: ${trimmedMessages.length}, total chars: ${totalChars}`);
 
     // Use override if provided (e.g. whisper regeneration), otherwise build full DM prompt
-    let systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext);
+    let systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat);
 
     // When NPC voicing is active, strip the NARRATIVE STYLE section to prevent
     // conflicting "rich novelistic prose" instructions from overriding dialogue mode
