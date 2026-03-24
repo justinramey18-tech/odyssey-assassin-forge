@@ -255,6 +255,7 @@ export default function DragonTelegramScheduler({
         repeat_daily: repeatDaily,
         run_at: runAt.toISOString(),
         run_time: scheduledTime,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         status: 'active',
         ai_model: 'google/gemini-2.5-flash',
         include_campaign_context: true,
