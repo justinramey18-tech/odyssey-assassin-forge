@@ -72,24 +72,43 @@ export default function DragonBondChat({
   const [dragonOpening, setDragonOpening] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const moodDurationRef = useRef<number>(0);
+  const validTransitionsRef = useRef<DragonMood[]>([bondState.mood]);
+  const recommendedMoodRef = useRef<DragonMood>(bondState.mood);
 
-  // Recompute system prompt when bond state changes
-  const dragonSystemPrompt = useMemo(
-    () =>
-      buildDragonChatPrompt(
-        dragonName,
-        characterName,
-        bondState.trust,
-        bondState.mood,
-        bondState.memories,
-        dragonNotes,
-        bondState.speechHabits,
-        recentNarrative,
-        bondState.bond,
-        bondState.riderEmotionalLog,
-      ),
-    [dragonName, characterName, bondState.trust, bondState.mood, bondState.memories, dragonNotes, bondState.speechHabits, recentNarrative, bondState.bond, bondState.riderEmotionalLog],
-  );
+  // Recompute system prompt with mood pressure engine
+  const dragonSystemPrompt = useMemo(() => {
+    const moodResult = computeMoodPressure(
+      bondState.mood,
+      bondState.trust,
+      bondState.riderEmotionalLog || [],
+      recentNarrative || [],
+      0, // burnout not tracked in solo mode
+      moodDurationRef.current,
+    );
+    validTransitionsRef.current = moodResult.validTransitions;
+    recommendedMoodRef.current = moodResult.recommendedMood;
+
+    let prompt = buildDragonChatPrompt(
+      dragonName,
+      characterName,
+      bondState.trust,
+      moodResult.recommendedMood,
+      bondState.memories,
+      dragonNotes,
+      bondState.speechHabits,
+      recentNarrative,
+      bondState.bond,
+      bondState.riderEmotionalLog,
+    );
+
+    // Replace default mood tag instruction with constrained options
+    const moodTagPattern = /After each response, include exactly one mood tag indicating your current emotional state:\s*\n<!--DRAGON_MOOD:calm-->.*?<!--DRAGON_MOOD:playful-->/s;
+    const constrainedText = buildConstrainedMoodOptions(moodResult.recommendedMood, moodResult.validTransitions);
+    prompt = prompt.replace(moodTagPattern, constrainedText);
+
+    return prompt;
+  }, [dragonName, characterName, bondState.trust, bondState.mood, bondState.memories, dragonNotes, bondState.speechHabits, recentNarrative, bondState.bond, bondState.riderEmotionalLog]);
 
   // Parse tags from new assistant messages
   const handleMessageComplete = useCallback(
