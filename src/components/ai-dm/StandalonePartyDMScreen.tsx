@@ -349,8 +349,17 @@ The rider recently had this private telepathic exchange with their dragon (outsi
 ${truncated}`);
     }
 
+    // Recent mood shift hint (expires after 5 minutes)
+    const shift = dragonBonds.lastMoodShift;
+    if (shift) {
+      const shiftAge = Date.now() - new Date(shift.timestamp).getTime();
+      if (shiftAge < 5 * 60 * 1000) {
+        sections.push(`[Dragon mood shift: ${dragon.dragonName} shifted from ${shift.from} to ${shift.to}. Reflect this in dragon whispers and behavior this scene.]`);
+      }
+    }
+
     return '\n\n' + sections.join('\n\n');
-  }, [dragonBonds.myDragon, dragonBonds.dragonChatMessages]);
+  }, [dragonBonds.myDragon, dragonBonds.dragonChatMessages, dragonBonds.lastMoodShift]);
 
   // Non-hosts (and non-co-hosts) wait for session to start
   if (!partyDm.isActive && !isHost) {
