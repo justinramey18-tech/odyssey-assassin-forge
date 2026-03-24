@@ -1505,6 +1505,15 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               sender_name: 'DM',
               team: 'alpha',
             });
+
+            sendTelegramNotification({
+              type: 'custom',
+              partyId,
+              targetUserIds: splitState.alphaMembers,
+              title: `📖 ${splitState.alphaName || 'Team Alpha'} — DM Update`,
+              body: alphaContent.substring(0, 300) + (alphaContent.length > 300 ? '…' : ''),
+              mode: sessionConfig?.campaignType === 'empyrean' ? 'empyrean' : 'party',
+            });
           }
         }
 
