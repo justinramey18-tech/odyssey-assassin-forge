@@ -347,7 +347,7 @@ export function StandalonePartyDMScreen({
         onToggleAutoSync={autoSync.toggleAutoSync}
         isExtracting={autoSync.isExtracting}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
-        gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '')}
+        gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '') + dragonChatTranscript}
         memoryAnchorsContent={memoryAnchors.formattedForOracle}
         memoryAnchors={memoryAnchors.anchors}
         onAddMemoryAnchor={memoryAnchors.addMemoryAnchor}
