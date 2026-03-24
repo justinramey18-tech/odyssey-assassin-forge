@@ -1562,6 +1562,15 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               sender_name: 'DM',
               team: 'beta',
             });
+
+            sendTelegramNotification({
+              type: 'custom',
+              partyId,
+              targetUserIds: splitState.betaMembers,
+              title: `📖 ${splitState.betaName || 'Team Beta'} — DM Update`,
+              body: betaContent.substring(0, 300) + (betaContent.length > 300 ? '…' : ''),
+              mode: sessionConfig?.campaignType === 'empyrean' ? 'empyrean' : 'party',
+            });
           }
         }
 
