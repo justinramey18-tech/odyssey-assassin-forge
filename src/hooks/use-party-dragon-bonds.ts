@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { type PartyDragonConfig } from '@/hooks/use-party-dm';
 import { getAuthToken } from '@/lib/auth-token';
-import { buildDragonChatPrompt, addMemory, detectTrustBreak, detectRiderDeclaration, classifyRiderEmotion, type DragonMood, type DragonMemory } from '@/lib/dragonBondState';
+import { buildDragonChatPrompt, addMemory, detectTrustBreak, detectRiderDeclaration, classifyRiderEmotion, computeMoodPressure, buildConstrainedMoodOptions, type DragonMood, type DragonMemory } from '@/lib/dragonBondState';
 import { loadSelectedModel } from '@/lib/dm-models';
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
@@ -99,6 +99,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
   const dragonRelationshipsRef = useRef<Record<string, Record<string, { affinity: number; interactions: number }>>>({});
   const relationshipRowIdRef = useRef<string | null>(null);
   const lastRelSaveRef = useRef<number>(0);
+  const moodDurationRef = useRef<number>(0);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -599,6 +600,17 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     setDragonChatMessages(updatedMessages);
 
     try {
+      // Compute mood pressure before LLM call
+      const moodPressureResult = computeMoodPressure(
+        (myDragon.mood || 'calm') as DragonMood,
+        myDragon.trust || 10,
+        myDragon.riderEmotionalLog || [],
+        recentNarrative || [],
+        myDragon.burnout || 0,
+        moodDurationRef.current,
+      );
+      const { recommendedMood, validTransitions } = moodPressureResult;
+
       // Build system prompt
       // Build party context for other dragons
       const partyContext = allDragonConfigs
@@ -615,7 +627,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         myDragon.dragonName,
         characterName,
         myDragon.trust,
-        myDragon.mood as DragonMood,
+        recommendedMood,
         (myDragon.memories || []) as DragonMemory[],
         myDragon.dragonNotes || '',
         myDragon.speechHabits,
@@ -624,6 +636,11 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         myDragon.riderEmotionalLog,
         partyContext,
       );
+
+      // Replace the default mood tag instruction with constrained options
+      const moodTagPattern = /After each response, include exactly one mood tag indicating your current emotional state:\s*\n<!--DRAGON_MOOD:calm-->.*?<!--DRAGON_MOOD:playful-->/s;
+      const constrainedMoodText = buildConstrainedMoodOptions(recommendedMood, validTransitions);
+      systemPrompt = systemPrompt.replace(moodTagPattern, constrainedMoodText);
 
       // V3: Inject relationship context for rider-initiated chat
       if (userId) {
@@ -709,14 +726,23 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
       // Process dragon response tags and trust
       let updatedDragon = { ...myDragon };
 
-      // Parse mood tag
+      // Parse mood tag — validate against allowed transitions
       const moodMatch = assistantContent.match(/<!--DRAGON_MOOD:(\w+)-->/);
+      let finalMood: DragonMood = recommendedMood;
       if (moodMatch) {
+        const parsedMood = moodMatch[1] as DragonMood;
         const validMoods: DragonMood[] = ['calm', 'alert', 'protective', 'distant', 'ancestral', 'playful'];
-        if (validMoods.includes(moodMatch[1] as DragonMood)) {
-          updatedDragon = { ...updatedDragon, mood: moodMatch[1] as DragonMood };
+        if (validMoods.includes(parsedMood) && validTransitions.includes(parsedMood)) {
+          finalMood = parsedMood;
         }
       }
+      // Track mood duration
+      if (finalMood === (myDragon.mood || 'calm')) {
+        moodDurationRef.current += 1;
+      } else {
+        moodDurationRef.current = 0;
+      }
+      updatedDragon = { ...updatedDragon, mood: finalMood };
 
       // Parse memory tags
       const memoryMatches = [...assistantContent.matchAll(/<!--DRAGON_MEMORY:(.+?)-->/g)];
