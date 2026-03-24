@@ -3193,7 +3193,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onRequestOpinion={async () => {
             const narrative = partyDm.messages
               .filter(m => m.role === 'assistant' && m.sender_name === 'DM')
-              .slice(-3)
+              .slice(-5)
               .map(m => m.content.length > 15000 ? m.content.slice(0, 15000) + '…' : m.content);
             if (narrative.length === 0) return null;
             return dragonBonds.generateDragonOpinion(
