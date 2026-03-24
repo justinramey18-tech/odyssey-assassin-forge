@@ -1079,6 +1079,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
     // Fetch recent party chat for DM awareness
     const recentPartyChat = await fetchRecentPartyChat();
+    const recentDragonChat = await fetchRecentDragonChat();
 
     const authToken = await getAuthToken();
     const response = await fetch(AI_DM_URL, {
