@@ -107,7 +107,7 @@ function groupPromptsByCategory(prompts: typeof empyreanPrompts) {
 
 // Strip burnout tags from displayed content
 function stripBurnoutTags(content: string): string {
-  return content.replace(/<!--BURNOUT:\d-->/g, '').trim();
+  return content.replace(/<!--BURNOUT:\d+-->/g, '').replace(/<!--BURNOUT_TICK:.+?-->/g, '').trim();
 }
 
 function stripSituationTags(content: string): string {
