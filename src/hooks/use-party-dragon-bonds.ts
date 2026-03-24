@@ -386,7 +386,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     } finally {
       reactingRef.current = false;
     }
-  }, [partyId, userId, allDragonConfigs, partyMembers]);
+  }, [partyId, userId, allDragonConfigs, partyMembers, persistDragonRelationships]);
 
   // Realtime subscription for dragon bond changes
   useEffect(() => {
