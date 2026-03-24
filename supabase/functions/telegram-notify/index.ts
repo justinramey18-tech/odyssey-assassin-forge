@@ -100,7 +100,10 @@ Deno.serve(async (req) => {
     .select('chat_id, user_id, notify_modes')
     .in('user_id', userIds);
 
-  const { data: allLinks } = payload.type === 'dragon_message'
+  // dragon_message and custom bypass the per-column boolean filter entirely —
+  // these are host/DM-authored messages that should not be gated by player prefs.
+  const bypassColumnFilter = payload.type === 'dragon_message' || payload.type === 'custom';
+  const { data: allLinks } = bypassColumnFilter
     ? await linkQuery
     : await linkQuery.eq(col, true);
 
