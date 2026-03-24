@@ -393,11 +393,30 @@ Deno.serve(async (req) => {
       const now = new Date().toISOString();
 
       if (job.repeat_daily && job.run_time) {
-        // Parse HH:MM and schedule for tomorrow
+        // Parse the user's intended local time
         const [hours, minutes] = job.run_time.split(':').map(Number);
-        const tomorrow = new Date();
-        tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-        tomorrow.setUTCHours(hours, minutes, 0, 0);
+        const tz = job.timezone || 'UTC';
+
+        // Build a date string for tomorrow in the user's timezone, then convert to UTC
+        const nowInTz = new Date().toLocaleString('en-US', { timeZone: tz });
+        const localNow = new Date(nowInTz);
+        const localTomorrow = new Date(localNow);
+        localTomorrow.setDate(localTomorrow.getDate() + 1);
+        const year = localTomorrow.getFullYear();
+        const month = String(localTomorrow.getMonth() + 1).padStart(2, '0');
+        const day = String(localTomorrow.getDate()).padStart(2, '0');
+        const hh = String(hours).padStart(2, '0');
+        const mm = String(minutes).padStart(2, '0');
+
+        // Create the target date in the user's timezone and convert to UTC
+        const targetLocal = new Date(`${year}-${month}-${day}T${hh}:${mm}:00`);
+        // Get the offset between UTC and the target timezone at this approximate time
+        const utcString = targetLocal.toLocaleString('en-US', { timeZone: 'UTC' });
+        const tzString = targetLocal.toLocaleString('en-US', { timeZone: tz });
+        const utcDate = new Date(utcString);
+        const tzDate = new Date(tzString);
+        const offsetMs = utcDate.getTime() - tzDate.getTime();
+        const tomorrow = new Date(targetLocal.getTime() + offsetMs);
 
         await supabase
           .from('scheduled_telegram_jobs')

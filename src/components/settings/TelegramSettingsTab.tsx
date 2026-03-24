@@ -325,18 +325,16 @@ export function TelegramSettingsTab() {
   // Format run time for display
   const formatJobTime = (job: ScheduledJob) => {
     const runDate = new Date(job.run_at);
-    const tzAbbr = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' })
+    const jobTz = job.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const tzAbbr = new Intl.DateTimeFormat('en-US', { timeZone: jobTz, timeZoneName: 'short' })
       .formatToParts(runDate)
-      .find(p => p.type === 'timeZoneName')?.value || 'ET';
+      .find(p => p.type === 'timeZoneName')?.value || jobTz;
     if (job.repeat_daily && job.run_time) {
-      const [utcH, utcM] = job.run_time.split(':').map(Number);
-      const tempDate = new Date();
-      tempDate.setUTCHours(utcH, utcM, 0, 0);
-      const nyTime = tempDate.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
-      return `Daily at ${nyTime} ${tzAbbr}`;
+      const localTime = runDate.toLocaleString('en-US', { timeZone: jobTz, hour: 'numeric', minute: '2-digit', hour12: true });
+      return `Daily at ${localTime} ${tzAbbr}`;
     }
-    const nyTime = runDate.toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
-    return `${nyTime} ${tzAbbr}`;
+    const localTime = runDate.toLocaleString('en-US', { timeZone: jobTz, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+    return `${localTime} ${tzAbbr}`;
   };
 
   if (loading) {
