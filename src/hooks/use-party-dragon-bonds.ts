@@ -178,9 +178,11 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     loadDragonChat();
   }, [loadDragonChat]);
 
-  // Load dragon network messages
+  // Load dragon network messages + realtime subscription
   useEffect(() => {
     if (!partyId || !userId) return;
+
+    // Initial fetch
     supabase
       .from('party_shared_state')
       .select('*')
@@ -192,6 +194,52 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         if (!mountedRef.current || !data) return;
         setDragonNetworkMessages(data.map(r => r.state_data as unknown as DragonNetworkMessage));
       });
+
+    // Realtime subscription for new/updated dragon network messages targeting this user
+    const channel = supabase
+      .channel(`dragon-network-${partyId}-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'party_shared_state',
+          filter: `party_id=eq.${partyId}`,
+        },
+        (payload) => {
+          const row = payload.new as { state_type: string; user_id: string; state_data: unknown };
+          if (row.state_type !== 'dragon_network_message' || row.user_id !== userId) return;
+          const msg = row.state_data as unknown as DragonNetworkMessage;
+          if (!msg?.id) return;
+          setDragonNetworkMessages(prev => {
+            if (prev.some(m => m.id === msg.id)) return prev;
+            return [...prev, msg];
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'party_shared_state',
+          filter: `party_id=eq.${partyId}`,
+        },
+        (payload) => {
+          const row = payload.new as { state_type: string; user_id: string; state_data: unknown };
+          if (row.state_type !== 'dragon_network_message' || row.user_id !== userId) return;
+          const msg = row.state_data as unknown as DragonNetworkMessage;
+          if (!msg?.id) return;
+          setDragonNetworkMessages(prev =>
+            prev.map(m => m.id === msg.id ? msg : m)
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [partyId, userId]);
 
   const saveDragonChat = useCallback(async (messages: DragonChatMessage[]) => {
