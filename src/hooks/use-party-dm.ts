@@ -1505,6 +1505,15 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               sender_name: 'DM',
               team: 'alpha',
             });
+
+            sendTelegramNotification({
+              type: 'custom',
+              partyId,
+              targetUserIds: splitState.alphaMembers,
+              title: `📖 ${splitState.alphaName || 'Team Alpha'} — DM Update`,
+              body: alphaContent.substring(0, 300) + (alphaContent.length > 300 ? '…' : ''),
+              mode: sessionConfig?.campaignType === 'empyrean' ? 'empyrean' : 'party',
+            });
           }
         }
 
@@ -1552,6 +1561,15 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               sender_user_id: null,
               sender_name: 'DM',
               team: 'beta',
+            });
+
+            sendTelegramNotification({
+              type: 'custom',
+              partyId,
+              targetUserIds: splitState.betaMembers,
+              title: `📖 ${splitState.betaName || 'Team Beta'} — DM Update`,
+              body: betaContent.substring(0, 300) + (betaContent.length > 300 ? '…' : ''),
+              mode: sessionConfig?.campaignType === 'empyrean' ? 'empyrean' : 'party',
             });
           }
         }
@@ -1674,6 +1692,14 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               content: assistantContent,
               sender_user_id: null,
               sender_name: 'DM',
+            });
+
+            sendTelegramNotification({
+              type: 'custom',
+              partyId,
+              title: '📖 The DM Has Spoken',
+              body: assistantContent.substring(0, 300) + (assistantContent.length > 300 ? '…' : ''),
+              mode: sessionConfig?.campaignType === 'empyrean' ? 'empyrean' : 'party',
             });
 
             const updatedMessages = [...messages,
@@ -2843,6 +2869,14 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         return [...prev, enriched];
       });
     }
+
+    sendTelegramNotification({
+      type: 'custom',
+      partyId,
+      title: '📖 The DM Has Spoken',
+      body: trimmed.substring(0, 300) + (trimmed.length > 300 ? '…' : ''),
+      mode: sessionConfig?.campaignType === 'empyrean' ? 'empyrean' : 'party',
+    });
 
     // Trigger summary and auto-save
     const updatedMessages = [...messages,
