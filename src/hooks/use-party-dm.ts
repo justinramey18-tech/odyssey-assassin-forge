@@ -1676,6 +1676,14 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               sender_name: 'DM',
             });
 
+            sendTelegramNotification({
+              type: 'custom',
+              partyId,
+              title: '📖 The DM Has Spoken',
+              body: assistantContent.substring(0, 300) + (assistantContent.length > 300 ? '…' : ''),
+              mode: sessionConfig?.campaignType === 'empyrean' ? 'empyrean' : 'party',
+            });
+
             const updatedMessages = [...messages,
               { id: '', party_id: partyId, role: 'user' as const, content: combined, sender_user_id: user.id, sender_name: 'Party', created_at: '' },
               { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: 'DM', created_at: '' },
