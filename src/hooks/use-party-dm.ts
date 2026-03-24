@@ -63,13 +63,14 @@ export interface PartyDmMessage {
  * and return the message with clean content + filtered whispers.
  */
 const BURNOUT_TAG_RE = /<!--BURNOUT:\d+-->/g;
+const BURNOUT_TICK_TAG_RE = /<!--BURNOUT_TICK:.+?-->/g;
 const BOND_STRAIN_TAG_RE = /<!--BOND_STRAIN:.+?-->/g;
 
 function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string, myDragonName?: string): PartyDmMessage {
   if (msg.role !== 'assistant') return msg;
   const { narrative, whispers } = parseWhispers(msg.content);
   // Strip burnout and bond strain tags from narrative
-  const cleanNarrative = narrative.replace(BURNOUT_TAG_RE, '').replace(BOND_STRAIN_TAG_RE, '').trim();
+  const cleanNarrative = narrative.replace(BURNOUT_TAG_RE, '').replace(BURNOUT_TICK_TAG_RE, '').replace(BOND_STRAIN_TAG_RE, '').trim();
   if (whispers.length === 0) return { ...msg, content: cleanNarrative };
 
   // Filter: keep actions + tactics (shared), and whispers targeted at this player or their dragon
@@ -151,11 +152,12 @@ interface UsePartyDmOptions {
   partyDragonConfigs?: Array<{ userId: string; characterName: string; config: { dragonName: string; signetType: string; bond: number; trust: number; mood: string; burnout: number } }>;
   myDragonName?: string;
   onBurnoutDetected?: (level: number) => void;
+  onBurnoutTickDetected?: (reason: string) => void;
   onBondStrainDetected?: (reason: string) => void;
   isSoloEmpyrean?: boolean;
 }
 
-export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, partyDragonConfigs, myDragonName, onBurnoutDetected, onBondStrainDetected, isSoloEmpyrean }: UsePartyDmOptions) {
+export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, partyDragonConfigs, myDragonName, onBurnoutDetected, onBurnoutTickDetected, onBondStrainDetected, isSoloEmpyrean }: UsePartyDmOptions) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
   const [currentPrompts, setCurrentPrompts] = useState<PartyDmPrompt[]>([]);
@@ -207,8 +209,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   // Detect BURNOUT and BOND_STRAIN tags from new assistant messages in Empyrean campaigns
   const onBurnoutRef = useRef(onBurnoutDetected);
+  const onBurnoutTickRef = useRef(onBurnoutTickDetected);
   const onBondStrainRef = useRef(onBondStrainDetected);
   useEffect(() => { onBurnoutRef.current = onBurnoutDetected; }, [onBurnoutDetected]);
+  useEffect(() => { onBurnoutTickRef.current = onBurnoutTickDetected; }, [onBurnoutTickDetected]);
   useEffect(() => { onBondStrainRef.current = onBondStrainDetected; }, [onBondStrainDetected]);
   const lastParsedMsgIdRef = useRef<string | null>(null);
 
@@ -229,6 +233,14 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const strainMatch = lastMsg.content.match(/<!--BOND_STRAIN:(.+?)-->/);
     if (strainMatch) {
       onBondStrainRef.current?.(strainMatch[1]);
+    }
+
+    // Parse BURNOUT_TICK: increment burnout by 1
+    const tickMatch = lastMsg.content.match(/<!--BURNOUT_TICK:(.+?)-->/);
+    if (tickMatch) {
+      // Use onBurnoutDetected with -1 sentinel to signal "increment by 1"
+      // The handler in StandalonePartyDMScreen will interpret this
+      onBurnoutTickRef.current?.(tickMatch[1]);
     }
   }, [messages, sessionConfig?.campaignType]);
 

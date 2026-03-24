@@ -107,7 +107,7 @@ function groupPromptsByCategory(prompts: typeof empyreanPrompts) {
 
 // Strip burnout tags from displayed content
 function stripBurnoutTags(content: string): string {
-  return content.replace(/<!--BURNOUT:\d-->/g, '').trim();
+  return content.replace(/<!--BURNOUT:\d+-->/g, '').replace(/<!--BURNOUT_TICK:.+?-->/g, '').trim();
 }
 
 function stripSituationTags(content: string): string {
@@ -279,6 +279,14 @@ export function EmpyreanDMScreen({
       if (strainMatch) {
         dragonBond.processBondStrain(strainMatch[1]);
         toast('Dragon bond strained: ' + strainMatch[1], { icon: '💔' });
+      }
+
+      // Extract burnout tick events
+      const burnoutTickMatch = content.match(/<!--BURNOUT_TICK:(.+?)-->/);
+      if (burnoutTickMatch) {
+        const nextBurnout = Math.min((burnoutLevel ?? 0) + 1, maxBurnout);
+        setBurnoutLevel(nextBurnout);
+        toast('Signet strain: ' + burnoutTickMatch[1], { icon: '🔥' });
       }
 
       // Extract dragon whispers and forward to bond chat as incoming messages
