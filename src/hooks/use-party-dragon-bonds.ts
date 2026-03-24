@@ -100,6 +100,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
   const relationshipRowIdRef = useRef<string | null>(null);
   const lastRelSaveRef = useRef<number>(0);
   const moodDurationRef = useRef<number>(0);
+  const lastMoodShiftRef = useRef<{ from: string; to: string; timestamp: string } | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
