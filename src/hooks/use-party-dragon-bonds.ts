@@ -105,6 +105,55 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     return () => { mountedRef.current = false; };
   }, []);
 
+  // Persist dragon relationships to party_shared_state (fire-and-forget)
+  const persistDragonRelationships = useCallback(() => {
+    if (!partyId || !userId) return;
+    const now = Date.now();
+    if (now - lastRelSaveRef.current < 5000) return;
+    lastRelSaveRef.current = now;
+
+    const stateData = dragonRelationshipsRef.current;
+    if (relationshipRowIdRef.current) {
+      supabase
+        .from('party_shared_state')
+        .update({ state_data: stateData as any, updated_at: new Date().toISOString() })
+        .eq('id', relationshipRowIdRef.current)
+        .then(() => {});
+    } else {
+      supabase
+        .from('party_shared_state')
+        .insert([{
+          party_id: partyId,
+          user_id: userId,
+          state_type: 'dragon_relationships',
+          state_data: stateData as any,
+        }])
+        .select('id')
+        .single()
+        .then(({ data }) => {
+          if (data) relationshipRowIdRef.current = data.id;
+        });
+    }
+  }, [partyId, userId]);
+
+  // Load persisted dragon relationships
+  const loadDragonRelationships = useCallback(async () => {
+    if (!partyId || !userId) return;
+    const { data } = await supabase
+      .from('party_shared_state')
+      .select('*')
+      .eq('party_id', partyId)
+      .eq('user_id', userId)
+      .eq('state_type', 'dragon_relationships')
+      .maybeSingle();
+
+    if (!mountedRef.current) return;
+    if (data) {
+      dragonRelationshipsRef.current = data.state_data as unknown as Record<string, Record<string, { affinity: number; interactions: number }>>;
+      relationshipRowIdRef.current = data.id;
+    }
+  }, [partyId, userId]);
+
   // Fetch all dragon configs for this party
   const fetchAll = useCallback(async () => {
     if (!partyId) return;
@@ -137,7 +186,8 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
   // Initial fetch
   useEffect(() => {
     fetchAll();
-  }, [fetchAll]);
+    loadDragonRelationships();
+  }, [fetchAll, loadDragonRelationships]);
 
   // ── Dragon cross-reaction logic ──
   const triggerDragonReaction = useCallback(async (
