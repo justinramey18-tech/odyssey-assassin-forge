@@ -16,6 +16,7 @@ import { AnimatePresence } from 'framer-motion';
 import type { CampaignBuildData } from '@/hooks/use-ai-campaign-chat';
 import type { CharacterContext } from '@/components/oracle/types';
 import { EMPYREAN_LORE_GUIDES } from '@/lib/empyreanGMGuides';
+import { getBondDescriptor, getTrustDescriptor } from '@/lib/dragonBondState';
 import { usePartyDragonBonds } from '@/hooks/use-party-dragon-bonds';
 import type { PartyMember } from '@/hooks/use-party-sync';
 
@@ -298,18 +299,58 @@ export function StandalonePartyDMScreen({
       .join('\n\n');
   }, [partyDm.sessionConfig?.campaignType]);
 
-  // Build dragon chat transcript for DM awareness
-  const dragonChatTranscript = useMemo(() => {
-    if (!dragonBonds.dragonChatMessages?.length || !dragonBonds.myDragon?.dragonName) return '';
-    const DRAGON_TAG_RE = /<!--(?:DRAGON_MOOD|DRAGON_MEMORY|DRAGON_HABIT|BOND_SENSE):[^>]*-->/g;
-    const last10 = dragonBonds.dragonChatMessages.slice(-10);
-    const lines = last10.map(m => {
-      const cleanContent = m.content.replace(DRAGON_TAG_RE, '').trim();
-      return m.role === 'user' ? `Rider: ${cleanContent}` : `Dragon: ${cleanContent}`;
-    }).join('\n');
-    const truncated = lines.length > 2000 ? lines.slice(0, 2000) + '…' : lines;
-    return `\n\n## RECENT DRAGON-RIDER PRIVATE COMMUNICATION\nThe rider recently had this private telepathic exchange with their dragon (outside the main narrative). Use this context to inform dragon behavior in scenes:\n${truncated}`;
-  }, [dragonBonds.dragonChatMessages, dragonBonds.myDragon?.dragonName]);
+  // Build full dragon context for DM awareness (bond status + memories + private chat transcript)
+  const dragonContextForDM = useMemo(() => {
+    const dragon = dragonBonds.myDragon;
+    if (!dragon?.dragonName) return '';
+
+    const bond = dragon.bond ?? 15;
+    const trust = dragon.trust ?? 10;
+    const mood = dragon.mood ?? 'calm';
+
+    const sections: string[] = [];
+
+    // Bond status section
+    sections.push(`## DRAGON-RIDER BOND STATUS
+
+Bond Level: ${getBondDescriptor(bond)} (${bond}/100)
+Trust Level: ${getTrustDescriptor(trust)} (${trust}/100)
+Dragon Mood: ${mood}
+
+Narrate the dragon-rider dynamic based on these levels. Reflect the dragon's current mood in whispers/telepathy:
+- distant: colder, shorter, withholding
+- protective: urgent warnings, proactive threat assessment
+- alert: heightened sensory impressions, vigilance
+- playful: dry humor/teasing (still ancient/proud)
+- ancestral: echoes of older voices, visions, ancient memory
+- calm: measured, steady, unhurried`);
+
+    // Persistent memories
+    const memories = (dragon.memories ?? []).slice(-20);
+    if (memories.length > 0) {
+      sections.push(`## DRAGON'S PERSISTENT MEMORIES
+These are established facts about the dragon's personality, opinions, and experiences — formed through actual gameplay. Treat them as canon and reference them naturally:
+
+${memories.map(m => '- ' + m.text).join('\n')}`);
+    }
+
+    // Private chat transcript
+    const chatMessages = dragonBonds.dragonChatMessages;
+    if (chatMessages?.length) {
+      const DRAGON_TAG_RE = /<!--(?:DRAGON_MOOD|DRAGON_MEMORY|DRAGON_HABIT|BOND_SENSE):[^>]*-->/g;
+      const last10 = chatMessages.slice(-10);
+      const lines = last10.map(m => {
+        const cleanContent = m.content.replace(DRAGON_TAG_RE, '').trim();
+        return m.role === 'user' ? `Rider: ${cleanContent}` : `Dragon: ${cleanContent}`;
+      }).join('\n');
+      const truncated = lines.length > 2000 ? lines.slice(0, 2000) + '…' : lines;
+      sections.push(`## RECENT DRAGON-RIDER PRIVATE COMMUNICATION
+The rider recently had this private telepathic exchange with their dragon (outside the main narrative). Use this context to inform dragon behavior in scenes:
+${truncated}`);
+    }
+
+    return '\n\n' + sections.join('\n\n');
+  }, [dragonBonds.myDragon, dragonBonds.dragonChatMessages]);
 
   // Non-hosts (and non-co-hosts) wait for session to start
   if (!partyDm.isActive && !isHost) {
@@ -357,7 +398,7 @@ export function StandalonePartyDMScreen({
         onToggleAutoSync={autoSync.toggleAutoSync}
         isExtracting={autoSync.isExtracting}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
-        gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '') + dragonChatTranscript}
+        gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '') + dragonContextForDM}
         memoryAnchorsContent={memoryAnchors.formattedForOracle}
         memoryAnchors={memoryAnchors.anchors}
         onAddMemoryAnchor={memoryAnchors.addMemoryAnchor}
