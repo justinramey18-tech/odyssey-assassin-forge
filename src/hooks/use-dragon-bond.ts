@@ -9,8 +9,11 @@ import {
   classifyRiderEmotion,
   addBond,
   addMemory,
+  DEFAULT_TRUST,
+  DEFAULT_BOND,
   type DragonBondState,
 } from '@/lib/dragonBondState';
+import { isEllieEasterEgg } from '@/lib/easter-eggs';
 
 interface UseDragonBondOptions {
   dragonName: string;
@@ -47,7 +50,15 @@ const SESSION_CHAT_CAP = 5;
 const MAX_TRUST_PER_EXCHANGE = 4;
 
 export function useDragonBond({ dragonName, characterName, onTrustChange, onBondChange }: UseDragonBondOptions) {
-  const [bondState, setBondState] = useState<DragonBondState>(() => loadBondState());
+  const [bondState, setBondState] = useState<DragonBondState>(() => {
+    const state = loadBondState();
+    // Ellie Easter egg: if the character name includes "ellie" and bond state is
+    // still at defaults (trust === 10, bond === 15), apply the elevated starting state.
+    if (isEllieEasterEgg(characterName) && state.trust === DEFAULT_TRUST && state.bond === DEFAULT_BOND) {
+      return { ...state, trust: 25, mood: 'playful' as const };
+    }
+    return state;
+  });
 
   const onTrustChangeRef = useRef(onTrustChange);
   const onBondChangeRef = useRef(onBondChange);

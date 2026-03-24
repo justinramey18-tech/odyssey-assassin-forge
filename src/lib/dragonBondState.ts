@@ -31,14 +31,17 @@ const BOND_STATE_KEY = 'empyrean-dragon-bond-state';
 export const DRAGON_CHAT_KEY = 'empyrean-dragon-chat';
 export const DRAGON_CHAT_SUMMARY_KEY = 'empyrean-dragon-chat-summary';
 
+export const DEFAULT_TRUST = 10;
+export const DEFAULT_BOND = 15;
+
 export function loadBondState(): DragonBondState {
   try {
     const raw = getScopedItem(BOND_STATE_KEY);
     if (raw) return JSON.parse(raw);
   } catch { }
   return {
-    bond: 15,
-    trust: 10,
+    bond: DEFAULT_BOND,
+    trust: DEFAULT_TRUST,
     mood: 'calm',
     memories: [],
     totalChatExchanges: 0,
