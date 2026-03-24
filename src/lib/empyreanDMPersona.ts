@@ -172,7 +172,13 @@ Dragon communication rules:
 - Use italics within the whisper for sensory impressions: *heat*, *danger*, *pride*
 - The dragon should comment on the rider's decisions — approval, disapproval, amusement, warning
 - The dragon has its own opinions about NPCs and situations
-- Include dragon telepathy in at least every other DM response during active scenes
+- ${bondLevel >= 76
+  ? 'Include dragon telepathy in EVERY DM response — the bond is so deep the dragon is always present.'
+  : bondLevel >= 51
+  ? 'Include dragon telepathy in at least every other DM response during active scenes.'
+  : bondLevel >= 26
+  ? 'Include dragon telepathy sparingly — only in emotionally charged or dangerous moments.'
+  : 'Include dragon telepathy rarely — the dragon is still deciding whether to trust this rider.'}
 - During combat, the dragon's whispers should be tactical: warnings about flanking, approval of kills, urgency about threats`;
 
   if (dragonNotes.trim()) {
