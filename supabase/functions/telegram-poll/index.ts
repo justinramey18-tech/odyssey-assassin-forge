@@ -113,7 +113,7 @@ async function processCommand(
       `/stats — Ability scores\n` +
       `/hp — Current HP\n` +
       `/slots — Spell slot usage\n` +
-      `/dragon — Dragon bond status\n\n` +
+      `/dragon [NAME] — Dragon bond status (yours or by name)\n\n` +
       `<b>⚔️ Actions</b>\n` +
       `/damage N — Take N damage\n` +
       `/heal N — Heal N HP\n` +
@@ -370,11 +370,127 @@ async function processCommand(
     return;
   }
 
-  // /dragon
-  if (cmd === '/dragon') {
+  // /dragon [NAME]
+  if (cmd === '/dragon' || cmd.startsWith('/dragon ')) {
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
 
+    const dragonNameArg = parts.slice(1).join(' ').trim();
+
+    type DragonEntry = { name: string; signet: string; bond: number; trust: number; mood: string; burnout: number; source: string };
+
+    const formatDragon = async (dragons: DragonEntry[]) => {
+      for (const d of dragons) {
+        const bondBar = '█'.repeat(Math.round(d.bond / 10)) + '░'.repeat(10 - Math.round(d.bond / 10));
+        const trustBar = '█'.repeat(Math.round(d.trust / 10)) + '░'.repeat(10 - Math.round(d.trust / 10));
+        const maxBurnout = d.bond >= 76 ? 9 : d.bond >= 51 ? 7 : d.bond >= 26 ? 5 : 4;
+
+        const moodEmoji: Record<string, string> = {
+          calm: '😌', alert: '👁️', protective: '🛡️', distant: '❄️', ancestral: '🌀', playful: '😏',
+        };
+        const emoji = moodEmoji[d.mood] || '🐉';
+
+        let msg = `🐉 <b>${d.name}</b>`;
+        if (dragons.length > 1) msg += ` <i>(${d.source})</i>`;
+        msg += `\n\n`;
+        msg += `⚡ Signet: ${d.signet}\n`;
+        msg += `${emoji} Mood: ${d.mood}\n`;
+        msg += `🔥 Burnout: ${d.burnout}/${maxBurnout}\n\n`;
+        msg += `💛 Bond: [${bondBar}] ${d.bond}/100\n`;
+        msg += `🤝 Trust: [${trustBar}] ${d.trust}/100`;
+
+        if (d.bond < 25) msg += `\n\n⚠️ <i>Your bond is fragile. Tread carefully.</i>`;
+        else if (d.bond >= 75) msg += `\n\n✨ <i>Your bond burns bright.</i>`;
+
+        await sendTelegram(chatId, msg, lovableKey, telegramKey);
+      }
+    };
+
+    if (dragonNameArg) {
+      // Search across all party members for a dragon matching the given name
+      const { data: memberships } = await supabase
+        .from('party_members')
+        .select('party_id')
+        .eq('user_id', userId);
+
+      const partyMemberUserIds = new Set<string>();
+      partyMemberUserIds.add(userId);
+
+      if (memberships && memberships.length > 0) {
+        const partyIds = memberships.map(m => m.party_id);
+        const { data: members } = await supabase
+          .from('party_members')
+          .select('user_id')
+          .in('party_id', partyIds);
+        if (members) {
+          for (const m of members) {
+            partyMemberUserIds.add(m.user_id);
+          }
+        }
+      }
+
+      const nameArgLower = dragonNameArg.toLowerCase();
+      const found: DragonEntry[] = [];
+
+      const memberIds = Array.from(partyMemberUserIds);
+      const [memberSaves, memberBondResults] = await Promise.all([
+        Promise.all(memberIds.map(id => getCharacterData(id, supabase))),
+        Promise.all(memberIds.map(id =>
+          supabase
+            .from('party_shared_state')
+            .select('state_data')
+            .eq('user_id', id)
+            .eq('state_type', 'dragon_bond')
+        )),
+      ]);
+
+      for (let i = 0; i < memberIds.length; i++) {
+        const memberExt = (memberSaves[i]?.extended_data || {}) as any;
+        const memberSoloDragon = memberExt?.dragonBond;
+        if (memberSoloDragon && memberSoloDragon.dragonName &&
+            memberSoloDragon.dragonName.toLowerCase() === nameArgLower &&
+            !found.some(existing => existing.name.toLowerCase() === nameArgLower)) {
+          found.push({
+            name: memberSoloDragon.dragonName,
+            signet: memberSoloDragon.signetType || 'Unknown',
+            bond: memberSoloDragon.bond ?? 0,
+            trust: memberSoloDragon.trust ?? 0,
+            mood: memberSoloDragon.mood || 'calm',
+            burnout: memberSoloDragon.burnout ?? 0,
+            source: 'Solo',
+          });
+        }
+
+        const memberPartyBonds = memberBondResults[i].data;
+        if (memberPartyBonds) {
+          for (const row of memberPartyBonds) {
+            const d = row.state_data as any;
+            if (d && d.dragonName && d.dragonName.toLowerCase() === nameArgLower &&
+                !found.some(existing => existing.name.toLowerCase() === nameArgLower)) {
+              found.push({
+                name: d.dragonName,
+                signet: d.signetType || 'Unknown',
+                bond: d.bond ?? 0,
+                trust: d.trust ?? 0,
+                mood: d.mood || 'calm',
+                burnout: d.burnout ?? 0,
+                source: 'Party',
+              });
+            }
+          }
+        }
+      }
+
+      if (found.length === 0) {
+        await sendTelegram(chatId, `🐉 No dragon named "${dragonNameArg}" found in your party. Use /dragon to see your own dragons.`, lovableKey, telegramKey);
+        return;
+      }
+
+      await formatDragon(found);
+      return;
+    }
+
+    // No name argument — show the calling user's own dragons
     const save = await getCharacterData(userId, supabase);
     const ext = (save?.extended_data || {}) as any;
     const soloDragon = ext?.dragonBond;
@@ -385,7 +501,7 @@ async function processCommand(
       .eq('user_id', userId)
       .eq('state_type', 'dragon_bond');
 
-    const dragons: Array<{ name: string; signet: string; bond: number; trust: number; mood: string; burnout: number; source: string }> = [];
+    const dragons: DragonEntry[] = [];
 
     if (soloDragon && soloDragon.dragonName) {
       dragons.push({
@@ -422,30 +538,7 @@ async function processCommand(
       return;
     }
 
-    for (const d of dragons) {
-      const bondBar = '█'.repeat(Math.round(d.bond / 10)) + '░'.repeat(10 - Math.round(d.bond / 10));
-      const trustBar = '█'.repeat(Math.round(d.trust / 10)) + '░'.repeat(10 - Math.round(d.trust / 10));
-      const maxBurnout = d.bond >= 76 ? 9 : d.bond >= 51 ? 7 : d.bond >= 26 ? 5 : 4;
-
-      const moodEmoji: Record<string, string> = {
-        calm: '😌', alert: '👁️', protective: '🛡️', distant: '❄️', ancestral: '🌀', playful: '😏',
-      };
-      const emoji = moodEmoji[d.mood] || '🐉';
-
-      let msg = `🐉 <b>${d.name}</b>`;
-      if (dragons.length > 1) msg += ` <i>(${d.source})</i>`;
-      msg += `\n\n`;
-      msg += `⚡ Signet: ${d.signet}\n`;
-      msg += `${emoji} Mood: ${d.mood}\n`;
-      msg += `🔥 Burnout: ${d.burnout}/${maxBurnout}\n\n`;
-      msg += `💛 Bond: [${bondBar}] ${d.bond}/100\n`;
-      msg += `🤝 Trust: [${trustBar}] ${d.trust}/100`;
-
-      if (d.bond < 25) msg += `\n\n⚠️ <i>Your bond is fragile. Tread carefully.</i>`;
-      else if (d.bond >= 75) msg += `\n\n✨ <i>Your bond burns bright.</i>`;
-
-      await sendTelegram(chatId, msg, lovableKey, telegramKey);
-    }
+    await formatDragon(dragons);
     return;
   }
 
