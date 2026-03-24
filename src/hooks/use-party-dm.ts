@@ -231,6 +231,14 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (strainMatch) {
       onBondStrainRef.current?.(strainMatch[1]);
     }
+
+    // Parse BURNOUT_TICK: increment burnout by 1
+    const tickMatch = lastMsg.content.match(/<!--BURNOUT_TICK:(.+?)-->/);
+    if (tickMatch) {
+      // Use onBurnoutDetected with -1 sentinel to signal "increment by 1"
+      // The handler in StandalonePartyDMScreen will interpret this
+      onBurnoutTickRef.current?.(tickMatch[1]);
+    }
   }, [messages, sessionConfig?.campaignType]);
 
 
