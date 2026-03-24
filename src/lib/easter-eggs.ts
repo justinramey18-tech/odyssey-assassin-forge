@@ -19,3 +19,15 @@ export function getBadgeColorClasses(color: string): string {
 export function isMomoEasterEgg(name: string): boolean {
   return name.toLowerCase().trim().includes('momo');
 }
+
+/** Easter egg: detect if the character name is "ellie" */
+export function isEllieEasterEgg(name: string): boolean {
+  return name.toLowerCase().trim().includes('ellie');
+}
+
+export function getEllieBadges(name: string): readonly EasterEggBadge[] {
+  if (isEllieEasterEgg(name)) {
+    return [{ label: "🐉 Ellie's Bond", color: 'rose' }];
+  }
+  return [];
+}
