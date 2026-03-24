@@ -63,6 +63,7 @@ export interface PartyDmMessage {
  * and return the message with clean content + filtered whispers.
  */
 const BURNOUT_TAG_RE = /<!--BURNOUT:\d+-->/g;
+const BURNOUT_TICK_TAG_RE = /<!--BURNOUT_TICK:.+?-->/g;
 const BOND_STRAIN_TAG_RE = /<!--BOND_STRAIN:.+?-->/g;
 
 function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string, myDragonName?: string): PartyDmMessage {
