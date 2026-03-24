@@ -879,6 +879,76 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [showDragonSetup, setShowDragonSetup] = useState(false);
   const [showDragonChat, setShowDragonChat] = useState(false);
   const [showDragonTelegramScheduler, setShowDragonTelegramScheduler] = useState(false);
+
+  // === Emoji Reactions ===
+  const [messageReactions, setMessageReactions] = useState<ReactionData[]>([]);
+
+  // Load reactions on mount
+  useEffect(() => {
+    if (!partyId) return;
+    supabase
+      .from('party_message_reactions')
+      .select('id, message_id, emoji, user_id, sender_name')
+      .eq('party_id', partyId)
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        if (data) setMessageReactions(data);
+      });
+  }, [partyId]);
+
+  // Realtime subscription for reactions
+  useEffect(() => {
+    if (!partyId) return;
+    const channel = supabase
+      .channel(`dm-reactions-${partyId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'party_message_reactions',
+        filter: `party_id=eq.${partyId}`,
+      }, (payload: any) => {
+        const row = payload.new as ReactionData;
+        setMessageReactions(prev => {
+          if (prev.some(r => r.id === row.id)) return prev;
+          return [...prev, row];
+        });
+      })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'party_message_reactions',
+        filter: `party_id=eq.${partyId}`,
+      }, (payload: any) => {
+        const oldId = (payload.old as any)?.id;
+        if (oldId) setMessageReactions(prev => prev.filter(r => r.id !== oldId));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [partyId]);
+
+  const addReaction = useCallback(async (messageId: string, emoji: string) => {
+    if (!partyId || !currentUserId) return;
+    const charName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+    const { error } = await supabase.from('party_message_reactions').upsert({
+      message_id: messageId,
+      party_id: partyId,
+      user_id: currentUserId,
+      emoji,
+      sender_name: charName,
+    } as any, { onConflict: 'message_id,user_id,emoji' } as any);
+    if (error) console.error('[Reactions] add error:', error);
+  }, [partyId, currentUserId, members]);
+
+  const removeReaction = useCallback(async (messageId: string, emoji: string) => {
+    if (!currentUserId) return;
+    const { error } = await supabase
+      .from('party_message_reactions')
+      .delete()
+      .eq('message_id', messageId)
+      .eq('user_id', currentUserId)
+      .eq('emoji', emoji);
+    if (error) console.error('[Reactions] remove error:', error);
+  }, [currentUserId]);
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
   const lastProcessedMsgIdRef = useRef<string | null>(null);
