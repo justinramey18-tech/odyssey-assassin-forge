@@ -545,6 +545,14 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
               </div>
             )}
 
+            {/* Reactions (assistant messages) */}
+            {reactions && reactions.length > 0 && onAddReaction && onRemoveReaction && (
+              <MessageReactions messageId={message.id} reactions={reactions} currentUserId={currentUserId} onAddReaction={onAddReaction} onRemoveReaction={onRemoveReaction} />
+            )}
+            {reactions && reactions.length === 0 && onAddReaction && onRemoveReaction && (
+              <MessageReactions messageId={message.id} reactions={[]} currentUserId={currentUserId} onAddReaction={onAddReaction} onRemoveReaction={onRemoveReaction} />
+            )}
+
             {/* Bookmark button (all users) */}
             {!isEditingMsg && onBookmark && (
               <button
