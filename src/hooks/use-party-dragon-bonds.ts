@@ -99,6 +99,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
   const dragonRelationshipsRef = useRef<Record<string, Record<string, { affinity: number; interactions: number }>>>({});
   const relationshipRowIdRef = useRef<string | null>(null);
   const lastRelSaveRef = useRef<number>(0);
+  const moodDurationRef = useRef<number>(0);
 
   useEffect(() => {
     mountedRef.current = true;
