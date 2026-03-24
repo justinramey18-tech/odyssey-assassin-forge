@@ -100,6 +100,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
   const relationshipRowIdRef = useRef<string | null>(null);
   const lastRelSaveRef = useRef<number>(0);
   const moodDurationRef = useRef<number>(0);
+  const lastMoodShiftRef = useRef<{ from: string; to: string; timestamp: string } | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -611,6 +612,11 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
       );
       const { recommendedMood, validTransitions } = moodPressureResult;
 
+      // Capture mood shift event if mood is changing
+      const fromMood = (myDragon.mood || 'calm') as string;
+      if (recommendedMood !== fromMood) {
+        lastMoodShiftRef.current = { from: fromMood, to: recommendedMood, timestamp: new Date().toISOString() };
+      }
       // Build system prompt
       // Build party context for other dragons
       const partyContext = allDragonConfigs
@@ -1024,5 +1030,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     // Dragon network
     dragonNetworkMessages,
     sendDragonNetworkMessage,
+    // Mood shift (in-memory only)
+    lastMoodShift: lastMoodShiftRef.current,
   }), [myDragon, isSetup, allDragonConfigs, saveMyDragon, updateMyDragon, updateBurnout, updateBondAndTrust, dragonChatMessages, isSending, sendDragonMessage, loadDragonChat, generateDragonOpinion, dragonNetworkMessages, sendDragonNetworkMessage]);
 }
