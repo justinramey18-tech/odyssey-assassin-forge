@@ -227,6 +227,17 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
 
     try {
       // Build system prompt
+      // Build party context for other dragons
+      const partyContext = allDragonConfigs
+        .filter(d => d.config.dragonName && d.userId !== userId)
+        .map(d => ({
+          characterName: partyMembers?.find(m => m.user_id === d.userId)?.character_name || d.userId,
+          dragonName: d.config.dragonName,
+          signetType: d.config.signetType,
+          mood: d.config.mood,
+          bond: d.config.bond,
+        }));
+
       const systemPrompt = buildDragonChatPrompt(
         myDragon.dragonName,
         characterName,
@@ -238,6 +249,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         recentNarrative,
         myDragon.bond,
         myDragon.riderEmotionalLog,
+        partyContext,
       );
 
       // Build API messages - only last 40 messages for context window
