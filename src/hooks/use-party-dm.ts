@@ -417,7 +417,11 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         filter: `party_id=eq.${partyId}`,
       }, (payload) => {
         if (payload.eventType === 'INSERT') {
-          const newMsg = payload.new as PartyDmMessage;
+          const raw = payload.new as Record<string, unknown>;
+          const newMsg: PartyDmMessage = {
+            ...raw,
+            team: raw.team ?? null,
+          } as PartyDmMessage;
           setMessages(prev => {
             if (prev.some(m => m.id === newMsg.id)) return prev;
             return [...prev, newMsg];
