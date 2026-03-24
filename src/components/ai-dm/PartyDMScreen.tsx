@@ -279,7 +279,82 @@ function AfkAnnotatedContent({ content, afkNames }: { content: string; afkNames?
   );
 }
 
-const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage }: {
+type ReactionData = { id: string; message_id: string; emoji: string; user_id: string; sender_name: string };
+
+const EMOJI_SET = ['🤣','😅','🤪','🙄','😬','😏','🤮','🥵','🥶','🤯','🧐','😎','😱','😭','🤬','😈','❤️','💯','👏','🙌','🤝','🖕','🫦','🗣','🍑','🍆'];
+
+function MessageReactions({ messageId, reactions, currentUserId, onAddReaction, onRemoveReaction }: {
+  messageId: string;
+  reactions: ReactionData[];
+  currentUserId?: string;
+  onAddReaction: (messageId: string, emoji: string) => void;
+  onRemoveReaction: (messageId: string, emoji: string) => void;
+}) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, { emoji: string; count: number; users: string[]; isMine: boolean }>();
+    for (const r of reactions) {
+      const existing = map.get(r.emoji);
+      if (existing) {
+        existing.count++;
+        existing.users.push(r.sender_name);
+        if (r.user_id === currentUserId) existing.isMine = true;
+      } else {
+        map.set(r.emoji, { emoji: r.emoji, count: 1, users: [r.sender_name], isMine: r.user_id === currentUserId });
+      }
+    }
+    return Array.from(map.values());
+  }, [reactions, currentUserId]);
+
+  return (
+    <div className="flex flex-wrap gap-1 mt-1 items-center">
+      {grouped.map(g => (
+        <button
+          key={g.emoji}
+          onClick={() => g.isMine ? onRemoveReaction(messageId, g.emoji) : onAddReaction(messageId, g.emoji)}
+          className={cn(
+            "h-6 px-1.5 text-xs rounded-full border flex items-center gap-0.5 transition-colors",
+            g.isMine
+              ? "bg-amber-900/30 border-amber-500/30 hover:bg-amber-900/50"
+              : "bg-white/5 border-white/10 hover:bg-white/10"
+          )}
+          title={g.users.join(', ')}
+          style={{ touchAction: 'manipulation' }}
+        >
+          <span>{g.emoji}</span>
+          <span className="text-white/70">{g.count}</span>
+        </button>
+      ))}
+      <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+        <PopoverTrigger asChild>
+          <button
+            className="h-6 w-6 rounded-full flex items-center justify-center text-white/20 hover:text-white/50 hover:bg-white/5 transition-colors"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <SmilePlus className="w-3.5 h-3.5" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[280px] p-2 bg-black/95 border border-white/10 backdrop-blur-md" side="top" align="start">
+          <div className="grid grid-cols-7 gap-0.5">
+            {EMOJI_SET.map(emoji => (
+              <button
+                key={emoji}
+                onClick={() => { onAddReaction(messageId, emoji); setPickerOpen(false); }}
+                className="w-8 h-8 rounded hover:bg-white/10 flex items-center justify-center text-base transition-colors"
+                style={{ touchAction: 'manipulation' }}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -299,6 +374,9 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   isBookmarked?: boolean;
   onBookmark?: (messageId: string) => void;
   isDialogueMessage?: boolean;
+  reactions?: ReactionData[];
+  onAddReaction?: (messageId: string, emoji: string) => void;
+  onRemoveReaction?: (messageId: string, emoji: string) => void;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
