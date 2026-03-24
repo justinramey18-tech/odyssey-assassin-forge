@@ -42,7 +42,8 @@ import {
   saveDragonNotes,
 } from '@/lib/empyreanDMPersona';
 import { useDragonBond } from '@/hooks/use-dragon-bond';
-import { getBondDescriptor, getTrustDescriptor } from '@/lib/dragonBondState';
+import { getBondDescriptor, getTrustDescriptor, DRAGON_CHAT_SUMMARY_KEY } from '@/lib/dragonBondState';
+import { getScopedItem } from '@/lib/scoped-storage';
 import { empyreanPrompts } from '@/lib/empyreanPrompts';
 import { EMPYREAN_SESSION_GUIDES } from '@/lib/empyreanGMGuides';
 import { DM_MODELS } from '@/lib/dm-models';
