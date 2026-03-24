@@ -767,6 +767,11 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
         </p>
         )}
 
+        {/* Reactions (user messages) */}
+        {reactions && onAddReaction && onRemoveReaction && (
+          <MessageReactions messageId={message.id} reactions={reactions} currentUserId={currentUserId} onAddReaction={onAddReaction} onRemoveReaction={onRemoveReaction} />
+        )}
+
         {/* Bookmark button (all users) */}
         {!isEditingMsg && onBookmark && (
           <button
