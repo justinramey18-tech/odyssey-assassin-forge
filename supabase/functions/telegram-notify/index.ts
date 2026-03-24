@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
   // these are host-authored messages that should always reach the target
   // regardless of whether the player has configured empyrean mode notifications.
   let links = allLinks;
-  if (links && payload.mode && payload.type !== 'dragon_message') {
+  if (links && payload.mode && !bypassColumnFilter) {
     links = links.filter((l: any) => {
       const modes: string[] = l.notify_modes ?? [];
       return modes.includes(payload.mode!);
