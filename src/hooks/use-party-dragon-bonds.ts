@@ -82,6 +82,8 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
   const mountedRef = useRef(true);
   const reactionCooldownRef = useRef<Map<string, number>>(new Map());
   const reactingRef = useRef(false);
+  // Track reaction vs chain IDs locally: 'reaction' = depth 0 reaction, 'chain' = depth 1 (terminal)
+  const reactionDepthRef = useRef<Map<string, 'reaction' | 'chain'>>(new Map());
 
   useEffect(() => {
     mountedRef.current = true;
