@@ -570,6 +570,14 @@ RULES:
     prompt += `\n\n## RECENT PARTY CHAT\nThese are the most recent out-of-character messages from the party chat. Use them for situational awareness — players may be discussing plans, asking questions, or coordinating. Do NOT repeat or quote these messages directly; just factor them into your narrative awareness:\n\n${chatLines}`;
   }
 
+  if (recentDragonChat && recentDragonChat.length > 0) {
+    const chatLines = recentDragonChat.slice(0, 15).map(c => {
+      const speaker = c.role === 'assistant' ? c.dragonName : c.riderName;
+      return `${speaker}: ${c.content.slice(0, 300)}`;
+    }).join('\n');
+    prompt += `\n\n## RECENT DRAGON BOND CONVERSATIONS\nThese are excerpts from private telepathic conversations between riders and their dragons. Use this for narrative consistency — if a dragon expressed a feeling or warning here, do NOT contradict it in your narration. You may subtly reference or build on these exchanges through dragon whisper tags (>>RiderName), but never reveal that you "overheard" private bond conversations.\n\n${chatLines}`;
+  }
+
   if (responseModePrompt && responseModePrompt.trim()) {
     prompt += `\n\n${responseModePrompt.slice(0, 2000)}`;
   }
