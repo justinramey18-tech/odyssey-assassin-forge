@@ -68,6 +68,8 @@ function matchesAny(text: string, patterns: string[]): boolean {
 const SESSION_CHAT_CAP = 5;
 const MAX_TRUST_PER_EXCHANGE = 4;
 
+const COMBAT_WORDS = ['fight', 'danger', 'battle', 'enemy', 'attack', 'die', 'kill'];
+
 export function usePartyDragonBonds(partyId: string | null, userId: string | null, partyMembers?: Array<{ user_id: string; character_name: string }>) {
   const [myDragon, setMyDragon] = useState<PartyDragonConfig | null>(null);
   const [allDragonConfigs, setAllDragonConfigs] = useState<DragonEntry[]>([]);
