@@ -112,7 +112,8 @@ async function processCommand(
       `/character — Character summary\n` +
       `/stats — Ability scores\n` +
       `/hp — Current HP\n` +
-      `/slots — Spell slot usage\n\n` +
+      `/slots — Spell slot usage\n` +
+      `/dragon — Dragon bond status\n\n` +
       `<b>⚔️ Actions</b>\n` +
       `/damage N — Take N damage\n` +
       `/heal N — Heal N HP\n` +
