@@ -95,13 +95,64 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
   const reactingRef = useRef(false);
   // Track reaction vs chain IDs locally: 'reaction' = depth 0 reaction, 'chain' = depth 1 (terminal)
   const reactionDepthRef = useRef<Map<string, 'reaction' | 'chain'>>(new Map());
-  // V3: Emergent dragon relationship tracking (session-only)
+  // V3: Emergent dragon relationship tracking (persisted to party_shared_state)
   const dragonRelationshipsRef = useRef<Record<string, Record<string, { affinity: number; interactions: number }>>>({});
+  const relationshipRowIdRef = useRef<string | null>(null);
+  const lastRelSaveRef = useRef<number>(0);
 
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
+
+  // Persist dragon relationships to party_shared_state (fire-and-forget)
+  const persistDragonRelationships = useCallback(() => {
+    if (!partyId || !userId) return;
+    const now = Date.now();
+    if (now - lastRelSaveRef.current < 5000) return;
+    lastRelSaveRef.current = now;
+
+    const stateData = dragonRelationshipsRef.current;
+    if (relationshipRowIdRef.current) {
+      supabase
+        .from('party_shared_state')
+        .update({ state_data: stateData as any, updated_at: new Date().toISOString() })
+        .eq('id', relationshipRowIdRef.current)
+        .then(() => {});
+    } else {
+      supabase
+        .from('party_shared_state')
+        .insert([{
+          party_id: partyId,
+          user_id: userId,
+          state_type: 'dragon_relationships',
+          state_data: stateData as any,
+        }])
+        .select('id')
+        .single()
+        .then(({ data }) => {
+          if (data) relationshipRowIdRef.current = data.id;
+        });
+    }
+  }, [partyId, userId]);
+
+  // Load persisted dragon relationships
+  const loadDragonRelationships = useCallback(async () => {
+    if (!partyId || !userId) return;
+    const { data } = await supabase
+      .from('party_shared_state')
+      .select('*')
+      .eq('party_id', partyId)
+      .eq('user_id', userId)
+      .eq('state_type', 'dragon_relationships')
+      .maybeSingle();
+
+    if (!mountedRef.current) return;
+    if (data) {
+      dragonRelationshipsRef.current = data.state_data as unknown as Record<string, Record<string, { affinity: number; interactions: number }>>;
+      relationshipRowIdRef.current = data.id;
+    }
+  }, [partyId, userId]);
 
   // Fetch all dragon configs for this party
   const fetchAll = useCallback(async () => {
@@ -135,7 +186,8 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
   // Initial fetch
   useEffect(() => {
     fetchAll();
-  }, [fetchAll]);
+    loadDragonRelationships();
+  }, [fetchAll, loadDragonRelationships]);
 
   // ── Dragon cross-reaction logic ──
   const triggerDragonReaction = useCallback(async (
@@ -229,7 +281,8 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     rel.interactions += 1;
     rel.affinity = Math.max(-1, Math.min(1, rel.affinity + (AFFINITY_DELTAS[winner.reactionType] ?? 0)));
 
-    // Set cooldown
+    // Persist relationships (fire-and-forget, debounced)
+    try { persistDragonRelationships(); } catch { /* never block reaction */ }
     cooldowns.set(reactor.userId, 4);
     reactingRef.current = true;
 
@@ -333,7 +386,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     } finally {
       reactingRef.current = false;
     }
-  }, [partyId, userId, allDragonConfigs, partyMembers]);
+  }, [partyId, userId, allDragonConfigs, partyMembers, persistDragonRelationships]);
 
   // Realtime subscription for dragon bond changes
   useEffect(() => {
@@ -388,6 +441,9 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
                   delta = 0.01;
                 }
                 rel.affinity = Math.max(-1, Math.min(1, rel.affinity + delta));
+
+                // Persist reverse relationship (fire-and-forget, debounced)
+                try { persistDragonRelationships(); } catch { /* never block */ }
               }
 
               // Check if this is a chain reaction (depth 1) — terminal, no further reactions
@@ -404,6 +460,13 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
             }
             return;
           }
+          // Handle dragon_relationships realtime updates from self (other tab/device)
+          if (row.state_type === 'dragon_relationships' && row.user_id === userId) {
+            const rowAny = row as Record<string, unknown>;
+            dragonRelationshipsRef.current = rowAny.state_data as Record<string, Record<string, { affinity: number; interactions: number }>>;
+            if (typeof rowAny.id === 'string') relationshipRowIdRef.current = rowAny.id;
+            return;
+          }
           if (row.state_type !== 'dragon_bond') return;
           fetchAll();
         }
@@ -411,7 +474,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [partyId, fetchAll, userId, triggerDragonReaction]);
+  }, [partyId, fetchAll, userId, triggerDragonReaction, persistDragonRelationships]);
 
   // ── Dragon Chat ──
   const loadDragonChat = useCallback(async () => {
