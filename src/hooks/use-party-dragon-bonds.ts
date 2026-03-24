@@ -460,6 +460,13 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
             }
             return;
           }
+          // Handle dragon_relationships realtime updates from self (other tab/device)
+          if (row.state_type === 'dragon_relationships' && row.user_id === userId) {
+            const rowAny = row as Record<string, unknown>;
+            dragonRelationshipsRef.current = rowAny.state_data as Record<string, Record<string, { affinity: number; interactions: number }>>;
+            if (typeof rowAny.id === 'string') relationshipRowIdRef.current = rowAny.id;
+            return;
+          }
           if (row.state_type !== 'dragon_bond') return;
           fetchAll();
         }
