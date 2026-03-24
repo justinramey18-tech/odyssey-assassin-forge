@@ -80,6 +80,8 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
   const [sessionChatCount, setSessionChatCount] = useState(0);
   const [dragonNetworkMessages, setDragonNetworkMessages] = useState<DragonNetworkMessage[]>([]);
   const mountedRef = useRef(true);
+  const reactionCooldownRef = useRef<Map<string, number>>(new Map());
+  const reactingRef = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
