@@ -2870,6 +2870,14 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       });
     }
 
+    sendTelegramNotification({
+      type: 'custom',
+      partyId,
+      title: '📖 The DM Has Spoken',
+      body: trimmed.substring(0, 300) + (trimmed.length > 300 ? '…' : ''),
+      mode: sessionConfig?.campaignType === 'empyrean' ? 'empyrean' : 'party',
+    });
+
     // Trigger summary and auto-save
     const updatedMessages = [...messages,
       { id: '', party_id: partyId, role: 'user' as const, content: pendingDraft.userContent, sender_user_id: user.id, sender_name: pendingDraft.userSenderName, created_at: '' },
