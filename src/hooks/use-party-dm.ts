@@ -209,8 +209,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   // Detect BURNOUT and BOND_STRAIN tags from new assistant messages in Empyrean campaigns
   const onBurnoutRef = useRef(onBurnoutDetected);
+  const onBurnoutTickRef = useRef(onBurnoutTickDetected);
   const onBondStrainRef = useRef(onBondStrainDetected);
   useEffect(() => { onBurnoutRef.current = onBurnoutDetected; }, [onBurnoutDetected]);
+  useEffect(() => { onBurnoutTickRef.current = onBurnoutTickDetected; }, [onBurnoutTickDetected]);
   useEffect(() => { onBondStrainRef.current = onBondStrainDetected; }, [onBondStrainDetected]);
   const lastParsedMsgIdRef = useRef<string | null>(null);
 
