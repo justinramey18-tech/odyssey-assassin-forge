@@ -70,6 +70,17 @@ const MAX_TRUST_PER_EXCHANGE = 4;
 
 const COMBAT_WORDS = ['fight', 'danger', 'battle', 'enemy', 'attack', 'die', 'kill'];
 
+const AFFINITY_DELTAS: Record<string, number> = {
+  agree: 0.05, warn: 0.03, tease: 0.02, rival: -0.03, dismiss: -0.05,
+};
+
+function getAffinityDescription(affinity: number, dragonName: string): string {
+  if (affinity > 0.3) return `You have developed a grudging respect for ${dragonName}. You would not admit it openly.`;
+  if (affinity >= 0.0) return `You are aware of ${dragonName} but have no strong feelings.`;
+  if (affinity >= -0.3) return `You find ${dragonName} irritating and do not hide it.`;
+  return `You openly disdain ${dragonName}. You consider them beneath you.`;
+}
+
 export function usePartyDragonBonds(partyId: string | null, userId: string | null, partyMembers?: Array<{ user_id: string; character_name: string }>) {
   const [myDragon, setMyDragon] = useState<PartyDragonConfig | null>(null);
   const [allDragonConfigs, setAllDragonConfigs] = useState<DragonEntry[]>([]);
@@ -84,6 +95,8 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
   const reactingRef = useRef(false);
   // Track reaction vs chain IDs locally: 'reaction' = depth 0 reaction, 'chain' = depth 1 (terminal)
   const reactionDepthRef = useRef<Map<string, 'reaction' | 'chain'>>(new Map());
+  // V3: Emergent dragon relationship tracking (session-only)
+  const dragonRelationshipsRef = useRef<Record<string, Record<string, { affinity: number; interactions: number }>>>({});
 
   useEffect(() => {
     mountedRef.current = true;
@@ -208,6 +221,14 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
 
     const reactor = winner.entry;
 
+    // V3: Update relationship tracking
+    const rels = dragonRelationshipsRef.current;
+    if (!rels[reactor.userId]) rels[reactor.userId] = {};
+    if (!rels[reactor.userId][senderUserId]) rels[reactor.userId][senderUserId] = { affinity: 0, interactions: 0 };
+    const rel = rels[reactor.userId][senderUserId];
+    rel.interactions += 1;
+    rel.affinity = Math.max(-1, Math.min(1, rel.affinity + (AFFINITY_DELTAS[winner.reactionType] ?? 0)));
+
     // Set cooldown
     cooldowns.set(reactor.userId, 4);
     reactingRef.current = true;
@@ -244,6 +265,11 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         reactor.config.riderEmotionalLog,
         partyContext,
       );
+
+      // V3: Inject relationship context if sufficient interactions
+      if (rel.interactions >= 3) {
+        systemPrompt += `\n\n${getAffinityDescription(rel.affinity, senderDragonName)}`;
+      }
 
       if (mode === 'chain') {
         systemPrompt += `\n\nAnother dragon just responded to something you said: '${messageText.slice(0, 500)}'. Fire back with a brief ${winner.reactionType} retort. 1-2 sentences maximum. Stay in character.`;
@@ -499,7 +525,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
           bond: d.config.bond,
         }));
 
-      const systemPrompt = buildDragonChatPrompt(
+      let systemPrompt = buildDragonChatPrompt(
         myDragon.dragonName,
         characterName,
         myDragon.trust,
@@ -512,6 +538,24 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         myDragon.riderEmotionalLog,
         partyContext,
       );
+
+      // V3: Inject relationship context for rider-initiated chat
+      if (userId) {
+        const myRels = dragonRelationshipsRef.current[userId];
+        if (myRels) {
+          const relLines: string[] = [];
+          for (const otherEntry of allDragonConfigs) {
+            if (otherEntry.userId === userId || !otherEntry.config.dragonName) continue;
+            const rel = myRels[otherEntry.userId];
+            if (rel && rel.interactions >= 3) {
+              relLines.push(`- ${otherEntry.config.dragonName}: ${getAffinityDescription(rel.affinity, otherEntry.config.dragonName)}`);
+            }
+          }
+          if (relLines.length > 0) {
+            systemPrompt += `\n\n## YOUR FEELINGS ABOUT OTHER DRAGONS\n${relLines.join('\n')}`;
+          }
+        }
+      }
 
       // Build API messages - only last 40 messages for context window
       const apiMessages = updatedMessages.slice(-40).map(m => ({ role: m.role, content: m.content }));
