@@ -1005,6 +1005,66 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     } catch { return []; }
   }, [partyId]);
 
+  // Helper: fetch recent dragon bond chat messages for DM context
+  const fetchRecentDragonChat = useCallback(async (): Promise<Array<{ dragonName: string; riderName: string; role: string; content: string }>> => {
+    if (!partyId) return [];
+    try {
+      // Fetch dragon chat state and dragon bond configs in parallel
+      const [chatResult, bondResult] = await Promise.all([
+        supabase
+          .from('party_shared_state')
+          .select('user_id, state_data')
+          .eq('party_id', partyId)
+          .eq('state_type', 'dragon_chat'),
+        supabase
+          .from('party_shared_state')
+          .select('user_id, state_data')
+          .eq('party_id', partyId)
+          .eq('state_type', 'dragon_bond'),
+      ]);
+
+      if (!chatResult.data || chatResult.data.length === 0) return [];
+
+      // Build dragon name lookup from bond configs
+      const dragonNameMap = new Map<string, string>();
+      if (bondResult.data) {
+        for (const row of bondResult.data) {
+          const sd = row.state_data as Record<string, unknown>;
+          if (sd?.dragonName) dragonNameMap.set(row.user_id, sd.dragonName as string);
+        }
+      }
+
+      // Build rider name lookup from partyMembers
+      const riderNameMap = new Map<string, string>();
+      for (const m of partyMembers) {
+        riderNameMap.set(m.user_id, m.character_name || 'Rider');
+      }
+
+      const result: Array<{ dragonName: string; riderName: string; role: string; content: string }> = [];
+
+      for (const row of chatResult.data) {
+        const sd = row.state_data as Record<string, unknown>;
+        const messages = (sd?.messages as Array<{ role: string; content: string; timestamp?: string }>) || [];
+        const last3 = messages.slice(-3);
+        const dragonName = dragonNameMap.get(row.user_id) || 'Dragon';
+        const riderName = riderNameMap.get(row.user_id) || 'Rider';
+
+        for (const msg of last3) {
+          result.push({
+            dragonName,
+            riderName,
+            role: msg.role,
+            content: msg.content,
+          });
+        }
+      }
+
+      return result;
+    } catch {
+      return [];
+    }
+  }, [partyId, partyMembers]);
+
   // Helper: stream an AI response and return the content
   const streamAIResponse = useCallback(async (
     apiMessages: Array<{ role: string; content: string }>,
