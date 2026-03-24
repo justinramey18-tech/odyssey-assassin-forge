@@ -441,6 +441,9 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
                   delta = 0.01;
                 }
                 rel.affinity = Math.max(-1, Math.min(1, rel.affinity + delta));
+
+                // Persist reverse relationship (fire-and-forget, debounced)
+                try { persistDragonRelationships(); } catch { /* never block */ }
               }
 
               // Check if this is a chain reaction (depth 1) — terminal, no further reactions
