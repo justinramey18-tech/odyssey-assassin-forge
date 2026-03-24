@@ -170,7 +170,7 @@ export function StandalonePartyDMScreen({
   );
 
   // Dragon bonds for Empyrean campaigns
-  const dragonBonds = usePartyDragonBonds(partyId || null, userId || null);
+  const dragonBonds = usePartyDragonBonds(partyId || null, userId || null, stablePartyMembers);
   const partyDragonConfigs = useMemo(() => {
     if (!dragonBonds.allDragonConfigs.length) return undefined;
     return dragonBonds.allDragonConfigs.map(d => {
