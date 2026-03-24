@@ -838,7 +838,9 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.mode === next.mode
     && prev.showTeamTag === next.showTeamTag
     && prev.currentUserId === next.currentUserId
-    && prev.isBookmarked === next.isBookmarked;
+    && prev.isBookmarked === next.isBookmarked
+    && (prev.reactions?.length ?? 0) === (next.reactions?.length ?? 0)
+    && prev.reactions?.every((r, i) => r.id === next.reactions?.[i]?.id);
 });
 
 export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid }: PartyDMScreenProps) {
