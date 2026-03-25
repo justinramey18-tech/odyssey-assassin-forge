@@ -775,7 +775,7 @@ serve(async (req) => {
     if (anthropicModelId) {
       // ── Anthropic path ──
       try {
-        const anthropicResponse = await callAnthropic(anthropicModelId, systemPrompt, trimmedMessages, user_api_key);
+        const anthropicResponse = await callAnthropic(anthropicModelId, systemPrompt, trimmedMessages, user_api_key, maxTokens);
         return new Response(anthropicResponse.body, {
           headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
         });
