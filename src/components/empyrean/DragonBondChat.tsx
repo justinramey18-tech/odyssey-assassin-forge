@@ -38,6 +38,7 @@ interface DragonBondChatProps {
   burnoutLevel?: number;
   onRequestOpinion?: () => Promise<string | null>;
   unreadDragonMessages?: string[];
+  currentSituation?: string;
 }
 
 const BOND_SENSE_RE = /<!--BOND_SENSE:(.+?)-->/g;
@@ -75,6 +76,7 @@ export default function DragonBondChat({
   burnoutLevel,
   onRequestOpinion,
   unreadDragonMessages,
+  currentSituation,
 }: DragonBondChatProps) {
   const [bondState, setBondState] = useState<DragonBondState>(() => loadBondState());
   const [statsExpanded, setStatsExpanded] = useState(false);
@@ -92,7 +94,7 @@ export default function DragonBondChat({
       bondState.mood,
       bondState.trust,
       bondState.riderEmotionalLog || [],
-      recentNarrative || [],
+      [...(recentNarrative || []), ...(currentSituation ? [`[current scene: ${currentSituation}]`] : [])],
       burnoutLevel ?? 0,
       moodDurationRef.current,
     );
