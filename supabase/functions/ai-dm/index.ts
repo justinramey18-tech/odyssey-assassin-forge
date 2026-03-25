@@ -986,10 +986,15 @@ serve(async (req) => {
     if (taggedNpcHardConstraint) {
       console.log(`[ai-dm] Enforcing tagged NPC hard constraint: ${taggedNpcHardConstraint.maxDialogueLines} line(s), ${taggedNpcHardConstraint.maxWordsPerLine} words max per line`);
       systemPrompt += "\n\n" + buildTaggedNpcHardConstraintPrompt(taggedNpcHardConstraint);
-      console.log(`[ai-dm][npc-constraint] Token cap reduced: ${effectiveMaxTokens}`);
     }
+
+    const effectiveMaxTokens = taggedNpcHardConstraint
       ? Math.min(maxTokens ?? 16000, Math.max(64, taggedNpcHardConstraint.maxDialogueLines * taggedNpcHardConstraint.maxWordsPerLine))
       : maxTokens;
+
+    if (taggedNpcHardConstraint) {
+      console.log(`[ai-dm][npc-constraint] Token cap reduced to ${effectiveMaxTokens} (from ${maxTokens ?? 16000})`);
+    }
 
     // Determine which provider to use
     const requestedModel = model || DEFAULT_MODEL;
