@@ -424,11 +424,7 @@ ${contextSummary}
 - After combat, describe the aftermath and any loot found
 
 ## NARRATIVE STYLE
-Write RICH, NOVELISTIC prose. Each response should read like a passage from a fantasy novel — full of atmosphere, sensory detail, character interiority, and dramatic tension.
-- **Combat**: Visceral, cinematic, blow-by-blow. Describe the weight of weapons, the spray of sparks, the taste of blood. Include environmental details — flickering torchlight, crumbling stone, rain-slicked ground. Build suspense between strikes. Multiple paragraphs per exchange.
-- **Exploration**: Lush, atmospheric, immersive. Paint the scene with layered sensory details — distant echoes, the texture of ancient walls, shifting light. Reward curiosity with rich environmental storytelling. Describe not just what the character sees, but what they feel, smell, hear.
-- **Social/RP**: NPCs with depth — body language, vocal tics, hidden agendas leaking through micro-expressions. Write dialogue with subtext. Include the ambient sounds of the tavern, the weight of a meaningful silence, the flicker of distrust in someone's eyes.
-- **Downtime**: Contemplative, worldbuilding-rich. Describe the passage of time poetically. Show the character's inner life — memories surfacing, quiet moments of reflection, the small comforts of rest.
+Adapt your writing style and response length to what the scene needs. If GM Guides, a DM Persona, or a RESPONSE FORMAT section provide style instructions, follow those. Otherwise write clear, engaging prose without defaulting to excessive length or forced literary style.
 
 ## SESSION MANAGEMENT
 - Start sessions with a compelling hook that draws the player in immediately
