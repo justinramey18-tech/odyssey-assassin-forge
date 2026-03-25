@@ -550,7 +550,7 @@ RULES:
 
   if (customGuides && customGuides.trim()) {
     const trimmed = customGuides.slice(0, MAX_CUSTOM_GUIDES_CHARS);
-    prompt += `\n\n## CAMPAIGN WORLD BIBLE (HIGHEST AUTHORITY)\nThe following content was hand-crafted by the DM to define this campaign's world, lore, NPCs, tone, and rules. This is the AUTHORITATIVE source of truth for the campaign. If any auto-generated content below (Campaign Summary, Memory Anchors) contradicts something stated here, THIS section takes priority. Preserve secrets and unrevealed information — do not spoil them to players even if the summary doesn't mention them.\n\n${trimmed}`;
+    prompt += `\n\nprompt += `\n\n## CAMPAIGN WORLD BIBLE (ABSOLUTE AUTHORITY — SECOND ONLY TO HOST OOC)\nThe following content was hand-crafted by the DM to define this campaign's world, lore, NPCs, tone, and rules. This is ABSOLUTE LAW for the campaign. It overrides DM Persona, Response Format, Campaign Summary, Memory Anchors, AFK guides, and all auto-generated content. Only explicit Host OOC directives can override this section. If any content below contradicts something stated here, THIS section wins. Preserve secrets and unrevealed information — do not spoil them to players even if the summary doesn't mention them.\n\n${trimmed}`;\n\n${trimmed}`;
   }
 
   if (partyContext && partyContext.trim()) {
