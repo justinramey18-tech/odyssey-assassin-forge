@@ -169,6 +169,15 @@ export function useDragonBond({ dragonName, characterName, onTrustChange, onBond
     });
   }, []);
 
+  const processBondGrowth = useCallback((reason: string) => {
+    setBondState(prev => {
+      const state = addBond(prev, 3);
+      saveBondState(state);
+      onBondChangeRef.current?.(3, reason);
+      return state;
+    });
+  }, []);
+
   const processBondStrain = useCallback((reason: string) => {
     setBondState(prev => {
       let state = reduceTrust(prev, 5);
