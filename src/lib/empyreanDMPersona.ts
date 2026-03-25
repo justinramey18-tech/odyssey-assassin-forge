@@ -251,7 +251,16 @@ When something happens in the narrative that would strain the dragon-rider bond 
 
 Only emit this when a genuine bond-straining event occurs, not for minor disagreements. This tag should appear at most once per response.`);
 
-  // 7d. Dragon Memory Formation
+  // 7d. Bond Growth Events
+  sections.push(`## BOND GROWTH EVENTS
+
+When a scene contains a genuine bond-deepening moment — rider and dragon surviving serious danger together, the rider protecting the dragon at personal cost, the rider successfully using their signet at high burnout with the dragon's active support, or a moment of deep emotional honesty with the dragon — emit:
+
+<!--BOND_GROWTH:brief reason-->
+
+Maximum once per session. Only for significant moments, not routine cooperation.`);
+
+  // 7e. Dragon Memory Formation
   sections.push(`## DRAGON MEMORY FORMATION
 
 When a significant event occurs that a dragon would permanently remember — a moment of exceptional rider bravery, a betrayal by an NPC the dragon distrusted, surviving a near-death together, the rider doing something that deeply moved or angered the dragon — emit one hidden tag:
