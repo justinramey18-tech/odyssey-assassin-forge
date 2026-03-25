@@ -3,6 +3,7 @@ import { ArrowLeft, Send, Link2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
+import { toast } from 'sonner';
 import { useAIDM } from '@/hooks/use-ai-dm';
 import {
   DRAGON_CHAT_KEY,
