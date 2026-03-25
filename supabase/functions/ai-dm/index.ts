@@ -832,7 +832,7 @@ serve(async (req) => {
           ...trimmedMessages,
         ],
         stream: true,
-        max_tokens: 16000,
+        max_tokens: maxTokens || 16000,
       }),
     });
 
