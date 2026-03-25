@@ -238,6 +238,7 @@ export function useDragonBond({ dragonName, characterName, onTrustChange, onBond
     processBondStrain,
     processCombatBond,
     addDragonMessage,
+    addNarrativeMemory,
     markChatOpened,
     checkDecay,
     reload,

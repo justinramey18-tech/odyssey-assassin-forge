@@ -251,7 +251,16 @@ When something happens in the narrative that would strain the dragon-rider bond 
 
 Only emit this when a genuine bond-straining event occurs, not for minor disagreements. This tag should appear at most once per response.`);
 
-  // 7d. Burnout Tick Events
+  // 7d. Dragon Memory Formation
+  sections.push(`## DRAGON MEMORY FORMATION
+
+When a significant event occurs that a dragon would permanently remember — a moment of exceptional rider bravery, a betrayal by an NPC the dragon distrusted, surviving a near-death together, the rider doing something that deeply moved or angered the dragon — emit one hidden tag:
+
+<!--DRAGON_MEMORY:brief fact in present tense-->
+
+Use sparingly, maximum once per session. Only for genuinely memorable moments, not routine events.`);
+
+  // 7e. Burnout Tick Events
   sections.push(`## BURNOUT TICK EVENTS
 
 When the rider uses their signet in a way that would increase burnout — casting under stress, pushing past limits, channeling at high intensity, or sustaining signet use over multiple rounds — include exactly one tag:

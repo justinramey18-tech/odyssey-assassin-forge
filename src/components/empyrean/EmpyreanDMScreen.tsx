@@ -293,6 +293,13 @@ export function EmpyreanDMScreen({
         toast('Dragon bond strained: ' + strainMatch[1], { icon: '💔' });
       }
 
+      // Extract dragon memory events
+      const memoryMatch = content.match(/<!--DRAGON_MEMORY:(.+?)-->/);
+      if (memoryMatch) {
+        dragonBond.addNarrativeMemory(memoryMatch[1]);
+        toast('Dragon remembers: ' + memoryMatch[1], { icon: '🐉' });
+      }
+
       // Extract burnout tick events
       const burnoutTickMatch = content.match(/<!--BURNOUT_TICK:(.+?)-->/);
       if (burnoutTickMatch) {
