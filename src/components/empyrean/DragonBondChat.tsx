@@ -37,6 +37,7 @@ interface DragonBondChatProps {
   recentNarrative?: string[];
   burnoutLevel?: number;
   onRequestOpinion?: () => Promise<string | null>;
+  unreadDragonMessages?: string[];
 }
 
 const BOND_SENSE_RE = /<!--BOND_SENSE:(.+?)-->/g;
@@ -73,6 +74,7 @@ export default function DragonBondChat({
   recentNarrative,
   burnoutLevel,
   onRequestOpinion,
+  unreadDragonMessages,
 }: DragonBondChatProps) {
   const [bondState, setBondState] = useState<DragonBondState>(() => loadBondState());
   const [statsExpanded, setStatsExpanded] = useState(false);
@@ -411,6 +413,22 @@ export default function DragonBondChat({
                   </div>
                 </div>
               </div>
+            )}
+            {unreadDragonMessages && unreadDragonMessages.length > 0 && (
+              <>
+                {unreadDragonMessages.map((msg, i) => (
+                  <div key={`unread-${i}`} className="mb-6 pr-12">
+                    <div className="border-l-2 border-cyan-500/30 pl-3">
+                      <span className="text-[9px] font-mono text-cyan-400/40 block mb-0.5">from the narrative</span>
+                      <div className="text-cyan-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1 prose-strong:text-cyan-100/90">
+                        <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                          {renderVisionBlocks(stripDragonTags(msg))}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
             )}
             {messages.map(msg => {
               const isDragon = msg.role === 'assistant';
