@@ -903,8 +903,8 @@ export function EmpyreanDMScreen({
                             {cleanNarrative}
                           </ReactMarkdown>
                         </div>
-                        {parsed.whispers.length > 0 && (
-                          <WhisperTray whispers={parsed.whispers} />
+                        {whispers.length > 0 && (
+                          <WhisperTray whispers={whispers} />
                         )}
                       </>
                     );
