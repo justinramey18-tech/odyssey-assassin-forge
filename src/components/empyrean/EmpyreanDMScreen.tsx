@@ -1303,7 +1303,19 @@ export function EmpyreanDMScreen({
           if (recentAssistant.length === 0) return null;
           try {
             const dragon = config?.dragonName || 'Dragon';
-            const opinionPrompt = `You are ${dragon}. Based on recent events, share ONE unsolicited thought — a warning, an opinion about an NPC, or a feeling. Keep it under 2 sentences. Use your current mood and trust level to determine tone. Do not ask a question. Just state what is on your mind.\n\nRecent events:\n${recentAssistant.join('\n---\n')}`;
+            const bs = dragonBond.bondState;
+            const opinionPrompt = buildDragonChatPrompt(
+              dragon,
+              characterName,
+              bs.trust,
+              bs.mood,
+              bs.memories,
+              dragonNotes,
+              bs.speechHabits,
+              recentAssistant,
+              bs.bond,
+              bs.riderEmotionalLog,
+            ) + '\n\nBased on recent events, share ONE unsolicited thought — a warning, an opinion, or a feeling. Under 2 sentences. Do not ask a question.';
             const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
             const token = (await supabase.auth.getSession()).data.session?.access_token;
             const resp = await fetch(url, {
