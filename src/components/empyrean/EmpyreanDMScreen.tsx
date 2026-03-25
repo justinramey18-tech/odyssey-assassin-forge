@@ -173,6 +173,8 @@ export function EmpyreanDMScreen({
   const [inputValue, setInputValue] = useState('');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [burnoutLevel, setBurnoutLevel] = useState(0);
+  const burnoutLevelRef = useRef(burnoutLevel);
+  useEffect(() => { burnoutLevelRef.current = burnoutLevel; }, [burnoutLevel]);
   const [currentSituation, setCurrentSituation] = useState<string>('exploration');
   const [dragonNotes, setDragonNotes] = useState(() => loadDragonNotes());
   const [initialSent, setInitialSent] = useState(false);
