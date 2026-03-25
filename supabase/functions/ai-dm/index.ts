@@ -215,31 +215,43 @@ function extractTaggedNpcHardConstraint(customGuides?: string): TaggedNpcHardCon
     /@\w+/,
   ].some((pattern) => pattern.test(normalized));
 
-  if (!hasTaggedNpcScope) return null;
+  if (!hasTaggedNpcScope) {
+    console.log('[ai-dm][npc-constraint] No tagged-NPC scope detected in GM guides');
+    return null;
+  }
+
+  console.log('[ai-dm][npc-constraint] Tagged-NPC scope detected in GM guides, scanning for line limits...');
 
   const rangeMatch = normalized.match(/(?:just\s+)?(\d+)\s*(?:to|-|–)\s*(\d+)\s+lines?\s+of\s+dialogue/);
   if (rangeMatch) {
-    return {
+    const result = {
       maxDialogueLines: Math.min(Math.max(Number(rangeMatch[2]), 1), 4),
       maxWordsPerLine: 40,
     };
+    console.log(`[ai-dm][npc-constraint] Matched range pattern "${rangeMatch[0]}" → ${result.maxDialogueLines} lines, ${result.maxWordsPerLine} words/line`);
+    return result;
   }
 
   const simpleMaxMatch = normalized.match(/(?:just\s+|only\s+)?(\d+)\s+lines?\s+of\s+dialogue/);
   if (simpleMaxMatch) {
-    return {
+    const result = {
       maxDialogueLines: Math.min(Math.max(Number(simpleMaxMatch[1]), 1), 4),
       maxWordsPerLine: 40,
     };
+    console.log(`[ai-dm][npc-constraint] Matched simple pattern "${simpleMaxMatch[0]}" → ${result.maxDialogueLines} lines, ${result.maxWordsPerLine} words/line`);
+    return result;
   }
 
   if (/one\s*(?:to|or|-|–)\s*two\s+lines?\s+of\s+dialogue/.test(normalized)) {
-    return {
+    const result = {
       maxDialogueLines: 2,
       maxWordsPerLine: 40,
     };
+    console.log(`[ai-dm][npc-constraint] Matched "one to two" pattern → ${result.maxDialogueLines} lines, ${result.maxWordsPerLine} words/line`);
+    return result;
   }
 
+  console.log('[ai-dm][npc-constraint] Tagged-NPC scope found but no line-limit pattern matched');
   return null;
 }
 
@@ -391,7 +403,9 @@ async function materializeConstrainedOpenAIStream(body: ReadableStream<Uint8Arra
     }
   }
 
+  console.log(`[ai-dm][npc-constraint] Raw AI output (${content.length} chars): "${content.slice(0, 200)}${content.length > 200 ? '…' : ''}"`);
   const constrained = enforceTaggedNpcHardConstraint(content, constraint);
+  console.log(`[ai-dm][npc-constraint] Constrained output (${constrained.length} chars): "${constrained.slice(0, 200)}${constrained.length > 200 ? '…' : ''}"`);
   return new Response(createOpenAICompatibleSSE(constrained), {
     headers: { 'Content-Type': 'text/event-stream' },
   });
@@ -964,6 +978,9 @@ serve(async (req) => {
 
     if (npcVoicingContext) {
       systemPrompt += "\n\n" + npcVoicingContext;
+      console.log(`[ai-dm][npc-voicing] NPC voicing context appended (${npcVoicingContext.length} chars), customGuides present: ${!!customGuides}, customGuides length: ${customGuides?.length ?? 0}`);
+    } else {
+      console.log('[ai-dm][npc-voicing] No NPC voicing context — standard narrative request');
     }
 
     if (taggedNpcHardConstraint) {
@@ -974,6 +991,10 @@ serve(async (req) => {
     const effectiveMaxTokens = taggedNpcHardConstraint
       ? Math.min(maxTokens ?? 16000, Math.max(64, taggedNpcHardConstraint.maxDialogueLines * taggedNpcHardConstraint.maxWordsPerLine))
       : maxTokens;
+
+    if (taggedNpcHardConstraint) {
+      console.log(`[ai-dm][npc-constraint] Token cap reduced to ${effectiveMaxTokens} (from ${maxTokens ?? 16000})`);
+    }
 
     // Determine which provider to use
     const requestedModel = model || DEFAULT_MODEL;
