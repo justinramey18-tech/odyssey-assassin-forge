@@ -94,7 +94,7 @@ export default function DragonBondChat({
       bondState.mood,
       bondState.trust,
       bondState.riderEmotionalLog || [],
-      recentNarrative || [],
+      [...(recentNarrative || []), ...(currentSituation ? [`[current scene: ${currentSituation}]`] : [])],
       burnoutLevel ?? 0,
       moodDurationRef.current,
     );
