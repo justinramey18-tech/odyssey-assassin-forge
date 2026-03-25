@@ -16,6 +16,11 @@ import {
   getBondDescriptor,
   getTrustDescriptor,
   addMemory,
+  addTrust,
+  reduceTrust,
+  detectTrustBreak,
+  detectRiderDeclaration,
+  classifyRiderEmotion,
   type DragonBondState,
   type DragonMood,
 } from '@/lib/dragonBondState';
