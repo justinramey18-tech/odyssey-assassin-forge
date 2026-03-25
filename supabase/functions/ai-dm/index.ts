@@ -155,6 +155,11 @@ interface DMRequest {
   recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>;
 }
 
+interface TaggedNpcHardConstraint {
+  maxDialogueLines: number;
+  maxWordsPerLine: number;
+}
+
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const MAX_CUSTOM_GUIDES_CHARS = 200000;
@@ -193,6 +198,204 @@ const OPENAI_DIRECT_MODELS: Record<string, string> = {
 };
 
 const DEFAULT_MODEL = 'google/gemini-3-pro-preview';
+
+function normalizePromptText(value: string): string {
+  return value.replace(/\r/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function extractTaggedNpcHardConstraint(customGuides?: string): TaggedNpcHardConstraint | null {
+  if (!customGuides?.trim()) return null;
+
+  const normalized = normalizePromptText(customGuides).toLowerCase();
+  const hasTaggedNpcScope = [
+    /tags?\s+an?\s+npc/,
+    /tagged\s+npc/,
+    /npc\s+dialogue/,
+    /respond\s+as\s+the\s+npc/,
+    /@\w+/,
+  ].some((pattern) => pattern.test(normalized));
+
+  if (!hasTaggedNpcScope) return null;
+
+  const rangeMatch = normalized.match(/(?:just\s+)?(\d+)\s*(?:to|-|–)\s*(\d+)\s+lines?\s+of\s+dialogue/);
+  if (rangeMatch) {
+    return {
+      maxDialogueLines: Math.min(Math.max(Number(rangeMatch[2]), 1), 4),
+      maxWordsPerLine: 40,
+    };
+  }
+
+  const simpleMaxMatch = normalized.match(/(?:just\s+|only\s+)?(\d+)\s+lines?\s+of\s+dialogue/);
+  if (simpleMaxMatch) {
+    return {
+      maxDialogueLines: Math.min(Math.max(Number(simpleMaxMatch[1]), 1), 4),
+      maxWordsPerLine: 40,
+    };
+  }
+
+  if (/one\s*(?:to|or|-|–)\s*two\s+lines?\s+of\s+dialogue/.test(normalized)) {
+    return {
+      maxDialogueLines: 2,
+      maxWordsPerLine: 40,
+    };
+  }
+
+  return null;
+}
+
+function buildTaggedNpcHardConstraintPrompt(constraint: TaggedNpcHardConstraint): string {
+  return `## HARD NPC OUTPUT CONSTRAINT (DERIVED FROM GM GUIDES — ABSOLUTE LAW)
+The GM Guides include a specific rule for tagged NPC dialogue, so this is a HARD OUTPUT LIMIT — not a preference.
+
+When the player tags an NPC for dialogue, your FINAL answer MUST obey ALL of the following:
+- Output ONLY dialogue spoken by the tagged NPC(s)
+- Output NO narration paragraphs, NO scene-setting, NO summary, NO descriptive follow-up, and NO extra prose
+- Output NO more than ${constraint.maxDialogueLines} dialogue line(s) total
+- Keep each dialogue line concise (hard cap: ${constraint.maxWordsPerLine} words per line)
+- Do NOT add physical beats unless the GM Guides explicitly require them
+- STOP immediately after the allowed dialogue line(s)
+
+If you are unsure, output a single short dialogue line and stop.`;
+}
+
+function truncateWords(value: string, maxWords: number): string {
+  const words = value.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) return value.trim();
+  return words.slice(0, maxWords).join(' ').trim();
+}
+
+function truncateDialogueBody(value: string, maxWords: number): string {
+  const cleaned = value
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/\*[^*]+\*/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!cleaned) return '';
+
+  const sentences = cleaned.split(/(?<=[.!?]["']?)\s+/).filter(Boolean);
+  const kept: string[] = [];
+  let totalWords = 0;
+
+  for (const sentence of sentences) {
+    const sentenceWords = sentence.trim().split(/\s+/).filter(Boolean);
+    if (!sentenceWords.length) continue;
+    if (kept.length > 0 && totalWords + sentenceWords.length > maxWords) break;
+    kept.push(sentence.trim());
+    totalWords += sentenceWords.length;
+    if (totalWords >= maxWords) break;
+  }
+
+  const joined = kept.join(' ').trim();
+  return truncateWords(joined || cleaned, maxWords);
+}
+
+function normalizeDialogueLine(line: string, maxWords: number): string | null {
+  const trimmed = line.trim();
+  if (!trimmed) return null;
+
+  const labelMatch = trimmed.match(/^(\*\*[^*:\n]{1,80}:\*\*|[^:\n]{1,80}:)\s*(.+)$/s);
+  if (!labelMatch) return null;
+
+  const speaker = labelMatch[1].trim();
+  const body = truncateDialogueBody(labelMatch[2], maxWords);
+  if (!body) return null;
+
+  return `${speaker} ${body}`.trim();
+}
+
+function enforceTaggedNpcHardConstraint(content: string, constraint: TaggedNpcHardConstraint): string {
+  const cleaned = content
+    .replace(/\r/g, '')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .trim();
+
+  const candidateLines = cleaned
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const dialogueLines = candidateLines
+    .map((line) => normalizeDialogueLine(line, constraint.maxWordsPerLine))
+    .filter((line): line is string => Boolean(line))
+    .slice(0, constraint.maxDialogueLines);
+
+  if (dialogueLines.length > 0) {
+    return dialogueLines.join('\n').trim();
+  }
+
+  const fallback = truncateDialogueBody(cleaned, constraint.maxWordsPerLine);
+  return fallback || cleaned;
+}
+
+function createOpenAICompatibleSSE(text: string): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`));
+      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+      controller.close();
+    },
+  });
+}
+
+async function materializeConstrainedOpenAIStream(body: ReadableStream<Uint8Array>, constraint: TaggedNpcHardConstraint): Promise<Response> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let content = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+
+    let newlineIndex: number;
+    while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+      let line = buffer.slice(0, newlineIndex);
+      buffer = buffer.slice(newlineIndex + 1);
+
+      if (line.endsWith('\r')) line = line.slice(0, -1);
+      if (line.startsWith(':') || line.trim() === '') continue;
+      if (!line.startsWith('data: ')) continue;
+
+      const jsonStr = line.slice(6).trim();
+      if (jsonStr === '[DONE]') continue;
+
+      try {
+        const parsed = JSON.parse(jsonStr);
+        const deltaContent = parsed.choices?.[0]?.delta?.content as string | undefined;
+        if (deltaContent) content += deltaContent;
+      } catch {
+        continue;
+      }
+    }
+  }
+
+  if (buffer.trim()) {
+    for (let raw of buffer.split('\n')) {
+      if (!raw) continue;
+      if (raw.endsWith('\r')) raw = raw.slice(0, -1);
+      if (!raw.startsWith('data: ')) continue;
+      const jsonStr = raw.slice(6).trim();
+      if (!jsonStr || jsonStr === '[DONE]') continue;
+      try {
+        const parsed = JSON.parse(jsonStr);
+        const deltaContent = parsed.choices?.[0]?.delta?.content as string | undefined;
+        if (deltaContent) content += deltaContent;
+      } catch {
+        continue;
+      }
+    }
+  }
+
+  const constrained = enforceTaggedNpcHardConstraint(content, constraint);
+  return new Response(createOpenAICompatibleSSE(constrained), {
+    headers: { 'Content-Type': 'text/event-stream' },
+  });
+}
 
 // ── Context Builder ────────────────────────────────────────────────────────────
 
@@ -757,10 +960,20 @@ serve(async (req) => {
 
     // Use override if provided (e.g. whisper regeneration), otherwise build full DM prompt
     let systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork);
+    const taggedNpcHardConstraint = npcVoicingContext ? extractTaggedNpcHardConstraint(customGuides) : null;
 
     if (npcVoicingContext) {
       systemPrompt += "\n\n" + npcVoicingContext;
     }
+
+    if (taggedNpcHardConstraint) {
+      console.log(`[ai-dm] Enforcing tagged NPC hard constraint: ${taggedNpcHardConstraint.maxDialogueLines} line(s), ${taggedNpcHardConstraint.maxWordsPerLine} words max per line`);
+      systemPrompt += "\n\n" + buildTaggedNpcHardConstraintPrompt(taggedNpcHardConstraint);
+    }
+
+    const effectiveMaxTokens = taggedNpcHardConstraint
+      ? Math.min(maxTokens ?? 16000, Math.max(64, taggedNpcHardConstraint.maxDialogueLines * taggedNpcHardConstraint.maxWordsPerLine))
+      : maxTokens;
 
     // Determine which provider to use
     const requestedModel = model || DEFAULT_MODEL;
@@ -770,8 +983,11 @@ serve(async (req) => {
     if (anthropicModelId) {
       // ── Anthropic path ──
       try {
-        const anthropicResponse = await callAnthropic(anthropicModelId, systemPrompt, trimmedMessages, user_api_key, maxTokens);
-        return new Response(anthropicResponse.body, {
+        const anthropicResponse = await callAnthropic(anthropicModelId, systemPrompt, trimmedMessages, user_api_key, effectiveMaxTokens);
+        const finalResponse = taggedNpcHardConstraint && anthropicResponse.body
+          ? await materializeConstrainedOpenAIStream(anthropicResponse.body, taggedNpcHardConstraint)
+          : anthropicResponse;
+        return new Response(finalResponse.body, {
           headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
         });
       } catch (e: any) {
@@ -791,10 +1007,13 @@ serve(async (req) => {
           userApiKey: user_openai_key.trim(),
           systemPrompt,
           messages: trimmedMessages,
-          maxTokens: maxTokens || 16000,
+          maxTokens: effectiveMaxTokens || 16000,
           model: openaiDirectModelId,
         });
-        return new Response(streamResponse.body, {
+        const finalResponse = taggedNpcHardConstraint && streamResponse.body
+          ? await materializeConstrainedOpenAIStream(streamResponse.body, taggedNpcHardConstraint)
+          : streamResponse;
+        return new Response(finalResponse.body, {
           headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
         });
       } catch (e: any) {
@@ -827,7 +1046,7 @@ serve(async (req) => {
           ...trimmedMessages,
         ],
         stream: true,
-        max_tokens: maxTokens || 16000,
+        max_tokens: effectiveMaxTokens || 16000,
       }),
     });
 
@@ -852,7 +1071,11 @@ serve(async (req) => {
       });
     }
 
-    return new Response(response.body, {
+    const finalResponse = taggedNpcHardConstraint && response.body
+      ? await materializeConstrainedOpenAIStream(response.body, taggedNpcHardConstraint)
+      : response;
+
+    return new Response(finalResponse.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {
