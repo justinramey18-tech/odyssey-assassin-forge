@@ -424,7 +424,7 @@ ${contextSummary}
 - After combat, describe the aftermath and any loot found
 
 ## NARRATIVE STYLE
-Adapt your writing style and response length to what the scene needs. If GM Guides, a DM Persona, or a RESPONSE FORMAT section provide style instructions, follow those. Otherwise write clear, engaging prose without defaulting to excessive length or forced literary style.
+Adapt your writing style and response length to what the scene needs. If Host OOC directives or GM Guides provide style instructions, follow those first — they are absolute authority. Otherwise, if a DM Persona provides guidance, follow that. Otherwise write clear, engaging prose without defaulting to excessive length or forced literary style.
 
 ## SESSION MANAGEMENT
 - Start sessions with a compelling hook that draws the player in immediately
