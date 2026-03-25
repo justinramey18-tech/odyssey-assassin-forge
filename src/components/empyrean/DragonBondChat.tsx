@@ -3,6 +3,7 @@ import { ArrowLeft, Send, Link2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
+import { toast } from 'sonner';
 import { useAIDM } from '@/hooks/use-ai-dm';
 import {
   DRAGON_CHAT_KEY,
@@ -132,11 +133,13 @@ export default function DragonBondChat({
           finalMood = parsedMood;
         }
       }
-      // Track mood duration
+      // Track mood duration + notify on change
       if (finalMood === updated.mood) {
         moodDurationRef.current += 1;
       } else {
         moodDurationRef.current = 0;
+        const newMoodInfo = getMoodDescriptor(finalMood);
+        toast(`${dragonName} feels ${newMoodInfo.label.toLowerCase()} ${newMoodInfo.emoji}`, { duration: 3000 });
       }
       updated = { ...updated, mood: finalMood };
 
