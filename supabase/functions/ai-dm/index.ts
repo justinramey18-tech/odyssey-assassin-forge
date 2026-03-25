@@ -150,6 +150,7 @@ interface DMRequest {
   responseModePrompt?: string;
   partyContext?: string;
   npcVoicingContext?: string;
+  maxTokens?: number;
   recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>;
   recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>;
 }
@@ -599,6 +600,7 @@ async function callAnthropic(
   systemPrompt: string,
   messages: Array<{ role: string; content: string }>,
   userApiKey?: string,
+  tokenLimit?: number,
 ): Promise<Response> {
   const ANTHROPIC_API_KEY = (typeof userApiKey === 'string' && userApiKey.trim())
     ? userApiKey.trim()
@@ -616,7 +618,7 @@ async function callAnthropic(
     },
     body: JSON.stringify({
       model: anthropicModelId,
-      max_tokens: 16000,
+      max_tokens: tokenLimit || 16000,
       system: systemPrompt,
       messages,
       stream: true,
@@ -735,7 +737,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, recentDragonChat, recentDragonNetwork } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, maxTokens, recentDragonChat, recentDragonNetwork } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages, then cap by total character count
     let trimmedMessages = messages.length > MAX_MESSAGES
@@ -773,7 +775,7 @@ serve(async (req) => {
     if (anthropicModelId) {
       // ── Anthropic path ──
       try {
-        const anthropicResponse = await callAnthropic(anthropicModelId, systemPrompt, trimmedMessages, user_api_key);
+        const anthropicResponse = await callAnthropic(anthropicModelId, systemPrompt, trimmedMessages, user_api_key, maxTokens);
         return new Response(anthropicResponse.body, {
           headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
         });
@@ -794,7 +796,7 @@ serve(async (req) => {
           userApiKey: user_openai_key.trim(),
           systemPrompt,
           messages: trimmedMessages,
-          maxTokens: 16000,
+          maxTokens: maxTokens || 16000,
           model: openaiDirectModelId,
         });
         return new Response(streamResponse.body, {
@@ -830,7 +832,7 @@ serve(async (req) => {
           ...trimmedMessages,
         ],
         stream: true,
-        max_tokens: 16000,
+        max_tokens: maxTokens || 16000,
       }),
     });
 
