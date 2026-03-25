@@ -150,6 +150,7 @@ interface DMRequest {
   responseModePrompt?: string;
   partyContext?: string;
   npcVoicingContext?: string;
+  maxTokens?: number;
   recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>;
   recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>;
 }
