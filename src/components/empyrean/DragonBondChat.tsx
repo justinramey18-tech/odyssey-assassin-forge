@@ -34,6 +34,7 @@ interface DragonBondChatProps {
   dragonNotes: string;
   characterContext: CharacterContext;
   recentNarrative?: string[];
+  burnoutLevel?: number;
   onRequestOpinion?: () => Promise<string | null>;
 }
 
