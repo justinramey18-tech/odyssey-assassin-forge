@@ -144,6 +144,16 @@ function BurnoutIndicator({ level, maxBurnout }: { level: number; maxBurnout: nu
   );
 }
 
+function stripAllMetaTags(content: string): string {
+  return content
+    .replace(/<!--BURNOUT:\d+-->/g, '')
+    .replace(/<!--BURNOUT_TICK:.+?-->/g, '')
+    .replace(/<!--SITUATION:\w+-->/g, '')
+    .replace(/<!--BOND_STRAIN:.+?-->/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export function EmpyreanDMScreen({
   open,
   onClose,
@@ -873,7 +883,7 @@ export function EmpyreanDMScreen({
                   ) : isAssistant ? (() => {
                     const parsed = parseWhispers(message.content || '...');
                     const whispers = message.whispers || parsed.whispers;
-                    const cleanNarrative = stripBondStrainTags(stripSituationTags(stripBurnoutTags(parsed.narrative)));
+                    const cleanNarrative = stripAllMetaTags(parsed.narrative);
                     return (
                       <>
                         {message.senderName && message.senderName !== 'DM' && (
