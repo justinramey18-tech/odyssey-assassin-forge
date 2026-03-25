@@ -301,6 +301,13 @@ export function EmpyreanDMScreen({
         toast('Dragon remembers: ' + memoryMatch[1], { icon: '🐉' });
       }
 
+      // Extract bond growth events
+      const bondGrowthMatch = content.match(/<!--BOND_GROWTH:(.+?)-->/);
+      if (bondGrowthMatch) {
+        dragonBond.processBondGrowth(bondGrowthMatch[1]);
+        toast('Bond deepens: ' + bondGrowthMatch[1], { icon: '🐉' });
+      }
+
       // Extract burnout tick events
       const burnoutTickMatch = content.match(/<!--BURNOUT_TICK:(.+?)-->/);
       if (burnoutTickMatch) {

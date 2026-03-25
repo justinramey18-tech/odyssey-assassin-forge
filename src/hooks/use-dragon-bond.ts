@@ -245,6 +245,7 @@ export function useDragonBond({ dragonName, characterName, onTrustChange, onBond
     bondState,
     processExchange,
     processBondStrain,
+    processBondGrowth,
     processCombatBond,
     addDragonMessage,
     addNarrativeMemory,
