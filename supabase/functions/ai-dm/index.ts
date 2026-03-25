@@ -987,7 +987,7 @@ serve(async (req) => {
         const finalResponse = taggedNpcHardConstraint && anthropicResponse.body
           ? await materializeConstrainedOpenAIStream(anthropicResponse.body, taggedNpcHardConstraint)
           : anthropicResponse;
-        return new Response(anthropicResponse.body, {
+        return new Response(finalResponse.body, {
           headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
         });
       } catch (e: any) {
