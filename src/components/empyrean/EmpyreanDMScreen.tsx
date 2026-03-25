@@ -173,6 +173,8 @@ export function EmpyreanDMScreen({
   const [inputValue, setInputValue] = useState('');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [burnoutLevel, setBurnoutLevel] = useState(0);
+  const burnoutLevelRef = useRef(burnoutLevel);
+  useEffect(() => { burnoutLevelRef.current = burnoutLevel; }, [burnoutLevel]);
   const [currentSituation, setCurrentSituation] = useState<string>('exploration');
   const [dragonNotes, setDragonNotes] = useState(() => loadDragonNotes());
   const [initialSent, setInitialSent] = useState(false);
@@ -294,7 +296,7 @@ export function EmpyreanDMScreen({
       // Extract burnout tick events
       const burnoutTickMatch = content.match(/<!--BURNOUT_TICK:(.+?)-->/);
       if (burnoutTickMatch) {
-        const nextBurnout = Math.min((burnoutLevel ?? 0) + 1, maxBurnout);
+        const nextBurnout = Math.min((burnoutLevelRef.current ?? 0) + 1, maxBurnout);
         setBurnoutLevel(nextBurnout);
         toast('Signet strain: ' + burnoutTickMatch[1], { icon: '🔥' });
       }
