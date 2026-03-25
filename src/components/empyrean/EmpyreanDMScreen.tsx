@@ -1285,7 +1285,7 @@ export function EmpyreanDMScreen({
 
       <DragonBondChat
         open={showDragonChat}
-        onClose={() => setShowDragonChat(false)}
+        onClose={() => { setShowDragonChat(false); dragonBond.reload(); }}
         characterName={characterName}
         dragonName={config?.dragonName || 'Dragon'}
         dragonNotes={dragonNotes}
