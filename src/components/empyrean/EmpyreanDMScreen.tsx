@@ -289,27 +289,25 @@ export function EmpyreanDMScreen({
         toast('Signet strain: ' + burnoutTickMatch[1], { icon: '🔥' });
       }
 
-      // Extract dragon whispers and forward to bond chat as incoming messages
-      const whisperRegex = /<!--WHISPER:([^>]+?)-->([\s\S]*?)<!--\/WHISPER:\1-->/g;
-      let whisperMatch;
-      while ((whisperMatch = whisperRegex.exec(content)) !== null) {
-        const target = whisperMatch[1].trim();
-        const whisperContent = whisperMatch[2].trim();
-        if (config?.dragonName && target === config.dragonName && whisperContent) {
-          dragonBond.addDragonMessage(whisperContent);
+      // Extract dragon whispers from parsed whispers
+      const parsed = parseWhispers(content);
+      const dragonWhispers = parsed.whispers
+        .filter(w => w.type === 'whisper' && w.target === config?.dragonName);
 
-          // Send dragon bond Telegram notification (non-blocking)
-          sendTelegramNotification({
-            type: 'dragon_message',
-            title: `${config.dragonName} whispers...`,
-            body: whisperContent.length > 200
-              ? whisperContent.substring(0, 200) + '…'
-              : whisperContent,
-            dragonName: config.dragonName,
-            mode: 'empyrean',
-          });
-        }
-      }
+      dragonWhispers.forEach(w => {
+        dragonBond.addDragonMessage(w.content);
+
+        // Send dragon bond Telegram notification (non-blocking)
+        sendTelegramNotification({
+          type: 'dragon_message',
+          title: `${config?.dragonName} whispers...`,
+          body: w.content.length > 200
+            ? w.content.substring(0, 200) + '…'
+            : w.content,
+          dragonName: config?.dragonName || 'Dragon',
+          mode: 'empyrean',
+        });
+      });
 
       // Track combat for bond building + send Telegram combat alert
       if (content.toLowerCase().includes('initiative') || content.toLowerCase().includes('combat begins') || content.match(/<!--SITUATION:combat-->/)) {
