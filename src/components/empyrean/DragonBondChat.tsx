@@ -133,11 +133,13 @@ export default function DragonBondChat({
           finalMood = parsedMood;
         }
       }
-      // Track mood duration
+      // Track mood duration + notify on change
       if (finalMood === updated.mood) {
         moodDurationRef.current += 1;
       } else {
         moodDurationRef.current = 0;
+        const newMoodInfo = getMoodDescriptor(finalMood);
+        toast(`${dragonName} feels ${newMoodInfo.label.toLowerCase()} ${newMoodInfo.emoji}`, { duration: 3000 });
       }
       updated = { ...updated, mood: finalMood };
 
