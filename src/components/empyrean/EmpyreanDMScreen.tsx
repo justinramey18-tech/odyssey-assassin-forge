@@ -42,7 +42,7 @@ import {
   saveDragonNotes,
 } from '@/lib/empyreanDMPersona';
 import { useDragonBond } from '@/hooks/use-dragon-bond';
-import { getBondDescriptor, getTrustDescriptor, DRAGON_CHAT_SUMMARY_KEY } from '@/lib/dragonBondState';
+import { getBondDescriptor, getTrustDescriptor, buildDragonChatPrompt, DRAGON_CHAT_SUMMARY_KEY } from '@/lib/dragonBondState';
 import { getScopedItem } from '@/lib/scoped-storage';
 import { empyreanPrompts } from '@/lib/empyreanPrompts';
 import { EMPYREAN_SESSION_GUIDES } from '@/lib/empyreanGMGuides';
@@ -1303,7 +1303,19 @@ export function EmpyreanDMScreen({
           if (recentAssistant.length === 0) return null;
           try {
             const dragon = config?.dragonName || 'Dragon';
-            const opinionPrompt = `You are ${dragon}. Based on recent events, share ONE unsolicited thought — a warning, an opinion about an NPC, or a feeling. Keep it under 2 sentences. Use your current mood and trust level to determine tone. Do not ask a question. Just state what is on your mind.\n\nRecent events:\n${recentAssistant.join('\n---\n')}`;
+            const bs = dragonBond.bondState;
+            const opinionPrompt = buildDragonChatPrompt(
+              dragon,
+              characterName,
+              bs.trust,
+              bs.mood,
+              bs.memories,
+              dragonNotes,
+              bs.speechHabits,
+              recentAssistant,
+              bs.bond,
+              bs.riderEmotionalLog,
+            ) + '\n\nBased on recent events, share ONE unsolicited thought — a warning, an opinion, or a feeling. Under 2 sentences. Do not ask a question.';
             const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
             const token = (await supabase.auth.getSession()).data.session?.access_token;
             const resp = await fetch(url, {
