@@ -534,6 +534,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           user_api_key: loadApiKey('anthropic') || undefined,
           user_openai_key: loadApiKey('openai') || undefined,
           npcVoicingContext: npcVoicingPrompt,
+          maxTokens: names.length === 1 ? 150 : names.length > 1 ? 500 : undefined,
           ...(() => {
             const cs = loadCombatSettings();
             const feats: string[] = [];
