@@ -224,12 +224,21 @@ export function useDragonBond({ dragonName, characterName, onTrustChange, onBond
     });
   }, []);
 
+  const addNarrativeMemory = useCallback((text: string) => {
+    setBondState(prev => {
+      const state = addMemory(prev, text, 'campaign');
+      saveBondState(state);
+      return state;
+    });
+  }, []);
+
   return {
     bondState,
     processExchange,
     processBondStrain,
     processCombatBond,
     addDragonMessage,
+    addNarrativeMemory,
     markChatOpened,
     checkDecay,
     reload,

@@ -150,6 +150,7 @@ function stripAllMetaTags(content: string): string {
     .replace(/<!--BURNOUT_TICK:.+?-->/g, '')
     .replace(/<!--SITUATION:\w+-->/g, '')
     .replace(/<!--BOND_STRAIN:.+?-->/g, '')
+    .replace(/<!--DRAGON_MEMORY:.+?-->/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -291,6 +292,13 @@ export function EmpyreanDMScreen({
       if (strainMatch) {
         dragonBond.processBondStrain(strainMatch[1]);
         toast('Dragon bond strained: ' + strainMatch[1], { icon: '💔' });
+      }
+
+      // Extract dragon memory events
+      const memoryMatch = content.match(/<!--DRAGON_MEMORY:(.+?)-->/);
+      if (memoryMatch) {
+        dragonBond.addNarrativeMemory(memoryMatch[1]);
+        toast('Dragon remembers: ' + memoryMatch[1], { icon: '🐉' });
       }
 
       // Extract burnout tick events
