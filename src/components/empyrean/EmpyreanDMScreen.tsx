@@ -883,7 +883,7 @@ function stripAllMetaTags(content: string): string {
                   ) : isAssistant ? (() => {
                     const parsed = parseWhispers(message.content || '...');
                     const whispers = message.whispers || parsed.whispers;
-                    const cleanNarrative = stripBondStrainTags(stripSituationTags(stripBurnoutTags(parsed.narrative)));
+                    const cleanNarrative = stripAllMetaTags(parsed.narrative);
                     return (
                       <>
                         {message.senderName && message.senderName !== 'DM' && (
