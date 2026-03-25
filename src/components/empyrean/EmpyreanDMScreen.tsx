@@ -873,6 +873,7 @@ export function EmpyreanDMScreen({
                     </div>
                   ) : isAssistant ? (() => {
                     const parsed = parseWhispers(message.content || '...');
+                    const whispers = message.whispers || parsed.whispers;
                     const cleanNarrative = stripBondStrainTags(stripSituationTags(stripBurnoutTags(parsed.narrative)));
                     return (
                       <>
@@ -902,8 +903,8 @@ export function EmpyreanDMScreen({
                             {cleanNarrative}
                           </ReactMarkdown>
                         </div>
-                        {parsed.whispers.length > 0 && (
-                          <WhisperTray whispers={parsed.whispers} />
+                        {whispers.length > 0 && (
+                          <WhisperTray whispers={whispers} />
                         )}
                       </>
                     );
