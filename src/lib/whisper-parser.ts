@@ -2,8 +2,11 @@
 // Extracts mechanical content (dice rolls, tactics, per-player whispers) from
 // AI DM responses, leaving clean narrative prose.
 
-import type { Whisper } from '@/components/oracle/types';
-export type { Whisper };
+export interface Whisper {
+  type: 'action' | 'tactics' | 'whisper';
+  target?: string;       // only for type 'whisper' — character name
+  content: string;       // the raw text inside the delimiter
+}
 
 export interface ParsedMessage {
   narrative: string;     // clean prose with all delimiters stripped

@@ -20,7 +20,6 @@ export type Database = {
           created_at: string
           gm_guide_ids: string[] | null
           id: string
-          memory_anchors: Json
           messages: Json
           mode: string
           name: string
@@ -32,7 +31,6 @@ export type Database = {
           created_at?: string
           gm_guide_ids?: string[] | null
           id?: string
-          memory_anchors?: Json
           messages?: Json
           mode?: string
           name?: string
@@ -44,7 +42,6 @@ export type Database = {
           created_at?: string
           gm_guide_ids?: string[] | null
           id?: string
-          memory_anchors?: Json
           messages?: Json
           mode?: string
           name?: string
@@ -887,7 +884,7 @@ export type Database = {
             foreignKeyName: "party_message_reactions_message_id_fkey"
             columns: ["message_id"]
             isOneToOne: false
-            referencedRelation: "party_dm_messages"
+            referencedRelation: "party_messages"
             referencedColumns: ["id"]
           },
           {
@@ -1217,10 +1214,6 @@ export type Database = {
           ai_prompt: string | null
           created_at: string
           dm_context_mode: string
-          dragon_bond: number | null
-          dragon_mood: string | null
-          dragon_notes: string | null
-          dragon_signet: string | null
           error_message: string | null
           id: string
           include_campaign_context: boolean
@@ -1244,10 +1237,6 @@ export type Database = {
           ai_prompt?: string | null
           created_at?: string
           dm_context_mode?: string
-          dragon_bond?: number | null
-          dragon_mood?: string | null
-          dragon_notes?: string | null
-          dragon_signet?: string | null
           error_message?: string | null
           id?: string
           include_campaign_context?: boolean
@@ -1271,10 +1260,6 @@ export type Database = {
           ai_prompt?: string | null
           created_at?: string
           dm_context_mode?: string
-          dragon_bond?: number | null
-          dragon_mood?: string | null
-          dragon_notes?: string | null
-          dragon_signet?: string | null
           error_message?: string | null
           id?: string
           include_campaign_context?: boolean

@@ -1,5 +1,4 @@
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -175,7 +174,6 @@ export function PartyDMSettings({
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => onCampaignTypeChange('dnd')}
-                style={{ touchAction: 'manipulation' }}
                 className={cn(
                   "flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all min-h-[48px]",
                   "active:scale-[0.97]",
@@ -192,7 +190,6 @@ export function PartyDMSettings({
               </button>
               <button
                 onClick={() => onCampaignTypeChange('empyrean')}
-                style={{ touchAction: 'manipulation' }}
                 className={cn(
                   "flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all min-h-[48px]",
                   "active:scale-[0.97]",

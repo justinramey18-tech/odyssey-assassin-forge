@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ArrowLeft, Send, X } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { ArrowLeft, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import { getMoodDescriptor, getBondDescriptor, getTrustDescriptor, type DragonMood } from '@/lib/dragonBondState';
-import type { DragonChatMessage, DragonNetworkMessage } from '@/hooks/use-party-dragon-bonds';
+import type { DragonChatMessage } from '@/hooks/use-party-dragon-bonds';
 
 const BOND_SENSE_RE = /<!--BOND_SENSE:(.+?)-->/g;
 
@@ -43,10 +43,6 @@ interface PartyDragonChatProps {
     mood: string;
   };
   onRequestOpinion?: () => Promise<string | null>;
-  dragonNetworkMessages?: DragonNetworkMessage[];
-  otherDragons?: Array<{ dragonName: string; userId: string; characterName: string }>;
-  onSendNetworkMessage?: (targetDragonName: string, targetUserId: string, targetCharacterName: string, message: string) => void;
-  myUserId?: string;
 }
 
 export default function PartyDragonChat({
@@ -59,26 +55,13 @@ export default function PartyDragonChat({
   isLoading,
   bondState,
   onRequestOpinion,
-  dragonNetworkMessages,
-  otherDragons,
-  onSendNetworkMessage,
-  myUserId,
 }: PartyDragonChatProps) {
   const [inputValue, setInputValue] = useState('');
   const [statsExpanded, setStatsExpanded] = useState(false);
   const [dragonOpening, setDragonOpening] = useState<string | null>(null);
-  const [networkTarget, setNetworkTarget] = useState<{ dragonName: string; userId: string; characterName: string } | null>(null);
-  const [showDragonPicker, setShowDragonPicker] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const opinionFiredRef = useRef(false);
-
-  // Merged timeline
-  const allItems = useMemo(() => {
-    const bond = messages.map(m => ({ kind: 'bond' as const, ts: m.timestamp, data: m }));
-    const network = (dragonNetworkMessages || []).map(m => ({ kind: 'network' as const, ts: m.timestamp, data: m }));
-    return [...bond, ...network].sort((a, b) => a.ts.localeCompare(b.ts));
-  }, [messages, dragonNetworkMessages]);
 
   // Request dragon opinion on open
   useEffect(() => {
@@ -101,7 +84,7 @@ export default function PartyDragonChat({
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [allItems, isLoading]);
+  }, [messages, isLoading]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -111,25 +94,11 @@ export default function PartyDragonChat({
     }
   }, [inputValue]);
 
-  // Show dragon picker when typing '@'
-  useEffect(() => {
-    if (inputValue.startsWith('@') && otherDragons && otherDragons.length > 0) {
-      setShowDragonPicker(true);
-    } else {
-      setShowDragonPicker(false);
-    }
-  }, [inputValue, otherDragons]);
-
   const handleSend = useCallback(() => {
     if (!inputValue.trim() || isLoading) return;
-    if (networkTarget && onSendNetworkMessage) {
-      onSendNetworkMessage(networkTarget.dragonName, networkTarget.userId, networkTarget.characterName, inputValue.trim());
-      setNetworkTarget(null);
-    } else {
-      onSend(inputValue.trim());
-    }
+    onSend(inputValue.trim());
     setInputValue('');
-  }, [inputValue, isLoading, onSend, networkTarget, onSendNetworkMessage]);
+  }, [inputValue, isLoading, onSend]);
 
   const handleKeyDown = useCallback(
     (_e: React.KeyboardEvent) => {
@@ -208,7 +177,7 @@ export default function PartyDragonChat({
 
       {/* Messages Area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6">
-        {allItems.length === 0 && !dragonOpening && !isLoading ? (
+        {messages.length === 0 && !dragonOpening && !isLoading ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
             <p className="text-sm italic text-cyan-200/40 leading-relaxed">
               The bond hums quietly. {dragonName || 'Your dragon'} is aware of you.
@@ -235,67 +204,7 @@ export default function PartyDragonChat({
                 </div>
               </div>
             )}
-            {allItems.map((item, idx) => {
-              if (item.kind === 'network') {
-                const net = item.data as DragonNetworkMessage;
-                const isSender = net.fromUserId === myUserId;
-                const isRecipient = net.toUserId === myUserId;
-
-                // Recipient view — only show delivery
-                if (isRecipient && !isSender && net.toRiderDelivery) {
-                  return (
-                    <div key={`net-${net.id}-${idx}`} className="mb-6 pr-12">
-                      <div className="border-l-2 border-cyan-500/30 pl-3">
-                        <p className="text-[9px] font-mono text-cyan-400/40 mb-1">
-                          {net.toDragon} — unprompted
-                        </p>
-                        <div className="text-cyan-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1">
-                          <ReactMarkdown rehypePlugins={[rehypeRaw]}>
-                            {net.toRiderDelivery}
-                          </ReactMarkdown>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-
-                // Sender view
-                if (isSender) {
-                  return (
-                    <div key={`net-${net.id}-${idx}`} className="mb-6 pr-12">
-                      <div className="border-l-2 border-purple-500/40 pl-3">
-                        <p className="text-[9px] font-mono text-purple-400/50 mb-1">
-                          ⟵ dragon network ⟶ {net.fromDragon} ↔ {net.toDragon}
-                        </p>
-                        {net.dragonExchange ? (
-                          <div className="text-purple-200/70 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1">
-                            <ReactMarkdown rehypePlugins={[rehypeRaw]}>
-                              {net.dragonExchange}
-                            </ReactMarkdown>
-                          </div>
-                        ) : (
-                          <p className="text-purple-300/30 italic text-xs animate-pulse">
-                            ...reaching through the network...
-                          </p>
-                        )}
-                        {net.toRiderDelivery && (
-                          <p className="text-[10px] text-purple-300/40 mt-1.5">
-                            ✓ {net.toDragon} delivered your message
-                          </p>
-                        )}
-                        <p className="text-[9px] text-white/20 italic mt-1">
-                          "{net.riderMessage}"
-                        </p>
-                      </div>
-                    </div>
-                  );
-                }
-
-                return null;
-              }
-
-              // Bond messages (existing rendering)
-              const msg = item.data as DragonChatMessage;
+            {messages.map((msg, idx) => {
               const isDragon = msg.role === 'assistant';
               const bondSense = isDragon ? extractBondSense(msg.content) : null;
               const cleaned = stripDragonTags(msg.content);
@@ -353,53 +262,13 @@ export default function PartyDragonChat({
 
       {/* Input Area */}
       <div className="shrink-0 px-3 pb-3 pt-2 border-t border-cyan-500/10">
-        {/* Dragon picker */}
-        {showDragonPicker && otherDragons && otherDragons.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-2 px-1">
-            {otherDragons.map(d => (
-              <button
-                key={d.userId}
-                onClick={() => {
-                  setNetworkTarget(d);
-                  setInputValue(prev => prev.replace(/^@\s*/, ''));
-                  setShowDragonPicker(false);
-                }}
-                className="text-[11px] px-2.5 py-1 rounded-lg bg-purple-900/30 border border-purple-500/20 text-purple-200/70 hover:bg-purple-800/40 transition-colors"
-                style={{ touchAction: 'manipulation' }}
-              >
-                🐉 {d.dragonName}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Network target pill */}
-        {networkTarget && (
-          <div className="flex items-center gap-1.5 mb-2 px-1">
-            <span className="text-[11px] px-2.5 py-1 rounded-lg bg-purple-900/30 border border-purple-500/25 text-purple-200/70 flex items-center gap-1.5">
-              🐉 Via {networkTarget.dragonName}
-              <button
-                onClick={() => setNetworkTarget(null)}
-                className="p-0.5 hover:bg-white/10 rounded transition-colors"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          </div>
-        )}
-
         <div className="flex items-end gap-2">
           <textarea
             ref={inputRef}
             value={inputValue}
             onChange={e => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={
-              networkTarget
-                ? `Ask ${dragonName} to reach ${networkTarget.dragonName}...`
-                : `Think to ${dragonName || 'your dragon'}...`
-            }
+            placeholder={`Think to ${dragonName || 'your dragon'}...`}
             rows={1}
             className="flex-1 bg-cyan-950/20 border border-cyan-500/15 rounded-xl px-3.5 py-2.5 text-sm text-white/80 placeholder:text-cyan-300/25 resize-none focus:outline-none focus:border-cyan-500/30 transition-colors"
           />
@@ -409,9 +278,7 @@ export default function PartyDragonChat({
             className={cn(
               'shrink-0 p-2.5 rounded-xl border transition-all',
               inputValue.trim() && !isLoading
-                ? networkTarget
-                  ? 'bg-purple-900/40 border-purple-500/30 text-purple-300 hover:bg-purple-900/60'
-                  : 'bg-cyan-900/40 border-cyan-500/30 text-cyan-300 hover:bg-cyan-900/60'
+                ? 'bg-cyan-900/40 border-cyan-500/30 text-cyan-300 hover:bg-cyan-900/60'
                 : 'bg-white/[0.02] border-white/5 text-white/15',
             )}
             style={{ touchAction: 'manipulation' }}

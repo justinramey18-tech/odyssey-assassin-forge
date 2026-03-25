@@ -62,15 +62,14 @@ export interface PartyDmMessage {
  * Parse whispers from an assistant message, filter by character name,
  * and return the message with clean content + filtered whispers.
  */
-const BURNOUT_TAG_RE = /<!--BURNOUT:\d+-->/g;
-const BURNOUT_TICK_TAG_RE = /<!--BURNOUT_TICK:.+?-->/g;
+const BURNOUT_TAG_RE = /<!--BURNOUT:\d-->/g;
 const BOND_STRAIN_TAG_RE = /<!--BOND_STRAIN:.+?-->/g;
 
 function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string, myDragonName?: string): PartyDmMessage {
   if (msg.role !== 'assistant') return msg;
   const { narrative, whispers } = parseWhispers(msg.content);
   // Strip burnout and bond strain tags from narrative
-  const cleanNarrative = narrative.replace(BURNOUT_TAG_RE, '').replace(BURNOUT_TICK_TAG_RE, '').replace(BOND_STRAIN_TAG_RE, '').trim();
+  const cleanNarrative = narrative.replace(BURNOUT_TAG_RE, '').replace(BOND_STRAIN_TAG_RE, '').trim();
   if (whispers.length === 0) return { ...msg, content: cleanNarrative };
 
   // Filter: keep actions + tactics (shared), and whispers targeted at this player or their dragon
@@ -152,41 +151,16 @@ interface UsePartyDmOptions {
   partyDragonConfigs?: Array<{ userId: string; characterName: string; config: { dragonName: string; signetType: string; bond: number; trust: number; mood: string; burnout: number } }>;
   myDragonName?: string;
   onBurnoutDetected?: (level: number) => void;
-  onBurnoutTickDetected?: (reason: string) => void;
   onBondStrainDetected?: (reason: string) => void;
-  isSoloEmpyrean?: boolean;
 }
 
-export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, partyDragonConfigs, myDragonName, onBurnoutDetected, onBurnoutTickDetected, onBondStrainDetected, isSoloEmpyrean }: UsePartyDmOptions) {
+export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, partyDragonConfigs, myDragonName, onBurnoutDetected, onBondStrainDetected }: UsePartyDmOptions) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
   const [currentPrompts, setCurrentPrompts] = useState<PartyDmPrompt[]>([]);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isFullSummarizing, setIsFullSummarizing] = useState(false);
   const [sessionConfig, setSessionConfig] = useState<DmSessionConfig | null>(null);
-  const sessionConfigRef = useRef<DmSessionConfig | null>(null);
-
-  // Keep ref in sync for use in async callbacks
-  useEffect(() => {
-    sessionConfigRef.current = sessionConfig;
-  }, [sessionConfig]);
-
-  /** Resolve sessionConfig from memory or DB fallback */
-  const resolveSessionConfig = useCallback(async (): Promise<DmSessionConfig | null> => {
-    if (sessionConfigRef.current) return sessionConfigRef.current;
-    if (!partyId) return null;
-    const { data } = await (supabase.from('party_shared_state') as any)
-      .select('state_data')
-      .eq('party_id', partyId)
-      .eq('state_type', 'dm_session')
-      .maybeSingle();
-    if (data?.state_data) {
-      const config = data.state_data as DmSessionConfig;
-      setSessionConfig(config);
-      return config;
-    }
-    return null;
-  }, [partyId]);
   const [isGenerating, setIsGenerating] = useState(false);
   const PENDING_DRAFT_KEY = 'odyssey-pending-draft';
 
@@ -209,10 +183,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   // Detect BURNOUT and BOND_STRAIN tags from new assistant messages in Empyrean campaigns
   const onBurnoutRef = useRef(onBurnoutDetected);
-  const onBurnoutTickRef = useRef(onBurnoutTickDetected);
   const onBondStrainRef = useRef(onBondStrainDetected);
   useEffect(() => { onBurnoutRef.current = onBurnoutDetected; }, [onBurnoutDetected]);
-  useEffect(() => { onBurnoutTickRef.current = onBurnoutTickDetected; }, [onBurnoutTickDetected]);
   useEffect(() => { onBondStrainRef.current = onBondStrainDetected; }, [onBondStrainDetected]);
   const lastParsedMsgIdRef = useRef<string | null>(null);
 
@@ -224,23 +196,15 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (lastMsg.id === lastParsedMsgIdRef.current) return;
     lastParsedMsgIdRef.current = lastMsg.id;
 
-    const burnoutMatch = lastMsg.content.match(/<!--BURNOUT:(\d+)-->/);
+    const burnoutMatch = lastMsg.content.match(/<!--BURNOUT:(\d)-->/);
     if (burnoutMatch) {
       const level = parseInt(burnoutMatch[1], 10);
-      if (level >= 0 && level <= 9) onBurnoutRef.current?.(level);
+      if (level >= 0 && level <= 5) onBurnoutRef.current?.(level);
     }
 
     const strainMatch = lastMsg.content.match(/<!--BOND_STRAIN:(.+?)-->/);
     if (strainMatch) {
       onBondStrainRef.current?.(strainMatch[1]);
-    }
-
-    // Parse BURNOUT_TICK: increment burnout by 1
-    const tickMatch = lastMsg.content.match(/<!--BURNOUT_TICK:(.+?)-->/);
-    if (tickMatch) {
-      // Use onBurnoutDetected with -1 sentinel to signal "increment by 1"
-      // The handler in StandalonePartyDMScreen will interpret this
-      onBurnoutTickRef.current?.(tickMatch[1]);
     }
   }, [messages, sessionConfig?.campaignType]);
 
@@ -429,11 +393,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         filter: `party_id=eq.${partyId}`,
       }, (payload) => {
         if (payload.eventType === 'INSERT') {
-          const raw = payload.new as Record<string, unknown>;
-          const newMsg: PartyDmMessage = {
-            ...raw,
-            team: raw.team ?? null,
-          } as PartyDmMessage;
+          const newMsg = payload.new as PartyDmMessage;
           setMessages(prev => {
             if (prev.some(m => m.id === newMsg.id)) return prev;
             return [...prev, newMsg];
@@ -609,7 +569,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             name: `Party Campaign ${new Date().toLocaleDateString()}`,
             messages: serializedMessages as any,
             campaign_summary: summary,
-            mode: isSoloEmpyrean ? 'solo-empyrean' : 'party',
+            mode: 'party',
           } as any)
           .select('id')
           .single();
@@ -622,7 +582,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     } catch (error) {
       console.warn('[Party Auto-Save] Failed:', error);
     }
-  }, [user, isSoloEmpyrean]);
+  }, [user]);
 
   const startNewCampaign = useCallback(async (campaignName?: string) => {
     if (!partyId || !user || !isCreator) return;
@@ -710,7 +670,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             name,
             messages: serializedMessages as any,
             campaign_summary: sessionConfig?.campaignSummary || null,
-            mode: isSoloEmpyrean ? 'solo-empyrean' : 'party',
+            mode: 'party',
           } as any)
           .select('id')
           .single();
@@ -725,7 +685,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       toast.error('Failed to save campaign');
       return null;
     }
-  }, [partyId, user, messages, sessionConfig, isSoloEmpyrean]);
+  }, [partyId, user, messages, sessionConfig]);
 
   const loadCampaign = useCallback(async (campaignId: string, campaignMessages: any[], campaignSummary: string | null) => {
     if (!partyId || !user || !isCreator) return;
@@ -763,10 +723,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const submitLockRef = useRef(false);
 
   const submitPrompt = useCallback(async (text: string) => {
-    if (!partyId || !user) return;
+    if (!partyId || !user || !sessionConfig) return;
     if (submitLockRef.current) return;
-    const resolvedConfig = await resolveSessionConfig();
-    if (!resolvedConfig) { toast.error('No active session'); return; }
     const existing = currentPrompts.find(p => p.user_id === user.id);
     if (existing) {
       toast.error('You already submitted a prompt this round');
@@ -781,7 +739,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       character_name: characterName,
       prompt: text.trim(),
       is_ready: false,
-      round_id: resolvedConfig.currentRoundId,
+      round_id: sessionConfig.currentRoundId,
     };
     // Tag with team if split is active
     if (isSplitActive && myTeam) {
@@ -795,7 +753,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       character_name: characterName,
       prompt: text.trim(),
       is_ready: false,
-      round_id: resolvedConfig.currentRoundId,
+      round_id: sessionConfig.currentRoundId,
       created_at: new Date().toISOString(),
       team: (isSplitActive && myTeam) ? myTeam : null,
     };
@@ -807,12 +765,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       toast.error('Failed to submit prompt');
     }
     submitLockRef.current = false;
-  }, [partyId, user, resolveSessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
+  }, [partyId, user, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 
   const setReady = useCallback(async () => {
-    if (!user || !partyId) return;
-    const resolvedConfig = await resolveSessionConfig();
-    if (!resolvedConfig) { toast.error('No active session'); return; }
+    if (!user || !partyId || !sessionConfig) return;
     const myPrompt = currentPrompts.find(p => p.user_id === user.id);
     if (myPrompt) {
       // Optimistic update
@@ -829,7 +785,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         character_name: characterName,
         prompt: '',
         is_ready: true,
-        round_id: resolvedConfig.currentRoundId,
+        round_id: sessionConfig.currentRoundId,
       };
       if (isSplitActive && myTeam) {
         insertData.team = myTeam;
@@ -842,7 +798,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         character_name: characterName,
         prompt: '',
         is_ready: true,
-        round_id: resolvedConfig.currentRoundId,
+        round_id: sessionConfig.currentRoundId,
         created_at: new Date().toISOString(),
         team: (isSplitActive && myTeam) ? myTeam : null,
       };
@@ -871,12 +827,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       body: notificationBody,
       mode: 'party',
     });
-  }, [user, partyId, resolveSessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
+  }, [user, partyId, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 
   const unready = useCallback(async () => {
-    if (!user || !partyId) return;
-    const resolvedConfig = await resolveSessionConfig();
-    if (!resolvedConfig) return;
+    if (!user || !partyId || !sessionConfig) return;
     const myPrompt = currentPrompts.find(p => p.user_id === user.id);
     if (myPrompt && myPrompt.is_ready) {
       // Optimistic update
@@ -885,7 +839,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         .update({ is_ready: false })
         .eq('id', myPrompt.id);
     }
-  }, [partyId, user, resolveSessionConfig, currentPrompts]);
+  }, [partyId, user, sessionConfig, currentPrompts]);
 
   const editPrompt = useCallback(async (newText: string) => {
     if (!user) return;
@@ -1005,107 +959,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     } catch { return []; }
   }, [partyId]);
 
-  // Helper: fetch recent dragon bond chat messages for DM context
-  const fetchRecentDragonChat = useCallback(async (): Promise<Array<{ dragonName: string; riderName: string; role: string; content: string }>> => {
-    if (!partyId) return [];
-    try {
-      // Fetch dragon chat state and dragon bond configs in parallel
-      const [chatResult, bondResult] = await Promise.all([
-        supabase
-          .from('party_shared_state')
-          .select('user_id, state_data')
-          .eq('party_id', partyId)
-          .eq('state_type', 'dragon_chat'),
-        supabase
-          .from('party_shared_state')
-          .select('user_id, state_data')
-          .eq('party_id', partyId)
-          .eq('state_type', 'dragon_bond'),
-      ]);
-
-      if (!chatResult.data || chatResult.data.length === 0) return [];
-
-      // Build dragon name lookup from bond configs
-      const dragonNameMap = new Map<string, string>();
-      if (bondResult.data) {
-        for (const row of bondResult.data) {
-          const sd = row.state_data as Record<string, unknown>;
-          if (sd?.dragonName) dragonNameMap.set(row.user_id, sd.dragonName as string);
-        }
-      }
-
-      // Build rider name lookup from partyMembers
-      const riderNameMap = new Map<string, string>();
-      for (const m of partyMembers) {
-        riderNameMap.set(m.user_id, m.character_name || 'Rider');
-      }
-
-      const result: Array<{ dragonName: string; riderName: string; role: string; content: string }> = [];
-
-      for (const row of chatResult.data) {
-        const sd = row.state_data as Record<string, unknown>;
-        const messages = (sd?.messages as Array<{ role: string; content: string; timestamp?: string }>) || [];
-        const last3 = messages.slice(-3);
-        const dragonName = dragonNameMap.get(row.user_id) || 'Dragon';
-        const riderName = riderNameMap.get(row.user_id) || 'Rider';
-
-        for (const msg of last3) {
-          result.push({
-            dragonName,
-            riderName,
-            role: msg.role,
-            content: msg.content,
-          });
-        }
-      }
-
-      return result;
-    } catch {
-      return [];
-    }
-  }, [partyId, partyMembers]);
-
-  // Helper: fetch recent dragon network messages for DM context
-  const fetchRecentDragonNetwork = useCallback(async (): Promise<Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>> => {
-    if (!partyId) return [];
-    try {
-      const { data } = await supabase
-        .from('party_shared_state')
-        .select('state_data')
-        .eq('party_id', partyId)
-        .eq('state_type', 'dragon_network_message')
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (!data || data.length === 0) return [];
-
-      const seen = new Set<string>();
-      const result: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }> = [];
-
-      for (const row of data) {
-        if (result.length >= 5) break;
-        const sd = row.state_data as Record<string, unknown>;
-        const msgId = sd?.id as string;
-        if (!msgId || seen.has(msgId)) continue;
-        seen.add(msgId);
-
-        const exchange = (sd?.dragonExchange as string) || '';
-        if (!exchange.trim()) continue;
-
-        result.push({
-          fromDragon: (sd?.fromDragon as string) || 'Dragon',
-          toDragon: (sd?.toDragon as string) || 'Dragon',
-          exchange,
-          timestamp: (sd?.timestamp as string) || '',
-        });
-      }
-
-      return result;
-    } catch {
-      return [];
-    }
-  }, [partyId]);
-
   // Helper: stream an AI response and return the content
   const streamAIResponse = useCallback(async (
     apiMessages: Array<{ role: string; content: string }>,
@@ -1120,8 +973,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
     // Fetch recent party chat for DM awareness
     const recentPartyChat = await fetchRecentPartyChat();
-    const recentDragonChat = await fetchRecentDragonChat();
-    const recentDragonNetwork = await fetchRecentDragonNetwork();
 
     const authToken = await getAuthToken();
     const response = await fetch(AI_DM_URL, {
@@ -1138,8 +989,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         partyContext: partyContext || undefined,
         memoryAnchors: memoryAnchorsContent || undefined,
         recentPartyChat: recentPartyChat.length > 0 ? recentPartyChat : undefined,
-        recentDragonChat: recentDragonChat.length > 0 ? recentDragonChat : undefined,
-        recentDragonNetwork: recentDragonNetwork.length > 0 ? recentDragonNetwork : undefined,
         responseModePrompt: responseModePrompt || undefined,
         dmPersonaPrompt: dmPersonaPrompt || undefined,
         model: loadSelectedModel(),
@@ -1200,7 +1049,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       }
     }
     return assistantContent;
-  }, [characterContext, sessionConfig?.campaignSummary, memoryAnchorsContent, mergeConsecutiveRoles, fetchRecentPartyChat, fetchRecentDragonChat, fetchRecentDragonNetwork]);
+  }, [characterContext, sessionConfig?.campaignSummary, memoryAnchorsContent, mergeConsecutiveRoles, fetchRecentPartyChat]);
 
 
   // Build party members system prompt section
@@ -1215,7 +1064,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       if (isEmpyrean && partyDragonConfigs) {
         const dc = partyDragonConfigs.find(d => d.userId === m.user_id);
         if (dc) {
-          line += ` | Dragon: ${dc.config.dragonName}, Signet: ${dc.config.signetType || 'unknown'}, Bond: ${getBondDescriptor(dc.config.bond)}, Burnout: ${dc.config.burnout}/${dc.config.bond >= 76 ? 9 : dc.config.bond >= 51 ? 7 : dc.config.bond >= 26 ? 5 : 4}`;
+          line += ` | Dragon: ${dc.config.dragonName}, Signet: ${dc.config.signetType || 'unknown'}, Bond: ${getBondDescriptor(dc.config.bond)}, Burnout: ${dc.config.burnout}/5`;
         }
       }
       return line;
@@ -1228,12 +1077,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (sessionConfig?.campaignType !== 'empyrean' || !partyDragonConfigs || partyDragonConfigs.length === 0) return '';
     const bondedRiders = partyDragonConfigs.filter(d => d.config.dragonName);
     if (bondedRiders.length === 0) return '';
-    const lines = bondedRiders.map(d => {
-      const mood = d.config.mood || 'calm';
-      const bondDesc = getBondDescriptor(d.config.bond);
-      return `- ${d.config.dragonName} (bonded to ${d.characterName}, mood: ${mood}, bond: ${bondDesc}): Use whisper tag ">>${d.characterName}" to send dragon telepathy`;
-    }).join('\n');
-    return `## PARTY DRAGON BONDS\nMultiple riders have bonded dragons. Generate whisper tags for each rider's dragon when appropriate:\n${lines}\n\nEach dragon has its own personality. Address their riders by name through the bond. Dragon whispers should feel telepathic — sensory impressions, emotions, short warnings.\n\nReflect each dragon's current mood in its telepathic whispers:\n- distant: colder, shorter, more withholding\n- protective: more urgent about threats, proactive warnings\n- alert: heightened sensory impressions, vigilance\n- playful: dry humor, teasing (still dragon-like)\n- ancestral: older voice, echoes of ancient memories/visions\n- calm: measured, steady, unhurried`;
+    const lines = bondedRiders.map(d =>
+      `- ${d.config.dragonName} (bonded to ${d.characterName}): Use whisper tag ">>${d.characterName}" to send dragon telepathy`
+    ).join('\n');
+    return `## PARTY DRAGON BONDS\nMultiple riders have bonded dragons. Generate whisper tags for each rider's dragon when appropriate:\n${lines}\n\nEach dragon has its own personality. Address their riders by name through the bond. Dragon whispers should feel telepathic — sensory impressions, emotions, short warnings.`;
   }, [sessionConfig?.campaignType, partyDragonConfigs]);
 
   // Generate split summary for a team
@@ -1393,57 +1240,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       return;
     }
 
-    // Re-fetch latest dragon configs right before generation for accuracy
-    let freshDragonConfigs = partyDragonConfigs;
-    if (sessionConfig?.campaignType === 'empyrean' && partyId) {
-      try {
-        const { data: freshBonds } = await (supabase.from('party_shared_state') as any)
-          .select('user_id, state_data')
-          .eq('party_id', partyId)
-          .eq('state_type', 'dragon_bond');
-        if (freshBonds && freshBonds.length > 0) {
-          freshDragonConfigs = freshBonds.map((row: any) => ({
-            userId: row.user_id,
-            characterName: partyMembers.find(m => m.user_id === row.user_id)?.character_name || 'Unknown',
-            config: {
-              dragonName: row.state_data?.dragonName || '',
-              signetType: row.state_data?.signetType || '',
-              bond: row.state_data?.bond ?? 15,
-              trust: row.state_data?.trust ?? 10,
-              mood: row.state_data?.mood || 'calm',
-              burnout: row.state_data?.burnout ?? 0,
-            },
-          }));
-        }
-      } catch (err) {
-        console.warn('[PartyDM] Failed to refresh dragon configs, using cached:', err);
-      }
-    }
-
-    let freshDragonBondsSection = '';
-    if (sessionConfig?.campaignType === 'empyrean' && freshDragonConfigs && freshDragonConfigs.length > 0) {
-      const bondedRiders = freshDragonConfigs.filter((d: any) => d.config.dragonName);
-      if (bondedRiders.length > 0) {
-        const lines = bondedRiders.map((d: any) => {
-          const bondDesc = getBondDescriptor(d.config.bond);
-          return `- ${d.config.dragonName} (bonded to ${d.characterName}, mood: ${d.config.mood}, bond: ${bondDesc}): Use whisper tag ">>${d.characterName}" to send dragon telepathy`;
-        }).join('\n');
-        freshDragonBondsSection = `## PARTY DRAGON BONDS\nMultiple riders have bonded dragons. Generate whisper tags for each rider's dragon when appropriate:\n${lines}\n\nEach dragon has its own personality. Address their riders by name through the bond. Dragon whispers should feel telepathic — sensory impressions, emotions, short warnings.\n\nReflect each dragon's current mood in its telepathic whispers:\n- distant: colder, shorter, more withholding\n- protective: more urgent about threats, proactive warnings\n- alert: heightened sensory impressions, vigilance\n- playful: dry humor, teasing (still dragon-like)\n- ancestral: older voice, echoes of ancient memories/visions\n- calm: measured, steady, unhurried`;
-      }
-    }
-
-    const freshPartyMembersSummary = partyMembers.map(m => {
-      const s = m.character_status as Record<string, unknown>;
-      let line = `- ${m.character_name} (Level ${s.level || '?'} ${s.className || 'Adventurer'}, ${s.currentHP || '?'}/${s.maxHP || '?'} HP)`;
-      if (sessionConfig?.campaignType === 'empyrean' && freshDragonConfigs) {
-        const dc = freshDragonConfigs.find((d: any) => d.userId === m.user_id);
-        if (dc) {
-          line += ` | Dragon: ${dc.config.dragonName}, Signet: ${dc.config.signetType || 'unknown'}, Bond: ${getBondDescriptor(dc.config.bond)}, Burnout: ${dc.config.burnout}/${dc.config.bond >= 76 ? 9 : dc.config.bond >= 51 ? 7 : dc.config.bond >= 26 ? 5 : 4}`;
-        }
-      }
-      return line;
-    }).join('\n');
-
     abortRef.current = new AbortController();
     try {
       if (isSplitActive && splitState) {
@@ -1487,7 +1283,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           alphaApiMsgs.push({ role: 'user', content: alphaForAI });
           const alphaPartyContext = [
             `## PARTY SPLIT — ${splitState.alphaName || 'Team Alpha'}\nThe party has split up. You are narrating ONLY for "${splitState.alphaName || 'Team Alpha'}".\n${alphaMembersSummary}\nDo NOT narrate what the other team ("${splitState.betaName || 'Team Beta'}") is doing. Focus solely on this group's adventure. Refer to this group as "${splitState.alphaName || 'Team Alpha'}" in your narration.`,
-            freshDragonBondsSection,
             splitState.betaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\n"${splitState.betaName || 'Team Beta'}"'s adventure summary (for narrative coherence only — do NOT reveal to "${splitState.alphaName || 'Team Alpha'}"):\n${splitState.betaSummary}` : '',
             splitState.alphaSummary ? `\n\n## PREVIOUS "${splitState.alphaName || 'Team Alpha'}" SUMMARY\n${splitState.alphaSummary}` : '',
             alphaAfkGuides,
@@ -1504,15 +1299,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               sender_user_id: null,
               sender_name: 'DM',
               team: 'alpha',
-            });
-
-            sendTelegramNotification({
-              type: 'custom',
-              partyId,
-              targetUserIds: splitState.alphaMembers,
-              title: `📖 ${splitState.alphaName || 'Team Alpha'} — DM Update`,
-              body: alphaContent.substring(0, 300) + (alphaContent.length > 300 ? '…' : ''),
-              mode: sessionConfig?.campaignType === 'empyrean' ? 'empyrean' : 'party',
             });
           }
         }
@@ -1544,7 +1330,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
           const betaPartyContext = [
             `## PARTY SPLIT — ${splitState.betaName || 'Team Beta'}\nThe party has split up. You are narrating ONLY for "${splitState.betaName || 'Team Beta'}".\n${betaMembersSummary}\nDo NOT narrate what the other team ("${splitState.alphaName || 'Team Alpha'}") is doing. Focus solely on this group's adventure. Refer to this group as "${splitState.betaName || 'Team Beta'}" in your narration.`,
-            freshDragonBondsSection,
             splitState.alphaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\n"${splitState.alphaName || 'Team Alpha'}"'s adventure summary (for narrative coherence only — do NOT reveal to "${splitState.betaName || 'Team Beta'}"):\n${splitState.alphaSummary}` : '',
             splitState.betaSummary ? `\n\n## PREVIOUS "${splitState.betaName || 'Team Beta'}" SUMMARY\n${splitState.betaSummary}` : '',
             betaAfkGuides,
@@ -1561,15 +1346,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               sender_user_id: null,
               sender_name: 'DM',
               team: 'beta',
-            });
-
-            sendTelegramNotification({
-              type: 'custom',
-              partyId,
-              targetUserIds: splitState.betaMembers,
-              title: `📖 ${splitState.betaName || 'Team Beta'} — DM Update`,
-              body: betaContent.substring(0, 300) + (betaContent.length > 300 ? '…' : ''),
-              mode: sessionConfig?.campaignType === 'empyrean' ? 'empyrean' : 'party',
             });
           }
         }
@@ -1661,6 +1437,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           insertedUserMsgId = insertedMsg?.id || null;
         }
 
+        const partyMembersSummary = buildPartyMembersGuide();
         const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
         apiMessages.push({ role: 'user', content: combined });
 
@@ -1668,9 +1445,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         const campaignIntro = sessionConfig.campaignType === 'empyrean'
           ? 'This is a multiplayer Empyrean campaign set at Basgiath War College. Players are dragon riders in training. '
           : '';
-        const dragonBondsSection = freshDragonBondsSection;
+        const dragonBondsSection = buildDragonBondsSection();
         const partyContextStr = [
-          `## PARTY MEMBERS\n${campaignIntro}This is a multiplayer session. Multiple players are acting simultaneously each round.\n${freshPartyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
+          `## PARTY MEMBERS\n${campaignIntro}This is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
           dragonBondsSection,
           afkGuidesSection,
           responseModePrompt,
@@ -1692,14 +1469,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               content: assistantContent,
               sender_user_id: null,
               sender_name: 'DM',
-            });
-
-            sendTelegramNotification({
-              type: 'custom',
-              partyId,
-              title: '📖 The DM Has Spoken',
-              body: assistantContent.substring(0, 300) + (assistantContent.length > 300 ? '…' : ''),
-              mode: sessionConfig?.campaignType === 'empyrean' ? 'empyrean' : 'party',
             });
 
             const updatedMessages = [...messages,
@@ -1839,18 +1608,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       sender_user_id: user.id,
       sender_name: characterName,
     });
-
-    sendTelegramNotification({
-      type: 'custom',
-      partyId: partyId ?? undefined,
-      targetUserIds: partyMembers
-        .filter(m => m.user_id !== user.id)
-        .map(m => m.user_id),
-      title: '💬 Dialogue',
-      body: `[${characterName}]: ${content.trim().substring(0, 200)}${content.trim().length > 200 ? '…' : ''}`,
-      mode: 'party',
-    });
-  }, [partyId, user, characterName, partyMembers, insertPartyMessageHelper]);
+  }, [partyId, user, characterName, insertPartyMessageHelper]);
 
   // === DIALOGUE MODE: Send a whisper to another player ===
   const sendWhisper = useCallback(async (content: string, targetUserId: string, targetName: string) => {
@@ -2003,7 +1761,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
       const npcContext = names.length === 1
         ? `## NPC VOICING MODE\nYou are responding AS the NPC named ${names[0]} ONLY.\nWrite 1-3 sentences of in-character dialogue from their perspective.\nDo NOT write scene narration, do NOT describe player character actions, do NOT include mechanical information.\nJust write what they say, prefixed with their name in bold.\nFormat: **${names[0]}:** Their dialogue here.\nStay consistent with how this NPC has been portrayed in the campaign so far.`
-        : `## NPC VOICING MODE\nWrite a SHORT GROUP CONVERSATION SCENE between ${names.join(' and ')} in response to the player's message. Follow these rules:\n\n1. NATURAL TURN ORDER — Let personality decide who speaks first. A bold or reactive NPC jumps in immediately; a cautious one waits and responds to what was already said.\n2. NPCs REACT TO EACH OTHER — Each NPC should acknowledge or respond to what the other NPC(s) just said, not just independently answer the player.\n3. BODY LANGUAGE BEATS — Before or after each line of dialogue, add a brief italicized physical beat (a look, gesture, expression, or micro-reaction) in present tense, 10 words or fewer.\n4. 2–3 EXCHANGES TOTAL — Allow a short back-and-forth between the NPCs (2–3 total speaking turns across all NPCs combined). Keep it punchy — aim for 100–200 words total.\n5. END WITH THE PLAYER — Close the scene on a beat that invites the player back in: a question directed at them, a meaningful look toward them, or a charged pause.\n6. FORMAT — Use **NPC Name:** for every line of dialogue so the chat renderer can identify speakers. Italicize all physical beats.\n7. NO MECHANICAL INFO — No dice, DCs, stats, or game-system language in the dialogue.\n\nStay consistent with how each NPC has been portrayed in the campaign so far.`;
+        : `## NPC VOICING MODE\nYou are responding AS the following NPCs: ${names.join(', ')}.\nWrite exactly 1 sentence of pure in-character dialogue PER NPC.\nDo NOT write scene narration, do NOT describe player character actions, do NOT include mechanical information.\nFormat each line as: **NPC Name:** Their dialogue here.\nOrder: ${names.map((n, i) => `${i + 1}. ${n}`).join(', ')}.\nEach NPC must respond on a separate line.\nStay consistent with how each NPC has been portrayed in the campaign so far.`;
 
       const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, npcContext, undefined, empyreanPersonaPrompt);
 
@@ -2550,21 +2308,14 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   // ── Timer Controls ──────────────────────────────────────────────────────
   const updateSessionConfig = useCallback(async (patch: Partial<DmSessionConfig>) => {
-    if (!partyId) return;
-
-    const base = await resolveSessionConfig();
-    if (!base) {
-      console.warn('[PartyDM] updateSessionConfig: no session config found, cannot update');
-      return;
-    }
-
-    const updated: DmSessionConfig = { ...base, ...patch };
+    if (!partyId || !sessionConfig) return;
+    const updated: DmSessionConfig = { ...sessionConfig, ...patch };
     await (supabase.from('party_shared_state') as any)
       .update({ state_data: updated })
       .eq('party_id', partyId)
       .eq('state_type', 'dm_session');
     setSessionConfig(updated);
-  }, [partyId, resolveSessionConfig]);
+  }, [partyId, sessionConfig]);
 
   // Full campaign summarization — processes entire chat history in batches
   const fullSummarize = useCallback(async () => {
@@ -2869,14 +2620,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         return [...prev, enriched];
       });
     }
-
-    sendTelegramNotification({
-      type: 'custom',
-      partyId,
-      title: '📖 The DM Has Spoken',
-      body: trimmed.substring(0, 300) + (trimmed.length > 300 ? '…' : ''),
-      mode: sessionConfig?.campaignType === 'empyrean' ? 'empyrean' : 'party',
-    });
 
     // Trigger summary and auto-save
     const updatedMessages = [...messages,

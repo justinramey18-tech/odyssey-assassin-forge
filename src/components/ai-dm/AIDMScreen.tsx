@@ -481,7 +481,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     updateVitals,
     updateGold,
     resetForNewCampaign,
-  } = useDMGameState(gameStateCampaignId, 'solo');
+  } = useDMGameState(gameStateCampaignId);
 
   // Memory extraction hook — silently extracts NPCs, locations, consequences from DM responses
   const { extractMemory } = useDmMemoryExtraction({ addMemoryAnchor });
@@ -549,24 +549,14 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
 
   const handleLoadCampaign = useCallback((session: CampaignSession) => {
     loadCampaign(session.messages, session.campaign_summary, session.id, session.gm_guide_ids);
-    // Restore memory anchors from the saved campaign
-    resetForNewCampaign(session.id);
-    if (session.memory_anchors?.length) {
-      // Allow game state to initialize first, then restore anchors
-      setTimeout(() => {
-        for (const anchor of session.memory_anchors) {
-          addMemoryAnchor(anchor);
-        }
-      }, 100);
-    }
     setShowSessions(false);
-  }, [loadCampaign, resetForNewCampaign, addMemoryAnchor]);
+  }, [loadCampaign]);
 
   const handleSaveCampaign = useCallback(async (name: string, msgs: Message[], summary: string | null, existingId?: string) => {
-    const id = await campaignSessions.saveSession(name, msgs, summary, existingId, gameState.memory_anchors);
+    const id = await campaignSessions.saveSession(name, msgs, summary, existingId);
     if (id) setActiveCampaignId(id);
     return id;
-  }, [campaignSessions, gameState.memory_anchors]);
+  }, [campaignSessions]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -577,7 +567,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const handleSend = useCallback(() => {
     if (!input.trim() || isLoading) return;
     // Support multiple @NPC tags: @NPC1 @NPC2 message
-    const multiNpcMatch = input.trim().match(/^((?:@\S+\s*)+)(.+)$/s);
+    const multiNpcMatch = input.trim().match(/^((?:@\S+\s+)+)(.+)$/s);
     if (multiNpcMatch && voiceNPC) {
       const npcNames = [...multiNpcMatch[1].matchAll(/@(\S+)/g)].map(m => m[1]);
       const message = multiNpcMatch[2];
@@ -1297,13 +1287,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           <CampaignBuilderChat
             characterName={characterContext.name || characterName}
             characterLevel={characterContext.level || 1}
-            characterIdentity={{
-              race: characterContext.race || undefined,
-              gender: characterContext.gender || undefined,
-              class: characterContext.characterClass || undefined,
-              backstory: characterContext.backstory || undefined,
-            }}
-            existingGuidesContent={gmGuides.enabledContent}
             onComplete={async (data: CampaignBuildData) => {
               setShowWorldBuilder(false);
               await newGame();

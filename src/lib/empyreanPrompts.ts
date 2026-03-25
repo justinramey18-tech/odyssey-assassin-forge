@@ -84,7 +84,7 @@ export const empyreanPrompts: CharacterPrompt[] = [
     category: 'Signet Abilities',
     title: 'Signet Overreach',
     description: 'Push your signet beyond safe limits and face burnout.',
-    prompt: '[Character Name] pushes their signet past the safe limit — deliberately or out of necessity. Describe the heat building deep in the bones at the relic site, spreading outward as the body struggles to contain more energy than it was built to hold. The symptoms should reflect the nature of [Character Name]\'s specific signet. Describe the moment the dragon\'s presence through the bond sharpens — the dragon feels this and is pushing back, trying to reduce the flow. Present the choice: stop now and survive, or push further and risk permanent damage or death. Whatever they choose, describe the burnout consequences through the lens of their specific power. Recovery is not quick. The body remembers.',
+    prompt: '[Character Name] pushes their signet past the safe limit — deliberately or out of necessity. Describe the intoxicating rush of power expanding beyond its normal boundaries, the moment the body starts to fail (nosebleed, trembling, vision darkening), and the choice: stop now and survive, or push further and risk permanent damage. Whatever they choose, describe the burnout consequences — the physical cost, the recovery period, and the lesson learned about the line between power and destruction.',
     icon: '🔥',
   },
   {

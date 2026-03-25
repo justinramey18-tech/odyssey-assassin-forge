@@ -8,18 +8,11 @@ interface CampaignBuilderChatProps {
   partyMembers?: Array<{ character_name: string; character_status?: Record<string, unknown> }>;
   characterName?: string;
   characterLevel?: number;
-  characterIdentity?: {
-    race?: string;
-    gender?: string;
-    class?: string;
-    backstory?: string;
-  };
-  existingGuidesContent?: string;
   onComplete: (data: CampaignBuildData) => void;
   onSkip: () => void;
 }
 
-export default function CampaignBuilderChat({ partyMembers, characterName, characterLevel, characterIdentity, existingGuidesContent, onComplete, onSkip }: CampaignBuilderChatProps) {
+export default function CampaignBuilderChat({ partyMembers, characterName, characterLevel, onComplete, onSkip }: CampaignBuilderChatProps) {
   const { messages, isLoading, buildData, error, suggestions, sendMessage, reset } = useAICampaignChat();
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -39,32 +32,15 @@ export default function CampaignBuilderChat({ partyMembers, characterName, chara
     if (!hasSentGreeting.current && messages.length === 0) {
       hasSentGreeting.current = true;
       let greeting: string;
-      // Build identity string for the host character
-      const identityParts: string[] = [];
-      if (characterIdentity?.gender) identityParts.push(characterIdentity.gender);
-      if (characterIdentity?.race) identityParts.push(characterIdentity.race);
-      if (characterIdentity?.class) identityParts.push(characterIdentity.class);
-      const identityStr = identityParts.length > 0 ? ` (${identityParts.join(' ')})` : '';
-
       if (partyMembers && partyMembers.length > 0) {
         const levelInfo = partyMembers.some(m => (m.character_status as any)?.level)
           ? ` Levels: ${partyMembers.map(m => `${m.character_name} (Lvl ${(m.character_status as any)?.level || '?'})`).join(', ')}.`
           : '';
         greeting = `Hello! I'm setting up a new campaign for my party. We have ${partyMembers.length} players: ${partyMembers.map(m => m.character_name).join(', ')}.${levelInfo}`;
-        const name = characterName || 'Adventurer';
-        const lvl = characterLevel || 1;
-        greeting += ` My character is ${name}${identityStr}, Level ${lvl}.`;
       } else {
         const name = characterName || 'Adventurer';
         const lvl = characterLevel || 1;
-        greeting = `Hello! I'm setting up a new solo campaign for my character ${name}${identityStr} (Level ${lvl}).`;
-      }
-      if (characterIdentity?.backstory && characterIdentity.backstory.trim().length > 0) {
-        greeting += `\n\nMy character's backstory:\n${characterIdentity.backstory.trim().slice(0, 2000)}`;
-      }
-      if (existingGuidesContent && existingGuidesContent.trim().length > 0) {
-        const trimmed = existingGuidesContent.trim().slice(0, 150000);
-        greeting += `\n\nI already have existing GM guides/lore for my world that I'd like you to build upon and stay consistent with:\n\n${trimmed}`;
+        greeting = `Hello! I'm setting up a new solo campaign for my character ${name} (Level ${lvl}).`;
       }
       sendMessage(greeting);
     }

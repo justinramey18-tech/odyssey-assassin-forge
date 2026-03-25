@@ -151,7 +151,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
           run_at: scheduledDate.toISOString(),
           repeat_daily: repeatWeekly,
           run_time: repeatWeekly ? utcTimeStr : null,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          timezone: 'America/New_York',
           dm_context_mode: dmContextMode,
           ai_model: aiModel,
         });

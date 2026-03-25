@@ -84,26 +84,7 @@ Deno.serve(async (req) => {
         let systemPrompt: string;
         let userMessage = job.ai_prompt;
 
-        if (mode === 'empyrean_dragon') {
-          // Extract dragon metadata from job_name fallback: "[DragonName] Dragon Message"
-          const dragonName = job.job_name?.replace(/ Dragon Message$/i, '') || 'Unknown Dragon';
-          const dragonMood = (job as any).dragon_mood || 'calm';
-          const dragonBond = (job as any).dragon_bond || 50;
-          const personaNotes = ((job as any).dragon_notes || '').trim();
-          const dragonSignet = (job as any).dragon_signet || 'unknown';
-
-          systemPrompt = [
-            `You are ${dragonName}, a powerful bonded dragon in the Empyrean world of Basgiath War College.`,
-            `Your signet ability is: ${dragonSignet}.`,
-            `Your current mood is: ${dragonMood}.`,
-            `Your bond level with your rider is ${dragonBond}/100.`,
-            personaNotes ? `Your rider has described you as: "${personaNotes}".` : '',
-            `Speak entirely in first person as this dragon. Be ancient, proud, and emotionally layered.`,
-            `If bond is below 30, be cold and guarded. If above 70, be warmer but still ancient and powerful.`,
-            `Keep your message to 2-3 sentences maximum. Never break character. Never mention being an AI.`,
-            `Use HTML formatting: <b>bold</b>, <i>italic</i>. Do NOT use markdown. Keep the response under 3000 characters.`,
-          ].filter(Boolean).join(' ');
-        } else if (mode === 'solo') {
+        if (mode === 'solo') {
           systemPrompt =
             'You are an expert Dungeon Master running a D&D 5e session. You are immersive, adaptive, and mechanically precise. The user has scheduled an automated task. Execute their request and write the output as a Telegram message. Use HTML formatting: <b>bold</b>, <i>italic</i>, <u>underline</u>. Do NOT use markdown. Keep the response under 3000 characters.';
         } else if (mode === 'empyrean') {
@@ -347,22 +328,14 @@ Deno.serve(async (req) => {
         finalMessage = job.static_message || 'No message configured.';
       }
 
-      // Prefix dragon name for empyrean_dragon mode
-      const mode = job.dm_context_mode || 'party';
-      if (mode === 'empyrean_dragon') {
-        const dragonName = job.job_name?.replace(/ Dragon Message$/i, '') || 'Unknown Dragon';
-        finalMessage = `🐉 ${dragonName}: ${finalMessage}`;
-      }
-
       // c. Send via telegram-notify
       const notifyPayload: Record<string, unknown> = {
-        type: mode === 'empyrean_dragon' ? 'dragon_message' : 'custom',
+        type: 'custom',
         title: job.job_name,
         body: finalMessage,
         targetUserIds: job.target_user_ids || [job.user_id],
         partyId: job.party_id || undefined,
-        mode: mode === 'empyrean_dragon' ? 'empyrean' : (mode || undefined),
-        dragonName: mode === 'empyrean_dragon' ? job.job_name?.replace(/ Dragon Message$/i, '') : undefined,
+        mode: job.dm_context_mode || undefined,
       };
 
       // If specific chat IDs are targeted, pass them through
@@ -393,30 +366,11 @@ Deno.serve(async (req) => {
       const now = new Date().toISOString();
 
       if (job.repeat_daily && job.run_time) {
-        // Parse the user's intended local time
+        // Parse HH:MM and schedule for tomorrow
         const [hours, minutes] = job.run_time.split(':').map(Number);
-        const tz = job.timezone || 'UTC';
-
-        // Build a date string for tomorrow in the user's timezone, then convert to UTC
-        const nowInTz = new Date().toLocaleString('en-US', { timeZone: tz });
-        const localNow = new Date(nowInTz);
-        const localTomorrow = new Date(localNow);
-        localTomorrow.setDate(localTomorrow.getDate() + 1);
-        const year = localTomorrow.getFullYear();
-        const month = String(localTomorrow.getMonth() + 1).padStart(2, '0');
-        const day = String(localTomorrow.getDate()).padStart(2, '0');
-        const hh = String(hours).padStart(2, '0');
-        const mm = String(minutes).padStart(2, '0');
-
-        // Create the target date in the user's timezone and convert to UTC
-        const targetLocal = new Date(`${year}-${month}-${day}T${hh}:${mm}:00`);
-        // Get the offset between UTC and the target timezone at this approximate time
-        const utcString = targetLocal.toLocaleString('en-US', { timeZone: 'UTC' });
-        const tzString = targetLocal.toLocaleString('en-US', { timeZone: tz });
-        const utcDate = new Date(utcString);
-        const tzDate = new Date(tzString);
-        const offsetMs = utcDate.getTime() - tzDate.getTime();
-        const tomorrow = new Date(targetLocal.getTime() + offsetMs);
+        const tomorrow = new Date();
+        tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+        tomorrow.setUTCHours(hours, minutes, 0, 0);
 
         await supabase
           .from('scheduled_telegram_jobs')

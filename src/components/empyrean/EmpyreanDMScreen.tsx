@@ -42,8 +42,7 @@ import {
   saveDragonNotes,
 } from '@/lib/empyreanDMPersona';
 import { useDragonBond } from '@/hooks/use-dragon-bond';
-import { getBondDescriptor, getTrustDescriptor, buildDragonChatPrompt, DRAGON_CHAT_SUMMARY_KEY } from '@/lib/dragonBondState';
-import { getScopedItem } from '@/lib/scoped-storage';
+import { getBondDescriptor, getTrustDescriptor } from '@/lib/dragonBondState';
 import { empyreanPrompts } from '@/lib/empyreanPrompts';
 import { EMPYREAN_SESSION_GUIDES } from '@/lib/empyreanGMGuides';
 import { DM_MODELS } from '@/lib/dm-models';
@@ -107,7 +106,7 @@ function groupPromptsByCategory(prompts: typeof empyreanPrompts) {
 
 // Strip burnout tags from displayed content
 function stripBurnoutTags(content: string): string {
-  return content.replace(/<!--BURNOUT:\d+-->/g, '').replace(/<!--BURNOUT_TICK:.+?-->/g, '').trim();
+  return content.replace(/<!--BURNOUT:\d-->/g, '').trim();
 }
 
 function stripSituationTags(content: string): string {
@@ -119,41 +118,24 @@ function stripBondStrainTags(content: string): string {
 }
 
 const BURNOUT_LABELS = [
-  'No strain',
-  'Relic warmth — bone-deep heat',
-  'Heat spreading — nosebleed, unsteady',
-  'Bones burning — collapse risk',
-  'Skin burning — dragon alarmed',
-  'Body at limit — dragon buffering',
-  'Dragon absorbing overflow — bond straining',
-  'Rider and dragon both near limit',
-  'Critical co-overload',
-  'Maximum capacity — sever or die',
+  'Fresh — no strain',
+  'Mild strain',
+  'Moderate strain',
+  'Heavy strain',
+  'Critical strain',
+  'Overload',
 ];
 
-function BurnoutIndicator({ level, maxBurnout }: { level: number; maxBurnout: number }) {
-  const ratio = maxBurnout > 0 ? level / maxBurnout : 0;
-  const color = ratio < 0.35 ? 'text-emerald-400' : ratio < 0.65 ? 'text-amber-400' : ratio < 0.85 ? 'text-orange-500' : 'text-red-500';
-  const emptyColor = ratio < 0.35 ? 'text-emerald-400/20' : ratio < 0.65 ? 'text-amber-400/20' : ratio < 0.85 ? 'text-orange-500/20' : 'text-red-500/20';
+function BurnoutIndicator({ level }: { level: number }) {
+  const color = level <= 1 ? 'text-emerald-400' : level <= 3 ? 'text-amber-400' : 'text-red-400';
+  const emptyColor = level <= 1 ? 'text-emerald-400/20' : level <= 3 ? 'text-amber-400/20' : 'text-red-400/20';
   return (
-    <div className="flex items-center gap-0.5" title={`Signet Strain (${level}/${maxBurnout}): ${BURNOUT_LABELS[level] ?? BURNOUT_LABELS[BURNOUT_LABELS.length - 1]}`}>
-      {Array.from({ length: maxBurnout }, (_, i) => (
+    <div className="flex items-center gap-0.5" title={`Signet Strain: ${BURNOUT_LABELS[level]}`}>
+      {Array.from({ length: 5 }, (_, i) => (
         <Flame key={i} className={cn('w-3 h-3', i < level ? color : emptyColor)} />
       ))}
     </div>
   );
-}
-
-function stripAllMetaTags(content: string): string {
-  return content
-    .replace(/<!--BURNOUT:\d+-->/g, '')
-    .replace(/<!--BURNOUT_TICK:.+?-->/g, '')
-    .replace(/<!--SITUATION:\w+-->/g, '')
-    .replace(/<!--BOND_STRAIN:.+?-->/g, '')
-    .replace(/<!--DRAGON_MEMORY:.+?-->/g, '')
-    .replace(/<!--BOND_GROWTH:.+?-->/g, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
 }
 
 export function EmpyreanDMScreen({
@@ -175,8 +157,6 @@ export function EmpyreanDMScreen({
   const [inputValue, setInputValue] = useState('');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [burnoutLevel, setBurnoutLevel] = useState(0);
-  const burnoutLevelRef = useRef(burnoutLevel);
-  useEffect(() => { burnoutLevelRef.current = burnoutLevel; }, [burnoutLevel]);
   const [currentSituation, setCurrentSituation] = useState<string>('exploration');
   const [dragonNotes, setDragonNotes] = useState(() => loadDragonNotes());
   const [initialSent, setInitialSent] = useState(false);
@@ -225,13 +205,9 @@ export function EmpyreanDMScreen({
     characterName,
   });
 
-  const bondValue = dragonBond.bondState.bond;
-  const maxBurnout = bondValue >= 76 ? 9 : bondValue >= 51 ? 7 : bondValue >= 26 ? 5 : 4;
-
   const dmPersonaPrompt = useMemo(() => {
     if (!config) return undefined;
     const bs = dragonBond.bondState;
-    const recentDragonChatSummaryRaw = getScopedItem(DRAGON_CHAT_SUMMARY_KEY);
     let persona = buildEmpyreanDMPersona(
       config.selectedLoreGuides,
       config.selectedToneGuides,
@@ -242,15 +218,14 @@ export function EmpyreanDMScreen({
       config.yearAtBasgiath,
       config.campaignFocus,
       dragonNotes,
-      bs.bond,
       getBondDescriptor(bs.bond),
       getTrustDescriptor(bs.trust),
-      bs.mood,
-      recentDragonChatSummaryRaw?.trim() ? recentDragonChatSummaryRaw : undefined,
+      undefined, // recentDragonChatSummary — populated when dragon chat has a summary
       bs.memories.map(m => m.text),
     );
     return persona;
-  }, [config, characterName, dragonNotes, dragonBond.bondState, dragonBond.bondState.totalChatExchanges]);
+    return persona;
+  }, [config, characterName, dragonNotes, dragonBond.bondState]);
 
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
   const gameState = useDMGameState(trackingCampaignId);
@@ -295,48 +270,27 @@ export function EmpyreanDMScreen({
         toast('Dragon bond strained: ' + strainMatch[1], { icon: '💔' });
       }
 
-      // Extract dragon memory events
-      const memoryMatch = content.match(/<!--DRAGON_MEMORY:(.+?)-->/);
-      if (memoryMatch) {
-        dragonBond.addNarrativeMemory(memoryMatch[1]);
-        toast('Dragon remembers: ' + memoryMatch[1], { icon: '🐉' });
+      // Extract dragon whispers and forward to bond chat as incoming messages
+      const whisperRegex = /<!--WHISPER:([^>]+?)-->([\s\S]*?)<!--\/WHISPER:\1-->/g;
+      let whisperMatch;
+      while ((whisperMatch = whisperRegex.exec(content)) !== null) {
+        const target = whisperMatch[1].trim();
+        const whisperContent = whisperMatch[2].trim();
+        if (config?.dragonName && target === config.dragonName && whisperContent) {
+          dragonBond.addDragonMessage(whisperContent);
+
+          // Send dragon bond Telegram notification (non-blocking)
+          sendTelegramNotification({
+            type: 'dragon_message',
+            title: `${config.dragonName} whispers...`,
+            body: whisperContent.length > 200
+              ? whisperContent.substring(0, 200) + '…'
+              : whisperContent,
+            dragonName: config.dragonName,
+            mode: 'empyrean',
+          });
+        }
       }
-
-      // Extract bond growth events
-      const bondGrowthMatch = content.match(/<!--BOND_GROWTH:(.+?)-->/);
-      if (bondGrowthMatch) {
-        dragonBond.processBondGrowth(bondGrowthMatch[1]);
-        toast('Bond deepens: ' + bondGrowthMatch[1], { icon: '🐉' });
-      }
-
-      // Extract burnout tick events
-      const burnoutTickMatch = content.match(/<!--BURNOUT_TICK:(.+?)-->/);
-      if (burnoutTickMatch) {
-        const nextBurnout = Math.min((burnoutLevelRef.current ?? 0) + 1, maxBurnout);
-        setBurnoutLevel(nextBurnout);
-        toast('Signet strain: ' + burnoutTickMatch[1], { icon: '🔥' });
-      }
-
-      // Extract dragon whispers from parsed whispers
-      const parsed = parseWhispers(content);
-      const dragonNameNormalized = config?.dragonName?.toLowerCase().trim();
-      const dragonWhispers = parsed.whispers
-        .filter(w => w.type === 'whisper' && dragonNameNormalized && w.target?.toLowerCase().trim() === dragonNameNormalized);
-
-      dragonWhispers.forEach(w => {
-        dragonBond.addDragonMessage(w.content);
-
-        // Send dragon bond Telegram notification (non-blocking)
-        sendTelegramNotification({
-          type: 'dragon_message',
-          title: `${config?.dragonName} whispers...`,
-          body: w.content.length > 200
-            ? w.content.substring(0, 200) + '…'
-            : w.content,
-          dragonName: config?.dragonName || 'Dragon',
-          mode: 'empyrean',
-        });
-      });
 
       // Track combat for bond building + send Telegram combat alert
       if (content.toLowerCase().includes('initiative') || content.toLowerCase().includes('combat begins') || content.match(/<!--SITUATION:combat-->/)) {
@@ -457,9 +411,9 @@ export function EmpyreanDMScreen({
   useEffect(() => {
     const lastMsg = messages[messages.length - 1];
     if (lastMsg?.role === 'assistant' && lastMsg.content) {
-      const match = lastMsg.content.match(/<!--BURNOUT:(\d+)-->/);
+      const match = lastMsg.content.match(/<!--BURNOUT:(\d)-->/);
       if (match) {
-        const level = Math.min(maxBurnout, Math.max(0, parseInt(match[1], 10)));
+        const level = Math.min(5, Math.max(0, parseInt(match[1], 10)));
         setBurnoutLevel(level);
       }
       const situationMatch = lastMsg.content.match(/<!--SITUATION:(\w+)-->/);
@@ -477,7 +431,7 @@ export function EmpyreanDMScreen({
   const handleSend = useCallback(() => {
     if (!inputValue.trim() || isLoading) return;
     // Support multiple @NPC tags: @NPC1 @NPC2 message
-    const multiNpcMatch = inputValue.trim().match(/^((?:@\S+\s*)+)(.+)$/s);
+    const multiNpcMatch = inputValue.trim().match(/^((?:@\S+\s+)+)(.+)$/s);
     if (multiNpcMatch && voiceNPC) {
       const npcNames = [...multiNpcMatch[1].matchAll(/@(\S+)/g)].map(m => m[1]);
       const message = multiNpcMatch[2];
@@ -672,7 +626,7 @@ export function EmpyreanDMScreen({
             </div>
             <p className="text-[11px] text-muted-foreground flex items-center gap-2">
               <span className="truncate max-w-[140px]">{characterName}{config.dragonName ? ` & ${config.dragonName}` : ''}</span>
-              {config.signetType && <BurnoutIndicator level={burnoutLevel} maxBurnout={maxBurnout} />}
+              {config.signetType && <BurnoutIndicator level={burnoutLevel} />}
             </p>
           </div>
         </div>
@@ -900,8 +854,7 @@ export function EmpyreanDMScreen({
                     </div>
                   ) : isAssistant ? (() => {
                     const parsed = parseWhispers(message.content || '...');
-                    const whispers = message.whispers || parsed.whispers;
-                    const cleanNarrative = stripAllMetaTags(parsed.narrative);
+                    const cleanNarrative = stripBondStrainTags(stripSituationTags(stripBurnoutTags(parsed.narrative)));
                     return (
                       <>
                         {message.senderName && message.senderName !== 'DM' && (
@@ -930,8 +883,8 @@ export function EmpyreanDMScreen({
                             {cleanNarrative}
                           </ReactMarkdown>
                         </div>
-                        {whisperTrayEnabled && whispers.length > 0 && (
-                          <WhisperTray whispers={whispers} />
+                        {parsed.whispers.length > 0 && (
+                          <WhisperTray whispers={parsed.whispers} />
                         )}
                       </>
                     );
@@ -1303,14 +1256,11 @@ export function EmpyreanDMScreen({
 
       <DragonBondChat
         open={showDragonChat}
-        onClose={() => { setShowDragonChat(false); dragonBond.reload(); }}
+        onClose={() => setShowDragonChat(false)}
         characterName={characterName}
         dragonName={config?.dragonName || 'Dragon'}
         dragonNotes={dragonNotes}
         characterContext={characterContext}
-        burnoutLevel={burnoutLevel}
-        unreadDragonMessages={dragonBond.bondState.unreadDragonMessages}
-        currentSituation={currentSituation}
         recentNarrative={messages
           .filter(m => m.role === 'assistant')
           .slice(-5)
@@ -1323,19 +1273,7 @@ export function EmpyreanDMScreen({
           if (recentAssistant.length === 0) return null;
           try {
             const dragon = config?.dragonName || 'Dragon';
-            const bs = dragonBond.bondState;
-            const opinionPrompt = buildDragonChatPrompt(
-              dragon,
-              characterName,
-              bs.trust,
-              bs.mood,
-              bs.memories,
-              dragonNotes,
-              bs.speechHabits,
-              recentAssistant,
-              bs.bond,
-              bs.riderEmotionalLog,
-            ) + '\n\nBased on recent events, share ONE unsolicited thought — a warning, an opinion, or a feeling. Under 2 sentences. Do not ask a question.';
+            const opinionPrompt = `You are ${dragon}. Based on recent events, share ONE unsolicited thought — a warning, an opinion about an NPC, or a feeling. Keep it under 2 sentences. Use your current mood and trust level to determine tone. Do not ask a question. Just state what is on your mind.\n\nRecent events:\n${recentAssistant.join('\n---\n')}`;
             const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
             const token = (await supabase.auth.getSession()).data.session?.access_token;
             const resp = await fetch(url, {
@@ -1365,13 +1303,6 @@ export function EmpyreanDMScreen({
           <CampaignBuilderChat
             characterName={characterName}
             characterLevel={characterContext.level || 1}
-            characterIdentity={{
-              race: characterContext.race || undefined,
-              gender: characterContext.gender || undefined,
-              class: characterContext.characterClass || undefined,
-              backstory: characterContext.backstory || undefined,
-            }}
-            existingGuidesContent={enabledContent}
             onComplete={handleCampaignBuilderComplete}
             onSkip={() => {
               setShowCampaignBuilder(false);

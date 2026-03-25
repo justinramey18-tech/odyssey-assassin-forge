@@ -93,26 +93,16 @@ Deno.serve(async (req) => {
 
   const col = notifyColumn[payload.type] || 'notify_ready_up';
 
-  // For dragon_message, fetch all linked accounts — the host is deliberately
-  // sending this message and it should not be blocked by a player's notification prefs.
-  const linkQuery = supabase
+  // Get linked Telegram users who have this notification type enabled
+  const { data: allLinks } = await supabase
     .from('telegram_user_links')
     .select('chat_id, user_id, notify_modes')
-    .in('user_id', userIds);
+    .in('user_id', userIds)
+    .eq(col, true);
 
-  // dragon_message and custom bypass the per-column boolean filter entirely —
-  // these are host/DM-authored messages that should not be gated by player prefs.
-  const bypassColumnFilter = payload.type === 'dragon_message' || payload.type === 'custom';
-  const { data: allLinks } = bypassColumnFilter
-    ? await linkQuery
-    : await linkQuery.eq(col, true);
-
-  // Filter by game mode if specified.
-  // Exception: dragon_message always bypasses the notify_modes filter —
-  // these are host-authored messages that should always reach the target
-  // regardless of whether the player has configured empyrean mode notifications.
+  // Filter by game mode if specified
   let links = allLinks;
-  if (links && payload.mode && !bypassColumnFilter) {
+  if (links && payload.mode) {
     links = links.filter((l: any) => {
       const modes: string[] = l.notify_modes ?? [];
       return modes.includes(payload.mode!);

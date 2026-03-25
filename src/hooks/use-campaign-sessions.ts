@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Message } from '@/components/oracle/types';
-import type { MemoryAnchor } from '@/hooks/use-dm-game-state';
 
 export interface CampaignSession {
   id: string;
@@ -10,12 +9,11 @@ export interface CampaignSession {
   messages: Message[];
   campaign_summary: string | null;
   gm_guide_ids: string[] | null;
-  memory_anchors: MemoryAnchor[];
   created_at: string;
   updated_at: string;
 }
 
-export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
+export function useCampaignSessions(mode?: 'solo' | 'party') {
   const [sessions, setSessions] = useState<CampaignSession[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -39,13 +37,13 @@ export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
       const baseQuery = mode
         ? (supabase
             .from('ai_dm_campaigns')
-            .select('id, name, messages, campaign_summary, gm_guide_ids, memory_anchors, created_at, updated_at')
+            .select('id, name, messages, campaign_summary, gm_guide_ids, created_at, updated_at')
             .eq('user_id', userId) as any)
             .eq('mode', mode)
             .order('updated_at', { ascending: false })
         : supabase
             .from('ai_dm_campaigns')
-            .select('id, name, messages, campaign_summary, gm_guide_ids, memory_anchors, created_at, updated_at')
+            .select('id, name, messages, campaign_summary, gm_guide_ids, created_at, updated_at')
             .eq('user_id', userId)
             .order('updated_at', { ascending: false });
 
@@ -61,7 +59,6 @@ export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
           : [],
         campaign_summary: row.campaign_summary,
         gm_guide_ids: row.gm_guide_ids,
-        memory_anchors: Array.isArray(row.memory_anchors) ? row.memory_anchors : [],
         created_at: row.created_at,
         updated_at: row.updated_at,
       }));
@@ -82,7 +79,6 @@ export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
     messages: Message[],
     campaignSummary: string | null,
     existingId?: string,
-    memoryAnchors?: MemoryAnchor[],
   ): Promise<string | null> => {
     if (!userId) {
       toast.error('Sign in to save campaigns');
@@ -103,7 +99,6 @@ export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
             name,
             messages: serializedMessages as any,
             campaign_summary: campaignSummary,
-            memory_anchors: (memoryAnchors ?? []) as any,
           })
           .eq('id', existingId)
           .eq('user_id', userId);
@@ -119,7 +114,6 @@ export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
             name,
             messages: serializedMessages as any,
             campaign_summary: campaignSummary,
-            memory_anchors: (memoryAnchors ?? []) as any,
             mode: mode || 'solo',
           } as any)
           .select('id')
@@ -178,7 +172,6 @@ export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
     messages: Message[],
     campaignSummary: string | null,
     existingId?: string,
-    memoryAnchors?: MemoryAnchor[],
   ): Promise<string | null> => {
     if (!userId) return null;
     try {
@@ -196,7 +189,6 @@ export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
             name,
             messages: serializedMessages as any,
             campaign_summary: campaignSummary,
-            memory_anchors: (memoryAnchors ?? []) as any,
           })
           .eq('id', existingId)
           .eq('user_id', userId);
@@ -210,7 +202,6 @@ export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
             name,
             messages: serializedMessages as any,
             campaign_summary: campaignSummary,
-            memory_anchors: (memoryAnchors ?? []) as any,
             mode: mode || 'solo',
           } as any)
           .select('id')

@@ -31,17 +31,14 @@ const BOND_STATE_KEY = 'empyrean-dragon-bond-state';
 export const DRAGON_CHAT_KEY = 'empyrean-dragon-chat';
 export const DRAGON_CHAT_SUMMARY_KEY = 'empyrean-dragon-chat-summary';
 
-export const DEFAULT_TRUST = 10;
-export const DEFAULT_BOND = 15;
-
 export function loadBondState(): DragonBondState {
   try {
     const raw = getScopedItem(BOND_STATE_KEY);
     if (raw) return JSON.parse(raw);
   } catch { }
   return {
-    bond: DEFAULT_BOND,
-    trust: DEFAULT_TRUST,
+    bond: 15,
+    trust: 10,
     mood: 'calm',
     memories: [],
     totalChatExchanges: 0,
@@ -178,134 +175,6 @@ export function classifyRiderEmotion(
   return 'neutral';
 }
 
-// ── MOOD TRANSITION GRAPH ──
-
-export const MOOD_TRANSITIONS: Record<DragonMood, Array<{ target: DragonMood; threshold: number; requiresTrust?: number; requiresPositiveStreak?: number }>> = {
-  calm: [
-    { target: 'alert', threshold: 0.4 },
-    { target: 'playful', threshold: 0.5, requiresTrust: 40 },
-    { target: 'distant', threshold: 0.6 },
-    { target: 'ancestral', threshold: 0.5 },
-    { target: 'protective', threshold: 0.5 },
-  ],
-  alert: [
-    { target: 'protective', threshold: 0.3 },
-    { target: 'calm', threshold: 0.4 },
-    { target: 'ancestral', threshold: 0.3 },
-    { target: 'distant', threshold: 0.5 },
-  ],
-  protective: [
-    { target: 'alert', threshold: 0.3 },
-    { target: 'calm', threshold: 0.5 },
-  ],
-  distant: [
-    { target: 'calm', threshold: 0.6, requiresPositiveStreak: 3 },
-  ],
-  ancestral: [
-    { target: 'calm', threshold: 0.3 },
-    { target: 'alert', threshold: 0.3 },
-  ],
-  playful: [
-    { target: 'calm', threshold: 0.2 },
-    { target: 'alert', threshold: 0.4 },
-  ],
-};
-
-// ── MOOD PRESSURE COMPUTATION ──
-
-const POSITIVE_EMOTION_TAGS = ['curious', 'grateful', 'respectful', 'vulnerable', 'neutral'];
-
-export function computeMoodPressure(
-  currentMood: DragonMood,
-  trust: number,
-  riderEmotionalLog: Array<{ tag: string; timestamp: string }>,
-  recentNarrative: string[],
-  burnout: number,
-  moodDuration: number,
-): { recommendedMood: DragonMood; validTransitions: DragonMood[]; pressures: Record<DragonMood, number> } {
-  const allMoods: DragonMood[] = ['calm', 'alert', 'protective', 'distant', 'ancestral', 'playful'];
-  const pressures: Record<DragonMood, number> = { calm: 0, alert: 0, protective: 0, distant: 0, ancestral: 0, playful: 0 };
-
-  // From riderEmotionalLog (last 10)
-  const recentEmotions = riderEmotionalLog.slice(-10);
-  let vulnerableCount = 0, hostileCount = 0, positiveCount = 0, neutralCount = 0;
-  for (const e of recentEmotions) {
-    if (e.tag === 'vulnerable') vulnerableCount++;
-    if (e.tag === 'hostile' || e.tag === 'controlling' || e.tag === 'dismissive') hostileCount++;
-    if (e.tag === 'curious' || e.tag === 'grateful' || e.tag === 'respectful') positiveCount++;
-    if (e.tag === 'neutral') neutralCount++;
-  }
-  pressures.protective += vulnerableCount * 0.15;
-  pressures.distant += hostileCount * 0.2;
-  if (trust >= 40) pressures.playful += positiveCount * 0.12;
-  pressures.calm += positiveCount * 0.1;
-  pressures.calm += neutralCount * 0.05;
-
-  // From recentNarrative
-  const narrativeText = recentNarrative.join(' ').toLowerCase();
-  const combatWords = ['fight', 'danger', 'battle', 'enemy', 'attack', 'die', 'kill', 'blood', 'wound', 'sword', 'combat'];
-  const ancestralWords = ['ancient', 'centuries', 'ancestors', 'memory', 'vision', 'old ones', 'before the war'];
-  const playfulWords = ['laugh', 'joke', 'tease', 'smile', 'grin', 'humor'];
-  const betrayalWords = ['betray', 'lie', 'deceive', 'abandon', 'alone'];
-
-  if (combatWords.some(w => narrativeText.includes(w))) pressures.alert += 0.5;
-  if (ancestralWords.some(w => narrativeText.includes(w))) pressures.ancestral += 0.4;
-  if (playfulWords.some(w => narrativeText.includes(w))) pressures.playful += 0.2;
-  if (betrayalWords.some(w => narrativeText.includes(w))) pressures.distant += 0.3;
-
-  // From burnout
-  if (burnout >= 7) { pressures.alert += 0.6; pressures.distant += 0.3; }
-  else if (burnout >= 4) { pressures.protective += 0.4; }
-
-  // Gravity toward calm
-  pressures.calm += 0.1;
-
-  // Current mood inertia
-  pressures[currentMood] += 0.2;
-  const inertiaMultiplier = Math.min(2.0, 1 + 0.08 * moodDuration);
-
-  // Determine valid transitions
-  const transitions = MOOD_TRANSITIONS[currentMood] || [];
-  const validTransitions: DragonMood[] = [currentMood];
-
-  // Count trailing positive streak for requiresPositiveStreak
-  let positiveStreak = 0;
-  for (let i = riderEmotionalLog.length - 1; i >= 0; i--) {
-    if (POSITIVE_EMOTION_TAGS.includes(riderEmotionalLog[i].tag)) positiveStreak++;
-    else break;
-  }
-
-  for (const t of transitions) {
-    const adjustedThreshold = t.threshold * inertiaMultiplier;
-    if (pressures[t.target] < adjustedThreshold) continue;
-    if (t.requiresTrust !== undefined && trust < t.requiresTrust) continue;
-    if (t.requiresPositiveStreak !== undefined && positiveStreak < t.requiresPositiveStreak) continue;
-    if (!validTransitions.includes(t.target)) validTransitions.push(t.target);
-  }
-
-  // Pick recommended mood: highest pressure among valid transitions
-  let recommendedMood = currentMood;
-  let highestPressure = pressures[currentMood];
-  for (const mood of validTransitions) {
-    if (mood !== currentMood && pressures[mood] > highestPressure) {
-      highestPressure = pressures[mood];
-      recommendedMood = mood;
-    }
-  }
-
-  return { recommendedMood, validTransitions, pressures };
-}
-
-// ── CONSTRAINED MOOD OUTPUT ──
-
-export function buildConstrainedMoodOptions(currentMood: DragonMood, validTransitions: DragonMood[]): string {
-  if (validTransitions.length <= 1) {
-    return `Your mood is locked at ${currentMood.toUpperCase()}. You MUST use <!--DRAGON_MOOD:${currentMood}-->.`;
-  }
-  const tags = validTransitions.map(m => `<!--DRAGON_MOOD:${m}-->`).join(' or ');
-  return `Your current mood is ${currentMood.toUpperCase()}. For your mood tag, you may ONLY choose from: ${tags}. Pick the one that best reflects how this exchange made you feel.`;
-}
-
 // ── DRAGON CHAT SYSTEM PROMPT BUILDER ──
 
 export function buildDragonChatPrompt(
@@ -319,7 +188,6 @@ export function buildDragonChatPrompt(
   recentNarrative?: string[],
   bond?: number,
   riderEmotionalLog?: Array<{ tag: string; timestamp: string }>,
-  partyContext?: Array<{ characterName: string; dragonName: string; signetType: string; mood: string; bond: number }>,
 ): string {
   const sections: string[] = [];
 
@@ -384,17 +252,6 @@ You and this rider share something rare. Your communication is almost seamless �
   // Dragon personality notes from the user
   if (dragonNotes.trim()) {
     sections.push(`## PERSONALITY NOTES FROM THE RIDER\n${dragonNotes.trim()}`);
-  }
-
-  // Party context — other dragons and riders
-  if (partyContext && partyContext.length > 0) {
-    const otherDragons = partyContext.filter(d => d.dragonName && d.dragonName !== dragonName);
-    if (otherDragons.length > 0) {
-      const lines = otherDragons.map(d =>
-        `- ${d.dragonName} bonded to ${d.characterName} (signet: ${d.signetType || 'unknown'}, mood: ${d.mood || 'unknown'}, bond strength: ${getBondDescriptor(d.bond)})`
-      );
-      sections.push(`## OTHER DRAGONS IN THE PARTY\nYou are not alone. Other riders and their bonded dragons fly with your rider:\n${lines.join('\n')}\n\nYou may have opinions about these dragons and their riders. Reference them when relevant — warn your rider about a dragon whose mood is "distant", express rivalry or respect, comment on the party's collective strength or weakness. You experience their presence through the ambient bond network.`);
-    }
   }
 
   // Speech habits

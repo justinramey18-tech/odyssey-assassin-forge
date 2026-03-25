@@ -20,15 +20,11 @@ export interface CampaignBuildData {
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-campaign-builder`;
 
 function tryExtractBuildData(content: string): CampaignBuildData | null {
-  // Find the json code block containing apply_campaign
-  const codeBlockMatch = content.match(/```json\s*\n([\s\S]*?)\n\s*```/);
-  if (!codeBlockMatch) return null;
-
-  const rawJson = codeBlockMatch[1].trim();
-  if (!rawJson.includes('apply_campaign')) return null;
+  const jsonMatch = content.match(/```json\s*\n?\s*(\{[\s\S]*?"action"\s*:\s*"apply_campaign"[\s\S]*?\})\s*\n?\s*```/);
+  if (!jsonMatch) return null;
 
   try {
-    const parsed = JSON.parse(rawJson);
+    const parsed = JSON.parse(jsonMatch[1]);
     if (parsed.action === 'apply_campaign' && parsed.data) {
       return parsed.data as CampaignBuildData;
     }

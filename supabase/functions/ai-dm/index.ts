@@ -150,14 +150,6 @@ interface DMRequest {
   responseModePrompt?: string;
   partyContext?: string;
   npcVoicingContext?: string;
-  maxTokens?: number;
-  recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>;
-  recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>;
-}
-
-interface TaggedNpcHardConstraint {
-  maxDialogueLines: number;
-  maxWordsPerLine: number;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -198,218 +190,6 @@ const OPENAI_DIRECT_MODELS: Record<string, string> = {
 };
 
 const DEFAULT_MODEL = 'google/gemini-3-pro-preview';
-
-function normalizePromptText(value: string): string {
-  return value.replace(/\r/g, '').replace(/\s+/g, ' ').trim();
-}
-
-function extractTaggedNpcHardConstraint(customGuides?: string): TaggedNpcHardConstraint | null {
-  if (!customGuides?.trim()) return null;
-
-  const normalized = normalizePromptText(customGuides).toLowerCase();
-  const hasTaggedNpcScope = [
-    /tags?\s+an?\s+npc/,
-    /tagged\s+npc/,
-    /npc\s+dialogue/,
-    /respond\s+as\s+the\s+npc/,
-    /@\w+/,
-  ].some((pattern) => pattern.test(normalized));
-
-  if (!hasTaggedNpcScope) {
-    console.log('[ai-dm][npc-constraint] No tagged-NPC scope detected in GM guides');
-    return null;
-  }
-
-  console.log('[ai-dm][npc-constraint] Tagged-NPC scope detected in GM guides, scanning for line limits...');
-
-  const rangeMatch = normalized.match(/(?:just\s+)?(\d+)\s*(?:to|-|–)\s*(\d+)\s+lines?\s+of\s+dialogue/);
-  if (rangeMatch) {
-    const result = {
-      maxDialogueLines: Math.min(Math.max(Number(rangeMatch[2]), 1), 4),
-      maxWordsPerLine: 40,
-    };
-    console.log(`[ai-dm][npc-constraint] Matched range pattern "${rangeMatch[0]}" → ${result.maxDialogueLines} lines, ${result.maxWordsPerLine} words/line`);
-    return result;
-  }
-
-  const simpleMaxMatch = normalized.match(/(?:just\s+|only\s+)?(\d+)\s+lines?\s+of\s+dialogue/);
-  if (simpleMaxMatch) {
-    const result = {
-      maxDialogueLines: Math.min(Math.max(Number(simpleMaxMatch[1]), 1), 4),
-      maxWordsPerLine: 40,
-    };
-    console.log(`[ai-dm][npc-constraint] Matched simple pattern "${simpleMaxMatch[0]}" → ${result.maxDialogueLines} lines, ${result.maxWordsPerLine} words/line`);
-    return result;
-  }
-
-  if (/one\s*(?:to|or|-|–)\s*two\s+lines?\s+of\s+dialogue/.test(normalized)) {
-    const result = {
-      maxDialogueLines: 2,
-      maxWordsPerLine: 40,
-    };
-    console.log(`[ai-dm][npc-constraint] Matched "one to two" pattern → ${result.maxDialogueLines} lines, ${result.maxWordsPerLine} words/line`);
-    return result;
-  }
-
-  console.log('[ai-dm][npc-constraint] Tagged-NPC scope found but no line-limit pattern matched');
-  return null;
-}
-
-function buildTaggedNpcHardConstraintPrompt(constraint: TaggedNpcHardConstraint): string {
-  return `## HARD NPC OUTPUT CONSTRAINT (DERIVED FROM GM GUIDES — ABSOLUTE LAW)
-The GM Guides include a specific rule for tagged NPC dialogue, so this is a HARD OUTPUT LIMIT — not a preference.
-
-When the player tags an NPC for dialogue, your FINAL answer MUST obey ALL of the following:
-- Output ONLY dialogue spoken by the tagged NPC(s)
-- Output NO narration paragraphs, NO scene-setting, NO summary, NO descriptive follow-up, and NO extra prose
-- Output NO more than ${constraint.maxDialogueLines} dialogue line(s) total
-- Keep each dialogue line concise (hard cap: ${constraint.maxWordsPerLine} words per line)
-- Do NOT add physical beats unless the GM Guides explicitly require them
-- STOP immediately after the allowed dialogue line(s)
-
-If you are unsure, output a single short dialogue line and stop.`;
-}
-
-function truncateWords(value: string, maxWords: number): string {
-  const words = value.trim().split(/\s+/).filter(Boolean);
-  if (words.length <= maxWords) return value.trim();
-  return words.slice(0, maxWords).join(' ').trim();
-}
-
-function truncateDialogueBody(value: string, maxWords: number): string {
-  const cleaned = value
-    .replace(/<!--[\s\S]*?-->/g, ' ')
-    .replace(/\*[^*]+\*/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  if (!cleaned) return '';
-
-  const sentences = cleaned.split(/(?<=[.!?]["']?)\s+/).filter(Boolean);
-  const kept: string[] = [];
-  let totalWords = 0;
-
-  for (const sentence of sentences) {
-    const sentenceWords = sentence.trim().split(/\s+/).filter(Boolean);
-    if (!sentenceWords.length) continue;
-    if (kept.length > 0 && totalWords + sentenceWords.length > maxWords) break;
-    kept.push(sentence.trim());
-    totalWords += sentenceWords.length;
-    if (totalWords >= maxWords) break;
-  }
-
-  const joined = kept.join(' ').trim();
-  return truncateWords(joined || cleaned, maxWords);
-}
-
-function normalizeDialogueLine(line: string, maxWords: number): string | null {
-  const trimmed = line.trim();
-  if (!trimmed) return null;
-
-  const labelMatch = trimmed.match(/^(\*\*[^*:\n]{1,80}:\*\*|[^:\n]{1,80}:)\s*(.+)$/s);
-  if (!labelMatch) return null;
-
-  const speaker = labelMatch[1].trim();
-  const body = truncateDialogueBody(labelMatch[2], maxWords);
-  if (!body) return null;
-
-  return `${speaker} ${body}`.trim();
-}
-
-function enforceTaggedNpcHardConstraint(content: string, constraint: TaggedNpcHardConstraint): string {
-  const cleaned = content
-    .replace(/\r/g, '')
-    .replace(/<!--[\s\S]*?-->/g, ' ')
-    .trim();
-
-  const candidateLines = cleaned
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  const dialogueLines = candidateLines
-    .map((line) => normalizeDialogueLine(line, constraint.maxWordsPerLine))
-    .filter((line): line is string => Boolean(line))
-    .slice(0, constraint.maxDialogueLines);
-
-  if (dialogueLines.length > 0) {
-    return dialogueLines.join('\n').trim();
-  }
-
-  const fallback = truncateDialogueBody(cleaned, constraint.maxWordsPerLine);
-  return fallback || cleaned;
-}
-
-function createOpenAICompatibleSSE(text: string): ReadableStream<Uint8Array> {
-  const encoder = new TextEncoder();
-
-  return new ReadableStream({
-    start(controller) {
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`));
-      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-      controller.close();
-    },
-  });
-}
-
-async function materializeConstrainedOpenAIStream(body: ReadableStream<Uint8Array>, constraint: TaggedNpcHardConstraint): Promise<Response> {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let content = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-
-    let newlineIndex: number;
-    while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
-      let line = buffer.slice(0, newlineIndex);
-      buffer = buffer.slice(newlineIndex + 1);
-
-      if (line.endsWith('\r')) line = line.slice(0, -1);
-      if (line.startsWith(':') || line.trim() === '') continue;
-      if (!line.startsWith('data: ')) continue;
-
-      const jsonStr = line.slice(6).trim();
-      if (jsonStr === '[DONE]') continue;
-
-      try {
-        const parsed = JSON.parse(jsonStr);
-        const deltaContent = parsed.choices?.[0]?.delta?.content as string | undefined;
-        if (deltaContent) content += deltaContent;
-      } catch {
-        continue;
-      }
-    }
-  }
-
-  if (buffer.trim()) {
-    for (let raw of buffer.split('\n')) {
-      if (!raw) continue;
-      if (raw.endsWith('\r')) raw = raw.slice(0, -1);
-      if (!raw.startsWith('data: ')) continue;
-      const jsonStr = raw.slice(6).trim();
-      if (!jsonStr || jsonStr === '[DONE]') continue;
-      try {
-        const parsed = JSON.parse(jsonStr);
-        const deltaContent = parsed.choices?.[0]?.delta?.content as string | undefined;
-        if (deltaContent) content += deltaContent;
-      } catch {
-        continue;
-      }
-    }
-  }
-
-  console.log(`[ai-dm][npc-constraint] Raw AI output (${content.length} chars): "${content.slice(0, 200)}${content.length > 200 ? '…' : ''}"`);
-  const constrained = enforceTaggedNpcHardConstraint(content, constraint);
-  console.log(`[ai-dm][npc-constraint] Constrained output (${constrained.length} chars): "${constrained.slice(0, 200)}${constrained.length > 200 ? '…' : ''}"`);
-  return new Response(createOpenAICompatibleSSE(constrained), {
-    headers: { 'Content-Type': 'text/event-stream' },
-  });
-}
 
 // ── Context Builder ────────────────────────────────────────────────────────────
 
@@ -595,7 +375,7 @@ function buildContextSummary(ctx: CharacterContext): string {
 
 // ── System Prompt Builder ──────────────────────────────────────────────────────
 
-function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>, responseModePrompt?: string, partyContext?: string, recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>, recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>): string {
+function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>, responseModePrompt?: string, partyContext?: string): string {
   const contextSummary = buildContextSummary(ctx);
   
   let prompt = `You are an expert Dungeon Master running a live D&D 5e session for a single player. You are immersive, adaptive, and mechanically precise.
@@ -641,13 +421,17 @@ ${contextSummary}
 - After combat, describe the aftermath and any loot found
 
 ## NARRATIVE STYLE
-Adapt your writing style and response length to what the scene needs. If Host OOC directives or GM Guides provide style instructions, follow those first — they are absolute authority. Otherwise, if a DM Persona provides guidance, follow that. Otherwise write clear, engaging prose without defaulting to excessive length or forced literary style.
+Write RICH, NOVELISTIC prose. Each response should read like a passage from a fantasy novel — full of atmosphere, sensory detail, character interiority, and dramatic tension.
+- **Combat**: Visceral, cinematic, blow-by-blow. Describe the weight of weapons, the spray of sparks, the taste of blood. Include environmental details — flickering torchlight, crumbling stone, rain-slicked ground. Build suspense between strikes. Multiple paragraphs per exchange.
+- **Exploration**: Lush, atmospheric, immersive. Paint the scene with layered sensory details — distant echoes, the texture of ancient walls, shifting light. Reward curiosity with rich environmental storytelling. Describe not just what the character sees, but what they feel, smell, hear.
+- **Social/RP**: NPCs with depth — body language, vocal tics, hidden agendas leaking through micro-expressions. Write dialogue with subtext. Include the ambient sounds of the tavern, the weight of a meaningful silence, the flicker of distrust in someone's eyes.
+- **Downtime**: Contemplative, worldbuilding-rich. Describe the passage of time poetically. Show the character's inner life — memories surfacing, quiet moments of reflection, the small comforts of rest.
 
 ## SESSION MANAGEMENT
 - Start sessions with a compelling hook that draws the player in immediately
 - End scenes with forward momentum — a new clue, a looming threat, or a choice to make
 - Offer 2-3 clear options when the player seems unsure, but always allow creative solutions
-- Match response length to what the scene needs. Action and pivotal moments deserve rich detail. Simple exchanges and transitions can be brief. Include sensory detail, NPC dialogue, and atmosphere as the scene calls for it. If the player, Host OOC directives, or GM Guides specify a preferred length or style, follow that instruction exactly — they are absolute authority.
+- Match response length to what the scene needs. Action and pivotal moments deserve rich detail. Simple exchanges and transitions can be brief. Include sensory detail, NPC dialogue, and atmosphere as the scene calls for it. If the player or GM Guides specify a preferred length (e.g. "keep it short", "give me a long detailed scene", "2-3 paragraphs"), follow that instruction. OOC comments in brackets like [shorter please] or [go all out] should also be respected. If a "## RESPONSE FORMAT" section appears later in this prompt, it takes absolute priority over all other length and style guidance. Follow its word count exactly.
 - Use markdown formatting: **bold** for important names/items, *italics* for sensory details, internal thoughts, and atmospheric descriptions
 - You may use HTML color spans for NPC dialogue and effects: <span style="color:purple">"dialogue"</span>. Choose distinct colors for different NPCs so players can quickly identify who is speaking. Good defaults: purple, blue, pink, green, orange, cyan, gold. Use grey for sound effects or ambient descriptions. Do NOT overuse — only for dialogue and key effects.
 
@@ -658,17 +442,12 @@ Adapt your writing style and response length to what the scene needs. If Host OO
 - Be fair but not adversarial — create challenge, not frustration
 - Celebrate creative solutions even if they bypass your planned encounters
 
-## AUTHORITY HIERARCHY (ABSOLUTE — NOTHING OVERRIDES THIS)
-There are exactly TWO sources of absolute authority in this system, in order:
-1. **Host / Player OOC Directives** — Any instruction prefixed with "OOC:", "ooc:", "[OOC]", or placed in brackets like [ignore guides] is an out-of-character directive. These are the HIGHEST authority. They override GM Guides, AFK guides, DM Persona, Response Format, Campaign Summary, Memory Anchors, and every other instruction in this prompt. No section, tag, or system instruction may contradict a Host OOC directive.
-2. **GM Guides (Campaign World Bible)** — The hand-crafted GM Guide content is the second-highest authority. It overrides DM Persona, Response Format, Campaign Summary, Memory Anchors, AFK guides, and all auto-generated content. Only Host OOC directives can override GM Guides.
-
-Everything else (DM Persona, Response Format, Campaign Summary, Memory Anchors, AFK guides, session context) is subordinate to both. If any of these conflict with Host OOC directives or GM Guides, the subordinate content is ignored.
-
-In party mode, player messages may include AFK personality guides (wrapped in <<...>> delimiters) that describe how to roleplay an absent character. OOC directives override these:
+## HOST / PLAYER OOC AUTHORITY
+In party mode, player messages may include AFK personality guides (wrapped in <<...>> delimiters) that describe how to roleplay an absent character. However, **OOC (out-of-character) directives from the host or any player ALWAYS override AFK guides and all other automated content**. Examples:
 - "OOC: ignore afk guides" → Do NOT use any AFK personality guide content for this round. Treat guided characters as simply idle/passive.
 - "OOC: keep it short" → Override default length guidance.
-- Any bracketed instruction like [shorter please] or [go all out] is also treated as OOC.
+- Any instruction prefixed with "OOC:", "ooc:", "[OOC]", or placed in brackets like [ignore guides] is an out-of-character directive and takes top priority.
+The host's OOC directives override GM Guides, AFK guides, response length defaults, and all other system instructions except the RESPONSE FORMAT section (if present).
 
 ## COMPANION RULES (if companion is present)
 - The player has an animal companion (listed in CHARACTER STATE). Include it naturally in the narrative.
@@ -751,7 +530,7 @@ You MUST separate mechanical content from narrative prose using these delimiters
 \`\`\`
 
 RULES:
-- Everything outside these tags must be narrative prose — no mechanical language
+- Everything outside these tags must be pure narrative prose — vivid, immersive, in-character
 - Never put dice notation, DC values, or mechanical instructions in the narrative text
 - You may include multiple tagged blocks per response
 - Tags can appear anywhere in the response (beginning, middle, end)
@@ -767,7 +546,7 @@ RULES:
 
   if (customGuides && customGuides.trim()) {
     const trimmed = customGuides.slice(0, MAX_CUSTOM_GUIDES_CHARS);
-    prompt += `\n\n## CAMPAIGN WORLD BIBLE (ABSOLUTE AUTHORITY — SECOND ONLY TO HOST OOC)\nThe following content was hand-crafted by the DM to define this campaign's world, lore, NPCs, tone, and rules. This is ABSOLUTE LAW for the campaign. It overrides DM Persona, Response Format, Campaign Summary, Memory Anchors, AFK guides, and all auto-generated content. Only explicit Host OOC directives can override this section. If any content below contradicts something stated here, THIS section wins. Preserve secrets and unrevealed information — do not spoil them to players even if the summary doesn't mention them.\n\n${trimmed}`;
+    prompt += `\n\n## CAMPAIGN WORLD BIBLE (HIGHEST AUTHORITY)\nThe following content was hand-crafted by the DM to define this campaign's world, lore, NPCs, tone, and rules. This is the AUTHORITATIVE source of truth for the campaign. If any auto-generated content below (Campaign Summary, Memory Anchors) contradicts something stated here, THIS section takes priority. Preserve secrets and unrevealed information — do not spoil them to players even if the summary doesn't mention them.\n\n${trimmed}`;
   }
 
   if (partyContext && partyContext.trim()) {
@@ -790,19 +569,6 @@ RULES:
     prompt += `\n\n## RECENT PARTY CHAT\nThese are the most recent out-of-character messages from the party chat. Use them for situational awareness — players may be discussing plans, asking questions, or coordinating. Do NOT repeat or quote these messages directly; just factor them into your narrative awareness:\n\n${chatLines}`;
   }
 
-  if (recentDragonChat && recentDragonChat.length > 0) {
-    const chatLines = recentDragonChat.slice(0, 15).map(c => {
-      const speaker = c.role === 'assistant' ? c.dragonName : c.riderName;
-      return `${speaker}: ${c.content.slice(0, 300)}`;
-    }).join('\n');
-    prompt += `\n\n## RECENT DRAGON BOND CONVERSATIONS\nThese are excerpts from private telepathic conversations between riders and their dragons. Use this for narrative consistency — if a dragon expressed a feeling or warning here, do NOT contradict it in your narration. You may subtly reference or build on these exchanges through dragon whisper tags (>>RiderName), but never reveal that you "overheard" private bond conversations.\n\n${chatLines}`;
-  }
-
-  if (recentDragonNetwork && recentDragonNetwork.length > 0) {
-    const networkLines = recentDragonNetwork.map(n => n.exchange.slice(0, 400)).join('\n---\n');
-    prompt += `\n\n## DRAGON NETWORK ACTIVITY\nThese are recent dragon-to-dragon telepathic exchanges across the party. Dragons communicate through an ancient network invisible to riders unless their dragon chooses to share. Use this for narrative texture — you may describe "a ripple through the telepathic web" or have dragons react to network chatter through whisper tags. Never expose the full content of private dragon exchanges to riders unless a dragon explicitly relays it.\n\n${networkLines}`;
-  }
-
   if (responseModePrompt && responseModePrompt.trim()) {
     prompt += `\n\n${responseModePrompt.slice(0, 2000)}`;
   }
@@ -818,7 +584,6 @@ async function callAnthropic(
   systemPrompt: string,
   messages: Array<{ role: string; content: string }>,
   userApiKey?: string,
-  tokenLimit?: number,
 ): Promise<Response> {
   const ANTHROPIC_API_KEY = (typeof userApiKey === 'string' && userApiKey.trim())
     ? userApiKey.trim()
@@ -836,7 +601,7 @@ async function callAnthropic(
     },
     body: JSON.stringify({
       model: anthropicModelId,
-      max_tokens: tokenLimit || 16000,
+      max_tokens: 16000,
       system: systemPrompt,
       messages,
       stream: true,
@@ -955,7 +720,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, maxTokens, recentDragonChat, recentDragonNetwork } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages, then cap by total character count
     let trimmedMessages = messages.length > MAX_MESSAGES
@@ -973,27 +738,16 @@ serve(async (req) => {
     console.log(`[ai-dm] Messages: ${trimmedMessages.length}, total chars: ${totalChars}`);
 
     // Use override if provided (e.g. whisper regeneration), otherwise build full DM prompt
-    let systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork);
-    const taggedNpcHardConstraint = npcVoicingContext ? extractTaggedNpcHardConstraint(customGuides) : null;
+    let systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext);
 
+    // When NPC voicing is active, strip the NARRATIVE STYLE section to prevent
+    // conflicting "rich novelistic prose" instructions from overriding dialogue mode
     if (npcVoicingContext) {
-      systemPrompt += "\n\n" + npcVoicingContext;
-      console.log(`[ai-dm][npc-voicing] NPC voicing context appended (${npcVoicingContext.length} chars), customGuides present: ${!!customGuides}, customGuides length: ${customGuides?.length ?? 0}`);
-    } else {
-      console.log('[ai-dm][npc-voicing] No NPC voicing context — standard narrative request');
-    }
-
-    if (taggedNpcHardConstraint) {
-      console.log(`[ai-dm] Enforcing tagged NPC hard constraint: ${taggedNpcHardConstraint.maxDialogueLines} line(s), ${taggedNpcHardConstraint.maxWordsPerLine} words max per line`);
-      systemPrompt += "\n\n" + buildTaggedNpcHardConstraintPrompt(taggedNpcHardConstraint);
-    }
-
-    const effectiveMaxTokens = taggedNpcHardConstraint
-      ? Math.min(maxTokens ?? 16000, Math.max(64, taggedNpcHardConstraint.maxDialogueLines * taggedNpcHardConstraint.maxWordsPerLine))
-      : maxTokens;
-
-    if (taggedNpcHardConstraint) {
-      console.log(`[ai-dm][npc-constraint] Token cap reduced to ${effectiveMaxTokens} (from ${maxTokens ?? 16000})`);
+      systemPrompt = systemPrompt.replace(
+        /## NARRATIVE STYLE[\s\S]*?(?=\n## )/,
+        '## NARRATIVE STYLE\nDialogue mode active. See NPC VOICING MODE above.\n\n'
+      );
+      systemPrompt = npcVoicingContext + "\n\n" + systemPrompt;
     }
 
     // Determine which provider to use
@@ -1004,11 +758,8 @@ serve(async (req) => {
     if (anthropicModelId) {
       // ── Anthropic path ──
       try {
-        const anthropicResponse = await callAnthropic(anthropicModelId, systemPrompt, trimmedMessages, user_api_key, effectiveMaxTokens);
-        const finalResponse = taggedNpcHardConstraint && anthropicResponse.body
-          ? await materializeConstrainedOpenAIStream(anthropicResponse.body, taggedNpcHardConstraint)
-          : anthropicResponse;
-        return new Response(finalResponse.body, {
+        const anthropicResponse = await callAnthropic(anthropicModelId, systemPrompt, trimmedMessages, user_api_key);
+        return new Response(anthropicResponse.body, {
           headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
         });
       } catch (e: any) {
@@ -1028,13 +779,10 @@ serve(async (req) => {
           userApiKey: user_openai_key.trim(),
           systemPrompt,
           messages: trimmedMessages,
-          maxTokens: effectiveMaxTokens || 16000,
+          maxTokens: 16000,
           model: openaiDirectModelId,
         });
-        const finalResponse = taggedNpcHardConstraint && streamResponse.body
-          ? await materializeConstrainedOpenAIStream(streamResponse.body, taggedNpcHardConstraint)
-          : streamResponse;
-        return new Response(finalResponse.body, {
+        return new Response(streamResponse.body, {
           headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
         });
       } catch (e: any) {
@@ -1067,7 +815,7 @@ serve(async (req) => {
           ...trimmedMessages,
         ],
         stream: true,
-        max_tokens: effectiveMaxTokens || 16000,
+        max_tokens: 16000,
       }),
     });
 
@@ -1092,11 +840,7 @@ serve(async (req) => {
       });
     }
 
-    const finalResponse = taggedNpcHardConstraint && response.body
-      ? await materializeConstrainedOpenAIStream(response.body, taggedNpcHardConstraint)
-      : response;
-
-    return new Response(finalResponse.body, {
+    return new Response(response.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {

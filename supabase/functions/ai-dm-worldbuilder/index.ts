@@ -104,7 +104,7 @@ serve(async (req) => {
     const body: WorldBuilderRequest = await req.json();
     const { genre, tone, setting, settingNotes, factions, conflict, characterHook, characterName, characterLevel, user_api_key } = body;
 
-    const systemPrompt = `You are a master world-builder and dungeon master. Create a detailed campaign world based on the player's choices. Generate content with unique names, compelling conflicts, and a strong sense of place. The world should feel lived-in and dangerous, with clear stakes for the character.`;
+    const systemPrompt = `You are a master world-builder and dungeon master. Create a rich, immersive campaign world based on the player's choices. Generate vivid, evocative content with unique names, compelling conflicts, and a strong sense of place. The world should feel lived-in and dangerous, with clear stakes for the character.`;
 
     const userPrompt = `Create a complete campaign world for a ${genre} ${tone} campaign with these details:
 
