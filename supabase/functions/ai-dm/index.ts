@@ -753,13 +753,7 @@ serve(async (req) => {
     // Use override if provided (e.g. whisper regeneration), otherwise build full DM prompt
     let systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork);
 
-    // When NPC voicing is active, strip the NARRATIVE STYLE section to prevent
-    // conflicting "rich novelistic prose" instructions from overriding dialogue mode
     if (npcVoicingContext) {
-      systemPrompt = systemPrompt.replace(
-        /## NARRATIVE STYLE[\s\S]*?(?=\n## )/,
-        '## NARRATIVE STYLE\nDialogue mode active. See NPC VOICING MODE above.\n\n'
-      );
       systemPrompt = npcVoicingContext + "\n\n" + systemPrompt;
     }
 
