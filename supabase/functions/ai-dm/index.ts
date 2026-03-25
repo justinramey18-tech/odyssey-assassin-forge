@@ -529,7 +529,7 @@ You MUST separate mechanical content from narrative prose using these delimiters
 \`\`\`
 
 RULES:
-- Everything outside these tags must be pure narrative prose — vivid, immersive, in-character
+- Everything outside these tags must be narrative prose — no mechanical language
 - Never put dice notation, DC values, or mechanical instructions in the narrative text
 - You may include multiple tagged blocks per response
 - Tags can appear anywhere in the response (beginning, middle, end)
