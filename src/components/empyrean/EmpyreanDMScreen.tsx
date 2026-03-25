@@ -291,8 +291,9 @@ export function EmpyreanDMScreen({
 
       // Extract dragon whispers from parsed whispers
       const parsed = parseWhispers(content);
+      const dragonNameNormalized = config?.dragonName?.toLowerCase().trim();
       const dragonWhispers = parsed.whispers
-        .filter(w => w.type === 'whisper' && w.target === config?.dragonName);
+        .filter(w => w.type === 'whisper' && dragonNameNormalized && w.target?.toLowerCase().trim() === dragonNameNormalized);
 
       dragonWhispers.forEach(w => {
         dragonBond.addDragonMessage(w.content);
