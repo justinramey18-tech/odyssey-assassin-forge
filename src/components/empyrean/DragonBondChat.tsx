@@ -37,6 +37,7 @@ interface DragonBondChatProps {
   recentNarrative?: string[];
   burnoutLevel?: number;
   onRequestOpinion?: () => Promise<string | null>;
+  unreadDragonMessages?: string[];
 }
 
 const BOND_SENSE_RE = /<!--BOND_SENSE:(.+?)-->/g;
