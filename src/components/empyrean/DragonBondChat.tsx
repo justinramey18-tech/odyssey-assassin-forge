@@ -16,6 +16,11 @@ import {
   getBondDescriptor,
   getTrustDescriptor,
   addMemory,
+  addTrust,
+  reduceTrust,
+  detectTrustBreak,
+  detectRiderDeclaration,
+  classifyRiderEmotion,
   type DragonBondState,
   type DragonMood,
 } from '@/lib/dragonBondState';
@@ -218,7 +223,82 @@ export default function DragonBondChat({
 
   const handleSend = useCallback(() => {
     if (!inputValue.trim() || isLoading) return;
-    sendMessage(inputValue.trim());
+    const text = inputValue.trim();
+
+    // ── Trust scoring (mirrors use-dragon-bond processExchange) ──
+    setBondState(prev => {
+      let state = { ...prev };
+
+      const QUESTION_PATTERNS = [
+        'how do you feel', 'what do you think', 'are you okay',
+        'tell me about', 'what do you remember', 'do you want', 'how are you',
+      ];
+      const GRATITUDE_PATTERNS = [
+        'i trust you', 'thank you', "i'm glad", 'i appreciate',
+        'you were right', "i'm sorry",
+      ];
+      const VULNERABILITY_PATTERNS = [
+        "i'm afraid", "i'm scared", "i don't know",
+        'i need help', 'i failed', "i'm worried",
+      ];
+      const AUTONOMY_PATTERNS = [
+        'what would you prefer', 'your choice',
+        "i won't force you", 'you decide',
+      ];
+
+      const lower = text.toLowerCase();
+      const matchesAny = (patterns: string[]) => patterns.some(p => lower.includes(p));
+
+      const questionMatch = matchesAny(QUESTION_PATTERNS);
+      const gratitudeMatch = matchesAny(GRATITUDE_PATTERNS);
+      const vulnerabilityMatch = matchesAny(VULNERABILITY_PATTERNS);
+      const autonomyMatch = matchesAny(AUTONOMY_PATTERNS);
+
+      const bondLevel = state.bond ?? 15;
+      const effectiveChatCap = bondLevel >= 76 ? 12 : bondLevel >= 51 ? 9 : bondLevel >= 26 ? 7 : 5;
+      let trustDelta = state.sessionChatCount <= effectiveChatCap ? 1 : 0;
+      let reason = 'conversation';
+
+      if (questionMatch) { trustDelta += 1; reason = 'genuine curiosity'; }
+      if (gratitudeMatch) { trustDelta += 1; reason = 'trust and gratitude'; }
+      if (vulnerabilityMatch) { trustDelta += 2; reason = 'shared vulnerability'; }
+      if (autonomyMatch) { trustDelta += 1; reason = 'respecting autonomy'; }
+
+      const trustBreak = detectTrustBreak(text);
+      if (trustBreak.broken) {
+        trustDelta = -trustBreak.severity;
+        reason = trustBreak.reason;
+        state = { ...state, mood: 'distant' as DragonMood };
+      } else {
+        trustDelta = Math.min(trustDelta, 4);
+      }
+
+      if (trustDelta > 0) {
+        state = addTrust(state, trustDelta);
+      } else if (trustDelta < 0) {
+        state = reduceTrust(state, Math.abs(trustDelta));
+      }
+
+      // Classify and log rider emotion
+      const emotionTag = classifyRiderEmotion(
+        text,
+        trustBreak,
+        { question: questionMatch, gratitude: gratitudeMatch, vulnerability: vulnerabilityMatch, autonomy: autonomyMatch },
+      );
+      const emotionalLog = [...(state.riderEmotionalLog || []), { tag: emotionTag, timestamp: new Date().toISOString() }].slice(-15);
+      state = { ...state, riderEmotionalLog: emotionalLog };
+
+      // Detect rider declarations
+      const declaration = detectRiderDeclaration(text);
+      if (declaration) {
+        state = addMemory(state, declaration, 'rider-said');
+      }
+
+      saveBondState(state);
+      return state;
+    });
+
+    sendMessage(text);
     setInputValue('');
   }, [inputValue, isLoading, sendMessage]);
 
