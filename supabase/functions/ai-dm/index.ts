@@ -796,7 +796,7 @@ serve(async (req) => {
           userApiKey: user_openai_key.trim(),
           systemPrompt,
           messages: trimmedMessages,
-          maxTokens: 16000,
+          maxTokens: maxTokens || 16000,
           model: openaiDirectModelId,
         });
         return new Response(streamResponse.body, {
