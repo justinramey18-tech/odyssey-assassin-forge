@@ -600,6 +600,7 @@ async function callAnthropic(
   systemPrompt: string,
   messages: Array<{ role: string; content: string }>,
   userApiKey?: string,
+  tokenLimit?: number,
 ): Promise<Response> {
   const ANTHROPIC_API_KEY = (typeof userApiKey === 'string' && userApiKey.trim())
     ? userApiKey.trim()
