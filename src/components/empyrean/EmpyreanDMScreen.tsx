@@ -150,6 +150,7 @@ function stripAllMetaTags(content: string): string {
     .replace(/<!--BURNOUT_TICK:.+?-->/g, '')
     .replace(/<!--SITUATION:\w+-->/g, '')
     .replace(/<!--BOND_STRAIN:.+?-->/g, '')
+    .replace(/<!--DRAGON_MEMORY:.+?-->/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
