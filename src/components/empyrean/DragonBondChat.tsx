@@ -90,7 +90,7 @@ export default function DragonBondChat({
       bondState.trust,
       bondState.riderEmotionalLog || [],
       recentNarrative || [],
-      0, // burnout not tracked in solo mode
+      burnoutLevel ?? 0,
       moodDurationRef.current,
     );
     validTransitionsRef.current = moodResult.validTransitions;
