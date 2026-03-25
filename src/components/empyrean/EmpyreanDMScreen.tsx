@@ -151,6 +151,7 @@ function stripAllMetaTags(content: string): string {
     .replace(/<!--SITUATION:\w+-->/g, '')
     .replace(/<!--BOND_STRAIN:.+?-->/g, '')
     .replace(/<!--DRAGON_MEMORY:.+?-->/g, '')
+    .replace(/<!--BOND_GROWTH:.+?-->/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
