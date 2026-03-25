@@ -144,7 +144,17 @@ function BurnoutIndicator({ level, maxBurnout }: { level: number; maxBurnout: nu
   );
 }
 
-export function EmpyreanDMScreen({
+function stripAllMetaTags(content: string): string {
+  return content
+    .replace(/<!--BURNOUT:\d+-->/g, '')
+    .replace(/<!--BURNOUT_TICK:.+?-->/g, '')
+    .replace(/<!--SITUATION:\w+-->/g, '')
+    .replace(/<!--BOND_STRAIN:.+?-->/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+
   open,
   onClose,
   characterContext,
