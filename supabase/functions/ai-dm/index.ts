@@ -618,7 +618,7 @@ async function callAnthropic(
     },
     body: JSON.stringify({
       model: anthropicModelId,
-      max_tokens: 16000,
+      max_tokens: tokenLimit || 16000,
       system: systemPrompt,
       messages,
       stream: true,
