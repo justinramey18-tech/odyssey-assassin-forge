@@ -1290,6 +1290,7 @@ export function EmpyreanDMScreen({
         dragonName={config?.dragonName || 'Dragon'}
         dragonNotes={dragonNotes}
         characterContext={characterContext}
+        burnoutLevel={burnoutLevel}
         recentNarrative={messages
           .filter(m => m.role === 'assistant')
           .slice(-5)

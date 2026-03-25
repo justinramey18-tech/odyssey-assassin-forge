@@ -34,6 +34,7 @@ interface DragonBondChatProps {
   dragonNotes: string;
   characterContext: CharacterContext;
   recentNarrative?: string[];
+  burnoutLevel?: number;
   onRequestOpinion?: () => Promise<string | null>;
 }
 
@@ -69,6 +70,7 @@ export default function DragonBondChat({
   dragonNotes,
   characterContext,
   recentNarrative,
+  burnoutLevel,
   onRequestOpinion,
 }: DragonBondChatProps) {
   const [bondState, setBondState] = useState<DragonBondState>(() => loadBondState());
@@ -88,7 +90,7 @@ export default function DragonBondChat({
       bondState.trust,
       bondState.riderEmotionalLog || [],
       recentNarrative || [],
-      0, // burnout not tracked in solo mode
+      burnoutLevel ?? 0,
       moodDurationRef.current,
     );
     validTransitionsRef.current = moodResult.validTransitions;
