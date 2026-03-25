@@ -74,6 +74,7 @@ export default function DragonBondChat({
   recentNarrative,
   burnoutLevel,
   onRequestOpinion,
+  unreadDragonMessages,
 }: DragonBondChatProps) {
   const [bondState, setBondState] = useState<DragonBondState>(() => loadBondState());
   const [statsExpanded, setStatsExpanded] = useState(false);
