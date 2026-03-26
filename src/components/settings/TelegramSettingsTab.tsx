@@ -296,7 +296,8 @@ export function TelegramSettingsTab() {
 
       if (error) throw error;
 
-      const displayTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} EDT`;
+      const tzAbbr = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value || 'local';
+      const displayTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${tzAbbr}`;
       toast.success(`Scheduled! The AI will message you at ${displayTime}.`);
 
       // Reset form
