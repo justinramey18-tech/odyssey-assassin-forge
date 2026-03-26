@@ -1018,9 +1018,13 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
 
       const memoryMatches = [...assistantContent.matchAll(/<!--DRAGON_MEMORY:(.+?)-->/g)];
       if (memoryMatches.length > 0) {
-        const newMemories = memoryMatches.map(m => addMemory(m[1], 'bond-chat'));
-        const currentMemories = (myDragon.memories || []) as DragonMemory[];
-        await updateMyDragon({ memories: [...currentMemories, ...newMemories].slice(-30) });
+        let memories = [...((myDragon.memories || []) as DragonMemory[])];
+        for (const match of memoryMatches) {
+          const fakeState = { memories } as any;
+          const updated = addMemory(fakeState, match[1], 'bond-chat');
+          memories = updated.memories;
+        }
+        await updateMyDragon({ memories: memories.slice(-30) as any });
       }
 
       const habitMatches = [...assistantContent.matchAll(/<!--DRAGON_HABIT:(.+?)-->/g)];
