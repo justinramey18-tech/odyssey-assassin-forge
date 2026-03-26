@@ -2578,6 +2578,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                           return;
                         }
                       } else if (npcMultiMatch) {
+                        if (partyDm.isGenerating) {
+                          toast('Wait for the NPC to finish speaking…', { duration: 2000, icon: '⏳' });
+                          return;
+                        }
                         const npcNames = [...npcMultiMatch[1].matchAll(/@(\S+)/g)].map(m => m[1]);
                         const message = npcMultiMatch[2];
                         if (npcNames.length > 0 && message.trim()) {
