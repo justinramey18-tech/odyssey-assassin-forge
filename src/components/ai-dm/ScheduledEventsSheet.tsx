@@ -160,7 +160,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
         throw new Error(jobErr.message || 'Failed to schedule job');
       }
 
-      const recLabel = repeatWeekly ? ' (repeats weekly)' : '';
+      const recLabel = repeatDaily ? ' (repeats daily)' : '';
       toast.success(`${eventType === 'scheduled_round' ? 'Round' : 'Event'} scheduled for ${format(scheduledDate, 'PPP p')}${recLabel}`);
       setEventName('');
       setEventPrompt('');
