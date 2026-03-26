@@ -104,6 +104,13 @@ export default function PartyDragonChat({
     }).catch(() => {});
   }, [open, onRequestOpinion]);
 
+  useEffect(() => {
+    if (showPersonality) {
+      setEditingNotes(dragonNotes || '');
+      setTimeout(() => notesTextareaRef.current?.focus(), 100);
+    }
+  }, [showPersonality, dragonNotes]);
+
   // Auto-scroll on new messages
   useEffect(() => {
     if (scrollRef.current) {
