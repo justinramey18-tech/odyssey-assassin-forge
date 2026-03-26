@@ -2005,7 +2005,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         ? `## NPC VOICING MODE — DIALOGUE ONLY\nYou ARE ${names[0]}. Respond with ONLY:\n1. One brief italicized body-language beat (gesture, expression, or micro-reaction — 10 words max, present tense).\n2. One line of spoken dialogue, prefixed with **${names[0]}:**\n\nRules:\n- NO prose, NO narration, NO scene-setting, NO describing what the player does.\n- NO mechanical info (dice, DCs, stats).\n- Keep the total response under 40 words.\n- Stay consistent with how this NPC has been portrayed so far.\n- This is a CONVERSATION, not a story. Write like a person talking, not a narrator describing.`
         : `## NPC VOICING MODE — DIALOGUE ONLY\nWrite a SHORT exchange between ${names.join(' and ')} responding to the player. Rules:\n\n1. Each NPC gets ONE line of dialogue prefixed with **NPC Name:** and ONE brief italicized body-language beat (10 words max).\n2. NPCs react to each other — not just the player.\n3. End on a beat that invites the player back in (a question, a look, a pause).\n4. NO prose, NO narration, NO scene-setting, NO describing player actions.\n5. NO mechanical info (dice, DCs, stats).\n6. Keep the TOTAL response under 80 words. This is a conversation, not a story.\n7. Stay consistent with how each NPC has been portrayed so far.`;
 
-      const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, npcContext, undefined, empyreanPersonaPrompt);
+      const assistantContent = await streamAIResponse(apiMessages, '', abortRef.current!.signal, npcContext, undefined, undefined);
 
       if (assistantContent?.trim()) {
         await insertPartyMessageHelper(partyId, {
