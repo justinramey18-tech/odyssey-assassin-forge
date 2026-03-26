@@ -60,7 +60,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
   const [eventPrompt, setEventPrompt] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [timeValue, setTimeValue] = useState('17:00');
-  const [repeatWeekly, setRepeatWeekly] = useState(false);
+  const [repeatDaily, setRepeatDaily] = useState(false);
   const [dmContextMode, setDmContextMode] = useState<'solo' | 'party' | 'empyrean'>('party');
   const [aiModel, setAiModel] = useState(DEFAULT_MODEL_ID);
 
