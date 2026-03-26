@@ -166,7 +166,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
       setEventPrompt('');
       setSelectedDate(undefined);
       setTimeValue('17:00');
-      setRepeatWeekly(false);
+      setRepeatDaily(false);
       setDmContextMode('party');
       setAiModel(DEFAULT_MODEL_ID);
       fetchEvents();
