@@ -1034,8 +1034,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
       console.warn('[DragonBonds] Narrative reaction failed:', err);
     }
   }, [partyId, userId, myDragon, dragonChatMessages, allDragonConfigs, partyMembers, saveDragonChat, updateMyDragon]);
-
-
+  const sendDragonNetworkMessage = useCallback(async (
     targetDragonName: string,
     targetUserId: string,
     targetCharacterName: string,
