@@ -47,6 +47,8 @@ interface PartyDragonChatProps {
   otherDragons?: Array<{ dragonName: string; userId: string; characterName: string }>;
   onSendNetworkMessage?: (targetDragonName: string, targetUserId: string, targetCharacterName: string, message: string) => void;
   myUserId?: string;
+  dragonNotes?: string;
+  onUpdateNotes?: (notes: string) => void;
 }
 
 export default function PartyDragonChat({
