@@ -62,6 +62,8 @@ export function AIGuideCreator({ guides, campaignSummary, chatMessages, onAdd }:
       }
       const openaiKey = loadApiKey('openai');
       if (openaiKey) body.user_openai_key = openaiKey;
+      const perplexityKey = loadApiKey('perplexity');
+      if (perplexityKey) body.user_perplexity_key = perplexityKey;
 
       const token = await getAuthToken();
       const response = await fetch(

@@ -10,6 +10,7 @@ import { sendReadyUpNotification } from '@/lib/party-notifications';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { loadSelectedModel } from '@/lib/dm-models';
+import { loadApiKey } from '@/lib/api-keys';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
@@ -1143,6 +1144,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         responseModePrompt: responseModePrompt || undefined,
         dmPersonaPrompt: dmPersonaPrompt || undefined,
         model: loadSelectedModel(),
+        user_api_key: loadApiKey('anthropic') || undefined,
+        user_openai_key: loadApiKey('openai') || undefined,
+        user_perplexity_key: loadApiKey('perplexity') || undefined,
         ...(() => {
           const cs = loadCombatSettings();
           const feats: string[] = [];

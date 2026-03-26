@@ -11,7 +11,7 @@ const GPT_EVERYWHERE_MODEL_ID = 'openai-direct/gpt-5';
 export interface ScribeModel {
   id: string;
   label: string;
-  provider: 'lovable' | 'anthropic' | 'openai-direct';
+  provider: 'lovable' | 'anthropic' | 'openai-direct' | 'perplexity';
   description: string;
 }
 
@@ -30,6 +30,9 @@ export const SCRIBE_MODELS: ScribeModel[] = [
   { id: 'openai-direct/gpt-4-turbo', label: 'GPT-4 Turbo (own key)', provider: 'openai-direct', description: 'Large context (own key)' },
   { id: 'openai-direct/o1', label: 'o1 (own key)', provider: 'openai-direct', description: 'Advanced reasoning (own key)' },
   { id: 'openai-direct/o1-mini', label: 'o1 Mini (own key)', provider: 'openai-direct', description: 'Fast reasoning (own key)' },
+  { id: 'perplexity/sonar', label: 'Sonar (own key)', provider: 'perplexity', description: 'Fast search-grounded AI (own key)' },
+  { id: 'perplexity/sonar-pro', label: 'Sonar Pro (own key)', provider: 'perplexity', description: 'Best search-grounded quality (own key)' },
+  { id: 'perplexity/sonar-reasoning', label: 'Sonar Reasoning (own key)', provider: 'perplexity', description: 'Chain-of-thought reasoning (own key)' },
 ];
 
 export const DEFAULT_SCRIBE_MODEL = 'google/gemini-3-pro-preview';
@@ -60,7 +63,11 @@ export function getScribeModelLabel(modelId: string): string {
 export function getEdgeFunctionForModel(modelId: string): 'scribe-ai' | 'narrative-forge' {
   const model = SCRIBE_MODELS.find(m => m.id === modelId);
   // anthropic and openai-direct both use scribe-ai (which handles direct API calls)
-  return (model?.provider === 'anthropic' || model?.provider === 'openai-direct') ? 'scribe-ai' : 'narrative-forge';
+  return (model?.provider === 'anthropic' || model?.provider === 'openai-direct' || model?.provider === 'perplexity') ? 'scribe-ai' : 'narrative-forge';
+}
+
+export function isPerplexityModel(modelId: string): boolean {
+  return modelId.startsWith('perplexity/');
 }
 
 export function isAnthropicModel(modelId: string): boolean {

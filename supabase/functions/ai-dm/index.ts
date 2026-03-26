@@ -153,6 +153,7 @@ interface DMRequest {
   maxTokens?: number;
   recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>;
   recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>;
+  user_perplexity_key?: string;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -190,6 +191,13 @@ const OPENAI_DIRECT_MODELS: Record<string, string> = {
   'openai-direct/gpt-4-turbo': 'gpt-4-turbo',
   'openai-direct/o1': 'o1',
   'openai-direct/o1-mini': 'o1-mini',
+};
+
+// Models routed directly to Perplexity API (user's own key)
+const PERPLEXITY_MODELS: Record<string, string> = {
+  'perplexity/sonar': 'sonar',
+  'perplexity/sonar-pro': 'sonar-pro',
+  'perplexity/sonar-reasoning': 'sonar-reasoning',
 };
 
 const DEFAULT_MODEL = 'google/gemini-3-pro-preview';
@@ -738,7 +746,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, maxTokens, recentDragonChat, recentDragonNetwork } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, maxTokens, recentDragonChat, recentDragonNetwork } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages, then cap by total character count
     let trimmedMessages = messages.length > MAX_MESSAGES
@@ -781,6 +789,61 @@ serve(async (req) => {
           status, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+    }
+
+    const perplexityModelId = PERPLEXITY_MODELS[requestedModel];
+
+    if (perplexityModelId) {
+      // ── Perplexity path ──
+      const perplexityKey = (typeof user_perplexity_key === 'string' && user_perplexity_key.trim())
+        ? user_perplexity_key.trim()
+        : null;
+
+      if (!perplexityKey) {
+        return new Response(JSON.stringify({ error: "No Perplexity API key provided. Add your key in Settings → API Keys." }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const pplxResponse = await fetch("https://api.perplexity.ai/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${perplexityKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: perplexityModelId,
+          max_tokens: maxTokens || 16000,
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...trimmedMessages,
+          ],
+          stream: true,
+        }),
+      });
+
+      if (!pplxResponse.ok) {
+        const errText = await pplxResponse.text();
+        console.error("Perplexity API error:", pplxResponse.status, errText);
+        if (pplxResponse.status === 429) {
+          return new Response(JSON.stringify({ error: "Perplexity rate limit exceeded. Please wait and try again." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (pplxResponse.status === 401) {
+          return new Response(JSON.stringify({ error: "Invalid Perplexity API key. Check your key in Settings → API Keys." }), {
+            status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        return new Response(JSON.stringify({ error: "Perplexity API error" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Perplexity streams in OpenAI-compatible SSE format — pass through directly
+      return new Response(pplxResponse.body, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
     }
 
     if (openaiDirectModelId && user_openai_key && typeof user_openai_key === 'string' && user_openai_key.trim()) {
