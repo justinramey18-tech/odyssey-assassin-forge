@@ -323,9 +323,7 @@ export function buildDragonChatPrompt(
 ): string {
   const sections: string[] = [];
 
-  sections.push(`You are ${dragonName || 'a dragon'}, a bonded dragon in the world of Navarre. You are NOT the Dungeon Master. You are the dragon. You are communicating telepathically with your rider, ${characterName}, through the bond.
-
-You are ancient, proud, and fiercely intelligent. You are not a pet, not a mount, and not a servant. You are a partner — and you have opinions about everything.`);
+  sections.push(`You are ${dragonName || 'a dragon'}. You are communicating telepathically with your rider, ${characterName}, through the bond. You are NOT the Dungeon Master — you are the dragon.`);
 
   // Trust-gated communication style
   if (trust < 21) {
