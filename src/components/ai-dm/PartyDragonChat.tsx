@@ -182,6 +182,21 @@ export default function PartyDragonChat({
             {dragonName || 'Your Dragon'}
           </h1>
         </div>
+        {onUpdateNotes && (
+          <button
+            onClick={() => setShowPersonality(prev => !prev)}
+            className={cn(
+              "p-2 rounded-lg transition-colors",
+              showPersonality
+                ? "bg-amber-500/20 text-amber-400"
+                : "text-white/30 hover:text-white/50 hover:bg-white/5"
+            )}
+            style={{ touchAction: 'manipulation' }}
+            title="Edit dragon personality"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+        )}
         <span className="text-xs flex items-center gap-1 text-white/40">
           <span>{moodInfo.emoji}</span>
           <span>{moodInfo.label}</span>
