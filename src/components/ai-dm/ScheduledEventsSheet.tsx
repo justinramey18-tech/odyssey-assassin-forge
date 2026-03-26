@@ -60,7 +60,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
   const [eventPrompt, setEventPrompt] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [timeValue, setTimeValue] = useState('17:00');
-  const [repeatWeekly, setRepeatWeekly] = useState(false);
+  const [repeatDaily, setRepeatDaily] = useState(false);
   const [dmContextMode, setDmContextMode] = useState<'solo' | 'party' | 'empyrean'>('party');
   const [aiModel, setAiModel] = useState(DEFAULT_MODEL_ID);
 
@@ -149,8 +149,8 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
           party_id: partyId,
           include_campaign_context: true,
           run_at: scheduledDate.toISOString(),
-          repeat_daily: repeatWeekly,
-          run_time: repeatWeekly ? utcTimeStr : null,
+          repeat_daily: repeatDaily,
+          run_time: repeatDaily ? utcTimeStr : null,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           dm_context_mode: dmContextMode,
           ai_model: aiModel,
@@ -160,13 +160,13 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
         throw new Error(jobErr.message || 'Failed to schedule job');
       }
 
-      const recLabel = repeatWeekly ? ' (repeats weekly)' : '';
+      const recLabel = repeatDaily ? ' (repeats daily)' : '';
       toast.success(`${eventType === 'scheduled_round' ? 'Round' : 'Event'} scheduled for ${format(scheduledDate, 'PPP p')}${recLabel}`);
       setEventName('');
       setEventPrompt('');
       setSelectedDate(undefined);
       setTimeValue('17:00');
-      setRepeatWeekly(false);
+      setRepeatDaily(false);
       setDmContextMode('party');
       setAiModel(DEFAULT_MODEL_ID);
       fetchEvents();
@@ -389,19 +389,19 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
               </div>
             </div>
 
-            {/* Repeat weekly toggle */}
+            {/* Repeat daily toggle */}
             <button
-              onClick={() => setRepeatWeekly(!repeatWeekly)}
+              onClick={() => setRepeatDaily(!repeatDaily)}
               className={cn(
                 "flex items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-colors w-full",
-                repeatWeekly
+                repeatDaily
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-border/50 text-muted-foreground hover:text-foreground"
               )}
             >
               <Repeat className="w-3.5 h-3.5" />
-              Repeat every week
-              {repeatWeekly && <span className="ml-auto text-[10px] font-medium uppercase tracking-wider">On</span>}
+              Repeat daily
+              {repeatDaily && <span className="ml-auto text-[10px] font-medium uppercase tracking-wider">On</span>}
             </button>
 
             <Button
