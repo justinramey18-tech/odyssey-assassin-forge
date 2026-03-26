@@ -2005,7 +2005,58 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         ? `## NPC VOICING MODE — DIALOGUE ONLY\nYou ARE ${names[0]}. Respond with ONLY:\n1. One brief italicized body-language beat (gesture, expression, or micro-reaction — 10 words max, present tense).\n2. One line of spoken dialogue, prefixed with **${names[0]}:**\n\nRules:\n- NO prose, NO narration, NO scene-setting, NO describing what the player does.\n- NO mechanical info (dice, DCs, stats).\n- Keep the total response under 40 words.\n- Stay consistent with how this NPC has been portrayed so far.\n- This is a CONVERSATION, not a story. Write like a person talking, not a narrator describing.`
         : `## NPC VOICING MODE — DIALOGUE ONLY\nWrite a SHORT exchange between ${names.join(' and ')} responding to the player. Rules:\n\n1. Each NPC gets ONE line of dialogue prefixed with **NPC Name:** and ONE brief italicized body-language beat (10 words max).\n2. NPCs react to each other — not just the player.\n3. End on a beat that invites the player back in (a question, a look, a pause).\n4. NO prose, NO narration, NO scene-setting, NO describing player actions.\n5. NO mechanical info (dice, DCs, stats).\n6. Keep the TOTAL response under 80 words. This is a conversation, not a story.\n7. Stay consistent with how each NPC has been portrayed so far.`;
 
-      const assistantContent = await streamAIResponse(apiMessages, '', abortRef.current!.signal, npcContext, undefined, undefined);
+      const authToken = await getAuthToken();
+      const npcSystemPrompt = npcContext;
+      const sanitizedMessages = apiMessages.map(m => ({ role: m.role, content: m.content }));
+
+      const npcResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          messages: sanitizedMessages.slice(-50),
+          characterContext,
+          systemPromptOverride: npcSystemPrompt,
+          model: loadSelectedModel(),
+          maxTokens: 300,
+        }),
+        signal: abortRef.current!.signal,
+      });
+
+      if (!npcResponse.ok) {
+        const err = await npcResponse.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || 'NPC voicing failed');
+      }
+
+      if (!npcResponse.body) throw new Error('No response body');
+
+      const npcReader = npcResponse.body.getReader();
+      const npcDecoder = new TextDecoder();
+      let npcBuffer = '';
+      let assistantContent = '';
+
+      while (true) {
+        const { done, value } = await npcReader.read();
+        if (done) break;
+        npcBuffer += npcDecoder.decode(value, { stream: true });
+        let newlineIndex: number;
+        while ((newlineIndex = npcBuffer.indexOf('\n')) !== -1) {
+          let line = npcBuffer.slice(0, newlineIndex);
+          npcBuffer = npcBuffer.slice(newlineIndex + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.startsWith(':') || line.trim() === '') continue;
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (delta) assistantContent += delta;
+          } catch { /* skip */ }
+        }
+      }
 
       if (assistantContent?.trim()) {
         await insertPartyMessageHelper(partyId, {
