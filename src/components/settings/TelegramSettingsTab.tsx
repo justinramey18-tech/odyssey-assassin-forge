@@ -258,27 +258,23 @@ export function TelegramSettingsTab() {
     setSubmittingJob(true);
     try {
       const [hours, minutes] = newJobTime.split(':').map(Number);
-
-      const targetDate = newJobRepeatDaily ? new Date() : new Date(newJobDate!);
-      const yyyy = targetDate.getFullYear();
-      const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
-      const dd = String(targetDate.getDate()).padStart(2, '0');
-      const hh = String(hours).padStart(2, '0');
-      const min = String(minutes).padStart(2, '0');
-
-      // Find the UTC time that corresponds to this time in the user's timezone
       const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const naiveUtc = new Date(`${yyyy}-${mm}-${dd}T${hh}:${min}:00Z`);
-      const tzTimeAtNaive = new Date(naiveUtc.toLocaleString('en-US', { timeZone: userTz }));
-      const offsetMs = naiveUtc.getTime() - tzTimeAtNaive.getTime();
-      let runAt = new Date(naiveUtc.getTime() + offsetMs);
 
-      if (newJobRepeatDaily && runAt.getTime() <= Date.now()) {
-        runAt.setUTCDate(runAt.getUTCDate() + 1);
+      // Build a local Date with the user's chosen date + time
+      const targetDate = newJobRepeatDaily ? new Date() : new Date(newJobDate!);
+      targetDate.setHours(hours, minutes, 0, 0);
+
+      // If repeat-daily and the time already passed today, bump to tomorrow
+      if (newJobRepeatDaily && targetDate.getTime() <= Date.now()) {
+        targetDate.setDate(targetDate.getDate() + 1);
       }
 
+      // runAt is the local Date — .toISOString() correctly converts to UTC
+      const runAt = targetDate;
+
       const utcHours = runAt.getUTCHours();
-      const utcTimeStr = `${String(utcHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+      const utcMinutes = runAt.getUTCMinutes();
+      const utcTimeStr = `${String(utcHours).padStart(2, '0')}:${String(utcMinutes).padStart(2, '0')}`;
 
       const { error } = await supabase
         .from('scheduled_telegram_jobs')
