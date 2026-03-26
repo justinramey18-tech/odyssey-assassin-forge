@@ -3,6 +3,7 @@ const STORAGE_KEYS: Record<string, string> = {
   elevenlabs: 'dnd-elevenlabs-api-key',
   openai: 'dnd-openai-api-key',
   speechify: 'dnd-speechify-api-key',
+  perplexity: 'dnd-perplexity-api-key',
 };
 
 export type ApiKeyProvider = 'anthropic' | 'elevenlabs' | 'openai' | 'speechify';
