@@ -1034,7 +1034,29 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
   }, [partyDm.messages, spotify.autoMoodEnabled, spotify.connected, spotify.playMoodForText]);
 
+  // Dragon narrative reaction: when a new DM message arrives in Empyrean mode,
+  // trigger the dragon to react in the dragon chat
+  const lastDragonReactionMsgIdRef = useRef<string | null>(null);
   useEffect(() => {
+    if (!isEmpyrean || !dragonBonds.isSetup || !dragonBonds.myDragon?.dragonName) return;
+    const msgs = partyDm.messages;
+    if (msgs.length === 0) return;
+    const lastMsg = msgs[msgs.length - 1];
+    if (lastMsg.role !== 'assistant' || lastMsg.sender_name !== 'DM') return;
+    if (lastMsg.id === lastDragonReactionMsgIdRef.current) return;
+    lastDragonReactionMsgIdRef.current = lastMsg.id;
+
+    // Small delay so the DM message renders first, then fire dragon reaction
+    const timer = setTimeout(() => {
+      dragonBonds.generateNarrativeReactions(lastMsg.content).catch(err => {
+        console.warn('[PartyDM] Dragon narrative reaction failed:', err);
+      });
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [partyDm.messages, isEmpyrean, dragonBonds.isSetup, dragonBonds.myDragon?.dragonName]);
+
+
     if (!partyDm.lastAutoSaveTime) return;
     const id = setInterval(() => setTick(t => t + 1), 30000);
     return () => clearInterval(id);
