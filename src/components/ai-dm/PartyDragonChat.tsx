@@ -135,6 +135,17 @@ export default function PartyDragonChat({
     }
   }, [inputValue, otherDragons]);
 
+  const handleSaveNotes = useCallback(async () => {
+    if (!onUpdateNotes) return;
+    setIsSavingNotes(true);
+    try {
+      onUpdateNotes(editingNotes.trim());
+    } finally {
+      setIsSavingNotes(false);
+      setShowPersonality(false);
+    }
+  }, [editingNotes, onUpdateNotes]);
+
   const handleSend = useCallback(() => {
     if (!inputValue.trim() || isLoading) return;
     if (networkTarget && onSendNetworkMessage) {
