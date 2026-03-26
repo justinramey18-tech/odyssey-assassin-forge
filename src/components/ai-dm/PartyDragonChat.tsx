@@ -73,8 +73,12 @@ export default function PartyDragonChat({
   const [dragonOpening, setDragonOpening] = useState<string | null>(null);
   const [networkTarget, setNetworkTarget] = useState<{ dragonName: string; userId: string; characterName: string } | null>(null);
   const [showDragonPicker, setShowDragonPicker] = useState(false);
+  const [showPersonality, setShowPersonality] = useState(false);
+  const [editingNotes, setEditingNotes] = useState('');
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
   const opinionFiredRef = useRef(false);
 
   // Merged timeline
