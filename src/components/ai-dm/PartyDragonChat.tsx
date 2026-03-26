@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ArrowLeft, Send, X } from 'lucide-react';
+import { ArrowLeft, Send, X, Pencil, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
@@ -47,6 +47,8 @@ interface PartyDragonChatProps {
   otherDragons?: Array<{ dragonName: string; userId: string; characterName: string }>;
   onSendNetworkMessage?: (targetDragonName: string, targetUserId: string, targetCharacterName: string, message: string) => void;
   myUserId?: string;
+  dragonNotes?: string;
+  onUpdateNotes?: (notes: string) => void;
 }
 
 export default function PartyDragonChat({
@@ -63,14 +65,20 @@ export default function PartyDragonChat({
   otherDragons,
   onSendNetworkMessage,
   myUserId,
+  dragonNotes,
+  onUpdateNotes,
 }: PartyDragonChatProps) {
   const [inputValue, setInputValue] = useState('');
   const [statsExpanded, setStatsExpanded] = useState(false);
   const [dragonOpening, setDragonOpening] = useState<string | null>(null);
   const [networkTarget, setNetworkTarget] = useState<{ dragonName: string; userId: string; characterName: string } | null>(null);
   const [showDragonPicker, setShowDragonPicker] = useState(false);
+  const [showPersonality, setShowPersonality] = useState(false);
+  const [editingNotes, setEditingNotes] = useState('');
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
   const opinionFiredRef = useRef(false);
 
   // Merged timeline
@@ -96,6 +104,13 @@ export default function PartyDragonChat({
     }).catch(() => {});
   }, [open, onRequestOpinion]);
 
+  useEffect(() => {
+    if (showPersonality) {
+      setEditingNotes(dragonNotes || '');
+      setTimeout(() => notesTextareaRef.current?.focus(), 100);
+    }
+  }, [showPersonality, dragonNotes]);
+
   // Auto-scroll on new messages
   useEffect(() => {
     if (scrollRef.current) {
@@ -119,6 +134,17 @@ export default function PartyDragonChat({
       setShowDragonPicker(false);
     }
   }, [inputValue, otherDragons]);
+
+  const handleSaveNotes = useCallback(async () => {
+    if (!onUpdateNotes) return;
+    setIsSavingNotes(true);
+    try {
+      onUpdateNotes(editingNotes.trim());
+    } finally {
+      setIsSavingNotes(false);
+      setShowPersonality(false);
+    }
+  }, [editingNotes, onUpdateNotes]);
 
   const handleSend = useCallback(() => {
     if (!inputValue.trim() || isLoading) return;
@@ -156,6 +182,21 @@ export default function PartyDragonChat({
             {dragonName || 'Your Dragon'}
           </h1>
         </div>
+        {onUpdateNotes && (
+          <button
+            onClick={() => setShowPersonality(prev => !prev)}
+            className={cn(
+              "p-2 rounded-lg transition-colors",
+              showPersonality
+                ? "bg-amber-500/20 text-amber-400"
+                : "text-white/30 hover:text-white/50 hover:bg-white/5"
+            )}
+            style={{ touchAction: 'manipulation' }}
+            title="Edit dragon personality"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+        )}
         <span className="text-xs flex items-center gap-1 text-white/40">
           <span>{moodInfo.emoji}</span>
           <span>{moodInfo.label}</span>
@@ -205,6 +246,62 @@ export default function PartyDragonChat({
           </p>
         )}
       </button>
+
+      {/* Personality Editor Panel */}
+      {showPersonality && (
+        <div className="shrink-0 border-b border-amber-500/20 bg-gradient-to-b from-amber-950/20 to-transparent max-h-[60vh] flex flex-col">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-amber-500/10">
+            <div className="flex items-center gap-2">
+              <Pencil className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-xs font-cinzel font-semibold text-amber-300">Dragon Personality Profile</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-white/30">
+                {editingNotes.length.toLocaleString()}/20,000
+              </span>
+              <button
+                onClick={() => setShowPersonality(false)}
+                className="p-1 rounded hover:bg-white/10 text-white/40 hover:text-white/60 transition-colors"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 py-3">
+            <textarea
+              ref={notesTextareaRef}
+              value={editingNotes}
+              onChange={e => setEditingNotes(e.target.value.slice(0, 20000))}
+              placeholder="Define your dragon's complete personality. Include their voice, temperament, speech patterns, opinions, history, quirks, how they feel about your rider, what makes them unique. This is the single source of truth for who your dragon is — the more detail you provide, the more authentic they'll feel."
+              className="w-full bg-black/30 border border-amber-500/20 rounded-xl px-3.5 py-3 text-sm text-white/80 placeholder:text-white/20 resize-y focus:outline-none focus:border-amber-500/40 transition-colors"
+              style={{ minHeight: '200px', maxHeight: '40vh', touchAction: 'manipulation' }}
+            />
+          </div>
+          <div className="shrink-0 px-4 py-2.5 border-t border-amber-500/10 flex items-center gap-2">
+            <button
+              onClick={() => setShowPersonality(false)}
+              className="flex-1 px-3 py-2.5 rounded-xl text-xs text-white/50 hover:text-white/70 hover:bg-white/5 transition-colors border border-white/10"
+              style={{ touchAction: 'manipulation' }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveNotes}
+              disabled={isSavingNotes}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white transition-colors disabled:opacity-50"
+              style={{ touchAction: 'manipulation' }}
+            >
+              {isSavingNotes ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Check className="w-3.5 h-3.5" />
+              )}
+              Save Profile
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Messages Area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6">

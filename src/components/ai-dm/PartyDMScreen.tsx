@@ -3184,6 +3184,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         <PartyDragonChat
           open={showDragonChat}
           onClose={() => setShowDragonChat(false)}
+          dragonNotes={dragonBonds.myDragon?.dragonNotes || ''}
+          onUpdateNotes={(notes) => {
+            dragonBonds.updateMyDragon({ dragonNotes: notes });
+          }}
           dragonName={dragonBonds.myDragon?.dragonName || ''}
           characterName={members.find(m => m.user_id === currentUserId)?.character_name || 'Rider'}
           messages={dragonBonds.dragonChatMessages}
