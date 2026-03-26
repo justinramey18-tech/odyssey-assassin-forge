@@ -1027,10 +1027,11 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     sendDragonMessage,
     loadDragonChat,
     generateDragonOpinion,
+    generateNarrativeReactions,
     // Dragon network
     dragonNetworkMessages,
     sendDragonNetworkMessage,
     // Mood shift (in-memory only)
     lastMoodShift: lastMoodShiftRef.current,
-  }), [myDragon, isSetup, allDragonConfigs, saveMyDragon, updateMyDragon, updateBurnout, updateBondAndTrust, dragonChatMessages, isSending, sendDragonMessage, loadDragonChat, generateDragonOpinion, dragonNetworkMessages, sendDragonNetworkMessage]);
+  }), [myDragon, isSetup, allDragonConfigs, saveMyDragon, updateMyDragon, updateBurnout, updateBondAndTrust, dragonChatMessages, isSending, sendDragonMessage, loadDragonChat, generateDragonOpinion, generateNarrativeReactions, dragonNetworkMessages, sendDragonNetworkMessage]);
 }
