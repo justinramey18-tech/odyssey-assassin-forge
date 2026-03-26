@@ -11,7 +11,7 @@ const GPT_EVERYWHERE_MODEL_ID = 'openai-direct/gpt-5';
 export interface ScribeModel {
   id: string;
   label: string;
-  provider: 'lovable' | 'anthropic' | 'openai-direct';
+  provider: 'lovable' | 'anthropic' | 'openai-direct' | 'perplexity';
   description: string;
 }
 
