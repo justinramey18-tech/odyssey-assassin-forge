@@ -284,7 +284,7 @@ serve(async (req) => {
       });
     }
 
-    const { prompt, campaignSummary, existingGuides, chatHistory, model, user_api_key, stream } = (await req.json()) as GuideRequest;
+    const { prompt, campaignSummary, existingGuides, chatHistory, model, user_api_key, user_perplexity_key, stream } = (await req.json()) as GuideRequest;
 
     if (!prompt?.trim()) {
       return new Response(JSON.stringify({ error: 'Prompt is required' }), {
