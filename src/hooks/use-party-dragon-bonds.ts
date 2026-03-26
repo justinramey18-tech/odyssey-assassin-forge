@@ -916,7 +916,126 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     }
   }, [myDragon]);
 
-  const sendDragonNetworkMessage = useCallback(async (
+  // Generate dragon reactions to new DM narrative — called after each DM response
+  const generateNarrativeReactions = useCallback(async (narrativeContent: string) => {
+    if (!partyId || !userId || !myDragon?.dragonName || !narrativeContent.trim()) return;
+
+    const characterName = partyMembers?.find(m => m.user_id === userId)?.character_name || 'Rider';
+
+    const partyCtx = allDragonConfigs
+      .filter(d => d.config.dragonName && d.userId !== userId)
+      .map(d => ({
+        characterName: partyMembers?.find(m => m.user_id === d.userId)?.character_name || d.userId,
+        dragonName: d.config.dragonName,
+        signetType: d.config.signetType,
+        mood: d.config.mood,
+        bond: d.config.bond,
+      }));
+
+    const systemPrompt = buildDragonChatPrompt(
+      myDragon.dragonName,
+      characterName,
+      myDragon.trust,
+      (myDragon.mood || 'calm') as DragonMood,
+      (myDragon.memories || []) as DragonMemory[],
+      myDragon.dragonNotes || '',
+      myDragon.speechHabits,
+      [narrativeContent],
+      myDragon.bond,
+      myDragon.riderEmotionalLog,
+      partyCtx,
+    );
+
+    const reactionPrompt = systemPrompt + `\n\n## NARRATIVE REACTION MODE\nThe DM just narrated new events. You experienced this through the bond — you felt your rider's emotions, sensed the danger or calm, witnessed what happened through shared perception.\n\nReact naturally as the dragon would. This might be:\n- A warning about something you noticed\n- An emotional reaction to what happened\n- A comment on an NPC\n- Tactical input about a threat\n- A feeling shared through the bond\n- Or silence, if nothing warrants a response (respond with exactly "SILENCE" and nothing else)\n\nDo NOT summarize the narrative. React to it. Keep your response consistent with your current trust level and mood. Use your personality profile as the sole guide for your voice and temperament.`;
+
+    try {
+      const authToken = await getAuthToken();
+      const resp = await fetch(AI_DM_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          messages: [
+            ...dragonChatMessages.slice(-20).map(m => ({ role: m.role, content: m.content })),
+            { role: 'user', content: '[The bond flares with new sensation — events unfold in the world around you.]' },
+          ],
+          systemPromptOverride: reactionPrompt,
+          model: loadSelectedModel(),
+          maxTokens: 500,
+        }),
+      });
+
+      if (!resp.ok) return;
+      if (!resp.body) return;
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = '';
+      let assistantContent = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.startsWith(':') || line.trim() === '') continue;
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (delta) assistantContent += delta;
+          } catch { /* skip */ }
+        }
+      }
+
+      if (!assistantContent.trim() || assistantContent.trim().toUpperCase() === 'SILENCE') return;
+
+      const dragonMsg: DragonChatMessage = {
+        role: 'assistant',
+        content: assistantContent.trim(),
+        timestamp: new Date().toISOString(),
+      };
+
+      const updatedChat = [...dragonChatMessages, dragonMsg];
+      setDragonChatMessages(updatedChat);
+      await saveDragonChat(updatedChat);
+
+      const moodMatch = assistantContent.match(/<!--DRAGON_MOOD:(\w+)-->/);
+      if (moodMatch) {
+        const newMood = moodMatch[1] as DragonMood;
+        if (['calm', 'alert', 'protective', 'distant', 'ancestral', 'playful'].includes(newMood)) {
+          await updateMyDragon({ mood: newMood });
+        }
+      }
+
+      const memoryMatches = [...assistantContent.matchAll(/<!--DRAGON_MEMORY:(.+?)-->/g)];
+      if (memoryMatches.length > 0) {
+        const newMemories = memoryMatches.map(m => addMemory(m[1], 'bond-chat'));
+        const currentMemories = (myDragon.memories || []) as DragonMemory[];
+        await updateMyDragon({ memories: [...currentMemories, ...newMemories].slice(-30) });
+      }
+
+      const habitMatches = [...assistantContent.matchAll(/<!--DRAGON_HABIT:(.+?)-->/g)];
+      if (habitMatches.length > 0) {
+        const currentHabits = myDragon.speechHabits || [];
+        const newHabits = habitMatches.map(m => m[1].trim());
+        await updateMyDragon({ speechHabits: [...currentHabits, ...newHabits].slice(-10) });
+      }
+
+    } catch (err) {
+      console.warn('[DragonBonds] Narrative reaction failed:', err);
+    }
+  }, [partyId, userId, myDragon, dragonChatMessages, allDragonConfigs, partyMembers, saveDragonChat, updateMyDragon]);
+
+
     targetDragonName: string,
     targetUserId: string,
     targetCharacterName: string,
