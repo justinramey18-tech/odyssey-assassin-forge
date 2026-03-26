@@ -1055,8 +1055,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
     return () => clearTimeout(timer);
   }, [partyDm.messages, isEmpyrean, dragonBonds.isSetup, dragonBonds.myDragon?.dragonName]);
-
-
+  useEffect(() => {
     if (!partyDm.lastAutoSaveTime) return;
     const id = setInterval(() => setTick(t => t + 1), 30000);
     return () => clearInterval(id);
