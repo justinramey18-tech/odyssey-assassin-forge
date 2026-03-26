@@ -2459,7 +2459,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             partyMemberNames={members.map(m => m.character_name)}
             disabled={partyDm.isGenerating}
           />
-        ) : isDialogueMode && !partyDm.isGenerating ? (
+        ) : isDialogueMode ? (
           <div className="space-y-2 max-w-2xl mx-auto">
             {whisperTarget && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-900/20 border border-purple-500/30 text-purple-300 text-xs">
