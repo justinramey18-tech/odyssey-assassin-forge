@@ -192,6 +192,13 @@ const OPENAI_DIRECT_MODELS: Record<string, string> = {
   'openai-direct/o1-mini': 'o1-mini',
 };
 
+// Models routed directly to Perplexity API (user's own key)
+const PERPLEXITY_MODELS: Record<string, string> = {
+  'perplexity/sonar': 'sonar',
+  'perplexity/sonar-pro': 'sonar-pro',
+  'perplexity/sonar-reasoning': 'sonar-reasoning',
+};
+
 const DEFAULT_MODEL = 'google/gemini-3-pro-preview';
 
 // ── Context Builder ────────────────────────────────────────────────────────────
