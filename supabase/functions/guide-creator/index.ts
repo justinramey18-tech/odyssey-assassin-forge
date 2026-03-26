@@ -13,6 +13,7 @@ interface GuideRequest {
   chatHistory?: Array<{ role: string; content: string }>;
   model?: string;
   user_api_key?: string;
+  user_perplexity_key?: string;
   stream?: boolean;
 }
 
