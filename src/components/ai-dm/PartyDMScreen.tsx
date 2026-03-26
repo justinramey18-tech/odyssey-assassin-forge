@@ -2459,7 +2459,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             partyMemberNames={members.map(m => m.character_name)}
             disabled={partyDm.isGenerating}
           />
-        ) : isDialogueMode && !partyDm.isGenerating ? (
+        ) : isDialogueMode ? (
           <div className="space-y-2 max-w-2xl mx-auto">
             {whisperTarget && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-900/20 border border-purple-500/30 text-purple-300 text-xs">
@@ -2578,6 +2578,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                           return;
                         }
                       } else if (npcMultiMatch) {
+                        if (partyDm.isGenerating) {
+                          toast('Wait for the NPC to finish speaking…', { duration: 2000, icon: '⏳' });
+                          return;
+                        }
                         const npcNames = [...npcMultiMatch[1].matchAll(/@(\S+)/g)].map(m => m[1]);
                         const message = npcMultiMatch[2];
                         if (npcNames.length > 0 && message.trim()) {
@@ -2606,9 +2610,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               >
                 <Crown className="w-4 h-4" />
                 Call the DM
-              </button>
+               </button>
+            {partyDm.isGenerating && (
+              <div className="flex items-center justify-center gap-1.5 py-1">
+                <Loader2 className="w-3 h-3 text-amber-400/70 animate-spin" />
+                <span className="text-xs text-amber-400/50">NPC is thinking…</span>
+              </div>
+            )}
           </div>
-        ) : partyDm.isGenerating ? (
+        ) : partyDm.isGenerating && !isDialogueMode ? (
           <div className="flex items-center justify-center gap-2 py-2">
             <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
             <span className="text-sm text-amber-400/70">Generating response...</span>
