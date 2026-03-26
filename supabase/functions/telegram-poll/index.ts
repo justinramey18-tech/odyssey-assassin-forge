@@ -113,20 +113,25 @@ async function processCommand(
       `/stats — Ability scores\n` +
       `/hp — Current HP\n` +
       `/slots — Spell slot usage\n` +
-      `/dragon [NAME] — Dragon bond status (yours or by name)\n\n` +
+      `/spells — Prepared/known spells list\n` +
+      `/dragon [NAME] — Dragon bond status\n\n` +
       `<b>⚔️ Actions</b>\n` +
       `/damage N — Take N damage\n` +
       `/heal N — Heal N HP\n` +
       `/cast LEVEL — Use a spell slot\n` +
       `/initiative — Roll initiative\n` +
-      `/ready — Ready up (no action)\n` +
-      `/ready TEXT — Submit action & ready up\n` +
+      `/ready [TEXT] — Submit action & ready up\n` +
       `/roll NdS+M — Roll dice\n\n` +
       `<b>📖 Campaign</b>\n` +
       `/party — Party status & members\n` +
-      `/quests [mode] — Quest log (solo/party/empyrean)\n` +
+      `/quests [mode] — Quest log\n` +
       `/lore QUESTION — AI lore lookup\n` +
-      `/recap — AI session recap`,
+      `/recap — AI session recap\n` +
+      `/last — Last DM message\n` +
+      `/scene — AI "where are we now" summary\n` +
+      `/who NPC — AI NPC lookup from campaign\n` +
+      `/ask QUESTION — Ask the DM a question\n` +
+      `/suggest — AI tactical suggestions`,
       lovableKey, telegramKey,
     );
     return;
