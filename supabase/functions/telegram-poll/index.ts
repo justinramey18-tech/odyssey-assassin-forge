@@ -1067,6 +1067,407 @@ async function processCommand(
     return;
   }
 
+  // /spells — List prepared and known spells
+  if (cmd === '/spells') {
+    const userId = await getUserIdFromChat(chatId, supabase);
+    if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+    const save = await getCharacterData(userId, supabase);
+    if (!save) { await sendTelegram(chatId, '❌ No character found.', lovableKey, telegramKey); return; }
+    const sc = ((save.extended_data || {}) as any).spellcasting;
+    if (!sc) {
+      await sendTelegram(chatId, '❌ No spellcasting configured. Set it up in the app.', lovableKey, telegramKey);
+      return;
+    }
+    let msg = `🔮 <b>Spells</b>\n`;
+    if (sc.concentratingOn) {
+      msg += `\n⚡ <b>Concentrating on:</b> ${sc.concentratingOn}\n`;
+    }
+    const prepared = sc.preparedSpells as string[] | undefined;
+    const known = sc.knownSpells as string[] | undefined;
+    if (prepared && prepared.length > 0) {
+      msg += `\n📋 <b>Prepared (${prepared.length})</b>\n`;
+      msg += prepared.map((s: string) => `  • ${s}`).join('\n');
+    }
+    if (known && known.length > 0) {
+      const uniqueKnown = known.filter((s: string) => !prepared?.includes(s));
+      if (uniqueKnown.length > 0) {
+        msg += `\n\n📖 <b>Known (${uniqueKnown.length})</b>\n`;
+        msg += uniqueKnown.map((s: string) => `  • ${s}`).join('\n');
+      }
+    }
+    if ((!prepared || prepared.length === 0) && (!known || known.length === 0)) {
+      msg += `\nNo spells prepared or known.`;
+    }
+    if (sc.spellSlots && Object.keys(sc.spellSlots).length > 0) {
+      const used = sc.usedSlots || {};
+      msg += `\n\n📊 <b>Slots</b>\n`;
+      for (const [level, total] of Object.entries(sc.spellSlots as Record<string, number>)) {
+        if ((total as number) <= 0) continue;
+        const usedCount = ((used as any)[level] as number) || 0;
+        const remaining = (total as number) - usedCount;
+        msg += `Lvl ${level}: ${'◆'.repeat(remaining)}${'◇'.repeat(usedCount)} (${remaining}/${total})\n`;
+      }
+    }
+    const truncated = msg.length > 4000 ? msg.substring(0, 3950) + '\n\n<i>...truncated</i>' : msg;
+    await sendTelegram(chatId, truncated, lovableKey, telegramKey);
+    return;
+  }
+
+  // /last — Show the last DM narrative message
+  if (cmd === '/last') {
+    const userId = await getUserIdFromChat(chatId, supabase);
+    if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+    const { data: memberships } = await supabase
+      .from('party_members')
+      .select('party_id')
+      .eq('user_id', userId);
+    if (!memberships || memberships.length === 0) {
+      await sendTelegram(chatId, '👥 You are not in any party.', lovableKey, telegramKey);
+      return;
+    }
+    let lastDmMsg: string | null = null;
+    let partyCode = '';
+    for (const m of memberships) {
+      const { data: msgs } = await supabase
+        .from('party_dm_messages')
+        .select('content, sender_name, created_at')
+        .eq('party_id', m.party_id)
+        .eq('role', 'assistant')
+        .eq('sender_name', 'DM')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (msgs && msgs.length > 0) {
+        lastDmMsg = msgs[0].content;
+        const { data: party } = await supabase.from('parties').select('link_code').eq('id', m.party_id).maybeSingle();
+        partyCode = party?.link_code || '';
+        break;
+      }
+    }
+    if (!lastDmMsg) {
+      await sendTelegram(chatId, '📖 No DM messages found. Start a DM session first!', lovableKey, telegramKey);
+      return;
+    }
+    const cleaned = lastDmMsg
+      .replace(/<!--.*?-->/gs, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    const header = partyCode ? `📖 <b>Last DM Message</b> (${partyCode})\n\n` : `📖 <b>Last DM Message</b>\n\n`;
+    const maxLen = 4000 - header.length;
+    const body = cleaned.length > maxLen ? cleaned.substring(0, maxLen - 20) + '\n\n<i>...truncated</i>' : cleaned;
+    await sendTelegram(chatId, header + body, lovableKey, telegramKey);
+    return;
+  }
+
+  // /scene — AI-generated "where are we right now" summary
+  if (cmd === '/scene') {
+    const userId = await getUserIdFromChat(chatId, supabase);
+    if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+    const { data: memberships } = await supabase
+      .from('party_members')
+      .select('party_id, character_name')
+      .eq('user_id', userId);
+    if (!memberships || memberships.length === 0) {
+      await sendTelegram(chatId, '👥 You are not in any party.', lovableKey, telegramKey);
+      return;
+    }
+    let recentMessages: Array<{ content: string; sender_name: string; role: string }> = [];
+    for (const m of memberships) {
+      const { data: msgs } = await supabase
+        .from('party_dm_messages')
+        .select('content, sender_name, role')
+        .eq('party_id', m.party_id)
+        .order('created_at', { ascending: false })
+        .limit(8);
+      if (msgs && msgs.length > 0) {
+        recentMessages = msgs.reverse();
+        break;
+      }
+    }
+    if (recentMessages.length === 0) {
+      await sendTelegram(chatId, '📖 No recent messages found.', lovableKey, telegramKey);
+      return;
+    }
+    await sendTelegram(chatId, '🗺️ <i>Surveying the scene...</i>', lovableKey, telegramKey);
+    const narrativeContext = recentMessages
+      .map(m => `[${m.sender_name}]: ${m.content.substring(0, 500)}`)
+      .join('\n\n');
+    try {
+      const response = await fetch(AI_GATEWAY_URL, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash-lite',
+          max_tokens: 600,
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a concise narrator. Based on the recent game messages provided, describe the CURRENT SCENE in 3-5 sentences. Answer: Where are the characters right now? What just happened? What is the immediate situation? Write in present tense. Use plain text only — no markdown, no asterisks, no bullet points. Keep it under 150 words.',
+            },
+            { role: 'user', content: `Recent game messages:\n\n${narrativeContext}\n\nDescribe the current scene.` },
+          ],
+        }),
+      });
+      const data = await response.json();
+      const answer = data.choices?.[0]?.message?.content || 'Could not determine the current scene.';
+      const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
+      await sendTelegram(chatId, `🗺️ <b>Current Scene</b>\n\n${truncated}`, lovableKey, telegramKey);
+    } catch (err) {
+      console.error('/scene AI error:', err);
+      await sendTelegram(chatId, '❌ Failed to generate scene summary.', lovableKey, telegramKey);
+    }
+    return;
+  }
+
+  // /who NPC — AI-powered NPC lookup from campaign history
+  if (cmd.startsWith('/who ')) {
+    const npcName = text.trim().substring(5).trim();
+    if (!npcName) {
+      await sendTelegram(chatId, '❌ Usage: /who Rhiannon', lovableKey, telegramKey);
+      return;
+    }
+    const userId = await getUserIdFromChat(chatId, supabase);
+    if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+    const { data: memberships } = await supabase
+      .from('party_members')
+      .select('party_id')
+      .eq('user_id', userId);
+    if (!memberships || memberships.length === 0) {
+      await sendTelegram(chatId, '👥 You are not in any party.', lovableKey, telegramKey);
+      return;
+    }
+    let relevantMessages: string[] = [];
+    let campaignSummary = '';
+    for (const m of memberships) {
+      const { data: msgs } = await supabase
+        .from('party_dm_messages')
+        .select('content, sender_name')
+        .eq('party_id', m.party_id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (msgs && msgs.length > 0) {
+        const namePattern = new RegExp(npcName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        relevantMessages = msgs
+          .filter((msg: any) => namePattern.test(msg.content))
+          .slice(0, 10)
+          .map((msg: any) => `[${msg.sender_name}]: ${msg.content.substring(0, 400)}`);
+        const { data: sessionState } = await supabase
+          .from('party_shared_state')
+          .select('state_data')
+          .eq('party_id', m.party_id)
+          .eq('state_type', 'dm_session')
+          .maybeSingle();
+        campaignSummary = (sessionState?.state_data as any)?.campaignSummary || '';
+        break;
+      }
+    }
+    if (relevantMessages.length === 0) {
+      await sendTelegram(chatId, `🔍 No mentions of "${npcName}" found in recent campaign history.`, lovableKey, telegramKey);
+      return;
+    }
+    await sendTelegram(chatId, `🔍 <i>Searching for ${npcName}...</i>`, lovableKey, telegramKey);
+    const context = relevantMessages.join('\n\n');
+    const summaryCtx = campaignSummary ? `Campaign summary: ${campaignSummary.substring(0, 1000)}\n\n` : '';
+    try {
+      const response = await fetch(AI_GATEWAY_URL, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash-lite',
+          max_tokens: 800,
+          messages: [
+            {
+              role: 'system',
+              content: `You are a campaign note-taker. Based on the provided campaign messages, compile what the party knows about the NPC named "${npcName}". Include: who they are, their role/occupation, their relationship to the party, notable things they said or did, and any unresolved business. If the information is sparse, say so. Write in plain text — no markdown, no asterisks, no bullet points. Keep it under 200 words.`,
+            },
+            { role: 'user', content: `${summaryCtx}Messages mentioning ${npcName}:\n\n${context}\n\nWhat does the party know about ${npcName}?` },
+          ],
+        }),
+      });
+      const data = await response.json();
+      const answer = data.choices?.[0]?.message?.content || 'Could not find information.';
+      const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
+      await sendTelegram(chatId, `🔍 <b>${npcName}</b>\n\n${truncated}`, lovableKey, telegramKey);
+    } catch (err) {
+      console.error('/who AI error:', err);
+      await sendTelegram(chatId, '❌ Failed to look up NPC.', lovableKey, telegramKey);
+    }
+    return;
+  }
+
+  // /ask QUESTION — Ask the DM a question with full campaign context
+  if (cmd.startsWith('/ask ')) {
+    const question = text.trim().substring(5).trim();
+    if (!question) {
+      await sendTelegram(chatId, '❌ Usage: /ask Can I use my signet ability underwater?', lovableKey, telegramKey);
+      return;
+    }
+    const userId = await getUserIdFromChat(chatId, supabase);
+    if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+    const save = await getCharacterData(userId, supabase);
+    const charData = save?.character_data as any;
+    const ext = (save?.extended_data || {}) as any;
+    let charSummary = '';
+    if (charData) {
+      const classStr = charData.primaryClass ? charData.primaryClass.charAt(0).toUpperCase() + charData.primaryClass.slice(1) : 'Adventurer';
+      const hp = ext.hpState;
+      charSummary = `Character: ${charData.name || 'Unknown'}, Level ${charData.level || 1} ${classStr}`;
+      if (hp) charSummary += `, HP ${hp.current}/${hp.max}`;
+      if (ext.abilityScores) {
+        const scores = ext.abilityScores;
+        charSummary += `\nAbility Scores: STR ${scores.strength} DEX ${scores.dexterity} CON ${scores.constitution} INT ${scores.intelligence} WIS ${scores.wisdom} CHA ${scores.charisma}`;
+      }
+      if (ext.spellcasting?.preparedSpells?.length > 0) {
+        charSummary += `\nPrepared Spells: ${(ext.spellcasting.preparedSpells as string[]).slice(0, 15).join(', ')}`;
+      }
+    }
+    let campaignSummary = '';
+    let recentNarrative = '';
+    const { data: memberships } = await supabase
+      .from('party_members')
+      .select('party_id, character_name')
+      .eq('user_id', userId);
+    if (memberships && memberships.length > 0) {
+      for (const m of memberships) {
+        const { data: sessionState } = await supabase
+          .from('party_shared_state')
+          .select('state_data')
+          .eq('party_id', m.party_id)
+          .eq('state_type', 'dm_session')
+          .maybeSingle();
+        const session = sessionState?.state_data as any;
+        if (session?.campaignSummary) {
+          campaignSummary = session.campaignSummary.substring(0, 2000);
+        }
+        const { data: msgs } = await supabase
+          .from('party_dm_messages')
+          .select('content, sender_name')
+          .eq('party_id', m.party_id)
+          .eq('role', 'assistant')
+          .order('created_at', { ascending: false })
+          .limit(3);
+        if (msgs && msgs.length > 0) {
+          recentNarrative = msgs.reverse().map((msg: any) => msg.content.substring(0, 500)).join('\n---\n');
+          break;
+        }
+      }
+    }
+    await sendTelegram(chatId, '🤔 <i>The DM considers your question...</i>', lovableKey, telegramKey);
+    const contextParts = [
+      charSummary ? `Player Character:\n${charSummary}` : '',
+      campaignSummary ? `Campaign Summary:\n${campaignSummary}` : '',
+      recentNarrative ? `Recent Events:\n${recentNarrative}` : '',
+    ].filter(Boolean).join('\n\n');
+    try {
+      const response = await fetch(AI_GATEWAY_URL, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          max_tokens: 1000,
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert D&D 5e Dungeon Master answering a player\'s question between sessions. You have access to their character sheet and campaign context. Answer clearly and helpfully. If the question is about rules, cite the relevant rule. If it is about the campaign world, answer based on the provided context. If you do not have enough context, say so and give your best guidance. Use plain text — no markdown, no asterisks. Keep your answer under 250 words.',
+            },
+            { role: 'user', content: `${contextParts}\n\nPlayer's question: ${question}` },
+          ],
+        }),
+      });
+      const data = await response.json();
+      const answer = data.choices?.[0]?.message?.content || 'The DM has no answer at this time.';
+      const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
+      await sendTelegram(chatId, `🤔 <b>Ask the DM</b>\n<i>${question.substring(0, 80)}</i>\n\n${truncated}`, lovableKey, telegramKey);
+    } catch (err) {
+      console.error('/ask AI error:', err);
+      await sendTelegram(chatId, '❌ The DM could not be reached. Try again later.', lovableKey, telegramKey);
+    }
+    return;
+  }
+
+  // /suggest — AI tactical suggestions based on current character state and situation
+  if (cmd === '/suggest') {
+    const userId = await getUserIdFromChat(chatId, supabase);
+    if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+    const save = await getCharacterData(userId, supabase);
+    if (!save) { await sendTelegram(chatId, '❌ No character found.', lovableKey, telegramKey); return; }
+    const charData = save.character_data as any;
+    const ext = (save.extended_data || {}) as any;
+    const classStr = charData?.primaryClass ? charData.primaryClass.charAt(0).toUpperCase() + charData.primaryClass.slice(1) : 'Adventurer';
+    const hp = ext.hpState;
+    const sc = ext.spellcasting;
+    const conditions = ext.conditions?.activeConditions;
+    let charContext = `Character: ${charData?.name || 'Unknown'}, Level ${charData?.level || 1} ${classStr}`;
+    if (hp) charContext += `\nHP: ${hp.current}/${hp.max}`;
+    if (conditions && conditions.length > 0) {
+      charContext += `\nConditions: ${conditions.map((c: any) => c.name || c.id).join(', ')}`;
+    }
+    if (sc?.preparedSpells?.length > 0) {
+      charContext += `\nPrepared Spells: ${(sc.preparedSpells as string[]).slice(0, 15).join(', ')}`;
+    }
+    if (sc?.spellSlots) {
+      const used = sc.usedSlots || {};
+      const slotParts: string[] = [];
+      for (const [level, total] of Object.entries(sc.spellSlots as Record<string, number>)) {
+        if ((total as number) <= 0) continue;
+        const remaining = (total as number) - (((used as any)[level] as number) || 0);
+        if (remaining > 0) slotParts.push(`Lvl${level}: ${remaining}/${total}`);
+      }
+      if (slotParts.length > 0) charContext += `\nSlots: ${slotParts.join(', ')}`;
+    }
+    if (sc?.concentratingOn) {
+      charContext += `\nConcentrating on: ${sc.concentratingOn}`;
+    }
+    if (ext.abilityScores) {
+      const s = ext.abilityScores;
+      charContext += `\nScores: STR ${s.strength} DEX ${s.dexterity} CON ${s.constitution} INT ${s.intelligence} WIS ${s.wisdom} CHA ${s.charisma}`;
+    }
+    let recentNarrative = '';
+    const { data: memberships } = await supabase
+      .from('party_members')
+      .select('party_id')
+      .eq('user_id', userId);
+    if (memberships && memberships.length > 0) {
+      for (const m of memberships) {
+        const { data: msgs } = await supabase
+          .from('party_dm_messages')
+          .select('content, sender_name')
+          .eq('party_id', m.party_id)
+          .order('created_at', { ascending: false })
+          .limit(5);
+        if (msgs && msgs.length > 0) {
+          recentNarrative = msgs.reverse().map((msg: any) => `[${msg.sender_name}]: ${msg.content.substring(0, 400)}`).join('\n\n');
+          break;
+        }
+      }
+    }
+    await sendTelegram(chatId, '💡 <i>Analyzing your options...</i>', lovableKey, telegramKey);
+    try {
+      const response = await fetch(AI_GATEWAY_URL, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          max_tokens: 800,
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a tactical D&D advisor. Given the character\'s current state and the recent narrative situation, suggest exactly 3 concrete actions the player could take on their next turn or in the current scene. For each suggestion: name it briefly, explain what it does mechanically, and say why it is a good idea right now. Consider their HP, spell slots, conditions, and the situation. Use plain text — no markdown, no asterisks. Number the suggestions 1, 2, 3. Keep the total under 200 words.',
+            },
+            { role: 'user', content: `${charContext}\n\nRecent situation:\n${recentNarrative || 'No recent narrative available.'}\n\nSuggest 3 tactical options.` },
+          ],
+        }),
+      });
+      const data = await response.json();
+      const answer = data.choices?.[0]?.message?.content || 'No suggestions available.';
+      const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
+      await sendTelegram(chatId, `💡 <b>Tactical Suggestions</b>\n\n${truncated}`, lovableKey, telegramKey);
+    } catch (err) {
+      console.error('/suggest AI error:', err);
+      await sendTelegram(chatId, '❌ Failed to generate suggestions.', lovableKey, telegramKey);
+    }
+    return;
+  }
+
   // Unknown command
   if (cmd.startsWith('/')) {
     await sendTelegram(chatId, `❓ Unknown command. Type /help for all commands.`, lovableKey, telegramKey);
