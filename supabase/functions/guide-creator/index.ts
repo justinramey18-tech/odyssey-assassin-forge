@@ -35,6 +35,12 @@ const ANTHROPIC_MODELS: Record<string, string> = {
   'anthropic/claude-haiku-4-5': 'claude-haiku-4-5-20251001',
 };
 
+const PERPLEXITY_MODELS: Record<string, string> = {
+  'perplexity/sonar': 'sonar',
+  'perplexity/sonar-pro': 'sonar-pro',
+  'perplexity/sonar-reasoning': 'sonar-reasoning',
+};
+
 const DEFAULT_MODEL = 'google/gemini-3-flash-preview';
 
 function buildSystemPrompt(
