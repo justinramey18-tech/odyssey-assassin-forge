@@ -102,7 +102,7 @@ export function DragonRiderSetupSheet({ open, onOpenChange, initialConfig, onSav
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-amber-400/80">Dragon Personality Notes</Label>
+            <Label className="text-xs font-medium text-amber-400/80">Dragon Personality Profile</Label>
             <Textarea
               value={dragonNotes}
               onChange={e => setDragonNotes(e.target.value)}
