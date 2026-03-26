@@ -10,7 +10,7 @@ import {
   isGPTEverywhereEnabled, setGPTEverywhere,
 } from '@/lib/api-keys';
 
-function ApiKeyInput({ provider, label, placeholder }: { provider: 'anthropic' | 'elevenlabs' | 'openai' | 'speechify'; label: string; placeholder: string }) {
+function ApiKeyInput({ provider, label, placeholder }: { provider: 'anthropic' | 'elevenlabs' | 'openai' | 'speechify' | 'perplexity'; label: string; placeholder: string }) {
   const [keyInput, setKeyInput] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [hasSavedKey, setHasSavedKey] = useState(() => hasApiKey(provider));
