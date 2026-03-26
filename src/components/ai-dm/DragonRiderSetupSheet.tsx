@@ -106,11 +106,11 @@ export function DragonRiderSetupSheet({ open, onOpenChange, initialConfig, onSav
             <Textarea
               value={dragonNotes}
               onChange={e => setDragonNotes(e.target.value)}
-              placeholder="Describe your dragon's personality, quirks, preferences..."
-              className="bg-background/50 border-border/50 focus:border-amber-500/50 min-h-[80px] resize-none"
-              maxLength={500}
+              placeholder="Define your dragon's complete personality. Include their voice, temperament, speech patterns, opinions, history, quirks, how they feel about your rider, what makes them unique. This is the single source of truth for who your dragon is — the more detail you provide, the more authentic they'll feel. You have 20,000 characters."
+              className="bg-background/50 border-border/50 focus:border-amber-500/50 min-h-[200px] resize-y"
+              maxLength={20000}
             />
-            <p className="text-[10px] text-muted-foreground text-right">{dragonNotes.length}/500</p>
+            <p className="text-[10px] text-muted-foreground text-right">{dragonNotes.length.toLocaleString()}/20,000</p>
           </div>
 
           <Button

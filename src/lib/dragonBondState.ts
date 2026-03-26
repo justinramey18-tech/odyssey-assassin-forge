@@ -379,9 +379,11 @@ You and this rider share something rare. Your communication is almost seamless �
   };
   sections.push(`## CURRENT MOOD: ${mood.toUpperCase()}\n${moodInstructions[mood]}`);
 
-  // Dragon personality notes from the user
+  // Dragon personality — player-defined (single source of truth)
   if (dragonNotes.trim()) {
-    sections.push(`## PERSONALITY NOTES FROM THE RIDER\n${dragonNotes.trim()}`);
+    sections.push(`## DRAGON PERSONALITY — DEFINED BY THE PLAYER\nThe following is the complete personality profile for ${dragonName || 'this dragon'}. This is the SOLE authority on who this dragon is — their voice, mannerisms, temperament, history, opinions, speech patterns, and worldview. Embody this personality fully in every response. Do not contradict or override anything written here:\n\n${dragonNotes.trim()}`);
+  } else {
+    sections.push(`## DRAGON PERSONALITY\nNo personality profile has been provided yet. Default to a proud, intelligent dragon with strong opinions. The rider can configure a detailed personality in the Dragon Bond Setup.`);
   }
 
   // Party context — other dragons and riders
