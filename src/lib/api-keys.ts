@@ -6,7 +6,7 @@ const STORAGE_KEYS: Record<string, string> = {
   perplexity: 'dnd-perplexity-api-key',
 };
 
-export type ApiKeyProvider = 'anthropic' | 'elevenlabs' | 'openai' | 'speechify';
+export type ApiKeyProvider = 'anthropic' | 'elevenlabs' | 'openai' | 'speechify' | 'perplexity';
 
 export function loadApiKey(provider: ApiKeyProvider): string | null {
   try {

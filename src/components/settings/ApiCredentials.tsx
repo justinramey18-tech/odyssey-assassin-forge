@@ -176,6 +176,7 @@ export function ApiCredentials() {
       <ApiKeyInput provider="openai" label="OpenAI API Key" placeholder="sk-..." />
       <GPTEverywhereToggle />
       <ApiKeyInput provider="speechify" label="Speechify API Key" placeholder="spfy_..." />
+      <ApiKeyInput provider="perplexity" label="Perplexity API Key" placeholder="pplx-..." />
     </div>
   );
 }
