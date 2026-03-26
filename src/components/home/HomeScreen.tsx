@@ -32,6 +32,7 @@ import { FAQDrawer } from './FAQDrawer';
 
 import { EmpyreanScreen } from '@/components/empyrean/EmpyreanScreen';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
+import { loadEmpyreanDMConfig } from '@/lib/empyreanDMPersona';
 import { GeraltCompanionScreen } from '@/components/companion';
 // New redesigned components
 import { CharacterNamePlaque } from './CharacterNamePlaque';
@@ -659,6 +660,7 @@ export function HomeScreen({
           name={character.name} 
           level={character.level}
           primaryClass={character.primaryClass}
+          dragonName={loadEmpyreanDMConfig()?.dragonName}
           onOpenSettings={onOpenSettings}
         />
         <AlignmentDriftIndicator className="px-4 py-1" />

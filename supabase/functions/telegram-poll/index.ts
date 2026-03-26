@@ -112,14 +112,18 @@ async function processCommand(
       `/character — Character summary\n` +
       `/stats — Ability scores\n` +
       `/hp — Current HP\n` +
-      `/slots — Spell slot usage\n\n` +
+      `/slots — Spell slot usage\n` +
+      `/dragon [NAME] — Dragon bond status (yours or by name)\n\n` +
       `<b>⚔️ Actions</b>\n` +
       `/damage N — Take N damage\n` +
       `/heal N — Heal N HP\n` +
       `/cast LEVEL — Use a spell slot\n` +
       `/initiative — Roll initiative\n` +
+      `/ready — Ready up (no action)\n` +
+      `/ready TEXT — Submit action & ready up\n` +
       `/roll NdS+M — Roll dice\n\n` +
       `<b>📖 Campaign</b>\n` +
+      `/party — Party status & members\n` +
       `/quests [mode] — Quest log (solo/party/empyrean)\n` +
       `/lore QUESTION — AI lore lookup\n` +
       `/recap — AI session recap`,
@@ -158,7 +162,7 @@ async function processCommand(
       // Already linked — just update
       const { error } = await supabase
         .from('telegram_user_links')
-        .update({ username: username || null, linked_at: new Date().toISOString() })
+        .update({ username: username || null, linked_at: new Date().toISOString(), notify_modes: ['solo', 'party', 'empyrean'] })
         .eq('id', existingLink.id);
       linkErr = error;
     } else {
@@ -170,6 +174,7 @@ async function processCommand(
           chat_id: chatId,
           username: username || null,
           linked_at: new Date().toISOString(),
+          notify_modes: ['solo', 'party', 'empyrean'],
         });
       linkErr = error;
     }
@@ -180,7 +185,7 @@ async function processCommand(
     }
     await supabase.from('telegram_link_codes').delete().eq('id', linkCode.id);
     await sendTelegram(chatId,
-      `✅ <b>Account linked!</b>\n\nYou'll now receive party notifications here. Type /character to see your sheet.`,
+      `✅ <b>Account linked!</b>\n\nYou'll receive notifications for all game modes (solo, party, empyrean). Manage preferences in the app under Settings → Telegram.\n\nType /character to see your sheet.`,
       lovableKey, telegramKey,
     );
     return;
@@ -362,6 +367,388 @@ async function processCommand(
       msg += `Level ${level}: ${'◆'.repeat(remaining)}${'◇'.repeat(usedCount)} (${remaining}/${total})\n`;
     }
     await sendTelegram(chatId, msg, lovableKey, telegramKey);
+    return;
+  }
+
+  // /dragon [NAME]
+  if (cmd === '/dragon' || cmd.startsWith('/dragon ')) {
+    const userId = await getUserIdFromChat(chatId, supabase);
+    if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+
+    const dragonNameArg = parts.slice(1).join(' ').trim();
+
+    type DragonEntry = { name: string; signet: string; bond: number; trust: number; mood: string; burnout: number; source: string };
+
+    const formatDragon = async (dragons: DragonEntry[]) => {
+      for (const d of dragons) {
+        const bondBar = '█'.repeat(Math.round(d.bond / 10)) + '░'.repeat(10 - Math.round(d.bond / 10));
+        const trustBar = '█'.repeat(Math.round(d.trust / 10)) + '░'.repeat(10 - Math.round(d.trust / 10));
+        const maxBurnout = d.bond >= 76 ? 9 : d.bond >= 51 ? 7 : d.bond >= 26 ? 5 : 4;
+
+        const moodEmoji: Record<string, string> = {
+          calm: '😌', alert: '👁️', protective: '🛡️', distant: '❄️', ancestral: '🌀', playful: '😏',
+        };
+        const emoji = moodEmoji[d.mood] || '🐉';
+
+        let msg = `🐉 <b>${d.name}</b>`;
+        if (dragons.length > 1) msg += ` <i>(${d.source})</i>`;
+        msg += `\n\n`;
+        msg += `⚡ Signet: ${d.signet}\n`;
+        msg += `${emoji} Mood: ${d.mood}\n`;
+        msg += `🔥 Burnout: ${d.burnout}/${maxBurnout}\n\n`;
+        msg += `💛 Bond: [${bondBar}] ${d.bond}/100\n`;
+        msg += `🤝 Trust: [${trustBar}] ${d.trust}/100`;
+
+        if (d.bond < 25) msg += `\n\n⚠️ <i>Your bond is fragile. Tread carefully.</i>`;
+        else if (d.bond >= 75) msg += `\n\n✨ <i>Your bond burns bright.</i>`;
+
+        await sendTelegram(chatId, msg, lovableKey, telegramKey);
+      }
+    };
+
+    if (dragonNameArg) {
+      // Search across all party members for a dragon matching the given name
+      const { data: memberships } = await supabase
+        .from('party_members')
+        .select('party_id')
+        .eq('user_id', userId);
+
+      const partyMemberUserIds = new Set<string>();
+      partyMemberUserIds.add(userId);
+
+      if (memberships && memberships.length > 0) {
+        const partyIds = memberships.map(m => m.party_id);
+        const { data: members } = await supabase
+          .from('party_members')
+          .select('user_id')
+          .in('party_id', partyIds);
+        if (members) {
+          for (const m of members) {
+            partyMemberUserIds.add(m.user_id);
+          }
+        }
+      }
+
+      const nameArgLower = dragonNameArg.toLowerCase();
+      const found: DragonEntry[] = [];
+
+      const memberIds = Array.from(partyMemberUserIds);
+      const [memberSaves, memberBondResults] = await Promise.all([
+        Promise.all(memberIds.map(id => getCharacterData(id, supabase))),
+        Promise.all(memberIds.map(id =>
+          supabase
+            .from('party_shared_state')
+            .select('state_data')
+            .eq('user_id', id)
+            .eq('state_type', 'dragon_bond')
+        )),
+      ]);
+
+      for (let i = 0; i < memberIds.length; i++) {
+        const memberExt = (memberSaves[i]?.extended_data || {}) as any;
+        const memberSoloDragon = memberExt?.dragonBond;
+        if (memberSoloDragon && memberSoloDragon.dragonName &&
+            memberSoloDragon.dragonName.toLowerCase() === nameArgLower &&
+            !found.some(existing => existing.name.toLowerCase() === nameArgLower)) {
+          found.push({
+            name: memberSoloDragon.dragonName,
+            signet: memberSoloDragon.signetType || 'Unknown',
+            bond: memberSoloDragon.bond ?? 0,
+            trust: memberSoloDragon.trust ?? 0,
+            mood: memberSoloDragon.mood || 'calm',
+            burnout: memberSoloDragon.burnout ?? 0,
+            source: 'Solo',
+          });
+        }
+
+        const memberPartyBonds = memberBondResults[i].data;
+        if (memberPartyBonds) {
+          for (const row of memberPartyBonds) {
+            const d = row.state_data as any;
+            if (d && d.dragonName && d.dragonName.toLowerCase() === nameArgLower &&
+                !found.some(existing => existing.name.toLowerCase() === nameArgLower)) {
+              found.push({
+                name: d.dragonName,
+                signet: d.signetType || 'Unknown',
+                bond: d.bond ?? 0,
+                trust: d.trust ?? 0,
+                mood: d.mood || 'calm',
+                burnout: d.burnout ?? 0,
+                source: 'Party',
+              });
+            }
+          }
+        }
+      }
+
+      if (found.length === 0) {
+        await sendTelegram(chatId, `🐉 No dragon named "${dragonNameArg}" found in your party. Use /dragon to see your own dragons.`, lovableKey, telegramKey);
+        return;
+      }
+
+      await formatDragon(found);
+      return;
+    }
+
+    // No name argument — show the calling user's own dragons
+    const save = await getCharacterData(userId, supabase);
+    const ext = (save?.extended_data || {}) as any;
+    const soloDragon = ext?.dragonBond;
+
+    const { data: partyBonds } = await supabase
+      .from('party_shared_state')
+      .select('state_data')
+      .eq('user_id', userId)
+      .eq('state_type', 'dragon_bond');
+
+    const dragons: DragonEntry[] = [];
+
+    if (soloDragon && soloDragon.dragonName) {
+      dragons.push({
+        name: soloDragon.dragonName,
+        signet: soloDragon.signetType || 'Unknown',
+        bond: soloDragon.bond ?? 0,
+        trust: soloDragon.trust ?? 0,
+        mood: soloDragon.mood || 'calm',
+        burnout: soloDragon.burnout ?? 0,
+        source: 'Solo',
+      });
+    }
+
+    if (partyBonds) {
+      for (const row of partyBonds) {
+        const d = row.state_data as any;
+        if (d && d.dragonName) {
+          if (dragons.some(existing => existing.name === d.dragonName)) continue;
+          dragons.push({
+            name: d.dragonName,
+            signet: d.signetType || 'Unknown',
+            bond: d.bond ?? 0,
+            trust: d.trust ?? 0,
+            mood: d.mood || 'calm',
+            burnout: d.burnout ?? 0,
+            source: 'Party',
+          });
+        }
+      }
+    }
+
+    if (dragons.length === 0) {
+      await sendTelegram(chatId, '🐉 No bonded dragon found. Bond with a dragon in an Empyrean campaign first!', lovableKey, telegramKey);
+      return;
+    }
+
+    await formatDragon(dragons);
+    return;
+  }
+
+  // /party
+  if (cmd === '/party') {
+    const userId = await getUserIdFromChat(chatId, supabase);
+    if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+
+    const { data: memberships } = await supabase
+      .from('party_members')
+      .select('party_id')
+      .eq('user_id', userId);
+
+    if (!memberships || memberships.length === 0) {
+      await sendTelegram(chatId, '👥 You are not in any party. Join or create one in the app!', lovableKey, telegramKey);
+      return;
+    }
+
+    for (const membership of memberships.slice(0, 3)) {
+      const partyId = membership.party_id;
+
+      const { data: party } = await supabase
+        .from('parties')
+        .select('link_code, created_by')
+        .eq('id', partyId)
+        .maybeSingle();
+
+      const { data: members } = await supabase
+        .from('party_members')
+        .select('user_id, character_name, character_status')
+        .eq('party_id', partyId);
+
+      const { data: sessionState } = await supabase
+        .from('party_shared_state')
+        .select('state_data')
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session')
+        .maybeSingle();
+
+      const session = sessionState?.state_data as any;
+      const isSessionActive = session?.active === true;
+      const dmMode = session?.dmMode || 'ai';
+      const campaignType = session?.campaignType || 'dnd';
+
+      let msg = `👥 <b>Party</b> (${party?.link_code || '???'})\n`;
+
+      if (isSessionActive) {
+        const modeLabel = dmMode === 'human' ? 'Human DM' : dmMode === 'dialogue' ? 'Dialogue' : dmMode === 'ai-approval' ? 'AI + Approval' : 'AI DM';
+        const typeLabel = campaignType === 'empyrean' ? '🐉 Empyrean' : '⚔️ D&D';
+        msg += `${typeLabel} • ${modeLabel} • Session Active\n`;
+      } else {
+        msg += `No active DM session\n`;
+      }
+
+      msg += `\n`;
+
+      if (members && members.length > 0) {
+        for (const m of members) {
+          const cs = m.character_status as any;
+          const className = cs?.className || cs?.class || '?';
+          const level = cs?.level || '?';
+          const currentHP = cs?.currentHP || '?';
+          const maxHP = cs?.maxHP || '?';
+          const isHost = m.user_id === party?.created_by;
+          const hostBadge = isHost ? ' 👑' : '';
+
+          msg += `• ${m.character_name}${hostBadge}\n`;
+          msg += `    Level ${level} ${className} • ${currentHP}/${maxHP} HP\n`;
+        }
+      } else {
+        msg += `No members found\n`;
+      }
+
+      if (isSessionActive && session?.currentRoundId) {
+        const { data: prompts } = await supabase
+          .from('party_dm_prompts')
+          .select('user_id, is_ready, character_name')
+          .eq('party_id', partyId)
+          .eq('round_id', session.currentRoundId);
+
+        if (prompts && prompts.length > 0) {
+          const readyCount = prompts.filter((p: any) => p.is_ready).length;
+          const totalMembers = members?.length || 0;
+          msg += `\n⚔️ Ready: ${readyCount}/${totalMembers}`;
+          const readyNames = prompts.filter((p: any) => p.is_ready).map((p: any) => p.character_name);
+          if (readyNames.length > 0) {
+            msg += ` (${readyNames.join(', ')})`;
+          }
+        }
+      }
+
+      await sendTelegram(chatId, msg, lovableKey, telegramKey);
+    }
+    return;
+  }
+
+  // /ready [optional prompt text]
+  if (cmd === '/ready' || cmd.startsWith('/ready ')) {
+    const userId = await getUserIdFromChat(chatId, supabase);
+    if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+
+    const { data: memberships } = await supabase
+      .from('party_members')
+      .select('party_id, character_name')
+      .eq('user_id', userId);
+
+    if (!memberships || memberships.length === 0) {
+      await sendTelegram(chatId, '👥 You are not in any party.', lovableKey, telegramKey);
+      return;
+    }
+
+    let activePartyId: string | null = null;
+    let characterName = 'Unknown';
+    let currentRoundId: string | null = null;
+
+    for (const m of memberships) {
+      const { data: sessionState } = await supabase
+        .from('party_shared_state')
+        .select('state_data')
+        .eq('party_id', m.party_id)
+        .eq('state_type', 'dm_session')
+        .maybeSingle();
+
+      const session = sessionState?.state_data as any;
+      if (session?.active === true && session?.currentRoundId) {
+        activePartyId = m.party_id;
+        characterName = m.character_name || 'Unknown';
+        currentRoundId = session.currentRoundId;
+        break;
+      }
+    }
+
+    if (!activePartyId || !currentRoundId) {
+      await sendTelegram(chatId, '❌ No active DM session found in any of your parties.', lovableKey, telegramKey);
+      return;
+    }
+
+    const { data: existingPrompt } = await supabase
+      .from('party_dm_prompts')
+      .select('id, is_ready, prompt')
+      .eq('party_id', activePartyId)
+      .eq('round_id', currentRoundId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const promptText = text.trim().substring(6).trim(); // everything after "/ready"
+
+    if (existingPrompt) {
+      if (existingPrompt.is_ready) {
+        await sendTelegram(chatId, '✅ You are already readied up this round!', lovableKey, telegramKey);
+        return;
+      }
+
+      const updateData: any = { is_ready: true };
+      if (promptText) updateData.prompt = promptText;
+
+      await supabase
+        .from('party_dm_prompts')
+        .update(updateData)
+        .eq('id', existingPrompt.id);
+
+      const displayPrompt = promptText || existingPrompt.prompt || '(no action)';
+      await sendTelegram(chatId,
+        `⚔️ <b>${characterName}</b> readied up!\n\n📝 ${displayPrompt.substring(0, 300)}`,
+        lovableKey, telegramKey,
+      );
+    } else {
+      const { error } = await supabase
+        .from('party_dm_prompts')
+        .insert({
+          party_id: activePartyId,
+          user_id: userId,
+          character_name: characterName,
+          prompt: promptText || '',
+          is_ready: true,
+          round_id: currentRoundId,
+        });
+
+      if (error) {
+        console.error('/ready insert error:', error);
+        await sendTelegram(chatId, '❌ Failed to ready up. Try again.', lovableKey, telegramKey);
+        return;
+      }
+
+      const displayPrompt = promptText || '(no action)';
+      await sendTelegram(chatId,
+        `⚔️ <b>${characterName}</b> readied up!\n\n📝 ${displayPrompt.substring(0, 300)}`,
+        lovableKey, telegramKey,
+      );
+    }
+
+    const { data: allMembers } = await supabase
+      .from('party_members')
+      .select('user_id')
+      .eq('party_id', activePartyId);
+
+    const { data: allPrompts } = await supabase
+      .from('party_dm_prompts')
+      .select('is_ready')
+      .eq('party_id', activePartyId)
+      .eq('round_id', currentRoundId);
+
+    const totalMembers = allMembers?.length || 0;
+    const readyCount = (allPrompts || []).filter((p: any) => p.is_ready).length;
+
+    if (readyCount >= totalMembers && totalMembers > 0) {
+      await sendTelegram(chatId, `🎯 All ${totalMembers} players ready! The DM is generating a response...`, lovableKey, telegramKey);
+    } else {
+      await sendTelegram(chatId, `📊 ${readyCount}/${totalMembers} players ready.`, lovableKey, telegramKey);
+    }
     return;
   }
 

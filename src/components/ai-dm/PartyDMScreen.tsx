@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { SCOPED_KEYS } from '@/lib/scoped-keys';
 import { useDmPolls } from '@/hooks/use-dm-polls';
 import { useNPCAutocomplete } from '@/hooks/use-npc-autocomplete';
 import { PartyDMInput, type PartyDMInputHandle } from './PartyDMInput';
@@ -7,7 +8,7 @@ import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause, MessageCircle } from 'lucide-react';
+import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause, MessageCircle, SmilePlus } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer, PreSplitChatViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -51,6 +52,7 @@ import { WildShapeSection } from '@/components/drawers/QuickActionsDrawer';
 import { usePartyDragonBonds } from '@/hooks/use-party-dragon-bonds';
 import { DragonRiderSetupSheet } from './DragonRiderSetupSheet';
 import PartyDragonChat from './PartyDragonChat';
+import DragonTelegramScheduler from './DragonTelegramScheduler';
 import { Flame } from 'lucide-react';
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
@@ -277,7 +279,82 @@ function AfkAnnotatedContent({ content, afkNames }: { content: string; afkNames?
   );
 }
 
-const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage }: {
+type ReactionData = { id: string; message_id: string; emoji: string; user_id: string; sender_name: string };
+
+const EMOJI_SET = ['🤣','😅','🤪','🙄','😬','😏','🤮','🥵','🥶','🤯','🧐','😎','😱','😭','🤬','😈','❤️','💯','👏','🙌','🤝','🖕','🫦','🗣','🍑','🍆'];
+
+function MessageReactions({ messageId, reactions, currentUserId, onAddReaction, onRemoveReaction }: {
+  messageId: string;
+  reactions: ReactionData[];
+  currentUserId?: string;
+  onAddReaction: (messageId: string, emoji: string) => void;
+  onRemoveReaction: (messageId: string, emoji: string) => void;
+}) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, { emoji: string; count: number; users: string[]; isMine: boolean }>();
+    for (const r of reactions) {
+      const existing = map.get(r.emoji);
+      if (existing) {
+        existing.count++;
+        existing.users.push(r.sender_name);
+        if (r.user_id === currentUserId) existing.isMine = true;
+      } else {
+        map.set(r.emoji, { emoji: r.emoji, count: 1, users: [r.sender_name], isMine: r.user_id === currentUserId });
+      }
+    }
+    return Array.from(map.values());
+  }, [reactions, currentUserId]);
+
+  return (
+    <div className="flex flex-wrap gap-1 mt-1 items-center">
+      {grouped.map(g => (
+        <button
+          key={g.emoji}
+          onClick={() => g.isMine ? onRemoveReaction(messageId, g.emoji) : onAddReaction(messageId, g.emoji)}
+          className={cn(
+            "h-6 px-1.5 text-xs rounded-full border flex items-center gap-0.5 transition-colors",
+            g.isMine
+              ? "bg-amber-900/30 border-amber-500/30 hover:bg-amber-900/50"
+              : "bg-white/5 border-white/10 hover:bg-white/10"
+          )}
+          title={g.users.join(', ')}
+          style={{ touchAction: 'manipulation' }}
+        >
+          <span>{g.emoji}</span>
+          <span className="text-white/70">{g.count}</span>
+        </button>
+      ))}
+      <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+        <PopoverTrigger asChild>
+          <button
+            className="h-6 w-6 rounded-full flex items-center justify-center text-white/20 hover:text-white/50 hover:bg-white/5 transition-colors"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <SmilePlus className="w-3.5 h-3.5" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[280px] p-2 bg-black/95 border border-white/10 backdrop-blur-md z-[200]" side="top" align="start">
+          <div className="grid grid-cols-7 gap-0.5">
+            {EMOJI_SET.map(emoji => (
+              <button
+                key={emoji}
+                onClick={() => { onAddReaction(messageId, emoji); setPickerOpen(false); }}
+                className="w-8 h-8 rounded hover:bg-white/10 flex items-center justify-center text-base transition-colors"
+                style={{ touchAction: 'manipulation' }}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -297,6 +374,9 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   isBookmarked?: boolean;
   onBookmark?: (messageId: string) => void;
   isDialogueMessage?: boolean;
+  reactions?: ReactionData[];
+  onAddReaction?: (messageId: string, emoji: string) => void;
+  onRemoveReaction?: (messageId: string, emoji: string) => void;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
@@ -463,6 +543,11 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                   </ReactMarkdown>
                 )}
               </div>
+            )}
+
+            {/* Reactions (assistant messages) */}
+            {reactions && onAddReaction && onRemoveReaction && (
+              <MessageReactions messageId={message.id} reactions={reactions} currentUserId={currentUserId} onAddReaction={onAddReaction} onRemoveReaction={onRemoveReaction} />
             )}
 
             {/* Bookmark button (all users) */}
@@ -679,6 +764,11 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
         </p>
         )}
 
+        {/* Reactions (user messages) */}
+        {reactions && onAddReaction && onRemoveReaction && (
+          <MessageReactions messageId={message.id} reactions={reactions} currentUserId={currentUserId} onAddReaction={onAddReaction} onRemoveReaction={onRemoveReaction} />
+        )}
+
         {/* Bookmark button (all users) */}
         {!isEditingMsg && onBookmark && (
           <button
@@ -745,7 +835,9 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.mode === next.mode
     && prev.showTeamTag === next.showTeamTag
     && prev.currentUserId === next.currentUserId
-    && prev.isBookmarked === next.isBookmarked;
+    && prev.isBookmarked === next.isBookmarked
+    && (prev.reactions?.length ?? 0) === (next.reactions?.length ?? 0)
+    && prev.reactions?.every((r, i) => r.id === next.reactions?.[i]?.id);
 });
 
 export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid }: PartyDMScreenProps) {
@@ -758,9 +850,142 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const dmPolls = useDmPolls(partyId || null);
   const partyNPCNames = useNPCAutocomplete(partyDm.messages as any);
   const isEmpyrean = partyDm.sessionConfig?.campaignType === 'empyrean';
-  const dragonBonds = usePartyDragonBonds(isEmpyrean ? (partyId || null) : null, currentUserId || null);
+  const dragonBonds = usePartyDragonBonds(isEmpyrean ? (partyId || null) : null, currentUserId || null, members);
+
+  // Fix A: Clear scoped localStorage when user identity changes (prevents data bleed between accounts)
+  const lastUserIdRef = useRef<string | null>(currentUserId ?? null);
+  useEffect(() => {
+    if (!currentUserId) {
+      lastUserIdRef.current = null;
+      return;
+    }
+    if (lastUserIdRef.current && lastUserIdRef.current !== currentUserId) {
+      console.log('[PartyDM] User changed, clearing scoped data');
+      SCOPED_KEYS.forEach(key => {
+        localStorage.removeItem(key);
+        Object.keys(localStorage).forEach(lsKey => {
+          if (lsKey.startsWith(`${key}::`)) {
+            localStorage.removeItem(lsKey);
+          }
+        });
+      });
+      localStorage.removeItem('odyssey-active-cloud-save-id');
+    }
+    lastUserIdRef.current = currentUserId;
+  }, [currentUserId]);
   const [showDragonSetup, setShowDragonSetup] = useState(false);
   const [showDragonChat, setShowDragonChat] = useState(false);
+  const [showDragonTelegramScheduler, setShowDragonTelegramScheduler] = useState(false);
+
+  // === Emoji Reactions ===
+  const [messageReactions, setMessageReactions] = useState<ReactionData[]>([]);
+
+  // Load reactions on mount
+  useEffect(() => {
+    if (!partyId) return;
+    supabase
+      .from('party_message_reactions')
+      .select('id, message_id, emoji, user_id, sender_name')
+      .eq('party_id', partyId)
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        if (data) setMessageReactions(data);
+      });
+  }, [partyId]);
+
+  // Realtime subscription for reactions
+  useEffect(() => {
+    if (!partyId) return;
+    const channel = supabase
+      .channel(`dm-reactions-${partyId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'party_message_reactions',
+        filter: `party_id=eq.${partyId}`,
+      }, (payload: any) => {
+        const row = payload.new as ReactionData;
+        setMessageReactions(prev => {
+          if (prev.some(r => r.id === row.id)) return prev;
+          return [...prev, row];
+        });
+      })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'party_message_reactions',
+        filter: `party_id=eq.${partyId}`,
+      }, (payload: any) => {
+        const oldId = (payload.old as any)?.id;
+        if (oldId) setMessageReactions(prev => prev.filter(r => r.id !== oldId));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [partyId]);
+
+  const addReaction = useCallback(async (messageId: string, emoji: string) => {
+    if (!partyId || !currentUserId) return;
+    const charName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+    const optimisticReaction: ReactionData = {
+      id: `optimistic-${messageId}-${currentUserId}-${emoji}`,
+      message_id: messageId,
+      party_id: partyId,
+      user_id: currentUserId,
+      emoji,
+      sender_name: charName,
+    } as ReactionData & { party_id: string };
+
+    setMessageReactions(prev => {
+      if (prev.some(r => r.message_id === messageId && r.user_id === currentUserId && r.emoji === emoji)) return prev;
+      return [...prev, optimisticReaction];
+    });
+
+    const { data, error } = await supabase.from('party_message_reactions').upsert({
+      message_id: messageId,
+      party_id: partyId,
+      user_id: currentUserId,
+      emoji,
+      sender_name: charName,
+    } as any, { onConflict: 'message_id,user_id,emoji' } as any)
+      .select('id, message_id, emoji, user_id, sender_name')
+      .single();
+
+    if (error) {
+      console.error('[Reactions] add error:', error);
+      setMessageReactions(prev => prev.filter(r => !(r.message_id === messageId && r.user_id === currentUserId && r.emoji === emoji)));
+      return;
+    }
+
+    if (data) {
+      setMessageReactions(prev => {
+        const filtered = prev.filter(r => !(r.message_id === messageId && r.user_id === currentUserId && r.emoji === emoji));
+        return [...filtered, data as ReactionData];
+      });
+    }
+  }, [partyId, currentUserId, members]);
+
+  const removeReaction = useCallback(async (messageId: string, emoji: string) => {
+    if (!currentUserId) return;
+    const removedReaction = messageReactions.find(r => r.message_id === messageId && r.user_id === currentUserId && r.emoji === emoji);
+
+    setMessageReactions(prev => prev.filter(r => !(r.message_id === messageId && r.user_id === currentUserId && r.emoji === emoji)));
+
+    const { error } = await supabase
+      .from('party_message_reactions')
+      .delete()
+      .eq('message_id', messageId)
+      .eq('user_id', currentUserId)
+      .eq('emoji', emoji);
+    if (error) {
+      console.error('[Reactions] remove error:', error);
+      if (removedReaction) {
+        setMessageReactions(prev => {
+          if (prev.some(r => r.id === removedReaction.id)) return prev;
+          return [...prev, removedReaction];
+        });
+      }
+    }
+  }, [currentUserId, messageReactions]);
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
   const lastProcessedMsgIdRef = useRef<string | null>(null);
@@ -865,38 +1090,40 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [questsCount, setQuestsCount] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Load party quest count
+  // Load party quest count — Fix B: guard with currentUserId
   useEffect(() => {
-    if (!partyId) return;
+    if (!partyId || !currentUserId) return;
     (supabase.from('party_shared_state') as any)
       .select('state_data')
       .eq('party_id', partyId)
       .eq('state_type', 'quest_flags')
       .maybeSingle()
-      .then(({ data }: any) => {
+      .then(({ data, error }: any) => {
+        if (error) {
+          console.error('[PartyDM] Quest load error:', error);
+          return;
+        }
         if (data?.state_data) {
           const active = Object.values(data.state_data).filter((q: any) => q.status === 'active').length;
           setQuestsCount(active);
         }
       });
-  }, [partyId, showQuests]);
+  }, [partyId, currentUserId, showQuests]);
 
-  // Chat unread badge tracking
+  // Chat unread badge tracking — Fix B: guard with currentUserId
   const [chatTotalCount, setChatTotalCount] = useState(0);
   const chatLastSeen = useRef(0);
   useEffect(() => {
-    if (!partyId) return;
+    if (!partyId || !currentUserId) return;
     try { chatLastSeen.current = parseInt(localStorage.getItem(`odyssey_chat_lastSeen_${partyId}`) || '0', 10) || 0; } catch { chatLastSeen.current = 0; }
-    // Fetch current count
     supabase.from('party_messages').select('id', { count: 'exact', head: true }).eq('party_id', partyId).then(({ count }) => {
       setChatTotalCount(count ?? 0);
     });
-    // Subscribe to new messages
     const ch = supabase.channel(`chat-badge-${partyId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'party_messages', filter: `party_id=eq.${partyId}` }, () => {
       setChatTotalCount(prev => prev + 1);
     }).subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [partyId]);
+  }, [partyId, currentUserId]);
   const chatUnreadCount = Math.max(0, chatTotalCount - chatLastSeen.current);
   const [myAfkGuide, setMyAfkGuide] = useState<string | null>(() => {
     const me = members.find(m => m.user_id === currentUserId);
@@ -906,6 +1133,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     const me = members.find(m => m.user_id === currentUserId);
     return (me?.character_status?.afkPromptCascade as string[]) || null;
   });
+
+  // Fix D: Reset character-specific state when currentUserId changes
+  useEffect(() => {
+    if (!currentUserId) return;
+    const me = members.find(m => m.user_id === currentUserId);
+    setMyAfkGuide((me?.character_status?.afkPersonalityGuide as string) || null);
+    setMyAfkCascade((me?.character_status?.afkPromptCascade as string[]) || null);
+  }, [currentUserId, members]);
   const [localTimerEnabled, setLocalTimerEnabled] = useState(partyDm.sessionConfig?.timerEnabled ?? false);
   const [localTimerDuration, setLocalTimerDuration] = useState(partyDm.sessionConfig?.timerDurationSeconds ?? 120);
 
@@ -1080,12 +1315,39 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       }
     }
 
+    // Check plain text for direct image URLs
     const text = e.clipboardData?.getData('text/plain')?.trim();
     if (text && /^https?:\/\/.+\.(gif|png|jpg|jpeg|webp)(\?.*)?$/i.test(text)) {
       e.preventDefault();
       const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
       await partyDmRef.current.addMediaMessage(`[image:${text}]`, senderName);
       return;
+    }
+
+    // Check for Giphy/Tenor URLs (various formats including share pages)
+    if (text && /^https?:\/\/(media\d*\.giphy\.com|giphy\.com|media\.tenor\.com|tenor\.com)\//i.test(text)) {
+      e.preventDefault();
+      let gifUrl = text;
+      // Convert giphy.com/gifs/ page URLs to direct media URLs
+      if (/giphy\.com\/gifs\//i.test(text)) {
+        const slug = text.split('/').pop()?.split('-').pop();
+        if (slug) gifUrl = `https://media.giphy.com/media/${slug}/giphy.gif`;
+      }
+      const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+      await partyDmRef.current.addMediaMessage(`[image:${gifUrl}]`, senderName);
+      return;
+    }
+
+    // Check HTML content for embedded GIF images (e.g. drag from Giphy)
+    const html = e.clipboardData?.getData('text/html');
+    if (html) {
+      const imgMatch = html.match(/<img[^>]+src=["']([^"']+\.gif[^"']*)["']/i);
+      if (imgMatch) {
+        e.preventDefault();
+        const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+        await partyDmRef.current.addMediaMessage(`[image:${imgMatch[1]}]`, senderName);
+        return;
+      }
     }
   }, [members, currentUserId]);
 
@@ -1154,13 +1416,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       return;
     }
     if (tab === 'afk') {
-      setShowAfkGuide(true);
+      if (isEmpyrean && dragonBonds.isSetup) {
+        dragonBonds.loadDragonChat();
+        setShowDragonChat(true);
+      } else {
+        setShowAfkGuide(true);
+      }
       return;
     }
     // Dice, wildshape, oracle, settings tabs toggle full-screen content
     setActiveNavTab(prev => prev === tab ? null : tab);
-  }, []);
-
+  }, [isEmpyrean, dragonBonds.isSetup]);
   const hasSubmitted = !!partyDm.myPrompt;
   const isReady = partyDm.myPrompt?.is_ready ?? false;
   const isDialogueMode = partyDm.sessionConfig?.dmMode === 'dialogue';
@@ -1170,6 +1436,18 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [dialogueAttachOpen, setDialogueAttachOpen] = useState(false);
   const dialogueInputRef = useRef<HTMLTextAreaElement>(null);
   const showDiceContent = activeNavTab === 'dice' && characterContext && !partyDm.isGenerating;
+
+  // Fix C: Loading guard to prevent frozen overlays when auth/party hasn't resolved
+  if (!currentUserId || !partyId) {
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
+          <p className="text-sm text-white/50">Loading session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
@@ -1274,16 +1552,31 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             <span className="text-[11px] text-amber-300/70 whitespace-nowrap truncate max-w-[80px]">
               {dragonBonds.myDragon.dragonName}
             </span>
-            <span className={cn(
-              "text-[10px] font-mono whitespace-nowrap",
-              dragonBonds.myDragon.burnout === 0 ? "text-emerald-400"
-                : dragonBonds.myDragon.burnout <= 2 ? "text-yellow-400"
-                : dragonBonds.myDragon.burnout <= 4 ? "text-orange-400"
-                : "text-red-400"
-            )}>
-              🔥{dragonBonds.myDragon.burnout}
-            </span>
+            {(() => {
+              const bLevel = dragonBonds.myDragon.burnout;
+              const bBond = dragonBonds.myDragon.bond ?? 50;
+              const bMax = bBond >= 76 ? 9 : bBond >= 51 ? 7 : bBond >= 26 ? 5 : 4;
+              const bRatio = bMax > 0 ? bLevel / bMax : 0;
+              return (
+                <span className={cn(
+                  "text-[10px] font-mono whitespace-nowrap",
+                  bRatio === 0 ? "text-emerald-400" : bRatio < 0.4 ? "text-yellow-400" : bRatio < 0.75 ? "text-orange-400" : "text-red-400"
+                )}>
+                  🔥{bLevel}/{bMax}
+                </span>
+              );
+            })()}
             <MessageCircle className="w-3 h-3 text-cyan-400/50 shrink-0" />
+          </button>
+        )}
+        {isCreator && isEmpyrean && dragonBonds.allDragonConfigs.length > 0 && (
+          <button
+            onClick={() => setShowDragonTelegramScheduler(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-950/60 border border-orange-700/40 text-orange-300 text-xs font-cinzel hover:bg-orange-900/60 transition-colors"
+            title="Dragon Telegram Scheduler"
+          >
+            <Flame className="w-3 h-3" />
+            Dragon Msgs
           </button>
         )}
         {broadcastPlaylist && (
@@ -1434,6 +1727,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     isBookmarked={msg.id === bookmarkedMessageId}
                     onBookmark={handleSetBookmark}
                     isDialogueMessage={msg.role === 'user' && msg.sender_name !== 'Party' && msg.sender_name !== 'System' && msg.content.startsWith('[' + msg.sender_name + ']: ')}
+                    reactions={messageReactions.filter(r => r.message_id === msg.id)}
+                    onAddReaction={addReaction}
+                    onRemoveReaction={removeReaction}
                   />
                 </React.Fragment>
                 );
@@ -1771,12 +2067,19 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                               <span className="flex items-center gap-0.5 shrink-0">
                                 <span className="text-[9px]">🐉</span>
                                 <span className="text-[8px] text-purple-300/80 truncate max-w-[40px]">{dc.config.dragonName}</span>
-                                {(dc.config.burnout ?? 0) >= 3 && (
-                                  <span className={cn(
-                                    "w-1.5 h-1.5 rounded-full shrink-0",
-                                    (dc.config.burnout ?? 0) >= 5 ? "bg-red-500" : "bg-orange-400"
-                                  )} />
-                                )}
+                                {(() => {
+                                  const mBurnout = dc.config.burnout ?? 0;
+                                  const mBond = dc.config.bond ?? 50;
+                                  const mMax = mBond >= 76 ? 9 : mBond >= 51 ? 7 : mBond >= 26 ? 5 : 4;
+                                  const mRatio = mMax > 0 ? mBurnout / mMax : 0;
+                                  if (mRatio < 0.35) return null;
+                                  return (
+                                    <span className={cn(
+                                      "w-1.5 h-1.5 rounded-full shrink-0",
+                                      mRatio >= 0.85 ? "bg-red-500" : "bg-orange-400"
+                                    )} />
+                                  );
+                                })()}
                               </span>
                             );
                           })()}
@@ -2481,6 +2784,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           showGeralt={isMomo}
           showWildShape={isMomoMoonDruid}
           isWildShapeActive={wildShape?.state.isTransformed}
+          afkLabel={isEmpyrean && dragonBonds.isSetup && dragonBonds.myDragon?.dragonName
+            ? dragonBonds.myDragon.dragonName.toUpperCase()
+            : undefined}
+          afkColor={isEmpyrean && dragonBonds.isSetup ? 'text-amber-400' : undefined}
+          afkActiveBg={isEmpyrean && dragonBonds.isSetup ? 'bg-amber-500/10' : undefined}
           diceContent={showDiceContent ? (
             <DMDiceRoller
               characterContext={characterContext!}
@@ -2842,6 +3150,25 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         }}
       />
 
+      {/* Dragon Telegram Scheduler (host only, empyrean mode) */}
+      {isCreator && isEmpyrean && partyId && (
+        <DragonTelegramScheduler
+          open={showDragonTelegramScheduler}
+          onOpenChange={setShowDragonTelegramScheduler}
+          partyId={partyId}
+          dragons={dragonBonds.allDragonConfigs.filter(d => d.config.dragonName).map(d => ({
+            userId: d.userId,
+            dragonName: d.config.dragonName,
+            signetType: d.config.signetType,
+            dragonNotes: (d.config as any).dragonNotes ?? '',
+            mood: d.config.mood ?? 'calm',
+            bond: d.config.bond ?? 15,
+            trust: d.config.trust ?? 10,
+          }))}
+          isCreator={isCreator}
+        />
+      )}
+
       {/* Party Dragon Chat */}
       {isEmpyrean && dragonBonds.isSetup && (
         <PartyDragonChat
@@ -2854,7 +3181,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             const narrative = partyDm.messages
               .filter(m => m.role === 'assistant' && m.sender_name === 'DM')
               .slice(-5)
-              .map(m => m.content.length > 500 ? m.content.slice(0, 500) + '…' : m.content);
+              .map(m => m.content.length > 15000 ? m.content.slice(0, 15000) + '…' : m.content);
             dragonBonds.sendDragonMessage(text, members.find(m => m.user_id === currentUserId)?.character_name || 'Rider', narrative);
           }}
           isLoading={dragonBonds.isSending}
@@ -2866,10 +3193,30 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onRequestOpinion={async () => {
             const narrative = partyDm.messages
               .filter(m => m.role === 'assistant' && m.sender_name === 'DM')
-              .slice(-3)
-              .map(m => m.content.length > 500 ? m.content.slice(0, 500) + '…' : m.content);
+              .slice(-5)
+              .map(m => m.content.length > 15000 ? m.content.slice(0, 15000) + '…' : m.content);
             if (narrative.length === 0) return null;
             return dragonBonds.generateDragonOpinion(
+              members.find(m => m.user_id === currentUserId)?.character_name || 'Rider',
+              narrative,
+            );
+          }}
+          myUserId={currentUserId}
+          dragonNetworkMessages={dragonBonds.dragonNetworkMessages}
+          otherDragons={dragonBonds.allDragonConfigs
+            .filter(d => d.userId !== currentUserId && d.config.dragonName)
+            .map(d => ({
+              dragonName: d.config.dragonName,
+              userId: d.userId,
+              characterName: members.find(m => m.user_id === d.userId)?.character_name || 'Unknown',
+            }))}
+          onSendNetworkMessage={(targetDragonName, targetUserId, targetCharacterName, message) => {
+            const narrative = partyDm.messages
+              .filter(m => m.role === 'assistant' && m.sender_name === 'DM')
+              .slice(-5)
+              .map(m => m.content.length > 15000 ? m.content.slice(0, 15000) + '…' : m.content);
+            dragonBonds.sendDragonNetworkMessage(
+              targetDragonName, targetUserId, targetCharacterName, message,
               members.find(m => m.user_id === currentUserId)?.character_name || 'Rider',
               narrative,
             );

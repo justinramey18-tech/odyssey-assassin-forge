@@ -3,6 +3,7 @@ import { ArrowLeft, Send, Link2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
+import { toast } from 'sonner';
 import { useAIDM } from '@/hooks/use-ai-dm';
 import {
   DRAGON_CHAT_KEY,
@@ -10,10 +11,17 @@ import {
   loadBondState,
   saveBondState,
   buildDragonChatPrompt,
+  computeMoodPressure,
+  buildConstrainedMoodOptions,
   getMoodDescriptor,
   getBondDescriptor,
   getTrustDescriptor,
   addMemory,
+  addTrust,
+  reduceTrust,
+  detectTrustBreak,
+  detectRiderDeclaration,
+  classifyRiderEmotion,
   type DragonBondState,
   type DragonMood,
 } from '@/lib/dragonBondState';
@@ -27,7 +35,10 @@ interface DragonBondChatProps {
   dragonNotes: string;
   characterContext: CharacterContext;
   recentNarrative?: string[];
+  burnoutLevel?: number;
   onRequestOpinion?: () => Promise<string | null>;
+  unreadDragonMessages?: string[];
+  currentSituation?: string;
 }
 
 const BOND_SENSE_RE = /<!--BOND_SENSE:(.+?)-->/g;
@@ -62,7 +73,10 @@ export default function DragonBondChat({
   dragonNotes,
   characterContext,
   recentNarrative,
+  burnoutLevel,
   onRequestOpinion,
+  unreadDragonMessages,
+  currentSituation,
 }: DragonBondChatProps) {
   const [bondState, setBondState] = useState<DragonBondState>(() => loadBondState());
   const [statsExpanded, setStatsExpanded] = useState(false);
@@ -70,39 +84,68 @@ export default function DragonBondChat({
   const [dragonOpening, setDragonOpening] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const moodDurationRef = useRef<number>(0);
+  const validTransitionsRef = useRef<DragonMood[]>([bondState.mood]);
+  const recommendedMoodRef = useRef<DragonMood>(bondState.mood);
 
-  // Recompute system prompt when bond state changes
-  const dragonSystemPrompt = useMemo(
-    () =>
-      buildDragonChatPrompt(
-        dragonName,
-        characterName,
-        bondState.trust,
-        bondState.mood,
-        bondState.memories,
-        dragonNotes,
-        bondState.speechHabits,
-        recentNarrative,
-        bondState.bond,
-        bondState.riderEmotionalLog,
-      ),
-    [dragonName, characterName, bondState.trust, bondState.mood, bondState.memories, dragonNotes, bondState.speechHabits, recentNarrative, bondState.bond, bondState.riderEmotionalLog],
-  );
+  // Recompute system prompt with mood pressure engine
+  const dragonSystemPrompt = useMemo(() => {
+    const moodResult = computeMoodPressure(
+      bondState.mood,
+      bondState.trust,
+      bondState.riderEmotionalLog || [],
+      [...(recentNarrative || []), ...(currentSituation ? [`[current scene: ${currentSituation}]`] : [])],
+      burnoutLevel ?? 0,
+      moodDurationRef.current,
+    );
+    validTransitionsRef.current = moodResult.validTransitions;
+    recommendedMoodRef.current = moodResult.recommendedMood;
+
+    let prompt = buildDragonChatPrompt(
+      dragonName,
+      characterName,
+      bondState.trust,
+      moodResult.recommendedMood,
+      bondState.memories,
+      dragonNotes,
+      bondState.speechHabits,
+      recentNarrative,
+      bondState.bond,
+      bondState.riderEmotionalLog,
+    );
+
+    // Replace default mood tag instruction with constrained options
+    const moodTagPattern = /After each response, include exactly one mood tag indicating your current emotional state:\s*\n<!--DRAGON_MOOD:calm-->.*?<!--DRAGON_MOOD:playful-->/s;
+    const constrainedText = buildConstrainedMoodOptions(moodResult.recommendedMood, moodResult.validTransitions);
+    prompt = prompt.replace(moodTagPattern, constrainedText);
+
+    return prompt;
+  }, [dragonName, characterName, bondState.trust, bondState.mood, bondState.memories, dragonNotes, bondState.speechHabits, recentNarrative, bondState.bond, bondState.riderEmotionalLog]);
 
   // Parse tags from new assistant messages
   const handleMessageComplete = useCallback(
     (content: string) => {
       let updated = { ...bondState };
 
-      // Parse mood tag
+      // Parse mood tag — validate against allowed transitions
       const moodMatch = content.match(/<!--DRAGON_MOOD:(\w+)-->/);
+      let finalMood: DragonMood = recommendedMoodRef.current;
       if (moodMatch) {
-        const newMood = moodMatch[1] as DragonMood;
+        const parsedMood = moodMatch[1] as DragonMood;
         const validMoods: DragonMood[] = ['calm', 'alert', 'protective', 'distant', 'ancestral', 'playful'];
-        if (validMoods.includes(newMood)) {
-          updated = { ...updated, mood: newMood };
+        if (validMoods.includes(parsedMood) && validTransitionsRef.current.includes(parsedMood)) {
+          finalMood = parsedMood;
         }
       }
+      // Track mood duration + notify on change
+      if (finalMood === updated.mood) {
+        moodDurationRef.current += 1;
+      } else {
+        moodDurationRef.current = 0;
+        const newMoodInfo = getMoodDescriptor(finalMood);
+        toast(`${dragonName} feels ${newMoodInfo.label.toLowerCase()} ${newMoodInfo.emoji}`, { duration: 3000 });
+      }
+      updated = { ...updated, mood: finalMood };
 
       // Parse memory tags
       const memoryMatches = [...content.matchAll(/<!--DRAGON_MEMORY:(.+?)-->/g)];
@@ -189,7 +232,82 @@ export default function DragonBondChat({
 
   const handleSend = useCallback(() => {
     if (!inputValue.trim() || isLoading) return;
-    sendMessage(inputValue.trim());
+    const text = inputValue.trim();
+
+    // ── Trust scoring (mirrors use-dragon-bond processExchange) ──
+    setBondState(prev => {
+      let state = { ...prev };
+
+      const QUESTION_PATTERNS = [
+        'how do you feel', 'what do you think', 'are you okay',
+        'tell me about', 'what do you remember', 'do you want', 'how are you',
+      ];
+      const GRATITUDE_PATTERNS = [
+        'i trust you', 'thank you', "i'm glad", 'i appreciate',
+        'you were right', "i'm sorry",
+      ];
+      const VULNERABILITY_PATTERNS = [
+        "i'm afraid", "i'm scared", "i don't know",
+        'i need help', 'i failed', "i'm worried",
+      ];
+      const AUTONOMY_PATTERNS = [
+        'what would you prefer', 'your choice',
+        "i won't force you", 'you decide',
+      ];
+
+      const lower = text.toLowerCase();
+      const matchesAny = (patterns: string[]) => patterns.some(p => lower.includes(p));
+
+      const questionMatch = matchesAny(QUESTION_PATTERNS);
+      const gratitudeMatch = matchesAny(GRATITUDE_PATTERNS);
+      const vulnerabilityMatch = matchesAny(VULNERABILITY_PATTERNS);
+      const autonomyMatch = matchesAny(AUTONOMY_PATTERNS);
+
+      const bondLevel = state.bond ?? 15;
+      const effectiveChatCap = bondLevel >= 76 ? 12 : bondLevel >= 51 ? 9 : bondLevel >= 26 ? 7 : 5;
+      let trustDelta = state.sessionChatCount <= effectiveChatCap ? 1 : 0;
+      let reason = 'conversation';
+
+      if (questionMatch) { trustDelta += 1; reason = 'genuine curiosity'; }
+      if (gratitudeMatch) { trustDelta += 1; reason = 'trust and gratitude'; }
+      if (vulnerabilityMatch) { trustDelta += 2; reason = 'shared vulnerability'; }
+      if (autonomyMatch) { trustDelta += 1; reason = 'respecting autonomy'; }
+
+      const trustBreak = detectTrustBreak(text);
+      if (trustBreak.broken) {
+        trustDelta = -trustBreak.severity;
+        reason = trustBreak.reason;
+        state = { ...state, mood: 'distant' as DragonMood };
+      } else {
+        trustDelta = Math.min(trustDelta, 4);
+      }
+
+      if (trustDelta > 0) {
+        state = addTrust(state, trustDelta);
+      } else if (trustDelta < 0) {
+        state = reduceTrust(state, Math.abs(trustDelta));
+      }
+
+      // Classify and log rider emotion
+      const emotionTag = classifyRiderEmotion(
+        text,
+        trustBreak,
+        { question: questionMatch, gratitude: gratitudeMatch, vulnerability: vulnerabilityMatch, autonomy: autonomyMatch },
+      );
+      const emotionalLog = [...(state.riderEmotionalLog || []), { tag: emotionTag, timestamp: new Date().toISOString() }].slice(-15);
+      state = { ...state, riderEmotionalLog: emotionalLog };
+
+      // Detect rider declarations
+      const declaration = detectRiderDeclaration(text);
+      if (declaration) {
+        state = addMemory(state, declaration, 'rider-said');
+      }
+
+      saveBondState(state);
+      return state;
+    });
+
+    sendMessage(text);
     setInputValue('');
   }, [inputValue, isLoading, sendMessage]);
 
@@ -297,6 +415,22 @@ export default function DragonBondChat({
                   </div>
                 </div>
               </div>
+            )}
+            {unreadDragonMessages && unreadDragonMessages.length > 0 && (
+              <>
+                {unreadDragonMessages.map((msg, i) => (
+                  <div key={`unread-${i}`} className="mb-6 pr-12">
+                    <div className="border-l-2 border-cyan-500/30 pl-3">
+                      <span className="text-[9px] font-mono text-cyan-400/40 block mb-0.5">from the narrative</span>
+                      <div className="text-cyan-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1 prose-strong:text-cyan-100/90">
+                        <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                          {renderVisionBlocks(stripDragonTags(msg))}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
             )}
             {messages.map(msg => {
               const isDragon = msg.role === 'assistant';

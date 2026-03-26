@@ -9,8 +9,11 @@ import {
   classifyRiderEmotion,
   addBond,
   addMemory,
+  DEFAULT_TRUST,
+  DEFAULT_BOND,
   type DragonBondState,
 } from '@/lib/dragonBondState';
+import { isEllieEasterEgg } from '@/lib/easter-eggs';
 
 interface UseDragonBondOptions {
   dragonName: string;
@@ -47,7 +50,15 @@ const SESSION_CHAT_CAP = 5;
 const MAX_TRUST_PER_EXCHANGE = 4;
 
 export function useDragonBond({ dragonName, characterName, onTrustChange, onBondChange }: UseDragonBondOptions) {
-  const [bondState, setBondState] = useState<DragonBondState>(() => loadBondState());
+  const [bondState, setBondState] = useState<DragonBondState>(() => {
+    const state = loadBondState();
+    // Ellie Easter egg: if the dragon name includes "ellie" and bond state is
+    // still at defaults (trust === 10, bond === 15), apply the elevated starting state.
+    if (isEllieEasterEgg(dragonName) && state.trust === DEFAULT_TRUST && state.bond === DEFAULT_BOND) {
+      return { ...state, trust: 25, mood: 'playful' as const };
+    }
+    return state;
+  });
 
   const onTrustChangeRef = useRef(onTrustChange);
   const onBondChangeRef = useRef(onBondChange);
@@ -81,8 +92,10 @@ export function useDragonBond({ dragonName, characterName, onTrustChange, onBond
         lastContactTimestamp: new Date().toISOString(),
       };
 
-      // Base trust (capped by session count)
-      let trustDelta = state.sessionChatCount <= SESSION_CHAT_CAP ? 1 : 0;
+      // Base trust (capped by dynamic session count based on bond level)
+      const bondLevel = state.bond ?? 15;
+      const effectiveChatCap = bondLevel >= 76 ? 12 : bondLevel >= 51 ? 9 : bondLevel >= 26 ? 7 : 5;
+      let trustDelta = state.sessionChatCount <= effectiveChatCap ? 1 : 0;
       let reason = 'conversation';
 
       // Bonus patterns
@@ -156,6 +169,15 @@ export function useDragonBond({ dragonName, characterName, onTrustChange, onBond
     });
   }, []);
 
+  const processBondGrowth = useCallback((reason: string) => {
+    setBondState(prev => {
+      const state = addBond(prev, 3);
+      saveBondState(state);
+      onBondChangeRef.current?.(3, reason);
+      return state;
+    });
+  }, []);
+
   const processBondStrain = useCallback((reason: string) => {
     setBondState(prev => {
       let state = reduceTrust(prev, 5);
@@ -211,12 +233,22 @@ export function useDragonBond({ dragonName, characterName, onTrustChange, onBond
     });
   }, []);
 
+  const addNarrativeMemory = useCallback((text: string) => {
+    setBondState(prev => {
+      const state = addMemory(prev, text, 'campaign');
+      saveBondState(state);
+      return state;
+    });
+  }, []);
+
   return {
     bondState,
     processExchange,
     processBondStrain,
+    processBondGrowth,
     processCombatBond,
     addDragonMessage,
+    addNarrativeMemory,
     markChatOpened,
     checkDecay,
     reload,

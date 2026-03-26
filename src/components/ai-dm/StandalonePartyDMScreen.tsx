@@ -16,6 +16,7 @@ import { AnimatePresence } from 'framer-motion';
 import type { CampaignBuildData } from '@/hooks/use-ai-campaign-chat';
 import type { CharacterContext } from '@/components/oracle/types';
 import { EMPYREAN_LORE_GUIDES } from '@/lib/empyreanGMGuides';
+import { getBondDescriptor, getTrustDescriptor } from '@/lib/dragonBondState';
 import { usePartyDragonBonds } from '@/hooks/use-party-dragon-bonds';
 import type { PartyMember } from '@/hooks/use-party-sync';
 
@@ -46,6 +47,7 @@ interface StandalonePartyDMScreenProps {
   };
   wildShape?: UseWildShapeReturn;
   isMomoMoonDruid?: boolean;
+  isSoloEmpyrean?: boolean;
 }
 
 export function StandalonePartyDMScreen({
@@ -60,6 +62,7 @@ export function StandalonePartyDMScreen({
   autoSyncCallbacks,
   wildShape,
   isMomoMoonDruid,
+  isSoloEmpyrean,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
@@ -147,11 +150,12 @@ export function StandalonePartyDMScreen({
   }, [partyId, userId, isPartyCreator, coHostIds]);
 
   // Campaign sessions (for dropdown)
-  const campaignSessions = useCampaignSessions('party');
+  const sessionMode = isSoloEmpyrean ? 'solo-empyrean' as const : 'party' as const;
+  const campaignSessions = useCampaignSessions(sessionMode);
 
   // GM Guides — co-hosts load the host's guides via ownerUserId
   const gmGuidesOwner = isCoHost && partyCreatorId ? partyCreatorId : undefined;
-  const gmGuides = useGMGuides(gmGuidesOwner, 'party');
+  const gmGuides = useGMGuides(gmGuidesOwner, sessionMode);
 
   // Memory Anchors — long-term campaign facts shared across party
   const memoryAnchors = usePartyMemoryAnchors({ partyId: partyId || null });
@@ -167,7 +171,7 @@ export function StandalonePartyDMScreen({
   );
 
   // Dragon bonds for Empyrean campaigns
-  const dragonBonds = usePartyDragonBonds(partyId || null, userId || null);
+  const dragonBonds = usePartyDragonBonds(partyId || null, userId || null, stablePartyMembers);
   const partyDragonConfigs = useMemo(() => {
     if (!dragonBonds.allDragonConfigs.length) return undefined;
     return dragonBonds.allDragonConfigs.map(d => {
@@ -191,6 +195,15 @@ export function StandalonePartyDMScreen({
     dragonBonds.updateBurnout(level);
   }, [dragonBonds.updateBurnout]);
 
+  const handleBurnoutTickDetected = useCallback((reason: string) => {
+    const currentBurnout = dragonBonds.myDragon?.burnout ?? 0;
+    const bond = dragonBonds.myDragon?.bond ?? 15;
+    const maxBurnout = bond >= 76 ? 9 : bond >= 51 ? 7 : bond >= 26 ? 5 : 4;
+    const nextBurnout = Math.min(currentBurnout + 1, maxBurnout);
+    dragonBonds.updateBurnout(nextBurnout);
+    toast('Signet strain: ' + reason, { icon: '🔥' });
+  }, [dragonBonds.updateBurnout, dragonBonds.myDragon?.burnout, dragonBonds.myDragon?.bond]);
+
   const handleBondStrainDetected = useCallback((reason: string) => {
     dragonBonds.updateBondAndTrust(0, -5);
     toast.error(`Bond strained: ${reason}`);
@@ -209,7 +222,9 @@ export function StandalonePartyDMScreen({
     partyDragonConfigs,
     myDragonName: dragonBonds.myDragon?.dragonName,
     onBurnoutDetected: handleBurnoutDetected,
+    onBurnoutTickDetected: handleBurnoutTickDetected,
     onBondStrainDetected: handleBondStrainDetected,
+    isSoloEmpyrean,
   });
 
   // Auto-extract memory anchors from new DM responses (host-only to avoid duplicates)
@@ -277,6 +292,90 @@ export function StandalonePartyDMScreen({
     partyDm.loadCampaign(session.id, session.messages, session.campaign_summary);
   }, [partyDm.messages.length, partyDm.saveCampaign, partyDm.activeCampaignId, partyDm.loadCampaign]);
 
+  const empyreanGuidesContent = useMemo(() => {
+    if (partyDm.sessionConfig?.campaignType !== 'empyrean') return '';
+    return EMPYREAN_LORE_GUIDES
+      .map(g => g.content)
+      .join('\n\n');
+  }, [partyDm.sessionConfig?.campaignType]);
+
+  // Build full dragon context for DM awareness (bond status + memories + private chat transcript)
+  const dragonContextForDM = useMemo(() => {
+    const dragon = dragonBonds.myDragon;
+    if (!dragon?.dragonName) return '';
+
+    const bond = dragon.bond ?? 15;
+    const trust = dragon.trust ?? 10;
+    const mood = dragon.mood ?? 'calm';
+
+    const sections: string[] = [];
+
+    // Bond status section
+    sections.push(`## DRAGON-RIDER BOND STATUS
+
+Bond Level: ${getBondDescriptor(bond)} (${bond}/100)
+Trust Level: ${getTrustDescriptor(trust)} (${trust}/100)
+Dragon Mood: ${mood}
+
+Narrate the dragon-rider dynamic based on these levels. Reflect the dragon's current mood in whispers/telepathy:
+- distant: colder, shorter, withholding
+- protective: urgent warnings, proactive threat assessment
+- alert: heightened sensory impressions, vigilance
+- playful: dry humor/teasing (still ancient/proud)
+- ancestral: echoes of older voices, visions, ancient memory
+- calm: measured, steady, unhurried`);
+
+    // Persistent memories
+    const memories = (dragon.memories ?? []).slice(-20);
+    if (memories.length > 0) {
+      sections.push(`## DRAGON'S PERSISTENT MEMORIES
+These are established facts about the dragon's personality, opinions, and experiences — formed through actual gameplay. Treat them as canon and reference them naturally:
+
+${memories.map(m => '- ' + m.text).join('\n')}`);
+    }
+
+    // Private chat transcript
+    const chatMessages = dragonBonds.dragonChatMessages;
+    if (chatMessages?.length) {
+      const DRAGON_TAG_RE = /<!--(?:DRAGON_MOOD|DRAGON_MEMORY|DRAGON_HABIT|BOND_SENSE):[^>]*-->/g;
+      const last15 = chatMessages.slice(-15);
+      const lines = last15.map(m => {
+        const cleanContent = m.content.replace(DRAGON_TAG_RE, '').trim();
+        return m.role === 'user' ? `${characterName}: ${cleanContent}` : `${dragon.dragonName}: ${cleanContent}`;
+      }).join('\n');
+      const truncated = lines.length > 2000 ? lines.slice(0, 2000) + '…' : lines;
+      sections.push(`## RECENT DRAGON-RIDER PRIVATE COMMUNICATION
+The rider recently had this private telepathic exchange with their dragon (outside the main narrative). Use this context to inform dragon behavior in scenes:
+${truncated}`);
+    }
+
+    // Recent mood shift hint (expires after 5 minutes)
+    const shift = dragonBonds.lastMoodShift;
+    if (shift) {
+      const shiftAge = Date.now() - new Date(shift.timestamp).getTime();
+      if (shiftAge < 5 * 60 * 1000) {
+        sections.push(`[Dragon mood shift: ${dragon.dragonName} shifted from ${shift.from} to ${shift.to}. Reflect this in dragon whispers and behavior this scene.]`);
+      }
+    }
+
+    // Rider emotional state from bond log
+    const emotionalLog = (dragon as any).riderEmotionalLog ?? [];
+    if (emotionalLog.length > 0) {
+      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+      const recentEmotions = emotionalLog
+        .filter((e: any) => new Date(e.timestamp).getTime() > fiveMinutesAgo)
+        .map((e: any) => e.tag);
+      if (recentEmotions.length > 0) {
+        const counts: Record<string, number> = {};
+        recentEmotions.forEach((tag: string) => { counts[tag] = (counts[tag] ?? 0) + 1; });
+        const summary = Object.entries(counts).map(([tag, n]) => n > 1 ? `${tag} (×${n})` : tag).join(', ');
+        sections.push(`## RIDER EMOTIONAL STATE (from bond log)\nRecent emotional signals detected through the bond: ${summary}\nLet this color the scene's atmosphere and any NPC reactions to the rider.`);
+      }
+    }
+
+    return '\n\n' + sections.join('\n\n');
+  }, [dragonBonds.myDragon, dragonBonds.dragonChatMessages, dragonBonds.lastMoodShift]);
+
   // Non-hosts (and non-co-hosts) wait for session to start
   if (!partyDm.isActive && !isHost) {
     return (
@@ -300,12 +399,6 @@ export function StandalonePartyDMScreen({
       </div>
     );
   }
-  const empyreanGuidesContent = useMemo(() => {
-    if (partyDm.sessionConfig?.campaignType !== 'empyrean') return '';
-    return EMPYREAN_LORE_GUIDES
-      .map(g => g.content)
-      .join('\n\n');
-  }, [partyDm.sessionConfig?.campaignType]);
 
   return (
     <div className="fixed inset-0 z-[60]">
@@ -329,7 +422,7 @@ export function StandalonePartyDMScreen({
         onToggleAutoSync={autoSync.toggleAutoSync}
         isExtracting={autoSync.isExtracting}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
-        gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '')}
+        gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '') + dragonContextForDM}
         memoryAnchorsContent={memoryAnchors.formattedForOracle}
         memoryAnchors={memoryAnchors.anchors}
         onAddMemoryAnchor={memoryAnchors.addMemoryAnchor}
@@ -382,6 +475,15 @@ export function StandalonePartyDMScreen({
         {showCampaignBuilder && (
           <CampaignBuilderChat
             partyMembers={partyMembers}
+            characterName={characterName}
+            characterLevel={characterContext.level || 1}
+            characterIdentity={{
+              race: characterContext.race || undefined,
+              gender: characterContext.gender || undefined,
+              class: characterContext.characterClass || undefined,
+              backstory: characterContext.backstory || undefined,
+            }}
+            existingGuidesContent={gmGuides.enabledContent}
             onComplete={handleCampaignBuilderComplete}
             onSkip={() => {
               setShowCampaignBuilder(false);

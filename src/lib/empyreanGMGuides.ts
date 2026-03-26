@@ -111,32 +111,49 @@ const lorSignets: EmpyreanGuide = {
   description: 'Manifestation, categories, burnout, growth, and creating original signets.',
   content: `# Signet Abilities — Powers and Rules
 
-Signets are innate magical abilities that manifest in dragon riders through the power channeled by their dragon bond. Every rider's signet is unique, though they fall into recognizable categories.
+Signets are unique magical abilities that manifest in dragon riders through power channeled by their bonded dragon. Every rider's signet is different, though they fall into recognizable categories.
+
+## The Relic
+When a dragon bonds a rider, it leaves a physical mark on the rider's body — the relic. This is the actual conduit through which the dragon channels magical energy into the rider. All magic a rider performs flows through this mark. Lesser magic (lighting mage lights, moving small objects) costs the rider almost nothing and is ambient — it does not engage the signet. The signet is the rider's unique, powerful ability and draws on far deeper reserves.
 
 ## Manifestation
-Signets typically manifest under extreme stress — during combat, emotional crisis, or life-threatening situations. The rider does not choose their signet; it emerges from their deepest nature, fears, and desires. Some signets manifest dramatically (a burst of power); others are subtle (a quiet ability noticed only after the fact). First manifestation is always disorienting and often dangerous.
+Once a dragon begins channeling magic, the rider's signet must manifest within six months. If it fails to appear in that window, the accumulated energy has nowhere to go — it backfires, typically killing the rider instantly or triggering a catastrophic uncontrolled discharge. First-year riders are under constant observation for this reason. Signets emerge from the rider's deepest nature, fears, and core identity — they are not chosen. They reflect who the rider truly is.
+
+## Examples from Canon
+- Lightning (Violet Sorrengail): Raw power, because she needed to become a lethal weapon despite physical fragility.
+- Shadow-wielding and inntinnsic (Xaden Riorson): Control and information, reflecting his extreme need to know and to command.
+- Signets reflect the rider — the AI DM should always connect a new signet's nature to the character's personality and emotional truth.
 
 ## Categories
-- **Physical**: Enhanced strength, speed, durability, or sensory abilities. Straightforward but reliable.
-- **Mental**: Telepathy beyond dragon bond, empathic reading, memory manipulation, truth detection.
-- **Elemental**: Control over fire, lightning, wind, ice, earth, or weather. Flashy and destructive.
-- **Temporal**: Time perception manipulation, precognitive flashes, slowing/hastening effects. Extremely rare and taxing.
-- **Gravitational/Spatial**: Manipulating weight, distance, barriers, or shields. Versatile in combat.
-- **Shadow/Illusion**: Invisibility, sensory illusions, darkness manipulation. Valuable for reconnaissance.
+- **Physical**: Enhanced strength, speed, durability, or sensory abilities.
+- **Mental**: Telepathy, empathic reading, memory manipulation, truth detection (inntinnsic).
+- **Elemental**: Control over fire, lightning, wind, ice, or weather.
+- **Temporal**: Time perception manipulation, precognitive flashes. Extremely rare and taxing.
+- **Gravitational/Spatial**: Weight manipulation, distance, barriers, shields.
+- **Shadow/Illusion**: Invisibility, sensory illusions, darkness manipulation.
+
+## Lesser Magic vs. Signet Use
+All bonded riders can perform lesser magic through the relic — mage lights, small object movement, minor sensing. This costs nothing meaningful. The signet is categorically different and always has a physical cost.
 
 ## Burnout
-Every signet has limits. Pushing beyond them causes burnout — physical symptoms ranging from nosebleeds and exhaustion to seizures, organ failure, and death. Burnout risk increases with power output and duration. Recovery requires rest; repeated burnout causes cumulative damage. The line between "enough" and "too much" is learned through painful experience.
+Burnout is the human body physically failing to contain magical energy. It is a death mechanic, not a fatigue mechanic. Riders die from it in training. The primary symptom is heat — beginning deep in the bones at the relic site and radiating outward. In severe cases it burns skin from the inside. Symptoms vary by signet type. The dragon experiences burnout through the bond and will attempt to reduce power flow as the rider approaches their limit. Recovery from minor burnout is possible with rest; severe burnout may leave permanent damage regardless of recovery.
+
+## Bond Strength and Capacity
+The stronger the bond and the more powerful the dragon, the more energy the rider can safely channel. A rider with a deep bond can push further before burnout than one with a new or strained bond. At the highest bond levels the dragon actively buffers overflow — extending the rider's capacity at cost to itself.
+
+## Second Signets
+Extraordinarily rare. Only documented in two circumstances: (1) a rider bonds a second dragon (the only known case is Violet Sorrengail, who bonded both Tairn and Andarna), or (2) a rider bonds a dragon previously bonded to a direct familial ancestor, inheriting a resonance with that lineage's power (as Xaden Riorson bonded Sgaeyl, previously bonded to his grandfather). A second signet doubles burnout risk.
 
 ## Growth
-Signets strengthen with practice and emotional development. A signet that starts as a minor ability can grow into something formidable over months or years. Growth is not linear — breakthroughs often happen during crisis. Training with professors who understand signet mechanics accelerates development.
+Signets strengthen with practice and emotional development. Growth is not linear — breakthroughs happen during crisis and emotional revelation, not steady training. A signet that starts as uncontrolled bursts can become precise and devastating over time.
 
 ## Creating Original Signets
 When a player's rider manifests their signet, the AI DM should:
-1. Connect it thematically to the character's personality and fears
-2. Start it weak with clear limitations
-3. Define what burnout looks like for this specific ability
-4. Allow growth through narrative milestones, not arbitrary level-ups
-5. Ensure it creates interesting choices, not just raw power`,
+1. Connect it to the character's personality, fears, and core identity
+2. Start it weak and uncontrolled
+3. Define what burnout looks and feels like for this specific ability
+4. Allow growth through narrative milestones
+5. Ensure it creates meaningful choices, not just raw power`,
 };
 
 const lorRunes: EmpyreanGuide = {

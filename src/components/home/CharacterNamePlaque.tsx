@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { getThistleBadges, getBadgeColorClasses } from '@/lib/easter-eggs';
+import { getThistleBadges, getEllieBadges, getBadgeColorClasses } from '@/lib/easter-eggs';
 import { type AlignmentScore, getAlignmentZone } from '@/lib/alignmentSpectrum';
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 import { useCharacterIdentity } from '@/hooks/use-character-identity';
@@ -9,6 +9,7 @@ interface CharacterNamePlaqueProps {
   name: string;
   level: number;
   primaryClass?: string;
+  dragonName?: string;
   onOpenSettings?: () => void;
 }
 
@@ -22,8 +23,8 @@ const CLASS_LABELS: Record<string, string> = {
   bard: 'Bard',
 };
 
-export function CharacterNamePlaque({ name, level, primaryClass, onOpenSettings }: CharacterNamePlaqueProps) {
-  const badges = getThistleBadges(name || '');
+export function CharacterNamePlaque({ name, level, primaryClass, dragonName, onOpenSettings }: CharacterNamePlaqueProps) {
+  const badges = [...getThistleBadges(name || ''), ...getEllieBadges(dragonName || '')];
   const { driftPosition, historyCount } = useAlignmentDrift();
   const { gender, race } = useCharacterIdentity();
 
