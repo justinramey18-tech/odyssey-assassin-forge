@@ -791,6 +791,61 @@ serve(async (req) => {
       }
     }
 
+    const perplexityModelId = PERPLEXITY_MODELS[requestedModel];
+
+    if (perplexityModelId) {
+      // ── Perplexity path ──
+      const perplexityKey = (typeof user_perplexity_key === 'string' && user_perplexity_key.trim())
+        ? user_perplexity_key.trim()
+        : null;
+
+      if (!perplexityKey) {
+        return new Response(JSON.stringify({ error: "No Perplexity API key provided. Add your key in Settings → API Keys." }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const pplxResponse = await fetch("https://api.perplexity.ai/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${perplexityKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: perplexityModelId,
+          max_tokens: maxTokens || 16000,
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...trimmedMessages,
+          ],
+          stream: true,
+        }),
+      });
+
+      if (!pplxResponse.ok) {
+        const errText = await pplxResponse.text();
+        console.error("Perplexity API error:", pplxResponse.status, errText);
+        if (pplxResponse.status === 429) {
+          return new Response(JSON.stringify({ error: "Perplexity rate limit exceeded. Please wait and try again." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (pplxResponse.status === 401) {
+          return new Response(JSON.stringify({ error: "Invalid Perplexity API key. Check your key in Settings → API Keys." }), {
+            status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        return new Response(JSON.stringify({ error: "Perplexity API error" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Perplexity streams in OpenAI-compatible SSE format — pass through directly
+      return new Response(pplxResponse.body, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
+    }
+
     if (openaiDirectModelId && user_openai_key && typeof user_openai_key === 'string' && user_openai_key.trim()) {
       // ── OpenAI direct path ──
       try {

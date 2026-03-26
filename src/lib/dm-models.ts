@@ -35,6 +35,9 @@ export const DM_MODELS: DMAIModel[] = [
   { id: 'openai-direct/gpt-4-turbo', label: 'GPT-4 Turbo (own key)', provider: 'openai-direct', description: 'Large context, high quality (own key)' },
   { id: 'openai-direct/o1', label: 'o1 (own key)', provider: 'openai-direct', description: 'Advanced reasoning (own key)' },
   { id: 'openai-direct/o1-mini', label: 'o1 Mini (own key)', provider: 'openai-direct', description: 'Fast reasoning (own key)' },
+  { id: 'perplexity/sonar', label: 'Sonar (own key)', provider: 'perplexity', description: 'Fast search-grounded AI (own key)' },
+  { id: 'perplexity/sonar-pro', label: 'Sonar Pro (own key)', provider: 'perplexity', description: 'Best search-grounded quality (own key)' },
+  { id: 'perplexity/sonar-reasoning', label: 'Sonar Reasoning (own key)', provider: 'perplexity', description: 'Chain-of-thought reasoning (own key)' },
 ];
 
 export const DEFAULT_MODEL_ID = 'google/gemini-3-pro-preview';

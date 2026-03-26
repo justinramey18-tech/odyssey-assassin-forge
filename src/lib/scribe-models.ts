@@ -63,7 +63,11 @@ export function getScribeModelLabel(modelId: string): string {
 export function getEdgeFunctionForModel(modelId: string): 'scribe-ai' | 'narrative-forge' {
   const model = SCRIBE_MODELS.find(m => m.id === modelId);
   // anthropic and openai-direct both use scribe-ai (which handles direct API calls)
-  return (model?.provider === 'anthropic' || model?.provider === 'openai-direct') ? 'scribe-ai' : 'narrative-forge';
+  return (model?.provider === 'anthropic' || model?.provider === 'openai-direct' || model?.provider === 'perplexity') ? 'scribe-ai' : 'narrative-forge';
+}
+
+export function isPerplexityModel(modelId: string): boolean {
+  return modelId.startsWith('perplexity/');
 }
 
 export function isAnthropicModel(modelId: string): boolean {
