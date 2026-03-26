@@ -2610,9 +2610,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               >
                 <Crown className="w-4 h-4" />
                 Call the DM
-              </button>
+               </button>
+            {partyDm.isGenerating && (
+              <div className="flex items-center justify-center gap-1.5 py-1">
+                <Loader2 className="w-3 h-3 text-amber-400/70 animate-spin" />
+                <span className="text-xs text-amber-400/50">NPC is thinking…</span>
+              </div>
+            )}
           </div>
-        ) : partyDm.isGenerating ? (
+        ) : partyDm.isGenerating && !isDialogueMode ? (
           <div className="flex items-center justify-center gap-2 py-2">
             <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
             <span className="text-sm text-amber-400/70">Generating response...</span>
