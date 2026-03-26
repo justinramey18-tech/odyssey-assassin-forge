@@ -830,7 +830,7 @@ export function TelegramSettingsTab() {
                         />
                       </div>
                     </div>
-                    <p className="text-[10px] text-muted-foreground">Eastern Time (America/New_York)</p>
+                    <p className="text-[10px] text-muted-foreground">{Intl.DateTimeFormat().resolvedOptions().timeZone}</p>
                   </div>
 
                   {/* Repeat daily */}
