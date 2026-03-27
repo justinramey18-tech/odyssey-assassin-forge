@@ -207,7 +207,42 @@ export default function PartyDragonChat({
           <span>{moodInfo.emoji}</span>
           <span>{moodInfo.label}</span>
         </span>
+        {onClearChat && (
+          <button
+            onClick={() => setShowClearConfirm(true)}
+            className="p-2 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            style={{ touchAction: 'manipulation' }}
+            title="Clear chat"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
       </div>
+
+      {/* Clear Confirm */}
+      {showClearConfirm && (
+        <div className="shrink-0 flex items-center justify-center gap-3 px-4 py-3 bg-red-950/30 border-b border-red-500/20">
+          <p className="text-xs text-red-200/70">Clear entire dragon chat history?</p>
+          <button
+            onClick={() => setShowClearConfirm(false)}
+            className="px-3 py-1.5 rounded-lg text-xs text-white/50 hover:bg-white/5 border border-white/10"
+            style={{ touchAction: 'manipulation' }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              onClearChat?.();
+              setShowClearConfirm(false);
+              setDeletingIdx(null);
+            }}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-600 hover:bg-red-700 text-white"
+            style={{ touchAction: 'manipulation' }}
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* Bond / Trust Indicator */}
       <button
