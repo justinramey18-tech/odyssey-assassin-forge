@@ -359,15 +359,6 @@ export function EmpyreanDMScreen({
           mode: 'empyrean',
   });
 
-  const npcSceneSessionConfig = useMemo(() => ({
-    active: true,
-    mode: 'shared' as const,
-    currentRoundId: '',
-    campaignSummary: campaignSummary,
-    isGenerating: false,
-    campaignType: 'empyrean' as const,
-  }), [campaignSummary]);
-
       }
     },
     onQuestExtracted: (quests) => {
