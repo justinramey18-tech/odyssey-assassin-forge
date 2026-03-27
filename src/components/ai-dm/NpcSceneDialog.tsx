@@ -24,7 +24,6 @@ export function NpcSceneDialog({ open, onClose, onStart, sessionConfig, messages
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Extract NPC names from chat history
   const historySuggestions = useMemo(() => {
     const names = new Set<string>();
     for (const msg of messages) {
@@ -49,27 +48,15 @@ export function NpcSceneDialog({ open, onClose, onStart, sessionConfig, messages
   if (!open) return null;
 
   const isEmpyrean = sessionConfig?.campaignType === 'empyrean';
-    const names = new Set<string>();
-    for (const msg of messages) {
-      if (msg.role !== 'assistant') continue;
-      // sender_name check
-      const sName = (msg as any).senderName || (msg as any).sender_name;
-      if (sName && sName !== 'DM' && sName !== 'System' && typeof sName === 'string') {
-        for (const part of sName.split(/\s*&\s*/)) {
-          const t = part.trim();
-          if (t.length >= 2) names.add(t);
-        }
-      }
-      // Regex voicing pattern
-      const pat = /\*\*([A-Z][a-zA-Z']+(?:\s+[A-Z][a-zA-Z']+)?)\*\*:/g;
-      let m;
-      while ((m = pat.exec(msg.content)) !== null) {
-        const t = m[1].trim();
-        if (t.length >= 2) names.add(t);
-      }
-    }
-    return Array.from(names);
-  }, [messages]);
+  const accentBorder = isEmpyrean ? 'border-cyan-500/50' : 'border-amber-500/50';
+  const accentRing = isEmpyrean ? 'ring-cyan-500/30' : 'ring-amber-500/30';
+  const accentText = isEmpyrean ? 'text-cyan-400' : 'text-amber-400';
+  const accentTextMuted = isEmpyrean ? 'text-cyan-400/60' : 'text-amber-400/60';
+  const accentHeaderBg = isEmpyrean ? 'bg-cyan-950/40' : 'bg-amber-950/40';
+  const accentHeaderBorder = isEmpyrean ? 'border-cyan-500/20' : 'border-amber-500/20';
+  const accentGradient = isEmpyrean
+    ? 'bg-gradient-to-r from-cyan-600 to-cyan-500'
+    : 'bg-gradient-to-r from-amber-600 to-amber-500';
 
   const filledCount = npcs.filter(n => n.trim()).length;
   const filledNpcCount = filledCount || 1;
@@ -179,7 +166,6 @@ export function NpcSceneDialog({ open, onClose, onStart, sessionConfig, messages
                     )}
                   </div>
 
-                  {/* Autocomplete dropdown */}
                   {focusedIndex === index && suggestions.length > 0 && (
                     <div className="absolute left-0 right-0 top-full mt-1 rounded-xl bg-zinc-900 border border-white/10 shadow-xl z-10 overflow-hidden">
                       {suggestions.map(s => (
