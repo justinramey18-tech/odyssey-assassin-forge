@@ -442,9 +442,11 @@ export default function PartyDragonChat({
               return (
                 <div key={`${msg.timestamp}-${idx}`}>
                   <div
+                    onClick={() => setDeletingIdx(prev => prev === idx ? null : idx)}
                     className={cn(
                       isDragon ? 'mb-6' : 'mb-5',
                       isDragon ? 'pr-12' : 'pl-12',
+                      'cursor-pointer',
                     )}
                   >
                     <div
@@ -470,6 +472,23 @@ export default function PartyDragonChat({
                   {bondSense && (
                     <div className="text-center text-[11px] italic text-cyan-300/40 py-2 px-4 mb-4">
                       {bondSense}
+                    </div>
+                  )}
+                  {deletingIdx === idx && onDeleteMessage && (
+                    <div className="flex justify-end px-4 pb-2 -mt-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const bondMessages = allItems.filter(i => i.kind === 'bond');
+                          const bondIdx = bondMessages.findIndex(b => b === item);
+                          if (bondIdx >= 0) onDeleteMessage(bondIdx);
+                          setDeletingIdx(null);
+                        }}
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-medium bg-red-900/40 border border-red-500/30 text-red-300 hover:bg-red-900/60 transition-colors"
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        Delete message
+                      </button>
                     </div>
                   )}
                 </div>
