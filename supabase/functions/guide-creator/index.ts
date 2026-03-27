@@ -13,6 +13,7 @@ interface GuideRequest {
   chatHistory?: Array<{ role: string; content: string }>;
   model?: string;
   user_api_key?: string;
+  user_perplexity_key?: string;
   stream?: boolean;
 }
 
@@ -33,6 +34,12 @@ const ANTHROPIC_MODELS: Record<string, string> = {
   'anthropic/claude-sonnet-4-5': 'claude-sonnet-4-5-20250929',
   'anthropic/claude-sonnet-4-6': 'claude-sonnet-4-6-20260219',
   'anthropic/claude-haiku-4-5': 'claude-haiku-4-5-20251001',
+};
+
+const PERPLEXITY_MODELS: Record<string, string> = {
+  'perplexity/sonar': 'sonar',
+  'perplexity/sonar-pro': 'sonar-pro',
+  'perplexity/sonar-reasoning': 'sonar-reasoning',
 };
 
 const DEFAULT_MODEL = 'google/gemini-3-flash-preview';
@@ -277,7 +284,7 @@ serve(async (req) => {
       });
     }
 
-    const { prompt, campaignSummary, existingGuides, chatHistory, model, user_api_key, stream } = (await req.json()) as GuideRequest;
+    const { prompt, campaignSummary, existingGuides, chatHistory, model, user_api_key, user_perplexity_key, stream } = (await req.json()) as GuideRequest;
 
     if (!prompt?.trim()) {
       return new Response(JSON.stringify({ error: 'Prompt is required' }), {
@@ -289,6 +296,7 @@ serve(async (req) => {
     const userPrompt = prompt.trim();
     const requestedModel = model || DEFAULT_MODEL;
     const anthropicModelId = ANTHROPIC_MODELS[requestedModel];
+    const perplexityModelId = PERPLEXITY_MODELS[requestedModel];
 
     // === STREAMING MODE ===
     if (stream) {
@@ -305,6 +313,44 @@ serve(async (req) => {
             status, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+      } else if (perplexityModelId) {
+        const perplexityKey = (typeof user_perplexity_key === 'string' && user_perplexity_key.trim())
+          ? user_perplexity_key.trim()
+          : null;
+
+        if (!perplexityKey) {
+          return new Response(JSON.stringify({ error: "No Perplexity API key provided. Add your key in Settings → API Keys." }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const pplxResponse = await fetch("https://api.perplexity.ai/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${perplexityKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: perplexityModelId,
+            max_tokens: 8000,
+            stream: true,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+          }),
+        });
+
+        if (!pplxResponse.ok) {
+          const errText = await pplxResponse.text();
+          console.error("Perplexity API error:", pplxResponse.status, errText);
+          return new Response(JSON.stringify({ error: `Perplexity error: ${pplxResponse.status}` }), {
+            status: pplxResponse.status === 429 ? 429 : 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        sseStream = transformOpenAIStream(pplxResponse.body!);
       } else {
         // Lovable AI gateway streaming
         const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -373,6 +419,44 @@ serve(async (req) => {
           status, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+    } else if (perplexityModelId) {
+      const perplexityKey = (typeof user_perplexity_key === 'string' && user_perplexity_key.trim())
+        ? user_perplexity_key.trim()
+        : null;
+
+      if (!perplexityKey) {
+        return new Response(JSON.stringify({ error: "No Perplexity API key provided. Add your key in Settings → API Keys." }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const pplxResponse = await fetch("https://api.perplexity.ai/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${perplexityKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: perplexityModelId,
+          max_tokens: 8000,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+        }),
+      });
+
+      if (!pplxResponse.ok) {
+        const errText = await pplxResponse.text();
+        console.error("Perplexity API error:", pplxResponse.status, errText);
+        return new Response(JSON.stringify({ error: `Perplexity error: ${pplxResponse.status}` }), {
+          status: pplxResponse.status === 429 ? 429 : 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const data = await pplxResponse.json();
+      guideContent = data.choices?.[0]?.message?.content || '';
     } else {
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
       if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
