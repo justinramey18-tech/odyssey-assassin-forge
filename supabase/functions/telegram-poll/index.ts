@@ -1259,9 +1259,43 @@ async function processCommand(
     }
     const cleaned = sanitizeForTelegram(lastDmMsg);
     const header = partyCode ? `📖 <b>Last DM Message</b> (${partyCode})\n\n` : `📖 <b>Last DM Message</b>\n\n`;
-    const maxLen = 4000 - header.length;
-    const body = cleaned.length > maxLen ? cleaned.substring(0, maxLen - 20) + '\n\n<i>...truncated</i>' : cleaned;
-    await sendTelegram(chatId, header + body, lovableKey, telegramKey);
+
+    // Split into paginated chunks if too long for a single Telegram message
+    const MAX_PART = 3900; // leave room for page footer
+    if (header.length + cleaned.length <= MAX_PART) {
+      await sendTelegram(chatId, header + cleaned, lovableKey, telegramKey);
+    } else {
+      // Split on paragraph boundaries, falling back to hard cut
+      const parts: string[] = [];
+      let remaining = cleaned;
+      while (remaining.length > 0) {
+        if (remaining.length <= MAX_PART) {
+          parts.push(remaining);
+          break;
+        }
+        // Try to split at a double newline (paragraph) within the limit
+        let cutIdx = remaining.lastIndexOf('\n\n', MAX_PART);
+        if (cutIdx < MAX_PART * 0.3) {
+          // Paragraph break too early — try single newline
+          cutIdx = remaining.lastIndexOf('\n', MAX_PART);
+        }
+        if (cutIdx < MAX_PART * 0.3) {
+          // No good line break — hard cut at a space
+          cutIdx = remaining.lastIndexOf(' ', MAX_PART);
+        }
+        if (cutIdx < MAX_PART * 0.3) {
+          cutIdx = MAX_PART; // absolute fallback
+        }
+        parts.push(remaining.substring(0, cutIdx));
+        remaining = remaining.substring(cutIdx).replace(/^\n+/, '');
+      }
+      const total = parts.length;
+      for (let i = 0; i < total; i++) {
+        const pageHeader = i === 0 ? header : '';
+        const pageFooter = total > 1 ? `\n\n<i>— page ${i + 1}/${total} —</i>` : '';
+        await sendTelegram(chatId, pageHeader + parts[i] + pageFooter, lovableKey, telegramKey);
+      }
+    }
     return;
   }
 
