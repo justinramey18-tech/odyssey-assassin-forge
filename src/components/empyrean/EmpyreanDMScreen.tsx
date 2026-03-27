@@ -375,6 +375,114 @@ export function EmpyreanDMScreen({
     setTrackingCampaignId(activeCampaignId);
   }, [activeCampaignId]);
 
+  // Dragon narrative reaction: auto-trigger dragon chat response after each DM message
+  const lastDragonReactionIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!config?.dragonName || messages.length === 0) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role !== 'assistant') return;
+    const msgId = lastMsg.content.substring(0, 50);
+    if (msgId === lastDragonReactionIdRef.current) return;
+    lastDragonReactionIdRef.current = msgId;
+
+    const bs = dragonBond.bondState;
+    const dragonPrompt = buildDragonChatPrompt(
+      config.dragonName,
+      characterName,
+      bs.trust,
+      bs.mood as any,
+      bs.memories || [],
+      dragonNotes,
+      bs.speechHabits,
+      [lastMsg.content],
+      bs.bond,
+      bs.riderEmotionalLog,
+    );
+
+    const reactionPrompt = dragonPrompt + `\n\n## NARRATIVE REACTION MODE\nThe DM just narrated new events. You experienced this through the bond — you felt your rider's emotions, sensed the danger or calm, witnessed what happened through shared perception.\n\nReact naturally as the dragon would. This might be:\n- A warning about something you noticed\n- An emotional reaction to what happened\n- A comment on an NPC\n- Tactical input about a threat\n- A feeling shared through the bond\n- Or silence, if nothing warrants a response (respond with exactly "SILENCE" and nothing else)\n\nDo NOT summarize the narrative. React to it. Keep your response consistent with your current trust level and mood. Use your personality profile as the sole guide for your voice and temperament.`;
+
+    const timer = setTimeout(async () => {
+      try {
+        const token = await getAuthToken();
+        const chatRaw = getScopedItem(DRAGON_CHAT_KEY);
+        let chatMessages: Array<{ role: string; content: string }> = [];
+        try {
+          if (chatRaw) {
+            const parsed = JSON.parse(chatRaw);
+            chatMessages = Array.isArray(parsed) ? parsed : (parsed.messages || []);
+          }
+        } catch { /* ignore */ }
+
+        const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            messages: [
+              ...chatMessages.slice(-20).map((m: any) => ({ role: m.role, content: m.content })),
+              { role: 'user', content: '[The bond flares with new sensation — events unfold in the world around you.]' },
+            ],
+            systemPromptOverride: reactionPrompt,
+            model: 'google/gemini-2.5-flash',
+            maxTokens: 500,
+          }),
+        });
+
+        if (!resp.ok || !resp.body) return;
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let textBuffer = '';
+        let assistantContent = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          textBuffer += decoder.decode(value, { stream: true });
+          let newlineIndex: number;
+          while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+            let line = textBuffer.slice(0, newlineIndex);
+            textBuffer = textBuffer.slice(newlineIndex + 1);
+            if (line.endsWith('\r')) line = line.slice(0, -1);
+            if (line.startsWith(':') || line.trim() === '') continue;
+            if (!line.startsWith('data: ')) continue;
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr === '[DONE]') break;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) assistantContent += delta;
+            } catch { /* skip */ }
+          }
+        }
+
+        if (!assistantContent.trim() || assistantContent.trim().toUpperCase() === 'SILENCE') return;
+
+        const dragonMsg = { role: 'assistant', content: assistantContent.trim() };
+        const updatedChat = [...chatMessages, dragonMsg];
+        setScopedItem(DRAGON_CHAT_KEY, JSON.stringify({ messages: updatedChat }));
+
+        const moodMatch = assistantContent.match(/<!--DRAGON_MOOD:(\w+)-->/);
+        if (moodMatch && ['calm', 'alert', 'protective', 'distant', 'ancestral', 'playful'].includes(moodMatch[1])) {
+          // Update mood in bond state
+        }
+
+        const memoryMatches = [...assistantContent.matchAll(/<!--DRAGON_MEMORY:(.+?)-->/g)];
+        for (const match of memoryMatches) {
+          dragonBond.addNarrativeMemory(match[1]);
+        }
+
+        dragonBond.addDragonMessage(assistantContent.trim());
+      } catch (err) {
+        console.warn('[EmpyreanDM] Dragon narrative reaction failed:', err);
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [messages, config?.dragonName, characterName, dragonNotes, dragonBond.bondState]);
+
   // Campaign sessions — uses 'empyrean' mode to namespace separately from regular DM saves
   const {
     sessions: campaignSessions,
