@@ -332,7 +332,7 @@ Narrate the dragon-rider dynamic based on these levels. `;
 
   if (recentDragonChatSummary && recentDragonChatSummary.trim()) {
     sections.push(`## RECENT DRAGON-RIDER PRIVATE COMMUNICATION
-The rider recently had this private telepathic exchange with their dragon (outside the main narrative). Use this context to inform dragon behavior in scenes — the dragon may reference these conversations through the bond, react to NPCs or situations based on what was discussed, or behave differently based on the emotional tone of recent private exchanges:
+The rider recently had this private conversation with their dragon in the bond channel. Use this context to inform the dragon's BODY LANGUAGE and BEHAVIOR in scenes — the dragon may physically react to NPCs or situations based on what was discussed, or behave differently based on the emotional tone of recent private exchanges. Do NOT reproduce any of this dialogue in the narrative — it is private:
 
 ${recentDragonChatSummary.trim()}`);
   }
