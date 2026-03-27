@@ -39,6 +39,7 @@ interface DragonBondChatProps {
   onRequestOpinion?: () => Promise<string | null>;
   unreadDragonMessages?: string[];
   currentSituation?: string;
+  onDragonNotesChange?: (notes: string) => void;
 }
 
 const BOND_SENSE_RE = /<!--BOND_SENSE:(.+?)-->/g;
