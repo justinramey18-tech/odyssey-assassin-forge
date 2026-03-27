@@ -260,6 +260,15 @@ export function EmpyreanDMScreen({
   const gameState = useDMGameState(trackingCampaignId);
   const worldStatePrompt = useMemo(() => buildMemoryAnchorsPrompt(gameState.gameState), [gameState.gameState]);
 
+  const npcSceneSessionConfig = useMemo(() => ({
+    active: true,
+    mode: 'shared' as const,
+    currentRoundId: '',
+    campaignSummary: campaignSummary,
+    isGenerating: false,
+    campaignType: 'empyrean' as const,
+  }), [campaignSummary]);
+
   const {
     messages,
     isLoading,
