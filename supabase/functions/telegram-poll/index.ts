@@ -122,43 +122,112 @@ async function processCommand(
     return;
   }
 
-  // /help
-  if (cmd === '/help') {
+   // /help
+   if (cmd === '/help') {
+    // Message 1: Header + Account
     await sendTelegram(chatId,
-      `📜 <b>Available Commands</b>\n\n` +
-      `<b>🔗 Account</b>\n` +
-      `/link CODE — Link your Odyssey account\n` +
-      `/unlink — Unlink your account\n` +
-      `/status — Check link status\n` +
-      `/notify on|off — Toggle notifications\n\n` +
-      `<b>🎭 Character</b>\n` +
-      `/character — Character summary\n` +
-      `/stats — Ability scores\n` +
-      `/hp — Current HP\n` +
-      `/slots — Spell slot usage\n` +
-      `/spells — Prepared/known spells list\n` +
-      `/dragon [NAME] — Dragon bond status\n\n` +
-      `<b>⚔️ Actions</b>\n` +
-      `/damage N — Take N damage\n` +
-      `/heal N — Heal N HP\n` +
-      `/cast LEVEL — Use a spell slot\n` +
-      `/initiative — Roll initiative\n` +
-      `/ready [TEXT] — Submit action & ready up\n` +
-      `/roll NdS+M — Roll dice\n\n` +
-      `<b>📖 Campaign</b>\n` +
-      `/party — Party status & members\n` +
-      `/quests [mode] — Quest log\n` +
-      `/lore QUESTION — AI lore lookup\n` +
-      `/recap — AI session recap\n` +
-      `/last — Last DM message\n` +
-      `/scene — AI "where are we now" summary\n` +
-      `/who NPC — AI NPC lookup from campaign\n` +
-      `/ask QUESTION — Ask the DM a question\n` +
-      `/suggest — AI tactical suggestions`,
+      `⚔️ <b>ODYSSEY ASSASSIN BOT</b> ⚔️\n` +
+      `─────────────────────\n` +
+      `Your character sheet, dice, and an AI\n` +
+      `Dungeon Master — all from Telegram.\n\n` +
+
+      `🔗 <b>GETTING STARTED</b>\n\n` +
+
+      `<code>/link CODE</code>\n` +
+      `Connect your Odyssey account.\n` +
+      `Get a code from the app:\n` +
+      `<i>Settings → Telegram → Generate Code</i>\n\n` +
+
+      `<code>/status</code>  —  Check connection\n` +
+      `<code>/notify on</code>  —  Enable alerts\n` +
+      `<code>/notify off</code>  —  Disable alerts\n` +
+      `<code>/unlink</code>  —  Disconnect account`,
       lovableKey, telegramKey,
     );
+
+    // Message 2: Character Sheet
+    await sendTelegram(chatId,
+      `🎭 <b>YOUR CHARACTER</b>\n\n` +
+
+      `<code>/character</code>\n` +
+      `Full summary — class, level, HP, gold, XP\n\n` +
+
+      `<code>/stats</code>\n` +
+      `All six ability scores + modifiers\n\n` +
+
+      `<code>/hp</code>\n` +
+      `Health bar + death saves\n\n` +
+
+      `<code>/spells</code>\n` +
+      `Prepared spells, known spells, concentration\n\n` +
+
+      `<code>/slots</code>\n` +
+      `Spell slot usage ◆◆◇ by level\n\n` +
+
+      `<code>/dragon</code>\n` +
+      `Your dragon's bond, trust, mood, burnout\n` +
+      `<code>/dragon Tairn</code>  — look up any dragon by name`,
+      lovableKey, telegramKey,
+    );
+
+    // Message 3: Actions
+    await sendTelegram(chatId,
+      `⚔️ <b>ACTIONS</b>\n\n` +
+
+      `<code>/roll 2d20+5</code>\n` +
+      `Roll any dice — <i>1d20, 4d6+3, 2d8-1</i>\n\n` +
+
+      `<code>/initiative</code>\n` +
+      `Roll initiative (uses your DEX mod)\n\n` +
+
+      `<code>/ready</code>\n` +
+      `Ready up for the current round (no action)\n` +
+      `<code>/ready I cast Fireball at the cluster</code>\n` +
+      `Submit your action and ready up in one step\n\n` +
+
+      `<code>/damage 15</code>  —  Take 15 damage\n` +
+      `<code>/heal 10</code>  —  Recover 10 HP\n` +
+      `<code>/cast 3</code>  —  Use a 3rd-level spell slot`,
+      lovableKey, telegramKey,
+    );
+
+    // Message 4: Campaign + AI
+    await sendTelegram(chatId,
+      `📖 <b>CAMPAIGN</b>\n\n` +
+
+      `<code>/party</code>  —  Members, classes, HP, session status\n` +
+      `<code>/quests</code>  —  Active quest log\n` +
+      `<code>/last</code>  —  Read the last DM message\n` +
+      `<code>/recap</code>  —  Full campaign summary\n\n` +
+
+      `─────────────────────\n\n` +
+
+      `🤖 <b>AI TOOLS</b>  <i>(uses AI credits)</i>\n\n` +
+
+      `<code>/ask</code> + your question\n` +
+      `Ask the DM anything — rules, strategy, lore.\n` +
+      `The AI sees your character sheet + campaign.\n` +
+      `<i>Ex: /ask Can I use Shield as a reaction here?</i>\n\n` +
+
+      `<code>/suggest</code>\n` +
+      `Get 3 tactical options for your next turn\n` +
+      `based on your HP, spells, and the situation.\n\n` +
+
+      `<code>/scene</code>\n` +
+      `"Where are we?" — a quick situational brief.\n\n` +
+
+      `<code>/who</code> + NPC name\n` +
+      `Everything the party knows about an NPC.\n` +
+      `<i>Ex: /who Rhiannon</i>\n\n` +
+
+      `<code>/lore</code> + question\n` +
+      `D&D rules, fantasy book lore, worldbuilding.\n` +
+      `<i>Ex: /lore What are Venin?</i>`,
+      lovableKey, telegramKey,
+    );
+
     return;
-  }
+   }
 
   // /link CODE
   if (cmd.startsWith('/link ')) {
