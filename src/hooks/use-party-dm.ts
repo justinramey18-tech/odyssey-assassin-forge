@@ -2881,6 +2881,17 @@ Rules:
           messageCount++;
           await updateSessionConfig({ npcSceneMessageCount: messageCount });
         }
+
+        // Update turn tracking for weighted selection
+        lastSpeaker = currentNpc;
+        lastNpcMessage = assistantContent?.trim() || '';
+        for (const npc of npcs) {
+          if (npc === currentNpc) {
+            turnsSinceSpeaking.set(npc, 0);
+          } else {
+            turnsSinceSpeaking.set(npc, (turnsSinceSpeaking.get(npc) || 0) + 1);
+          }
+        }
       }
 
       triggerSummaryIfNeeded([...messages]);
