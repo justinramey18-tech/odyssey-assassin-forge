@@ -296,6 +296,7 @@ serve(async (req) => {
     const userPrompt = prompt.trim();
     const requestedModel = model || DEFAULT_MODEL;
     const anthropicModelId = ANTHROPIC_MODELS[requestedModel];
+    const perplexityModelId = PERPLEXITY_MODELS[requestedModel];
 
     // === STREAMING MODE ===
     if (stream) {
