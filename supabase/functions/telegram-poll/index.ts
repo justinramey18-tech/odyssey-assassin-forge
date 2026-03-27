@@ -1170,10 +1170,7 @@ async function processCommand(
       await sendTelegram(chatId, '📖 No DM messages found. Start a DM session first!', lovableKey, telegramKey);
       return;
     }
-    const cleaned = lastDmMsg
-      .replace(/<!--.*?-->/gs, '')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
+    const cleaned = sanitizeForTelegram(lastDmMsg);
     const header = partyCode ? `📖 <b>Last DM Message</b> (${partyCode})\n\n` : `📖 <b>Last DM Message</b>\n\n`;
     const maxLen = 4000 - header.length;
     const body = cleaned.length > maxLen ? cleaned.substring(0, maxLen - 20) + '\n\n<i>...truncated</i>' : cleaned;
