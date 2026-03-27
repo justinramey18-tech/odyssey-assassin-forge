@@ -465,6 +465,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             if (prev.some(m => m.id === newMsg.id)) return prev;
             return [...prev, newMsg];
           });
+          // If an NPC scene is active and this is a player message, signal the scene loop
+          if (npcSceneActiveRef.current && newMsg.role === 'user' && newMsg.sender_name) {
+            npcSceneInterjectionRef.current = {
+              content: newMsg.content,
+              senderName: newMsg.sender_name,
+            };
+          }
         } else if (payload.eventType === 'UPDATE') {
           const updated = payload.new as PartyDmMessage;
           setMessages(prev => prev.map(m => m.id === updated.id ? updated : m));
