@@ -2778,8 +2778,20 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         const otherNpcs = npcs.filter(n => n !== currentNpc);
 
         if (turn > 0) {
+          // Variable pacing: faster for reactive lines, slower for thoughtful ones
+          const prevMsg = lastNpcMessage.toLowerCase();
+          const isReactive = /[?!]/.test(prevMsg) || /\b(why|how dare|what did|you (liar|fool|coward)|shut up|enough|stop|never|accus|betray|explain|answer me)\b/i.test(prevMsg);
+          const hasInterjection = !!npcSceneInterjectionRef.current;
+          let delay: number;
+          if (hasInterjection) {
+            delay = 600 + Math.random() * 400; // 0.6-1.0s — quick reaction to player
+          } else if (isReactive) {
+            delay = 800 + Math.random() * 700; // 0.8-1.5s — snappy retort
+          } else {
+            delay = 1400 + Math.random() * 1100; // 1.4-2.5s — measured response
+          }
           await new Promise<void>((resolve, reject) => {
-            const timeout = setTimeout(resolve, 1500);
+            const timeout = setTimeout(resolve, delay);
             const onAbort = () => { clearTimeout(timeout); reject(new DOMException('Aborted', 'AbortError')); };
             abortRef.current?.signal.addEventListener('abort', onAbort, { once: true });
           });
@@ -2797,6 +2809,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           lastNpcMessage = interjection.content; // player's words influence who speaks next
         }
 
+        // ~15% chance this NPC is interrupting (not on the first line)
+        const isInterrupting = turn > 0 && Math.random() < 0.15;
+
         const npcSystemPrompt = `## NPC SCENE — SINGLE LINE ONLY
 You ARE ${currentNpc}. This is a multi-NPC conversation scene.
 Scene context: "${scenePrompt}"
@@ -2808,10 +2823,9 @@ Write ONLY ${currentNpc}'s next line:
 
 Rules:
 - This is line ${turn + 1} of an ongoing scene between ${npcs.join(', ')}.
-- React to what the other NPCs have said so far.${interjection ? `\n- A player (${interjection.senderName}) just spoke. React to their words naturally — acknowledge them, respond to them, or shift the conversation because of what they said. This is important.` : ''}
+- React to what the other NPCs have said so far.${interjection ? `\n- A player (${interjection.senderName}) just spoke. React to them naturally based on your relationship to them in this scene — they may be a known ally, a stranger, an authority figure, or anything else the scene context implies. Do not assume they are an outsider unless the scene context says so.` : ''}${isInterrupting ? `\n- You are INTERRUPTING. Start your dialogue with a dash or ellipsis, as if cutting someone off mid-sentence. Be abrupt and urgent. Your body-language beat should be sudden (leaning forward, standing up, slamming something, pointing). Keep it under 25 words total.` : ''}
 - NO prose, NO narration, NO scene-setting.
-- NO mechanical info (dice, DCs, stats).
-- Keep the total under 40 words.
+- NO mechanical info (dice, DCs, stats).${isInterrupting ? '' : '\n- Keep the total under 40 words.'}
 - Stay in character as ${currentNpc} has been portrayed.`;
 
         const apiMessages = [...contextMessages.slice(-40), ...sceneMessages].map(m => ({ role: m.role, content: m.content }));
