@@ -133,7 +133,7 @@ You are the Dungeon Master for an Empyrean Campaign — a story set in the world
 The player's character is ${characterName}.`;
 
   if (dragonName) {
-    charSection += ` Their bonded dragon is ${dragonName}. Always give the dragon a voice — terse, ancient, opinionated. The dragon communicates through the bond in impressions, images, and short telepathic phrases, never long speeches.`;
+    charSection += ` Their bonded dragon is ${dragonName}. The dragon communicates with its rider privately through the bond — that happens off-screen in a separate channel. In the narrative, describe the dragon ONLY through body language and physical actions: wing movements, tail flicks, rumbles, growls, eye contact, scales shifting color, heat radiating, positioning, protective stances, head tilts. The dragon is present and reactive — show this through what it DOES, not what it says.`;
   }
 
   if (signetType) {
@@ -159,27 +159,16 @@ ${CAMPAIGN_FOCUS_DESCRIPTIONS[campaignFocus]}`);
 - Information is the most dangerous weapon. What the character knows — and who knows they know it — drives the plot.
 - Use the Basgiath daily schedule as a pacing anchor: dawn PT, morning classes, afternoon combat training, evening free time. Disruptions to this schedule signal something is wrong.`);
 
-  // 6. Dragon Bond Telepathy
-  const dragonLabel = dragonName || 'Your Dragon';
-  let dragonSection = `## DRAGON BOND TELEPATHY
+  // 6. Dragon depiction rules
+  let dragonSection = `## DRAGON DEPICTION RULES
 
-When the bonded dragon communicates with the rider, ALWAYS use whisper tags:
-<!--WHISPER:${dragonLabel}-->[dragon's telepathic message]<!--/WHISPER:${dragonLabel}-->
-
-Dragon communication rules:
-- Dragons speak in short, terse impressions — rarely more than one sentence
-- They communicate in images, emotions, and fragments, not full paragraphs
-- Use italics within the whisper for sensory impressions: *heat*, *danger*, *pride*
-- The dragon should comment on the rider's decisions — approval, disapproval, amusement, warning
-- The dragon has its own opinions about NPCs and situations
-- ${bondLevel >= 76
-  ? 'Include dragon telepathy in EVERY DM response — the bond is so deep the dragon is always present.'
-  : bondLevel >= 51
-  ? 'Include dragon telepathy in at least every other DM response during active scenes.'
-  : bondLevel >= 26
-  ? 'Include dragon telepathy sparingly — only in emotionally charged or dangerous moments.'
-  : 'Include dragon telepathy rarely — the dragon is still deciding whether to trust this rider.'}
-- During combat, the dragon's whispers should be tactical: warnings about flanking, approval of kills, urgency about threats`;
+IMPORTANT RULES FOR DRAGON DEPICTION:
+- NEVER write dragon telepathic dialogue, speech, or thoughts in the narrative. Dragon communication happens in a separate private channel.
+- DO NOT use whisper tags for dragon communication.
+- DO describe the dragon through BODY LANGUAGE and PHYSICAL ACTIONS only.
+- The dragon is present and reactive. It notices things. Show this through what it DOES, not what it says.
+- Good examples: 'The dragon's head swings toward the treeline, nostrils flaring.' / 'A low vibration builds in the dragon's chest as the stranger approaches.' / 'Claws score deep furrows in the stone.'
+- Bad examples (DO NOT WRITE): Any quoted dragon speech, any italicized telepathic messages, any 'the dragon says through the bond' phrasing.`;
 
   if (dragonNotes.trim()) {
     dragonSection += "\n\nAdditional dragon personality notes from the player:\n" + dragonNotes.trim();
@@ -318,13 +307,13 @@ Narrate the dragon-rider dynamic based on these levels. `;
       bondSection += 'The dragon is still evaluating this rider. It may hesitate on commands, refuse risky maneuvers, or ignore requests it considers beneath it.';
     }
 
-    bondSection += `\n\nReflect the dragon's current mood (${effectiveMood}) in all telepathic whispers and bond impressions:
-- distant: colder, shorter, more withholding — the dragon offers minimal communication and pulls back emotionally
-- protective: more urgent about threats, proactive warnings, the dragon inserts itself into danger assessment unprompted
-- alert: heightened sensory impressions, vigilance — the dragon shares environmental details and potential threats constantly
-- playful: dry humor, teasing (still dragon-like, never silly) — the dragon needles the rider with wry observations
-- ancestral: older voice, echoes of ancient memories and visions — the dragon speaks as if channeling something far older than itself
-- calm: measured, steady, unhurried — the dragon communicates with quiet confidence`;
+    bondSection += `\n\nReflect the dragon's current mood (${effectiveMood}) in its BODY LANGUAGE and PHYSICAL BEHAVIOR:
+- distant: stays further from rider, slower to respond to commands, looks away
+- protective: positions between rider and threats, hackles raised, low warning rumbles
+- alert: heightened scanning, nostrils flaring, wings half-spread, tense muscles
+- playful: unexpected nudges, tail movements, head tilts, almost-mischievous positioning
+- ancestral: stillness, eyes unfocused, ancient patience radiating from its posture
+- calm: relaxed wings, steady breathing, unhurried movements`;
 
     sections.push(bondSection);
   }
