@@ -2660,6 +2660,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   // === NPC Conversational Scene ===
   const npcSceneActiveRef = useRef(false);
+  const npcSceneInterjectionRef = useRef<{ content: string; senderName: string } | null>(null);
 
   const startNpcScene = useCallback(async (npcs: string[], scenePrompt: string, maxMessages: number = 12) => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
@@ -2729,6 +2730,14 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         if (!npcSceneActiveRef.current) break;
         if (abortRef.current?.signal.aborted) break;
 
+        // Check for player interjection
+        const interjection = npcSceneInterjectionRef.current;
+        if (interjection) {
+          npcSceneInterjectionRef.current = null;
+          // Add the player's message to the scene context so the next NPC reacts to it
+          sceneMessages.push({ role: 'user', content: interjection.content });
+        }
+
         const npcSystemPrompt = `## NPC SCENE — SINGLE LINE ONLY
 You ARE ${currentNpc}. This is a multi-NPC conversation scene.
 Scene context: "${scenePrompt}"
@@ -2740,7 +2749,7 @@ Write ONLY ${currentNpc}'s next line:
 
 Rules:
 - This is line ${turn + 1} of an ongoing scene between ${npcs.join(', ')}.
-- React to what the other NPCs have said so far.
+- React to what the other NPCs have said so far.${interjection ? `\n- A player (${interjection.senderName}) just spoke. React to their words naturally — acknowledge them, respond to them, or shift the conversation because of what they said. This is important.` : ''}
 - NO prose, NO narration, NO scene-setting.
 - NO mechanical info (dice, DCs, stats).
 - Keep the total under 40 words.
@@ -2850,6 +2859,28 @@ Rules:
         .then(() => {});
     }
   }, [partyId, sessionConfig]);
+
+  const submitNpcInterjection = useCallback(async (content: string) => {
+    if (!partyId || !user || !content.trim()) return;
+    if (!npcSceneActiveRef.current) return;
+
+    const formattedContent = `[${characterName}]: ${content.trim()}`;
+
+    // Insert the player message into chat immediately
+    await insertPartyMessageHelper(partyId, {
+      party_id: partyId,
+      role: 'user',
+      content: formattedContent,
+      sender_user_id: user.id,
+      sender_name: characterName,
+    });
+
+    // Signal the scene loop that a player interjected
+    npcSceneInterjectionRef.current = {
+      content: formattedContent,
+      senderName: characterName,
+    };
+  }, [partyId, user, characterName, insertPartyMessageHelper]);
 
   // === DIALOGUE MODE: Generate a recap of recent dialogue ===
   const generateDialogueRecap = useCallback(async (): Promise<string | null> => {
@@ -3219,6 +3250,7 @@ Rules:
     voiceNPC,
     startNpcScene,
     stopNpcScene,
+    submitNpcInterjection,
     generateDialogueRecap,
     regenerateMessage,
     regenerateWhispers,
@@ -3243,7 +3275,7 @@ Rules:
     startSession, endSession, startNewCampaign, saveCampaign, loadCampaign,
     submitPrompt, editPrompt, retractPrompt, setReady, unready,
     generateResponse, sendManualDmMessage, approveDraft, discardDraft,
-    editMessage, deleteMessage, sendDialogueMessage, sendWhisper, callDM, voiceNPC, startNpcScene, stopNpcScene, generateDialogueRecap, regenerateMessage, regenerateWhispers,
+    editMessage, deleteMessage, sendDialogueMessage, sendWhisper, callDM, voiceNPC, startNpcScene, stopNpcScene, submitNpcInterjection, generateDialogueRecap, regenerateMessage, regenerateWhispers,
     addMediaMessage, stopGeneration, initiateSplit, regroupParty,
     updateSessionConfig, setTimerConfig, startTimer, pauseTimer, resumeTimer,
     cancelTimer, requestExtension, approveExtension, dismissExtensions,
