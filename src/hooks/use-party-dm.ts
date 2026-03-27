@@ -2730,6 +2730,14 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         if (!npcSceneActiveRef.current) break;
         if (abortRef.current?.signal.aborted) break;
 
+        // Check for player interjection
+        const interjection = npcSceneInterjectionRef.current;
+        if (interjection) {
+          npcSceneInterjectionRef.current = null;
+          // Add the player's message to the scene context so the next NPC reacts to it
+          sceneMessages.push({ role: 'user', content: interjection.content });
+        }
+
         const npcSystemPrompt = `## NPC SCENE — SINGLE LINE ONLY
 You ARE ${currentNpc}. This is a multi-NPC conversation scene.
 Scene context: "${scenePrompt}"
@@ -2741,7 +2749,7 @@ Write ONLY ${currentNpc}'s next line:
 
 Rules:
 - This is line ${turn + 1} of an ongoing scene between ${npcs.join(', ')}.
-- React to what the other NPCs have said so far.
+- React to what the other NPCs have said so far.${interjection ? `\n- A player (${interjection.senderName}) just spoke. React to their words naturally — acknowledge them, respond to them, or shift the conversation because of what they said. This is important.` : ''}
 - NO prose, NO narration, NO scene-setting.
 - NO mechanical info (dice, DCs, stats).
 - Keep the total under 40 words.
