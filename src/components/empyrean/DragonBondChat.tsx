@@ -177,10 +177,13 @@ export default function DragonBondChat({
     [bondState],
   );
 
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
   const {
     messages,
     isLoading,
     sendMessage,
+    clearMessages,
   } = useAIDM({
     characterContext,
     customGuidesContent: '',
