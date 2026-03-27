@@ -4,7 +4,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Flame } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Flame, Theater } from 'lucide-react';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
 import { ResponseModeSelector } from './ResponseModeSelector';
@@ -98,6 +98,7 @@ export interface PartyDMSettingsProps {
   isSplitActive?: boolean;
   memberCount: number;
   onShowSplitInitiator: () => void;
+  onShowNpcScene?: () => void;
   onShowRegroupDialog: () => void;
   onShowSplitSummaries: () => void;
   onShowPreSplitChat: () => void;
@@ -150,7 +151,7 @@ export function PartyDMSettings({
   dmMode = 'ai', onDmModeChange,
   onShowMap, onShowSaves, onShowGuides, onShowChat, onShowAfkGuide,
   guidesCount = 0, myAfkGuide, myAfkCascadeCount = 0,
-  isSplitActive, memberCount, onShowSplitInitiator, onShowRegroupDialog, onShowSplitSummaries, onShowPreSplitChat,
+  isSplitActive, memberCount, onShowSplitInitiator, onShowNpcScene, onShowRegroupDialog, onShowSplitSummaries, onShowPreSplitChat,
   onNewCampaign, onEndSession,
   timerEnabled, timerDurationSeconds, onTimerEnabledChange, onTimerDurationChange,
   onShowScheduledEvents, scheduledEventsCount = 0,
@@ -467,6 +468,14 @@ export function PartyDMSettings({
       {/* Party Management (creator only) */}
       {originalCreator && (
         <SettingsSection title="Party Management" icon={<Users className="w-4 h-4 text-blue-400" />}>
+          {onShowNpcScene && (
+            <ToolRow
+              icon={<Theater className="w-4 h-4" />}
+              label="NPC Scene"
+              description="Launch a multi-NPC conversation"
+              onClick={onShowNpcScene}
+            />
+          )}
           {isSplitActive ? (
             <>
               <ToolRow icon={<Eye className="w-4 h-4" />} label="View Split Summaries" onClick={onShowSplitSummaries} />
