@@ -41,6 +41,50 @@ function loadAlignmentDrift(): { position: AlignmentScore; zone: string } | null
   } catch { return null; }
 }
 
+/** Pick the next NPC to speak using weighted random selection. */
+function pickNextNpc(
+  npcs: string[],
+  lastSpeaker: string | null,
+  lastMessage: string,
+  turnsSinceSpeaking: Map<string, number>,
+): string {
+  const weights = new Map<string, number>();
+  for (const npc of npcs) {
+    let w = 1;
+    if (npc === lastSpeaker) {
+      weights.set(npc, 0);
+      continue;
+    }
+    const nameParts = npc.split(/\s+/);
+    const firstName = nameParts[0];
+    const msgLower = lastMessage.toLowerCase();
+    if (msgLower.includes(npc.toLowerCase())) {
+      w += 4;
+    } else if (firstName.length >= 3 && msgLower.includes(firstName.toLowerCase())) {
+      w += 3;
+    }
+    const silence = turnsSinceSpeaking.get(npc) || 0;
+    if (silence >= 3) {
+      w += 2;
+    } else if (silence >= 2) {
+      w += 1;
+    }
+    weights.set(npc, w);
+  }
+  const entries = Array.from(weights.entries()).filter(([, w]) => w > 0);
+  if (entries.length === 0) {
+    const candidates = npcs.filter(n => n !== lastSpeaker);
+    return candidates[Math.floor(Math.random() * candidates.length)] || npcs[0];
+  }
+  const totalWeight = entries.reduce((sum, [, w]) => sum + w, 0);
+  let roll = Math.random() * totalWeight;
+  for (const [npc, w] of entries) {
+    roll -= w;
+    if (roll <= 0) return npc;
+  }
+  return entries[entries.length - 1][0];
+}
+
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
 const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-summarize`;
 const DEFAULT_STORAGE_KEY = 'dnd-ai-dm-session';
