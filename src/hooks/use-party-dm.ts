@@ -2924,7 +2924,7 @@ Rules:
     }
   }, [messages]);
 
-
+  const setTimerConfig = useCallback(async (enabled: boolean, durationSeconds: number) => {
     await updateSessionConfig({
       timerEnabled: enabled,
       timerDurationSeconds: durationSeconds,
