@@ -313,6 +313,44 @@ serve(async (req) => {
             status, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+      } else if (perplexityModelId) {
+        const perplexityKey = (typeof user_perplexity_key === 'string' && user_perplexity_key.trim())
+          ? user_perplexity_key.trim()
+          : null;
+
+        if (!perplexityKey) {
+          return new Response(JSON.stringify({ error: "No Perplexity API key provided. Add your key in Settings → API Keys." }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const pplxResponse = await fetch("https://api.perplexity.ai/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${perplexityKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: perplexityModelId,
+            max_tokens: 8000,
+            stream: true,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+          }),
+        });
+
+        if (!pplxResponse.ok) {
+          const errText = await pplxResponse.text();
+          console.error("Perplexity API error:", pplxResponse.status, errText);
+          return new Response(JSON.stringify({ error: `Perplexity error: ${pplxResponse.status}` }), {
+            status: pplxResponse.status === 429 ? 429 : 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        sseStream = transformOpenAIStream(pplxResponse.body!);
       } else {
         // Lovable AI gateway streaming
         const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
