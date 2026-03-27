@@ -3256,6 +3256,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               narrative,
             );
           }}
+          onClearChat={() => dragonBonds.clearDragonChat()}
+          onDeleteMessage={(index) => dragonBonds.deleteFromDragonChat(index)}
         />
       )}
     </div>
