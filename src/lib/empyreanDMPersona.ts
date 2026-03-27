@@ -166,7 +166,7 @@ The bonded dragon communicates with its rider through a SEPARATE private channel
 
 RULES:
 
-- DO NOT use <!--WHISPER:${dragonLabel}-->  tags for dragon communication. Those are no longer used.
+- DO NOT use whisper tags (e.g. <!--WHISPER:${dragonName}-->) for dragon communication. Those are no longer used.
 
 - DO NOT write any quoted dragon speech, italicized telepathic messages, or "the dragon says through the bond" phrasing.
 
