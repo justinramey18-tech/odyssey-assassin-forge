@@ -224,6 +224,14 @@ export default function DragonBondChat({
     }).catch(() => {});
   }, [open, onRequestOpinion, recentNarrative]);
 
+  // Sync personality editor state
+  useEffect(() => {
+    if (showPersonality) {
+      setEditingNotes(dragonNotes || '');
+      setTimeout(() => notesTextareaRef.current?.focus(), 100);
+    }
+  }, [showPersonality, dragonNotes]);
+
   // Auto-scroll on new messages
   useEffect(() => {
     if (scrollRef.current) {
