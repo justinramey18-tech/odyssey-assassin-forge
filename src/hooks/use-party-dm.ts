@@ -2762,14 +2762,20 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       const contextMessages = [...messages].map(m => ({ role: m.role, content: m.content }));
       const sceneMessages: Array<{ role: string; content: string }> = [];
       let messageCount = 0;
+      let lastSpeaker: string | null = null;
+      let lastNpcMessage = '';
+      const turnsSinceSpeaking = new Map<string, number>();
+      for (const npc of npcs) turnsSinceSpeaking.set(npc, 0);
 
       for (let turn = 0; turn < maxMessages; turn++) {
         if (!npcSceneActiveRef.current) break;
         if (abortRef.current?.signal.aborted) break;
 
-        const npcIndex = turn % npcs.length;
-        const currentNpc = npcs[npcIndex];
-        const otherNpcs = npcs.filter((_, i) => i !== npcIndex);
+        // Weighted NPC selection based on conversation context
+        const currentNpc = turn === 0
+          ? npcs[Math.floor(Math.random() * npcs.length)]  // random first speaker
+          : pickNextNpc(npcs, lastSpeaker, lastNpcMessage, turnsSinceSpeaking);
+        const otherNpcs = npcs.filter(n => n !== currentNpc);
 
         if (turn > 0) {
           await new Promise<void>((resolve, reject) => {
