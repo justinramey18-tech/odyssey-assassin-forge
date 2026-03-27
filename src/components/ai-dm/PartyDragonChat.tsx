@@ -79,6 +79,8 @@ export default function PartyDragonChat({
   const [showDragonPicker, setShowDragonPicker] = useState(false);
   const [showPersonality, setShowPersonality] = useState(false);
   const [editingNotes, setEditingNotes] = useState('');
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [deletingIdx, setDeletingIdx] = useState<number | null>(null);
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
