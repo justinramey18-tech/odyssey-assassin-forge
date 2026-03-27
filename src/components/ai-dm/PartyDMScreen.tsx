@@ -2866,6 +2866,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               isSplitActive={partyDm.isSplitActive}
               memberCount={memberCount}
               onShowSplitInitiator={() => setShowSplitInitiator(true)}
+              onShowNpcScene={() => setShowNpcScene(true)}
               onShowRegroupDialog={() => setShowRegroupDialog(true)}
               onShowSplitSummaries={() => setShowSplitSummaries(true)}
               onShowPreSplitChat={() => setShowPreSplitChat(true)}
