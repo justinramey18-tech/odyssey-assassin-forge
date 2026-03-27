@@ -2666,6 +2666,51 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
 
   // === NPC Conversational Scene ===
+
+  /** Pick the next NPC to speak using weighted random selection. */
+  function pickNextNpc(
+    npcs: string[],
+    lastSpeaker: string | null,
+    lastMessage: string,
+    turnsSinceSpeaking: Map<string, number>,
+  ): string {
+    const weights = new Map<string, number>();
+    for (const npc of npcs) {
+      let w = 1;
+      if (npc === lastSpeaker) {
+        weights.set(npc, 0);
+        continue;
+      }
+      const nameParts = npc.split(/\s+/);
+      const firstName = nameParts[0];
+      const msgLower = lastMessage.toLowerCase();
+      if (msgLower.includes(npc.toLowerCase())) {
+        w += 4;
+      } else if (firstName.length >= 3 && msgLower.includes(firstName.toLowerCase())) {
+        w += 3;
+      }
+      const silence = turnsSinceSpeaking.get(npc) || 0;
+      if (silence >= 3) {
+        w += 2;
+      } else if (silence >= 2) {
+        w += 1;
+      }
+      weights.set(npc, w);
+    }
+    const entries = Array.from(weights.entries()).filter(([, w]) => w > 0);
+    if (entries.length === 0) {
+      const candidates = npcs.filter(n => n !== lastSpeaker);
+      return candidates[Math.floor(Math.random() * candidates.length)] || npcs[0];
+    }
+    const totalWeight = entries.reduce((sum, [, w]) => sum + w, 0);
+    let roll = Math.random() * totalWeight;
+    for (const [npc, w] of entries) {
+      roll -= w;
+      if (roll <= 0) return npc;
+    }
+    return entries[entries.length - 1][0];
+  }
+
   const npcSceneActiveRef = useRef(false);
   const npcSceneInterjectionRef = useRef<{ content: string; senderName: string } | null>(null);
 
@@ -2717,14 +2762,20 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       const contextMessages = [...messages].map(m => ({ role: m.role, content: m.content }));
       const sceneMessages: Array<{ role: string; content: string }> = [];
       let messageCount = 0;
+      let lastSpeaker: string | null = null;
+      let lastNpcMessage = '';
+      const turnsSinceSpeaking = new Map<string, number>();
+      for (const npc of npcs) turnsSinceSpeaking.set(npc, 0);
 
       for (let turn = 0; turn < maxMessages; turn++) {
         if (!npcSceneActiveRef.current) break;
         if (abortRef.current?.signal.aborted) break;
 
-        const npcIndex = turn % npcs.length;
-        const currentNpc = npcs[npcIndex];
-        const otherNpcs = npcs.filter((_, i) => i !== npcIndex);
+        // Weighted NPC selection based on conversation context
+        const currentNpc = turn === 0
+          ? npcs[Math.floor(Math.random() * npcs.length)]  // random first speaker
+          : pickNextNpc(npcs, lastSpeaker, lastNpcMessage, turnsSinceSpeaking);
+        const otherNpcs = npcs.filter(n => n !== currentNpc);
 
         if (turn > 0) {
           await new Promise<void>((resolve, reject) => {
@@ -2743,6 +2794,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           npcSceneInterjectionRef.current = null;
           // Add the player's message to the scene context so the next NPC reacts to it
           sceneMessages.push({ role: 'user', content: interjection.content });
+          lastNpcMessage = interjection.content; // player's words influence who speaks next
         }
 
         const npcSystemPrompt = `## NPC SCENE — SINGLE LINE ONLY
@@ -2828,6 +2880,17 @@ Rules:
           sceneMessages.push({ role: 'assistant', content: `[${currentNpc}]: ${assistantContent.trim()}` });
           messageCount++;
           await updateSessionConfig({ npcSceneMessageCount: messageCount });
+        }
+
+        // Update turn tracking for weighted selection
+        lastSpeaker = currentNpc;
+        lastNpcMessage = assistantContent?.trim() || '';
+        for (const npc of npcs) {
+          if (npc === currentNpc) {
+            turnsSinceSpeaking.set(npc, 0);
+          } else {
+            turnsSinceSpeaking.set(npc, (turnsSinceSpeaking.get(npc) || 0) + 1);
+          }
         }
       }
 
