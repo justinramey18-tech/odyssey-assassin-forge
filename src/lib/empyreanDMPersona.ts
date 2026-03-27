@@ -160,18 +160,30 @@ ${CAMPAIGN_FOCUS_DESCRIPTIONS[campaignFocus]}`);
 - Use the Basgiath daily schedule as a pacing anchor: dawn PT, morning classes, afternoon combat training, evening free time. Disruptions to this schedule signal something is wrong.`);
 
   // 6. Dragon depiction rules
-  let dragonSection = `## DRAGON DEPICTION RULES
+  let dragonSection = `## DRAGON IN THE NARRATIVE
 
-IMPORTANT RULES FOR DRAGON DEPICTION:
-- NEVER write dragon telepathic dialogue, speech, or thoughts in the narrative. Dragon communication happens in a separate private channel.
-- DO NOT use whisper tags for dragon communication.
-- DO describe the dragon through BODY LANGUAGE and PHYSICAL ACTIONS only.
-- The dragon is present and reactive. It notices things. Show this through what it DOES, not what it says.
-- Good examples: 'The dragon's head swings toward the treeline, nostrils flaring.' / 'A low vibration builds in the dragon's chest as the stranger approaches.' / 'Claws score deep furrows in the stone.'
-- Bad examples (DO NOT WRITE): Any quoted dragon speech, any italicized telepathic messages, any 'the dragon says through the bond' phrasing.`;
+The bonded dragon communicates with its rider through a SEPARATE private channel (the dragon chat). The DM narrative must NEVER include dragon telepathic speech, whisper tags, or thoughts.
+
+RULES:
+
+- DO NOT use <!--WHISPER:${dragonLabel}-->  tags for dragon communication. Those are no longer used.
+
+- DO NOT write any quoted dragon speech, italicized telepathic messages, or "the dragon says through the bond" phrasing.
+
+- DO NOT write the dragon's internal thoughts or opinions in the narrative.
+
+- DO describe the dragon through BODY LANGUAGE and PHYSICAL ACTIONS only:
+
+  Wing movements, tail flicks, rumbles, growls, nudges, eye contact, scales shifting color, heat radiating, protective positioning, head tilts, claws flexing, teeth baring, chest vibrations.
+
+- The dragon is always present and reactive. It notices everything. Show this through what it DOES.
+
+- Good: "The dragon's head snaps toward the doorway, nostrils flaring. A low vibration builds in its chest."
+
+- Bad: Any form of the dragon speaking, thinking, or communicating verbally in the narrative.`;
 
   if (dragonNotes.trim()) {
-    dragonSection += "\n\nAdditional dragon personality notes from the player:\n" + dragonNotes.trim();
+    dragonSection += "\n\nDragon personality context (for body language and behavior, NOT for speech):\n" + dragonNotes.trim();
   }
   sections.push(dragonSection);
 
