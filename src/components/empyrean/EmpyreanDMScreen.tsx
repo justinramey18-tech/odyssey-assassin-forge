@@ -175,6 +175,8 @@ export function EmpyreanDMScreen({
   const [showGuides, setShowGuides] = useState(false);
   const [showWorldState, setShowWorldState] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [showNpcScene, setShowNpcScene] = useState(false);
+  const [npcInterjectionText, setNpcInterjectionText] = useState('');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [burnoutLevel, setBurnoutLevel] = useState(0);
   const burnoutLevelRef = useRef(burnoutLevel);
