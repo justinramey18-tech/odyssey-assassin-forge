@@ -49,6 +49,8 @@ interface PartyDragonChatProps {
   myUserId?: string;
   dragonNotes?: string;
   onUpdateNotes?: (notes: string) => void;
+  onClearChat?: () => void;
+  onDeleteMessage?: (index: number) => void;
 }
 
 export default function PartyDragonChat({
