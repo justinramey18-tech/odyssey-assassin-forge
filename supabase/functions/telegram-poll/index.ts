@@ -37,7 +37,7 @@ function modStr(mod: number): string {
 }
 
 async function sendTelegram(chatId: number, text: string, lovableKey: string, telegramKey: string) {
-  // Telegram hard-limits sendMessage to 4096 characters — truncate to be safe
+  // Telegram hard-limits sendMessage to 4096 characters — truncate as safety net
   const safeText = text.length > 4000 ? text.slice(0, 3997) + '...' : text;
   const res = await fetch(`${GATEWAY_URL}/sendMessage`, {
     method: 'POST',
