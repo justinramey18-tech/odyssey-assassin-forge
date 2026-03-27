@@ -1102,6 +1102,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   // Split party state
   const [showSplitInitiator, setShowSplitInitiator] = useState(false);
   const [showNpcScene, setShowNpcScene] = useState(false);
+  const [npcInterjectionText, setNpcInterjectionText] = useState('');
   const [showRegroupDialog, setShowRegroupDialog] = useState(false);
   const [showSplitSummaries, setShowSplitSummaries] = useState(false);
   const [showPreSplitChat, setShowPreSplitChat] = useState(false);
