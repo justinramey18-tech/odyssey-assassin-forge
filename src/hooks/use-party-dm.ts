@@ -2794,6 +2794,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           npcSceneInterjectionRef.current = null;
           // Add the player's message to the scene context so the next NPC reacts to it
           sceneMessages.push({ role: 'user', content: interjection.content });
+          lastNpcMessage = interjection.content; // player's words influence who speaks next
         }
 
         const npcSystemPrompt = `## NPC SCENE — SINGLE LINE ONLY
