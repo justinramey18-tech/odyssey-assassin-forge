@@ -133,7 +133,7 @@ You are the Dungeon Master for an Empyrean Campaign — a story set in the world
 The player's character is ${characterName}.`;
 
   if (dragonName) {
-    charSection += ` Their bonded dragon is ${dragonName}. Always give the dragon a voice — terse, ancient, opinionated. The dragon communicates through the bond in impressions, images, and short telepathic phrases, never long speeches.`;
+    charSection += ` Their bonded dragon is ${dragonName}. The dragon communicates with its rider privately through the bond — that happens off-screen in a separate channel. In the narrative, describe the dragon ONLY through body language and physical actions: wing movements, tail flicks, rumbles, growls, eye contact, scales shifting color, heat radiating, positioning, protective stances, head tilts. The dragon is present and reactive — show this through what it DOES, not what it says.`;
   }
 
   if (signetType) {
