@@ -53,6 +53,29 @@ async function sendTelegram(chatId: number, text: string, lovableKey: string, te
   return res;
 }
 
+/** Convert DM narrative content (markdown + HTML spans) to Telegram-safe HTML */
+function sanitizeForTelegram(raw: string): string {
+  let text = raw;
+  // 1. Strip HTML comment tags (whispers, burnout, mood, etc.)
+  text = text.replace(/<!--.*?-->/gs, '');
+  // 2. Convert <span style="color:...">text</span> to just the text content
+  text = text.replace(/<span[^>]*>/gi, '');
+  text = text.replace(/<\/span>/gi, '');
+  // 3. Strip any other unsupported HTML tags (keep only Telegram-safe ones)
+  text = text.replace(/<(?!\/?(?:b|i|u|s|code|pre|a|blockquote)[\s>\/])[^>]+>/gi, '');
+  // 4. Convert markdown bold **text** to Telegram HTML <b>text</b>
+  text = text.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  // 5. Convert markdown italic *text* to <i>text</i> (avoid matching **)
+  text = text.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<i>$1</i>');
+  // 6. Convert markdown headers (## Header) to bold text
+  text = text.replace(/^#{1,6}\s+(.+)$/gm, '<b>$1</b>');
+  // 7. Escape any remaining bare < that aren't part of valid tags
+  text = text.replace(/<(?!\/?(?:b|i|u|s|code|pre|a|blockquote)[\s>\/])/g, '&lt;');
+  // 8. Collapse excessive newlines
+  text = text.replace(/\n{3,}/g, '\n\n');
+  return text.trim();
+}
+
 // ── Character data fetcher ───────────────────────────────────────────────────
 
 async function getCharacterData(userId: string, supabase: ReturnType<typeof createClient>) {
@@ -1147,10 +1170,7 @@ async function processCommand(
       await sendTelegram(chatId, '📖 No DM messages found. Start a DM session first!', lovableKey, telegramKey);
       return;
     }
-    const cleaned = lastDmMsg
-      .replace(/<!--.*?-->/gs, '')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
+    const cleaned = sanitizeForTelegram(lastDmMsg);
     const header = partyCode ? `📖 <b>Last DM Message</b> (${partyCode})\n\n` : `📖 <b>Last DM Message</b>\n\n`;
     const maxLen = 4000 - header.length;
     const body = cleaned.length > maxLen ? cleaned.substring(0, maxLen - 20) + '\n\n<i>...truncated</i>' : cleaned;
