@@ -251,6 +251,18 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       // The handler in StandalonePartyDMScreen will interpret this
       onBurnoutTickRef.current?.(tickMatch[1]);
     }
+
+    // Parse BOND_GROWTH: increase bond by 3
+    const bondGrowthMatch = lastMsg.content.match(/<!--BOND_GROWTH:(.+?)-->/);
+    if (bondGrowthMatch) {
+      onBondGrowthRef.current?.(bondGrowthMatch[1]);
+    }
+
+    // Parse DRAGON_MEMORY: store a persistent memory
+    const dragonMemoryMatch = lastMsg.content.match(/<!--DRAGON_MEMORY:(.+?)-->/);
+    if (dragonMemoryMatch) {
+      onDragonMemoryRef.current?.(dragonMemoryMatch[1]);
+    }
   }, [messages, sessionConfig?.campaignType]);
 
 
