@@ -307,13 +307,13 @@ Narrate the dragon-rider dynamic based on these levels. `;
       bondSection += 'The dragon is still evaluating this rider. It may hesitate on commands, refuse risky maneuvers, or ignore requests it considers beneath it.';
     }
 
-    bondSection += `\n\nReflect the dragon's current mood (${effectiveMood}) in all telepathic whispers and bond impressions:
-- distant: colder, shorter, more withholding — the dragon offers minimal communication and pulls back emotionally
-- protective: more urgent about threats, proactive warnings, the dragon inserts itself into danger assessment unprompted
-- alert: heightened sensory impressions, vigilance — the dragon shares environmental details and potential threats constantly
-- playful: dry humor, teasing (still dragon-like, never silly) — the dragon needles the rider with wry observations
-- ancestral: older voice, echoes of ancient memories and visions — the dragon speaks as if channeling something far older than itself
-- calm: measured, steady, unhurried — the dragon communicates with quiet confidence`;
+    bondSection += `\n\nReflect the dragon's current mood (${effectiveMood}) in its BODY LANGUAGE and PHYSICAL BEHAVIOR:
+- distant: stays further from rider, slower to respond to commands, looks away
+- protective: positions between rider and threats, hackles raised, low warning rumbles
+- alert: heightened scanning, nostrils flaring, wings half-spread, tense muscles
+- playful: unexpected nudges, tail movements, head tilts, almost-mischievous positioning
+- ancestral: stillness, eyes unfocused, ancient patience radiating from its posture
+- calm: relaxed wings, steady breathing, unhurried movements`;
 
     sections.push(bondSection);
   }
