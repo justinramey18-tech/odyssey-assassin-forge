@@ -38,8 +38,16 @@ export const SCRIBE_MODELS: ScribeModel[] = [
 export const DEFAULT_SCRIBE_MODEL = 'google/gemini-3-pro-preview';
 
 const STORAGE_KEY = 'dnd-scribe-ai-model';
+const EXPLICIT_KEY = 'dnd-scribe-ai-model-explicit';
 
 export function loadScribeModel(): string {
+  try {
+    const isExplicit = localStorage.getItem(EXPLICIT_KEY) === 'true';
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (isExplicit && saved && SCRIBE_MODELS.some(m => m.id === saved)) {
+      return saved;
+    }
+  } catch { /* ignore */ }
   if (isClaudeEverywhereEnabled()) return CLAUDE_EVERYWHERE_MODEL_ID;
   if (isGPTEverywhereEnabled()) return GPT_EVERYWHERE_MODEL_ID;
   try {
@@ -52,6 +60,13 @@ export function loadScribeModel(): string {
 export function saveScribeModel(modelId: string): void {
   try {
     localStorage.setItem(STORAGE_KEY, modelId);
+    localStorage.setItem(EXPLICIT_KEY, 'true');
+  } catch { /* ignore */ }
+}
+
+export function clearExplicitScribeModel(): void {
+  try {
+    localStorage.removeItem(EXPLICIT_KEY);
   } catch { /* ignore */ }
 }
 
