@@ -1203,29 +1203,52 @@ export function EmpyreanDMScreen({
           </button>
 
           <textarea
-            ref={textareaRef}
-            value={inputValue}
-            onChange={handleTextareaInput}
-            onSelect={npcMention.trackCursor}
-            placeholder="What does your rider do... (@NPC to talk to an NPC)"
+            ref={npcSceneConfig?.active ? undefined : textareaRef}
+            value={npcSceneConfig?.active ? npcInterjectionText : inputValue}
+            onChange={npcSceneConfig?.active ? (e) => setNpcInterjectionText(e.target.value) : handleTextareaInput}
+            onSelect={npcSceneConfig?.active ? undefined : npcMention.trackCursor}
+            placeholder={npcSceneConfig?.active ? "Speak up — the NPCs will react to you..." : "What does your rider do... (@NPC to talk to an NPC)"}
             rows={1}
             className="flex-1 bg-card/30 border border-purple-500/20 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-purple-400 max-h-[120px] min-h-[44px]"
             onKeyDown={e => {
-              if (npcMention.handleAutocompleteKeyDown(e)) return;
+              if (!npcSceneConfig?.active && npcMention.handleAutocompleteKeyDown(e)) return;
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                handleSend();
+                if (npcSceneConfig?.active) {
+                  if (npcInterjectionText.trim()) {
+                    submitNpcInterjection(npcInterjectionText.trim());
+                    setNpcInterjectionText('');
+                  }
+                } else {
+                  handleSend();
+                }
               }
             }}
           />
 
           {isLoading ? (
-            <button
-              onClick={cancelRequest}
-              className="p-2.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
-            >
-              <X className="w-5 h-5 text-red-400" />
-            </button>
+            npcSceneConfig?.active ? (
+              <button
+                onClick={() => {
+                  if (npcInterjectionText.trim()) {
+                    submitNpcInterjection(npcInterjectionText.trim());
+                    setNpcInterjectionText('');
+                  }
+                }}
+                disabled={!npcInterjectionText.trim()}
+                className="p-2.5 rounded-xl bg-primary/20 border border-primary/30 text-primary hover:bg-primary/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            ) : (
+              <button
+                onClick={cancelRequest}
+                className="p-2.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
+              >
+                <X className="w-5 h-5 text-red-400" />
+              </button>
+            )
           ) : (
             <button
               onClick={handleSend}
