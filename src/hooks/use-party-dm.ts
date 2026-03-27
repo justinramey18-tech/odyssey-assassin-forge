@@ -212,13 +212,17 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     } catch {}
   }, [pendingDraft]);
 
-  // Detect BURNOUT and BOND_STRAIN tags from new assistant messages in Empyrean campaigns
+  // Detect BURNOUT, BOND_STRAIN, BOND_GROWTH, and DRAGON_MEMORY tags from new assistant messages in Empyrean campaigns
   const onBurnoutRef = useRef(onBurnoutDetected);
   const onBurnoutTickRef = useRef(onBurnoutTickDetected);
   const onBondStrainRef = useRef(onBondStrainDetected);
+  const onBondGrowthRef = useRef(onBondGrowthDetected);
+  const onDragonMemoryRef = useRef(onDragonMemoryDetected);
   useEffect(() => { onBurnoutRef.current = onBurnoutDetected; }, [onBurnoutDetected]);
   useEffect(() => { onBurnoutTickRef.current = onBurnoutTickDetected; }, [onBurnoutTickDetected]);
   useEffect(() => { onBondStrainRef.current = onBondStrainDetected; }, [onBondStrainDetected]);
+  useEffect(() => { onBondGrowthRef.current = onBondGrowthDetected; }, [onBondGrowthDetected]);
+  useEffect(() => { onDragonMemoryRef.current = onDragonMemoryDetected; }, [onDragonMemoryDetected]);
   const lastParsedMsgIdRef = useRef<string | null>(null);
 
   useEffect(() => {
