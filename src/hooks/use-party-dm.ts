@@ -66,6 +66,8 @@ export interface PartyDmMessage {
 const BURNOUT_TAG_RE = /<!--BURNOUT:\d+-->/g;
 const BURNOUT_TICK_TAG_RE = /<!--BURNOUT_TICK:.+?-->/g;
 const BOND_STRAIN_TAG_RE = /<!--BOND_STRAIN:.+?-->/g;
+const BOND_GROWTH_TAG_RE = /<!--BOND_GROWTH:.+?-->/g;
+const DRAGON_MEMORY_TAG_RE = /<!--DRAGON_MEMORY:.+?-->/g;
 
 function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string, myDragonName?: string): PartyDmMessage {
   if (msg.role !== 'assistant') return msg;
