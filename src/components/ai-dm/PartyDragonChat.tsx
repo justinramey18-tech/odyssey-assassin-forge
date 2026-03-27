@@ -69,6 +69,8 @@ export default function PartyDragonChat({
   myUserId,
   dragonNotes,
   onUpdateNotes,
+  onClearChat,
+  onDeleteMessage,
 }: PartyDragonChatProps) {
   const [inputValue, setInputValue] = useState('');
   const [statsExpanded, setStatsExpanded] = useState(false);
