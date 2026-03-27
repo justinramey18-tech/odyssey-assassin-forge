@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2, Brain, Cpu, Palette, Eye } from 'lucide-react';
+import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2, Brain, Cpu, Palette, Eye, Theater } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import {
@@ -46,6 +46,7 @@ interface DMToolsDrawerProps {
   onDragonNotesChange?: (notes: string) => void;
   onReconfigureEmpyrean?: () => void;
   onResetBurnout?: () => void;
+  onNpcScene?: () => void;
 }
 
 export function DMToolsDrawer({
@@ -77,6 +78,7 @@ export function DMToolsDrawer({
   onDragonNotesChange,
   onReconfigureEmpyrean,
   onResetBurnout,
+  onNpcScene,
 }: DMToolsDrawerProps) {
   const [showRetakeConfirm, setShowRetakeConfirm] = useState(false);
 
@@ -180,6 +182,14 @@ export function DMToolsDrawer({
               icon={<span className="text-sm">🐉</span>}
               label="Empyrean Prompts"
               onClick={() => closeAndRun(onEmpyreanPrompts)}
+            />
+          )}
+
+          {onNpcScene && (
+            <ToolRow
+              icon={<Theater className="w-4 h-4" />}
+              label="NPC Scene"
+              onClick={() => closeAndRun(onNpcScene)}
             />
           )}
 
