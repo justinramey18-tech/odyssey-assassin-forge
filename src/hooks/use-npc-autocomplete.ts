@@ -27,6 +27,20 @@ export function useNPCAutocomplete(messages: Message[]): string[] {
 
     for (const msg of messages) {
       if (msg.role !== 'assistant') continue;
+
+      // Pattern 0: Check sender_name on assistant messages (NPC scene + voiceNPC participants)
+      const sName = (msg as any).senderName || (msg as any).sender_name;
+      if (sName && sName !== 'DM' && sName !== 'System' && typeof sName === 'string') {
+        // Handle compound names like "Merchant & Guard" from voiceNPC
+        const parts = sName.split(/\s*&\s*/);
+        for (const part of parts) {
+          const trimmed = part.trim();
+          if (trimmed.length >= 2 && !EXCLUDED.has(trimmed.toLowerCase())) {
+            names.set(trimmed, (names.get(trimmed) || 0) + 5);
+          }
+        }
+      }
+
       const text = msg.content;
 
       // Pattern 1: **Name:** dialogue (from NPC voicing responses)
