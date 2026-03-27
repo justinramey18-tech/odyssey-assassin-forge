@@ -127,6 +127,12 @@ export interface DmSessionConfig {
   // Campaign world type
   campaignType?: 'dnd' | 'empyrean'; // default: 'dnd'
   empyreanFocus?: 'combat' | 'political' | 'romance' | 'mystery' | 'survival' | 'balanced';
+  // NPC Conversational Scene
+  npcSceneActive?: boolean;
+  npcSceneNpcs?: string[];        // 2-6 NPC names
+  npcScenePrompt?: string;        // scene-setting prompt
+  npcSceneMaxMessages?: number;   // message cap (default 12)
+  npcSceneMessageCount?: number;  // messages generated so far
 }
 
 export interface PartyDragonConfig {
