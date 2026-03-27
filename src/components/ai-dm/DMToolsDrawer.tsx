@@ -78,6 +78,7 @@ export function DMToolsDrawer({
   onDragonNotesChange,
   onReconfigureEmpyrean,
   onResetBurnout,
+  onNpcScene,
 }: DMToolsDrawerProps) {
   const [showRetakeConfirm, setShowRetakeConfirm] = useState(false);
 
