@@ -1185,6 +1185,22 @@ export function EmpyreanDMScreen({
         />
       )}
 
+        {npcSceneConfig?.active && (
+          <div className="flex items-center justify-center gap-2 py-1.5 bg-cyan-950/30 border-t border-cyan-500/20">
+            <Loader2 className="w-3 h-3 text-cyan-400 animate-spin" />
+            <span className="text-xs text-cyan-400/70">
+              NPC scene ({npcSceneConfig.messageCount}/{npcSceneConfig.maxMessages})
+            </span>
+            <button
+              onClick={stopNpcScene}
+              className="ml-2 px-2 py-0.5 rounded-md border border-red-500/30 bg-red-900/20 hover:bg-red-900/40 text-red-300 text-[11px] transition-colors"
+              style={{ touchAction: 'manipulation' }}
+            >
+              Stop
+            </button>
+          </div>
+        )}
+
       {/* Input bar — sits above the fixed DMBottomNav (~54px collapsed height) */}
       <div className="shrink-0 border-t border-purple-500/20 bg-background/90 backdrop-blur-sm px-3 pt-2.5 pb-[60px]">
         <div className="relative flex items-end gap-2">
