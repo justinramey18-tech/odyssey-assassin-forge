@@ -43,8 +43,16 @@ export const DM_MODELS: DMAIModel[] = [
 export const DEFAULT_MODEL_ID = 'google/gemini-3-pro-preview';
 
 const STORAGE_KEY = 'dnd-dm-ai-model';
+const EXPLICIT_KEY = 'dnd-dm-ai-model-explicit';
 
 export function loadSelectedModel(): string {
+  try {
+    const isExplicit = localStorage.getItem(EXPLICIT_KEY) === 'true';
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (isExplicit && saved && DM_MODELS.some(m => m.id === saved)) {
+      return saved;
+    }
+  } catch { /* ignore */ }
   if (isClaudeEverywhereEnabled()) return CLAUDE_EVERYWHERE_MODEL_ID;
   if (isGPTEverywhereEnabled()) return GPT_EVERYWHERE_MODEL_ID;
   try {
@@ -57,6 +65,13 @@ export function loadSelectedModel(): string {
 export function saveSelectedModel(modelId: string): void {
   try {
     localStorage.setItem(STORAGE_KEY, modelId);
+    localStorage.setItem(EXPLICIT_KEY, 'true');
+  } catch { /* ignore */ }
+}
+
+export function clearExplicitModel(): void {
+  try {
+    localStorage.removeItem(EXPLICIT_KEY);
   } catch { /* ignore */ }
 }
 
