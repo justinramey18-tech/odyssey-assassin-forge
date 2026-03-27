@@ -1311,6 +1311,7 @@ export function EmpyreanDMScreen({
         burnoutLevel={burnoutLevel}
         unreadDragonMessages={dragonBond.bondState.unreadDragonMessages}
         currentSituation={currentSituation}
+        onDragonNotesChange={handleDragonNotesChange}
         recentNarrative={messages
           .filter(m => m.role === 'assistant')
           .slice(-5)
