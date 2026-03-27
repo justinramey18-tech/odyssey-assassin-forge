@@ -157,6 +157,8 @@ interface UsePartyDmOptions {
   onBurnoutDetected?: (level: number) => void;
   onBurnoutTickDetected?: (reason: string) => void;
   onBondStrainDetected?: (reason: string) => void;
+  onBondGrowthDetected?: (reason: string) => void;
+  onDragonMemoryDetected?: (memory: string) => void;
   isSoloEmpyrean?: boolean;
 }
 
