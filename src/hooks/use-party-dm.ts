@@ -3225,6 +3225,8 @@ Rules:
     sendWhisper,
     callDM,
     voiceNPC,
+    startNpcScene,
+    stopNpcScene,
     generateDialogueRecap,
     regenerateMessage,
     regenerateWhispers,
