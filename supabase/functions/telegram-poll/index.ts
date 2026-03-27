@@ -114,9 +114,9 @@ async function processCommand(
   // /start
   if (cmd === '/start') {
     await sendTelegram(chatId,
-      `⚔️ <b>Odyssey Assassin Bot</b>\n\n` +
-      `Link your account to receive party notifications, check your character, and roll dice from Telegram.\n\n` +
-      `Type /help for all commands.`,
+      `⚔️ <b>Odyssey Forge</b>\n\n` +
+      `Your D&D companion — character sheet, dice, party alerts, and an AI Dungeon Master, all from Telegram.\n\n` +
+      `Type /help to see everything you can do.`,
       lovableKey, telegramKey,
     );
     return;
@@ -124,105 +124,121 @@ async function processCommand(
 
    // /help
    if (cmd === '/help') {
-    // Message 1: Header + Account
+    // Message 1: Welcome + How It Works
     await sendTelegram(chatId,
-      `⚔️ <b>ODYSSEY ASSASSIN BOT</b> ⚔️\n` +
-      `─────────────────────\n` +
-      `Your character sheet, dice, and an AI\n` +
-      `Dungeon Master — all from Telegram.\n\n` +
-
-      `🔗 <b>GETTING STARTED</b>\n\n` +
-
-      `<code>/link CODE</code>\n` +
-      `Connect your Odyssey account.\n` +
-      `Get a code from the app:\n` +
-      `<i>Settings → Telegram → Generate Code</i>\n\n` +
-
-      `<code>/status</code>  —  Check connection\n` +
-      `<code>/notify on</code>  —  Enable alerts\n` +
-      `<code>/notify off</code>  —  Disable alerts\n` +
-      `<code>/unlink</code>  —  Disconnect account`,
-      lovableKey, telegramKey,
-    );
-
-    // Message 2: Character Sheet
-    await sendTelegram(chatId,
-      `🎭 <b>YOUR CHARACTER</b>\n\n` +
-
-      `<code>/character</code>\n` +
-      `Full summary — class, level, HP, gold, XP\n\n` +
-
-      `<code>/stats</code>\n` +
-      `All six ability scores + modifiers\n\n` +
-
+      `⚔️ <b>Welcome to Odyssey Forge</b> ⚔️\n\n` +
+      `This bot connects to your Odyssey Forge character sheet. Once linked, you can check your stats, roll dice, take damage, ready up for party rounds, and even ask an AI Dungeon Master questions — all without leaving Telegram.\n\n` +
+      `<b>How commands work:</b>\n\n` +
+      `Type a command starting with / and the bot responds instantly. Some commands need extra info after them.\n\n` +
+      `Examples:\n\n` +
       `<code>/hp</code>\n` +
-      `Health bar + death saves\n\n` +
-
-      `<code>/spells</code>\n` +
-      `Prepared spells, known spells, concentration\n\n` +
-
-      `<code>/slots</code>\n` +
-      `Spell slot usage ◆◆◇ by level\n\n` +
-
-      `<code>/dragon</code>\n` +
-      `Your dragon's bond, trust, mood, burnout\n` +
-      `<code>/dragon Tairn</code>  — look up any dragon by name`,
-      lovableKey, telegramKey,
-    );
-
-    // Message 3: Actions
-    await sendTelegram(chatId,
-      `⚔️ <b>ACTIONS</b>\n\n` +
-
+      `Just type it — shows your health.\n\n` +
       `<code>/roll 2d20+5</code>\n` +
-      `Roll any dice — <i>1d20, 4d6+3, 2d8-1</i>\n\n` +
-
-      `<code>/initiative</code>\n` +
-      `Roll initiative (uses your DEX mod)\n\n` +
-
-      `<code>/ready</code>\n` +
-      `Ready up for the current round (no action)\n` +
-      `<code>/ready I cast Fireball at the cluster</code>\n` +
-      `Submit your action and ready up in one step\n\n` +
-
-      `<code>/damage 15</code>  —  Take 15 damage\n` +
-      `<code>/heal 10</code>  —  Recover 10 HP\n` +
-      `<code>/cast 3</code>  —  Use a 3rd-level spell slot`,
+      `Add info after the command — rolls two 20-sided dice plus 5.\n\n` +
+      `<code>/ask Why is Jack Barlowe targeting me?</code>\n` +
+      `Write a full question — the AI answers using your campaign history.\n\n` +
+      `That's it. Type a command, get a response. Let's go through everything you can do. 👇`,
       lovableKey, telegramKey,
     );
-
-    // Message 4: Campaign + AI
+    // Message 2: Getting Connected
     await sendTelegram(chatId,
-      `📖 <b>CAMPAIGN</b>\n\n` +
-
-      `<code>/party</code>  —  Members, classes, HP, session status\n` +
-      `<code>/quests</code>  —  Active quest log\n` +
-      `<code>/last</code>  —  Read the last DM message\n` +
-      `<code>/recap</code>  —  Full campaign summary\n\n` +
-
-      `─────────────────────\n\n` +
-
-      `🤖 <b>AI TOOLS</b>  <i>(uses AI credits)</i>\n\n` +
-
-      `<code>/ask</code> + your question\n` +
-      `Ask the DM anything — rules, strategy, lore.\n` +
-      `The AI sees your character sheet + campaign.\n` +
-      `<i>Ex: /ask Can I use Shield as a reaction here?</i>\n\n` +
-
-      `<code>/suggest</code>\n` +
-      `Get 3 tactical options for your next turn\n` +
-      `based on your HP, spells, and the situation.\n\n` +
-
-      `<code>/scene</code>\n` +
-      `"Where are we?" — a quick situational brief.\n\n` +
-
-      `<code>/who</code> + NPC name\n` +
-      `Everything the party knows about an NPC.\n` +
-      `<i>Ex: /who Rhiannon</i>\n\n` +
-
-      `<code>/lore</code> + question\n` +
-      `D&D rules, fantasy book lore, worldbuilding.\n` +
-      `<i>Ex: /lore What are Venin?</i>`,
+      `🔗 <b>STEP 1 — LINK YOUR ACCOUNT</b>\n\n` +
+      `Before anything works, you need to connect this Telegram chat to your Odyssey account. You only have to do this once.\n\n` +
+      `1.  Open the Odyssey Forge app\n` +
+      `2.  Go to <b>Settings → Telegram</b>\n` +
+      `3.  Tap <b>Generate Code</b>\n` +
+      `4.  Come back here and type:\n\n` +
+      `<code>/link YOUR_CODE</code>\n\n` +
+      `Replace YOUR_CODE with the code from the app. Once linked, you'll start receiving game notifications here too.\n\n\n` +
+      `<b>Other account commands:</b>\n\n` +
+      `<code>/status</code>\n` +
+      `Check if your account is connected and see your notification settings.\n\n` +
+      `<code>/notify on</code>  or  <code>/notify off</code>\n` +
+      `Turn game notifications on or off — ready-ups, timers, combat alerts, and dragon bond messages.\n\n` +
+      `<code>/unlink</code>\n` +
+      `Disconnect this chat from your account entirely.`,
+      lovableKey, telegramKey,
+    );
+    // Message 3: Character Sheet
+    await sendTelegram(chatId,
+      `🎭 <b>YOUR CHARACTER SHEET</b>\n\n` +
+      `Check any part of your character without opening the app.\n\n\n` +
+      `<code>/character</code>\n\n` +
+      `Your full character summary — name, race, class, level, HP, gold, XP, and any active conditions.\n\n\n` +
+      `<code>/stats</code>\n\n` +
+      `Your six ability scores with calculated modifiers.\n` +
+      `<i>STR 16 (+3)   DEX 14 (+2)   CON 12 (+1) ...</i>\n\n\n` +
+      `<code>/hp</code>\n\n` +
+      `A visual health bar showing your current HP, max HP, and temp HP. If you're at 0, it shows your death save progress too.\n\n\n` +
+      `<code>/spells</code>\n\n` +
+      `Everything about your magic — prepared spells, known spells, what you're concentrating on, and remaining spell slots by level.\n\n\n` +
+      `<code>/slots</code>\n\n` +
+      `Quick spell slot check.\n` +
+      `<i>Level 1: ◆◆◇  (2/3)     Level 2: ◆◇◇  (1/3)</i>\n\n\n` +
+      `<code>/dragon</code>\n\n` +
+      `If you're playing an Empyrean campaign with a bonded dragon — see your dragon's bond level, trust, mood, signet, and burnout.\n\n` +
+      `<code>/dragon Tairn</code>\n\n` +
+      `Look up any dragon in your party by name.`,
+      lovableKey, telegramKey,
+    );
+    // Message 4: Actions
+    await sendTelegram(chatId,
+      `⚔️ <b>ACTIONS — DO THINGS FROM TELEGRAM</b>\n\n` +
+      `These commands change your character's state, roll dice, or interact with your party session.\n\n\n` +
+      `<code>/roll 2d20+5</code>\n\n` +
+      `Roll any dice you want. The format is: number of dice, the letter d, number of sides, then an optional +/- modifier.\n\n` +
+      `<i>/roll 1d20       → standard d20\n` +
+      `/roll 4d6+3      → four d6 plus 3\n` +
+      `/roll 2d8-1       → two d8 minus 1</i>\n\n\n` +
+      `<code>/initiative</code>\n\n` +
+      `Rolls a d20 and adds your DEX modifier automatically.\n\n\n` +
+      `<code>/damage 15</code>\n\n` +
+      `Take 15 points of damage. This updates your character's HP in the app too.\n\n\n` +
+      `<code>/heal 10</code>\n\n` +
+      `Recover 10 HP. Won't go above your maximum.\n\n\n` +
+      `<code>/cast 3</code>\n\n` +
+      `Spend a spell slot. The number is the spell level — /cast 3 uses a 3rd-level slot.\n\n\n` +
+      `<code>/ready</code>\n\n` +
+      `Ready up for your party's current round with no specific action.\n\n` +
+      `<code>/ready I attack the goblin with my longsword</code>\n\n` +
+      `Submit your action AND ready up in one step. Your party will see what you plan to do.`,
+      lovableKey, telegramKey,
+    );
+    // Message 5: Campaign
+    await sendTelegram(chatId,
+      `📖 <b>CAMPAIGN INFO</b>\n\n` +
+      `Stay connected to your campaign between sessions.\n\n\n` +
+      `<code>/party</code>\n\n` +
+      `See everyone in your party — their names, classes, HP, and whether a DM session is active.\n\n\n` +
+      `<code>/quests</code>\n\n` +
+      `Your quest log — active, completed, and failed quests tracked across your campaign.\n\n\n` +
+      `<code>/last</code>\n\n` +
+      `Read the most recent DM narrative message. Perfect for catching up if you missed something or need a refresher before your next session.\n\n\n` +
+      `<code>/recap</code>\n\n` +
+      `A full AI-generated summary of your entire campaign so far — major events, plot threads, and where things left off.`,
+      lovableKey, telegramKey,
+    );
+    // Message 6: AI Tools
+    await sendTelegram(chatId,
+      `🤖 <b>AI TOOLS</b>\n\n` +
+      `These commands use AI to give you personalized answers based on your character and campaign. They're like having a DM on call.\n\n\n` +
+      `<code>/ask</code>  +  your question\n\n` +
+      `Ask the DM literally anything. The AI sees your character sheet, campaign history, and recent events — so it gives answers specific to YOUR game, not generic advice.\n\n` +
+      `<i>/ask Can I use Shield as a reaction underwater?\n` +
+      `/ask What should I do about the missing shipment?\n` +
+      `/ask How does Polearm Master work with Sentinel?</i>\n\n\n` +
+      `<code>/suggest</code>\n\n` +
+      `The AI looks at your current HP, spell slots, conditions, abilities, and the situation — then suggests 3 concrete tactical options for your next turn.\n\n\n` +
+      `<code>/scene</code>\n\n` +
+      `A quick "where are we right now?" brief. The AI reads the last few messages and gives you a 3–5 sentence summary of the current situation.\n\n\n` +
+      `<code>/who</code>  +  NPC name\n\n` +
+      `Look up any NPC from your campaign. The AI searches your campaign history and tells you everything the party knows — who they are, what they did, and any unfinished business.\n\n` +
+      `<i>/who Rhiannon\n` +
+      `/who Commander Vane</i>\n\n\n` +
+      `<code>/lore</code>  +  question\n\n` +
+      `General fantasy and D&D knowledge — not specific to your campaign. Good for rules questions, world lore, or book references.\n\n` +
+      `<i>/lore What are Venin?\n` +
+      `/lore How does flanking work in 5e?</i>`,
       lovableKey, telegramKey,
     );
 
