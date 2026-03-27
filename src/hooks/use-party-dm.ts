@@ -127,6 +127,12 @@ export interface DmSessionConfig {
   // Campaign world type
   campaignType?: 'dnd' | 'empyrean'; // default: 'dnd'
   empyreanFocus?: 'combat' | 'political' | 'romance' | 'mystery' | 'survival' | 'balanced';
+  // NPC Conversational Scene
+  npcSceneActive?: boolean;
+  npcSceneNpcs?: string[];        // 2-6 NPC names
+  npcScenePrompt?: string;        // scene-setting prompt
+  npcSceneMaxMessages?: number;   // message cap (default 12)
+  npcSceneMessageCount?: number;  // messages generated so far
 }
 
 export interface PartyDragonConfig {
@@ -2122,81 +2128,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId, user, sessionConfig, isGenerating, messages, characterName, customGuidesContent, streamAIResponse, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper, empyreanPersonaPrompt]);
 
-  // === DIALOGUE MODE: Generate a recap of recent dialogue ===
-  const generateDialogueRecap = useCallback(async (): Promise<string | null> => {
-    if (!partyId || !user || !sessionConfig) return null;
-
-    // Find all messages since the last DM assistant message
-    const lastDMIndex = messages.length - 1 - [...messages].reverse().findIndex(m => m.role === 'assistant' && m.sender_name === 'DM');
-    const dialogueMessages = lastDMIndex >= 0 && lastDMIndex < messages.length
-      ? messages.slice(lastDMIndex + 1)
-      : messages.slice(-20);
-
-    if (dialogueMessages.length < 2) return null;
-
-    const dialogueText = dialogueMessages
-      .filter(m => m.role === 'user' && m.sender_name !== 'System')
-      .map(m => m.content)
-      .join('\n');
-
-    if (!dialogueText.trim()) return null;
-
-    try {
-      const authToken = await getAuthToken();
-      const response = await fetch(SUMMARIZE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: `Summarize this player dialogue in 2-3 sentences as a narrative bridge. Focus on what was decided, revealed, or emotionally significant. Write in past tense as if recapping for a DM who needs to continue the story:\n\n${dialogueText}` }],
-          campaignSummary: sessionConfig.campaignSummary || undefined,
-        }),
-      });
-
-      if (!response.ok) return null;
-      const data = await response.json();
-      return data?.summary || data?.content || null;
-    } catch {
-      return null;
-    }
-  }, [partyId, user, sessionConfig, messages]);
-
-  // === DIALOGUE MODE: Auto-intervention monitor ===
-  const DIALOGUE_TRIGGER_PATTERN = /attack|strike|cast|stab|shoot|kill|fight|draw.*(sword|weapon|blade|bow)|initiative|persuade|deceive|intimidate|steal|sneak|investigate|search|perception|insight|roll|check|save|trap|danger|ambush/i;
-
-  useEffect(() => {
-    if (sessionConfig?.dmMode !== 'dialogue' || !sessionConfig.dialogueAutoIntervene || isGenerating) return;
-
-    const threshold = sessionConfig.dialogueAutoInterveneThreshold || 6;
-
-    let userMsgsSinceLastDM = 0;
-    const recentUserMessages: string[] = [];
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].role === 'assistant') break;
-      if (messages[i].role === 'user') {
-        userMsgsSinceLastDM++;
-        recentUserMessages.push(messages[i].content);
-      }
-    }
-
-    if (userMsgsSinceLastDM <= lastAutoInterveneMsgCountRef.current) return;
-
-    if (userMsgsSinceLastDM >= threshold) {
-      const hasTriggered = recentUserMessages.some(content => DIALOGUE_TRIGGER_PATTERN.test(content));
-      if (hasTriggered) {
-        console.log(`[PartyDM] Auto-intervene triggered: ${userMsgsSinceLastDM} msgs since last DM, trigger pattern found`);
-        lastAutoInterveneMsgCountRef.current = userMsgsSinceLastDM;
-        callDM();
-      }
-    }
-  }, [messages, sessionConfig?.dmMode, sessionConfig?.dialogueAutoIntervene, sessionConfig?.dialogueAutoInterveneThreshold, isGenerating, callDM]);
-
-  // Reset auto-intervene counter when a new DM response arrives
-  useEffect(() => {
-    if (messages.length > 0 && messages[messages.length - 1].role === 'assistant') {
-      lastAutoInterveneMsgCountRef.current = 0;
-    }
-  }, [messages]);
-
 
   const regenerateMessage = useCallback(async (messageId: string) => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
@@ -2727,6 +2658,272 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   }, [partyId, user, messages, updateSessionConfig, silentAutoSave, customGuidesContent]);
 
 
+  // === NPC Conversational Scene ===
+  const npcSceneActiveRef = useRef(false);
+
+  const startNpcScene = useCallback(async (npcs: string[], scenePrompt: string, maxMessages: number = 12) => {
+    if (!partyId || !user || !sessionConfig || isGenerating) return;
+    if (npcs.length < 2 || npcs.length > 6) {
+      toast.error('NPC scene requires 2-6 NPCs');
+      return;
+    }
+
+    setIsGenerating(true);
+    npcSceneActiveRef.current = true;
+
+    updateSessionConfig({
+      npcSceneActive: true,
+      npcSceneNpcs: npcs,
+      npcScenePrompt: scenePrompt,
+      npcSceneMaxMessages: maxMessages,
+      npcSceneMessageCount: 0,
+    });
+
+    const { data: lockData, error: stateErr } = await (supabase.from('party_shared_state') as any)
+      .update({ state_data: { ...sessionConfig, isGenerating: true, npcSceneActive: true, npcSceneNpcs: npcs, npcScenePrompt: scenePrompt, npcSceneMaxMessages: maxMessages, npcSceneMessageCount: 0 } })
+      .eq('party_id', partyId)
+      .eq('state_type', 'dm_session')
+      .not('state_data->isGenerating', 'eq', true)
+      .select('id');
+    if (stateErr) console.error('[PartyDM] Failed to set isGenerating state:', stateErr);
+
+    if (!lockData || lockData.length === 0) {
+      console.log('[PartyDM] Generation already in progress on another client, skipping');
+      toast('The DM is already responding...', { duration: 2000, icon: '⏳' });
+      npcSceneActiveRef.current = false;
+      setIsGenerating(false);
+      updateSessionConfig({ npcSceneActive: false });
+      return;
+    }
+
+    abortRef.current = new AbortController();
+    try {
+      await insertPartyMessageHelper(partyId, {
+        party_id: partyId,
+        role: 'assistant',
+        content: `*${scenePrompt}*`,
+        sender_user_id: null,
+        sender_name: 'DM',
+      });
+
+      const contextMessages = [...messages].map(m => ({ role: m.role, content: m.content }));
+      const sceneMessages: Array<{ role: string; content: string }> = [];
+      let messageCount = 0;
+
+      for (let turn = 0; turn < maxMessages; turn++) {
+        if (!npcSceneActiveRef.current) break;
+        if (abortRef.current?.signal.aborted) break;
+
+        const npcIndex = turn % npcs.length;
+        const currentNpc = npcs[npcIndex];
+        const otherNpcs = npcs.filter((_, i) => i !== npcIndex);
+
+        if (turn > 0) {
+          await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(resolve, 1500);
+            const onAbort = () => { clearTimeout(timeout); reject(new DOMException('Aborted', 'AbortError')); };
+            abortRef.current?.signal.addEventListener('abort', onAbort, { once: true });
+          });
+        }
+
+        if (!npcSceneActiveRef.current) break;
+        if (abortRef.current?.signal.aborted) break;
+
+        const npcSystemPrompt = `## NPC SCENE — SINGLE LINE ONLY
+You ARE ${currentNpc}. This is a multi-NPC conversation scene.
+Scene context: "${scenePrompt}"
+Other NPCs present: ${otherNpcs.join(', ')}
+
+Write ONLY ${currentNpc}'s next line:
+1. One brief italicized body-language beat (10 words max).
+2. One line of spoken dialogue, prefixed with **${currentNpc}:**
+
+Rules:
+- This is line ${turn + 1} of an ongoing scene between ${npcs.join(', ')}.
+- React to what the other NPCs have said so far.
+- NO prose, NO narration, NO scene-setting.
+- NO mechanical info (dice, DCs, stats).
+- Keep the total under 40 words.
+- Stay in character as ${currentNpc} has been portrayed.`;
+
+        const apiMessages = [...contextMessages.slice(-40), ...sceneMessages].map(m => ({ role: m.role, content: m.content }));
+
+        const authToken = await getAuthToken();
+        const npcResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            messages: apiMessages.slice(-50),
+            characterContext,
+            systemPromptOverride: npcSystemPrompt,
+            model: loadSelectedModel(),
+            maxTokens: 200,
+          }),
+          signal: abortRef.current!.signal,
+        });
+
+        if (!npcResponse.ok) {
+          const err = await npcResponse.json().catch(() => ({}));
+          throw new Error((err as { error?: string }).error || 'NPC scene generation failed');
+        }
+
+        if (!npcResponse.body) throw new Error('No response body');
+
+        const npcReader = npcResponse.body.getReader();
+        const npcDecoder = new TextDecoder();
+        let npcBuffer = '';
+        let assistantContent = '';
+
+        while (true) {
+          const { done, value } = await npcReader.read();
+          if (done) break;
+          npcBuffer += npcDecoder.decode(value, { stream: true });
+          let newlineIndex: number;
+          while ((newlineIndex = npcBuffer.indexOf('\n')) !== -1) {
+            let line = npcBuffer.slice(0, newlineIndex);
+            npcBuffer = npcBuffer.slice(newlineIndex + 1);
+            if (line.endsWith('\r')) line = line.slice(0, -1);
+            if (line.startsWith(':') || line.trim() === '') continue;
+            if (!line.startsWith('data: ')) continue;
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr === '[DONE]') break;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
+              if (delta) assistantContent += delta;
+            } catch { /* skip */ }
+          }
+        }
+
+        if (!npcSceneActiveRef.current) break;
+        if (abortRef.current?.signal.aborted) break;
+
+        if (assistantContent?.trim()) {
+          await insertPartyMessageHelper(partyId, {
+            party_id: partyId,
+            role: 'assistant',
+            content: assistantContent.trim(),
+            sender_user_id: null,
+            sender_name: currentNpc,
+          });
+          sceneMessages.push({ role: 'assistant', content: `[${currentNpc}]: ${assistantContent.trim()}` });
+          messageCount++;
+          await updateSessionConfig({ npcSceneMessageCount: messageCount });
+        }
+      }
+
+      triggerSummaryIfNeeded([...messages]);
+      silentAutoSave([...messages], sessionConfig.campaignSummary || null);
+
+    } catch (error) {
+      const isAbort = error instanceof Error && error.name === 'AbortError';
+      if (!isAbort) {
+        console.error('Party DM NPC scene error:', error);
+        toast.error(error instanceof Error ? error.message : 'NPC scene failed');
+      }
+    } finally {
+      npcSceneActiveRef.current = false;
+      await (supabase.from('party_shared_state') as any)
+        .update({ state_data: { ...sessionConfig, isGenerating: false, npcSceneActive: false, npcSceneMessageCount: 0 } })
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session');
+      setIsGenerating(false);
+      abortRef.current = null;
+    }
+  }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, updateSessionConfig, insertPartyMessageHelper, triggerSummaryIfNeeded, silentAutoSave]);
+
+  const stopNpcScene = useCallback(() => {
+    npcSceneActiveRef.current = false;
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    setIsGenerating(false);
+    if (partyId && sessionConfig) {
+      (supabase.from('party_shared_state') as any)
+        .update({ state_data: { ...sessionConfig, isGenerating: false, npcSceneActive: false } })
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session')
+        .then(() => {});
+    }
+  }, [partyId, sessionConfig]);
+
+  // === DIALOGUE MODE: Generate a recap of recent dialogue ===
+  const generateDialogueRecap = useCallback(async (): Promise<string | null> => {
+    if (!partyId || !user || !sessionConfig) return null;
+
+    const lastDMIndex = messages.length - 1 - [...messages].reverse().findIndex(m => m.role === 'assistant' && m.sender_name === 'DM');
+    const dialogueMessages = lastDMIndex >= 0 && lastDMIndex < messages.length
+      ? messages.slice(lastDMIndex + 1)
+      : messages.slice(-20);
+
+    if (dialogueMessages.length < 2) return null;
+
+    const dialogueText = dialogueMessages
+      .filter(m => m.role === 'user' && m.sender_name !== 'System')
+      .map(m => m.content)
+      .join('\n');
+
+    if (!dialogueText.trim()) return null;
+
+    try {
+      const authToken = await getAuthToken();
+      const response = await fetch(SUMMARIZE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: `Summarize this player dialogue in 2-3 sentences as a narrative bridge. Focus on what was decided, revealed, or emotionally significant. Write in past tense as if recapping for a DM who needs to continue the story:\n\n${dialogueText}` }],
+          campaignSummary: sessionConfig.campaignSummary || undefined,
+        }),
+      });
+
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data?.summary || data?.content || null;
+    } catch {
+      return null;
+    }
+  }, [partyId, user, sessionConfig, messages]);
+
+  // === DIALOGUE MODE: Auto-intervention monitor ===
+  const DIALOGUE_TRIGGER_PATTERN = /attack|strike|cast|stab|shoot|kill|fight|draw.*(sword|weapon|blade|bow)|initiative|persuade|deceive|intimidate|steal|sneak|investigate|search|perception|insight|roll|check|save|trap|danger|ambush/i;
+
+  useEffect(() => {
+    if (sessionConfig?.dmMode !== 'dialogue' || !sessionConfig.dialogueAutoIntervene || isGenerating) return;
+
+    const threshold = sessionConfig.dialogueAutoInterveneThreshold || 6;
+
+    let userMsgsSinceLastDM = 0;
+    const recentUserMessages: string[] = [];
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant') break;
+      if (messages[i].role === 'user') {
+        userMsgsSinceLastDM++;
+        recentUserMessages.push(messages[i].content);
+      }
+    }
+
+    if (userMsgsSinceLastDM <= lastAutoInterveneMsgCountRef.current) return;
+
+    if (userMsgsSinceLastDM >= threshold) {
+      const hasTriggered = recentUserMessages.some(content => DIALOGUE_TRIGGER_PATTERN.test(content));
+      if (hasTriggered) {
+        console.log(`[PartyDM] Auto-intervene triggered: ${userMsgsSinceLastDM} msgs since last DM, trigger pattern found`);
+        lastAutoInterveneMsgCountRef.current = userMsgsSinceLastDM;
+        callDM();
+      }
+    }
+  }, [messages, sessionConfig?.dmMode, sessionConfig?.dialogueAutoIntervene, sessionConfig?.dialogueAutoInterveneThreshold, isGenerating, callDM]);
+
+  useEffect(() => {
+    if (messages.length > 0 && messages[messages.length - 1].role === 'assistant') {
+      lastAutoInterveneMsgCountRef.current = 0;
+    }
+  }, [messages]);
+
   const setTimerConfig = useCallback(async (enabled: boolean, durationSeconds: number) => {
     await updateSessionConfig({
       timerEnabled: enabled,
@@ -3020,6 +3217,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     sendWhisper,
     callDM,
     voiceNPC,
+    startNpcScene,
+    stopNpcScene,
     generateDialogueRecap,
     regenerateMessage,
     regenerateWhispers,
@@ -3044,7 +3243,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     startSession, endSession, startNewCampaign, saveCampaign, loadCampaign,
     submitPrompt, editPrompt, retractPrompt, setReady, unready,
     generateResponse, sendManualDmMessage, approveDraft, discardDraft,
-    editMessage, deleteMessage, sendDialogueMessage, sendWhisper, callDM, voiceNPC, generateDialogueRecap, regenerateMessage, regenerateWhispers,
+    editMessage, deleteMessage, sendDialogueMessage, sendWhisper, callDM, voiceNPC, startNpcScene, stopNpcScene, generateDialogueRecap, regenerateMessage, regenerateWhispers,
     addMediaMessage, stopGeneration, initiateSplit, regroupParty,
     updateSessionConfig, setTimerConfig, startTimer, pauseTimer, resumeTimer,
     cancelTimer, requestExtension, approveExtension, dismissExtensions,
