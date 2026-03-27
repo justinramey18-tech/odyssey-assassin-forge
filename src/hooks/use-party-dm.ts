@@ -2660,6 +2660,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   // === NPC Conversational Scene ===
   const npcSceneActiveRef = useRef(false);
+  const npcSceneInterjectionRef = useRef<{ content: string; senderName: string } | null>(null);
 
   const startNpcScene = useCallback(async (npcs: string[], scenePrompt: string, maxMessages: number = 12) => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
