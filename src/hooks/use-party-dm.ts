@@ -3250,6 +3250,7 @@ Rules:
     voiceNPC,
     startNpcScene,
     stopNpcScene,
+    submitNpcInterjection,
     generateDialogueRecap,
     regenerateMessage,
     regenerateWhispers,
