@@ -209,6 +209,26 @@ export function StandalonePartyDMScreen({
     toast.error(`Bond strained: ${reason}`);
   }, [dragonBonds.updateBondAndTrust]);
 
+  const handleBondGrowthDetected = useCallback((reason: string) => {
+    dragonBonds.updateBondAndTrust(3, 2);
+    toast.success(`Bond deepens: ${reason}`, { icon: '🐉' });
+  }, [dragonBonds.updateBondAndTrust]);
+
+  const handleDragonMemoryDetected = useCallback((memory: string) => {
+    if (!dragonBonds.myDragon) return;
+    const currentMemories = dragonBonds.myDragon.memories || [];
+    const newMemory = {
+      id: crypto.randomUUID(),
+      text: memory,
+      source: 'campaign' as const,
+      createdAt: new Date().toISOString(),
+    };
+    dragonBonds.updateMyDragon({
+      memories: [...currentMemories, newMemory].slice(-30),
+    });
+    toast('Dragon remembers: ' + memory, { icon: '🐉', duration: 3000 });
+  }, [dragonBonds.myDragon, dragonBonds.updateMyDragon]);
+
   // Party DM hook — pass isHost as isCreator so co-hosts get host abilities
   const partyDm = usePartyDm({
     partyId: partyId || null,
@@ -224,6 +244,8 @@ export function StandalonePartyDMScreen({
     onBurnoutDetected: handleBurnoutDetected,
     onBurnoutTickDetected: handleBurnoutTickDetected,
     onBondStrainDetected: handleBondStrainDetected,
+    onBondGrowthDetected: handleBondGrowthDetected,
+    onDragonMemoryDetected: handleDragonMemoryDetected,
     isSoloEmpyrean,
   });
 

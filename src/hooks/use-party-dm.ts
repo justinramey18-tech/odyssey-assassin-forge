@@ -66,12 +66,14 @@ export interface PartyDmMessage {
 const BURNOUT_TAG_RE = /<!--BURNOUT:\d+-->/g;
 const BURNOUT_TICK_TAG_RE = /<!--BURNOUT_TICK:.+?-->/g;
 const BOND_STRAIN_TAG_RE = /<!--BOND_STRAIN:.+?-->/g;
+const BOND_GROWTH_TAG_RE = /<!--BOND_GROWTH:.+?-->/g;
+const DRAGON_MEMORY_TAG_RE = /<!--DRAGON_MEMORY:.+?-->/g;
 
 function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string, myDragonName?: string): PartyDmMessage {
   if (msg.role !== 'assistant') return msg;
   const { narrative, whispers } = parseWhispers(msg.content);
   // Strip burnout and bond strain tags from narrative
-  const cleanNarrative = narrative.replace(BURNOUT_TAG_RE, '').replace(BURNOUT_TICK_TAG_RE, '').replace(BOND_STRAIN_TAG_RE, '').trim();
+  const cleanNarrative = narrative.replace(BURNOUT_TAG_RE, '').replace(BURNOUT_TICK_TAG_RE, '').replace(BOND_STRAIN_TAG_RE, '').replace(BOND_GROWTH_TAG_RE, '').replace(DRAGON_MEMORY_TAG_RE, '').trim();
   if (whispers.length === 0) return { ...msg, content: cleanNarrative };
 
   // Filter: keep actions + tactics (shared), and whispers targeted at this player or their dragon
@@ -155,10 +157,12 @@ interface UsePartyDmOptions {
   onBurnoutDetected?: (level: number) => void;
   onBurnoutTickDetected?: (reason: string) => void;
   onBondStrainDetected?: (reason: string) => void;
+  onBondGrowthDetected?: (reason: string) => void;
+  onDragonMemoryDetected?: (memory: string) => void;
   isSoloEmpyrean?: boolean;
 }
 
-export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, partyDragonConfigs, myDragonName, onBurnoutDetected, onBurnoutTickDetected, onBondStrainDetected, isSoloEmpyrean }: UsePartyDmOptions) {
+export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, partyDragonConfigs, myDragonName, onBurnoutDetected, onBurnoutTickDetected, onBondStrainDetected, onBondGrowthDetected, onDragonMemoryDetected, isSoloEmpyrean }: UsePartyDmOptions) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
   const [currentPrompts, setCurrentPrompts] = useState<PartyDmPrompt[]>([]);
@@ -208,13 +212,17 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     } catch {}
   }, [pendingDraft]);
 
-  // Detect BURNOUT and BOND_STRAIN tags from new assistant messages in Empyrean campaigns
+  // Detect BURNOUT, BOND_STRAIN, BOND_GROWTH, and DRAGON_MEMORY tags from new assistant messages in Empyrean campaigns
   const onBurnoutRef = useRef(onBurnoutDetected);
   const onBurnoutTickRef = useRef(onBurnoutTickDetected);
   const onBondStrainRef = useRef(onBondStrainDetected);
+  const onBondGrowthRef = useRef(onBondGrowthDetected);
+  const onDragonMemoryRef = useRef(onDragonMemoryDetected);
   useEffect(() => { onBurnoutRef.current = onBurnoutDetected; }, [onBurnoutDetected]);
   useEffect(() => { onBurnoutTickRef.current = onBurnoutTickDetected; }, [onBurnoutTickDetected]);
   useEffect(() => { onBondStrainRef.current = onBondStrainDetected; }, [onBondStrainDetected]);
+  useEffect(() => { onBondGrowthRef.current = onBondGrowthDetected; }, [onBondGrowthDetected]);
+  useEffect(() => { onDragonMemoryRef.current = onDragonMemoryDetected; }, [onDragonMemoryDetected]);
   const lastParsedMsgIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -242,6 +250,18 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       // Use onBurnoutDetected with -1 sentinel to signal "increment by 1"
       // The handler in StandalonePartyDMScreen will interpret this
       onBurnoutTickRef.current?.(tickMatch[1]);
+    }
+
+    // Parse BOND_GROWTH: increase bond by 3
+    const bondGrowthMatch = lastMsg.content.match(/<!--BOND_GROWTH:(.+?)-->/);
+    if (bondGrowthMatch) {
+      onBondGrowthRef.current?.(bondGrowthMatch[1]);
+    }
+
+    // Parse DRAGON_MEMORY: store a persistent memory
+    const dragonMemoryMatch = lastMsg.content.match(/<!--DRAGON_MEMORY:(.+?)-->/);
+    if (dragonMemoryMatch) {
+      onDragonMemoryRef.current?.(dragonMemoryMatch[1]);
     }
   }, [messages, sessionConfig?.campaignType]);
 
