@@ -84,8 +84,12 @@ export default function DragonBondChat({
   const [statsExpanded, setStatsExpanded] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [dragonOpening, setDragonOpening] = useState<string | null>(null);
+  const [showPersonality, setShowPersonality] = useState(false);
+  const [editingNotes, setEditingNotes] = useState('');
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
   const moodDurationRef = useRef<number>(0);
   const validTransitionsRef = useRef<DragonMood[]>([bondState.mood]);
   const recommendedMoodRef = useRef<DragonMood>(bondState.mood);
