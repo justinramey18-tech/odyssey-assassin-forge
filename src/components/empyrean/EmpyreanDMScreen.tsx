@@ -1517,6 +1517,14 @@ export function EmpyreanDMScreen({
         }}
       />
 
+      <NpcSceneDialog
+        open={showNpcScene}
+        onClose={() => setShowNpcScene(false)}
+        onStart={(npcs, prompt, max) => { startNpcScene(npcs, prompt, max); }}
+        sessionConfig={npcSceneSessionConfig}
+        messages={messages as any}
+      />
+
       <AnimatePresence>
         {showCampaignBuilder && (
           <CampaignBuilderChat

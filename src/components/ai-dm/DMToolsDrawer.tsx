@@ -185,6 +185,14 @@ export function DMToolsDrawer({
             />
           )}
 
+          {onNpcScene && (
+            <ToolRow
+              icon={<Theater className="w-4 h-4" />}
+              label="NPC Scene"
+              onClick={() => closeAndRun(onNpcScene)}
+            />
+          )}
+
           {/* World State */}
           <ToolRow
             icon={<Globe className="w-4 h-4" />}
