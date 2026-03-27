@@ -46,6 +46,7 @@ interface DMToolsDrawerProps {
   onDragonNotesChange?: (notes: string) => void;
   onReconfigureEmpyrean?: () => void;
   onResetBurnout?: () => void;
+  onNpcScene?: () => void;
 }
 
 export function DMToolsDrawer({
