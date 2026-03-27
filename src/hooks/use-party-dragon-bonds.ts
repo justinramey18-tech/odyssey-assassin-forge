@@ -1150,10 +1150,20 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     loadDragonChat,
     generateDragonOpinion,
     generateNarrativeReactions,
+    clearDragonChat: async () => {
+      setDragonChatMessages([]);
+      await saveDragonChat([]);
+    },
+    deleteFromDragonChat: async (index: number) => {
+      const current = [...dragonChatMessages];
+      current.splice(index, 1);
+      setDragonChatMessages(current);
+      await saveDragonChat(current);
+    },
     // Dragon network
     dragonNetworkMessages,
     sendDragonNetworkMessage,
     // Mood shift (in-memory only)
     lastMoodShift: lastMoodShiftRef.current,
-  }), [myDragon, isSetup, allDragonConfigs, saveMyDragon, updateMyDragon, updateBurnout, updateBondAndTrust, dragonChatMessages, isSending, sendDragonMessage, loadDragonChat, generateDragonOpinion, generateNarrativeReactions, dragonNetworkMessages, sendDragonNetworkMessage]);
+  }), [myDragon, isSetup, allDragonConfigs, saveMyDragon, updateMyDragon, updateBurnout, updateBondAndTrust, dragonChatMessages, isSending, sendDragonMessage, loadDragonChat, generateDragonOpinion, generateNarrativeReactions, saveDragonChat, dragonNetworkMessages, sendDragonNetworkMessage]);
 }

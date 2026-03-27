@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ArrowLeft, Send, X, Pencil, Check, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, X, Pencil, Check, Loader2, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
@@ -49,6 +49,8 @@ interface PartyDragonChatProps {
   myUserId?: string;
   dragonNotes?: string;
   onUpdateNotes?: (notes: string) => void;
+  onClearChat?: () => void;
+  onDeleteMessage?: (index: number) => void;
 }
 
 export default function PartyDragonChat({
@@ -67,6 +69,8 @@ export default function PartyDragonChat({
   myUserId,
   dragonNotes,
   onUpdateNotes,
+  onClearChat,
+  onDeleteMessage,
 }: PartyDragonChatProps) {
   const [inputValue, setInputValue] = useState('');
   const [statsExpanded, setStatsExpanded] = useState(false);
@@ -75,6 +79,8 @@ export default function PartyDragonChat({
   const [showDragonPicker, setShowDragonPicker] = useState(false);
   const [showPersonality, setShowPersonality] = useState(false);
   const [editingNotes, setEditingNotes] = useState('');
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [deletingIdx, setDeletingIdx] = useState<number | null>(null);
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -201,7 +207,42 @@ export default function PartyDragonChat({
           <span>{moodInfo.emoji}</span>
           <span>{moodInfo.label}</span>
         </span>
+        {onClearChat && (
+          <button
+            onClick={() => setShowClearConfirm(true)}
+            className="p-2 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            style={{ touchAction: 'manipulation' }}
+            title="Clear chat"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
       </div>
+
+      {/* Clear Confirm */}
+      {showClearConfirm && (
+        <div className="shrink-0 flex items-center justify-center gap-3 px-4 py-3 bg-red-950/30 border-b border-red-500/20">
+          <p className="text-xs text-red-200/70">Clear entire dragon chat history?</p>
+          <button
+            onClick={() => setShowClearConfirm(false)}
+            className="px-3 py-1.5 rounded-lg text-xs text-white/50 hover:bg-white/5 border border-white/10"
+            style={{ touchAction: 'manipulation' }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              onClearChat?.();
+              setShowClearConfirm(false);
+              setDeletingIdx(null);
+            }}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-600 hover:bg-red-700 text-white"
+            style={{ touchAction: 'manipulation' }}
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* Bond / Trust Indicator */}
       <button
@@ -401,9 +442,11 @@ export default function PartyDragonChat({
               return (
                 <div key={`${msg.timestamp}-${idx}`}>
                   <div
+                    onClick={() => setDeletingIdx(prev => prev === idx ? null : idx)}
                     className={cn(
                       isDragon ? 'mb-6' : 'mb-5',
                       isDragon ? 'pr-12' : 'pl-12',
+                      'cursor-pointer',
                     )}
                   >
                     <div
@@ -429,6 +472,23 @@ export default function PartyDragonChat({
                   {bondSense && (
                     <div className="text-center text-[11px] italic text-cyan-300/40 py-2 px-4 mb-4">
                       {bondSense}
+                    </div>
+                  )}
+                  {deletingIdx === idx && onDeleteMessage && (
+                    <div className="flex justify-end px-4 pb-2 -mt-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const bondMessages = allItems.filter(i => i.kind === 'bond');
+                          const bondIdx = bondMessages.findIndex(b => b === item);
+                          if (bondIdx >= 0) onDeleteMessage(bondIdx);
+                          setDeletingIdx(null);
+                        }}
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-medium bg-red-900/40 border border-red-500/30 text-red-300 hover:bg-red-900/60 transition-colors"
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        Delete message
+                      </button>
                     </div>
                   )}
                 </div>
