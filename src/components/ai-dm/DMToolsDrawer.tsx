@@ -135,16 +135,16 @@ export function DMToolsDrawer({
                 <div className="px-4 py-3 border-b border-purple-500/10">
                   <div className="flex items-center gap-2 mb-1.5">
                     <span className="text-sm">🐉</span>
-                    <span className="text-xs font-cinzel text-white/70">Dragon Personality Notes</span>
+                    <span className="text-xs font-cinzel text-white/70">Dragon Personality Profile</span>
                   </div>
                   <textarea
                     value={dragonNotes || ''}
                     onChange={(e) => onDragonNotesChange(e.target.value)}
-                    placeholder="e.g. Tairn is sarcastic and dislikes Commander Vane. Always growls when his name comes up..."
-                    className="w-full h-20 text-xs bg-black/30 border border-purple-500/20 rounded-lg px-2.5 py-2 text-white/80 placeholder:text-white/20 resize-none focus:outline-none focus:border-purple-400/50"
-                    maxLength={1000}
+                    placeholder="Define your dragon's complete personality — voice, temperament, speech patterns, opinions, history, quirks. This is the single source of truth for who your dragon is."
+                    className="w-full min-h-[120px] text-xs bg-black/30 border border-purple-500/20 rounded-lg px-2.5 py-2 text-white/80 placeholder:text-white/20 resize-y focus:outline-none focus:border-purple-400/50"
+                    maxLength={20000}
                   />
-                  <p className="text-[10px] text-white/30 text-right mt-1">{(dragonNotes || '').length}/1000</p>
+                  <p className="text-[10px] text-white/30 text-right mt-1">{(dragonNotes || '').length.toLocaleString()}/20,000</p>
                 </div>
               )}
             </>
