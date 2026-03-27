@@ -365,7 +365,17 @@ export function EmpyreanDMScreen({
           title: '🗡️ Combat Has Begun!',
           body: 'Your DM has initiated combat. Roll for initiative!',
           mode: 'empyrean',
-        });
+  });
+
+  const npcSceneSessionConfig = useMemo(() => ({
+    active: true,
+    mode: 'shared' as const,
+    currentRoundId: '',
+    campaignSummary: campaignSummary,
+    isGenerating: false,
+    campaignType: 'empyrean' as const,
+  }), [campaignSummary]);
+
       }
     },
     onQuestExtracted: (quests) => {
