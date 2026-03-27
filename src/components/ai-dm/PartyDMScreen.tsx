@@ -2645,6 +2645,41 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             )}
           </div>
         ) : partyDm.isGenerating && !isDialogueMode ? (
+          partyDm.sessionConfig?.npcSceneActive ? (
+          <div className="space-y-2 max-w-2xl mx-auto">
+            <div className="flex items-center gap-2">
+              <textarea
+                value={npcInterjectionText}
+                onChange={e => {
+                  setNpcInterjectionText(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                }}
+                placeholder="Speak up — the NPCs will react to you..."
+                rows={1}
+                className="flex-1 bg-white/5 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none border border-amber-900/30 focus:ring-1 focus:ring-amber-500/30 focus:outline-none max-h-[120px]"
+                style={{ touchAction: 'manipulation' }}
+              />
+              <button
+                onClick={() => {
+                  if (npcInterjectionText.trim()) {
+                    partyDm.submitNpcInterjection(npcInterjectionText.trim());
+                    setNpcInterjectionText('');
+                  }
+                }}
+                disabled={!npcInterjectionText.trim()}
+                className="p-2.5 rounded-xl bg-primary/20 border border-primary/30 text-primary hover:bg-primary/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex items-center justify-center gap-1.5">
+              <Loader2 className="w-3 h-3 text-amber-400/70 animate-spin" />
+              <span className="text-xs text-amber-400/50">Scene in progress — jump in anytime</span>
+            </div>
+          </div>
+        ) : (
           <div className="flex items-center justify-center gap-2 py-2">
             <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
             <span className="text-sm text-amber-400/70">Generating response...</span>
@@ -2658,6 +2693,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               </button>
             )}
           </div>
+        )
         ) : !hasSubmitted ? (
           <PartyDMInput
             ref={playerInputRef}
