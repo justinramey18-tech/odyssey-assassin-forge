@@ -2860,6 +2860,28 @@ Rules:
     }
   }, [partyId, sessionConfig]);
 
+  const submitNpcInterjection = useCallback(async (content: string) => {
+    if (!partyId || !user || !content.trim()) return;
+    if (!npcSceneActiveRef.current) return;
+
+    const formattedContent = `[${characterName}]: ${content.trim()}`;
+
+    // Insert the player message into chat immediately
+    await insertPartyMessageHelper(partyId, {
+      party_id: partyId,
+      role: 'user',
+      content: formattedContent,
+      sender_user_id: user.id,
+      sender_name: characterName,
+    });
+
+    // Signal the scene loop that a player interjected
+    npcSceneInterjectionRef.current = {
+      content: formattedContent,
+      senderName: characterName,
+    };
+  }, [partyId, user, characterName, insertPartyMessageHelper]);
+
   // === DIALOGUE MODE: Generate a recap of recent dialogue ===
   const generateDialogueRecap = useCallback(async (): Promise<string | null> => {
     if (!partyId || !user || !sessionConfig) return null;
