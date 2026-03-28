@@ -98,7 +98,7 @@ export interface PartyDMSettingsProps {
   isSplitActive?: boolean;
   memberCount: number;
   onShowSplitInitiator: () => void;
-  onShowNpcScene?: () => void;
+  
   onShowRegroupDialog: () => void;
   onShowSplitSummaries: () => void;
   onShowPreSplitChat: () => void;
