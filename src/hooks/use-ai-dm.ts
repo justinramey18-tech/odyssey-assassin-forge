@@ -166,9 +166,6 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
   const [lastUsage, setLastUsage] = useState<{ input_tokens: number; output_tokens: number } | null>(null);
   const [sessionUsage, setSessionUsage] = useState<{ input_tokens: number; output_tokens: number; requests: number }>({ input_tokens: 0, output_tokens: 0, requests: 0 });
   const abortControllerRef = useRef<AbortController | null>(null);
-  const npcSceneActiveRef = useRef(false);
-  const npcSceneInterjectionRef = useRef<{ content: string; senderName: string } | null>(null);
-  const [npcSceneConfig, setNpcSceneConfig] = useState<{ active: boolean; npcs: string[]; prompt: string; maxMessages: number; messageCount: number } | null>(null);
 
   // Local save debounce
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
