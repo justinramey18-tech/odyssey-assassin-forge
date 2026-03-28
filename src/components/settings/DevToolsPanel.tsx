@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Copy, Check, Wrench } from 'lucide-react';
 import { SettingsSection } from './SettingsSection';
+import { CodebaseUploader } from './CodebaseUploader';
+import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 
 interface FileMapSection {
@@ -284,6 +286,10 @@ function CopyablePrompt({ template }: { template: PromptTemplate }) {
 export function DevToolsPanel() {
   return (
     <div className="space-y-3 pb-6">
+      <CodebaseUploader />
+
+      <Separator className="my-4" />
+
       <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
         <Wrench className="w-3.5 h-3.5 text-rose-400" />
         <span>File map reference</span>
