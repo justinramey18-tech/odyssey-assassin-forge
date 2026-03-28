@@ -296,7 +296,7 @@ export function EmpyreanDMScreen({
     newGame,
   } = useAIDM({
     characterContext,
-    customGuidesContent: (enabledContent || '') + oocDmChat.activeDirectives,
+    customGuidesContent: enabledContent,
     dmPersonaPrompt,
     responseModePrompt: resolveResponseModePrompt(responseMode),
     selectedModel,
