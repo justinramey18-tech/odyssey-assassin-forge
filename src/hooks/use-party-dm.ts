@@ -2750,7 +2750,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       }
     }
 
-    if (!full?.trim()) return [];
+    if (!full?.trim()) {
+      console.warn('[NPC Scene] AI returned empty response');
+      return [];
+    }
+
+    console.log('[NPC Scene] Raw AI response length:', full.length, 'preview:', full.slice(0, 200));
 
     // Parse into individual NPC lines
     const esc = npcs.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
@@ -2765,7 +2770,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       if (nm) {
         const npcName = npcs.find(n => n.toLowerCase() === nm[1].toLowerCase()) || nm[1];
         const dialogue = t.slice(nm[0].length).trim();
-        // Look for italic beat before this chunk in the full text
         const chunkPos = full.indexOf(t);
         let beat = '';
         if (chunkPos > 0) {
@@ -2776,6 +2780,41 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         result.push({ npcName, content: beat + '**' + npcName + ':** ' + dialogue });
       }
     }
+
+    // If strict parsing found nothing, try a looser pattern
+    if (result.length === 0 && full.trim().length > 20) {
+      console.warn('[NPC Scene] Strict parser found 0 lines. Trying loose parser on:', full.slice(0, 200));
+      
+      const looseSplit = full.split(/(?=\*\*[A-Z][a-zA-Z' ]+\*\*\s*:)/g).filter(c => c.trim());
+      const looseNameRe = /^\*\*\s*([A-Z][a-zA-Z' ]+)\s*\*\*\s*:\s*/;
+      
+      for (const chunk of looseSplit) {
+        const t = chunk.trim();
+        const nm = t.match(looseNameRe);
+        if (nm) {
+          const foundName = nm[1].trim();
+          const npcName = npcs.find(n => n.toLowerCase() === foundName.toLowerCase()) || foundName;
+          const dialogue = t.slice(nm[0].length).trim();
+          const chunkPos = full.indexOf(t);
+          let beat = '';
+          if (chunkPos > 0) {
+            const before = full.slice(Math.max(0, chunkPos - 200), chunkPos).trim();
+            const bm = before.match(/(\*[^*\n]+\*)\s*$/);
+            if (bm) beat = bm[1] + '\n';
+          }
+          result.push({ npcName, content: beat + '**' + npcName + ':** ' + dialogue });
+        }
+      }
+      
+      console.log('[NPC Scene] Loose parser found:', result.length, 'lines');
+    }
+
+    // If STILL nothing, push the entire raw response as a single fallback
+    if (result.length === 0 && full.trim().length > 20) {
+      console.warn('[NPC Scene] Both parsers failed. Using raw fallback.');
+      result.push({ npcName: 'DM', content: full.trim() });
+    }
+
     return result;
   }
 
@@ -2788,6 +2827,18 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
     setIsGenerating(true);
     npcSceneInterjectionRef.current = null;
+    console.log('[NPC Scene] Starting scene with NPCs:', npcs, 'prompt:', scenePrompt);
+
+    // Safety: if sessionConfig shows isGenerating but we're clearly not generating locally,
+    // force-clear the stale lock before trying to acquire
+    if (sessionConfig.isGenerating && !abortRef.current) {
+      console.warn('[NPC Scene] Detected stale isGenerating flag, force-clearing');
+      await (supabase.from('party_shared_state') as any)
+        .update({ state_data: { ...sessionConfig, isGenerating: false, npcSceneActive: false } })
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session');
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
 
     // Atomic lock
     const { data: lockData, error: stateErr } = await (supabase.from('party_shared_state') as any)
@@ -2802,6 +2853,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsGenerating(false);
       return;
     }
+    console.log('[NPC Scene] Lock acquired successfully');
 
     abortRef.current = new AbortController();
     try {
@@ -2813,6 +2865,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         sender_user_id: null,
         sender_name: 'DM',
       });
+      console.log('[NPC Scene] Scene-setting message inserted');
 
       const contextMessages = [...messages].map(m => ({ role: m.role, content: m.content }));
       let sceneHistory = '';
@@ -2823,6 +2876,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       let pending = await generateNpcBatch(
         npcs, scenePrompt, lineCount, contextMessages, sceneHistory, abortRef.current!.signal
       );
+      console.log('[NPC Scene] Initial batch generated:', pending.length, 'lines');
+
+      if (pending.length === 0) {
+        console.warn('[NPC Scene] Parser returned 0 lines — check AI response format');
+        toast.error('NPC scene: AI response could not be parsed into dialogue lines. Try again.');
+      }
 
       // Drip-feed loop with interjection support
       while (pending.length > 0 && totalLines < maxTotal) {
@@ -2872,6 +2931,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
         sceneHistory += '\n' + line.content.trim();
         totalLines++;
+        console.log('[NPC Scene] Inserted line', totalLines, 'from', line.npcName);
       }
 
       triggerSummaryIfNeeded([...messages]);
@@ -2880,8 +2940,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     } catch (error) {
       const isAbort = error instanceof Error && error.name === 'AbortError';
       if (!isAbort) {
-        console.error('NPC scene error:', error);
-        toast.error(error instanceof Error ? error.message : 'NPC scene failed');
+        console.error('[NPC Scene] Error:', error);
+        toast.error('NPC scene error: ' + (error instanceof Error ? error.message : 'Unknown error'), { duration: 5000 });
       }
     } finally {
       await (supabase.from('party_shared_state') as any)
