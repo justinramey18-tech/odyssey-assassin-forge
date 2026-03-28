@@ -153,6 +153,14 @@ export function StandalonePartyDMScreen({
   }, [partyId, userId, isPartyCreator, coHostIds]);
 
   // Campaign sessions (for dropdown)
+  const oocDmChat = useOocDmChat({
+    characterContext,
+    campaignSummary: null,
+    customGuidesContent: gmGuides.enabledContent,
+    campaignType: isSoloEmpyrean ? 'empyrean' : 'dnd',
+    selectedModel: undefined,
+  });
+
   const sessionMode = isSoloEmpyrean ? 'solo-empyrean' as const : 'party' as const;
   const campaignSessions = useCampaignSessions(sessionMode);
 
