@@ -112,7 +112,14 @@ export function useDevAssistant() {
         },
       });
 
-      if (answerError) throw new Error(answerError.message || 'Answer phase failed');
+      if (answerError) {
+        let detail = answerError.message || 'Answer phase failed';
+        try {
+          const body = (answerError as any).context?.body ? await (answerError as any).context.json() : answerData;
+          if (body?.error) detail = body.error;
+        } catch {}
+        throw new Error(detail);
+      }
       if (answerData?.error) throw new Error(answerData.error);
 
       updatePlaceholder(assistantId, {
