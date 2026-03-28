@@ -2912,6 +2912,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               
               onShowOocChat={onShowOocChat}
               oocDirectiveCount={oocDirectiveCount}
+              onShowNpcScene={() => setShowNpcScene(true)}
               onShowRegroupDialog={() => setShowRegroupDialog(true)}
               onShowSplitSummaries={() => setShowSplitSummaries(true)}
               onShowPreSplitChat={() => setShowPreSplitChat(true)}
