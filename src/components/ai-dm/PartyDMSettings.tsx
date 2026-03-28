@@ -478,6 +478,15 @@ export function PartyDMSettings({
               onClick={onShowNpcScene}
             />
           )}
+          {onShowOocChat && (
+            <ToolRow
+              icon={<Megaphone className="w-4 h-4" />}
+              label="Director's Channel"
+              description="OOC chat with the DM + story directives"
+              badge={oocDirectiveCount}
+              onClick={onShowOocChat}
+            />
+          )}
           {isSplitActive ? (
             <>
               <ToolRow icon={<Eye className="w-4 h-4" />} label="View Split Summaries" onClick={onShowSplitSummaries} />
