@@ -2940,8 +2940,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     } catch (error) {
       const isAbort = error instanceof Error && error.name === 'AbortError';
       if (!isAbort) {
-        console.error('NPC scene error:', error);
-        toast.error(error instanceof Error ? error.message : 'NPC scene failed');
+        console.error('[NPC Scene] Error:', error);
+        toast.error('NPC scene error: ' + (error instanceof Error ? error.message : 'Unknown error'), { duration: 5000 });
       }
     } finally {
       await (supabase.from('party_shared_state') as any)
