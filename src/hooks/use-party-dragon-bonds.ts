@@ -440,6 +440,10 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
                 if (prev.some(m => m.id === incoming.id)) return prev;
                 return [...prev, incoming];
               });
+              // If this message was sent TO this user's dragon, trigger a reaction
+              if (payload.eventType === 'INSERT' && incoming.toUserId === userId && incoming.fromUserId !== userId) {
+                triggerDragonReaction(incoming, 'normal');
+              }
             }
             // Evaluate cross-reactions / chain reactions for INSERTs from other users
             if (payload.eventType === 'INSERT' && row.user_id !== userId) {
