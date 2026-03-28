@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
-import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle, Megaphone } from 'lucide-react';
+import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle, Theater, Megaphone } from 'lucide-react';
+import { NpcSceneDialog } from '@/components/ai-dm/NpcSceneDialog';
 import { useOocDmChat } from '@/hooks/use-ooc-dm-chat';
 import { OocDmChat } from '@/components/ai-dm/OocDmChat';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -176,7 +177,9 @@ export function EmpyreanDMScreen({
   const [showGuides, setShowGuides] = useState(false);
   const [showWorldState, setShowWorldState] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [showNpcScene, setShowNpcScene] = useState(false);
   const [showOocChat, setShowOocChat] = useState(false);
+  const [npcInterjectionText, setNpcInterjectionText] = useState('');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [burnoutLevel, setBurnoutLevel] = useState(0);
   const burnoutLevelRef = useRef(burnoutLevel);
@@ -278,6 +281,10 @@ export function EmpyreanDMScreen({
     updateCampaignSummary,
     sendMessage,
     voiceNPC,
+    startNpcScene,
+    stopNpcScene,
+    submitNpcInterjection,
+    npcSceneConfig,
     clearMessages,
     cancelRequest,
     editMessage,
@@ -373,6 +380,14 @@ export function EmpyreanDMScreen({
     },
   });
 
+  const npcSceneSessionConfig = useMemo(() => ({
+    active: true,
+    mode: 'shared' as const,
+    currentRoundId: '',
+    campaignSummary: campaignSummary,
+    isGenerating: false,
+    campaignType: 'empyrean' as const,
+  }), [campaignSummary]);
 
   // Register Oracle quest callback so OracleDrawer can save quests to game state
   const drawerContext = usePromptDrawers();
@@ -1193,6 +1208,21 @@ export function EmpyreanDMScreen({
         />
       )}
 
+        {npcSceneConfig?.active && (
+          <div className="flex items-center justify-center gap-2 py-1.5 bg-cyan-950/30 border-t border-cyan-500/20">
+            <Loader2 className="w-3 h-3 text-cyan-400 animate-spin" />
+            <span className="text-xs text-cyan-400/70">
+              NPC scene ({npcSceneConfig.messageCount}/{npcSceneConfig.maxMessages})
+            </span>
+            <button
+              onClick={stopNpcScene}
+              className="ml-2 px-2 py-0.5 rounded-md border border-red-500/30 bg-red-900/20 hover:bg-red-900/40 text-red-300 text-[11px] transition-colors"
+              style={{ touchAction: 'manipulation' }}
+            >
+              Stop
+            </button>
+          </div>
+        )}
 
       {/* Input bar — sits above the fixed DMBottomNav (~54px collapsed height) */}
       <div className="shrink-0 border-t border-purple-500/20 bg-background/90 backdrop-blur-sm px-3 pt-2.5 pb-[60px]">
@@ -1212,29 +1242,52 @@ export function EmpyreanDMScreen({
           </button>
 
           <textarea
-            ref={textareaRef}
-            value={inputValue}
-            onChange={handleTextareaInput}
-            onSelect={npcMention.trackCursor}
-            placeholder="What does your rider do... (@NPC to talk to an NPC)"
+            ref={npcSceneConfig?.active ? undefined : textareaRef}
+            value={npcSceneConfig?.active ? npcInterjectionText : inputValue}
+            onChange={npcSceneConfig?.active ? (e) => setNpcInterjectionText(e.target.value) : handleTextareaInput}
+            onSelect={npcSceneConfig?.active ? undefined : npcMention.trackCursor}
+            placeholder={npcSceneConfig?.active ? "Speak up — the NPCs will react to you..." : "What does your rider do... (@NPC to talk to an NPC)"}
             rows={1}
             className="flex-1 bg-card/30 border border-purple-500/20 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-purple-400 max-h-[120px] min-h-[44px]"
             onKeyDown={e => {
-              if (npcMention.handleAutocompleteKeyDown(e)) return;
+              if (!npcSceneConfig?.active && npcMention.handleAutocompleteKeyDown(e)) return;
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                handleSend();
+                if (npcSceneConfig?.active) {
+                  if (npcInterjectionText.trim()) {
+                    submitNpcInterjection(npcInterjectionText.trim());
+                    setNpcInterjectionText('');
+                  }
+                } else {
+                  handleSend();
+                }
               }
             }}
           />
 
           {isLoading ? (
-            <button
-              onClick={cancelRequest}
-              className="p-2.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
-            >
-              <X className="w-5 h-5 text-red-400" />
-            </button>
+            npcSceneConfig?.active ? (
+              <button
+                onClick={() => {
+                  if (npcInterjectionText.trim()) {
+                    submitNpcInterjection(npcInterjectionText.trim());
+                    setNpcInterjectionText('');
+                  }
+                }}
+                disabled={!npcInterjectionText.trim()}
+                className="p-2.5 rounded-xl bg-primary/20 border border-primary/30 text-primary hover:bg-primary/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            ) : (
+              <button
+                onClick={cancelRequest}
+                className="p-2.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
+              >
+                <X className="w-5 h-5 text-red-400" />
+              </button>
+            )
           ) : (
             <button
               onClick={handleSend}
@@ -1280,7 +1333,7 @@ export function EmpyreanDMScreen({
         onDragonNotesChange={handleDragonNotesChange}
         onReconfigureEmpyrean={onClose}
         onResetBurnout={() => { setBurnoutLevel(0); toast.success('Signet burnout reset.'); }}
-        
+        onNpcScene={() => setShowNpcScene(true)}
         onOocChat={() => setShowOocChat(true)}
         oocDirectiveCount={oocDmChat.directiveCount}
       />
@@ -1508,6 +1561,13 @@ export function EmpyreanDMScreen({
         }}
       />
 
+      <NpcSceneDialog
+        open={showNpcScene}
+        onClose={() => setShowNpcScene(false)}
+        onStart={(npcs, prompt, max) => { startNpcScene(npcs, prompt, max); }}
+        sessionConfig={npcSceneSessionConfig}
+        messages={messages as any}
+      />
 
       <AnimatePresence>
         {showCampaignBuilder && (

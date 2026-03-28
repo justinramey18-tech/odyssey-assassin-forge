@@ -127,8 +127,12 @@ export interface DmSessionConfig {
   // Campaign world type
   campaignType?: 'dnd' | 'empyrean'; // default: 'dnd'
   empyreanFocus?: 'combat' | 'political' | 'romance' | 'mystery' | 'survival' | 'balanced';
-  // NPC Scene
+  // NPC Conversational Scene
   npcSceneActive?: boolean;
+  npcSceneNpcs?: string[];        // 2-6 NPC names
+  npcScenePrompt?: string;        // scene-setting prompt
+  npcSceneMaxMessages?: number;   // message cap (default 12)
+  npcSceneMessageCount?: number;  // messages generated so far
 }
 
 export interface PartyDragonConfig {
@@ -461,8 +465,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             if (prev.some(m => m.id === newMsg.id)) return prev;
             return [...prev, newMsg];
           });
-          // Signal NPC scene if a player interjected
-          if (newMsg.role === 'user' && newMsg.sender_name && sessionConfigRef.current?.npcSceneActive) {
+          // If an NPC scene is active and this is a player message, signal the scene loop
+          if (npcSceneActiveRef.current && newMsg.role === 'user' && newMsg.sender_name) {
             npcSceneInterjectionRef.current = {
               content: newMsg.content,
               senderName: newMsg.sender_name,
@@ -2661,186 +2665,56 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   }, [partyId, user, messages, updateSessionConfig, silentAutoSave, customGuidesContent]);
 
 
-  const npcSceneInterjectionRef = useRef<{ content: string; senderName: string } | null>(null);
+  // === NPC Conversational Scene ===
 
-  async function generateNpcBatch(
+  /** Pick the next NPC to speak using weighted random selection. */
+  function pickNextNpc(
     npcs: string[],
-    scenePrompt: string,
-    lineCount: number,
-    ctxMsgs: Array<{ role: string; content: string }>,
-    sceneHistory: string,
-    signal: AbortSignal,
-    playerInterjection?: { content: string; senderName: string },
-  ): Promise<Array<{ npcName: string; content: string }>> {
-    const npcList = npcs.join(', ');
-    // Build system prompt using [NPC:Name] tags for reliable parsing
-    let sysPrompt: string;
-    if (playerInterjection) {
-      sysPrompt = 'MULTI-NPC DIALOGUE — REACTING TO PLAYER\n\n'
-        + 'NPCs in this scene: ' + npcList + '\n'
-        + 'Scene: ' + scenePrompt + '\n\n'
-        + 'What has been said so far:\n' + sceneHistory + '\n\n'
-        + 'A player (' + playerInterjection.senderName + ') just interrupted and said: "' + playerInterjection.content + '"\n\n'
-        + 'Write the next ' + lineCount + ' NPC dialogue lines reacting to the player, then continuing the conversation. The very first NPC should directly respond to the player.\n\n'
-        + 'CRITICAL FORMAT REQUIREMENT — every single line MUST use this exact tag format:\n'
-        + '[NPC:ExactName] *brief action* "Dialogue here."\n\n'
-        + 'Rules:\n'
-        + '- The name inside [NPC:] must exactly match one of: ' + npcList + '\n'
-        + '- One line per NPC turn. One action beat in asterisks. One quote in double quotes.\n'
-        + '- No prose, no narration, no description, no headers, no markdown bold.\n'
-        + '- Only these NPCs speak. No player dialogue.\n\n'
-        + 'Example:\n'
-        + '[NPC:' + npcs[0] + '] *steps forward* "What do you mean by that?"\n'
-        + '[NPC:' + (npcs[1] || npcs[0]) + '] *crosses arms* "I think they are right."\n';
-    } else {
-      sysPrompt = 'MULTI-NPC DIALOGUE SCRIPT\n\n'
-        + 'NPCs in this scene: ' + npcList + '\n'
-        + 'Scene: ' + scenePrompt + '\n'
-        + (sceneHistory ? '\nWhat has been said so far:\n' + sceneHistory + '\n\nContinue from here.\n' : '') + '\n'
-        + 'Write exactly ' + lineCount + ' lines of NPC dialogue.\n\n'
-        + 'CRITICAL FORMAT REQUIREMENT — every single line MUST use this exact tag format:\n'
-        + '[NPC:ExactName] *brief action* "Dialogue here."\n\n'
-        + 'Rules:\n'
-        + '- The name inside [NPC:] must exactly match one of: ' + npcList + '\n'
-        + '- One line per NPC turn. One action beat in asterisks. One quote in double quotes.\n'
-        + '- Alternate between NPCs naturally. They react to each other.\n'
-        + '- No prose, no narration, no description, no headers, no markdown bold, no HTML.\n'
-        + '- Only these NPCs speak. No player dialogue. No narrator text.\n\n'
-        + 'Example of correct output:\n'
-        + '[NPC:' + npcs[0] + '] *slams fist on table* "I told you this would happen."\n'
-        + '[NPC:' + (npcs[1] || npcs[0]) + '] *rolls eyes* "You said late, not vanished entirely."\n'
-        + (npcs[2] ? '[NPC:' + npcs[2] + '] *glances between them* "Maybe focus on finding it?"\n' : '')
-        + '\nWrite now. ' + lineCount + ' lines. Only use [NPC:Name] format. Go.';
-    }
-    // Merge consecutive same-role messages to prevent API rejection
-    const rawMsgs = ctxMsgs.slice(-40).map(m => ({ role: m.role, content: m.content }));
-    const apiMsgs: Array<{ role: string; content: string }> = [];
-    for (const msg of rawMsgs) {
-      const prev = apiMsgs[apiMsgs.length - 1];
-      if (prev && prev.role === msg.role) {
-        prev.content = prev.content + '\n\n' + msg.content;
-      } else {
-        apiMsgs.push({ ...msg });
+    lastSpeaker: string | null,
+    lastMessage: string,
+    turnsSinceSpeaking: Map<string, number>,
+  ): string {
+    const weights = new Map<string, number>();
+    for (const npc of npcs) {
+      let w = 1;
+      if (npc === lastSpeaker) {
+        weights.set(npc, 0);
+        continue;
       }
-    }
-    // Ensure at least one message and last message is user role
-    if (apiMsgs.length === 0) {
-      apiMsgs.push({ role: 'user', content: 'Begin the scene.' });
-    }
-    if (apiMsgs[apiMsgs.length - 1].role !== 'user') {
-      apiMsgs.push({ role: 'user', content: 'Continue.' });
-    }
-    const authToken = await getAuthToken();
-    const resp = await fetch(
-      import.meta.env.VITE_SUPABASE_URL + '/functions/v1/ai-dm',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + authToken },
-        body: JSON.stringify({
-          messages: apiMsgs.slice(-50),
-          characterContext,
-          systemPromptOverride: sysPrompt,
-          model: loadSelectedModel(),
-          maxTokens: 1500,
-        }),
-        signal,
+      const nameParts = npc.split(/\s+/);
+      const firstName = nameParts[0];
+      const msgLower = lastMessage.toLowerCase();
+      if (msgLower.includes(npc.toLowerCase())) {
+        w += 4;
+      } else if (firstName.length >= 3 && msgLower.includes(firstName.toLowerCase())) {
+        w += 3;
       }
-    );
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      const errMsg = (err as { error?: string }).error || 'NPC scene AI call failed (HTTP ' + resp.status + ')';
-      console.error('[NPC Scene] AI endpoint error:', resp.status, errMsg);
-      throw new Error(errMsg);
-    }
-    if (!resp.body) throw new Error('No response body');
-    // Stream full response
-    const reader = resp.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = '';
-    let full = '';
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      let idx: number;
-      while ((idx = buf.indexOf('\n')) !== -1) {
-        let line = buf.slice(0, idx);
-        buf = buf.slice(idx + 1);
-        if (line.endsWith('\r')) line = line.slice(0, -1);
-        if (line.startsWith(':') || line.trim() === '') continue;
-        if (!line.startsWith('data: ')) continue;
-        const j = line.slice(6).trim();
-        if (j === '[DONE]') break;
-        try {
-          const p = JSON.parse(j);
-          const d = p.choices?.[0]?.delta?.content as string | undefined;
-          if (d) full += d;
-        } catch { /* skip */ }
+      const silence = turnsSinceSpeaking.get(npc) || 0;
+      if (silence >= 3) {
+        w += 2;
+      } else if (silence >= 2) {
+        w += 1;
       }
+      weights.set(npc, w);
     }
-    if (!full?.trim()) {
-      console.warn('[NPC Scene] AI returned empty response');
-      return [];
+    const entries = Array.from(weights.entries()).filter(([, w]) => w > 0);
+    if (entries.length === 0) {
+      const candidates = npcs.filter(n => n !== lastSpeaker);
+      return candidates[Math.floor(Math.random() * candidates.length)] || npcs[0];
     }
-    console.log('[NPC Scene] Raw AI response (' + full.length + ' chars):', full.slice(0, 300));
-    // === PARSE using [NPC:Name] tags ===
-    const result: Array<{ npcName: string; content: string }> = [];
-    // Primary parser: split on [NPC:Name] tags
-    const tagPattern = /\[NPC:([^\]]+)\]/g;
-    let match;
-    const tagPositions: Array<{ name: string; index: number }> = [];
-    while ((match = tagPattern.exec(full)) !== null) {
-      tagPositions.push({ name: match[1].trim(), index: match.index });
+    const totalWeight = entries.reduce((sum, [, w]) => sum + w, 0);
+    let roll = Math.random() * totalWeight;
+    for (const [npc, w] of entries) {
+      roll -= w;
+      if (roll <= 0) return npc;
     }
-    for (let i = 0; i < tagPositions.length; i++) {
-      const { name } = tagPositions[i];
-      const startAfterTag = tagPositions[i].index + full.slice(tagPositions[i].index).indexOf(']') + 1;
-      const endPos = i + 1 < tagPositions.length ? tagPositions[i + 1].index : full.length;
-      const lineContent = full.slice(startAfterTag, endPos).trim();
-      // Match to a provided NPC name (case-insensitive)
-      const npcName = npcs.find(n => n.toLowerCase() === name.toLowerCase()) || name;
-      if (lineContent) {
-        // Reformat for display: **Name:** + the content (which should have *action* "dialogue")
-        result.push({
-          npcName,
-          content: '**' + npcName + ':** ' + lineContent,
-        });
-      }
-    }
-    console.log('[NPC Scene] Tag parser found:', result.length, 'lines');
-    // Fallback 1: try **Name:** bold pattern (in case AI ignored tag format)
-    if (result.length === 0) {
-      console.warn('[NPC Scene] Tag parser found 0 lines. Trying bold pattern fallback.');
-      const boldPattern = /\*\*\s*([A-Z][a-zA-Z' ]+?)\s*\*\*\s*:\s*/g;
-      let bm;
-      const boldPositions: Array<{ name: string; index: number; matchLen: number }> = [];
-      while ((bm = boldPattern.exec(full)) !== null) {
-        boldPositions.push({ name: bm[1].trim(), index: bm.index, matchLen: bm[0].length });
-      }
-      for (let i = 0; i < boldPositions.length; i++) {
-        const { name, index, matchLen } = boldPositions[i];
-        const endPos = i + 1 < boldPositions.length ? boldPositions[i + 1].index : full.length;
-        const lineContent = full.slice(index + matchLen, endPos).trim();
-        const npcName = npcs.find(n => n.toLowerCase() === name.toLowerCase()) || name;
-        // Look for beat before this
-        const before = full.slice(Math.max(0, index - 200), index).trim();
-        const beatMatch = before.match(/(\*[^*\n]+\*)\s*$/);
-        const beat = beatMatch ? beatMatch[1] + '\n' : '';
-        if (lineContent) {
-          result.push({ npcName, content: beat + '**' + npcName + ':** ' + lineContent });
-        }
-      }
-      console.log('[NPC Scene] Bold fallback found:', result.length, 'lines');
-    }
-    // Fallback 2: push entire response as DM message
-    if (result.length === 0 && full.trim().length > 20) {
-      console.warn('[NPC Scene] All parsers failed. Using raw fallback.');
-      result.push({ npcName: 'DM', content: full.trim() });
-    }
-    return result;
+    return entries[entries.length - 1][0];
   }
 
-  const runNpcScene = useCallback(async (npcs: string[], scenePrompt: string, lineCount: number = 12) => {
+  const npcSceneActiveRef = useRef(false);
+  const npcSceneInterjectionRef = useRef<{ content: string; senderName: string } | null>(null);
+
+  const startNpcScene = useCallback(async (npcs: string[], scenePrompt: string, maxMessages: number = 12) => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
     if (npcs.length < 2 || npcs.length > 6) {
       toast.error('NPC scene requires 2-6 NPCs');
@@ -2848,72 +2722,74 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
 
     setIsGenerating(true);
-    npcSceneInterjectionRef.current = null;
-    console.log('[NPC Scene] Starting scene with NPCs:', npcs, 'prompt:', scenePrompt);
+    npcSceneActiveRef.current = true;
 
-    // Safety: if sessionConfig shows isGenerating but we're clearly not generating locally,
-    // force-clear the stale lock before trying to acquire
-    if (sessionConfig.isGenerating && !abortRef.current) {
-      console.warn('[NPC Scene] Detected stale isGenerating flag, force-clearing');
-      await (supabase.from('party_shared_state') as any)
-        .update({ state_data: { ...sessionConfig, isGenerating: false, npcSceneActive: false } })
-        .eq('party_id', partyId)
-        .eq('state_type', 'dm_session');
-      await new Promise(resolve => setTimeout(resolve, 200));
-    }
+    updateSessionConfig({
+      npcSceneActive: true,
+      npcSceneNpcs: npcs,
+      npcScenePrompt: scenePrompt,
+      npcSceneMaxMessages: maxMessages,
+      npcSceneMessageCount: 0,
+    });
 
-    // Atomic lock
     const { data: lockData, error: stateErr } = await (supabase.from('party_shared_state') as any)
-      .update({ state_data: { ...sessionConfig, isGenerating: true, npcSceneActive: true } })
+      .update({ state_data: { ...sessionConfig, isGenerating: true, npcSceneActive: true, npcSceneNpcs: npcs, npcScenePrompt: scenePrompt, npcSceneMaxMessages: maxMessages, npcSceneMessageCount: 0 } })
       .eq('party_id', partyId)
       .eq('state_type', 'dm_session')
       .not('state_data->isGenerating', 'eq', true)
       .select('id');
-    if (stateErr) console.error('[PartyDM] Lock error:', stateErr);
+    if (stateErr) console.error('[PartyDM] Failed to set isGenerating state:', stateErr);
+
     if (!lockData || lockData.length === 0) {
-      toast('The DM is already responding...', { duration: 2000, icon: '\u23F3' });
+      console.log('[PartyDM] Generation already in progress on another client, skipping');
+      toast('The DM is already responding...', { duration: 2000, icon: '⏳' });
+      npcSceneActiveRef.current = false;
       setIsGenerating(false);
+      updateSessionConfig({ npcSceneActive: false });
       return;
     }
-    console.log('[NPC Scene] Lock acquired successfully');
 
     abortRef.current = new AbortController();
     try {
-      // Scene-setting message
       await insertPartyMessageHelper(partyId, {
         party_id: partyId,
         role: 'assistant',
-        content: '*' + scenePrompt + '*',
+        content: `*${scenePrompt}*`,
         sender_user_id: null,
         sender_name: 'DM',
       });
-      console.log('[NPC Scene] Scene-setting message inserted');
 
       const contextMessages = [...messages].map(m => ({ role: m.role, content: m.content }));
-      let sceneHistory = '';
-      let totalLines = 0;
-      const maxTotal = lineCount + 10;
+      const sceneMessages: Array<{ role: string; content: string }> = [];
+      let messageCount = 0;
+      let lastSpeaker: string | null = null;
+      let lastNpcMessage = '';
+      const turnsSinceSpeaking = new Map<string, number>();
+      for (const npc of npcs) turnsSinceSpeaking.set(npc, 0);
 
-      // Generate initial batch
-      let pending = await generateNpcBatch(
-        npcs, scenePrompt, lineCount, contextMessages, sceneHistory, abortRef.current!.signal
-      );
-      console.log('[NPC Scene] Initial batch generated:', pending.length, 'lines');
-
-      if (pending.length === 0) {
-        console.warn('[NPC Scene] Parser returned 0 lines — check AI response format');
-        toast.error('NPC scene: AI response could not be parsed into dialogue lines. Try again.');
-      }
-
-      // Drip-feed loop with interjection support
-      while (pending.length > 0 && totalLines < maxTotal) {
+      for (let turn = 0; turn < maxMessages; turn++) {
+        if (!npcSceneActiveRef.current) break;
         if (abortRef.current?.signal.aborted) break;
 
-        const line = pending.shift()!;
+        // Weighted NPC selection based on conversation context
+        const currentNpc = turn === 0
+          ? npcs[Math.floor(Math.random() * npcs.length)]  // random first speaker
+          : pickNextNpc(npcs, lastSpeaker, lastNpcMessage, turnsSinceSpeaking);
+        const otherNpcs = npcs.filter(n => n !== currentNpc);
 
-        // Delay between lines
-        if (totalLines > 0) {
-          const delay = 800 + Math.random() * 1200;
+        if (turn > 0) {
+          // Variable pacing: faster for reactive lines, slower for thoughtful ones
+          const prevMsg = lastNpcMessage.toLowerCase();
+          const isReactive = /[?!]/.test(prevMsg) || /\b(why|how dare|what did|you (liar|fool|coward)|shut up|enough|stop|never|accus|betray|explain|answer me)\b/i.test(prevMsg);
+          const hasInterjection = !!npcSceneInterjectionRef.current;
+          let delay: number;
+          if (hasInterjection) {
+            delay = 600 + Math.random() * 400; // 0.6-1.0s — quick reaction to player
+          } else if (isReactive) {
+            delay = 800 + Math.random() * 700; // 0.8-1.5s — snappy retort
+          } else {
+            delay = 1400 + Math.random() * 1100; // 1.4-2.5s — measured response
+          }
           await new Promise<void>((resolve, reject) => {
             const timeout = setTimeout(resolve, delay);
             const onAbort = () => { clearTimeout(timeout); reject(new DOMException('Aborted', 'AbortError')); };
@@ -2921,39 +2797,115 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           });
         }
 
+        if (!npcSceneActiveRef.current) break;
         if (abortRef.current?.signal.aborted) break;
 
-        // Check for player interjection before inserting next line
+        // Check for player interjection
         const interjection = npcSceneInterjectionRef.current;
         if (interjection) {
           npcSceneInterjectionRef.current = null;
-
-          sceneHistory += '\n[' + interjection.senderName + ']: ' + interjection.content;
-
-          // Discard remaining pre-generated lines
-          pending = [];
-
-          // Generate NEW batch where NPCs react to the player
-          const reactions = await generateNpcBatch(
-            npcs, scenePrompt, Math.min(6, maxTotal - totalLines),
-            contextMessages, sceneHistory, abortRef.current!.signal, interjection
-          );
-          pending = reactions;
-          continue;
+          // Add the player's message to the scene context so the next NPC reacts to it
+          sceneMessages.push({ role: 'user', content: interjection.content });
+          lastNpcMessage = interjection.content; // player's words influence who speaks next
         }
 
-        // Insert the NPC line into chat
-        await insertPartyMessageHelper(partyId, {
-          party_id: partyId,
-          role: 'assistant',
-          content: line.content.trim(),
-          sender_user_id: null,
-          sender_name: line.npcName,
+        // ~15% chance this NPC is interrupting (not on the first line)
+        const isInterrupting = turn > 0 && Math.random() < 0.15;
+
+        const npcSystemPrompt = `## NPC SCENE — SINGLE LINE ONLY
+You ARE ${currentNpc}. This is a multi-NPC conversation scene.
+Scene context: "${scenePrompt}"
+Other NPCs present: ${otherNpcs.join(', ')}
+
+Write ONLY ${currentNpc}'s next line:
+1. One brief italicized body-language beat (10 words max).
+2. One line of spoken dialogue, prefixed with **${currentNpc}:**
+
+Rules:
+- This is line ${turn + 1} of an ongoing scene between ${npcs.join(', ')}.
+- React to what the other NPCs have said so far.${interjection ? `\n- A player (${interjection.senderName}) just spoke. React to them naturally based on your relationship to them in this scene — they may be a known ally, a stranger, an authority figure, or anything else the scene context implies. Do not assume they are an outsider unless the scene context says so.` : ''}${isInterrupting ? `\n- You are INTERRUPTING. Start your dialogue with a dash or ellipsis, as if cutting someone off mid-sentence. Be abrupt and urgent. Your body-language beat should be sudden (leaning forward, standing up, slamming something, pointing). Keep it under 25 words total.` : ''}
+- NO prose, NO narration, NO scene-setting.
+- NO mechanical info (dice, DCs, stats).${isInterrupting ? '' : '\n- Keep the total under 40 words.'}
+- Stay in character as ${currentNpc} has been portrayed.`;
+
+        const apiMessages = [...contextMessages.slice(-40), ...sceneMessages].map(m => ({ role: m.role, content: m.content }));
+
+        const authToken = await getAuthToken();
+        const npcResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            messages: apiMessages.slice(-50),
+            characterContext,
+            systemPromptOverride: npcSystemPrompt,
+            model: loadSelectedModel(),
+            maxTokens: 200,
+          }),
+          signal: abortRef.current!.signal,
         });
 
-        sceneHistory += '\n' + line.content.trim();
-        totalLines++;
-        console.log('[NPC Scene] Inserted line', totalLines, 'from', line.npcName);
+        if (!npcResponse.ok) {
+          const err = await npcResponse.json().catch(() => ({}));
+          throw new Error((err as { error?: string }).error || 'NPC scene generation failed');
+        }
+
+        if (!npcResponse.body) throw new Error('No response body');
+
+        const npcReader = npcResponse.body.getReader();
+        const npcDecoder = new TextDecoder();
+        let npcBuffer = '';
+        let assistantContent = '';
+
+        while (true) {
+          const { done, value } = await npcReader.read();
+          if (done) break;
+          npcBuffer += npcDecoder.decode(value, { stream: true });
+          let newlineIndex: number;
+          while ((newlineIndex = npcBuffer.indexOf('\n')) !== -1) {
+            let line = npcBuffer.slice(0, newlineIndex);
+            npcBuffer = npcBuffer.slice(newlineIndex + 1);
+            if (line.endsWith('\r')) line = line.slice(0, -1);
+            if (line.startsWith(':') || line.trim() === '') continue;
+            if (!line.startsWith('data: ')) continue;
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr === '[DONE]') break;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
+              if (delta) assistantContent += delta;
+            } catch { /* skip */ }
+          }
+        }
+
+        if (!npcSceneActiveRef.current) break;
+        if (abortRef.current?.signal.aborted) break;
+
+        if (assistantContent?.trim()) {
+          await insertPartyMessageHelper(partyId, {
+            party_id: partyId,
+            role: 'assistant',
+            content: assistantContent.trim(),
+            sender_user_id: null,
+            sender_name: currentNpc,
+          });
+          sceneMessages.push({ role: 'assistant', content: `[${currentNpc}]: ${assistantContent.trim()}` });
+          messageCount++;
+          await updateSessionConfig({ npcSceneMessageCount: messageCount });
+        }
+
+        // Update turn tracking for weighted selection
+        lastSpeaker = currentNpc;
+        lastNpcMessage = assistantContent?.trim() || '';
+        for (const npc of npcs) {
+          if (npc === currentNpc) {
+            turnsSinceSpeaking.set(npc, 0);
+          } else {
+            turnsSinceSpeaking.set(npc, (turnsSinceSpeaking.get(npc) || 0) + 1);
+          }
+        }
       }
 
       triggerSummaryIfNeeded([...messages]);
@@ -2962,20 +2914,22 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     } catch (error) {
       const isAbort = error instanceof Error && error.name === 'AbortError';
       if (!isAbort) {
-        console.error('[NPC Scene] Error:', error);
-        toast.error('NPC scene error: ' + (error instanceof Error ? error.message : 'Unknown error'), { duration: 5000 });
+        console.error('Party DM NPC scene error:', error);
+        toast.error(error instanceof Error ? error.message : 'NPC scene failed');
       }
     } finally {
+      npcSceneActiveRef.current = false;
       await (supabase.from('party_shared_state') as any)
-        .update({ state_data: { ...sessionConfig, isGenerating: false, npcSceneActive: false } })
+        .update({ state_data: { ...sessionConfig, isGenerating: false, npcSceneActive: false, npcSceneMessageCount: 0 } })
         .eq('party_id', partyId)
         .eq('state_type', 'dm_session');
       setIsGenerating(false);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, insertPartyMessageHelper, triggerSummaryIfNeeded, silentAutoSave]);
+  }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, updateSessionConfig, insertPartyMessageHelper, triggerSummaryIfNeeded, silentAutoSave]);
 
   const stopNpcScene = useCallback(() => {
+    npcSceneActiveRef.current = false;
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
@@ -2990,7 +2944,27 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId, sessionConfig]);
 
+  const submitNpcInterjection = useCallback(async (content: string) => {
+    if (!partyId || !user || !content.trim()) return;
+    if (!npcSceneActiveRef.current) return;
 
+    const formattedContent = `[${characterName}]: ${content.trim()}`;
+
+    // Insert the player message into chat immediately
+    await insertPartyMessageHelper(partyId, {
+      party_id: partyId,
+      role: 'user',
+      content: formattedContent,
+      sender_user_id: user.id,
+      sender_name: characterName,
+    });
+
+    // Signal the scene loop that a player interjected
+    npcSceneInterjectionRef.current = {
+      content: formattedContent,
+      senderName: characterName,
+    };
+  }, [partyId, user, characterName, insertPartyMessageHelper]);
 
   // === DIALOGUE MODE: Generate a recap of recent dialogue ===
   const generateDialogueRecap = useCallback(async (): Promise<string | null> => {
@@ -3358,8 +3332,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     sendWhisper,
     callDM,
     voiceNPC,
-    runNpcScene,
+    startNpcScene,
     stopNpcScene,
+    submitNpcInterjection,
     generateDialogueRecap,
     regenerateMessage,
     regenerateWhispers,
@@ -3384,7 +3359,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     startSession, endSession, startNewCampaign, saveCampaign, loadCampaign,
     submitPrompt, editPrompt, retractPrompt, setReady, unready,
     generateResponse, sendManualDmMessage, approveDraft, discardDraft,
-    editMessage, deleteMessage, sendDialogueMessage, sendWhisper, callDM, voiceNPC, runNpcScene, stopNpcScene, generateDialogueRecap, regenerateMessage, regenerateWhispers,
+    editMessage, deleteMessage, sendDialogueMessage, sendWhisper, callDM, voiceNPC, startNpcScene, stopNpcScene, submitNpcInterjection, generateDialogueRecap, regenerateMessage, regenerateWhispers,
     addMediaMessage, stopGeneration, initiateSplit, regroupParty,
     updateSessionConfig, setTimerConfig, startTimer, pauseTimer, resumeTimer,
     cancelTimer, requestExtension, approveExtension, dismissExtensions,

@@ -8,8 +8,7 @@ import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause, MessageCircle, SmilePlus, Megaphone, Theater } from 'lucide-react';
-import { NpcSceneDialog } from './NpcSceneDialog';
+import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause, MessageCircle, SmilePlus, Theater, Megaphone } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer, PreSplitChatViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -20,7 +19,7 @@ import { PartyMemoryAnchorsPanel } from './PartyMemoryAnchorsPanel';
 import { PartyQuestsPanel } from './PartyQuestsPanel';
 import { DMComposePanel } from './DMComposePanel';
 import { DraftReviewPanel } from './DraftReviewPanel';
-
+import { NpcSceneDialog } from './NpcSceneDialog';
 
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { CampaignDropdown } from './CampaignDropdown';
@@ -1104,9 +1103,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   // Split party state
   const [showSplitInitiator, setShowSplitInitiator] = useState(false);
-  const [showRegroupDialog, setShowRegroupDialog] = useState(false);
   const [showNpcScene, setShowNpcScene] = useState(false);
   const [npcInterjectionText, setNpcInterjectionText] = useState('');
+  const [showRegroupDialog, setShowRegroupDialog] = useState(false);
   const [showSplitSummaries, setShowSplitSummaries] = useState(false);
   const [showPreSplitChat, setShowPreSplitChat] = useState(false);
   const [showTimerSettings, setShowTimerSettings] = useState(false);
@@ -1851,7 +1850,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 </div>
                 <span className="text-sm text-amber-400/60 italic">
                   {partyDm.sessionConfig?.npcSceneActive
-                    ? 'NPC scene in progress...'
+                    ? `NPC scene in progress (${partyDm.sessionConfig.npcSceneMessageCount ?? 0}/${partyDm.sessionConfig.npcSceneMaxMessages ?? 12})...`
                     : (partyDm.sessionConfig?.dmMode === 'ai-approval' && !isCreator)
                       ? 'The DM is reviewing the AI draft...'
                       : 'The DM weaves the tale...'}
@@ -2658,16 +2657,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   e.target.style.height = 'auto';
                   e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
                 }}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    if (npcInterjectionText.trim()) {
-                      partyDm.sendDialogueMessage(npcInterjectionText.trim());
-                      setNpcInterjectionText('');
-                    }
-                  }
-                }}
-                placeholder="Jump in — the NPCs will react to you..."
+                placeholder="Speak up — the NPCs will react to you..."
                 rows={1}
                 className="flex-1 bg-white/5 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none border border-amber-900/30 focus:ring-1 focus:ring-amber-500/30 focus:outline-none max-h-[120px]"
                 style={{ touchAction: 'manipulation' }}
@@ -2675,7 +2665,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               <button
                 onClick={() => {
                   if (npcInterjectionText.trim()) {
-                    partyDm.sendDialogueMessage(npcInterjectionText.trim());
+                    partyDm.submitNpcInterjection(npcInterjectionText.trim());
                     setNpcInterjectionText('');
                   }
                 }}
@@ -2696,7 +2686,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
             <span className="text-sm text-amber-400/70">Generating response...</span>
             {isCreator && (
-              <button onClick={partyDm.stopGeneration} className="ml-2 px-2.5 py-1 rounded-lg border border-red-500/30 bg-red-900/20 hover:bg-red-900/40 text-red-300 text-xs transition-colors" style={{ touchAction: 'manipulation' }}>Stop</button>
+              <button
+                onClick={partyDm.stopGeneration}
+                className="ml-2 px-2.5 py-1 rounded-lg border border-red-500/30 bg-red-900/20 hover:bg-red-900/40 text-red-300 text-xs transition-colors"
+                style={{ touchAction: 'manipulation' }}
+              >
+                Stop
+              </button>
             )}
           </div>
         )
@@ -2909,10 +2905,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               isSplitActive={partyDm.isSplitActive}
               memberCount={memberCount}
               onShowSplitInitiator={() => setShowSplitInitiator(true)}
-              
+              onShowNpcScene={() => setShowNpcScene(true)}
               onShowOocChat={onShowOocChat}
               oocDirectiveCount={oocDirectiveCount}
-              onShowNpcScene={() => setShowNpcScene(true)}
               onShowRegroupDialog={() => setShowRegroupDialog(true)}
               onShowSplitSummaries={() => setShowSplitSummaries(true)}
               onShowPreSplitChat={() => setShowPreSplitChat(true)}
@@ -3156,9 +3151,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       <NpcSceneDialog
         open={showNpcScene}
         onClose={() => setShowNpcScene(false)}
-        onStart={(npcs, prompt, lineCount) => partyDm.runNpcScene(npcs, prompt, lineCount)}
+        onStart={(npcs, prompt, max) => partyDm.startNpcScene(npcs, prompt, max)}
         sessionConfig={partyDm.sessionConfig}
-        messages={partyDm.allMessages as any}
+        messages={partyDm.allMessages}
       />
       {partyDm.splitState && (
         <SplitSummariesViewer
