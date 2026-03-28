@@ -3276,6 +3276,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     sendWhisper,
     callDM,
     voiceNPC,
+    runNpcScene,
+    stopNpcScene,
     generateDialogueRecap,
     regenerateMessage,
     regenerateWhispers,
