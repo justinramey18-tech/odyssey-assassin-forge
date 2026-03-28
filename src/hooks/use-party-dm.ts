@@ -2931,6 +2931,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
         sceneHistory += '\n' + line.content.trim();
         totalLines++;
+        console.log('[NPC Scene] Inserted line', totalLines, 'from', line.npcName);
       }
 
       triggerSummaryIfNeeded([...messages]);
