@@ -1157,9 +1157,11 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         };
       }
 
-      // Ensure riderDelivery is never empty
       if (!recipientParsed.riderDelivery?.trim()) {
         recipientParsed.riderDelivery = `${targetDragonName} stirs through the bond, pressing a wordless impression into your mind — something has their attention.`;
+      }
+      if (!recipientParsed.dragonReply?.trim()) {
+        recipientParsed.dragonReply = `${targetDragonName} acknowledges with a rumble of ancient thought.`;
       }
 
       const finalMsg: DragonNetworkMessage = {
