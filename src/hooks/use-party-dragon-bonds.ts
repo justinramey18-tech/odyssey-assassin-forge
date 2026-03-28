@@ -1116,14 +1116,13 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         state_data: finalMsg as any,
       }]);
 
-      if (finalMsg.toRiderDelivery) {
-        await supabase.from('party_shared_state').insert([{
-          party_id: partyId,
-          user_id: targetUserId,
-          state_type: 'dragon_network_message',
-          state_data: { ...finalMsg, id: `net-recv-${Date.now()}` } as any,
-        }]);
-      }
+      // Always insert for the recipient so they see the full dragon exchange
+      await supabase.from('party_shared_state').insert([{
+        party_id: partyId,
+        user_id: targetUserId,
+        state_type: 'dragon_network_message',
+        state_data: { ...finalMsg, id: `net-recv-${Date.now()}` } as any,
+      }]);
 
     } catch (err) {
       console.error('[DragonNetwork] Error:', err);
