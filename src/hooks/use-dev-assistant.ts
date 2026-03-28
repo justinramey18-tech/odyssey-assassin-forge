@@ -65,7 +65,14 @@ export function useDevAssistant() {
         },
       });
 
-      if (identifyError) throw new Error(identifyError.message || 'Identify phase failed');
+      if (identifyError) {
+        let detail = identifyError.message || 'Identify phase failed';
+        try {
+          const body = (identifyError as any).context?.body ? await (identifyError as any).context.json() : identifyData;
+          if (body?.error) detail = body.error;
+        } catch {}
+        throw new Error(detail);
+      }
       if (identifyData?.error) throw new Error(identifyData.error);
 
       const filePaths: string[] = identifyData?.filePaths || [];
