@@ -418,6 +418,15 @@ export default function PartyDragonChat({
                             ✓ {net.toDragon} delivered your message
                           </p>
                         )}
+                        {(net as any).senderReport && (
+                          <div className="mt-2 border-l-2 border-cyan-500/30 pl-2.5">
+                            <div className="text-cyan-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1">
+                              <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                                {(net as any).senderReport}
+                              </ReactMarkdown>
+                            </div>
+                          </div>
+                        )}
                         <p className="text-[9px] text-white/20 italic mt-1">
                           "{net.riderMessage}"
                         </p>

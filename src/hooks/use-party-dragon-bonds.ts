@@ -1053,56 +1053,111 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
 
       const authToken = await getAuthToken();
 
-      const systemPrompt = `You are ${myDragon.dragonName}, a dragon. Your rider ${myCharacterName} has asked you to use the dragon network to reach ${targetDragonName}. The request: "${riderMessage}"\n\nRespond with a JSON object ONLY (no markdown, no backticks):\n{\n  "dragonToDragon": "what you say to ${targetDragonName} dragon-to-dragon (1-2 sentences, ancient proud tone)",\n  "targetDragonReply": "how ${targetDragonName} replies to you dragon-to-dragon (1-2 sentences, their own personality)",\n  "riderDelivery": "if the message is meant for ${targetCharacterName}, what ${targetDragonName} says to ${targetCharacterName} through their bond — phrased as if ${targetDragonName} thought of it unprompted, zero mention of ${myCharacterName} or ${myDragon.dragonName}. Empty string if this is purely dragon-to-dragon."\n}${narrativeCtx}`;
+      // --- Helper: read SSE stream into a string ---
+      const readSSE = async (resp: Response): Promise<string> => {
+        if (!resp.body) throw new Error('No response body');
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let textBuffer = '';
+        let content = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          textBuffer += decoder.decode(value, { stream: true });
+          let newlineIndex: number;
+          while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+            let line = textBuffer.slice(0, newlineIndex);
+            textBuffer = textBuffer.slice(newlineIndex + 1);
+            if (line.endsWith('\r')) line = line.slice(0, -1);
+            if (line.startsWith(':') || line.trim() === '') continue;
+            if (!line.startsWith('data: ')) continue;
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr === '[DONE]') break;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
+              if (delta) content += delta;
+            } catch { /* skip */ }
+          }
+        }
+        return content;
+      };
 
-      const resp = await fetch(AI_DM_URL, {
+      // --- Find target dragon config ---
+      const targetEntry = allDragonConfigs.find(e => e.userId === targetUserId);
+      const targetNotes = targetEntry?.config.dragonNotes || '';
+      const targetMood = (targetEntry?.config.mood || 'calm') as DragonMood;
+      const targetTrust = targetEntry?.config.trust ?? 10;
+      const targetMemories = (targetEntry?.config.memories || []) as DragonMemory[];
+      const targetBond = targetEntry?.config.bond ?? 15;
+      const targetSpeechHabits = targetEntry?.config.speechHabits;
+      const targetRiderEmotionalLog = targetEntry?.config.riderEmotionalLog;
+
+      // --- AI CALL 1: Sender's dragon ---
+      const senderBasePrompt = buildDragonChatPrompt(
+        myDragon.dragonName, myCharacterName, myDragon.trust,
+        myDragon.mood as DragonMood, myDragon.memories as DragonMemory[],
+        myDragon.dragonNotes || '', myDragon.speechHabits, recentNarrative?.slice(-3).join('\n---\n'),
+        myDragon.bond, myDragon.riderEmotionalLog,
+      );
+      const senderPrompt = senderBasePrompt + `\n\nYour rider has asked you to reach ${targetDragonName} through the dragon network. The request: "${riderMessage}". Respond with a JSON object ONLY (no markdown, no backticks): { "dragonToDragon": "what you telepathically send to ${targetDragonName} in 1-3 sentences, using your voice and personality, as proud ancient dragons communicate", "reportToRider": "what you tell your rider about reaching out, 1-2 sentences, your voice" }${narrativeCtx}`;
+
+      const resp1 = await fetch(AI_DM_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
         body: JSON.stringify({
           messages: [{ role: 'user', content: riderMessage }],
-          systemPromptOverride: systemPrompt,
+          systemPromptOverride: senderPrompt,
           model: loadSelectedModel(),
         }),
       });
+      if (!resp1.ok) throw new Error('Dragon network sender call failed');
 
-      if (!resp.ok) throw new Error('Dragon network request failed');
-      if (!resp.body) throw new Error('No response body from dragon network');
-
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let textBuffer = '';
-      let assistantContent = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        textBuffer += decoder.decode(value, { stream: true });
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (line.startsWith(':') || line.trim() === '') continue;
-          if (!line.startsWith('data: ')) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === '[DONE]') break;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (delta) assistantContent += delta;
-          } catch { /* skip */ }
-        }
+      const senderRaw = await readSSE(resp1);
+      let senderParsed: { dragonToDragon: string; reportToRider: string };
+      try {
+        senderParsed = JSON.parse(senderRaw.replace(/```json|```/g, '').trim());
+      } catch {
+        senderParsed = {
+          dragonToDragon: `${myDragon.dragonName} reaches through the network with a pulse of ancient thought.`,
+          reportToRider: `It is done. ${targetDragonName} received my thought.`,
+        };
       }
 
-      let parsed: { dragonToDragon: string; targetDragonReply: string; riderDelivery: string };
+      // --- AI CALL 2: Recipient's dragon ---
+      const recipientBasePrompt = buildDragonChatPrompt(
+        targetDragonName, targetCharacterName, targetTrust,
+        targetMood, targetMemories,
+        targetNotes, targetSpeechHabits, recentNarrative?.slice(-3).join('\n---\n'),
+        targetBond, targetRiderEmotionalLog,
+      );
+      const recipientPrompt = recipientBasePrompt + `\n\nAnother dragon, ${myDragon.dragonName}, has just contacted you through the dragon network. They said: "${senderParsed.dragonToDragon}". You must now do two things. Respond with a JSON object ONLY (no markdown, no backticks): { "dragonReply": "your reply back to ${myDragon.dragonName} through the network, 1-2 sentences, in your own voice and personality", "riderDelivery": "what you tell YOUR rider ${targetCharacterName} through the bond. You MUST deliver something. Filter the message through your personality. Phrase it as your own thought or observation. Do NOT mention ${myDragon.dragonName} or ${myCharacterName} by name. Your rider must not know another rider initiated this. You may editorialize, warn, soften, or add your own opinion. 1-3 sentences in your own voice." }`;
+
+      const resp2 = await fetch(AI_DM_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: senderParsed.dragonToDragon }],
+          systemPromptOverride: recipientPrompt,
+          model: 'google/gemini-2.5-flash',
+        }),
+      });
+      if (!resp2.ok) throw new Error('Dragon network recipient call failed');
+
+      const recipientRaw = await readSSE(resp2);
+      let recipientParsed: { dragonReply: string; riderDelivery: string };
       try {
-        parsed = JSON.parse(assistantContent.replace(/```json|```/g, '').trim());
+        recipientParsed = JSON.parse(recipientRaw.replace(/```json|```/g, '').trim());
       } catch {
-        parsed = {
-          dragonToDragon: `${myDragon.dragonName} sends a thought through the network.`,
-          targetDragonReply: `${targetDragonName} acknowledges.`,
-          riderDelivery: '',
+        recipientParsed = {
+          dragonReply: `${targetDragonName} acknowledges with a rumble of ancient thought.`,
+          riderDelivery: `${targetDragonName} stirs through the bond, pressing a wordless impression into your mind — something has their attention.`,
         };
+      }
+
+      // Ensure riderDelivery is never empty
+      if (!recipientParsed.riderDelivery?.trim()) {
+        recipientParsed.riderDelivery = `${targetDragonName} stirs through the bond, pressing a wordless impression into your mind — something has their attention.`;
       }
 
       const finalMsg: DragonNetworkMessage = {
@@ -1112,8 +1167,9 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         toDragon: targetDragonName,
         toUserId: targetUserId,
         riderMessage,
-        dragonExchange: `*${myDragon.dragonName} → ${targetDragonName}:* ${parsed.dragonToDragon}\n\n*${targetDragonName} → ${myDragon.dragonName}:* ${parsed.targetDragonReply}`,
-        toRiderDelivery: parsed.riderDelivery?.trim() || undefined,
+        dragonExchange: `*${myDragon.dragonName} → ${targetDragonName}:* ${senderParsed.dragonToDragon}\n\n*${targetDragonName} → ${myDragon.dragonName}:* ${recipientParsed.dragonReply}`,
+        toRiderDelivery: recipientParsed.riderDelivery.trim(),
+        senderReport: senderParsed.reportToRider?.trim() || undefined,
         timestamp: new Date().toISOString(),
       };
 
@@ -1126,7 +1182,6 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         state_data: finalMsg as any,
       }]);
 
-      // Always insert for the recipient so they see the full dragon exchange
       await supabase.from('party_shared_state').insert([{
         party_id: partyId,
         user_id: targetUserId,
@@ -1140,7 +1195,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     } finally {
       if (mountedRef.current) setIsSending(false);
     }
-  }, [partyId, userId, myDragon, isSending]);
+  }, [partyId, userId, myDragon, isSending, allDragonConfigs]);
 
   const isSetup = Boolean(myDragon && myDragon.dragonName);
 
