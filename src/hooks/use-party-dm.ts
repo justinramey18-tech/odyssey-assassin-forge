@@ -127,6 +127,8 @@ export interface DmSessionConfig {
   // Campaign world type
   campaignType?: 'dnd' | 'empyrean'; // default: 'dnd'
   empyreanFocus?: 'combat' | 'political' | 'romance' | 'mystery' | 'survival' | 'balanced';
+  // NPC Scene
+  npcSceneActive?: boolean;
 }
 
 export interface PartyDragonConfig {
@@ -459,6 +461,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             if (prev.some(m => m.id === newMsg.id)) return prev;
             return [...prev, newMsg];
           });
+          // Signal NPC scene if a player interjected
+          if (newMsg.role === 'user' && newMsg.sender_name && sessionConfigRef.current?.npcSceneActive) {
+            npcSceneInterjectionRef.current = {
+              content: newMsg.content,
+              senderName: newMsg.sender_name,
+            };
+          }
         } else if (payload.eventType === 'UPDATE') {
           const updated = payload.new as PartyDmMessage;
           setMessages(prev => prev.map(m => m.id === updated.id ? updated : m));
@@ -2652,6 +2661,253 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   }, [partyId, user, messages, updateSessionConfig, silentAutoSave, customGuidesContent]);
 
 
+  const npcSceneInterjectionRef = useRef<{ content: string; senderName: string } | null>(null);
+
+  async function generateNpcBatch(
+    npcs: string[],
+    scenePrompt: string,
+    lineCount: number,
+    ctxMsgs: Array<{ role: string; content: string }>,
+    sceneHistory: string,
+    signal: AbortSignal,
+    playerInterjection?: { content: string; senderName: string },
+  ): Promise<Array<{ npcName: string; content: string }>> {
+    const npcList = npcs.join(', ');
+
+    let sysPrompt: string;
+    if (playerInterjection) {
+      sysPrompt = '## MULTI-NPC DIALOGUE — REACTING TO PLAYER\n\n'
+        + 'NPCs: ' + npcList + '\n'
+        + 'Scene: "' + scenePrompt + '"\n\n'
+        + 'Conversation so far:\n' + sceneHistory + '\n\n'
+        + 'Player ' + playerInterjection.senderName + ' just said: "' + playerInterjection.content + '"\n\n'
+        + 'Write ' + lineCount + ' lines of NPCs reacting to the player then continuing. First NPC should directly respond to the player.\n\n'
+        + 'FORMAT:\n*italicized action beat*\n**Name:** "dialogue"\n\n'
+        + 'Only these NPCs speak. 1-2 sentences per line. No prose, no narration, no headers, no HTML.';
+    } else {
+      sysPrompt = '## MULTI-NPC DIALOGUE SCRIPT\n\n'
+        + 'NPCs: ' + npcList + '\n'
+        + 'Scene: "' + scenePrompt + '"\n'
+        + (sceneHistory ? '\nSo far:\n' + sceneHistory + '\n\nContinue from here.\n' : '') + '\n'
+        + 'Write ' + lineCount + ' lines of dialogue.\n\n'
+        + 'FORMAT:\n*italicized action beat*\n**Name:** "dialogue"\n\n'
+        + 'Alternate naturally. 1-2 sentences per line. No prose, no narration, no headers, no HTML, no player dialogue.\n\n'
+        + 'EXAMPLE:\n\n'
+        + '*Slams fist on table.*\n**Gareth:** "I told you this would happen."\n\n'
+        + '*Rolls her eyes.*\n**Mirela:** "You said late, not vanished."\n\n'
+        + '*Glances between them.*\n**Thom:** "Maybe focus on finding it?"\n\n'
+        + 'Write now. ' + lineCount + ' lines. Only: ' + npcList + '. Go.';
+    }
+
+    const apiMsgs = ctxMsgs.slice(-40).map(m => ({ role: m.role, content: m.content }));
+
+    const authToken = await getAuthToken();
+    const resp = await fetch(
+      import.meta.env.VITE_SUPABASE_URL + '/functions/v1/ai-dm',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + authToken },
+        body: JSON.stringify({
+          messages: apiMsgs.slice(-50),
+          characterContext,
+          systemPromptOverride: sysPrompt,
+          model: loadSelectedModel(),
+          maxTokens: 1500,
+        }),
+        signal,
+      }
+    );
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error((err as { error?: string }).error || 'NPC scene failed');
+    }
+    if (!resp.body) throw new Error('No response body');
+
+    // Stream full response
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let full = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let idx: number;
+      while ((idx = buf.indexOf('\n')) !== -1) {
+        let line = buf.slice(0, idx);
+        buf = buf.slice(idx + 1);
+        if (line.endsWith('\r')) line = line.slice(0, -1);
+        if (line.startsWith(':') || line.trim() === '') continue;
+        if (!line.startsWith('data: ')) continue;
+        const j = line.slice(6).trim();
+        if (j === '[DONE]') break;
+        try {
+          const p = JSON.parse(j);
+          const d = p.choices?.[0]?.delta?.content as string | undefined;
+          if (d) full += d;
+        } catch { /* skip */ }
+      }
+    }
+
+    if (!full?.trim()) return [];
+
+    // Parse into individual NPC lines
+    const esc = npcs.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const splitRe = new RegExp('(?=\\*\\*(?:' + esc.join('|') + ')\\*\\*:)', 'gi');
+    const chunks = full.split(splitRe).filter(c => c.trim());
+    const nameRe = new RegExp('^\\*\\*\\s*(' + esc.join('|') + ')\\s*\\*\\*:\\s*', 'i');
+
+    const result: Array<{ npcName: string; content: string }> = [];
+    for (const chunk of chunks) {
+      const t = chunk.trim();
+      const nm = t.match(nameRe);
+      if (nm) {
+        const npcName = npcs.find(n => n.toLowerCase() === nm[1].toLowerCase()) || nm[1];
+        const dialogue = t.slice(nm[0].length).trim();
+        // Look for italic beat before this chunk in the full text
+        const chunkPos = full.indexOf(t);
+        let beat = '';
+        if (chunkPos > 0) {
+          const before = full.slice(Math.max(0, chunkPos - 200), chunkPos).trim();
+          const bm = before.match(/(\*[^*\n]+\*)\s*$/);
+          if (bm) beat = bm[1] + '\n';
+        }
+        result.push({ npcName, content: beat + '**' + npcName + ':** ' + dialogue });
+      }
+    }
+    return result;
+  }
+
+  const runNpcScene = useCallback(async (npcs: string[], scenePrompt: string, lineCount: number = 12) => {
+    if (!partyId || !user || !sessionConfig || isGenerating) return;
+    if (npcs.length < 2 || npcs.length > 6) {
+      toast.error('NPC scene requires 2-6 NPCs');
+      return;
+    }
+
+    setIsGenerating(true);
+    npcSceneInterjectionRef.current = null;
+
+    // Atomic lock
+    const { data: lockData, error: stateErr } = await (supabase.from('party_shared_state') as any)
+      .update({ state_data: { ...sessionConfig, isGenerating: true, npcSceneActive: true } })
+      .eq('party_id', partyId)
+      .eq('state_type', 'dm_session')
+      .not('state_data->isGenerating', 'eq', true)
+      .select('id');
+    if (stateErr) console.error('[PartyDM] Lock error:', stateErr);
+    if (!lockData || lockData.length === 0) {
+      toast('The DM is already responding...', { duration: 2000, icon: '\u23F3' });
+      setIsGenerating(false);
+      return;
+    }
+
+    abortRef.current = new AbortController();
+    try {
+      // Scene-setting message
+      await insertPartyMessageHelper(partyId, {
+        party_id: partyId,
+        role: 'assistant',
+        content: '*' + scenePrompt + '*',
+        sender_user_id: null,
+        sender_name: 'DM',
+      });
+
+      const contextMessages = [...messages].map(m => ({ role: m.role, content: m.content }));
+      let sceneHistory = '';
+      let totalLines = 0;
+      const maxTotal = lineCount + 10;
+
+      // Generate initial batch
+      let pending = await generateNpcBatch(
+        npcs, scenePrompt, lineCount, contextMessages, sceneHistory, abortRef.current!.signal
+      );
+
+      // Drip-feed loop with interjection support
+      while (pending.length > 0 && totalLines < maxTotal) {
+        if (abortRef.current?.signal.aborted) break;
+
+        const line = pending.shift()!;
+
+        // Delay between lines
+        if (totalLines > 0) {
+          const delay = 800 + Math.random() * 1200;
+          await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(resolve, delay);
+            const onAbort = () => { clearTimeout(timeout); reject(new DOMException('Aborted', 'AbortError')); };
+            abortRef.current?.signal.addEventListener('abort', onAbort, { once: true });
+          });
+        }
+
+        if (abortRef.current?.signal.aborted) break;
+
+        // Check for player interjection before inserting next line
+        const interjection = npcSceneInterjectionRef.current;
+        if (interjection) {
+          npcSceneInterjectionRef.current = null;
+
+          sceneHistory += '\n[' + interjection.senderName + ']: ' + interjection.content;
+
+          // Discard remaining pre-generated lines
+          pending = [];
+
+          // Generate NEW batch where NPCs react to the player
+          const reactions = await generateNpcBatch(
+            npcs, scenePrompt, Math.min(6, maxTotal - totalLines),
+            contextMessages, sceneHistory, abortRef.current!.signal, interjection
+          );
+          pending = reactions;
+          continue;
+        }
+
+        // Insert the NPC line into chat
+        await insertPartyMessageHelper(partyId, {
+          party_id: partyId,
+          role: 'assistant',
+          content: line.content.trim(),
+          sender_user_id: null,
+          sender_name: line.npcName,
+        });
+
+        sceneHistory += '\n' + line.content.trim();
+        totalLines++;
+      }
+
+      triggerSummaryIfNeeded([...messages]);
+      silentAutoSave([...messages], sessionConfig.campaignSummary || null);
+
+    } catch (error) {
+      const isAbort = error instanceof Error && error.name === 'AbortError';
+      if (!isAbort) {
+        console.error('NPC scene error:', error);
+        toast.error(error instanceof Error ? error.message : 'NPC scene failed');
+      }
+    } finally {
+      await (supabase.from('party_shared_state') as any)
+        .update({ state_data: { ...sessionConfig, isGenerating: false, npcSceneActive: false } })
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session');
+      setIsGenerating(false);
+      abortRef.current = null;
+    }
+  }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, insertPartyMessageHelper, triggerSummaryIfNeeded, silentAutoSave]);
+
+  const stopNpcScene = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    setIsGenerating(false);
+    if (partyId && sessionConfig) {
+      (supabase.from('party_shared_state') as any)
+        .update({ state_data: { ...sessionConfig, isGenerating: false, npcSceneActive: false } })
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session')
+        .then(() => {});
+    }
+  }, [partyId, sessionConfig]);
+
 
 
   // === DIALOGUE MODE: Generate a recap of recent dialogue ===
@@ -3020,6 +3276,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     sendWhisper,
     callDM,
     voiceNPC,
+    runNpcScene,
+    stopNpcScene,
     generateDialogueRecap,
     regenerateMessage,
     regenerateWhispers,
@@ -3044,7 +3302,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     startSession, endSession, startNewCampaign, saveCampaign, loadCampaign,
     submitPrompt, editPrompt, retractPrompt, setReady, unready,
     generateResponse, sendManualDmMessage, approveDraft, discardDraft,
-    editMessage, deleteMessage, sendDialogueMessage, sendWhisper, callDM, voiceNPC, generateDialogueRecap, regenerateMessage, regenerateWhispers,
+    editMessage, deleteMessage, sendDialogueMessage, sendWhisper, callDM, voiceNPC, runNpcScene, stopNpcScene, generateDialogueRecap, regenerateMessage, regenerateWhispers,
     addMediaMessage, stopGeneration, initiateSplit, regroupParty,
     updateSessionConfig, setTimerConfig, startTimer, pauseTimer, resumeTimer,
     cancelTimer, requestExtension, approveExtension, dismissExtensions,
