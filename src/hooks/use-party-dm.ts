@@ -2870,7 +2870,7 @@ YOUR RESPONSE MUST FOLLOW THIS EXACT FORMAT. NOTHING MORE.`;
             characterContext,
             systemPromptOverride: npcSystemPrompt,
             model: loadSelectedModel(),
-            maxTokens: 200,
+            maxTokens: 100,
           }),
           signal: abortRef.current!.signal,
         });
