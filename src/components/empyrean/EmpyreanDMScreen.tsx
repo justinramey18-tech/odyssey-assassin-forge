@@ -178,6 +178,7 @@ export function EmpyreanDMScreen({
   const [showWorldState, setShowWorldState] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [showNpcScene, setShowNpcScene] = useState(false);
+  const [showOocChat, setShowOocChat] = useState(false);
   const [npcInterjectionText, setNpcInterjectionText] = useState('');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [burnoutLevel, setBurnoutLevel] = useState(0);
