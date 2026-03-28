@@ -2827,6 +2827,18 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
     setIsGenerating(true);
     npcSceneInterjectionRef.current = null;
+    console.log('[NPC Scene] Starting scene with NPCs:', npcs, 'prompt:', scenePrompt);
+
+    // Safety: if sessionConfig shows isGenerating but we're clearly not generating locally,
+    // force-clear the stale lock before trying to acquire
+    if (sessionConfig.isGenerating && !abortRef.current) {
+      console.warn('[NPC Scene] Detected stale isGenerating flag, force-clearing');
+      await (supabase.from('party_shared_state') as any)
+        .update({ state_data: { ...sessionConfig, isGenerating: false, npcSceneActive: false } })
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session');
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
 
     // Atomic lock
     const { data: lockData, error: stateErr } = await (supabase.from('party_shared_state') as any)
@@ -2841,6 +2853,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsGenerating(false);
       return;
     }
+    console.log('[NPC Scene] Lock acquired successfully');
 
     abortRef.current = new AbortController();
     try {
@@ -2852,6 +2865,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         sender_user_id: null,
         sender_name: 'DM',
       });
+      console.log('[NPC Scene] Scene-setting message inserted');
 
       const contextMessages = [...messages].map(m => ({ role: m.role, content: m.content }));
       let sceneHistory = '';
@@ -2862,6 +2876,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       let pending = await generateNpcBatch(
         npcs, scenePrompt, lineCount, contextMessages, sceneHistory, abortRef.current!.signal
       );
+      console.log('[NPC Scene] Initial batch generated:', pending.length, 'lines');
+
+      if (pending.length === 0) {
+        console.warn('[NPC Scene] Parser returned 0 lines — check AI response format');
+        toast.error('NPC scene: AI response could not be parsed into dialogue lines. Try again.');
+      }
 
       // Drip-feed loop with interjection support
       while (pending.length > 0 && totalLines < maxTotal) {
