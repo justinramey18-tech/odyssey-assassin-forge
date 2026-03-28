@@ -1125,6 +1125,12 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
           reportToRider: `It is done. ${targetDragonName} received my thought.`,
         };
       }
+      if (!senderParsed.reportToRider?.trim()) {
+        senderParsed.reportToRider = `It is done. ${targetDragonName} received my thought.`;
+      }
+      if (!senderParsed.dragonToDragon?.trim()) {
+        senderParsed.dragonToDragon = `${myDragon.dragonName} reaches through the network with a pulse of ancient thought.`;
+      }
 
       // --- AI CALL 2: Recipient's dragon ---
       const recipientBasePrompt = buildDragonChatPrompt(
