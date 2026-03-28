@@ -81,7 +81,6 @@ export function DMToolsDrawer({
   onResetBurnout,
   onNpcScene,
   onOocChat,
-  oocDirectiveCount,
 }: DMToolsDrawerProps) {
   const [showRetakeConfirm, setShowRetakeConfirm] = useState(false);
 
