@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.ai-campaign-builder]
 verify_jwt = false
+
+[functions.dev-assistant]
+verify_jwt = false
