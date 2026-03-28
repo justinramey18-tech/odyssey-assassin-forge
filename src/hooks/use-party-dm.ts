@@ -2673,34 +2673,63 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     playerInterjection?: { content: string; senderName: string },
   ): Promise<Array<{ npcName: string; content: string }>> {
     const npcList = npcs.join(', ');
-
+    // Build system prompt using [NPC:Name] tags for reliable parsing
     let sysPrompt: string;
     if (playerInterjection) {
-      sysPrompt = '## MULTI-NPC DIALOGUE — REACTING TO PLAYER\n\n'
-        + 'NPCs: ' + npcList + '\n'
-        + 'Scene: "' + scenePrompt + '"\n\n'
-        + 'Conversation so far:\n' + sceneHistory + '\n\n'
-        + 'Player ' + playerInterjection.senderName + ' just said: "' + playerInterjection.content + '"\n\n'
-        + 'Write ' + lineCount + ' lines of NPCs reacting to the player then continuing. First NPC should directly respond to the player.\n\n'
-        + 'FORMAT:\n*italicized action beat*\n**Name:** "dialogue"\n\n'
-        + 'Only these NPCs speak. 1-2 sentences per line. No prose, no narration, no headers, no HTML.';
+      sysPrompt = 'MULTI-NPC DIALOGUE — REACTING TO PLAYER\n\n'
+        + 'NPCs in this scene: ' + npcList + '\n'
+        + 'Scene: ' + scenePrompt + '\n\n'
+        + 'What has been said so far:\n' + sceneHistory + '\n\n'
+        + 'A player (' + playerInterjection.senderName + ') just interrupted and said: "' + playerInterjection.content + '"\n\n'
+        + 'Write the next ' + lineCount + ' NPC dialogue lines reacting to the player, then continuing the conversation. The very first NPC should directly respond to the player.\n\n'
+        + 'CRITICAL FORMAT REQUIREMENT — every single line MUST use this exact tag format:\n'
+        + '[NPC:ExactName] *brief action* "Dialogue here."\n\n'
+        + 'Rules:\n'
+        + '- The name inside [NPC:] must exactly match one of: ' + npcList + '\n'
+        + '- One line per NPC turn. One action beat in asterisks. One quote in double quotes.\n'
+        + '- No prose, no narration, no description, no headers, no markdown bold.\n'
+        + '- Only these NPCs speak. No player dialogue.\n\n'
+        + 'Example:\n'
+        + '[NPC:' + npcs[0] + '] *steps forward* "What do you mean by that?"\n'
+        + '[NPC:' + (npcs[1] || npcs[0]) + '] *crosses arms* "I think they are right."\n';
     } else {
-      sysPrompt = '## MULTI-NPC DIALOGUE SCRIPT\n\n'
-        + 'NPCs: ' + npcList + '\n'
-        + 'Scene: "' + scenePrompt + '"\n'
-        + (sceneHistory ? '\nSo far:\n' + sceneHistory + '\n\nContinue from here.\n' : '') + '\n'
-        + 'Write ' + lineCount + ' lines of dialogue.\n\n'
-        + 'FORMAT:\n*italicized action beat*\n**Name:** "dialogue"\n\n'
-        + 'Alternate naturally. 1-2 sentences per line. No prose, no narration, no headers, no HTML, no player dialogue.\n\n'
-        + 'EXAMPLE:\n\n'
-        + '*Slams fist on table.*\n**Gareth:** "I told you this would happen."\n\n'
-        + '*Rolls her eyes.*\n**Mirela:** "You said late, not vanished."\n\n'
-        + '*Glances between them.*\n**Thom:** "Maybe focus on finding it?"\n\n'
-        + 'Write now. ' + lineCount + ' lines. Only: ' + npcList + '. Go.';
+      sysPrompt = 'MULTI-NPC DIALOGUE SCRIPT\n\n'
+        + 'NPCs in this scene: ' + npcList + '\n'
+        + 'Scene: ' + scenePrompt + '\n'
+        + (sceneHistory ? '\nWhat has been said so far:\n' + sceneHistory + '\n\nContinue from here.\n' : '') + '\n'
+        + 'Write exactly ' + lineCount + ' lines of NPC dialogue.\n\n'
+        + 'CRITICAL FORMAT REQUIREMENT — every single line MUST use this exact tag format:\n'
+        + '[NPC:ExactName] *brief action* "Dialogue here."\n\n'
+        + 'Rules:\n'
+        + '- The name inside [NPC:] must exactly match one of: ' + npcList + '\n'
+        + '- One line per NPC turn. One action beat in asterisks. One quote in double quotes.\n'
+        + '- Alternate between NPCs naturally. They react to each other.\n'
+        + '- No prose, no narration, no description, no headers, no markdown bold, no HTML.\n'
+        + '- Only these NPCs speak. No player dialogue. No narrator text.\n\n'
+        + 'Example of correct output:\n'
+        + '[NPC:' + npcs[0] + '] *slams fist on table* "I told you this would happen."\n'
+        + '[NPC:' + (npcs[1] || npcs[0]) + '] *rolls eyes* "You said late, not vanished entirely."\n'
+        + (npcs[2] ? '[NPC:' + npcs[2] + '] *glances between them* "Maybe focus on finding it?"\n' : '')
+        + '\nWrite now. ' + lineCount + ' lines. Only use [NPC:Name] format. Go.';
     }
-
-    const apiMsgs = ctxMsgs.slice(-40).map(m => ({ role: m.role, content: m.content }));
-
+    // Merge consecutive same-role messages to prevent API rejection
+    const rawMsgs = ctxMsgs.slice(-40).map(m => ({ role: m.role, content: m.content }));
+    const apiMsgs: Array<{ role: string; content: string }> = [];
+    for (const msg of rawMsgs) {
+      const prev = apiMsgs[apiMsgs.length - 1];
+      if (prev && prev.role === msg.role) {
+        prev.content = prev.content + '\n\n' + msg.content;
+      } else {
+        apiMsgs.push({ ...msg });
+      }
+    }
+    // Ensure at least one message and last message is user role
+    if (apiMsgs.length === 0) {
+      apiMsgs.push({ role: 'user', content: 'Begin the scene.' });
+    }
+    if (apiMsgs[apiMsgs.length - 1].role !== 'user') {
+      apiMsgs.push({ role: 'user', content: 'Continue.' });
+    }
     const authToken = await getAuthToken();
     const resp = await fetch(
       import.meta.env.VITE_SUPABASE_URL + '/functions/v1/ai-dm',
@@ -2717,13 +2746,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         signal,
       }
     );
-
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
-      throw new Error((err as { error?: string }).error || 'NPC scene failed');
+      const errMsg = (err as { error?: string }).error || 'NPC scene AI call failed (HTTP ' + resp.status + ')';
+      console.error('[NPC Scene] AI endpoint error:', resp.status, errMsg);
+      throw new Error(errMsg);
     }
     if (!resp.body) throw new Error('No response body');
-
     // Stream full response
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
@@ -2749,72 +2778,65 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         } catch { /* skip */ }
       }
     }
-
     if (!full?.trim()) {
       console.warn('[NPC Scene] AI returned empty response');
       return [];
     }
-
-    console.log('[NPC Scene] Raw AI response length:', full.length, 'preview:', full.slice(0, 200));
-
-    // Parse into individual NPC lines
-    const esc = npcs.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    const splitRe = new RegExp('(?=\\*\\*(?:' + esc.join('|') + ')\\*\\*:)', 'gi');
-    const chunks = full.split(splitRe).filter(c => c.trim());
-    const nameRe = new RegExp('^\\*\\*\\s*(' + esc.join('|') + ')\\s*\\*\\*:\\s*', 'i');
-
+    console.log('[NPC Scene] Raw AI response (' + full.length + ' chars):', full.slice(0, 300));
+    // === PARSE using [NPC:Name] tags ===
     const result: Array<{ npcName: string; content: string }> = [];
-    for (const chunk of chunks) {
-      const t = chunk.trim();
-      const nm = t.match(nameRe);
-      if (nm) {
-        const npcName = npcs.find(n => n.toLowerCase() === nm[1].toLowerCase()) || nm[1];
-        const dialogue = t.slice(nm[0].length).trim();
-        const chunkPos = full.indexOf(t);
-        let beat = '';
-        if (chunkPos > 0) {
-          const before = full.slice(Math.max(0, chunkPos - 200), chunkPos).trim();
-          const bm = before.match(/(\*[^*\n]+\*)\s*$/);
-          if (bm) beat = bm[1] + '\n';
-        }
-        result.push({ npcName, content: beat + '**' + npcName + ':** ' + dialogue });
+    // Primary parser: split on [NPC:Name] tags
+    const tagPattern = /\[NPC:([^\]]+)\]/g;
+    let match;
+    const tagPositions: Array<{ name: string; index: number }> = [];
+    while ((match = tagPattern.exec(full)) !== null) {
+      tagPositions.push({ name: match[1].trim(), index: match.index });
+    }
+    for (let i = 0; i < tagPositions.length; i++) {
+      const { name } = tagPositions[i];
+      const startAfterTag = tagPositions[i].index + full.slice(tagPositions[i].index).indexOf(']') + 1;
+      const endPos = i + 1 < tagPositions.length ? tagPositions[i + 1].index : full.length;
+      const lineContent = full.slice(startAfterTag, endPos).trim();
+      // Match to a provided NPC name (case-insensitive)
+      const npcName = npcs.find(n => n.toLowerCase() === name.toLowerCase()) || name;
+      if (lineContent) {
+        // Reformat for display: **Name:** + the content (which should have *action* "dialogue")
+        result.push({
+          npcName,
+          content: '**' + npcName + ':** ' + lineContent,
+        });
       }
     }
-
-    // If strict parsing found nothing, try a looser pattern
-    if (result.length === 0 && full.trim().length > 20) {
-      console.warn('[NPC Scene] Strict parser found 0 lines. Trying loose parser on:', full.slice(0, 200));
-      
-      const looseSplit = full.split(/(?=\*\*[A-Z][a-zA-Z' ]+\*\*\s*:)/g).filter(c => c.trim());
-      const looseNameRe = /^\*\*\s*([A-Z][a-zA-Z' ]+)\s*\*\*\s*:\s*/;
-      
-      for (const chunk of looseSplit) {
-        const t = chunk.trim();
-        const nm = t.match(looseNameRe);
-        if (nm) {
-          const foundName = nm[1].trim();
-          const npcName = npcs.find(n => n.toLowerCase() === foundName.toLowerCase()) || foundName;
-          const dialogue = t.slice(nm[0].length).trim();
-          const chunkPos = full.indexOf(t);
-          let beat = '';
-          if (chunkPos > 0) {
-            const before = full.slice(Math.max(0, chunkPos - 200), chunkPos).trim();
-            const bm = before.match(/(\*[^*\n]+\*)\s*$/);
-            if (bm) beat = bm[1] + '\n';
-          }
-          result.push({ npcName, content: beat + '**' + npcName + ':** ' + dialogue });
+    console.log('[NPC Scene] Tag parser found:', result.length, 'lines');
+    // Fallback 1: try **Name:** bold pattern (in case AI ignored tag format)
+    if (result.length === 0) {
+      console.warn('[NPC Scene] Tag parser found 0 lines. Trying bold pattern fallback.');
+      const boldPattern = /\*\*\s*([A-Z][a-zA-Z' ]+?)\s*\*\*\s*:\s*/g;
+      let bm;
+      const boldPositions: Array<{ name: string; index: number; matchLen: number }> = [];
+      while ((bm = boldPattern.exec(full)) !== null) {
+        boldPositions.push({ name: bm[1].trim(), index: bm.index, matchLen: bm[0].length });
+      }
+      for (let i = 0; i < boldPositions.length; i++) {
+        const { name, index, matchLen } = boldPositions[i];
+        const endPos = i + 1 < boldPositions.length ? boldPositions[i + 1].index : full.length;
+        const lineContent = full.slice(index + matchLen, endPos).trim();
+        const npcName = npcs.find(n => n.toLowerCase() === name.toLowerCase()) || name;
+        // Look for beat before this
+        const before = full.slice(Math.max(0, index - 200), index).trim();
+        const beatMatch = before.match(/(\*[^*\n]+\*)\s*$/);
+        const beat = beatMatch ? beatMatch[1] + '\n' : '';
+        if (lineContent) {
+          result.push({ npcName, content: beat + '**' + npcName + ':** ' + lineContent });
         }
       }
-      
-      console.log('[NPC Scene] Loose parser found:', result.length, 'lines');
+      console.log('[NPC Scene] Bold fallback found:', result.length, 'lines');
     }
-
-    // If STILL nothing, push the entire raw response as a single fallback
+    // Fallback 2: push entire response as DM message
     if (result.length === 0 && full.trim().length > 20) {
-      console.warn('[NPC Scene] Both parsers failed. Using raw fallback.');
+      console.warn('[NPC Scene] All parsers failed. Using raw fallback.');
       result.push({ npcName: 'DM', content: full.trim() });
     }
-
     return result;
   }
 
