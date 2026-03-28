@@ -1,7 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getCodebaseIndex, getFileContents, loadDevAssistantInstructions } from '@/lib/codebase-storage';
 import { loadApiKey } from '@/lib/api-keys';
+
+const CHAT_STORAGE_KEY = 'dev-assistant-chat-history';
 
 interface DevMessage {
   id: string;
@@ -11,10 +13,41 @@ interface DevMessage {
   phase?: string;
 }
 
+function loadPersistedMessages(): DevMessage[] {
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((m: any) => ({
+      id: m.id || crypto.randomUUID(),
+      role: m.role,
+      content: m.content,
+      isLoading: false,
+      phase: undefined,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function persistMessages(messages: DevMessage[]) {
+  try {
+    const toSave = messages
+      .filter(m => !m.isLoading)
+      .map(m => ({ id: m.id, role: m.role, content: m.content }));
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(toSave));
+  } catch {}
+}
+
 export function useDevAssistant() {
-  const [messages, setMessages] = useState<DevMessage[]>([]);
+  const [messages, setMessages] = useState<DevMessage[]>(() => loadPersistedMessages());
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentPhase, setCurrentPhase] = useState('');
+
+  useEffect(() => {
+    persistMessages(messages);
+  }, [messages]);
 
   const updatePlaceholder = (id: string, updates: Partial<DevMessage>) => {
     setMessages(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
@@ -140,6 +173,7 @@ export function useDevAssistant() {
     setMessages([]);
     setIsProcessing(false);
     setCurrentPhase('');
+    localStorage.removeItem(CHAT_STORAGE_KEY);
   }, []);
 
   return { messages, isProcessing, currentPhase, sendMessage, clearChat };
