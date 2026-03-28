@@ -39,6 +39,7 @@ export interface DragonNetworkMessage {
   riderMessage: string;
   dragonExchange: string;
   toRiderDelivery?: string;
+  senderReport?: string;
   timestamp: string;
 }
 
