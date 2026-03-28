@@ -373,14 +373,6 @@ export function EmpyreanDMScreen({
     },
   });
 
-  const npcSceneSessionConfig = useMemo(() => ({
-    active: true,
-    mode: 'shared' as const,
-    currentRoundId: '',
-    campaignSummary: campaignSummary,
-    isGenerating: false,
-    campaignType: 'empyrean' as const,
-  }), [campaignSummary]);
 
   // Register Oracle quest callback so OracleDrawer can save quests to game state
   const drawerContext = usePromptDrawers();
