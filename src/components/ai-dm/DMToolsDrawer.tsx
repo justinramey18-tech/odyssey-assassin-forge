@@ -46,7 +46,7 @@ interface DMToolsDrawerProps {
   onDragonNotesChange?: (notes: string) => void;
   onReconfigureEmpyrean?: () => void;
   onResetBurnout?: () => void;
-  onNpcScene?: () => void;
+  
   onOocChat?: () => void;
   oocDirectiveCount?: number;
 }
