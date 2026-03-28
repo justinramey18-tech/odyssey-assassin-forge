@@ -452,6 +452,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
             if (payload.eventType === 'INSERT' && row.user_id !== userId) {
               const incoming = row.state_data as unknown as DragonNetworkMessage;
               if (!incoming?.fromUserId || incoming.fromUserId === userId) return;
+              if (incoming.toRiderDelivery) return;
 
               const msgId = incoming.id?.toString() || '';
               const depthMap = reactionDepthRef.current;
