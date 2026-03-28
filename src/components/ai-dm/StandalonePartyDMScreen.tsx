@@ -454,9 +454,9 @@ ${truncated}`);
         onToggleAutoSync={autoSync.toggleAutoSync}
         isExtracting={autoSync.isExtracting}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
-        gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '') + dragonContextForDM + oocDmChat.activeDirectives}
+        gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '') + dragonContextForDM}
         onShowOocChat={() => setShowOocChat(true)}
-        oocDirectiveCount={oocDmChat.directiveCount}
+        oocDirectiveCount={oocDmChat.pendingCommand ? 1 : 0}
         memoryAnchorsContent={memoryAnchors.formattedForOracle}
         memoryAnchors={memoryAnchors.anchors}
         onAddMemoryAnchor={memoryAnchors.addMemoryAnchor}
@@ -480,14 +480,8 @@ ${truncated}`);
         onSendMessage={oocDmChat.sendMessage}
         onCancelRequest={oocDmChat.cancelRequest}
         onClearChat={oocDmChat.clearChat}
-        pinnedDirectives={oocDmChat.pinnedDirectives}
-        onAddPinned={oocDmChat.addPinnedDirective}
-        onRemovePinned={oocDmChat.removePinnedDirective}
-        onTogglePinned={oocDmChat.togglePinnedDirective}
-        onEditPinned={oocDmChat.editPinnedDirective}
-        chatDirectives={oocDmChat.chatDirectives}
-        directiveCount={oocDmChat.directiveCount}
-        onClearAllDirectives={oocDmChat.clearAllDirectives}
+        pendingCommand={oocDmChat.pendingCommand}
+        onClearPendingCommand={oocDmChat.clearPendingCommand}
         campaignType={isSoloEmpyrean ? 'empyrean' : 'dnd'}
       />
 

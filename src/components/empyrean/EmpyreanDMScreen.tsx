@@ -296,7 +296,7 @@ export function EmpyreanDMScreen({
     newGame,
   } = useAIDM({
     characterContext,
-    customGuidesContent: (enabledContent || '') + oocDmChat.activeDirectives,
+    customGuidesContent: enabledContent,
     dmPersonaPrompt,
     responseModePrompt: resolveResponseModePrompt(responseMode),
     selectedModel,
@@ -1335,7 +1335,7 @@ export function EmpyreanDMScreen({
         onResetBurnout={() => { setBurnoutLevel(0); toast.success('Signet burnout reset.'); }}
         onNpcScene={() => setShowNpcScene(true)}
         onOocChat={() => setShowOocChat(true)}
-        oocDirectiveCount={oocDmChat.directiveCount}
+        oocDirectiveCount={oocDmChat.pendingCommand ? 1 : 0}
       />
 
       {/* Campaign Sessions Manager */}
@@ -1490,14 +1490,8 @@ export function EmpyreanDMScreen({
         onSendMessage={oocDmChat.sendMessage}
         onCancelRequest={oocDmChat.cancelRequest}
         onClearChat={oocDmChat.clearChat}
-        pinnedDirectives={oocDmChat.pinnedDirectives}
-        onAddPinned={oocDmChat.addPinnedDirective}
-        onRemovePinned={oocDmChat.removePinnedDirective}
-        onTogglePinned={oocDmChat.togglePinnedDirective}
-        onEditPinned={oocDmChat.editPinnedDirective}
-        chatDirectives={oocDmChat.chatDirectives}
-        directiveCount={oocDmChat.directiveCount}
-        onClearAllDirectives={oocDmChat.clearAllDirectives}
+        pendingCommand={oocDmChat.pendingCommand}
+        onClearPendingCommand={oocDmChat.clearPendingCommand}
         campaignType="empyrean"
       />
 
