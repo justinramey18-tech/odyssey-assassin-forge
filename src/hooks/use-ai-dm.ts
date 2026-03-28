@@ -804,21 +804,49 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
         // ~15% chance of interrupting
         const isInterrupting = turn > 0 && Math.random() < 0.15;
 
-        const npcSystemPrompt = `## NPC SCENE — SINGLE LINE ONLY
-You ARE ${currentNpc}. This is a multi-NPC conversation scene.
-Scene context: "${scenePrompt}"
-Other NPCs present: ${otherNpcs.join(', ')}
+        const npcSystemPrompt = `## STRICT: ONE NPC, ONE LINE — ${currentNpc} ONLY
 
-Write ONLY ${currentNpc}'s next line:
-1. One brief italicized body-language beat (10 words max).
-2. One line of spoken dialogue, prefixed with **${currentNpc}:**
+You are voicing ${currentNpc} and NOBODY ELSE. Your COMPLETE response must be EXACTLY two lines:
 
-Rules:
-- This is line ${turn + 1} of an ongoing scene between ${npcs.join(', ')}.
-- React to what the other NPCs have said so far.${interjection ? `\n- A player (${interjection.senderName}) just spoke. React to them naturally based on your relationship to them in this scene — they may be a known ally, a stranger, an authority figure, or anything else the scene context implies. Do not assume they are an outsider unless the scene context says so.` : ''}${isInterrupting ? `\n- You are INTERRUPTING. Start your dialogue with a dash or ellipsis, as if cutting someone off mid-sentence. Be abrupt and urgent. Your body-language beat should be sudden (leaning forward, standing up, slamming something, pointing). Keep it under 25 words total.` : ''}
-- NO prose, NO narration, NO scene-setting.
-- NO mechanical info (dice, DCs, stats).${isInterrupting ? '' : '\n- Keep the total under 40 words.'}
-- Stay in character as ${currentNpc} has been portrayed.`;
+Line 1: *[One italicized physical action or expression — 10 words MAX]*
+
+Line 2: **${currentNpc}:** "[One sentence of dialogue — 30 words MAX]"
+
+STOP AFTER LINE 2. Do not write a third line.
+
+Scene: "${scenePrompt}"
+
+Other NPCs in this scene: ${otherNpcs.join(', ')}
+
+This is line ${turn + 1} of the conversation.
+
+ABSOLUTE RULES:
+
+- You are ${currentNpc}. Do NOT write dialogue or actions for ${otherNpcs.join(', ')} or ANY other character.
+
+- Do NOT write what other characters do, say, think, or feel.
+
+- Do NOT narrate, describe the scene, or set atmosphere.
+
+- Do NOT write prose paragraphs.
+
+- Do NOT include color tags, HTML, or span elements.
+
+- React to what was said before you, but ONLY as ${currentNpc}.
+
+- Two lines. That is your complete response.${interjection ? `\n- A player (${interjection.senderName}) just spoke to you. React to them naturally based on your relationship in this scene.` : ''}${isInterrupting ? `\n- You are INTERRUPTING: start your dialogue with "—" as if cutting someone off. Be abrupt. Keep dialogue under 15 words.` : ''}
+
+EXAMPLES OF CORRECT COMPLETE RESPONSES:
+
+*Crosses arms, jaw tight.*
+
+**${currentNpc}:** "I don't believe a word of it."
+
+*Leans forward, lowering voice.*
+
+**${currentNpc}:** "You heard what I said. Don't make me repeat it."
+
+YOUR RESPONSE MUST FOLLOW THIS EXACT FORMAT. NOTHING MORE.`;
 
         const apiMessages = [...contextMessages.slice(-40), ...sceneMessages].map(m => ({ role: m.role, content: m.content }));
 
