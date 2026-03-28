@@ -264,6 +264,15 @@ export function EmpyreanDMScreen({
   const worldStatePrompt = useMemo(() => buildMemoryAnchorsPrompt(gameState.gameState), [gameState.gameState]);
 
 
+  const oocDmChat = useOocDmChat({
+    characterContext,
+    campaignSummary: null,
+    customGuidesContent: enabledContent,
+    campaignType: 'empyrean',
+    selectedModel,
+    storageKeySuffix: '-empyrean',
+  });
+
   const {
     messages,
     isLoading,
