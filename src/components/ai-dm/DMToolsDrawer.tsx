@@ -80,7 +80,7 @@ export function DMToolsDrawer({
   onDragonNotesChange,
   onReconfigureEmpyrean,
   onResetBurnout,
-  onNpcScene,
+  
   onOocChat,
   oocDirectiveCount,
 }: DMToolsDrawerProps) {
