@@ -1061,12 +1061,37 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
       });
 
       if (!resp.ok) throw new Error('Dragon network request failed');
-      const data = await resp.json();
-      const raw: string = data?.response || data?.content || '';
+      if (!resp.body) throw new Error('No response body from dragon network');
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = '';
+      let assistantContent = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.startsWith(':') || line.trim() === '') continue;
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (delta) assistantContent += delta;
+          } catch { /* skip */ }
+        }
+      }
 
       let parsed: { dragonToDragon: string; targetDragonReply: string; riderDelivery: string };
       try {
-        parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+        parsed = JSON.parse(assistantContent.replace(/```json|```/g, '').trim());
       } catch {
         parsed = {
           dragonToDragon: `${myDragon.dragonName} sends a thought through the network.`,
