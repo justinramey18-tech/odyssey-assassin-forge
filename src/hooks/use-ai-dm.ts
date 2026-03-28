@@ -862,7 +862,7 @@ YOUR RESPONSE MUST FOLLOW THIS EXACT FORMAT. NOTHING MORE.`;
             characterContext,
             systemPromptOverride: npcSystemPrompt,
             model: selectedModel || undefined,
-            maxTokens: 100,
+            maxTokens: 80,
           }),
           signal: abortControllerRef.current!.signal,
         });
