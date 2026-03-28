@@ -69,6 +69,7 @@ export function StandalonePartyDMScreen({
   const [showGuides, setShowGuides] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
   const [showCampaignBuilder, setShowCampaignBuilder] = useState(false);
+  const [showOocChat, setShowOocChat] = useState(false);
   const [partyCreatorId, setPartyCreatorId] = useState<string | null>(null);
   const [coHostIds, setCoHostIds] = useState<string[]>([]);
 
