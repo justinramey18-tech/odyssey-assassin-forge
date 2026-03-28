@@ -3,8 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
-import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle, Theater } from 'lucide-react';
+import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle, Theater, Megaphone } from 'lucide-react';
 import { NpcSceneDialog } from '@/components/ai-dm/NpcSceneDialog';
+import { useOocDmChat } from '@/hooks/use-ooc-dm-chat';
+import { OocDmChat } from '@/components/ai-dm/OocDmChat';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -176,6 +178,7 @@ export function EmpyreanDMScreen({
   const [showWorldState, setShowWorldState] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [showNpcScene, setShowNpcScene] = useState(false);
+  const [showOocChat, setShowOocChat] = useState(false);
   const [npcInterjectionText, setNpcInterjectionText] = useState('');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [burnoutLevel, setBurnoutLevel] = useState(0);
@@ -261,6 +264,15 @@ export function EmpyreanDMScreen({
   const worldStatePrompt = useMemo(() => buildMemoryAnchorsPrompt(gameState.gameState), [gameState.gameState]);
 
 
+  const oocDmChat = useOocDmChat({
+    characterContext,
+    campaignSummary: null,
+    customGuidesContent: enabledContent,
+    campaignType: 'empyrean',
+    selectedModel,
+    storageKeySuffix: '-empyrean',
+  });
+
   const {
     messages,
     isLoading,
@@ -284,7 +296,7 @@ export function EmpyreanDMScreen({
     newGame,
   } = useAIDM({
     characterContext,
-    customGuidesContent: enabledContent,
+    customGuidesContent: (enabledContent || '') + oocDmChat.activeDirectives,
     dmPersonaPrompt,
     responseModePrompt: resolveResponseModePrompt(responseMode),
     selectedModel,
@@ -1322,6 +1334,8 @@ export function EmpyreanDMScreen({
         onReconfigureEmpyrean={onClose}
         onResetBurnout={() => { setBurnoutLevel(0); toast.success('Signet burnout reset.'); }}
         onNpcScene={() => setShowNpcScene(true)}
+        onOocChat={() => setShowOocChat(true)}
+        oocDirectiveCount={oocDmChat.directiveCount}
       />
 
       {/* Campaign Sessions Manager */}
@@ -1467,6 +1481,25 @@ export function EmpyreanDMScreen({
           </ScrollArea>
         </SheetContent>
       </Sheet>
+
+      <OocDmChat
+        open={showOocChat}
+        onClose={() => setShowOocChat(false)}
+        messages={oocDmChat.messages}
+        isLoading={oocDmChat.isLoading}
+        onSendMessage={oocDmChat.sendMessage}
+        onCancelRequest={oocDmChat.cancelRequest}
+        onClearChat={oocDmChat.clearChat}
+        pinnedDirectives={oocDmChat.pinnedDirectives}
+        onAddPinned={oocDmChat.addPinnedDirective}
+        onRemovePinned={oocDmChat.removePinnedDirective}
+        onTogglePinned={oocDmChat.togglePinnedDirective}
+        onEditPinned={oocDmChat.editPinnedDirective}
+        chatDirectives={oocDmChat.chatDirectives}
+        directiveCount={oocDmChat.directiveCount}
+        onClearAllDirectives={oocDmChat.clearAllDirectives}
+        campaignType="empyrean"
+      />
 
       <DragonBondChat
         open={showDragonChat}

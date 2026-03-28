@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2, Brain, Cpu, Palette, Eye, Theater } from 'lucide-react';
+import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2, Brain, Cpu, Palette, Eye, Theater, Megaphone } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import {
@@ -47,6 +47,8 @@ interface DMToolsDrawerProps {
   onReconfigureEmpyrean?: () => void;
   onResetBurnout?: () => void;
   onNpcScene?: () => void;
+  onOocChat?: () => void;
+  oocDirectiveCount?: number;
 }
 
 export function DMToolsDrawer({
@@ -79,6 +81,8 @@ export function DMToolsDrawer({
   onReconfigureEmpyrean,
   onResetBurnout,
   onNpcScene,
+  onOocChat,
+  oocDirectiveCount,
 }: DMToolsDrawerProps) {
   const [showRetakeConfirm, setShowRetakeConfirm] = useState(false);
 
@@ -190,6 +194,15 @@ export function DMToolsDrawer({
               icon={<Theater className="w-4 h-4" />}
               label="NPC Scene"
               onClick={() => closeAndRun(onNpcScene)}
+            />
+          )}
+
+          {onOocChat && (
+            <ToolRow
+              icon={<Megaphone className="w-4 h-4" />}
+              label="Director's Channel"
+              badge={oocDirectiveCount && oocDirectiveCount > 0 ? oocDirectiveCount : undefined}
+              onClick={() => closeAndRun(onOocChat)}
             />
           )}
 
