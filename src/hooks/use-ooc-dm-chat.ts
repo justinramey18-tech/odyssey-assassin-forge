@@ -57,6 +57,7 @@ export function useOocDmChat({
     sendMessage,
     clearMessages: clearChat,
     cancelRequest,
+    deleteMessage,
   } = useAIDM({
     characterContext,
     sessionStorageKey: chatKey,
