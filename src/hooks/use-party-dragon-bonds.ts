@@ -1097,7 +1097,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
       const senderBasePrompt = buildDragonChatPrompt(
         myDragon.dragonName, myCharacterName, myDragon.trust,
         myDragon.mood as DragonMood, myDragon.memories as DragonMemory[],
-        myDragon.dragonNotes || '', myDragon.speechHabits, recentNarrative?.slice(-3).join('\n---\n'),
+        myDragon.dragonNotes || '', myDragon.speechHabits, recentNarrative?.slice(-3),
         myDragon.bond, myDragon.riderEmotionalLog,
       );
       const senderPrompt = senderBasePrompt + `\n\nYour rider has asked you to reach ${targetDragonName} through the dragon network. The request: "${riderMessage}". Respond with a JSON object ONLY (no markdown, no backticks): { "dragonToDragon": "what you telepathically send to ${targetDragonName} in 1-3 sentences, using your voice and personality, as proud ancient dragons communicate", "reportToRider": "what you tell your rider about reaching out, 1-2 sentences, your voice" }${narrativeCtx}`;
