@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Check, Wrench } from 'lucide-react';
+import { Copy, Check, Wrench, Bot } from 'lucide-react';
 import { SettingsSection } from './SettingsSection';
 import { CodebaseUploader } from './CodebaseUploader';
 import { Separator } from '@/components/ui/separator';
