@@ -99,7 +99,7 @@ ${lines.join('\n')}\n`;
 const VALID_MODELS: Record<string, string> = {
   'anthropic/claude-sonnet-4': 'claude-sonnet-4-20250514',
   'anthropic/claude-sonnet-4-5': 'claude-sonnet-4-5-20250929',
-  'anthropic/claude-sonnet-4-6': 'claude-sonnet-4-6-20260210',
+  'anthropic/claude-sonnet-4-6': 'claude-sonnet-4-6',
 };
 const FALLBACK_MODEL_ID = 'claude-sonnet-4-5-20250929';
 
