@@ -15,6 +15,8 @@ import CampaignBuilderChat from './CampaignBuilderChat';
 import { AnimatePresence } from 'framer-motion';
 import type { CampaignBuildData } from '@/hooks/use-ai-campaign-chat';
 import type { CharacterContext } from '@/components/oracle/types';
+import { useOocDmChat } from '@/hooks/use-ooc-dm-chat';
+import { OocDmChat } from './OocDmChat';
 import { EMPYREAN_LORE_GUIDES } from '@/lib/empyreanGMGuides';
 import { getBondDescriptor, getTrustDescriptor } from '@/lib/dragonBondState';
 import { usePartyDragonBonds } from '@/hooks/use-party-dragon-bonds';
@@ -67,6 +69,7 @@ export function StandalonePartyDMScreen({
   const [showGuides, setShowGuides] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
   const [showCampaignBuilder, setShowCampaignBuilder] = useState(false);
+  const [showOocChat, setShowOocChat] = useState(false);
   const [partyCreatorId, setPartyCreatorId] = useState<string | null>(null);
   const [coHostIds, setCoHostIds] = useState<string[]>([]);
 
@@ -149,13 +152,20 @@ export function StandalonePartyDMScreen({
     }, { onConflict: 'party_id,user_id,state_type' });
   }, [partyId, userId, isPartyCreator, coHostIds]);
 
-  // Campaign sessions (for dropdown)
   const sessionMode = isSoloEmpyrean ? 'solo-empyrean' as const : 'party' as const;
   const campaignSessions = useCampaignSessions(sessionMode);
 
   // GM Guides — co-hosts load the host's guides via ownerUserId
   const gmGuidesOwner = isCoHost && partyCreatorId ? partyCreatorId : undefined;
   const gmGuides = useGMGuides(gmGuidesOwner, sessionMode);
+
+  const oocDmChat = useOocDmChat({
+    characterContext,
+    campaignSummary: null,
+    customGuidesContent: gmGuides.enabledContent,
+    campaignType: isSoloEmpyrean ? 'empyrean' : 'dnd',
+    selectedModel: undefined,
+  });
 
   // Memory Anchors — long-term campaign facts shared across party
   const memoryAnchors = usePartyMemoryAnchors({ partyId: partyId || null });
@@ -444,7 +454,9 @@ ${truncated}`);
         onToggleAutoSync={autoSync.toggleAutoSync}
         isExtracting={autoSync.isExtracting}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
-        gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '') + dragonContextForDM}
+        gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '') + dragonContextForDM + oocDmChat.activeDirectives}
+        onShowOocChat={() => setShowOocChat(true)}
+        oocDirectiveCount={oocDmChat.directiveCount}
         memoryAnchorsContent={memoryAnchors.formattedForOracle}
         memoryAnchors={memoryAnchors.anchors}
         onAddMemoryAnchor={memoryAnchors.addMemoryAnchor}
@@ -459,6 +471,25 @@ ${truncated}`);
           wildShape={wildShape}
           isMomoMoonDruid={isMomoMoonDruid}
         />
+
+      <OocDmChat
+        open={showOocChat}
+        onClose={() => setShowOocChat(false)}
+        messages={oocDmChat.messages}
+        isLoading={oocDmChat.isLoading}
+        onSendMessage={oocDmChat.sendMessage}
+        onCancelRequest={oocDmChat.cancelRequest}
+        onClearChat={oocDmChat.clearChat}
+        pinnedDirectives={oocDmChat.pinnedDirectives}
+        onAddPinned={oocDmChat.addPinnedDirective}
+        onRemovePinned={oocDmChat.removePinnedDirective}
+        onTogglePinned={oocDmChat.togglePinnedDirective}
+        onEditPinned={oocDmChat.editPinnedDirective}
+        chatDirectives={oocDmChat.chatDirectives}
+        directiveCount={oocDmChat.directiveCount}
+        onClearAllDirectives={oocDmChat.clearAllDirectives}
+        campaignType={isSoloEmpyrean ? 'empyrean' : 'dnd'}
+      />
 
       {/* GM Guides Overlay */}
       {showGuides && (

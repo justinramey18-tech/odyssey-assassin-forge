@@ -4,7 +4,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Flame, Theater } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Flame, Theater, Megaphone } from 'lucide-react';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
 import { ResponseModeSelector } from './ResponseModeSelector';
@@ -142,6 +142,8 @@ export interface PartyDMSettingsProps {
   onCampaignTypeChange?: (type: 'dnd' | 'empyrean') => void;
   empyreanFocus?: string;
   onEmpyreanFocusChange?: (focus: string) => void;
+  onShowOocChat?: () => void;
+  oocDirectiveCount?: number;
 }
 
 export function PartyDMSettings({
@@ -151,7 +153,7 @@ export function PartyDMSettings({
   dmMode = 'ai', onDmModeChange,
   onShowMap, onShowSaves, onShowGuides, onShowChat, onShowAfkGuide,
   guidesCount = 0, myAfkGuide, myAfkCascadeCount = 0,
-  isSplitActive, memberCount, onShowSplitInitiator, onShowNpcScene, onShowRegroupDialog, onShowSplitSummaries, onShowPreSplitChat,
+  isSplitActive, memberCount, onShowSplitInitiator, onShowNpcScene, onShowRegroupDialog, onShowSplitSummaries, onShowPreSplitChat, onShowOocChat, oocDirectiveCount,
   onNewCampaign, onEndSession,
   timerEnabled, timerDurationSeconds, onTimerEnabledChange, onTimerDurationChange,
   onShowScheduledEvents, scheduledEventsCount = 0,
@@ -474,6 +476,15 @@ export function PartyDMSettings({
               label="NPC Scene"
               description="Launch a multi-NPC conversation"
               onClick={onShowNpcScene}
+            />
+          )}
+          {onShowOocChat && (
+            <ToolRow
+              icon={<Megaphone className="w-4 h-4" />}
+              label="Director's Channel"
+              description="OOC chat with the DM + story directives"
+              badge={oocDirectiveCount}
+              onClick={onShowOocChat}
             />
           )}
           {isSplitActive ? (
