@@ -144,6 +144,7 @@ export interface PartyDMSettingsProps {
   onEmpyreanFocusChange?: (focus: string) => void;
   onShowOocChat?: () => void;
   oocDirectiveCount?: number;
+  onShowNpcScene?: () => void;
 }
 
 export function PartyDMSettings({
