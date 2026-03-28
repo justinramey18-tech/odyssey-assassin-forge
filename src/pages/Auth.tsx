@@ -88,14 +88,15 @@ export default function Auth() {
     setLoading(true);
     setError(null);
     try {
-      const { error } = await signUp(email, password);
+      const { data, error } = await signUp(email, password);
       if (error) {
         setError(error.message.includes('already registered') ?
         'This email is already registered. Please sign in instead.' :
         error.message);
       } else {
-        setSuccess('Account created successfully! You can now sign in.');
+        setSuccess('A verification link has been sent to your email. Please check your inbox (and spam folder) to confirm your account before signing in.');
         setEmail('');setPassword('');setConfirmPassword('');
+        switchView('login');
       }
     } catch {
       setError('Sign up failed. Please check your connection and try again.');
