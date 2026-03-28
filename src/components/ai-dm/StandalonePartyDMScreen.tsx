@@ -455,7 +455,9 @@ ${truncated}`);
         onToggleAutoSync={autoSync.toggleAutoSync}
         isExtracting={autoSync.isExtracting}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
-        gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '') + dragonContextForDM}
+        gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '') + dragonContextForDM + oocDmChat.activeDirectives}
+        onShowOocChat={() => setShowOocChat(true)}
+        oocDirectiveCount={oocDmChat.directiveCount}
         memoryAnchorsContent={memoryAnchors.formattedForOracle}
         memoryAnchors={memoryAnchors.anchors}
         onAddMemoryAnchor={memoryAnchors.addMemoryAnchor}
