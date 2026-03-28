@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2, Brain, Cpu, Palette, Eye, Theater, Megaphone } from 'lucide-react';
+import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2, Brain, Cpu, Palette, Eye, Megaphone } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import {
@@ -46,7 +46,7 @@ interface DMToolsDrawerProps {
   onDragonNotesChange?: (notes: string) => void;
   onReconfigureEmpyrean?: () => void;
   onResetBurnout?: () => void;
-  onNpcScene?: () => void;
+  
   onOocChat?: () => void;
   oocDirectiveCount?: number;
 }
@@ -80,7 +80,7 @@ export function DMToolsDrawer({
   onDragonNotesChange,
   onReconfigureEmpyrean,
   onResetBurnout,
-  onNpcScene,
+  
   onOocChat,
   oocDirectiveCount,
 }: DMToolsDrawerProps) {
@@ -189,13 +189,6 @@ export function DMToolsDrawer({
             />
           )}
 
-          {onNpcScene && (
-            <ToolRow
-              icon={<Theater className="w-4 h-4" />}
-              label="NPC Scene"
-              onClick={() => closeAndRun(onNpcScene)}
-            />
-          )}
 
           {onOocChat && (
             <ToolRow
