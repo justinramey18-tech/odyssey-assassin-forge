@@ -1,55 +1,41 @@
 project_id = "sqvcszzbkyzidigsdqgk"
 
-[functions.ai-creation-assistant]
-verify_jwt = false
-
-[functions.afk-guide-chat]
-verify_jwt = false
-
-[functions.spotify-auth]
-verify_jwt = false
-
-[functions.detect-mood]
-verify_jwt = false
-
-[functions.detect-sfx-prompt]
-verify_jwt = false
-
-[functions.speechify-voices]
-verify_jwt = false
-
-[functions.speechify-clone-voice]
-verify_jwt = false
-
-[functions.party-timer-generate]
-verify_jwt = false
-
-[functions.schedule-timer-callback]
-verify_jwt = false
-
-[functions.homebrew-assistant]
-verify_jwt = false
-
-[functions.telegram-poll]
-verify_jwt = false
-
-[functions.telegram-notify]
-verify_jwt = false
-
-[functions.setup-telegram-cron]
-verify_jwt = false
-
-[functions.telegram-notify-proxy]
-verify_jwt = false
-
-[functions.telegram-scheduled-dispatch]
-verify_jwt = false
-
-[functions.ai-campaign-builder]
-verify_jwt = false
-
-[functions.dev-assistant]
-verify_jwt = false
-
-[functions.process-email-queue]
-verify_jwt = true
+[functions]
+  [functions.afk-guide-chat]
+    verify_jwt = false
+  [functions.ai-campaign-builder]
+    verify_jwt = false
+  [functions.ai-creation-assistant]
+    verify_jwt = false
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.detect-mood]
+    verify_jwt = false
+  [functions.detect-sfx-prompt]
+    verify_jwt = false
+  [functions.dev-assistant]
+    verify_jwt = false
+  [functions.homebrew-assistant]
+    verify_jwt = false
+  [functions.party-timer-generate]
+    verify_jwt = false
+  [functions.process-email-queue]
+    verify_jwt = true
+  [functions.schedule-timer-callback]
+    verify_jwt = false
+  [functions.setup-telegram-cron]
+    verify_jwt = false
+  [functions.speechify-clone-voice]
+    verify_jwt = false
+  [functions.speechify-voices]
+    verify_jwt = false
+  [functions.spotify-auth]
+    verify_jwt = false
+  [functions.telegram-notify]
+    verify_jwt = false
+  [functions.telegram-notify-proxy]
+    verify_jwt = false
+  [functions.telegram-poll]
+    verify_jwt = false
+  [functions.telegram-scheduled-dispatch]
+    verify_jwt = false
