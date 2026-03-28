@@ -443,13 +443,16 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
               });
               // If this message was sent TO this user's dragon, trigger a reaction
               if (payload.eventType === 'INSERT' && incoming.toUserId === userId && incoming.fromUserId !== userId) {
-                triggerDragonReaction(incoming, 'normal');
+                if (!incoming.toRiderDelivery) {
+                  triggerDragonReaction(incoming, 'normal');
+                }
               }
             }
             // Evaluate cross-reactions / chain reactions for INSERTs from other users
             if (payload.eventType === 'INSERT' && row.user_id !== userId) {
               const incoming = row.state_data as unknown as DragonNetworkMessage;
               if (!incoming?.fromUserId || incoming.fromUserId === userId) return;
+              if (incoming.toRiderDelivery) return;
 
               const msgId = incoming.id?.toString() || '';
               const depthMap = reactionDepthRef.current;
@@ -1060,9 +1063,10 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         const decoder = new TextDecoder();
         let textBuffer = '';
         let content = '';
+        let done = false;
         while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+          const { done: streamDone, value } = await reader.read();
+          if (streamDone) break;
           textBuffer += decoder.decode(value, { stream: true });
           let newlineIndex: number;
           while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
@@ -1072,13 +1076,14 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
             if (line.startsWith(':') || line.trim() === '') continue;
             if (!line.startsWith('data: ')) continue;
             const jsonStr = line.slice(6).trim();
-            if (jsonStr === '[DONE]') break;
+            if (jsonStr === '[DONE]') { done = true; break; }
             try {
               const parsed = JSON.parse(jsonStr);
               const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
               if (delta) content += delta;
             } catch { /* skip */ }
           }
+          if (done) break;
         }
         return content;
       };
@@ -1123,6 +1128,12 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
           reportToRider: `It is done. ${targetDragonName} received my thought.`,
         };
       }
+      if (!senderParsed.reportToRider?.trim()) {
+        senderParsed.reportToRider = `It is done. ${targetDragonName} received my thought.`;
+      }
+      if (!senderParsed.dragonToDragon?.trim()) {
+        senderParsed.dragonToDragon = `${myDragon.dragonName} reaches through the network with a pulse of ancient thought.`;
+      }
 
       // --- AI CALL 2: Recipient's dragon ---
       const recipientBasePrompt = buildDragonChatPrompt(
@@ -1155,9 +1166,11 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         };
       }
 
-      // Ensure riderDelivery is never empty
       if (!recipientParsed.riderDelivery?.trim()) {
         recipientParsed.riderDelivery = `${targetDragonName} stirs through the bond, pressing a wordless impression into your mind — something has their attention.`;
+      }
+      if (!recipientParsed.dragonReply?.trim()) {
+        recipientParsed.dragonReply = `${targetDragonName} acknowledges with a rumble of ancient thought.`;
       }
 
       const finalMsg: DragonNetworkMessage = {
