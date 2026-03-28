@@ -16,6 +16,10 @@ export function useDevAssistant() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentPhase, setCurrentPhase] = useState('');
 
+  useEffect(() => {
+    persistMessages(messages);
+  }, [messages]);
+
   const updatePlaceholder = (id: string, updates: Partial<DevMessage>) => {
     setMessages(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
   };
