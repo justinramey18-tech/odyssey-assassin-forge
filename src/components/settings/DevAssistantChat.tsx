@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bot, Trash2, Send, Loader2, Copy, Check, Wand2 } from 'lucide-react';
+import { Bot, Trash2, Send, Loader2, Copy, Check, Wand2, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useDevAssistant } from '@/hooks/use-dev-assistant';
 import { getCodebaseStats } from '@/lib/codebase-storage';
 
@@ -121,7 +122,41 @@ function LovablePromptBlock({ promptText }: { promptText: string }) {
   );
 }
 
-export function DevAssistantChat() {
+function CopyMessageButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="absolute top-1 right-1 p-2.5 rounded-lg hover:bg-zinc-700/40 transition-colors"
+      style={{ touchAction: 'manipulation', minHeight: 44, minWidth: 44 }}
+      title="Copy message"
+    >
+      {copied ? (
+        <Check className="w-3.5 h-3.5 text-green-400" />
+      ) : (
+        <Copy className="w-3.5 h-3.5 text-zinc-500 hover:text-zinc-300" />
+      )}
+    </button>
+  );
+}
+
+export function DevAssistantChat({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { messages, isProcessing, currentPhase, sendMessage, clearChat } = useDevAssistant();
   const [input, setInput] = useState('');
   const [codebaseFileCount, setCodebaseFileCount] = useState<number | null>(null);
@@ -152,88 +187,112 @@ export function DevAssistantChat() {
   };
 
   return (
-    <div className="rounded-xl border border-zinc-700/50 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700/40">
-        <div className="flex items-center gap-2">
-          <Bot className="w-4 h-4 text-rose-400" />
-          <span className="text-sm font-cinzel font-semibold text-rose-400">Dev Assistant</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className={`text-[10px] px-2 py-0.5 rounded-full ${codebaseFileCount !== null ? 'bg-green-500/15 text-green-400' : 'bg-amber-500/15 text-amber-400'}`}>
-            {codebaseFileCount !== null ? `${codebaseFileCount} files indexed` : 'No codebase'}
-          </span>
-          <button
-            onClick={clearChat}
-            className="p-2 rounded-lg hover:bg-zinc-700/40 transition-colors"
-            style={{ touchAction: 'manipulation', minHeight: 44, minWidth: 44 }}
-            title="Clear chat"
-          >
-            <Trash2 className="w-3.5 h-3.5 text-zinc-500" />
-          </button>
-        </div>
-      </div>
-
-      {/* Messages */}
-      <div ref={scrollRef} className="h-[55vh] overflow-y-auto p-3 space-y-3">
-        {messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-xs text-zinc-500 text-center px-6 leading-relaxed">
-              Ask me about bugs, features, or anything in the codebase. Upload your project ZIP above first.
-            </p>
-          </div>
-        ) : (
-          messages.map(msg => (
-            <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`rounded-xl px-3.5 py-2.5 text-sm ${
-                msg.role === 'user'
-                  ? 'bg-indigo-500/20 border border-indigo-500/30 max-w-[85%]'
-                  : 'bg-zinc-800/60 border border-zinc-700/40 max-w-[90%]'
-              }`}>
-                {msg.isLoading ? (
-                  <div className="flex items-center gap-2 animate-pulse">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-400 shrink-0" />
-                    <span className="text-xs text-zinc-400">{msg.content}</span>
-                  </div>
-                ) : msg.role === 'user' ? (
-                  <p className="whitespace-pre-wrap text-zinc-200">{msg.content}</p>
-                ) : (
-                  <div className="text-zinc-300 text-sm leading-relaxed">
-                    {parseMessageContent(msg.content).map((seg, i) =>
-                      seg.type === 'prompt' ? (
-                        <LovablePromptBlock key={i} promptText={seg.value} />
-                      ) : (
-                        <div key={i}>{renderTextWithCode(seg.value)}</div>
-                      )
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Input */}
-      <div className="flex items-center gap-2 p-3 border-t border-zinc-700/40">
-        <input
-          type="text"
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={isProcessing}
-          placeholder="Describe your bug or question..."
-          className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-rose-500/50 disabled:opacity-50"
-        />
-        <button
-          onClick={handleSend}
-          disabled={isProcessing || !input.trim()}
-          className="bg-rose-500 hover:bg-rose-600 rounded-lg p-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ touchAction: 'manipulation', minHeight: 44, minWidth: 44 }}
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-[100] flex flex-col bg-background"
+          initial={{ y: '100%' }}
+          animate={{ y: 0 }}
+          exit={{ y: '100%' }}
+          transition={{ type: 'spring', damping: 30, stiffness: 300 }}
         >
-          <Send className="w-4 h-4 text-white" />
-        </button>
-      </div>
-    </div>
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 bg-background/95 backdrop-blur-sm">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={onClose}
+                className="p-2 rounded-lg hover:bg-zinc-700/40 transition-colors"
+                style={{ touchAction: 'manipulation', minHeight: 44, minWidth: 44 }}
+              >
+                <X className="w-5 h-5 text-zinc-400" />
+              </button>
+              <Bot className="w-4 h-4 text-rose-400" />
+              <span className="text-sm font-cinzel font-semibold text-rose-400">Dev Assistant</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`text-[10px] px-2 py-0.5 rounded-full ${codebaseFileCount !== null ? 'bg-green-500/15 text-green-400' : 'bg-amber-500/15 text-amber-400'}`}>
+                {codebaseFileCount !== null ? `${codebaseFileCount} files indexed` : 'No codebase'}
+              </span>
+              <button
+                onClick={clearChat}
+                className="p-2 rounded-lg hover:bg-zinc-700/40 transition-colors"
+                style={{ touchAction: 'manipulation', minHeight: 44, minWidth: 44 }}
+                title="Clear chat"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-zinc-500" />
+              </button>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-3">
+            {messages.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-xs text-zinc-500 text-center px-6 leading-relaxed">
+                  Ask me about bugs, features, or anything in the codebase. Upload your project ZIP above first.
+                </p>
+              </div>
+            ) : (
+              messages.map(msg => (
+                <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  {msg.role === 'assistant' && !msg.isLoading ? (
+                    <div className="relative max-w-[90%]">
+                      <div className="rounded-xl px-3.5 py-2.5 pr-10 text-sm bg-zinc-800/60 border border-zinc-700/40">
+                        <div className="text-zinc-300 text-sm leading-relaxed">
+                          {parseMessageContent(msg.content).map((seg, i) =>
+                            seg.type === 'prompt' ? (
+                              <LovablePromptBlock key={i} promptText={seg.value} />
+                            ) : (
+                              <div key={i}>{renderTextWithCode(seg.value)}</div>
+                            )
+                          )}
+                        </div>
+                      </div>
+                      <CopyMessageButton text={msg.content} />
+                    </div>
+                  ) : (
+                    <div className={`rounded-xl px-3.5 py-2.5 text-sm ${
+                      msg.role === 'user'
+                        ? 'bg-indigo-500/20 border border-indigo-500/30 max-w-[85%]'
+                        : 'bg-zinc-800/60 border border-zinc-700/40 max-w-[90%]'
+                    }`}>
+                      {msg.isLoading ? (
+                        <div className="flex items-center gap-2 animate-pulse">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-400 shrink-0" />
+                          <span className="text-xs text-zinc-400">{msg.content}</span>
+                        </div>
+                      ) : (
+                        <p className="whitespace-pre-wrap text-zinc-200">{msg.content}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Input */}
+          <div className="flex items-center gap-2 p-3 border-t border-border/40">
+            <input
+              type="text"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={isProcessing}
+              placeholder="Describe your bug or question..."
+              className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-rose-500/50 disabled:opacity-50"
+            />
+            <button
+              onClick={handleSend}
+              disabled={isProcessing || !input.trim()}
+              className="bg-rose-500 hover:bg-rose-600 rounded-lg p-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ touchAction: 'manipulation', minHeight: 44, minWidth: 44 }}
+            >
+              <Send className="w-4 h-4 text-white" />
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

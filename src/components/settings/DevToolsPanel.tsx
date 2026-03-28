@@ -285,15 +285,26 @@ function CopyablePrompt({ template }: { template: PromptTemplate }) {
 }
 
 export function DevToolsPanel() {
+  const [devChatOpen, setDevChatOpen] = useState(false);
+
   return (
     <div className="space-y-3 pb-6">
       <CodebaseUploader />
 
-      <SettingsSection title="Dev Assistant" defaultOpen>
-        <div className="px-2">
-          <DevAssistantChat />
+      <button
+        onClick={() => setDevChatOpen(true)}
+        className="w-full flex items-center gap-3 px-4 py-4 rounded-xl border border-zinc-700/50 bg-zinc-800/40 hover:bg-zinc-800/70 transition-colors"
+        style={{ touchAction: 'manipulation', minHeight: 56 }}
+      >
+        <Bot className="w-5 h-5 text-rose-400 shrink-0" />
+        <div className="flex-1 text-left">
+          <span className="text-sm font-cinzel font-semibold text-rose-400">Dev Assistant</span>
+          <p className="text-xs text-zinc-500 mt-0.5">Chat with your codebase</p>
         </div>
-      </SettingsSection>
+        <span className="text-zinc-600 text-lg">›</span>
+      </button>
+
+      <DevAssistantChat open={devChatOpen} onClose={() => setDevChatOpen(false)} />
 
       <Separator className="my-4" />
 
