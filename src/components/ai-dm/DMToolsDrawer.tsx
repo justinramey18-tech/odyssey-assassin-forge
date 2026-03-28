@@ -47,6 +47,8 @@ interface DMToolsDrawerProps {
   onReconfigureEmpyrean?: () => void;
   onResetBurnout?: () => void;
   onNpcScene?: () => void;
+  onOocChat?: () => void;
+  oocDirectiveCount?: number;
 }
 
 export function DMToolsDrawer({
