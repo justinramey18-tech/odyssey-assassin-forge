@@ -106,16 +106,34 @@ export default function Auth() {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);setSuccess(null);
+    setError(null);
+    setSuccess(null);
     const result = emailSchema.safeParse(resetEmail);
-    if (!result.success) {setError(result.error.errors[0].message);return;}
+    if (!result.success) {
+      setError(result.error.errors[0].message);
+      return;
+    }
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-      redirectTo: `${window.location.origin}/reset-password`
-    });
-    setLoading(false);
-    if (error) {setError(error.message);} else
-    {setSuccess('If an account exists with that email, a password reset link has been sent.');setResetEmail('');}
+    try {
+      console.log('[Auth] Sending password reset email to:', resetEmail);
+      console.log('[Auth] Redirect URL:', `${window.location.origin}/reset-password`);
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`
+      });
+      if (error) {
+        console.error('[Auth] Password reset error:', error.message);
+        setError(error.message);
+      } else {
+        console.log('[Auth] Password reset request succeeded (check email)');
+        setSuccess('If an account exists with that email, a password reset link has been sent. Check your spam folder if you do not see it.');
+        setResetEmail('');
+      }
+    } catch (err) {
+      console.error('[Auth] Password reset exception:', err);
+      setError('Failed to send reset email. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (authLoading) {
