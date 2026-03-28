@@ -2750,7 +2750,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       }
     }
 
-    if (!full?.trim()) return [];
+    if (!full?.trim()) {
+      console.warn('[NPC Scene] AI returned empty response');
+      return [];
+    }
+
+    console.log('[NPC Scene] Raw AI response length:', full.length, 'preview:', full.slice(0, 200));
 
     // Parse into individual NPC lines
     const esc = npcs.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
@@ -2765,7 +2770,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       if (nm) {
         const npcName = npcs.find(n => n.toLowerCase() === nm[1].toLowerCase()) || nm[1];
         const dialogue = t.slice(nm[0].length).trim();
-        // Look for italic beat before this chunk in the full text
         const chunkPos = full.indexOf(t);
         let beat = '';
         if (chunkPos > 0) {
@@ -2776,6 +2780,41 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         result.push({ npcName, content: beat + '**' + npcName + ':** ' + dialogue });
       }
     }
+
+    // If strict parsing found nothing, try a looser pattern
+    if (result.length === 0 && full.trim().length > 20) {
+      console.warn('[NPC Scene] Strict parser found 0 lines. Trying loose parser on:', full.slice(0, 200));
+      
+      const looseSplit = full.split(/(?=\*\*[A-Z][a-zA-Z' ]+\*\*\s*:)/g).filter(c => c.trim());
+      const looseNameRe = /^\*\*\s*([A-Z][a-zA-Z' ]+)\s*\*\*\s*:\s*/;
+      
+      for (const chunk of looseSplit) {
+        const t = chunk.trim();
+        const nm = t.match(looseNameRe);
+        if (nm) {
+          const foundName = nm[1].trim();
+          const npcName = npcs.find(n => n.toLowerCase() === foundName.toLowerCase()) || foundName;
+          const dialogue = t.slice(nm[0].length).trim();
+          const chunkPos = full.indexOf(t);
+          let beat = '';
+          if (chunkPos > 0) {
+            const before = full.slice(Math.max(0, chunkPos - 200), chunkPos).trim();
+            const bm = before.match(/(\*[^*\n]+\*)\s*$/);
+            if (bm) beat = bm[1] + '\n';
+          }
+          result.push({ npcName, content: beat + '**' + npcName + ':** ' + dialogue });
+        }
+      }
+      
+      console.log('[NPC Scene] Loose parser found:', result.length, 'lines');
+    }
+
+    // If STILL nothing, push the entire raw response as a single fallback
+    if (result.length === 0 && full.trim().length > 20) {
+      console.warn('[NPC Scene] Both parsers failed. Using raw fallback.');
+      result.push({ npcName: 'DM', content: full.trim() });
+    }
+
     return result;
   }
 
