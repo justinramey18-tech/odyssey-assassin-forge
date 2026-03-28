@@ -141,7 +141,7 @@ export function useDevAssistant() {
           customInstructions,
           phase: 'answer',
           user_api_key: apiKey,
-          model: 'anthropic/claude-sonnet-4-6',
+          model: 'anthropic/claude-opus-4-6',
         },
       });
 
