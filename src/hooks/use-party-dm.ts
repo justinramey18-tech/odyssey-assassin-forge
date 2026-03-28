@@ -3447,6 +3447,7 @@ Rules:
     regenerateWhispers,
     addMediaMessage,
     stopGeneration,
+    applyOocCommand,
     initiateSplit,
     regroupParty,
     updateSessionConfig,
