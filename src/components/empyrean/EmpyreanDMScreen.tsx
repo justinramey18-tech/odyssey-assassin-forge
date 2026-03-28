@@ -1335,7 +1335,7 @@ export function EmpyreanDMScreen({
         onResetBurnout={() => { setBurnoutLevel(0); toast.success('Signet burnout reset.'); }}
         onNpcScene={() => setShowNpcScene(true)}
         onOocChat={() => setShowOocChat(true)}
-        oocDirectiveCount={oocDmChat.directiveCount}
+        oocDirectiveCount={oocDmChat.pendingCommand ? 1 : 0}
       />
 
       {/* Campaign Sessions Manager */}
