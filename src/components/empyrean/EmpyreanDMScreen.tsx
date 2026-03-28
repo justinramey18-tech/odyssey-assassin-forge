@@ -1280,7 +1280,7 @@ export function EmpyreanDMScreen({
         onDragonNotesChange={handleDragonNotesChange}
         onReconfigureEmpyrean={onClose}
         onResetBurnout={() => { setBurnoutLevel(0); toast.success('Signet burnout reset.'); }}
-        onNpcScene={() => setShowNpcScene(true)}
+        
         onOocChat={() => setShowOocChat(true)}
         oocDirectiveCount={oocDmChat.directiveCount}
       />
