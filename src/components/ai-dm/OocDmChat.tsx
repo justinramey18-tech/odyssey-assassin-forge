@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Loader2, Megaphone } from 'lucide-react';
+import { X, Send, Loader2, Megaphone, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import type { Message } from '@/components/oracle/types';
@@ -17,6 +17,7 @@ interface OocDmChatProps {
   onSendMessage: (content: string) => void;
   onCancelRequest: () => void;
   onClearChat: () => void;
+  onDeleteMessage: (messageId: string) => void;
   pendingCommand: string | null;
   onApply: (command: string) => void;
   onDismissCommand: () => void;
@@ -31,6 +32,7 @@ export function OocDmChat({
   onSendMessage,
   onCancelRequest,
   onClearChat,
+  onDeleteMessage,
   pendingCommand,
   onApply,
   onDismissCommand,
@@ -42,7 +44,6 @@ export function OocDmChat({
 
   const isEmpyrean = campaignType === 'empyrean';
 
-  // Auto-scroll on new messages
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -94,13 +95,23 @@ export function OocDmChat({
               Director's Channel
             </span>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-            style={{ touchAction: 'manipulation' }}
-          >
-            <X className="w-5 h-5 text-white/70" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={onClearChat}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              style={{ touchAction: 'manipulation' }}
+              title="Clear all messages"
+            >
+              <Trash2 className={cn('w-4 h-4', isEmpyrean ? 'text-cyan-400/50' : 'text-amber-400/50')} />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <X className="w-5 h-5 text-white/70" />
+            </button>
+          </div>
         </div>
 
         {/* Messages */}
@@ -118,10 +129,19 @@ export function OocDmChat({
             <div
               key={msg.id}
               className={cn(
-                'flex',
+                'flex items-start gap-1.5 group',
                 msg.role === 'user' ? 'justify-end' : 'justify-start'
               )}
             >
+              {msg.role === 'assistant' && (
+                <button
+                  onClick={() => onDeleteMessage(msg.id)}
+                  className="opacity-0 group-hover:opacity-100 sm:opacity-0 max-sm:opacity-40 p-1 rounded hover:bg-white/10 transition-all mt-1 shrink-0"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <Trash2 className="w-3 h-3 text-white/30" />
+                </button>
+              )}
               <div className={cn(
                 'rounded-xl px-3 py-2 text-sm max-w-[85%]',
                 msg.role === 'user'
@@ -136,6 +156,15 @@ export function OocDmChat({
                   <p className="whitespace-pre-wrap">{msg.content}</p>
                 )}
               </div>
+              {msg.role === 'user' && (
+                <button
+                  onClick={() => onDeleteMessage(msg.id)}
+                  className="opacity-0 group-hover:opacity-100 sm:opacity-0 max-sm:opacity-40 p-1 rounded hover:bg-white/10 transition-all mt-1 shrink-0"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <Trash2 className="w-3 h-3 text-white/30" />
+                </button>
+              )}
             </div>
           ))}
           {isLoading && (

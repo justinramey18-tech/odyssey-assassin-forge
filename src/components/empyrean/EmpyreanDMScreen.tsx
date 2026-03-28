@@ -1489,6 +1489,7 @@ export function EmpyreanDMScreen({
         onSendMessage={oocDmChat.sendMessage}
         onCancelRequest={oocDmChat.cancelRequest}
         onClearChat={oocDmChat.clearChat}
+        onDeleteMessage={oocDmChat.deleteMessage}
         pendingCommand={oocDmChat.pendingCommand}
         onApply={(command) => {
           oocDmChat.clearPendingCommand();

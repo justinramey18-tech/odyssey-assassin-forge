@@ -92,6 +92,7 @@ export function useOocDmChat({
     sendMessage,
     cancelRequest,
     clearChat,
+    deleteMessage,
     pendingCommand,
     clearPendingCommand,
   };
