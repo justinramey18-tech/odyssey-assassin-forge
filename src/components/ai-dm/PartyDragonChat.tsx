@@ -379,17 +379,14 @@ export default function PartyDragonChat({
                 const isSender = net.fromUserId === myUserId;
                 const isRecipient = net.toUserId === myUserId;
 
-                // Recipient view — only show delivery
-                if (isRecipient && !isSender && net.toRiderDelivery) {
+                // Recipient view — looks like a normal dragon bond message
+                if (isRecipient && !isSender) {
                   return (
                     <div key={`net-${net.id}-${idx}`} className="mb-6 pr-12">
                       <div className="border-l-2 border-cyan-500/30 pl-3">
-                        <p className="text-[9px] font-mono text-cyan-400/40 mb-1">
-                          {net.toDragon} — unprompted
-                        </p>
-                        <div className="text-cyan-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1">
+                        <div className="text-cyan-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1 prose-strong:text-cyan-100/90">
                           <ReactMarkdown rehypePlugins={[rehypeRaw]}>
-                            {net.toRiderDelivery}
+                            {net.toRiderDelivery || '...a stirring through the bond...'}
                           </ReactMarkdown>
                         </div>
                       </div>
@@ -420,6 +417,15 @@ export default function PartyDragonChat({
                           <p className="text-[10px] text-purple-300/40 mt-1.5">
                             ✓ {net.toDragon} delivered your message
                           </p>
+                        )}
+                        {(net as any).senderReport && (
+                          <div className="mt-2 border-l-2 border-cyan-500/30 pl-2.5">
+                            <div className="text-cyan-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1">
+                              <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                                {(net as any).senderReport}
+                              </ReactMarkdown>
+                            </div>
+                          </div>
                         )}
                         <p className="text-[9px] text-white/20 italic mt-1">
                           "{net.riderMessage}"
