@@ -470,14 +470,6 @@ export function PartyDMSettings({
       {/* Party Management (creator only) */}
       {originalCreator && (
         <SettingsSection title="Party Management" icon={<Users className="w-4 h-4 text-blue-400" />}>
-          {onShowNpcScene && (
-            <ToolRow
-              icon={<Theater className="w-4 h-4" />}
-              label="NPC Scene"
-              description="Launch a multi-NPC conversation"
-              onClick={onShowNpcScene}
-            />
-          )}
           {onShowOocChat && (
             <ToolRow
               icon={<Megaphone className="w-4 h-4" />}
