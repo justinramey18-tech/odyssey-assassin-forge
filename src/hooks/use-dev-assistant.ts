@@ -144,6 +144,7 @@ export function useDevAssistant() {
     setMessages([]);
     setIsProcessing(false);
     setCurrentPhase('');
+    localStorage.removeItem(CHAT_STORAGE_KEY);
   }, []);
 
   return { messages, isProcessing, currentPhase, sendMessage, clearChat };
