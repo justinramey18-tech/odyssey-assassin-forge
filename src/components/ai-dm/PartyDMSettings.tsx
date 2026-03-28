@@ -142,6 +142,8 @@ export interface PartyDMSettingsProps {
   onCampaignTypeChange?: (type: 'dnd' | 'empyrean') => void;
   empyreanFocus?: string;
   onEmpyreanFocusChange?: (focus: string) => void;
+  onShowOocChat?: () => void;
+  oocDirectiveCount?: number;
 }
 
 export function PartyDMSettings({
