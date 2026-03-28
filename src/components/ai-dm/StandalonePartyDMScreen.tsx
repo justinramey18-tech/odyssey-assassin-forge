@@ -456,7 +456,6 @@ ${truncated}`);
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
         gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '') + dragonContextForDM}
         onShowOocChat={() => setShowOocChat(true)}
-        oocDirectiveCount={oocDmChat.pendingCommand ? 1 : 0}
         memoryAnchorsContent={memoryAnchors.formattedForOracle}
         memoryAnchors={memoryAnchors.anchors}
         onAddMemoryAnchor={memoryAnchors.addMemoryAnchor}
@@ -481,7 +480,14 @@ ${truncated}`);
         onCancelRequest={oocDmChat.cancelRequest}
         onClearChat={oocDmChat.clearChat}
         pendingCommand={oocDmChat.pendingCommand}
-        onClearPendingCommand={oocDmChat.clearPendingCommand}
+        onApply={(command) => {
+          oocDmChat.clearPendingCommand();
+          setShowOocChat(false);
+          setTimeout(() => {
+            partyDm.applyOocCommand(command);
+          }, 300);
+        }}
+        onDismissCommand={oocDmChat.clearPendingCommand}
         campaignType={isSoloEmpyrean ? 'empyrean' : 'dnd'}
       />
 

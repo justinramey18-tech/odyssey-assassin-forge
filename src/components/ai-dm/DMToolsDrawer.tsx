@@ -48,7 +48,6 @@ interface DMToolsDrawerProps {
   onResetBurnout?: () => void;
   onNpcScene?: () => void;
   onOocChat?: () => void;
-  oocDirectiveCount?: number;
 }
 
 export function DMToolsDrawer({
@@ -82,7 +81,6 @@ export function DMToolsDrawer({
   onResetBurnout,
   onNpcScene,
   onOocChat,
-  oocDirectiveCount,
 }: DMToolsDrawerProps) {
   const [showRetakeConfirm, setShowRetakeConfirm] = useState(false);
 
@@ -201,7 +199,6 @@ export function DMToolsDrawer({
             <ToolRow
               icon={<Megaphone className="w-4 h-4" />}
               label="Director's Channel"
-              badge={oocDirectiveCount && oocDirectiveCount > 0 ? oocDirectiveCount : undefined}
               onClick={() => closeAndRun(onOocChat)}
             />
           )}

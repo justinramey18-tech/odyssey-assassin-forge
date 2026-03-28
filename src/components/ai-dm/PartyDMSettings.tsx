@@ -143,7 +143,6 @@ export interface PartyDMSettingsProps {
   empyreanFocus?: string;
   onEmpyreanFocusChange?: (focus: string) => void;
   onShowOocChat?: () => void;
-  oocDirectiveCount?: number;
 }
 
 export function PartyDMSettings({
@@ -153,7 +152,7 @@ export function PartyDMSettings({
   dmMode = 'ai', onDmModeChange,
   onShowMap, onShowSaves, onShowGuides, onShowChat, onShowAfkGuide,
   guidesCount = 0, myAfkGuide, myAfkCascadeCount = 0,
-  isSplitActive, memberCount, onShowSplitInitiator, onShowNpcScene, onShowRegroupDialog, onShowSplitSummaries, onShowPreSplitChat, onShowOocChat, oocDirectiveCount,
+  isSplitActive, memberCount, onShowSplitInitiator, onShowNpcScene, onShowRegroupDialog, onShowSplitSummaries, onShowPreSplitChat, onShowOocChat,
   onNewCampaign, onEndSession,
   timerEnabled, timerDurationSeconds, onTimerEnabledChange, onTimerDurationChange,
   onShowScheduledEvents, scheduledEventsCount = 0,
@@ -483,7 +482,6 @@ export function PartyDMSettings({
               icon={<Megaphone className="w-4 h-4" />}
               label="Director's Channel"
               description="OOC chat with the DM + story directives"
-              badge={oocDirectiveCount}
               onClick={onShowOocChat}
             />
           )}
