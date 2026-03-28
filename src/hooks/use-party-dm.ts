@@ -2911,6 +2911,26 @@ YOUR RESPONSE MUST FOLLOW THIS EXACT FORMAT. NOTHING MORE.`;
         if (!npcSceneActiveRef.current) break;
         if (abortRef.current?.signal.aborted) break;
 
+        // Post-process: enforce single-NPC output
+        if (assistantContent) {
+          let cleaned = assistantContent.trim();
+          // Remove any HTML/span color tags
+          cleaned = cleaned.replace(/<\/?span[^>]*>/gi, '');
+          // If the response contains dialogue from OTHER NPCs (bold name patterns), truncate
+          const otherNpcPattern = new RegExp(`\\*\\*(?:${otherNpcs.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\*\\*:`, 'i');
+          const otherNpcMatch = cleaned.search(otherNpcPattern);
+          if (otherNpcMatch > 0) {
+            cleaned = cleaned.slice(0, otherNpcMatch).trim();
+          }
+          // If response is too long (more than ~100 words), truncate to first 2 non-empty lines
+          const words = cleaned.split(/\s+/).length;
+          if (words > 80) {
+            const lines = cleaned.split('\n').filter(l => l.trim());
+            cleaned = lines.slice(0, 2).join('\n');
+          }
+          assistantContent = cleaned;
+        }
+
         if (assistantContent?.trim()) {
           await insertPartyMessageHelper(partyId, {
             party_id: partyId,
