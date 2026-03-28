@@ -480,14 +480,8 @@ ${truncated}`);
         onSendMessage={oocDmChat.sendMessage}
         onCancelRequest={oocDmChat.cancelRequest}
         onClearChat={oocDmChat.clearChat}
-        pinnedDirectives={oocDmChat.pinnedDirectives}
-        onAddPinned={oocDmChat.addPinnedDirective}
-        onRemovePinned={oocDmChat.removePinnedDirective}
-        onTogglePinned={oocDmChat.togglePinnedDirective}
-        onEditPinned={oocDmChat.editPinnedDirective}
-        chatDirectives={oocDmChat.chatDirectives}
-        directiveCount={oocDmChat.directiveCount}
-        onClearAllDirectives={oocDmChat.clearAllDirectives}
+        pendingCommand={oocDmChat.pendingCommand}
+        onClearPendingCommand={oocDmChat.clearPendingCommand}
         campaignType={isSoloEmpyrean ? 'empyrean' : 'dnd'}
       />
 
