@@ -127,6 +127,8 @@ export interface DmSessionConfig {
   // Campaign world type
   campaignType?: 'dnd' | 'empyrean'; // default: 'dnd'
   empyreanFocus?: 'combat' | 'political' | 'romance' | 'mystery' | 'survival' | 'balanced';
+  // NPC Scene
+  npcSceneActive?: boolean;
 }
 
 export interface PartyDragonConfig {
