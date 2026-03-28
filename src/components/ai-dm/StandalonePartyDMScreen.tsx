@@ -15,6 +15,8 @@ import CampaignBuilderChat from './CampaignBuilderChat';
 import { AnimatePresence } from 'framer-motion';
 import type { CampaignBuildData } from '@/hooks/use-ai-campaign-chat';
 import type { CharacterContext } from '@/components/oracle/types';
+import { useOocDmChat } from '@/hooks/use-ooc-dm-chat';
+import { OocDmChat } from './OocDmChat';
 import { EMPYREAN_LORE_GUIDES } from '@/lib/empyreanGMGuides';
 import { getBondDescriptor, getTrustDescriptor } from '@/lib/dragonBondState';
 import { usePartyDragonBonds } from '@/hooks/use-party-dragon-bonds';
