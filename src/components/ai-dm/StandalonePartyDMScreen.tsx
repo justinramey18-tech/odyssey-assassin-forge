@@ -152,7 +152,13 @@ export function StandalonePartyDMScreen({
     }, { onConflict: 'party_id,user_id,state_type' });
   }, [partyId, userId, isPartyCreator, coHostIds]);
 
-  // Campaign sessions (for dropdown)
+  const sessionMode = isSoloEmpyrean ? 'solo-empyrean' as const : 'party' as const;
+  const campaignSessions = useCampaignSessions(sessionMode);
+
+  // GM Guides — co-hosts load the host's guides via ownerUserId
+  const gmGuidesOwner = isCoHost && partyCreatorId ? partyCreatorId : undefined;
+  const gmGuides = useGMGuides(gmGuidesOwner, sessionMode);
+
   const oocDmChat = useOocDmChat({
     characterContext,
     campaignSummary: null,
@@ -160,13 +166,6 @@ export function StandalonePartyDMScreen({
     campaignType: isSoloEmpyrean ? 'empyrean' : 'dnd',
     selectedModel: undefined,
   });
-
-  const sessionMode = isSoloEmpyrean ? 'solo-empyrean' as const : 'party' as const;
-  const campaignSessions = useCampaignSessions(sessionMode);
-
-  // GM Guides — co-hosts load the host's guides via ownerUserId
-  const gmGuidesOwner = isCoHost && partyCreatorId ? partyCreatorId : undefined;
-  const gmGuides = useGMGuides(gmGuidesOwner, sessionMode);
 
   // Memory Anchors — long-term campaign facts shared across party
   const memoryAnchors = usePartyMemoryAnchors({ partyId: partyId || null });
