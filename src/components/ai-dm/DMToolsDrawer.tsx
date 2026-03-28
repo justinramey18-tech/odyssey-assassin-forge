@@ -48,7 +48,6 @@ interface DMToolsDrawerProps {
   onResetBurnout?: () => void;
   onNpcScene?: () => void;
   onOocChat?: () => void;
-  oocDirectiveCount?: number;
 }
 
 export function DMToolsDrawer({
