@@ -153,7 +153,7 @@ export function PartyDMSettings({
   dmMode = 'ai', onDmModeChange,
   onShowMap, onShowSaves, onShowGuides, onShowChat, onShowAfkGuide,
   guidesCount = 0, myAfkGuide, myAfkCascadeCount = 0,
-  isSplitActive, memberCount, onShowSplitInitiator, onShowNpcScene, onShowRegroupDialog, onShowSplitSummaries, onShowPreSplitChat,
+  isSplitActive, memberCount, onShowSplitInitiator, onShowNpcScene, onShowRegroupDialog, onShowSplitSummaries, onShowPreSplitChat, onShowOocChat, oocDirectiveCount,
   onNewCampaign, onEndSession,
   timerEnabled, timerDurationSeconds, onTimerEnabledChange, onTimerDurationChange,
   onShowScheduledEvents, scheduledEventsCount = 0,
