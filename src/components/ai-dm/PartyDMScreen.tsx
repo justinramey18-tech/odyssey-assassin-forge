@@ -1847,18 +1847,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   <div className="w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
                 </div>
                 <span className="text-sm text-amber-400/60 italic">
-                  {partyDm.sessionConfig?.npcSceneActive
-                    ? `NPC scene in progress (${partyDm.sessionConfig.npcSceneMessageCount ?? 0}/${partyDm.sessionConfig.npcSceneMaxMessages ?? 12})...`
-                    : (partyDm.sessionConfig?.dmMode === 'ai-approval' && !isCreator)
-                      ? 'The DM is reviewing the AI draft...'
-                      : 'The DM weaves the tale...'}
+                  {(partyDm.sessionConfig?.dmMode === 'ai-approval' && !isCreator)
+                    ? 'The DM is reviewing the AI draft...'
+                    : 'The DM weaves the tale...'}
                 </span>
-                {(isCreator || partyDm.sessionConfig?.npcSceneActive) && (
+                {isCreator && (
                   <button
-                    onClick={partyDm.sessionConfig?.npcSceneActive ? partyDm.stopNpcScene : partyDm.stopGeneration}
+                    onClick={partyDm.stopGeneration}
                     className="ml-auto p-1.5 rounded-lg border border-red-500/30 bg-red-900/20 hover:bg-red-900/40 transition-colors"
                     style={{ touchAction: 'manipulation' }}
-                    title={partyDm.sessionConfig?.npcSceneActive ? 'Interrupt scene' : 'Stop generation'}
+                    title="Stop generation"
                   >
                     <X className="w-3.5 h-3.5 text-red-400" />
                   </button>
