@@ -3,6 +3,7 @@ import { Copy, Check, Wrench } from 'lucide-react';
 import { SettingsSection } from './SettingsSection';
 import { CodebaseUploader } from './CodebaseUploader';
 import { Separator } from '@/components/ui/separator';
+import { DevAssistantChat } from './DevAssistantChat';
 import { useToast } from '@/hooks/use-toast';
 
 interface FileMapSection {
@@ -287,6 +288,12 @@ export function DevToolsPanel() {
   return (
     <div className="space-y-3 pb-6">
       <CodebaseUploader />
+
+      <SettingsSection title="Dev Assistant" defaultOpen>
+        <div className="px-2">
+          <DevAssistantChat />
+        </div>
+      </SettingsSection>
 
       <Separator className="my-4" />
 

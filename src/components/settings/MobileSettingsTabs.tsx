@@ -72,7 +72,7 @@ const tabs: TabConfig[] = [
     id: 'devTools',
     label: 'R&D Developer Tools',
     icon: Code,
-    description: 'Internal file map reference',
+    description: 'AI debugger & file reference',
     color: 'text-rose-400'
   },
 ];
