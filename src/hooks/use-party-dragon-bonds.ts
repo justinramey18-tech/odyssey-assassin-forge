@@ -1060,9 +1060,10 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         const decoder = new TextDecoder();
         let textBuffer = '';
         let content = '';
+        let done = false;
         while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+          const { done: streamDone, value } = await reader.read();
+          if (streamDone) break;
           textBuffer += decoder.decode(value, { stream: true });
           let newlineIndex: number;
           while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
@@ -1072,13 +1073,14 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
             if (line.startsWith(':') || line.trim() === '') continue;
             if (!line.startsWith('data: ')) continue;
             const jsonStr = line.slice(6).trim();
-            if (jsonStr === '[DONE]') break;
+            if (jsonStr === '[DONE]') { done = true; break; }
             try {
               const parsed = JSON.parse(jsonStr);
               const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
               if (delta) content += delta;
             } catch { /* skip */ }
           }
+          if (done) break;
         }
         return content;
       };
