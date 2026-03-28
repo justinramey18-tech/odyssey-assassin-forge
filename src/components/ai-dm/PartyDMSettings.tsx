@@ -480,6 +480,14 @@ export function PartyDMSettings({
               onClick={onShowOocChat}
             />
           )}
+          {onShowNpcScene && (
+            <ToolRow
+              icon={<Theater className="w-4 h-4" />}
+              label="NPC Scene"
+              description="Launch a multi-NPC conversation"
+              onClick={onShowNpcScene}
+            />
+          )}
           {isSplitActive ? (
             <>
               <ToolRow icon={<Eye className="w-4 h-4" />} label="View Split Summaries" onClick={onShowSplitSummaries} />

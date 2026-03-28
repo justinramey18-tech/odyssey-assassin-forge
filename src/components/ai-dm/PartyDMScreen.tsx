@@ -3153,6 +3153,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         onRegroup={(prompt) => partyDm.regroupParty(prompt)}
         isGenerating={partyDm.isGenerating}
       />
+      <NpcSceneDialog
+        open={showNpcScene}
+        onClose={() => setShowNpcScene(false)}
+        onStart={(npcs, prompt, lineCount) => partyDm.runNpcScene(npcs, prompt, lineCount)}
+        sessionConfig={partyDm.sessionConfig}
+        messages={partyDm.allMessages as any}
+      />
       {partyDm.splitState && (
         <SplitSummariesViewer
           open={showSplitSummaries}
