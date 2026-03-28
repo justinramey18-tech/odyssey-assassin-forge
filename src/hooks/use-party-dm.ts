@@ -2911,22 +2911,73 @@ YOUR RESPONSE MUST FOLLOW THIS EXACT FORMAT. NOTHING MORE.`;
         if (!npcSceneActiveRef.current) break;
         if (abortRef.current?.signal.aborted) break;
 
-        // Post-process: enforce single-NPC output
+        // Post-process: AGGRESSIVELY enforce single-NPC, two-line format
         if (assistantContent) {
           let cleaned = assistantContent.trim();
-          // Remove any HTML/span color tags
-          cleaned = cleaned.replace(/<\/?span[^>]*>/gi, '');
-          // If the response contains dialogue from OTHER NPCs (bold name patterns), truncate
-          const otherNpcPattern = new RegExp(`\\*\\*(?:${otherNpcs.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\*\\*:`, 'i');
-          const otherNpcMatch = cleaned.search(otherNpcPattern);
-          if (otherNpcMatch > 0) {
-            cleaned = cleaned.slice(0, otherNpcMatch).trim();
+          // Strip ALL HTML tags
+          cleaned = cleaned.replace(/<[^>]*>/g, '');
+          // Strip any [DIALOGUE MODE] or similar meta-tags the AI generates
+          cleaned = cleaned.replace(/\[DIALOGUE MODE[^\]]*\]/gi, '');
+          cleaned = cleaned.replace(/---/g, '');
+          // Remove any lines that contain OTHER NPCs' bolded names
+          const otherNpcNames = otherNpcs.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+          if (otherNpcNames.length > 0) {
+            const otherPattern = new RegExp(`^.*\\*\\*(?:${otherNpcNames.join('|')})\\*\\*:.*$`, 'gim');
+            cleaned = cleaned.replace(otherPattern, '');
           }
-          // If response is too long (more than ~100 words), truncate to first 2 non-empty lines
-          const words = cleaned.split(/\s+/).length;
-          if (words > 80) {
-            const lines = cleaned.split('\n').filter(l => l.trim());
-            cleaned = lines.slice(0, 2).join('\n');
+          // Extract ONLY: the first italicized beat and the first bolded dialogue line for currentNpc
+          const lines = cleaned.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+          let beat = '';
+          let dialogue = '';
+          const currentNpcEscaped = currentNpc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const dialoguePattern = new RegExp(`\\*\\*${currentNpcEscaped}\\*\\*:\\s*(.+)`, 'i');
+
+          for (const line of lines) {
+            if (!beat && /^\*[^*]/.test(line) && line.endsWith('*') && line.split(/\s+/).length <= 15) {
+              beat = line;
+            }
+            if (!dialogue) {
+              const dMatch = line.match(dialoguePattern);
+              if (dMatch) {
+                dialogue = `**${currentNpc}:** ${dMatch[1]}`;
+              }
+            }
+            if (beat && dialogue) break;
+          }
+          // If no bold-pattern dialogue found, try to find ANY quoted speech and attribute it
+          if (!dialogue) {
+            for (const line of lines) {
+              const quoteMatch = line.match(/[""\u201C](.+?)[""\u201D]/);
+              if (quoteMatch && !line.startsWith('*')) {
+                dialogue = `**${currentNpc}:** "${quoteMatch[1]}"`;
+                break;
+              }
+            }
+          }
+          // Build the final output: beat + dialogue only
+          if (beat && dialogue) {
+            cleaned = beat + '\n' + dialogue;
+          } else if (dialogue) {
+            cleaned = dialogue;
+          } else if (beat) {
+            cleaned = '';
+          } else {
+            const firstLine = lines[0] || '';
+            if (firstLine.length > 5 && firstLine.length < 200) {
+              const hasQuotes = /[""\u201C]/.test(firstLine);
+              if (hasQuotes) {
+                cleaned = `**${currentNpc}:** ${firstLine}`;
+              } else {
+                cleaned = `*${firstLine.replace(/^\*+|\*+$/g, '')}*`;
+              }
+            } else {
+              cleaned = '';
+            }
+          }
+          // Final length cap: max 200 characters total
+          if (cleaned.length > 200) {
+            const parts = cleaned.split('\n');
+            cleaned = parts.map(p => p.length > 100 ? p.slice(0, 100) + '...' : p).join('\n');
           }
           assistantContent = cleaned;
         }
