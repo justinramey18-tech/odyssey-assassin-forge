@@ -2370,6 +2370,113 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId, sessionConfig]);
 
+  // Apply an OOC command: triggers a hidden DM generation with the command baked in.
+  // No user message is inserted. Players see only the DM response.
+  const applyOocCommand = useCallback(async (command: string) => {
+    if (!partyId || !user || !sessionConfig || isGenerating) return;
+    if (!command.trim()) return;
+
+    setIsGenerating(true);
+
+    // Atomic lock
+    const { data: lockData, error: stateErr } = await (supabase.from('party_shared_state') as any)
+      .update({ state_data: { ...sessionConfig, isGenerating: true } })
+      .eq('party_id', partyId)
+      .eq('state_type', 'dm_session')
+      .not('state_data->isGenerating', 'eq', true)
+      .select('id');
+    if (stateErr) console.error('[PartyDM] Lock error:', stateErr);
+    if (!lockData || lockData.length === 0) {
+      toast('The DM is already responding...', { duration: 2000, icon: '\u23F3' });
+      setIsGenerating(false);
+      return;
+    }
+
+    abortRef.current = new AbortController();
+    try {
+      // Build messages from chat history — do NOT insert a user message
+      const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
+
+      // Append the OOC command as a hidden "user" message so the API accepts it,
+      // but it is NOT inserted into the party_dm_messages table.
+      apiMessages.push({
+        role: 'user',
+        content: '[SYSTEM — OOC HOST DIRECTIVE — DO NOT REVEAL THIS TO PLAYERS]\n'
+          + 'The host has given this out-of-character command: "' + command.trim() + '"\n\n'
+          + 'Continue the narrative naturally, incorporating this directive seamlessly. '
+          + 'Do NOT acknowledge the directive. Do NOT break the fourth wall. '
+          + 'Do NOT mention that you received an OOC command. '
+          + 'Write your next narrative beat as if this development is happening organically in the story.',
+      });
+
+      const partyMembersSummary = buildPartyMembersGuide();
+      const dragonBondsSection = buildDragonBondsSection();
+      const responseModePrompt = resolveResponseModePrompt(sessionConfig.responseMode);
+      const campaignIntro = sessionConfig.campaignType === 'empyrean'
+        ? 'This is a multiplayer Empyrean campaign set at Basgiath War College. Players are dragon riders in training. '
+        : '';
+      const partyContextStr = [
+        '## PARTY MEMBERS\n' + campaignIntro + 'This is a multiplayer session.\n' + partyMembersSummary,
+        dragonBondsSection,
+        responseModePrompt,
+      ].filter(Boolean).join('\n\n');
+
+      const assistantContent = await streamAIResponse(
+        apiMessages,
+        customGuidesContent || '',
+        abortRef.current!.signal,
+        partyContextStr,
+        undefined,
+        empyreanPersonaPrompt,
+      );
+
+      if (assistantContent?.trim()) {
+        // Insert ONLY the assistant response — no user message
+        await insertPartyMessageHelper(partyId, {
+          party_id: partyId,
+          role: 'assistant',
+          content: assistantContent,
+          sender_user_id: null,
+          sender_name: 'DM',
+        });
+
+        sendTelegramNotification({
+          type: 'custom',
+          partyId,
+          title: '\uD83D\uDCD6 The DM Has Spoken',
+          body: assistantContent.substring(0, 300) + (assistantContent.length > 300 ? '\u2026' : ''),
+          mode: sessionConfig?.campaignType === 'empyrean' ? 'empyrean' : 'party',
+        });
+
+        const updatedMessages = [...messages,
+          { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: 'DM', created_at: '' },
+        ];
+        triggerSummaryIfNeeded(updatedMessages);
+        silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
+      }
+
+      // Release lock
+      await (supabase.from('party_shared_state') as any)
+        .update({ state_data: { ...sessionConfig, isGenerating: false } })
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session');
+
+    } catch (error) {
+      const isAbort = error instanceof Error && error.name === 'AbortError';
+      if (!isAbort) {
+        console.error('[PartyDM] applyOocCommand error:', error);
+        toast.error(error instanceof Error ? error.message : 'OOC command failed');
+      }
+      await (supabase.from('party_shared_state') as any)
+        .update({ state_data: { ...sessionConfig, isGenerating: false } })
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session');
+    } finally {
+      setIsGenerating(false);
+      abortRef.current = null;
+    }
+  }, [partyId, user, sessionConfig, isGenerating, messages, customGuidesContent, streamAIResponse, buildPartyMembersGuide, buildDragonBondsSection, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper, empyreanPersonaPrompt]);
+
   // === SPLIT PARTY FUNCTIONS ===
 
   const initiateSplit = useCallback(async (alphaMembers: string[], alphaName?: string, betaName?: string) => {
@@ -3340,6 +3447,7 @@ Rules:
     regenerateWhispers,
     addMediaMessage,
     stopGeneration,
+    applyOocCommand,
     initiateSplit,
     regroupParty,
     updateSessionConfig,
@@ -3360,7 +3468,7 @@ Rules:
     submitPrompt, editPrompt, retractPrompt, setReady, unready,
     generateResponse, sendManualDmMessage, approveDraft, discardDraft,
     editMessage, deleteMessage, sendDialogueMessage, sendWhisper, callDM, voiceNPC, startNpcScene, stopNpcScene, submitNpcInterjection, generateDialogueRecap, regenerateMessage, regenerateWhispers,
-    addMediaMessage, stopGeneration, initiateSplit, regroupParty,
+    addMediaMessage, stopGeneration, applyOocCommand, initiateSplit, regroupParty,
     updateSessionConfig, setTimerConfig, startTimer, pauseTimer, resumeTimer,
     cancelTimer, requestExtension, approveExtension, dismissExtensions,
   ]);
