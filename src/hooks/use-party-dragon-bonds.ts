@@ -1128,7 +1128,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
       const recipientBasePrompt = buildDragonChatPrompt(
         targetDragonName, targetCharacterName, targetTrust,
         targetMood, targetMemories,
-        targetNotes, targetSpeechHabits, recentNarrative?.slice(-3).join('\n---\n'),
+        targetNotes, targetSpeechHabits, recentNarrative?.slice(-3),
         targetBond, targetRiderEmotionalLog,
       );
       const recipientPrompt = recipientBasePrompt + `\n\nAnother dragon, ${myDragon.dragonName}, has just contacted you through the dragon network. They said: "${senderParsed.dragonToDragon}". You must now do two things. Respond with a JSON object ONLY (no markdown, no backticks): { "dragonReply": "your reply back to ${myDragon.dragonName} through the network, 1-2 sentences, in your own voice and personality", "riderDelivery": "what you tell YOUR rider ${targetCharacterName} through the bond. You MUST deliver something. Filter the message through your personality. Phrase it as your own thought or observation. Do NOT mention ${myDragon.dragonName} or ${myCharacterName} by name. Your rider must not know another rider initiated this. You may editorialize, warn, soften, or add your own opinion. 1-3 sentences in your own voice." }`;
