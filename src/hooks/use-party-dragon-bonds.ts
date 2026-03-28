@@ -441,59 +441,6 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
                 if (prev.some(m => m.id === incoming.id)) return prev;
                 return [...prev, incoming];
               });
-              // If this message was sent TO this user's dragon, trigger a reaction
-              if (payload.eventType === 'INSERT' && incoming.toUserId === userId && incoming.fromUserId !== userId) {
-                if (!incoming.toRiderDelivery) {
-                  triggerDragonReaction(incoming, 'normal');
-                }
-              }
-            }
-            // Evaluate cross-reactions / chain reactions for INSERTs from other users
-            if (payload.eventType === 'INSERT' && row.user_id !== userId) {
-              const incoming = row.state_data as unknown as DragonNetworkMessage;
-              if (!incoming?.fromUserId || incoming.fromUserId === userId) return;
-              if (incoming.toRiderDelivery) return;
-
-              const msgId = incoming.id?.toString() || '';
-              const depthMap = reactionDepthRef.current;
-
-              // ── Reverse relationship tracking: how MY dragon feels about the sender ──
-              if (userId) {
-                if (!dragonRelationshipsRef.current[userId]) {
-                  dragonRelationshipsRef.current[userId] = {};
-                }
-                const senderKey = incoming.fromUserId;
-                if (!dragonRelationshipsRef.current[userId][senderKey]) {
-                  dragonRelationshipsRef.current[userId][senderKey] = { affinity: 0, interactions: 0 };
-                }
-                const rel = dragonRelationshipsRef.current[userId][senderKey];
-                rel.interactions += 1;
-
-                let delta = 0;
-                if (msgId.startsWith('chain-')) {
-                  delta = -0.03;
-                } else if (msgId.startsWith('react-')) {
-                  delta = (incoming as any).toUserId === userId ? -0.02 : 0.01;
-                } else {
-                  delta = 0.01;
-                }
-                rel.affinity = Math.max(-1, Math.min(1, rel.affinity + delta));
-
-                // Persist reverse relationship (fire-and-forget, debounced)
-                try { persistDragonRelationships(); } catch { /* never block */ }
-              }
-
-              // Check if this is a chain reaction (depth 1) — terminal, no further reactions
-              if (msgId.startsWith('chain-') || depthMap.get(msgId) === 'chain') return;
-
-              // Check if this is a reaction (depth 0) — eligible for ONE chain response
-              if (msgId.startsWith('react-') || depthMap.get(msgId) === 'reaction') {
-                triggerDragonReaction(incoming, 'chain');
-                return;
-              }
-
-              // Original message — normal reaction evaluation
-              triggerDragonReaction(incoming, 'normal');
             }
             return;
           }
@@ -511,7 +458,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [partyId, fetchAll, userId, triggerDragonReaction, persistDragonRelationships]);
+  }, [partyId, fetchAll, userId, persistDragonRelationships]);
 
   // ── Dragon Chat ──
   const loadDragonChat = useCallback(async () => {
