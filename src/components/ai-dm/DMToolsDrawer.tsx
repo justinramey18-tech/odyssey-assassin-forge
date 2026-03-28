@@ -81,6 +81,8 @@ export function DMToolsDrawer({
   onReconfigureEmpyrean,
   onResetBurnout,
   onNpcScene,
+  onOocChat,
+  oocDirectiveCount,
 }: DMToolsDrawerProps) {
   const [showRetakeConfirm, setShowRetakeConfirm] = useState(false);
 
