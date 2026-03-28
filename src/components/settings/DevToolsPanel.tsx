@@ -288,6 +288,12 @@ export function DevToolsPanel() {
     <div className="space-y-3 pb-6">
       <CodebaseUploader />
 
+      <SettingsSection title="Dev Assistant" defaultOpen>
+        <div className="px-2">
+          <DevAssistantChat />
+        </div>
+      </SettingsSection>
+
       <Separator className="my-4" />
 
       <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
