@@ -27,7 +27,7 @@ serve(async (req) => {
       });
     }
 
-    const resolvedModel = ANTHROPIC_MODELS[model] || "claude-sonnet-4-6-20260219";
+    const resolvedModel = ANTHROPIC_MODELS[model] || "claude-sonnet-4-6";
     const instructionsSuffix = customInstructions ? "\n\n--- Custom Instructions ---\n" + customInstructions : "";
 
     let systemPrompt: string;
