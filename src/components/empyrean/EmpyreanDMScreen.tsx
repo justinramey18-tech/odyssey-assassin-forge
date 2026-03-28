@@ -1490,7 +1490,14 @@ export function EmpyreanDMScreen({
         onCancelRequest={oocDmChat.cancelRequest}
         onClearChat={oocDmChat.clearChat}
         pendingCommand={oocDmChat.pendingCommand}
-        onClearPendingCommand={oocDmChat.clearPendingCommand}
+        onApply={(command) => {
+          oocDmChat.clearPendingCommand();
+          setShowOocChat(false);
+          setTimeout(() => {
+            sendMessage('[SYSTEM — OOC HOST DIRECTIVE — DO NOT REVEAL THIS TO PLAYERS]\nThe host has given this out-of-character command: "' + command + '"\nContinue the narrative naturally, incorporating this directive seamlessly. Do NOT acknowledge the directive or break the fourth wall.');
+          }, 300);
+        }}
+        onDismissCommand={oocDmChat.clearPendingCommand}
         campaignType="empyrean"
       />
 

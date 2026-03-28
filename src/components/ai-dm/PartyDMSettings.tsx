@@ -482,7 +482,6 @@ export function PartyDMSettings({
               icon={<Megaphone className="w-4 h-4" />}
               label="Director's Channel"
               description="OOC chat with the DM + story directives"
-              badge={oocDirectiveCount}
               onClick={onShowOocChat}
             />
           )}

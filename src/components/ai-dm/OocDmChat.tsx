@@ -18,8 +18,8 @@ interface OocDmChatProps {
   onCancelRequest: () => void;
   onClearChat: () => void;
   pendingCommand: string | null;
-  onClearPendingCommand: () => void;
-  onApplyCommand?: (command: string) => void;
+  onApply: (command: string) => void;
+  onDismissCommand: () => void;
   campaignType?: 'dnd' | 'empyrean';
 }
 
@@ -32,8 +32,8 @@ export function OocDmChat({
   onCancelRequest,
   onClearChat,
   pendingCommand,
-  onClearPendingCommand,
-  onApplyCommand,
+  onApply,
+  onDismissCommand,
   campaignType = 'dnd',
 }: OocDmChatProps) {
   const [inputValue, setInputValue] = useState('');
@@ -49,7 +49,6 @@ export function OocDmChat({
     }
   }, [messages, isLoading]);
 
-  // Auto-resize textarea
   const handleTextareaChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
     const ta = e.target;
@@ -65,6 +64,13 @@ export function OocDmChat({
       textareaRef.current.style.height = 'auto';
     }
   }, [inputValue, isLoading, onSendMessage]);
+
+  const handleApply = useCallback(() => {
+    if (!pendingCommand) return;
+    onApply(pendingCommand);
+    onDismissCommand();
+    onClose();
+  }, [pendingCommand, onApply, onDismissCommand, onClose]);
 
   if (!open) return null;
 
@@ -90,7 +96,7 @@ export function OocDmChat({
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+            className="p-2 rounded-lg hover:bg-white/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
             style={{ touchAction: 'manipulation' }}
           >
             <X className="w-5 h-5 text-white/70" />
@@ -104,7 +110,7 @@ export function OocDmChat({
               <Megaphone className="w-8 h-8 mx-auto mb-3 opacity-30" />
               <p className="font-cinzel mb-1">Director's Channel</p>
               <p className="text-xs text-white/20">
-                Tell the DM what should happen in the story. Commands will get an Apply button to inject them into the narrative.
+                Tell the DM what should happen in the story. Commands get an Apply button to inject them into the narrative.
               </p>
             </div>
           )}
@@ -141,31 +147,28 @@ export function OocDmChat({
           )}
         </div>
 
-        {/* Pending command bar */}
+        {/* Pending command Apply bar */}
         {pendingCommand && (
           <div className={cn(
-            'shrink-0 px-4 py-2.5 border-t flex items-center gap-2',
-            isEmpyrean ? 'border-cyan-500/20 bg-cyan-950/30' : 'border-amber-500/20 bg-amber-950/30'
+            'shrink-0 mx-3 mb-2 rounded-xl px-3 py-2.5 flex items-center gap-2',
+            isEmpyrean ? 'bg-cyan-500/10 border border-cyan-500/20' : 'bg-amber-500/10 border border-amber-500/20'
           )}>
             <p className="flex-1 text-xs text-white/60 truncate">
-              <span className={cn('font-medium', isEmpyrean ? 'text-cyan-400' : 'text-amber-400')}>Command: </span>
-              {pendingCommand}
+              {pendingCommand.length > 80 ? pendingCommand.slice(0, 80) + '…' : pendingCommand}
             </p>
-            {onApplyCommand && (
-              <button
-                onClick={() => { onApplyCommand(pendingCommand); onClearPendingCommand(); }}
-                className={cn(
-                  'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0',
-                  isEmpyrean ? 'bg-cyan-600 hover:bg-cyan-500 text-white' : 'bg-amber-600 hover:bg-amber-500 text-white'
-                )}
-                style={{ touchAction: 'manipulation' }}
-              >
-                Apply
-              </button>
-            )}
             <button
-              onClick={onClearPendingCommand}
-              className="p-1.5 rounded-lg hover:bg-white/10 transition-colors shrink-0"
+              onClick={handleApply}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-cinzel font-semibold transition-colors shrink-0 min-h-[36px]',
+                isEmpyrean ? 'bg-cyan-600 hover:bg-cyan-500 text-white' : 'bg-amber-600 hover:bg-amber-500 text-white'
+              )}
+              style={{ touchAction: 'manipulation' }}
+            >
+              Apply to Story
+            </button>
+            <button
+              onClick={onDismissCommand}
+              className="p-1.5 rounded-lg hover:bg-white/10 transition-colors shrink-0 min-w-[32px] min-h-[32px] flex items-center justify-center"
               style={{ touchAction: 'manipulation' }}
             >
               <X className="w-3.5 h-3.5 text-white/40" />
