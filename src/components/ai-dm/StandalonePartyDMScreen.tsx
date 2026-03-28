@@ -456,7 +456,6 @@ ${truncated}`);
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
         gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '') + dragonContextForDM}
         onShowOocChat={() => setShowOocChat(true)}
-        oocDirectiveCount={oocDmChat.pendingCommand ? 1 : 0}
         memoryAnchorsContent={memoryAnchors.formattedForOracle}
         memoryAnchors={memoryAnchors.anchors}
         onAddMemoryAnchor={memoryAnchors.addMemoryAnchor}
