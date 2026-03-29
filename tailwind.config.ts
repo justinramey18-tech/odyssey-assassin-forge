@@ -340,8 +340,12 @@ export default {
           "90%": { transform: "translate(-1px, -2px) rotate(-0.1deg)" },
         },
         "consciousness-tunnel": {
-          "0%, 100%": { opacity: "0" },
-          "50%": { opacity: "1" },
+          "0%": { opacity: "0" },
+          "7%": { opacity: "0.85" },
+          "14%": { opacity: "0.12" },
+          "21%": { opacity: "0.7" },
+          "32%": { opacity: "0" },
+          "100%": { opacity: "0" },
         },
         "consciousness-tunnel-heavy": {
           "0%, 100%": { opacity: "0" },
