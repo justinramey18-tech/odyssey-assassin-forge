@@ -937,6 +937,9 @@ async function processCommand(
       return;
     }
 
+    const userId = await getUserIdFromChat(chatId, supabase);
+    if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+
     // Get character data and autopilot guide
     const save = await getCharacterData(userId, supabase);
     let characterName = 'Rider';
