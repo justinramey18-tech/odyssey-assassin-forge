@@ -76,7 +76,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
       return;
     }
 
-    const volume = 0.03 + (ratio - 0.5) * 0.14;
+    const volume = 0.02 + (ratio - 0.5) * 0.10;
 
     if (!audioRef.current) {
       try {
@@ -121,10 +121,10 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
 
   if (level <= 0 || max <= 0) return null;
 
-  const opacity = 0.45 + ratio * 0.55;
+  const opacity = 0.25 + ratio * 0.65;
   const flickerDuration = Math.max(3 - ratio * 2, 0.8);
   const danceDuration = Math.max(4 - ratio * 2.5, 1.2);
-  const flameHeight = Math.round(18 + ratio * 30);
+  const flameHeight = Math.round(10 + ratio * 18);
 
   const isHorizontal = (side: string) => side === 'top' || side === 'bottom';
 
@@ -175,8 +175,8 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
   };
 
   const sides = ['top', 'bottom', 'left', 'right'] as const;
-  const vignetteOpacity = 0.08 + ratio * 0.35;
-  const layerCount = ratio >= 0.75 ? 3 : ratio >= 0.4 ? 2 : 1;
+  const vignetteOpacity = 0.04 + ratio * 0.30;
+  const layerCount = ratio >= 0.625 ? 3 : ratio >= 0.25 ? 2 : 1;
 
   return (
     <>
@@ -218,8 +218,13 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
             }}
           />
           <div
-            className="absolute inset-0 bg-black animate-[consciousness-fade_8s_ease-in-out_infinite] pointer-events-none"
-            style={{ zIndex: 63, opacity: 0.25 }}
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              zIndex: 63,
+              background: 'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.85) 100%)',
+              animation: 'consciousness-fade 8s ease-in-out infinite',
+              opacity: 0.25,
+            }}
           />
         </>
       )}
@@ -236,8 +241,12 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
             }}
           />
           <div
-            className="absolute inset-0 bg-black animate-[consciousness-fade_10s_ease-in-out_infinite] pointer-events-none"
-            style={{ zIndex: 63 }}
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              zIndex: 63,
+              background: 'radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.9) 100%)',
+              animation: 'consciousness-fade 10s ease-in-out infinite',
+            }}
           />
         </>
       )}
