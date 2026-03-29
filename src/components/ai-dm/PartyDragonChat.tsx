@@ -569,6 +569,15 @@ export default function PartyDragonChat({
                 </div>
               </div>
             )}
+            {isVoicing && (
+              <div className="mb-6 pr-12">
+                <div className="border-l-2 border-purple-500/20 pl-3">
+                  <p className="text-purple-300/30 italic text-xs animate-pulse">
+                    ...your dragon finds the words...
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
