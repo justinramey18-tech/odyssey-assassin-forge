@@ -586,7 +586,7 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
               const isExpert = expertiseSkills.has(skill.id);
               const totalMod = baseMod + (isExpert ? profBonus * 2 : isProf ? profBonus : 0);
               const abilityInfo = ABILITY_SCORES[skill.ability];
-              const desc = SKILL_DESCRIPTIONS[skill.id];
+              const desc = getSkillDescription(skill.id);
               return (
                 <button
                   key={skill.id}
