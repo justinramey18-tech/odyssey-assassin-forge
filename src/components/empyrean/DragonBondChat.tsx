@@ -195,6 +195,22 @@ export default function DragonBondChat({
     toast('Memory removed', { duration: 2000 });
   }, []);
 
+  const handleAddMemory = useCallback(() => {
+    const text = newMemoryText.trim();
+    if (!text) return;
+    if (bondState.memories.length >= 30) {
+      toast.error('Memory limit reached (30/30)', { duration: 2000 });
+      return;
+    }
+    setBondState(prev => {
+      const updated = addMemory(prev, text, 'rider-said');
+      saveBondState(updated);
+      return updated;
+    });
+    setNewMemoryText('');
+    toast('Memory added', { duration: 2000 });
+  }, [newMemoryText, bondState.memories.length]);
+
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const {
