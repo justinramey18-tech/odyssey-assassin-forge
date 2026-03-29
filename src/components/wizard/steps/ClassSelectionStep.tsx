@@ -137,7 +137,7 @@ function ClassCard({ config, selected, onSelect }: ClassCardProps) {
           <Icon className={cn("w-6 h-6", selected ? "text-primary" : "text-muted-foreground")} />
         </div>
         <div>
-          <h3 className="font-bold text-foreground">{config.name}</h3>
+          <h3 className="font-bold text-foreground">{isEmpyreanMode() ? (EMPYREAN_CLASS_LABELS[config.id] ?? config.name) : config.name}</h3>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>{config.hitDie}</span>
             <span>•</span>
