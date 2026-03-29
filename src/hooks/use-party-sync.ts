@@ -815,15 +815,6 @@ export function usePartySync(): UsePartySyncReturn {
             if (mapData.customTiers) setMapCustomTiers(mapData.customTiers);
           }
 
-          if (row.state_type === 'dragon_network_message') {
-            if (row.user_id === user.id) {
-              const incoming = row.state_data as any;
-              setDragonNetworkMessages(prev => {
-                if (prev.some((m: any) => m.id === incoming.id)) return prev;
-                return [...prev, incoming];
-              });
-            }
-          }
         }
       )
       .subscribe();
