@@ -482,22 +482,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     loadDragonChat();
   }, [loadDragonChat]);
 
-  // Load dragon network messages (initial fetch only — realtime handled by dragon-bonds channel above)
-  useEffect(() => {
-    if (!partyId || !userId) return;
-
-    supabase
-      .from('party_shared_state')
-      .select('*')
-      .eq('party_id', partyId)
-      .eq('user_id', userId)
-      .eq('state_type', 'dragon_network_message')
-      .order('created_at', { ascending: true })
-      .then(({ data }) => {
-        if (!mountedRef.current || !data) return;
-        setDragonNetworkMessages(data.map(r => r.state_data as unknown as DragonNetworkMessage));
-      });
-  }, [partyId, userId]);
+  // Dragon network messages initial fetch removed — now handled by usePartySync
 
   const saveDragonChat = useCallback(async (messages: DragonChatMessage[]) => {
     if (!partyId || !userId) return;
