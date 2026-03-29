@@ -274,6 +274,16 @@ export default {
           "78%": { transform: "translateX(0.8px) skewX(0.3deg)", filter: "blur(0.2px)" },
           "100%": { transform: "translateX(0) skewX(0deg)", filter: "blur(0px)" },
         },
+        "text-waver-critical": {
+          "0%": { transform: "translateX(0) skewX(0deg)", filter: "blur(0px)" },
+          "10%": { transform: "translateX(2px) skewX(0.6deg)", filter: "blur(0.3px)" },
+          "22%": { transform: "translateX(-1.8px) skewX(-0.5deg)", filter: "blur(0.8px)" },
+          "38%": { transform: "translateX(2.5px) skewX(0.7deg)", filter: "blur(0.2px)" },
+          "52%": { transform: "translateX(-2px) skewX(-0.6deg)", filter: "blur(1px)" },
+          "68%": { transform: "translateX(1.5px) skewX(0.5deg)", filter: "blur(0.4px)" },
+          "82%": { transform: "translateX(-1px) skewX(-0.3deg)", filter: "blur(0.6px)" },
+          "100%": { transform: "translateX(0) skewX(0deg)", filter: "blur(0px)" },
+        },
         "text-color-bleed": {
           "0%": { color: "inherit" },
           "15%": { color: "rgb(220, 120, 60)" },

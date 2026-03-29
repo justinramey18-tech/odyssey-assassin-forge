@@ -163,7 +163,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
           }}
         />
       )}
-      {ratio >= 0.625 && ratio < 0.875 && (
+      {ratio >= 0.625 && ratio < 0.75 && (
         <>
           <div
             className="absolute inset-0 pointer-events-none"
@@ -179,9 +179,32 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
             className="absolute inset-0 pointer-events-none"
             style={{
               zIndex: 63,
-              background: 'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.85) 100%)',
+              background: 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.7) 85%, rgba(0,0,0,0.9) 100%)',
               animation: 'consciousness-fade 8s ease-in-out infinite',
-              opacity: 0.25,
+              opacity: 0.3,
+            }}
+          />
+        </>
+      )}
+      {ratio >= 0.75 && ratio < 0.875 && (
+        <>
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              zIndex: 62,
+              backgroundImage: `url(${burnoutDragonBg58})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              opacity: 0.35,
+            }}
+          />
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              zIndex: 63,
+              background: 'radial-gradient(ellipse at center, transparent 15%, rgba(0,0,0,0.6) 60%, rgba(0,0,0,0.9) 100%)',
+              animation: 'consciousness-fade 7s ease-in-out infinite',
+              opacity: 0.45,
             }}
           />
         </>
@@ -202,8 +225,8 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
             className="absolute inset-0 pointer-events-none"
             style={{
               zIndex: 63,
-              background: 'radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.9) 100%)',
-              animation: 'consciousness-fade 10s ease-in-out infinite',
+              background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.75) 50%, rgba(0,0,0,0.95) 100%)',
+              animation: 'consciousness-fade 6s ease-in-out infinite',
             }}
           />
         </>
