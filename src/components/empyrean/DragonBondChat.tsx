@@ -232,11 +232,18 @@ export default function DragonBondChat({
     }
   }, [showPersonality, dragonNotes]);
 
-  // Auto-scroll on new messages
+  // Auto-scroll only when near bottom
+  const shouldStickRef = useRef(true);
+  const handleChatScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    shouldStickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  }, []);
+
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    const el = scrollRef.current;
+    if (!el || !shouldStickRef.current) return;
+    el.scrollTop = el.scrollHeight;
   }, [messages, isLoading]);
 
   // Auto-resize textarea
