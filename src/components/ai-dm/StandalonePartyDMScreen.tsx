@@ -206,13 +206,14 @@ export function StandalonePartyDMScreen({
   }, [dragonBonds.updateBurnout]);
 
   const handleBurnoutTickDetected = useCallback((reason: string) => {
+    // Read latest values directly from dragonBonds to avoid stale closures
     const currentBurnout = dragonBonds.myDragon?.burnout ?? 0;
     const bond = dragonBonds.myDragon?.bond ?? 15;
     const maxBurnout = bond >= 76 ? 9 : bond >= 51 ? 7 : bond >= 26 ? 5 : 4;
     const nextBurnout = Math.min(currentBurnout + 1, maxBurnout);
     dragonBonds.updateBurnout(nextBurnout);
     toast('Signet strain: ' + reason, { icon: '🔥' });
-  }, [dragonBonds.updateBurnout, dragonBonds.myDragon?.burnout, dragonBonds.myDragon?.bond]);
+  }, [dragonBonds]);
 
   const handleBondStrainDetected = useCallback((reason: string) => {
     dragonBonds.updateBondAndTrust(0, -5);

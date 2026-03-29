@@ -85,6 +85,9 @@ function getAffinityDescription(affinity: number, dragonName: string): string {
 
 export function usePartyDragonBonds(partyId: string | null, userId: string | null, partyMembers?: Array<{ user_id: string; character_name: string }>) {
   const [myDragon, setMyDragon] = useState<PartyDragonConfig | null>(null);
+  const myDragonRef = useRef<PartyDragonConfig | null>(null);
+  // Keep ref in sync with state for use in callbacks that need fresh values
+  useEffect(() => { myDragonRef.current = myDragon; }, [myDragon]);
   const [allDragonConfigs, setAllDragonConfigs] = useState<DragonEntry[]>([]);
   const [myRowId, setMyRowId] = useState<string | null>(null);
   const [dragonChatMessages, setDragonChatMessages] = useState<DragonChatMessage[]>([]);
@@ -782,12 +785,12 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     }
   }, [partyId, userId, myRowId]);
 
-  // Partial update
+  // Partial update — reads from ref to avoid stale closures
   const updateMyDragon = useCallback(async (patch: Partial<PartyDragonConfig>) => {
-    const current = myDragon || DEFAULT_DRAGON;
+    const current = myDragonRef.current || DEFAULT_DRAGON;
     const merged = { ...current, ...patch };
     await saveMyDragon(merged);
-  }, [myDragon, saveMyDragon]);
+  }, [saveMyDragon]);
 
   // Burnout shortcut
   const updateBurnout = useCallback(async (level: number) => {
@@ -796,12 +799,12 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
 
   // Bond & trust delta shortcut
   const updateBondAndTrust = useCallback(async (bondDelta: number, trustDelta: number) => {
-    const current = myDragon || DEFAULT_DRAGON;
+    const current = myDragonRef.current || DEFAULT_DRAGON;
     await updateMyDragon({
       bond: Math.max(0, Math.min(100, current.bond + bondDelta)),
       trust: Math.max(0, Math.min(100, current.trust + trustDelta)),
     });
-  }, [myDragon, updateMyDragon]);
+  }, [updateMyDragon]);
 
   // Generate a one-off dragon opinion based on recent narrative
   const generateDragonOpinion = useCallback(async (characterName: string, recentNarrative: string[]): Promise<string | null> => {
