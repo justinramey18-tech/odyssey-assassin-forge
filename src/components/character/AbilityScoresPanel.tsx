@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Dices, LayoutGrid, Plus, Minus, Sparkles } from 'lucide-react';
+import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
