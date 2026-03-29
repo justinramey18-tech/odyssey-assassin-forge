@@ -238,7 +238,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
             className="absolute inset-0 pointer-events-none"
             style={{
               zIndex: 62,
-              backgroundImage: `url(${burnoutDragonBg75})`,
+              backgroundImage: `url(${burnoutDragonBg58})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               opacity: 0.3,
