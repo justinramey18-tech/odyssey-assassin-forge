@@ -249,6 +249,13 @@ export default {
           "66%": { opacity: "0.75", transform: "scaleX(0.96) translateX(1px)" },
           "100%": { opacity: "0.8", transform: "scaleX(1) translateX(0)" },
         },
+        "text-waver-subtle": {
+          "0%": { transform: "translateX(0) skewX(0deg)", filter: "blur(0px)" },
+          "25%": { transform: "translateX(0.1px) skewX(0.05deg)", filter: "blur(0px)" },
+          "50%": { transform: "translateX(-0.1px) skewX(-0.05deg)", filter: "blur(0.1px)" },
+          "75%": { transform: "translateX(0.1px) skewX(0.03deg)", filter: "blur(0px)" },
+          "100%": { transform: "translateX(0) skewX(0deg)", filter: "blur(0px)" },
+        },
         "text-waver": {
           "0%": { transform: "translateX(0) skewX(0deg)", filter: "blur(0px)" },
           "15%": { transform: "translateX(0.3px) skewX(0.15deg)", filter: "blur(0px)" },
@@ -265,6 +272,16 @@ export default {
           "45%": { transform: "translateX(1.5px) skewX(0.5deg)", filter: "blur(0.1px)" },
           "60%": { transform: "translateX(-1.3px) skewX(-0.45deg)", filter: "blur(0.6px)" },
           "78%": { transform: "translateX(0.8px) skewX(0.3deg)", filter: "blur(0.2px)" },
+          "100%": { transform: "translateX(0) skewX(0deg)", filter: "blur(0px)" },
+        },
+        "text-waver-critical": {
+          "0%": { transform: "translateX(0) skewX(0deg)", filter: "blur(0px)" },
+          "10%": { transform: "translateX(2px) skewX(0.6deg)", filter: "blur(0.3px)" },
+          "22%": { transform: "translateX(-1.8px) skewX(-0.5deg)", filter: "blur(0.8px)" },
+          "38%": { transform: "translateX(2.5px) skewX(0.7deg)", filter: "blur(0.2px)" },
+          "52%": { transform: "translateX(-2px) skewX(-0.6deg)", filter: "blur(1px)" },
+          "68%": { transform: "translateX(1.5px) skewX(0.5deg)", filter: "blur(0.4px)" },
+          "82%": { transform: "translateX(-1px) skewX(-0.3deg)", filter: "blur(0.6px)" },
           "100%": { transform: "translateX(0) skewX(0deg)", filter: "blur(0px)" },
         },
         "text-color-bleed": {
