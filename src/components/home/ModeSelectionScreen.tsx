@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Sparkles, Sword, BookOpen, Users, Crown, Wand2, Feather, type LucideIcon } from 'lucide-react';
+import { Sparkles, Sword, BookOpen, Users, Crown, Wand2, Feather, Flame, type LucideIcon } from 'lucide-react';
 import { AppMode, APP_MODES_ORDERED, APP_MODE_CONFIGS } from '@/lib/app-modes';
 
 interface ModeSelectionScreenProps {
