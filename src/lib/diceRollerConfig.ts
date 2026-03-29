@@ -1,6 +1,6 @@
 // D&D 5e Dice Roller Configuration
 // Skills, Saving Throws, and AI DM Prompts
-
+import { isEmpyreanMode, EMPYREAN_ABILITY_ABBR, EMPYREAN_SKILL_LABELS } from '@/lib/empyreanLabels';
 export type DieSize = 'd4' | 'd6' | 'd8' | 'd10' | 'd12' | 'd20' | 'd100';
 
 export interface DieConfig {
