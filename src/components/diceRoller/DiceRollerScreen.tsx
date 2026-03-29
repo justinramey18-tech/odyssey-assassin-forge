@@ -1176,8 +1176,8 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
 
             {/* Skills List */}
             <div className="grid grid-cols-1 gap-2">
-              {SKILLS.map((skill) => {
-                const abilityConfig = ABILITY_SCORES[skill.ability];
+              {getSkillsForDisplay().map((skill) => {
+                const abilityConfig = getAbilityScoreDisplay(skill.ability);
                 const abilityMod = abilityModifiers[skill.ability];
                 const isProficient = proficientSkills.has(skill.id);
                 const hasExpertise = expertiseSkills.has(skill.id);
