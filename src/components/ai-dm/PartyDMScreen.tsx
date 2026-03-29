@@ -1147,8 +1147,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     supabase.from('party_messages').select('id', { count: 'exact', head: true }).eq('party_id', partyId).then(({ count }) => {
       setChatTotalCount(count ?? 0);
     });
-    const ch = supabase.channel(`chat-badge-${partyId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'party_messages', filter: `party_id=eq.${partyId}` }, () => {
+    const ch = supabase.channel(`chat-badge-${partyId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'party_messages', filter: `party_id=eq.${partyId}` }, (payload: any) => {
       setChatTotalCount(prev => prev + 1);
+      if (payload?.new?.message?.startsWith('[🐉 ')) {
+        setShowEmpyreanBanner(true);
+      }
     }).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [partyId, currentUserId]);
