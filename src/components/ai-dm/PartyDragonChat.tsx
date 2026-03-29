@@ -67,6 +67,7 @@ export default function PartyDragonChat({
   dragonNetworkMessages,
   otherDragons,
   onSendNetworkMessage,
+  isVoicing,
   myUserId,
   dragonNotes,
   onUpdateNotes,
