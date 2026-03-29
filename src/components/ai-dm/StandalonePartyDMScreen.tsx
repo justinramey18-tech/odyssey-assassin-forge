@@ -209,7 +209,7 @@ export function StandalonePartyDMScreen({
     // Read latest values directly from dragonBonds to avoid stale closures
     const currentBurnout = dragonBonds.myDragon?.burnout ?? 0;
     const bond = dragonBonds.myDragon?.bond ?? 15;
-    const maxBurnout = bond >= 76 ? 9 : bond >= 51 ? 7 : bond >= 26 ? 5 : 4;
+    const maxBurnout = bond >= 76 ? 12 : bond >= 51 ? 11 : bond >= 26 ? 10 : 8;
     const nextBurnout = Math.min(currentBurnout + 1, maxBurnout);
     dragonBonds.updateBurnout(nextBurnout);
     toast('Signet strain: ' + reason, { icon: '🔥' });

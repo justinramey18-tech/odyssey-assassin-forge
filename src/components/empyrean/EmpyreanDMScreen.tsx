@@ -128,10 +128,13 @@ const BURNOUT_LABELS = [
   'Heat spreading — nosebleed, unsteady',
   'Bones burning — collapse risk',
   'Skin burning — dragon alarmed',
+  'Veins glowing — signet pulsing visibly',
   'Body at limit — dragon buffering',
   'Dragon absorbing overflow — bond straining',
-  'Rider and dragon both near limit',
-  'Critical co-overload',
+  'Rider and dragon both near limit — loss of focus',
+  'Critical co-overload — body failing',
+  'Dragon desperately absorbing — scales cracking',
+  'Mutual collapse imminent — bond tearing',
   'Maximum capacity — sever or die',
 ];
 
@@ -233,7 +236,7 @@ export function EmpyreanDMScreen({
   });
 
   const bondValue = dragonBond.bondState.bond;
-  const maxBurnout = bondValue >= 76 ? 9 : bondValue >= 51 ? 7 : bondValue >= 26 ? 5 : 4;
+  const maxBurnout = bondValue >= 76 ? 12 : bondValue >= 51 ? 11 : bondValue >= 26 ? 10 : 8;
 
   const dmPersonaPrompt = useMemo(() => {
     if (!config) return undefined;

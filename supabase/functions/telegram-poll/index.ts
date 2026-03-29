@@ -498,7 +498,7 @@ async function processCommand(
       for (const d of dragons) {
         const bondBar = '█'.repeat(Math.round(d.bond / 10)) + '░'.repeat(10 - Math.round(d.bond / 10));
         const trustBar = '█'.repeat(Math.round(d.trust / 10)) + '░'.repeat(10 - Math.round(d.trust / 10));
-        const maxBurnout = d.bond >= 76 ? 9 : d.bond >= 51 ? 7 : d.bond >= 26 ? 5 : 4;
+        const maxBurnout = d.bond >= 76 ? 12 : d.bond >= 51 ? 11 : d.bond >= 26 ? 10 : 8;
 
         const moodEmoji: Record<string, string> = {
           calm: '😌', alert: '👁️', protective: '🛡️', distant: '❄️', ancestral: '🌀', playful: '😏',
