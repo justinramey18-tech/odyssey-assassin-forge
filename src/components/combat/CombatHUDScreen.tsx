@@ -251,7 +251,7 @@ ${isCrit ? 'Describe an exceptional success with dramatic flair. The action succ
           <div className="grid grid-cols-4 gap-2 mt-3">
             <StatDisplay
               icon={<Shield className="w-4 h-4" />}
-              label="AC"
+              label={isEmpyreanMode() ? 'DEF' : 'AC'}
               value={modifiers.acBonus}
               color="cyan"
             />
