@@ -76,7 +76,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
       return;
     }
 
-    const volume = 0.03 + (ratio - 0.5) * 0.14;
+    const volume = 0.02 + (ratio - 0.5) * 0.10;
 
     if (!audioRef.current) {
       try {
