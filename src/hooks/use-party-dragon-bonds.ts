@@ -1028,39 +1028,21 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
 
   const deliverNetworkMessage = useCallback(async (
     targetDragonName: string,
-    targetUserId: string,
+    _targetUserId: string,
     voicedText: string,
-    originalText: string,
-    replyToId?: string,
+    _originalText: string,
+    _replyToId?: string,
   ): Promise<void> => {
     if (!partyId || !userId || !myDragon?.dragonName) return;
 
-    const msg: DragonNetworkMessage = {
-      id: 'net-' + Date.now(),
-      fromDragon: myDragon.dragonName,
-      fromUserId: userId,
-      toDragon: targetDragonName,
-      toUserId: targetUserId,
-      riderMessage: originalText,
-      dragonExchange: voicedText,
-      replyToId,
-      timestamp: new Date().toISOString(),
-    };
+    // Post to party_messages so it shows up in the shared party chat
+    const messageText = `[🐉 ${myDragon.dragonName} → ${targetDragonName}] ${voicedText}`;
 
-    setDragonNetworkMessages(prev => [...prev, msg]);
-
-    await supabase.from('party_shared_state').insert([{
+    await supabase.from('party_messages').insert([{
       party_id: partyId,
       user_id: userId,
-      state_type: 'dragon_network_message',
-      state_data: msg as any,
-    }]);
-
-    await supabase.from('party_shared_state').insert([{
-      party_id: partyId,
-      user_id: targetUserId,
-      state_type: 'dragon_network_message',
-      state_data: { ...msg, id: 'net-recv-' + Date.now() } as any,
+      sender_name: myDragon.dragonName,
+      message: messageText,
     }]);
   }, [partyId, userId, myDragon]);
 
