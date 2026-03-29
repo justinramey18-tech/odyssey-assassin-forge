@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import { Character, Ability, getActiveSlotsByLevel } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { cn } from '@/lib/utils';
@@ -250,7 +251,7 @@ ${isCrit ? 'Describe an exceptional success with dramatic flair. The action succ
           <div className="grid grid-cols-4 gap-2 mt-3">
             <StatDisplay
               icon={<Shield className="w-4 h-4" />}
-              label="AC"
+              label={isEmpyreanMode() ? 'DEF' : 'AC'}
               value={modifiers.acBonus}
               color="cyan"
             />
@@ -268,7 +269,7 @@ ${isCrit ? 'Describe an exceptional success with dramatic flair. The action succ
             />
             <StatDisplay
               icon={<Gauge className="w-4 h-4" />}
-              label="INIT"
+              label={isEmpyreanMode() ? 'CRFLX' : 'INIT'}
               value={modifiers.initiativeBonus > 0 ? `+${modifiers.initiativeBonus}` : '0'}
               color="green"
             />
@@ -280,7 +281,7 @@ ${isCrit ? 'Describe an exceptional success with dramatic flair. The action succ
               <span className="text-red-400 font-bold font-mono">+{Math.ceil(character.level / 4) + 1}</span>
             </div>
             <div className="flex justify-between items-center text-xs mt-1">
-              <span className="text-muted-foreground font-mono">SAVE DC</span>
+              <span className="text-muted-foreground font-mono">{isEmpyreanMode() ? 'SIGNET DC' : 'SAVE DC'}</span>
               <span className="text-red-400 font-bold font-mono">{modifiers.saveDC}</span>
             </div>
           </div>
@@ -326,7 +327,7 @@ ${isCrit ? 'Describe an exceptional success with dramatic flair. The action succ
             onClick={() => handleCombatRoll('initiative')}
           >
             <Activity className="w-4 h-4 mr-2" />
-            ROLL INITIATIVE
+            {isEmpyreanMode() ? 'ROLL COMBAT REFLEXES' : 'ROLL INITIATIVE'}
             <span className="ml-auto text-xs opacity-70">+{modifiers.initiativeBonus}</span>
           </Button>
         </div>

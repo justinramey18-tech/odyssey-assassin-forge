@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import { Heart, Shield, Plus, Minus, Zap, Skull } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -102,7 +103,7 @@ export function HPWidget({ currentHP, maxHP, tempHP, deathSaves, onHPChange, onD
     setHpDelta('');
 
     toast({
-      title: `🛡️ +${amount} Temp HP`,
+      title: `🛡️ +${amount} ${isEmpyreanMode() ? 'Temp Vitality' : 'Temp HP'}`,
       description: `Total temp HP: ${newTemp}`,
       className: 'border-sky-500/30 bg-sky-500/10',
     });
@@ -205,7 +206,7 @@ export function HPWidget({ currentHP, maxHP, tempHP, deathSaves, onHPChange, onD
             {tempHP > 0 && (
               <div className="flex items-center justify-center gap-1 text-sky-400">
                 <Shield className="w-4 h-4" />
-                <span className="font-medium">+{tempHP} Temp HP</span>
+                <span className="font-medium">+{tempHP} {isEmpyreanMode() ? 'Temp Vitality' : 'Temp HP'}</span>
               </div>
             )}
             <Progress 

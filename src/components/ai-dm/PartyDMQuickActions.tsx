@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import { Sword, Sparkles, BookOpen, FlaskConical, Star, ChevronDown, Play, Flame, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -189,7 +190,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
       const item: QuickActionItem = {
         id: `spell-${spellName}`,
         name: spellName,
-        detail: isCantrip ? 'Cantrip' : 'Prepared Spell',
+        detail: isCantrip ? (isEmpyreanMode() ? 'Minor Signet' : 'Cantrip') : (isEmpyreanMode() ? 'Prepared Signet' : 'Prepared Spell'),
         prompt: generateSpellPrompt(spellName, charName, isCantrip),
         removeCategory: isCantrip ? 'cantrip' as const : 'spell' as const,
       };
@@ -260,7 +261,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                 onRemove={handleRemoveItem}
               />
               <QuickActionSection
-                title="Spells"
+                title={isEmpyreanMode() ? 'Signets' : 'Spells'}
                 icon={<BookOpen className="w-4 h-4" />}
                 items={sections.spells}
                 accentClass="text-purple-400"
@@ -268,7 +269,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                 onRemove={handleRemoveItem}
               />
               <QuickActionSection
-                title="Cantrips"
+                title={isEmpyreanMode() ? 'Minor Signets' : 'Cantrips'}
                 icon={<Star className="w-4 h-4" />}
                 items={sections.cantrips}
                 accentClass="text-cyan-400"
