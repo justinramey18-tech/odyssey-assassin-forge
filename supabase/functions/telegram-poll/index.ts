@@ -725,7 +725,7 @@ async function processCommand(
   }
 
   // /bond [DragonName] MESSAGE — Talk to your bonded dragon
-  if (cmd.startsWith('/bond ') || cmd === '/bond') {
+  if (cmd.startsWith('/bond:') || cmd.startsWith('/bond ') || cmd === '/bond') {
     const rawArgs = text.trim().substring(5).trim();
     if (!rawArgs) {
       await sendTelegram(chatId, '❌ Usage:\n<code>/bond How are you feeling?</code>\n<code>/bond Gwen, what do you think?</code>\n\nIf you have multiple dragons, prefix with the name:\n<code>/bond:solo How are you?</code>\n<code>/bond:party How are you?</code>', lovableKey, telegramKey);
