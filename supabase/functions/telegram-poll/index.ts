@@ -264,20 +264,24 @@ async function processCommand(
       await sendTelegram(chatId, '❌ Invalid or expired code. Generate a new one in Settings → Telegram.', lovableKey, telegramKey);
       return;
     }
-    // Check if this chat is already linked to this user
+    // Check if this chat is already linked (to any user — chat_id has a UNIQUE constraint)
     const { data: existingLink } = await supabase
       .from('telegram_user_links')
-      .select('id')
-      .eq('user_id', linkCode.user_id)
+      .select('id, user_id')
       .eq('chat_id', chatId)
       .maybeSingle();
 
     let linkErr;
     if (existingLink) {
-      // Already linked — just update
+      // Chat already linked — update to point to the new user (re-link scenario)
       const { error } = await supabase
         .from('telegram_user_links')
-        .update({ username: username || null, linked_at: new Date().toISOString(), notify_modes: ['solo', 'party', 'empyrean'] })
+        .update({
+          user_id: linkCode.user_id,
+          username: username || null,
+          linked_at: new Date().toISOString(),
+          notify_modes: ['solo', 'party', 'empyrean'],
+        })
         .eq('id', existingLink.id);
       linkErr = error;
     } else {
