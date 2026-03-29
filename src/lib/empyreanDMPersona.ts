@@ -214,11 +214,14 @@ SCALE (describe symptoms in narrative, never state the number):
 2 = Heat spreading through chest and limbs. Nosebleed from pressure. Hands unsteady.
 3 = Bones feel like they are burning. Vision strobing. Muscle lock risk. The dragon notices through the bond.
 4 = Skin hot to the touch, visibly reddening near the relic. Collapse imminent. The dragon is alarmed and pushing back through the bond.
-5 = The body cannot contain the energy. For a weak-bonded rider (bond < 26) this is death without immediate intervention. For others the dragon is now actively absorbing overflow — describe the dragon's physical distress alongside the rider's.
-${maxBurnout >= 6 ? `6 = Dragon is absorbing excess to keep the rider alive. The bond itself is straining. The dragon's pain bleeds back through.` : ''}
-${maxBurnout >= 7 ? `7 = Rider and dragon are both near their limit. The rider is barely conscious. The dragon's scales are burning hot. The bond feels like it is tearing.` : ''}
-${maxBurnout >= 8 ? `8 = Critical co-overload. Rider is seizing or unconscious. Dragon is in visible physical distress. Survival possible but not guaranteed.` : ''}
-${maxBurnout >= 9 ? `9 = Maximum theoretical capacity — only the deepest bonds have ever reached this and survived. The dragon must sever the channel or both die.` : ''}
+5 = Veins glowing — signet pulsing visibly beneath skin. Rider feels the heat in their bones.
+${maxBurnout >= 6 ? `6 = Body at limit — dragon is actively buffering excess energy. The rider's nose bleeds freely.` : ''}
+${maxBurnout >= 7 ? `7 = Dragon absorbing overflow — the bond itself is straining. Pain echoes between rider and dragon.` : ''}
+${maxBurnout >= 8 ? `8 = Rider and dragon both near limit. The rider is barely conscious, losing focus. Dragon's scales burn hot.` : ''}
+${maxBurnout >= 9 ? `9 = Critical co-overload. Rider is seizing or unconscious. Dragon in visible physical distress.` : ''}
+${maxBurnout >= 10 ? `10 = Dragon desperately absorbing excess — its own scales are cracking from the strain.` : ''}
+${maxBurnout >= 11 ? `11 = Mutual collapse imminent. The bond feels like it is tearing apart. Survival unlikely without intervention.` : ''}
+${maxBurnout >= 12 ? `12 = Maximum theoretical capacity — only the deepest bonds have ever reached this and survived. The dragon must sever the channel or both die.` : ''}
 
 RECOVERY:
 - Levels 1–2: One rest or sleep scene.
