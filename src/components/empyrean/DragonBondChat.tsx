@@ -87,6 +87,7 @@ export default function DragonBondChat({
   const [dragonOpening, setDragonOpening] = useState<string | null>(null);
   const [showPersonality, setShowPersonality] = useState(false);
   const [showMemoryPanel, setShowMemoryPanel] = useState(false);
+  const [newMemoryText, setNewMemoryText] = useState('');
   const [editingNotes, setEditingNotes] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
