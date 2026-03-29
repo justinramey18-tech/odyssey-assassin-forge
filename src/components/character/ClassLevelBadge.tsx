@@ -1,5 +1,6 @@
 // Class Level Badge Component
 // Displays class icon, name, and level in a compact badge format
+import { isEmpyreanMode, EMPYREAN_CLASS_LABELS } from '@/lib/empyreanLabels';
 
 import { cn } from '@/lib/utils';
 import { DnDClass, ClassLevelMap, CLASS_REGISTRY, calculateTotalLevel } from '@/lib/classes';
@@ -94,7 +95,7 @@ export function ClassLevelBadge({
       >
         <Icon className={styles.icon} />
         <span className={cn('font-semibold', styles.text)}>
-          {classConfig.name}
+          {isEmpyreanMode() ? (EMPYREAN_CLASS_LABELS[primaryClass] ?? classConfig.name) : classConfig.name}
         </span>
         <span className="opacity-70">
           Lvl {totalLevel}
@@ -123,7 +124,7 @@ export function ClassLevelBadge({
             }}
           >
             <ClsIcon className={size === 'sm' ? 'w-2.5 h-2.5' : 'w-3 h-3'} />
-            <span className="font-semibold">{cls.name}</span>
+            <span className="font-semibold">{isEmpyreanMode() ? (EMPYREAN_CLASS_LABELS[cls.id] ?? cls.name) : cls.name}</span>
             <span className="opacity-70">{cls.level}</span>
           </Badge>
         );

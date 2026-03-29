@@ -2,6 +2,7 @@
 // Allows players to choose their primary D&D class
 
 import { motion } from 'framer-motion';
+import { isEmpyreanMode, EMPYREAN_CLASS_LABELS } from '@/lib/empyreanLabels';
 import { cn } from '@/lib/utils';
 import { WizardState, CLASS_SUGGESTED_ARRAYS } from '../types';
 import { CLASS_REGISTRY, getAllClasses, ClassConfig, DnDClass } from '@/lib/classes';
@@ -136,7 +137,7 @@ function ClassCard({ config, selected, onSelect }: ClassCardProps) {
           <Icon className={cn("w-6 h-6", selected ? "text-primary" : "text-muted-foreground")} />
         </div>
         <div>
-          <h3 className="font-bold text-foreground">{config.name}</h3>
+          <h3 className="font-bold text-foreground">{isEmpyreanMode() ? (EMPYREAN_CLASS_LABELS[config.id] ?? config.name) : config.name}</h3>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>{config.hitDie}</span>
             <span>•</span>
@@ -193,8 +194,12 @@ export function ClassSelectionStep({ state, onChange }: ClassSelectionStepProps)
 
       {/* Info Banner for Rogue */}
       <div className="bg-muted/50 border border-border rounded-lg p-3 text-sm text-muted-foreground">
-        <strong className="text-foreground">Odyssey Assassin (Rogue)</strong> is the original class with 
-        the Hunter, Warrior, and Assassin skill trees. Other classes use D&D 5e spellcasting.
+        {isEmpyreanMode() ? (
+          <><strong className="text-foreground">Shadow Operative</strong> is the original class with the deepest feature set.</>
+        ) : (
+          <><strong className="text-foreground">Odyssey Assassin (Rogue)</strong> is the original class with 
+          the Hunter, Warrior, and Assassin skill trees. Other classes use D&amp;D 5e spellcasting.</>
+        )}
       </div>
 
       {/* Class Grid */}

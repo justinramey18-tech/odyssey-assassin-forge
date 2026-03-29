@@ -19,6 +19,7 @@ import {
   formatPromptWithRoll,
   getAbilityScoreDisplay,
   getSkillsForDisplay,
+  getAIDMPromptsForDisplay,
   type DieSize,
   type AbilityScore,
   type AIPromptTemplate,
@@ -1377,7 +1378,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
                 Combat
               </h3>
               <div className="grid grid-cols-1 gap-2">
-                {(alignmentTarget ? sortByAlignmentProximity(AI_DM_PROMPTS.filter(p => p.category === 'combat'), alignmentTarget) : AI_DM_PROMPTS.filter(p => p.category === 'combat')).map((prompt) => (
+                {(alignmentTarget ? sortByAlignmentProximity(getAIDMPromptsForDisplay().filter(p => p.category === 'combat'), alignmentTarget) : getAIDMPromptsForDisplay().filter(p => p.category === 'combat')).map((prompt) => (
                   <PromptButton
                     key={prompt.id}
                     prompt={prompt}
@@ -1396,7 +1397,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
                 Exploration
               </h3>
               <div className="grid grid-cols-1 gap-2">
-                {(alignmentTarget ? sortByAlignmentProximity(AI_DM_PROMPTS.filter(p => p.category === 'exploration'), alignmentTarget) : AI_DM_PROMPTS.filter(p => p.category === 'exploration')).map((prompt) => (
+                {(alignmentTarget ? sortByAlignmentProximity(getAIDMPromptsForDisplay().filter(p => p.category === 'exploration'), alignmentTarget) : getAIDMPromptsForDisplay().filter(p => p.category === 'exploration')).map((prompt) => (
                   <PromptButton
                     key={prompt.id}
                     prompt={prompt}
@@ -1415,7 +1416,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
                 Social
               </h3>
               <div className="grid grid-cols-1 gap-2">
-                {(alignmentTarget ? sortByAlignmentProximity(AI_DM_PROMPTS.filter(p => p.category === 'social'), alignmentTarget) : AI_DM_PROMPTS.filter(p => p.category === 'social')).map((prompt) => (
+                {(alignmentTarget ? sortByAlignmentProximity(getAIDMPromptsForDisplay().filter(p => p.category === 'social'), alignmentTarget) : getAIDMPromptsForDisplay().filter(p => p.category === 'social')).map((prompt) => (
                   <PromptButton
                     key={prompt.id}
                     prompt={prompt}
@@ -1434,7 +1435,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
                 Utility
               </h3>
               <div className="grid grid-cols-1 gap-2">
-                {(alignmentTarget ? sortByAlignmentProximity(AI_DM_PROMPTS.filter(p => p.category === 'utility'), alignmentTarget) : AI_DM_PROMPTS.filter(p => p.category === 'utility')).map((prompt) => (
+                {(alignmentTarget ? sortByAlignmentProximity(getAIDMPromptsForDisplay().filter(p => p.category === 'utility'), alignmentTarget) : getAIDMPromptsForDisplay().filter(p => p.category === 'utility')).map((prompt) => (
                   <PromptButton
                     key={prompt.id}
                     prompt={prompt}

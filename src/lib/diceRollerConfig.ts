@@ -294,10 +294,48 @@ export function getPromptsByCategory(category: AIPromptTemplate['category']): AI
   return AI_DM_PROMPTS.filter(p => p.category === category);
 }
 
+/**
+ * Returns AI DM prompts with names swapped for Empyrean mode.
+ */
+export function getAIDMPromptsForDisplay(): AIPromptTemplate[] {
+  if (!isEmpyreanMode()) return AI_DM_PROMPTS;
+
+  const nameSwaps: Record<string, string> = {
+    'Perception Check': 'Awareness Check',
+    'Stealth Result': 'Shadow Work Result',
+    'Persuasion Outcome': 'Command Outcome',
+    'Deception Outcome': 'Deception Outcome',
+    'Intimidation Outcome': 'Intimidation Outcome',
+    'Investigate Area': 'Codex Search',
+    'Describe Attack': 'Describe Strike',
+    'Describe Damage': 'Describe Impact',
+  };
+
+  return AI_DM_PROMPTS.map(p => {
+    const swapped = nameSwaps[p.name];
+    return swapped ? { ...p, name: swapped } : p;
+  });
+}
+
 // Format a prompt with the roll result, applying 4th Wall Time if enabled
 import { applyTimePrefix } from './fourthWallTime';
 
 export function formatPromptWithRoll(prompt: string, roll: number): string {
-  const formatted = prompt.replace(/{ROLL}/g, roll.toString());
+  let formatted = prompt.replace(/{ROLL}/g, roll.toString());
+
+  // In Empyrean mode, swap D&D terms in the prompt text sent to the AI
+  if (isEmpyreanMode()) {
+    formatted = formatted
+      .replace(/Perception check/gi, 'Awareness check')
+      .replace(/Perception/g, 'Awareness')
+      .replace(/Stealth check/gi, 'Shadow Work check')
+      .replace(/Stealth/g, 'Shadow Work')
+      .replace(/Investigation check/gi, 'Codex check')
+      .replace(/Persuasion check/gi, 'Command check')
+      .replace(/Persuasion/g, 'Command')
+      .replace(/Intimidation check/gi, 'Intimidation check')
+      .replace(/Deception check/gi, 'Deception check');
+  }
+
   return applyTimePrefix(formatted);
 }
