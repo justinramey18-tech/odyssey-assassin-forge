@@ -85,6 +85,13 @@ export default function PartyDragonChat({
   const [editingNotes, setEditingNotes] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [deletingIdx, setDeletingIdx] = useState<number | null>(null);
+  const [previewState, setPreviewState] = useState<{
+    voicedText: string;
+    originalText: string;
+    targetDragonName: string;
+    targetUserId: string;
+    replyToId?: string;
+  } | null>(null);
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
