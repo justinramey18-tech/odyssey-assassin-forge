@@ -204,7 +204,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
             style={{
               zIndex: 65,
               background: 'radial-gradient(circle at center, transparent 0%, transparent 35%, rgba(0,0,0,0.5) 58%, rgba(0,0,0,0.75) 100%)',
-              animation: 'consciousness-tunnel 4.5s ease-in-out infinite',
+              animation: 'consciousness-tunnel 4.5s linear infinite',
             }}
           />
         </>
