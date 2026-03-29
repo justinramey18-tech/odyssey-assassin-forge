@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
-import { Check, Crown, Sparkles, Sword, BookOpen, Users, Wand2, Feather, RotateCcw } from 'lucide-react';
+import { Check, Crown, Sparkles, Sword, BookOpen, Users, Wand2, Feather, Flame, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
