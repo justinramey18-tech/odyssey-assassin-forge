@@ -89,6 +89,7 @@ export default function PartyDragonChat({
   const [showDragonPicker, setShowDragonPicker] = useState(false);
   const [showPersonality, setShowPersonality] = useState(false);
   const [showMemoryPanel, setShowMemoryPanel] = useState(false);
+  const [newMemoryText, setNewMemoryText] = useState('');
   const [editingNotes, setEditingNotes] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [deletingIdx, setDeletingIdx] = useState<number | null>(null);
