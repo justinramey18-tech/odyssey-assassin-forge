@@ -207,6 +207,18 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
         </div>
       ))}
       <BurnoutEmberParticles ratio={ratio} />
+      {ratio > 0 && ratio < 0.375 && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            zIndex: 62,
+            backgroundImage: `url(${burnoutDragonBg18})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            opacity: 0.15,
+          }}
+        />
+      )}
       {ratio >= 0.375 && ratio < 0.625 && (
         <div
           className="absolute inset-0 pointer-events-none"
