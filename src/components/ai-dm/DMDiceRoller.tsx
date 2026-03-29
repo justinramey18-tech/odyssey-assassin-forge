@@ -89,6 +89,33 @@ const SKILL_DESCRIPTIONS: Record<string, string> = {
   survival: 'Track, forage, navigate',
 };
 
+// Empyrean skill descriptions
+const EMPYREAN_SKILL_DESCRIPTIONS: Record<string, string> = {
+  acrobatics: 'Aerial maneuvers, flight combat',
+  animal_handling: 'Bond with your dragon',
+  arcana: 'Signet theory & rune lore',
+  athletics: 'Endure long flights & exertion',
+  deception: 'Mislead with cunning',
+  history: 'Recall military history',
+  insight: "Read someone's motives",
+  intimidation: 'Threaten or coerce',
+  investigation: 'Search the Codex',
+  medicine: 'Field triage & stabilization',
+  nature: 'Dragon lore & beast knowledge',
+  perception: 'Spot threats & hidden danger',
+  performance: 'Rally morale & inspire',
+  persuasion: 'Command & lead others',
+  religion: 'Venin knowledge & warding',
+  sleight_of_hand: 'Craft runes & wards',
+  stealth: 'Move unseen, shadow work',
+  survival: 'Tactical survival & navigation',
+};
+
+function getSkillDescription(skillId: string): string {
+  if (isEmpyreanMode()) return EMPYREAN_SKILL_DESCRIPTIONS[skillId] ?? SKILL_DESCRIPTIONS[skillId] ?? '';
+  return SKILL_DESCRIPTIONS[skillId] ?? '';
+}
+
 // Save descriptions for new players
 const SAVE_DESCRIPTIONS: Record<AbilityScore, string> = {
   str: 'Resist being pushed or held',
@@ -98,6 +125,20 @@ const SAVE_DESCRIPTIONS: Record<AbilityScore, string> = {
   wis: 'Resist charms and fear',
   cha: 'Defy banishment effects',
 };
+
+const EMPYREAN_SAVE_DESCRIPTIONS: Record<AbilityScore, string> = {
+  str: 'Endure physical force',
+  dex: 'Dodge blasts & dragon fire',
+  con: 'Resist venin & exhaustion',
+  int: 'Focus through mental assault',
+  wis: 'Trust your instinct under pressure',
+  cha: 'Assert willpower against influence',
+};
+
+function getSaveDescription(key: AbilityScore): string {
+  if (isEmpyreanMode()) return EMPYREAN_SAVE_DESCRIPTIONS[key] ?? SAVE_DESCRIPTIONS[key];
+  return SAVE_DESCRIPTIONS[key];
+}
 
 function getModifier(ctx: CharacterContext, ability: AbilityScore): number {
   if (!ctx.abilityScores) return 0;
