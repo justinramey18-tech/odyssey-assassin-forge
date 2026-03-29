@@ -95,7 +95,7 @@ export function ClassLevelBadge({
       >
         <Icon className={styles.icon} />
         <span className={cn('font-semibold', styles.text)}>
-          {classConfig.name}
+          {isEmpyreanMode() ? (EMPYREAN_CLASS_LABELS[primaryClass] ?? classConfig.name) : classConfig.name}
         </span>
         <span className="opacity-70">
           Lvl {totalLevel}
