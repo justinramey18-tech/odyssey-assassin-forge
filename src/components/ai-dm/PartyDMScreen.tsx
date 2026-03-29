@@ -1728,7 +1728,18 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             </motion.button>
           )}
         </AnimatePresence>
-        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px]">
+        <div ref={scrollRef} className={cn(
+          "flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px]",
+          isEmpyrean && dragonBonds.isSetup && dragonBonds.myDragon?.signetType && (() => {
+            const bLevel = dragonBonds.myDragon.burnout;
+            const bBond = dragonBonds.myDragon.bond ?? 50;
+            const bMax = bBond >= 76 ? 9 : bBond >= 51 ? 7 : bBond >= 26 ? 5 : 4;
+            const ratio = bMax > 0 ? bLevel / bMax : 0;
+            if (ratio >= 0.75) return "animate-[text-waver_1.5s_ease-in-out_infinite]";
+            if (ratio >= 0.5) return "animate-[text-waver_3s_ease-in-out_infinite]";
+            return "";
+          })()
+        )}>
           {partyDm.messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-6">
               <Users className="w-12 h-12 text-primary/40 mb-4" />
