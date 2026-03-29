@@ -1107,7 +1107,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
                 {/* Ability Modifiers */}
                 <div className="grid grid-cols-3 gap-2">
                   {(Object.keys(ABILITY_SCORES) as AbilityScore[]).map((ability) => {
-                    const config = ABILITY_SCORES[ability];
+                    const config = getAbilityScoreDisplay(ability);
                     const mod = abilityModifiers[ability];
                     return (
                       <div
