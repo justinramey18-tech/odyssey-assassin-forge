@@ -203,6 +203,12 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
         </div>
       ))}
       <BurnoutEmberParticles ratio={ratio} />
+      {ratio >= 0.75 && ratio < 0.95 && (
+        <div
+          className="fixed inset-0 bg-black animate-[consciousness-fade_6s_ease-in-out_infinite] pointer-events-none"
+          style={{ zIndex: 62, opacity: 0.45 }}
+        />
+      )}
       {ratio >= 0.95 && (
         <div
           className="fixed inset-0 bg-black animate-[consciousness-fade_4s_ease-in-out_infinite] pointer-events-none"
