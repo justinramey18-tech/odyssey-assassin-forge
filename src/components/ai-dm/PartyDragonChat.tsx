@@ -636,10 +636,10 @@ export default function PartyDragonChat({
           />
           <button
             onClick={handleSend}
-            disabled={!inputValue.trim() || isLoading}
+            disabled={!inputValue.trim() || isLoading || isVoicing}
             className={cn(
               'shrink-0 p-2.5 rounded-xl border transition-all',
-              inputValue.trim() && !isLoading
+              inputValue.trim() && !isLoading && !isVoicing
                 ? networkTarget
                   ? 'bg-purple-900/40 border-purple-500/30 text-purple-300 hover:bg-purple-900/60'
                   : 'bg-cyan-900/40 border-cyan-500/30 text-cyan-300 hover:bg-cyan-900/60'
