@@ -724,74 +724,130 @@ async function processCommand(
     return;
   }
 
-  // /bond MESSAGE — Talk to your bonded dragon
+  // /bond [DragonName] MESSAGE — Talk to your bonded dragon
   if (cmd.startsWith('/bond ') || cmd === '/bond') {
-    const message = text.trim().substring(5).trim();
-    if (!message) {
-      await sendTelegram(chatId, '❌ Usage: /bond How are you feeling after that battle?', lovableKey, telegramKey);
+    const rawArgs = text.trim().substring(5).trim();
+    if (!rawArgs) {
+      await sendTelegram(chatId, '❌ Usage:\n<code>/bond How are you feeling?</code>\n<code>/bond Gwen, what do you think?</code>\n\nIf you have multiple dragons, prefix with the name:\n<code>/bond:solo How are you?</code>\n<code>/bond:party How are you?</code>', lovableKey, telegramKey);
       return;
     }
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
 
-    // Fetch dragon data — prefer party over solo
-    let dragonName = '';
-    let dragonNotes = '';
-    let trust = 10;
-    let bond = 15;
-    let mood = 'calm';
-    let memories: Array<{ text: string; source: string; createdAt: string }> = [];
-    let characterName = 'Rider';
+    // Determine source filter from /bond:solo or /bond:party
+    let sourceFilter: 'solo' | 'party' | null = null;
+    if (cmd.startsWith('/bond:solo')) {
+      sourceFilter = 'solo';
+    } else if (cmd.startsWith('/bond:party')) {
+      sourceFilter = 'party';
+    }
+
+    // The message is everything after /bond or /bond:solo or /bond:party
+    const bondCmdMatch = text.trim().match(/^\/bond(?::(?:solo|party))?\s+([\s\S]*)$/i);
+    const message = bondCmdMatch ? bondCmdMatch[1].trim() : '';
+    if (!message) {
+      await sendTelegram(chatId, '❌ Usage: /bond How are you feeling after that battle?', lovableKey, telegramKey);
+      return;
+    }
 
     // Get character name
     const save = await getCharacterData(userId, supabase);
+    let characterName = 'Rider';
     if (save) {
       characterName = (save.character_data as any)?.name || 'Rider';
     }
 
-    // Try party dragon bond first
-    const { data: partyBonds } = await supabase
-      .from('party_shared_state')
-      .select('state_data')
-      .eq('user_id', userId)
-      .eq('state_type', 'dragon_bond')
-      .limit(1);
-
-    if (partyBonds && partyBonds.length > 0) {
-      const d = partyBonds[0].state_data as any;
-      if (d?.dragonName) {
-        dragonName = d.dragonName;
-        dragonNotes = d.dragonNotes || '';
-        trust = d.trust ?? 10;
-        bond = d.bond ?? 15;
-        mood = d.mood || 'calm';
-        memories = d.memories || [];
-      }
+    // Collect all available dragons
+    interface DragonCandidate {
+      name: string;
+      notes: string;
+      trust: number;
+      bond: number;
+      mood: string;
+      memories: Array<{ text: string; source: string; createdAt: string }>;
+      source: 'solo' | 'party';
     }
+    const candidates: DragonCandidate[] = [];
 
-    // Fallback to solo dragon
-    if (!dragonName && save) {
+    // Solo dragon
+    if (save && sourceFilter !== 'party') {
       const ext = (save.extended_data || {}) as any;
       const soloDragon = ext?.dragonBond;
       if (soloDragon?.dragonName) {
-        dragonName = soloDragon.dragonName;
-        dragonNotes = soloDragon.dragonNotes || '';
-        trust = soloDragon.trust ?? 10;
-        bond = soloDragon.bond ?? 15;
-        mood = soloDragon.mood || 'calm';
-        memories = soloDragon.memories || [];
+        candidates.push({
+          name: soloDragon.dragonName,
+          notes: soloDragon.dragonNotes || '',
+          trust: soloDragon.trust ?? 10,
+          bond: soloDragon.bond ?? 15,
+          mood: soloDragon.mood || 'calm',
+          memories: soloDragon.memories || [],
+          source: 'solo',
+        });
       }
     }
 
-    if (!dragonName) {
+    // Party dragon bonds
+    if (sourceFilter !== 'solo') {
+      const { data: partyBonds } = await supabase
+        .from('party_shared_state')
+        .select('state_data')
+        .eq('user_id', userId)
+        .eq('state_type', 'dragon_bond');
+
+      if (partyBonds) {
+        for (const row of partyBonds) {
+          const d = row.state_data as any;
+          if (d?.dragonName) {
+            // Avoid duplicates with same name from solo
+            if (!candidates.some(c => c.name === d.dragonName && c.source === 'party')) {
+              candidates.push({
+                name: d.dragonName,
+                notes: d.dragonNotes || '',
+                trust: d.trust ?? 10,
+                bond: d.bond ?? 15,
+                mood: d.mood || 'calm',
+                memories: d.memories || [],
+                source: 'party',
+              });
+            }
+          }
+        }
+      }
+    }
+
+    if (candidates.length === 0) {
       await sendTelegram(chatId, '🐉 No bonded dragon found. Bond with a dragon in an Empyrean campaign first!', lovableKey, telegramKey);
       return;
     }
 
-    await sendTelegram(chatId, `🐉 <i>${dragonName} stirs through the bond...</i>`, lovableKey, telegramKey);
+    // If multiple dragons with same name but different sources, and no filter specified, list them
+    if (candidates.length > 1 && !sourceFilter) {
+      // Check if user can be auto-resolved — if all dragons have different names, no ambiguity
+      const uniqueNames = new Set(candidates.map(c => c.name));
+      if (uniqueNames.size < candidates.length) {
+        // Ambiguous — show disambiguation
+        const list = candidates.map(c => `• <b>${c.name}</b> (${c.source === 'solo' ? 'Solo Empyrean' : 'Party Empyrean'})`).join('\n');
+        await sendTelegram(chatId,
+          `🐉 You have multiple dragons with the same name:\n\n${list}\n\n` +
+          `Use <code>/bond:solo</code> or <code>/bond:party</code> to specify:\n` +
+          `<code>/bond:solo ${message}</code>\n` +
+          `<code>/bond:party ${message}</code>`,
+          lovableKey, telegramKey,
+        );
+        return;
+      }
+    }
+
+    // Pick the dragon — if only one, use it; if filter specified, it's already filtered
+    // Default: prefer party over solo (existing behavior)
+    const selected = candidates.find(c => c.source === 'party') || candidates[0];
+
+    const { name: dragonName, notes: dragonNotes, trust, bond: bondLevel, mood, memories } = selected;
+
+    await sendTelegram(chatId, `🐉 <i>${dragonName} stirs through the bond...</i>${candidates.length > 1 ? ` <i>(${selected.source})</i>` : ''}`, lovableKey, telegramKey);
 
     // Build a simplified dragon chat system prompt
-    const systemPrompt = buildTelegramDragonPrompt(dragonName, characterName, trust, mood, bond, dragonNotes, memories);
+    const systemPrompt = buildTelegramDragonPrompt(dragonName, characterName, trust, mood, bondLevel, dragonNotes, memories);
 
     // Fetch recent narrative for context
     let recentNarrative = '';
