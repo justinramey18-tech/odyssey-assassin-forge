@@ -1705,6 +1705,21 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
       {/* Messages */}
       <div className="flex-1 min-h-0 relative flex flex-col overflow-hidden">
+        <AnimatePresence>
+          {showEmpyreanBanner && (
+            <motion.button
+              key="empyrean-banner"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
+              onClick={() => { setShowEmpyreanBanner(false); onShowChat?.(); }}
+              className="absolute inset-0 z-20 flex items-center justify-center bg-black/80 rounded-lg overflow-hidden cursor-pointer"
+            >
+              <img src={empyreanSpeaksImg} alt="The Empyrean Speaks — tap to view" className="w-full h-full object-cover rounded-lg" />
+            </motion.button>
+          )}
+        </AnimatePresence>
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px]">
           {partyDm.messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-6">
