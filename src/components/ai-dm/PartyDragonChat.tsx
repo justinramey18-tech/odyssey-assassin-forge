@@ -97,6 +97,7 @@ export default function PartyDragonChat({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
   const opinionFiredRef = useRef(false);
+  const isNearBottomRef = useRef(true);
 
   // Merged timeline
   const allItems = useMemo(() => {
@@ -128,9 +129,22 @@ export default function PartyDragonChat({
     }
   }, [showPersonality, dragonNotes]);
 
-  // Auto-scroll on new messages
+  // Track whether user is near the bottom of the scroll container
   useEffect(() => {
-    if (scrollRef.current) {
+    const el = scrollRef.current;
+    if (!el) return;
+    const SCROLL_THRESHOLD = 100;
+    const onScroll = () => {
+      isNearBottomRef.current =
+        el.scrollHeight - el.scrollTop - el.clientHeight < SCROLL_THRESHOLD;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Auto-scroll on new messages only if user is near the bottom
+  useEffect(() => {
+    if (scrollRef.current && isNearBottomRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [allItems, isLoading]);
