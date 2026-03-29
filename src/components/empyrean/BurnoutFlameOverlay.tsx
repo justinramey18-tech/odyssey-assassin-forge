@@ -41,15 +41,25 @@ function createCrackleLoop(ctx: AudioContext, volume: number): { gain: GainNode;
   return { gain, stop: () => { try { source.stop(); } catch {} } };
 }
 
-// Haptic vibration pulse pattern based on intensity
-function triggerHaptic(ratio: number) {
+// Heartbeat lub-dub haptic patterns synced to animation cycle times
+// Each pattern is: [lub-vibrate, gap, dub-vibrate, rest-until-next-cycle]
+// Level 6: 6s cycle, gentle
+// Level 7: 4.5s cycle, medium
+// Level 8: 3s cycle, strong
+function triggerHeartbeatHaptic(ratio: number) {
   if (!navigator.vibrate) return;
-  if (ratio >= 0.9) {
-    navigator.vibrate([30, 80, 30, 80, 50]);
+  if (ratio >= 0.875) {
+    // Level 8: strong lub-dub, 3s cycle
+    // lub(50ms) gap(130ms) dub(40ms) rest(2780ms) = 3000ms total
+    navigator.vibrate([50, 130, 40, 2780]);
   } else if (ratio >= 0.75) {
-    navigator.vibrate([20, 150, 20]);
-  } else {
-    navigator.vibrate([15, 300, 15]);
+    // Level 7: medium lub-dub, 4.5s cycle
+    // lub(35ms) gap(180ms) dub(30ms) rest(4255ms) = 4500ms total
+    navigator.vibrate([35, 180, 30, 4255]);
+  } else if (ratio >= 0.625) {
+    // Level 6: gentle lub-dub, 6s cycle
+    // lub(25ms) gap(230ms) dub(20ms) rest(5725ms) = 6000ms total
+    navigator.vibrate([25, 230, 20, 5725]);
   }
 }
 
