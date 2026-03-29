@@ -123,62 +123,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
 
   if (level <= 0 || max <= 0) return null;
 
-  const opacity = 0.25 + ratio * 0.65;
-  const flickerDuration = Math.max(3 - ratio * 2, 0.8);
-  const danceDuration = Math.max(4 - ratio * 2.5, 1.2);
-  const flameHeight = Math.round(10 + ratio * 18);
-
-  const isHorizontal = (side: string) => side === 'top' || side === 'bottom';
-
-  const edgeStyle = (side: 'top' | 'bottom' | 'left' | 'right'): React.CSSProperties => {
-    const base: React.CSSProperties = {
-      position: 'absolute',
-      opacity,
-      pointerEvents: 'none',
-      overflow: 'hidden',
-      zIndex: 61,
-    };
-
-    if (side === 'top') {
-      return { ...base, top: 0, left: 0, right: 0, height: `${flameHeight}px` };
-    }
-    if (side === 'bottom') {
-      return { ...base, bottom: 0, left: 0, right: 0, height: `${flameHeight}px`, transform: 'rotate(180deg)' };
-    }
-    if (side === 'left') {
-      return { ...base, top: 0, bottom: 0, left: 0, width: `${flameHeight}px` };
-    }
-    return { ...base, top: 0, bottom: 0, right: 0, width: `${flameHeight}px` };
-  };
-
-  const flameLayerStyle = (
-    side: 'top' | 'bottom' | 'left' | 'right',
-    layerIndex: number
-  ): React.CSSProperties => {
-    const horiz = isHorizontal(side);
-    const delays = SIDE_CONFIGS[side];
-    const delay = layerIndex === 0 ? delays.delay1 : layerIndex === 1 ? delays.delay2 : delays.delay3;
-    const layerOpacity = layerIndex === 0 ? 1 : layerIndex === 1 ? 0.7 : 0.4;
-    const danceAnim = horiz ? 'flame-dance' : 'flame-dance-vertical';
-    const flickerAnim = horiz ? 'flame-flicker' : 'flame-sway';
-
-    return {
-      position: 'absolute',
-      inset: 0,
-      backgroundImage: `url(${flameBorderImg})`,
-      backgroundSize: 'cover',
-      backgroundPosition: horiz ? 'center top' : (side === 'left' ? 'left center' : 'right center'),
-      filter: `brightness(${1.3 + ratio * 0.7 + layerIndex * 0.2}) saturate(${1.2 + ratio * 1.2})`,
-      opacity: layerOpacity,
-      animation: `${danceAnim} ${danceDuration + layerIndex * 0.6}s linear infinite, ${flickerAnim} ${flickerDuration + layerIndex * 0.3}s ease-in-out infinite`,
-      animationDelay: delay,
-      mixBlendMode: layerIndex > 0 ? 'screen' : undefined,
-    };
-  };
-
-  const sides = ['top', 'bottom', 'left', 'right'] as const;
   const vignetteOpacity = 0.04 + ratio * 0.30;
-  const layerCount = ratio >= 0.625 ? 3 : ratio >= 0.25 ? 2 : 1;
 
   return (
     <>
