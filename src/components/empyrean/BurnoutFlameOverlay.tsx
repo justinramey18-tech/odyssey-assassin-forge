@@ -211,7 +211,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
       )}
       {ratio >= 0.95 && (
         <div
-          className="absolute inset-0 bg-black animate-[consciousness-fade_4s_ease-in-out_infinite] pointer-events-none"
+          className="absolute inset-0 bg-black animate-[consciousness-fade_10s_ease-in-out_infinite] pointer-events-none"
           style={{ zIndex: 62 }}
         />
       )}
