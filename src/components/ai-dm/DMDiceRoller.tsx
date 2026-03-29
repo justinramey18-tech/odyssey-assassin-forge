@@ -4,7 +4,8 @@ import { Dices, Shield, Sparkles, Scale, Flame, Shuffle, Skull } from 'lucide-re
 import { cn } from '@/lib/utils';
 import { rollDie } from '@/lib/diceRoller';
 import { rollWeightedDie, loadDiceOddsMode, saveDiceOddsMode, DICE_ODDS_CONFIGS, type DiceOddsMode } from '@/lib/diceOdds';
-import { SKILLS, ABILITY_SCORES, type AbilityScore } from '@/lib/diceRollerConfig';
+import { SKILLS, ABILITY_SCORES, type AbilityScore, getAbilityScoreDisplay, getSkillsForDisplay } from '@/lib/diceRollerConfig';
+import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import type { CharacterContext } from '@/components/oracle/types';
 import { playDiceRattle, playDiceThud } from '@/lib/diceSounds';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
