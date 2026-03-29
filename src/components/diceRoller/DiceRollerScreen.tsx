@@ -558,7 +558,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
     const profBonus = proficiencyBonus * profMultiplier;
     const totalMod = abilityMod + profBonus;
     const indicator = hasExpertise ? '★' : (isProficient ? '●' : '');
-    rollDice('d20', `${indicator}${skillName} (${ABILITY_SCORES[ability].abbr})`, totalMod, true);
+    rollDice('d20', `${indicator}${skillName} (${getAbilityScoreDisplay(ability).abbr})`, totalMod, true);
   }, [rollDice, abilityModifiers, proficiencyBonus, proficientSkills, expertiseSkills]);
 
   // Roll saving throw (d20) with modifiers and roll mode
