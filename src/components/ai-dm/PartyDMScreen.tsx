@@ -5,6 +5,7 @@ import { useNPCAutocomplete } from '@/hooks/use-npc-autocomplete';
 import { PartyDMInput, type PartyDMInputHandle } from './PartyDMInput';
 import { PartyDMAudioRecorder } from './PartyDMAudioRecorder';
 import partyChatIcon from '@/assets/party-chat-icon.jpg';
+import empyreanSpeaksImg from '@/assets/empyrean-speaks.jpg';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
