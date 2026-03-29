@@ -161,8 +161,6 @@ interface PromptDrawerProviderProps {
   // Party DM props
   partyId?: string | null;
   isPartyCreator?: boolean;
-  syncedDragonNetworkMessages?: any[];
-  setSyncedDragonNetworkMessages?: React.Dispatch<React.SetStateAction<any[]>>;
   // Party chat callback (opens fullscreen party chat from Party DM)
   onOpenPartyChat?: () => void;
   // Auto-sync callbacks for AI DM
@@ -218,8 +216,6 @@ export function PromptDrawerProvider({
   onShareBuffToParty,
   partyId,
   isPartyCreator = false,
-  syncedDragonNetworkMessages,
-  setSyncedDragonNetworkMessages,
   onOpenPartyChat,
   autoSyncCallbacks,
 }: PromptDrawerProviderProps) {
@@ -791,8 +787,6 @@ export function PromptDrawerProvider({
               isPartyCreator={isPartyCreator}
               partyMembers={partyMembers}
               userId={userId ?? ''}
-              syncedDragonNetworkMessages={syncedDragonNetworkMessages}
-              setSyncedDragonNetworkMessages={setSyncedDragonNetworkMessages}
               characterName={character.name}
               onShowChat={onOpenPartyChat ? () => { setPartyDMOpen(false); onOpenPartyChat(); } : undefined}
               autoSyncCallbacks={autoSyncCallbacks}

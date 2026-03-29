@@ -2517,8 +2517,6 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         } : undefined}
         partyId={isPartyMode ? partySync.party.partyId : null}
         isPartyCreator={isPartyMode ? partySync.party.isCreator : false}
-        syncedDragonNetworkMessages={partySync.dragonNetworkMessages}
-        setSyncedDragonNetworkMessages={partySync.setDragonNetworkMessages}
         autoSyncCallbacks={autoSyncCallbacks}
         onOpenPartyChat={() => setOpenPartyChatRequested(true)}
       >
@@ -2720,8 +2718,6 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         } : undefined}
         partyId={isPartyMode ? partySync.party.partyId : null}
         isPartyCreator={isPartyMode ? partySync.party.isCreator : false}
-        syncedDragonNetworkMessages={partySync.dragonNetworkMessages}
-        setSyncedDragonNetworkMessages={partySync.setDragonNetworkMessages}
         autoSyncCallbacks={autoSyncCallbacks}
       >
       {isPartyMode && (

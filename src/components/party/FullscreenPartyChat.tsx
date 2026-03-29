@@ -334,6 +334,7 @@ export function FullscreenPartyChat({
               groupedMessages.map((group) => {
                 const isSelf = group.sender.user_id === currentUserId;
                 const senderColor = getSenderColor(group.sender.user_id, uniqueUserIds);
+                const isDragonMessage = group.sender.message?.startsWith('[🐉 ');
                 return (
                   <div key={group.sender.id + group.msgs[0].id} className="space-y-0.5">
                     <div className="flex items-center gap-2">
@@ -346,8 +347,8 @@ export function FullscreenPartyChat({
                           )}
                         />
                       )}
-                      <span className={cn("text-sm font-semibold", isSelf ? "text-emerald-400" : senderColor)}>
-                        {group.sender.sender_name}
+                      <span className={cn("text-sm font-semibold", isDragonMessage ? "text-purple-400" : isSelf ? "text-emerald-400" : senderColor)}>
+                        {isDragonMessage ? `🐉 ${group.sender.sender_name}` : group.sender.sender_name}
                       </span>
                       <span className="text-[10px] text-muted-foreground">
                         {formatTimestamp(group.sender.created_at)}
@@ -357,6 +358,7 @@ export function FullscreenPartyChat({
                       const isEditing = editingId === msg.id;
                       const isSelected = selectedIds.has(msg.id);
                       const repliedMsg = msg.reply_to_id ? findMsg(msg.reply_to_id) : null;
+                      const isMsgDragon = msg.message?.startsWith('[🐉 ');
 
                       return (
                         <div
@@ -366,6 +368,7 @@ export function FullscreenPartyChat({
                             bulkMode && canDeleteMsg(msg) && "cursor-pointer hover:bg-muted/20",
                             isSelected && "bg-destructive/10",
                             msg.is_pinned && "border-l-2 border-amber-500/40",
+                            isMsgDragon && "border-l-2 border-purple-500/40 bg-purple-500/5",
                           )}
                           onPointerDown={(e) => { if (!bulkMode) startLongPress(msg, e); }}
                           onPointerUp={cancelLongPress}
@@ -407,7 +410,7 @@ export function FullscreenPartyChat({
                                 </div>
                               )}
                               <div className="space-y-1">
-                                <p className="text-sm text-foreground/90 break-words">{msg.message}</p>
+                                <p className={cn("text-sm break-words", isMsgDragon ? "text-purple-200/80 italic" : "text-foreground/90")}>{msg.message}</p>
                                 {msg.image_url && (
                                   <a href={msg.image_url} target="_blank" rel="noopener noreferrer" className="block mb-1">
                                     <img src={msg.image_url} alt="Message image" className="max-w-full max-h-32 rounded" />

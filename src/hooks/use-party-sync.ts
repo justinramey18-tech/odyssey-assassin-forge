@@ -305,8 +305,6 @@ export interface UsePartySyncReturn {
   // Typing indicators
   typingUsers: { userId: string; name: string }[];
   broadcastTyping: (senderName: string) => void;
-  dragonNetworkMessages: any[];
-  setDragonNetworkMessages: React.Dispatch<React.SetStateAction<any[]>>;
 }
 
 export function usePartySync(): UsePartySyncReturn {
@@ -346,7 +344,7 @@ export function usePartySync(): UsePartySyncReturn {
   const [combatLog, setCombatLog] = useState<CombatLogEntry[]>([]);
   const [typingUsers, setTypingUsers] = useState<{ userId: string; name: string }[]>([]);
   const [messageReactions, setMessageReactions] = useState<MessageReaction[]>([]);
-  const [dragonNetworkMessages, setDragonNetworkMessages] = useState<any[]>([]);
+  
   const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -531,13 +529,6 @@ export function usePartySync(): UsePartySyncReturn {
             if (mapData.tierBackgrounds) setMapTierBackgrounds(mapData.tierBackgrounds);
             if (mapData.backgroundOpacity !== undefined) setMapBackgroundOpacity(mapData.backgroundOpacity);
             if (mapData.customTiers) setMapCustomTiers(mapData.customTiers);
-          }
-          if (s.state_type === 'dragon_network_message' && s.user_id === user.id) {
-            const incoming = s.state_data as any;
-            setDragonNetworkMessages(prev => {
-              if (prev.some((m: any) => m.id === incoming.id)) return prev;
-              return [...prev, incoming];
-            });
           }
         });
       }
@@ -824,15 +815,6 @@ export function usePartySync(): UsePartySyncReturn {
             if (mapData.customTiers) setMapCustomTiers(mapData.customTiers);
           }
 
-          if (row.state_type === 'dragon_network_message') {
-            if (row.user_id === user.id) {
-              const incoming = row.state_data as any;
-              setDragonNetworkMessages(prev => {
-                if (prev.some((m: any) => m.id === incoming.id)) return prev;
-                return [...prev, incoming];
-              });
-            }
-          }
         }
       )
       .subscribe();
@@ -1789,7 +1771,5 @@ export function usePartySync(): UsePartySyncReturn {
     combatLog,
     typingUsers,
     broadcastTyping,
-    dragonNetworkMessages,
-    setDragonNetworkMessages,
   };
 }
