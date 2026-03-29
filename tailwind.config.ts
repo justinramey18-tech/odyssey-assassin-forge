@@ -117,6 +117,12 @@ export default {
         "glass-glow": "inset 0 1px 0 rgba(255,255,255,0.1)",
       },
       keyframes: {
+        "ember-rise": {
+          "0%": { transform: "translateY(0) translateX(0) scale(1)", opacity: "0" },
+          "10%": { opacity: "1" },
+          "70%": { opacity: "0.8" },
+          "100%": { transform: "translateY(-120vh) translateX(var(--ember-drift, 0px)) scale(0.3)", opacity: "0" },
+        },
         "accordion-down": {
           from: { height: "0" },
           to: { height: "var(--radix-accordion-content-height)" },
