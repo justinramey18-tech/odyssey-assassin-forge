@@ -1,5 +1,6 @@
 // Class Level Badge Component
 // Displays class icon, name, and level in a compact badge format
+import { isEmpyreanMode, EMPYREAN_CLASS_LABELS } from '@/lib/empyreanLabels';
 
 import { cn } from '@/lib/utils';
 import { DnDClass, ClassLevelMap, CLASS_REGISTRY, calculateTotalLevel } from '@/lib/classes';
