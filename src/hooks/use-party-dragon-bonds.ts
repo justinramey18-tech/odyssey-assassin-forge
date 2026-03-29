@@ -437,13 +437,6 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         (payload) => {
           const row = (payload.new as Record<string, unknown>) || {};
           if (row.state_type === 'dragon_network_message') {
-            if (row.user_id === userId) {
-              const incoming = row.state_data as unknown as DragonNetworkMessage;
-              setDragonNetworkMessages(prev => {
-                if (prev.some(m => m.id === incoming.id)) return prev;
-                return [...prev, incoming];
-              });
-            }
             return;
           }
           // Handle dragon_relationships realtime updates from self (other tab/device)
