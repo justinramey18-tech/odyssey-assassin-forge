@@ -469,8 +469,6 @@ ${truncated}`);
           onRefreshCampaigns={campaignSessions.refreshSessions}
           wildShape={wildShape}
           isMomoMoonDruid={isMomoMoonDruid}
-          syncedDragonNetworkMessages={syncedDragonNetworkMessages}
-          setSyncedDragonNetworkMessages={setSyncedDragonNetworkMessages}
         />
 
       <OocDmChat
