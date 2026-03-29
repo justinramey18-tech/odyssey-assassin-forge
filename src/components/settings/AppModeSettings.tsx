@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
 
 const ICON_MAP: Record<string, LucideIcon> = {
-  Sparkles, Sword, BookOpen, Users, Crown, Wand2, Feather,
+  Sparkles, Sword, BookOpen, Users, Crown, Wand2, Feather, Flame,
 };
 
 const COLOR_MAP: Record<string, string> = {
