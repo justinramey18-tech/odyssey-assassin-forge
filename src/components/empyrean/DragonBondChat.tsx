@@ -89,6 +89,7 @@ export default function DragonBondChat({
   const [showMemoryPanel, setShowMemoryPanel] = useState(false);
   const [newMemoryText, setNewMemoryText] = useState('');
   const [newMemorySource, setNewMemorySource] = useState<'rider-said' | 'campaign' | 'bond-chat'>('rider-said');
+  const [confirmClearMemories, setConfirmClearMemories] = useState(false);
   const [editingNotes, setEditingNotes] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
