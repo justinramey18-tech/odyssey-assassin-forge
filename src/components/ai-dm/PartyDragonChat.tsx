@@ -267,9 +267,25 @@ export default function PartyDragonChat({
             {dragonName || 'Your Dragon'}
           </h1>
         </div>
+        <button
+          onClick={() => {
+            setShowMemoryPanel(prev => !prev);
+            if (showPersonality) setShowPersonality(false);
+          }}
+          className={cn(
+            "p-2 rounded-lg transition-colors",
+            showMemoryPanel
+              ? "bg-purple-500/20 text-purple-400"
+              : "text-white/30 hover:text-white/50 hover:bg-white/5"
+          )}
+          style={{ touchAction: 'manipulation' }}
+          title="Manage dragon memories"
+        >
+          <Brain className="w-4 h-4" />
+        </button>
         {onUpdateNotes && (
           <button
-            onClick={() => setShowPersonality(prev => !prev)}
+            onClick={() => { setShowPersonality(prev => !prev); if (showMemoryPanel) setShowMemoryPanel(false); }}
             className={cn(
               "p-2 rounded-lg transition-colors",
               showPersonality
