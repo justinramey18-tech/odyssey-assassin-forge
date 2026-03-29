@@ -24,6 +24,7 @@ import {
   type AbilityScore,
   type AIPromptTemplate,
 } from '@/lib/diceRollerConfig';
+import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import { rollDie } from '@/lib/diceRoller';
 import { getD20RollQuality } from '@/lib/rollQuality';
 import { DiceOddsWidget } from '@/components/settings/DiceOddsWidget';
