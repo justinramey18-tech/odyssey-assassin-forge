@@ -437,13 +437,6 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         (payload) => {
           const row = (payload.new as Record<string, unknown>) || {};
           if (row.state_type === 'dragon_network_message') {
-            if (row.user_id === userId) {
-              const incoming = row.state_data as unknown as DragonNetworkMessage;
-              setDragonNetworkMessages(prev => {
-                if (prev.some(m => m.id === incoming.id)) return prev;
-                return [...prev, incoming];
-              });
-            }
             return;
           }
           // Handle dragon_relationships realtime updates from self (other tab/device)
@@ -489,22 +482,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     loadDragonChat();
   }, [loadDragonChat]);
 
-  // Load dragon network messages (initial fetch only — realtime handled by dragon-bonds channel above)
-  useEffect(() => {
-    if (!partyId || !userId) return;
-
-    supabase
-      .from('party_shared_state')
-      .select('*')
-      .eq('party_id', partyId)
-      .eq('user_id', userId)
-      .eq('state_type', 'dragon_network_message')
-      .order('created_at', { ascending: true })
-      .then(({ data }) => {
-        if (!mountedRef.current || !data) return;
-        setDragonNetworkMessages(data.map(r => r.state_data as unknown as DragonNetworkMessage));
-      });
-  }, [partyId, userId]);
+  // Dragon network messages initial fetch removed — now handled by usePartySync
 
   const saveDragonChat = useCallback(async (messages: DragonChatMessage[]) => {
     if (!partyId || !userId) return;

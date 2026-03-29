@@ -50,6 +50,8 @@ interface StandalonePartyDMScreenProps {
   wildShape?: UseWildShapeReturn;
   isMomoMoonDruid?: boolean;
   isSoloEmpyrean?: boolean;
+  syncedDragonNetworkMessages?: any[];
+  setSyncedDragonNetworkMessages?: React.Dispatch<React.SetStateAction<any[]>>;
 }
 
 export function StandalonePartyDMScreen({
@@ -65,6 +67,8 @@ export function StandalonePartyDMScreen({
   wildShape,
   isMomoMoonDruid,
   isSoloEmpyrean,
+  syncedDragonNetworkMessages,
+  setSyncedDragonNetworkMessages,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
@@ -469,6 +473,8 @@ ${truncated}`);
           onRefreshCampaigns={campaignSessions.refreshSessions}
           wildShape={wildShape}
           isMomoMoonDruid={isMomoMoonDruid}
+          syncedDragonNetworkMessages={syncedDragonNetworkMessages}
+          setSyncedDragonNetworkMessages={setSyncedDragonNetworkMessages}
         />
 
       <OocDmChat
