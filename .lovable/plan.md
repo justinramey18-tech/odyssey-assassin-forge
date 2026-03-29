@@ -1,31 +1,51 @@
 
 
-## Fix Ellie Easter Egg to Check Dragon Name Instead of Character Name
+## Repurpose Party Chat as Dragon Network Chat
 
-The Ellie easter egg currently checks the **character name** but should check the **dragon name**. Three locations need changes:
+### What this does
 
-### 1. `src/lib/easter-eggs.ts`
-- Update the JSDoc comment on `isEllieEasterEgg` to say "dragon name" instead of "character name"
-- Update `getEllieBadges` to accept a dragon name parameter (or just update callers)
+Instead of dragon network messages going to individual players' private dragon bond chats, they'll be posted to the **shared party chat** that everyone can see. Players still compose messages through their dragon bond chat (type @, pick a target, voice it, preview it), but when they hit Send, the voiced message lands in the party chat as a special dragon-styled message visible to all party members.
 
-### 2. `src/hooks/use-dragon-bond.ts`
-- Change the easter egg check from `isEllieEasterEgg(characterName)` to `isEllieEasterEgg(dragonName)`
-- The `dragonName` parameter is already available in the hook options
+### Changes needed
 
-### 3. `src/components/home/CharacterNamePlaque.tsx`
-- Currently calls `getEllieBadges(name)` where `name` is the character name
-- Need to add an optional `dragonName` prop and pass it to `getEllieBadges(dragonName)` instead
-- Update `HomeScreen.tsx` to pass the dragon name from the Empyrean config to the plaque
+**1. Update `deliverNetworkMessage` in `use-party-dragon-bonds.ts`**
+- Instead of inserting two rows into `party_shared_state` (one for sender, one for recipient), insert one row into `party_messages` using the existing party chat table
+- The `sender_name` will be the dragon's name (e.g. "Tairn" instead of the player's name)
+- The `message` will be the voiced text, prefixed with a tag like `[🐉 → TargetDragonName]` so everyone can see who it's addressed to
+- This means dragon messages show up in the same chat feed as regular player messages — no separate system needed
 
-### 4. `src/components/home/HomeScreen.tsx`
-- Need to load the dragon name (from `loadEmpyreanConfig` or similar) and pass it as a prop to `CharacterNamePlaque`
+**2. Update `PartyDMScreen.tsx` — change the `onDeliverNetworkMessage` prop**
+- Instead of calling `dragonBonds.deliverNetworkMessage`, call `partySync.sendMessage` (which inserts into `party_messages`)
+- Format the message so it's clear it's a dragon network message (include the sender dragon name and target dragon name)
 
-### Technical Detail
-- In solo mode, dragon name lives in the Empyrean config (`loadEmpyreanConfig().dragonName`)
-- The `useDragonBond` hook already receives `dragonName` as a parameter, so the fix there is trivial
-- For the badge display, we need to thread the dragon name through to `CharacterNamePlaque`
+**3. Update `FullscreenPartyChat.tsx` — style dragon messages differently**
+- Detect messages that start with the dragon tag prefix `[🐉 →`
+- Render those with the purple border styling and italic text to visually distinguish them from regular player chat
+- This is purely a display change — no new data storage needed
 
-### Retroactivity
-- The **badge** will apply retroactively since it's evaluated on every render — as soon as a dragon is named "Ellie", the badge appears
-- The **trust boost** (trust: 25, mood: playful) only applies when bond state is at defaults, so it won't retroactively boost an already-progressed bond — this is the existing behavior and remains unchanged
+**4. Clean up what's no longer needed**
+- Remove the `dragon_network_message` state type handling from `use-party-sync.ts` (the initial fetch, the realtime handler, and the `dragonNetworkMessages`/`setDragonNetworkMessages` state)
+- Remove the `syncedDragonNetworkMessages` prop threading through `Index.tsx`, `PromptDrawerProvider.tsx`, `StandalonePartyDMScreen.tsx`, and `PartyDMScreen.tsx`
+- Remove network message rendering from `PartyDragonChat.tsx` (the `item.kind === 'network'` block) since those messages now live in the party chat
+- Remove the `dragonNetworkMessages` state from `use-party-dragon-bonds.ts`
+
+**5. Keep the Reply flow working**
+- When someone sees a dragon message in party chat and wants to reply through their dragon, they go to their dragon bond chat, type @, pick the dragon, and send as normal
+- No special Reply button needed in party chat — the @ flow in dragon bond chat already handles targeting
+
+### Files to change
+- `src/hooks/use-party-dragon-bonds.ts` — simplify `deliverNetworkMessage` 
+- `src/components/ai-dm/PartyDMScreen.tsx` — update the delivery callback
+- `src/components/party/FullscreenPartyChat.tsx` — add dragon message styling
+- `src/hooks/use-party-sync.ts` — remove dragon network message state and handlers
+- `src/pages/Index.tsx` — remove synced dragon network message prop threading
+- `src/components/drawers/PromptDrawerProvider.tsx` — remove synced dragon network message props
+- `src/components/ai-dm/StandalonePartyDMScreen.tsx` — remove synced dragon network message props
+- `src/components/ai-dm/PartyDragonChat.tsx` — remove network message rendering
+
+### What stays the same
+- The voice → preview → send flow in dragon bond chat (type @, pick target, AI voices it, preview screen)
+- The `voiceAsMyDragon` function
+- All dragon bond chat logic (normal rider-dragon telepathy)
+- Dragon bond config, trust, mood, memories
 
