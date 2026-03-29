@@ -567,7 +567,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
     const profBonus = proficientSaves.has(ability) ? proficiencyBonus : 0;
     const totalMod = abilityMod + profBonus;
     const profIndicator = profBonus > 0 ? '●' : '';
-    rollDice('d20', `${profIndicator}${ABILITY_SCORES[ability].name} Save`, totalMod, true);
+    rollDice('d20', `${profIndicator}${getAbilityScoreDisplay(ability).name} Save`, totalMod, true);
   }, [rollDice, abilityModifiers, proficiencyBonus, proficientSaves]);
 
   // Copy to clipboard
