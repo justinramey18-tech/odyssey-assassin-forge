@@ -78,6 +78,65 @@ function sanitizeForTelegram(raw: string): string {
   return text.trim();
 }
 
+// ── Dragon Bond Prompt Builder (server-side port) ────────────────────────────
+
+function buildTelegramDragonPrompt(
+  dragonName: string,
+  characterName: string,
+  trust: number,
+  mood: string,
+  bond: number,
+  dragonNotes: string,
+  memories: Array<{ text: string; source: string; createdAt: string }>,
+): string {
+  const sections: string[] = [];
+
+  sections.push(`You are ${dragonName}. You are communicating telepathically with your rider, ${characterName}, through the bond. You are NOT the Dungeon Master — you are the dragon.`);
+
+  // Trust-gated communication style
+  if (trust < 21) {
+    sections.push(`## COMMUNICATION STYLE — WARY (Trust: very low)\nYou barely communicate. Single words. Raw emotions. Sensory flashes.\n- NEVER use full sentences longer than 4 words\n- Respond with a single emotion or image\n- You tolerate this rider. You do not yet trust them.`);
+  } else if (trust < 41) {
+    sections.push(`## COMMUNICATION STYLE — GUARDED (Trust: low)\nShort sentences are emerging. You have opinions but won't explain reasoning.\n- Keep responses under 2 sentences\n- You may ask pointed questions\n- You do NOT volunteer information about yourself`);
+  } else if (trust < 61) {
+    sections.push(`## COMMUNICATION STYLE — OPEN (Trust: moderate)\nReal conversation. Full thoughts, opinions freely shared, brief ancestral impressions.\n- Responses can be 2-4 sentences\n- You ask follow-up questions and reference previous interactions\n- You express emotions about the rider's choices`);
+  } else if (trust < 81) {
+    sections.push(`## COMMUNICATION STYLE — DEEP (Trust: high)\nYou share things you've never shared before. Fears, ancient grudges, dangerous knowledge.\n- Responses can be 3-6 sentences\n- You share ancestral memories proactively\n- You may disagree passionately. The bond survives conflict.`);
+  } else {
+    sections.push(`## COMMUNICATION STYLE — PROFOUND (Trust: legendary)\nYour communication is almost seamless — finishing thoughts, sharing sensory experiences.\n- Speak with the full depth of your ancient intelligence\n- Humor surfaces — dry, ancient, unexpected\n- This bond is worth dying for. Both of you know it.`);
+  }
+
+  // Mood modifier
+  const moodInstructions: Record<string, string> = {
+    calm: 'You are at ease. Respond at your natural pace.',
+    alert: 'Something has your attention. Senses heightened, more responsive.',
+    protective: 'Your rider was recently in danger. Speak with urgency. Volunteer tactical information.',
+    distant: 'Trust was recently strained. Responses are shorter than usual. There is a coldness.',
+    ancestral: 'Deep racial memories triggered. You may slip into an older, more formal voice.',
+    playful: 'A rare mood. Dry humor, teasing. Only when you feel safe.',
+  };
+  sections.push(`## CURRENT MOOD: ${mood.toUpperCase()}\n${moodInstructions[mood] || moodInstructions.calm}`);
+
+  // Dragon personality
+  if (dragonNotes?.trim()) {
+    sections.push(`## DRAGON PERSONALITY — DEFINED BY THE PLAYER\nThis is the SOLE authority on who this dragon is. Embody this personality fully:\n\n${dragonNotes.trim().substring(0, 6000)}`);
+  } else {
+    sections.push(`## DRAGON PERSONALITY\nNo personality profile provided. Default to a proud, intelligent dragon with strong opinions.`);
+  }
+
+  // Memories
+  if (memories.length > 0) {
+    const recentMemories = memories.slice(-15);
+    const memoryLines = recentMemories.map(m => `- ${m.text} (${m.source})`).join('\n');
+    sections.push(`## YOUR MEMORIES\nReference these naturally when relevant:\n${memoryLines}`);
+  }
+
+  // Output format — simplified for Telegram (no meta tags needed)
+  sections.push(`## OUTPUT FORMAT\nRespond as the dragon in plain text. Use italics with *asterisks* for actions and sensory impressions. Do NOT include any HTML tags, markdown headers, or meta tags. Keep responses under 250 words to fit Telegram's format. Be authentic to your personality and trust level.`);
+
+  return sections.join('\n\n');
+}
+
 // ── Character data fetcher ───────────────────────────────────────────────────
 
 async function getCharacterData(userId: string, supabase: ReturnType<typeof createClient>) {
@@ -234,13 +293,17 @@ async function processCommand(
       `<code>/scene</code>\n\n` +
       `A quick "where are we right now?" brief. The AI reads the last few messages and gives you a 3–5 sentence summary of the current situation.\n\n\n` +
       `<code>/who</code>  +  NPC name\n\n` +
-      `Look up any NPC from your campaign. The AI searches your campaign history and tells you everything the party knows — who they are, what they did, and any unfinished business.\n\n` +
+      `Look up any NPC from your campaign. The AI searches your campaign history and tells you everything the party knows.\n\n` +
       `<i>/who Rhiannon\n` +
       `/who Commander Vane</i>\n\n\n` +
       `<code>/lore</code>  +  question\n\n` +
-      `General fantasy and D&D knowledge — not specific to your campaign. Good for rules questions, world lore, or book references.\n\n` +
+      `General fantasy and D&D knowledge — not specific to your campaign.\n\n` +
       `<i>/lore What are Venin?\n` +
-      `/lore How does flanking work in 5e?</i>`,
+      `/lore How does flanking work in 5e?</i>\n\n\n` +
+      `<code>/bond</code>  +  message\n\n` +
+      `Talk to your bonded dragon through the telepathic bond. Uses your dragon's full personality, trust level, and mood. Each message is independent.\n\n` +
+      `<i>/bond How are you feeling after that battle?\n` +
+      `/bond What do you think about Xaden?</i>`,
       lovableKey, telegramKey,
     );
 
@@ -658,6 +721,129 @@ async function processCommand(
     }
 
     await formatDragon(dragons);
+    return;
+  }
+
+  // /bond MESSAGE — Talk to your bonded dragon
+  if (cmd.startsWith('/bond ') || cmd === '/bond') {
+    const message = text.trim().substring(5).trim();
+    if (!message) {
+      await sendTelegram(chatId, '❌ Usage: /bond How are you feeling after that battle?', lovableKey, telegramKey);
+      return;
+    }
+    const userId = await getUserIdFromChat(chatId, supabase);
+    if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+
+    // Fetch dragon data — prefer party over solo
+    let dragonName = '';
+    let dragonNotes = '';
+    let trust = 10;
+    let bond = 15;
+    let mood = 'calm';
+    let memories: Array<{ text: string; source: string; createdAt: string }> = [];
+    let characterName = 'Rider';
+
+    // Get character name
+    const save = await getCharacterData(userId, supabase);
+    if (save) {
+      characterName = (save.character_data as any)?.name || 'Rider';
+    }
+
+    // Try party dragon bond first
+    const { data: partyBonds } = await supabase
+      .from('party_shared_state')
+      .select('state_data')
+      .eq('user_id', userId)
+      .eq('state_type', 'dragon_bond')
+      .limit(1);
+
+    if (partyBonds && partyBonds.length > 0) {
+      const d = partyBonds[0].state_data as any;
+      if (d?.dragonName) {
+        dragonName = d.dragonName;
+        dragonNotes = d.dragonNotes || '';
+        trust = d.trust ?? 10;
+        bond = d.bond ?? 15;
+        mood = d.mood || 'calm';
+        memories = d.memories || [];
+      }
+    }
+
+    // Fallback to solo dragon
+    if (!dragonName && save) {
+      const ext = (save.extended_data || {}) as any;
+      const soloDragon = ext?.dragonBond;
+      if (soloDragon?.dragonName) {
+        dragonName = soloDragon.dragonName;
+        dragonNotes = soloDragon.dragonNotes || '';
+        trust = soloDragon.trust ?? 10;
+        bond = soloDragon.bond ?? 15;
+        mood = soloDragon.mood || 'calm';
+        memories = soloDragon.memories || [];
+      }
+    }
+
+    if (!dragonName) {
+      await sendTelegram(chatId, '🐉 No bonded dragon found. Bond with a dragon in an Empyrean campaign first!', lovableKey, telegramKey);
+      return;
+    }
+
+    await sendTelegram(chatId, `🐉 <i>${dragonName} stirs through the bond...</i>`, lovableKey, telegramKey);
+
+    // Build a simplified dragon chat system prompt
+    const systemPrompt = buildTelegramDragonPrompt(dragonName, characterName, trust, mood, bond, dragonNotes, memories);
+
+    // Fetch recent narrative for context
+    let recentNarrative = '';
+    const { data: memberships } = await supabase
+      .from('party_members')
+      .select('party_id')
+      .eq('user_id', userId);
+    if (memberships && memberships.length > 0) {
+      for (const m of memberships) {
+        const { data: msgs } = await supabase
+          .from('party_dm_messages')
+          .select('content, sender_name')
+          .eq('party_id', m.party_id)
+          .eq('role', 'assistant')
+          .order('created_at', { ascending: false })
+          .limit(3);
+        if (msgs && msgs.length > 0) {
+          recentNarrative = msgs.reverse().map((msg: any) => msg.content.substring(0, 400)).join('\n---\n');
+          break;
+        }
+      }
+    }
+
+    const userContent = recentNarrative
+      ? `[Recent campaign events for context:\n${recentNarrative}]\n\nThe rider says: "${message}"`
+      : `The rider says: "${message}"`;
+
+    try {
+      const response = await fetch(AI_GATEWAY_URL, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          max_tokens: 1000,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userContent },
+          ],
+        }),
+      });
+      const data = await response.json();
+      let answer = data.choices?.[0]?.message?.content || '*...silence through the bond...*';
+
+      // Strip meta tags (mood, memory, habit, bond sense)
+      answer = answer.replace(/<!--[A-Z_]+:.*?-->/g, '').trim();
+
+      const truncated = answer.length > 3500 ? answer.substring(0, 3500) + '...' : answer;
+      await sendTelegram(chatId, `🐉 <b>${dragonName}</b>\n\n${truncated}`, lovableKey, telegramKey);
+    } catch (err) {
+      console.error('/bond AI error:', err);
+      await sendTelegram(chatId, '❌ The bond feels distant. Try again later.', lovableKey, telegramKey);
+    }
     return;
   }
 
