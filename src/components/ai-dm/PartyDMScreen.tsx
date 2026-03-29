@@ -1743,8 +1743,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             const bBond = dragonBonds.myDragon.bond ?? 50;
             const bMax = bBond >= 76 ? 9 : bBond >= 51 ? 7 : bBond >= 26 ? 5 : 4;
             const ratio = bMax > 0 ? bLevel / bMax : 0;
-            if (ratio >= 0.95) return "animate-[text-waver-critical_1s_ease-in-out_infinite,text-color-bleed_2s_ease-in-out_infinite,text-letter-scatter-intense_1.5s_ease-in-out_infinite]";
-            if (ratio >= 0.85) return "animate-[text-waver-intense_1.2s_ease-in-out_infinite,text-color-bleed_3s_ease-in-out_infinite,text-letter-scatter_2s_ease-in-out_infinite]";
+            if (ratio >= 0.95) return "animate-[text-waver-critical_1s_ease-in-out_infinite,text-color-bleed_2s_ease-in-out_infinite]";
+            if (ratio >= 0.85) return "animate-[text-waver-intense_1.2s_ease-in-out_infinite,text-color-bleed_3s_ease-in-out_infinite]";
             if (ratio >= 0.75) return "animate-[text-waver_1.5s_ease-in-out_infinite,text-color-bleed_4s_ease-in-out_infinite]";
             if (ratio >= 0.5) return "animate-[text-waver_3s_ease-in-out_infinite]";
             return "";
