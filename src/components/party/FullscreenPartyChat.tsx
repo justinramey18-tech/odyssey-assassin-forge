@@ -410,7 +410,7 @@ export function FullscreenPartyChat({
                                 </div>
                               )}
                               <div className="space-y-1">
-                                <p className="text-sm text-foreground/90 break-words">{msg.message}</p>
+                                <p className={cn("text-sm break-words", isMsgDragon ? "text-purple-200/80 italic" : "text-foreground/90")}>{msg.message}</p>
                                 {msg.image_url && (
                                   <a href={msg.image_url} target="_blank" rel="noopener noreferrer" className="block mb-1">
                                     <img src={msg.image_url} alt="Message image" className="max-w-full max-h-32 rounded" />
