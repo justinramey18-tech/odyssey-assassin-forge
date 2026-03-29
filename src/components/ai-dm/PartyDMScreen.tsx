@@ -1741,7 +1741,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           isEmpyrean && dragonBonds.isSetup && dragonBonds.myDragon?.signetType && (() => {
             const bLevel = dragonBonds.myDragon.burnout;
             const bBond = dragonBonds.myDragon.bond ?? 50;
-            const bMax = bBond >= 76 ? 9 : bBond >= 51 ? 7 : bBond >= 26 ? 5 : 4;
+             const bMax = bBond >= 76 ? 12 : bBond >= 51 ? 11 : bBond >= 26 ? 10 : 8;
             const ratio = bMax > 0 ? bLevel / bMax : 0;
             if (ratio >= 0.95) return "animate-[text-waver-critical_1s_ease-in-out_infinite,text-color-bleed_2s_ease-in-out_infinite]";
             if (ratio >= 0.85) return "animate-[text-waver-intense_1.2s_ease-in-out_infinite,text-color-bleed_3s_ease-in-out_infinite]";
