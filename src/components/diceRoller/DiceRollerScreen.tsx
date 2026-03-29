@@ -1617,7 +1617,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
                   {/* Ability Assignment Grid */}
                   <div className="grid grid-cols-2 gap-3">
                     {ABILITY_ORDER.map((ability) => {
-                      const config = ABILITY_SCORES[ability];
+                      const config = getAbilityScoreDisplay(ability);
                       const assignedScore = scoreAssignments[ability];
                       const modifier = assignedScore !== null ? scoreToModifier(assignedScore) : null;
                       

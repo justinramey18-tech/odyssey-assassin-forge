@@ -681,7 +681,7 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                     ) : null}
                     <div className="flex flex-col min-w-0">
-                      <span className={cn("text-xs font-semibold", info.color)}>{info.name}</span>
+                      <span className={cn("text-xs font-semibold", info.color)}>{display.name}</span>
                       {desc && <span className="text-[8px] text-white/30 truncate">{desc}</span>}
                     </div>
                   </div>
