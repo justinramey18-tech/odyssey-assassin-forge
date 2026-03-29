@@ -1,25 +1,11 @@
 
 
-## Plan: Adjust Max Burnout Fade Timing
+## Fix: 75% Burnout Fade Covers Full Chat Area Uniformly
 
-Update the `consciousness-fade` keyframe in `tailwind.config.ts` to use a 10s cycle where ~3s is spent at peak darkness.
+### Problem
+The 75% burnout consciousness fade appears to only darken edges because its peak effective opacity is too low (`0.25 × 0.85 = ~0.21`), making the vignette overlay visually dominant. The fade div itself covers the full area but is barely perceptible in the center.
 
 ### Changes
 
-**`tailwind.config.ts`** — Revise the `consciousness-fade` keyframe:
-- Current: `0%→0, 50%→0.85, 100%→0` (symmetric sine wave)
-- New: Ramp up by 35%, hold dark from 35%–65% (3s of 10s), ramp down by 100%
-  ```
-  0%: opacity 0
-  35%: opacity 0.85
-  65%: opacity 0.85
-  100%: opacity 0
-  ```
-
-**`src/components/empyrean/BurnoutFlameOverlay.tsx`** — Change the max burnout animation duration from `4s` to `10s`:
-- Line with `consciousness-fade_4s` → `consciousness-fade_10s`
-
-### Files modified
-1. `tailwind.config.ts`
-2. `src/components/empyrean/BurnoutFlameOverlay.tsx`
-
+**`src/components/empyrean/BurnoutFlameOverlay.tsx`** (line 209):
+- Increase inline `opacity` from `0.25` to `0.45` so the black overlay is clearly visible across the entire chat area, not just at edges where the vignette compounds
