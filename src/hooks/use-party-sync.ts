@@ -344,6 +344,7 @@ export function usePartySync(): UsePartySyncReturn {
   const [combatLog, setCombatLog] = useState<CombatLogEntry[]>([]);
   const [typingUsers, setTypingUsers] = useState<{ userId: string; name: string }[]>([]);
   const [messageReactions, setMessageReactions] = useState<MessageReaction[]>([]);
+  const [dragonNetworkMessages, setDragonNetworkMessages] = useState<any[]>([]);
   const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
