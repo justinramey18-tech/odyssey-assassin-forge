@@ -125,9 +125,7 @@ export default {
         },
         "consciousness-fade": {
           "0%, 100%": { opacity: "0" },
-          "30%": { opacity: "0.5" },
-          "50%": { opacity: "0.7" },
-          "70%": { opacity: "0.5" },
+          "50%": { opacity: "1" },
         },
         "accordion-down": {
           from: { height: "0" },
@@ -338,16 +336,12 @@ export default {
           "90%": { transform: "translate(-1px, -2px) rotate(-0.1deg)" },
         },
         "consciousness-tunnel": {
-          "0%, 100%": { opacity: "0", transform: "scale(1)" },
-          "35%": { opacity: "0.55", transform: "scale(1.03)" },
-          "50%": { opacity: "0.82", transform: "scale(1.06)" },
-          "65%": { opacity: "0.55", transform: "scale(1.03)" },
+          "0%, 100%": { opacity: "0" },
+          "50%": { opacity: "1" },
         },
         "consciousness-tunnel-heavy": {
-          "0%, 100%": { opacity: "0.15", transform: "scale(1)" },
-          "30%": { opacity: "0.7", transform: "scale(1.04)" },
-          "50%": { opacity: "0.92", transform: "scale(1.08)" },
-          "70%": { opacity: "0.7", transform: "scale(1.04)" },
+          "0%, 100%": { opacity: "0" },
+          "45%, 55%": { opacity: "1" },
         },
         "breathe-happy": {
           "0%, 100%": { transform: "scale(1)", boxShadow: "0 0 10px rgba(245,158,11,0.3)" },
