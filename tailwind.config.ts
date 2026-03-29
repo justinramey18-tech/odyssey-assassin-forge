@@ -249,6 +249,13 @@ export default {
           "66%": { opacity: "0.75", transform: "scaleX(0.96) translateX(1px)" },
           "100%": { opacity: "0.8", transform: "scaleX(1) translateX(0)" },
         },
+        "text-waver-subtle": {
+          "0%": { transform: "translateX(0) skewX(0deg)", filter: "blur(0px)" },
+          "25%": { transform: "translateX(0.1px) skewX(0.05deg)", filter: "blur(0px)" },
+          "50%": { transform: "translateX(-0.1px) skewX(-0.05deg)", filter: "blur(0.1px)" },
+          "75%": { transform: "translateX(0.1px) skewX(0.03deg)", filter: "blur(0px)" },
+          "100%": { transform: "translateX(0) skewX(0deg)", filter: "blur(0px)" },
+        },
         "text-waver": {
           "0%": { transform: "translateX(0) skewX(0deg)", filter: "blur(0px)" },
           "15%": { transform: "translateX(0.3px) skewX(0.15deg)", filter: "blur(0px)" },
