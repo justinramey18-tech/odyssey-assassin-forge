@@ -122,7 +122,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
   const opacity = 0.2 + ratio * 0.7;
   const flickerDuration = Math.max(3 - ratio * 2, 0.8);
   const danceDuration = Math.max(4 - ratio * 2.5, 1.2);
-  const flameHeight = Math.round(15 + ratio * 40);
+  const flameHeight = Math.round(10 + ratio * 18);
 
   const isHorizontal = (side: string) => side === 'top' || side === 'bottom';
 
@@ -132,7 +132,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
       opacity,
       pointerEvents: 'none',
       overflow: 'hidden',
-      zIndex: 10,
+      zIndex: 61,
     };
 
     if (side === 'top') {
@@ -182,7 +182,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
         style={{
           position: 'absolute',
           inset: 0,
-          zIndex: 9,
+          zIndex: 61,
           pointerEvents: 'none',
           background: (() => {
             // Shift from orange (low) → deep crimson red (max)
