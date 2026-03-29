@@ -163,16 +163,65 @@ export default function PartyDragonChat({
     }
   }, [editingNotes, onUpdateNotes]);
 
-  const handleSend = useCallback(() => {
-    if (!inputValue.trim() || isLoading) return;
-    if (networkTarget && onSendNetworkMessage) {
-      onSendNetworkMessage(networkTarget.dragonName, networkTarget.userId, networkTarget.characterName, inputValue.trim());
-      setNetworkTarget(null);
+  const handleSend = useCallback(async () => {
+    if (!inputValue.trim() || isLoading || isVoicing) return;
+    const text = inputValue.trim();
+
+    if (networkTarget && onVoiceAsMyDragon) {
+      setInputValue('');
+      try {
+        const voiced = await onVoiceAsMyDragon(text, networkTarget.dragonName);
+        setPreviewState({
+          voicedText: voiced,
+          originalText: text,
+          targetDragonName: networkTarget.dragonName,
+          targetUserId: networkTarget.userId,
+        });
+      } catch (err) {
+        console.error('Voice failed:', err);
+      }
     } else {
-      onSend(inputValue.trim());
+      onSend(text);
+      setInputValue('');
     }
+  }, [inputValue, isLoading, isVoicing, onSend, networkTarget, onVoiceAsMyDragon]);
+
+  const handlePreviewSend = useCallback(async () => {
+    if (!previewState || !onDeliverNetworkMessage) return;
+    await onDeliverNetworkMessage(
+      previewState.targetDragonName,
+      previewState.targetUserId,
+      previewState.voicedText,
+      previewState.originalText,
+      previewState.replyToId,
+    );
+    setPreviewState(null);
+    setNetworkTarget(null);
+  }, [previewState, onDeliverNetworkMessage]);
+
+  const handlePreviewReroll = useCallback(async () => {
+    if (!previewState || !onVoiceAsMyDragon) return;
+    try {
+      const voiced = await onVoiceAsMyDragon(previewState.originalText, previewState.targetDragonName);
+      setPreviewState(prev => prev ? { ...prev, voicedText: voiced } : null);
+    } catch (err) {
+      console.error('Re-roll failed:', err);
+    }
+  }, [previewState, onVoiceAsMyDragon]);
+
+  const handlePreviewCancel = useCallback(() => {
+    setPreviewState(null);
+  }, []);
+
+  const handleReply = useCallback((msg: DragonNetworkMessage) => {
+    setNetworkTarget({
+      dragonName: msg.fromDragon,
+      userId: msg.fromUserId,
+      characterName: '',
+    });
     setInputValue('');
-  }, [inputValue, isLoading, onSend, networkTarget, onSendNetworkMessage]);
+    inputRef.current?.focus();
+  }, []);
 
   const handleKeyDown = useCallback(
     (_e: React.KeyboardEvent) => {
