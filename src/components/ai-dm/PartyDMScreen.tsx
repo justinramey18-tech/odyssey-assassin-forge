@@ -2325,6 +2325,48 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                       </AnimatePresence>
                     </div>
                   )}
+
+                  {/* Burnout Override (Empyrean only) */}
+                  {isEmpyrean && dragonBonds.isSetup && dragonBonds.myDragon?.signetType && (() => {
+                    const bLevel = dragonBonds.myDragon.burnout ?? 0;
+                    const bBond = dragonBonds.myDragon.bond ?? 50;
+                    const bMax = bBond >= 76 ? 9 : bBond >= 51 ? 7 : bBond >= 26 ? 5 : 4;
+                    const bRatio = bMax > 0 ? bLevel / bMax : 0;
+                    return (
+                      <div className="mt-2 pt-2 border-t border-white/5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-white/40 flex items-center gap-1">
+                            <Flame className="w-3 h-3 text-amber-400/60" />
+                            Signet Burnout
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => dragonBonds.updateBurnout(Math.max(0, bLevel - 1))}
+                              disabled={bLevel <= 0}
+                              className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white/60 hover:text-white text-xs font-mono flex items-center justify-center transition-colors"
+                              style={{ touchAction: 'manipulation' }}
+                            >
+                              −
+                            </button>
+                            <span className={cn(
+                              "text-xs font-mono min-w-[32px] text-center",
+                              bRatio === 0 ? "text-emerald-400" : bRatio < 0.4 ? "text-yellow-400" : bRatio < 0.75 ? "text-orange-400" : "text-red-400"
+                            )}>
+                              {bLevel}/{bMax}
+                            </span>
+                            <button
+                              onClick={() => dragonBonds.updateBurnout(Math.min(bMax, bLevel + 1))}
+                              disabled={bLevel >= bMax}
+                              className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white/60 hover:text-white text-xs font-mono flex items-center justify-center transition-colors"
+                              style={{ touchAction: 'manipulation' }}
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </motion.div>
             )}
