@@ -8,13 +8,11 @@ interface BurnoutFlameOverlayProps {
 
 // Generate crackling noise using Web Audio API
 function createCrackleLoop(ctx: AudioContext, volume: number): { gain: GainNode; stop: () => void } {
-  const bufferSize = ctx.sampleRate * 2; // 2-second buffer
+  const bufferSize = ctx.sampleRate * 2;
   const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
   const data = buffer.getChannelData(0);
 
-  // Sparse random pops/crackles
   for (let i = 0; i < bufferSize; i++) {
-    // Most samples are near-silent; occasional sharp pops
     data[i] = Math.random() < 0.003 ? (Math.random() * 2 - 1) * 0.8 : (Math.random() * 2 - 1) * 0.02;
   }
 
@@ -22,7 +20,6 @@ function createCrackleLoop(ctx: AudioContext, volume: number): { gain: GainNode;
   source.buffer = buffer;
   source.loop = true;
 
-  // Bandpass filter to make it sound like fire crackle
   const filter = ctx.createBiquadFilter();
   filter.type = 'bandpass';
   filter.frequency.value = 800;
@@ -51,6 +48,13 @@ function triggerHaptic(ratio: number) {
   }
 }
 
+const SIDE_CONFIGS = {
+  top: { delay1: '0s', delay2: '0.4s', delay3: '0.8s' },
+  bottom: { delay1: '0.2s', delay2: '0.6s', delay3: '1.1s' },
+  left: { delay1: '0.1s', delay2: '0.5s', delay3: '0.9s' },
+  right: { delay1: '0.3s', delay2: '0.7s', delay3: '1.2s' },
+} as const;
+
 const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max }) => {
   const audioRef = useRef<{ gain: GainNode; stop: () => void; ctx: AudioContext } | null>(null);
   const hapticIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -61,7 +65,6 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
   // Audio crackling effect
   useEffect(() => {
     if (!isCritical) {
-      // Clean up if burnout dropped below critical
       if (audioRef.current) {
         audioRef.current.stop();
         audioRef.current.ctx.close().catch(() => {});
@@ -70,8 +73,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
       return;
     }
 
-    // Volume scales: faint at 50%, louder toward max
-    const volume = 0.03 + (ratio - 0.5) * 0.14; // 0.03 at 50%, ~0.1 at 100%
+    const volume = 0.03 + (ratio - 0.5) * 0.14;
 
     if (!audioRef.current) {
       try {
@@ -80,7 +82,6 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
         audioRef.current = { ...loop, ctx };
       } catch {}
     } else {
-      // Update volume dynamically
       audioRef.current.gain.gain.setValueAtTime(volume, audioRef.current.ctx.currentTime);
     }
 
@@ -103,7 +104,6 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
       return;
     }
 
-    // Pulse interval: slower at 50%, faster at max
     const interval = Math.max(4000 - (ratio - 0.5) * 6000, 1200);
     triggerHaptic(ratio);
     hapticIntervalRef.current = setInterval(() => triggerHaptic(ratio), interval);
@@ -118,12 +118,12 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
 
   if (level <= 0 || max <= 0) return null;
 
-  // Opacity: 0.2 at level 1, up to ~0.9 at max
   const opacity = 0.2 + ratio * 0.7;
-  // Animation duration: 3s at low, ~1s at max
-  const duration = `${Math.max(3 - ratio * 2, 0.8)}s`;
-  // Flame height: 15px at low, ~55px at max
+  const flickerDuration = Math.max(3 - ratio * 2, 0.8);
+  const danceDuration = Math.max(4 - ratio * 2.5, 1.2);
   const flameHeight = Math.round(15 + ratio * 40);
+
+  const isHorizontal = (side: string) => side === 'top' || side === 'bottom';
 
   const edgeStyle = (side: 'top' | 'bottom' | 'left' | 'right'): React.CSSProperties => {
     const base: React.CSSProperties = {
@@ -135,27 +135,45 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
     };
 
     if (side === 'top') {
-      return { ...base, top: 0, left: 0, right: 0, height: `${flameHeight}px`, animationName: 'flame-flicker', animationDuration: duration, animationTimingFunction: 'ease-in-out', animationIterationCount: 'infinite' };
+      return { ...base, top: 0, left: 0, right: 0, height: `${flameHeight}px` };
     }
     if (side === 'bottom') {
-      return { ...base, bottom: 0, left: 0, right: 0, height: `${flameHeight}px`, transform: 'rotate(180deg)', animationName: 'flame-flicker', animationDuration: duration, animationTimingFunction: 'ease-in-out', animationIterationCount: 'infinite', animationDelay: `${parseFloat(duration) * 0.3}s` };
+      return { ...base, bottom: 0, left: 0, right: 0, height: `${flameHeight}px`, transform: 'rotate(180deg)' };
     }
     if (side === 'left') {
-      return { ...base, top: 0, bottom: 0, left: 0, width: `${flameHeight}px`, animationName: 'flame-sway', animationDuration: duration, animationTimingFunction: 'ease-in-out', animationIterationCount: 'infinite', animationDelay: `${parseFloat(duration) * 0.15}s` };
+      return { ...base, top: 0, bottom: 0, left: 0, width: `${flameHeight}px` };
     }
-    return { ...base, top: 0, bottom: 0, right: 0, width: `${flameHeight}px`, animationName: 'flame-sway', animationDuration: duration, animationTimingFunction: 'ease-in-out', animationIterationCount: 'infinite', animationDelay: `${parseFloat(duration) * 0.5}s` };
+    return { ...base, top: 0, bottom: 0, right: 0, width: `${flameHeight}px` };
   };
 
-  const imgStyle = (side: 'top' | 'bottom' | 'left' | 'right'): React.CSSProperties => ({
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
-    objectPosition: side === 'top' ? 'center top' : side === 'bottom' ? 'center top' : side === 'left' ? 'left center' : 'right center',
-    filter: `brightness(${1 + ratio * 0.5}) saturate(${1 + ratio * 0.8})`,
-  });
+  const flameLayerStyle = (
+    side: 'top' | 'bottom' | 'left' | 'right',
+    layerIndex: number
+  ): React.CSSProperties => {
+    const horiz = isHorizontal(side);
+    const delays = SIDE_CONFIGS[side];
+    const delay = layerIndex === 0 ? delays.delay1 : layerIndex === 1 ? delays.delay2 : delays.delay3;
+    const layerOpacity = layerIndex === 0 ? 1 : layerIndex === 1 ? 0.7 : 0.4;
+    const danceAnim = horiz ? 'flame-dance' : 'flame-dance-vertical';
+    const flickerAnim = horiz ? 'flame-flicker' : 'flame-sway';
+
+    return {
+      position: 'absolute',
+      inset: 0,
+      backgroundImage: `url(${flameBorderImg})`,
+      backgroundSize: 'cover',
+      backgroundPosition: horiz ? 'center top' : (side === 'left' ? 'left center' : 'right center'),
+      filter: `brightness(${1 + ratio * 0.5 + layerIndex * 0.15}) saturate(${1 + ratio * 0.8})`,
+      opacity: layerOpacity,
+      animation: `${danceAnim} ${danceDuration + layerIndex * 0.6}s linear infinite, ${flickerAnim} ${flickerDuration + layerIndex * 0.3}s ease-in-out infinite`,
+      animationDelay: delay,
+      mixBlendMode: layerIndex > 0 ? 'screen' : undefined,
+    };
+  };
 
   const sides = ['top', 'bottom', 'left', 'right'] as const;
   const vignetteOpacity = 0.08 + ratio * 0.35;
+  const layerCount = ratio >= 0.75 ? 3 : ratio >= 0.4 ? 2 : 1;
 
   return (
     <>
@@ -171,7 +189,9 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
       />
       {sides.map((side) => (
         <div key={side} style={edgeStyle(side)}>
-          <img src={flameBorderImg} alt="" style={imgStyle(side)} draggable={false} />
+          {Array.from({ length: layerCount }).map((_, i) => (
+            <div key={i} style={flameLayerStyle(side, i)} />
+          ))}
         </div>
       ))}
     </>
