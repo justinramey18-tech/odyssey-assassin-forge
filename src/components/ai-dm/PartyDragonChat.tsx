@@ -651,6 +651,56 @@ export default function PartyDragonChat({
           </button>
         </div>
       </div>
+
+      {/* Preview Overlay */}
+      {previewState && (
+        <div className="fixed inset-0 z-[70] flex flex-col bg-gradient-to-b from-[#0a0a1a] via-[#0d0815] to-[#0a0612]">
+          <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-purple-500/20">
+            <h2 className="font-cinzel text-sm text-purple-200">Preview Message</h2>
+            <span className="text-[10px] text-purple-300/40 ml-auto">To {previewState.targetDragonName}</span>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-4 py-6">
+            <p className="text-[10px] text-white/30 mb-2">Your dragon will say:</p>
+            <div className="border-l-2 border-purple-500/40 pl-3 mb-6">
+              <div className="text-purple-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none">
+                <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                  {previewState.voicedText}
+                </ReactMarkdown>
+              </div>
+            </div>
+            <p className="text-[9px] text-white/20 italic">Original: "{previewState.originalText}"</p>
+          </div>
+
+          <div className="shrink-0 px-4 pb-4 pt-3 border-t border-purple-500/10 space-y-2">
+            <div className="flex gap-2">
+              <button
+                onClick={handlePreviewReroll}
+                disabled={isVoicing}
+                className="flex-1 px-3 py-3 rounded-xl text-sm font-medium bg-purple-900/30 border border-purple-500/20 text-purple-200/70 hover:bg-purple-800/40 transition-colors disabled:opacity-50"
+                style={{ touchAction: 'manipulation' }}
+              >
+                {isVoicing ? 'Re-rolling...' : 'Re-roll'}
+              </button>
+              <button
+                onClick={handlePreviewSend}
+                disabled={isVoicing}
+                className="flex-1 px-3 py-3 rounded-xl text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white transition-colors disabled:opacity-50"
+                style={{ touchAction: 'manipulation' }}
+              >
+                Send
+              </button>
+            </div>
+            <button
+              onClick={handlePreviewCancel}
+              className="w-full px-3 py-2.5 rounded-xl text-sm text-white/40 hover:text-white/60 hover:bg-white/5 transition-colors"
+              style={{ touchAction: 'manipulation' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
