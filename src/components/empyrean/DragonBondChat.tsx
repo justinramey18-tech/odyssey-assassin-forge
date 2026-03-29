@@ -524,7 +524,7 @@ export default function DragonBondChat({
       )}
 
       {/* ── MESSAGES AREA ── */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6">
+      <div ref={scrollRef} onScroll={handleChatScroll} className="flex-1 overflow-y-auto px-4 py-6">
         {messages.length === 0 && !dragonOpening && !isLoading ? (
           /* ── EMPTY STATE ── */
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
