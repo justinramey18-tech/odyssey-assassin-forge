@@ -1,39 +1,26 @@
 
 
-## Plan: Exaggerated Consciousness Tunnel-Vision Effect
+## Plan: Fix Heartbeat Animations + Add Wobble Keyframes
 
-### What changes
+### Problem
+The heartbeat consciousness-fade animations are invisible because `ease-in-out` timing smooths out the sharp opacity pulses that occur in the first 28% of each cycle.
 
-The tunnel-vision overlay at burnout 6/8, 7/8, and 8/8 will animate from fully transparent (all text visible) to fully opaque black (no text visible) in a breathing loop, with faster cycles at higher burnout.
+### Changes
 
-### File 1: `tailwind.config.ts`
+**File 1: `src/components/empyrean/BurnoutFlameOverlay.tsx`** — 3 line changes
 
-Replace the three consciousness keyframe animations:
+Change `ease-in-out` to `linear` on three animation properties:
+- Line 184: `consciousness-fade 6s linear infinite`
+- Line 207: `consciousness-tunnel 4.5s linear infinite`
+- Line 230: `consciousness-tunnel-heavy 3s linear infinite`
 
-- **`consciousness-fade`** (used at 5/8 and 6/8): Change to full 0→1→0 opacity cycle. This is the one used at 6/8 — it will go from opacity 0 to opacity 1 and back.
-- **`consciousness-tunnel`** (used at 7/8): Same full blackout cycle, opacity 0→1→0.
-- **`consciousness-tunnel-heavy`** (used at 8/8): Same full blackout cycle, opacity 0→1→0, with a brief hold at peak.
+**File 2: `tailwind.config.ts`** — Add 3 new keyframe blocks
 
-### File 2: `src/components/empyrean/BurnoutFlameOverlay.tsx`
+Insert after the `consciousness-tunnel-heavy` block (after line 358), before `breathe-happy`:
 
-Restructure the consciousness overlays for levels 6–8:
+- `heartbeat-wobble-light`: 0.5px max displacement, wobble during 0-28%, stable rest
+- `heartbeat-wobble-medium`: 1px max displacement, wobble during 0-32%, stable rest  
+- `heartbeat-wobble-heavy`: 1.8px max displacement, wobble during 0-36%, stable rest
 
-- **6/8 (ratio 0.625–0.75)**: The existing `consciousness-fade` div gets a more aggressive radial gradient (solid black edges, transparent center ~25%) and uses a **6s** animation cycle. Remove the static `opacity: 0.3` — let the animation control full 0→1 opacity.
-
-- **7/8 (ratio 0.75–0.875)**: The `consciousness-tunnel` div uses a tighter gradient (transparent center ~15%) with a **5s** cycle. Remove the separate `consciousness-fade` div — consolidate into one tunnel overlay that goes full blackout.
-
-- **8/8 (ratio 0.875+)**: The `consciousness-tunnel-heavy` div uses the tightest gradient (transparent center ~8%) with a **4s** cycle. Remove the separate `consciousness-fade` div — same consolidation.
-
-The key difference from before: the animation opacity goes from `0` (fully see-through, all text readable) to `1` (fully opaque, no text visible) on each cycle, creating the dramatic "fading in and out of consciousness" effect.
-
-### Technical details
-
-Keyframe updates in tailwind.config.ts:
-```
-consciousness-fade:     0%,100% → opacity 0  |  50% → opacity 1
-consciousness-tunnel:   0%,100% → opacity 0  |  50% → opacity 1  
-consciousness-tunnel-heavy: 0%,100% → opacity 0  |  45%,55% → opacity 1 (hold at peak)
-```
-
-In the overlay component, remove inline `opacity` values on the consciousness divs so the animation drives the full range. Each tier's radial gradient determines how much of the center stays visible at peak darkness — the animation just controls the breathing.
+No other changes to either file.
 
