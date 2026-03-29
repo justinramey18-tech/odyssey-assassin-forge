@@ -23,7 +23,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   AbilityName, 
-  ABILITY_CONFIG, 
+  ABILITY_CONFIG,
+  getAbilityConfig,
   ABILITY_ORDER,
   STANDARD_ARRAY,
   modifierToString,
