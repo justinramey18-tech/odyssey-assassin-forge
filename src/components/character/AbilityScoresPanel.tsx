@@ -195,7 +195,7 @@ export function AbilityScoresPanel({
                       </p>
                       <div className="grid grid-cols-2 gap-3">
                         {ABILITY_ORDER.map(ability => {
-                          const config = ABILITY_CONFIG[ability];
+                          const config = getAbilityConfig(ability);
                           const Icon = getIconByName(config.icon);
                           const available = getAvailableScores(ability);
                           
