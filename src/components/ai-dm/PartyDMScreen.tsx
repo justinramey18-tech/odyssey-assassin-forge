@@ -100,6 +100,7 @@ interface PartyDMScreenProps {
   onShowOocChat?: () => void;
 }
 
+const EMPTY_DRAGON_NETWORK: never[] = [];
 const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4'];
 
 function formatAutoSaveTime(date: Date): string {
