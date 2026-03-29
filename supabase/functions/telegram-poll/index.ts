@@ -88,6 +88,7 @@ function buildTelegramDragonPrompt(
   bond: number,
   dragonNotes: string,
   memories: Array<{ text: string; source: string; createdAt: string }>,
+  autopilotGuide?: string,
 ): string {
   const sections: string[] = [];
 
@@ -122,6 +123,11 @@ function buildTelegramDragonPrompt(
     sections.push(`## DRAGON PERSONALITY — DEFINED BY THE PLAYER\nThis is the SOLE authority on who this dragon is. Embody this personality fully:\n\n${dragonNotes.trim().substring(0, 6000)}`);
   } else {
     sections.push(`## DRAGON PERSONALITY\nNo personality profile provided. Default to a proud, intelligent dragon with strong opinions.`);
+  }
+
+  // Autopilot / Personality Guide — rider behavioral context
+  if (autopilotGuide?.trim()) {
+    sections.push(`## RIDER PERSONALITY GUIDE\nThe rider's player has described how their character behaves. Use this to understand how the rider would act and react. This informs your responses — you know your rider:\n\n[RIDER GUIDE START]\n${autopilotGuide.trim().substring(0, 5000)}\n[RIDER GUIDE END]`);
   }
 
   // Memories
