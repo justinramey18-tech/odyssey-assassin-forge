@@ -94,6 +94,13 @@ const ALL_STORAGE_KEYS = [
 
   // DM response mode
   'odyssey-dm-response-mode',
+
+  // Empyrean dragon bond
+  'empyrean-dragon-bond-state',
+  'empyrean-dragon-chat',
+  'empyrean-dragon-chat-summary',
+  'empyrean-autopilot-guide',
+  'empyrean-autopilot-biases',
 ] as const;
 
 /**
