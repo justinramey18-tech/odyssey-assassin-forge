@@ -622,6 +622,28 @@ export default function DragonBondChat({
               ))
             )}
           </div>
+          <div className="shrink-0 px-4 py-2.5 border-t border-purple-500/10">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newMemoryText}
+                onChange={e => setNewMemoryText(e.target.value.slice(0, 200))}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddMemory(); } }}
+                placeholder="Add a memory manually..."
+                className="flex-1 bg-black/30 border border-purple-500/20 rounded-lg px-3 py-2 text-xs text-white/80 placeholder:text-white/20 focus:outline-none focus:border-purple-500/40 transition-colors"
+              />
+              <button
+                onClick={handleAddMemory}
+                disabled={!newMemoryText.trim() || bondState.memories.length >= 30}
+                className="shrink-0 p-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{ touchAction: 'manipulation' }}
+                title="Add memory"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <p className="text-[9px] text-white/20 mt-1">Tagged as "rider said" · {newMemoryText.length}/200</p>
+          </div>
         </div>
       )}
 

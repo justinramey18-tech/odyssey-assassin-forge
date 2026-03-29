@@ -3444,6 +3444,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             const filtered = currentMemories.filter(m => m.id !== memoryId);
             await dragonBonds.updateMyDragon({ memories: filtered as any });
           }}
+          onAddMemory={async (text: string) => {
+            const currentMemories = (dragonBonds.myDragon?.memories || []) as Array<{ id: string; text: string; source: string; createdAt: string }>;
+            if (currentMemories.length >= 30) return;
+            const newMemory = { id: crypto.randomUUID(), text, source: 'rider-said', createdAt: new Date().toISOString() };
+            await dragonBonds.updateMyDragon({ memories: [...currentMemories, newMemory] as any });
+          }}
         />
       )}
     </div>
