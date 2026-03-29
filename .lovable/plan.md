@@ -1,43 +1,57 @@
 
 
-## "Empyrean Speaks" Banner — Dragon Network Message Alert
+## Animated Flame Border Tied to Signet Burnout
 
 ### What it does
 
-When a player sends a dragon-to-dragon message through the party chat, a full-screen tappable banner (the uploaded "Empyrean Speaks" image) takes over the narrative chat window. Tapping it navigates to the party chat. The banner sticks around per-player until they tap it. Once they return from the party chat, it's gone and the normal narrative view is back.
+The flame border image frames the narrative chat window in `PartyDMScreen.tsx`, scaling dynamically with the player's signet burnout level:
+
+- **Burnout 0**: No border visible
+- **Burnout 1+**: Border appears at 80% transparency, with small, slow-moving flame animation
+- **Each additional burnout level**: 10% more opaque, flames grow taller and animate faster
+- **Max burnout**: Fully opaque, large aggressive flames
 
 ### How it works
 
-1. **Copy the image** into `src/assets/empyrean-speaks.jpg` so it can be imported and used in the component.
+**1. Create a `BurnoutFlameOverlay` component**
 
-2. **Track banner visibility with a state variable** in `PartyDMScreen.tsx`:
-   - `showEmpyreanBanner` (boolean, default `false`)
-   - When `deliverNetworkMessage` is called successfully (the `onDeliverNetworkMessage` callback), set `showEmpyreanBanner = true`
+A new component that receives `burnoutLevel` and `maxBurnout` as props. It:
+- Returns `null` when burnout is 0
+- Renders 4 edge overlays (top, bottom, left, right) using the flame border image, positioned absolutely around the chat container
+- Uses CSS clip-path or overflow + height to control flame size (small flames = short clip, high burnout = tall clip)
+- Opacity calculated as: `0.2 + (burnoutLevel / maxBurnout) * 0.7` (20% at level 1, up to ~90% at max)
 
-3. **Listen for incoming dragon messages from other players** via realtime. The party chat messages from `usePartySync` already update in real time. Add a `useEffect` that watches the party chat messages array — when a new message arrives that starts with `[🐉 `, set `showEmpyreanBanner = true`. This way both the sender and all receivers see the banner.
+**2. Animate the flames with CSS**
 
-4. **Render the banner over the narrative chat area**. In the messages section (the `flex-1 min-h-0 relative flex flex-col overflow-hidden` container around line 1702), when `showEmpyreanBanner` is true, render the image as a tappable overlay that fills the entire chat area. The image covers the message list but does NOT hide the header, input area, or bottom nav — just the scrollable narrative window.
+- A custom `@keyframes flame-flicker` animation that combines:
+  - Subtle vertical oscillation (translateY wiggle)
+  - Slight scale pulsing (scaleY breathing)
+  - Brightness/opacity flickering
+- Animation speed tied to burnout: `duration = 3s - (burnoutLevel/maxBurnout * 2)s` — so flames get faster as burnout rises (3s at low, ~1s at max)
+- A secondary `flame-sway` keyframe for horizontal drift
 
-5. **On tap**: Call `onShowChat()` to navigate to the party chat, and set `showEmpyreanBanner = false`. When the player comes back from the party chat, the banner is already gone.
+**3. Wire it into `PartyDMScreen.tsx`**
 
-6. **Per-player persistence**: Since this is just React state on each player's own `PartyDMScreen` instance, each player independently sees and dismisses the banner. No database tracking needed — the realtime subscription fires for each connected player.
+- Compute burnout values from `dragonBonds.myDragon` (already available at line ~1587):
+  - `bLevel = dragonBonds.myDragon.burnout`
+  - `bBond = dragonBonds.myDragon.bond ?? 50`
+  - `bMax = bBond >= 76 ? 9 : bBond >= 51 ? 7 : bBond >= 26 ? 5 : 4`
+- Place `<BurnoutFlameOverlay level={bLevel} max={bMax} />` inside the `flex-1 min-h-0 relative` messages container (line 1707), as a `pointer-events-none` absolute overlay at `z-10`
+- Only render when `isEmpyrean && dragonBonds.isSetup && dragonBonds.myDragon?.signetType`
 
-### Technical details
+### Files to change
 
-**Files to change:**
-- Copy `user-uploads://Screenshot_20260328_213555_ChatOn.jpg` → `src/assets/empyrean-speaks.jpg`
-- `src/components/ai-dm/PartyDMScreen.tsx`:
-  - Import the image asset
-  - Add `showEmpyreanBanner` state
-  - Add useEffect watching party chat messages for new `[🐉 ` messages
-  - Set banner true in the `onDeliverNetworkMessage` callback
-  - Render a full-area tappable image overlay inside the messages container when banner is active
-  - On tap: call `onShowChat?.()` and clear banner
+- **`src/components/empyrean/BurnoutFlameOverlay.tsx`** (new) — the overlay component with flame animation logic
+- **`src/components/ai-dm/PartyDMScreen.tsx`** — import and render the overlay in the messages container
+- **`tailwind.config.ts`** — add `flame-flicker` and `flame-sway` keyframes/animations
 
-**What the banner looks like:**
-- The uploaded image fills the narrative chat window (object-cover, rounded corners)
-- Slight animated entrance (fade + scale)
-- Tapping anywhere on it navigates to party chat
+### Flame sizing by level
 
-**Props needed:** `onShowChat` is already available in `PartyDMScreen` — it's passed down from the parent and opens the `FullscreenPartyChat`.
+```text
+Level 1-2:  Flame height ~15px, slow pulse (3s), 80% transparent
+Level 3-4:  Flame height ~25px, moderate pulse (2.2s), 60% transparent  
+Level 5-6:  Flame height ~35px, quick pulse (1.6s), 40% transparent
+Level 7-8:  Flame height ~45px, fast pulse (1.2s), 20% transparent
+Level 9:    Flame height ~55px, aggressive pulse (0.8s), 10% transparent
+```
 
