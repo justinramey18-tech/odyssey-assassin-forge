@@ -32,6 +32,7 @@ interface PartyDMInputProps {
   onPickPhoto?: () => void;
   onPickVideo?: () => void;
   onPickAudio?: () => void;
+  onPickAudioFile?: () => void;
   onCreatePoll?: () => void;
   npcNames?: string[];
 }
