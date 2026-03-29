@@ -2539,7 +2539,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           sessionStorage.removeItem('pending-file-picker');
           const file = e.target.files?.[0];
           if (!file) return;
-          if (file.size > 25 * 1024 * 1024) { toast.error('Audio too large (max 25MB)'); return; }
+          if (file.size > 100 * 1024 * 1024) { toast.error('Audio too large (max 100MB)'); return; }
           setIsUploadingAudio(true);
           try {
             const fallbackExt = file.type.includes('mp4') ? 'm4a' : file.type.includes('mpeg') ? 'mp3' : 'webm';
