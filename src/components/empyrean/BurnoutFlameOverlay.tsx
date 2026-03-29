@@ -4,6 +4,7 @@ import burnoutDragonBg from '@/assets/burnout-dragon-bg.jpg';
 import burnoutDragonBg75 from '@/assets/burnout-dragon-bg-75.jpg';
 import burnoutDragonBg38 from '@/assets/burnout-dragon-bg-38.jpg';
 import burnoutDragonBg18 from '@/assets/burnout-dragon-bg-18.jpg';
+import burnoutDragonBg58 from '@/assets/burnout-dragon-bg-58.jpg';
 import BurnoutEmberParticles from './BurnoutEmberParticles';
 
 interface BurnoutFlameOverlayProps {
