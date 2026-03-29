@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import { Sword, Sparkles, BookOpen, FlaskConical, Star, ChevronDown, Play, Flame, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
