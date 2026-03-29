@@ -1416,7 +1416,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
                 Social
               </h3>
               <div className="grid grid-cols-1 gap-2">
-                {(alignmentTarget ? sortByAlignmentProximity(AI_DM_PROMPTS.filter(p => p.category === 'social'), alignmentTarget) : AI_DM_PROMPTS.filter(p => p.category === 'social')).map((prompt) => (
+                {(alignmentTarget ? sortByAlignmentProximity(getAIDMPromptsForDisplay().filter(p => p.category === 'social'), alignmentTarget) : getAIDMPromptsForDisplay().filter(p => p.category === 'social')).map((prompt) => (
                   <PromptButton
                     key={prompt.id}
                     prompt={prompt}
