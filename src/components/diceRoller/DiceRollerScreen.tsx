@@ -17,6 +17,8 @@ import {
   ABILITY_SCORES,
   AI_DM_PROMPTS,
   formatPromptWithRoll,
+  getAbilityScoreDisplay,
+  getSkillsForDisplay,
   type DieSize,
   type AbilityScore,
   type AIPromptTemplate,
