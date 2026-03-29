@@ -182,7 +182,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
         style={{
           position: 'absolute',
           inset: 0,
-          zIndex: 9,
+          zIndex: 61,
           pointerEvents: 'none',
           background: (() => {
             // Shift from orange (low) → deep crimson red (max)

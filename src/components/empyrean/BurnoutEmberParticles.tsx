@@ -40,7 +40,7 @@ const BurnoutEmberParticles: React.FC<BurnoutEmberParticlesProps> = ({ ratio }) 
       style={{
         position: 'absolute',
         inset: 0,
-        zIndex: 11,
+        zIndex: 62,
         pointerEvents: 'none',
         overflow: 'hidden',
       }}
