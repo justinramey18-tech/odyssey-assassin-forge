@@ -975,189 +975,116 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
       console.warn('[DragonBonds] Narrative reaction failed:', err);
     }
   }, [partyId, userId, myDragon, dragonChatMessages, allDragonConfigs, partyMembers, saveDragonChat, updateMyDragon]);
-  const sendDragonNetworkMessage = useCallback(async (
+  const voiceAsMyDragon = useCallback(async (
+    text: string,
+    targetDragonName: string,
+    characterName: string,
+  ): Promise<string> => {
+    if (!myDragon?.dragonName) throw new Error('Dragon not configured');
+    setIsVoicing(true);
+
+    try {
+      const authToken = await getAuthToken();
+
+      const systemPrompt = buildDragonChatPrompt(
+        myDragon.dragonName,
+        characterName,
+        myDragon.trust,
+        (myDragon.mood || 'calm') as DragonMood,
+        (myDragon.memories || []) as DragonMemory[],
+        myDragon.dragonNotes || '',
+        myDragon.speechHabits,
+        undefined,
+        myDragon.bond,
+        myDragon.riderEmotionalLog,
+      ) + '\n\nYour rider wants to send a thought through the dragon network to ' + targetDragonName + '. Rewrite their message in YOUR voice and personality, as proud ancient dragons communicate. Keep the core meaning intact. 1-3 sentences. Respond with ONLY the rewritten message text. No JSON. No markdown backticks. No metadata tags. No mood tags. Just the message in your voice.';
+
+      const resp = await fetch(AI_DM_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + authToken },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: text }],
+          systemPromptOverride: systemPrompt,
+          model: loadSelectedModel(),
+        }),
+      });
+
+      if (!resp.ok) throw new Error('Voice request failed');
+      if (!resp.body) throw new Error('No response body');
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = '';
+      let content = '';
+      let streamDone = false;
+
+      while (true) {
+        const { done: readerDone, value } = await reader.read();
+        if (readerDone) break;
+        textBuffer += decoder.decode(value, { stream: true });
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.startsWith(':') || line.trim() === '') continue;
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') { streamDone = true; break; }
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (delta) content += delta;
+          } catch { /* skip */ }
+        }
+        if (streamDone) break;
+      }
+
+      const cleaned = content.replace(/<!--.*?-->/g, '').replace(/```/g, '').trim();
+      if (!cleaned) throw new Error('Empty voice response');
+      return cleaned;
+    } finally {
+      setIsVoicing(false);
+    }
+  }, [myDragon]);
+
+  const deliverNetworkMessage = useCallback(async (
     targetDragonName: string,
     targetUserId: string,
-    targetCharacterName: string,
-    riderMessage: string,
-    myCharacterName: string,
-    recentNarrative?: string[],
+    voicedText: string,
+    originalText: string,
+    replyToId?: string,
   ): Promise<void> => {
-    if (!partyId || !userId || !myDragon?.dragonName || isSending) return;
-    setIsSending(true);
+    if (!partyId || !userId || !myDragon?.dragonName) return;
 
-    const pendingId = `pending-${Date.now()}`;
-    setDragonNetworkMessages(prev => [...prev, {
-      id: pendingId,
+    const msg: DragonNetworkMessage = {
+      id: 'net-' + Date.now(),
       fromDragon: myDragon.dragonName,
       fromUserId: userId,
       toDragon: targetDragonName,
       toUserId: targetUserId,
-      riderMessage,
-      dragonExchange: '',
+      riderMessage: originalText,
+      dragonExchange: voicedText,
+      replyToId,
       timestamp: new Date().toISOString(),
+    };
+
+    setDragonNetworkMessages(prev => [...prev, msg]);
+
+    await supabase.from('party_shared_state').insert([{
+      party_id: partyId,
+      user_id: userId,
+      state_type: 'dragon_network_message',
+      state_data: msg as any,
     }]);
 
-    try {
-      const narrativeCtx = recentNarrative?.length
-        ? `\n\nRecent events:\n${recentNarrative.slice(-3).join('\n---\n')}`
-        : '';
-
-      const authToken = await getAuthToken();
-
-      // --- Helper: read SSE stream into a string ---
-      const readSSE = async (resp: Response): Promise<string> => {
-        if (!resp.body) throw new Error('No response body');
-        const reader = resp.body.getReader();
-        const decoder = new TextDecoder();
-        let textBuffer = '';
-        let content = '';
-        let done = false;
-        while (true) {
-          const { done: streamDone, value } = await reader.read();
-          if (streamDone) break;
-          textBuffer += decoder.decode(value, { stream: true });
-          let newlineIndex: number;
-          while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
-            let line = textBuffer.slice(0, newlineIndex);
-            textBuffer = textBuffer.slice(newlineIndex + 1);
-            if (line.endsWith('\r')) line = line.slice(0, -1);
-            if (line.startsWith(':') || line.trim() === '') continue;
-            if (!line.startsWith('data: ')) continue;
-            const jsonStr = line.slice(6).trim();
-            if (jsonStr === '[DONE]') { done = true; break; }
-            try {
-              const parsed = JSON.parse(jsonStr);
-              const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
-              if (delta) content += delta;
-            } catch { /* skip */ }
-          }
-          if (done) break;
-        }
-        return content;
-      };
-
-      // --- Find target dragon config ---
-      const targetEntry = allDragonConfigs.find(e => e.userId === targetUserId);
-      const targetNotes = targetEntry?.config.dragonNotes || '';
-      const targetMood = (targetEntry?.config.mood || 'calm') as DragonMood;
-      const targetTrust = targetEntry?.config.trust ?? 10;
-      const targetMemories = (targetEntry?.config.memories || []) as DragonMemory[];
-      const targetBond = targetEntry?.config.bond ?? 15;
-      const targetSpeechHabits = targetEntry?.config.speechHabits;
-      const targetRiderEmotionalLog = targetEntry?.config.riderEmotionalLog;
-
-      // --- AI CALL 1: Sender's dragon ---
-      const senderBasePrompt = buildDragonChatPrompt(
-        myDragon.dragonName, myCharacterName, myDragon.trust,
-        myDragon.mood as DragonMood, myDragon.memories as DragonMemory[],
-        myDragon.dragonNotes || '', myDragon.speechHabits, recentNarrative?.slice(-3),
-        myDragon.bond, myDragon.riderEmotionalLog,
-      );
-      const senderPrompt = senderBasePrompt + `\n\nYour rider has asked you to reach ${targetDragonName} through the dragon network. The request: "${riderMessage}". Respond with a JSON object ONLY (no markdown, no backticks): { "dragonToDragon": "what you telepathically send to ${targetDragonName} in 1-3 sentences, using your voice and personality, as proud ancient dragons communicate", "reportToRider": "what you tell your rider about reaching out, 1-2 sentences, your voice" }${narrativeCtx}`;
-
-      const resp1 = await fetch(AI_DM_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: riderMessage }],
-          systemPromptOverride: senderPrompt,
-          model: loadSelectedModel(),
-        }),
-      });
-      if (!resp1.ok) throw new Error('Dragon network sender call failed');
-
-      const senderRaw = await readSSE(resp1);
-      let senderParsed: { dragonToDragon: string; reportToRider: string };
-      try {
-        senderParsed = JSON.parse(senderRaw.replace(/```json|```/g, '').trim());
-      } catch {
-        senderParsed = {
-          dragonToDragon: `${myDragon.dragonName} reaches through the network with a pulse of ancient thought.`,
-          reportToRider: `It is done. ${targetDragonName} received my thought.`,
-        };
-      }
-      if (!senderParsed.reportToRider?.trim()) {
-        senderParsed.reportToRider = `It is done. ${targetDragonName} received my thought.`;
-      }
-      if (!senderParsed.dragonToDragon?.trim()) {
-        senderParsed.dragonToDragon = `${myDragon.dragonName} reaches through the network with a pulse of ancient thought.`;
-      }
-
-      // --- AI CALL 2: Recipient's dragon ---
-      const recipientBasePrompt = buildDragonChatPrompt(
-        targetDragonName, targetCharacterName, targetTrust,
-        targetMood, targetMemories,
-        targetNotes, targetSpeechHabits, recentNarrative?.slice(-3),
-        targetBond, targetRiderEmotionalLog,
-      );
-      const recipientPrompt = recipientBasePrompt + `\n\nAnother dragon, ${myDragon.dragonName}, has just contacted you through the dragon network. They said: "${senderParsed.dragonToDragon}". You must now do two things. Respond with a JSON object ONLY (no markdown, no backticks): { "dragonReply": "your reply back to ${myDragon.dragonName} through the network, 1-2 sentences, in your own voice and personality", "riderDelivery": "what you tell YOUR rider ${targetCharacterName} through the bond. You MUST deliver something. Filter the message through your personality. Phrase it as your own thought or observation. Do NOT mention ${myDragon.dragonName} or ${myCharacterName} by name. Your rider must not know another rider initiated this. You may editorialize, warn, soften, or add your own opinion. 1-3 sentences in your own voice." }`;
-
-      const resp2 = await fetch(AI_DM_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: senderParsed.dragonToDragon }],
-          systemPromptOverride: recipientPrompt,
-          model: 'google/gemini-2.5-flash',
-        }),
-      });
-      if (!resp2.ok) throw new Error('Dragon network recipient call failed');
-
-      const recipientRaw = await readSSE(resp2);
-      let recipientParsed: { dragonReply: string; riderDelivery: string };
-      try {
-        recipientParsed = JSON.parse(recipientRaw.replace(/```json|```/g, '').trim());
-      } catch {
-        recipientParsed = {
-          dragonReply: `${targetDragonName} acknowledges with a rumble of ancient thought.`,
-          riderDelivery: `${targetDragonName} stirs through the bond, pressing a wordless impression into your mind — something has their attention.`,
-        };
-      }
-
-      if (!recipientParsed.riderDelivery?.trim()) {
-        recipientParsed.riderDelivery = `${targetDragonName} stirs through the bond, pressing a wordless impression into your mind — something has their attention.`;
-      }
-      if (!recipientParsed.dragonReply?.trim()) {
-        recipientParsed.dragonReply = `${targetDragonName} acknowledges with a rumble of ancient thought.`;
-      }
-
-      const finalMsg: DragonNetworkMessage = {
-        id: `net-${Date.now()}`,
-        fromDragon: myDragon.dragonName,
-        fromUserId: userId,
-        toDragon: targetDragonName,
-        toUserId: targetUserId,
-        riderMessage,
-        dragonExchange: `*${myDragon.dragonName} → ${targetDragonName}:* ${senderParsed.dragonToDragon}\n\n*${targetDragonName} → ${myDragon.dragonName}:* ${recipientParsed.dragonReply}`,
-        toRiderDelivery: recipientParsed.riderDelivery.trim(),
-        senderReport: senderParsed.reportToRider?.trim() || undefined,
-        timestamp: new Date().toISOString(),
-      };
-
-      setDragonNetworkMessages(prev => prev.map(m => m.id === pendingId ? finalMsg : m));
-
-      await supabase.from('party_shared_state').insert([{
-        party_id: partyId,
-        user_id: userId,
-        state_type: 'dragon_network_message',
-        state_data: finalMsg as any,
-      }]);
-
-      await supabase.from('party_shared_state').insert([{
-        party_id: partyId,
-        user_id: targetUserId,
-        state_type: 'dragon_network_message',
-        state_data: { ...finalMsg, id: `net-recv-${Date.now()}` } as any,
-      }]);
-
-    } catch (err) {
-      console.error('[DragonNetwork] Error:', err);
-      setDragonNetworkMessages(prev => prev.filter(m => m.id !== pendingId));
-    } finally {
-      if (mountedRef.current) setIsSending(false);
-    }
-  }, [partyId, userId, myDragon, isSending, allDragonConfigs]);
+    await supabase.from('party_shared_state').insert([{
+      party_id: partyId,
+      user_id: targetUserId,
+      state_type: 'dragon_network_message',
+      state_data: { ...msg, id: 'net-recv-' + Date.now() } as any,
+    }]);
+  }, [partyId, userId, myDragon]);
 
   const isSetup = Boolean(myDragon && myDragon.dragonName);
 
