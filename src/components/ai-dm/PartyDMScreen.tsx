@@ -1098,6 +1098,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const photoInputRef = useRef<HTMLInputElement>(null);
   const photoCameraRef = useRef<HTMLInputElement>(null);
   const videoCameraRef = useRef<HTMLInputElement>(null);
+  const audioFileInputRef = useRef<HTMLInputElement>(null);
 
   // Bottom nav state
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
@@ -2529,6 +2530,30 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           finally { setIsUploadingVideo(false); if (videoCameraRef.current) videoCameraRef.current.value = ''; }
         }}
       />
+      <input
+        ref={audioFileInputRef}
+        type="file"
+        accept="audio/*"
+        className="hidden"
+        onChange={async (e) => {
+          sessionStorage.removeItem('pending-file-picker');
+          const file = e.target.files?.[0];
+          if (!file) return;
+          if (file.size > 25 * 1024 * 1024) { toast.error('Audio too large (max 25MB)'); return; }
+          setIsUploadingAudio(true);
+          try {
+            const fallbackExt = file.type.includes('mp4') ? 'm4a' : file.type.includes('mpeg') ? 'mp3' : 'webm';
+            const ext = file.name.split('.').pop() || fallbackExt;
+            const path = `party-dm/${partyDm.sessionConfig?.currentRoundId || 'general'}/${crypto.randomUUID()}.${ext}`;
+            const { error } = await supabase.storage.from('party-chat-audio').upload(path, file);
+            if (error) throw error;
+            const { data: urlData } = supabase.storage.from('party-chat-audio').getPublicUrl(path);
+            const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+            await partyDm.addMediaMessage(`[audio:${urlData.publicUrl}]`, senderName);
+          } catch (err) { toast.error(err instanceof Error ? err.message : 'Audio upload failed'); }
+          finally { setIsUploadingAudio(false); if (audioFileInputRef.current) audioFileInputRef.current.value = ''; }
+        }}
+      />
       <PartyDMAudioRecorder
         open={showAudioRecorder}
         onOpenChange={setShowAudioRecorder}
@@ -2563,6 +2588,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 <button onClick={() => { sessionStorage.setItem('pending-file-picker', 'photo'); photoInputRef.current?.click(); }} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs" style={{ touchAction: 'manipulation' }}><ImageIcon className="w-4 h-4" /> Photo from Gallery</button>
                 <button onClick={() => { sessionStorage.setItem('pending-file-picker', 'video'); videoInputRef.current?.click(); }} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs" style={{ touchAction: 'manipulation' }}><Film className="w-4 h-4" /> Video from Gallery</button>
                 <button onClick={() => setShowAudioRecorder(true)} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs" style={{ touchAction: 'manipulation' }}><Music className="w-4 h-4" /> Record Audio</button>
+                <button onClick={() => { sessionStorage.setItem('pending-file-picker', 'audio'); audioFileInputRef.current?.click(); }} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs" style={{ touchAction: 'manipulation' }}><Music className="w-4 h-4" /> Audio from Files</button>
               </PopoverContent>
             </Popover>
           </div>
@@ -2659,6 +2685,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   </button>
                   <button onClick={() => { setShowAudioRecorder(true); setDialogueAttachOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs" style={{ touchAction: 'manipulation' }}>
                     <Music className="w-4 h-4" /> Record Audio
+                  </button>
+                  <button onClick={() => { sessionStorage.setItem('pending-file-picker', 'audio'); audioFileInputRef.current?.click(); setDialogueAttachOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs" style={{ touchAction: 'manipulation' }}>
+                    <Music className="w-4 h-4" /> Audio from Files
                   </button>
                 </PopoverContent>
               </Popover>
@@ -2809,6 +2838,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             onPickPhoto={() => { sessionStorage.setItem('pending-file-picker', 'photo'); photoInputRef.current?.click(); }}
             onPickVideo={() => { sessionStorage.setItem('pending-file-picker', 'video'); videoInputRef.current?.click(); }}
             onPickAudio={() => setShowAudioRecorder(true)}
+            onPickAudioFile={() => { sessionStorage.setItem('pending-file-picker', 'audio'); audioFileInputRef.current?.click(); }}
             onCreatePoll={() => setShowPollCreator(true)}
             npcNames={partyNPCNames}
           />
