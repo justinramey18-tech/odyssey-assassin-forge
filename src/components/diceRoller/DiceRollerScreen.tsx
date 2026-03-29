@@ -24,6 +24,7 @@ import {
   type AbilityScore,
   type AIPromptTemplate,
 } from '@/lib/diceRollerConfig';
+import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import { rollDie } from '@/lib/diceRoller';
 import { getD20RollQuality } from '@/lib/rollQuality';
 import { DiceOddsWidget } from '@/components/settings/DiceOddsWidget';
@@ -873,8 +874,9 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={() => {
-                const dexMod = abilityModifiers.dex;
-                rollDice('d20', `⚡ Initiative (DEX)`, dexMod, true);
+              const dexMod = abilityModifiers.dex;
+                const initLabel = isEmpyreanMode() ? `⚡ Combat Reflexes (${getAbilityScoreDisplay('dex').abbr})` : `⚡ Initiative (DEX)`;
+                rollDice('d20', initLabel, dexMod, true);
               }}
               disabled={isRolling}
               className={cn(
@@ -888,7 +890,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
             >
               <Zap className="w-5 h-5 text-yellow-400" />
               <span className="font-cinzel font-bold text-yellow-400">
-                Roll Initiative
+                {isEmpyreanMode() ? 'Roll Combat Reflexes' : 'Roll Initiative'}
               </span>
               <span className="text-xs text-yellow-400/60 font-mono">
                 (d20{abilityModifiers.dex >= 0 ? '+' : ''}{abilityModifiers.dex})
@@ -1580,7 +1582,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
                       className="gap-1 text-xs"
                     >
                       <RotateCcw className="w-3 h-3" />
-                      Auto-assign (STR→CHA)
+                      {isEmpyreanMode() ? 'Auto-assign (BODY→WILL)' : 'Auto-assign (STR→CHA)'}
                     </Button>
                   </div>
 
@@ -1615,7 +1617,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
                   {/* Ability Assignment Grid */}
                   <div className="grid grid-cols-2 gap-3">
                     {ABILITY_ORDER.map((ability) => {
-                      const config = ABILITY_SCORES[ability];
+                      const config = getAbilityScoreDisplay(ability);
                       const assignedScore = scoreAssignments[ability];
                       const modifier = assignedScore !== null ? scoreToModifier(assignedScore) : null;
                       

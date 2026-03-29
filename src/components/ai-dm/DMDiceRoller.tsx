@@ -89,6 +89,33 @@ const SKILL_DESCRIPTIONS: Record<string, string> = {
   survival: 'Track, forage, navigate',
 };
 
+// Empyrean skill descriptions
+const EMPYREAN_SKILL_DESCRIPTIONS: Record<string, string> = {
+  acrobatics: 'Aerial maneuvers, flight combat',
+  animal_handling: 'Bond with your dragon',
+  arcana: 'Signet theory & rune lore',
+  athletics: 'Endure long flights & exertion',
+  deception: 'Mislead with cunning',
+  history: 'Recall military history',
+  insight: "Read someone's motives",
+  intimidation: 'Threaten or coerce',
+  investigation: 'Search the Codex',
+  medicine: 'Field triage & stabilization',
+  nature: 'Dragon lore & beast knowledge',
+  perception: 'Spot threats & hidden danger',
+  performance: 'Rally morale & inspire',
+  persuasion: 'Command & lead others',
+  religion: 'Venin knowledge & warding',
+  sleight_of_hand: 'Craft runes & wards',
+  stealth: 'Move unseen, shadow work',
+  survival: 'Tactical survival & navigation',
+};
+
+function getSkillDescription(skillId: string): string {
+  if (isEmpyreanMode()) return EMPYREAN_SKILL_DESCRIPTIONS[skillId] ?? SKILL_DESCRIPTIONS[skillId] ?? '';
+  return SKILL_DESCRIPTIONS[skillId] ?? '';
+}
+
 // Save descriptions for new players
 const SAVE_DESCRIPTIONS: Record<AbilityScore, string> = {
   str: 'Resist being pushed or held',
@@ -98,6 +125,20 @@ const SAVE_DESCRIPTIONS: Record<AbilityScore, string> = {
   wis: 'Resist charms and fear',
   cha: 'Defy banishment effects',
 };
+
+const EMPYREAN_SAVE_DESCRIPTIONS: Record<AbilityScore, string> = {
+  str: 'Endure physical force',
+  dex: 'Dodge blasts & dragon fire',
+  con: 'Resist venin & exhaustion',
+  int: 'Focus through mental assault',
+  wis: 'Trust your instinct under pressure',
+  cha: 'Assert willpower against influence',
+};
+
+function getSaveDescription(key: AbilityScore): string {
+  if (isEmpyreanMode()) return EMPYREAN_SAVE_DESCRIPTIONS[key] ?? SAVE_DESCRIPTIONS[key];
+  return SAVE_DESCRIPTIONS[key];
+}
 
 function getModifier(ctx: CharacterContext, ability: AbilityScore): number {
   if (!ctx.abilityScores) return 0;
@@ -491,14 +532,15 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
           <div className="grid grid-cols-6 gap-1">
             {(Object.entries(ABILITY_SCORES) as [AbilityScore, typeof ABILITY_SCORES[AbilityScore]][]).map(([key, info]) => {
               const mod = getModifier(characterContext, key);
+              const display = getAbilityScoreDisplay(key);
               return (
                 <button
                   key={key}
-                  onClick={() => handleRoll(`${info.name} Check`, mod)}
+                  onClick={() => handleRoll(`${display.name} Check`, mod)}
                   className="flex flex-col items-center gap-0.5 py-1.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-colors"
                   style={{ touchAction: 'manipulation' }}
                 >
-                  <span className={cn("text-[10px] font-bold", info.color)}>{info.abbr}</span>
+                  <span className={cn("text-[10px] font-bold", info.color)}>{display.abbr}</span>
                   <span className="text-[9px] text-white/40">{mod >= 0 ? `+${mod}` : mod}</span>
                 </button>
               );
@@ -523,7 +565,7 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
         <div>
           <div className="flex items-center justify-between border-b border-white/5 pb-1 mb-2">
             <span className="text-[10px] font-mono uppercase tracking-wider text-white/40">
-              ⚔ Skill Checks
+              {isEmpyreanMode() ? '⚔ Rider Checks' : '⚔ Skill Checks'}
             </span>
             <button
               onClick={() => setEditMode(prev => !prev)}
@@ -539,13 +581,13 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
             </button>
           </div>
           <div className="grid grid-cols-2 gap-1">
-            {SKILLS.map(skill => {
+            {getSkillsForDisplay().map(skill => {
               const baseMod = getModifier(characterContext, skill.ability);
               const isProf = proficientSkills.has(skill.id);
               const isExpert = expertiseSkills.has(skill.id);
               const totalMod = baseMod + (isExpert ? profBonus * 2 : isProf ? profBonus : 0);
-              const abilityInfo = ABILITY_SCORES[skill.ability];
-              const desc = SKILL_DESCRIPTIONS[skill.id];
+              const abilityInfo = getAbilityScoreDisplay(skill.ability);
+              const desc = getSkillDescription(skill.id);
               return (
                 <button
                   key={skill.id}
@@ -607,18 +649,19 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
         {/* Section: Saving Throws */}
         <div>
           <div className="text-[10px] font-mono uppercase tracking-wider text-white/40 border-b border-white/5 pb-1 mb-2">
-            🛡 Saving Throws
+            {isEmpyreanMode() ? '🛡 Resistance Saves' : '🛡 Saving Throws'}
           </div>
           <div className="grid grid-cols-2 gap-1.5">
             {(Object.entries(ABILITY_SCORES) as [AbilityScore, typeof ABILITY_SCORES[AbilityScore]][]).map(([key, info]) => {
-              const baseMod = getModifier(characterContext, key);
-              const isProf = proficientSaves.has(key);
-              const totalMod = baseMod + (isProf ? profBonus : 0);
-              const desc = SAVE_DESCRIPTIONS[key];
-              return (
-                <button
-                  key={key}
-                  onClick={() => editMode ? toggleSaveProficiency(key) : handleRoll(`${info.name} Save`, totalMod)}
+               const baseMod = getModifier(characterContext, key);
+               const isProf = proficientSaves.has(key);
+               const totalMod = baseMod + (isProf ? profBonus : 0);
+               const desc = getSaveDescription(key);
+               const display = getAbilityScoreDisplay(key);
+               return (
+                 <button
+                   key={key}
+                   onClick={() => editMode ? toggleSaveProficiency(key) : handleRoll(`${display.name} Save`, totalMod)}
                   className={cn(
                     "flex items-center justify-between px-3 py-2 rounded-lg border transition-colors",
                     editMode && "ring-1 ring-white/10",
@@ -638,7 +681,7 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                     ) : null}
                     <div className="flex flex-col min-w-0">
-                      <span className={cn("text-xs font-semibold", info.color)}>{info.name}</span>
+                      <span className={cn("text-xs font-semibold", info.color)}>{display.name}</span>
                       {desc && <span className="text-[8px] text-white/30 truncate">{desc}</span>}
                     </div>
                   </div>
