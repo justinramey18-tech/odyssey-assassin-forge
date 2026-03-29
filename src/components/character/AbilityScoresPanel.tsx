@@ -142,7 +142,7 @@ export function AbilityScoresPanel({
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-amber-400" />
-          Ability Scores
+          {isEmpyreanMode() ? 'Rider Attributes' : 'Ability Scores'}
         </h3>
         <div className="flex gap-2">
           <Sheet open={isRandomizeOpen} onOpenChange={setIsRandomizeOpen}>
