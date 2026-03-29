@@ -1582,7 +1582,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
                       className="gap-1 text-xs"
                     >
                       <RotateCcw className="w-3 h-3" />
-                      Auto-assign (STR→CHA)
+                      {isEmpyreanMode() ? 'Auto-assign (BODY→WILL)' : 'Auto-assign (STR→CHA)'}
                     </Button>
                   </div>
 
