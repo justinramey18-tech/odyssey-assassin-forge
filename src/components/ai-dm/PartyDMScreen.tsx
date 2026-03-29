@@ -96,6 +96,8 @@ interface PartyDMScreenProps {
   /** Whether this character is a Momo Moon Druid */
   isMomoMoonDruid?: boolean;
   onShowOocChat?: () => void;
+  syncedDragonNetworkMessages?: any[];
+  setSyncedDragonNetworkMessages?: React.Dispatch<React.SetStateAction<any[]>>;
 }
 
 const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4'];
