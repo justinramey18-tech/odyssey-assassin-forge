@@ -581,12 +581,12 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
             </button>
           </div>
           <div className="grid grid-cols-2 gap-1">
-            {SKILLS.map(skill => {
+            {getSkillsForDisplay().map(skill => {
               const baseMod = getModifier(characterContext, skill.ability);
               const isProf = proficientSkills.has(skill.id);
               const isExpert = expertiseSkills.has(skill.id);
               const totalMod = baseMod + (isExpert ? profBonus * 2 : isProf ? profBonus : 0);
-              const abilityInfo = ABILITY_SCORES[skill.ability];
+              const abilityInfo = getAbilityScoreDisplay(skill.ability);
               const desc = getSkillDescription(skill.id);
               return (
                 <button
