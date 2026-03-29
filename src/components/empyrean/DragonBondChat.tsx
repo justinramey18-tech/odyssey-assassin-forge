@@ -89,6 +89,7 @@ export default function DragonBondChat({
   const [showMemoryPanel, setShowMemoryPanel] = useState(false);
   const [newMemoryText, setNewMemoryText] = useState('');
   const [newMemorySource, setNewMemorySource] = useState<'rider-said' | 'campaign' | 'bond-chat'>('rider-said');
+  const [confirmClearMemories, setConfirmClearMemories] = useState(false);
   const [editingNotes, setEditingNotes] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -583,13 +584,52 @@ export default function DragonBondChat({
               <span className="text-xs font-cinzel font-semibold text-purple-300">Dragon Memories</span>
               <span className="text-[10px] text-white/30">({bondState.memories.length}/30)</span>
             </div>
-            <button
-              onClick={() => setShowMemoryPanel(false)}
-              className="p-1 rounded hover:bg-white/10 text-white/40 hover:text-white/60 transition-colors"
-              style={{ touchAction: 'manipulation' }}
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              {bondState.memories.length > 0 && (
+                confirmClearMemories ? (
+                  <div className="flex items-center gap-1 mr-1">
+                    <button
+                      onClick={() => {
+                        setBondState(prev => {
+                          const updated = { ...prev, memories: [] };
+                          saveBondState(updated);
+                          return updated;
+                        });
+                        setConfirmClearMemories(false);
+                        toast('All memories cleared', { duration: 2000 });
+                      }}
+                      className="px-2 py-1 rounded text-[10px] font-semibold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      onClick={() => setConfirmClearMemories(false)}
+                      className="p-1 rounded hover:bg-white/10 text-white/40 hover:text-white/60 transition-colors"
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmClearMemories(true)}
+                    className="px-2 py-1 rounded text-[10px] text-white/25 hover:text-red-400 hover:bg-red-500/10 transition-colors mr-1"
+                    style={{ touchAction: 'manipulation' }}
+                    title="Clear all memories"
+                  >
+                    Clear all
+                  </button>
+                )
+              )}
+              <button
+                onClick={() => setShowMemoryPanel(false)}
+                className="p-1 rounded hover:bg-white/10 text-white/40 hover:text-white/60 transition-colors"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
             {bondState.memories.length === 0 ? (
