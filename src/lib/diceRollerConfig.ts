@@ -1,6 +1,6 @@
 // D&D 5e Dice Roller Configuration
 // Skills, Saving Throws, and AI DM Prompts
-
+import { isEmpyreanMode, EMPYREAN_ABILITY_ABBR, EMPYREAN_SKILL_LABELS } from '@/lib/empyreanLabels';
 export type DieSize = 'd4' | 'd6' | 'd8' | 'd10' | 'd12' | 'd20' | 'd100';
 
 export interface DieConfig {
@@ -34,6 +34,14 @@ export const ABILITY_SCORES: Record<AbilityScore, { name: string; abbr: string; 
   cha: { name: 'Charisma', abbr: 'CHA', color: 'text-pink-400' },
 };
 
+export function getAbilityScoreDisplay(key: AbilityScore): { name: string; abbr: string; color: string } {
+  const base = ABILITY_SCORES[key];
+  if (!isEmpyreanMode()) return base;
+  const emp = EMPYREAN_ABILITY_ABBR[key];
+  if (!emp) return base;
+  return { ...base, name: emp.name, abbr: emp.abbr };
+}
+
 // D&D 5e Skills
 export interface Skill {
   id: string;
@@ -61,6 +69,17 @@ export const SKILLS: Skill[] = [
   { id: 'stealth', name: 'Stealth', ability: 'dex' },
   { id: 'survival', name: 'Survival', ability: 'wis' },
 ];
+
+export function getSkillDisplay(skill: Skill): { id: string; name: string; ability: AbilityScore } {
+  if (!isEmpyreanMode()) return skill;
+  const empName = EMPYREAN_SKILL_LABELS[skill.id];
+  return empName ? { ...skill, name: empName } : skill;
+}
+
+export function getSkillsForDisplay(): Skill[] {
+  if (!isEmpyreanMode()) return SKILLS;
+  return SKILLS.map(s => getSkillDisplay(s));
+}
 
 // AI DM Prompt Templates (System-Agnostic)
 export interface AIPromptTemplate {

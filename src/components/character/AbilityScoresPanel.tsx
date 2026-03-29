@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Dices, LayoutGrid, Plus, Minus, Sparkles } from 'lucide-react';
+import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -22,7 +23,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   AbilityName, 
-  ABILITY_CONFIG, 
+  ABILITY_CONFIG,
+  getAbilityConfig,
   ABILITY_ORDER,
   STANDARD_ARRAY,
   modifierToString,
@@ -140,7 +142,7 @@ export function AbilityScoresPanel({
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-amber-400" />
-          Ability Scores
+          {isEmpyreanMode() ? 'Rider Attributes' : 'Ability Scores'}
         </h3>
         <div className="flex gap-2">
           <Sheet open={isRandomizeOpen} onOpenChange={setIsRandomizeOpen}>
@@ -193,7 +195,7 @@ export function AbilityScoresPanel({
                       </p>
                       <div className="grid grid-cols-2 gap-3">
                         {ABILITY_ORDER.map(ability => {
-                          const config = ABILITY_CONFIG[ability];
+                          const config = getAbilityConfig(ability);
                           const Icon = getIconByName(config.icon);
                           const available = getAvailableScores(ability);
                           
@@ -263,7 +265,7 @@ export function AbilityScoresPanel({
       {/* Ability score rows */}
       <div className="space-y-2">
         {ABILITY_ORDER.map(ability => {
-          const config = ABILITY_CONFIG[ability];
+          const config = getAbilityConfig(ability);
           const breakdown = getScoreBreakdown(ability);
           const Icon = getIconByName(config.icon);
           

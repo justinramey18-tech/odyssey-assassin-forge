@@ -17,6 +17,8 @@ import {
   ABILITY_SCORES,
   AI_DM_PROMPTS,
   formatPromptWithRoll,
+  getAbilityScoreDisplay,
+  getSkillsForDisplay,
   type DieSize,
   type AbilityScore,
   type AIPromptTemplate,
@@ -556,7 +558,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
     const profBonus = proficiencyBonus * profMultiplier;
     const totalMod = abilityMod + profBonus;
     const indicator = hasExpertise ? '★' : (isProficient ? '●' : '');
-    rollDice('d20', `${indicator}${skillName} (${ABILITY_SCORES[ability].abbr})`, totalMod, true);
+    rollDice('d20', `${indicator}${skillName} (${getAbilityScoreDisplay(ability).abbr})`, totalMod, true);
   }, [rollDice, abilityModifiers, proficiencyBonus, proficientSkills, expertiseSkills]);
 
   // Roll saving throw (d20) with modifiers and roll mode
@@ -565,7 +567,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
     const profBonus = proficientSaves.has(ability) ? proficiencyBonus : 0;
     const totalMod = abilityMod + profBonus;
     const profIndicator = profBonus > 0 ? '●' : '';
-    rollDice('d20', `${profIndicator}${ABILITY_SCORES[ability].name} Save`, totalMod, true);
+    rollDice('d20', `${profIndicator}${getAbilityScoreDisplay(ability).name} Save`, totalMod, true);
   }, [rollDice, abilityModifiers, proficiencyBonus, proficientSaves]);
 
   // Copy to clipboard
@@ -1105,7 +1107,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
                 {/* Ability Modifiers */}
                 <div className="grid grid-cols-3 gap-2">
                   {(Object.keys(ABILITY_SCORES) as AbilityScore[]).map((ability) => {
-                    const config = ABILITY_SCORES[ability];
+                    const config = getAbilityScoreDisplay(ability);
                     const mod = abilityModifiers[ability];
                     return (
                       <div
@@ -1174,8 +1176,8 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
 
             {/* Skills List */}
             <div className="grid grid-cols-1 gap-2">
-              {SKILLS.map((skill) => {
-                const abilityConfig = ABILITY_SCORES[skill.ability];
+              {getSkillsForDisplay().map((skill) => {
+                const abilityConfig = getAbilityScoreDisplay(skill.ability);
                 const abilityMod = abilityModifiers[skill.ability];
                 const isProficient = proficientSkills.has(skill.id);
                 const hasExpertise = expertiseSkills.has(skill.id);
@@ -1287,7 +1289,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
 
             <div className="grid grid-cols-2 gap-3">
               {(Object.keys(ABILITY_SCORES) as AbilityScore[]).map((ability) => {
-                const config = ABILITY_SCORES[ability];
+                const config = getAbilityScoreDisplay(ability);
                 const abilityMod = abilityModifiers[ability];
                 const isProficient = proficientSaves.has(ability);
                 const totalMod = abilityMod + (isProficient ? proficiencyBonus : 0);
