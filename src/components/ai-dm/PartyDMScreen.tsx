@@ -3438,7 +3438,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           isVoicing={dragonBonds.isVoicing}
           onClearChat={() => dragonBonds.clearDragonChat()}
           onDeleteMessage={(index) => dragonBonds.deleteFromDragonChat(index)}
-          memories={(dragonBonds.myDragon?.memories || []) as Array<{ id: string; text: string; source: string; createdAt: string }>}
+          memories={(dragonBonds.myDragon?.memories || []) as any}
           onDeleteMemory={async (memoryId: string) => {
             const currentMemories = (dragonBonds.myDragon?.memories || []) as Array<{ id: string; text: string; source: string; createdAt: string }>;
             const filtered = currentMemories.filter(m => m.id !== memoryId);
