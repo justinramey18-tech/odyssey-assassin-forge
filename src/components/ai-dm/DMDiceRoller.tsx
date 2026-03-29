@@ -653,14 +653,15 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
           </div>
           <div className="grid grid-cols-2 gap-1.5">
             {(Object.entries(ABILITY_SCORES) as [AbilityScore, typeof ABILITY_SCORES[AbilityScore]][]).map(([key, info]) => {
-              const baseMod = getModifier(characterContext, key);
-              const isProf = proficientSaves.has(key);
-              const totalMod = baseMod + (isProf ? profBonus : 0);
-              const desc = getSaveDescription(key);
-              return (
-                <button
-                  key={key}
-                  onClick={() => editMode ? toggleSaveProficiency(key) : handleRoll(`${info.name} Save`, totalMod)}
+               const baseMod = getModifier(characterContext, key);
+               const isProf = proficientSaves.has(key);
+               const totalMod = baseMod + (isProf ? profBonus : 0);
+               const desc = getSaveDescription(key);
+               const display = getAbilityScoreDisplay(key);
+               return (
+                 <button
+                   key={key}
+                   onClick={() => editMode ? toggleSaveProficiency(key) : handleRoll(`${display.name} Save`, totalMod)}
                   className={cn(
                     "flex items-center justify-between px-3 py-2 rounded-lg border transition-colors",
                     editMode && "ring-1 ring-white/10",
