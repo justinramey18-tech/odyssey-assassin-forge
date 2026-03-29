@@ -34,6 +34,14 @@ export const ABILITY_SCORES: Record<AbilityScore, { name: string; abbr: string; 
   cha: { name: 'Charisma', abbr: 'CHA', color: 'text-pink-400' },
 };
 
+export function getAbilityScoreDisplay(key: AbilityScore): { name: string; abbr: string; color: string } {
+  const base = ABILITY_SCORES[key];
+  if (!isEmpyreanMode()) return base;
+  const emp = EMPYREAN_ABILITY_ABBR[key];
+  if (!emp) return base;
+  return { ...base, name: emp.name, abbr: emp.abbr };
+}
+
 // D&D 5e Skills
 export interface Skill {
   id: string;
