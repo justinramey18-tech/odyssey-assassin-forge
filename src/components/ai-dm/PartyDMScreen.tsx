@@ -3450,6 +3450,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             const newMemory = { id: crypto.randomUUID(), text, source, createdAt: new Date().toISOString() };
             await dragonBonds.updateMyDragon({ memories: [...currentMemories, newMemory] as any });
           }}
+          onClearAllMemories={async () => {
+            await dragonBonds.updateMyDragon({ memories: [] as any });
+          }}
         />
       )}
     </div>
