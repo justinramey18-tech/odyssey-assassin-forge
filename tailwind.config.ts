@@ -246,6 +246,18 @@ export default {
           "80%": { transform: "translateX(0.2px) skewX(0.1deg)", filter: "blur(0px)" },
           "100%": { transform: "translateX(0) skewX(0deg)", filter: "blur(0px)" },
         },
+        "screen-shake": {
+          "0%, 100%": { transform: "translate(0, 0) rotate(0deg)" },
+          "10%": { transform: "translate(-2px, 1px) rotate(-0.3deg)" },
+          "20%": { transform: "translate(2px, -1px) rotate(0.3deg)" },
+          "30%": { transform: "translate(-1px, 2px) rotate(-0.2deg)" },
+          "40%": { transform: "translate(1px, -2px) rotate(0.2deg)" },
+          "50%": { transform: "translate(-2px, 0px) rotate(-0.3deg)" },
+          "60%": { transform: "translate(2px, 1px) rotate(0.2deg)" },
+          "70%": { transform: "translate(-1px, -1px) rotate(-0.2deg)" },
+          "80%": { transform: "translate(1px, 2px) rotate(0.3deg)" },
+          "90%": { transform: "translate(-1px, -2px) rotate(-0.1deg)" },
+        },
         "breathe-happy": {
           "0%, 100%": { transform: "scale(1)", boxShadow: "0 0 10px rgba(245,158,11,0.3)" },
           "50%": { transform: "scale(1.08)", boxShadow: "0 0 25px rgba(245,158,11,0.6)" },
