@@ -124,7 +124,7 @@ export function ClassLevelBadge({
             }}
           >
             <ClsIcon className={size === 'sm' ? 'w-2.5 h-2.5' : 'w-3 h-3'} />
-            <span className="font-semibold">{cls.name}</span>
+            <span className="font-semibold">{isEmpyreanMode() ? (EMPYREAN_CLASS_LABELS[cls.id] ?? cls.name) : cls.name}</span>
             <span className="opacity-70">{cls.level}</span>
           </Badge>
         );

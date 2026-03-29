@@ -194,8 +194,12 @@ export function ClassSelectionStep({ state, onChange }: ClassSelectionStepProps)
 
       {/* Info Banner for Rogue */}
       <div className="bg-muted/50 border border-border rounded-lg p-3 text-sm text-muted-foreground">
-        <strong className="text-foreground">Odyssey Assassin (Rogue)</strong> is the original class with 
-        the Hunter, Warrior, and Assassin skill trees. Other classes use D&D 5e spellcasting.
+        {isEmpyreanMode() ? (
+          <><strong className="text-foreground">Shadow Operative</strong> is the original class with the deepest feature set.</>
+        ) : (
+          <><strong className="text-foreground">Odyssey Assassin (Rogue)</strong> is the original class with 
+          the Hunter, Warrior, and Assassin skill trees. Other classes use D&amp;D 5e spellcasting.</>
+        )}
       </div>
 
       {/* Class Grid */}
