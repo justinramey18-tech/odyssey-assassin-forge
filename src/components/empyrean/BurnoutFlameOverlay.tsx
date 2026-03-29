@@ -175,13 +175,13 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
               opacity: 0.3,
             }}
           />
+          {/* 6/8 consciousness fade — 6s cycle, 25% clear center */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
-              zIndex: 63,
-              background: 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.7) 85%, rgba(0,0,0,0.9) 100%)',
-              animation: 'consciousness-fade 8s ease-in-out infinite',
-              opacity: 0.3,
+              zIndex: 65,
+              background: 'radial-gradient(circle at center, transparent 0%, transparent 25%, rgba(0,0,0,0.6) 45%, rgba(0,0,0,1) 65%, rgba(0,0,0,1) 100%)',
+              animation: 'consciousness-fade 6s ease-in-out infinite',
             }}
           />
         </>
@@ -198,22 +198,13 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
               opacity: 0.35,
             }}
           />
+          {/* 7/8 consciousness tunnel — 5s cycle, 15% clear center */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
-              zIndex: 63,
-              background: 'radial-gradient(ellipse at center, transparent 15%, rgba(0,0,0,0.6) 60%, rgba(0,0,0,0.9) 100%)',
-              animation: 'consciousness-fade 7s ease-in-out infinite',
-              opacity: 0.45,
-            }}
-          />
-          {/* Consciousness tunnel - fading in/out */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              zIndex: 64,
-              background: 'radial-gradient(circle at center, transparent 0%, transparent 20%, rgba(0,0,0,0.1) 35%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.75) 70%, rgba(0,0,0,0.95) 100%)',
-              animation: 'consciousness-tunnel 8s ease-in-out infinite',
+              zIndex: 65,
+              background: 'radial-gradient(circle at center, transparent 0%, transparent 15%, rgba(0,0,0,0.5) 30%, rgba(0,0,0,1) 50%, rgba(0,0,0,1) 100%)',
+              animation: 'consciousness-tunnel 5s ease-in-out infinite',
             }}
           />
         </>
@@ -230,21 +221,13 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
               opacity: 0.4,
             }}
           />
+          {/* 8/8 consciousness tunnel — 4s cycle, 8% clear center, holds at peak */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
-              zIndex: 63,
-              background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.75) 50%, rgba(0,0,0,0.95) 100%)',
-              animation: 'consciousness-fade 6s ease-in-out infinite',
-            }}
-          />
-          {/* Consciousness tunnel - heavy, nearly closing */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              zIndex: 64,
-              background: 'radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.05) 12%, rgba(0,0,0,0.2) 25%, rgba(0,0,0,0.55) 42%, rgba(0,0,0,0.85) 60%, rgba(0,0,0,0.98) 100%)',
-              animation: 'consciousness-tunnel-heavy 8s ease-in-out infinite',
+              zIndex: 65,
+              background: 'radial-gradient(circle at center, transparent 0%, transparent 8%, rgba(0,0,0,0.4) 20%, rgba(0,0,0,1) 40%, rgba(0,0,0,1) 100%)',
+              animation: 'consciousness-tunnel-heavy 4s ease-in-out infinite',
             }}
           />
         </>
