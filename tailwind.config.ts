@@ -292,6 +292,7 @@ export default {
           "72%": { letterSpacing: "1.8px", wordSpacing: "2px" },
           "100%": { letterSpacing: "0px", wordSpacing: "0px" },
         },
+        "flame-dance": {
           "0%": { backgroundPosition: "0% 0%" },
           "25%": { backgroundPosition: "50% 10%" },
           "50%": { backgroundPosition: "100% 5%" },
