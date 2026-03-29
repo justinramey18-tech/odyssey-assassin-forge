@@ -3,7 +3,7 @@ import { ArrowLeft, Send, X, Pencil, Check, Loader2, Trash2, Brain } from 'lucid
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
-import { getMoodDescriptor, getBondDescriptor, getTrustDescriptor, type DragonMood } from '@/lib/dragonBondState';
+import { getMoodDescriptor, getBondDescriptor, getTrustDescriptor, type DragonMood, type DragonMemory } from '@/lib/dragonBondState';
 import type { DragonChatMessage, DragonNetworkMessage } from '@/hooks/use-party-dragon-bonds';
 
 const BOND_SENSE_RE = /<!--BOND_SENSE:(.+?)-->/g;
