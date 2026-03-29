@@ -854,7 +854,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const partyNPCNames = useNPCAutocomplete(partyDm.messages as any);
   const isEmpyrean = partyDm.sessionConfig?.campaignType === 'empyrean';
   const dragonBonds = usePartyDragonBonds(isEmpyrean ? (partyId || null) : null, currentUserId || null, members);
-  
+  const [showEmpyreanBanner, setShowEmpyreanBanner] = useState(false);
+
 
   // Fix A: Clear scoped localStorage when user identity changes (prevents data bleed between accounts)
   const lastUserIdRef = useRef<string | null>(currentUserId ?? null);
