@@ -962,7 +962,7 @@ async function processCommand(
     const candidates: DragonCandidate[] = [];
 
     // Solo dragon — try scoped storage first (newer format), then legacy dragonBond
-    if (save) {
+    if (save && sourceFilter !== 'party') {
       const ext = (save.extended_data || {}) as any;
       const scopedStorage = ext?.scopedLocalStorage || {};
       let soloDragon: any = null;
