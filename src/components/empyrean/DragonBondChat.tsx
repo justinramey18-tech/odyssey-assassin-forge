@@ -625,6 +625,16 @@ export default function DragonBondChat({
           </div>
           <div className="shrink-0 px-4 py-2.5 border-t border-purple-500/10">
             <div className="flex items-center gap-2">
+              <select
+                value={newMemorySource}
+                onChange={e => setNewMemorySource(e.target.value as 'rider-said' | 'campaign' | 'bond-chat')}
+                className="shrink-0 bg-black/30 border border-purple-500/20 rounded-lg px-2 py-2 text-[10px] text-white/70 focus:outline-none focus:border-purple-500/40 transition-colors appearance-none cursor-pointer"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <option value="rider-said">rider said</option>
+                <option value="campaign">campaign</option>
+                <option value="bond-chat">bond chat</option>
+              </select>
               <input
                 type="text"
                 value={newMemoryText}
@@ -643,7 +653,7 @@ export default function DragonBondChat({
                 <Plus className="w-3.5 h-3.5" />
               </button>
             </div>
-            <p className="text-[9px] text-white/20 mt-1">Tagged as "rider said" · {newMemoryText.length}/200</p>
+            <p className="text-[9px] text-white/20 mt-1">{newMemoryText.length}/200</p>
           </div>
         </div>
       )}
