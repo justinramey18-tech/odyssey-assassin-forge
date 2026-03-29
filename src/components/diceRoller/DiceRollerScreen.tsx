@@ -874,8 +874,9 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={() => {
-                const dexMod = abilityModifiers.dex;
-                rollDice('d20', `⚡ Initiative (DEX)`, dexMod, true);
+              const dexMod = abilityModifiers.dex;
+                const initLabel = isEmpyreanMode() ? `⚡ Combat Reflexes (${getAbilityScoreDisplay('dex').abbr})` : `⚡ Initiative (DEX)`;
+                rollDice('d20', initLabel, dexMod, true);
               }}
               disabled={isRolling}
               className={cn(
