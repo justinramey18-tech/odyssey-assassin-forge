@@ -103,7 +103,7 @@ export function HPWidget({ currentHP, maxHP, tempHP, deathSaves, onHPChange, onD
     setHpDelta('');
 
     toast({
-      title: `🛡️ +${amount} Temp HP`,
+      title: `🛡️ +${amount} ${isEmpyreanMode() ? 'Temp Vitality' : 'Temp HP'}`,
       description: `Total temp HP: ${newTemp}`,
       className: 'border-sky-500/30 bg-sky-500/10',
     });
