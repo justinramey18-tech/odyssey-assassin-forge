@@ -90,6 +90,7 @@ export default function PartyDragonChat({
   const [showPersonality, setShowPersonality] = useState(false);
   const [showMemoryPanel, setShowMemoryPanel] = useState(false);
   const [newMemoryText, setNewMemoryText] = useState('');
+  const [newMemorySource, setNewMemorySource] = useState<'rider-said' | 'campaign' | 'bond-chat'>('rider-said');
   const [editingNotes, setEditingNotes] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [deletingIdx, setDeletingIdx] = useState<number | null>(null);
