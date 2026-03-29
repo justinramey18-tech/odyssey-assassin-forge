@@ -1771,7 +1771,5 @@ export function usePartySync(): UsePartySyncReturn {
     combatLog,
     typingUsers,
     broadcastTyping,
-    dragonNetworkMessages,
-    setDragonNetworkMessages,
   };
 }
