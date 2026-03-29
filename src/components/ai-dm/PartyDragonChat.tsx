@@ -140,7 +140,7 @@ export default function PartyDragonChat({
     };
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
-  }, []);
+  }, [open]);
 
   // Auto-scroll on new messages only if user is near the bottom
   useEffect(() => {
