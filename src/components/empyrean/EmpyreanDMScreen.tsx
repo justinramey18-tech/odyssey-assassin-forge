@@ -128,10 +128,13 @@ const BURNOUT_LABELS = [
   'Heat spreading — nosebleed, unsteady',
   'Bones burning — collapse risk',
   'Skin burning — dragon alarmed',
+  'Veins glowing — signet pulsing visibly',
   'Body at limit — dragon buffering',
   'Dragon absorbing overflow — bond straining',
-  'Rider and dragon both near limit',
-  'Critical co-overload',
+  'Rider and dragon both near limit — loss of focus',
+  'Critical co-overload — body failing',
+  'Dragon desperately absorbing — scales cracking',
+  'Mutual collapse imminent — bond tearing',
   'Maximum capacity — sever or die',
 ];
 
