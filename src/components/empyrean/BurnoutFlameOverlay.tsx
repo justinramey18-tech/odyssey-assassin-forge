@@ -3,6 +3,7 @@ import flameBorderImg from '@/assets/flame-border-preview.jpg';
 import burnoutDragonBg from '@/assets/burnout-dragon-bg.jpg';
 import burnoutDragonBg75 from '@/assets/burnout-dragon-bg-75.jpg';
 import burnoutDragonBg38 from '@/assets/burnout-dragon-bg-38.jpg';
+import burnoutDragonBg18 from '@/assets/burnout-dragon-bg-18.jpg';
 import BurnoutEmberParticles from './BurnoutEmberParticles';
 
 interface BurnoutFlameOverlayProps {
@@ -206,6 +207,18 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
         </div>
       ))}
       <BurnoutEmberParticles ratio={ratio} />
+      {ratio > 0 && ratio < 0.375 && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            zIndex: 62,
+            backgroundImage: `url(${burnoutDragonBg18})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            opacity: 0.15,
+          }}
+        />
+      )}
       {ratio >= 0.375 && ratio < 0.625 && (
         <div
           className="absolute inset-0 pointer-events-none"
