@@ -305,8 +305,6 @@ export interface UsePartySyncReturn {
   // Typing indicators
   typingUsers: { userId: string; name: string }[];
   broadcastTyping: (senderName: string) => void;
-  dragonNetworkMessages: any[];
-  setDragonNetworkMessages: React.Dispatch<React.SetStateAction<any[]>>;
 }
 
 export function usePartySync(): UsePartySyncReturn {
