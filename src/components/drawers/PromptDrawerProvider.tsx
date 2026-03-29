@@ -791,6 +791,8 @@ export function PromptDrawerProvider({
               isPartyCreator={isPartyCreator}
               partyMembers={partyMembers}
               userId={userId ?? ''}
+              syncedDragonNetworkMessages={syncedDragonNetworkMessages}
+              setSyncedDragonNetworkMessages={setSyncedDragonNetworkMessages}
               characterName={character.name}
               onShowChat={onOpenPartyChat ? () => { setPartyDMOpen(false); onOpenPartyChat(); } : undefined}
               autoSyncCallbacks={autoSyncCallbacks}

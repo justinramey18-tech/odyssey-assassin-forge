@@ -67,6 +67,8 @@ export function StandalonePartyDMScreen({
   wildShape,
   isMomoMoonDruid,
   isSoloEmpyrean,
+  syncedDragonNetworkMessages,
+  setSyncedDragonNetworkMessages,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
