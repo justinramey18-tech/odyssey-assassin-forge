@@ -281,7 +281,7 @@ ${isCrit ? 'Describe an exceptional success with dramatic flair. The action succ
               <span className="text-red-400 font-bold font-mono">+{Math.ceil(character.level / 4) + 1}</span>
             </div>
             <div className="flex justify-between items-center text-xs mt-1">
-              <span className="text-muted-foreground font-mono">SAVE DC</span>
+              <span className="text-muted-foreground font-mono">{isEmpyreanMode() ? 'SIGNET DC' : 'SAVE DC'}</span>
               <span className="text-red-400 font-bold font-mono">{modifiers.saveDC}</span>
             </div>
           </div>
