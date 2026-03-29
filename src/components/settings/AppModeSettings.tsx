@@ -29,6 +29,7 @@ const COLOR_MAP: Record<string, string> = {
   blue: 'border-blue-500/50 bg-blue-500/10 text-blue-400',
   emerald: 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400',
   rose: 'border-rose-500/50 bg-rose-500/10 text-rose-400',
+  purple: 'border-purple-500/50 bg-purple-500/10 text-purple-400',
 };
 
 const INACTIVE_COLOR = 'border-border/50 bg-muted/20 text-muted-foreground';
