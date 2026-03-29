@@ -103,27 +103,31 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
     };
   }, [isCritical, ratio]);
 
-  // Haptic vibration pulses
+  // Heartbeat haptic vibration synced to consciousness animation cycles
+  const isHeartbeatActive = ratio >= 0.625;
   useEffect(() => {
-    if (!isCritical) {
+    if (!isHeartbeatActive) {
       if (hapticIntervalRef.current) {
         clearInterval(hapticIntervalRef.current);
         hapticIntervalRef.current = null;
       }
+      navigator.vibrate?.(0);
       return;
     }
 
-    const interval = Math.max(4000 - (ratio - 0.5) * 6000, 1200);
-    triggerHaptic(ratio);
-    hapticIntervalRef.current = setInterval(() => triggerHaptic(ratio), interval);
+    // Match the interval to the animation cycle length for each level
+    const interval = ratio >= 0.875 ? 3000 : ratio >= 0.75 ? 4500 : 6000;
+    triggerHeartbeatHaptic(ratio);
+    hapticIntervalRef.current = setInterval(() => triggerHeartbeatHaptic(ratio), interval);
 
     return () => {
       if (hapticIntervalRef.current) {
         clearInterval(hapticIntervalRef.current);
         hapticIntervalRef.current = null;
       }
+      navigator.vibrate?.(0);
     };
-  }, [isCritical, ratio]);
+  }, [isHeartbeatActive, ratio]);
 
   if (level <= 0 || max <= 0) return null;
 
