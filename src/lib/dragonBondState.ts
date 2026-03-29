@@ -114,6 +114,10 @@ export function addMemory(state: DragonBondState, text: string, source: 'campaig
   return { ...state, memories };
 }
 
+export function removeMemory(state: DragonBondState, memoryId: string): DragonBondState {
+  return { ...state, memories: state.memories.filter(m => m.id !== memoryId) };
+}
+
 // ── TRUST-BREAKING PATTERNS ──
 
 export const DISMISSAL_PATTERNS = [
