@@ -284,6 +284,14 @@ export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProp
                     <Music className="w-4 h-4" />
                     Record Audio
                   </button>
+                  <button
+                    onClick={() => { onPickAudioFile?.(); setShowAttachMenu(false); }}
+                    className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs"
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <Music className="w-4 h-4" />
+                    Audio from Files
+                  </button>
                   <div className="border-t border-white/5 my-0.5" />
                   <button
                     onClick={() => { onCreatePoll?.(); setShowAttachMenu(false); }}
