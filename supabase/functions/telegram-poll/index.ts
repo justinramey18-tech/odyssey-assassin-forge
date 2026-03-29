@@ -88,7 +88,6 @@ function buildTelegramDragonPrompt(
   bond: number,
   dragonNotes: string,
   memories: Array<{ text: string; source: string; createdAt: string }>,
-  autopilotGuide?: string,
 ): string {
   const sections: string[] = [];
 
@@ -123,11 +122,6 @@ function buildTelegramDragonPrompt(
     sections.push(`## DRAGON PERSONALITY — DEFINED BY THE PLAYER\nThis is the SOLE authority on who this dragon is. Embody this personality fully:\n\n${dragonNotes.trim().substring(0, 6000)}`);
   } else {
     sections.push(`## DRAGON PERSONALITY\nNo personality profile provided. Default to a proud, intelligent dragon with strong opinions.`);
-  }
-
-  // Autopilot / Personality Guide — rider behavioral context
-  if (autopilotGuide?.trim()) {
-    sections.push(`## RIDER PERSONALITY GUIDE\nThe rider's player has described how their character behaves. Use this to understand how the rider would act and react. This informs your responses — you know your rider:\n\n[RIDER GUIDE START]\n${autopilotGuide.trim().substring(0, 5000)}\n[RIDER GUIDE END]`);
   }
 
   // Memories
@@ -730,226 +724,37 @@ async function processCommand(
     return;
   }
 
-  // /bond:memories — List dragon memories
-  // /bond:remember <text> — Add a memory
-  // /bond:forget <text> — Remove a memory
-  if (cmd.startsWith('/bond:memories') || cmd.startsWith('/bond:remember') || cmd.startsWith('/bond:forget')) {
+  // /bond [DragonName] MESSAGE — Talk to your bonded dragon
+  if (cmd.startsWith('/bond:') || cmd.startsWith('/bond ') || cmd === '/bond') {
+    const rawArgs = text.trim().substring(5).trim();
+    if (!rawArgs) {
+      await sendTelegram(chatId, '❌ Usage:\n<code>/bond How are you feeling?</code>\n<code>/bond Gwen, what do you think?</code>\n\nIf you have multiple dragons, prefix with the name:\n<code>/bond:solo How are you?</code>\n<code>/bond:party How are you?</code>', lovableKey, telegramKey);
+      return;
+    }
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
 
-    const save = await getCharacterData(userId, supabase);
-
-    // Helper to collect dragon candidates (reused below)
-    interface DragonCandidateMem {
-      name: string;
-      memories: Array<{ id?: string; text: string; source: string; createdAt: string }>;
-      source: 'solo' | 'party';
-      stateRef: any; // reference to raw state for mutation
-      partyId?: string;
-    }
-    const memCandidates: DragonCandidateMem[] = [];
-
-    // Solo dragon
-    if (save) {
-      const ext = (save.extended_data || {}) as any;
-      const scopedStorage = ext?.scopedLocalStorage || {};
-      let soloDragon: any = null;
-      // Try scoped storage first (newer), then legacy dragonBond field
-      const bondStateRaw = scopedStorage['empyrean-dragon-bond-state'];
-      if (bondStateRaw) {
-        try { soloDragon = JSON.parse(bondStateRaw); } catch {}
-      }
-      if (!soloDragon) soloDragon = ext?.dragonBond;
-      if (soloDragon?.dragonName) {
-        memCandidates.push({
-          name: soloDragon.dragonName,
-          memories: soloDragon.memories || [],
-          source: 'solo',
-          stateRef: soloDragon,
-        });
-      }
-    }
-
-    // Party dragon bonds
-    const { data: partyBonds } = await supabase
-      .from('party_shared_state')
-      .select('state_data, party_id')
-      .eq('user_id', userId)
-      .eq('state_type', 'dragon_bond');
-    if (partyBonds) {
-      for (const row of partyBonds) {
-        const d = row.state_data as any;
-        if (d?.dragonName) {
-          memCandidates.push({
-            name: d.dragonName,
-            memories: d.memories || [],
-            source: 'party',
-            stateRef: d,
-            partyId: (row as any).party_id,
-          });
-        }
-      }
-    }
-
-    if (memCandidates.length === 0) {
-      await sendTelegram(chatId, '🐉 No bonded dragon found.', lovableKey, telegramKey);
-      return;
-    }
-
-    // Pick the first available (prefer party)
-    const target = memCandidates.find(c => c.source === 'party') || memCandidates[0];
-
-    if (cmd.startsWith('/bond:memories')) {
-      // List memories
-      if (target.memories.length === 0) {
-        await sendTelegram(chatId, `🐉 <b>${target.name}</b> has no memories recorded yet.\n\nUse <code>/bond:remember The rider saved me from the storm</code> to add one.`, lovableKey, telegramKey);
-      } else {
-        const memList = target.memories.slice(-20).map((m, i) => {
-          const src = m.source === 'campaign' ? '📜' : m.source === 'bond-chat' ? '💬' : m.source === 'rider-said' ? '🗣️' : '📌';
-          return `${i + 1}. ${src} ${m.text}`;
-        }).join('\n');
-        await sendTelegram(chatId,
-          `🐉 <b>${target.name}'s Memories</b> (${target.memories.length} total)${target.source === 'party' ? ' <i>(Party)</i>' : ' <i>(Solo)</i>'}\n\n${memList}\n\n` +
-          `📜=campaign 💬=bond-chat 🗣️=rider-said 📌=other\n\n` +
-          `<code>/bond:remember &lt;text&gt;</code> — add a memory\n` +
-          `<code>/bond:forget &lt;number or text&gt;</code> — remove one`,
-          lovableKey, telegramKey,
-        );
-      }
-      return;
-    }
-
-    if (cmd.startsWith('/bond:remember')) {
-      const memText = text.trim().replace(/^\/bond:remember\s*/i, '').trim();
-      if (!memText) {
-        await sendTelegram(chatId, '❌ Usage: <code>/bond:remember The rider defended me against the venin</code>', lovableKey, telegramKey);
-        return;
-      }
-      const newMemory = {
-        id: crypto.randomUUID(),
-        text: memText.substring(0, 500),
-        source: 'rider-said',
-        createdAt: new Date().toISOString(),
-      };
-
-      // Add to state and persist
-      const updatedMemories = [...target.memories, newMemory].slice(-50); // cap at 50
-
-      if (target.source === 'party' && target.partyId) {
-        // Update party_shared_state
-        await supabase
-          .from('party_shared_state')
-          .update({
-            state_data: { ...target.stateRef, memories: updatedMemories },
-            updated_at: new Date().toISOString(),
-          })
-          .eq('user_id', userId)
-          .eq('party_id', target.partyId)
-          .eq('state_type', 'dragon_bond');
-      } else if (save) {
-        // Update extended_data scoped storage for solo
-        const ext = (save.extended_data || {}) as any;
-        const scopedStorage = ext?.scopedLocalStorage || {};
-        // Update bond state in scoped storage
-        let bondState: any = {};
-        try { bondState = JSON.parse(scopedStorage['empyrean-dragon-bond-state'] || '{}'); } catch {}
-        bondState.memories = updatedMemories;
-        const updatedScoped = { ...scopedStorage, 'empyrean-dragon-bond-state': JSON.stringify(bondState) };
-        await supabase
-          .from('character_saves')
-          .update({ extended_data: { ...ext, scopedLocalStorage: updatedScoped } })
-          .eq('user_id', userId);
-      }
-
-      await sendTelegram(chatId, `🐉 Memory added to <b>${target.name}</b>:\n<i>"${memText.substring(0, 200)}"</i>\n\n${target.name} now has ${updatedMemories.length} memories.`, lovableKey, telegramKey);
-      return;
-    }
-
-    if (cmd.startsWith('/bond:forget')) {
-      const forgetArg = text.trim().replace(/^\/bond:forget\s*/i, '').trim();
-      if (!forgetArg) {
-        await sendTelegram(chatId, '❌ Usage:\n<code>/bond:forget 3</code> (by number from /bond:memories)\n<code>/bond:forget the storm</code> (by text match)', lovableKey, telegramKey);
-        return;
-      }
-
-      let removedMemory: any = null;
-      let updatedMemories = [...target.memories];
-
-      // Try by number first
-      const num = parseInt(forgetArg, 10);
-      if (!isNaN(num) && num >= 1 && num <= target.memories.length) {
-        removedMemory = updatedMemories.splice(num - 1, 1)[0];
-      } else {
-        // Try by text match
-        const lower = forgetArg.toLowerCase();
-        const idx = updatedMemories.findIndex(m => m.text.toLowerCase().includes(lower));
-        if (idx >= 0) {
-          removedMemory = updatedMemories.splice(idx, 1)[0];
-        }
-      }
-
-      if (!removedMemory) {
-        await sendTelegram(chatId, `❌ No matching memory found. Use <code>/bond:memories</code> to see the list.`, lovableKey, telegramKey);
-        return;
-      }
-
-      // Persist
-      if (target.source === 'party' && target.partyId) {
-        await supabase
-          .from('party_shared_state')
-          .update({
-            state_data: { ...target.stateRef, memories: updatedMemories },
-            updated_at: new Date().toISOString(),
-          })
-          .eq('user_id', userId)
-          .eq('party_id', target.partyId)
-          .eq('state_type', 'dragon_bond');
-      } else if (save) {
-        const ext = (save.extended_data || {}) as any;
-        const scopedStorage = ext?.scopedLocalStorage || {};
-        let bondState: any = {};
-        try { bondState = JSON.parse(scopedStorage['empyrean-dragon-bond-state'] || '{}'); } catch {}
-        bondState.memories = updatedMemories;
-        const updatedScoped = { ...scopedStorage, 'empyrean-dragon-bond-state': JSON.stringify(bondState) };
-        await supabase
-          .from('character_saves')
-          .update({ extended_data: { ...ext, scopedLocalStorage: updatedScoped } })
-          .eq('user_id', userId);
-      }
-
-      await sendTelegram(chatId, `🐉 Memory removed from <b>${target.name}</b>:\n<i>"${removedMemory.text.substring(0, 200)}"</i>\n\n${updatedMemories.length} memories remaining.`, lovableKey, telegramKey);
-      return;
-    }
-  }
-
-  // /bond [DragonName] MESSAGE — Talk to your bonded dragon
-  if (cmd.startsWith('/bond:solo') || cmd.startsWith('/bond:party') || cmd.startsWith('/bond ') || cmd === '/bond') {
-    // Determine source filter
+    // Determine source filter from /bond:solo or /bond:party
     let sourceFilter: 'solo' | 'party' | null = null;
-    if (cmd.startsWith('/bond:solo')) sourceFilter = 'solo';
-    else if (cmd.startsWith('/bond:party')) sourceFilter = 'party';
+    if (cmd.startsWith('/bond:solo')) {
+      sourceFilter = 'solo';
+    } else if (cmd.startsWith('/bond:party')) {
+      sourceFilter = 'party';
+    }
 
-    // Extract message: strip /bond or /bond:solo or /bond:party prefix
+    // The message is everything after /bond or /bond:solo or /bond:party
     const bondCmdMatch = text.trim().match(/^\/bond(?::(?:solo|party))?\s+([\s\S]*)$/i);
     const message = bondCmdMatch ? bondCmdMatch[1].trim() : '';
     if (!message) {
-      await sendTelegram(chatId, '❌ Usage:\n<code>/bond How are you feeling?</code>\n\nMemory management:\n<code>/bond:memories</code> — view memories\n<code>/bond:remember &lt;text&gt;</code> — add memory\n<code>/bond:forget &lt;# or text&gt;</code> — remove memory\n\nIf you have multiple dragons:\n<code>/bond:solo How are you?</code>\n<code>/bond:party How are you?</code>', lovableKey, telegramKey);
+      await sendTelegram(chatId, '❌ Usage: /bond How are you feeling after that battle?', lovableKey, telegramKey);
       return;
     }
 
-    const userId = await getUserIdFromChat(chatId, supabase);
-    if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
-
-    // Get character data and autopilot guide
+    // Get character name
     const save = await getCharacterData(userId, supabase);
     let characterName = 'Rider';
-    let autopilotGuide = '';
     if (save) {
       characterName = (save.character_data as any)?.name || 'Rider';
-      // Read autopilot guide from scoped localStorage in extended_data
-      const ext = (save.extended_data || {}) as any;
-      const scopedStorage = ext?.scopedLocalStorage || {};
-      autopilotGuide = scopedStorage['empyrean-autopilot-guide'] || '';
     }
 
     // Collect all available dragons
@@ -964,16 +769,10 @@ async function processCommand(
     }
     const candidates: DragonCandidate[] = [];
 
-    // Solo dragon — try scoped storage first (newer format), then legacy dragonBond
+    // Solo dragon
     if (save && sourceFilter !== 'party') {
       const ext = (save.extended_data || {}) as any;
-      const scopedStorage = ext?.scopedLocalStorage || {};
-      let soloDragon: any = null;
-      const bondStateRaw = scopedStorage['empyrean-dragon-bond-state'];
-      if (bondStateRaw) {
-        try { soloDragon = JSON.parse(bondStateRaw); } catch {}
-      }
-      if (!soloDragon) soloDragon = ext?.dragonBond;
+      const soloDragon = ext?.dragonBond;
       if (soloDragon?.dragonName) {
         candidates.push({
           name: soloDragon.dragonName,
@@ -999,6 +798,7 @@ async function processCommand(
         for (const row of partyBonds) {
           const d = row.state_data as any;
           if (d?.dragonName) {
+            // Avoid duplicates with same name from solo
             if (!candidates.some(c => c.name === d.dragonName && c.source === 'party')) {
               candidates.push({
                 name: d.dragonName,
@@ -1020,10 +820,12 @@ async function processCommand(
       return;
     }
 
-    // If multiple dragons with same name but different sources, list them
-    if (candidates.length > 1) {
+    // If multiple dragons with same name but different sources, and no filter specified, list them
+    if (candidates.length > 1 && !sourceFilter) {
+      // Check if user can be auto-resolved — if all dragons have different names, no ambiguity
       const uniqueNames = new Set(candidates.map(c => c.name));
       if (uniqueNames.size < candidates.length) {
+        // Ambiguous — show disambiguation
         const list = candidates.map(c => `• <b>${c.name}</b> (${c.source === 'solo' ? 'Solo Empyrean' : 'Party Empyrean'})`).join('\n');
         await sendTelegram(chatId,
           `🐉 You have multiple dragons with the same name:\n\n${list}\n\n` +
@@ -1036,15 +838,16 @@ async function processCommand(
       }
     }
 
-    // Pick the dragon — prefer party over solo
+    // Pick the dragon — if only one, use it; if filter specified, it's already filtered
+    // Default: prefer party over solo (existing behavior)
     const selected = candidates.find(c => c.source === 'party') || candidates[0];
 
     const { name: dragonName, notes: dragonNotes, trust, bond: bondLevel, mood, memories } = selected;
 
     await sendTelegram(chatId, `🐉 <i>${dragonName} stirs through the bond...</i>${candidates.length > 1 ? ` <i>(${selected.source})</i>` : ''}`, lovableKey, telegramKey);
 
-    // Build dragon chat system prompt WITH autopilot guide
-    const systemPrompt = buildTelegramDragonPrompt(dragonName, characterName, trust, mood, bondLevel, dragonNotes, memories, autopilotGuide);
+    // Build a simplified dragon chat system prompt
+    const systemPrompt = buildTelegramDragonPrompt(dragonName, characterName, trust, mood, bondLevel, dragonNotes, memories);
 
     // Fetch recent narrative for context
     let recentNarrative = '';
