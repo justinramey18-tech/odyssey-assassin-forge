@@ -985,7 +985,7 @@ async function processCommand(
     }
 
     // Party dragon bonds
-    {
+    if (sourceFilter !== 'solo') {
       const { data: partyBonds } = await supabase
         .from('party_shared_state')
         .select('state_data')
