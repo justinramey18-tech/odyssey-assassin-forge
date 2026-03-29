@@ -269,7 +269,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                 onRemove={handleRemoveItem}
               />
               <QuickActionSection
-                title="Cantrips"
+                title={isEmpyreanMode() ? 'Minor Signets' : 'Cantrips'}
                 icon={<Star className="w-4 h-4" />}
                 items={sections.cantrips}
                 accentClass="text-cyan-400"

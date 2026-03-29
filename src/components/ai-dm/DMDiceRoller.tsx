@@ -484,7 +484,7 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
               className="px-3 py-2 rounded-lg bg-purple-900/20 border border-purple-500/20 hover:bg-purple-900/40 transition-colors text-sm font-cinzel text-purple-200"
               style={{ touchAction: 'manipulation' }}
             >
-              ⚡ Initiative
+              ⚡ {isEmpyreanMode() ? 'Combat Reflexes' : 'Initiative'}
             </button>
           </div>
           

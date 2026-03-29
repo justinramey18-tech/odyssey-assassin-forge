@@ -206,7 +206,7 @@ export function HPWidget({ currentHP, maxHP, tempHP, deathSaves, onHPChange, onD
             {tempHP > 0 && (
               <div className="flex items-center justify-center gap-1 text-sky-400">
                 <Shield className="w-4 h-4" />
-                <span className="font-medium">+{tempHP} Temp HP</span>
+                <span className="font-medium">+{tempHP} {isEmpyreanMode() ? 'Temp Vitality' : 'Temp HP'}</span>
               </div>
             )}
             <Progress 

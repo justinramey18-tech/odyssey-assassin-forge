@@ -327,7 +327,7 @@ ${isCrit ? 'Describe an exceptional success with dramatic flair. The action succ
             onClick={() => handleCombatRoll('initiative')}
           >
             <Activity className="w-4 h-4 mr-2" />
-            ROLL INITIATIVE
+            {isEmpyreanMode() ? 'ROLL COMBAT REFLEXES' : 'ROLL INITIATIVE'}
             <span className="ml-auto text-xs opacity-70">+{modifiers.initiativeBonus}</span>
           </Button>
         </div>
