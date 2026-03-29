@@ -3306,8 +3306,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               members.find(m => m.user_id === currentUserId)?.character_name || 'Rider',
             );
           }}
-          onDeliverNetworkMessage={(targetDragonName, targetUserId, voicedText, originalText, replyToId) => {
-            return dragonBonds.deliverNetworkMessage(
+          onDeliverNetworkMessage={async (targetDragonName, targetUserId, voicedText, originalText, replyToId) => {
+            await dragonBonds.deliverNetworkMessage(
               targetDragonName, targetUserId, voicedText, originalText, replyToId,
             );
           }}
