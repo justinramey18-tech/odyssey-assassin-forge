@@ -198,13 +198,13 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
               opacity: 0.35,
             }}
           />
-          {/* 7/8 consciousness tunnel — 5s cycle, 15% clear center */}
+          {/* 7/8 heartbeat pulse — 4.5s cycle, deeper double-pulse, 35% clear center */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               zIndex: 65,
-              background: 'radial-gradient(circle at center, transparent 0%, transparent 15%, rgba(0,0,0,0.25) 30%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.5) 100%)',
-              animation: 'consciousness-tunnel 5s ease-in-out infinite',
+              background: 'radial-gradient(circle at center, transparent 0%, transparent 35%, rgba(0,0,0,0.5) 58%, rgba(0,0,0,0.75) 100%)',
+              animation: 'consciousness-tunnel 4.5s ease-in-out infinite',
             }}
           />
         </>
