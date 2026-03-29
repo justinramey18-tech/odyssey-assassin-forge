@@ -265,7 +265,7 @@ export function AbilityScoresPanel({
       {/* Ability score rows */}
       <div className="space-y-2">
         {ABILITY_ORDER.map(ability => {
-          const config = ABILITY_CONFIG[ability];
+          const config = getAbilityConfig(ability);
           const breakdown = getScoreBreakdown(ability);
           const Icon = getIconByName(config.icon);
           

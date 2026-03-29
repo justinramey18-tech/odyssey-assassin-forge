@@ -1289,7 +1289,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
 
             <div className="grid grid-cols-2 gap-3">
               {(Object.keys(ABILITY_SCORES) as AbilityScore[]).map((ability) => {
-                const config = ABILITY_SCORES[ability];
+                const config = getAbilityScoreDisplay(ability);
                 const abilityMod = abilityModifiers[ability];
                 const isProficient = proficientSaves.has(ability);
                 const totalMod = abilityMod + (isProficient ? proficiencyBonus : 0);

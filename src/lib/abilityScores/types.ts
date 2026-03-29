@@ -117,3 +117,11 @@ export function modifierToString(modifier: number): string {
 export function clampScore(score: number): number {
   return Math.max(1, Math.min(30, score));
 }
+
+export function getAbilityConfig(ability: AbilityName): AbilityScoreConfig {
+  const base = ABILITY_CONFIG[ability];
+  if (!isEmpyreanMode()) return base;
+  const emp = EMPYREAN_ABILITY_LABELS[ability];
+  if (!emp) return base;
+  return { ...base, abbr: emp.abbr, label: emp.label };
+}
