@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import flameBorderImg from '@/assets/flame-border-preview.jpg';
+import BurnoutEmberParticles from './BurnoutEmberParticles';
 
 interface BurnoutFlameOverlayProps {
   level: number;
