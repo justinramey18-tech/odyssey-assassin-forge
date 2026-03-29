@@ -1,26 +1,25 @@
 
 
-## Plan: Fix Heartbeat Animations + Add Wobble Keyframes
+## Plan: Wobble + Heartbeat Haptics in BurnoutFlameOverlay.tsx
 
-### Problem
-The heartbeat consciousness-fade animations are invisible because `ease-in-out` timing smooths out the sharp opacity pulses that occur in the first 28% of each cycle.
+Single file: `src/components/empyrean/BurnoutFlameOverlay.tsx`
 
-### Changes
+### Change 1 — Replace `triggerHaptic` function (lines 44-54)
+Replace with `triggerHeartbeatHaptic` that uses lub-dub vibration patterns timed to each level's animation cycle (6s/4.5s/3s).
 
-**File 1: `src/components/empyrean/BurnoutFlameOverlay.tsx`** — 3 line changes
+### Change 2 — Replace haptic useEffect (lines 96-116)
+- Activates at ratio 0.625 instead of 0.5
+- Calls `triggerHeartbeatHaptic`
+- Interval matches animation cycle (6000/4500/3000ms)
+- Cancels vibration on cleanup with `navigator.vibrate(0)`
 
-Change `ease-in-out` to `linear` on three animation properties:
-- Line 184: `consciousness-fade 6s linear infinite`
-- Line 207: `consciousness-tunnel 4.5s linear infinite`
-- Line 230: `consciousness-tunnel-heavy 3s linear infinite`
+### Change 3 — Add wobble animations to consciousness overlay divs
+Add comma-separated second animation to each consciousness div:
+- **Line 184** (Level 6): add `heartbeat-wobble-light 6s linear infinite`
+- **Line 207** (Level 7): add `heartbeat-wobble-medium 4.5s linear infinite`
+- **Line 230** (Level 8): add `heartbeat-wobble-heavy 3s linear infinite`
 
-**File 2: `tailwind.config.ts`** — Add 3 new keyframe blocks
+Update comments on lines 178, 201, 224 accordingly.
 
-Insert after the `consciousness-tunnel-heavy` block (after line 358), before `breathe-happy`:
-
-- `heartbeat-wobble-light`: 0.5px max displacement, wobble during 0-28%, stable rest
-- `heartbeat-wobble-medium`: 1px max displacement, wobble during 0-32%, stable rest  
-- `heartbeat-wobble-heavy`: 1.8px max displacement, wobble during 0-36%, stable rest
-
-No other changes to either file.
+Nothing else changes — audio, embers, dragon backgrounds, thresholds all untouched.
 
