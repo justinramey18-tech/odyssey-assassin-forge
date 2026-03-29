@@ -207,13 +207,13 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
               opacity: 0.45,
             }}
           />
-          {/* Screen blackout loop */}
+          {/* Consciousness tunnel - fading in/out */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               zIndex: 64,
-              background: 'rgba(0,0,0,1)',
-              animation: 'screen-blackout 8s ease-in-out infinite',
+              background: 'radial-gradient(circle at center, transparent 0%, transparent 20%, rgba(0,0,0,0.1) 35%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.75) 70%, rgba(0,0,0,0.95) 100%)',
+              animation: 'consciousness-tunnel 8s ease-in-out infinite',
             }}
           />
         </>
@@ -238,13 +238,13 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
               animation: 'consciousness-fade 6s ease-in-out infinite',
             }}
           />
-          {/* Screen blackout loop - more aggressive */}
+          {/* Consciousness tunnel - heavy, nearly closing */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               zIndex: 64,
-              background: 'rgba(0,0,0,1)',
-              animation: 'screen-blackout-heavy 8s ease-in-out infinite',
+              background: 'radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.05) 12%, rgba(0,0,0,0.2) 25%, rgba(0,0,0,0.55) 42%, rgba(0,0,0,0.85) 60%, rgba(0,0,0,0.98) 100%)',
+              animation: 'consciousness-tunnel-heavy 8s ease-in-out infinite',
             }}
           />
         </>
