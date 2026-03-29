@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import { Character, Ability, getActiveSlotsByLevel } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { cn } from '@/lib/utils';
