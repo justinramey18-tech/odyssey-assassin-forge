@@ -40,6 +40,7 @@ export interface DragonNetworkMessage {
   dragonExchange: string;
   toRiderDelivery?: string;
   senderReport?: string;
+  replyToId?: string;
   timestamp: string;
 }
 
