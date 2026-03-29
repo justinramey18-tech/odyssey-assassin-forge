@@ -121,7 +121,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
 
   if (level <= 0 || max <= 0) return null;
 
-  const opacity = 0.45 + ratio * 0.55;
+  const opacity = 0.25 + ratio * 0.65;
   const flickerDuration = Math.max(3 - ratio * 2, 0.8);
   const danceDuration = Math.max(4 - ratio * 2.5, 1.2);
   const flameHeight = Math.round(18 + ratio * 30);
