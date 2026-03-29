@@ -55,7 +55,7 @@ interface PartyDragonChatProps {
   onDeleteMessage?: (index: number) => void;
   memories?: DragonMemory[];
   onDeleteMemory?: (memoryId: string) => void;
-  onAddMemory?: (text: string) => void;
+  onAddMemory?: (text: string, source: 'rider-said' | 'campaign' | 'bond-chat') => void;
 }
 
 export default function PartyDragonChat({
@@ -90,6 +90,7 @@ export default function PartyDragonChat({
   const [showPersonality, setShowPersonality] = useState(false);
   const [showMemoryPanel, setShowMemoryPanel] = useState(false);
   const [newMemoryText, setNewMemoryText] = useState('');
+  const [newMemorySource, setNewMemorySource] = useState<'rider-said' | 'campaign' | 'bond-chat'>('rider-said');
   const [editingNotes, setEditingNotes] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [deletingIdx, setDeletingIdx] = useState<number | null>(null);
@@ -495,16 +496,26 @@ export default function PartyDragonChat({
           {onAddMemory && (
             <div className="shrink-0 px-4 py-2.5 border-t border-purple-500/10">
               <div className="flex items-center gap-2">
+                <select
+                  value={newMemorySource}
+                  onChange={e => setNewMemorySource(e.target.value as 'rider-said' | 'campaign' | 'bond-chat')}
+                  className="shrink-0 bg-black/30 border border-purple-500/20 rounded-lg px-2 py-2 text-[10px] text-white/70 focus:outline-none focus:border-purple-500/40 transition-colors appearance-none cursor-pointer"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <option value="rider-said">rider said</option>
+                  <option value="campaign">campaign</option>
+                  <option value="bond-chat">bond chat</option>
+                </select>
                 <input
                   type="text"
                   value={newMemoryText}
                   onChange={e => setNewMemoryText(e.target.value.slice(0, 200))}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (newMemoryText.trim()) { onAddMemory(newMemoryText.trim()); setNewMemoryText(''); } } }}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (newMemoryText.trim()) { onAddMemory(newMemoryText.trim(), newMemorySource); setNewMemoryText(''); } } }}
                   placeholder="Add a memory manually..."
                   className="flex-1 bg-black/30 border border-purple-500/20 rounded-lg px-3 py-2 text-xs text-white/80 placeholder:text-white/20 focus:outline-none focus:border-purple-500/40 transition-colors"
                 />
                 <button
-                  onClick={() => { if (newMemoryText.trim()) { onAddMemory(newMemoryText.trim()); setNewMemoryText(''); } }}
+                  onClick={() => { if (newMemoryText.trim()) { onAddMemory(newMemoryText.trim(), newMemorySource); setNewMemoryText(''); } }}
                   disabled={!newMemoryText.trim() || (memories || []).length >= 30}
                   className="shrink-0 p-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   style={{ touchAction: 'manipulation' }}
@@ -513,7 +524,7 @@ export default function PartyDragonChat({
                   <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <p className="text-[9px] text-white/20 mt-1">Tagged as "rider said" · {newMemoryText.length}/200</p>
+              <p className="text-[9px] text-white/20 mt-1">{newMemoryText.length}/200</p>
             </div>
           )}
         </div>
