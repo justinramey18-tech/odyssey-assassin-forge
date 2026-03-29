@@ -814,7 +814,33 @@ export function EmpyreanDMScreen({
             </div>
             <p className="text-[11px] text-muted-foreground flex items-center gap-2">
               <span className="truncate max-w-[140px]">{characterName}{config.dragonName ? ` & ${config.dragonName}` : ''}</span>
-              {config.signetType && <BurnoutIndicator level={burnoutLevel} maxBurnout={maxBurnout} />}
+              {config.signetType && (
+                <div className="flex items-center gap-1">
+                  <BurnoutIndicator level={burnoutLevel} maxBurnout={maxBurnout} />
+                  <button
+                    onClick={() => setBurnoutLevel(Math.max(0, burnoutLevel - 1))}
+                    disabled={burnoutLevel <= 0}
+                    className="w-5 h-5 rounded bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white/60 hover:text-white text-[10px] font-mono flex items-center justify-center transition-colors"
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    −
+                  </button>
+                  <span className={cn(
+                    "text-[10px] font-mono",
+                    burnoutLevel === 0 ? "text-emerald-400" : burnoutLevel / maxBurnout < 0.4 ? "text-yellow-400" : burnoutLevel / maxBurnout < 0.75 ? "text-orange-400" : "text-red-400"
+                  )}>
+                    {burnoutLevel}/{maxBurnout}
+                  </span>
+                  <button
+                    onClick={() => setBurnoutLevel(Math.min(maxBurnout, burnoutLevel + 1))}
+                    disabled={burnoutLevel >= maxBurnout}
+                    className="w-5 h-5 rounded bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white/60 hover:text-white text-[10px] font-mono flex items-center justify-center transition-colors"
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    +
+                  </button>
+                </div>
+              )}
             </p>
           </div>
         </div>
