@@ -334,6 +334,7 @@ export function FullscreenPartyChat({
               groupedMessages.map((group) => {
                 const isSelf = group.sender.user_id === currentUserId;
                 const senderColor = getSenderColor(group.sender.user_id, uniqueUserIds);
+                const isDragonMessage = group.sender.message?.startsWith('[🐉 ');
                 return (
                   <div key={group.sender.id + group.msgs[0].id} className="space-y-0.5">
                     <div className="flex items-center gap-2">
@@ -346,8 +347,8 @@ export function FullscreenPartyChat({
                           )}
                         />
                       )}
-                      <span className={cn("text-sm font-semibold", isSelf ? "text-emerald-400" : senderColor)}>
-                        {group.sender.sender_name}
+                      <span className={cn("text-sm font-semibold", isDragonMessage ? "text-purple-400" : isSelf ? "text-emerald-400" : senderColor)}>
+                        {isDragonMessage ? `🐉 ${group.sender.sender_name}` : group.sender.sender_name}
                       </span>
                       <span className="text-[10px] text-muted-foreground">
                         {formatTimestamp(group.sender.created_at)}
