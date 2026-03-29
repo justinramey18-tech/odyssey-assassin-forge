@@ -233,6 +233,26 @@ export default function DragonBondChat({
   }, [showPersonality, dragonNotes]);
 
 
+  // Preserve scroll position across streaming re-renders
+  const savedScrollRef = useRef<number | null>(null);
+  // Before React commits DOM changes, save scroll position
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (savedScrollRef.current !== null) {
+      el.scrollTop = savedScrollRef.current;
+      savedScrollRef.current = null;
+    }
+  }, [messages, isLoading]);
+  // Save scroll position before each render via a passive capture
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const save = () => { savedScrollRef.current = el.scrollTop; };
+    el.addEventListener('scroll', save, { passive: true });
+    return () => el.removeEventListener('scroll', save);
+  }, []);
+
   // Auto-resize textarea
   useEffect(() => {
     if (inputRef.current) {
