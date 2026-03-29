@@ -6,6 +6,7 @@ import { PartyDMInput, type PartyDMInputHandle } from './PartyDMInput';
 import { PartyDMAudioRecorder } from './PartyDMAudioRecorder';
 import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import empyreanSpeaksImg from '@/assets/empyrean-speaks.jpg';
+import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1705,6 +1706,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
       {/* Messages */}
       <div className="flex-1 min-h-0 relative flex flex-col overflow-hidden">
+        {/* Burnout flame border overlay */}
+        {isEmpyrean && dragonBonds.isSetup && dragonBonds.myDragon?.signetType && (() => {
+          const bLevel = dragonBonds.myDragon.burnout;
+          const bBond = dragonBonds.myDragon.bond ?? 50;
+          const bMax = bBond >= 76 ? 9 : bBond >= 51 ? 7 : bBond >= 26 ? 5 : 4;
+          return <BurnoutFlameOverlay level={bLevel} max={bMax} />;
+        })()}
         <AnimatePresence>
           {showEmpyreanBanner && (
             <motion.button

@@ -224,6 +224,19 @@ export default {
           "0%, 100%": { opacity: "1", transform: "scale(1)" },
           "50%": { opacity: "0.8", transform: "scale(1.1)" },
         },
+        "flame-flicker": {
+          "0%": { opacity: "0.85", transform: "scaleY(1) translateY(0)" },
+          "25%": { opacity: "1", transform: "scaleY(1.08) translateY(-1px)" },
+          "50%": { opacity: "0.75", transform: "scaleY(0.95) translateY(1px)" },
+          "75%": { opacity: "0.95", transform: "scaleY(1.05) translateY(-0.5px)" },
+          "100%": { opacity: "0.85", transform: "scaleY(1) translateY(0)" },
+        },
+        "flame-sway": {
+          "0%": { opacity: "0.8", transform: "scaleX(1) translateX(0)" },
+          "33%": { opacity: "1", transform: "scaleX(1.06) translateX(-1px)" },
+          "66%": { opacity: "0.75", transform: "scaleX(0.96) translateX(1px)" },
+          "100%": { opacity: "0.8", transform: "scaleX(1) translateX(0)" },
+        },
         "breathe-happy": {
           "0%, 100%": { transform: "scale(1)", boxShadow: "0 0 10px rgba(245,158,11,0.3)" },
           "50%": { transform: "scale(1.08)", boxShadow: "0 0 25px rgba(245,158,11,0.6)" },
