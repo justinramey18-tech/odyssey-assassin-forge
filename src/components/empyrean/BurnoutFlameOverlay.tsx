@@ -212,13 +212,13 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
               opacity: 0.35,
             }}
           />
-          {/* 7/8 heartbeat pulse — 4.5s cycle, deeper double-pulse, 35% clear center */}
+          {/* 7/8 heartbeat pulse + medium wobble — 4.5s cycle */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               zIndex: 65,
               background: 'radial-gradient(circle at center, transparent 0%, transparent 35%, rgba(0,0,0,0.5) 58%, rgba(0,0,0,0.75) 100%)',
-              animation: 'consciousness-tunnel 4.5s linear infinite',
+              animation: 'consciousness-tunnel 4.5s linear infinite, heartbeat-wobble-medium 4.5s linear infinite',
             }}
           />
         </>
