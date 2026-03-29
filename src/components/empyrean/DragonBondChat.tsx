@@ -185,6 +185,15 @@ export default function DragonBondChat({
     [bondState],
   );
 
+  const handleDeleteMemory = useCallback((memoryId: string) => {
+    setBondState(prev => {
+      const updated = removeMemory(prev, memoryId);
+      saveBondState(updated);
+      return updated;
+    });
+    toast('Memory removed', { duration: 2000 });
+  }, []);
+
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const {
