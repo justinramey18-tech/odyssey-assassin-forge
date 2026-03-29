@@ -18,6 +18,7 @@ const COLOR_MAP: Record<string, { border: string; bg: string; text: string; glow
   blue:    { border: 'border-blue-500/40',    bg: 'bg-blue-500/10',    text: 'text-blue-400',    glow: 'shadow-blue-500/20' },
   emerald: { border: 'border-emerald-500/40', bg: 'bg-emerald-500/10', text: 'text-emerald-400', glow: 'shadow-emerald-500/20' },
   rose:    { border: 'border-rose-500/40',    bg: 'bg-rose-500/10',    text: 'text-rose-400',    glow: 'shadow-rose-500/20' },
+  purple:  { border: 'border-purple-500/40',  bg: 'bg-purple-500/10',  text: 'text-purple-400',  glow: 'shadow-purple-500/20' },
 };
 
 const cardVariants = {

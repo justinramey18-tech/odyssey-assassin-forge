@@ -42,6 +42,7 @@ const TOAST_COLORS: Record<string, { background: string; border: string; color: 
   blue:    { background: 'rgba(59, 130, 246, 0.15)',   border: '1px solid rgba(59, 130, 246, 0.5)', color: '#60a5fa' },
   emerald: { background: 'rgba(16, 185, 129, 0.15)',  border: '1px solid rgba(16, 185, 129, 0.5)', color: '#34d399' },
   rose:    { background: 'rgba(244, 63, 94, 0.15)',   border: '1px solid rgba(244, 63, 94, 0.5)',  color: '#fb7185' },
+  purple:  { background: 'rgba(168, 85, 247, 0.15)',  border: '1px solid rgba(168, 85, 247, 0.5)', color: '#c084fc' },
 };
 
 interface AppModeSettingsProps {
