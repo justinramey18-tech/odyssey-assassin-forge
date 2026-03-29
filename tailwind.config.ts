@@ -123,6 +123,10 @@ export default {
           "70%": { opacity: "0.8" },
           "100%": { transform: "translateY(-120vh) translateX(var(--ember-drift, 0px)) scale(0.3)", opacity: "0" },
         },
+        "consciousness-fade": {
+          "0%, 100%": { opacity: "0" },
+          "50%": { opacity: "0.85" },
+        },
         "accordion-down": {
           from: { height: "0" },
           to: { height: "var(--radix-accordion-content-height)" },
