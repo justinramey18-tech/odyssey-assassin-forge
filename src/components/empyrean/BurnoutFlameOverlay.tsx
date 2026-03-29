@@ -41,15 +41,25 @@ function createCrackleLoop(ctx: AudioContext, volume: number): { gain: GainNode;
   return { gain, stop: () => { try { source.stop(); } catch {} } };
 }
 
-// Haptic vibration pulse pattern based on intensity
-function triggerHaptic(ratio: number) {
+// Heartbeat lub-dub haptic patterns synced to animation cycle times
+// Each pattern is: [lub-vibrate, gap, dub-vibrate, rest-until-next-cycle]
+// Level 6: 6s cycle, gentle
+// Level 7: 4.5s cycle, medium
+// Level 8: 3s cycle, strong
+function triggerHeartbeatHaptic(ratio: number) {
   if (!navigator.vibrate) return;
-  if (ratio >= 0.9) {
-    navigator.vibrate([30, 80, 30, 80, 50]);
+  if (ratio >= 0.875) {
+    // Level 8: strong lub-dub, 3s cycle
+    // lub(50ms) gap(130ms) dub(40ms) rest(2780ms) = 3000ms total
+    navigator.vibrate([50, 130, 40, 2780]);
   } else if (ratio >= 0.75) {
-    navigator.vibrate([20, 150, 20]);
-  } else {
-    navigator.vibrate([15, 300, 15]);
+    // Level 7: medium lub-dub, 4.5s cycle
+    // lub(35ms) gap(180ms) dub(30ms) rest(4255ms) = 4500ms total
+    navigator.vibrate([35, 180, 30, 4255]);
+  } else if (ratio >= 0.625) {
+    // Level 6: gentle lub-dub, 6s cycle
+    // lub(25ms) gap(230ms) dub(20ms) rest(5725ms) = 6000ms total
+    navigator.vibrate([25, 230, 20, 5725]);
   }
 }
 
@@ -93,27 +103,31 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
     };
   }, [isCritical, ratio]);
 
-  // Haptic vibration pulses
+  // Heartbeat haptic vibration synced to consciousness animation cycles
+  const isHeartbeatActive = ratio >= 0.625;
   useEffect(() => {
-    if (!isCritical) {
+    if (!isHeartbeatActive) {
       if (hapticIntervalRef.current) {
         clearInterval(hapticIntervalRef.current);
         hapticIntervalRef.current = null;
       }
+      navigator.vibrate?.(0);
       return;
     }
 
-    const interval = Math.max(4000 - (ratio - 0.5) * 6000, 1200);
-    triggerHaptic(ratio);
-    hapticIntervalRef.current = setInterval(() => triggerHaptic(ratio), interval);
+    // Match the interval to the animation cycle length for each level
+    const interval = ratio >= 0.875 ? 3000 : ratio >= 0.75 ? 4500 : 6000;
+    triggerHeartbeatHaptic(ratio);
+    hapticIntervalRef.current = setInterval(() => triggerHeartbeatHaptic(ratio), interval);
 
     return () => {
       if (hapticIntervalRef.current) {
         clearInterval(hapticIntervalRef.current);
         hapticIntervalRef.current = null;
       }
+      navigator.vibrate?.(0);
     };
-  }, [isCritical, ratio]);
+  }, [isHeartbeatActive, ratio]);
 
   if (level <= 0 || max <= 0) return null;
 
@@ -175,13 +189,13 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
               opacity: 0.3,
             }}
           />
-          {/* 6/8 heartbeat fade — 6s cycle, gentle double-pulse, 50% clear center */}
+          {/* 6/8 heartbeat fade + light wobble — 6s cycle */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               zIndex: 65,
               background: 'radial-gradient(circle at center, transparent 0%, transparent 50%, rgba(0,0,0,0.45) 72%, rgba(0,0,0,0.6) 100%)',
-              animation: 'consciousness-fade 6s linear infinite',
+              animation: 'consciousness-fade 6s linear infinite, heartbeat-wobble-light 6s linear infinite',
             }}
           />
         </>
@@ -198,13 +212,13 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
               opacity: 0.35,
             }}
           />
-          {/* 7/8 heartbeat pulse — 4.5s cycle, deeper double-pulse, 35% clear center */}
+          {/* 7/8 heartbeat pulse + medium wobble — 4.5s cycle */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               zIndex: 65,
               background: 'radial-gradient(circle at center, transparent 0%, transparent 35%, rgba(0,0,0,0.5) 58%, rgba(0,0,0,0.75) 100%)',
-              animation: 'consciousness-tunnel 4.5s linear infinite',
+              animation: 'consciousness-tunnel 4.5s linear infinite, heartbeat-wobble-medium 4.5s linear infinite',
             }}
           />
         </>
@@ -221,13 +235,13 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
               opacity: 0.4,
             }}
           />
-          {/* 8/8 heartbeat pulse — 3s cycle, near-blackout double-pulse, 22% clear center */}
+          {/* 8/8 heartbeat pulse + heavy wobble — 3s cycle */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               zIndex: 65,
               background: 'radial-gradient(circle at center, transparent 0%, transparent 22%, rgba(0,0,0,0.55) 42%, rgba(0,0,0,0.85) 100%)',
-              animation: 'consciousness-tunnel-heavy 3s linear infinite',
+              animation: 'consciousness-tunnel-heavy 3s linear infinite, heartbeat-wobble-heavy 3s linear infinite',
             }}
           />
         </>
