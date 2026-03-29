@@ -3296,14 +3296,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               userId: d.userId,
               characterName: members.find(m => m.user_id === d.userId)?.character_name || 'Unknown',
             }))}
-          onSendNetworkMessage={async (targetDragonName, targetUserId, _targetCharacterName, message) => {
-            try {
-              const characterName = members.find(m => m.user_id === currentUserId)?.character_name || 'Rider';
-              const voiced = await dragonBonds.voiceAsMyDragon(message, targetDragonName, characterName);
-              await dragonBonds.deliverNetworkMessage(targetDragonName, targetUserId, voiced, message);
-            } catch (err) {
-              console.error('[DragonNetwork] Send failed:', err);
-            }
+          onVoiceAsMyDragon={(text, targetDragonName) => {
+            return dragonBonds.voiceAsMyDragon(
+              text,
+              targetDragonName,
+              members.find(m => m.user_id === currentUserId)?.character_name || 'Rider',
+            );
+          }}
+          onDeliverNetworkMessage={(targetDragonName, targetUserId, voicedText, originalText, replyToId) => {
+            return dragonBonds.deliverNetworkMessage(
+              targetDragonName, targetUserId, voicedText, originalText, replyToId,
+            );
           }}
           isVoicing={dragonBonds.isVoicing}
           onClearChat={() => dragonBonds.clearDragonChat()}
