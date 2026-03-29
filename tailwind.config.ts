@@ -124,8 +124,12 @@ export default {
           "100%": { transform: "translateY(-120vh) translateX(var(--ember-drift, 0px)) scale(0.3)", opacity: "0" },
         },
         "consciousness-fade": {
-          "0%, 100%": { opacity: "0" },
-          "50%": { opacity: "1" },
+          "0%": { opacity: "0" },
+          "6%": { opacity: "0.7" },
+          "12%": { opacity: "0.1" },
+          "18%": { opacity: "0.55" },
+          "28%": { opacity: "0" },
+          "100%": { opacity: "0" },
         },
         "accordion-down": {
           from: { height: "0" },
