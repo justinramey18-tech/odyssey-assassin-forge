@@ -207,6 +207,15 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
               opacity: 0.45,
             }}
           />
+          {/* Screen blackout loop */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              zIndex: 64,
+              background: 'rgba(0,0,0,1)',
+              animation: 'screen-blackout 8s ease-in-out infinite',
+            }}
+          />
         </>
       )}
       {ratio >= 0.875 && (
@@ -227,6 +236,15 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
               zIndex: 63,
               background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.75) 50%, rgba(0,0,0,0.95) 100%)',
               animation: 'consciousness-fade 6s ease-in-out infinite',
+            }}
+          />
+          {/* Screen blackout loop - more aggressive */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              zIndex: 64,
+              background: 'rgba(0,0,0,1)',
+              animation: 'screen-blackout-heavy 8s ease-in-out infinite',
             }}
           />
         </>
