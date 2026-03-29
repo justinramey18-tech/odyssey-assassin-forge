@@ -358,6 +358,7 @@ export function FullscreenPartyChat({
                       const isEditing = editingId === msg.id;
                       const isSelected = selectedIds.has(msg.id);
                       const repliedMsg = msg.reply_to_id ? findMsg(msg.reply_to_id) : null;
+                      const isMsgDragon = msg.message?.startsWith('[🐉 ');
 
                       return (
                         <div
@@ -367,6 +368,7 @@ export function FullscreenPartyChat({
                             bulkMode && canDeleteMsg(msg) && "cursor-pointer hover:bg-muted/20",
                             isSelected && "bg-destructive/10",
                             msg.is_pinned && "border-l-2 border-amber-500/40",
+                            isMsgDragon && "border-l-2 border-purple-500/40 bg-purple-500/5",
                           )}
                           onPointerDown={(e) => { if (!bulkMode) startLongPress(msg, e); }}
                           onPointerUp={cancelLongPress}
