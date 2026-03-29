@@ -218,6 +218,8 @@ export function PromptDrawerProvider({
   onShareBuffToParty,
   partyId,
   isPartyCreator = false,
+  syncedDragonNetworkMessages,
+  setSyncedDragonNetworkMessages,
   onOpenPartyChat,
   autoSyncCallbacks,
 }: PromptDrawerProviderProps) {
