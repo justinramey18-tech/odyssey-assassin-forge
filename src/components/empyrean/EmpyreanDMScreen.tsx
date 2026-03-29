@@ -1120,6 +1120,7 @@ export function EmpyreanDMScreen({
 
         <div ref={messagesEndRef} />
       </div>
+      </div>
 
       {/* Bottom Navigation */}
       <DMBottomNav
