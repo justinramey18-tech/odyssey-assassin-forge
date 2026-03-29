@@ -53,6 +53,8 @@ interface PartyDragonChatProps {
   onUpdateNotes?: (notes: string) => void;
   onClearChat?: () => void;
   onDeleteMessage?: (index: number) => void;
+  memories?: DragonMemory[];
+  onDeleteMemory?: (memoryId: string) => void;
 }
 
 export default function PartyDragonChat({
