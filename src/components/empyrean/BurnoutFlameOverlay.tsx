@@ -181,7 +181,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
             style={{
               zIndex: 65,
               background: 'radial-gradient(circle at center, transparent 0%, transparent 50%, rgba(0,0,0,0.45) 72%, rgba(0,0,0,0.6) 100%)',
-              animation: 'consciousness-fade 6s ease-in-out infinite',
+              animation: 'consciousness-fade 6s linear infinite',
             }}
           />
         </>
@@ -204,7 +204,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
             style={{
               zIndex: 65,
               background: 'radial-gradient(circle at center, transparent 0%, transparent 35%, rgba(0,0,0,0.5) 58%, rgba(0,0,0,0.75) 100%)',
-              animation: 'consciousness-tunnel 4.5s ease-in-out infinite',
+              animation: 'consciousness-tunnel 4.5s linear infinite',
             }}
           />
         </>
@@ -227,7 +227,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
             style={{
               zIndex: 65,
               background: 'radial-gradient(circle at center, transparent 0%, transparent 22%, rgba(0,0,0,0.55) 42%, rgba(0,0,0,0.85) 100%)',
-              animation: 'consciousness-tunnel-heavy 3s ease-in-out infinite',
+              animation: 'consciousness-tunnel-heavy 3s linear infinite',
             }}
           />
         </>
