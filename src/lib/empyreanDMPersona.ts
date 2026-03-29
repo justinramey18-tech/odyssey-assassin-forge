@@ -189,7 +189,7 @@ RULES:
 
   // 7. Signet Burnout Tracking
   // Compute bond-scaled burnout ceiling
-  const maxBurnout = bondLevel >= 76 ? 9 : bondLevel >= 51 ? 7 : bondLevel >= 26 ? 5 : 4;
+  const maxBurnout = bondLevel >= 76 ? 12 : bondLevel >= 51 ? 11 : bondLevel >= 26 ? 10 : 8;
 
   sections.push(`## SIGNET BURNOUT TRACKING
 
