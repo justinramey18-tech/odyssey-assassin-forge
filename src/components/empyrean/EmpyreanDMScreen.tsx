@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
-import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle, Theater, Megaphone } from 'lucide-react';
+import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle, Theater, Megaphone, Minus, Plus } from 'lucide-react';
+import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
 import { NpcSceneDialog } from '@/components/ai-dm/NpcSceneDialog';
 import { useOocDmChat } from '@/hooks/use-ooc-dm-chat';
 import { OocDmChat } from '@/components/ai-dm/OocDmChat';
@@ -235,8 +236,7 @@ export function EmpyreanDMScreen({
     characterName,
   });
 
-  const bondValue = dragonBond.bondState.bond;
-  const maxBurnout = bondValue >= 76 ? 12 : bondValue >= 51 ? 11 : bondValue >= 26 ? 10 : 8;
+  const maxBurnout = 8;
 
   const dmPersonaPrompt = useMemo(() => {
     if (!config) return undefined;
@@ -814,7 +814,33 @@ export function EmpyreanDMScreen({
             </div>
             <p className="text-[11px] text-muted-foreground flex items-center gap-2">
               <span className="truncate max-w-[140px]">{characterName}{config.dragonName ? ` & ${config.dragonName}` : ''}</span>
-              {config.signetType && <BurnoutIndicator level={burnoutLevel} maxBurnout={maxBurnout} />}
+              {config.signetType && (
+                <div className="flex items-center gap-1">
+                  <BurnoutIndicator level={burnoutLevel} maxBurnout={maxBurnout} />
+                  <button
+                    onClick={() => setBurnoutLevel(Math.max(0, burnoutLevel - 1))}
+                    disabled={burnoutLevel <= 0}
+                    className="w-5 h-5 rounded bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white/60 hover:text-white text-[10px] font-mono flex items-center justify-center transition-colors"
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    −
+                  </button>
+                  <span className={cn(
+                    "text-[10px] font-mono",
+                    burnoutLevel === 0 ? "text-emerald-400" : burnoutLevel / maxBurnout < 0.4 ? "text-yellow-400" : burnoutLevel / maxBurnout < 0.75 ? "text-orange-400" : "text-red-400"
+                  )}>
+                    {burnoutLevel}/{maxBurnout}
+                  </span>
+                  <button
+                    onClick={() => setBurnoutLevel(Math.min(maxBurnout, burnoutLevel + 1))}
+                    disabled={burnoutLevel >= maxBurnout}
+                    className="w-5 h-5 rounded bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white/60 hover:text-white text-[10px] font-mono flex items-center justify-center transition-colors"
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    +
+                  </button>
+                </div>
+              )}
             </p>
           </div>
         </div>
@@ -892,7 +918,26 @@ export function EmpyreanDMScreen({
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-3">
+      <div className={cn(
+        "flex-1 min-h-0 relative flex flex-col overflow-hidden",
+        maxBurnout > 0 && burnoutLevel >= maxBurnout ? "animate-[screen-shake_0.6s_ease-in-out_infinite]" : ""
+      )}>
+        {/* Burnout flame overlay */}
+        {config.signetType && <BurnoutFlameOverlay level={burnoutLevel} max={maxBurnout} />}
+      <div className={cn(
+        "flex-1 overflow-y-auto overscroll-contain px-3 py-3",
+        (() => {
+          const ratio = maxBurnout > 0 ? burnoutLevel / maxBurnout : 0;
+          if (ratio >= 0.875) return "animate-[text-waver-intense_2s_ease-in-out_infinite,text-color-bleed_3s_ease-in-out_infinite]";
+          if (ratio >= 0.75) return "animate-[text-waver-intense_2.5s_ease-in-out_infinite,text-color-bleed_4s_ease-in-out_infinite]";
+          if (ratio >= 0.625) return "animate-[text-waver_2.5s_ease-in-out_infinite,text-color-bleed_5s_ease-in-out_infinite]";
+          if (ratio >= 0.5) return "animate-[text-waver_3s_ease-in-out_infinite,text-color-bleed_7s_ease-in-out_infinite]";
+          if (ratio >= 0.375) return "animate-[text-waver-subtle_3s_ease-in-out_infinite]";
+          if (ratio >= 0.25) return "animate-[text-waver-subtle_4s_ease-in-out_infinite]";
+          if (ratio > 0) return "animate-[text-waver-subtle_6s_ease-in-out_infinite]";
+          return "";
+        })()
+      )}>
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full gap-3 opacity-60">
             <span className="text-4xl">⚔️</span>
@@ -1100,6 +1145,7 @@ export function EmpyreanDMScreen({
         )}
 
         <div ref={messagesEndRef} />
+      </div>
       </div>
 
       {/* Bottom Navigation */}
