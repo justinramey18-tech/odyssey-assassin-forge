@@ -649,7 +649,7 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
         {/* Section: Saving Throws */}
         <div>
           <div className="text-[10px] font-mono uppercase tracking-wider text-white/40 border-b border-white/5 pb-1 mb-2">
-            🛡 Saving Throws
+            {isEmpyreanMode() ? '🛡 Resistance Saves' : '🛡 Saving Throws'}
           </div>
           <div className="grid grid-cols-2 gap-1.5">
             {(Object.entries(ABILITY_SCORES) as [AbilityScore, typeof ABILITY_SCORES[AbilityScore]][]).map(([key, info]) => {
