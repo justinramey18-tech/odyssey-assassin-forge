@@ -439,53 +439,52 @@ export default function PartyDragonChat({
                 const isSender = net.fromUserId === myUserId;
                 const isRecipient = net.toUserId === myUserId;
 
-                // Recipient view — looks like a normal dragon bond message
                 if (isRecipient && !isSender) {
                   return (
-                    <div key={`net-${net.id}-${idx}`} className="mb-6 pr-12">
-                      <div className="border-l-2 border-cyan-500/30 pl-3">
+                    <div key={'net-' + net.id + '-' + idx} className="mb-6 pr-12">
+                      <div className="border-l-2 border-purple-500/30 pl-3">
+                        <p className="text-[9px] font-mono text-purple-400/40 mb-1">
+                          {dragonName} delivers a thought through the bond
+                        </p>
+                        <p className="text-[10px] text-purple-300/50 mb-1.5">
+                          From {net.fromDragon}:
+                        </p>
                         <div className="text-cyan-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1 prose-strong:text-cyan-100/90">
                           <ReactMarkdown rehypePlugins={[rehypeRaw]}>
-                            {net.toRiderDelivery || '...a stirring through the bond...'}
+                            {renderVisionBlocks(stripDragonTags(net.dragonExchange || ''))}
                           </ReactMarkdown>
                         </div>
+                        {onVoiceAsMyDragon && (
+                          <button
+                            onClick={() => handleReply(net)}
+                            className="mt-2 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-purple-900/30 border border-purple-500/20 text-purple-200/70 hover:bg-purple-800/40 transition-colors"
+                            style={{ touchAction: 'manipulation' }}
+                          >
+                            Reply as {dragonName}
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
                 }
 
-                // Sender view
                 if (isSender) {
                   return (
-                    <div key={`net-${net.id}-${idx}`} className="mb-6 pr-12">
+                    <div key={'net-' + net.id + '-' + idx} className="mb-6 pr-12">
                       <div className="border-l-2 border-purple-500/40 pl-3">
                         <p className="text-[9px] font-mono text-purple-400/50 mb-1">
-                          ⟵ dragon network ⟶ {net.fromDragon} ↔ {net.toDragon}
+                          Sent to {net.toDragon}
                         </p>
                         {net.dragonExchange ? (
                           <div className="text-purple-200/70 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1">
                             <ReactMarkdown rehypePlugins={[rehypeRaw]}>
-                              {net.dragonExchange}
+                              {renderVisionBlocks(stripDragonTags(net.dragonExchange))}
                             </ReactMarkdown>
                           </div>
                         ) : (
                           <p className="text-purple-300/30 italic text-xs animate-pulse">
                             ...reaching through the network...
                           </p>
-                        )}
-                        {net.toRiderDelivery && (
-                          <p className="text-[10px] text-purple-300/40 mt-1.5">
-                            ✓ {net.toDragon} delivered your message
-                          </p>
-                        )}
-                        {(net as any).senderReport && (
-                          <div className="mt-2 border-l-2 border-cyan-500/30 pl-2.5">
-                            <div className="text-cyan-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1">
-                              <ReactMarkdown rehypePlugins={[rehypeRaw]}>
-                                {(net as any).senderReport}
-                              </ReactMarkdown>
-                            </div>
-                          </div>
                         )}
                         <p className="text-[9px] text-white/20 italic mt-1">
                           "{net.riderMessage}"
