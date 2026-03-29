@@ -655,7 +655,7 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
               const baseMod = getModifier(characterContext, key);
               const isProf = proficientSaves.has(key);
               const totalMod = baseMod + (isProf ? profBonus : 0);
-              const desc = SAVE_DESCRIPTIONS[key];
+              const desc = getSaveDescription(key);
               return (
                 <button
                   key={key}
