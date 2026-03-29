@@ -164,7 +164,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
       backgroundImage: `url(${flameBorderImg})`,
       backgroundSize: 'cover',
       backgroundPosition: horiz ? 'center top' : (side === 'left' ? 'left center' : 'right center'),
-      filter: `brightness(${1 + ratio * 0.5 + layerIndex * 0.15}) saturate(${1 + ratio * 0.8})`,
+      filter: `brightness(${1.3 + ratio * 0.7 + layerIndex * 0.2}) saturate(${1.2 + ratio * 1.2})`,
       opacity: layerOpacity,
       animation: `${danceAnim} ${danceDuration + layerIndex * 0.6}s linear infinite, ${flickerAnim} ${flickerDuration + layerIndex * 0.3}s ease-in-out infinite`,
       animationDelay: delay,
