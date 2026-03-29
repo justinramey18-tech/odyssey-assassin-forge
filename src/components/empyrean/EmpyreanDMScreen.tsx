@@ -892,7 +892,26 @@ export function EmpyreanDMScreen({
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-3">
+      <div className={cn(
+        "flex-1 min-h-0 relative flex flex-col overflow-hidden",
+        maxBurnout > 0 && burnoutLevel >= maxBurnout ? "animate-[screen-shake_0.6s_ease-in-out_infinite]" : ""
+      )}>
+        {/* Burnout flame overlay */}
+        {config.signetType && <BurnoutFlameOverlay level={burnoutLevel} max={maxBurnout} />}
+      <div className={cn(
+        "flex-1 overflow-y-auto overscroll-contain px-3 py-3",
+        (() => {
+          const ratio = maxBurnout > 0 ? burnoutLevel / maxBurnout : 0;
+          if (ratio >= 0.875) return "animate-[text-waver-intense_2s_ease-in-out_infinite,text-color-bleed_3s_ease-in-out_infinite]";
+          if (ratio >= 0.75) return "animate-[text-waver-intense_2.5s_ease-in-out_infinite,text-color-bleed_4s_ease-in-out_infinite]";
+          if (ratio >= 0.625) return "animate-[text-waver_2.5s_ease-in-out_infinite,text-color-bleed_5s_ease-in-out_infinite]";
+          if (ratio >= 0.5) return "animate-[text-waver_3s_ease-in-out_infinite,text-color-bleed_7s_ease-in-out_infinite]";
+          if (ratio >= 0.375) return "animate-[text-waver-subtle_3s_ease-in-out_infinite]";
+          if (ratio >= 0.25) return "animate-[text-waver-subtle_4s_ease-in-out_infinite]";
+          if (ratio > 0) return "animate-[text-waver-subtle_6s_ease-in-out_infinite]";
+          return "";
+        })()
+      )}>
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full gap-3 opacity-60">
             <span className="text-4xl">⚔️</span>
