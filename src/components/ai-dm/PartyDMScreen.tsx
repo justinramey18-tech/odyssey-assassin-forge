@@ -1743,13 +1743,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             const bBond = dragonBonds.myDragon.bond ?? 50;
              const bMax = bBond >= 76 ? 12 : bBond >= 51 ? 11 : bBond >= 26 ? 10 : 8;
             const ratio = bMax > 0 ? bLevel / bMax : 0;
-            if (ratio >= 0.875) return "animate-[text-waver-critical_1s_ease-in-out_infinite,text-color-bleed_2s_ease-in-out_infinite,text-letter-scatter-intense_1.5s_ease-in-out_infinite]";
-            if (ratio >= 0.75) return "animate-[text-waver-intense_1.2s_ease-in-out_infinite,text-color-bleed_3s_ease-in-out_infinite,text-letter-scatter_2s_ease-in-out_infinite]";
-            if (ratio >= 0.625) return "animate-[text-waver-intense_1.8s_ease-in-out_infinite,text-color-bleed_4s_ease-in-out_infinite]";
-            if (ratio >= 0.5) return "animate-[text-waver_2s_ease-in-out_infinite,text-color-bleed_5s_ease-in-out_infinite]";
-            if (ratio >= 0.375) return "animate-[text-waver_3s_ease-in-out_infinite]";
-            if (ratio >= 0.25) return "animate-[text-waver-subtle_4s_ease-in-out_infinite]";
-            if (ratio > 0) return "animate-[text-waver-subtle_6s_ease-in-out_infinite]";
+             if (ratio >= 0.875) return "animate-[text-waver_2.5s_ease-in-out_infinite,text-color-bleed_4s_ease-in-out_infinite]";
+             if (ratio >= 0.75) return "animate-[text-waver_3s_ease-in-out_infinite,text-color-bleed_5s_ease-in-out_infinite]";
+             if (ratio >= 0.625) return "animate-[text-waver_4s_ease-in-out_infinite,text-color-bleed_6s_ease-in-out_infinite]";
+             if (ratio >= 0.5) return "animate-[text-waver-subtle_3s_ease-in-out_infinite,text-color-bleed_8s_ease-in-out_infinite]";
+             if (ratio >= 0.375) return "animate-[text-waver-subtle_4s_ease-in-out_infinite]";
+             if (ratio >= 0.25) return "animate-[text-waver-subtle_5s_ease-in-out_infinite]";
+             if (ratio > 0) return "animate-[text-waver-subtle_7s_ease-in-out_infinite]";
             return "";
           })()
         )}>
