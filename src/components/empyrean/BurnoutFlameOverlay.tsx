@@ -241,8 +241,12 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
             }}
           />
           <div
-            className="absolute inset-0 bg-black animate-[consciousness-fade_10s_ease-in-out_infinite] pointer-events-none"
-            style={{ zIndex: 63 }}
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              zIndex: 63,
+              background: 'radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.9) 100%)',
+              animation: 'consciousness-fade 10s ease-in-out infinite',
+            }}
           />
         </>
       )}

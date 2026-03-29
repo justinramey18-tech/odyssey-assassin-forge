@@ -125,7 +125,9 @@ export default {
         },
         "consciousness-fade": {
           "0%, 100%": { opacity: "0" },
-          "40%, 60%": { opacity: "0.85" },
+          "30%": { opacity: "0.5" },
+          "50%": { opacity: "0.7" },
+          "70%": { opacity: "0.5" },
         },
         "accordion-down": {
           from: { height: "0" },

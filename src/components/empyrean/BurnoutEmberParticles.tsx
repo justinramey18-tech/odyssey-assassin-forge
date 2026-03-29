@@ -16,8 +16,8 @@ interface Ember {
 }
 
 const BurnoutEmberParticles: React.FC<BurnoutEmberParticlesProps> = ({ ratio }) => {
-  const active = ratio >= 0.6;
-  const count = active ? Math.round(8 + (ratio - 0.6) * 50) : 0;
+  const active = ratio >= 0.25;
+  const count = active ? Math.round(3 + (ratio - 0.25) * 40) : 0;
 
   const embers = useMemo<Ember[]>(() => {
     if (!active) return [];
