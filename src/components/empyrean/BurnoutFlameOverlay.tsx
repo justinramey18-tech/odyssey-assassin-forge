@@ -132,7 +132,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
       opacity,
       pointerEvents: 'none',
       overflow: 'hidden',
-      zIndex: 10,
+      zIndex: 61,
     };
 
     if (side === 'top') {
