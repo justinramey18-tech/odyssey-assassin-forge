@@ -1,17 +1,25 @@
 
 
-## Plan: Scope Consciousness Fade to Chat Window + Reduce 75% Intensity
+## Plan: Adjust Max Burnout Fade Timing
 
-### Problem
-Both fade overlays use `fixed inset-0`, covering the entire screen. The 75% effect is also too intense (inline `opacity: 0.45` multiplied with the keyframe's peak of `0.85`).
+Update the `consciousness-fade` keyframe in `tailwind.config.ts` to use a 10s cycle where ~3s is spent at peak darkness.
 
 ### Changes
 
-**`src/components/empyrean/BurnoutFlameOverlay.tsx`** (lines 206-217):
-- Change both fade divs from `fixed inset-0` to `absolute inset-0` so they're scoped to the overlay's parent container (the chat window)
-- Reduce the 75% effect: lower inline opacity to `0.25` and slow the animation to `8s` cycle
-- Keep the 95% effect as-is with `absolute inset-0`
+**`tailwind.config.ts`** — Revise the `consciousness-fade` keyframe:
+- Current: `0%→0, 50%→0.85, 100%→0` (symmetric sine wave)
+- New: Ramp up by 35%, hold dark from 35%–65% (3s of 10s), ramp down by 100%
+  ```
+  0%: opacity 0
+  35%: opacity 0.85
+  65%: opacity 0.85
+  100%: opacity 0
+  ```
+
+**`src/components/empyrean/BurnoutFlameOverlay.tsx`** — Change the max burnout animation duration from `4s` to `10s`:
+- Line with `consciousness-fade_4s` → `consciousness-fade_10s`
 
 ### Files modified
-1. `src/components/empyrean/BurnoutFlameOverlay.tsx` — 2 lines changed
+1. `tailwind.config.ts`
+2. `src/components/empyrean/BurnoutFlameOverlay.tsx`
 
