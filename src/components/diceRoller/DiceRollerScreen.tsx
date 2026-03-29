@@ -890,7 +890,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
             >
               <Zap className="w-5 h-5 text-yellow-400" />
               <span className="font-cinzel font-bold text-yellow-400">
-                Roll Initiative
+                {isEmpyreanMode() ? 'Roll Combat Reflexes' : 'Roll Initiative'}
               </span>
               <span className="text-xs text-yellow-400/60 font-mono">
                 (d20{abilityModifiers.dex >= 0 ? '+' : ''}{abilityModifiers.dex})
