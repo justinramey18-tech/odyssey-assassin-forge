@@ -175,8 +175,8 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
   };
 
   const sides = ['top', 'bottom', 'left', 'right'] as const;
-  const vignetteOpacity = 0.08 + ratio * 0.35;
-  const layerCount = ratio >= 0.75 ? 3 : ratio >= 0.4 ? 2 : 1;
+  const vignetteOpacity = 0.04 + ratio * 0.30;
+  const layerCount = ratio >= 0.625 ? 3 : ratio >= 0.25 ? 2 : 1;
 
   return (
     <>
