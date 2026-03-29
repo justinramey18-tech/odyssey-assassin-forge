@@ -144,13 +144,6 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
           mixBlendMode: 'screen',
         }}
       />
-      {sides.map((side) => (
-        <div key={side} style={edgeStyle(side)}>
-          {Array.from({ length: layerCount }).map((_, i) => (
-            <div key={i} style={flameLayerStyle(side, i)} />
-          ))}
-        </div>
-      ))}
       <BurnoutEmberParticles ratio={ratio} />
       {ratio > 0 && ratio < 0.375 && (
         <div
