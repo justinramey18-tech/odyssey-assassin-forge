@@ -175,12 +175,12 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
               opacity: 0.3,
             }}
           />
-          {/* 6/8 consciousness fade — 6s cycle, 25% clear center */}
+          {/* 6/8 heartbeat fade — 6s cycle, gentle double-pulse, 50% clear center */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               zIndex: 65,
-              background: 'radial-gradient(circle at center, transparent 0%, transparent 25%, rgba(0,0,0,0.3) 45%, rgba(0,0,0,0.5) 65%, rgba(0,0,0,0.5) 100%)',
+              background: 'radial-gradient(circle at center, transparent 0%, transparent 50%, rgba(0,0,0,0.45) 72%, rgba(0,0,0,0.6) 100%)',
               animation: 'consciousness-fade 6s ease-in-out infinite',
             }}
           />
@@ -198,13 +198,13 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
               opacity: 0.35,
             }}
           />
-          {/* 7/8 consciousness tunnel — 5s cycle, 15% clear center */}
+          {/* 7/8 heartbeat pulse — 4.5s cycle, deeper double-pulse, 35% clear center */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               zIndex: 65,
-              background: 'radial-gradient(circle at center, transparent 0%, transparent 15%, rgba(0,0,0,0.25) 30%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.5) 100%)',
-              animation: 'consciousness-tunnel 5s ease-in-out infinite',
+              background: 'radial-gradient(circle at center, transparent 0%, transparent 35%, rgba(0,0,0,0.5) 58%, rgba(0,0,0,0.75) 100%)',
+              animation: 'consciousness-tunnel 4.5s ease-in-out infinite',
             }}
           />
         </>
@@ -221,13 +221,13 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
               opacity: 0.4,
             }}
           />
-          {/* 8/8 consciousness tunnel — 4s cycle, 8% clear center, holds at peak */}
+          {/* 8/8 heartbeat pulse — 3s cycle, near-blackout double-pulse, 22% clear center */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               zIndex: 65,
-              background: 'radial-gradient(circle at center, transparent 0%, transparent 8%, rgba(0,0,0,0.2) 20%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0.5) 100%)',
-              animation: 'consciousness-tunnel-heavy 4s ease-in-out infinite',
+              background: 'radial-gradient(circle at center, transparent 0%, transparent 22%, rgba(0,0,0,0.55) 42%, rgba(0,0,0,0.85) 100%)',
+              animation: 'consciousness-tunnel-heavy 3s ease-in-out infinite',
             }}
           />
         </>
