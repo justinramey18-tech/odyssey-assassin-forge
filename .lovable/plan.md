@@ -1,51 +1,43 @@
 
 
-## Repurpose Party Chat as Dragon Network Chat
+## "Empyrean Speaks" Banner — Dragon Network Message Alert
 
-### What this does
+### What it does
 
-Instead of dragon network messages going to individual players' private dragon bond chats, they'll be posted to the **shared party chat** that everyone can see. Players still compose messages through their dragon bond chat (type @, pick a target, voice it, preview it), but when they hit Send, the voiced message lands in the party chat as a special dragon-styled message visible to all party members.
+When a player sends a dragon-to-dragon message through the party chat, a full-screen tappable banner (the uploaded "Empyrean Speaks" image) takes over the narrative chat window. Tapping it navigates to the party chat. The banner sticks around per-player until they tap it. Once they return from the party chat, it's gone and the normal narrative view is back.
 
-### Changes needed
+### How it works
 
-**1. Update `deliverNetworkMessage` in `use-party-dragon-bonds.ts`**
-- Instead of inserting two rows into `party_shared_state` (one for sender, one for recipient), insert one row into `party_messages` using the existing party chat table
-- The `sender_name` will be the dragon's name (e.g. "Tairn" instead of the player's name)
-- The `message` will be the voiced text, prefixed with a tag like `[🐉 → TargetDragonName]` so everyone can see who it's addressed to
-- This means dragon messages show up in the same chat feed as regular player messages — no separate system needed
+1. **Copy the image** into `src/assets/empyrean-speaks.jpg` so it can be imported and used in the component.
 
-**2. Update `PartyDMScreen.tsx` — change the `onDeliverNetworkMessage` prop**
-- Instead of calling `dragonBonds.deliverNetworkMessage`, call `partySync.sendMessage` (which inserts into `party_messages`)
-- Format the message so it's clear it's a dragon network message (include the sender dragon name and target dragon name)
+2. **Track banner visibility with a state variable** in `PartyDMScreen.tsx`:
+   - `showEmpyreanBanner` (boolean, default `false`)
+   - When `deliverNetworkMessage` is called successfully (the `onDeliverNetworkMessage` callback), set `showEmpyreanBanner = true`
 
-**3. Update `FullscreenPartyChat.tsx` — style dragon messages differently**
-- Detect messages that start with the dragon tag prefix `[🐉 →`
-- Render those with the purple border styling and italic text to visually distinguish them from regular player chat
-- This is purely a display change — no new data storage needed
+3. **Listen for incoming dragon messages from other players** via realtime. The party chat messages from `usePartySync` already update in real time. Add a `useEffect` that watches the party chat messages array — when a new message arrives that starts with `[🐉 `, set `showEmpyreanBanner = true`. This way both the sender and all receivers see the banner.
 
-**4. Clean up what's no longer needed**
-- Remove the `dragon_network_message` state type handling from `use-party-sync.ts` (the initial fetch, the realtime handler, and the `dragonNetworkMessages`/`setDragonNetworkMessages` state)
-- Remove the `syncedDragonNetworkMessages` prop threading through `Index.tsx`, `PromptDrawerProvider.tsx`, `StandalonePartyDMScreen.tsx`, and `PartyDMScreen.tsx`
-- Remove network message rendering from `PartyDragonChat.tsx` (the `item.kind === 'network'` block) since those messages now live in the party chat
-- Remove the `dragonNetworkMessages` state from `use-party-dragon-bonds.ts`
+4. **Render the banner over the narrative chat area**. In the messages section (the `flex-1 min-h-0 relative flex flex-col overflow-hidden` container around line 1702), when `showEmpyreanBanner` is true, render the image as a tappable overlay that fills the entire chat area. The image covers the message list but does NOT hide the header, input area, or bottom nav — just the scrollable narrative window.
 
-**5. Keep the Reply flow working**
-- When someone sees a dragon message in party chat and wants to reply through their dragon, they go to their dragon bond chat, type @, pick the dragon, and send as normal
-- No special Reply button needed in party chat — the @ flow in dragon bond chat already handles targeting
+5. **On tap**: Call `onShowChat()` to navigate to the party chat, and set `showEmpyreanBanner = false`. When the player comes back from the party chat, the banner is already gone.
 
-### Files to change
-- `src/hooks/use-party-dragon-bonds.ts` — simplify `deliverNetworkMessage` 
-- `src/components/ai-dm/PartyDMScreen.tsx` — update the delivery callback
-- `src/components/party/FullscreenPartyChat.tsx` — add dragon message styling
-- `src/hooks/use-party-sync.ts` — remove dragon network message state and handlers
-- `src/pages/Index.tsx` — remove synced dragon network message prop threading
-- `src/components/drawers/PromptDrawerProvider.tsx` — remove synced dragon network message props
-- `src/components/ai-dm/StandalonePartyDMScreen.tsx` — remove synced dragon network message props
-- `src/components/ai-dm/PartyDragonChat.tsx` — remove network message rendering
+6. **Per-player persistence**: Since this is just React state on each player's own `PartyDMScreen` instance, each player independently sees and dismisses the banner. No database tracking needed — the realtime subscription fires for each connected player.
 
-### What stays the same
-- The voice → preview → send flow in dragon bond chat (type @, pick target, AI voices it, preview screen)
-- The `voiceAsMyDragon` function
-- All dragon bond chat logic (normal rider-dragon telepathy)
-- Dragon bond config, trust, mood, memories
+### Technical details
+
+**Files to change:**
+- Copy `user-uploads://Screenshot_20260328_213555_ChatOn.jpg` → `src/assets/empyrean-speaks.jpg`
+- `src/components/ai-dm/PartyDMScreen.tsx`:
+  - Import the image asset
+  - Add `showEmpyreanBanner` state
+  - Add useEffect watching party chat messages for new `[🐉 ` messages
+  - Set banner true in the `onDeliverNetworkMessage` callback
+  - Render a full-area tappable image overlay inside the messages container when banner is active
+  - On tap: call `onShowChat?.()` and clear banner
+
+**What the banner looks like:**
+- The uploaded image fills the narrative chat window (object-cover, rounded corners)
+- Slight animated entrance (fade + scale)
+- Tapping anywhere on it navigates to party chat
+
+**Props needed:** `onShowChat` is already available in `PartyDMScreen` — it's passed down from the parent and opens the `FullscreenPartyChat`.
 
