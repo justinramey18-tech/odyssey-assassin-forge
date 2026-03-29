@@ -19,6 +19,7 @@ import {
   formatPromptWithRoll,
   getAbilityScoreDisplay,
   getSkillsForDisplay,
+  getAIDMPromptsForDisplay,
   type DieSize,
   type AbilityScore,
   type AIPromptTemplate,
