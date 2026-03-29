@@ -189,13 +189,13 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
               opacity: 0.3,
             }}
           />
-          {/* 6/8 heartbeat fade — 6s cycle, gentle double-pulse, 50% clear center */}
+          {/* 6/8 heartbeat fade + light wobble — 6s cycle */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               zIndex: 65,
               background: 'radial-gradient(circle at center, transparent 0%, transparent 50%, rgba(0,0,0,0.45) 72%, rgba(0,0,0,0.6) 100%)',
-              animation: 'consciousness-fade 6s linear infinite',
+              animation: 'consciousness-fade 6s linear infinite, heartbeat-wobble-light 6s linear infinite',
             }}
           />
         </>
