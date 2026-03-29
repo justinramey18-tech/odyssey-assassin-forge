@@ -190,7 +190,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
       const item: QuickActionItem = {
         id: `spell-${spellName}`,
         name: spellName,
-        detail: isCantrip ? 'Cantrip' : 'Prepared Spell',
+        detail: isCantrip ? (isEmpyreanMode() ? 'Minor Signet' : 'Cantrip') : (isEmpyreanMode() ? 'Prepared Signet' : 'Prepared Spell'),
         prompt: generateSpellPrompt(spellName, charName, isCantrip),
         removeCategory: isCantrip ? 'cantrip' as const : 'spell' as const,
       };
