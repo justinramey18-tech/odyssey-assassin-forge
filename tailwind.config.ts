@@ -337,19 +337,17 @@ export default {
           "80%": { transform: "translate(1px, 2px) rotate(0.3deg)" },
           "90%": { transform: "translate(-1px, -2px) rotate(-0.1deg)" },
         },
-        "screen-blackout": {
-          "0%, 100%": { opacity: "0" },
-          "40%": { opacity: "0" },
-          "55%": { opacity: "0.7" },
-          "65%": { opacity: "0.7" },
-          "80%": { opacity: "0" },
+        "consciousness-tunnel": {
+          "0%, 100%": { opacity: "0", transform: "scale(1)" },
+          "35%": { opacity: "0.55", transform: "scale(1.03)" },
+          "50%": { opacity: "0.82", transform: "scale(1.06)" },
+          "65%": { opacity: "0.55", transform: "scale(1.03)" },
         },
-        "screen-blackout-heavy": {
-          "0%, 100%": { opacity: "0" },
-          "35%": { opacity: "0" },
-          "50%": { opacity: "0.85" },
-          "65%": { opacity: "0.85" },
-          "85%": { opacity: "0" },
+        "consciousness-tunnel-heavy": {
+          "0%, 100%": { opacity: "0.15", transform: "scale(1)" },
+          "30%": { opacity: "0.7", transform: "scale(1.04)" },
+          "50%": { opacity: "0.92", transform: "scale(1.08)" },
+          "70%": { opacity: "0.7", transform: "scale(1.04)" },
         },
         "breathe-happy": {
           "0%, 100%": { transform: "scale(1)", boxShadow: "0 0 10px rgba(245,158,11,0.3)" },
