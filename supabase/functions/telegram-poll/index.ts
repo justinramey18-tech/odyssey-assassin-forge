@@ -923,7 +923,7 @@ async function processCommand(
   }
 
   // /bond [DragonName] MESSAGE — Talk to your bonded dragon
-  if (cmd.startsWith('/bond ') || cmd === '/bond') {
+  if (cmd.startsWith('/bond:solo') || cmd.startsWith('/bond:party') || cmd.startsWith('/bond ') || cmd === '/bond') {
     const rawArgs = text.trim().substring(5).trim();
     if (!rawArgs) {
       await sendTelegram(chatId, '❌ Usage:\n<code>/bond How are you feeling?</code>\n<code>/bond Gwen, what do you think?</code>\n\nMemory management:\n<code>/bond:memories</code> — view memories\n<code>/bond:remember &lt;text&gt;</code> — add memory\n<code>/bond:forget &lt;# or text&gt;</code> — remove memory\n\nIf you have multiple dragons:\n<code>/bond:solo How are you?</code>\n<code>/bond:party How are you?</code>', lovableKey, telegramKey);
