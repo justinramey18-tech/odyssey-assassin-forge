@@ -4,6 +4,7 @@ import burnoutDragonBg from '@/assets/burnout-dragon-bg.jpg';
 import burnoutDragonBg75 from '@/assets/burnout-dragon-bg-75.jpg';
 import burnoutDragonBg38 from '@/assets/burnout-dragon-bg-38.jpg';
 import burnoutDragonBg18 from '@/assets/burnout-dragon-bg-18.jpg';
+import burnoutDragonBg58 from '@/assets/burnout-dragon-bg-58.jpg';
 import BurnoutEmberParticles from './BurnoutEmberParticles';
 
 interface BurnoutFlameOverlayProps {
@@ -237,7 +238,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
             className="absolute inset-0 pointer-events-none"
             style={{
               zIndex: 62,
-              backgroundImage: `url(${burnoutDragonBg75})`,
+              backgroundImage: `url(${burnoutDragonBg58})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               opacity: 0.3,
