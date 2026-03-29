@@ -45,7 +45,8 @@ interface PartyDragonChatProps {
   onRequestOpinion?: () => Promise<string | null>;
   dragonNetworkMessages?: DragonNetworkMessage[];
   otherDragons?: Array<{ dragonName: string; userId: string; characterName: string }>;
-  onSendNetworkMessage?: (targetDragonName: string, targetUserId: string, targetCharacterName: string, message: string) => void | Promise<void>;
+  onVoiceAsMyDragon?: (text: string, targetDragonName: string) => Promise<string>;
+  onDeliverNetworkMessage?: (targetDragonName: string, targetUserId: string, voicedText: string, originalText: string, replyToId?: string) => Promise<void>;
   isVoicing?: boolean;
   myUserId?: string;
   dragonNotes?: string;
