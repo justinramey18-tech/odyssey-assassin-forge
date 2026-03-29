@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ArrowLeft, Send, X, Pencil, Check, Loader2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Send, X, Pencil, Check, Loader2, Trash2, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
-import { getMoodDescriptor, getBondDescriptor, getTrustDescriptor, type DragonMood } from '@/lib/dragonBondState';
+import { getMoodDescriptor, getBondDescriptor, getTrustDescriptor, type DragonMood, type DragonMemory } from '@/lib/dragonBondState';
 import type { DragonChatMessage, DragonNetworkMessage } from '@/hooks/use-party-dragon-bonds';
 
 const BOND_SENSE_RE = /<!--BOND_SENSE:(.+?)-->/g;
@@ -53,6 +53,8 @@ interface PartyDragonChatProps {
   onUpdateNotes?: (notes: string) => void;
   onClearChat?: () => void;
   onDeleteMessage?: (index: number) => void;
+  memories?: DragonMemory[];
+  onDeleteMemory?: (memoryId: string) => void;
 }
 
 export default function PartyDragonChat({
@@ -75,6 +77,8 @@ export default function PartyDragonChat({
   onUpdateNotes,
   onClearChat,
   onDeleteMessage,
+  memories,
+  onDeleteMemory,
 }: PartyDragonChatProps) {
   const [inputValue, setInputValue] = useState('');
   const [statsExpanded, setStatsExpanded] = useState(false);
@@ -82,6 +86,7 @@ export default function PartyDragonChat({
   const [networkTarget, setNetworkTarget] = useState<{ dragonName: string; userId: string; characterName: string } | null>(null);
   const [showDragonPicker, setShowDragonPicker] = useState(false);
   const [showPersonality, setShowPersonality] = useState(false);
+  const [showMemoryPanel, setShowMemoryPanel] = useState(false);
   const [editingNotes, setEditingNotes] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [deletingIdx, setDeletingIdx] = useState<number | null>(null);
@@ -262,9 +267,25 @@ export default function PartyDragonChat({
             {dragonName || 'Your Dragon'}
           </h1>
         </div>
+        <button
+          onClick={() => {
+            setShowMemoryPanel(prev => !prev);
+            if (showPersonality) setShowPersonality(false);
+          }}
+          className={cn(
+            "p-2 rounded-lg transition-colors",
+            showMemoryPanel
+              ? "bg-purple-500/20 text-purple-400"
+              : "text-white/30 hover:text-white/50 hover:bg-white/5"
+          )}
+          style={{ touchAction: 'manipulation' }}
+          title="Manage dragon memories"
+        >
+          <Brain className="w-4 h-4" />
+        </button>
         {onUpdateNotes && (
           <button
-            onClick={() => setShowPersonality(prev => !prev)}
+            onClick={() => { setShowPersonality(prev => !prev); if (showMemoryPanel) setShowMemoryPanel(false); }}
             className={cn(
               "p-2 rounded-lg transition-colors",
               showPersonality
@@ -414,6 +435,59 @@ export default function PartyDragonChat({
               )}
               Save Profile
             </button>
+          </div>
+        </div>
+      )}
+
+      {showMemoryPanel && (
+        <div className="shrink-0 border-b border-purple-500/20 bg-gradient-to-b from-purple-950/20 to-transparent max-h-[60vh] flex flex-col">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-purple-500/10">
+            <div className="flex items-center gap-2">
+              <Brain className="w-3.5 h-3.5 text-purple-400" />
+              <span className="text-xs font-cinzel font-semibold text-purple-300">Dragon Memories</span>
+              <span className="text-[10px] text-white/30">({(memories || []).length}/30)</span>
+            </div>
+            <button
+              onClick={() => setShowMemoryPanel(false)}
+              className="p-1 rounded hover:bg-white/10 text-white/40 hover:text-white/60 transition-colors"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+            {(!memories || memories.length === 0) ? (
+              <p className="text-xs text-white/20 italic text-center py-6">No memories yet. Your dragon will form memories through conversation and campaign events.</p>
+            ) : (
+              [...memories].reverse().map(memory => (
+                <div key={memory.id} className="group flex items-start gap-2 rounded-lg bg-black/20 border border-purple-500/10 px-3 py-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-white/70 leading-relaxed">{memory.text}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={cn(
+                        "text-[9px] px-1.5 py-0.5 rounded-full",
+                        memory.source === 'campaign' ? "bg-amber-500/10 text-amber-400/60" :
+                        memory.source === 'rider-said' ? "bg-cyan-500/10 text-cyan-400/60" :
+                        "bg-purple-500/10 text-purple-400/60"
+                      )}>
+                        {memory.source === 'campaign' ? 'campaign' : memory.source === 'rider-said' ? 'rider said' : 'bond chat'}
+                      </span>
+                      <span className="text-[9px] text-white/20">{new Date(memory.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  {onDeleteMemory && (
+                    <button
+                      onClick={() => onDeleteMemory(memory.id)}
+                      className="shrink-0 p-1.5 rounded-lg text-white/15 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      style={{ touchAction: 'manipulation', opacity: 1 }}
+                      title="Delete memory"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
