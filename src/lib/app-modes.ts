@@ -3,7 +3,7 @@ import { getSubTabsForCategory } from '@/components/navigation/types';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-export type AppMode = 'companion' | 'player' | 'magicBuild' | 'chronicler' | 'storyteller' | 'party' | 'fullAccess';
+export type AppMode = 'companion' | 'player' | 'magicBuild' | 'chronicler' | 'storyteller' | 'party' | 'fullAccess' | 'empyrean';
 
 export type CustomOverrides = Record<string, boolean>;
 
