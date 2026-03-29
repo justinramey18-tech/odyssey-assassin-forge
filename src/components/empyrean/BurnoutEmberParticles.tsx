@@ -16,12 +16,11 @@ interface Ember {
 }
 
 const BurnoutEmberParticles: React.FC<BurnoutEmberParticlesProps> = ({ ratio }) => {
-  // Only show embers at 60%+ burnout
-  if (ratio < 0.6) return null;
-
-  const count = Math.round(8 + (ratio - 0.6) * 50); // 8–28 embers
+  const active = ratio >= 0.6;
+  const count = active ? Math.round(8 + (ratio - 0.6) * 50) : 0;
 
   const embers = useMemo<Ember[]>(() => {
+    if (!active) return [];
     return Array.from({ length: count }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
@@ -30,9 +29,11 @@ const BurnoutEmberParticles: React.FC<BurnoutEmberParticlesProps> = ({ ratio }) 
       duration: 2.5 + Math.random() * 3,
       drift: (Math.random() - 0.5) * 40,
       opacity: 0.5 + Math.random() * 0.5,
-      hue: 15 + Math.random() * 25, // orange-red range
+      hue: 15 + Math.random() * 25,
     }));
-  }, [count]);
+  }, [active, count]);
+
+  if (!active) return null;
 
   return (
     <div
@@ -57,7 +58,6 @@ const BurnoutEmberParticles: React.FC<BurnoutEmberParticlesProps> = ({ ratio }) 
             background: `radial-gradient(circle, hsla(${e.hue}, 100%, 65%, ${e.opacity}) 0%, hsla(${e.hue - 10}, 100%, 45%, 0) 70%)`,
             boxShadow: `0 0 ${e.size + 3}px hsla(${e.hue}, 100%, 55%, ${e.opacity * 0.6})`,
             animation: `ember-rise ${e.duration}s ease-out ${e.delay}s infinite`,
-            // CSS custom properties for per-particle drift
             '--ember-drift': `${e.drift}px`,
           } as React.CSSProperties}
         />

@@ -195,6 +195,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
           ))}
         </div>
       ))}
+      <BurnoutEmberParticles ratio={ratio} />
     </>
   );
 };
