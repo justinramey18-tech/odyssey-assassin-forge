@@ -85,6 +85,9 @@ function getAffinityDescription(affinity: number, dragonName: string): string {
 
 export function usePartyDragonBonds(partyId: string | null, userId: string | null, partyMembers?: Array<{ user_id: string; character_name: string }>) {
   const [myDragon, setMyDragon] = useState<PartyDragonConfig | null>(null);
+  const myDragonRef = useRef<PartyDragonConfig | null>(null);
+  // Keep ref in sync with state for use in callbacks that need fresh values
+  useEffect(() => { myDragonRef.current = myDragon; }, [myDragon]);
   const [allDragonConfigs, setAllDragonConfigs] = useState<DragonEntry[]>([]);
   const [myRowId, setMyRowId] = useState<string | null>(null);
   const [dragonChatMessages, setDragonChatMessages] = useState<DragonChatMessage[]>([]);
