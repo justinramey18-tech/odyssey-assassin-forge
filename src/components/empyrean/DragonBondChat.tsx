@@ -17,6 +17,7 @@ import {
   getBondDescriptor,
   getTrustDescriptor,
   addMemory,
+  removeMemory,
   addTrust,
   reduceTrust,
   detectTrustBreak,
