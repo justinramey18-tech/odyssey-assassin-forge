@@ -1,57 +1,39 @@
 
 
-## Animated Flame Border Tied to Signet Burnout
+## Plan: Animate Flame Borders + Intensify Text Waver
 
-### What it does
+### Task 1: Dynamic dancing flames in BurnoutFlameOverlay
 
-The flame border image frames the narrative chat window in `PartyDMScreen.tsx`, scaling dynamically with the player's signet burnout level:
+The current flame border uses a static image with CSS scale/translate animations — which only makes the image pulse, not look like real fire. To create dancing flames, we'll add a continuously shifting `background-position` animation to the flame image, combined with layered pseudo-random motion.
 
-- **Burnout 0**: No border visible
-- **Burnout 1+**: Border appears at 80% transparency, with small, slow-moving flame animation
-- **Each additional burnout level**: 10% more opaque, flames grow taller and animate faster
-- **Max burnout**: Fully opaque, large aggressive flames
+**Changes to `BurnoutFlameOverlay.tsx`:**
+- Add a second animation to each flame edge: a `flame-dance` animation that shifts `background-position` continuously, creating the illusion of moving fire within the border strip
+- Layer multiple offset copies of the flame image using CSS `background` with different animation delays to create depth
+- Replace the single `<img>` per side with a `<div>` that uses the flame image as a CSS background, allowing `background-position` animation (img tags don't support this)
+- Each side gets slightly different animation timings/delays for organic feel
 
-### How it works
+**Changes to `tailwind.config.ts`:**
+- Add `flame-dance` keyframe: continuously shifts `background-position` (e.g., `0% { background-position: 0% 0% }` → `100% { background-position: 100% 50% }`)
+- Add `flame-dance-vertical` variant for left/right sides
 
-**1. Create a `BurnoutFlameOverlay` component**
+The result: flame images that appear to flow and dance along the border rather than just pulsing in place.
 
-A new component that receives `burnoutLevel` and `maxBurnout` as props. It:
-- Returns `null` when burnout is 0
-- Renders 4 edge overlays (top, bottom, left, right) using the flame border image, positioned absolutely around the chat container
-- Uses CSS clip-path or overflow + height to control flame size (small flames = short clip, high burnout = tall clip)
-- Opacity calculated as: `0.2 + (burnoutLevel / maxBurnout) * 0.7` (20% at level 1, up to ~90% at max)
+### Task 2: Increase text waver at near-max and max burnout
 
-**2. Animate the flames with CSS**
+Currently the text waver caps at `1.5s` duration at 75%+ ratio, with fixed `text-waver` keyframe values. At near-max and max, we want more aggressive distortion.
 
-- A custom `@keyframes flame-flicker` animation that combines:
-  - Subtle vertical oscillation (translateY wiggle)
-  - Slight scale pulsing (scaleY breathing)
-  - Brightness/opacity flickering
-- Animation speed tied to burnout: `duration = 3s - (burnoutLevel/maxBurnout * 2)s` — so flames get faster as burnout rises (3s at low, ~1s at max)
-- A secondary `flame-sway` keyframe for horizontal drift
+**Changes to `tailwind.config.ts`:**
+- Add `text-waver-intense` keyframe with larger translation (±1.5px), stronger skew (±0.5deg), and more blur (up to 0.6px)
+- Add `text-waver-critical` keyframe with even more extreme values (±2.5px translate, ±0.8deg skew, up to 1px blur)
 
-**3. Wire it into `PartyDMScreen.tsx`**
+**Changes to `PartyDMScreen.tsx` (lines 1741-1748):**
+- At ratio >= 0.95 (max): use `text-waver-critical` at 1s duration
+- At ratio >= 0.85 (near-max): use `text-waver-intense` at 1.2s duration
+- At ratio >= 0.75: keep existing `text-waver` at 1.5s
+- At ratio >= 0.5: keep existing `text-waver` at 3s
 
-- Compute burnout values from `dragonBonds.myDragon` (already available at line ~1587):
-  - `bLevel = dragonBonds.myDragon.burnout`
-  - `bBond = dragonBonds.myDragon.bond ?? 50`
-  - `bMax = bBond >= 76 ? 9 : bBond >= 51 ? 7 : bBond >= 26 ? 5 : 4`
-- Place `<BurnoutFlameOverlay level={bLevel} max={bMax} />` inside the `flex-1 min-h-0 relative` messages container (line 1707), as a `pointer-events-none` absolute overlay at `z-10`
-- Only render when `isEmpyrean && dragonBonds.isSetup && dragonBonds.myDragon?.signetType`
-
-### Files to change
-
-- **`src/components/empyrean/BurnoutFlameOverlay.tsx`** (new) — the overlay component with flame animation logic
-- **`src/components/ai-dm/PartyDMScreen.tsx`** — import and render the overlay in the messages container
-- **`tailwind.config.ts`** — add `flame-flicker` and `flame-sway` keyframes/animations
-
-### Flame sizing by level
-
-```text
-Level 1-2:  Flame height ~15px, slow pulse (3s), 80% transparent
-Level 3-4:  Flame height ~25px, moderate pulse (2.2s), 60% transparent  
-Level 5-6:  Flame height ~35px, quick pulse (1.6s), 40% transparent
-Level 7-8:  Flame height ~45px, fast pulse (1.2s), 20% transparent
-Level 9:    Flame height ~55px, aggressive pulse (0.8s), 10% transparent
-```
+### Files modified
+1. **`src/components/empyrean/BurnoutFlameOverlay.tsx`** — replace `<img>` with background-div approach, add compound flame-dance animation
+2. **`tailwind.config.ts`** — add `flame-dance`, `text-waver-intense`, `text-waver-critical` keyframes
+3. **`src/components/ai-dm/PartyDMScreen.tsx`** — add two more waver tiers for near-max/max burnout
 
