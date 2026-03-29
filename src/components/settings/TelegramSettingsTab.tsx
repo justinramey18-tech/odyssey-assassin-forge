@@ -960,6 +960,7 @@ export function TelegramSettingsTab() {
                   ['/scene', 'Current scene summary'],
                   ['/who Name', 'Look up an NPC'],
                   ['/lore ...', 'Fantasy & D&D lore'],
+                  ['/bond ...', 'Talk to your bonded dragon'],
                 ].map(([cmd, desc]) => (
                   <div key={cmd} className="flex items-start gap-2">
                     <code className="text-[11px] font-mono text-primary shrink-0 bg-primary/5 px-1.5 py-0.5 rounded">{cmd}</code>

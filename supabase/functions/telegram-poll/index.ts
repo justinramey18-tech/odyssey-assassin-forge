@@ -661,6 +661,129 @@ async function processCommand(
     return;
   }
 
+  // /bond MESSAGE — Talk to your bonded dragon
+  if (cmd.startsWith('/bond ') || cmd === '/bond') {
+    const message = text.trim().substring(5).trim();
+    if (!message) {
+      await sendTelegram(chatId, '❌ Usage: /bond How are you feeling after that battle?', lovableKey, telegramKey);
+      return;
+    }
+    const userId = await getUserIdFromChat(chatId, supabase);
+    if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+
+    // Fetch dragon data — prefer party over solo
+    let dragonName = '';
+    let dragonNotes = '';
+    let trust = 10;
+    let bond = 15;
+    let mood = 'calm';
+    let memories: Array<{ text: string; source: string; createdAt: string }> = [];
+    let characterName = 'Rider';
+
+    // Get character name
+    const save = await getCharacterData(userId, supabase);
+    if (save) {
+      characterName = (save.character_data as any)?.name || 'Rider';
+    }
+
+    // Try party dragon bond first
+    const { data: partyBonds } = await supabase
+      .from('party_shared_state')
+      .select('state_data')
+      .eq('user_id', userId)
+      .eq('state_type', 'dragon_bond')
+      .limit(1);
+
+    if (partyBonds && partyBonds.length > 0) {
+      const d = partyBonds[0].state_data as any;
+      if (d?.dragonName) {
+        dragonName = d.dragonName;
+        dragonNotes = d.dragonNotes || '';
+        trust = d.trust ?? 10;
+        bond = d.bond ?? 15;
+        mood = d.mood || 'calm';
+        memories = d.memories || [];
+      }
+    }
+
+    // Fallback to solo dragon
+    if (!dragonName && save) {
+      const ext = (save.extended_data || {}) as any;
+      const soloDragon = ext?.dragonBond;
+      if (soloDragon?.dragonName) {
+        dragonName = soloDragon.dragonName;
+        dragonNotes = soloDragon.dragonNotes || '';
+        trust = soloDragon.trust ?? 10;
+        bond = soloDragon.bond ?? 15;
+        mood = soloDragon.mood || 'calm';
+        memories = soloDragon.memories || [];
+      }
+    }
+
+    if (!dragonName) {
+      await sendTelegram(chatId, '🐉 No bonded dragon found. Bond with a dragon in an Empyrean campaign first!', lovableKey, telegramKey);
+      return;
+    }
+
+    await sendTelegram(chatId, `🐉 <i>${dragonName} stirs through the bond...</i>`, lovableKey, telegramKey);
+
+    // Build a simplified dragon chat system prompt
+    const systemPrompt = buildTelegramDragonPrompt(dragonName, characterName, trust, mood, bond, dragonNotes, memories);
+
+    // Fetch recent narrative for context
+    let recentNarrative = '';
+    const { data: memberships } = await supabase
+      .from('party_members')
+      .select('party_id')
+      .eq('user_id', userId);
+    if (memberships && memberships.length > 0) {
+      for (const m of memberships) {
+        const { data: msgs } = await supabase
+          .from('party_dm_messages')
+          .select('content, sender_name')
+          .eq('party_id', m.party_id)
+          .eq('role', 'assistant')
+          .order('created_at', { ascending: false })
+          .limit(3);
+        if (msgs && msgs.length > 0) {
+          recentNarrative = msgs.reverse().map((msg: any) => msg.content.substring(0, 400)).join('\n---\n');
+          break;
+        }
+      }
+    }
+
+    const userContent = recentNarrative
+      ? `[Recent campaign events for context:\n${recentNarrative}]\n\nThe rider says: "${message}"`
+      : `The rider says: "${message}"`;
+
+    try {
+      const response = await fetch(AI_GATEWAY_URL, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          max_tokens: 1000,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userContent },
+          ],
+        }),
+      });
+      const data = await response.json();
+      let answer = data.choices?.[0]?.message?.content || '*...silence through the bond...*';
+
+      // Strip meta tags (mood, memory, habit, bond sense)
+      answer = answer.replace(/<!--[A-Z_]+:.*?-->/g, '').trim();
+
+      const truncated = answer.length > 3500 ? answer.substring(0, 3500) + '...' : answer;
+      await sendTelegram(chatId, `🐉 <b>${dragonName}</b>\n\n${truncated}`, lovableKey, telegramKey);
+    } catch (err) {
+      console.error('/bond AI error:', err);
+      await sendTelegram(chatId, '❌ The bond feels distant. Try again later.', lovableKey, telegramKey);
+    }
+    return;
+  }
+
   // /party
   if (cmd === '/party') {
     const userId = await getUserIdFromChat(chatId, supabase);
