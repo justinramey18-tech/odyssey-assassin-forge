@@ -45,7 +45,8 @@ interface PartyDragonChatProps {
   onRequestOpinion?: () => Promise<string | null>;
   dragonNetworkMessages?: DragonNetworkMessage[];
   otherDragons?: Array<{ dragonName: string; userId: string; characterName: string }>;
-  onSendNetworkMessage?: (targetDragonName: string, targetUserId: string, targetCharacterName: string, message: string) => void | Promise<void>;
+  onVoiceAsMyDragon?: (text: string, targetDragonName: string) => Promise<string>;
+  onDeliverNetworkMessage?: (targetDragonName: string, targetUserId: string, voicedText: string, originalText: string, replyToId?: string) => Promise<void>;
   isVoicing?: boolean;
   myUserId?: string;
   dragonNotes?: string;
@@ -66,7 +67,8 @@ export default function PartyDragonChat({
   onRequestOpinion,
   dragonNetworkMessages,
   otherDragons,
-  onSendNetworkMessage,
+  onVoiceAsMyDragon,
+  onDeliverNetworkMessage,
   isVoicing,
   myUserId,
   dragonNotes,
@@ -83,6 +85,13 @@ export default function PartyDragonChat({
   const [editingNotes, setEditingNotes] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [deletingIdx, setDeletingIdx] = useState<number | null>(null);
+  const [previewState, setPreviewState] = useState<{
+    voicedText: string;
+    originalText: string;
+    targetDragonName: string;
+    targetUserId: string;
+    replyToId?: string;
+  } | null>(null);
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -154,16 +163,65 @@ export default function PartyDragonChat({
     }
   }, [editingNotes, onUpdateNotes]);
 
-  const handleSend = useCallback(() => {
-    if (!inputValue.trim() || isLoading) return;
-    if (networkTarget && onSendNetworkMessage) {
-      onSendNetworkMessage(networkTarget.dragonName, networkTarget.userId, networkTarget.characterName, inputValue.trim());
-      setNetworkTarget(null);
+  const handleSend = useCallback(async () => {
+    if (!inputValue.trim() || isLoading || isVoicing) return;
+    const text = inputValue.trim();
+
+    if (networkTarget && onVoiceAsMyDragon) {
+      setInputValue('');
+      try {
+        const voiced = await onVoiceAsMyDragon(text, networkTarget.dragonName);
+        setPreviewState({
+          voicedText: voiced,
+          originalText: text,
+          targetDragonName: networkTarget.dragonName,
+          targetUserId: networkTarget.userId,
+        });
+      } catch (err) {
+        console.error('Voice failed:', err);
+      }
     } else {
-      onSend(inputValue.trim());
+      onSend(text);
+      setInputValue('');
     }
+  }, [inputValue, isLoading, isVoicing, onSend, networkTarget, onVoiceAsMyDragon]);
+
+  const handlePreviewSend = useCallback(async () => {
+    if (!previewState || !onDeliverNetworkMessage) return;
+    await onDeliverNetworkMessage(
+      previewState.targetDragonName,
+      previewState.targetUserId,
+      previewState.voicedText,
+      previewState.originalText,
+      previewState.replyToId,
+    );
+    setPreviewState(null);
+    setNetworkTarget(null);
+  }, [previewState, onDeliverNetworkMessage]);
+
+  const handlePreviewReroll = useCallback(async () => {
+    if (!previewState || !onVoiceAsMyDragon) return;
+    try {
+      const voiced = await onVoiceAsMyDragon(previewState.originalText, previewState.targetDragonName);
+      setPreviewState(prev => prev ? { ...prev, voicedText: voiced } : null);
+    } catch (err) {
+      console.error('Re-roll failed:', err);
+    }
+  }, [previewState, onVoiceAsMyDragon]);
+
+  const handlePreviewCancel = useCallback(() => {
+    setPreviewState(null);
+  }, []);
+
+  const handleReply = useCallback((msg: DragonNetworkMessage) => {
+    setNetworkTarget({
+      dragonName: msg.fromDragon,
+      userId: msg.fromUserId,
+      characterName: '',
+    });
     setInputValue('');
-  }, [inputValue, isLoading, onSend, networkTarget, onSendNetworkMessage]);
+    inputRef.current?.focus();
+  }, []);
 
   const handleKeyDown = useCallback(
     (_e: React.KeyboardEvent) => {
@@ -381,53 +439,52 @@ export default function PartyDragonChat({
                 const isSender = net.fromUserId === myUserId;
                 const isRecipient = net.toUserId === myUserId;
 
-                // Recipient view — looks like a normal dragon bond message
                 if (isRecipient && !isSender) {
                   return (
-                    <div key={`net-${net.id}-${idx}`} className="mb-6 pr-12">
-                      <div className="border-l-2 border-cyan-500/30 pl-3">
+                    <div key={'net-' + net.id + '-' + idx} className="mb-6 pr-12">
+                      <div className="border-l-2 border-purple-500/30 pl-3">
+                        <p className="text-[9px] font-mono text-purple-400/40 mb-1">
+                          {dragonName} delivers a thought through the bond
+                        </p>
+                        <p className="text-[10px] text-purple-300/50 mb-1.5">
+                          From {net.fromDragon}:
+                        </p>
                         <div className="text-cyan-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1 prose-strong:text-cyan-100/90">
                           <ReactMarkdown rehypePlugins={[rehypeRaw]}>
-                            {net.toRiderDelivery || '...a stirring through the bond...'}
+                            {renderVisionBlocks(stripDragonTags(net.dragonExchange || ''))}
                           </ReactMarkdown>
                         </div>
+                        {onVoiceAsMyDragon && (
+                          <button
+                            onClick={() => handleReply(net)}
+                            className="mt-2 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-purple-900/30 border border-purple-500/20 text-purple-200/70 hover:bg-purple-800/40 transition-colors"
+                            style={{ touchAction: 'manipulation' }}
+                          >
+                            Reply as {dragonName}
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
                 }
 
-                // Sender view
                 if (isSender) {
                   return (
-                    <div key={`net-${net.id}-${idx}`} className="mb-6 pr-12">
+                    <div key={'net-' + net.id + '-' + idx} className="mb-6 pr-12">
                       <div className="border-l-2 border-purple-500/40 pl-3">
                         <p className="text-[9px] font-mono text-purple-400/50 mb-1">
-                          ⟵ dragon network ⟶ {net.fromDragon} ↔ {net.toDragon}
+                          Sent to {net.toDragon}
                         </p>
                         {net.dragonExchange ? (
                           <div className="text-purple-200/70 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1">
                             <ReactMarkdown rehypePlugins={[rehypeRaw]}>
-                              {net.dragonExchange}
+                              {renderVisionBlocks(stripDragonTags(net.dragonExchange))}
                             </ReactMarkdown>
                           </div>
                         ) : (
                           <p className="text-purple-300/30 italic text-xs animate-pulse">
                             ...reaching through the network...
                           </p>
-                        )}
-                        {net.toRiderDelivery && (
-                          <p className="text-[10px] text-purple-300/40 mt-1.5">
-                            ✓ {net.toDragon} delivered your message
-                          </p>
-                        )}
-                        {(net as any).senderReport && (
-                          <div className="mt-2 border-l-2 border-cyan-500/30 pl-2.5">
-                            <div className="text-cyan-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1">
-                              <ReactMarkdown rehypePlugins={[rehypeRaw]}>
-                                {(net as any).senderReport}
-                              </ReactMarkdown>
-                            </div>
-                          </div>
                         )}
                         <p className="text-[9px] text-white/20 italic mt-1">
                           "{net.riderMessage}"
@@ -512,6 +569,15 @@ export default function PartyDragonChat({
                 </div>
               </div>
             )}
+            {isVoicing && (
+              <div className="mb-6 pr-12">
+                <div className="border-l-2 border-purple-500/20 pl-3">
+                  <p className="text-purple-300/30 italic text-xs animate-pulse">
+                    ...your dragon finds the words...
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -570,10 +636,10 @@ export default function PartyDragonChat({
           />
           <button
             onClick={handleSend}
-            disabled={!inputValue.trim() || isLoading}
+            disabled={!inputValue.trim() || isLoading || isVoicing}
             className={cn(
               'shrink-0 p-2.5 rounded-xl border transition-all',
-              inputValue.trim() && !isLoading
+              inputValue.trim() && !isLoading && !isVoicing
                 ? networkTarget
                   ? 'bg-purple-900/40 border-purple-500/30 text-purple-300 hover:bg-purple-900/60'
                   : 'bg-cyan-900/40 border-cyan-500/30 text-cyan-300 hover:bg-cyan-900/60'
@@ -585,6 +651,56 @@ export default function PartyDragonChat({
           </button>
         </div>
       </div>
+
+      {/* Preview Overlay */}
+      {previewState && (
+        <div className="fixed inset-0 z-[70] flex flex-col bg-gradient-to-b from-[#0a0a1a] via-[#0d0815] to-[#0a0612]">
+          <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-purple-500/20">
+            <h2 className="font-cinzel text-sm text-purple-200">Preview Message</h2>
+            <span className="text-[10px] text-purple-300/40 ml-auto">To {previewState.targetDragonName}</span>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-4 py-6">
+            <p className="text-[10px] text-white/30 mb-2">Your dragon will say:</p>
+            <div className="border-l-2 border-purple-500/40 pl-3 mb-6">
+              <div className="text-purple-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none">
+                <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                  {previewState.voicedText}
+                </ReactMarkdown>
+              </div>
+            </div>
+            <p className="text-[9px] text-white/20 italic">Original: "{previewState.originalText}"</p>
+          </div>
+
+          <div className="shrink-0 px-4 pb-4 pt-3 border-t border-purple-500/10 space-y-2">
+            <div className="flex gap-2">
+              <button
+                onClick={handlePreviewReroll}
+                disabled={isVoicing}
+                className="flex-1 px-3 py-3 rounded-xl text-sm font-medium bg-purple-900/30 border border-purple-500/20 text-purple-200/70 hover:bg-purple-800/40 transition-colors disabled:opacity-50"
+                style={{ touchAction: 'manipulation' }}
+              >
+                {isVoicing ? 'Re-rolling...' : 'Re-roll'}
+              </button>
+              <button
+                onClick={handlePreviewSend}
+                disabled={isVoicing}
+                className="flex-1 px-3 py-3 rounded-xl text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white transition-colors disabled:opacity-50"
+                style={{ touchAction: 'manipulation' }}
+              >
+                Send
+              </button>
+            </div>
+            <button
+              onClick={handlePreviewCancel}
+              className="w-full px-3 py-2.5 rounded-xl text-sm text-white/40 hover:text-white/60 hover:bg-white/5 transition-colors"
+              style={{ touchAction: 'manipulation' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
