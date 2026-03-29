@@ -348,8 +348,13 @@ export default {
           "100%": { opacity: "0" },
         },
         "consciousness-tunnel-heavy": {
-          "0%, 100%": { opacity: "0" },
-          "45%, 55%": { opacity: "1" },
+          "0%": { opacity: "0" },
+          "8%": { opacity: "1" },
+          "16%": { opacity: "0.15" },
+          "24%": { opacity: "0.85" },
+          "36%": { opacity: "0.05" },
+          "52%": { opacity: "0" },
+          "100%": { opacity: "0" },
         },
         "breathe-happy": {
           "0%, 100%": { transform: "scale(1)", boxShadow: "0 0 10px rgba(245,158,11,0.3)" },
