@@ -2686,6 +2686,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   <button onClick={() => { setShowAudioRecorder(true); setDialogueAttachOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs" style={{ touchAction: 'manipulation' }}>
                     <Music className="w-4 h-4" /> Record Audio
                   </button>
+                  <button onClick={() => { sessionStorage.setItem('pending-file-picker', 'audio'); audioFileInputRef.current?.click(); setDialogueAttachOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs" style={{ touchAction: 'manipulation' }}>
+                    <Music className="w-4 h-4" /> Audio from Files
+                  </button>
                 </PopoverContent>
               </Popover>
               <textarea
