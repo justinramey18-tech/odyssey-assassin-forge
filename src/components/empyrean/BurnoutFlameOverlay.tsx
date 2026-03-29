@@ -53,12 +53,6 @@ function triggerHaptic(ratio: number) {
   }
 }
 
-const SIDE_CONFIGS = {
-  top: { delay1: '0s', delay2: '0.4s', delay3: '0.8s' },
-  bottom: { delay1: '0.2s', delay2: '0.6s', delay3: '1.1s' },
-  left: { delay1: '0.1s', delay2: '0.5s', delay3: '0.9s' },
-  right: { delay1: '0.3s', delay2: '0.7s', delay3: '1.2s' },
-} as const;
 
 const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max }) => {
   const audioRef = useRef<{ gain: GainNode; stop: () => void; ctx: AudioContext } | null>(null);
