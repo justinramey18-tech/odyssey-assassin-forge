@@ -5,6 +5,7 @@ import { useNPCAutocomplete } from '@/hooks/use-npc-autocomplete';
 import { PartyDMInput, type PartyDMInputHandle } from './PartyDMInput';
 import { PartyDMAudioRecorder } from './PartyDMAudioRecorder';
 import partyChatIcon from '@/assets/party-chat-icon.jpg';
+import empyreanSpeaksImg from '@/assets/empyrean-speaks.jpg';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -853,7 +854,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const partyNPCNames = useNPCAutocomplete(partyDm.messages as any);
   const isEmpyrean = partyDm.sessionConfig?.campaignType === 'empyrean';
   const dragonBonds = usePartyDragonBonds(isEmpyrean ? (partyId || null) : null, currentUserId || null, members);
-  
+  const [showEmpyreanBanner, setShowEmpyreanBanner] = useState(false);
+
 
   // Fix A: Clear scoped localStorage when user identity changes (prevents data bleed between accounts)
   const lastUserIdRef = useRef<string | null>(currentUserId ?? null);
@@ -1145,8 +1147,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     supabase.from('party_messages').select('id', { count: 'exact', head: true }).eq('party_id', partyId).then(({ count }) => {
       setChatTotalCount(count ?? 0);
     });
-    const ch = supabase.channel(`chat-badge-${partyId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'party_messages', filter: `party_id=eq.${partyId}` }, () => {
+    const ch = supabase.channel(`chat-badge-${partyId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'party_messages', filter: `party_id=eq.${partyId}` }, (payload: any) => {
       setChatTotalCount(prev => prev + 1);
+      if (payload?.new?.message?.startsWith('[🐉 ')) {
+        setShowEmpyreanBanner(true);
+      }
     }).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [partyId, currentUserId]);
@@ -1700,6 +1705,21 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
       {/* Messages */}
       <div className="flex-1 min-h-0 relative flex flex-col overflow-hidden">
+        <AnimatePresence>
+          {showEmpyreanBanner && (
+            <motion.button
+              key="empyrean-banner"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
+              onClick={() => { setShowEmpyreanBanner(false); onShowChat?.(); }}
+              className="absolute inset-0 z-20 flex items-center justify-center bg-black/80 rounded-lg overflow-hidden cursor-pointer"
+            >
+              <img src={empyreanSpeaksImg} alt="The Empyrean Speaks — tap to view" className="w-full h-full object-cover rounded-lg" />
+            </motion.button>
+          )}
+        </AnimatePresence>
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px]">
           {partyDm.messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-6">
@@ -3308,6 +3328,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             await dragonBonds.deliverNetworkMessage(
               targetDragonName, targetUserId, voicedText, originalText, replyToId,
             );
+            setShowEmpyreanBanner(true);
           }}
           isVoicing={dragonBonds.isVoicing}
           onClearChat={() => dragonBonds.clearDragonChat()}
