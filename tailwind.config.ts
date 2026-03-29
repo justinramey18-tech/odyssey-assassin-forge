@@ -285,11 +285,11 @@ export default {
         },
         "text-letter-scatter-intense": {
           "0%": { letterSpacing: "0px", wordSpacing: "0px" },
-          "10%": { letterSpacing: "1.5px", wordSpacing: "3px" },
-          "25%": { letterSpacing: "-0.8px", wordSpacing: "5px" },
-          "40%": { letterSpacing: "2px", wordSpacing: "-1px" },
-          "55%": { letterSpacing: "-1px", wordSpacing: "4px" },
-          "72%": { letterSpacing: "1.8px", wordSpacing: "2px" },
+          "10%": { letterSpacing: "0.5px", wordSpacing: "1px" },
+          "25%": { letterSpacing: "-0.3px", wordSpacing: "1.5px" },
+          "40%": { letterSpacing: "0.7px", wordSpacing: "-0.3px" },
+          "55%": { letterSpacing: "-0.4px", wordSpacing: "1.2px" },
+          "72%": { letterSpacing: "0.5px", wordSpacing: "0.8px" },
           "100%": { letterSpacing: "0px", wordSpacing: "0px" },
         },
         "flame-dance": {
