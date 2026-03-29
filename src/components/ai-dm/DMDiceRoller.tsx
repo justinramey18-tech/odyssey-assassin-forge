@@ -565,7 +565,7 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
         <div>
           <div className="flex items-center justify-between border-b border-white/5 pb-1 mb-2">
             <span className="text-[10px] font-mono uppercase tracking-wider text-white/40">
-              ⚔ Skill Checks
+              {isEmpyreanMode() ? '⚔ Rider Checks' : '⚔ Skill Checks'}
             </span>
             <button
               onClick={() => setEditMode(prev => !prev)}
