@@ -261,7 +261,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                 onRemove={handleRemoveItem}
               />
               <QuickActionSection
-                title="Spells"
+                title={isEmpyreanMode() ? 'Signets' : 'Spells'}
                 icon={<BookOpen className="w-4 h-4" />}
                 items={sections.spells}
                 accentClass="text-purple-400"
