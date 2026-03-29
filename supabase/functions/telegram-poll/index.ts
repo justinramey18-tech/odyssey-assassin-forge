@@ -293,13 +293,17 @@ async function processCommand(
       `<code>/scene</code>\n\n` +
       `A quick "where are we right now?" brief. The AI reads the last few messages and gives you a 3–5 sentence summary of the current situation.\n\n\n` +
       `<code>/who</code>  +  NPC name\n\n` +
-      `Look up any NPC from your campaign. The AI searches your campaign history and tells you everything the party knows — who they are, what they did, and any unfinished business.\n\n` +
+      `Look up any NPC from your campaign. The AI searches your campaign history and tells you everything the party knows.\n\n` +
       `<i>/who Rhiannon\n` +
       `/who Commander Vane</i>\n\n\n` +
       `<code>/lore</code>  +  question\n\n` +
-      `General fantasy and D&D knowledge — not specific to your campaign. Good for rules questions, world lore, or book references.\n\n` +
+      `General fantasy and D&D knowledge — not specific to your campaign.\n\n` +
       `<i>/lore What are Venin?\n` +
-      `/lore How does flanking work in 5e?</i>`,
+      `/lore How does flanking work in 5e?</i>\n\n\n` +
+      `<code>/bond</code>  +  message\n\n` +
+      `Talk to your bonded dragon through the telepathic bond. Uses your dragon's full personality, trust level, and mood. Each message is independent.\n\n` +
+      `<i>/bond How are you feeling after that battle?\n` +
+      `/bond What do you think about Xaden?</i>`,
       lovableKey, telegramKey,
     );
 
