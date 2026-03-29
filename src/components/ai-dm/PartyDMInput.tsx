@@ -38,7 +38,7 @@ interface PartyDMInputProps {
 }
 
 export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProps>(function PartyDMInput(
-  { onSubmit, onReady, onReadyAutopilot, hasAfkGuide, onPaste, disabled, hasPrompt, currentUserId, isUploadingPhoto, isUploadingVideo, isUploadingAudio, onTakePhoto, onRecordVideo, onPickPhoto, onPickVideo, onPickAudio, onCreatePoll, npcNames = [] },
+  { onSubmit, onReady, onReadyAutopilot, hasAfkGuide, onPaste, disabled, hasPrompt, currentUserId, isUploadingPhoto, isUploadingVideo, isUploadingAudio, onTakePhoto, onRecordVideo, onPickPhoto, onPickVideo, onPickAudio, onPickAudioFile, onCreatePoll, npcNames = [] },
   ref
 ) {
   const [input, setInput, clearInput] = useDraftPersist('odyssey-party-dm-draft');
