@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import flameBorderImg from '@/assets/flame-border-preview.jpg';
 import burnoutDragonBg from '@/assets/burnout-dragon-bg.jpg';
+import burnoutDragonBg75 from '@/assets/burnout-dragon-bg-75.jpg';
 import BurnoutEmberParticles from './BurnoutEmberParticles';
 
 interface BurnoutFlameOverlayProps {
