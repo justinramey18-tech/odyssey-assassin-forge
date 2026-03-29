@@ -2,6 +2,7 @@
 // Allows players to choose their primary D&D class
 
 import { motion } from 'framer-motion';
+import { isEmpyreanMode, EMPYREAN_CLASS_LABELS } from '@/lib/empyreanLabels';
 import { cn } from '@/lib/utils';
 import { WizardState, CLASS_SUGGESTED_ARRAYS } from '../types';
 import { CLASS_REGISTRY, getAllClasses, ClassConfig, DnDClass } from '@/lib/classes';
