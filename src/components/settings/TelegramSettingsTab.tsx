@@ -898,10 +898,13 @@ export function TelegramSettingsTab() {
               <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider mb-1.5">Character</p>
               <div className="space-y-1.5">
                 {[
-                  ['/character', 'Character summary'],
-                  ['/stats', 'Ability scores'],
-                  ['/hp', 'Current HP'],
-                  ['/slots', 'Spell slot usage'],
+                  ['/character', 'Full character summary'],
+                  ['/stats', 'Ability scores & modifiers'],
+                  ['/hp', 'Health bar & death saves'],
+                  ['/spells', 'Prepared/known spells & slots'],
+                  ['/slots', 'Quick spell slot check'],
+                  ['/dragon', 'Dragon bond status'],
+                  ['/dragon Name', 'Look up any dragon by name'],
                 ].map(([cmd, desc]) => (
                   <div key={cmd} className="flex items-start gap-2">
                     <code className="text-[11px] font-mono text-primary shrink-0 bg-primary/5 px-1.5 py-0.5 rounded">{cmd}</code>
@@ -915,11 +918,13 @@ export function TelegramSettingsTab() {
               <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider mb-1.5">Actions</p>
               <div className="space-y-1.5">
                 {[
-                  ['/damage 15', 'Take damage'],
-                  ['/heal 10', 'Heal HP'],
-                  ['/cast 3', 'Use spell slot (level)'],
-                  ['/initiative', 'Roll initiative'],
                   ['/roll 2d20+5', 'Roll dice'],
+                  ['/initiative', 'Roll initiative (d20 + DEX)'],
+                  ['/damage 15', 'Take damage'],
+                  ['/heal 10', 'Recover HP'],
+                  ['/cast 3', 'Use a spell slot (level)'],
+                  ['/ready', 'Ready up for the round'],
+                  ['/ready action', 'Ready up with an action'],
                 ].map(([cmd, desc]) => (
                   <div key={cmd} className="flex items-start gap-2">
                     <code className="text-[11px] font-mono text-primary shrink-0 bg-primary/5 px-1.5 py-0.5 rounded">{cmd}</code>
@@ -933,9 +938,28 @@ export function TelegramSettingsTab() {
               <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider mb-1.5">Campaign</p>
               <div className="space-y-1.5">
                 {[
-                  ['/quests', 'Active quest flags'],
-                  ['/lore ...', 'AI lore lookup'],
-                  ['/recap', 'AI session recap'],
+                  ['/party', 'Party members & session status'],
+                  ['/quests', 'Quest log'],
+                  ['/last', 'Last DM narrative message'],
+                  ['/recap', 'AI campaign recap'],
+                ].map(([cmd, desc]) => (
+                  <div key={cmd} className="flex items-start gap-2">
+                    <code className="text-[11px] font-mono text-primary shrink-0 bg-primary/5 px-1.5 py-0.5 rounded">{cmd}</code>
+                    <span className="text-[11px] text-muted-foreground">{desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <Separator className="bg-border/20" />
+            <div>
+              <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider mb-1.5">AI Tools</p>
+              <div className="space-y-1.5">
+                {[
+                  ['/ask ...', 'Ask the DM anything'],
+                  ['/suggest', 'AI tactical suggestions'],
+                  ['/scene', 'Current scene summary'],
+                  ['/who Name', 'Look up an NPC'],
+                  ['/lore ...', 'Fantasy & D&D lore'],
                 ].map(([cmd, desc]) => (
                   <div key={cmd} className="flex items-start gap-2">
                     <code className="text-[11px] font-mono text-primary shrink-0 bg-primary/5 px-1.5 py-0.5 rounded">{cmd}</code>
@@ -949,9 +973,10 @@ export function TelegramSettingsTab() {
               <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider mb-1.5">Account</p>
               <div className="space-y-1.5">
                 {[
-                  ['/status', 'Check link status'],
+                  ['/link CODE', 'Link your account'],
+                  ['/status', 'Check link & notifications'],
                   ['/notify on|off', 'Toggle notifications'],
-                  ['/unlink', 'Unlink account'],
+                  ['/unlink', 'Disconnect this chat'],
                 ].map(([cmd, desc]) => (
                   <div key={cmd} className="flex items-start gap-2">
                     <code className="text-[11px] font-mono text-primary shrink-0 bg-primary/5 px-1.5 py-0.5 rounded">{cmd}</code>
