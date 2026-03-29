@@ -924,18 +924,16 @@ async function processCommand(
 
   // /bond [DragonName] MESSAGE — Talk to your bonded dragon
   if (cmd.startsWith('/bond:solo') || cmd.startsWith('/bond:party') || cmd.startsWith('/bond ') || cmd === '/bond') {
-    const rawArgs = text.trim().substring(5).trim();
-    if (!rawArgs) {
-      await sendTelegram(chatId, '❌ Usage:\n<code>/bond How are you feeling?</code>\n<code>/bond Gwen, what do you think?</code>\n\nMemory management:\n<code>/bond:memories</code> — view memories\n<code>/bond:remember &lt;text&gt;</code> — add memory\n<code>/bond:forget &lt;# or text&gt;</code> — remove memory\n\nIf you have multiple dragons:\n<code>/bond:solo How are you?</code>\n<code>/bond:party How are you?</code>', lovableKey, telegramKey);
-      return;
-    }
-    const userId = await getUserIdFromChat(chatId, supabase);
-    if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+    // Determine source filter
+    let sourceFilter: 'solo' | 'party' | null = null;
+    if (cmd.startsWith('/bond:solo')) sourceFilter = 'solo';
+    else if (cmd.startsWith('/bond:party')) sourceFilter = 'party';
 
-    // The message is everything after /bond
-    const message = rawArgs;
+    // Extract message: strip /bond or /bond:solo or /bond:party prefix
+    const bondCmdMatch = text.trim().match(/^\/bond(?::(?:solo|party))?\s+([\s\S]*)$/i);
+    const message = bondCmdMatch ? bondCmdMatch[1].trim() : '';
     if (!message) {
-      await sendTelegram(chatId, '❌ Usage: /bond How are you feeling after that battle?', lovableKey, telegramKey);
+      await sendTelegram(chatId, '❌ Usage:\n<code>/bond How are you feeling?</code>\n\nMemory management:\n<code>/bond:memories</code> — view memories\n<code>/bond:remember &lt;text&gt;</code> — add memory\n<code>/bond:forget &lt;# or text&gt;</code> — remove memory\n\nIf you have multiple dragons:\n<code>/bond:solo How are you?</code>\n<code>/bond:party How are you?</code>', lovableKey, telegramKey);
       return;
     }
 
