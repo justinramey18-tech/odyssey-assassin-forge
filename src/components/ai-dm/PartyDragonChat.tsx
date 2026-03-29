@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ArrowLeft, Send, X, Pencil, Check, Loader2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Send, X, Pencil, Check, Loader2, Trash2, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
