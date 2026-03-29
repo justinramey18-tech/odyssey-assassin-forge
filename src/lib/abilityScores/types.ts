@@ -1,4 +1,5 @@
 // D&D Ability Scores Type Definitions
+import { isEmpyreanMode, EMPYREAN_ABILITY_LABELS } from '@/lib/empyreanLabels';
 
 export type AbilityName = 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma';
 

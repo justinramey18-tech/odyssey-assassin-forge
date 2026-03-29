@@ -70,6 +70,17 @@ export const SKILLS: Skill[] = [
   { id: 'survival', name: 'Survival', ability: 'wis' },
 ];
 
+export function getSkillDisplay(skill: Skill): { id: string; name: string; ability: AbilityScore } {
+  if (!isEmpyreanMode()) return skill;
+  const empName = EMPYREAN_SKILL_LABELS[skill.id];
+  return empName ? { ...skill, name: empName } : skill;
+}
+
+export function getSkillsForDisplay(): Skill[] {
+  if (!isEmpyreanMode()) return SKILLS;
+  return SKILLS.map(s => getSkillDisplay(s));
+}
+
 // AI DM Prompt Templates (System-Agnostic)
 export interface AIPromptTemplate {
   id: string;
