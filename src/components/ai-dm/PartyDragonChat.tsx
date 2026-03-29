@@ -56,6 +56,7 @@ interface PartyDragonChatProps {
   memories?: DragonMemory[];
   onDeleteMemory?: (memoryId: string) => void;
   onAddMemory?: (text: string, source: 'rider-said' | 'campaign' | 'bond-chat') => void;
+  onClearAllMemories?: () => void;
 }
 
 export default function PartyDragonChat({
