@@ -2838,6 +2838,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             onPickPhoto={() => { sessionStorage.setItem('pending-file-picker', 'photo'); photoInputRef.current?.click(); }}
             onPickVideo={() => { sessionStorage.setItem('pending-file-picker', 'video'); videoInputRef.current?.click(); }}
             onPickAudio={() => setShowAudioRecorder(true)}
+            onPickAudioFile={() => { sessionStorage.setItem('pending-file-picker', 'audio'); audioFileInputRef.current?.click(); }}
             onCreatePoll={() => setShowPollCreator(true)}
             npcNames={partyNPCNames}
           />
