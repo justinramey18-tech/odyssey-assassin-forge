@@ -90,6 +90,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
   const [dragonChatMessages, setDragonChatMessages] = useState<DragonChatMessage[]>([]);
   const [chatRowId, setChatRowId] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [isVoicing, setIsVoicing] = useState(false);
   const [sessionChatCount, setSessionChatCount] = useState(0);
   const [dragonNetworkMessages, setDragonNetworkMessages] = useState<DragonNetworkMessage[]>([]);
   const mountedRef = useRef(true);
