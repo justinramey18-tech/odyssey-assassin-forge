@@ -1718,7 +1718,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         {isEmpyrean && dragonBonds.isSetup && dragonBonds.myDragon?.signetType && (() => {
           const bLevel = dragonBonds.myDragon.burnout;
           const bBond = dragonBonds.myDragon.bond ?? 50;
-          const bMax = bBond >= 76 ? 9 : bBond >= 51 ? 7 : bBond >= 26 ? 5 : 4;
+           const bMax = bBond >= 76 ? 12 : bBond >= 51 ? 11 : bBond >= 26 ? 10 : 8;
           return <BurnoutFlameOverlay level={bLevel} max={bMax} />;
         })()}
         <AnimatePresence>
