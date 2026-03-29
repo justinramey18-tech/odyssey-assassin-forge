@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } from 'react';
 import { ArrowLeft, Send, Link2, Trash2, Pencil, Check, Loader2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -232,6 +232,26 @@ export default function DragonBondChat({
     }
   }, [showPersonality, dragonNotes]);
 
+
+  // Preserve scroll position across streaming re-renders
+  const savedScrollRef = useRef<number | null>(null);
+  // Before React commits DOM changes, save scroll position
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (savedScrollRef.current !== null) {
+      el.scrollTop = savedScrollRef.current;
+      savedScrollRef.current = null;
+    }
+  }, [messages, isLoading]);
+  // Save scroll position before each render via a passive capture
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const save = () => { savedScrollRef.current = el.scrollTop; };
+    el.addEventListener('scroll', save, { passive: true });
+    return () => el.removeEventListener('scroll', save);
+  }, []);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -511,7 +531,7 @@ export default function DragonBondChat({
       )}
 
       {/* ── MESSAGES AREA ── */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6" style={{ overflowAnchor: 'none' }}>
         {messages.length === 0 && !dragonOpening && !isLoading ? (
           /* ── EMPTY STATE ── */
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
