@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import { Heart, Shield, Plus, Minus, Zap, Skull } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
