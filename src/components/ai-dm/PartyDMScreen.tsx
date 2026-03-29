@@ -3289,7 +3289,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             );
           }}
           myUserId={currentUserId}
-          dragonNetworkMessages={effectiveNetworkMessages}
+          dragonNetworkMessages={[]}
           otherDragons={dragonBonds.allDragonConfigs
             .filter(d => d.userId !== currentUserId && d.config.dragonName)
             .map(d => ({
