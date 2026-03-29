@@ -532,14 +532,15 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
           <div className="grid grid-cols-6 gap-1">
             {(Object.entries(ABILITY_SCORES) as [AbilityScore, typeof ABILITY_SCORES[AbilityScore]][]).map(([key, info]) => {
               const mod = getModifier(characterContext, key);
+              const display = getAbilityScoreDisplay(key);
               return (
                 <button
                   key={key}
-                  onClick={() => handleRoll(`${info.name} Check`, mod)}
+                  onClick={() => handleRoll(`${display.name} Check`, mod)}
                   className="flex flex-col items-center gap-0.5 py-1.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-colors"
                   style={{ touchAction: 'manipulation' }}
                 >
-                  <span className={cn("text-[10px] font-bold", info.color)}>{info.abbr}</span>
+                  <span className={cn("text-[10px] font-bold", info.color)}>{display.abbr}</span>
                   <span className="text-[9px] text-white/40">{mod >= 0 ? `+${mod}` : mod}</span>
                 </button>
               );
