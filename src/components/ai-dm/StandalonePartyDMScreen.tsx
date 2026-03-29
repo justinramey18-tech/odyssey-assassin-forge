@@ -50,6 +50,8 @@ interface StandalonePartyDMScreenProps {
   wildShape?: UseWildShapeReturn;
   isMomoMoonDruid?: boolean;
   isSoloEmpyrean?: boolean;
+  syncedDragonNetworkMessages?: any[];
+  setSyncedDragonNetworkMessages?: React.Dispatch<React.SetStateAction<any[]>>;
 }
 
 export function StandalonePartyDMScreen({
