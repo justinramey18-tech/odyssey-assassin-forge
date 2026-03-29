@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
-import { Check, Crown, Sparkles, Sword, BookOpen, Users, Wand2, Feather, RotateCcw } from 'lucide-react';
+import { Check, Crown, Sparkles, Sword, BookOpen, Users, Wand2, Feather, Flame, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
 
 const ICON_MAP: Record<string, LucideIcon> = {
-  Sparkles, Sword, BookOpen, Users, Crown, Wand2, Feather,
+  Sparkles, Sword, BookOpen, Users, Crown, Wand2, Feather, Flame,
 };
 
 const COLOR_MAP: Record<string, string> = {
@@ -29,6 +29,7 @@ const COLOR_MAP: Record<string, string> = {
   blue: 'border-blue-500/50 bg-blue-500/10 text-blue-400',
   emerald: 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400',
   rose: 'border-rose-500/50 bg-rose-500/10 text-rose-400',
+  purple: 'border-purple-500/50 bg-purple-500/10 text-purple-400',
 };
 
 const INACTIVE_COLOR = 'border-border/50 bg-muted/20 text-muted-foreground';
@@ -41,6 +42,7 @@ const TOAST_COLORS: Record<string, { background: string; border: string; color: 
   blue:    { background: 'rgba(59, 130, 246, 0.15)',   border: '1px solid rgba(59, 130, 246, 0.5)', color: '#60a5fa' },
   emerald: { background: 'rgba(16, 185, 129, 0.15)',  border: '1px solid rgba(16, 185, 129, 0.5)', color: '#34d399' },
   rose:    { background: 'rgba(244, 63, 94, 0.15)',   border: '1px solid rgba(244, 63, 94, 0.5)',  color: '#fb7185' },
+  purple:  { background: 'rgba(168, 85, 247, 0.15)',  border: '1px solid rgba(168, 85, 247, 0.5)', color: '#c084fc' },
 };
 
 interface AppModeSettingsProps {

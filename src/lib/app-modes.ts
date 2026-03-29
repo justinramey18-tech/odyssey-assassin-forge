@@ -3,7 +3,7 @@ import { getSubTabsForCategory } from '@/components/navigation/types';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-export type AppMode = 'companion' | 'player' | 'magicBuild' | 'chronicler' | 'storyteller' | 'party' | 'fullAccess';
+export type AppMode = 'companion' | 'player' | 'magicBuild' | 'chronicler' | 'storyteller' | 'party' | 'fullAccess' | 'empyrean';
 
 export type CustomOverrides = Record<string, boolean>;
 
@@ -157,11 +157,33 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
     ],
     visibleDMButtons: ['dm.solo', 'dm.party', 'dm.empyrean'],
   },
+
+  empyrean: {
+    label: 'Empyrean',
+    description: 'Fourth Wing dragon rider campaign — relabeled stats, signets, burnout',
+    icon: 'Flame',
+    color: 'purple',
+    visibleTabs: [
+      'combat', 'skills', 'abilities', 'arcana',
+      'scribe', 'chronicle', 'settings',
+    ],
+    visibleHomeFeatures: [
+      'home.characterInfo', 'home.d20', 'home.clock',
+      'home.healthBar', 'home.restButtons', 'home.categoryNav',
+      'home.wildShape', 'home.empyrean', 'home.empyreanCard',
+    ],
+    visibleQuickAccess: [
+      'quickAccess.prompts', 'quickAccess.quickActions', 'quickAccess.combat',
+      'quickAccess.abilities', 'quickAccess.arcana', 'quickAccess.oracle',
+      'quickAccess.features', 'quickAccess.settings',
+    ],
+    visibleDMButtons: ['dm.solo', 'dm.empyrean'],
+  },
 };
 
 /** Display order for the mode selection screen */
 export const APP_MODES_ORDERED: AppMode[] = [
-  'companion', 'player', 'magicBuild', 'chronicler', 'storyteller', 'party', 'fullAccess',
+  'companion', 'player', 'magicBuild', 'chronicler', 'storyteller', 'party', 'empyrean', 'fullAccess',
 ];
 
 // ── Helper Functions ───────────────────────────────────────────────────────
