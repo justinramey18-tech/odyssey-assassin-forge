@@ -89,8 +89,22 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
 
   const sides = ['top', 'bottom', 'left', 'right'] as const;
 
+  // Vignette opacity: subtle at low burnout, intense at max
+  const vignetteOpacity = 0.08 + ratio * 0.35;
+
   return (
     <>
+      {/* Heat vignette overlay */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 9,
+          pointerEvents: 'none',
+          background: `radial-gradient(ellipse at center, transparent 40%, rgba(180, 60, 0, ${vignetteOpacity}) 75%, rgba(120, 20, 0, ${vignetteOpacity * 1.3}) 100%)`,
+          mixBlendMode: 'screen',
+        }}
+      />
       {sides.map((side) => (
         <div key={side} style={edgeStyle(side)}>
           <img
