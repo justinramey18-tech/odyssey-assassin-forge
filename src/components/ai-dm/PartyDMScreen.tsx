@@ -3328,6 +3328,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             await dragonBonds.deliverNetworkMessage(
               targetDragonName, targetUserId, voicedText, originalText, replyToId,
             );
+            setShowEmpyreanBanner(true);
           }}
           isVoicing={dragonBonds.isVoicing}
           onClearChat={() => dragonBonds.clearDragonChat()}
