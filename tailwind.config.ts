@@ -337,6 +337,20 @@ export default {
           "80%": { transform: "translate(1px, 2px) rotate(0.3deg)" },
           "90%": { transform: "translate(-1px, -2px) rotate(-0.1deg)" },
         },
+        "screen-blackout": {
+          "0%, 100%": { opacity: "0" },
+          "40%": { opacity: "0" },
+          "55%": { opacity: "0.7" },
+          "65%": { opacity: "0.7" },
+          "80%": { opacity: "0" },
+        },
+        "screen-blackout-heavy": {
+          "0%, 100%": { opacity: "0" },
+          "35%": { opacity: "0" },
+          "50%": { opacity: "0.85" },
+          "65%": { opacity: "0.85" },
+          "85%": { opacity: "0" },
+        },
         "breathe-happy": {
           "0%, 100%": { transform: "scale(1)", boxShadow: "0 0 10px rgba(245,158,11,0.3)" },
           "50%": { transform: "scale(1.08)", boxShadow: "0 0 25px rgba(245,158,11,0.6)" },
