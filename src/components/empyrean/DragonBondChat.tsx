@@ -204,13 +204,13 @@ export default function DragonBondChat({
       return;
     }
     setBondState(prev => {
-      const updated = addMemory(prev, text, 'rider-said');
+      const updated = addMemory(prev, text, newMemorySource);
       saveBondState(updated);
       return updated;
     });
     setNewMemoryText('');
     toast('Memory added', { duration: 2000 });
-  }, [newMemoryText, bondState.memories.length]);
+  }, [newMemoryText, newMemorySource, bondState.memories.length]);
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
