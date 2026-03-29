@@ -184,7 +184,14 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
           inset: 0,
           zIndex: 9,
           pointerEvents: 'none',
-          background: `radial-gradient(ellipse at center, transparent 40%, rgba(180, 60, 0, ${vignetteOpacity}) 75%, rgba(120, 20, 0, ${vignetteOpacity * 1.3}) 100%)`,
+          background: (() => {
+            // Shift from orange (low) → deep crimson red (max)
+            const midR = Math.round(180 - ratio * 60);   // 180 → 120
+            const midG = Math.round(60 - ratio * 50);    // 60 → 10
+            const outerR = Math.round(120 - ratio * 40); // 120 → 80
+            const outerG = Math.round(20 - ratio * 15);  // 20 → 5
+            return `radial-gradient(ellipse at center, transparent 40%, rgba(${midR}, ${midG}, 0, ${vignetteOpacity}) 75%, rgba(${outerR}, ${outerG}, 0, ${vignetteOpacity * 1.3}) 100%)`;
+          })(),
           mixBlendMode: 'screen',
         }}
       />
