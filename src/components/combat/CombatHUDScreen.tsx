@@ -269,7 +269,7 @@ ${isCrit ? 'Describe an exceptional success with dramatic flair. The action succ
             />
             <StatDisplay
               icon={<Gauge className="w-4 h-4" />}
-              label="INIT"
+              label={isEmpyreanMode() ? 'CRFLX' : 'INIT'}
               value={modifiers.initiativeBonus > 0 ? `+${modifiers.initiativeBonus}` : '0'}
               color="green"
             />
