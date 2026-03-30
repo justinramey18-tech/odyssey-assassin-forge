@@ -6,7 +6,11 @@ interface GroundButtonProps {
   onGround: () => void;
   currentHP: number;
   maxHP: number;
-  onFailedRoll: () => void;
+  onFailedRoll: (damage: number) => void;
+}
+
+function getGroundingDamage(roll: number, maxHP: number): number {
+  return Math.max(1, Math.ceil(maxHP * 0.2 * (20 - roll) / 19));
 }
 
 const GroundButton: React.FC<GroundButtonProps> = ({ active, onGround, currentHP, maxHP, onFailedRoll }) => {
