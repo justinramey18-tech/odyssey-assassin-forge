@@ -48,6 +48,11 @@ const GroundButton: React.FC<GroundButtonProps> = ({ active, onGround, currentHP
       const damage = getGroundingDamage(result, maxHP);
       setLastDamage(damage);
       onFailedRoll(damage);
+      // Screen shake on high-damage rolls (1-5)
+      if (result <= 5) {
+        document.documentElement.classList.add('ground-screen-shake');
+        setTimeout(() => document.documentElement.classList.remove('ground-screen-shake'), 500);
+      }
       setTimeout(() => {
         setRolling(false);
       }, 1200);
