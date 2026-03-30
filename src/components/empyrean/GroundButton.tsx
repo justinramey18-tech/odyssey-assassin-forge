@@ -56,7 +56,7 @@ const GroundButton: React.FC<GroundButtonProps> = ({ active, onGround, currentHP
     setTimeout(() => {
       setShowResult(false);
     }, 1500);
-  }, [rolling, isGrounded, onGround, onFailedRoll, currentHP]);
+  }, [rolling, isGrounded, onGround, onFailedRoll, currentHP, maxHP]);
 
   if (!active) return null;
 
