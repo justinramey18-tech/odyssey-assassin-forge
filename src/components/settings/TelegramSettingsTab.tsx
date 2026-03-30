@@ -33,6 +33,7 @@ interface TelegramLink {
   notify_combat: boolean;
   notify_dragon: boolean;
   notify_modes: string[];
+  telegram_active_mode: 'solo' | 'party' | 'empyrean';
 }
 
 /** Display name for a linked chat: nickname > @username > Chat ID */
