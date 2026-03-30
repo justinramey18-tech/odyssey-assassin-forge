@@ -1,50 +1,32 @@
 
-## Add Empyrean Default Background to DM Chat Screens
 
-### What
-When in Empyrean mode (both Solo EmpyreanDMScreen and PartyDMScreen in Empyrean campaign type), show the uploaded dragon silhouette image as a background behind the chat messages area. This background is only visible when no burnout background is active (burnout level = 0). Text readability is enhanced with warm, high-contrast colors.
+## "Ground!" Button — Burnout 8/8 Grounding Mechanic
 
-### Files to change
+### What it does
+When burnout reaches 8/8 (ratio = 1.0), a pulsing **"Ground!"** button appears centered on screen, above the tunnel-vision overlay. The player taps it to roll a d20 (using their dice odds setting). The roll result is displayed. On a **Nat 20**, vibration stops and burnout drops by 1 level (to 7/8). Each failed roll progressively darkens the screen, escalating tension.
 
-**1. Save the uploaded image as a new asset**
-- Copy `user-uploads://Screenshot_20260329_210416_ChatOn.jpg` to `src/assets/empyrean-dm-bg.jpg`
+### Changes
 
-**2. `src/components/empyrean/EmpyreanDMScreen.tsx`**
-- Import the new background image
-- Inside the messages container (the `flex-1 min-h-0 relative flex flex-col overflow-hidden` div around line 921), add a background image layer that shows when `burnoutLevel === 0`:
-  - Absolute-positioned div with `backgroundImage`, `backgroundSize: cover`, `backgroundPosition: center`, low opacity (~0.2) so text remains readable
-  - Add a dark gradient overlay on top for text contrast
-- Update text colors in the message area for better readability against the dark dragon image:
-  - Assistant message prose text: use `text-gray-100` (light gray)
-  - Bold text: keep `text-purple-300` 
-  - Italic/emphasis: use `text-amber-300` (gold)
-  - Empty state text: use `text-gray-300`
+**1. Update `BurnoutFlameOverlay` props and component**
+- Add an `onGround` callback prop (called when Nat 20 is rolled)
+- Add internal state: `failedAttempts` (number), `lastRoll` (number | null), `isGrounded` (boolean), `showResult` (boolean)
+- When `ratio >= 1`, render a centered button with z-index above the tunnel overlay (z-index 70+), styled with `pointer-events: auto`
+- Button text: "Ground!" with a pulsing glow animation (amber/fire themed, `font-cinzel`)
+- On tap: roll a d20 using `rollDie(20)` from `diceRoller.ts` (or `rollWeightedDie` with the player's dice odds mode via `loadDiceOddsMode()`)
+- Display the roll result in an animated number overlay for ~1.5s
+- If Nat 20: stop vibration (`navigator.vibrate(0)`), briefly show success feedback (golden flash), then call `onGround()`
+- If not Nat 20: increment `failedAttempts`, which adds an extra darkening layer (opacity scales with attempts, capped to maintain some visibility)
+- Reset `failedAttempts` and `lastRoll` when ratio drops below 1.0
 
-**3. `src/components/ai-dm/PartyDMScreen.tsx`**
-- Import the new background image and `isEmpyreanMode` or use the existing `isEmpyrean` local variable
-- Inside the messages container div (around line 1710), add the same background image layer, conditioned on `isEmpyrean && burnoutLevel === 0` (where burnout level comes from the existing dragon bonds check)
-- The background shows only when:
-  - `isEmpyrean` is true, AND
-  - burnout level is 0 (no burnout backgrounds from BurnoutFlameOverlay are active)
+**2. Update `EmpyreanDMScreen.tsx`**
+- Pass `onGround={() => setBurnoutLevel(prev => Math.max(0, prev - 1))}` to `BurnoutFlameOverlay`
 
-### Background layer structure
-Both screens get the same pattern inside their message container:
-```tsx
-{/* Default empyrean background — hidden when burnout is active */}
-{burnoutLevel <= 0 && (
-  <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
-    <div className="absolute inset-0" style={{
-      backgroundImage: `url(${empyreanDmBg})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      opacity: 0.18,
-    }} />
-    <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
-  </div>
-)}
-```
+**3. Update `PartyDMScreen.tsx`**
+- Same: pass `onGround` prop to `BurnoutFlameOverlay` with equivalent burnout decrement logic
 
-### Text readability
-The image is very dark (silhouette dragon against stormy sky), so the existing light text colors will mostly work. Minor tweaks:
-- Ensure the scrollable message div has `relative` and `z-index: 1` so text renders above the background layer
-- No major color overhaul needed — the dark image + overlay keeps contrast high
+### Technical details
+- Roll uses `rollWeightedDie(20, loadDiceOddsMode())` from `@/lib/diceOdds` to respect the player's dice odds setting
+- Failed-roll darkening: an additional overlay div with opacity `Math.min(0.15 * failedAttempts, 0.5)` — capped so text remains barely readable
+- The button has min touch target of 48px, styled as a glowing ember-themed pill
+- When grounding succeeds, the button disappears as ratio drops below 1.0, and normal 7/8 effects take over
+
