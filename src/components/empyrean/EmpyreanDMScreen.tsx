@@ -1184,7 +1184,7 @@ export function EmpyreanDMScreen({
         onTabChange={handleNavTabChange}
         isExpanded={navExpanded}
         onExpandedChange={setNavExpanded}
-        disabled={isLoading}
+        disabled={isLoading || (maxBurnout > 0 && burnoutLevel >= maxBurnout)}
         oracleLabel={config?.dragonName ? config.dragonName.toUpperCase() : 'DRAGON'}
         oracleColor={(() => {
           const mood = dragonBond.bondState.mood;
