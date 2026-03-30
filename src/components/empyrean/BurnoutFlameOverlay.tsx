@@ -41,25 +41,25 @@ function createCrackleLoop(ctx: AudioContext, volume: number): { gain: GainNode;
   return { gain, stop: () => { try { source.stop(); } catch {} } };
 }
 
-// Heartbeat lub-dub haptic patterns synced to animation cycle times
-// Each pattern is: [lub-vibrate, gap, dub-vibrate, rest-until-next-cycle]
-// Level 6: 6s cycle, gentle
-// Level 7: 4.5s cycle, medium
-// Level 8: 3s cycle, strong
+// Heartbeat lub-dub haptic patterns matching real BPM rates
+// Each pattern is: [lub-vibrate, gap, dub-vibrate, rest-until-next-beat]
+// Level 6: 80 BPM = 750ms per beat
+// Level 7: 120 BPM = 500ms per beat
+// Level 8: 150 BPM = 400ms per beat
 function triggerHeartbeatHaptic(ratio: number) {
   if (!navigator.vibrate) return;
   if (ratio >= 0.875) {
-    // Level 8: strong lub-dub, 3s cycle
-    // lub(50ms) gap(130ms) dub(40ms) rest(2780ms) = 3000ms total
-    navigator.vibrate([50, 130, 40, 2780]);
+    // Level 8: 150 BPM — frantic heartbeat, 400ms per beat
+    // lub(60ms) gap(100ms) dub(50ms) rest(190ms) = 400ms total
+    navigator.vibrate([60, 100, 50, 190]);
   } else if (ratio >= 0.75) {
-    // Level 7: medium lub-dub, 4.5s cycle
-    // lub(35ms) gap(180ms) dub(30ms) rest(4255ms) = 4500ms total
-    navigator.vibrate([35, 180, 30, 4255]);
+    // Level 7: 120 BPM — racing heartbeat, 500ms per beat
+    // lub(45ms) gap(120ms) dub(40ms) rest(295ms) = 500ms total
+    navigator.vibrate([45, 120, 40, 295]);
   } else if (ratio >= 0.625) {
-    // Level 6: gentle lub-dub, 6s cycle
-    // lub(25ms) gap(230ms) dub(20ms) rest(5725ms) = 6000ms total
-    navigator.vibrate([25, 230, 20, 5725]);
+    // Level 6: 80 BPM — elevated heartbeat, 750ms per beat
+    // lub(35ms) gap(150ms) dub(30ms) rest(535ms) = 750ms total
+    navigator.vibrate([35, 150, 30, 535]);
   }
 }
 
