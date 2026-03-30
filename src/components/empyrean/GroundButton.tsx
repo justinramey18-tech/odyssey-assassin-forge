@@ -45,7 +45,9 @@ const GroundButton: React.FC<GroundButtonProps> = ({ active, onGround, currentHP
         onGround();
       }, 1500);
     } else {
-      onFailedRoll();
+      const damage = getGroundingDamage(result, maxHP);
+      setLastDamage(damage);
+      onFailedRoll(damage);
       setTimeout(() => {
         setRolling(false);
       }, 1200);
