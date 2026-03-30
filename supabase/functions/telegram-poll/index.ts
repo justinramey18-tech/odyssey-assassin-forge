@@ -1605,25 +1605,72 @@ async function processCommand(
   if (cmd === '/recap') {
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first.', lovableKey, telegramKey); return; }
+    const mode = await getActiveMode(chatId, supabase);
 
-    // Find the most recent campaign with a summary
-    const { data: campaigns } = await supabase
-      .from('ai_dm_campaigns')
-      .select('name, campaign_summary, updated_at')
-      .eq('user_id', userId)
-      .not('campaign_summary', 'is', null)
-      .order('updated_at', { ascending: false })
-      .limit(1);
+    let campaignName = '';
+    let summary = '';
+    let updatedAt = '';
 
-    if (!campaigns || campaigns.length === 0 || !campaigns[0].campaign_summary) {
-      await sendTelegram(chatId, '📖 No campaign recap available. Play an AI DM session first!', lovableKey, telegramKey);
+    if (mode === 'party') {
+      // Party: check party_shared_state for campaignSummary
+      const { data: memberships } = await supabase.from('party_members').select('party_id').eq('user_id', userId);
+      if (memberships) {
+        for (const m of memberships) {
+          const { data: sessionState } = await supabase
+            .from('party_shared_state')
+            .select('state_data, updated_at')
+            .eq('party_id', m.party_id)
+            .eq('state_type', 'dm_session')
+            .maybeSingle();
+          const sd = sessionState?.state_data as any;
+          if (sd?.campaignSummary) {
+            campaignName = sd.campaignName || 'Party Campaign';
+            summary = sd.campaignSummary;
+            updatedAt = sessionState!.updated_at;
+            break;
+          }
+        }
+      }
+      // Also check ai_dm_campaigns with party mode as fallback
+      if (!summary) {
+        const { data: campaigns } = await supabase
+          .from('ai_dm_campaigns')
+          .select('name, campaign_summary, updated_at')
+          .eq('user_id', userId)
+          .eq('mode', 'party')
+          .not('campaign_summary', 'is', null)
+          .order('updated_at', { ascending: false })
+          .limit(1);
+        if (campaigns && campaigns.length > 0 && campaigns[0].campaign_summary) {
+          campaignName = campaigns[0].name;
+          summary = campaigns[0].campaign_summary!;
+          updatedAt = campaigns[0].updated_at;
+        }
+      }
+    } else {
+      // Solo or Empyrean
+      const dbMode = campaignModeValue(mode);
+      const { data: campaigns } = await supabase
+        .from('ai_dm_campaigns')
+        .select('name, campaign_summary, updated_at')
+        .eq('user_id', userId)
+        .eq('mode', dbMode)
+        .not('campaign_summary', 'is', null)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+      if (campaigns && campaigns.length > 0 && campaigns[0].campaign_summary) {
+        campaignName = campaigns[0].name;
+        summary = campaigns[0].campaign_summary!;
+        updatedAt = campaigns[0].updated_at;
+      }
+    }
+
+    if (!summary) {
+      await sendTelegram(chatId, `📖 No campaign recap available for ${mode} mode. Play an AI DM session first!`, lovableKey, telegramKey);
       return;
     }
 
-    const campaign = campaigns[0];
-    const summary = campaign.campaign_summary!;
-    const header = `📖 <b>${campaign.name}</b>\n<i>Last updated: ${new Date(campaign.updated_at).toLocaleDateString()}</i>\n\n`;
-
+    const header = `📖 <b>${campaignName}</b> <i>(${mode})</i>\n<i>Last updated: ${new Date(updatedAt).toLocaleDateString()}</i>\n\n`;
     const maxChunk = 4000;
     if (header.length + summary.length <= maxChunk) {
       await sendTelegram(chatId, header + summary, lovableKey, telegramKey);
@@ -1631,10 +1678,7 @@ async function processCommand(
       const chunks: string[] = [];
       let remaining = summary;
       while (remaining.length > 0) {
-        if (remaining.length <= maxChunk) {
-          chunks.push(remaining);
-          break;
-        }
+        if (remaining.length <= maxChunk) { chunks.push(remaining); break; }
         let splitAt = remaining.lastIndexOf(' ', maxChunk);
         if (splitAt === -1) splitAt = maxChunk;
         chunks.push(remaining.substring(0, splitAt));
