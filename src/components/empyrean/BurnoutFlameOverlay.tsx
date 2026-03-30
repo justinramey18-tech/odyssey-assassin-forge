@@ -5,10 +5,12 @@ import burnoutDragonBg38 from '@/assets/burnout-dragon-bg-38.jpg';
 import burnoutDragonBg18 from '@/assets/burnout-dragon-bg-18.jpg';
 import burnoutDragonBg58 from '@/assets/burnout-dragon-bg-58.jpg';
 import BurnoutEmberParticles from './BurnoutEmberParticles';
+import GroundButton from './GroundButton';
 
 interface BurnoutFlameOverlayProps {
   level: number;
   max: number;
+  onGround?: () => void;
 }
 
 // Generate crackling noise using Web Audio API
