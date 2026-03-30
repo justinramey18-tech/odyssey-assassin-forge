@@ -11,6 +11,9 @@ interface BurnoutFlameOverlayProps {
   level: number;
   max: number;
   onGround?: () => void;
+  currentHP?: number;
+  maxHP?: number;
+  onHPChange?: (change: number, type: 'damage' | 'healing') => void;
 }
 
 // Generate crackling noise using Web Audio API
