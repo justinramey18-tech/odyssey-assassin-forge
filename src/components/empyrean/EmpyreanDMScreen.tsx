@@ -938,7 +938,7 @@ export function EmpyreanDMScreen({
           </div>
         )}
       <div className={cn(
-        "flex-1 overflow-y-auto overscroll-contain px-3 py-3",
+        "flex-1 overflow-y-auto overscroll-contain px-3 py-3 relative z-[1]",
         (() => {
           const ratio = maxBurnout > 0 ? burnoutLevel / maxBurnout : 0;
           if (ratio >= 0.875) return "animate-[text-waver-intense_2s_ease-in-out_infinite,text-color-bleed_3s_ease-in-out_infinite]";
