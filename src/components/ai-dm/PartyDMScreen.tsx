@@ -1765,6 +1765,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             </motion.button>
           )}
         </AnimatePresence>
+        {/* Vertical HP Bar */}
+        {characterContext && (
+          <VerticalHealthBar
+            currentHP={characterContext.currentHP ?? 0}
+            maxHP={characterContext.maxHP ?? 1}
+            tempHP={characterContext.tempHP ?? 0}
+            isWildShape={characterContext.isWildShaped}
+          />
+        )}
         <div ref={scrollRef} className={cn(
           "flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px] relative z-[1]",
           isEmpyrean && dragonBonds.isSetup && dragonBonds.myDragon?.signetType && (() => {
