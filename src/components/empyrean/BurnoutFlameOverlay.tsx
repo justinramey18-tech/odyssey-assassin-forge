@@ -244,6 +244,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max, o
           />
         </>
       )}
+      {onGround && <GroundButton active={ratio >= 1} onGround={onGround} />}
     </>
   );
 };
