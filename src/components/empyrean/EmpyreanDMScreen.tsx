@@ -1067,8 +1067,8 @@ export function EmpyreanDMScreen({
                   className={cn(
                     'rounded-2xl px-3.5 py-2.5',
                     isUser
-                      ? 'bg-purple-600/30 border border-purple-500/30 text-foreground'
-                      : 'bg-card/60 border border-border/30 text-foreground',
+                      ? 'bg-purple-600/15 border border-purple-500/20 text-foreground'
+                      : 'bg-black/20 border border-white/10 text-foreground',
                   )}
                 >
                   {isEditing ? (
