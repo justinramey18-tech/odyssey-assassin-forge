@@ -5,10 +5,12 @@ import burnoutDragonBg38 from '@/assets/burnout-dragon-bg-38.jpg';
 import burnoutDragonBg18 from '@/assets/burnout-dragon-bg-18.jpg';
 import burnoutDragonBg58 from '@/assets/burnout-dragon-bg-58.jpg';
 import BurnoutEmberParticles from './BurnoutEmberParticles';
+import GroundButton from './GroundButton';
 
 interface BurnoutFlameOverlayProps {
   level: number;
   max: number;
+  onGround?: () => void;
 }
 
 // Generate crackling noise using Web Audio API
@@ -60,7 +62,7 @@ function triggerHeartbeatHaptic(ratio: number) {
 }
 
 
-const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max }) => {
+const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max, onGround }) => {
   const audioRef = useRef<{ gain: GainNode; stop: () => void; ctx: AudioContext } | null>(null);
   const hapticIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -242,6 +244,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
           />
         </>
       )}
+      {onGround && <GroundButton active={ratio >= 1} onGround={onGround} />}
     </>
   );
 };
