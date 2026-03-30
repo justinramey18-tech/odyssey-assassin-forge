@@ -99,6 +99,7 @@ interface PartyDMScreenProps {
   /** Whether this character is a Momo Moon Druid */
   isMomoMoonDruid?: boolean;
   onShowOocChat?: () => void;
+  onHPChange?: (change: number, type: 'damage' | 'healing') => void;
 }
 
 const EMPTY_DRAGON_NETWORK: never[] = [];
@@ -846,7 +847,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.reactions?.every((r, i) => r.id === next.reactions?.[i]?.id);
 });
 
-export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange }: PartyDMScreenProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
@@ -1722,7 +1723,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           const bLevel = dragonBonds.myDragon.burnout;
           const bBond = dragonBonds.myDragon.bond ?? 50;
            const bMax = bBond >= 76 ? 12 : bBond >= 51 ? 11 : bBond >= 26 ? 10 : 8;
-          return <BurnoutFlameOverlay level={bLevel} max={bMax} onGround={() => dragonBonds.updateBurnout(Math.max(0, bLevel - 1))} />;
+          return (
+            <BurnoutFlameOverlay
+              level={bLevel}
+              max={bMax}
+              onGround={() => dragonBonds.updateBurnout(Math.max(0, bLevel - 1))}
+              currentHP={characterContext?.currentHP ?? 10}
+              maxHP={characterContext?.maxHP ?? 10}
+              onHPChange={onHPChange}
+            />
+          );
         })()}
         {/* Default empyrean background — hidden when burnout is active */}
         {isEmpyrean && (() => {

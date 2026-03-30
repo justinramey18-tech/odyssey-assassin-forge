@@ -11,6 +11,9 @@ interface BurnoutFlameOverlayProps {
   level: number;
   max: number;
   onGround?: () => void;
+  currentHP?: number;
+  maxHP?: number;
+  onHPChange?: (change: number, type: 'damage' | 'healing') => void;
 }
 
 // Generate crackling noise using Web Audio API
@@ -62,7 +65,7 @@ function triggerHeartbeatHaptic(ratio: number) {
 }
 
 
-const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max, onGround }) => {
+const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max, onGround, currentHP = 10, maxHP = 10, onHPChange }) => {
   const audioRef = useRef<{ gain: GainNode; stop: () => void; ctx: AudioContext } | null>(null);
   const hapticIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -244,7 +247,15 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max, o
           />
         </>
       )}
-      {onGround && <GroundButton active={ratio >= 1} onGround={onGround} />}
+      {onGround && (
+        <GroundButton
+          active={ratio >= 1}
+          onGround={onGround}
+          currentHP={currentHP}
+          maxHP={maxHP}
+          onFailedRoll={() => onHPChange?.(-1, 'damage')}
+        />
+      )}
     </>
   );
 };
