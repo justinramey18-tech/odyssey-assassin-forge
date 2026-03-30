@@ -99,6 +99,7 @@ interface PartyDMScreenProps {
   /** Whether this character is a Momo Moon Druid */
   isMomoMoonDruid?: boolean;
   onShowOocChat?: () => void;
+  onHPChange?: (change: number, type: 'damage' | 'healing') => void;
 }
 
 const EMPTY_DRAGON_NETWORK: never[] = [];
