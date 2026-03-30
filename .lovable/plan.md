@@ -1,33 +1,78 @@
 
 
-## Scaled Ground! Roll Damage
+## Telegram Active Mode Preference
 
-### What changes
-The Ground! mechanic currently deals a flat 1 HP on every failed roll. This update makes each roll (1-19) deal unique damage based on a smooth curve where **Nat 1 = 20% of max HP** and **19 = minimum damage (1 HP)**, with every number in between mapped to a distinct value. A red damage indicator (e.g. "-3 HP") will appear below the roll result.
+### Summary
+Add a persistent "active mode" preference to each Telegram-linked account. A new `/mode` command and an in-app setting let users choose which DM context (Solo, Party, Empyrean) their Telegram commands pull from. All narrative commands (`/last`, `/scene`, `/who`, `/ask`, `/suggest`, `/recap`, `/bond`, `/ready`) will respect this preference.
 
-### Damage formula
-Smooth linear interpolation from roll 1 to roll 19:
-- `damage = Math.ceil(maxHP * 0.2 * (20 - roll) / 19)`
-- Nat 1 → `ceil(maxHP * 0.2)` (e.g. 2 HP at 10 max, 4 HP at 20 max)
-- Roll 19 → 1 HP (minimum floor)
-- Every roll in between gets a unique value on the curve
+### Database change
+Add a `telegram_active_mode` column to `telegram_user_links`:
 
-### Files to change
+```sql
+ALTER TABLE telegram_user_links
+ADD COLUMN telegram_active_mode text NOT NULL DEFAULT 'party'
+CHECK (telegram_active_mode IN ('solo', 'party', 'empyrean'));
+```
 
-**`src/components/empyrean/GroundButton.tsx`**
-1. Change `onFailedRoll: () => void` to `onFailedRoll: (damage: number) => void`
-2. Add a `getGroundingDamage(roll, maxHP)` helper that computes damage per the formula above, with a `Math.max(1, ...)` floor
-3. Store `lastDamage` in state alongside `lastRoll`
-4. On failed roll, compute damage and pass it to `onFailedRoll(damage)`
-5. In the roll result display, show a red `-X HP` subtitle below the roll number for failed rolls (similar positioning to the "Grounded" text on Nat 20)
+### Edge function changes (`telegram-poll/index.ts`)
 
-**`src/components/empyrean/BurnoutFlameOverlay.tsx`**
-1. Update the `onFailedRoll` callback to accept and forward the damage value:
-   `onFailedRoll={(damage) => onHPChange?.(damage * -1, 'damage')}`
-   (Note: currently passes `-1` hardcoded — will now use the dynamic damage)
+**New `/mode` command:**
+- `/mode` (no args) — queries the user's link row + all 3 mode sources, replies with:
+  ```
+  🎯 Active Telegram Mode
 
-### Damage display UI
-- Red text below the roll number: `text-red-400 font-cinzel text-lg`
-- Shows for all failed rolls (1-19), e.g. "-2 HP"
-- Animates in with the same timing as the roll result (1.5s display)
+  ✅ Party — "Shadows of Aretia" (2d ago, session active)
+  ○  Solo — "Lone Wolf" (5d ago)
+  ○  Empyrean — No campaign found
+
+  Switch with /mode solo, /mode party, or /mode empyrean
+  ```
+- `/mode solo|party|empyrean` — updates `telegram_active_mode` on the link row, confirms with campaign name + last activity date if a matching campaign exists, or warns "No campaign found for this mode — commands may return empty results."
+
+**Session info lookup helper:**
+Create a `getModeSessions(userId, supabase)` helper that returns status for all 3 modes:
+- **Solo**: query `ai_dm_campaigns` where `mode = 'solo'`, get latest by `updated_at`
+- **Empyrean**: query `ai_dm_campaigns` where `mode = 'solo-empyrean'`, get latest
+- **Party**: query `party_members` → `party_shared_state` (dm_session) for active session info
+
+**Refactor affected commands to use active mode:**
+
+1. **`/last`** — Currently hardcoded to party (`party_dm_messages`). With mode:
+   - `party` → existing logic (query `party_dm_messages`)
+   - `solo` / `empyrean` → query `ai_dm_campaigns` for the latest campaign matching mode, return last assistant message from the `messages` JSON array
+
+2. **`/recap`** — Currently picks most recent campaign. With mode:
+   - Filter `ai_dm_campaigns` by mode (`solo` or `solo-empyrean` or all-party-campaigns)
+   - `party` → query `party_shared_state` dm_session for `campaignSummary`
+
+3. **`/scene`** — Currently party-only. With mode:
+   - `party` → existing logic
+   - `solo`/`empyrean` → pull last 5 messages from `ai_dm_campaigns.messages` JSON, feed to AI
+
+4. **`/ask`** — Currently party-only context. With mode:
+   - `party` → existing logic
+   - `solo`/`empyrean` → pull campaign summary + recent messages from `ai_dm_campaigns`
+
+5. **`/suggest`** — Same pattern as `/ask`
+
+6. **`/who`** — Same pattern as `/ask`/`/scene`
+
+7. **`/bond`** — Currently uses `:solo`/`:party` suffix. With active mode, bare `/bond` uses the active mode instead of defaulting. Explicit suffixes still override.
+
+8. **`/ready`** — Currently party-only. With mode set to `party`, works as-is. For `solo`/`empyrean`, reply "Ready-up is only available in party mode."
+
+**Helper: `getActiveMode(chatId, supabase)`**
+Returns the `telegram_active_mode` from the user's link row. Used at the top of each affected command.
+
+### In-app UI change (`TelegramSettingsTab.tsx`)
+
+Add a "Active Telegram Mode" selector below each linked chat card:
+- Three radio-style buttons: Solo / Party / Empyrean
+- Selecting one updates `telegram_active_mode` on the link row via Supabase
+- Shows current active mode with a highlight color
+
+### Files changed
+1. **Migration SQL** — add `telegram_active_mode` column
+2. **`supabase/functions/telegram-poll/index.ts`** — add `/mode` command, `getActiveMode` helper, `getModeSessions` helper, refactor all 8 commands
+3. **`src/components/settings/TelegramSettingsTab.tsx`** — add mode selector UI
 
