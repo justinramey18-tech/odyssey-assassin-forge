@@ -2043,10 +2043,11 @@ async function processCommand(
     return;
   }
 
-  // /suggest — AI tactical suggestions based on current character state and situation
+  // /suggest — AI tactical suggestions (mode-aware)
   if (cmd === '/suggest') {
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+    const mode = await getActiveMode(chatId, supabase);
     const save = await getCharacterData(userId, supabase);
     if (!save) { await sendTelegram(chatId, '❌ No character found.', lovableKey, telegramKey); return; }
     const charData = save.character_data as any;
@@ -2057,12 +2058,8 @@ async function processCommand(
     const conditions = ext.conditions?.activeConditions;
     let charContext = `Character: ${charData?.name || 'Unknown'}, Level ${charData?.level || 1} ${classStr}`;
     if (hp) charContext += `\nHP: ${hp.current}/${hp.max}`;
-    if (conditions && conditions.length > 0) {
-      charContext += `\nConditions: ${conditions.map((c: any) => c.name || c.id).join(', ')}`;
-    }
-    if (sc?.preparedSpells?.length > 0) {
-      charContext += `\nPrepared Spells: ${(sc.preparedSpells as string[]).slice(0, 15).join(', ')}`;
-    }
+    if (conditions && conditions.length > 0) charContext += `\nConditions: ${conditions.map((c: any) => c.name || c.id).join(', ')}`;
+    if (sc?.preparedSpells?.length > 0) charContext += `\nPrepared Spells: ${(sc.preparedSpells as string[]).slice(0, 15).join(', ')}`;
     if (sc?.spellSlots) {
       const used = sc.usedSlots || {};
       const slotParts: string[] = [];
@@ -2073,31 +2070,23 @@ async function processCommand(
       }
       if (slotParts.length > 0) charContext += `\nSlots: ${slotParts.join(', ')}`;
     }
-    if (sc?.concentratingOn) {
-      charContext += `\nConcentrating on: ${sc.concentratingOn}`;
-    }
+    if (sc?.concentratingOn) charContext += `\nConcentrating on: ${sc.concentratingOn}`;
     if (ext.abilityScores) {
       const s = ext.abilityScores;
       charContext += `\nScores: STR ${s.strength} DEX ${s.dexterity} CON ${s.constitution} INT ${s.intelligence} WIS ${s.wisdom} CHA ${s.charisma}`;
     }
     let recentNarrative = '';
-    const { data: memberships } = await supabase
-      .from('party_members')
-      .select('party_id')
-      .eq('user_id', userId);
-    if (memberships && memberships.length > 0) {
-      for (const m of memberships) {
-        const { data: msgs } = await supabase
-          .from('party_dm_messages')
-          .select('content, sender_name')
-          .eq('party_id', m.party_id)
-          .order('created_at', { ascending: false })
-          .limit(5);
-        if (msgs && msgs.length > 0) {
-          recentNarrative = msgs.reverse().map((msg: any) => `[${msg.sender_name}]: ${msg.content.substring(0, 400)}`).join('\n\n');
-          break;
+    if (mode === 'party') {
+      const { data: memberships } = await supabase.from('party_members').select('party_id').eq('user_id', userId);
+      if (memberships && memberships.length > 0) {
+        for (const m of memberships) {
+          const { data: msgs } = await supabase.from('party_dm_messages').select('content, sender_name').eq('party_id', m.party_id).order('created_at', { ascending: false }).limit(5);
+          if (msgs && msgs.length > 0) { recentNarrative = msgs.reverse().map((msg: any) => `[${msg.sender_name}]: ${msg.content.substring(0, 400)}`).join('\n\n'); break; }
         }
       }
+    } else {
+      const ctx = await getSoloCampaignContext(userId, mode, supabase, 5);
+      if (ctx) recentNarrative = ctx.messages.map((m: any) => `[${m.role === 'assistant' ? 'DM' : 'Player'}]: ${(m.content || '').substring(0, 400)}`).join('\n\n');
     }
     await sendTelegram(chatId, '💡 <i>Analyzing your options...</i>', lovableKey, telegramKey);
     try {
@@ -2108,10 +2097,7 @@ async function processCommand(
           model: 'google/gemini-2.5-flash',
           max_tokens: 800,
           messages: [
-            {
-              role: 'system',
-              content: 'You are a tactical D&D advisor. Given the character\'s current state and the recent narrative situation, suggest exactly 3 concrete actions the player could take on their next turn or in the current scene. For each suggestion: name it briefly, explain what it does mechanically, and say why it is a good idea right now. Consider their HP, spell slots, conditions, and the situation. Use plain text — no markdown, no asterisks. Number the suggestions 1, 2, 3. Keep the total under 200 words.',
-            },
+            { role: 'system', content: 'You are a tactical D&D advisor. Given the character\'s current state and the recent narrative situation, suggest exactly 3 concrete actions the player could take on their next turn or in the current scene. For each suggestion: name it briefly, explain what it does mechanically, and say why it is a good idea right now. Consider their HP, spell slots, conditions, and the situation. Use plain text — no markdown, no asterisks. Number the suggestions 1, 2, 3. Keep the total under 200 words.' },
             { role: 'user', content: `${charContext}\n\nRecent situation:\n${recentNarrative || 'No recent narrative available.'}\n\nSuggest 3 tactical options.` },
           ],
         }),
@@ -2119,7 +2105,7 @@ async function processCommand(
       const data = await response.json();
       const answer = data.choices?.[0]?.message?.content || 'No suggestions available.';
       const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
-      await sendTelegram(chatId, `💡 <b>Tactical Suggestions</b>\n\n${truncated}`, lovableKey, telegramKey);
+      await sendTelegram(chatId, `💡 <b>Tactical Suggestions</b> <i>(${mode})</i>\n\n${truncated}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/suggest AI error:', err);
       await sendTelegram(chatId, '❌ Failed to generate suggestions.', lovableKey, telegramKey);
