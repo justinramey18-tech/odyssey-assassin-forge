@@ -6,6 +6,7 @@ import { PartyDMInput, type PartyDMInputHandle } from './PartyDMInput';
 import { PartyDMAudioRecorder } from './PartyDMAudioRecorder';
 import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import empyreanSpeaksImg from '@/assets/empyrean-speaks.jpg';
+import empyreanDmBg from '@/assets/empyrean-dm-bg.jpg';
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
@@ -1723,6 +1724,21 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
            const bMax = bBond >= 76 ? 12 : bBond >= 51 ? 11 : bBond >= 26 ? 10 : 8;
           return <BurnoutFlameOverlay level={bLevel} max={bMax} />;
         })()}
+        {/* Default empyrean background — hidden when burnout is active */}
+        {isEmpyrean && (() => {
+          const bLevel = dragonBonds.myDragon?.burnout ?? 0;
+          return bLevel <= 0;
+        })() && (
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+            <div className="absolute inset-0" style={{
+              backgroundImage: `url(${empyreanDmBg})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              opacity: 0.18,
+            }} />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
+          </div>
+        )}
         <AnimatePresence>
           {showEmpyreanBanner && (
             <motion.button
@@ -1739,7 +1755,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           )}
         </AnimatePresence>
         <div ref={scrollRef} className={cn(
-          "flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px]",
+          "flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px] relative z-[1]",
           isEmpyrean && dragonBonds.isSetup && dragonBonds.myDragon?.signetType && (() => {
             const bLevel = dragonBonds.myDragon.burnout;
             const bBond = dragonBonds.myDragon.bond ?? 50;

@@ -28,6 +28,7 @@ import { PartyDMQuickActions } from '@/components/ai-dm/PartyDMQuickActions';
 import EmpyreanContextualActions from '@/components/empyrean/EmpyreanContextualActions';
 import DragonBondChat from '@/components/empyrean/DragonBondChat';
 import { useGMGuides } from '@/hooks/use-gm-guides';
+import empyreanDmBg from '@/assets/empyrean-dm-bg.jpg';
 import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
 import { useNPCMentionState } from '@/hooks/use-npc-mention-state';
 import { NPCAutocomplete } from '@/components/ai-dm/NPCAutocomplete';
@@ -924,8 +925,20 @@ export function EmpyreanDMScreen({
       )}>
         {/* Burnout flame overlay */}
         {config.signetType && <BurnoutFlameOverlay level={burnoutLevel} max={maxBurnout} />}
+        {/* Default empyrean background — hidden when burnout is active */}
+        {burnoutLevel <= 0 && (
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+            <div className="absolute inset-0" style={{
+              backgroundImage: `url(${empyreanDmBg})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              opacity: 0.18,
+            }} />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
+          </div>
+        )}
       <div className={cn(
-        "flex-1 overflow-y-auto overscroll-contain px-3 py-3",
+        "flex-1 overflow-y-auto overscroll-contain px-3 py-3 relative z-[1]",
         (() => {
           const ratio = maxBurnout > 0 ? burnoutLevel / maxBurnout : 0;
           if (ratio >= 0.875) return "animate-[text-waver-intense_2s_ease-in-out_infinite,text-color-bleed_3s_ease-in-out_infinite]";
