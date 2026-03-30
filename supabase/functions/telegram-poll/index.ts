@@ -205,7 +205,7 @@ async function getActiveMode(chatId: number, supabase: ReturnType<typeof createC
 
 /** Map user-facing mode to the ai_dm_campaigns.mode column value */
 function campaignModeValue(mode: 'solo' | 'party' | 'empyrean'): string {
-  return mode === 'empyrean' ? 'solo-empyrean' : mode;
+  return mode;
 }
 
 interface ModeSessionInfo {
@@ -239,7 +239,7 @@ async function getModeSessions(userId: string, supabase: ReturnType<typeof creat
     .from('ai_dm_campaigns')
     .select('name, updated_at')
     .eq('user_id', userId)
-    .eq('mode', 'solo-empyrean')
+    .eq('mode', 'empyrean')
     .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle();
