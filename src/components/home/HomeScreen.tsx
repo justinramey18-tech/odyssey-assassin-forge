@@ -55,6 +55,7 @@ import { ChroniclerHomeView } from './ChroniclerHomeView';
 import { AlignmentDriftIndicator } from '@/components/alignment/AlignmentDriftIndicator';
 
 import homeBackground from '@/assets/home-background-mobile.jpg';
+import empyreanBackground from '@/assets/empyrean-bg.jpg';
 
 // Navigable tab types
 type NavigableTab = 
@@ -522,7 +523,7 @@ export function HomeScreen({
   };
   const hasWildShapeBg = isWildShape && !!wildShapeBackground;
   // When custom background is a video, use default image as fallback for the image layer
-  const defaultBg = (customVideoUrl ? null : customBackground) || homeBackground;
+  const defaultBg = (customVideoUrl ? null : customBackground) || (appMode === 'empyrean' ? empyreanBackground : homeBackground);
 
   // Mode-specific looping video backgrounds for all users
   const MAGIC_BUILD_VIDEO_URL = 'https://rkkgmonjfvncpvlzsojw.supabase.co/storage/v1/object/public/videos/magic-build-bg.mp4';
