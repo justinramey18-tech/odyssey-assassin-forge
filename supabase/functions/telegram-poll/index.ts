@@ -239,7 +239,7 @@ async function getModeSessions(userId: string, supabase: ReturnType<typeof creat
     .from('ai_dm_campaigns')
     .select('name, updated_at')
     .eq('user_id', userId)
-    .eq('mode', 'solo-empyrean')
+    .eq('mode', 'empyrean')
     .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle();
