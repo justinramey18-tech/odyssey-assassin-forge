@@ -105,6 +105,11 @@ const GroundButton: React.FC<GroundButtonProps> = ({ active, onGround, currentHP
               Grounded
             </div>
           )}
+          {lastRoll !== null && lastRoll < 20 && (
+            <div className="absolute text-red-400 font-cinzel text-lg mt-20 font-bold drop-shadow-[0_0_8px_rgba(255,50,50,0.5)]">
+              -{lastDamage} HP
+            </div>
+          )}
         </div>
       )}
 
