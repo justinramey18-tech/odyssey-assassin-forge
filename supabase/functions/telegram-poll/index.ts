@@ -47,22 +47,52 @@ function modStr(mod: number): string {
 }
 
 async function sendTelegram(chatId: number, text: string, lovableKey: string, telegramKey: string) {
-  // Telegram hard-limits sendMessage to 4096 characters — truncate as safety net
-  const safeText = text.length > 4000 ? text.slice(0, 3997) + '...' : text;
-  const res = await fetch(`${GATEWAY_URL}/sendMessage`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${lovableKey}`,
-      'X-Connection-Api-Key': telegramKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ chat_id: chatId, text: safeText, parse_mode: 'HTML' }),
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    console.error(`sendMessage failed [${res.status}]:`, err);
+  // Telegram hard-limits sendMessage to 4096 characters.
+  // Split long messages into multiple chunks instead of truncating.
+  const MAX_CHUNK = 4000; // leave headroom below the 4096 hard limit
+  const chunks: string[] = [];
+
+  if (text.length <= MAX_CHUNK) {
+    chunks.push(text);
+  } else {
+    let remaining = text;
+    while (remaining.length > 0) {
+      if (remaining.length <= MAX_CHUNK) {
+        chunks.push(remaining);
+        break;
+      }
+      // Try to split at the last double-newline within the limit (paragraph boundary)
+      let splitAt = remaining.lastIndexOf('\n\n', MAX_CHUNK);
+      // Fall back to single newline
+      if (splitAt < MAX_CHUNK * 0.3) splitAt = remaining.lastIndexOf('\n', MAX_CHUNK);
+      // Fall back to space
+      if (splitAt < MAX_CHUNK * 0.3) splitAt = remaining.lastIndexOf(' ', MAX_CHUNK);
+      // Last resort: hard cut
+      if (splitAt < MAX_CHUNK * 0.3) splitAt = MAX_CHUNK;
+
+      chunks.push(remaining.slice(0, splitAt));
+      remaining = remaining.slice(splitAt).trimStart();
+    }
   }
-  return res;
+
+  let lastRes: Response | undefined;
+  for (const chunk of chunks) {
+    const res = await fetch(`${GATEWAY_URL}/sendMessage`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lovableKey}`,
+        'X-Connection-Api-Key': telegramKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ chat_id: chatId, text: chunk, parse_mode: 'HTML' }),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      console.error(`sendMessage failed [${res.status}]:`, err);
+    }
+    lastRes = res;
+  }
+  return lastRes!;
 }
 
 /** Convert DM narrative content (markdown + HTML spans) to Telegram-safe HTML */
