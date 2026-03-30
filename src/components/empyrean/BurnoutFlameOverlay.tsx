@@ -44,13 +44,13 @@ function createCrackleLoop(ctx: AudioContext, volume: number): { gain: GainNode;
 // Burnout haptic vibration patterns
 // Level 6: 500ms vibrate, 1000ms pause (every 1.5s)
 // Level 7: 500ms vibrate, 500ms pause (every 1s)
-// Level 8: constant vibration
+// Level 8: constant vibration (only at full burnout)
 function triggerHeartbeatHaptic(ratio: number) {
   if (!navigator.vibrate) return;
-  if (ratio >= 0.875) {
+  if (ratio >= 1) {
     // Level 8: constant vibration — use a long duration, re-triggered by interval
     navigator.vibrate(10000);
-  } else if (ratio >= 0.75) {
+  } else if (ratio >= 0.875) {
     // Level 7: 500ms on, 500ms off — re-triggered every 1s by interval
     navigator.vibrate(250);
   } else if (ratio >= 0.625) {
@@ -112,7 +112,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
     }
 
     // Match the interval to the animation cycle length for each level
-    const interval = ratio >= 0.875 ? 3000 : ratio >= 0.75 ? 2500 : 6000;
+    const interval = ratio >= 1 ? 3000 : ratio >= 0.875 ? 2500 : 6000;
     triggerHeartbeatHaptic(ratio);
     hapticIntervalRef.current = setInterval(() => triggerHeartbeatHaptic(ratio), interval);
 
