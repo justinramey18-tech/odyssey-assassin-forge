@@ -1774,7 +1774,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           />
         )}
         <div ref={scrollRef} className={cn(
-          "flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px] relative z-[1]",
+          "flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] pr-6 py-3 sm:p-4 sm:pr-6 space-y-3 sm:space-y-4 overscroll-contain pb-[100px] relative z-[1]",
           isEmpyrean && dragonBonds.isSetup && dragonBonds.myDragon?.signetType && (() => {
             const bLevel = dragonBonds.myDragon.burnout;
             const bBond = dragonBonds.myDragon.bond ?? 50;
