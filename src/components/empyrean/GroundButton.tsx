@@ -116,7 +116,7 @@ const GroundButton: React.FC<GroundButtonProps> = ({ active, onGround, currentHP
       {/* Ground button — hidden when unconscious or grounded */}
       {!isGrounded && !isUnconscious && (
         <div
-          className="absolute inset-0 flex items-center justify-center"
+          className="absolute inset-0 flex items-center justify-center pointer-events-none"
           style={{ zIndex: 74 }}
         >
           <button
