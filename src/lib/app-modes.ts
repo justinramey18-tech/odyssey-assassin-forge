@@ -178,7 +178,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
       'quickAccess.abilities', 'quickAccess.arcana', 'quickAccess.oracle',
       'quickAccess.features', 'quickAccess.settings',
     ],
-    visibleDMButtons: ['dm.solo', 'dm.empyrean'],
+    visibleDMButtons: ['dm.solo', 'dm.party', 'dm.empyrean'],
   },
 };
 
