@@ -577,6 +577,66 @@ async function processCommand(
     return;
   }
 
+  // /mode [solo|party|empyrean]
+  if (cmd === '/mode' || cmd.startsWith('/mode ')) {
+    const userId = await getUserIdFromChat(chatId, supabase);
+    if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+
+    const modeArg = parts[1]?.toLowerCase();
+    const validModes = ['solo', 'party', 'empyrean'];
+
+    if (modeArg && !validModes.includes(modeArg)) {
+      await sendTelegram(chatId, '❌ Usage: /mode solo, /mode party, or /mode empyrean', lovableKey, telegramKey);
+      return;
+    }
+
+    if (modeArg) {
+      // Set mode
+      const { error } = await supabase
+        .from('telegram_user_links')
+        .update({ telegram_active_mode: modeArg })
+        .eq('chat_id', chatId);
+      if (error) {
+        await sendTelegram(chatId, '❌ Failed to update mode.', lovableKey, telegramKey);
+        return;
+      }
+      // Get campaign info for confirmation
+      const sessions = await getModeSessions(userId, supabase);
+      const selected = sessions.find(s => s.mode === modeArg);
+      let confirm = `✅ Mode set to <b>${modeArg.charAt(0).toUpperCase() + modeArg.slice(1)}</b>`;
+      if (selected?.campaignName) {
+        const ago = selected.lastActivity ? timeAgo(selected.lastActivity) : '';
+        confirm += `\n📖 "${selected.campaignName}"${ago ? ` (${ago})` : ''}`;
+      } else {
+        confirm += `\n⚠️ No campaign found for this mode — commands may return empty results.`;
+      }
+      await sendTelegram(chatId, confirm, lovableKey, telegramKey);
+      return;
+    }
+
+    // No arg — show status of all 3 modes
+    const currentMode = await getActiveMode(chatId, supabase);
+    const sessions = await getModeSessions(userId, supabase);
+    let msg = `🎯 <b>Active Telegram Mode</b>\n\n`;
+    for (const s of sessions) {
+      const isActive = s.mode === currentMode;
+      const icon = isActive ? '✅' : '○ ';
+      const label = s.mode.charAt(0).toUpperCase() + s.mode.slice(1);
+      let line = `${icon} <b>${label}</b>`;
+      if (s.campaignName) {
+        const ago = s.lastActivity ? timeAgo(s.lastActivity) : '';
+        line += ` — "${s.campaignName}"${ago ? ` (${ago})` : ''}`;
+        if (s.active) line += `, session active`;
+      } else {
+        line += ` — No campaign found`;
+      }
+      msg += line + '\n';
+    }
+    msg += `\nSwitch with /mode solo, /mode party, or /mode empyrean`;
+    await sendTelegram(chatId, msg, lovableKey, telegramKey);
+    return;
+  }
+
   // /roll NdS+M
   if (cmd.startsWith('/roll ')) {
     const expr = parts[1];
