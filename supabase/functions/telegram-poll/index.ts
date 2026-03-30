@@ -1645,8 +1645,7 @@ async function processCommand(
       const data = await response.json();
       const answer = data.choices?.[0]?.message?.content || 'No answer found.';
       // Truncate for Telegram
-      const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
-      await sendTelegram(chatId, `📖 <b>Lore: ${question.substring(0, 50)}</b>\n\n${truncated}`, lovableKey, telegramKey);
+      await sendTelegram(chatId, `📖 <b>Lore: ${question.substring(0, 50)}</b>\n\n${answer}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('Lore AI error:', err);
       await sendTelegram(chatId, '❌ Failed to consult the archives. Try again later.', lovableKey, telegramKey);
