@@ -8,6 +8,7 @@ import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import empyreanSpeaksImg from '@/assets/empyrean-speaks.jpg';
 import empyreanDmBg from '@/assets/empyrean-dm-bg.jpg';
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
+import { VerticalHealthBar } from '@/components/home/VerticalHealthBar';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
