@@ -41,25 +41,21 @@ function createCrackleLoop(ctx: AudioContext, volume: number): { gain: GainNode;
   return { gain, stop: () => { try { source.stop(); } catch {} } };
 }
 
-// Heartbeat lub-dub haptic patterns matching real BPM rates
-// Each pattern is: [lub-vibrate, gap, dub-vibrate, rest-until-next-beat]
-// Level 6: 80 BPM = 750ms per beat
-// Level 7: 120 BPM = 500ms per beat
-// Level 8: 150 BPM = 400ms per beat
+// Burnout haptic vibration patterns
+// Level 6: 500ms vibrate, 1000ms pause (every 1.5s)
+// Level 7: 500ms vibrate, 500ms pause (every 1s)
+// Level 8: constant vibration
 function triggerHeartbeatHaptic(ratio: number) {
   if (!navigator.vibrate) return;
   if (ratio >= 0.875) {
-    // Level 8: 150 BPM — frantic heartbeat, 400ms per beat
-    // lub(60ms) gap(100ms) dub(50ms) rest(190ms) = 400ms total
-    navigator.vibrate([60, 100, 50, 190]);
+    // Level 8: constant vibration — use a long duration, re-triggered by interval
+    navigator.vibrate(10000);
   } else if (ratio >= 0.75) {
-    // Level 7: 120 BPM — racing heartbeat, 500ms per beat
-    // lub(45ms) gap(120ms) dub(40ms) rest(295ms) = 500ms total
-    navigator.vibrate([45, 120, 40, 295]);
+    // Level 7: 500ms on, 500ms off
+    navigator.vibrate([500, 500]);
   } else if (ratio >= 0.625) {
-    // Level 6: 80 BPM — elevated heartbeat, 750ms per beat
-    // lub(35ms) gap(150ms) dub(30ms) rest(535ms) = 750ms total
-    navigator.vibrate([35, 150, 30, 535]);
+    // Level 6: 500ms on, 1000ms off
+    navigator.vibrate([500, 1000]);
   }
 }
 
