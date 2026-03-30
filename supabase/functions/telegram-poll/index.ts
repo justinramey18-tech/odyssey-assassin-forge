@@ -1970,7 +1970,7 @@ async function processCommand(
           messages: [
             {
               role: 'system',
-              content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Give the player the intel on an NPC named "${npcName}". Based on the campaign messages, compile: who they are, their role/occupation, their relationship to the party, notable things they said or did, and any unresolved business. The FACTS must be accurate — but feel free to add your own colorful commentary and opinions about the NPC. If the info is sparse, say so. Max 200 words.`,
+              content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Give the player the intel on an NPC named "${npcName}". Based on the campaign messages, compile: who they are, their role/occupation, their relationship to the party, notable things they said or did, and any unresolved business. The FACTS must be accurate — but feel free to add your own colorful commentary and opinions about the NPC. If the info is sparse, say so. Max 600 words.`,
             },
             { role: 'user', content: `${summaryCtx}Messages mentioning ${npcName}:\n\n${context}\n\nWhat does the party know about ${npcName}?` },
           ],
