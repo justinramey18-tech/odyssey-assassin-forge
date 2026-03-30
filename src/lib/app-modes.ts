@@ -170,6 +170,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
     visibleHomeFeatures: [
       'home.characterInfo', 'home.d20', 'home.clock',
       'home.healthBar', 'home.restButtons', 'home.categoryNav',
+      'home.playModeToggle', 'home.partyButton',
       'home.wildShape', 'home.empyrean', 'home.empyreanCard',
     ],
     visibleQuickAccess: [
@@ -177,7 +178,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
       'quickAccess.abilities', 'quickAccess.arcana', 'quickAccess.oracle',
       'quickAccess.features', 'quickAccess.settings',
     ],
-    visibleDMButtons: ['dm.solo', 'dm.empyrean'],
+    visibleDMButtons: ['dm.solo', 'dm.party', 'dm.empyrean'],
   },
 };
 
