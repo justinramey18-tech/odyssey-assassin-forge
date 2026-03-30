@@ -1609,7 +1609,7 @@ async function processCommand(
             },
             { role: 'user', content: question },
           ],
-          max_tokens: 800,
+          max_tokens: 2400,
         }),
       });
       const data = await response.json();
