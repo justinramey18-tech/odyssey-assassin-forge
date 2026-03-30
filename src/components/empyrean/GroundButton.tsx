@@ -4,10 +4,12 @@ import { rollWeightedDie, loadDiceOddsMode } from '@/lib/diceOdds';
 interface GroundButtonProps {
   active: boolean;
   onGround: () => void;
+  currentHP: number;
+  maxHP: number;
+  onFailedRoll: () => void;
 }
 
-const GroundButton: React.FC<GroundButtonProps> = ({ active, onGround }) => {
-  const [failedAttempts, setFailedAttempts] = useState(0);
+const GroundButton: React.FC<GroundButtonProps> = ({ active, onGround, currentHP, maxHP, onFailedRoll }) => {
   const [lastRoll, setLastRoll] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [isGrounded, setIsGrounded] = useState(false);
@@ -16,7 +18,6 @@ const GroundButton: React.FC<GroundButtonProps> = ({ active, onGround }) => {
   // Reset when deactivated
   useEffect(() => {
     if (!active) {
-      setFailedAttempts(0);
       setLastRoll(null);
       setShowResult(false);
       setIsGrounded(false);
@@ -25,7 +26,7 @@ const GroundButton: React.FC<GroundButtonProps> = ({ active, onGround }) => {
   }, [active]);
 
   const handleRoll = useCallback(() => {
-    if (rolling || isGrounded) return;
+    if (rolling || isGrounded || currentHP <= 0) return;
     setRolling(true);
 
     const result = rollWeightedDie(20, loadDiceOddsMode());
@@ -39,7 +40,7 @@ const GroundButton: React.FC<GroundButtonProps> = ({ active, onGround }) => {
         onGround();
       }, 1500);
     } else {
-      setFailedAttempts(prev => prev + 1);
+      onFailedRoll();
       setTimeout(() => {
         setRolling(false);
       }, 1200);
@@ -48,16 +49,18 @@ const GroundButton: React.FC<GroundButtonProps> = ({ active, onGround }) => {
     setTimeout(() => {
       setShowResult(false);
     }, 1500);
-  }, [rolling, isGrounded, onGround]);
+  }, [rolling, isGrounded, onGround, onFailedRoll, currentHP]);
 
   if (!active) return null;
 
-  const darkenOpacity = Math.min(0.15 * failedAttempts, 0.5);
+  // HP-based darkening: 0 at full HP, 1.0 at 0 HP — no cap
+  const darkenOpacity = maxHP > 0 ? Math.max(0, 1 - (currentHP / maxHP)) : 0;
+  const isUnconscious = currentHP <= 0;
 
   return (
     <>
-      {/* Progressive darkening from failed rolls */}
-      {failedAttempts > 0 && (
+      {/* Progressive darkening from HP loss */}
+      {darkenOpacity > 0 && (
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -110,8 +113,8 @@ const GroundButton: React.FC<GroundButtonProps> = ({ active, onGround }) => {
         />
       )}
 
-      {/* Ground button */}
-      {!isGrounded && (
+      {/* Ground button — hidden when unconscious or grounded */}
+      {!isGrounded && !isUnconscious && (
         <div
           className="absolute inset-0 flex items-center justify-center"
           style={{ zIndex: 74 }}
