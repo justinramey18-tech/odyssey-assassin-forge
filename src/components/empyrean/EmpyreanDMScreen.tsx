@@ -28,6 +28,7 @@ import { PartyDMQuickActions } from '@/components/ai-dm/PartyDMQuickActions';
 import EmpyreanContextualActions from '@/components/empyrean/EmpyreanContextualActions';
 import DragonBondChat from '@/components/empyrean/DragonBondChat';
 import { useGMGuides } from '@/hooks/use-gm-guides';
+import empyreanDmBg from '@/assets/empyrean-dm-bg.jpg';
 import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
 import { useNPCMentionState } from '@/hooks/use-npc-mention-state';
 import { NPCAutocomplete } from '@/components/ai-dm/NPCAutocomplete';
