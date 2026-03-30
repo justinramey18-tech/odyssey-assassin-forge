@@ -247,7 +247,15 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max, o
           />
         </>
       )}
-      {onGround && <GroundButton active={ratio >= 1} onGround={onGround} />}
+      {onGround && (
+        <GroundButton
+          active={ratio >= 1}
+          onGround={onGround}
+          currentHP={currentHP}
+          maxHP={maxHP}
+          onFailedRoll={() => onHPChange?.(-1, 'damage')}
+        />
+      )}
     </>
   );
 };
