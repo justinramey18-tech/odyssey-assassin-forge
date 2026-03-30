@@ -5,6 +5,7 @@ import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
 import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle, Theater, Megaphone, Minus, Plus } from 'lucide-react';
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
+import { VerticalHealthBar } from '@/components/home/VerticalHealthBar';
 import { NpcSceneDialog } from '@/components/ai-dm/NpcSceneDialog';
 import { useOocDmChat } from '@/hooks/use-ooc-dm-chat';
 import { OocDmChat } from '@/components/ai-dm/OocDmChat';
