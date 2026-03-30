@@ -1882,7 +1882,7 @@ async function processCommand(
           messages: [
             {
               role: 'system',
-              content: 'You are a concise narrator. Based on the recent game messages provided, describe the CURRENT SCENE in 3-5 sentences. Answer: Where are the characters right now? What just happened? What is the immediate situation? Write in present tense. Use plain text only — no markdown, no asterisks, no bullet points. Keep it under 150 words.',
+              content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Describe the current scene. Read the recent game messages and give the player a "where are we right now?" briefing in 3-5 sentences. Cover: where the characters are, what just happened, and the immediate situation. Write in present tense. You can editorialize and add your commentary, but the scene description itself must be ACCURATE to what actually happened. Max 150 words.`,
             },
             { role: 'user', content: `Recent game messages:\n\n${narrativeContext}\n\nDescribe the current scene.` },
           ],
