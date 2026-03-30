@@ -1605,7 +1605,7 @@ async function processCommand(
           messages: [
             {
               role: 'system',
-              content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Answer a lore question. You have deep knowledge of D&D 5e sourcebooks, popular fantasy novel series (Fourth Wing, The Empyrean series by Rebecca Yarros, Lord of the Rings, The Witcher, Wheel of Time, A Song of Ice and Fire, Stormlight Archive, and others), mythology, and worldbuilding. The FACTS must be accurate — deliver them in your voice. If the question is about a specific fictional universe, answer within that universe's canon. If unclear, default to D&D 5e. Max 300 words.`,
+              content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Answer a lore question. You have deep knowledge of D&D 5e sourcebooks, popular fantasy novel series (Fourth Wing, The Empyrean series by Rebecca Yarros, Lord of the Rings, The Witcher, Wheel of Time, A Song of Ice and Fire, Stormlight Archive, and others), mythology, and worldbuilding. The FACTS must be accurate — deliver them in your voice. If the question is about a specific fictional universe, answer within that universe's canon. If unclear, default to D&D 5e. Max 900 words.`,
             },
             { role: 'user', content: question },
           ],
