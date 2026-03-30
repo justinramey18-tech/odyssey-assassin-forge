@@ -112,7 +112,7 @@ const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max })
     }
 
     // Match the interval to the animation cycle length for each level
-    const interval = ratio >= 0.875 ? 3000 : ratio >= 0.75 ? 4500 : 6000;
+    const interval = ratio >= 0.875 ? 3000 : ratio >= 0.75 ? 2500 : 6000;
     triggerHeartbeatHaptic(ratio);
     hapticIntervalRef.current = setInterval(() => triggerHeartbeatHaptic(ratio), interval);
 
