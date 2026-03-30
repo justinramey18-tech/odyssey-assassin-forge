@@ -1770,8 +1770,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           <VerticalHealthBar
             currentHP={characterContext.currentHP ?? 0}
             maxHP={characterContext.maxHP ?? 1}
-            tempHP={characterContext.tempHP ?? 0}
-            isWildShape={characterContext.isWildShaped}
+            isWildShape={characterContext.wildShape?.isTransformed}
           />
         )}
         <div ref={scrollRef} className={cn(
