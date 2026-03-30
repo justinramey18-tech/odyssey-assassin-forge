@@ -2599,7 +2599,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
       {/* Input Area */}
       {!isFullscreen && (
-      <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-[48px]">
+      <div className={cn(
+        "px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-[48px]",
+        (() => {
+          if (!isEmpyrean || !dragonBonds.myDragon?.signetType) return '';
+          const bLevel = dragonBonds.myDragon.burnout;
+          const bBond = dragonBonds.myDragon.bond ?? 50;
+          const bMax = bBond >= 76 ? 12 : bBond >= 51 ? 11 : bBond >= 26 ? 10 : 8;
+          return bLevel >= bMax ? 'pointer-events-none opacity-40 select-none' : '';
+        })()
+      )}>
         {!isDialogueMode && !partyDm.isGenerating && !(isCreator && partyDm.pendingDraft) && !(isCreator && partyDm.sessionConfig?.dmMode === 'human') && (
           <div className="flex items-center gap-1.5 mb-2 max-w-2xl mx-auto">
             <Popover>
