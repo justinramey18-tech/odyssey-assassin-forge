@@ -182,6 +182,116 @@ You and this rider share something rare. Communication is almost seamless.
   return sections.join('\n\n');
 }
 
+// ── Active Mode helpers ──────────────────────────────────────────────────────
+
+async function getActiveMode(chatId: number, supabase: ReturnType<typeof createClient>): Promise<'solo' | 'party' | 'empyrean'> {
+  const { data } = await supabase
+    .from('telegram_user_links')
+    .select('telegram_active_mode')
+    .eq('chat_id', chatId)
+    .maybeSingle();
+  return (data?.telegram_active_mode as 'solo' | 'party' | 'empyrean') || 'party';
+}
+
+/** Map user-facing mode to the ai_dm_campaigns.mode column value */
+function campaignModeValue(mode: 'solo' | 'party' | 'empyrean'): string {
+  return mode === 'empyrean' ? 'solo-empyrean' : mode;
+}
+
+interface ModeSessionInfo {
+  mode: 'solo' | 'party' | 'empyrean';
+  campaignName: string | null;
+  lastActivity: string | null;
+  active: boolean;
+}
+
+async function getModeSessions(userId: string, supabase: ReturnType<typeof createClient>): Promise<ModeSessionInfo[]> {
+  const results: ModeSessionInfo[] = [];
+
+  // Solo
+  const { data: soloCampaign } = await supabase
+    .from('ai_dm_campaigns')
+    .select('name, updated_at')
+    .eq('user_id', userId)
+    .eq('mode', 'solo')
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  results.push({
+    mode: 'solo',
+    campaignName: soloCampaign?.name || null,
+    lastActivity: soloCampaign?.updated_at || null,
+    active: !!soloCampaign,
+  });
+
+  // Empyrean
+  const { data: empCampaign } = await supabase
+    .from('ai_dm_campaigns')
+    .select('name, updated_at')
+    .eq('user_id', userId)
+    .eq('mode', 'solo-empyrean')
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  results.push({
+    mode: 'empyrean',
+    campaignName: empCampaign?.name || null,
+    lastActivity: empCampaign?.updated_at || null,
+    active: !!empCampaign,
+  });
+
+  // Party — check for active dm_session
+  const { data: memberships } = await supabase
+    .from('party_members')
+    .select('party_id')
+    .eq('user_id', userId);
+  let partyName: string | null = null;
+  let partyActivity: string | null = null;
+  let partyActive = false;
+  if (memberships && memberships.length > 0) {
+    for (const m of memberships) {
+      const { data: sessionState } = await supabase
+        .from('party_shared_state')
+        .select('state_data, updated_at')
+        .eq('party_id', m.party_id)
+        .eq('state_type', 'dm_session')
+        .maybeSingle();
+      if (sessionState) {
+        const sd = sessionState.state_data as any;
+        partyName = sd?.campaignName || 'Party Session';
+        partyActivity = sessionState.updated_at;
+        partyActive = sd?.active === true;
+        break;
+      }
+    }
+  }
+  results.push({
+    mode: 'party',
+    campaignName: partyName,
+    lastActivity: partyActivity,
+    active: partyActive,
+  });
+
+  return results;
+}
+
+/** Get recent messages from solo/empyrean campaign */
+async function getSoloCampaignContext(userId: string, mode: 'solo' | 'empyrean', supabase: ReturnType<typeof createClient>, limit = 5) {
+  const dbMode = campaignModeValue(mode);
+  const { data: campaign } = await supabase
+    .from('ai_dm_campaigns')
+    .select('name, messages, campaign_summary, updated_at')
+    .eq('user_id', userId)
+    .eq('mode', dbMode)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!campaign) return null;
+  const msgs = (campaign.messages as any[]) || [];
+  const recentMsgs = msgs.slice(-limit);
+  return { name: campaign.name, summary: campaign.campaign_summary, messages: recentMsgs, updatedAt: campaign.updated_at };
+}
+
 // ── Character data fetcher ───────────────────────────────────────────────────
 
 async function getCharacterData(userId: string, supabase: ReturnType<typeof createClient>) {
