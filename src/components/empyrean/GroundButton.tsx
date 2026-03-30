@@ -6,11 +6,16 @@ interface GroundButtonProps {
   onGround: () => void;
   currentHP: number;
   maxHP: number;
-  onFailedRoll: () => void;
+  onFailedRoll: (damage: number) => void;
+}
+
+function getGroundingDamage(roll: number, maxHP: number): number {
+  return Math.max(1, Math.ceil(maxHP * 0.2 * (20 - roll) / 19));
 }
 
 const GroundButton: React.FC<GroundButtonProps> = ({ active, onGround, currentHP, maxHP, onFailedRoll }) => {
   const [lastRoll, setLastRoll] = useState<number | null>(null);
+  const [lastDamage, setLastDamage] = useState<number>(0);
   const [showResult, setShowResult] = useState(false);
   const [isGrounded, setIsGrounded] = useState(false);
   const [rolling, setRolling] = useState(false);
@@ -40,7 +45,9 @@ const GroundButton: React.FC<GroundButtonProps> = ({ active, onGround, currentHP
         onGround();
       }, 1500);
     } else {
-      onFailedRoll();
+      const damage = getGroundingDamage(result, maxHP);
+      setLastDamage(damage);
+      onFailedRoll(damage);
       setTimeout(() => {
         setRolling(false);
       }, 1200);
@@ -49,7 +56,7 @@ const GroundButton: React.FC<GroundButtonProps> = ({ active, onGround, currentHP
     setTimeout(() => {
       setShowResult(false);
     }, 1500);
-  }, [rolling, isGrounded, onGround, onFailedRoll, currentHP]);
+  }, [rolling, isGrounded, onGround, onFailedRoll, currentHP, maxHP]);
 
   if (!active) return null;
 
@@ -96,6 +103,11 @@ const GroundButton: React.FC<GroundButtonProps> = ({ active, onGround, currentHP
           {lastRoll === 20 && (
             <div className="absolute text-amber-200/80 font-cinzel text-sm mt-20 tracking-widest uppercase">
               Grounded
+            </div>
+          )}
+          {lastRoll !== null && lastRoll < 20 && (
+            <div className="absolute text-red-400 font-cinzel text-lg mt-20 font-bold drop-shadow-[0_0_8px_rgba(255,50,50,0.5)]">
+              -{lastDamage} HP
             </div>
           )}
         </div>
