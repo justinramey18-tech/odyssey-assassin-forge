@@ -1785,8 +1785,7 @@ async function processCommand(
         msg += `Lvl ${level}: ${'◆'.repeat(remaining)}${'◇'.repeat(usedCount)} (${remaining}/${total})\n`;
       }
     }
-    const truncated = msg.length > 4000 ? msg.substring(0, 3950) + '\n\n<i>...truncated</i>' : msg;
-    await sendTelegram(chatId, truncated, lovableKey, telegramKey);
+    await sendTelegram(chatId, msg, lovableKey, telegramKey);
     return;
   }
 
