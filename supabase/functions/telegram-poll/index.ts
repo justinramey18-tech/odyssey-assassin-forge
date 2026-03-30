@@ -12,6 +12,16 @@ const corsHeaders = {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
 function rollDice(expression: string): { total: number; breakdown: string } | null {
   const match = expression.trim().match(/^(\d+)d(\d+)([+-]\d+)?$/i);
   if (!match) return null;
@@ -180,6 +190,116 @@ You and this rider share something rare. Communication is almost seamless.
   sections.push(`## OUTPUT FORMAT\nRespond as the dragon in plain text. Use italics with *asterisks* for actions and sensory impressions. Do NOT include any HTML tags, markdown headers, or meta tags like DRAGON_MOOD or DRAGON_MEMORY. Keep responses under 250 words to fit Telegram's format. Be authentic to your personality and trust level.`);
 
   return sections.join('\n\n');
+}
+
+// ── Active Mode helpers ──────────────────────────────────────────────────────
+
+async function getActiveMode(chatId: number, supabase: ReturnType<typeof createClient>): Promise<'solo' | 'party' | 'empyrean'> {
+  const { data } = await supabase
+    .from('telegram_user_links')
+    .select('telegram_active_mode')
+    .eq('chat_id', chatId)
+    .maybeSingle();
+  return (data?.telegram_active_mode as 'solo' | 'party' | 'empyrean') || 'party';
+}
+
+/** Map user-facing mode to the ai_dm_campaigns.mode column value */
+function campaignModeValue(mode: 'solo' | 'party' | 'empyrean'): string {
+  return mode === 'empyrean' ? 'solo-empyrean' : mode;
+}
+
+interface ModeSessionInfo {
+  mode: 'solo' | 'party' | 'empyrean';
+  campaignName: string | null;
+  lastActivity: string | null;
+  active: boolean;
+}
+
+async function getModeSessions(userId: string, supabase: ReturnType<typeof createClient>): Promise<ModeSessionInfo[]> {
+  const results: ModeSessionInfo[] = [];
+
+  // Solo
+  const { data: soloCampaign } = await supabase
+    .from('ai_dm_campaigns')
+    .select('name, updated_at')
+    .eq('user_id', userId)
+    .eq('mode', 'solo')
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  results.push({
+    mode: 'solo',
+    campaignName: soloCampaign?.name || null,
+    lastActivity: soloCampaign?.updated_at || null,
+    active: !!soloCampaign,
+  });
+
+  // Empyrean
+  const { data: empCampaign } = await supabase
+    .from('ai_dm_campaigns')
+    .select('name, updated_at')
+    .eq('user_id', userId)
+    .eq('mode', 'solo-empyrean')
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  results.push({
+    mode: 'empyrean',
+    campaignName: empCampaign?.name || null,
+    lastActivity: empCampaign?.updated_at || null,
+    active: !!empCampaign,
+  });
+
+  // Party — check for active dm_session
+  const { data: memberships } = await supabase
+    .from('party_members')
+    .select('party_id')
+    .eq('user_id', userId);
+  let partyName: string | null = null;
+  let partyActivity: string | null = null;
+  let partyActive = false;
+  if (memberships && memberships.length > 0) {
+    for (const m of memberships) {
+      const { data: sessionState } = await supabase
+        .from('party_shared_state')
+        .select('state_data, updated_at')
+        .eq('party_id', m.party_id)
+        .eq('state_type', 'dm_session')
+        .maybeSingle();
+      if (sessionState) {
+        const sd = sessionState.state_data as any;
+        partyName = sd?.campaignName || 'Party Session';
+        partyActivity = sessionState.updated_at;
+        partyActive = sd?.active === true;
+        break;
+      }
+    }
+  }
+  results.push({
+    mode: 'party',
+    campaignName: partyName,
+    lastActivity: partyActivity,
+    active: partyActive,
+  });
+
+  return results;
+}
+
+/** Get recent messages from solo/empyrean campaign */
+async function getSoloCampaignContext(userId: string, mode: 'solo' | 'empyrean', supabase: ReturnType<typeof createClient>, limit = 5) {
+  const dbMode = campaignModeValue(mode);
+  const { data: campaign } = await supabase
+    .from('ai_dm_campaigns')
+    .select('name, messages, campaign_summary, updated_at')
+    .eq('user_id', userId)
+    .eq('mode', dbMode)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!campaign) return null;
+  const msgs = (campaign.messages as any[]) || [];
+  const recentMsgs = msgs.slice(-limit);
+  return { name: campaign.name, summary: campaign.campaign_summary, messages: recentMsgs, updatedAt: campaign.updated_at };
 }
 
 // ── Character data fetcher ───────────────────────────────────────────────────
@@ -464,6 +584,66 @@ async function processCommand(
       error ? '❌ Failed to update.' : `✅ All notifications ${enabled ? 'enabled' : 'disabled'}.`,
       lovableKey, telegramKey,
     );
+    return;
+  }
+
+  // /mode [solo|party|empyrean]
+  if (cmd === '/mode' || cmd.startsWith('/mode ')) {
+    const userId = await getUserIdFromChat(chatId, supabase);
+    if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+
+    const modeArg = parts[1]?.toLowerCase();
+    const validModes = ['solo', 'party', 'empyrean'];
+
+    if (modeArg && !validModes.includes(modeArg)) {
+      await sendTelegram(chatId, '❌ Usage: /mode solo, /mode party, or /mode empyrean', lovableKey, telegramKey);
+      return;
+    }
+
+    if (modeArg) {
+      // Set mode
+      const { error } = await supabase
+        .from('telegram_user_links')
+        .update({ telegram_active_mode: modeArg })
+        .eq('chat_id', chatId);
+      if (error) {
+        await sendTelegram(chatId, '❌ Failed to update mode.', lovableKey, telegramKey);
+        return;
+      }
+      // Get campaign info for confirmation
+      const sessions = await getModeSessions(userId, supabase);
+      const selected = sessions.find(s => s.mode === modeArg);
+      let confirm = `✅ Mode set to <b>${modeArg.charAt(0).toUpperCase() + modeArg.slice(1)}</b>`;
+      if (selected?.campaignName) {
+        const ago = selected.lastActivity ? timeAgo(selected.lastActivity) : '';
+        confirm += `\n📖 "${selected.campaignName}"${ago ? ` (${ago})` : ''}`;
+      } else {
+        confirm += `\n⚠️ No campaign found for this mode — commands may return empty results.`;
+      }
+      await sendTelegram(chatId, confirm, lovableKey, telegramKey);
+      return;
+    }
+
+    // No arg — show status of all 3 modes
+    const currentMode = await getActiveMode(chatId, supabase);
+    const sessions = await getModeSessions(userId, supabase);
+    let msg = `🎯 <b>Active Telegram Mode</b>\n\n`;
+    for (const s of sessions) {
+      const isActive = s.mode === currentMode;
+      const icon = isActive ? '✅' : '○ ';
+      const label = s.mode.charAt(0).toUpperCase() + s.mode.slice(1);
+      let line = `${icon} <b>${label}</b>`;
+      if (s.campaignName) {
+        const ago = s.lastActivity ? timeAgo(s.lastActivity) : '';
+        line += ` — "${s.campaignName}"${ago ? ` (${ago})` : ''}`;
+        if (s.active) line += `, session active`;
+      } else {
+        line += ` — No campaign found`;
+      }
+      msg += line + '\n';
+    }
+    msg += `\nSwitch with /mode solo, /mode party, or /mode empyrean`;
+    await sendTelegram(chatId, msg, lovableKey, telegramKey);
     return;
   }
 
@@ -779,12 +959,17 @@ async function processCommand(
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
 
-    // Determine source filter from /bond:solo or /bond:party
+    // Determine source filter from /bond:solo or /bond:party, or use active mode
     let sourceFilter: 'solo' | 'party' | null = null;
     if (cmd.startsWith('/bond:solo')) {
       sourceFilter = 'solo';
     } else if (cmd.startsWith('/bond:party')) {
       sourceFilter = 'party';
+    } else {
+      // Use active mode as default preference
+      const activeMode = await getActiveMode(chatId, supabase);
+      if (activeMode === 'solo' || activeMode === 'empyrean') sourceFilter = 'solo';
+      else sourceFilter = 'party';
     }
 
     // The message is everything after /bond or /bond:solo or /bond:party
@@ -1045,6 +1230,11 @@ async function processCommand(
   if (cmd === '/ready' || cmd.startsWith('/ready ')) {
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+    const mode = await getActiveMode(chatId, supabase);
+    if (mode !== 'party') {
+      await sendTelegram(chatId, `⚔️ Ready-up is only available in party mode. Your current mode is <b>${mode}</b>.\n\nSwitch with /mode party`, lovableKey, telegramKey);
+      return;
+    }
 
     const { data: memberships } = await supabase
       .from('party_members')
@@ -1425,25 +1615,72 @@ async function processCommand(
   if (cmd === '/recap') {
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first.', lovableKey, telegramKey); return; }
+    const mode = await getActiveMode(chatId, supabase);
 
-    // Find the most recent campaign with a summary
-    const { data: campaigns } = await supabase
-      .from('ai_dm_campaigns')
-      .select('name, campaign_summary, updated_at')
-      .eq('user_id', userId)
-      .not('campaign_summary', 'is', null)
-      .order('updated_at', { ascending: false })
-      .limit(1);
+    let campaignName = '';
+    let summary = '';
+    let updatedAt = '';
 
-    if (!campaigns || campaigns.length === 0 || !campaigns[0].campaign_summary) {
-      await sendTelegram(chatId, '📖 No campaign recap available. Play an AI DM session first!', lovableKey, telegramKey);
+    if (mode === 'party') {
+      // Party: check party_shared_state for campaignSummary
+      const { data: memberships } = await supabase.from('party_members').select('party_id').eq('user_id', userId);
+      if (memberships) {
+        for (const m of memberships) {
+          const { data: sessionState } = await supabase
+            .from('party_shared_state')
+            .select('state_data, updated_at')
+            .eq('party_id', m.party_id)
+            .eq('state_type', 'dm_session')
+            .maybeSingle();
+          const sd = sessionState?.state_data as any;
+          if (sd?.campaignSummary) {
+            campaignName = sd.campaignName || 'Party Campaign';
+            summary = sd.campaignSummary;
+            updatedAt = sessionState!.updated_at;
+            break;
+          }
+        }
+      }
+      // Also check ai_dm_campaigns with party mode as fallback
+      if (!summary) {
+        const { data: campaigns } = await supabase
+          .from('ai_dm_campaigns')
+          .select('name, campaign_summary, updated_at')
+          .eq('user_id', userId)
+          .eq('mode', 'party')
+          .not('campaign_summary', 'is', null)
+          .order('updated_at', { ascending: false })
+          .limit(1);
+        if (campaigns && campaigns.length > 0 && campaigns[0].campaign_summary) {
+          campaignName = campaigns[0].name;
+          summary = campaigns[0].campaign_summary!;
+          updatedAt = campaigns[0].updated_at;
+        }
+      }
+    } else {
+      // Solo or Empyrean
+      const dbMode = campaignModeValue(mode);
+      const { data: campaigns } = await supabase
+        .from('ai_dm_campaigns')
+        .select('name, campaign_summary, updated_at')
+        .eq('user_id', userId)
+        .eq('mode', dbMode)
+        .not('campaign_summary', 'is', null)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+      if (campaigns && campaigns.length > 0 && campaigns[0].campaign_summary) {
+        campaignName = campaigns[0].name;
+        summary = campaigns[0].campaign_summary!;
+        updatedAt = campaigns[0].updated_at;
+      }
+    }
+
+    if (!summary) {
+      await sendTelegram(chatId, `📖 No campaign recap available for ${mode} mode. Play an AI DM session first!`, lovableKey, telegramKey);
       return;
     }
 
-    const campaign = campaigns[0];
-    const summary = campaign.campaign_summary!;
-    const header = `📖 <b>${campaign.name}</b>\n<i>Last updated: ${new Date(campaign.updated_at).toLocaleDateString()}</i>\n\n`;
-
+    const header = `📖 <b>${campaignName}</b> <i>(${mode})</i>\n<i>Last updated: ${new Date(updatedAt).toLocaleDateString()}</i>\n\n`;
     const maxChunk = 4000;
     if (header.length + summary.length <= maxChunk) {
       await sendTelegram(chatId, header + summary, lovableKey, telegramKey);
@@ -1451,10 +1688,7 @@ async function processCommand(
       const chunks: string[] = [];
       let remaining = summary;
       while (remaining.length > 0) {
-        if (remaining.length <= maxChunk) {
-          chunks.push(remaining);
-          break;
-        }
+        if (remaining.length <= maxChunk) { chunks.push(remaining); break; }
         let splitAt = remaining.lastIndexOf(' ', maxChunk);
         if (splitAt === -1) splitAt = maxChunk;
         chunks.push(remaining.substring(0, splitAt));
@@ -1514,69 +1748,66 @@ async function processCommand(
     return;
   }
 
-  // /last — Show the last DM narrative message
+  // /last — Show the last DM narrative message (mode-aware)
   if (cmd === '/last') {
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
-    const { data: memberships } = await supabase
-      .from('party_members')
-      .select('party_id')
-      .eq('user_id', userId);
-    if (!memberships || memberships.length === 0) {
-      await sendTelegram(chatId, '👥 You are not in any party.', lovableKey, telegramKey);
-      return;
-    }
+    const mode = await getActiveMode(chatId, supabase);
+
     let lastDmMsg: string | null = null;
-    let partyCode = '';
-    for (const m of memberships) {
-      const { data: msgs } = await supabase
-        .from('party_dm_messages')
-        .select('content, sender_name, created_at')
-        .eq('party_id', m.party_id)
-        .eq('role', 'assistant')
-        .eq('sender_name', 'DM')
-        .order('created_at', { ascending: false })
-        .limit(1);
-      if (msgs && msgs.length > 0) {
-        lastDmMsg = msgs[0].content;
-        const { data: party } = await supabase.from('parties').select('link_code').eq('id', m.party_id).maybeSingle();
-        partyCode = party?.link_code || '';
-        break;
+    let headerLabel = '';
+
+    if (mode === 'party') {
+      const { data: memberships } = await supabase.from('party_members').select('party_id').eq('user_id', userId);
+      if (!memberships || memberships.length === 0) {
+        await sendTelegram(chatId, '👥 You are not in any party. Switch mode with /mode solo or /mode empyrean.', lovableKey, telegramKey);
+        return;
+      }
+      for (const m of memberships) {
+        const { data: msgs } = await supabase
+          .from('party_dm_messages')
+          .select('content, sender_name, created_at')
+          .eq('party_id', m.party_id)
+          .eq('role', 'assistant')
+          .eq('sender_name', 'DM')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (msgs && msgs.length > 0) {
+          lastDmMsg = msgs[0].content;
+          const { data: party } = await supabase.from('parties').select('link_code').eq('id', m.party_id).maybeSingle();
+          headerLabel = party?.link_code ? ` (${party.link_code})` : '';
+          break;
+        }
+      }
+    } else {
+      const ctx = await getSoloCampaignContext(userId, mode, supabase, 10);
+      if (ctx) {
+        const assistantMsgs = ctx.messages.filter((m: any) => m.role === 'assistant');
+        if (assistantMsgs.length > 0) {
+          lastDmMsg = assistantMsgs[assistantMsgs.length - 1].content;
+          headerLabel = ` (${mode})`;
+        }
       }
     }
+
     if (!lastDmMsg) {
-      await sendTelegram(chatId, '📖 No DM messages found. Start a DM session first!', lovableKey, telegramKey);
+      await sendTelegram(chatId, `📖 No DM messages found for ${mode} mode. Start a DM session first!`, lovableKey, telegramKey);
       return;
     }
     const cleaned = sanitizeForTelegram(lastDmMsg);
-    const header = partyCode ? `📖 <b>Last DM Message</b> (${partyCode})\n\n` : `📖 <b>Last DM Message</b>\n\n`;
-
-    // Split into paginated chunks if too long for a single Telegram message
-    const MAX_PART = 3900; // leave room for page footer
+    const header = `📖 <b>Last DM Message</b>${headerLabel}\n\n`;
+    const MAX_PART = 3900;
     if (header.length + cleaned.length <= MAX_PART) {
       await sendTelegram(chatId, header + cleaned, lovableKey, telegramKey);
     } else {
-      // Split on paragraph boundaries, falling back to hard cut
       const parts: string[] = [];
       let remaining = cleaned;
       while (remaining.length > 0) {
-        if (remaining.length <= MAX_PART) {
-          parts.push(remaining);
-          break;
-        }
-        // Try to split at a double newline (paragraph) within the limit
+        if (remaining.length <= MAX_PART) { parts.push(remaining); break; }
         let cutIdx = remaining.lastIndexOf('\n\n', MAX_PART);
-        if (cutIdx < MAX_PART * 0.3) {
-          // Paragraph break too early — try single newline
-          cutIdx = remaining.lastIndexOf('\n', MAX_PART);
-        }
-        if (cutIdx < MAX_PART * 0.3) {
-          // No good line break — hard cut at a space
-          cutIdx = remaining.lastIndexOf(' ', MAX_PART);
-        }
-        if (cutIdx < MAX_PART * 0.3) {
-          cutIdx = MAX_PART; // absolute fallback
-        }
+        if (cutIdx < MAX_PART * 0.3) cutIdx = remaining.lastIndexOf('\n', MAX_PART);
+        if (cutIdx < MAX_PART * 0.3) cutIdx = remaining.lastIndexOf(' ', MAX_PART);
+        if (cutIdx < MAX_PART * 0.3) cutIdx = MAX_PART;
         parts.push(remaining.substring(0, cutIdx));
         remaining = remaining.substring(cutIdx).replace(/^\n+/, '');
       }
@@ -1590,39 +1821,44 @@ async function processCommand(
     return;
   }
 
-  // /scene — AI-generated "where are we right now" summary
+  // /scene — AI-generated "where are we right now" summary (mode-aware)
   if (cmd === '/scene') {
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
-    const { data: memberships } = await supabase
-      .from('party_members')
-      .select('party_id, character_name')
-      .eq('user_id', userId);
-    if (!memberships || memberships.length === 0) {
-      await sendTelegram(chatId, '👥 You are not in any party.', lovableKey, telegramKey);
-      return;
-    }
-    let recentMessages: Array<{ content: string; sender_name: string; role: string }> = [];
-    for (const m of memberships) {
-      const { data: msgs } = await supabase
-        .from('party_dm_messages')
-        .select('content, sender_name, role')
-        .eq('party_id', m.party_id)
-        .order('created_at', { ascending: false })
-        .limit(8);
-      if (msgs && msgs.length > 0) {
-        recentMessages = msgs.reverse();
-        break;
+    const mode = await getActiveMode(chatId, supabase);
+
+    let narrativeContext = '';
+
+    if (mode === 'party') {
+      const { data: memberships } = await supabase.from('party_members').select('party_id, character_name').eq('user_id', userId);
+      if (!memberships || memberships.length === 0) {
+        await sendTelegram(chatId, '👥 You are not in any party. Switch mode with /mode solo or /mode empyrean.', lovableKey, telegramKey);
+        return;
+      }
+      for (const m of memberships) {
+        const { data: msgs } = await supabase
+          .from('party_dm_messages')
+          .select('content, sender_name, role')
+          .eq('party_id', m.party_id)
+          .order('created_at', { ascending: false })
+          .limit(8);
+        if (msgs && msgs.length > 0) {
+          narrativeContext = msgs.reverse().map((msg: any) => `[${msg.sender_name}]: ${msg.content.substring(0, 500)}`).join('\n\n');
+          break;
+        }
+      }
+    } else {
+      const ctx = await getSoloCampaignContext(userId, mode, supabase, 8);
+      if (ctx && ctx.messages.length > 0) {
+        narrativeContext = ctx.messages.map((m: any) => `[${m.role === 'assistant' ? 'DM' : 'Player'}]: ${(m.content || '').substring(0, 500)}`).join('\n\n');
       }
     }
-    if (recentMessages.length === 0) {
-      await sendTelegram(chatId, '📖 No recent messages found.', lovableKey, telegramKey);
+
+    if (!narrativeContext) {
+      await sendTelegram(chatId, `📖 No recent messages found for ${mode} mode.`, lovableKey, telegramKey);
       return;
     }
     await sendTelegram(chatId, '🗺️ <i>Surveying the scene...</i>', lovableKey, telegramKey);
-    const narrativeContext = recentMessages
-      .map(m => `[${m.sender_name}]: ${m.content.substring(0, 500)}`)
-      .join('\n\n');
     try {
       const response = await fetch(AI_GATEWAY_URL, {
         method: 'POST',
@@ -1642,7 +1878,7 @@ async function processCommand(
       const data = await response.json();
       const answer = data.choices?.[0]?.message?.content || 'Could not determine the current scene.';
       const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
-      await sendTelegram(chatId, `🗺️ <b>Current Scene</b>\n\n${truncated}`, lovableKey, telegramKey);
+      await sendTelegram(chatId, `🗺️ <b>Current Scene</b> <i>(${mode})</i>\n\n${truncated}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/scene AI error:', err);
       await sendTelegram(chatId, '❌ Failed to generate scene summary.', lovableKey, telegramKey);
@@ -1650,7 +1886,7 @@ async function processCommand(
     return;
   }
 
-  // /who NPC — AI-powered NPC lookup from campaign history
+  // /who NPC — AI-powered NPC lookup (mode-aware)
   if (cmd.startsWith('/who ')) {
     const npcName = text.trim().substring(5).trim();
     if (!npcName) {
@@ -1659,41 +1895,53 @@ async function processCommand(
     }
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
-    const { data: memberships } = await supabase
-      .from('party_members')
-      .select('party_id')
-      .eq('user_id', userId);
-    if (!memberships || memberships.length === 0) {
-      await sendTelegram(chatId, '👥 You are not in any party.', lovableKey, telegramKey);
-      return;
-    }
+    const mode = await getActiveMode(chatId, supabase);
+
     let relevantMessages: string[] = [];
     let campaignSummary = '';
-    for (const m of memberships) {
-      const { data: msgs } = await supabase
-        .from('party_dm_messages')
-        .select('content, sender_name')
-        .eq('party_id', m.party_id)
-        .order('created_at', { ascending: false })
-        .limit(50);
-      if (msgs && msgs.length > 0) {
-        const namePattern = new RegExp(npcName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-        relevantMessages = msgs
-          .filter((msg: any) => namePattern.test(msg.content))
-          .slice(0, 10)
-          .map((msg: any) => `[${msg.sender_name}]: ${msg.content.substring(0, 400)}`);
-        const { data: sessionState } = await supabase
-          .from('party_shared_state')
-          .select('state_data')
+    const namePattern = new RegExp(npcName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+
+    if (mode === 'party') {
+      const { data: memberships } = await supabase.from('party_members').select('party_id').eq('user_id', userId);
+      if (!memberships || memberships.length === 0) {
+        await sendTelegram(chatId, '👥 You are not in any party. Switch mode with /mode solo or /mode empyrean.', lovableKey, telegramKey);
+        return;
+      }
+      for (const m of memberships) {
+        const { data: msgs } = await supabase
+          .from('party_dm_messages')
+          .select('content, sender_name')
           .eq('party_id', m.party_id)
-          .eq('state_type', 'dm_session')
-          .maybeSingle();
-        campaignSummary = (sessionState?.state_data as any)?.campaignSummary || '';
-        break;
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (msgs && msgs.length > 0) {
+          relevantMessages = msgs
+            .filter((msg: any) => namePattern.test(msg.content))
+            .slice(0, 10)
+            .map((msg: any) => `[${msg.sender_name}]: ${msg.content.substring(0, 400)}`);
+          const { data: sessionState } = await supabase
+            .from('party_shared_state')
+            .select('state_data')
+            .eq('party_id', m.party_id)
+            .eq('state_type', 'dm_session')
+            .maybeSingle();
+          campaignSummary = (sessionState?.state_data as any)?.campaignSummary || '';
+          break;
+        }
+      }
+    } else {
+      const ctx = await getSoloCampaignContext(userId, mode, supabase, 50);
+      if (ctx) {
+        campaignSummary = ctx.summary || '';
+        relevantMessages = ctx.messages
+          .filter((m: any) => namePattern.test(m.content || ''))
+          .slice(0, 10)
+          .map((m: any) => `[${m.role === 'assistant' ? 'DM' : 'Player'}]: ${(m.content || '').substring(0, 400)}`);
       }
     }
+
     if (relevantMessages.length === 0) {
-      await sendTelegram(chatId, `🔍 No mentions of "${npcName}" found in recent campaign history.`, lovableKey, telegramKey);
+      await sendTelegram(chatId, `🔍 No mentions of "${npcName}" found in ${mode} campaign history.`, lovableKey, telegramKey);
       return;
     }
     await sendTelegram(chatId, `🔍 <i>Searching for ${npcName}...</i>`, lovableKey, telegramKey);
@@ -1718,7 +1966,7 @@ async function processCommand(
       const data = await response.json();
       const answer = data.choices?.[0]?.message?.content || 'Could not find information.';
       const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
-      await sendTelegram(chatId, `🔍 <b>${npcName}</b>\n\n${truncated}`, lovableKey, telegramKey);
+      await sendTelegram(chatId, `🔍 <b>${npcName}</b> <i>(${mode})</i>\n\n${truncated}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/who AI error:', err);
       await sendTelegram(chatId, '❌ Failed to look up NPC.', lovableKey, telegramKey);
@@ -1726,7 +1974,7 @@ async function processCommand(
     return;
   }
 
-  // /ask QUESTION — Ask the DM a question with full campaign context
+  // /ask QUESTION — Ask the DM (mode-aware)
   if (cmd.startsWith('/ask ')) {
     const question = text.trim().substring(5).trim();
     if (!question) {
@@ -1735,6 +1983,7 @@ async function processCommand(
     }
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+    const mode = await getActiveMode(chatId, supabase);
     const save = await getCharacterData(userId, supabase);
     const charData = save?.character_data as any;
     const ext = (save?.extended_data || {}) as any;
@@ -1754,35 +2003,26 @@ async function processCommand(
     }
     let campaignSummary = '';
     let recentNarrative = '';
-    const { data: memberships } = await supabase
-      .from('party_members')
-      .select('party_id, character_name')
-      .eq('user_id', userId);
-    if (memberships && memberships.length > 0) {
-      for (const m of memberships) {
-        const { data: sessionState } = await supabase
-          .from('party_shared_state')
-          .select('state_data')
-          .eq('party_id', m.party_id)
-          .eq('state_type', 'dm_session')
-          .maybeSingle();
-        const session = sessionState?.state_data as any;
-        if (session?.campaignSummary) {
-          campaignSummary = session.campaignSummary.substring(0, 2000);
-        }
-        const { data: msgs } = await supabase
-          .from('party_dm_messages')
-          .select('content, sender_name')
-          .eq('party_id', m.party_id)
-          .eq('role', 'assistant')
-          .order('created_at', { ascending: false })
-          .limit(3);
-        if (msgs && msgs.length > 0) {
-          recentNarrative = msgs.reverse().map((msg: any) => msg.content.substring(0, 500)).join('\n---\n');
-          break;
+
+    if (mode === 'party') {
+      const { data: memberships } = await supabase.from('party_members').select('party_id, character_name').eq('user_id', userId);
+      if (memberships && memberships.length > 0) {
+        for (const m of memberships) {
+          const { data: sessionState } = await supabase.from('party_shared_state').select('state_data').eq('party_id', m.party_id).eq('state_type', 'dm_session').maybeSingle();
+          const session = sessionState?.state_data as any;
+          if (session?.campaignSummary) campaignSummary = session.campaignSummary.substring(0, 2000);
+          const { data: msgs } = await supabase.from('party_dm_messages').select('content, sender_name').eq('party_id', m.party_id).eq('role', 'assistant').order('created_at', { ascending: false }).limit(3);
+          if (msgs && msgs.length > 0) { recentNarrative = msgs.reverse().map((msg: any) => msg.content.substring(0, 500)).join('\n---\n'); break; }
         }
       }
+    } else {
+      const ctx = await getSoloCampaignContext(userId, mode, supabase, 5);
+      if (ctx) {
+        campaignSummary = ctx.summary?.substring(0, 2000) || '';
+        recentNarrative = ctx.messages.filter((m: any) => m.role === 'assistant').map((m: any) => (m.content || '').substring(0, 500)).join('\n---\n');
+      }
     }
+
     await sendTelegram(chatId, '🤔 <i>The DM considers your question...</i>', lovableKey, telegramKey);
     const contextParts = [
       charSummary ? `Player Character:\n${charSummary}` : '',
@@ -1797,10 +2037,7 @@ async function processCommand(
           model: 'google/gemini-2.5-flash',
           max_tokens: 1000,
           messages: [
-            {
-              role: 'system',
-              content: 'You are an expert D&D 5e Dungeon Master answering a player\'s question between sessions. You have access to their character sheet and campaign context. Answer clearly and helpfully. If the question is about rules, cite the relevant rule. If it is about the campaign world, answer based on the provided context. If you do not have enough context, say so and give your best guidance. Use plain text — no markdown, no asterisks. Keep your answer under 250 words.',
-            },
+            { role: 'system', content: 'You are an expert D&D 5e Dungeon Master answering a player\'s question between sessions. You have access to their character sheet and campaign context. Answer clearly and helpfully. If the question is about rules, cite the relevant rule. If it is about the campaign world, answer based on the provided context. If you do not have enough context, say so and give your best guidance. Use plain text — no markdown, no asterisks. Keep your answer under 250 words.' },
             { role: 'user', content: `${contextParts}\n\nPlayer's question: ${question}` },
           ],
         }),
@@ -1808,7 +2045,7 @@ async function processCommand(
       const data = await response.json();
       const answer = data.choices?.[0]?.message?.content || 'The DM has no answer at this time.';
       const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
-      await sendTelegram(chatId, `🤔 <b>Ask the DM</b>\n<i>${question.substring(0, 80)}</i>\n\n${truncated}`, lovableKey, telegramKey);
+      await sendTelegram(chatId, `🤔 <b>Ask the DM</b> <i>(${mode})</i>\n<i>${question.substring(0, 80)}</i>\n\n${truncated}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/ask AI error:', err);
       await sendTelegram(chatId, '❌ The DM could not be reached. Try again later.', lovableKey, telegramKey);
@@ -1816,10 +2053,11 @@ async function processCommand(
     return;
   }
 
-  // /suggest — AI tactical suggestions based on current character state and situation
+  // /suggest — AI tactical suggestions (mode-aware)
   if (cmd === '/suggest') {
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+    const mode = await getActiveMode(chatId, supabase);
     const save = await getCharacterData(userId, supabase);
     if (!save) { await sendTelegram(chatId, '❌ No character found.', lovableKey, telegramKey); return; }
     const charData = save.character_data as any;
@@ -1830,12 +2068,8 @@ async function processCommand(
     const conditions = ext.conditions?.activeConditions;
     let charContext = `Character: ${charData?.name || 'Unknown'}, Level ${charData?.level || 1} ${classStr}`;
     if (hp) charContext += `\nHP: ${hp.current}/${hp.max}`;
-    if (conditions && conditions.length > 0) {
-      charContext += `\nConditions: ${conditions.map((c: any) => c.name || c.id).join(', ')}`;
-    }
-    if (sc?.preparedSpells?.length > 0) {
-      charContext += `\nPrepared Spells: ${(sc.preparedSpells as string[]).slice(0, 15).join(', ')}`;
-    }
+    if (conditions && conditions.length > 0) charContext += `\nConditions: ${conditions.map((c: any) => c.name || c.id).join(', ')}`;
+    if (sc?.preparedSpells?.length > 0) charContext += `\nPrepared Spells: ${(sc.preparedSpells as string[]).slice(0, 15).join(', ')}`;
     if (sc?.spellSlots) {
       const used = sc.usedSlots || {};
       const slotParts: string[] = [];
@@ -1846,31 +2080,23 @@ async function processCommand(
       }
       if (slotParts.length > 0) charContext += `\nSlots: ${slotParts.join(', ')}`;
     }
-    if (sc?.concentratingOn) {
-      charContext += `\nConcentrating on: ${sc.concentratingOn}`;
-    }
+    if (sc?.concentratingOn) charContext += `\nConcentrating on: ${sc.concentratingOn}`;
     if (ext.abilityScores) {
       const s = ext.abilityScores;
       charContext += `\nScores: STR ${s.strength} DEX ${s.dexterity} CON ${s.constitution} INT ${s.intelligence} WIS ${s.wisdom} CHA ${s.charisma}`;
     }
     let recentNarrative = '';
-    const { data: memberships } = await supabase
-      .from('party_members')
-      .select('party_id')
-      .eq('user_id', userId);
-    if (memberships && memberships.length > 0) {
-      for (const m of memberships) {
-        const { data: msgs } = await supabase
-          .from('party_dm_messages')
-          .select('content, sender_name')
-          .eq('party_id', m.party_id)
-          .order('created_at', { ascending: false })
-          .limit(5);
-        if (msgs && msgs.length > 0) {
-          recentNarrative = msgs.reverse().map((msg: any) => `[${msg.sender_name}]: ${msg.content.substring(0, 400)}`).join('\n\n');
-          break;
+    if (mode === 'party') {
+      const { data: memberships } = await supabase.from('party_members').select('party_id').eq('user_id', userId);
+      if (memberships && memberships.length > 0) {
+        for (const m of memberships) {
+          const { data: msgs } = await supabase.from('party_dm_messages').select('content, sender_name').eq('party_id', m.party_id).order('created_at', { ascending: false }).limit(5);
+          if (msgs && msgs.length > 0) { recentNarrative = msgs.reverse().map((msg: any) => `[${msg.sender_name}]: ${msg.content.substring(0, 400)}`).join('\n\n'); break; }
         }
       }
+    } else {
+      const ctx = await getSoloCampaignContext(userId, mode, supabase, 5);
+      if (ctx) recentNarrative = ctx.messages.map((m: any) => `[${m.role === 'assistant' ? 'DM' : 'Player'}]: ${(m.content || '').substring(0, 400)}`).join('\n\n');
     }
     await sendTelegram(chatId, '💡 <i>Analyzing your options...</i>', lovableKey, telegramKey);
     try {
@@ -1881,10 +2107,7 @@ async function processCommand(
           model: 'google/gemini-2.5-flash',
           max_tokens: 800,
           messages: [
-            {
-              role: 'system',
-              content: 'You are a tactical D&D advisor. Given the character\'s current state and the recent narrative situation, suggest exactly 3 concrete actions the player could take on their next turn or in the current scene. For each suggestion: name it briefly, explain what it does mechanically, and say why it is a good idea right now. Consider their HP, spell slots, conditions, and the situation. Use plain text — no markdown, no asterisks. Number the suggestions 1, 2, 3. Keep the total under 200 words.',
-            },
+            { role: 'system', content: 'You are a tactical D&D advisor. Given the character\'s current state and the recent narrative situation, suggest exactly 3 concrete actions the player could take on their next turn or in the current scene. For each suggestion: name it briefly, explain what it does mechanically, and say why it is a good idea right now. Consider their HP, spell slots, conditions, and the situation. Use plain text — no markdown, no asterisks. Number the suggestions 1, 2, 3. Keep the total under 200 words.' },
             { role: 'user', content: `${charContext}\n\nRecent situation:\n${recentNarrative || 'No recent narrative available.'}\n\nSuggest 3 tactical options.` },
           ],
         }),
@@ -1892,7 +2115,7 @@ async function processCommand(
       const data = await response.json();
       const answer = data.choices?.[0]?.message?.content || 'No suggestions available.';
       const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
-      await sendTelegram(chatId, `💡 <b>Tactical Suggestions</b>\n\n${truncated}`, lovableKey, telegramKey);
+      await sendTelegram(chatId, `💡 <b>Tactical Suggestions</b> <i>(${mode})</i>\n\n${truncated}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/suggest AI error:', err);
       await sendTelegram(chatId, '❌ Failed to generate suggestions.', lovableKey, telegramKey);

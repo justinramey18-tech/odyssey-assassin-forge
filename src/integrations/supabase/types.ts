@@ -1484,6 +1484,7 @@ export type Database = {
           notify_modes: string[]
           notify_ready_up: boolean
           notify_timer: boolean
+          telegram_active_mode: string
           user_id: string
           username: string | null
         }
@@ -1498,6 +1499,7 @@ export type Database = {
           notify_modes?: string[]
           notify_ready_up?: boolean
           notify_timer?: boolean
+          telegram_active_mode?: string
           user_id: string
           username?: string | null
         }
@@ -1512,6 +1514,7 @@ export type Database = {
           notify_modes?: string[]
           notify_ready_up?: boolean
           notify_timer?: boolean
+          telegram_active_mode?: string
           user_id?: string
           username?: string | null
         }
