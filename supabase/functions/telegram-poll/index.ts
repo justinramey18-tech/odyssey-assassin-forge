@@ -1230,6 +1230,11 @@ async function processCommand(
   if (cmd === '/ready' || cmd.startsWith('/ready ')) {
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+    const mode = await getActiveMode(chatId, supabase);
+    if (mode !== 'party') {
+      await sendTelegram(chatId, `⚔️ Ready-up is only available in party mode. Your current mode is <b>${mode}</b>.\n\nSwitch with /mode party`, lovableKey, telegramKey);
+      return;
+    }
 
     const { data: memberships } = await supabase
       .from('party_members')
