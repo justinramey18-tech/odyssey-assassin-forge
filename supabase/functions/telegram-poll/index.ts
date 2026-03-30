@@ -1966,7 +1966,7 @@ async function processCommand(
         headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash-lite',
-          max_tokens: 800,
+          max_tokens: 2400,
           messages: [
             {
               role: 'system',
