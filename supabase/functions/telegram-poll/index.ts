@@ -2120,7 +2120,7 @@ async function processCommand(
           model: 'google/gemini-2.5-flash',
           max_tokens: 2400,
           messages: [
-            { role: 'system', content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Tactical advice time. Look at the character's HP, spell slots, conditions, abilities, and the current situation — then suggest exactly 3 concrete actions they could take. Name each one in your style (get creative with the names), explain the mechanics, and say why it's smart right now. The tactical advice must be SOUND even if the delivery is unhinged. Number them 1, 2, 3. Max 200 words.` },
+            { role: 'system', content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Tactical advice time. Look at the character's HP, spell slots, conditions, abilities, and the current situation — then suggest exactly 3 concrete actions they could take. Name each one in your style (get creative with the names), explain the mechanics, and say why it's smart right now. The tactical advice must be SOUND even if the delivery is unhinged. Number them 1, 2, 3. Max 600 words.` },
             { role: 'user', content: `${charContext}\n\nRecent situation:\n${recentNarrative || 'No recent narrative available.'}\n\nSuggest 3 tactical options.` },
           ],
         }),
