@@ -550,6 +550,57 @@ export function TelegramSettingsTab() {
           </SettingsSection>
         )}
 
+        {/* Active Telegram Mode (only when linked) */}
+        {links.length > 0 && (
+          <SettingsSection title="Active Command Mode" icon={<Sparkles className="w-4 h-4 text-sky-400" />}>
+            <div className="space-y-4">
+              <p className="text-[10px] text-muted-foreground">
+                Choose which DM session your Telegram commands (/last, /scene, /ask, etc.) pull from. You can also switch with <code>/mode</code> in Telegram.
+              </p>
+              {links.map((lnk, idx) => {
+                const activeMode = lnk.telegram_active_mode || 'party';
+                return (
+                  <div key={lnk.id} className="space-y-2">
+                    {links.length > 1 && (
+                      <>
+                        {idx > 0 && <Separator className="bg-border/30 my-1" />}
+                        <p className="text-xs font-medium text-foreground/80">{chatDisplayName(lnk)}</p>
+                      </>
+                    )}
+                    <div className="flex gap-2">
+                      {(['solo', 'party', 'empyrean'] as const).map((m) => (
+                        <button
+                          key={m}
+                          onClick={async () => {
+                            const { error } = await supabase
+                              .from('telegram_user_links')
+                              .update({ telegram_active_mode: m } as any)
+                              .eq('id', lnk.id);
+                            if (!error) {
+                              setLinks(prev => prev.map(l => l.id === lnk.id ? { ...l, telegram_active_mode: m } : l));
+                              toast.success(`Command mode set to ${m}`);
+                            } else {
+                              toast.error('Failed to update mode');
+                            }
+                          }}
+                          className={cn(
+                            'flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-colors border',
+                            activeMode === m
+                              ? 'bg-primary/15 border-primary/40 text-primary'
+                              : 'bg-muted/10 border-border/30 text-muted-foreground hover:bg-muted/20'
+                          )}
+                        >
+                          {m === 'solo' ? '🎭 Solo' : m === 'party' ? '👥 Party' : '🐉 Empyrean'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </SettingsSection>
+        )}
+
         {/* Game Modes (only when linked) */}
         {links.length > 0 && (
           <SettingsSection title="Game Modes" icon={<Gamepad2 className="w-4 h-4 text-emerald-400" />}>
