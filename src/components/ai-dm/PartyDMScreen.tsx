@@ -1771,6 +1771,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             currentHP={characterContext.currentHP ?? 0}
             maxHP={characterContext.maxHP ?? 1}
             isWildShape={characterContext.wildShape?.isTransformed}
+            onTap={onBack}
           />
         )}
         <div ref={scrollRef} className={cn(
