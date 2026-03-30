@@ -1283,7 +1283,7 @@ export function EmpyreanDMScreen({
               setActiveNavTab(null);
             }
           }}
-          disabled={isLoading}
+          disabled={isLoading || (maxBurnout > 0 && burnoutLevel >= maxBurnout)}
         />
       )}
 
