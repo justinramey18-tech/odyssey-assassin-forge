@@ -1964,7 +1964,7 @@ async function processCommand(
     return;
   }
 
-  // /ask QUESTION — Ask the DM a question with full campaign context
+  // /ask QUESTION — Ask the DM (mode-aware)
   if (cmd.startsWith('/ask ')) {
     const question = text.trim().substring(5).trim();
     if (!question) {
@@ -1973,6 +1973,7 @@ async function processCommand(
     }
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+    const mode = await getActiveMode(chatId, supabase);
     const save = await getCharacterData(userId, supabase);
     const charData = save?.character_data as any;
     const ext = (save?.extended_data || {}) as any;
@@ -1992,35 +1993,26 @@ async function processCommand(
     }
     let campaignSummary = '';
     let recentNarrative = '';
-    const { data: memberships } = await supabase
-      .from('party_members')
-      .select('party_id, character_name')
-      .eq('user_id', userId);
-    if (memberships && memberships.length > 0) {
-      for (const m of memberships) {
-        const { data: sessionState } = await supabase
-          .from('party_shared_state')
-          .select('state_data')
-          .eq('party_id', m.party_id)
-          .eq('state_type', 'dm_session')
-          .maybeSingle();
-        const session = sessionState?.state_data as any;
-        if (session?.campaignSummary) {
-          campaignSummary = session.campaignSummary.substring(0, 2000);
-        }
-        const { data: msgs } = await supabase
-          .from('party_dm_messages')
-          .select('content, sender_name')
-          .eq('party_id', m.party_id)
-          .eq('role', 'assistant')
-          .order('created_at', { ascending: false })
-          .limit(3);
-        if (msgs && msgs.length > 0) {
-          recentNarrative = msgs.reverse().map((msg: any) => msg.content.substring(0, 500)).join('\n---\n');
-          break;
+
+    if (mode === 'party') {
+      const { data: memberships } = await supabase.from('party_members').select('party_id, character_name').eq('user_id', userId);
+      if (memberships && memberships.length > 0) {
+        for (const m of memberships) {
+          const { data: sessionState } = await supabase.from('party_shared_state').select('state_data').eq('party_id', m.party_id).eq('state_type', 'dm_session').maybeSingle();
+          const session = sessionState?.state_data as any;
+          if (session?.campaignSummary) campaignSummary = session.campaignSummary.substring(0, 2000);
+          const { data: msgs } = await supabase.from('party_dm_messages').select('content, sender_name').eq('party_id', m.party_id).eq('role', 'assistant').order('created_at', { ascending: false }).limit(3);
+          if (msgs && msgs.length > 0) { recentNarrative = msgs.reverse().map((msg: any) => msg.content.substring(0, 500)).join('\n---\n'); break; }
         }
       }
+    } else {
+      const ctx = await getSoloCampaignContext(userId, mode, supabase, 5);
+      if (ctx) {
+        campaignSummary = ctx.summary?.substring(0, 2000) || '';
+        recentNarrative = ctx.messages.filter((m: any) => m.role === 'assistant').map((m: any) => (m.content || '').substring(0, 500)).join('\n---\n');
+      }
     }
+
     await sendTelegram(chatId, '🤔 <i>The DM considers your question...</i>', lovableKey, telegramKey);
     const contextParts = [
       charSummary ? `Player Character:\n${charSummary}` : '',
@@ -2035,10 +2027,7 @@ async function processCommand(
           model: 'google/gemini-2.5-flash',
           max_tokens: 1000,
           messages: [
-            {
-              role: 'system',
-              content: 'You are an expert D&D 5e Dungeon Master answering a player\'s question between sessions. You have access to their character sheet and campaign context. Answer clearly and helpfully. If the question is about rules, cite the relevant rule. If it is about the campaign world, answer based on the provided context. If you do not have enough context, say so and give your best guidance. Use plain text — no markdown, no asterisks. Keep your answer under 250 words.',
-            },
+            { role: 'system', content: 'You are an expert D&D 5e Dungeon Master answering a player\'s question between sessions. You have access to their character sheet and campaign context. Answer clearly and helpfully. If the question is about rules, cite the relevant rule. If it is about the campaign world, answer based on the provided context. If you do not have enough context, say so and give your best guidance. Use plain text — no markdown, no asterisks. Keep your answer under 250 words.' },
             { role: 'user', content: `${contextParts}\n\nPlayer's question: ${question}` },
           ],
         }),
@@ -2046,7 +2035,7 @@ async function processCommand(
       const data = await response.json();
       const answer = data.choices?.[0]?.message?.content || 'The DM has no answer at this time.';
       const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
-      await sendTelegram(chatId, `🤔 <b>Ask the DM</b>\n<i>${question.substring(0, 80)}</i>\n\n${truncated}`, lovableKey, telegramKey);
+      await sendTelegram(chatId, `🤔 <b>Ask the DM</b> <i>(${mode})</i>\n<i>${question.substring(0, 80)}</i>\n\n${truncated}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/ask AI error:', err);
       await sendTelegram(chatId, '❌ The DM could not be reached. Try again later.', lovableKey, telegramKey);
