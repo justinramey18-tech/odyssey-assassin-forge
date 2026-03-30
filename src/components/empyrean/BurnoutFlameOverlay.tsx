@@ -52,7 +52,7 @@ function triggerHeartbeatHaptic(ratio: number) {
     navigator.vibrate(10000);
   } else if (ratio >= 0.75) {
     // Level 7: 500ms on, 500ms off — re-triggered every 1s by interval
-    navigator.vibrate(500);
+    navigator.vibrate(250);
   } else if (ratio >= 0.625) {
     // Level 6: 500ms on, 1000ms off
     navigator.vibrate([500, 1000]);
