@@ -1,78 +1,47 @@
 
 
-## Telegram Active Mode Preference
+## Deadpool-Powered Telegram Bot Commands
 
-### Summary
-Add a persistent "active mode" preference to each Telegram-linked account. A new `/mode` command and an in-app setting let users choose which DM context (Solo, Party, Empyrean) their Telegram commands pull from. All narrative commands (`/last`, `/scene`, `/who`, `/ask`, `/suggest`, `/recap`, `/bond`, `/ready`) will respect this preference.
+### What changes
+All AI-powered Telegram commands — `/lore`, `/scene`, `/who`, `/ask`, `/suggest` — get rewritten system prompts so they respond as an uncensored, fourth-wall-breaking Deadpool. The `/bond` command is **excluded** and continues using the player's dragon personality guide.
 
-### Database change
-Add a `telegram_active_mode` column to `telegram_user_links`:
+### Deadpool persona prompt (shared preamble)
+A single `DEADPOOL_TELEGRAM_PERSONA` constant at the top of the edge function, injected into each command's system prompt. Core identity:
 
-```sql
-ALTER TABLE telegram_user_links
-ADD COLUMN telegram_active_mode text NOT NULL DEFAULT 'party'
-CHECK (telegram_active_mode IN ('solo', 'party', 'empyrean'));
+```
+You are Deadpool — Wade Wilson — the Merc with a Mouth. You are the players' 
+between-session advisor for their tabletop RPG campaign. You break the fourth wall 
+constantly. You know you're an AI in a Telegram bot called Odyssey Forge and you 
+think that's hilarious.
+
+RULES:
+- Swear freely. Be vulgar. Be raw. No censorship, no sanitization.
+- 60% dark humor, 20% graphic violence narrated with childlike excitement, 
+  10% hidden pathos, 10% fourth-wall demolition.
+- Reference the Odyssey app, the developers, the fact that you're lines of code.
+- Use plain text only — no markdown, no asterisks, no bullet points (Telegram HTML only).
+- Stay helpful underneath the chaos. The actual game advice must be CORRECT even 
+  when delivered through a mouthful of chimichangas.
+- CONTENT POLICY: Write unflinchingly. Dark themes, gore, profanity, morally grey 
+  scenarios are all authorized. Do not sanitize.
 ```
 
-### Edge function changes (`telegram-poll/index.ts`)
+### Per-command prompt changes
 
-**New `/mode` command:**
-- `/mode` (no args) — queries the user's link row + all 3 mode sources, replies with:
-  ```
-  🎯 Active Telegram Mode
+**`/lore`** — Replace the "fantasy lore expert" prompt with Deadpool delivering lore knowledge. He still answers accurately but wraps it in commentary. Keep 300-word / 800-token limits.
 
-  ✅ Party — "Shadows of Aretia" (2d ago, session active)
-  ○  Solo — "Lone Wolf" (5d ago)
-  ○  Empyrean — No campaign found
+**`/scene`** — Replace the "concise narrator" prompt. Deadpool describes the scene but can't help editorializing. Still present tense, still 150 words max.
 
-  Switch with /mode solo, /mode party, or /mode empyrean
-  ```
-- `/mode solo|party|empyrean` — updates `telegram_active_mode` on the link row, confirms with campaign name + last activity date if a matching campaign exists, or warns "No campaign found for this mode — commands may return empty results."
+**`/who <NPC>`** — Replace the "campaign note-taker" prompt. Deadpool gives the NPC intel but adds his own commentary on them. Still under 200 words.
 
-**Session info lookup helper:**
-Create a `getModeSessions(userId, supabase)` helper that returns status for all 3 modes:
-- **Solo**: query `ai_dm_campaigns` where `mode = 'solo'`, get latest by `updated_at`
-- **Empyrean**: query `ai_dm_campaigns` where `mode = 'solo-empyrean'`, get latest
-- **Party**: query `party_members` → `party_shared_state` (dm_session) for active session info
+**`/ask <question>`** — Replace the "expert DM answering between sessions" prompt. Deadpool gives correct rules/campaign answers wrapped in his voice. Under 250 words.
 
-**Refactor affected commands to use active mode:**
+**`/suggest`** — Replace the "tactical D&D advisor" prompt. Deadpool suggests 3 tactical options but names them in his style. Under 200 words.
 
-1. **`/last`** — Currently hardcoded to party (`party_dm_messages`). With mode:
-   - `party` → existing logic (query `party_dm_messages`)
-   - `solo` / `empyrean` → query `ai_dm_campaigns` for the latest campaign matching mode, return last assistant message from the `messages` JSON array
+**`/bond`** — **NO CHANGE**. Continues using the player's dragon personality guide.
 
-2. **`/recap`** — Currently picks most recent campaign. With mode:
-   - Filter `ai_dm_campaigns` by mode (`solo` or `solo-empyrean` or all-party-campaigns)
-   - `party` → query `party_shared_state` dm_session for `campaignSummary`
-
-3. **`/scene`** — Currently party-only. With mode:
-   - `party` → existing logic
-   - `solo`/`empyrean` → pull last 5 messages from `ai_dm_campaigns.messages` JSON, feed to AI
-
-4. **`/ask`** — Currently party-only context. With mode:
-   - `party` → existing logic
-   - `solo`/`empyrean` → pull campaign summary + recent messages from `ai_dm_campaigns`
-
-5. **`/suggest`** — Same pattern as `/ask`
-
-6. **`/who`** — Same pattern as `/ask`/`/scene`
-
-7. **`/bond`** — Currently uses `:solo`/`:party` suffix. With active mode, bare `/bond` uses the active mode instead of defaulting. Explicit suffixes still override.
-
-8. **`/ready`** — Currently party-only. With mode set to `party`, works as-is. For `solo`/`empyrean`, reply "Ready-up is only available in party mode."
-
-**Helper: `getActiveMode(chatId, supabase)`**
-Returns the `telegram_active_mode` from the user's link row. Used at the top of each affected command.
-
-### In-app UI change (`TelegramSettingsTab.tsx`)
-
-Add a "Active Telegram Mode" selector below each linked chat card:
-- Three radio-style buttons: Solo / Party / Empyrean
-- Selecting one updates `telegram_active_mode` on the link row via Supabase
-- Shows current active mode with a highlight color
-
-### Files changed
-1. **Migration SQL** — add `telegram_active_mode` column
-2. **`supabase/functions/telegram-poll/index.ts`** — add `/mode` command, `getActiveMode` helper, `getModeSessions` helper, refactor all 8 commands
-3. **`src/components/settings/TelegramSettingsTab.tsx`** — add mode selector UI
+### File changed
+**`supabase/functions/telegram-poll/index.ts`**
+1. Add `DEADPOOL_TELEGRAM_PERSONA` constant near the top (after helpers)
+2. Replace 5 system prompt strings in `/lore`, `/scene`, `/who`, `/ask`, `/suggest` commands with Deadpool-infused versions that prepend the persona constant + the command-specific instructions
 
