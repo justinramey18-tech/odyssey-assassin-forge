@@ -1918,8 +1918,7 @@ async function processCommand(
       });
       const data = await response.json();
       const answer = data.choices?.[0]?.message?.content || 'Could not determine the current scene.';
-      const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
-      await sendTelegram(chatId, `🗺️ <b>Current Scene</b> <i>(${mode})</i>\n\n${truncated}`, lovableKey, telegramKey);
+      await sendTelegram(chatId, `🗺️ <b>Current Scene</b> <i>(${mode})</i>\n\n${answer}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/scene AI error:', err);
       await sendTelegram(chatId, '❌ Failed to generate scene summary.', lovableKey, telegramKey);
