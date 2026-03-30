@@ -1730,6 +1730,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onGround={() => dragonBonds.updateBurnout(Math.max(0, bLevel - 1))}
               currentHP={characterContext?.currentHP ?? 10}
               maxHP={characterContext?.maxHP ?? 10}
+              onHPChange={onHPChange}
             />
           );
         })()}

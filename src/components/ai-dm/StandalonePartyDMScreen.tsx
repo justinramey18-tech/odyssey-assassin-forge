@@ -470,6 +470,7 @@ ${truncated}`);
           onRefreshCampaigns={campaignSessions.refreshSessions}
           wildShape={wildShape}
           isMomoMoonDruid={isMomoMoonDruid}
+          onHPChange={autoSyncCallbacks?.onHPChange}
         />
 
       <OocDmChat
