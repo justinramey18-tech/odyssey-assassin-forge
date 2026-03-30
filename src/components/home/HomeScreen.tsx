@@ -55,6 +55,7 @@ import { ChroniclerHomeView } from './ChroniclerHomeView';
 import { AlignmentDriftIndicator } from '@/components/alignment/AlignmentDriftIndicator';
 
 import homeBackground from '@/assets/home-background-mobile.jpg';
+import empyreanBackground from '@/assets/empyrean-bg.jpg';
 
 // Navigable tab types
 type NavigableTab = 
