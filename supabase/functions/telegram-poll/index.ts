@@ -1811,39 +1811,44 @@ async function processCommand(
     return;
   }
 
-  // /scene — AI-generated "where are we right now" summary
+  // /scene — AI-generated "where are we right now" summary (mode-aware)
   if (cmd === '/scene') {
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
-    const { data: memberships } = await supabase
-      .from('party_members')
-      .select('party_id, character_name')
-      .eq('user_id', userId);
-    if (!memberships || memberships.length === 0) {
-      await sendTelegram(chatId, '👥 You are not in any party.', lovableKey, telegramKey);
-      return;
-    }
-    let recentMessages: Array<{ content: string; sender_name: string; role: string }> = [];
-    for (const m of memberships) {
-      const { data: msgs } = await supabase
-        .from('party_dm_messages')
-        .select('content, sender_name, role')
-        .eq('party_id', m.party_id)
-        .order('created_at', { ascending: false })
-        .limit(8);
-      if (msgs && msgs.length > 0) {
-        recentMessages = msgs.reverse();
-        break;
+    const mode = await getActiveMode(chatId, supabase);
+
+    let narrativeContext = '';
+
+    if (mode === 'party') {
+      const { data: memberships } = await supabase.from('party_members').select('party_id, character_name').eq('user_id', userId);
+      if (!memberships || memberships.length === 0) {
+        await sendTelegram(chatId, '👥 You are not in any party. Switch mode with /mode solo or /mode empyrean.', lovableKey, telegramKey);
+        return;
+      }
+      for (const m of memberships) {
+        const { data: msgs } = await supabase
+          .from('party_dm_messages')
+          .select('content, sender_name, role')
+          .eq('party_id', m.party_id)
+          .order('created_at', { ascending: false })
+          .limit(8);
+        if (msgs && msgs.length > 0) {
+          narrativeContext = msgs.reverse().map((msg: any) => `[${msg.sender_name}]: ${msg.content.substring(0, 500)}`).join('\n\n');
+          break;
+        }
+      }
+    } else {
+      const ctx = await getSoloCampaignContext(userId, mode, supabase, 8);
+      if (ctx && ctx.messages.length > 0) {
+        narrativeContext = ctx.messages.map((m: any) => `[${m.role === 'assistant' ? 'DM' : 'Player'}]: ${(m.content || '').substring(0, 500)}`).join('\n\n');
       }
     }
-    if (recentMessages.length === 0) {
-      await sendTelegram(chatId, '📖 No recent messages found.', lovableKey, telegramKey);
+
+    if (!narrativeContext) {
+      await sendTelegram(chatId, `📖 No recent messages found for ${mode} mode.`, lovableKey, telegramKey);
       return;
     }
     await sendTelegram(chatId, '🗺️ <i>Surveying the scene...</i>', lovableKey, telegramKey);
-    const narrativeContext = recentMessages
-      .map(m => `[${m.sender_name}]: ${m.content.substring(0, 500)}`)
-      .join('\n\n');
     try {
       const response = await fetch(AI_GATEWAY_URL, {
         method: 'POST',
@@ -1863,7 +1868,7 @@ async function processCommand(
       const data = await response.json();
       const answer = data.choices?.[0]?.message?.content || 'Could not determine the current scene.';
       const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
-      await sendTelegram(chatId, `🗺️ <b>Current Scene</b>\n\n${truncated}`, lovableKey, telegramKey);
+      await sendTelegram(chatId, `🗺️ <b>Current Scene</b> <i>(${mode})</i>\n\n${truncated}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/scene AI error:', err);
       await sendTelegram(chatId, '❌ Failed to generate scene summary.', lovableKey, telegramKey);
