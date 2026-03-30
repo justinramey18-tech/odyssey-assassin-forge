@@ -15,6 +15,7 @@ function getGroundingDamage(roll: number, maxHP: number): number {
 
 const GroundButton: React.FC<GroundButtonProps> = ({ active, onGround, currentHP, maxHP, onFailedRoll }) => {
   const [lastRoll, setLastRoll] = useState<number | null>(null);
+  const [lastDamage, setLastDamage] = useState<number>(0);
   const [showResult, setShowResult] = useState(false);
   const [isGrounded, setIsGrounded] = useState(false);
   const [rolling, setRolling] = useState(false);
