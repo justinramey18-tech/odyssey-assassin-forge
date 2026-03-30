@@ -1876,7 +1876,7 @@ async function processCommand(
     return;
   }
 
-  // /who NPC — AI-powered NPC lookup from campaign history
+  // /who NPC — AI-powered NPC lookup (mode-aware)
   if (cmd.startsWith('/who ')) {
     const npcName = text.trim().substring(5).trim();
     if (!npcName) {
@@ -1885,41 +1885,53 @@ async function processCommand(
     }
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
-    const { data: memberships } = await supabase
-      .from('party_members')
-      .select('party_id')
-      .eq('user_id', userId);
-    if (!memberships || memberships.length === 0) {
-      await sendTelegram(chatId, '👥 You are not in any party.', lovableKey, telegramKey);
-      return;
-    }
+    const mode = await getActiveMode(chatId, supabase);
+
     let relevantMessages: string[] = [];
     let campaignSummary = '';
-    for (const m of memberships) {
-      const { data: msgs } = await supabase
-        .from('party_dm_messages')
-        .select('content, sender_name')
-        .eq('party_id', m.party_id)
-        .order('created_at', { ascending: false })
-        .limit(50);
-      if (msgs && msgs.length > 0) {
-        const namePattern = new RegExp(npcName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-        relevantMessages = msgs
-          .filter((msg: any) => namePattern.test(msg.content))
-          .slice(0, 10)
-          .map((msg: any) => `[${msg.sender_name}]: ${msg.content.substring(0, 400)}`);
-        const { data: sessionState } = await supabase
-          .from('party_shared_state')
-          .select('state_data')
+    const namePattern = new RegExp(npcName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+
+    if (mode === 'party') {
+      const { data: memberships } = await supabase.from('party_members').select('party_id').eq('user_id', userId);
+      if (!memberships || memberships.length === 0) {
+        await sendTelegram(chatId, '👥 You are not in any party. Switch mode with /mode solo or /mode empyrean.', lovableKey, telegramKey);
+        return;
+      }
+      for (const m of memberships) {
+        const { data: msgs } = await supabase
+          .from('party_dm_messages')
+          .select('content, sender_name')
           .eq('party_id', m.party_id)
-          .eq('state_type', 'dm_session')
-          .maybeSingle();
-        campaignSummary = (sessionState?.state_data as any)?.campaignSummary || '';
-        break;
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (msgs && msgs.length > 0) {
+          relevantMessages = msgs
+            .filter((msg: any) => namePattern.test(msg.content))
+            .slice(0, 10)
+            .map((msg: any) => `[${msg.sender_name}]: ${msg.content.substring(0, 400)}`);
+          const { data: sessionState } = await supabase
+            .from('party_shared_state')
+            .select('state_data')
+            .eq('party_id', m.party_id)
+            .eq('state_type', 'dm_session')
+            .maybeSingle();
+          campaignSummary = (sessionState?.state_data as any)?.campaignSummary || '';
+          break;
+        }
+      }
+    } else {
+      const ctx = await getSoloCampaignContext(userId, mode, supabase, 50);
+      if (ctx) {
+        campaignSummary = ctx.summary || '';
+        relevantMessages = ctx.messages
+          .filter((m: any) => namePattern.test(m.content || ''))
+          .slice(0, 10)
+          .map((m: any) => `[${m.role === 'assistant' ? 'DM' : 'Player'}]: ${(m.content || '').substring(0, 400)}`);
       }
     }
+
     if (relevantMessages.length === 0) {
-      await sendTelegram(chatId, `🔍 No mentions of "${npcName}" found in recent campaign history.`, lovableKey, telegramKey);
+      await sendTelegram(chatId, `🔍 No mentions of "${npcName}" found in ${mode} campaign history.`, lovableKey, telegramKey);
       return;
     }
     await sendTelegram(chatId, `🔍 <i>Searching for ${npcName}...</i>`, lovableKey, telegramKey);
@@ -1944,7 +1956,7 @@ async function processCommand(
       const data = await response.json();
       const answer = data.choices?.[0]?.message?.content || 'Could not find information.';
       const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
-      await sendTelegram(chatId, `🔍 <b>${npcName}</b>\n\n${truncated}`, lovableKey, telegramKey);
+      await sendTelegram(chatId, `🔍 <b>${npcName}</b> <i>(${mode})</i>\n\n${truncated}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/who AI error:', err);
       await sendTelegram(chatId, '❌ Failed to look up NPC.', lovableKey, telegramKey);
