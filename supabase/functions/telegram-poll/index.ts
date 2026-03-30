@@ -2083,8 +2083,7 @@ async function processCommand(
       });
       const data = await response.json();
       const answer = data.choices?.[0]?.message?.content || 'The DM has no answer at this time.';
-      const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
-      await sendTelegram(chatId, `🤔 <b>Ask the DM</b> <i>(${mode})</i>\n<i>${question.substring(0, 80)}</i>\n\n${truncated}`, lovableKey, telegramKey);
+      await sendTelegram(chatId, `🤔 <b>Ask the DM</b> <i>(${mode})</i>\n<i>${question.substring(0, 80)}</i>\n\n${answer}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/ask AI error:', err);
       await sendTelegram(chatId, '❌ The DM could not be reached. Try again later.', lovableKey, telegramKey);
