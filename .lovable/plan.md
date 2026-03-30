@@ -1,35 +1,37 @@
 
 
-## Ground Button HP Integration — Uncapped Darkening + Real HP Loss
+## Vertical HP Bar in Party DM Chat
 
-### Summary
-Remove the darkening cap from failed Ground rolls. Instead, tie the darkening to the player's actual HP: each failed roll deals 1 real damage, and the screen darkness is proportional to HP lost (darkness = 1 - currentHP/maxHP). At 0 HP, the screen goes fully black, the Ground button disappears, and the player falls unconscious.
+### What it does
+Adds a narrow vertical HP bar on the right edge of the inline DM narrative chat area. It mirrors the homescreen's `DynamicHealthBar` — same colors, glow, segmentation, and health states — but rendered vertically. It stays fixed on the right side while messages scroll, and is narrow enough (about 20px wide) to not impede text visibility.
 
 ### Changes
 
-**1. Update `BurnoutFlameOverlay` props and component**
-- Add `currentHP`, `maxHP`, and `onHPChange` (callback for dealing 1 damage) to the props interface
-- Pass `currentHP` and `maxHP` through to `GroundButton`
-- Add an `onFailedRoll` callback that calls `onHPChange(-1, 'damage')` when a non-Nat-20 is rolled
+**1. Create `src/components/home/VerticalHealthBar.tsx`**
+- A new component that reuses the same health-state logic from `DynamicHealthBar` (color gradients, glow, critical pulse)
+- Renders as a tall, narrow vertical bar (width ~20px, full height of parent)
+- HP fill grows from bottom to top (percentage-based)
+- Includes temp HP cyan accent on top of the fill
+- Shows segmented lines (horizontal dividers instead of vertical)
+- Small heart icon at top, compact HP text (`currentHP/maxHP`) rendered vertically or abbreviated
+- Semi-transparent background so chat text behind is still somewhat visible
+- Same props interface as `DynamicHealthBar`: `currentHP`, `maxHP`, `tempHP`, `onTap`, `isWildShape`, `wildShapeFormName`
 
-**2. Update `GroundButton` component**
-- Add `currentHP` and `maxHP` props
-- Replace `failedAttempts`-based darkening with HP-based: `darkenOpacity = 1 - (currentHP / maxHP)` — no cap, reaches 1.0 (full black) at 0 HP
-- On failed roll, call `onFailedRoll()` instead of incrementing local `failedAttempts` (remove that state)
-- When `currentHP <= 0`: hide the Ground button, show a "knocked unconscious" state (fully black screen, no interaction)
+**2. Update `src/components/ai-dm/PartyDMScreen.tsx`**
+- Import `VerticalHealthBar`
+- Inside the messages container div (line ~1712, the `flex-1 min-h-0 relative flex flex-col overflow-hidden` div), add the vertical bar as an absolutely positioned element on the right side: `absolute right-0 top-0 bottom-0 z-10 pointer-events-none` (with the bar itself having `pointer-events-auto` for tap)
+- Pass `characterContext?.currentHP`, `characterContext?.maxHP`, `characterContext?.tempHP` as props
+- Pass `onTap` to open the stats drawer if available
+- Add right padding (~24px) to the scroll area so message text doesn't go behind the bar
 
-**3. Update `EmpyreanDMScreen.tsx`**
-- Pass `currentHP`, `maxHP`, and `onHPChange` to `BurnoutFlameOverlay`
-- `currentHP` comes from `autoSyncCallbacks.getCurrentHP()`
-- `onHPChange` calls `autoSyncCallbacks.onHPChange(-1, 'damage')`
-
-**4. Update `PartyDMScreen.tsx`**
-- Same pattern: pass `currentHP`, `maxHP`, and `onHPChange` props through to `BurnoutFlameOverlay`
-- Source HP from the existing character status data available in the component
+**3. Also update `StandalonePartyDMScreen.tsx`**
+- Same pattern if it has the same chat layout
 
 ### Technical details
-- Darkness formula: `opacity = Math.max(0, 1 - (currentHP / maxHP))` — at full HP it's 0, at 0 HP it's 1.0
-- The `onHPChange` callback uses the existing auto-sync HP change system so damage is persisted to the character sheet
-- At 0 HP: Ground button hidden, screen fully black, player is unconscious (burnout effects continue underneath but invisible)
-- No local `failedAttempts` counter needed — HP is the source of truth
+- The vertical bar uses `position: absolute; right: 0; top: 0; bottom: 0` inside the existing messages container
+- Bar width: `w-5` (20px) — thin enough to stay out of the way
+- Fill direction: `bottom-to-top` via `inset-x-0 bottom-0` with height percentage
+- The scroll div gets `pr-6` added to prevent text overlap
+- Framer Motion entrance animation: `scaleY` from 0 to 1 with `transformOrigin: 'bottom'`
+- Uses the same color functions extracted from `DynamicHealthBar` logic
 
