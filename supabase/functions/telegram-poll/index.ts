@@ -1605,11 +1605,11 @@ async function processCommand(
           messages: [
             {
               role: 'system',
-              content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Answer a lore question. You have deep knowledge of D&D 5e sourcebooks, popular fantasy novel series (Fourth Wing, The Empyrean series by Rebecca Yarros, Lord of the Rings, The Witcher, Wheel of Time, A Song of Ice and Fire, Stormlight Archive, and others), mythology, and worldbuilding. The FACTS must be accurate — deliver them in your voice. If the question is about a specific fictional universe, answer within that universe's canon. If unclear, default to D&D 5e. Max 300 words.`,
+              content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Answer a lore question. You have deep knowledge of D&D 5e sourcebooks, popular fantasy novel series (Fourth Wing, The Empyrean series by Rebecca Yarros, Lord of the Rings, The Witcher, Wheel of Time, A Song of Ice and Fire, Stormlight Archive, and others), mythology, and worldbuilding. The FACTS must be accurate — deliver them in your voice. If the question is about a specific fictional universe, answer within that universe's canon. If unclear, default to D&D 5e. Max 900 words.`,
             },
             { role: 'user', content: question },
           ],
-          max_tokens: 800,
+          max_tokens: 2400,
         }),
       });
       const data = await response.json();
@@ -1878,11 +1878,11 @@ async function processCommand(
         headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash-lite',
-          max_tokens: 600,
+          max_tokens: 1800,
           messages: [
             {
               role: 'system',
-              content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Describe the current scene. Read the recent game messages and give the player a "where are we right now?" briefing in 3-5 sentences. Cover: where the characters are, what just happened, and the immediate situation. Write in present tense. You can editorialize and add your commentary, but the scene description itself must be ACCURATE to what actually happened. Max 150 words.`,
+              content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Describe the current scene. Read the recent game messages and give the player a "where are we right now?" briefing in 3-5 sentences. Cover: where the characters are, what just happened, and the immediate situation. Write in present tense. You can editorialize and add your commentary, but the scene description itself must be ACCURATE to what actually happened. Max 450 words.`,
             },
             { role: 'user', content: `Recent game messages:\n\n${narrativeContext}\n\nDescribe the current scene.` },
           ],
@@ -1966,11 +1966,11 @@ async function processCommand(
         headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash-lite',
-          max_tokens: 800,
+          max_tokens: 2400,
           messages: [
             {
               role: 'system',
-              content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Give the player the intel on an NPC named "${npcName}". Based on the campaign messages, compile: who they are, their role/occupation, their relationship to the party, notable things they said or did, and any unresolved business. The FACTS must be accurate — but feel free to add your own colorful commentary and opinions about the NPC. If the info is sparse, say so. Max 200 words.`,
+              content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Give the player the intel on an NPC named "${npcName}". Based on the campaign messages, compile: who they are, their role/occupation, their relationship to the party, notable things they said or did, and any unresolved business. The FACTS must be accurate — but feel free to add your own colorful commentary and opinions about the NPC. If the info is sparse, say so. Max 600 words.`,
             },
             { role: 'user', content: `${summaryCtx}Messages mentioning ${npcName}:\n\n${context}\n\nWhat does the party know about ${npcName}?` },
           ],
@@ -2048,9 +2048,9 @@ async function processCommand(
         headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
-          max_tokens: 1000,
+          max_tokens: 3000,
           messages: [
-            { role: 'system', content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Answer a player's between-session question. You have their character sheet and campaign context. The answer must be CORRECT — if it's a rules question, get the rule right. If it's about the campaign world, answer based on the provided context. If you don't have enough context, say so. Deliver the truth wrapped in your beautiful, profane personality. Max 250 words.` },
+            { role: 'system', content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Answer a player's between-session question. You have their character sheet and campaign context. The answer must be CORRECT — if it's a rules question, get the rule right. If it's about the campaign world, answer based on the provided context. If you don't have enough context, say so. Deliver the truth wrapped in your beautiful, profane personality. Max 750 words.` },
             { role: 'user', content: `${contextParts}\n\nPlayer's question: ${question}` },
           ],
         }),
@@ -2118,9 +2118,9 @@ async function processCommand(
         headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
-          max_tokens: 800,
+          max_tokens: 2400,
           messages: [
-            { role: 'system', content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Tactical advice time. Look at the character's HP, spell slots, conditions, abilities, and the current situation — then suggest exactly 3 concrete actions they could take. Name each one in your style (get creative with the names), explain the mechanics, and say why it's smart right now. The tactical advice must be SOUND even if the delivery is unhinged. Number them 1, 2, 3. Max 200 words.` },
+            { role: 'system', content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Tactical advice time. Look at the character's HP, spell slots, conditions, abilities, and the current situation — then suggest exactly 3 concrete actions they could take. Name each one in your style (get creative with the names), explain the mechanics, and say why it's smart right now. The tactical advice must be SOUND even if the delivery is unhinged. Number them 1, 2, 3. Max 600 words.` },
             { role: 'user', content: `${charContext}\n\nRecent situation:\n${recentNarrative || 'No recent narrative available.'}\n\nSuggest 3 tactical options.` },
           ],
         }),
