@@ -1,37 +1,33 @@
 
 
-## Vertical HP Bar in Party DM Chat
+## Scaled Ground! Roll Damage
 
-### What it does
-Adds a narrow vertical HP bar on the right edge of the inline DM narrative chat area. It mirrors the homescreen's `DynamicHealthBar` — same colors, glow, segmentation, and health states — but rendered vertically. It stays fixed on the right side while messages scroll, and is narrow enough (about 20px wide) to not impede text visibility.
+### What changes
+The Ground! mechanic currently deals a flat 1 HP on every failed roll. This update makes each roll (1-19) deal unique damage based on a smooth curve where **Nat 1 = 20% of max HP** and **19 = minimum damage (1 HP)**, with every number in between mapped to a distinct value. A red damage indicator (e.g. "-3 HP") will appear below the roll result.
 
-### Changes
+### Damage formula
+Smooth linear interpolation from roll 1 to roll 19:
+- `damage = Math.ceil(maxHP * 0.2 * (20 - roll) / 19)`
+- Nat 1 → `ceil(maxHP * 0.2)` (e.g. 2 HP at 10 max, 4 HP at 20 max)
+- Roll 19 → 1 HP (minimum floor)
+- Every roll in between gets a unique value on the curve
 
-**1. Create `src/components/home/VerticalHealthBar.tsx`**
-- A new component that reuses the same health-state logic from `DynamicHealthBar` (color gradients, glow, critical pulse)
-- Renders as a tall, narrow vertical bar (width ~20px, full height of parent)
-- HP fill grows from bottom to top (percentage-based)
-- Includes temp HP cyan accent on top of the fill
-- Shows segmented lines (horizontal dividers instead of vertical)
-- Small heart icon at top, compact HP text (`currentHP/maxHP`) rendered vertically or abbreviated
-- Semi-transparent background so chat text behind is still somewhat visible
-- Same props interface as `DynamicHealthBar`: `currentHP`, `maxHP`, `tempHP`, `onTap`, `isWildShape`, `wildShapeFormName`
+### Files to change
 
-**2. Update `src/components/ai-dm/PartyDMScreen.tsx`**
-- Import `VerticalHealthBar`
-- Inside the messages container div (line ~1712, the `flex-1 min-h-0 relative flex flex-col overflow-hidden` div), add the vertical bar as an absolutely positioned element on the right side: `absolute right-0 top-0 bottom-0 z-10 pointer-events-none` (with the bar itself having `pointer-events-auto` for tap)
-- Pass `characterContext?.currentHP`, `characterContext?.maxHP`, `characterContext?.tempHP` as props
-- Pass `onTap` to open the stats drawer if available
-- Add right padding (~24px) to the scroll area so message text doesn't go behind the bar
+**`src/components/empyrean/GroundButton.tsx`**
+1. Change `onFailedRoll: () => void` to `onFailedRoll: (damage: number) => void`
+2. Add a `getGroundingDamage(roll, maxHP)` helper that computes damage per the formula above, with a `Math.max(1, ...)` floor
+3. Store `lastDamage` in state alongside `lastRoll`
+4. On failed roll, compute damage and pass it to `onFailedRoll(damage)`
+5. In the roll result display, show a red `-X HP` subtitle below the roll number for failed rolls (similar positioning to the "Grounded" text on Nat 20)
 
-**3. Also update `StandalonePartyDMScreen.tsx`**
-- Same pattern if it has the same chat layout
+**`src/components/empyrean/BurnoutFlameOverlay.tsx`**
+1. Update the `onFailedRoll` callback to accept and forward the damage value:
+   `onFailedRoll={(damage) => onHPChange?.(damage * -1, 'damage')}`
+   (Note: currently passes `-1` hardcoded — will now use the dynamic damage)
 
-### Technical details
-- The vertical bar uses `position: absolute; right: 0; top: 0; bottom: 0` inside the existing messages container
-- Bar width: `w-5` (20px) — thin enough to stay out of the way
-- Fill direction: `bottom-to-top` via `inset-x-0 bottom-0` with height percentage
-- The scroll div gets `pr-6` added to prevent text overlap
-- Framer Motion entrance animation: `scaleY` from 0 to 1 with `transformOrigin: 'bottom'`
-- Uses the same color functions extracted from `DynamicHealthBar` logic
+### Damage display UI
+- Red text below the roll number: `text-red-400 font-cinzel text-lg`
+- Shows for all failed rolls (1-19), e.g. "-2 HP"
+- Animates in with the same timing as the roll result (1.5s display)
 
