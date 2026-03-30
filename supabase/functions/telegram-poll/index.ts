@@ -1738,69 +1738,66 @@ async function processCommand(
     return;
   }
 
-  // /last — Show the last DM narrative message
+  // /last — Show the last DM narrative message (mode-aware)
   if (cmd === '/last') {
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
-    const { data: memberships } = await supabase
-      .from('party_members')
-      .select('party_id')
-      .eq('user_id', userId);
-    if (!memberships || memberships.length === 0) {
-      await sendTelegram(chatId, '👥 You are not in any party.', lovableKey, telegramKey);
-      return;
-    }
+    const mode = await getActiveMode(chatId, supabase);
+
     let lastDmMsg: string | null = null;
-    let partyCode = '';
-    for (const m of memberships) {
-      const { data: msgs } = await supabase
-        .from('party_dm_messages')
-        .select('content, sender_name, created_at')
-        .eq('party_id', m.party_id)
-        .eq('role', 'assistant')
-        .eq('sender_name', 'DM')
-        .order('created_at', { ascending: false })
-        .limit(1);
-      if (msgs && msgs.length > 0) {
-        lastDmMsg = msgs[0].content;
-        const { data: party } = await supabase.from('parties').select('link_code').eq('id', m.party_id).maybeSingle();
-        partyCode = party?.link_code || '';
-        break;
+    let headerLabel = '';
+
+    if (mode === 'party') {
+      const { data: memberships } = await supabase.from('party_members').select('party_id').eq('user_id', userId);
+      if (!memberships || memberships.length === 0) {
+        await sendTelegram(chatId, '👥 You are not in any party. Switch mode with /mode solo or /mode empyrean.', lovableKey, telegramKey);
+        return;
+      }
+      for (const m of memberships) {
+        const { data: msgs } = await supabase
+          .from('party_dm_messages')
+          .select('content, sender_name, created_at')
+          .eq('party_id', m.party_id)
+          .eq('role', 'assistant')
+          .eq('sender_name', 'DM')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (msgs && msgs.length > 0) {
+          lastDmMsg = msgs[0].content;
+          const { data: party } = await supabase.from('parties').select('link_code').eq('id', m.party_id).maybeSingle();
+          headerLabel = party?.link_code ? ` (${party.link_code})` : '';
+          break;
+        }
+      }
+    } else {
+      const ctx = await getSoloCampaignContext(userId, mode, supabase, 10);
+      if (ctx) {
+        const assistantMsgs = ctx.messages.filter((m: any) => m.role === 'assistant');
+        if (assistantMsgs.length > 0) {
+          lastDmMsg = assistantMsgs[assistantMsgs.length - 1].content;
+          headerLabel = ` (${mode})`;
+        }
       }
     }
+
     if (!lastDmMsg) {
-      await sendTelegram(chatId, '📖 No DM messages found. Start a DM session first!', lovableKey, telegramKey);
+      await sendTelegram(chatId, `📖 No DM messages found for ${mode} mode. Start a DM session first!`, lovableKey, telegramKey);
       return;
     }
     const cleaned = sanitizeForTelegram(lastDmMsg);
-    const header = partyCode ? `📖 <b>Last DM Message</b> (${partyCode})\n\n` : `📖 <b>Last DM Message</b>\n\n`;
-
-    // Split into paginated chunks if too long for a single Telegram message
-    const MAX_PART = 3900; // leave room for page footer
+    const header = `📖 <b>Last DM Message</b>${headerLabel}\n\n`;
+    const MAX_PART = 3900;
     if (header.length + cleaned.length <= MAX_PART) {
       await sendTelegram(chatId, header + cleaned, lovableKey, telegramKey);
     } else {
-      // Split on paragraph boundaries, falling back to hard cut
       const parts: string[] = [];
       let remaining = cleaned;
       while (remaining.length > 0) {
-        if (remaining.length <= MAX_PART) {
-          parts.push(remaining);
-          break;
-        }
-        // Try to split at a double newline (paragraph) within the limit
+        if (remaining.length <= MAX_PART) { parts.push(remaining); break; }
         let cutIdx = remaining.lastIndexOf('\n\n', MAX_PART);
-        if (cutIdx < MAX_PART * 0.3) {
-          // Paragraph break too early — try single newline
-          cutIdx = remaining.lastIndexOf('\n', MAX_PART);
-        }
-        if (cutIdx < MAX_PART * 0.3) {
-          // No good line break — hard cut at a space
-          cutIdx = remaining.lastIndexOf(' ', MAX_PART);
-        }
-        if (cutIdx < MAX_PART * 0.3) {
-          cutIdx = MAX_PART; // absolute fallback
-        }
+        if (cutIdx < MAX_PART * 0.3) cutIdx = remaining.lastIndexOf('\n', MAX_PART);
+        if (cutIdx < MAX_PART * 0.3) cutIdx = remaining.lastIndexOf(' ', MAX_PART);
+        if (cutIdx < MAX_PART * 0.3) cutIdx = MAX_PART;
         parts.push(remaining.substring(0, cutIdx));
         remaining = remaining.substring(cutIdx).replace(/^\n+/, '');
       }
