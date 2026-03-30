@@ -1645,8 +1645,7 @@ async function processCommand(
       const data = await response.json();
       const answer = data.choices?.[0]?.message?.content || 'No answer found.';
       // Truncate for Telegram
-      const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
-      await sendTelegram(chatId, `📖 <b>Lore: ${question.substring(0, 50)}</b>\n\n${truncated}`, lovableKey, telegramKey);
+      await sendTelegram(chatId, `📖 <b>Lore: ${question.substring(0, 50)}</b>\n\n${answer}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('Lore AI error:', err);
       await sendTelegram(chatId, '❌ Failed to consult the archives. Try again later.', lovableKey, telegramKey);
@@ -1786,8 +1785,7 @@ async function processCommand(
         msg += `Lvl ${level}: ${'◆'.repeat(remaining)}${'◇'.repeat(usedCount)} (${remaining}/${total})\n`;
       }
     }
-    const truncated = msg.length > 4000 ? msg.substring(0, 3950) + '\n\n<i>...truncated</i>' : msg;
-    await sendTelegram(chatId, truncated, lovableKey, telegramKey);
+    await sendTelegram(chatId, msg, lovableKey, telegramKey);
     return;
   }
 
@@ -1920,8 +1918,7 @@ async function processCommand(
       });
       const data = await response.json();
       const answer = data.choices?.[0]?.message?.content || 'Could not determine the current scene.';
-      const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
-      await sendTelegram(chatId, `🗺️ <b>Current Scene</b> <i>(${mode})</i>\n\n${truncated}`, lovableKey, telegramKey);
+      await sendTelegram(chatId, `🗺️ <b>Current Scene</b> <i>(${mode})</i>\n\n${answer}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/scene AI error:', err);
       await sendTelegram(chatId, '❌ Failed to generate scene summary.', lovableKey, telegramKey);
@@ -2008,8 +2005,7 @@ async function processCommand(
       });
       const data = await response.json();
       const answer = data.choices?.[0]?.message?.content || 'Could not find information.';
-      const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
-      await sendTelegram(chatId, `🔍 <b>${npcName}</b> <i>(${mode})</i>\n\n${truncated}`, lovableKey, telegramKey);
+      await sendTelegram(chatId, `🔍 <b>${npcName}</b> <i>(${mode})</i>\n\n${answer}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/who AI error:', err);
       await sendTelegram(chatId, '❌ Failed to look up NPC.', lovableKey, telegramKey);
@@ -2087,8 +2083,7 @@ async function processCommand(
       });
       const data = await response.json();
       const answer = data.choices?.[0]?.message?.content || 'The DM has no answer at this time.';
-      const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
-      await sendTelegram(chatId, `🤔 <b>Ask the DM</b> <i>(${mode})</i>\n<i>${question.substring(0, 80)}</i>\n\n${truncated}`, lovableKey, telegramKey);
+      await sendTelegram(chatId, `🤔 <b>Ask the DM</b> <i>(${mode})</i>\n<i>${question.substring(0, 80)}</i>\n\n${answer}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/ask AI error:', err);
       await sendTelegram(chatId, '❌ The DM could not be reached. Try again later.', lovableKey, telegramKey);
@@ -2157,8 +2152,7 @@ async function processCommand(
       });
       const data = await response.json();
       const answer = data.choices?.[0]?.message?.content || 'No suggestions available.';
-      const truncated = answer.length > 1500 ? answer.substring(0, 1500) + '...' : answer;
-      await sendTelegram(chatId, `💡 <b>Tactical Suggestions</b> <i>(${mode})</i>\n\n${truncated}`, lovableKey, telegramKey);
+      await sendTelegram(chatId, `💡 <b>Tactical Suggestions</b> <i>(${mode})</i>\n\n${answer}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/suggest AI error:', err);
       await sendTelegram(chatId, '❌ Failed to generate suggestions.', lovableKey, telegramKey);
