@@ -62,7 +62,7 @@ function triggerHeartbeatHaptic(ratio: number) {
 }
 
 
-const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max }) => {
+const BurnoutFlameOverlay: React.FC<BurnoutFlameOverlayProps> = ({ level, max, onGround }) => {
   const audioRef = useRef<{ gain: GainNode; stop: () => void; ctx: AudioContext } | null>(null);
   const hapticIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
