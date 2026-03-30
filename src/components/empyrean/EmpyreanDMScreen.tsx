@@ -925,6 +925,18 @@ export function EmpyreanDMScreen({
       )}>
         {/* Burnout flame overlay */}
         {config.signetType && <BurnoutFlameOverlay level={burnoutLevel} max={maxBurnout} />}
+        {/* Default empyrean background — hidden when burnout is active */}
+        {burnoutLevel <= 0 && (
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+            <div className="absolute inset-0" style={{
+              backgroundImage: `url(${empyreanDmBg})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              opacity: 0.18,
+            }} />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
+          </div>
+        )}
       <div className={cn(
         "flex-1 overflow-y-auto overscroll-contain px-3 py-3",
         (() => {

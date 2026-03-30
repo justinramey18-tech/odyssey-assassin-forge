@@ -1724,6 +1724,21 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
            const bMax = bBond >= 76 ? 12 : bBond >= 51 ? 11 : bBond >= 26 ? 10 : 8;
           return <BurnoutFlameOverlay level={bLevel} max={bMax} />;
         })()}
+        {/* Default empyrean background — hidden when burnout is active */}
+        {isEmpyrean && (() => {
+          const bLevel = dragonBonds.myDragon?.burnout ?? 0;
+          return bLevel <= 0;
+        })() && (
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+            <div className="absolute inset-0" style={{
+              backgroundImage: `url(${empyreanDmBg})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              opacity: 0.18,
+            }} />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
+          </div>
+        )}
         <AnimatePresence>
           {showEmpyreanBanner && (
             <motion.button
