@@ -157,28 +157,48 @@ Deno.serve(async (req) => {
     message = `⚡ <b>Your Turn!</b>\n\n${payload.body}\n\n<i>Use /hp to check health, /slots for spell slots</i>`;
   }
 
+  // ── Helper: split long text into Telegram-safe chunks ──
+  function splitMessage(text: string, maxLen = 4000): string[] {
+    const chunks: string[] = [];
+    if (text.length <= maxLen) return [text];
+    let remaining = text;
+    while (remaining.length > 0) {
+      if (remaining.length <= maxLen) { chunks.push(remaining); break; }
+      let splitAt = remaining.lastIndexOf('\n\n', maxLen);
+      if (splitAt < maxLen * 0.3) splitAt = remaining.lastIndexOf('\n', maxLen);
+      if (splitAt < maxLen * 0.3) splitAt = remaining.lastIndexOf(' ', maxLen);
+      if (splitAt < maxLen * 0.3) splitAt = maxLen;
+      chunks.push(remaining.slice(0, splitAt));
+      remaining = remaining.slice(splitAt).trimStart();
+    }
+    return chunks;
+  }
+
   // Send messages
   let sentCount = 0;
   const sendPromises = links.map(async (link) => {
     try {
-      const res = await fetch(`${GATEWAY_URL}/sendMessage`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'X-Connection-Api-Key': TELEGRAM_API_KEY,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chat_id: link.chat_id,
-          text: message,
-          parse_mode: 'HTML',
-        }),
-      });
-      if (res.ok) sentCount++;
-      else {
-        const err = await res.text();
-        console.error(`Failed to send to ${link.chat_id}:`, err);
+      const chunks = splitMessage(message);
+      for (const chunk of chunks) {
+        const res = await fetch(`${GATEWAY_URL}/sendMessage`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'X-Connection-Api-Key': TELEGRAM_API_KEY,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            chat_id: link.chat_id,
+            text: chunk,
+            parse_mode: 'HTML',
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.text();
+          console.error(`Failed to send to ${link.chat_id}:`, err);
+        }
       }
+      sentCount++;
     } catch (err) {
       console.error(`Error sending to ${link.chat_id}:`, err);
     }
