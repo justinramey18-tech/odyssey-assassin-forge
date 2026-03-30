@@ -1722,7 +1722,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           const bLevel = dragonBonds.myDragon.burnout;
           const bBond = dragonBonds.myDragon.bond ?? 50;
            const bMax = bBond >= 76 ? 12 : bBond >= 51 ? 11 : bBond >= 26 ? 10 : 8;
-          return <BurnoutFlameOverlay level={bLevel} max={bMax} onGround={() => dragonBonds.updateBurnout(Math.max(0, bLevel - 1))} />;
+          return (
+            <BurnoutFlameOverlay
+              level={bLevel}
+              max={bMax}
+              onGround={() => dragonBonds.updateBurnout(Math.max(0, bLevel - 1))}
+              currentHP={characterContext?.currentHP ?? 10}
+              maxHP={characterContext?.maxHP ?? 10}
+            />
+          );
         })()}
         {/* Default empyrean background — hidden when burnout is active */}
         {isEmpyrean && (() => {

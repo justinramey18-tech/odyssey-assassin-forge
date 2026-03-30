@@ -924,7 +924,16 @@ export function EmpyreanDMScreen({
         maxBurnout > 0 && burnoutLevel >= maxBurnout ? "animate-[screen-shake_0.6s_ease-in-out_infinite]" : ""
       )}>
         {/* Burnout flame overlay */}
-        {config.signetType && <BurnoutFlameOverlay level={burnoutLevel} max={maxBurnout} onGround={() => setBurnoutLevel(prev => Math.max(0, prev - 1))} />}
+        {config.signetType && (
+          <BurnoutFlameOverlay
+            level={burnoutLevel}
+            max={maxBurnout}
+            onGround={() => setBurnoutLevel(prev => Math.max(0, prev - 1))}
+            currentHP={autoSyncCallbacks?.getCurrentHP() ?? 10}
+            maxHP={characterContext.maxHP}
+            onHPChange={autoSyncCallbacks?.onHPChange}
+          />
+        )}
         {/* Default empyrean background — hidden when burnout is active */}
         {burnoutLevel <= 0 && (
           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
