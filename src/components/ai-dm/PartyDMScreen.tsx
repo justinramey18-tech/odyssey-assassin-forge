@@ -448,7 +448,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
               <MessageCircle className="w-3.5 h-3.5 text-amber-500" />
             )}
           </div>
-          <div className="flex-1 min-w-0 rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 bg-amber-950/50 border border-amber-500/20 rounded-bl-sm overflow-hidden">
+          <div className="flex-1 min-w-0 rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 bg-amber-950/20 border border-amber-500/15 rounded-bl-sm overflow-hidden">
             {message.sender_name !== 'DM' && (
               <div className="flex items-center gap-1.5 mb-1">
                 <p className="text-[11px] font-semibold text-amber-300">{message.sender_name}</p>
