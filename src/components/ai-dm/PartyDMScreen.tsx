@@ -8,6 +8,7 @@ import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import empyreanSpeaksImg from '@/assets/empyrean-speaks.jpg';
 import empyreanDmBg from '@/assets/empyrean-dm-bg.jpg';
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
+import { VerticalHealthBar } from '@/components/home/VerticalHealthBar';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1764,8 +1765,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             </motion.button>
           )}
         </AnimatePresence>
+        {/* Vertical HP Bar */}
+        {characterContext && (
+          <VerticalHealthBar
+            currentHP={characterContext.currentHP ?? 0}
+            maxHP={characterContext.maxHP ?? 1}
+            isWildShape={characterContext.wildShape?.isTransformed}
+          />
+        )}
         <div ref={scrollRef} className={cn(
-          "flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px] relative z-[1]",
+          "flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] pr-6 py-3 sm:p-4 sm:pr-6 space-y-3 sm:space-y-4 overscroll-contain pb-[100px] relative z-[1]",
           isEmpyrean && dragonBonds.isSetup && dragonBonds.myDragon?.signetType && (() => {
             const bLevel = dragonBonds.myDragon.burnout;
             const bBond = dragonBonds.myDragon.bond ?? 50;
