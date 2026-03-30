@@ -959,12 +959,17 @@ async function processCommand(
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
 
-    // Determine source filter from /bond:solo or /bond:party
+    // Determine source filter from /bond:solo or /bond:party, or use active mode
     let sourceFilter: 'solo' | 'party' | null = null;
     if (cmd.startsWith('/bond:solo')) {
       sourceFilter = 'solo';
     } else if (cmd.startsWith('/bond:party')) {
       sourceFilter = 'party';
+    } else {
+      // Use active mode as default preference
+      const activeMode = await getActiveMode(chatId, supabase);
+      if (activeMode === 'solo' || activeMode === 'empyrean') sourceFilter = 'solo';
+      else sourceFilter = 'party';
     }
 
     // The message is everything after /bond or /bond:solo or /bond:party
