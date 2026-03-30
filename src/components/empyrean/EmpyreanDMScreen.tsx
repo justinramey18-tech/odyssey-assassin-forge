@@ -935,6 +935,13 @@ export function EmpyreanDMScreen({
             onHPChange={autoSyncCallbacks?.onHPChange}
           />
         )}
+        {/* Vertical HP Bar */}
+        <VerticalHealthBar
+          currentHP={autoSyncCallbacks?.getCurrentHP() ?? characterContext.currentHP}
+          maxHP={characterContext.maxHP ?? 1}
+          isWildShape={characterContext.wildShape?.isTransformed}
+          onTap={onClose}
+        />
         {/* Default empyrean background — hidden when burnout is active */}
         {burnoutLevel <= 0 && (
           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
@@ -948,7 +955,7 @@ export function EmpyreanDMScreen({
           </div>
         )}
       <div className={cn(
-        "flex-1 overflow-y-auto overscroll-contain px-3 py-3 relative z-[1]",
+        "flex-1 overflow-y-auto overscroll-contain px-3 pr-6 py-3 relative z-[1]",
         (() => {
           const ratio = maxBurnout > 0 ? burnoutLevel / maxBurnout : 0;
           if (ratio >= 0.875) return "animate-[text-waver-intense_2s_ease-in-out_infinite,text-color-bleed_3s_ease-in-out_infinite]";
