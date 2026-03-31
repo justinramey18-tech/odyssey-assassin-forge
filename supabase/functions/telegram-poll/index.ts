@@ -1918,7 +1918,7 @@ async function processCommand(
           messages: [
             {
               role: 'system',
-              content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Describe the current scene. Read the recent game messages and give the player a "where are we right now?" briefing in 3-5 sentences. Cover: where the characters are, what just happened, and the immediate situation. Write in present tense. You can editorialize and add your commentary, but the scene description itself must be ACCURATE to what actually happened. Max 450 words.`,
+              content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Describe the current scene. Read the recent game messages and give the player a "where are we right now?" briefing. Cover: where the characters are, what just happened, and the immediate situation. Write in present tense. The scene description itself must be ACCURATE to what actually happened. COMEDY HOOK: Narrate it like you're a nature documentary host who wandered into the wrong show and is now deeply invested in this disaster. Add your own editorial commentary — rate the party's decisions out of 10, give the scenery a Yelp review, express personal opinions about the NPCs' life choices. Max 450 words.`,
             },
             { role: 'user', content: `Recent game messages:\n\n${narrativeContext}\n\nDescribe the current scene.` },
           ],
