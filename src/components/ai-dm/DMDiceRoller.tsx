@@ -127,12 +127,12 @@ const SAVE_DESCRIPTIONS: Record<AbilityScore, string> = {
 };
 
 const EMPYREAN_SAVE_DESCRIPTIONS: Record<AbilityScore, string> = {
-  str: 'Endure physical force',
-  dex: 'Dodge blasts & dragon fire',
-  con: 'Resist venin & exhaustion',
-  int: 'Focus through mental assault',
-  wis: 'Trust your instinct under pressure',
-  cha: 'Assert willpower against influence',
+  str: 'Resist being thrown from your dragon or pinned by force',
+  dex: 'Dodge dragon fire, crossbow bolts, and aerial hazards',
+  con: 'Endure Venin corruption, poison, exhaustion, and signet burnout',
+  int: 'Maintain focus through mental assault and signet interference',
+  wis: 'Trust your instincts when illusions or fear try to deceive you',
+  cha: 'Assert your will against telepathic intrusion and mental domination',
 };
 
 function getSaveDescription(key: AbilityScore): string {
