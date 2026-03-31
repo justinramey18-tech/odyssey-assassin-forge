@@ -2084,7 +2084,7 @@ async function processCommand(
           model: 'google/gemini-2.5-flash',
           max_tokens: 3000,
           messages: [
-            { role: 'system', content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Answer a player's between-session question. You have their character sheet and campaign context. The answer must be CORRECT — if it's a rules question, get the rule right. If it's about the campaign world, answer based on the provided context. If you don't have enough context, say so. Deliver the truth wrapped in your beautiful, profane personality. Max 750 words.` },
+            { role: 'system', content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Answer a player's between-session question. You have their character sheet and campaign context. The answer must be CORRECT — if it's a rules question, get the rule right. If it's about the campaign world, answer based on the provided context. If you don't have enough context, say so. COMEDY HOOK: Start by reacting to the question itself before answering it — judge it, compliment it, express shock, or pretend it's the dumbest thing you've ever heard. Then actually answer it well. Gaslight them mid-answer with one confident wrong statement before landing the real info. Max 750 words.` },
             { role: 'user', content: `${contextParts}\n\nPlayer's question: ${question}` },
           ],
         }),
