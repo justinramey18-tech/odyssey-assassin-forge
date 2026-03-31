@@ -1960,23 +1960,12 @@ async function processCommand(
     }
     await sendTelegram(chatId, '🗺️ <i>Surveying the scene...</i>', lovableKey, telegramKey);
     try {
-      const response = await fetch(AI_GATEWAY_URL, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash-lite',
-          max_tokens: 1800,
-          messages: [
-            {
-              role: 'system',
-              content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Describe the current scene. Read the recent game messages and give the player a "where are we right now?" briefing. Cover: where the characters are, what just happened, and the immediate situation. Write in present tense. The scene description itself must be ACCURATE to what actually happened. COMEDY HOOK: Narrate it like you're a nature documentary host who wandered into the wrong show and is now deeply invested in this disaster. Add your own editorial commentary — rate the party's decisions out of 10, give the scenery a Yelp review, express personal opinions about the NPCs' life choices. Max 450 words.`,
-            },
-            { role: 'user', content: `Recent game messages:\n\n${narrativeContext}\n\nDescribe the current scene.` },
-          ],
-        }),
-      });
-      const data = await response.json();
-      const answer = data.choices?.[0]?.message?.content || 'Could not determine the current scene.';
+      const answer = await callDeadpoolAI(
+        DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Describe the current scene. Read the recent game messages and give the player a "where are we right now?" briefing. Cover: where the characters are, what just happened, and the immediate situation. Write in present tense. The scene description itself must be ACCURATE to what actually happened. COMEDY HOOK: Narrate it like you're a nature documentary host who wandered into the wrong show and is now deeply invested in this disaster. Add your own editorial commentary — rate the party's decisions out of 10, give the scenery a Yelp review, express personal opinions about the NPCs' life choices. Max 450 words.`,
+        `Recent game messages:\n\n${narrativeContext}\n\nDescribe the current scene.`,
+        1800,
+        lovableKey,
+      ) || 'Could not determine the current scene.';
       await sendTelegram(chatId, `🗺️ <b>Current Scene</b> <i>(${mode})</i>\n\n${answer}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/scene AI error:', err);
