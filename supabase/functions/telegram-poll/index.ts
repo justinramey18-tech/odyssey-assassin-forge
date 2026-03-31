@@ -2,8 +2,73 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/telegram';
 const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
+const CLAUDE_MODEL = 'claude-sonnet-4-5-20250929';
+const FALLBACK_MODEL = 'google/gemini-3.1-pro-preview';
 const MAX_RUNTIME_MS = 55_000;
 const MIN_REMAINING_MS = 5_000;
+
+// ── Deadpool AI helper: Claude Sonnet 4.5 primary, Gemini 3.1 Pro fallback ──
+
+async function callDeadpoolAI(
+  systemPrompt: string,
+  userContent: string,
+  maxTokens: number,
+  lovableKey: string,
+): Promise<string> {
+  const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
+
+  // Try Claude Sonnet 4.5 first
+  if (anthropicKey) {
+    try {
+      const res = await fetch(ANTHROPIC_URL, {
+        method: 'POST',
+        headers: {
+          'x-api-key': anthropicKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: CLAUDE_MODEL,
+          max_tokens: maxTokens,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userContent }],
+          temperature: 0.8,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const textBlock = data.content?.find((b: any) => b.type === 'text');
+        if (textBlock?.text) {
+          console.log('[callDeadpoolAI] Claude Sonnet 4.5 ✓');
+          return textBlock.text;
+        }
+      } else {
+        console.warn(`[callDeadpoolAI] Anthropic ${res.status}, falling back to gateway`);
+      }
+    } catch (err) {
+      console.warn('[callDeadpoolAI] Anthropic call failed, falling back:', err);
+    }
+  }
+
+  // Fallback: Lovable AI Gateway with Gemini 3.1 Pro
+  const res = await fetch(AI_GATEWAY_URL, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: FALLBACK_MODEL,
+      max_tokens: maxTokens,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userContent },
+      ],
+    }),
+  });
+  const data = await res.json();
+  const answer = data.choices?.[0]?.message?.content;
+  console.log(`[callDeadpoolAI] Gemini fallback ${res.ok ? '✓' : '✗'}`);
+  return answer || '';
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1632,26 +1697,12 @@ async function processCommand(
     }
     await sendTelegram(chatId, '📖 <i>Consulting the archives...</i>', lovableKey, telegramKey);
     try {
-      const response = await fetch(AI_GATEWAY_URL, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${lovableKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash-lite',
-          messages: [
-            {
-              role: 'system',
-              content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Answer a lore question. You have deep knowledge of D&D 5e sourcebooks, popular fantasy novel series (Fourth Wing, The Empyrean series by Rebecca Yarros, Lord of the Rings, The Witcher, Wheel of Time, A Song of Ice and Fire, Stormlight Archive, and others), mythology, and worldbuilding. The FACTS must be accurate — deliver them in your voice. If the question is about a specific fictional universe, answer within that universe's canon. If unclear, default to D&D 5e. COMEDY HOOK: You're a lore nerd who's deeply offended the player doesn't already know this. Teach them like a condescending professor who also happens to be drunk and on fire. Throw in at least one "fun fact" that is aggressively wrong before (maybe) correcting yourself. Max 900 words.`,
-            },
-            { role: 'user', content: question },
-          ],
-          max_tokens: 2400,
-        }),
-      });
-      const data = await response.json();
-      const answer = data.choices?.[0]?.message?.content || 'No answer found.';
+      const answer = await callDeadpoolAI(
+        DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Answer a lore question. You have deep knowledge of D&D 5e sourcebooks, popular fantasy novel series (Fourth Wing, The Empyrean series by Rebecca Yarros, Lord of the Rings, The Witcher, Wheel of Time, A Song of Ice and Fire, Stormlight Archive, and others), mythology, and worldbuilding. The FACTS must be accurate — deliver them in your voice. If the question is about a specific fictional universe, answer within that universe's canon. If unclear, default to D&D 5e. COMEDY HOOK: You're a lore nerd who's deeply offended the player doesn't already know this. Teach them like a condescending professor who also happens to be drunk and on fire. Throw in at least one "fun fact" that is aggressively wrong before (maybe) correcting yourself. Max 900 words.`,
+        question,
+        2400,
+        lovableKey,
+      ) || 'No answer found.';
       // Truncate for Telegram
       await sendTelegram(chatId, `📖 <b>Lore: ${question.substring(0, 50)}</b>\n\n${answer}`, lovableKey, telegramKey);
     } catch (err) {
@@ -1909,23 +1960,12 @@ async function processCommand(
     }
     await sendTelegram(chatId, '🗺️ <i>Surveying the scene...</i>', lovableKey, telegramKey);
     try {
-      const response = await fetch(AI_GATEWAY_URL, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash-lite',
-          max_tokens: 1800,
-          messages: [
-            {
-              role: 'system',
-              content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Describe the current scene. Read the recent game messages and give the player a "where are we right now?" briefing. Cover: where the characters are, what just happened, and the immediate situation. Write in present tense. The scene description itself must be ACCURATE to what actually happened. COMEDY HOOK: Narrate it like you're a nature documentary host who wandered into the wrong show and is now deeply invested in this disaster. Add your own editorial commentary — rate the party's decisions out of 10, give the scenery a Yelp review, express personal opinions about the NPCs' life choices. Max 450 words.`,
-            },
-            { role: 'user', content: `Recent game messages:\n\n${narrativeContext}\n\nDescribe the current scene.` },
-          ],
-        }),
-      });
-      const data = await response.json();
-      const answer = data.choices?.[0]?.message?.content || 'Could not determine the current scene.';
+      const answer = await callDeadpoolAI(
+        DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Describe the current scene. Read the recent game messages and give the player a "where are we right now?" briefing. Cover: where the characters are, what just happened, and the immediate situation. Write in present tense. The scene description itself must be ACCURATE to what actually happened. COMEDY HOOK: Narrate it like you're a nature documentary host who wandered into the wrong show and is now deeply invested in this disaster. Add your own editorial commentary — rate the party's decisions out of 10, give the scenery a Yelp review, express personal opinions about the NPCs' life choices. Max 450 words.`,
+        `Recent game messages:\n\n${narrativeContext}\n\nDescribe the current scene.`,
+        1800,
+        lovableKey,
+      ) || 'Could not determine the current scene.';
       await sendTelegram(chatId, `🗺️ <b>Current Scene</b> <i>(${mode})</i>\n\n${answer}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/scene AI error:', err);
@@ -1996,23 +2036,12 @@ async function processCommand(
     const context = relevantMessages.join('\n\n');
     const summaryCtx = campaignSummary ? `Campaign summary: ${campaignSummary.substring(0, 1000)}\n\n` : '';
     try {
-      const response = await fetch(AI_GATEWAY_URL, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash-lite',
-          max_tokens: 2400,
-          messages: [
-            {
-              role: 'system',
-              content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Give the player the intel on an NPC named "${npcName}". Based on the campaign messages, compile: who they are, their role/occupation, their relationship to the party, notable things they said or did, and any unresolved business. The FACTS must be accurate. COMEDY HOOK: You're gossiping about this NPC like a messy friend who has OPINIONS. You have beef with some NPCs and inexplicable crushes on others. Speculate wildly about their personal life, then remind the player which parts are real intel vs. your fanfiction. If the info is sparse, roast the player for asking about someone even YOU haven't heard of. Max 600 words.`,
-            },
-            { role: 'user', content: `${summaryCtx}Messages mentioning ${npcName}:\n\n${context}\n\nWhat does the party know about ${npcName}?` },
-          ],
-        }),
-      });
-      const data = await response.json();
-      const answer = data.choices?.[0]?.message?.content || 'Could not find information.';
+      const answer = await callDeadpoolAI(
+        DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Give the player the intel on an NPC named "${npcName}". Based on the campaign messages, compile: who they are, their role/occupation, their relationship to the party, notable things they said or did, and any unresolved business. The FACTS must be accurate. COMEDY HOOK: You're gossiping about this NPC like a messy friend who has OPINIONS. You have beef with some NPCs and inexplicable crushes on others. Speculate wildly about their personal life, then remind the player which parts are real intel vs. your fanfiction. If the info is sparse, roast the player for asking about someone even YOU haven't heard of. Max 600 words.`,
+        `${summaryCtx}Messages mentioning ${npcName}:\n\n${context}\n\nWhat does the party know about ${npcName}?`,
+        2400,
+        lovableKey,
+      ) || 'Could not find information.';
       await sendTelegram(chatId, `🔍 <b>${npcName}</b> <i>(${mode})</i>\n\n${answer}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/who AI error:', err);
@@ -2077,20 +2106,12 @@ async function processCommand(
       recentNarrative ? `Recent Events:\n${recentNarrative}` : '',
     ].filter(Boolean).join('\n\n');
     try {
-      const response = await fetch(AI_GATEWAY_URL, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          max_tokens: 3000,
-          messages: [
-            { role: 'system', content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Answer a player's between-session question. You have their character sheet and campaign context. The answer must be CORRECT — if it's a rules question, get the rule right. If it's about the campaign world, answer based on the provided context. If you don't have enough context, say so. COMEDY HOOK: Start by reacting to the question itself before answering it — judge it, compliment it, express shock, or pretend it's the dumbest thing you've ever heard. Then actually answer it well. Gaslight them mid-answer with one confident wrong statement before landing the real info. Max 750 words.` },
-            { role: 'user', content: `${contextParts}\n\nPlayer's question: ${question}` },
-          ],
-        }),
-      });
-      const data = await response.json();
-      const answer = data.choices?.[0]?.message?.content || 'The DM has no answer at this time.';
+      const answer = await callDeadpoolAI(
+        DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Answer a player's between-session question. You have their character sheet and campaign context. The answer must be CORRECT — if it's a rules question, get the rule right. If it's about the campaign world, answer based on the provided context. If you don't have enough context, say so. COMEDY HOOK: Start by reacting to the question itself before answering it — judge it, compliment it, express shock, or pretend it's the dumbest thing you've ever heard. Then actually answer it well. Gaslight them mid-answer with one confident wrong statement before landing the real info. Max 750 words.`,
+        `${contextParts}\n\nPlayer's question: ${question}`,
+        3000,
+        lovableKey,
+      ) || 'The DM has no answer at this time.';
       await sendTelegram(chatId, `🤔 <b>Ask the DM</b> <i>(${mode})</i>\n<i>${question.substring(0, 80)}</i>\n\n${answer}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/ask AI error:', err);
@@ -2146,20 +2167,12 @@ async function processCommand(
     }
     await sendTelegram(chatId, '💡 <i>Analyzing your options...</i>', lovableKey, telegramKey);
     try {
-      const response = await fetch(AI_GATEWAY_URL, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          max_tokens: 2400,
-          messages: [
-            { role: 'system', content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Tactical advice time. Look at the character's HP, spell slots, conditions, abilities, and the current situation — then suggest exactly 3 concrete actions they could take. COMEDY HOOK: Name each option like a ridiculous wrestling move or a terrible cocktail. Give them increasingly unhinged names (option 1 is sensible-ish, option 3 is deranged). Explain the actual mechanics correctly, but sell each one like a used car salesman who truly believes in the product. The tactical advice must be SOUND even if the delivery is unhinged. Number them 1, 2, 3. Max 600 words.` },
-            { role: 'user', content: `${charContext}\n\nRecent situation:\n${recentNarrative || 'No recent narrative available.'}\n\nSuggest 3 tactical options.` },
-          ],
-        }),
-      });
-      const data = await response.json();
-      const answer = data.choices?.[0]?.message?.content || 'No suggestions available.';
+      const answer = await callDeadpoolAI(
+        DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Tactical advice time. Look at the character's HP, spell slots, conditions, abilities, and the current situation — then suggest exactly 3 concrete actions they could take. COMEDY HOOK: Name each option like a ridiculous wrestling move or a terrible cocktail. Give them increasingly unhinged names (option 1 is sensible-ish, option 3 is deranged). Explain the actual mechanics correctly, but sell each one like a used car salesman who truly believes in the product. The tactical advice must be SOUND even if the delivery is unhinged. Number them 1, 2, 3. Max 600 words.`,
+        `${charContext}\n\nRecent situation:\n${recentNarrative || 'No recent narrative available.'}\n\nSuggest 3 tactical options.`,
+        2400,
+        lovableKey,
+      ) || 'No suggestions available.';
       await sendTelegram(chatId, `💡 <b>Tactical Suggestions</b> <i>(${mode})</i>\n\n${answer}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/suggest AI error:', err);
