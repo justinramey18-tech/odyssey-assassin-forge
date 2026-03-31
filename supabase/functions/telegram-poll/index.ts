@@ -2,8 +2,73 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/telegram';
 const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
+const CLAUDE_MODEL = 'claude-sonnet-4-5-20250929';
+const FALLBACK_MODEL = 'google/gemini-3.1-pro-preview';
 const MAX_RUNTIME_MS = 55_000;
 const MIN_REMAINING_MS = 5_000;
+
+// ── Deadpool AI helper: Claude Sonnet 4.5 primary, Gemini 3.1 Pro fallback ──
+
+async function callDeadpoolAI(
+  systemPrompt: string,
+  userContent: string,
+  maxTokens: number,
+  lovableKey: string,
+): Promise<string> {
+  const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
+
+  // Try Claude Sonnet 4.5 first
+  if (anthropicKey) {
+    try {
+      const res = await fetch(ANTHROPIC_URL, {
+        method: 'POST',
+        headers: {
+          'x-api-key': anthropicKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: CLAUDE_MODEL,
+          max_tokens: maxTokens,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userContent }],
+          temperature: 0.8,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const textBlock = data.content?.find((b: any) => b.type === 'text');
+        if (textBlock?.text) {
+          console.log('[callDeadpoolAI] Claude Sonnet 4.5 ✓');
+          return textBlock.text;
+        }
+      } else {
+        console.warn(`[callDeadpoolAI] Anthropic ${res.status}, falling back to gateway`);
+      }
+    } catch (err) {
+      console.warn('[callDeadpoolAI] Anthropic call failed, falling back:', err);
+    }
+  }
+
+  // Fallback: Lovable AI Gateway with Gemini 3.1 Pro
+  const res = await fetch(AI_GATEWAY_URL, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: FALLBACK_MODEL,
+      max_tokens: maxTokens,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userContent },
+      ],
+    }),
+  });
+  const data = await res.json();
+  const answer = data.choices?.[0]?.message?.content;
+  console.log(`[callDeadpoolAI] Gemini fallback ${res.ok ? '✓' : '✗'}`);
+  return answer || '';
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
