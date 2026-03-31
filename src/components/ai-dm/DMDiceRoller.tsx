@@ -91,24 +91,24 @@ const SKILL_DESCRIPTIONS: Record<string, string> = {
 
 // Empyrean skill descriptions
 const EMPYREAN_SKILL_DESCRIPTIONS: Record<string, string> = {
-  acrobatics: 'Aerial maneuvers, flight combat',
-  animal_handling: 'Bond with your dragon',
-  arcana: 'Signet theory & rune lore',
-  athletics: 'Endure long flights & exertion',
-  deception: 'Mislead with cunning',
-  history: 'Recall military history',
-  insight: "Read someone's motives",
-  intimidation: 'Threaten or coerce',
-  investigation: 'Search the Codex',
-  medicine: 'Field triage & stabilization',
-  nature: 'Dragon lore & beast knowledge',
-  perception: 'Spot threats & hidden danger',
-  performance: 'Rally morale & inspire',
-  persuasion: 'Command & lead others',
-  religion: 'Venin knowledge & warding',
-  sleight_of_hand: 'Craft runes & wards',
-  stealth: 'Move unseen, shadow work',
-  survival: 'Tactical survival & navigation',
+  acrobatics: 'Dogfighting on dragonback and avoiding dismount during aerial combat',
+  animal_handling: 'Reading dragon moods, calming aggressive dragons, strengthening your bond',
+  arcana: 'Understanding signet mechanics, avoiding burnout, and rune theory',
+  athletics: 'Staying mounted during extreme maneuvers and sustained physical exertion',
+  deception: 'Lying convincingly and hiding rebellion ties from Basgiath leadership',
+  history: 'Knowledge of past battles, tactical precedents, and military doctrine',
+  insight: 'Reading people, detecting lies, and sensing hidden motives or betrayal',
+  intimidation: 'Projecting dominance, threatening enemies, forcing submission',
+  investigation: 'Navigating military law in the Codex and finding legal loopholes',
+  medicine: 'Stabilizing wounded riders and treating battlefield injuries under fire',
+  nature: 'Dragon breeds, behaviors, bonding patterns, and territorial instincts',
+  perception: 'Spotting ambushes, detecting threats before they strike, situational awareness',
+  performance: 'Boosting squad morale before battle, public speaking, rallying the wing',
+  persuasion: 'Leading squads, inspiring troops, issuing commands under pressure',
+  religion: 'Recognizing Venin corruption, understanding dark wielder weaknesses and warding',
+  sleight_of_hand: 'Creating magical runes and enchanted items — highly illegal at Basgiath',
+  stealth: 'Infiltration and moving silently through enemy territory — rebellion specialty',
+  survival: 'Navigation, shelter-building, and tactical resource management for War Games',
 };
 
 function getSkillDescription(skillId: string): string {
@@ -127,12 +127,12 @@ const SAVE_DESCRIPTIONS: Record<AbilityScore, string> = {
 };
 
 const EMPYREAN_SAVE_DESCRIPTIONS: Record<AbilityScore, string> = {
-  str: 'Endure physical force',
-  dex: 'Dodge blasts & dragon fire',
-  con: 'Resist venin & exhaustion',
-  int: 'Focus through mental assault',
-  wis: 'Trust your instinct under pressure',
-  cha: 'Assert willpower against influence',
+  str: 'Resist being thrown from your dragon or pinned by force',
+  dex: 'Dodge dragon fire, crossbow bolts, and aerial hazards',
+  con: 'Endure Venin corruption, poison, exhaustion, and signet burnout',
+  int: 'Maintain focus through mental assault and signet interference',
+  wis: 'Trust your instincts when illusions or fear try to deceive you',
+  cha: 'Assert your will against telepathic intrusion and mental domination',
 };
 
 function getSaveDescription(key: AbilityScore): string {
@@ -620,7 +620,7 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
                         "text-[11px] truncate",
                         isExpert ? "text-amber-200/80" : isProf ? "text-emerald-200/80" : "text-white/70"
                       )}>{skill.name}</span>
-                      {desc && <span className="text-[8px] text-white/30 truncate">{desc}</span>}
+{desc && <span className="text-[9px] text-white/35 line-clamp-2 leading-tight">{desc}</span>}
                     </div>
                   </div>
                   <span className={cn("text-[10px] font-semibold shrink-0 ml-1", abilityInfo.color)}>
@@ -682,7 +682,7 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
                     ) : null}
                     <div className="flex flex-col min-w-0">
                       <span className={cn("text-xs font-semibold", info.color)}>{display.name}</span>
-                      {desc && <span className="text-[8px] text-white/30 truncate">{desc}</span>}
+                      {desc && <span className="text-[9px] text-white/35 line-clamp-2 leading-tight">{desc}</span>}
                     </div>
                   </div>
                   <span className="text-xs text-white/50 shrink-0 ml-1">{totalMod >= 0 ? `+${totalMod}` : totalMod}</span>
