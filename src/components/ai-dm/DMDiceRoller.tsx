@@ -620,7 +620,7 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
                         "text-[11px] truncate",
                         isExpert ? "text-amber-200/80" : isProf ? "text-emerald-200/80" : "text-white/70"
                       )}>{skill.name}</span>
-                      {desc && <span className="text-[8px] text-white/30 truncate">{desc}</span>}
+{desc && <span className="text-[9px] text-white/35 line-clamp-2 leading-tight">{desc}</span>}
                     </div>
                   </div>
                   <span className={cn("text-[10px] font-semibold shrink-0 ml-1", abilityInfo.color)}>
