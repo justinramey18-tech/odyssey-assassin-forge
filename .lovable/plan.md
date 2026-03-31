@@ -1,33 +1,42 @@
 
 
-## Upgrade Deadpool's Comedy Engine
+## Upgrade Deadpool Commands to Claude Sonnet 4.5 with Gemini 3 Pro Fallback
 
 ### What changes
-The shared `DEADPOOL_TELEGRAM_PERSONA` prompt gets a major rewrite to inject specific comedy directives — wit, shock humor, absurdist gaslighting, sarcasm, dry/wet humor, and gleeful irreverence. The per-command suffixes also get tweaked to encourage funnier delivery.
-
-### Current persona (lines 227–236)
-Generic "swear freely, be vulgar, break fourth wall" instructions with a 60/20/10/10 formula. It works but reads like a *permission slip* rather than a *comedy playbook*.
-
-### New persona direction
-Instead of just saying "be funny," the prompt will teach Deadpool *how* to be funny with specific techniques:
-
-1. **Wit & wordplay** — puns, double-entendres, unexpected callbacks to earlier in the response
-2. **Shock humor** — say the quiet part loud, then act confused why everyone's staring
-3. **Absurdist gaslighting** — confidently assert something wildly wrong mid-answer, then casually correct yourself (or don't). Not meant to deceive — meant to make the reader do a double-take
-4. **Sarcasm & dry humor** — deadpan delivery of obviously insane statements, understated reactions to catastrophic situations
-5. **Wet humor** — lowbrow, bodily, gleefully juvenile. The kind of joke that makes you laugh and then feel bad about laughing
-6. **Endearing nihilism** — genuinely not giving a fuck, but in a way that's warm rather than cruel. Like a friend who roasts you because they love you
+All 5 Deadpool commands (`/lore`, `/scene`, `/who`, `/ask`, `/suggest`) will try Claude Sonnet 4.5 first using the server-side `ANTHROPIC_API_KEY` secret, falling back to `google/gemini-3.1-pro-preview` via the Lovable AI Gateway if the key is missing or the call fails.
 
 ### File changed
 **`supabase/functions/telegram-poll/index.ts`**
 
-1. **Rewrite `DEADPOOL_TELEGRAM_PERSONA` constant** (lines 227–236) with expanded comedy toolkit directives while preserving the existing accuracy/helpfulness rules and HTML-only formatting constraint
-2. **Polish the 5 per-command suffixes** (`/lore`, `/scene`, `/who`, `/ask`, `/suggest`) to include one or two command-specific comedy hooks (e.g., `/who` should gossip about the NPC like a messy friend; `/suggest` should name tactics like ridiculous wrestling moves)
+### Implementation
+
+1. **Add a shared helper function** `callDeadpoolAI(systemPrompt, userContent, maxTokens, lovableKey)` near the top of the file that:
+   - Reads `ANTHROPIC_API_KEY` from `Deno.env`
+   - If present: calls Anthropic API directly (`https://api.anthropic.com/v1/messages`) with model `claude-sonnet-4-5-20250929`, converts the response to extract text content
+   - If missing OR if the Anthropic call fails (non-2xx): falls back to the Lovable AI Gateway with model `google/gemini-3.1-pro-preview`
+   - Returns the text answer string (or a fallback error message)
+   - Uses the existing `callAnthropicNonStreaming` from `../_shared/anthropic-helper.ts` for the Claude call
+
+2. **Replace all 5 Deadpool command fetch blocks** (`/lore`, `/scene`, `/who`, `/ask`, `/suggest`) to call `callDeadpoolAI()` instead of directly fetching `AI_GATEWAY_URL` with the Gemini model. The system prompts and user content stay identical.
+
+3. **Import** the shared anthropic helper at the top of the file.
 
 ### What stays the same
-- All accuracy rules ("CORRECT and USEFUL," facts first)
-- HTML-only formatting constraint
-- Word and token limits (already tripled)
-- `/bond` command — completely untouched
-- No structural code changes — only string content updates
+- `/bond` command — untouched (separate dragon persona, not Deadpool)
+- All non-AI commands — untouched
+- All system prompts, comedy persona, word limits — identical
+- `sendTelegram` chunking logic — untouched
+- Token limits per command — unchanged
+
+### Technical detail
+
+```text
+callDeadpoolAI(system, user, maxTokens, lovableKey)
+  ├─ ANTHROPIC_API_KEY exists?
+  │   ├─ YES → call Anthropic API (claude-sonnet-4-5-20250929)
+  │   │         ├─ success → return text
+  │   │         └─ failure → fall through to gateway
+  │   └─ NO  → fall through to gateway
+  └─ Gateway: google/gemini-3.1-pro-preview via AI_GATEWAY_URL
+```
 
