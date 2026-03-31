@@ -1697,26 +1697,12 @@ async function processCommand(
     }
     await sendTelegram(chatId, '📖 <i>Consulting the archives...</i>', lovableKey, telegramKey);
     try {
-      const response = await fetch(AI_GATEWAY_URL, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${lovableKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash-lite',
-          messages: [
-            {
-              role: 'system',
-              content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Answer a lore question. You have deep knowledge of D&D 5e sourcebooks, popular fantasy novel series (Fourth Wing, The Empyrean series by Rebecca Yarros, Lord of the Rings, The Witcher, Wheel of Time, A Song of Ice and Fire, Stormlight Archive, and others), mythology, and worldbuilding. The FACTS must be accurate — deliver them in your voice. If the question is about a specific fictional universe, answer within that universe's canon. If unclear, default to D&D 5e. COMEDY HOOK: You're a lore nerd who's deeply offended the player doesn't already know this. Teach them like a condescending professor who also happens to be drunk and on fire. Throw in at least one "fun fact" that is aggressively wrong before (maybe) correcting yourself. Max 900 words.`,
-            },
-            { role: 'user', content: question },
-          ],
-          max_tokens: 2400,
-        }),
-      });
-      const data = await response.json();
-      const answer = data.choices?.[0]?.message?.content || 'No answer found.';
+      const answer = await callDeadpoolAI(
+        DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Answer a lore question. You have deep knowledge of D&D 5e sourcebooks, popular fantasy novel series (Fourth Wing, The Empyrean series by Rebecca Yarros, Lord of the Rings, The Witcher, Wheel of Time, A Song of Ice and Fire, Stormlight Archive, and others), mythology, and worldbuilding. The FACTS must be accurate — deliver them in your voice. If the question is about a specific fictional universe, answer within that universe's canon. If unclear, default to D&D 5e. COMEDY HOOK: You're a lore nerd who's deeply offended the player doesn't already know this. Teach them like a condescending professor who also happens to be drunk and on fire. Throw in at least one "fun fact" that is aggressively wrong before (maybe) correcting yourself. Max 900 words.`,
+        question,
+        2400,
+        lovableKey,
+      ) || 'No answer found.';
       // Truncate for Telegram
       await sendTelegram(chatId, `📖 <b>Lore: ${question.substring(0, 50)}</b>\n\n${answer}`, lovableKey, telegramKey);
     } catch (err) {
