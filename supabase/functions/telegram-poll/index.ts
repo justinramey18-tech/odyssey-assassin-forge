@@ -2036,23 +2036,12 @@ async function processCommand(
     const context = relevantMessages.join('\n\n');
     const summaryCtx = campaignSummary ? `Campaign summary: ${campaignSummary.substring(0, 1000)}\n\n` : '';
     try {
-      const response = await fetch(AI_GATEWAY_URL, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash-lite',
-          max_tokens: 2400,
-          messages: [
-            {
-              role: 'system',
-              content: DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Give the player the intel on an NPC named "${npcName}". Based on the campaign messages, compile: who they are, their role/occupation, their relationship to the party, notable things they said or did, and any unresolved business. The FACTS must be accurate. COMEDY HOOK: You're gossiping about this NPC like a messy friend who has OPINIONS. You have beef with some NPCs and inexplicable crushes on others. Speculate wildly about their personal life, then remind the player which parts are real intel vs. your fanfiction. If the info is sparse, roast the player for asking about someone even YOU haven't heard of. Max 600 words.`,
-            },
-            { role: 'user', content: `${summaryCtx}Messages mentioning ${npcName}:\n\n${context}\n\nWhat does the party know about ${npcName}?` },
-          ],
-        }),
-      });
-      const data = await response.json();
-      const answer = data.choices?.[0]?.message?.content || 'Could not find information.';
+      const answer = await callDeadpoolAI(
+        DEADPOOL_TELEGRAM_PERSONA + `\n\nYOUR JOB RIGHT NOW: Give the player the intel on an NPC named "${npcName}". Based on the campaign messages, compile: who they are, their role/occupation, their relationship to the party, notable things they said or did, and any unresolved business. The FACTS must be accurate. COMEDY HOOK: You're gossiping about this NPC like a messy friend who has OPINIONS. You have beef with some NPCs and inexplicable crushes on others. Speculate wildly about their personal life, then remind the player which parts are real intel vs. your fanfiction. If the info is sparse, roast the player for asking about someone even YOU haven't heard of. Max 600 words.`,
+        `${summaryCtx}Messages mentioning ${npcName}:\n\n${context}\n\nWhat does the party know about ${npcName}?`,
+        2400,
+        lovableKey,
+      ) || 'Could not find information.';
       await sendTelegram(chatId, `🔍 <b>${npcName}</b> <i>(${mode})</i>\n\n${answer}`, lovableKey, telegramKey);
     } catch (err) {
       console.error('/who AI error:', err);
