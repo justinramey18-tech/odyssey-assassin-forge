@@ -450,8 +450,10 @@ async function processCommand(
   lovableKey: string,
   telegramKey: string,
 ) {
-  const cmd = text.trim().toLowerCase();
-  const parts = text.trim().split(/\s+/);
+  // Strip @BotName suffix that Telegram appends in group chats (e.g. "/help@DndForgeBot" → "/help")
+  const cleaned = text.trim().replace(/@\S+/, '');
+  const cmd = cleaned.toLowerCase();
+  const parts = cleaned.split(/\s+/);
 
   // /start
   if (cmd === '/start') {
