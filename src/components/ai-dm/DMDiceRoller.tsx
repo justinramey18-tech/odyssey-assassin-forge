@@ -682,7 +682,7 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
                     ) : null}
                     <div className="flex flex-col min-w-0">
                       <span className={cn("text-xs font-semibold", info.color)}>{display.name}</span>
-                      {desc && <span className="text-[8px] text-white/30 truncate">{desc}</span>}
+                      {desc && <span className="text-[9px] text-white/35 line-clamp-2 leading-tight">{desc}</span>}
                     </div>
                   </div>
                   <span className="text-xs text-white/50 shrink-0 ml-1">{totalMod >= 0 ? `+${totalMod}` : totalMod}</span>
