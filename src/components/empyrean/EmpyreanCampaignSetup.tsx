@@ -231,7 +231,7 @@ export function EmpyreanCampaignSetup({
     
     toast.success('Empyrean Campaign configured!');
     onClose();
-  }, [selectedLore, selectedTone, characterName, dragonName, signetType, yearAtBasgiath, campaignFocus, addGuide, onComplete, onClose]);
+  }, [selectedLore, selectedTone, characterName, dragonName, dragonColor, signetType, yearAtBasgiath, campaignFocus, addGuide, onComplete, onClose]);
 
   if (!open) return null;
 
