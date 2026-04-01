@@ -8,6 +8,7 @@ import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import empyreanSpeaksImg from '@/assets/empyrean-speaks.jpg';
 import empyreanDmBg from '@/assets/empyrean-dm-bg.jpg';
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
+import DeathSaveScreen from '@/components/empyrean/DeathSaveScreen';
 import { VerticalHealthBar } from '@/components/home/VerticalHealthBar';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
@@ -852,6 +853,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
+  const [showDeathSaves, setShowDeathSaves] = useState(false);
   const narrator = useNarrator();
   const spotify = useSpotify();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
@@ -1731,7 +1733,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onGround={() => dragonBonds.updateBurnout(Math.max(0, bLevel - 1))}
               currentHP={characterContext?.currentHP ?? 10}
               maxHP={characterContext?.maxHP ?? 10}
-              onHPChange={onHPChange}
+              onHPChange={(change, type) => {
+                onHPChange?.(change, type);
+                if (type === 'damage') {
+                  const hpAfter = (characterContext?.currentHP ?? 10) + change;
+                  if (hpAfter <= 0) {
+                    setTimeout(() => setShowDeathSaves(true), 600);
+                  }
+                }
+              }}
             />
           );
         })()}
@@ -3505,6 +3515,21 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           }}
         />
       )}
+
+      {/* Death Save Screen */}
+      <DeathSaveScreen
+        open={showDeathSaves}
+        characterName={members.find(m => m.user_id === currentUserId)?.character_name || 'Rider'}
+        dragonName={dragonBonds.myDragon?.dragonName || 'your dragon'}
+        onStabilize={() => {
+          setShowDeathSaves(false);
+          onHPChange?.(1, 'healing');
+        }}
+        onDeath={() => {
+          setShowDeathSaves(false);
+          // Memorial screen will be added in prompt 2
+        }}
+      />
     </div>
   );
 }

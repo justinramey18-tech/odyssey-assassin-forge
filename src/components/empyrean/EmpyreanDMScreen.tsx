@@ -5,6 +5,7 @@ import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
 import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle, Theater, Megaphone, Minus, Plus } from 'lucide-react';
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
+import DeathSaveScreen from '@/components/empyrean/DeathSaveScreen';
 import { VerticalHealthBar } from '@/components/home/VerticalHealthBar';
 import { NpcSceneDialog } from '@/components/ai-dm/NpcSceneDialog';
 import { useOocDmChat } from '@/hooks/use-ooc-dm-chat';
@@ -198,6 +199,7 @@ export function EmpyreanDMScreen({
   const [showAutopilotGuide, setShowAutopilotGuide] = useState(false);
   const [recapExpanded, setRecapExpanded] = useState(false);
   const [showCampaignBuilder, setShowCampaignBuilder] = useState(false);
+  const [showDeathSaves, setShowDeathSaves] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -932,7 +934,16 @@ export function EmpyreanDMScreen({
             onGround={() => setBurnoutLevel(prev => Math.max(0, prev - 1))}
             currentHP={autoSyncCallbacks?.getCurrentHP() ?? 10}
             maxHP={characterContext.maxHP}
-            onHPChange={autoSyncCallbacks?.onHPChange}
+            onHPChange={(change, type) => {
+              autoSyncCallbacks?.onHPChange(change, type);
+              // Check if HP hit 0 after this damage
+              if (type === 'damage') {
+                const hpAfter = (autoSyncCallbacks?.getCurrentHP() ?? 10) + change;
+                if (hpAfter <= 0) {
+                  setTimeout(() => setShowDeathSaves(true), 600);
+                }
+              }
+            }}
           />
         )}
         {/* Vertical HP Bar */}
@@ -1672,6 +1683,21 @@ export function EmpyreanDMScreen({
           />
         )}
       </AnimatePresence>
+
+      {/* Death Save Screen */}
+      <DeathSaveScreen
+        open={showDeathSaves}
+        characterName={characterName}
+        dragonName={config?.dragonName || 'your dragon'}
+        onStabilize={() => {
+          setShowDeathSaves(false);
+          autoSyncCallbacks?.onHPChange(1, 'healing');
+        }}
+        onDeath={() => {
+          setShowDeathSaves(false);
+          // Memorial screen will be added in prompt 2
+        }}
+      />
     </div>
   );
 }
