@@ -74,6 +74,7 @@ export default function DragonBondChat({
   characterName,
   dragonName,
   dragonNotes,
+  dragonColor,
   characterContext,
   recentNarrative,
   burnoutLevel,
