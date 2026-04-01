@@ -84,4 +84,6 @@ export const SCOPED_KEYS = [
   'odyssey-synthesis-recent-modes',
   // DM response mode
   'odyssey-dm-response-mode',
+  // Empyrean unbonded status
+  'empyrean-unbonded-status',
 ] as const;

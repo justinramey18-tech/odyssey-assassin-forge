@@ -94,6 +94,8 @@ const ALL_STORAGE_KEYS = [
 
   // DM response mode
   'odyssey-dm-response-mode',
+  // Empyrean unbonded status
+  'empyrean-unbonded-status',
 ] as const;
 
 /**

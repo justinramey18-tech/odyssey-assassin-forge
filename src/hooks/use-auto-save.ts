@@ -74,6 +74,7 @@ export interface SaveData {
   synthesisRecentModes?: string[];
   dmResponseMode?: string | null;
   empyreanStatus?: 'active' | 'fallen';
+  empyreanUnbondedStatus?: boolean;
   savedAt: string;
   version: number;
 }
