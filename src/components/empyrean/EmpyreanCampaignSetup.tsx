@@ -143,6 +143,7 @@ export function EmpyreanCampaignSetup({
   deleteGuide,
   onComplete,
   onLaunchWithScene,
+  isUnbonded = false,
 }: EmpyreanCampaignSetupProps) {
   const [step, setStep] = useState(0);
 
