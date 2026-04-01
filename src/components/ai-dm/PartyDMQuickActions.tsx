@@ -131,10 +131,19 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
 }
 
 const EXECUTION_FIRE_AUDIO_URL = '/audio/dragon-execution-fire.mp3';
+const DRAGON_ROAR_AUDIO_URL = '/audio/dragon-roar.mp3';
 
 function playExecutionFireAudio() {
   try {
     const audio = new Audio(EXECUTION_FIRE_AUDIO_URL);
+    audio.volume = 0.7;
+    audio.play().catch(() => {});
+  } catch {}
+}
+
+function playDragonRoarAudio() {
+  try {
+    const audio = new Audio(DRAGON_ROAR_AUDIO_URL);
     audio.volume = 0.7;
     audio.play().catch(() => {});
   } catch {}
@@ -280,8 +289,9 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   items={sections.dragonActions}
                   accentClass="text-amber-400"
                   onUse={(prompt) => {
-                    // Play audio for execution fire
+                    // Play audio for dragon actions
                     if (prompt.includes('kill command')) playExecutionFireAudio();
+                    else if (prompt.includes('to roar')) playDragonRoarAudio();
                     onUsePrompt(prompt);
                   }}
                   defaultOpen={true}
