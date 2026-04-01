@@ -1932,6 +1932,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
             const updatedConfig: EmpyreanDMConfig = {
               ...currentConfig,
               dragonName: newConfig.dragonName,
+              dragonColor: newConfig.dragonColor,
               signetType: newConfig.signetType,
               yearAtBasgiath: newConfig.yearAtBasgiath,
             };
