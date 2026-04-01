@@ -3313,6 +3313,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         characterContext={characterContext}
         characterName={characterContext?.name || 'The Adventurer'}
         onUsePrompt={handleUsePrompt}
+        empyreanDragonName={isEmpyrean && dragonBonds.myDragon?.dragonName ? dragonBonds.myDragon.dragonName : undefined}
       />
       {/* Infinity Stone DM Drawer */}
       <InfinityStoneDMDrawer

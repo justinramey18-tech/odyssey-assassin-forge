@@ -273,6 +273,20 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
             <p className="text-center text-sm text-white/30 py-8">No actions available. Equip weapons, prepare spells, or unlock abilities.</p>
           ) : (
             <>
+              {sections.dragonActions.length > 0 && (
+                <QuickActionSection
+                  title="Dragon Actions"
+                  icon={<Flame className="w-4 h-4" />}
+                  items={sections.dragonActions}
+                  accentClass="text-amber-400"
+                  onUse={(prompt) => {
+                    // Play audio for execution fire
+                    if (prompt.includes('kill command')) playExecutionFireAudio();
+                    onUsePrompt(prompt);
+                  }}
+                  defaultOpen={true}
+                />
+              )}
               <QuickActionSection
                 title="Weapons"
                 icon={<Sword className="w-4 h-4" />}
