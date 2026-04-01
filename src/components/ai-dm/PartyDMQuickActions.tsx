@@ -311,6 +311,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                     if (prompt.includes('kill command')) playExecutionFireAudio();
                      else if (prompt.includes('to roar')) playDragonRoarAudio();
                      else if (prompt.includes('launch into the sky')) playDragonTakeoffAudio();
+                     else if (prompt.includes('descend and land')) playDragonLandAudio();
                     onUsePrompt(prompt);
                   }}
                   defaultOpen={true}
