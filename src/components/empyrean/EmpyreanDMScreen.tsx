@@ -219,6 +219,31 @@ export function EmpyreanDMScreen({
     }
   }, [open]);
 
+  // Auto-install Threshing Rebirth GM guide when unbonded
+  useEffect(() => {
+    if (isUnbonded && open) {
+      const guideId = 'empyrean-session-threshing-rebirth';
+      const existingGuide = guides.find((g: any) => g.id === guideId);
+      if (!existingGuide) {
+        addGuide(
+          'Threshing Rebirth Protocol',
+          `A rider in this party has died and been reborn without a dragon bond. The Empyrean has decreed they must prove worthiness before a new Threshing.
+
+UNBONDED RIDER RULES:
+- This character has NO dragon, NO signet, NO telepathic bond. They fight with blade and body only.
+- Reference their vulnerability — they are the only unbonded rider in a bonded squad.
+- Other characters' dragons should react to them with curiosity, wariness, or occasional tenderness.
+- Design trials that test the character's worthiness: courage without power, leadership without authority.
+- The character feels the absence of the bond physically — a hollow ache, silence where a voice should be.
+- When bonded riders communicate telepathically, this character is excluded. Narrate the exclusion.
+- NPCs treat them differently: some with respect, some with pity, some with suspicion.
+- DO NOT have a dragon bond with this character unless the <!--THRESHING_AUTHORIZED--> tag has been injected.`,
+          guideId
+        );
+      }
+    }
+  }, [isUnbonded, open]);
+
   const gmGuides = useGMGuides();
   const { enabledContent, activeGuideIds, guides, addGuide } = gmGuides;
   const { themeId: chatThemeId, setTheme: setChatTheme } = useDMChatTheme();
