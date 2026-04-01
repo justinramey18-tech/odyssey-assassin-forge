@@ -198,6 +198,7 @@ export function EmpyreanCampaignSetup({
       selectedSessionTemplate: null,
       characterName,
       dragonName: isUnbonded ? '' : dragonName,
+      dragonColor: isUnbonded ? '' : dragonColor,
       signetType: isUnbonded ? '' : signetType,
       yearAtBasgiath,
       campaignFocus,
