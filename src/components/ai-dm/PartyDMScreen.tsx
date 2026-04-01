@@ -3568,7 +3568,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         bondLevel={dragonBonds.myDragon?.bond ?? 0}
         maxBondLevel={100}
         characterLevel={characterContext?.level || 1}
-        sessionsPlayed={dragonBonds.myDragon?.totalChatExchanges ?? 0}
+        sessionsPlayed={0}
         causeOfDeath="Burnout — failed to ground"
         squadName="Basgiath War College"
         onBeginAgain={() => {
