@@ -1886,6 +1886,76 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Threshing Cinematic */}
+      <ThreshingCinematic
+        open={showThreshingCinematic}
+        riderName={characterName}
+        onConfigureDragon={() => {
+          setShowThreshingCinematic(false);
+          setShowDragonSetup(true);
+        }}
+      />
+
+      {/* Dragon Rider Setup Sheet (post-Threshing) */}
+      <DragonRiderSetupSheet
+        open={showDragonSetup}
+        onOpenChange={setShowDragonSetup}
+        initialConfig={null}
+        characterName={characterName}
+        onSave={(newConfig) => {
+          // 1. Update EmpyreanDMConfig with new dragon info
+          const currentConfig = loadEmpyreanDMConfig();
+          if (currentConfig) {
+            const updatedConfig: EmpyreanDMConfig = {
+              ...currentConfig,
+              dragonName: newConfig.dragonName,
+              signetType: newConfig.signetType,
+              yearAtBasgiath: newConfig.yearAtBasgiath,
+            };
+            saveEmpyreanDMConfig(updatedConfig);
+            setConfig(updatedConfig);
+          }
+
+          // 2. Save dragon notes
+          saveDragonNotes(newConfig.dragonNotes);
+          setDragonNotes(newConfig.dragonNotes);
+
+          // 3. Clear unbonded flag
+          updateUnbondedStatus(false);
+
+          // 4. Reset dragon bond state to fresh defaults
+          saveBondState({
+            bond: DEFAULT_BOND,
+            trust: DEFAULT_TRUST,
+            mood: 'calm',
+            memories: [],
+            totalChatExchanges: 0,
+            sessionChatCount: 0,
+            ruptures: 0,
+            lastContactTimestamp: null,
+            unreadDragonMessages: [],
+          });
+          dragonBond.reload();
+
+          // 5. Remove the Threshing Rebirth GM Guide
+          const threshingGuide = guides.find(g => g.id === 'empyrean-session-threshing-rebirth');
+          if (threshingGuide) {
+            deleteGuide(threshingGuide.id);
+          }
+
+          // 6. Reset threshing authorization
+          setThreshingAuthorized(false);
+
+          // 7. Close the setup sheet
+          setShowDragonSetup(false);
+
+          // 8. Celebration toast
+          toast(`🐉 ${newConfig.dragonName} has bonded with ${characterName}. Dragon chat, signet, and burnout are now active.`, {
+            duration: 6000,
+          });
+        }}
+      />
     </div>
   );
 }
