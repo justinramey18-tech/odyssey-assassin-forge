@@ -46,6 +46,7 @@ import {
   loadEmpyreanDMConfig,
   buildEmpyreanDMPersona,
   EmpyreanDMConfig,
+  saveEmpyreanDMConfig,
   loadDragonNotes,
   saveDragonNotes,
 } from '@/lib/empyreanDMPersona';
