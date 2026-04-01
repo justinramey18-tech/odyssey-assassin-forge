@@ -274,6 +274,11 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (dragonMemoryMatch) {
       onDragonMemoryRef.current?.(dragonMemoryMatch[1]);
     }
+
+    // Detect dragon bond formation
+    if (lastMsg.content.includes('<!--DRAGON_BOND_FORMED-->')) {
+      onDragonBondFormedRef.current?.();
+    }
   }, [messages, sessionConfig?.campaignType]);
 
 
