@@ -167,6 +167,7 @@ interface UsePartyDmOptions {
   onBondStrainDetected?: (reason: string) => void;
   onBondGrowthDetected?: (reason: string) => void;
   onDragonMemoryDetected?: (memory: string) => void;
+  onDragonBondFormed?: () => void;
   isSoloEmpyrean?: boolean;
 }
 
