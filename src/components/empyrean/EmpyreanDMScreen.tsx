@@ -220,7 +220,7 @@ export function EmpyreanDMScreen({
   }, [open]);
 
   const gmGuides = useGMGuides();
-  const { enabledContent, activeGuideIds } = gmGuides;
+  const { enabledContent, activeGuideIds, guides, addGuide } = gmGuides;
   const { themeId: chatThemeId, setTheme: setChatTheme } = useDMChatTheme();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const narrator = useNarrator();
