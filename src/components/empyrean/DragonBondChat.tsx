@@ -34,6 +34,7 @@ interface DragonBondChatProps {
   characterName: string;
   dragonName: string;
   dragonNotes: string;
+  dragonColor?: string;
   characterContext: CharacterContext;
   recentNarrative?: string[];
   burnoutLevel?: number;
