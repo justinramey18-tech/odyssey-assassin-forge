@@ -227,11 +227,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const onBondStrainRef = useRef(onBondStrainDetected);
   const onBondGrowthRef = useRef(onBondGrowthDetected);
   const onDragonMemoryRef = useRef(onDragonMemoryDetected);
+  const onDragonBondFormedRef = useRef(onDragonBondFormed);
   useEffect(() => { onBurnoutRef.current = onBurnoutDetected; }, [onBurnoutDetected]);
   useEffect(() => { onBurnoutTickRef.current = onBurnoutTickDetected; }, [onBurnoutTickDetected]);
   useEffect(() => { onBondStrainRef.current = onBondStrainDetected; }, [onBondStrainDetected]);
   useEffect(() => { onBondGrowthRef.current = onBondGrowthDetected; }, [onBondGrowthDetected]);
   useEffect(() => { onDragonMemoryRef.current = onDragonMemoryDetected; }, [onDragonMemoryDetected]);
+  useEffect(() => { onDragonBondFormedRef.current = onDragonBondFormed; }, [onDragonBondFormed]);
   const lastParsedMsgIdRef = useRef<string | null>(null);
 
   useEffect(() => {
