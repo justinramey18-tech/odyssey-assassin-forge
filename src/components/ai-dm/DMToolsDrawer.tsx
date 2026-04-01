@@ -326,6 +326,37 @@ export function DMToolsDrawer({
             </div>
           )}
 
+          {/* Threshing Authorization — only visible when unbonded */}
+          {isUnbonded && (
+            <div className="mt-4 mx-1 p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">🐉</span>
+                <h3 className="text-sm font-cinzel font-semibold text-amber-400">Threshing Authorization</h3>
+              </div>
+              <p className="text-[11px] text-muted-foreground mb-3 leading-relaxed">
+                This rider is unbonded. When you decide they have proven themselves worthy,
+                authorize the Threshing. The AI DM will narrate a dragon choosing them.
+              </p>
+              {threshingAuthorized ? (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <span className="text-xs text-amber-400">✓ Threshing authorized — awaiting DM narration</span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    onAuthorizeThreshing?.();
+                    onOpenChange(false);
+                  }}
+                  className="w-full px-4 py-2.5 rounded-lg text-sm font-cinzel font-semibold
+                    bg-amber-500/10 border border-amber-500/30 text-amber-400
+                    hover:bg-amber-500/20 active:scale-[0.98] transition-all"
+                >
+                  Authorize Threshing
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Divider */}
           <div className="mx-4 my-2 border-t border-amber-900/20" />
 
