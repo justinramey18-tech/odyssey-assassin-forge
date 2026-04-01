@@ -1709,7 +1709,66 @@ export function EmpyreanDMScreen({
         }}
         onDeath={() => {
           setShowDeathSaves(false);
-          // Memorial screen will be added in prompt 2
+          setShowDeathTransition(true);
+          // 2-second black transition then memorial
+          setTimeout(() => {
+            setShowDeathTransition(false);
+            setShowMemorial(true);
+          }, 2000);
+        }}
+      />
+
+      {/* Death transition — black with pulsing red dot */}
+      {showDeathTransition && (
+        <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 9999, backgroundColor: '#0a0908' }}>
+          <div
+            className="w-2 h-2 rounded-full"
+            style={{
+              backgroundColor: '#c94444',
+              boxShadow: '0 0 12px 4px rgba(201,68,68,0.5)',
+              animation: 'ember-pulse 1.2s ease-in-out infinite',
+            }}
+          />
+          <style>{`
+            @keyframes ember-pulse {
+              0%, 100% { opacity: 0.3; transform: scale(1); }
+              50% { opacity: 1; transform: scale(1.5); }
+            }
+          `}</style>
+        </div>
+      )}
+
+      {/* Memorial Screen */}
+      <MemorialScreen
+        open={showMemorial}
+        riderName={characterName}
+        dragonName={config?.dragonName || 'Unknown Dragon'}
+        dragonColor={dragonBond.bondState.mood === 'calm' ? '#7a8fa6' : '#7a8fa6'}
+        signetType={config?.signetType || '—'}
+        bondLevel={dragonBond.bondState.bond}
+        maxBondLevel={100}
+        characterLevel={characterContext?.level || 1}
+        sessionsPlayed={dragonBond.bondState.totalChatExchanges}
+        causeOfDeath="Burnout — failed to ground"
+        squadName={config?.yearAtBasgiath ? `${config.yearAtBasgiath} — Basgiath War College` : 'Basgiath War College'}
+        onBeginAgain={() => {
+          setShowMemorial(false);
+          // Reset dragon bond state
+          resetBondState();
+          // Clear dragon config fields
+          if (config) {
+            const clearedConfig: EmpyreanDMConfig = {
+              ...config,
+              dragonName: '',
+              signetType: '',
+            };
+            saveEmpyreanDMConfig(clearedConfig);
+            setConfig(clearedConfig);
+          }
+          // Set a flag for unbonded rebirth
+          localStorage.setItem('odyssey-unbonded-rebirth', 'true');
+          // Close the DM screen and navigate to character creation
+          onClose();
         }}
       />
     </div>
