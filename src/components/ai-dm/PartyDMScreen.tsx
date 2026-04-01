@@ -3530,7 +3530,51 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         }}
         onDeath={() => {
           setShowDeathSaves(false);
-          // Memorial screen will be added in prompt 2
+          setShowDeathTransition(true);
+          setTimeout(() => {
+            setShowDeathTransition(false);
+            setShowMemorial(true);
+          }, 2000);
+        }}
+      />
+
+      {/* Death transition — black with pulsing red dot */}
+      {showDeathTransition && (
+        <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 9999, backgroundColor: '#0a0908' }}>
+          <div
+            className="w-2 h-2 rounded-full"
+            style={{
+              backgroundColor: '#c94444',
+              boxShadow: '0 0 12px 4px rgba(201,68,68,0.5)',
+              animation: 'memorial-ember-pulse 1.2s ease-in-out infinite',
+            }}
+          />
+          <style>{`
+            @keyframes memorial-ember-pulse {
+              0%, 100% { opacity: 0.3; transform: scale(1); }
+              50% { opacity: 1; transform: scale(1.5); }
+            }
+          `}</style>
+        </div>
+      )}
+
+      {/* Memorial Screen */}
+      <MemorialScreen
+        open={showMemorial}
+        riderName={members.find(m => m.user_id === currentUserId)?.character_name || 'Rider'}
+        dragonName={dragonBonds.myDragon?.dragonName || 'Unknown Dragon'}
+        dragonColor="#7a8fa6"
+        signetType={dragonBonds.myDragon?.signetType || '—'}
+        bondLevel={dragonBonds.myDragon?.bond ?? 0}
+        maxBondLevel={100}
+        characterLevel={characterContext?.level || 1}
+        sessionsPlayed={dragonBonds.myDragon?.totalChatExchanges ?? 0}
+        causeOfDeath="Burnout — failed to ground"
+        squadName="Basgiath War College"
+        onBeginAgain={() => {
+          setShowMemorial(false);
+          localStorage.setItem('odyssey-unbonded-rebirth', 'true');
+          onBack();
         }}
       />
     </div>
