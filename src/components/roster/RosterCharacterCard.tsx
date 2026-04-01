@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Plus, Sparkles, Clock, Shield, Coins, Scroll } from 'lucide-react';
 import { CloudSave, CloudSavePreview } from '@/hooks/use-cloud-save';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface RosterCharacterCardProps {
   save: CloudSave;
