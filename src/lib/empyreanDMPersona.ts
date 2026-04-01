@@ -119,6 +119,7 @@ export function buildEmpyreanDMPersona(
   dragonMood?: string,
   recentDragonChatSummary?: string,
   dragonMemories?: string[],
+  isUnbonded: boolean = false,
 ): string {
   const sections: string[] = [];
 
