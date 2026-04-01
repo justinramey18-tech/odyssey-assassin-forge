@@ -33,6 +33,7 @@ interface EmpyreanCampaignSetupProps {
   deleteGuide: (id: string) => void;
   onComplete: (config: EmpyreanDMConfig) => void;
   onLaunchWithScene?: (config: EmpyreanDMConfig, openingPrompt: string) => void;
+  isUnbonded?: boolean;
 }
 
 const STEPS = ['Your Rider', 'Campaign Focus', 'World Lore', 'Campaign Tone', 'Review & Launch'] as const;
@@ -142,6 +143,7 @@ export function EmpyreanCampaignSetup({
   deleteGuide,
   onComplete,
   onLaunchWithScene,
+  isUnbonded = false,
 }: EmpyreanCampaignSetupProps) {
   const [step, setStep] = useState(0);
 
@@ -193,8 +195,8 @@ export function EmpyreanCampaignSetup({
       selectedToneGuides: Array.from(selectedTone),
       selectedSessionTemplate: null,
       characterName,
-      dragonName,
-      signetType,
+      dragonName: isUnbonded ? '' : dragonName,
+      signetType: isUnbonded ? '' : signetType,
       yearAtBasgiath,
       campaignFocus,
     };
@@ -258,27 +260,39 @@ export function EmpyreanCampaignSetup({
           {/* ── Step 1: Your Rider ── */}
           {step === 0 && (
             <div className="space-y-5">
-              <div className="space-y-2">
-                <Label className="text-sm font-cinzel text-purple-200">Dragon Name</Label>
-                <Input
-                  value={dragonName}
-                  onChange={e => setDragonName(e.target.value)}
-                  placeholder="Optional — e.g. Tairn, Sgaeyl, Andarna"
-                  className="bg-card/30 border-purple-500/30 focus:border-purple-400"
-                />
-                <p className="text-xs text-muted-foreground">Leave blank if unbonded or unknown.</p>
-              </div>
+              {isUnbonded ? (
+                <div className="rounded-lg border border-red-500/10 bg-red-500/5 p-4 space-y-2">
+                  <p className="text-[10px] uppercase tracking-wider text-red-400/60 font-semibold">🔒 Unbonded Rider</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    You have not yet been chosen during Threshing. Dragon configuration
+                    will become available when a dragon bonds with you in-story.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-cinzel text-purple-200">Dragon Name</Label>
+                    <Input
+                      value={dragonName}
+                      onChange={e => setDragonName(e.target.value)}
+                      placeholder="Optional — e.g. Tairn, Sgaeyl, Andarna"
+                      className="bg-card/30 border-purple-500/30 focus:border-purple-400"
+                    />
+                    <p className="text-xs text-muted-foreground">Leave blank if unbonded or unknown.</p>
+                  </div>
 
-              <div className="space-y-2">
-                <Label className="text-sm font-cinzel text-purple-200">Signet Ability</Label>
-                <Input
-                  value={signetType}
-                  onChange={e => setSignetType(e.target.value)}
-                  placeholder="e.g. lightning manipulation, temporal perception, gravitational shields"
-                  className="bg-card/30 border-purple-500/30 focus:border-purple-400"
-                />
-                <p className="text-xs text-muted-foreground">Optional — leave blank if not yet manifested.</p>
-              </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-cinzel text-purple-200">Signet Ability</Label>
+                    <Input
+                      value={signetType}
+                      onChange={e => setSignetType(e.target.value)}
+                      placeholder="e.g. lightning manipulation, temporal perception, gravitational shields"
+                      className="bg-card/30 border-purple-500/30 focus:border-purple-400"
+                    />
+                    <p className="text-xs text-muted-foreground">Optional — leave blank if not yet manifested.</p>
+                  </div>
+                </>
+              )}
 
               <div className="space-y-2">
                 <Label className="text-sm font-cinzel text-purple-200">Year at Basgiath</Label>

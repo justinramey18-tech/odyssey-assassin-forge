@@ -8,6 +8,7 @@ import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import empyreanSpeaksImg from '@/assets/empyrean-speaks.jpg';
 import empyreanDmBg from '@/assets/empyrean-dm-bg.jpg';
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
+import { setIsUnbonded } from '@/lib/dragonBondState';
 import DeathSaveScreen from '@/components/empyrean/DeathSaveScreen';
 import MemorialScreen from '@/components/empyrean/MemorialScreen';
 import { VerticalHealthBar } from '@/components/home/VerticalHealthBar';
@@ -3573,6 +3574,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         squadName="Basgiath War College"
         onBeginAgain={() => {
           setShowMemorial(false);
+          setIsUnbonded(true);
           localStorage.setItem('odyssey-unbonded-rebirth', 'true');
           onBack();
         }}

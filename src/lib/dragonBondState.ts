@@ -71,6 +71,22 @@ export function resetBondState(): void {
   saveBondState(defaultState);
 }
 
+// ── UNBONDED STATUS ──
+
+const UNBONDED_KEY = 'empyrean-unbonded-status';
+
+export function getIsUnbonded(): boolean {
+  try {
+    return getScopedItem(UNBONDED_KEY) === 'true';
+  } catch { return false; }
+}
+
+export function setIsUnbonded(unbonded: boolean): void {
+  try {
+    setScopedItem(UNBONDED_KEY, unbonded ? 'true' : 'false');
+  } catch {}
+}
+
 // ── SCORE HELPERS ──
 
 export function getBondDescriptor(bond: number): string {

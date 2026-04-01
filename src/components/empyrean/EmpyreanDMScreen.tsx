@@ -51,7 +51,7 @@ import {
   saveDragonNotes,
 } from '@/lib/empyreanDMPersona';
 import { useDragonBond } from '@/hooks/use-dragon-bond';
-import { getBondDescriptor, getTrustDescriptor, buildDragonChatPrompt, DRAGON_CHAT_SUMMARY_KEY, DRAGON_CHAT_KEY, resetBondState } from '@/lib/dragonBondState';
+import { getBondDescriptor, getTrustDescriptor, buildDragonChatPrompt, DRAGON_CHAT_SUMMARY_KEY, DRAGON_CHAT_KEY, resetBondState, getIsUnbonded, setIsUnbonded } from '@/lib/dragonBondState';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { getAuthToken } from '@/lib/auth-token';
 import { empyreanPrompts } from '@/lib/empyreanPrompts';
@@ -209,6 +209,8 @@ export function EmpyreanDMScreen({
 
   // Reload config when screen opens
   const [showDragonChat, setShowDragonChat] = useState(false);
+  const [showUnbondedDragonSheet, setShowUnbondedDragonSheet] = useState(false);
+  const isUnbonded = useMemo(() => getIsUnbonded(), []);
 
   useEffect(() => {
     if (open) {
@@ -217,8 +219,33 @@ export function EmpyreanDMScreen({
     }
   }, [open]);
 
+  // Auto-install Threshing Rebirth GM guide when unbonded
+  useEffect(() => {
+    if (isUnbonded && open) {
+      const guideId = 'empyrean-session-threshing-rebirth';
+      const existingGuide = guides.find((g: any) => g.id === guideId);
+      if (!existingGuide) {
+        addGuide(
+          'Threshing Rebirth Protocol',
+          `A rider in this party has died and been reborn without a dragon bond. The Empyrean has decreed they must prove worthiness before a new Threshing.
+
+UNBONDED RIDER RULES:
+- This character has NO dragon, NO signet, NO telepathic bond. They fight with blade and body only.
+- Reference their vulnerability — they are the only unbonded rider in a bonded squad.
+- Other characters' dragons should react to them with curiosity, wariness, or occasional tenderness.
+- Design trials that test the character's worthiness: courage without power, leadership without authority.
+- The character feels the absence of the bond physically — a hollow ache, silence where a voice should be.
+- When bonded riders communicate telepathically, this character is excluded. Narrate the exclusion.
+- NPCs treat them differently: some with respect, some with pity, some with suspicion.
+- DO NOT have a dragon bond with this character unless the <!--THRESHING_AUTHORIZED--> tag has been injected.`,
+          guideId
+        );
+      }
+    }
+  }, [isUnbonded, open]);
+
   const gmGuides = useGMGuides();
-  const { enabledContent, activeGuideIds } = gmGuides;
+  const { enabledContent, activeGuideIds, guides, addGuide } = gmGuides;
   const { themeId: chatThemeId, setTheme: setChatTheme } = useDMChatTheme();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const narrator = useNarrator();
@@ -266,9 +293,10 @@ export function EmpyreanDMScreen({
       bs.mood,
       recentDragonChatSummaryRaw?.trim() ? recentDragonChatSummaryRaw : undefined,
       bs.memories.map(m => m.text),
+      isUnbonded,
     );
     return persona;
-  }, [config, characterName, dragonNotes, dragonBond.bondState, dragonBond.bondState.totalChatExchanges]);
+  }, [config, characterName, dragonNotes, dragonBond.bondState, dragonBond.bondState.totalChatExchanges, isUnbonded]);
 
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
   const gameState = useDMGameState(trackingCampaignId);
@@ -660,6 +688,10 @@ export function EmpyreanDMScreen({
 
   const handleNavTabChange = useCallback((tab: DMNavTab) => {
     if (tab === 'oracle') {
+      if (isUnbonded) {
+        setShowUnbondedDragonSheet(true);
+        return;
+      }
       dragonBond.markChatOpened();
       setShowDragonChat(true);
       return;
@@ -821,8 +853,10 @@ export function EmpyreanDMScreen({
               )}
             </div>
             <p className="text-[11px] text-muted-foreground flex items-center gap-2">
-              <span className="truncate max-w-[140px]">{characterName}{config.dragonName ? ` & ${config.dragonName}` : ''}</span>
-              {config.signetType && (
+              <span className="truncate max-w-[140px]">{characterName}{!isUnbonded && config.dragonName ? ` & ${config.dragonName}` : ''}</span>
+              {isUnbonded ? (
+                <span className="text-muted-foreground text-[10px]">No signet</span>
+              ) : config.signetType && (
                 <div className="flex items-center gap-1">
                   <BurnoutIndicator level={burnoutLevel} maxBurnout={maxBurnout} />
                   <button
@@ -939,8 +973,8 @@ export function EmpyreanDMScreen({
         "flex-1 min-h-0 relative flex flex-col overflow-hidden",
         maxBurnout > 0 && burnoutLevel >= maxBurnout ? "animate-[screen-shake_0.6s_ease-in-out_infinite]" : ""
       )}>
-        {/* Burnout flame overlay */}
-        {config.signetType && (
+        {/* Burnout flame overlay — hidden when unbonded */}
+        {!isUnbonded && config.signetType && (
           <BurnoutFlameOverlay
             level={burnoutLevel}
             max={maxBurnout}
@@ -992,6 +1026,15 @@ export function EmpyreanDMScreen({
           return "";
         })()
       )}>
+        {/* Unbonded rider banner */}
+        {isUnbonded && (
+          <div className="mx-3 mt-2 mb-1 px-3 py-2 rounded-lg border border-red-500/10 bg-red-500/5">
+            <p className="text-[9px] uppercase tracking-wider text-red-400/60 mb-0.5">Unbonded Rider</p>
+            <p className="text-[11px] italic text-muted-foreground/60">
+              Prove your worthiness. A dragon must choose you.
+            </p>
+          </div>
+        )}
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full gap-3 opacity-60">
             <span className="text-4xl">⚔️</span>
@@ -1209,8 +1252,8 @@ export function EmpyreanDMScreen({
         isExpanded={navExpanded}
         onExpandedChange={setNavExpanded}
         disabled={isLoading || (maxBurnout > 0 && burnoutLevel >= maxBurnout)}
-        oracleLabel={config?.dragonName ? config.dragonName.toUpperCase() : 'DRAGON'}
-        oracleColor={(() => {
+        oracleLabel={isUnbonded ? 'UNBONDED' : (config?.dragonName ? config.dragonName.toUpperCase() : 'DRAGON')}
+        oracleColor={isUnbonded ? 'text-red-400/50' : (() => {
           const mood = dragonBond.bondState.mood;
           if (mood === 'alert') return 'text-amber-400';
           if (mood === 'protective') return 'text-blue-400';
@@ -1219,7 +1262,7 @@ export function EmpyreanDMScreen({
           if (mood === 'playful') return 'text-emerald-400';
           return 'text-cyan-400';
         })()}
-        oracleActiveBg={(() => {
+        oracleActiveBg={isUnbonded ? 'bg-red-500/5' : (() => {
           const mood = dragonBond.bondState.mood;
           if (mood === 'alert') return 'bg-amber-500/10';
           if (mood === 'protective') return 'bg-blue-500/10';
@@ -1228,7 +1271,7 @@ export function EmpyreanDMScreen({
           if (mood === 'playful') return 'bg-emerald-500/10';
           return 'bg-cyan-500/10';
         })()}
-        oracleCount={dragonBond.bondState.unreadDragonMessages.length}
+        oracleCount={isUnbonded ? 0 : dragonBond.bondState.unreadDragonMessages.length}
         diceContent={activeNavTab === 'dice' ? (
           <DMDiceRoller
             characterContext={characterContext}
@@ -1307,7 +1350,8 @@ export function EmpyreanDMScreen({
               setActiveNavTab(null);
             }
           }}
-          disabled={isLoading || (maxBurnout > 0 && burnoutLevel >= maxBurnout)}
+          disabled={isLoading || (!isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout)}
+          isUnbonded={isUnbonded}
         />
       )}
 
@@ -1753,6 +1797,8 @@ export function EmpyreanDMScreen({
         squadName={config?.yearAtBasgiath ? `${config.yearAtBasgiath} — Basgiath War College` : 'Basgiath War College'}
         onBeginAgain={() => {
           setShowMemorial(false);
+          // Mark as unbonded
+          setIsUnbonded(true);
           // Reset dragon bond state
           resetBondState();
           // Clear dragon config fields
@@ -1771,6 +1817,23 @@ export function EmpyreanDMScreen({
           onClose();
         }}
       />
+
+      {/* Unbonded dragon empty state sheet */}
+      <Sheet open={showUnbondedDragonSheet} onOpenChange={setShowUnbondedDragonSheet}>
+        <SheetContent side="bottom" className="bg-background/95 backdrop-blur-lg border-t border-red-500/20 rounded-t-2xl">
+          <div className="flex flex-col items-center justify-center py-12 gap-4">
+            <div className="w-16 h-16 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
+              <span className="text-2xl text-muted-foreground/40">?</span>
+            </div>
+            <p className="text-base italic text-muted-foreground text-center">
+              "The silence is vast. No bond stirs."
+            </p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/50">
+              Dragon chat requires a bonded dragon
+            </p>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
