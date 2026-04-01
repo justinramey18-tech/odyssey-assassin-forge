@@ -34,6 +34,7 @@ interface DragonBondChatProps {
   characterName: string;
   dragonName: string;
   dragonNotes: string;
+  dragonColor?: string;
   characterContext: CharacterContext;
   recentNarrative?: string[];
   burnoutLevel?: number;
@@ -73,6 +74,7 @@ export default function DragonBondChat({
   characterName,
   dragonName,
   dragonNotes,
+  dragonColor,
   characterContext,
   recentNarrative,
   burnoutLevel,
@@ -760,12 +762,16 @@ export default function DragonBondChat({
                     <div
                       className={cn(
                         isDragon
-                          ? 'border-l-2 border-cyan-500/30 pl-3'
+                          ? 'pl-3'
                           : 'border-r-2 border-white/[0.12] pr-3 text-right',
                       )}
+                      style={isDragon ? { borderLeft: `2px solid ${dragonColor || '#22d3ee'}80` } : undefined}
                     >
                       {isDragon ? (
-                        <div className="text-cyan-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1 prose-strong:text-cyan-100/90">
+                        <div
+                          className="italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1"
+                          style={{ color: `${dragonColor || '#22d3ee'}cc` }}
+                        >
                           <ReactMarkdown rehypePlugins={[rehypeRaw]}>
                             {renderVisionBlocks(cleaned)}
                           </ReactMarkdown>
@@ -778,7 +784,10 @@ export default function DragonBondChat({
                     </div>
                   </div>
                   {bondSense && (
-                    <div className="text-center text-[11px] italic text-cyan-300/40 py-2 px-4 mb-4">
+                    <div
+                      className="text-center text-[11px] italic py-2 px-4 mb-4"
+                      style={{ color: `${dragonColor || '#22d3ee'}66` }}
+                    >
                       {bondSense}
                     </div>
                   )}
@@ -788,8 +797,8 @@ export default function DragonBondChat({
 
             {isLoading && (
               <div className="mb-6 pr-12">
-                <div className="border-l-2 border-cyan-500/20 pl-3">
-                  <p className="text-cyan-300/30 italic text-xs animate-pulse">
+                <div className="pl-3" style={{ borderLeft: `2px solid ${dragonColor || '#22d3ee'}33` }}>
+                  <p className="italic text-xs animate-pulse" style={{ color: `${dragonColor || '#22d3ee'}4d` }}>
                     ...a thought stirs through the bond...
                   </p>
                 </div>
