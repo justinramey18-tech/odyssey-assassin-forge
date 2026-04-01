@@ -209,6 +209,8 @@ export function EmpyreanDMScreen({
 
   // Reload config when screen opens
   const [showDragonChat, setShowDragonChat] = useState(false);
+  const [showUnbondedDragonSheet, setShowUnbondedDragonSheet] = useState(false);
+  const isUnbonded = useMemo(() => getIsUnbonded(), []);
 
   useEffect(() => {
     if (open) {
