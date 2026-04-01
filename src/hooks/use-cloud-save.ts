@@ -13,6 +13,7 @@ export interface CloudSavePreview {
   conditions?: number;
   proficiencies?: number;
   hasInspiration?: boolean;
+  empyreanStatus?: string;
 }
 
 export interface CloudSave {
@@ -25,6 +26,8 @@ export interface CloudSave {
   character_level?: number;
   // Extended data preview
   preview?: CloudSavePreview;
+  // Fallen rider status
+  status?: 'active' | 'fallen';
 }
 
 export function useCloudSave(userId: string | undefined) {
@@ -69,6 +72,7 @@ export function useCloudSave(userId: string | undefined) {
               ((extData.proficiencies as Record<string, unknown>).saves as unknown[] || []).length
             : undefined;
           preview.hasInspiration = extData.inspiration as boolean | undefined;
+          preview.empyreanStatus = extData.empyreanStatus as string | undefined;
         }
         if (consumablesData) {
           preview.consumables = consumablesData.reduce((sum, c) => sum + (c.quantity ?? 0), 0);
@@ -82,6 +86,7 @@ export function useCloudSave(userId: string | undefined) {
           character_name: charData?.name as string | undefined,
           character_level: charData?.level as number | undefined,
           preview: Object.keys(preview).length > 0 ? preview : undefined,
+          status: (preview.empyreanStatus === 'fallen' ? 'fallen' : 'active') as 'active' | 'fallen',
         };
       });
       
@@ -120,6 +125,7 @@ export function useCloudSave(userId: string | undefined) {
         cooldownState: saveData.cooldownState,
         partyId: saveData.partyId,
         backgroundUrl: saveData.backgroundUrl,
+        empyreanStatus: saveData.empyreanStatus,
       };
 
       // Capture scoped localStorage data for this character

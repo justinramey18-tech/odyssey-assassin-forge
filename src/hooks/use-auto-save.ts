@@ -73,6 +73,7 @@ export interface SaveData {
   dmChatTheme?: string | null;
   synthesisRecentModes?: string[];
   dmResponseMode?: string | null;
+  empyreanStatus?: 'active' | 'fallen';
   savedAt: string;
   version: number;
 }
