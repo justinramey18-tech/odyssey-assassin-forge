@@ -125,6 +125,7 @@ export function useCloudSave(userId: string | undefined) {
         cooldownState: saveData.cooldownState,
         partyId: saveData.partyId,
         backgroundUrl: saveData.backgroundUrl,
+        empyreanStatus: saveData.empyreanStatus,
       };
 
       // Capture scoped localStorage data for this character
