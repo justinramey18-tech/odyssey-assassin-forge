@@ -29,6 +29,7 @@ const SITUATION_META: Record<string, { label: string; emoji: string; color: stri
 const EXECUTION_FIRE_AUDIO_URL = '/audio/dragon-execution-fire.mp3';
 const DRAGON_ROAR_AUDIO_URL = '/audio/dragon-roar.mp3';
 const DRAGON_TAKEOFF_AUDIO_URL = '/audio/dragon-takeoff.mp3';
+const DRAGON_LAND_AUDIO_URL = '/audio/dragon-land.mp3';
 
 function playExecutionFireAudio() {
   try {
