@@ -3573,6 +3573,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         squadName="Basgiath War College"
         onBeginAgain={() => {
           setShowMemorial(false);
+          setIsUnbonded(true);
           localStorage.setItem('odyssey-unbonded-rebirth', 'true');
           onBack();
         }}
