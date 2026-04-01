@@ -195,8 +195,8 @@ export function EmpyreanCampaignSetup({
       selectedToneGuides: Array.from(selectedTone),
       selectedSessionTemplate: null,
       characterName,
-      dragonName,
-      signetType,
+      dragonName: isUnbonded ? '' : dragonName,
+      signetType: isUnbonded ? '' : signetType,
       yearAtBasgiath,
       campaignFocus,
     };
