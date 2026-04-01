@@ -1001,6 +1001,15 @@ export function EmpyreanDMScreen({
           return "";
         })()
       )}>
+        {/* Unbonded rider banner */}
+        {isUnbonded && (
+          <div className="mx-3 mt-2 mb-1 px-3 py-2 rounded-lg border border-red-500/10 bg-red-500/5">
+            <p className="text-[9px] uppercase tracking-wider text-red-400/60 mb-0.5">Unbonded Rider</p>
+            <p className="text-[11px] italic text-muted-foreground/60">
+              Prove your worthiness. A dragon must choose you.
+            </p>
+          </div>
+        )}
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full gap-3 opacity-60">
             <span className="text-4xl">⚔️</span>
