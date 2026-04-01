@@ -415,6 +415,18 @@ UNBONDED RIDER RULES:
   });
 
       }
+
+      // Detect dragon bond formation
+      const bondFormedMatch = content.match(/<!--DRAGON_BOND_FORMED-->/);
+      if (bondFormedMatch && isUnbonded) {
+        // Remove the Threshing guide
+        const threshingGuide = guides.find(g => g.id === 'empyrean-session-threshing-rebirth');
+        if (threshingGuide) {
+          deleteGuide(threshingGuide.id);
+        }
+        toast('A dragon has chosen you!', { icon: '🐉', duration: 5000 });
+        setShowThreshingCinematic(true);
+      }
     },
     onQuestExtracted: (quests) => {
       for (const q of quests) {
