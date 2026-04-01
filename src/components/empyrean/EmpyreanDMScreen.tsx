@@ -1683,6 +1683,21 @@ export function EmpyreanDMScreen({
           />
         )}
       </AnimatePresence>
+
+      {/* Death Save Screen */}
+      <DeathSaveScreen
+        open={showDeathSaves}
+        characterName={characterName}
+        dragonName={config?.dragonName || 'your dragon'}
+        onStabilize={() => {
+          setShowDeathSaves(false);
+          autoSyncCallbacks?.onHPChange(1, 'healing');
+        }}
+        onDeath={() => {
+          setShowDeathSaves(false);
+          // Memorial screen will be added in prompt 2
+        }}
+      />
     </div>
   );
 }
