@@ -251,8 +251,11 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
     // Combine homebrew
     const homebrew = [...homebrewAbilities, ...homebrewSpells];
 
-    return { weapons, abilities: standardAbilities, spells, cantrips, consumables, prestige, homebrew };
-  }, [characterContext, characterName]);
+    // Dragon actions (Empyrean bonded only)
+    const dragonActions = empyreanDragonName ? buildPartyDragonActions(charName, empyreanDragonName) : [];
+
+    return { dragonActions, weapons, abilities: standardAbilities, spells, cantrips, consumables, prestige, homebrew };
+  }, [characterContext, characterName, empyreanDragonName]);
 
   const totalItems = Object.values(sections).reduce((sum, arr) => sum + arr.length, 0);
 
