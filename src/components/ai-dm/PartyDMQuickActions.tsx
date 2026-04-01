@@ -300,7 +300,8 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   onUse={(prompt) => {
                     // Play audio for dragon actions
                     if (prompt.includes('kill command')) playExecutionFireAudio();
-                    else if (prompt.includes('to roar')) playDragonRoarAudio();
+                     else if (prompt.includes('to roar')) playDragonRoarAudio();
+                     else if (prompt.includes('launch into the sky')) playDragonTakeoffAudio();
                     onUsePrompt(prompt);
                   }}
                   defaultOpen={true}
