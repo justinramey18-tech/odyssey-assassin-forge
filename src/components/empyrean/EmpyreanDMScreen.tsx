@@ -1710,6 +1710,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         onClose={() => { setShowDragonChat(false); dragonBond.reload(); }}
         characterName={characterName}
         dragonName={config?.dragonName || 'Dragon'}
+        dragonColor={getDragonColorHex(config?.dragonColor)}
         dragonNotes={dragonNotes}
         characterContext={characterContext}
         burnoutLevel={burnoutLevel}
