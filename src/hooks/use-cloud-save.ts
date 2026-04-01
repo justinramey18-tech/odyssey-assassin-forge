@@ -73,6 +73,7 @@ export function useCloudSave(userId: string | undefined) {
             : undefined;
           preview.hasInspiration = extData.inspiration as boolean | undefined;
           preview.empyreanStatus = extData.empyreanStatus as string | undefined;
+        }
         if (consumablesData) {
           preview.consumables = consumablesData.reduce((sum, c) => sum + (c.quantity ?? 0), 0);
         }
