@@ -54,6 +54,7 @@ import {
 } from '@/lib/empyreanDMPersona';
 import { useDragonBond } from '@/hooks/use-dragon-bond';
 import { getBondDescriptor, getTrustDescriptor, buildDragonChatPrompt, DRAGON_CHAT_SUMMARY_KEY, DRAGON_CHAT_KEY, resetBondState, getIsUnbonded, setIsUnbonded, saveBondState, DEFAULT_BOND, DEFAULT_TRUST } from '@/lib/dragonBondState';
+import { getDragonColorHex } from '@/lib/dragonColors';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { getAuthToken } from '@/lib/auth-token';
 import { empyreanPrompts } from '@/lib/empyreanPrompts';
