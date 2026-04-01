@@ -165,6 +165,8 @@ function stripAllMetaTags(content: string): string {
     .replace(/<!--BOND_STRAIN:.+?-->/g, '')
     .replace(/<!--DRAGON_MEMORY:.+?-->/g, '')
     .replace(/<!--BOND_GROWTH:.+?-->/g, '')
+    .replace(/<!--DRAGON_BOND_FORMED-->/g, '')
+    .replace(/<!--THRESHING_AUTHORIZED:.+?-->/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
