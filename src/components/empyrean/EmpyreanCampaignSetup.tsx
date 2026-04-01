@@ -150,6 +150,7 @@ export function EmpyreanCampaignSetup({
 
   // Step 1 — Rider
   const [dragonName, setDragonName] = useState('');
+  const [dragonColor, setDragonColor] = useState('deep-red');
   const [signetType, setSignetType] = useState('');
   const [yearAtBasgiath, setYearAtBasgiath] = useState('first-year');
 
