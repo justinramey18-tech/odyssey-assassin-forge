@@ -22,6 +22,7 @@ interface PartyDMQuickActionsProps {
   characterContext?: CharacterContext;
   characterName: string;
   onUsePrompt: (prompt: string) => void;
+  empyreanDragonName?: string;
 }
 
 interface QuickActionItem {
