@@ -1701,6 +1701,7 @@ export function EmpyreanDMScreen({
         onStabilize={() => {
           setShowDeathSaves(false);
           autoSyncCallbacks?.onHPChange(1, 'healing');
+          setBurnoutLevel(7);
         }}
         onDeath={() => {
           setShowDeathSaves(false);
