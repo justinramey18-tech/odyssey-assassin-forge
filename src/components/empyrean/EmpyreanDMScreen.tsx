@@ -1840,7 +1840,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         open={showMemorial}
         riderName={characterName}
         dragonName={config?.dragonName || 'Unknown Dragon'}
-        dragonColor={dragonBond.bondState.mood === 'calm' ? '#7a8fa6' : '#7a8fa6'}
+        dragonColor={getDragonColorHex(config?.dragonColor)}
         signetType={config?.signetType || '—'}
         bondLevel={dragonBond.bondState.bond}
         maxBondLevel={100}
