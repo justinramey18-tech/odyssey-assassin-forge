@@ -22,6 +22,7 @@ interface PartyDMQuickActionsProps {
   characterContext?: CharacterContext;
   characterName: string;
   onUsePrompt: (prompt: string) => void;
+  empyreanDragonName?: string;
 }
 
 interface QuickActionItem {
@@ -129,7 +130,33 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
   );
 }
 
-export function PartyDMQuickActions({ open, onOpenChange, characterContext, characterName, onUsePrompt }: PartyDMQuickActionsProps) {
+const EXECUTION_FIRE_AUDIO_URL = '/audio/dragon-execution-fire.mp3';
+
+function playExecutionFireAudio() {
+  try {
+    const audio = new Audio(EXECUTION_FIRE_AUDIO_URL);
+    audio.volume = 0.7;
+    audio.play().catch(() => {});
+  } catch {}
+}
+
+function buildPartyDragonActions(charName: string, dragonName: string): QuickActionItem[] {
+  const d = dragonName;
+  return [
+    { id: 'da-roar', name: 'Roar', detail: `${d} roars — bone-rattling declaration`, prompt: `${charName} commands ${d} to roar. The sound is primal, bone-rattling — it echoes off stone and shakes the air itself. Describe the roar's effect on everyone within earshot: allies steadied, enemies shaken, smaller creatures fleeing. The ground vibrates. Dust falls from the ceiling. This is not a sound — it is a declaration.`, removeCategory: 'ability' as const },
+    { id: 'da-execution-fire', name: 'Execution by Fire', detail: `${d} executes by concentrated flame`, prompt: `${charName} gives ${d} the kill command. The dragon opens its jaws and unleashes a concentrated, devastating stream of fire directly at the target — not a breath weapon, an execution. Describe the heat distortion in the air before it hits, the color of the flame (specific to this dragon), the target's final moment, and the silence that follows. This is not combat. This is a sentence carried out.`, removeCategory: 'ability' as const },
+    { id: 'da-takeoff', name: 'Take Off', detail: `Mount ${d} and launch skyward`, prompt: `${charName} mounts ${d} and they launch into the sky. Describe the physical experience: the bunching of muscle beneath the saddle, the explosive thrust of wings, the lurch in the stomach as the ground falls away. Wind hits the rider's face. The world shrinks. Describe what they see as they climb — the terrain below, the horizon opening up, the other dragons in the sky if any.`, removeCategory: 'ability' as const },
+    { id: 'da-land', name: 'Land', detail: `${d} descends and lands`, prompt: `${charName} and ${d} descend and land. Describe the approach — the angle of descent, the wind shifting, the ground rushing up. The landing itself: the impact through the rider's spine, the scrape of claws on stone or earth, the fold of wings. Describe the reactions of anyone on the ground watching a dragon land near them.`, removeCategory: 'ability' as const },
+    { id: 'da-tail', name: 'Tail Attack', detail: `${d} whips tail with devastating force`, prompt: `${d} whips its tail at the target with devastating force. Describe the speed — the tail moves faster than the eye can track. The impact is not a strike, it's a demolition. Describe what the tail hits, the sound of the impact, and the aftermath. If it hits a person, they do not get back up easily. If it hits a structure, the structure loses.`, removeCategory: 'ability' as const },
+    { id: 'da-bite', name: 'Bite', detail: `${d} lunges and bites`, prompt: `${d} lunges and bites. Describe the speed of the strike — the jaw opening wider than seems possible, the rows of teeth, the snap that sounds like a thunderclap. Describe what the dragon bites, the pressure of the jaw, and the result. Dragons do not nibble. This is a predator ending a discussion.`, removeCategory: 'ability' as const },
+    { id: 'da-fly', name: 'Fly', detail: `Soar on ${d}'s back`, prompt: `${charName} and ${d} are in flight. Describe the experience of flying: the rhythm of wingbeats, the tilt of turns, the wind, the altitude. What does the world look like from dragonback? Describe the bond between rider and dragon in motion — the way the rider's body moves with the dragon's, the shared awareness of air currents and thermals. Make it feel like freedom.`, removeCategory: 'ability' as const },
+    { id: 'da-growl', name: 'Intimidating Growl', detail: `${d} growls — a warning`, prompt: `${d} growls — low, sustained, and threatening. This is not a roar. This is a warning. Describe the sound: it starts in the chest and vibrates through the ground. The dragon's eyes lock onto the target. Its lips pull back just enough to show teeth. Describe the effect on the target — the primal fear response that no amount of training can fully suppress when a dragon is telling you to reconsider your choices.`, removeCategory: 'ability' as const },
+    { id: 'da-claw', name: 'Claw Gouge', detail: `${d} rakes claws across target`, prompt: `${d} rakes its claws across the target. Describe the reach — a dragon's foreleg extends further than you expect. The claws are not decorative; they are siege weapons attached to a living creature. Describe the gouges left behind — in armor, in stone, in whatever was unfortunate enough to be in the way. The sound of dragon claws on metal is something you hear once and never forget.`, removeCategory: 'ability' as const },
+    { id: 'da-firebreath', name: 'Fire Breath', detail: `${d} unleashes wide breath of fire`, prompt: `${d} unleashes a wide breath of fire across the area. Unlike the precision of an execution, this is area denial — a sweeping wall of flame that turns the battlefield into an inferno. Describe the buildup: the glow in the dragon's chest, the heat shimmer before the flame arrives, the ignition point where air itself seems to catch fire. Describe the spread, the color, and the aftermath. The ground will be scorched. The air will taste like ash.`, removeCategory: 'ability' as const },
+  ];
+}
+
+export function PartyDMQuickActions({ open, onOpenChange, characterContext, characterName, onUsePrompt, empyreanDragonName }: PartyDMQuickActionsProps) {
   const handleRemoveItem = useCallback((item: QuickActionItem) => {
     const detail: QuickActionRemoveEvent = {
       category: item.removeCategory,
@@ -224,8 +251,11 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
     // Combine homebrew
     const homebrew = [...homebrewAbilities, ...homebrewSpells];
 
-    return { weapons, abilities: standardAbilities, spells, cantrips, consumables, prestige, homebrew };
-  }, [characterContext, characterName]);
+    // Dragon actions (Empyrean bonded only)
+    const dragonActions = empyreanDragonName ? buildPartyDragonActions(charName, empyreanDragonName) : [];
+
+    return { dragonActions, weapons, abilities: standardAbilities, spells, cantrips, consumables, prestige, homebrew };
+  }, [characterContext, characterName, empyreanDragonName]);
 
   const totalItems = Object.values(sections).reduce((sum, arr) => sum + arr.length, 0);
 
@@ -243,6 +273,20 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
             <p className="text-center text-sm text-white/30 py-8">No actions available. Equip weapons, prepare spells, or unlock abilities.</p>
           ) : (
             <>
+              {sections.dragonActions.length > 0 && (
+                <QuickActionSection
+                  title="Dragon Actions"
+                  icon={<Flame className="w-4 h-4" />}
+                  items={sections.dragonActions}
+                  accentClass="text-amber-400"
+                  onUse={(prompt) => {
+                    // Play audio for execution fire
+                    if (prompt.includes('kill command')) playExecutionFireAudio();
+                    onUsePrompt(prompt);
+                  }}
+                  defaultOpen={true}
+                />
+              )}
               <QuickActionSection
                 title="Weapons"
                 icon={<Sword className="w-4 h-4" />}
