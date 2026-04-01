@@ -56,6 +56,21 @@ export function saveBondState(state: DragonBondState): void {
   try { setScopedItem(BOND_STATE_KEY, JSON.stringify(state)); } catch { }
 }
 
+export function resetBondState(): void {
+  const defaultState: DragonBondState = {
+    bond: 0,
+    trust: 0,
+    mood: 'calm',
+    memories: [],
+    totalChatExchanges: 0,
+    sessionChatCount: 0,
+    ruptures: 0,
+    lastContactTimestamp: null,
+    unreadDragonMessages: [],
+  };
+  saveBondState(defaultState);
+}
+
 // ── SCORE HELPERS ──
 
 export function getBondDescriptor(bond: number): string {
