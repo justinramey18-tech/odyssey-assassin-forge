@@ -694,7 +694,7 @@ UNBONDED RIDER RULES:
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-  }, [inputValue, isLoading, sendMessage, voiceNPC]);
+  }, [inputValue, isLoading, sendMessage, voiceNPC, threshingAuthorized, characterName]);
 
   const handlePromptSelect = useCallback((prompt: string) => {
     const filled = prompt.replace(/\[Character Name\]/g, characterName);
