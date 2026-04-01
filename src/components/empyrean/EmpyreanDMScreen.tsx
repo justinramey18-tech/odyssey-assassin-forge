@@ -307,8 +307,23 @@ UNBONDED RIDER RULES:
       bs.memories.map(m => m.text),
       isUnbonded,
     );
+    if (threshingAuthorized && isUnbonded) {
+      persona += `\n\n## THRESHING CEREMONY — NARRATE NOW
+
+The host has authorized the Threshing. A dragon will now choose ${config.characterName || characterName}. Narrate this in your NEXT response.
+
+THE APPROACH: A dragon approaches within the current scene. Narrate through the rider's senses — a change in the air, other dragons going still, the ground vibrating. Do NOT name the dragon yet.
+
+THE EVALUATION: The dragon evaluates the rider. Reference what they endured while unbonded. Build real tension — 2-3 paragraphs minimum. The rider should feel genuinely uncertain.
+
+THE BOND: When the dragon decides, it happens fast. Physical contact ignites the bond. The silence SHATTERS. A second heartbeat slams into rhythm. The rider staggers. Colors sharpen. A voice fills their mind. The dragon's name arrives as a knowing, not a word.
+
+THE AFTERMATH: The party reacts. The world rewrites. End with a sense that everything has changed.
+
+CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very end of your response. Do NOT emit it until the narration is complete.`;
+    }
     return persona;
-  }, [config, characterName, dragonNotes, dragonBond.bondState, dragonBond.bondState.totalChatExchanges, isUnbonded]);
+  }, [config, characterName, dragonNotes, dragonBond.bondState, dragonBond.bondState.totalChatExchanges, isUnbonded, threshingAuthorized]);
 
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
   const gameState = useDMGameState(trackingCampaignId);
