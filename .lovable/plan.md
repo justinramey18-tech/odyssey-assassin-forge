@@ -1,42 +1,84 @@
 
 
-## Upgrade Deadpool Commands to Claude Sonnet 4.5 with Gemini 3 Pro Fallback
+# Prompt 3 of 5: Unbonded Campaign State
 
-### What changes
-All 5 Deadpool commands (`/lore`, `/scene`, `/who`, `/ask`, `/suggest`) will try Claude Sonnet 4.5 first using the server-side `ANTHROPIC_API_KEY` secret, falling back to `google/gemini-3.1-pro-preview` via the Lovable AI Gateway if the key is missing or the call fails.
+## Overview
 
-### File changed
-**`supabase/functions/telegram-poll/index.ts`**
+After a rider dies and clicks "Begin again" from the memorial screen, they re-enter the campaign without a dragon, signet, or bond chat. This prompt gates all dragon-related features behind an `isUnbonded` flag and provides unbonded-specific actions, DM persona, and a GM guide.
 
-### Implementation
+## Changes
 
-1. **Add a shared helper function** `callDeadpoolAI(systemPrompt, userContent, maxTokens, lovableKey)` near the top of the file that:
-   - Reads `ANTHROPIC_API_KEY` from `Deno.env`
-   - If present: calls Anthropic API directly (`https://api.anthropic.com/v1/messages`) with model `claude-sonnet-4-5-20250929`, converts the response to extract text content
-   - If missing OR if the Anthropic call fails (non-2xx): falls back to the Lovable AI Gateway with model `google/gemini-3.1-pro-preview`
-   - Returns the text answer string (or a fallback error message)
-   - Uses the existing `callAnthropicNonStreaming` from `../_shared/anthropic-helper.ts` for the Claude call
+### 1. `src/lib/dragonBondState.ts` — Add unbonded helpers
 
-2. **Replace all 5 Deadpool command fetch blocks** (`/lore`, `/scene`, `/who`, `/ask`, `/suggest`) to call `callDeadpoolAI()` instead of directly fetching `AI_GATEWAY_URL` with the Gemini model. The system prompts and user content stay identical.
+Add `UNBONDED_KEY = 'empyrean-unbonded-status'` constant and two functions:
+- `getIsUnbonded()` — reads from scoped storage, returns boolean
+- `setIsUnbonded(unbonded: boolean)` — writes to scoped storage
 
-3. **Import** the shared anthropic helper at the top of the file.
+### 2. Register the new key in all three registries
 
-### What stays the same
-- `/bond` command — untouched (separate dragon persona, not Deadpool)
-- All non-AI commands — untouched
-- All system prompts, comedy persona, word limits — identical
-- `sendTelegram` chunking logic — untouched
-- Token limits per command — unchanged
+- `src/lib/scoped-keys.ts` — add `'empyrean-unbonded-status'` to `SCOPED_KEYS`
+- `src/lib/resetApp.ts` — add `'empyrean-unbonded-status'` to `ALL_STORAGE_KEYS`
+- `src/hooks/use-auto-save.ts` — add `empyreanUnbondedStatus?: boolean` to `SaveData` interface
 
-### Technical detail
+### 3. `src/components/empyrean/EmpyreanDMScreen.tsx` — Gate dragon features
 
-```text
-callDeadpoolAI(system, user, maxTokens, lovableKey)
-  ├─ ANTHROPIC_API_KEY exists?
-  │   ├─ YES → call Anthropic API (claude-sonnet-4-5-20250929)
-  │   │         ├─ success → return text
-  │   │         └─ failure → fall through to gateway
-  │   └─ NO  → fall through to gateway
-  └─ Gateway: google/gemini-3.1-pro-preview via AI_GATEWAY_URL
-```
+Read `isUnbonded` via `useMemo(() => getIsUnbonded(), [])` on mount.
+
+**A. Dragon chat**: When `isUnbonded`, tapping the oracle tab opens a Sheet with an empty state ("The silence is vast. No bond stirs.") instead of `DragonBondChat`.
+
+**B. Burnout system**: When `isUnbonded`, force `burnoutLevel` to 0, hide burnout +/- buttons, skip `BurnoutFlameOverlay`, replace `BurnoutIndicator` with "No signet" label.
+
+**C. Contextual actions**: Pass `isUnbonded` prop to `EmpyreanContextualActions`.
+
+**D. Bottom nav oracle tab**: When `isUnbonded`, set `oracleLabel="UNBONDED"`, `oracleColor="text-red-400/50"`, `oracleActiveBg="bg-red-500/5"`, `oracleCount={0}`.
+
+**E. Unbonded banner**: Render a small red-tinted banner above messages when `isUnbonded`.
+
+**F. Auto-install GM guide**: `useEffect` that installs the "Threshing Rebirth Protocol" guide via `addGuide` when `isUnbonded` and guide doesn't exist.
+
+**G. Pass `isUnbonded` to `buildEmpyreanDMPersona()`** in the `dmPersonaPrompt` useMemo.
+
+**H. Memorial `onBeginAgain`**: Add `setIsUnbonded(true)` call alongside the existing reset logic.
+
+### 4. `src/components/empyrean/EmpyreanContextualActions.tsx` — Unbonded actions
+
+Add `isUnbonded?: boolean` to props. Define `UNBONDED_ACTIONS` (combat, social, training, exploration, downtime, crisis) with ground-only, no-dragon actions as specified. When `isUnbonded`, use `UNBONDED_ACTIONS` instead of `buildActions(...)`.
+
+### 5. `src/components/empyrean/EmpyreanCampaignSetup.tsx` — Skip dragon config
+
+Add `isUnbonded?: boolean` to props. When `isUnbonded`, replace the dragon name and signet inputs in step 0 with a red-tinted notice card ("UNBONDED RIDER — You have not yet been chosen during Threshing..."). Force `dragonName: ''` and `signetType: ''` on launch.
+
+### 6. `src/lib/empyreanDMPersona.ts` — Unbonded persona
+
+Add `isUnbonded: boolean = false` parameter to `buildEmpyreanDMPersona()`. When true:
+- Skip CHARACTER INTEGRATION dragon/signet sentences
+- Skip DRAGON IN THE NARRATIVE section
+- Skip SIGNET BURNOUT TRACKING section
+- Skip BOND STRAIN/GROWTH EVENTS sections
+- Skip DRAGON MEMORY FORMATION section
+- Skip BURNOUT TICK EVENTS section
+- Skip DRAGON-RIDER BOND STATUS section
+- Skip RECENT DRAGON-RIDER PRIVATE COMMUNICATION section
+- Skip DRAGON'S PERSISTENT MEMORIES section
+- Insert new UNBONDED RIDER STATUS section with combat, narrative, party dragon, and NPC handling instructions
+
+### 7. `src/components/ai-dm/PartyDMScreen.tsx` — Mirror unbonded support
+
+Read `isUnbonded` and apply the same memorial `onBeginAgain` call to `setIsUnbonded(true)`.
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `src/lib/dragonBondState.ts` | Add `getIsUnbonded` / `setIsUnbonded` |
+| `src/lib/scoped-keys.ts` | Register new key |
+| `src/lib/resetApp.ts` | Register new key |
+| `src/hooks/use-auto-save.ts` | Add field to `SaveData` |
+| `src/components/empyrean/EmpyreanDMScreen.tsx` | Gate dragon features, banner, GM guide, persona param |
+| `src/components/empyrean/EmpyreanContextualActions.tsx` | Unbonded action sets |
+| `src/components/empyrean/EmpyreanCampaignSetup.tsx` | Skip dragon config |
+| `src/lib/empyreanDMPersona.ts` | `isUnbonded` parameter, unbonded persona section |
+| `src/components/ai-dm/PartyDMScreen.tsx` | `setIsUnbonded(true)` in memorial flow |
+
+No new files created. No existing bonded code removed — only gated behind `!isUnbonded` checks.
 
