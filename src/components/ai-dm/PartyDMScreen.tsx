@@ -9,6 +9,7 @@ import empyreanSpeaksImg from '@/assets/empyrean-speaks.jpg';
 import empyreanDmBg from '@/assets/empyrean-dm-bg.jpg';
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
 import DeathSaveScreen from '@/components/empyrean/DeathSaveScreen';
+import MemorialScreen from '@/components/empyrean/MemorialScreen';
 import { VerticalHealthBar } from '@/components/home/VerticalHealthBar';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
@@ -854,6 +855,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
   const [showDeathSaves, setShowDeathSaves] = useState(false);
+  const [showMemorial, setShowMemorial] = useState(false);
+  const [showDeathTransition, setShowDeathTransition] = useState(false);
   const narrator = useNarrator();
   const spotify = useSpotify();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
@@ -3527,7 +3530,51 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         }}
         onDeath={() => {
           setShowDeathSaves(false);
-          // Memorial screen will be added in prompt 2
+          setShowDeathTransition(true);
+          setTimeout(() => {
+            setShowDeathTransition(false);
+            setShowMemorial(true);
+          }, 2000);
+        }}
+      />
+
+      {/* Death transition — black with pulsing red dot */}
+      {showDeathTransition && (
+        <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 9999, backgroundColor: '#0a0908' }}>
+          <div
+            className="w-2 h-2 rounded-full"
+            style={{
+              backgroundColor: '#c94444',
+              boxShadow: '0 0 12px 4px rgba(201,68,68,0.5)',
+              animation: 'memorial-ember-pulse 1.2s ease-in-out infinite',
+            }}
+          />
+          <style>{`
+            @keyframes memorial-ember-pulse {
+              0%, 100% { opacity: 0.3; transform: scale(1); }
+              50% { opacity: 1; transform: scale(1.5); }
+            }
+          `}</style>
+        </div>
+      )}
+
+      {/* Memorial Screen */}
+      <MemorialScreen
+        open={showMemorial}
+        riderName={members.find(m => m.user_id === currentUserId)?.character_name || 'Rider'}
+        dragonName={dragonBonds.myDragon?.dragonName || 'Unknown Dragon'}
+        dragonColor="#7a8fa6"
+        signetType={dragonBonds.myDragon?.signetType || '—'}
+        bondLevel={dragonBonds.myDragon?.bond ?? 0}
+        maxBondLevel={100}
+        characterLevel={characterContext?.level || 1}
+        sessionsPlayed={0}
+        causeOfDeath="Burnout — failed to ground"
+        squadName="Basgiath War College"
+        onBeginAgain={() => {
+          setShowMemorial(false);
+          localStorage.setItem('odyssey-unbonded-rebirth', 'true');
+          onBack();
         }}
       />
     </div>
