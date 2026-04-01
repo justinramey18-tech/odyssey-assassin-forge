@@ -948,8 +948,8 @@ export function EmpyreanDMScreen({
         "flex-1 min-h-0 relative flex flex-col overflow-hidden",
         maxBurnout > 0 && burnoutLevel >= maxBurnout ? "animate-[screen-shake_0.6s_ease-in-out_infinite]" : ""
       )}>
-        {/* Burnout flame overlay */}
-        {config.signetType && (
+        {/* Burnout flame overlay — hidden when unbonded */}
+        {!isUnbonded && config.signetType && (
           <BurnoutFlameOverlay
             level={burnoutLevel}
             max={maxBurnout}
