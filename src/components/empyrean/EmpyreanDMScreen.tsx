@@ -7,6 +7,8 @@ import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pe
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
 import DeathSaveScreen from '@/components/empyrean/DeathSaveScreen';
 import MemorialScreen from '@/components/empyrean/MemorialScreen';
+import ThreshingCinematic from '@/components/empyrean/ThreshingCinematic';
+import { DragonRiderSetupSheet } from '@/components/ai-dm/DragonRiderSetupSheet';
 import { VerticalHealthBar } from '@/components/home/VerticalHealthBar';
 import { NpcSceneDialog } from '@/components/ai-dm/NpcSceneDialog';
 import { useOocDmChat } from '@/hooks/use-ooc-dm-chat';
