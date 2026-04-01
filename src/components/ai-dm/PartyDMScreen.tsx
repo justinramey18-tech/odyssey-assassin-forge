@@ -3515,6 +3515,21 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           }}
         />
       )}
+
+      {/* Death Save Screen */}
+      <DeathSaveScreen
+        open={showDeathSaves}
+        characterName={members.find(m => m.user_id === currentUserId)?.character_name || 'Rider'}
+        dragonName={dragonBonds.myDragon?.dragonName || 'your dragon'}
+        onStabilize={() => {
+          setShowDeathSaves(false);
+          onHPChange?.(1, 'healing');
+        }}
+        onDeath={() => {
+          setShowDeathSaves(false);
+          // Memorial screen will be added in prompt 2
+        }}
+      />
     </div>
   );
 }
