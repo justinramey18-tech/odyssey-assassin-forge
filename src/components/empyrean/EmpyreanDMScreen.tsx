@@ -670,18 +670,25 @@ UNBONDED RIDER RULES:
 
   const handleSend = useCallback(() => {
     if (!inputValue.trim() || isLoading) return;
+    let messageToSend = inputValue.trim();
+    
+    // Inject Threshing authorization tag if authorized
+    if (threshingAuthorized) {
+      messageToSend += '\n\n<!--THRESHING_AUTHORIZED:' + characterName + '-->';
+    }
+    
     // Support multiple @NPC tags: @NPC1 @NPC2 message
-    const multiNpcMatch = inputValue.trim().match(/^((?:@\S+\s+)+)(.+)$/s);
+    const multiNpcMatch = messageToSend.match(/^((?:@\S+\s+)+)(.+)$/s);
     if (multiNpcMatch && voiceNPC) {
       const npcNames = [...multiNpcMatch[1].matchAll(/@(\S+)/g)].map(m => m[1]);
       const message = multiNpcMatch[2];
       if (npcNames.length > 0 && message.trim()) {
         voiceNPC(npcNames.length === 1 ? npcNames[0] : npcNames, message);
       } else {
-        sendMessage(inputValue.trim());
+        sendMessage(messageToSend);
       }
     } else {
-      sendMessage(inputValue.trim());
+      sendMessage(messageToSend);
     }
     setInputValue('');
     if (textareaRef.current) {
