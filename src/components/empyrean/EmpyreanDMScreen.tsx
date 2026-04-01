@@ -663,6 +663,10 @@ export function EmpyreanDMScreen({
 
   const handleNavTabChange = useCallback((tab: DMNavTab) => {
     if (tab === 'oracle') {
+      if (isUnbonded) {
+        setShowUnbondedDragonSheet(true);
+        return;
+      }
       dragonBond.markChatOpened();
       setShowDragonChat(true);
       return;
