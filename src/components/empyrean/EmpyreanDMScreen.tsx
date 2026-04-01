@@ -199,6 +199,7 @@ export function EmpyreanDMScreen({
   const [showAutopilotGuide, setShowAutopilotGuide] = useState(false);
   const [recapExpanded, setRecapExpanded] = useState(false);
   const [showCampaignBuilder, setShowCampaignBuilder] = useState(false);
+  const [showDeathSaves, setShowDeathSaves] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
