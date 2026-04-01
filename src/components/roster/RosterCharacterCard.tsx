@@ -88,8 +88,6 @@ export function RosterCharacterCard({ save, onSelect, index }: RosterCharacterCa
 
   const handleClick = () => {
     if (isFallen) {
-      // Don't load fallen saves — show toast
-      const { toast } = require('sonner');
       toast('This rider has fallen. Their story lives on in memory.', { icon: '💀' });
       return;
     }
