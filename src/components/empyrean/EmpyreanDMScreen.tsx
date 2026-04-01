@@ -268,9 +268,10 @@ export function EmpyreanDMScreen({
       bs.mood,
       recentDragonChatSummaryRaw?.trim() ? recentDragonChatSummaryRaw : undefined,
       bs.memories.map(m => m.text),
+      isUnbonded,
     );
     return persona;
-  }, [config, characterName, dragonNotes, dragonBond.bondState, dragonBond.bondState.totalChatExchanges]);
+  }, [config, characterName, dragonNotes, dragonBond.bondState, dragonBond.bondState.totalChatExchanges, isUnbonded]);
 
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
   const gameState = useDMGameState(trackingCampaignId);
