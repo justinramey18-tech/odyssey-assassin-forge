@@ -84,6 +84,9 @@ export function DMToolsDrawer({
   onResetBurnout,
   onNpcScene,
   onOocChat,
+  isUnbonded,
+  onAuthorizeThreshing,
+  threshingAuthorized,
 }: DMToolsDrawerProps) {
   const [showRetakeConfirm, setShowRetakeConfirm] = useState(false);
 
