@@ -934,7 +934,16 @@ export function EmpyreanDMScreen({
             onGround={() => setBurnoutLevel(prev => Math.max(0, prev - 1))}
             currentHP={autoSyncCallbacks?.getCurrentHP() ?? 10}
             maxHP={characterContext.maxHP}
-            onHPChange={autoSyncCallbacks?.onHPChange}
+            onHPChange={(change, type) => {
+              autoSyncCallbacks?.onHPChange(change, type);
+              // Check if HP hit 0 after this damage
+              if (type === 'damage') {
+                const hpAfter = (autoSyncCallbacks?.getCurrentHP() ?? 10) + change;
+                if (hpAfter <= 0) {
+                  setTimeout(() => setShowDeathSaves(true), 600);
+                }
+              }
+            }}
           />
         )}
         {/* Vertical HP Bar */}
