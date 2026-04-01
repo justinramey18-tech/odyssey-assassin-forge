@@ -1508,6 +1508,12 @@ UNBONDED RIDER RULES:
         onResetBurnout={() => { setBurnoutLevel(0); toast.success('Signet burnout reset.'); }}
         onNpcScene={() => setShowNpcScene(true)}
         onOocChat={() => setShowOocChat(true)}
+        isUnbonded={isUnbonded}
+        onAuthorizeThreshing={() => {
+          setThreshingAuthorized(true);
+          toast('Threshing authorized — the DM will narrate the bonding when ready', { icon: '🐉' });
+        }}
+        threshingAuthorized={threshingAuthorized}
       />
 
       {/* Campaign Sessions Manager */}
