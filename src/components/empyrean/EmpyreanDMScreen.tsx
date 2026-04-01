@@ -1850,7 +1850,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         onBeginAgain={() => {
           setShowMemorial(false);
           // Mark as unbonded
-          setIsUnbonded(true);
+          updateUnbondedStatus(true);
           // Reset dragon bond state
           resetBondState();
           // Clear dragon config fields
