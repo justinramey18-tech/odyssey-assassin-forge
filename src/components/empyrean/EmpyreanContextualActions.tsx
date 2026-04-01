@@ -189,6 +189,8 @@ export default function EmpyreanContextualActions({
       playDragonRoarAudio();
     } else if (action.id === 'da-takeoff') {
       playDragonTakeoffAudio();
+    } else if (action.id === 'da-land') {
+      playDragonLandAudio();
     }
     onAction(action.prompt);
   }, [onAction]);
