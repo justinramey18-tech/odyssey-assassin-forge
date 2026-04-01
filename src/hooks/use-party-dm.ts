@@ -68,12 +68,14 @@ const BURNOUT_TICK_TAG_RE = /<!--BURNOUT_TICK:.+?-->/g;
 const BOND_STRAIN_TAG_RE = /<!--BOND_STRAIN:.+?-->/g;
 const BOND_GROWTH_TAG_RE = /<!--BOND_GROWTH:.+?-->/g;
 const DRAGON_MEMORY_TAG_RE = /<!--DRAGON_MEMORY:.+?-->/g;
+const DRAGON_BOND_FORMED_TAG_RE = /<!--DRAGON_BOND_FORMED-->/g;
+const THRESHING_AUTHORIZED_TAG_RE = /<!--THRESHING_AUTHORIZED:.+?-->/g;
 
 function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string, myDragonName?: string): PartyDmMessage {
   if (msg.role !== 'assistant') return msg;
   const { narrative, whispers } = parseWhispers(msg.content);
   // Strip burnout and bond strain tags from narrative
-  const cleanNarrative = narrative.replace(BURNOUT_TAG_RE, '').replace(BURNOUT_TICK_TAG_RE, '').replace(BOND_STRAIN_TAG_RE, '').replace(BOND_GROWTH_TAG_RE, '').replace(DRAGON_MEMORY_TAG_RE, '').trim();
+  const cleanNarrative = narrative.replace(BURNOUT_TAG_RE, '').replace(BURNOUT_TICK_TAG_RE, '').replace(BOND_STRAIN_TAG_RE, '').replace(BOND_GROWTH_TAG_RE, '').replace(DRAGON_MEMORY_TAG_RE, '').replace(DRAGON_BOND_FORMED_TAG_RE, '').replace(THRESHING_AUTHORIZED_TAG_RE, '').trim();
   if (whispers.length === 0) return { ...msg, content: cleanNarrative };
 
   // Filter: keep actions + tactics (shared), and whispers targeted at this player or their dragon
@@ -165,10 +167,11 @@ interface UsePartyDmOptions {
   onBondStrainDetected?: (reason: string) => void;
   onBondGrowthDetected?: (reason: string) => void;
   onDragonMemoryDetected?: (memory: string) => void;
+  onDragonBondFormed?: () => void;
   isSoloEmpyrean?: boolean;
 }
 
-export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, partyDragonConfigs, myDragonName, onBurnoutDetected, onBurnoutTickDetected, onBondStrainDetected, onBondGrowthDetected, onDragonMemoryDetected, isSoloEmpyrean }: UsePartyDmOptions) {
+export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, partyDragonConfigs, myDragonName, onBurnoutDetected, onBurnoutTickDetected, onBondStrainDetected, onBondGrowthDetected, onDragonMemoryDetected, onDragonBondFormed, isSoloEmpyrean }: UsePartyDmOptions) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
   const [currentPrompts, setCurrentPrompts] = useState<PartyDmPrompt[]>([]);
@@ -224,11 +227,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const onBondStrainRef = useRef(onBondStrainDetected);
   const onBondGrowthRef = useRef(onBondGrowthDetected);
   const onDragonMemoryRef = useRef(onDragonMemoryDetected);
+  const onDragonBondFormedRef = useRef(onDragonBondFormed);
   useEffect(() => { onBurnoutRef.current = onBurnoutDetected; }, [onBurnoutDetected]);
   useEffect(() => { onBurnoutTickRef.current = onBurnoutTickDetected; }, [onBurnoutTickDetected]);
   useEffect(() => { onBondStrainRef.current = onBondStrainDetected; }, [onBondStrainDetected]);
   useEffect(() => { onBondGrowthRef.current = onBondGrowthDetected; }, [onBondGrowthDetected]);
   useEffect(() => { onDragonMemoryRef.current = onDragonMemoryDetected; }, [onDragonMemoryDetected]);
+  useEffect(() => { onDragonBondFormedRef.current = onDragonBondFormed; }, [onDragonBondFormed]);
   const lastParsedMsgIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -268,6 +273,11 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const dragonMemoryMatch = lastMsg.content.match(/<!--DRAGON_MEMORY:(.+?)-->/);
     if (dragonMemoryMatch) {
       onDragonMemoryRef.current?.(dragonMemoryMatch[1]);
+    }
+
+    // Detect dragon bond formation
+    if (lastMsg.content.includes('<!--DRAGON_BOND_FORMED-->')) {
+      onDragonBondFormedRef.current?.();
     }
   }, [messages, sessionConfig?.campaignType]);
 

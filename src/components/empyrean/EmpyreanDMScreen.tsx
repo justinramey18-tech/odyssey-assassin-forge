@@ -165,6 +165,8 @@ function stripAllMetaTags(content: string): string {
     .replace(/<!--BOND_STRAIN:.+?-->/g, '')
     .replace(/<!--DRAGON_MEMORY:.+?-->/g, '')
     .replace(/<!--BOND_GROWTH:.+?-->/g, '')
+    .replace(/<!--DRAGON_BOND_FORMED-->/g, '')
+    .replace(/<!--THRESHING_AUTHORIZED:.+?-->/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -204,6 +206,8 @@ export function EmpyreanDMScreen({
   const [showDeathSaves, setShowDeathSaves] = useState(false);
   const [showMemorial, setShowMemorial] = useState(false);
   const [showDeathTransition, setShowDeathTransition] = useState(false);
+  const [threshingAuthorized, setThreshingAuthorized] = useState(false);
+  const [showThreshingCinematic, setShowThreshingCinematic] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -245,7 +249,7 @@ UNBONDED RIDER RULES:
   }, [isUnbonded, open]);
 
   const gmGuides = useGMGuides();
-  const { enabledContent, activeGuideIds, guides, addGuide } = gmGuides;
+  const { enabledContent, activeGuideIds, guides, addGuide, deleteGuide } = gmGuides;
   const { themeId: chatThemeId, setTheme: setChatTheme } = useDMChatTheme();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const narrator = useNarrator();
@@ -410,6 +414,18 @@ UNBONDED RIDER RULES:
           mode: 'empyrean',
   });
 
+      }
+
+      // Detect dragon bond formation
+      const bondFormedMatch = content.match(/<!--DRAGON_BOND_FORMED-->/);
+      if (bondFormedMatch && isUnbonded) {
+        // Remove the Threshing guide
+        const threshingGuide = guides.find(g => g.id === 'empyrean-session-threshing-rebirth');
+        if (threshingGuide) {
+          deleteGuide(threshingGuide.id);
+        }
+        toast('A dragon has chosen you!', { icon: '🐉', duration: 5000 });
+        setShowThreshingCinematic(true);
       }
     },
     onQuestExtracted: (quests) => {
@@ -654,24 +670,31 @@ UNBONDED RIDER RULES:
 
   const handleSend = useCallback(() => {
     if (!inputValue.trim() || isLoading) return;
+    let messageToSend = inputValue.trim();
+    
+    // Inject Threshing authorization tag if authorized
+    if (threshingAuthorized) {
+      messageToSend += '\n\n<!--THRESHING_AUTHORIZED:' + characterName + '-->';
+    }
+    
     // Support multiple @NPC tags: @NPC1 @NPC2 message
-    const multiNpcMatch = inputValue.trim().match(/^((?:@\S+\s+)+)(.+)$/s);
+    const multiNpcMatch = messageToSend.match(/^((?:@\S+\s+)+)(.+)$/s);
     if (multiNpcMatch && voiceNPC) {
       const npcNames = [...multiNpcMatch[1].matchAll(/@(\S+)/g)].map(m => m[1]);
       const message = multiNpcMatch[2];
       if (npcNames.length > 0 && message.trim()) {
         voiceNPC(npcNames.length === 1 ? npcNames[0] : npcNames, message);
       } else {
-        sendMessage(inputValue.trim());
+        sendMessage(messageToSend);
       }
     } else {
-      sendMessage(inputValue.trim());
+      sendMessage(messageToSend);
     }
     setInputValue('');
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-  }, [inputValue, isLoading, sendMessage, voiceNPC]);
+  }, [inputValue, isLoading, sendMessage, voiceNPC, threshingAuthorized, characterName]);
 
   const handlePromptSelect = useCallback((prompt: string) => {
     const filled = prompt.replace(/\[Character Name\]/g, characterName);
@@ -1485,6 +1508,12 @@ UNBONDED RIDER RULES:
         onResetBurnout={() => { setBurnoutLevel(0); toast.success('Signet burnout reset.'); }}
         onNpcScene={() => setShowNpcScene(true)}
         onOocChat={() => setShowOocChat(true)}
+        isUnbonded={isUnbonded}
+        onAuthorizeThreshing={() => {
+          setThreshingAuthorized(true);
+          toast('Threshing authorized — the DM will narrate the bonding when ready', { icon: '🐉' });
+        }}
+        threshingAuthorized={threshingAuthorized}
       />
 
       {/* Campaign Sessions Manager */}
