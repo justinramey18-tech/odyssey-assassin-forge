@@ -7,12 +7,13 @@ import { Label } from '@/components/ui/label';
 import { Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type PartyDragonConfig } from '@/hooks/use-party-dm';
+import { DRAGON_COLORS } from '@/lib/dragonColors';
 
 interface DragonRiderSetupSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initialConfig: PartyDragonConfig | null;
-  onSave: (config: { dragonName: string; signetType: string; yearAtBasgiath: string; dragonNotes: string }) => void;
+  initialConfig: (PartyDragonConfig & { dragonColor?: string }) | null;
+  onSave: (config: { dragonName: string; signetType: string; yearAtBasgiath: string; dragonNotes: string; dragonColor: string }) => void;
   characterName: string;
 }
 
@@ -28,6 +29,7 @@ export function DragonRiderSetupSheet({ open, onOpenChange, initialConfig, onSav
   const [signetType, setSignetType] = useState('');
   const [yearAtBasgiath, setYearAtBasgiath] = useState('first-year');
   const [dragonNotes, setDragonNotes] = useState('');
+  const [dragonColor, setDragonColor] = useState('deep-red');
 
   useEffect(() => {
     if (open) {
@@ -35,12 +37,13 @@ export function DragonRiderSetupSheet({ open, onOpenChange, initialConfig, onSav
       setSignetType(initialConfig?.signetType || '');
       setYearAtBasgiath(initialConfig?.yearAtBasgiath || 'first-year');
       setDragonNotes(initialConfig?.dragonNotes || '');
+      setDragonColor(initialConfig?.dragonColor || 'deep-red');
     }
   }, [open, initialConfig]);
 
   const handleSave = () => {
     if (!dragonName.trim()) return;
-    onSave({ dragonName: dragonName.trim(), signetType: signetType.trim(), yearAtBasgiath, dragonNotes: dragonNotes.trim() });
+    onSave({ dragonName: dragonName.trim(), signetType: signetType.trim(), yearAtBasgiath, dragonNotes: dragonNotes.trim(), dragonColor });
     onOpenChange(false);
   };
 
@@ -67,6 +70,36 @@ export function DragonRiderSetupSheet({ open, onOpenChange, initialConfig, onSav
               className="bg-background/50 border-border/50 focus:border-amber-500/50"
               maxLength={40}
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-amber-400/80">Dragon Color</Label>
+            <div className="grid grid-cols-5 gap-2">
+              {DRAGON_COLORS.map(c => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setDragonColor(c.id)}
+                  className={cn(
+                    'w-full aspect-square rounded-lg border-2 transition-all relative min-h-[44px]',
+                    dragonColor === c.id
+                      ? 'border-amber-400 scale-105 shadow-lg'
+                      : 'border-transparent hover:border-border/50'
+                  )}
+                  style={{ backgroundColor: c.hex }}
+                  title={c.label}
+                >
+                  {dragonColor === c.id && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-2 h-2 rounded-full bg-white shadow-md" />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              {DRAGON_COLORS.find(c => c.id === dragonColor)?.label ?? 'Select a color'}
+            </p>
           </div>
 
           <div className="space-y-1.5">
