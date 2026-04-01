@@ -1227,8 +1227,8 @@ export function EmpyreanDMScreen({
         isExpanded={navExpanded}
         onExpandedChange={setNavExpanded}
         disabled={isLoading || (maxBurnout > 0 && burnoutLevel >= maxBurnout)}
-        oracleLabel={config?.dragonName ? config.dragonName.toUpperCase() : 'DRAGON'}
-        oracleColor={(() => {
+        oracleLabel={isUnbonded ? 'UNBONDED' : (config?.dragonName ? config.dragonName.toUpperCase() : 'DRAGON')}
+        oracleColor={isUnbonded ? 'text-red-400/50' : (() => {
           const mood = dragonBond.bondState.mood;
           if (mood === 'alert') return 'text-amber-400';
           if (mood === 'protective') return 'text-blue-400';
@@ -1237,7 +1237,7 @@ export function EmpyreanDMScreen({
           if (mood === 'playful') return 'text-emerald-400';
           return 'text-cyan-400';
         })()}
-        oracleActiveBg={(() => {
+        oracleActiveBg={isUnbonded ? 'bg-red-500/5' : (() => {
           const mood = dragonBond.bondState.mood;
           if (mood === 'alert') return 'bg-amber-500/10';
           if (mood === 'protective') return 'bg-blue-500/10';
@@ -1246,7 +1246,7 @@ export function EmpyreanDMScreen({
           if (mood === 'playful') return 'bg-emerald-500/10';
           return 'bg-cyan-500/10';
         })()}
-        oracleCount={dragonBond.bondState.unreadDragonMessages.length}
+        oracleCount={isUnbonded ? 0 : dragonBond.bondState.unreadDragonMessages.length}
         diceContent={activeNavTab === 'dice' ? (
           <DMDiceRoller
             characterContext={characterContext}
