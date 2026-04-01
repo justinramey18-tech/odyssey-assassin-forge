@@ -1325,7 +1325,8 @@ export function EmpyreanDMScreen({
               setActiveNavTab(null);
             }
           }}
-          disabled={isLoading || (maxBurnout > 0 && burnoutLevel >= maxBurnout)}
+          disabled={isLoading || (!isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout)}
+          isUnbonded={isUnbonded}
         />
       )}
 
