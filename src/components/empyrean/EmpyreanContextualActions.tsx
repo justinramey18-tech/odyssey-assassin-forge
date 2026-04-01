@@ -175,6 +175,8 @@ export default function EmpyreanContextualActions({
   const handleDragonAction = React.useCallback((action: ActionItem) => {
     if (action.id === 'da-execution-fire') {
       playExecutionFireAudio();
+    } else if (action.id === 'da-roar') {
+      playDragonRoarAudio();
     }
     onAction(action.prompt);
   }, [onAction]);
