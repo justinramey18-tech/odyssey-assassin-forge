@@ -282,6 +282,36 @@ export function EmpyreanCampaignSetup({
                       className="bg-card/30 border-purple-500/30 focus:border-purple-400"
                     />
                     <p className="text-xs text-muted-foreground">Leave blank if unbonded or unknown.</p>
+                    </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-cinzel text-purple-200">Dragon Color</Label>
+                    <div className="grid grid-cols-5 gap-2">
+                      {DRAGON_COLORS.map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => setDragonColor(c.id)}
+                          className={cn(
+                            'w-full aspect-square rounded-lg border-2 transition-all relative min-h-[44px]',
+                            dragonColor === c.id
+                              ? 'border-purple-400 scale-105 shadow-lg'
+                              : 'border-transparent hover:border-border/50'
+                          )}
+                          style={{ backgroundColor: c.hex }}
+                          title={c.label}
+                        >
+                          {dragonColor === c.id && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-2 h-2 rounded-full bg-white shadow-md" />
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {DRAGON_COLORS.find(c => c.id === dragonColor)?.label ?? 'Select a color'}
+                    </p>
                   </div>
 
                   <div className="space-y-2">
