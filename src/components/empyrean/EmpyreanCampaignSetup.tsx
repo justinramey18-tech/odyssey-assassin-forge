@@ -33,6 +33,7 @@ interface EmpyreanCampaignSetupProps {
   deleteGuide: (id: string) => void;
   onComplete: (config: EmpyreanDMConfig) => void;
   onLaunchWithScene?: (config: EmpyreanDMConfig, openingPrompt: string) => void;
+  isUnbonded?: boolean;
 }
 
 const STEPS = ['Your Rider', 'Campaign Focus', 'World Lore', 'Campaign Tone', 'Review & Launch'] as const;
