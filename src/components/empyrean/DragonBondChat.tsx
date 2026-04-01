@@ -797,8 +797,8 @@ export default function DragonBondChat({
 
             {isLoading && (
               <div className="mb-6 pr-12">
-                <div className="border-l-2 border-cyan-500/20 pl-3">
-                  <p className="text-cyan-300/30 italic text-xs animate-pulse">
+                <div className="pl-3" style={{ borderLeft: `2px solid ${dragonColor || '#22d3ee'}33` }}>
+                  <p className="italic text-xs animate-pulse" style={{ color: `${dragonColor || '#22d3ee'}4d` }}>
                     ...a thought stirs through the bond...
                   </p>
                 </div>
