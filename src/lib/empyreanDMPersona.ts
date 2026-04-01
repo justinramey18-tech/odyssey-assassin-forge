@@ -302,8 +302,8 @@ Use these NPCs consistently throughout the campaign. Develop their relationships
 
 When starting a new scene or session, ground it in a specific Basgiath location or Navarre landmark. Name the location. Describe the light, the weather, the ambient sounds. Who else is present? What time of day is it? Every scene should feel like a specific moment in a specific place.`);
 
-  // 10. Dragon-rider bond status (from bond chat system)
-  if (bondDescriptor) {
+  // 10. Dragon-rider bond status (from bond chat system) — skip when unbonded
+  if (!isUnbonded && bondDescriptor) {
     const effectiveMood = dragonMood || 'calm';
     let bondSection = `## DRAGON-RIDER BOND STATUS
 
@@ -336,14 +336,14 @@ Narrate the dragon-rider dynamic based on these levels. `;
     sections.push(bondSection);
   }
 
-  if (recentDragonChatSummary && recentDragonChatSummary.trim()) {
+  if (!isUnbonded && recentDragonChatSummary && recentDragonChatSummary.trim()) {
     sections.push(`## RECENT DRAGON-RIDER PRIVATE COMMUNICATION
 The rider recently had this private conversation with their dragon in the bond channel. Use this context to inform the dragon's BODY LANGUAGE and BEHAVIOR in scenes — the dragon may physically react to NPCs or situations based on what was discussed, or behave differently based on the emotional tone of recent private exchanges. Do NOT reproduce any of this dialogue in the narrative — it is private:
 
 ${recentDragonChatSummary.trim()}`);
   }
 
-  if (dragonMemories && dragonMemories.length > 0) {
+  if (!isUnbonded && dragonMemories && dragonMemories.length > 0) {
     sections.push(`## DRAGON'S PERSISTENT MEMORIES
 These are established facts about the dragon's personality, opinions, and experiences — formed through actual gameplay. Treat them as canon and reference them naturally:
 
