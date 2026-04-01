@@ -159,6 +159,14 @@ function playDragonTakeoffAudio() {
   } catch {}
 }
 
+function playDragonLandAudio() {
+  try {
+    const audio = new Audio(DRAGON_LAND_AUDIO_URL);
+    audio.volume = 0.7;
+    audio.play().catch(() => {});
+  } catch {}
+}
+
 function buildPartyDragonActions(charName: string, dragonName: string): QuickActionItem[] {
   const d = dragonName;
   return [
