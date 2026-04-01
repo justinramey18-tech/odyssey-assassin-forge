@@ -48,6 +48,9 @@ interface DMToolsDrawerProps {
   onResetBurnout?: () => void;
   onNpcScene?: () => void;
   onOocChat?: () => void;
+  isUnbonded?: boolean;
+  onAuthorizeThreshing?: () => void;
+  threshingAuthorized?: boolean;
 }
 
 export function DMToolsDrawer({
