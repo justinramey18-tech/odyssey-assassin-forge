@@ -14,6 +14,7 @@ interface EmpyreanContextualActionsProps {
   signetType: string;
   onAction: (prompt: string) => void;
   disabled?: boolean;
+  isUnbonded?: boolean;
 }
 
 const SITUATION_META: Record<string, { label: string; emoji: string; color: string }> = {
@@ -81,6 +82,39 @@ function buildActions(char: string, dragon: string, signet: string): Record<stri
   };
 }
 
+function buildUnbondedActions(char: string): Record<string, ActionItem[]> {
+  return {
+    combat: [
+      { id: 'u-blade', label: 'Blade Attack', emoji: '⚔️', prompt: `${char} attacks with their weapon. Describe the strike — no dragon, no signet, just steel and skill.` },
+      { id: 'u-tactical', label: 'Tactical Move', emoji: '🏃', prompt: `${char} repositions on the ground. Describe how they use terrain and timing to compensate for having no dragon.` },
+      { id: 'u-defend', label: 'Hold Position', emoji: '🛡️', prompt: `${char} digs in and defends. They have no dragon to fall back on — describe the weight of that.` },
+      { id: 'u-improvise', label: 'Improvise', emoji: '💡', prompt: `${char} improvises with whatever is available. No signet, no dragon fire — just desperation and cleverness.` },
+    ],
+    social: [
+      { id: 'u-prove', label: 'Prove Yourself', emoji: '💪', prompt: `${char} tries to earn respect despite being unbonded. Describe the NPC reactions.` },
+      { id: 'u-listen', label: 'Observe Quietly', emoji: '👂', prompt: `${char} stays quiet and observes. Without a dragon, people sometimes forget they're there. Use that.` },
+      { id: 'u-ask', label: 'Ask About Threshing', emoji: '❓', prompt: `${char} asks about the Threshing — what it takes, what it feels like, whether they have a chance.` },
+    ],
+    training: [
+      { id: 'u-spar', label: 'Ground Sparring', emoji: '🤺', prompt: `${char} trains in ground combat. Describe how the other cadets — who all have dragons — react to sparring with an unbonded rider.` },
+      { id: 'u-study', label: 'Study the Dragons', emoji: '📖', prompt: `${char} watches the dragons during training. Describe what they notice — behaviors, patterns, how dragons evaluate humans.` },
+      { id: 'u-endure', label: 'Endurance Trial', emoji: '🏔️', prompt: `${char} pushes through a physical trial meant for bonded riders. Without a dragon's bond sustaining them, everything is harder.` },
+    ],
+    exploration: [
+      { id: 'u-scout', label: 'Scout on Foot', emoji: '🥾', prompt: `${char} scouts ahead on foot while the rest of the squad flies. Describe the isolation and the different perspective from the ground.` },
+      { id: 'u-investigate', label: 'Investigate', emoji: '🔍', prompt: `${char} investigates the area. Without a dragon's senses to rely on, they have to use their own.` },
+    ],
+    downtime: [
+      { id: 'u-silence', label: 'Sit With the Silence', emoji: '🌙', prompt: `${char} spends time alone. Describe the unbonded silence — the hollow space where a dragon's presence should be.` },
+      { id: 'u-bond-watch', label: 'Watch the Bonded Pairs', emoji: '👀', prompt: `${char} watches other riders interact with their dragons. Describe what they see and what they feel.` },
+    ],
+    crisis: [
+      { id: 'u-survive', label: 'Survive', emoji: '🔥', prompt: `${char} fights to survive the crisis with no dragon and no signet. Just human against whatever is coming. Make it desperate.` },
+      { id: 'u-sacrifice', label: 'Put Yourself in Danger', emoji: '⚠️', prompt: `${char} steps into danger to protect someone else. Without a dragon bond as a safety net, this could be fatal. Narrate the stakes.` },
+    ],
+  };
+}
+
 export default function EmpyreanContextualActions({
   situation,
   characterName,
@@ -88,13 +122,14 @@ export default function EmpyreanContextualActions({
   signetType,
   onAction,
   disabled = false,
+  isUnbonded = false,
 }: EmpyreanContextualActionsProps) {
   const allActions = React.useMemo(
-    () => buildActions(characterName, dragonName, signetType),
-    [characterName, dragonName, signetType],
+    () => isUnbonded ? buildUnbondedActions(characterName) : buildActions(characterName, dragonName, signetType),
+    [characterName, dragonName, signetType, isUnbonded],
   );
 
-  const actions = allActions[situation] ?? allActions.exploration;
+  const actions = allActions[situation] ?? allActions.exploration ?? [];
   const meta = SITUATION_META[situation] ?? SITUATION_META.exploration;
 
   return (
