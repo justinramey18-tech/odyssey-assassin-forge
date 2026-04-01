@@ -784,7 +784,10 @@ export default function DragonBondChat({
                     </div>
                   </div>
                   {bondSense && (
-                    <div className="text-center text-[11px] italic text-cyan-300/40 py-2 px-4 mb-4">
+                    <div
+                      className="text-center text-[11px] italic py-2 px-4 mb-4"
+                      style={{ color: `${dragonColor || '#22d3ee'}66` }}
+                    >
                       {bondSense}
                     </div>
                   )}
