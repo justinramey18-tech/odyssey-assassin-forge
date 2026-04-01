@@ -1772,6 +1772,8 @@ export function EmpyreanDMScreen({
         squadName={config?.yearAtBasgiath ? `${config.yearAtBasgiath} — Basgiath War College` : 'Basgiath War College'}
         onBeginAgain={() => {
           setShowMemorial(false);
+          // Mark as unbonded
+          setIsUnbonded(true);
           // Reset dragon bond state
           resetBondState();
           // Clear dragon config fields
@@ -1790,6 +1792,23 @@ export function EmpyreanDMScreen({
           onClose();
         }}
       />
+
+      {/* Unbonded dragon empty state sheet */}
+      <Sheet open={showUnbondedDragonSheet} onOpenChange={setShowUnbondedDragonSheet}>
+        <SheetContent side="bottom" className="bg-background/95 backdrop-blur-lg border-t border-red-500/20 rounded-t-2xl">
+          <div className="flex flex-col items-center justify-center py-12 gap-4">
+            <div className="w-16 h-16 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
+              <span className="text-2xl text-muted-foreground/40">?</span>
+            </div>
+            <p className="text-base italic text-muted-foreground text-center">
+              "The silence is vast. No bond stirs."
+            </p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/50">
+              Dragon chat requires a bonded dragon
+            </p>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
