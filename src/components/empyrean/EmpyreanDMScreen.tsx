@@ -7,6 +7,8 @@ import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pe
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
 import DeathSaveScreen from '@/components/empyrean/DeathSaveScreen';
 import MemorialScreen from '@/components/empyrean/MemorialScreen';
+import ThreshingCinematic from '@/components/empyrean/ThreshingCinematic';
+import { DragonRiderSetupSheet } from '@/components/ai-dm/DragonRiderSetupSheet';
 import { VerticalHealthBar } from '@/components/home/VerticalHealthBar';
 import { NpcSceneDialog } from '@/components/ai-dm/NpcSceneDialog';
 import { useOocDmChat } from '@/hooks/use-ooc-dm-chat';
@@ -51,7 +53,7 @@ import {
   saveDragonNotes,
 } from '@/lib/empyreanDMPersona';
 import { useDragonBond } from '@/hooks/use-dragon-bond';
-import { getBondDescriptor, getTrustDescriptor, buildDragonChatPrompt, DRAGON_CHAT_SUMMARY_KEY, DRAGON_CHAT_KEY, resetBondState, getIsUnbonded, setIsUnbonded } from '@/lib/dragonBondState';
+import { getBondDescriptor, getTrustDescriptor, buildDragonChatPrompt, DRAGON_CHAT_SUMMARY_KEY, DRAGON_CHAT_KEY, resetBondState, getIsUnbonded, setIsUnbonded, saveBondState, DEFAULT_BOND, DEFAULT_TRUST } from '@/lib/dragonBondState';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { getAuthToken } from '@/lib/auth-token';
 import { empyreanPrompts } from '@/lib/empyreanPrompts';
@@ -214,7 +216,13 @@ export function EmpyreanDMScreen({
   // Reload config when screen opens
   const [showDragonChat, setShowDragonChat] = useState(false);
   const [showUnbondedDragonSheet, setShowUnbondedDragonSheet] = useState(false);
-  const isUnbonded = useMemo(() => getIsUnbonded(), []);
+  const [showDragonSetup, setShowDragonSetup] = useState(false);
+  const [isUnbonded, setIsUnbondedState] = useState(() => getIsUnbonded());
+
+  const updateUnbondedStatus = useCallback((unbonded: boolean) => {
+    setIsUnbonded(unbonded);
+    setIsUnbondedState(unbonded);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -299,8 +307,23 @@ UNBONDED RIDER RULES:
       bs.memories.map(m => m.text),
       isUnbonded,
     );
+    if (threshingAuthorized && isUnbonded) {
+      persona += `\n\n## THRESHING CEREMONY — NARRATE NOW
+
+The host has authorized the Threshing. A dragon will now choose ${config.characterName || characterName}. Narrate this in your NEXT response.
+
+THE APPROACH: A dragon approaches within the current scene. Narrate through the rider's senses — a change in the air, other dragons going still, the ground vibrating. Do NOT name the dragon yet.
+
+THE EVALUATION: The dragon evaluates the rider. Reference what they endured while unbonded. Build real tension — 2-3 paragraphs minimum. The rider should feel genuinely uncertain.
+
+THE BOND: When the dragon decides, it happens fast. Physical contact ignites the bond. The silence SHATTERS. A second heartbeat slams into rhythm. The rider staggers. Colors sharpen. A voice fills their mind. The dragon's name arrives as a knowing, not a word.
+
+THE AFTERMATH: The party reacts. The world rewrites. End with a sense that everything has changed.
+
+CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very end of your response. Do NOT emit it until the narration is complete.`;
+    }
     return persona;
-  }, [config, characterName, dragonNotes, dragonBond.bondState, dragonBond.bondState.totalChatExchanges, isUnbonded]);
+  }, [config, characterName, dragonNotes, dragonBond.bondState, dragonBond.bondState.totalChatExchanges, isUnbonded, threshingAuthorized]);
 
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
   const gameState = useDMGameState(trackingCampaignId);
@@ -1827,7 +1850,7 @@ UNBONDED RIDER RULES:
         onBeginAgain={() => {
           setShowMemorial(false);
           // Mark as unbonded
-          setIsUnbonded(true);
+          updateUnbondedStatus(true);
           // Reset dragon bond state
           resetBondState();
           // Clear dragon config fields
@@ -1863,6 +1886,76 @@ UNBONDED RIDER RULES:
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Threshing Cinematic */}
+      <ThreshingCinematic
+        open={showThreshingCinematic}
+        riderName={characterName}
+        onConfigureDragon={() => {
+          setShowThreshingCinematic(false);
+          setShowDragonSetup(true);
+        }}
+      />
+
+      {/* Dragon Rider Setup Sheet (post-Threshing) */}
+      <DragonRiderSetupSheet
+        open={showDragonSetup}
+        onOpenChange={setShowDragonSetup}
+        initialConfig={null}
+        characterName={characterName}
+        onSave={(newConfig) => {
+          // 1. Update EmpyreanDMConfig with new dragon info
+          const currentConfig = loadEmpyreanDMConfig();
+          if (currentConfig) {
+            const updatedConfig: EmpyreanDMConfig = {
+              ...currentConfig,
+              dragonName: newConfig.dragonName,
+              signetType: newConfig.signetType,
+              yearAtBasgiath: newConfig.yearAtBasgiath,
+            };
+            saveEmpyreanDMConfig(updatedConfig);
+            setConfig(updatedConfig);
+          }
+
+          // 2. Save dragon notes
+          saveDragonNotes(newConfig.dragonNotes);
+          setDragonNotes(newConfig.dragonNotes);
+
+          // 3. Clear unbonded flag
+          updateUnbondedStatus(false);
+
+          // 4. Reset dragon bond state to fresh defaults
+          saveBondState({
+            bond: DEFAULT_BOND,
+            trust: DEFAULT_TRUST,
+            mood: 'calm',
+            memories: [],
+            totalChatExchanges: 0,
+            sessionChatCount: 0,
+            ruptures: 0,
+            lastContactTimestamp: null,
+            unreadDragonMessages: [],
+          });
+          dragonBond.reload();
+
+          // 5. Remove the Threshing Rebirth GM Guide
+          const threshingGuide = guides.find(g => g.id === 'empyrean-session-threshing-rebirth');
+          if (threshingGuide) {
+            deleteGuide(threshingGuide.id);
+          }
+
+          // 6. Reset threshing authorization
+          setThreshingAuthorized(false);
+
+          // 7. Close the setup sheet
+          setShowDragonSetup(false);
+
+          // 8. Celebration toast
+          toast(`🐉 ${newConfig.dragonName} has bonded with ${characterName}. Dragon chat, signet, and burnout are now active.`, {
+            duration: 6000,
+          });
+        }}
+      />
     </div>
   );
 }
