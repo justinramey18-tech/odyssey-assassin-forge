@@ -83,6 +83,17 @@ const cardVariants = {
 
 export function RosterCharacterCard({ save, onSelect, index }: RosterCharacterCardProps) {
   const accent = getClassAccent(save.character_name);
+  const isFallen = save.status === 'fallen';
+
+  const handleClick = () => {
+    if (isFallen) {
+      // Don't load fallen saves — show toast
+      const { toast } = require('sonner');
+      toast('This rider has fallen. Their story lives on in memory.', { icon: '💀' });
+      return;
+    }
+    onSelect(save.id);
+  };
 
   return (
     <motion.button
@@ -90,8 +101,8 @@ export function RosterCharacterCard({ save, onSelect, index }: RosterCharacterCa
       variants={cardVariants}
       initial="hidden"
       animate="visible"
-      whileTap={{ scale: 0.97 }}
-      onClick={() => onSelect(save.id)}
+      whileTap={{ scale: isFallen ? 1 : 0.97 }}
+      onClick={handleClick}
       className={cn(
         'w-full text-left rounded-xl border p-4',
         'bg-card/80 backdrop-blur-sm',
@@ -99,14 +110,20 @@ export function RosterCharacterCard({ save, onSelect, index }: RosterCharacterCa
         'transition-colors duration-150',
         'shadow-lg',
         accent,
+        isFallen && 'grayscale opacity-60',
       )}
     >
       {/* Top row: name + level */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <h3 className="text-base font-bold text-foreground font-cinzel truncate">
-            {save.character_name || save.save_name || 'Unnamed Hero'}
+            {isFallen && '💀 '}{save.character_name || save.save_name || 'Unnamed Hero'}
           </h3>
+          {isFallen && (
+            <span className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-red-500/15 text-red-400/80 mt-0.5">
+              Fallen
+            </span>
+          )}
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Shield className="w-3 h-3" />
