@@ -13,6 +13,7 @@ export interface CloudSavePreview {
   conditions?: number;
   proficiencies?: number;
   hasInspiration?: boolean;
+  empyreanStatus?: string;
 }
 
 export interface CloudSave {
@@ -25,6 +26,8 @@ export interface CloudSave {
   character_level?: number;
   // Extended data preview
   preview?: CloudSavePreview;
+  // Fallen rider status
+  status?: 'active' | 'fallen';
 }
 
 export function useCloudSave(userId: string | undefined) {
