@@ -12,6 +12,7 @@ export interface EmpyreanDMConfig {
   selectedSessionTemplate: string | null;
   characterName: string;
   dragonName: string;
+  dragonColor: string;
   signetType: string;
   yearAtBasgiath: string;
   campaignFocus: CampaignFocus;

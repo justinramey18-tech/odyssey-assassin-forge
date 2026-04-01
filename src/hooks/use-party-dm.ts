@@ -139,6 +139,7 @@ export interface DmSessionConfig {
 
 export interface PartyDragonConfig {
   dragonName: string;
+  dragonColor?: string;
   signetType: string;
   yearAtBasgiath: string;
   dragonNotes: string;
