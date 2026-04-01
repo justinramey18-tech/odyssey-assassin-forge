@@ -55,6 +55,14 @@ function playDragonTakeoffAudio() {
   } catch {}
 }
 
+function playDragonLandAudio() {
+  try {
+    const audio = new Audio(DRAGON_LAND_AUDIO_URL);
+    audio.volume = 0.7;
+    audio.play().catch(() => {});
+  } catch {}
+}
+
 function buildDragonActions(char: string, dragon: string): ActionItem[] {
   const d = dragon || 'my dragon';
   return [
