@@ -160,8 +160,24 @@ ${CAMPAIGN_FOCUS_DESCRIPTIONS[campaignFocus]}`);
 - Information is the most dangerous weapon. What the character knows — and who knows they know it — drives the plot.
 - Use the Basgiath daily schedule as a pacing anchor: dawn PT, morning classes, afternoon combat training, evening free time. Disruptions to this schedule signal something is wrong.`);
 
-  // 6. Dragon depiction rules
-  let dragonSection = `## DRAGON IN THE NARRATIVE
+  if (isUnbonded) {
+    // Unbonded rider — skip all dragon/signet/burnout sections
+    sections.push(`## UNBONDED RIDER STATUS
+
+${characterName} is an unbonded rider. They have no bonded dragon, no signet, no telepathic bond. They either have not yet been chosen during Threshing, or their previous bond was severed by death.
+
+COMBAT: They fight with body, blade, and nothing else. No magic, no dragon, no flying. They are ground-bound. If they reach for magic, describe the hollow absence — like flexing a phantom limb. Their victories should feel scrappy and earned. Their injuries hit harder — no bond to sustain them.
+
+NARRATIVE: The absence of the bond is physical. A dull ache behind the sternum. Coldness that doesn't come from weather. Write the silence into quiet moments. Do not write them as lesser — they walk into the same danger with half the tools.
+
+PARTY DRAGONS: Other riders' dragons react to the unbonded character — curiosity, wariness, or rare unexpected tenderness. When bonded riders communicate telepathically, this character is excluded. Narrate the exclusion.
+
+NPCs: Officers may see expendable infantry. Cadets see a walking reminder that bonds can fail. Veterans understand without words. No one treats them normally.
+
+CRITICAL: Do NOT reference this character's dragon or signet as if they exist. Do NOT allow any magic. Do NOT have a dragon spontaneously bond unless <!--THRESHING_AUTHORIZED--> has been injected by the host.`);
+  } else {
+    // 6. Dragon depiction rules
+    let dragonSection = `## DRAGON IN THE NARRATIVE
 
 The bonded dragon communicates with its rider through a SEPARATE private channel (the dragon chat). The DM narrative must NEVER include dragon telepathic speech, whisper tags, or thoughts.
 
@@ -183,16 +199,15 @@ RULES:
 
 - Bad: Any form of the dragon speaking, thinking, or communicating verbally in the narrative.`;
 
-  if (dragonNotes.trim()) {
-    dragonSection += "\n\nDragon personality context (for body language and behavior, NOT for speech):\n" + dragonNotes.trim();
-  }
-  sections.push(dragonSection);
+    if (dragonNotes.trim()) {
+      dragonSection += "\n\nDragon personality context (for body language and behavior, NOT for speech):\n" + dragonNotes.trim();
+    }
+    sections.push(dragonSection);
 
-  // 7. Signet Burnout Tracking
-  // Compute bond-scaled burnout ceiling
-  const maxBurnout = bondLevel >= 76 ? 12 : bondLevel >= 51 ? 11 : bondLevel >= 26 ? 10 : 8;
+    // 7. Signet Burnout Tracking
+    const maxBurnout = bondLevel >= 76 ? 12 : bondLevel >= 51 ? 11 : bondLevel >= 26 ? 10 : 8;
 
-  sections.push(`## SIGNET BURNOUT TRACKING
+    sections.push(`## SIGNET BURNOUT TRACKING
 
 The rider's dragon bond (${bondLevel}/100) determines their burnout ceiling. A stronger bond means the dragon actively buffers the rider's capacity. A weaker bond means the channel is unstable and the ceiling is actually lower than normal.
 
@@ -233,22 +248,8 @@ SIGNET-SPECIFIC SYMPTOMS: Always derive the physical experience from the nature 
 
 DRAGON BEHAVIOR AT HIGH BURNOUT: At level 3+, the dragon will actively resist the power flow — describe this as the bond pulling back, the dragon's voice cutting through with urgency. At level 5+ for strong-bonded riders, the dragon is absorbing overflow and suffering for it. At level 7+, the dragon may physically land and refuse to let the rider continue, overriding the rider's will.`);
 
-  // 7b. Scene Situation Tagging
-  sections.push(`## SCENE SITUATION TAGGING
-
-At the end of every response, include exactly one situation tag indicating the current scene type:
-
-<!--SITUATION:combat--> (active fighting, initiative, tactical decisions)
-<!--SITUATION:social--> (dialogue, negotiation, relationship scenes, political maneuvering)
-<!--SITUATION:exploration--> (investigating, traveling, discovering, scouting)
-<!--SITUATION:training--> (Basgiath classes, sparring, signet drills, flight exercises)
-<!--SITUATION:downtime--> (rest, recovery, personal time, studying)
-<!--SITUATION:crisis--> (ward breach, venin attack, emergency scramble, life-threatening non-combat danger)
-
-Always include exactly one tag per response. Place it at the very end, after all narrative content and after any BURNOUT tags.`);
-
-  // 7c. Bond Strain Events
-  sections.push(`## BOND STRAIN EVENTS
+    // 7c. Bond Strain Events
+    sections.push(`## BOND STRAIN EVENTS
 
 When something happens in the narrative that would strain the dragon-rider bond — the rider ignoring the dragon's warning, ordering the dragon into danger the dragon resisted, prioritizing mission over dragon safety, or lying about something the dragon can sense through the bond — include a tag:
 
@@ -256,8 +257,8 @@ When something happens in the narrative that would strain the dragon-rider bond 
 
 Only emit this when a genuine bond-straining event occurs, not for minor disagreements. This tag should appear at most once per response.`);
 
-  // 7d. Bond Growth Events
-  sections.push(`## BOND GROWTH EVENTS
+    // 7d. Bond Growth Events
+    sections.push(`## BOND GROWTH EVENTS
 
 When a scene contains a genuine bond-deepening moment — rider and dragon surviving serious danger together, the rider protecting the dragon at personal cost, the rider successfully using their signet at high burnout with the dragon's active support, or a moment of deep emotional honesty with the dragon — emit:
 
@@ -265,8 +266,8 @@ When a scene contains a genuine bond-deepening moment — rider and dragon survi
 
 Maximum once per session. Only for significant moments, not routine cooperation.`);
 
-  // 7e. Dragon Memory Formation
-  sections.push(`## DRAGON MEMORY FORMATION
+    // 7e. Dragon Memory Formation
+    sections.push(`## DRAGON MEMORY FORMATION
 
 When a significant event occurs that a dragon would permanently remember — a moment of exceptional rider bravery, a betrayal by an NPC the dragon distrusted, surviving a near-death together, the rider doing something that deeply moved or angered the dragon — emit one hidden tag:
 
@@ -274,8 +275,8 @@ When a significant event occurs that a dragon would permanently remember — a m
 
 Use sparingly, maximum once per session. Only for genuinely memorable moments, not routine events.`);
 
-  // 7e. Burnout Tick Events
-  sections.push(`## BURNOUT TICK EVENTS
+    // 7f. Burnout Tick Events
+    sections.push(`## BURNOUT TICK EVENTS
 
 When the rider uses their signet in a way that would increase burnout — casting under stress, pushing past limits, channeling at high intensity, or sustaining signet use over multiple rounds — include exactly one tag:
 
@@ -287,6 +288,7 @@ Rules:
 - Only emit when the signet is actively channeled with effort or strain.
 - The reason should be a short phrase describing what caused the strain (e.g., "sustained lightning volley", "forced truth-read under duress", "shadow cloak held through combat").
 - This tag is separate from the BURNOUT:N absolute level tag. BURNOUT_TICK signals incremental strain; the app handles the math.`);
+  }
 
   // 8. Recurring NPC Cast
   sections.push(`## RECURRING NPC CAST
