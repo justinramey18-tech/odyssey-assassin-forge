@@ -853,6 +853,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
+  const [showDeathSaves, setShowDeathSaves] = useState(false);
   const narrator = useNarrator();
   const spotify = useSpotify();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
