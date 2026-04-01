@@ -1733,7 +1733,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onGround={() => dragonBonds.updateBurnout(Math.max(0, bLevel - 1))}
               currentHP={characterContext?.currentHP ?? 10}
               maxHP={characterContext?.maxHP ?? 10}
-              onHPChange={onHPChange}
+              onHPChange={(change, type) => {
+                onHPChange?.(change, type);
+                if (type === 'damage') {
+                  const hpAfter = (characterContext?.currentHP ?? 10) + change;
+                  if (hpAfter <= 0) {
+                    setTimeout(() => setShowDeathSaves(true), 600);
+                  }
+                }
+              }}
             />
           );
         })()}
