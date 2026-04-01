@@ -86,6 +86,7 @@ export function useCloudSave(userId: string | undefined) {
           character_name: charData?.name as string | undefined,
           character_level: charData?.level as number | undefined,
           preview: Object.keys(preview).length > 0 ? preview : undefined,
+          status: (preview.empyreanStatus === 'fallen' ? 'fallen' : 'active') as 'active' | 'fallen',
         };
       });
       
