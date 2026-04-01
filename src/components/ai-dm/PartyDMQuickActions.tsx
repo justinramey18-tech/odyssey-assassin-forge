@@ -289,8 +289,9 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   items={sections.dragonActions}
                   accentClass="text-amber-400"
                   onUse={(prompt) => {
-                    // Play audio for execution fire
+                    // Play audio for dragon actions
                     if (prompt.includes('kill command')) playExecutionFireAudio();
+                    else if (prompt.includes('to roar')) playDragonRoarAudio();
                     onUsePrompt(prompt);
                   }}
                   defaultOpen={true}
