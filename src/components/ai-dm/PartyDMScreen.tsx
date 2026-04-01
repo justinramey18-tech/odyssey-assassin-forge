@@ -9,6 +9,7 @@ import empyreanSpeaksImg from '@/assets/empyrean-speaks.jpg';
 import empyreanDmBg from '@/assets/empyrean-dm-bg.jpg';
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
 import DeathSaveScreen from '@/components/empyrean/DeathSaveScreen';
+import MemorialScreen from '@/components/empyrean/MemorialScreen';
 import { VerticalHealthBar } from '@/components/home/VerticalHealthBar';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
