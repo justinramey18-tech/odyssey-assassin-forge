@@ -1267,7 +1267,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
                       </>
                     );
                   })() : (
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    <p className="text-sm whitespace-pre-wrap">{stripAllMetaTags(message.content)}</p>
                   )}
                 </div>
               </div>
