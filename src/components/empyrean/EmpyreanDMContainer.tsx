@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -8,11 +8,17 @@ const LAST_TAB_KEY = 'empyrean-dm-last-tab';
 
 type EmpyreanDMTab = 'solo' | 'party';
 
+export interface SwipeHandlers {
+  onTouchStart: (e: React.TouchEvent) => void;
+  onTouchMove: (e: React.TouchEvent) => void;
+  onTouchEnd: () => void;
+}
+
 interface EmpyreanDMContainerProps {
   open: boolean;
   onClose: () => void;
-  renderSolo: () => React.ReactNode;
-  renderParty: () => React.ReactNode;
+  renderSolo: (swipeHandlers: SwipeHandlers) => React.ReactNode;
+  renderParty: (swipeHandlers: SwipeHandlers) => React.ReactNode;
   hasParty: boolean;
 }
 
@@ -56,33 +62,31 @@ export function EmpyreanDMContainer({
     setActiveTab(tab);
   }, [activeTab]);
 
-  // Touch/swipe handling
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    touchDeltaRef.current = { x: 0, y: 0 };
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!touchStartRef.current) return;
-    touchDeltaRef.current = {
-      x: e.touches[0].clientX - touchStartRef.current.x,
-      y: e.touches[0].clientY - touchStartRef.current.y,
-    };
-  }, []);
-
-  const handleTouchEnd = useCallback(() => {
-    if (!touchStartRef.current || !hasParty) return;
-    const { x: deltaX, y: deltaY } = touchDeltaRef.current;
-    const threshold = 60;
-
-    if (Math.abs(deltaX) > threshold && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
-      if (deltaX < 0 && activeTab === 'solo') switchTo('party');
-      else if (deltaX > 0 && activeTab === 'party') switchTo('solo');
-    }
-
-    touchStartRef.current = null;
-    touchDeltaRef.current = { x: 0, y: 0 };
-  }, [activeTab, hasParty, switchTo]);
+  // Swipe handlers passed to child screens (attached to chat message area only)
+  const swipeHandlers: SwipeHandlers = useMemo(() => ({
+    onTouchStart: (e: React.TouchEvent) => {
+      touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      touchDeltaRef.current = { x: 0, y: 0 };
+    },
+    onTouchMove: (e: React.TouchEvent) => {
+      if (!touchStartRef.current) return;
+      touchDeltaRef.current = {
+        x: e.touches[0].clientX - touchStartRef.current.x,
+        y: e.touches[0].clientY - touchStartRef.current.y,
+      };
+    },
+    onTouchEnd: () => {
+      if (!touchStartRef.current || !hasParty) return;
+      const { x: deltaX, y: deltaY } = touchDeltaRef.current;
+      const threshold = 60;
+      if (Math.abs(deltaX) > threshold && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+        if (deltaX < 0 && activeTab === 'solo') switchTo('party');
+        else if (deltaX > 0 && activeTab === 'party') switchTo('solo');
+      }
+      touchStartRef.current = null;
+      touchDeltaRef.current = { x: 0, y: 0 };
+    },
+  }), [hasParty, activeTab, switchTo]);
 
   if (!open) return null;
 
@@ -104,9 +108,6 @@ export function EmpyreanDMContainer({
   return (
     <div
       className="fixed inset-0 z-[60] flex flex-col bg-background"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
     >
       {/* Tab bar */}
       <div className="shrink-0 flex items-center border-b border-purple-500/20 bg-background/95 backdrop-blur-sm relative">
@@ -172,7 +173,7 @@ export function EmpyreanDMContainer({
             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
             className="absolute inset-0"
           >
-            {activeTab === 'solo' ? renderSolo() : renderParty()}
+            {activeTab === 'solo' ? renderSolo(swipeHandlers) : renderParty(swipeHandlers)}
           </motion.div>
         </AnimatePresence>
       </div>

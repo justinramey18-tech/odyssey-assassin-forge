@@ -22,6 +22,7 @@ import { EMPYREAN_LORE_GUIDES } from '@/lib/empyreanGMGuides';
 import { getBondDescriptor, getTrustDescriptor, savePartyHP } from '@/lib/dragonBondState';
 import { usePartyDragonBonds } from '@/hooks/use-party-dragon-bonds';
 import type { PartyMember } from '@/hooks/use-party-sync';
+import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 
 import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 
@@ -52,6 +53,7 @@ interface StandalonePartyDMScreenProps {
   isMomoMoonDruid?: boolean;
   isSoloEmpyrean?: boolean;
   embedded?: boolean;
+  swipeHandlers?: SwipeHandlers;
 }
 
 export function StandalonePartyDMScreen({
@@ -68,6 +70,7 @@ export function StandalonePartyDMScreen({
   isMomoMoonDruid,
   isSoloEmpyrean,
   embedded = false,
+  swipeHandlers,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
 
@@ -488,6 +491,7 @@ ${truncated}`);
           wildShape={wildShape}
           isMomoMoonDruid={isMomoMoonDruid}
           onHPChange={autoSyncCallbacks?.onHPChange}
+          swipeHandlers={swipeHandlers}
         />
 
       <OocDmChat

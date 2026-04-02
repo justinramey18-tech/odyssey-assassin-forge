@@ -70,6 +70,8 @@ import { useEmpyreanAutopilot } from '@/hooks/use-empyrean-autopilot';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
+import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
+
 interface EmpyreanDMScreenProps {
   open: boolean;
   onClose: () => void;
@@ -86,6 +88,7 @@ interface EmpyreanDMScreenProps {
     getCurrentGold: () => number;
   };
   embedded?: boolean;
+  swipeHandlers?: SwipeHandlers;
 }
 
 const NOOP = () => {};
@@ -183,6 +186,7 @@ export function EmpyreanDMScreen({
   initialMessage,
   autoSyncCallbacks,
   embedded = false,
+  swipeHandlers,
 }: EmpyreanDMScreenProps) {
   const [config, setConfig] = useState<EmpyreanDMConfig | null>(() => loadEmpyreanDMConfig());
   const [selectedModel, setSelectedModel] = useState(loadEmpyreanModel);
@@ -1060,7 +1064,11 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
       <div className={cn(
         "flex-1 min-h-0 relative flex flex-col overflow-hidden",
         !isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout ? "animate-[screen-shake_0.6s_ease-in-out_infinite]" : ""
-      )}>
+      )}
+        onTouchStart={swipeHandlers?.onTouchStart}
+        onTouchMove={swipeHandlers?.onTouchMove}
+        onTouchEnd={swipeHandlers?.onTouchEnd}
+      >
         {/* Burnout flame overlay — hidden when unbonded */}
         {!isUnbonded && config.signetType && (
           <BurnoutFlameOverlay

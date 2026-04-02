@@ -62,6 +62,7 @@ import { DragonRiderSetupSheet } from './DragonRiderSetupSheet';
 import PartyDragonChat from './PartyDragonChat';
 import DragonTelegramScheduler from './DragonTelegramScheduler';
 import { Flame } from 'lucide-react';
+import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
 
@@ -104,6 +105,7 @@ interface PartyDMScreenProps {
   isMomoMoonDruid?: boolean;
   onShowOocChat?: () => void;
   onHPChange?: (change: number, type: 'damage' | 'healing') => void;
+  swipeHandlers?: SwipeHandlers;
 }
 
 const EMPTY_DRAGON_NETWORK: never[] = [];
@@ -851,7 +853,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.reactions?.every((r, i) => r.id === next.reactions?.[i]?.id);
 });
 
-export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, swipeHandlers }: PartyDMScreenProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
@@ -1728,7 +1730,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
            const bMax = bBond >= 76 ? 12 : bBond >= 51 ? 11 : bBond >= 26 ? 10 : 8;
           return bMax > 0 && bLevel >= bMax ? "animate-[screen-shake_0.6s_ease-in-out_infinite]" : "";
         })()
-      )}>
+      )}
+        onTouchStart={swipeHandlers?.onTouchStart}
+        onTouchMove={swipeHandlers?.onTouchMove}
+        onTouchEnd={swipeHandlers?.onTouchEnd}
+      >
         {/* Burnout flame border overlay */}
         {isEmpyrean && dragonBonds.isSetup && dragonBonds.myDragon?.signetType && (() => {
           const bLevel = dragonBonds.myDragon.burnout;
