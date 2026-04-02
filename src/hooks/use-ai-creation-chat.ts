@@ -61,6 +61,15 @@ export interface CharacterBuildData {
     effect: string; duration: string;
     description: string; icon: string;
   }>;
+  empyrean?: {
+    dragonName: string;
+    dragonColor: string;
+    signetType: string;
+    yearAtBasgiath: string;
+    dragonPersonality: string;
+    campaignFocus: string;
+    unbonded: boolean;
+  };
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-creation-assistant`;
