@@ -173,7 +173,7 @@ export function EmpyreanDMContainer({
             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
             className="absolute inset-0"
           >
-            {activeTab === 'solo' ? renderSolo() : renderParty()}
+            {activeTab === 'solo' ? renderSolo(swipeHandlers) : renderParty(swipeHandlers)}
           </motion.div>
         </AnimatePresence>
       </div>
