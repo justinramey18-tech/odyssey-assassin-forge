@@ -37,6 +37,7 @@ import { EmpyreanDragonHPGlow } from '@/components/empyrean/EmpyreanDragonHPGlow
 import { EmpyreanDragonBurnoutTint } from '@/components/empyrean/EmpyreanDragonBurnoutTint';
 import { EmpyreanUnbondedOverlay } from '@/components/empyrean/EmpyreanUnbondedOverlay';
 import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
+import { EmpyreanDMContainer } from '@/components/empyrean/EmpyreanDMContainer';
 import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { loadEmpyreanDMConfig } from '@/lib/empyreanDMPersona';
