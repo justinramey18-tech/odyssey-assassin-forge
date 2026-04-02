@@ -53,7 +53,7 @@ import {
   saveDragonNotes,
 } from '@/lib/empyreanDMPersona';
 import { useDragonBond } from '@/hooks/use-dragon-bond';
-import { getBondDescriptor, getTrustDescriptor, buildDragonChatPrompt, DRAGON_CHAT_SUMMARY_KEY, DRAGON_CHAT_KEY, resetBondState, getIsUnbonded, setIsUnbonded, saveBondState, DEFAULT_BOND, DEFAULT_TRUST } from '@/lib/dragonBondState';
+import { getBondDescriptor, getTrustDescriptor, buildDragonChatPrompt, DRAGON_CHAT_SUMMARY_KEY, DRAGON_CHAT_KEY, resetBondState, getIsUnbonded, setIsUnbonded, saveBondState, DEFAULT_BOND, DEFAULT_TRUST, saveSoloHP } from '@/lib/dragonBondState';
 import { getDragonColorHex } from '@/lib/dragonColors';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { getAuthToken } from '@/lib/auth-token';
@@ -704,7 +704,20 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     }
   }, [open]);
 
-  // Auto-send rebirth orientation when entering as unbonded after death
+  // Save solo HP snapshot for homescreen dual bars
+  useEffect(() => {
+    if (!open) return;
+    const save = () => {
+      const current = autoSyncCallbacks?.getCurrentHP() ?? 0;
+      const max = characterContext?.maxHP ?? 0;
+      if (max > 0) saveSoloHP({ current, max });
+    };
+    save();
+    const interval = setInterval(save, 3000);
+    return () => { clearInterval(interval); save(); };
+  }, [open, autoSyncCallbacks, characterContext?.maxHP]);
+
+
   useEffect(() => {
     if (!open || !isUnbonded) return;
     const rebirthFlag = localStorage.getItem('odyssey-unbonded-rebirth');
@@ -1905,6 +1918,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
           // 2. Existing logic
           setShowMemorial(false);
           setBurnoutLevel(0);
+          saveSoloHP({ current: 0, max: 0 });
           updateUnbondedStatus(true);
           resetBondState();
           if (config) {
