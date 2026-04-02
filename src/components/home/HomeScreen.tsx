@@ -53,6 +53,8 @@ import { DragonParticles } from './DragonParticles';
 import { PrestigeData } from '@/lib/prestige';
 import { ChroniclerHomeView } from './ChroniclerHomeView';
 import { AlignmentDriftIndicator } from '@/components/alignment/AlignmentDriftIndicator';
+import { EmpyreanDualHPBars } from '@/components/empyrean/EmpyreanDualHPBars';
+import { getSoloHP, getPartyHP } from '@/lib/dragonBondState';
 
 import homeBackground from '@/assets/home-background-mobile.jpg';
 import empyreanBackground from '@/assets/empyrean-bg.jpg';
@@ -315,6 +317,19 @@ export function HomeScreen({
   const [showFAQDrawer, setShowFAQDrawer] = useState(false);
   const [showSoloConfirm, setShowSoloConfirm] = useState(false);
   const [showEmpyreanScreen, setShowEmpyreanScreen] = useState(false);
+  const [showEmpyreanDMContainer, setShowEmpyreanDMContainer] = useState(false);
+
+  // Temporary: redirect to existing Empyrean screen until the container is built
+  useEffect(() => {
+    if (showEmpyreanDMContainer) {
+      setShowEmpyreanDMContainer(false);
+      setShowEmpyreanScreen(true);
+    }
+  }, [showEmpyreanDMContainer]);
+
+  // Empyrean HP bars data
+  const empyreanSoloHP = appMode === 'empyrean' ? getSoloHP() : { current: 0, max: 0 };
+  const empyreanPartyHP = appMode === 'empyrean' ? getPartyHP() : { current: 0, max: 0 };
   const [showCompanionScreen, setShowCompanionScreen] = useState(false);
   const [geraltHpPct, setGeraltHpPct] = useState<number | undefined>(undefined);
   // Persist last-read message count per party in localStorage
@@ -615,6 +630,13 @@ export function HomeScreen({
 
       {/* Content layer */}
       <div className="flex flex-col h-screen overflow-hidden relative z-10">
+        {/* Empyrean dual HP bars */}
+        {appMode === 'empyrean' && (
+          <EmpyreanDualHPBars
+            soloHP={empyreanSoloHP}
+            partyHP={empyreanPartyHP}
+          />
+        )}
         {/* Install Banner */}
         <InstallBanner />
 
@@ -664,7 +686,9 @@ export function HomeScreen({
           dragonName={loadEmpyreanDMConfig()?.dragonName}
           onOpenSettings={onOpenSettings}
         />
-        <AlignmentDriftIndicator className="px-4 py-1" />
+        {appMode !== 'empyrean' && (
+          <AlignmentDriftIndicator className="px-4 py-1" />
+        )}
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-auto flex flex-col">
@@ -772,59 +796,86 @@ export function HomeScreen({
               transition={{ duration: 0.5, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
               className="flex items-center justify-center gap-3 px-4 py-3"
             >
-              {_isDMButtonVisible('dm.solo') && (
+              {appMode === 'empyrean' ? (
                 <motion.button
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.6, duration: 0.4 }}
-                  onClick={() => { triggerHaptic('light'); drawerContext?.openAIDMScreen(); }}
+                  onClick={() => {
+                    triggerHaptic('light');
+                    setShowEmpyreanDMContainer(true);
+                  }}
                   className={cn(
-                    "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
-                    "border border-violet-500/30 bg-violet-950/20 backdrop-blur-sm",
-                    "hover:bg-violet-900/30 hover:border-violet-400/50",
+                    "w-full flex flex-col items-center gap-2 py-4 rounded-xl",
+                    "border border-amber-500/35 bg-gradient-to-br from-amber-500/[0.08] to-amber-700/[0.04]",
+                    "backdrop-blur-sm",
+                    "hover:from-amber-500/[0.14] hover:to-amber-700/[0.08] hover:border-amber-500/55",
                     "active:scale-[0.97] transition-all duration-200"
                   )}
                   style={{ touchAction: 'manipulation' }}
                 >
-                  <Crown className="w-6 h-6 text-violet-400" />
-                  <span className="text-xs font-cinzel uppercase tracking-wider text-violet-300">Solo DM</span>
+                  <span className="text-xl">🐉</span>
+                  <span className="text-sm font-cinzel font-bold uppercase tracking-[0.2em] text-amber-400 drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+                    The Empyrean Awaits
+                  </span>
                 </motion.button>
-              )}
-              {_isDMButtonVisible('dm.empyrean') && (
-                <motion.button
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.7, duration: 0.4 }}
-                  onClick={() => { triggerHaptic('light'); setShowEmpyreanScreen(true); }}
-                  className={cn(
-                    "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
-                    "border border-amber-500/30 bg-amber-950/20 backdrop-blur-sm",
-                    "hover:bg-amber-900/30 hover:border-amber-400/50",
-                    "active:scale-[0.97] transition-all duration-200"
+              ) : (
+                <>
+                  {_isDMButtonVisible('dm.solo') && (
+                    <motion.button
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.6, duration: 0.4 }}
+                      onClick={() => { triggerHaptic('light'); drawerContext?.openAIDMScreen(); }}
+                      className={cn(
+                        "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
+                        "border border-violet-500/30 bg-violet-950/20 backdrop-blur-sm",
+                        "hover:bg-violet-900/30 hover:border-violet-400/50",
+                        "active:scale-[0.97] transition-all duration-200"
+                      )}
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      <Crown className="w-6 h-6 text-violet-400" />
+                      <span className="text-xs font-cinzel uppercase tracking-wider text-violet-300">Solo DM</span>
+                    </motion.button>
                   )}
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <ScrollText className="w-6 h-6 text-amber-400" />
-                  <span className="text-xs font-cinzel uppercase tracking-wider text-amber-300">Empyrean</span>
-                </motion.button>
-              )}
-              {_isDMButtonVisible('dm.party') && (
-                <motion.button
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.8, duration: 0.4 }}
-                  onClick={() => { triggerHaptic('light'); drawerContext?.openPartyDMScreen(); }}
-                  className={cn(
-                    "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
-                    "border border-sky-500/30 bg-sky-950/20 backdrop-blur-sm",
-                    "hover:bg-sky-900/30 hover:border-sky-400/50",
-                    "active:scale-[0.97] transition-all duration-200"
+                  {_isDMButtonVisible('dm.empyrean') && (
+                    <motion.button
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.7, duration: 0.4 }}
+                      onClick={() => { triggerHaptic('light'); setShowEmpyreanScreen(true); }}
+                      className={cn(
+                        "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
+                        "border border-amber-500/30 bg-amber-950/20 backdrop-blur-sm",
+                        "hover:bg-amber-900/30 hover:border-amber-400/50",
+                        "active:scale-[0.97] transition-all duration-200"
+                      )}
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      <ScrollText className="w-6 h-6 text-amber-400" />
+                      <span className="text-xs font-cinzel uppercase tracking-wider text-amber-300">Empyrean</span>
+                    </motion.button>
                   )}
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <Users className="w-6 h-6 text-sky-400" />
-                  <span className="text-xs font-cinzel uppercase tracking-wider text-sky-300">Party DM</span>
-                </motion.button>
+                  {_isDMButtonVisible('dm.party') && (
+                    <motion.button
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.8, duration: 0.4 }}
+                      onClick={() => { triggerHaptic('light'); drawerContext?.openPartyDMScreen(); }}
+                      className={cn(
+                        "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
+                        "border border-sky-500/30 bg-sky-950/20 backdrop-blur-sm",
+                        "hover:bg-sky-900/30 hover:border-sky-400/50",
+                        "active:scale-[0.97] transition-all duration-200"
+                      )}
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      <Users className="w-6 h-6 text-sky-400" />
+                      <span className="text-xs font-cinzel uppercase tracking-wider text-sky-300">Party DM</span>
+                    </motion.button>
+                  )}
+                </>
               )}
             </motion.div>
 
