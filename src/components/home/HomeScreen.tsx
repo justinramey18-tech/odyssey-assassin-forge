@@ -703,6 +703,7 @@ export function HomeScreen({
           {appMode === 'empyrean' ? (
             <EmpyreanDragonTapArea
               hasConfig={!!loadEmpyreanDMConfig()}
+              isUnbonded={getIsUnbonded()}
               onEnterCampaign={() => {
                 triggerHaptic('light');
                 setShowEmpyreanDM(true);
