@@ -1627,10 +1627,16 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     if (result.success) {
       console.log('[Wizard] Character created:', result.appliedChanges);
       setShowWizard(false);
+      // Force immediate cloud save so newly created characters persist
+      setTimeout(() => {
+        autoSync.syncNow().then(() => {
+          console.log('[Wizard] Immediate cloud save completed');
+        }).catch(() => {});
+      }, 2000);
     } else {
       console.error('[Wizard] Creation failed:', result.errors);
     }
-  }, [wizardSetters]);
+  }, [wizardSetters, autoSync]);
 
   // ── AI Creation Assistant: apply character when navigated back with aiCreatedCharacter state ──
   const hasAppliedAICharacter = useRef(false);
