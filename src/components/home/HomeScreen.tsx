@@ -38,8 +38,8 @@ import { EmpyreanDragonBurnoutTint } from '@/components/empyrean/EmpyreanDragonB
 import { EmpyreanUnbondedOverlay } from '@/components/empyrean/EmpyreanUnbondedOverlay';
 import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
 import { EmpyreanDMContainer } from '@/components/empyrean/EmpyreanDMContainer';
-import { EmpyreanDMContainer } from '@/components/empyrean/EmpyreanDMContainer';
 import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
+import { StandalonePartyDMScreen } from '@/components/ai-dm/StandalonePartyDMScreen';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { loadEmpyreanDMConfig } from '@/lib/empyreanDMPersona';
 import { getIsUnbonded, getSavedBurnoutLevel, getSoloHP, getPartyHP } from '@/lib/dragonBondState';
