@@ -427,7 +427,7 @@ ${truncated}`);
   // Non-hosts (and non-co-hosts) wait for session to start
   if (!partyDm.isActive && !isHost) {
     return (
-      <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
+      <div className={cn("flex flex-col items-center justify-center bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]", embedded ? "absolute inset-0" : "fixed inset-0 z-[60]")}>
         <button
           onClick={onBack}
           className="absolute top-4 left-4 p-2 rounded-lg hover:bg-white/10 transition-colors"
