@@ -53,7 +53,7 @@ import {
   saveDragonNotes,
 } from '@/lib/empyreanDMPersona';
 import { useDragonBond } from '@/hooks/use-dragon-bond';
-import { getBondDescriptor, getTrustDescriptor, buildDragonChatPrompt, DRAGON_CHAT_SUMMARY_KEY, DRAGON_CHAT_KEY, resetBondState, getIsUnbonded, setIsUnbonded, saveBondState, DEFAULT_BOND, DEFAULT_TRUST, getSavedBurnoutLevel, saveBurnoutLevel } from '@/lib/dragonBondState';
+import { getBondDescriptor, getTrustDescriptor, buildDragonChatPrompt, DRAGON_CHAT_SUMMARY_KEY, DRAGON_CHAT_KEY, resetBondState, getIsUnbonded, setIsUnbonded, saveBondState, DEFAULT_BOND, DEFAULT_TRUST, getSavedBurnoutLevel, saveBurnoutLevel, saveSoloHP } from '@/lib/dragonBondState';
 import { getDragonColorHex } from '@/lib/dragonColors';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { getAuthToken } from '@/lib/auth-token';
@@ -283,6 +283,23 @@ UNBONDED RIDER RULES:
     getCurrentMarkers: useCallback(() => [], []),
     getGridSize: useCallback(() => ({ cols: 10, rows: 10 } as any), []),
   });
+
+  // Save solo HP snapshot for homescreen display
+  useEffect(() => {
+    if (!open) return;
+    const interval = setInterval(() => {
+      const hp = autoSyncCallbacks?.getCurrentHP() ?? 0;
+      const max = characterContext?.maxHP ?? 1;
+      saveSoloHP({ current: hp, max });
+    }, 2000);
+    return () => {
+      clearInterval(interval);
+      // Save immediately on close
+      const hp = autoSyncCallbacks?.getCurrentHP() ?? 0;
+      const max = characterContext?.maxHP ?? 1;
+      saveSoloHP({ current: hp, max });
+    };
+  }, [open, autoSyncCallbacks, characterContext?.maxHP]);
 
   const dragonBond = useDragonBond({
     dragonName: config?.dragonName || '',

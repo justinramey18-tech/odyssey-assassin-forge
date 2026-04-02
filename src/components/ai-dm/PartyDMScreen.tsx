@@ -8,6 +8,7 @@ import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import empyreanSpeaksImg from '@/assets/empyrean-speaks.jpg';
 import empyreanDmBg from '@/assets/empyrean-dm-bg.jpg';
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
+import { savePartyHP } from '@/lib/dragonBondState';
 import { setIsUnbonded } from '@/lib/dragonBondState';
 import DeathSaveScreen from '@/components/empyrean/DeathSaveScreen';
 import MemorialScreen from '@/components/empyrean/MemorialScreen';
@@ -866,6 +867,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const isEmpyrean = partyDm.sessionConfig?.campaignType === 'empyrean';
   const dragonBonds = usePartyDragonBonds(isEmpyrean ? (partyId || null) : null, currentUserId || null, members);
   const [showEmpyreanBanner, setShowEmpyreanBanner] = useState(false);
+
+  // Save party HP snapshot for Empyrean homescreen
+  useEffect(() => {
+    if (!isEmpyrean || !characterContext) return;
+    const hp = characterContext.currentHP ?? 0;
+    const max = characterContext.maxHP ?? 1;
+    savePartyHP({ current: hp, max });
+  }, [isEmpyrean, characterContext?.currentHP, characterContext?.maxHP]);
 
 
   // Fix A: Clear scoped localStorage when user identity changes (prevents data bleed between accounts)

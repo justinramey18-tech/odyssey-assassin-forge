@@ -40,7 +40,8 @@ import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
 import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { loadEmpyreanDMConfig } from '@/lib/empyreanDMPersona';
-import { getIsUnbonded, getSavedBurnoutLevel } from '@/lib/dragonBondState';
+import { getIsUnbonded, getSavedBurnoutLevel, getSoloHP, getPartyHP } from '@/lib/dragonBondState';
+import { EmpyreanDualHPBars } from '@/components/empyrean/EmpyreanDualHPBars';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import { GeraltCompanionScreen } from '@/components/companion';
 // New redesigned components
@@ -636,19 +637,47 @@ export function HomeScreen({
       )}
 
       {/* Empyrean HP/burnout/unbonded overlays */}
-      {appMode === 'empyrean' && (
-        <>
-          <EmpyreanUnbondedOverlay isUnbonded={getIsUnbonded()} />
-          <EmpyreanDragonHPGlow currentHP={currentHP} maxHP={maxHP} />
-          <EmpyreanDragonBurnoutTint
-            burnoutLevel={getSavedBurnoutLevel()}
-            maxBurnout={getIsUnbonded() ? 0 : 8}
-            isUnbonded={getIsUnbonded()}
-          />
-        </>
-      )}
+      {appMode === 'empyrean' && (() => {
+        const soloHPData = getSoloHP();
+        const partyHPData = getPartyHP();
+        const soloPct = soloHPData.max > 0 ? soloHPData.current / soloHPData.max : 1;
+        const partyPct = partyHPData.max > 0 ? partyHPData.current / partyHPData.max : 1;
+        const glowHP = soloHPData.max > 0 && partyHPData.max > 0
+          ? (soloPct <= partyPct ? soloHPData : partyHPData)
+          : soloHPData.max > 0
+          ? soloHPData
+          : partyHPData.max > 0
+          ? partyHPData
+          : { current: currentHP, max: maxHP };
+        return (
+          <>
+            <EmpyreanUnbondedOverlay isUnbonded={getIsUnbonded()} />
+            <EmpyreanDragonHPGlow currentHP={glowHP.current} maxHP={glowHP.max} />
+            <EmpyreanDragonBurnoutTint
+              burnoutLevel={getSavedBurnoutLevel()}
+              maxBurnout={getIsUnbonded() ? 0 : 8}
+              isUnbonded={getIsUnbonded()}
+            />
+          </>
+        );
+      })()}
 
       <div className="flex flex-col h-screen overflow-hidden relative z-10">
+        {/* Empyrean Dual HP Bars */}
+        {appMode === 'empyrean' && (
+          <EmpyreanDualHPBars
+            soloHP={getSoloHP()}
+            partyHP={getPartyHP()}
+            onTapSolo={() => {
+              triggerHaptic('light');
+              setShowEmpyreanDM(true);
+            }}
+            onTapParty={() => {
+              triggerHaptic('light');
+              drawerContext?.openPartyDMScreen();
+            }}
+          />
+        )}
         {/* Install Banner */}
         <InstallBanner />
 
