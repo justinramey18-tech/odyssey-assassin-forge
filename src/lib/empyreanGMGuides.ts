@@ -21,19 +21,22 @@ const lorNavarre: EmpyreanGuide = {
   description: 'Geography, politics, the Empyrean, and the war that shapes everything.',
   content: `# World of Navarre — Setting Overview
 
-Navarre is a militaristic kingdom on a continent scarred by centuries of conflict with the Venin — corrupted wielders who drain the land of life to fuel dark magic. The kingdom is protected by an enormous ward line powered by wardstones, maintained by dragon riders and runic magic.
+Navarre is a militaristic kingdom on a continent scarred by centuries of conflict with the Venin — corrupted wielders who drain the land of life to fuel dark magic. The kingdom is protected by an enormous ward line powered by wardstones, maintained by dragon riders channeling power through their bonds.
 
 ## Geography
-Navarre occupies the eastern portion of the continent. The interior is mountainous, with Basgiath War College built into the Cliffs of Dralor overlooking the Isgaard Valley. The western frontier borders the Barrens — territory beyond the wards where the land is drained, grey, and lifeless. To the south lies Poromiel, a kingdom that uses gryphon riders instead of dragon riders. The northern territories are sparsely populated frontier zones where ward failures are most common.
+Navarre occupies the eastern portion of the continent. Basgiath War College is built into Basgiath Mountain in the Morraine Province, overlooking the Vale — the region's dragon hatching grounds — and the Iakobos River. The western frontier borders territory beyond the wards where the land is drained, grey, and lifeless. To the south lies Poromiel, a kingdom that uses gryphon riders instead of dragon riders. The frontier zones along the ward line are where failures are most common and patrols are most active.
 
 ## Political Structure
-The Empyrean is the ruling body — a council of senior dragon riders, military commanders, and political leaders. The Commandant of Basgiath holds enormous influence. Power flows through military rank. Scribes control information, and their leadership decides what the general population knows about the war. This information control is a deliberate policy: most citizens and even many riders do not know the true state of the ward line.
+The kingdom is governed through military hierarchy, with dragon riders occupying the highest tier of social and political power. The Commanding General holds enormous authority, and Basgiath's Commandant controls who becomes a rider and what cadets learn. Scribes control information flow, and their leadership decides what the general population knows about the war. This information control is a deliberate policy: most citizens and even many riders do not know the true state of the ward line.
 
 ## The War
 The conflict with the Venin is existential. Venin cross the ward line to attack settlements, drain the land, and corrupt wielders. The official position is that the wards are strong and the war is manageable. The truth — known to a rebel faction within the riders — is that the wards are failing, attacks are increasing, and Navarre is losing. This secret drives much of the political tension.
 
-## The Reunification Treaty
-Generations ago, warring dragon rider factions united under a single banner, founding Basgiath as a training institution and establishing the Empyrean as a governing body. The treaty ended centuries of riders fighting each other and redirected their power against the Venin. However, old bloodline rivalries persist beneath the surface of institutional unity.
+## The Unification
+Generations ago, warring dragon rider factions united under a single banner. The dragon dens offered their ancestral hatching grounds — including the Uaineloidsig line, which offered the Steelridge Mountain Range where Basgiath now stands — for the good of dragonkind. This unification founded Basgiath as a training institution and redirected rider power against the Venin. However, old bloodline rivalries persist beneath the surface of institutional unity.
+
+## Navarre's Six Provinces
+Navarre is divided into six provinces, each of which sends candidates to Basgiath during conscription. Some volunteer, others are sentenced as punishment, and most are conscripted. The province of Tyrrendor is particularly significant — it is the homeland of the Tyrrish people and the seat of the failed rebellion led by Fen Riorson.
 
 ## Atmosphere
 The world feels militaristic, secretive, and dangerous. Beauty exists — the dragons, the mountains, the bonds between riders — but it is always shadowed by the cost of war, institutional secrecy, and the knowledge that the people protecting you may also be lying to you.`,
@@ -47,28 +50,28 @@ const lorBasgiath: EmpyreanGuide = {
   description: 'Quadrants, wing structure, daily life, curriculum, and chain of command.',
   content: `# Basgiath War College — Structure and Daily Life
 
-Basgiath is the only institution that trains dragon riders. Built into a mountain fortress, it is equal parts military academy, proving ground, and slaughterhouse. Not everyone who enters survives.
+Basgiath is the only institution that trains dragon riders. Built into Basgiath Mountain in the Morraine Province, it is equal parts military academy, proving ground, and slaughterhouse. Not everyone who enters survives.
 
 ## The Four Quadrants
-- **Riders Quadrant**: The elite. Students bond with dragons during Threshing and train in aerial combat, signet development, and tactical warfare. Highest mortality rate.
-- **Scribes Quadrant**: Intelligence and record-keeping. Scribes manage information, maintain archives, and serve as the bureaucratic backbone. They control what the public knows.
-- **Healers Quadrant**: Medical corps. Healers train in both conventional medicine and magical healing, treating injuries from training, combat, and signet burnout.
-- **Infantry Quadrant**: Ground forces. Infantry students train without dragons, serving as the foot soldiers, engineers, and support structure for the rider corps.
+- **Riders Quadrant**: The elite. Located in the Citadel — the upper portion of the fortress. Students bond with dragons during Threshing and train in aerial combat, signet development, and tactical warfare. Highest mortality rate — only about a quarter of cadets survive to graduation. The only rules that apply to riders come from the Codex, the Riders Quadrant's own legal code.
+- **Scribes Quadrant**: Intelligence and record-keeping, located below ground in the Archives. Scribes study and master the past while relaying and recording the present. They provide intelligence briefings (Battle Brief) to the Riders Quadrant and control what information reaches the public. Scribes are expected to maintain composure at all times — even hugging a friend could result in punishment. Their uniforms are pale blue.
+- **Healers Quadrant**: Located at the southern end of Basgiath, connected to the Riders Quadrant by a bridge to the infirmary. Healers do NOT have magic — they rely entirely on traditional tinctures, medical training, and surgical skill. They work alongside riders who possess the Mending signet for serious cases. Healers are sworn to never harm a beating heart and are taught to do everything in their power to save human life.
+- **Infantry Quadrant**: The largest quadrant, with nearly 1,000 cadets joining in a single year. Connected at the northern turret. Infantry are trained for land battle, outdoor survival, and camp operations. They carry shortswords as standard weapons. It takes nearly a full company of Infantry to compensate for the loss of one dragon rider.
 
 ## Wing and Squad Structure
-Riders are organized into Wings (led by a Wingleader) and further divided into Squads (led by a Squad Leader). A wing typically contains 3-4 squads of 5-8 riders each. Wing assignments are semi-permanent and create intense loyalty bonds. Inter-wing rivalry is encouraged by leadership as a training tool.
+Riders are organized into Wings (led by a Wingleader) and further divided into Sections (Flame, Claw, and Tail), then into Squads (led by a Squad Leader). Wing assignments are semi-permanent and create intense loyalty bonds. Inter-wing rivalry is encouraged by leadership as a training tool. Wingleader and section leader positions are typically held by third-year students, though exceptional second-years can achieve them.
 
 ## Daily Life
-Days begin before dawn. Morning physical training is followed by academic classes (history, tactics, languages, Battle Brief intelligence sessions), then afternoon combat training (sparring, flight exercises, signet drills). Evenings are nominally free but often consumed by studying, squad bonding, or recovering from injuries. Meals are communal in the mess hall — a social battlefield of its own.
+Days begin before dawn. Morning physical training is followed by academic classes (Battle Brief intelligence sessions, military history, tactics, languages, signet theory), then afternoon combat training (sparring, challenge matches, flight exercises, squad tactical drills). Evenings are nominally free but often consumed by studying, squad bonding, or recovering from injuries. Meals are communal in the mess hall — a social battlefield of its own. First-year riders cannot write or receive letters from family.
 
 ## The Parapet
-First-year riders must cross the parapet — a narrow, crumbling stone bridge with no railings over a lethal drop — on their first day. This is the first test: those who cannot cross die. It establishes immediately that Basgiath does not protect you from death.
+First-year riders must cross the parapet — a narrow, crumbling stone bridge with no railings over a lethal drop — on Conscription Day. This is the first test: those who cannot cross die. On average 15% of candidates die at the parapet before even entering the Riders Quadrant.
 
 ## Threshing
-The bonding ceremony where unbonded dragons choose their riders. Dragons are not assigned — they choose. Being rejected by every dragon means transfer to a different quadrant or, in some cases, death by a dragon who finds you unworthy. Threshing is terrifying, sacred, and the most important day of a rider's life.
+The bonding ceremony where unbonded dragons choose their riders, held on October 1st each year. Dragons are not assigned — they choose. Being rejected by every dragon means transfer to a different quadrant or death by a dragon who finds you unworthy. Threshing is terrifying, sacred, and the most important day of a rider's life.
 
 ## Chain of Command
-Commandant → Vice Commandant → Wing Commanders → Professors → Wingleaders → Squad Leaders → Cadets. Orders flow downward absolutely. Questioning the chain is insubordination. This rigid structure both protects and oppresses.`,
+Commanding General > Commandant > Vice Commandant > Wing Commanders > Professors > Wingleaders > Section Leaders > Squad Leaders > Cadets. Orders flow downward absolutely. Questioning the chain is insubordination. This rigid structure both protects and oppresses.`,
 };
 
 const lorDragonBonds: EmpyreanGuide = {
@@ -82,22 +85,50 @@ const lorDragonBonds: EmpyreanGuide = {
 The dragon bond is the foundation of everything in the rider world. It is not ownership — it is a partnership between two sentient beings, and the dragon always has the final say.
 
 ## How Bonding Works
-During Threshing, unbonded dragons evaluate potential riders through proximity, mental probing, and instinct. A bond forms instantaneously — a flash of connection that rewrites both minds. The rider gains access to the dragon's power (enabling signet manifestation) and a telepathic link. The dragon gains a partner whose emotions, memories, and will become partially accessible. Neither party can fully control the other.
+During Threshing, unbonded dragons evaluate potential riders through proximity, mental probing, and instinct. A bond forms instantaneously — a flash of connection that rewrites both minds. The rider gains access to the dragon's power (enabling signet manifestation) and a telepathic link. The dragon gains a partner whose emotions, memories, and will become partially accessible. Neither party can fully control the other. Since there are fewer dragons willing to bond than cadets, Threshing is inherently deadly.
+
+## The Relic
+When a dragon bonds a rider, it leaves a physical mark on the rider's body — the relic. This mark is the conduit through which the dragon channels magical energy into the rider. All magic a rider performs flows through this mark. The relic's size and placement varies — Xaden Riorson's relic from Sgaeyl covers most of his back.
 
 ## The Mental Connection
 Bonded pairs share a telepathic channel that ranges from deliberate speech to passive emotional awareness. Distance weakens the connection but never fully severs it. Strong bonds allow full sentence communication; newer bonds may only transmit emotions, images, or single words. Dragons communicate in terse, ancient-feeling language — they do not ramble.
 
 ## Bond Bleed-Through
-Physical and emotional states bleed between rider and dragon. If the dragon is injured, the rider feels phantom pain. If the rider experiences intense emotion, the dragon is affected. This bleed-through deepens with time and can become overwhelming during combat or emotional crisis. Learning to manage bleed-through is a critical training skill.
+Physical and emotional states bleed between rider and dragon. If the dragon is injured, the rider feels phantom pain. If the rider experiences intense emotion, the dragon is affected. Mated dragons create additional bleed-through — romantic and protective feelings between dragon mates flow through into their riders, which can be overwhelming. Learning to manage bleed-through is a critical training skill.
 
-## Dragon Breeds
-Multiple breeds exist, varying in size, temperament, fire type, and combat specialization. Some breeds are more aggressive, others more strategic. Breed affects personality — smaller, faster dragons tend toward impatience; ancient lineage dragons carry ancestral grudges. Specific breed names and traits should be invented by the AI DM to fit the campaign.
+## Dragon Colors, Tail Types, and Ancestral Lines
+Dragon breeds are defined by COLOR and TAIL TYPE. These are canon — do NOT invent new ones.
+
+**Six colors, each with distinct temperaments and approach protocols:**
+- **Black** (Dubhmadinn line): The most cunning line in dragonkind. Ancestral hatching grounds at Aretia. Extremely rare and deadly. Never show weakness.
+- **Blue** (Gormfaileas line): Formidable in size, the most ruthless. Blue Daggertails are especially rare. Do not approach.
+- **Brown**: Known for loyalty. Never show trepidation around them.
+- **Green** (Uaineloidsig line): Keen intellect, the most rational and reasonable. Perfect siege weapons as clubtails. Never back down from a green — lower your eyes in supplication and wait for their approval.
+- **Orange** (Fhaicorain line): The most unpredictable den, inherently risky. Historically associated with the Northern Esbens but frequently shift nesting grounds.
+- **Red**: Volatile tempers. Quickest to anger, especially scorpiontails. Approach from the left or front and avoid direct eye contact.
+- **Gold/Irid**: Extraordinarily rare. A seventh den known only to dragon elders and a select few.
+
+**Six tail types:**
+- **Clubtail**: Bludgeoning power. Solid, club-like mass at the tail's end.
+- **Daggertail**: Piercing. Knife-like point, deadly precision.
+- **Morningstartail**: Combines clubtail bludgeoning with daggertail spikes. Among the deadliest breeds.
+- **Scorpiontail**: Tipped with venomous barbs, delivering a deadly sting.
+- **Swordtail**: Long, razor-sharp edges used like blades. Tend to belong to larger dragons.
+- **Feathertail**: Actually the juvenile form of all dragons. Upon maturity, dragons change their tail type based on need. Most irids keep their feathertails as a mark of peace.
+
+**Tails develop by choice**, not birth. A dragon selects its tail type upon maturity based on need and personality.
+
+## Rebonding After Loss
+If a rider dies, the dragon grieves deeply but CAN bond again. Sgaeyl was bonded to Xaden Riorson's grandfather, who did not survive to graduation — she then went fifty years unbonded before choosing Xaden during his Threshing. Tairn also had at least one previous rider. Some dragons never bond again by choice, but rebonding is established and accepted. If a dragon dies, the rider almost always dies or is left permanently broken.
+
+## Dragon Hierarchy and Society
+Dragons have their own governance — a clear hierarchy among the most powerful, with deference paid to elders. A dragon only answers to the eldest of their den. A dragon's lifespan is estimated around 200 years, with 100 years considered roughly middle-age. Dragons do not typically bond until they are fully grown.
 
 ## Second Bonds
-Extremely rare. A rider bonding a second dragon (or a dragon accepting a second rider) is nearly unheard of and carries enormous political and personal implications. Second bonds are viewed with suspicion, awe, or fear depending on the faction.
+Extremely rare and unprecedented — only one known case: Violet Sorrengail bonded both Tairn (a Black Morningstartail) and Andarna (initially a Golden Feathertail). Since there was no dragon law against it, the bonds stood. Dual bonds carry enormous political and personal implications.
 
 ## Dragon Agency
-Dragons are not mounts. They have opinions, agendas, and personalities. A dragon may refuse to fly into a battle it considers suicidal. It may disapprove of the rider's romantic choices. It may have ancient rivalries with other dragons that complicate squad dynamics. The AI DM should always give the bonded dragon a voice, preferences, and moments of independent action.
+Dragons are not mounts. They have opinions, agendas, and personalities. A dragon may refuse to fly into a battle it considers suicidal. It may disapprove of the rider's romantic choices. It may have ancient rivalries with other dragons that complicate squad dynamics. The AI DM should always give the bonded dragon preferences and moments of independent action.
 
 ## Bond Severance
 If a dragon dies, the rider almost always dies — or is left broken, a shell of their former self. If a rider dies, the dragon grieves deeply and may never accept another bond. This mutual vulnerability is what makes the bond sacred.`,
@@ -202,7 +233,7 @@ Venin are wielders — people with magical ability — who have turned to drawin
 4. **Ancient**: Rare venin who have survived centuries. Enormously powerful, strategically intelligent, and nearly impossible to kill. They retain enough humanity to be manipulative and patient.
 
 ## Wyverns
-Wyverns are corrupted creatures — twisted, venomous, bat-winged predators that serve as the venin's aerial force. Unlike dragons, wyverns have no sapience; they operate on predatory instinct guided by venin telepathy. They are smaller than most dragons but faster, more numerous, and relentless. Their venom causes necrosis and, in large doses, can accelerate corruption in wielders.
+Wyverns are corrupted creatures — twisted, venomous, bat-winged predators that serve as the venin's aerial force. Unlike dragons, wyverns have no sapience; they operate on predatory instinct guided by venin telepathy. They are smaller than most dragons but faster, more numerous, and relentless. Their venom causes necrosis and is deadly in sufficient doses. Scorpiontail dragons also carry venomous barbs, which should not be confused with wyvern venom.
 
 ## Tactics
 Venin attack in coordinated waves. They target wardstones to weaken the ward line, use wyvern swarms to overwhelm dragon patrols, and employ corruption as a weapon — turning captured riders into new venin. They are not mindless; advanced and ancient venin plan complex operations.
