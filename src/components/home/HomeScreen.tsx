@@ -32,9 +32,13 @@ import { FAQDrawer } from './FAQDrawer';
 
 import { EmpyreanScreen } from '@/components/empyrean/EmpyreanScreen';
 import { EmpyreanHomeHeader } from '@/components/empyrean/EmpyreanHomeHeader';
+import { EmpyreanDragonTapArea } from '@/components/empyrean/EmpyreanDragonTapArea';
+import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
+import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { loadEmpyreanDMConfig } from '@/lib/empyreanDMPersona';
 import { getIsUnbonded } from '@/lib/dragonBondState';
+import { useGMGuides } from '@/hooks/use-gm-guides';
 import { GeraltCompanionScreen } from '@/components/companion';
 // New redesigned components
 import { CharacterNamePlaque } from './CharacterNamePlaque';
@@ -317,6 +321,9 @@ export function HomeScreen({
   const [showFAQDrawer, setShowFAQDrawer] = useState(false);
   const [showSoloConfirm, setShowSoloConfirm] = useState(false);
   const [showEmpyreanScreen, setShowEmpyreanScreen] = useState(false);
+  const [showEmpyreanDM, setShowEmpyreanDM] = useState(false);
+  const [showEmpyreanSetup, setShowEmpyreanSetup] = useState(false);
+  const gmGuides = useGMGuides();
   const [showCompanionScreen, setShowCompanionScreen] = useState(false);
   const [geraltHpPct, setGeraltHpPct] = useState<number | undefined>(undefined);
   // Persist last-read message count per party in localStorage
@@ -693,6 +700,19 @@ export function HomeScreen({
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-auto flex flex-col">
+          {appMode === 'empyrean' ? (
+            <EmpyreanDragonTapArea
+              hasConfig={!!loadEmpyreanDMConfig()}
+              onEnterCampaign={() => {
+                triggerHaptic('light');
+                setShowEmpyreanDM(true);
+              }}
+              onSetupCampaign={() => {
+                triggerHaptic('light');
+                setShowEmpyreanSetup(true);
+              }}
+            />
+          ) : (
           <div className="flex flex-col gap-4 pb-[2px] mt-auto">
 
             {/* Wild Shape Details Overlay */}
@@ -791,7 +811,7 @@ export function HomeScreen({
 
 
             {/* DM Launch Buttons */}
-            {appMode !== 'empyrean' && (
+            {(
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
@@ -856,7 +876,7 @@ export function HomeScreen({
             )}
 
             {/* Menus Bar */}
-            {appMode !== 'empyrean' && (
+            {(
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -934,6 +954,7 @@ export function HomeScreen({
             </div>
             )}
           </div>
+          )}
         </div>
 
         {/* Primary Navigation Cards Footer — Collapsible */}
@@ -1201,7 +1222,32 @@ export function HomeScreen({
         autoSyncCallbacks={autoSyncCallbacks}
       />
 
-      {/* FAQ Drawer */}
+      {/* Empyrean DM — direct entry from dragon tap */}
+      <EmpyreanDMScreen
+        open={showEmpyreanDM}
+        onClose={() => setShowEmpyreanDM(false)}
+        characterContext={drawerContext?.characterContext ?? { name: character.name, level: character.level, currentHP: 10, maxHP: 10, abilities: [], equippedAbilities: [], equipment: [], activeSetBonuses: [], consumables: [], cooldowns: { active: [], ready: [] }, prestigeLevel: 0, prestigeAbilities: [] } as any}
+        characterName={character.name}
+        autoSyncCallbacks={autoSyncCallbacks}
+      />
+
+      {/* Empyrean Campaign Setup — direct entry when no config */}
+      <EmpyreanCampaignSetup
+        open={showEmpyreanSetup}
+        onClose={() => setShowEmpyreanSetup(false)}
+        characterName={character.name}
+        addGuide={gmGuides.addGuide}
+        deleteGuide={gmGuides.deleteGuide}
+        onComplete={() => {
+          setShowEmpyreanSetup(false);
+          setShowEmpyreanDM(true);
+        }}
+        onLaunchWithScene={() => {
+          setShowEmpyreanSetup(false);
+          setShowEmpyreanDM(true);
+        }}
+      />
+
       <FAQDrawer open={showFAQDrawer} onOpenChange={setShowFAQDrawer} />
 
       {/* Solo Mode Confirmation */}
