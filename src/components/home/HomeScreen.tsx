@@ -690,115 +690,86 @@ export function HomeScreen({
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-auto flex flex-col">
-          <div className="flex flex-col gap-4 pb-[2px] mt-auto">
-
-            {/* Wild Shape Details Overlay */}
-            {showFeature('home.wildShape') && isWildShape && wildShapeFormName && onDismissWildShape && (
-              <WildShapeOverlay
-                formName={wildShapeFormName}
-                speed={wildShapeSpeed || '30 ft.'}
-                specialAbilities={wildShapeAbilities}
-                usesRemaining={wildShapeUsesRemaining}
-                maxUses={wildShapeMaxUses}
-                transformedAt={wildShapeTransformedAt}
-                durationMinutes={wildShapeDurationMinutes}
-                onDismiss={onDismissWildShape}
-                characterName={character.name}
-                formCR={wildShapeFormCR}
-                formHP={wildShapeFormHP}
-                formMaxHP={wildShapeFormMaxHP}
-                formAC={wildShapeFormAC}
-              />
-            )}
-
-            {/* Solo/Party Mode Toggle + Party Button */}
-            {showFeature('home.playModeToggle') && partySync && partySync.party.partyId && (
-              <div className="flex items-center justify-center gap-2 mb-[2px]">
-                {/* Mode Toggle */}
-                {onPlayModeChange && (
-                  <button
-                    onClick={() => {
-                      triggerHaptic('light');
-                      if (playMode === 'party') {
-                        setShowSoloConfirm(true);
-                      } else {
-                        onPlayModeChange('party');
-                      }
-                    }}
-                    className={cn(
-                      "flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-cinzel uppercase tracking-wider transition-colors border",
-                      playMode === 'party'
-                        ? "border-emerald-500/40 bg-emerald-900/30 text-emerald-300"
-                        : "border-muted-foreground/30 bg-muted/20 text-muted-foreground"
+          {appMode === 'empyrean' ? (
+            <>
+              {/* TOP: Party + Empyrean Awaits — right under header */}
+              <div className="flex flex-col gap-3 px-4 pt-2">
+                {/* Solo/Party Mode Toggle + Party Button */}
+                {showFeature('home.playModeToggle') && partySync && partySync.party.partyId && (
+                  <div className="flex items-center justify-center gap-2">
+                    {onPlayModeChange && (
+                      <button
+                        onClick={() => {
+                          triggerHaptic('light');
+                          if (playMode === 'party') {
+                            setShowSoloConfirm(true);
+                          } else {
+                            onPlayModeChange('party');
+                          }
+                        }}
+                        className={cn(
+                          "flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-cinzel uppercase tracking-wider transition-colors border",
+                          playMode === 'party'
+                            ? "border-emerald-500/40 bg-emerald-900/30 text-emerald-300"
+                            : "border-muted-foreground/30 bg-muted/20 text-muted-foreground"
+                        )}
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        {playMode === 'party' ? (
+                          <>
+                            <Users className="w-3 h-3" />
+                            <span>Party</span>
+                          </>
+                        ) : (
+                          <>
+                            <User className="w-3 h-3" />
+                            <span>Solo</span>
+                          </>
+                        )}
+                      </button>
                     )}
-                    style={{ touchAction: 'manipulation' }}
-                  >
-                    {playMode === 'party' ? (
-                      <>
-                        <Users className="w-3 h-3" />
-                        <span>Party</span>
-                      </>
-                    ) : (
-                      <>
-                        <User className="w-3 h-3" />
-                        <span>Solo</span>
-                      </>
+                    {playMode === 'party' && (
+                      <button
+                        onClick={() => {
+                          triggerHaptic('light');
+                          setShowPartyDrawer(true);
+                        }}
+                        className="p-2 rounded-lg hover:bg-white/10 transition-colors relative flex items-center gap-1.5"
+                        style={{ touchAction: 'manipulation' }}
+                        aria-label={`Party — ${partySync.party.members.length} members`}
+                      >
+                        <Users className="w-5 h-5 text-emerald-400" />
+                        <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
+                          {partySync.party.members.length}
+                        </span>
+                        <OnlineCountBadge members={partySync.party.members} />
+                      </button>
                     )}
-                  </button>
+                  </div>
                 )}
 
-                {/* Party Drawer Button (only in party mode) */}
-                {playMode === 'party' && (
-                  <button
-                    onClick={() => {
-                      triggerHaptic('light');
-                      setShowPartyDrawer(true);
-                    }}
-                    className="p-2 rounded-lg hover:bg-white/10 transition-colors relative flex items-center gap-1.5"
-                    style={{ touchAction: 'manipulation' }}
-                    aria-label={`Party — ${partySync.party.members.length} members`}
-                  >
-                    <Users className="w-5 h-5 text-emerald-400" />
-                    <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
-                      {partySync.party.members.length}
-                    </span>
-                    <OnlineCountBadge members={partySync.party.members} />
-                  </button>
+                {showFeature('home.partyButton') && partySync && !partySync.party.partyId && (
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => {
+                        triggerHaptic('light');
+                        setShowPartyDrawer(true);
+                      }}
+                      className="rounded-lg transition-colors relative flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-emerald-900/20 border border-emerald-500/30"
+                      style={{ touchAction: 'manipulation' }}
+                      aria-label="Create or Join Party"
+                    >
+                      <Users className="w-4 h-4 text-emerald-400/70" />
+                      <span className="text-[10px] font-cinzel uppercase tracking-wider text-emerald-400/70">Party</span>
+                    </button>
+                  </div>
                 )}
-              </div>
-            )}
 
-            {/* Party Button - when not in a party yet (create/join) */}
-            {showFeature('home.partyButton') && partySync && !partySync.party.partyId && (
-              <div className="flex justify-center mb-[2px]">
-                <button
-                  onClick={() => {
-                    triggerHaptic('light');
-                    setShowPartyDrawer(true);
-                  }}
-                  className="rounded-lg transition-colors relative flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-emerald-900/20 border border-emerald-500/30"
-                  style={{ touchAction: 'manipulation' }}
-                  aria-label="Create or Join Party"
-                >
-                  <Users className="w-4 h-4 text-emerald-400/70" />
-                  <span className="text-[10px] font-cinzel uppercase tracking-wider text-emerald-400/70">Party</span>
-                </button>
-              </div>
-            )}
-
-
-            {/* DM Launch Buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
-              className="flex items-center justify-center gap-3 px-4 py-3"
-            >
-              {appMode === 'empyrean' ? (
+                {/* "The Empyrean Awaits" button */}
                 <motion.button
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6, duration: 0.4 }}
+                  transition={{ delay: 0.5, duration: 0.4 }}
                   onClick={() => {
                     triggerHaptic('light');
                     setShowEmpyreanDMContainer(true);
@@ -817,143 +788,305 @@ export function HomeScreen({
                     The Empyrean Awaits
                   </span>
                 </motion.button>
-              ) : (
-                <>
-                  {_isDMButtonVisible('dm.solo') && (
-                    <motion.button
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.6, duration: 0.4 }}
-                      onClick={() => { triggerHaptic('light'); drawerContext?.openAIDMScreen(); }}
-                      className={cn(
-                        "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
-                        "border border-violet-500/30 bg-violet-950/20 backdrop-blur-sm",
-                        "hover:bg-violet-900/30 hover:border-violet-400/50",
-                        "active:scale-[0.97] transition-all duration-200"
-                      )}
-                      style={{ touchAction: 'manipulation' }}
-                    >
-                      <Crown className="w-6 h-6 text-violet-400" />
-                      <span className="text-xs font-cinzel uppercase tracking-wider text-violet-300">Solo DM</span>
-                    </motion.button>
-                  )}
-                  {_isDMButtonVisible('dm.empyrean') && (
-                    <motion.button
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.7, duration: 0.4 }}
-                      onClick={() => { triggerHaptic('light'); setShowEmpyreanScreen(true); }}
-                      className={cn(
-                        "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
-                        "border border-amber-500/30 bg-amber-950/20 backdrop-blur-sm",
-                        "hover:bg-amber-900/30 hover:border-amber-400/50",
-                        "active:scale-[0.97] transition-all duration-200"
-                      )}
-                      style={{ touchAction: 'manipulation' }}
-                    >
-                      <ScrollText className="w-6 h-6 text-amber-400" />
-                      <span className="text-xs font-cinzel uppercase tracking-wider text-amber-300">Empyrean</span>
-                    </motion.button>
-                  )}
-                  {_isDMButtonVisible('dm.party') && (
-                    <motion.button
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.8, duration: 0.4 }}
-                      onClick={() => { triggerHaptic('light'); drawerContext?.openPartyDMScreen(); }}
-                      className={cn(
-                        "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
-                        "border border-sky-500/30 bg-sky-950/20 backdrop-blur-sm",
-                        "hover:bg-sky-900/30 hover:border-sky-400/50",
-                        "active:scale-[0.97] transition-all duration-200"
-                      )}
-                      style={{ touchAction: 'manipulation' }}
-                    >
-                      <Users className="w-6 h-6 text-sky-400" />
-                      <span className="text-xs font-cinzel uppercase tracking-wider text-sky-300">Party DM</span>
-                    </motion.button>
-                  )}
-                </>
-              )}
-            </motion.div>
-
-            {/* Menus Bar */}
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.9, ease: [0.16, 1, 0.3, 1] }}
-              className="px-4"
-            >
-              <button
-                onClick={() => { triggerHaptic('light'); setShowDrawersMenu(true); }}
-                className={cn(
-                  "w-full flex items-center justify-center gap-2 py-2.5 rounded-lg",
-                  "border border-cyan-500/30 bg-cyan-950/15 backdrop-blur-sm",
-                  "hover:bg-cyan-900/25 hover:border-cyan-400/50",
-                  "active:scale-[0.98] transition-all duration-200"
-                )}
-                style={{ touchAction: 'manipulation' }}
-              >
-                <PanelLeft className="w-4 h-4 text-cyan-400" />
-                <span className="text-xs font-cinzel uppercase tracking-wider text-cyan-300">Menus</span>
-              </button>
-            </motion.div>
-
-            {/* Dynamic Health Bar - below D20 */}
-            {showFeature('home.healthBar') && (
-            <DynamicHealthBar
-              currentHP={currentHP}
-              maxHP={maxHP}
-              tempHP={tempHP}
-              onTap={() => drawerContext?.openStatsDrawer()}
-              isWildShape={isWildShape}
-              wildShapeFormName={wildShapeFormName}
-            />
-            )}
-
-            {/* Quick Actions (moved from footer) */}
-            {showFeature('home.restButtons') && (
-            <div className="px-4 py-2">
-              <div className="flex gap-3 max-w-md mx-auto justify-center">
-                {/* Short Rest */}
-                <button
-                  className={cn(transparentButtonBase, "py-3 px-6 flex flex-col items-center gap-1 text-white")}
-                  onClick={() => handleQuickAction('shortRest')}
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <Coffee className="w-5 h-5 text-amber-400" />
-                  <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Short Rest</span>
-                </button>
-                
-                {/* Long Rest (Hold to activate) */}
-                <button
-                  className={cn(
-                    transparentButtonBase, 
-                    "py-3 px-6 flex flex-col items-center gap-1 text-white relative overflow-hidden"
-                  )}
-                  onTouchStart={handleLongRestStart}
-                  onTouchEnd={handleLongRestEnd}
-                  onTouchCancel={handleLongRestEnd}
-                  onMouseDown={handleLongRestStart}
-                  onMouseUp={handleLongRestEnd}
-                  onMouseLeave={handleLongRestEnd}
-                  style={{ touchAction: 'manipulation' }}
-                  aria-label="Hold for Long Rest"
-                >
-                  {/* Progress Overlay */}
-                  <div 
-                    className="absolute inset-0 bg-blue-500/30 transition-all"
-                    style={{ width: `${longRestProgress}%` }}
-                  />
-                  <Moon className="w-5 h-5 text-blue-400 relative z-10" />
-                  <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] relative z-10">
-                    {longRestProgress > 0 ? 'Hold...' : 'Long Rest'}
-                  </span>
-                </button>
               </div>
+
+              {/* SPACER — dragon art fills the middle */}
+              <div className="flex-1" />
+
+              {/* BOTTOM: Rest + Menus */}
+              <div className="flex flex-col gap-3 pb-[2px]">
+                {/* Rest buttons */}
+                {showFeature('home.restButtons') && (
+                  <div className="px-4 py-2">
+                    <div className="flex gap-3 max-w-md mx-auto justify-center">
+                      <button
+                        className={cn(transparentButtonBase, "py-3 px-6 flex flex-col items-center gap-1 text-white")}
+                        onClick={() => handleQuickAction('shortRest')}
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        <Coffee className="w-5 h-5 text-amber-400" />
+                        <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Short Rest</span>
+                      </button>
+                      <button
+                        className={cn(
+                          transparentButtonBase,
+                          "py-3 px-6 flex flex-col items-center gap-1 text-white relative overflow-hidden"
+                        )}
+                        onTouchStart={handleLongRestStart}
+                        onTouchEnd={handleLongRestEnd}
+                        onTouchCancel={handleLongRestEnd}
+                        onMouseDown={handleLongRestStart}
+                        onMouseUp={handleLongRestEnd}
+                        onMouseLeave={handleLongRestEnd}
+                        style={{ touchAction: 'manipulation' }}
+                        aria-label="Hold for Long Rest"
+                      >
+                        <div
+                          className="absolute inset-0 bg-blue-500/30 transition-all"
+                          style={{ width: `${longRestProgress}%` }}
+                        />
+                        <Moon className="w-5 h-5 text-blue-400 relative z-10" />
+                        <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] relative z-10">
+                          {longRestProgress > 0 ? 'Hold...' : 'Long Rest'}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Menus bar */}
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.9, ease: [0.16, 1, 0.3, 1] }}
+                  className="px-4"
+                >
+                  <button
+                    onClick={() => { triggerHaptic('light'); setShowDrawersMenu(true); }}
+                    className={cn(
+                      "w-full flex items-center justify-center gap-2 py-2.5 rounded-lg",
+                      "border border-cyan-500/30 bg-cyan-950/15 backdrop-blur-sm",
+                      "hover:bg-cyan-900/25 hover:border-cyan-400/50",
+                      "active:scale-[0.98] transition-all duration-200"
+                    )}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <PanelLeft className="w-4 h-4 text-cyan-400" />
+                    <span className="text-xs font-cinzel uppercase tracking-wider text-cyan-300">Menus</span>
+                  </button>
+                </motion.div>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col gap-4 pb-[2px] mt-auto">
+
+              {/* Wild Shape Details Overlay */}
+              {showFeature('home.wildShape') && isWildShape && wildShapeFormName && onDismissWildShape && (
+                <WildShapeOverlay
+                  formName={wildShapeFormName}
+                  speed={wildShapeSpeed || '30 ft.'}
+                  specialAbilities={wildShapeAbilities}
+                  usesRemaining={wildShapeUsesRemaining}
+                  maxUses={wildShapeMaxUses}
+                  transformedAt={wildShapeTransformedAt}
+                  durationMinutes={wildShapeDurationMinutes}
+                  onDismiss={onDismissWildShape}
+                  characterName={character.name}
+                  formCR={wildShapeFormCR}
+                  formHP={wildShapeFormHP}
+                  formMaxHP={wildShapeFormMaxHP}
+                  formAC={wildShapeFormAC}
+                />
+              )}
+
+              {/* Solo/Party Mode Toggle + Party Button */}
+              {showFeature('home.playModeToggle') && partySync && partySync.party.partyId && (
+                <div className="flex items-center justify-center gap-2 mb-[2px]">
+                  {onPlayModeChange && (
+                    <button
+                      onClick={() => {
+                        triggerHaptic('light');
+                        if (playMode === 'party') {
+                          setShowSoloConfirm(true);
+                        } else {
+                          onPlayModeChange('party');
+                        }
+                      }}
+                      className={cn(
+                        "flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-cinzel uppercase tracking-wider transition-colors border",
+                        playMode === 'party'
+                          ? "border-emerald-500/40 bg-emerald-900/30 text-emerald-300"
+                          : "border-muted-foreground/30 bg-muted/20 text-muted-foreground"
+                      )}
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      {playMode === 'party' ? (
+                        <>
+                          <Users className="w-3 h-3" />
+                          <span>Party</span>
+                        </>
+                      ) : (
+                        <>
+                          <User className="w-3 h-3" />
+                          <span>Solo</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                  {playMode === 'party' && (
+                    <button
+                      onClick={() => {
+                        triggerHaptic('light');
+                        setShowPartyDrawer(true);
+                      }}
+                      className="p-2 rounded-lg hover:bg-white/10 transition-colors relative flex items-center gap-1.5"
+                      style={{ touchAction: 'manipulation' }}
+                      aria-label={`Party — ${partySync.party.members.length} members`}
+                    >
+                      <Users className="w-5 h-5 text-emerald-400" />
+                      <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
+                        {partySync.party.members.length}
+                      </span>
+                      <OnlineCountBadge members={partySync.party.members} />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {showFeature('home.partyButton') && partySync && !partySync.party.partyId && (
+                <div className="flex justify-center mb-[2px]">
+                  <button
+                    onClick={() => {
+                      triggerHaptic('light');
+                      setShowPartyDrawer(true);
+                    }}
+                    className="rounded-lg transition-colors relative flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-emerald-900/20 border border-emerald-500/30"
+                    style={{ touchAction: 'manipulation' }}
+                    aria-label="Create or Join Party"
+                  >
+                    <Users className="w-4 h-4 text-emerald-400/70" />
+                    <span className="text-[10px] font-cinzel uppercase tracking-wider text-emerald-400/70">Party</span>
+                  </button>
+                </div>
+              )}
+
+              {/* DM Launch Buttons */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                className="flex items-center justify-center gap-3 px-4 py-3"
+              >
+                {_isDMButtonVisible('dm.solo') && (
+                  <motion.button
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6, duration: 0.4 }}
+                    onClick={() => { triggerHaptic('light'); drawerContext?.openAIDMScreen(); }}
+                    className={cn(
+                      "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
+                      "border border-violet-500/30 bg-violet-950/20 backdrop-blur-sm",
+                      "hover:bg-violet-900/30 hover:border-violet-400/50",
+                      "active:scale-[0.97] transition-all duration-200"
+                    )}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <Crown className="w-6 h-6 text-violet-400" />
+                    <span className="text-xs font-cinzel uppercase tracking-wider text-violet-300">Solo DM</span>
+                  </motion.button>
+                )}
+                {_isDMButtonVisible('dm.empyrean') && (
+                  <motion.button
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.7, duration: 0.4 }}
+                    onClick={() => { triggerHaptic('light'); setShowEmpyreanScreen(true); }}
+                    className={cn(
+                      "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
+                      "border border-amber-500/30 bg-amber-950/20 backdrop-blur-sm",
+                      "hover:bg-amber-900/30 hover:border-amber-400/50",
+                      "active:scale-[0.97] transition-all duration-200"
+                    )}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <ScrollText className="w-6 h-6 text-amber-400" />
+                    <span className="text-xs font-cinzel uppercase tracking-wider text-amber-300">Empyrean</span>
+                  </motion.button>
+                )}
+                {_isDMButtonVisible('dm.party') && (
+                  <motion.button
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.8, duration: 0.4 }}
+                    onClick={() => { triggerHaptic('light'); drawerContext?.openPartyDMScreen(); }}
+                    className={cn(
+                      "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
+                      "border border-sky-500/30 bg-sky-950/20 backdrop-blur-sm",
+                      "hover:bg-sky-900/30 hover:border-sky-400/50",
+                      "active:scale-[0.97] transition-all duration-200"
+                    )}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <Users className="w-6 h-6 text-sky-400" />
+                    <span className="text-xs font-cinzel uppercase tracking-wider text-sky-300">Party DM</span>
+                  </motion.button>
+                )}
+              </motion.div>
+
+              {/* Menus Bar */}
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.9, ease: [0.16, 1, 0.3, 1] }}
+                className="px-4"
+              >
+                <button
+                  onClick={() => { triggerHaptic('light'); setShowDrawersMenu(true); }}
+                  className={cn(
+                    "w-full flex items-center justify-center gap-2 py-2.5 rounded-lg",
+                    "border border-cyan-500/30 bg-cyan-950/15 backdrop-blur-sm",
+                    "hover:bg-cyan-900/25 hover:border-cyan-400/50",
+                    "active:scale-[0.98] transition-all duration-200"
+                  )}
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <PanelLeft className="w-4 h-4 text-cyan-400" />
+                  <span className="text-xs font-cinzel uppercase tracking-wider text-cyan-300">Menus</span>
+                </button>
+              </motion.div>
+
+              {/* Dynamic Health Bar */}
+              {showFeature('home.healthBar') && (
+                <DynamicHealthBar
+                  currentHP={currentHP}
+                  maxHP={maxHP}
+                  tempHP={tempHP}
+                  onTap={() => drawerContext?.openStatsDrawer()}
+                  isWildShape={isWildShape}
+                  wildShapeFormName={wildShapeFormName}
+                />
+              )}
+
+              {/* Quick Actions */}
+              {showFeature('home.restButtons') && (
+                <div className="px-4 py-2">
+                  <div className="flex gap-3 max-w-md mx-auto justify-center">
+                    <button
+                      className={cn(transparentButtonBase, "py-3 px-6 flex flex-col items-center gap-1 text-white")}
+                      onClick={() => handleQuickAction('shortRest')}
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      <Coffee className="w-5 h-5 text-amber-400" />
+                      <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Short Rest</span>
+                    </button>
+                    <button
+                      className={cn(
+                        transparentButtonBase,
+                        "py-3 px-6 flex flex-col items-center gap-1 text-white relative overflow-hidden"
+                      )}
+                      onTouchStart={handleLongRestStart}
+                      onTouchEnd={handleLongRestEnd}
+                      onTouchCancel={handleLongRestEnd}
+                      onMouseDown={handleLongRestStart}
+                      onMouseUp={handleLongRestEnd}
+                      onMouseLeave={handleLongRestEnd}
+                      style={{ touchAction: 'manipulation' }}
+                      aria-label="Hold for Long Rest"
+                    >
+                      <div
+                        className="absolute inset-0 bg-blue-500/30 transition-all"
+                        style={{ width: `${longRestProgress}%` }}
+                      />
+                      <Moon className="w-5 h-5 text-blue-400 relative z-10" />
+                      <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] relative z-10">
+                        {longRestProgress > 0 ? 'Hold...' : 'Long Rest'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-            )}
-          </div>
+          )}
         </div>
 
         {/* Primary Navigation Cards Footer — Collapsible */}
