@@ -1019,7 +1019,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
             <BookOpen className="w-5 h-5 text-purple-400" />
           </button>
         </div>
-      </div>
+      </div>}
 
       {/* Auto-Sync Banner */}
       <AutoSyncBanner
