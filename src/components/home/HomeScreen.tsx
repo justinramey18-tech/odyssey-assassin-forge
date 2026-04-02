@@ -40,7 +40,8 @@ import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
 import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { loadEmpyreanDMConfig } from '@/lib/empyreanDMPersona';
-import { getIsUnbonded, getSavedBurnoutLevel } from '@/lib/dragonBondState';
+import { getIsUnbonded, getSavedBurnoutLevel, getSoloHP, getPartyHP } from '@/lib/dragonBondState';
+import { EmpyreanDualHPBars } from '@/components/empyrean/EmpyreanDualHPBars';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import { GeraltCompanionScreen } from '@/components/companion';
 // New redesigned components
