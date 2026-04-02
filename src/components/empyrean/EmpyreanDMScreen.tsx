@@ -70,6 +70,8 @@ import { useEmpyreanAutopilot } from '@/hooks/use-empyrean-autopilot';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
+import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
+
 interface EmpyreanDMScreenProps {
   open: boolean;
   onClose: () => void;
@@ -86,6 +88,7 @@ interface EmpyreanDMScreenProps {
     getCurrentGold: () => number;
   };
   embedded?: boolean;
+  swipeHandlers?: SwipeHandlers;
 }
 
 const NOOP = () => {};
