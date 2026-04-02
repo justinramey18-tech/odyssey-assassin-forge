@@ -85,6 +85,7 @@ interface EmpyreanDMScreenProps {
     getCurrentHP: () => number;
     getCurrentGold: () => number;
   };
+  embedded?: boolean;
 }
 
 const NOOP = () => {};
@@ -181,6 +182,7 @@ export function EmpyreanDMScreen({
   characterName,
   initialMessage,
   autoSyncCallbacks,
+  embedded = false,
 }: EmpyreanDMScreenProps) {
   const [config, setConfig] = useState<EmpyreanDMConfig | null>(() => loadEmpyreanDMConfig());
   const [selectedModel, setSelectedModel] = useState(loadEmpyreanModel);
@@ -889,7 +891,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
   // No config — show placeholder
   if (!config) {
     return (
-      <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-gradient-to-b from-[#1a0a2e] via-background to-background gap-4 px-6">
+      <div className={cn("flex flex-col items-center justify-center bg-gradient-to-b from-[#1a0a2e] via-background to-background gap-4 px-6", embedded ? "absolute inset-0" : "fixed inset-0 z-[60]")}>
         <span className="text-5xl">🐉</span>
         <h2 className="text-xl font-cinzel font-bold text-purple-300 text-center">
           No Empyrean Campaign Configured
@@ -910,9 +912,9 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#1a0a2e] via-background to-background">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2.5 border-b border-purple-500/20 bg-background/80 backdrop-blur-sm shrink-0">
+    <div className={cn("flex flex-col bg-gradient-to-b from-[#1a0a2e] via-background to-background", embedded ? "absolute inset-0" : "fixed inset-0 z-[60]")}>
+      {/* Header — hidden when embedded in container */}
+      {!embedded && <div className="flex items-center justify-between px-3 py-2.5 border-b border-purple-500/20 bg-background/80 backdrop-blur-sm shrink-0">
         <div className="flex items-center gap-2">
           <button
             onClick={onClose}
@@ -1017,7 +1019,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
             <BookOpen className="w-5 h-5 text-purple-400" />
           </button>
         </div>
-      </div>
+      </div>}
 
       {/* Auto-Sync Banner */}
       <AutoSyncBanner

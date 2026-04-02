@@ -54,6 +54,9 @@ import { PrestigeData } from '@/lib/prestige';
 import { ChroniclerHomeView } from './ChroniclerHomeView';
 import { AlignmentDriftIndicator } from '@/components/alignment/AlignmentDriftIndicator';
 import { EmpyreanDualHPBars } from '@/components/empyrean/EmpyreanDualHPBars';
+import { EmpyreanDMContainer } from '@/components/empyrean/EmpyreanDMContainer';
+import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
+import { StandalonePartyDMScreen } from '@/components/ai-dm/StandalonePartyDMScreen';
 import { getSoloHP, getPartyHP } from '@/lib/dragonBondState';
 
 import homeBackground from '@/assets/home-background-mobile.jpg';
@@ -319,13 +322,8 @@ export function HomeScreen({
   const [showEmpyreanScreen, setShowEmpyreanScreen] = useState(false);
   const [showEmpyreanDMContainer, setShowEmpyreanDMContainer] = useState(false);
 
-  // Temporary: redirect to existing Empyrean screen until the container is built
-  useEffect(() => {
-    if (showEmpyreanDMContainer) {
-      setShowEmpyreanDMContainer(false);
-      setShowEmpyreanScreen(true);
-    }
-  }, [showEmpyreanDMContainer]);
+
+
 
   // Empyrean HP bars data
   const empyreanSoloHP = appMode === 'empyrean' ? getSoloHP() : { current: 0, max: 0 };
@@ -1221,6 +1219,37 @@ export function HomeScreen({
         characterName={character.name}
         characterContext={drawerContext?.characterContext ?? { name: character.name, level: character.level, currentHP: 10, maxHP: 10, abilities: [], equippedAbilities: [], equipment: [], activeSetBonuses: [], consumables: [], cooldowns: { active: [], ready: [] }, prestigeLevel: 0, prestigeAbilities: [] } as any}
         autoSyncCallbacks={autoSyncCallbacks}
+      />
+
+      {/* Empyrean Swipeable DM Container */}
+      <EmpyreanDMContainer
+        open={showEmpyreanDMContainer}
+        onClose={() => setShowEmpyreanDMContainer(false)}
+        hasParty={!!partySync?.party?.partyId}
+        renderSolo={() => (
+          <EmpyreanDMScreen
+            open={true}
+            onClose={() => setShowEmpyreanDMContainer(false)}
+            characterContext={drawerContext?.characterContext ?? { name: character.name, level: character.level, currentHP: 10, maxHP: 10, abilities: [], equippedAbilities: [], equipment: [], activeSetBonuses: [], consumables: [], cooldowns: { active: [], ready: [] }, prestigeLevel: 0, prestigeAbilities: [] } as any}
+            characterName={character.name}
+            autoSyncCallbacks={autoSyncCallbacks}
+            embedded={true}
+          />
+        )}
+        renderParty={() => (
+          <StandalonePartyDMScreen
+            onBack={() => setShowEmpyreanDMContainer(false)}
+            characterContext={drawerContext?.characterContext ?? { name: character.name, level: character.level, currentHP: 10, maxHP: 10, abilities: [], equippedAbilities: [], equipment: [], activeSetBonuses: [], consumables: [], cooldowns: { active: [], ready: [] }, prestigeLevel: 0, prestigeAbilities: [] } as any}
+            partyId={partySync?.party?.partyId ?? null}
+            isPartyCreator={partySync?.party?.isCreator ?? false}
+            partyMembers={partySync?.party?.members ?? []}
+            userId={userId ?? ''}
+            characterName={character.name}
+            autoSyncCallbacks={autoSyncCallbacks}
+            embedded={true}
+            isSoloEmpyrean={true}
+          />
+        )}
       />
 
       {/* FAQ Drawer */}
