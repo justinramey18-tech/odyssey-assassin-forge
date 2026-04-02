@@ -27,8 +27,8 @@ export function EmpyreanDMContainer({
     if (!hasParty) return 'solo';
     try {
       const saved = getScopedItem(LAST_TAB_KEY);
-      return saved === 'party' ? 'party' : 'solo';
-    } catch { return 'solo'; }
+      return saved === 'solo' ? 'solo' : 'party';
+    } catch { return 'party'; }
   });
 
   const [direction, setDirection] = useState(0);
