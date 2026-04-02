@@ -562,12 +562,12 @@ export function HomeScreen({
       <BackgroundWrapper
         imagePath={defaultBg}
         videoSrc={activeVideoSrc}
-        overlayOpacity={customBackground ? 55 : 55}
-        tintColor="cyan"
-        tintOpacity={10}
+        overlayOpacity={appMode === 'empyrean' ? 25 : (customBackground ? 55 : 55)}
+        tintColor={appMode === 'empyrean' ? undefined : 'cyan'}
+        tintOpacity={appMode === 'empyrean' ? 0 : 10}
         fixed={true}
         backgroundSize="cover"
-        backgroundPosition="center center"
+        backgroundPosition={appMode === 'empyrean' ? 'center top' : 'center center'}
         className="fixed inset-0 z-0"
       >
         <div />
