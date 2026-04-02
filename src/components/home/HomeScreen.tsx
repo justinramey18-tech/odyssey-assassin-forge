@@ -31,8 +31,10 @@ import { CharacterSavesDrawer, CharacterSavesTrigger } from './CharacterSavesDra
 import { FAQDrawer } from './FAQDrawer';
 
 import { EmpyreanScreen } from '@/components/empyrean/EmpyreanScreen';
+import { EmpyreanHomeHeader } from '@/components/empyrean/EmpyreanHomeHeader';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { loadEmpyreanDMConfig } from '@/lib/empyreanDMPersona';
+import { getIsUnbonded } from '@/lib/dragonBondState';
 import { GeraltCompanionScreen } from '@/components/companion';
 // New redesigned components
 import { CharacterNamePlaque } from './CharacterNamePlaque';
