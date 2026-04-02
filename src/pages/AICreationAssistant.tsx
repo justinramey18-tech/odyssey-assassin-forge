@@ -123,7 +123,59 @@ export default function AICreationAssistant() {
       }
     }
 
-    navigate('/', { 
+    // Save Empyrean dragon config if present
+    if (buildData.empyrean) {
+      const emp = buildData.empyrean;
+
+      if (emp.unbonded) {
+        setIsUnbonded(true);
+      } else {
+        setIsUnbonded(false);
+
+        // Save the Empyrean DM campaign config
+        saveEmpyreanDMConfig({
+          selectedLoreGuides: [],
+          selectedToneGuides: [],
+          selectedSessionTemplate: null,
+          characterName: buildData.name || '',
+          dragonName: emp.dragonName || '',
+          dragonColor: emp.dragonColor || 'deep-red',
+          signetType: emp.signetType || '',
+          yearAtBasgiath: emp.yearAtBasgiath || 'first-year',
+          campaignFocus: (emp.campaignFocus as any) || 'balanced',
+        });
+
+        // Save dragon personality notes
+        if (emp.dragonPersonality) {
+          saveDragonNotes(emp.dragonPersonality);
+        }
+
+        // Initialize dragon bond state
+        saveBondState({
+          bond: DEFAULT_BOND,
+          trust: DEFAULT_TRUST,
+          mood: 'calm',
+          memories: [],
+          totalChatExchanges: 0,
+          sessionChatCount: 0,
+          ruptures: 0,
+          lastContactTimestamp: null,
+          unreadDragonMessages: [],
+        });
+      }
+
+      // Set app mode to empyrean
+      setScopedItem('odyssey-app-mode', 'empyrean');
+
+      console.log('[AICreation] Saved Empyrean config:', {
+        dragonName: emp.dragonName,
+        signetType: emp.signetType,
+        unbonded: emp.unbonded,
+        campaignFocus: emp.campaignFocus,
+      });
+    }
+
+    navigate('/', {
       state: { 
         aiCreatedCharacter: wizardState,
       } 
