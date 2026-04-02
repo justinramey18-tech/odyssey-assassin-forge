@@ -66,6 +66,7 @@ export function StandalonePartyDMScreen({
   wildShape,
   isMomoMoonDruid,
   isSoloEmpyrean,
+  embedded,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
