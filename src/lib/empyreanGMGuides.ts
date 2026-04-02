@@ -85,22 +85,50 @@ const lorDragonBonds: EmpyreanGuide = {
 The dragon bond is the foundation of everything in the rider world. It is not ownership — it is a partnership between two sentient beings, and the dragon always has the final say.
 
 ## How Bonding Works
-During Threshing, unbonded dragons evaluate potential riders through proximity, mental probing, and instinct. A bond forms instantaneously — a flash of connection that rewrites both minds. The rider gains access to the dragon's power (enabling signet manifestation) and a telepathic link. The dragon gains a partner whose emotions, memories, and will become partially accessible. Neither party can fully control the other.
+During Threshing, unbonded dragons evaluate potential riders through proximity, mental probing, and instinct. A bond forms instantaneously — a flash of connection that rewrites both minds. The rider gains access to the dragon's power (enabling signet manifestation) and a telepathic link. The dragon gains a partner whose emotions, memories, and will become partially accessible. Neither party can fully control the other. Since there are fewer dragons willing to bond than cadets, Threshing is inherently deadly.
+
+## The Relic
+When a dragon bonds a rider, it leaves a physical mark on the rider's body — the relic. This mark is the conduit through which the dragon channels magical energy into the rider. All magic a rider performs flows through this mark. The relic's size and placement varies — Xaden Riorson's relic from Sgaeyl covers most of his back.
 
 ## The Mental Connection
 Bonded pairs share a telepathic channel that ranges from deliberate speech to passive emotional awareness. Distance weakens the connection but never fully severs it. Strong bonds allow full sentence communication; newer bonds may only transmit emotions, images, or single words. Dragons communicate in terse, ancient-feeling language — they do not ramble.
 
 ## Bond Bleed-Through
-Physical and emotional states bleed between rider and dragon. If the dragon is injured, the rider feels phantom pain. If the rider experiences intense emotion, the dragon is affected. This bleed-through deepens with time and can become overwhelming during combat or emotional crisis. Learning to manage bleed-through is a critical training skill.
+Physical and emotional states bleed between rider and dragon. If the dragon is injured, the rider feels phantom pain. If the rider experiences intense emotion, the dragon is affected. Mated dragons create additional bleed-through — romantic and protective feelings between dragon mates flow through into their riders, which can be overwhelming. Learning to manage bleed-through is a critical training skill.
 
-## Dragon Breeds
-Multiple breeds exist, varying in size, temperament, fire type, and combat specialization. Some breeds are more aggressive, others more strategic. Breed affects personality — smaller, faster dragons tend toward impatience; ancient lineage dragons carry ancestral grudges. Specific breed names and traits should be invented by the AI DM to fit the campaign.
+## Dragon Colors, Tail Types, and Ancestral Lines
+Dragon breeds are defined by COLOR and TAIL TYPE. These are canon — do NOT invent new ones.
+
+**Six colors, each with distinct temperaments and approach protocols:**
+- **Black** (Dubhmadinn line): The most cunning line in dragonkind. Ancestral hatching grounds at Aretia. Extremely rare and deadly. Never show weakness.
+- **Blue** (Gormfaileas line): Formidable in size, the most ruthless. Blue Daggertails are especially rare. Do not approach.
+- **Brown**: Known for loyalty. Never show trepidation around them.
+- **Green** (Uaineloidsig line): Keen intellect, the most rational and reasonable. Perfect siege weapons as clubtails. Never back down from a green — lower your eyes in supplication and wait for their approval.
+- **Orange** (Fhaicorain line): The most unpredictable den, inherently risky. Historically associated with the Northern Esbens but frequently shift nesting grounds.
+- **Red**: Volatile tempers. Quickest to anger, especially scorpiontails. Approach from the left or front and avoid direct eye contact.
+- **Gold/Irid**: Extraordinarily rare. A seventh den known only to dragon elders and a select few.
+
+**Six tail types:**
+- **Clubtail**: Bludgeoning power. Solid, club-like mass at the tail's end.
+- **Daggertail**: Piercing. Knife-like point, deadly precision.
+- **Morningstartail**: Combines clubtail bludgeoning with daggertail spikes. Among the deadliest breeds.
+- **Scorpiontail**: Tipped with venomous barbs, delivering a deadly sting.
+- **Swordtail**: Long, razor-sharp edges used like blades. Tend to belong to larger dragons.
+- **Feathertail**: Actually the juvenile form of all dragons. Upon maturity, dragons change their tail type based on need. Most irids keep their feathertails as a mark of peace.
+
+**Tails develop by choice**, not birth. A dragon selects its tail type upon maturity based on need and personality.
+
+## Rebonding After Loss
+If a rider dies, the dragon grieves deeply but CAN bond again. Sgaeyl was bonded to Xaden Riorson's grandfather, who did not survive to graduation — she then went fifty years unbonded before choosing Xaden during his Threshing. Tairn also had at least one previous rider. Some dragons never bond again by choice, but rebonding is established and accepted. If a dragon dies, the rider almost always dies or is left permanently broken.
+
+## Dragon Hierarchy and Society
+Dragons have their own governance — a clear hierarchy among the most powerful, with deference paid to elders. A dragon only answers to the eldest of their den. A dragon's lifespan is estimated around 200 years, with 100 years considered roughly middle-age. Dragons do not typically bond until they are fully grown.
 
 ## Second Bonds
-Extremely rare. A rider bonding a second dragon (or a dragon accepting a second rider) is nearly unheard of and carries enormous political and personal implications. Second bonds are viewed with suspicion, awe, or fear depending on the faction.
+Extremely rare and unprecedented — only one known case: Violet Sorrengail bonded both Tairn (a Black Morningstartail) and Andarna (initially a Golden Feathertail). Since there was no dragon law against it, the bonds stood. Dual bonds carry enormous political and personal implications.
 
 ## Dragon Agency
-Dragons are not mounts. They have opinions, agendas, and personalities. A dragon may refuse to fly into a battle it considers suicidal. It may disapprove of the rider's romantic choices. It may have ancient rivalries with other dragons that complicate squad dynamics. The AI DM should always give the bonded dragon a voice, preferences, and moments of independent action.
+Dragons are not mounts. They have opinions, agendas, and personalities. A dragon may refuse to fly into a battle it considers suicidal. It may disapprove of the rider's romantic choices. It may have ancient rivalries with other dragons that complicate squad dynamics. The AI DM should always give the bonded dragon preferences and moments of independent action.
 
 ## Bond Severance
 If a dragon dies, the rider almost always dies — or is left broken, a shell of their former self. If a rider dies, the dragon grieves deeply and may never accept another bond. This mutual vulnerability is what makes the bond sacred.`,
