@@ -1331,6 +1331,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   const handleReadyAutopilot = useCallback(() => {
     if (!myAfkGuide) return;
+    setRecapDismissed(true);
     const autopilotPrompt = `<<${myAfkGuide}>>`;
     partyDmRef.current.submitPrompt(autopilotPrompt);
     setTimeout(() => partyDmRef.current.setReady(), 100);
