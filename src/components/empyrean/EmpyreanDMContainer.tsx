@@ -108,9 +108,6 @@ export function EmpyreanDMContainer({
   return (
     <div
       className="fixed inset-0 z-[60] flex flex-col bg-background"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
     >
       {/* Tab bar */}
       <div className="shrink-0 flex items-center border-b border-purple-500/20 bg-background/95 backdrop-blur-sm relative">
