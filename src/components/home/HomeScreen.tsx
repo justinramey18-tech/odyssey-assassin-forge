@@ -637,17 +637,30 @@ export function HomeScreen({
       )}
 
       {/* Empyrean HP/burnout/unbonded overlays */}
-      {appMode === 'empyrean' && (
-        <>
-          <EmpyreanUnbondedOverlay isUnbonded={getIsUnbonded()} />
-          <EmpyreanDragonHPGlow currentHP={currentHP} maxHP={maxHP} />
-          <EmpyreanDragonBurnoutTint
-            burnoutLevel={getSavedBurnoutLevel()}
-            maxBurnout={getIsUnbonded() ? 0 : 8}
-            isUnbonded={getIsUnbonded()}
-          />
-        </>
-      )}
+      {appMode === 'empyrean' && (() => {
+        const soloHPData = getSoloHP();
+        const partyHPData = getPartyHP();
+        const soloPct = soloHPData.max > 0 ? soloHPData.current / soloHPData.max : 1;
+        const partyPct = partyHPData.max > 0 ? partyHPData.current / partyHPData.max : 1;
+        const glowHP = soloHPData.max > 0 && partyHPData.max > 0
+          ? (soloPct <= partyPct ? soloHPData : partyHPData)
+          : soloHPData.max > 0
+          ? soloHPData
+          : partyHPData.max > 0
+          ? partyHPData
+          : { current: currentHP, max: maxHP };
+        return (
+          <>
+            <EmpyreanUnbondedOverlay isUnbonded={getIsUnbonded()} />
+            <EmpyreanDragonHPGlow currentHP={glowHP.current} maxHP={glowHP.max} />
+            <EmpyreanDragonBurnoutTint
+              burnoutLevel={getSavedBurnoutLevel()}
+              maxBurnout={getIsUnbonded() ? 0 : 8}
+              isUnbonded={getIsUnbonded()}
+            />
+          </>
+        );
+      })()}
 
       <div className="flex flex-col h-screen overflow-hidden relative z-10">
         {/* Install Banner */}
