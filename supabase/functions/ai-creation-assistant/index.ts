@@ -485,7 +485,7 @@ serve(async (req) => {
     }));
 
     // Estimate input size and reject if too large (prevent context window overflow)
-    const effectiveSystemPrompt = appMode === 'empyrean' ? SYSTEM_PROMPT + EMPYREAN_ADDENDUM : SYSTEM_PROMPT;
+    const effectiveSystemPrompt = SYSTEM_PROMPT + EMPYREAN_ADDENDUM;
     const totalInputChars = effectiveSystemPrompt.length + userMessages.reduce((sum: number, m: { content: string }) => sum + m.content.length, 0);
     const estimatedTokens = Math.ceil(totalInputChars / 3.5); // ~3.5 chars per token for mixed content
     const MAX_INPUT_TOKENS = 150000;
