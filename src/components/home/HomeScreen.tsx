@@ -321,6 +321,9 @@ export function HomeScreen({
   const [showFAQDrawer, setShowFAQDrawer] = useState(false);
   const [showSoloConfirm, setShowSoloConfirm] = useState(false);
   const [showEmpyreanScreen, setShowEmpyreanScreen] = useState(false);
+  const [showEmpyreanDM, setShowEmpyreanDM] = useState(false);
+  const [showEmpyreanSetup, setShowEmpyreanSetup] = useState(false);
+  const gmGuides = useGMGuides();
   const [showCompanionScreen, setShowCompanionScreen] = useState(false);
   const [geraltHpPct, setGeraltHpPct] = useState<number | undefined>(undefined);
   // Persist last-read message count per party in localStorage
