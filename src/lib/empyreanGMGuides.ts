@@ -233,7 +233,7 @@ Venin are wielders — people with magical ability — who have turned to drawin
 4. **Ancient**: Rare venin who have survived centuries. Enormously powerful, strategically intelligent, and nearly impossible to kill. They retain enough humanity to be manipulative and patient.
 
 ## Wyverns
-Wyverns are corrupted creatures — twisted, venomous, bat-winged predators that serve as the venin's aerial force. Unlike dragons, wyverns have no sapience; they operate on predatory instinct guided by venin telepathy. They are smaller than most dragons but faster, more numerous, and relentless. Their venom causes necrosis and, in large doses, can accelerate corruption in wielders.
+Wyverns are corrupted creatures — twisted, venomous, bat-winged predators that serve as the venin's aerial force. Unlike dragons, wyverns have no sapience; they operate on predatory instinct guided by venin telepathy. They are smaller than most dragons but faster, more numerous, and relentless. Their venom causes necrosis and is deadly in sufficient doses. Scorpiontail dragons also carry venomous barbs, which should not be confused with wyvern venom.
 
 ## Tactics
 Venin attack in coordinated waves. They target wardstones to weaken the ward line, use wyvern swarms to overwhelm dragon patrols, and employ corruption as a weapon — turning captured riders into new venin. They are not mindless; advanced and ancient venin plan complex operations.
