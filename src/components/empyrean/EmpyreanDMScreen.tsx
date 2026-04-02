@@ -1905,6 +1905,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
           // 2. Existing logic
           setShowMemorial(false);
           setBurnoutLevel(0);
+          saveSoloHP({ current: 0, max: 0 });
           updateUnbondedStatus(true);
           resetBondState();
           if (config) {

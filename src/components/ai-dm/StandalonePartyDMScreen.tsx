@@ -67,6 +67,18 @@ export function StandalonePartyDMScreen({
   isSoloEmpyrean,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
+
+  // Save party HP snapshot for homescreen dual bars
+  useEffect(() => {
+    const save = () => {
+      const current = autoSyncCallbacks?.getCurrentHP() ?? characterContext?.currentHP ?? 0;
+      const max = characterContext?.maxHP ?? 0;
+      if (max > 0) savePartyHP({ current, max });
+    };
+    save();
+    const interval = setInterval(save, 3000);
+    return () => { clearInterval(interval); save(); };
+  }, [autoSyncCallbacks, characterContext?.currentHP, characterContext?.maxHP]);
   const [showSaves, setShowSaves] = useState(false);
   const [showCampaignBuilder, setShowCampaignBuilder] = useState(false);
   const [showOocChat, setShowOocChat] = useState(false);
