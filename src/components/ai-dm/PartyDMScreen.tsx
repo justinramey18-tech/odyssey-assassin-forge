@@ -1730,7 +1730,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
            const bMax = bBond >= 76 ? 12 : bBond >= 51 ? 11 : bBond >= 26 ? 10 : 8;
           return bMax > 0 && bLevel >= bMax ? "animate-[screen-shake_0.6s_ease-in-out_infinite]" : "";
         })()
-      )}>
+      )}
+        onTouchStart={swipeHandlers?.onTouchStart}
+        onTouchMove={swipeHandlers?.onTouchMove}
+        onTouchEnd={swipeHandlers?.onTouchEnd}
+      >
         {/* Burnout flame border overlay */}
         {isEmpyrean && dragonBonds.isSetup && dragonBonds.myDragon?.signetType && (() => {
           const bLevel = dragonBonds.myDragon.burnout;

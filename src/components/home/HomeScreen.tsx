@@ -1359,7 +1359,7 @@ export function HomeScreen({
         open={showEmpyreanDMContainer}
         onClose={() => setShowEmpyreanDMContainer(false)}
         hasParty={!!partySync?.party?.partyId}
-        renderSolo={() => (
+        renderSolo={(swipeHandlers) => (
           <EmpyreanDMScreen
             open={true}
             onClose={() => setShowEmpyreanDMContainer(false)}
@@ -1367,9 +1367,10 @@ export function HomeScreen({
             characterName={character.name}
             autoSyncCallbacks={autoSyncCallbacks}
             embedded={true}
+            swipeHandlers={swipeHandlers}
           />
         )}
-        renderParty={() => (
+        renderParty={(swipeHandlers) => (
           <StandalonePartyDMScreen
             onBack={() => setShowEmpyreanDMContainer(false)}
             characterContext={drawerContext?.characterContext ?? { name: character.name, level: character.level, currentHP: 10, maxHP: 10, abilities: [], equippedAbilities: [], equipment: [], activeSetBonuses: [], consumables: [], cooldowns: { active: [], ready: [] }, prestigeLevel: 0, prestigeAbilities: [] } as any}
@@ -1381,6 +1382,7 @@ export function HomeScreen({
             autoSyncCallbacks={autoSyncCallbacks}
             embedded={true}
             isSoloEmpyrean={true}
+            swipeHandlers={swipeHandlers}
           />
         )}
       />

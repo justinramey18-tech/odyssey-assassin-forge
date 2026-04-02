@@ -186,6 +186,7 @@ export function EmpyreanDMScreen({
   initialMessage,
   autoSyncCallbacks,
   embedded = false,
+  swipeHandlers,
 }: EmpyreanDMScreenProps) {
   const [config, setConfig] = useState<EmpyreanDMConfig | null>(() => loadEmpyreanDMConfig());
   const [selectedModel, setSelectedModel] = useState(loadEmpyreanModel);

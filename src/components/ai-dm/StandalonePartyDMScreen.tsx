@@ -491,6 +491,7 @@ ${truncated}`);
           wildShape={wildShape}
           isMomoMoonDruid={isMomoMoonDruid}
           onHPChange={autoSyncCallbacks?.onHPChange}
+          swipeHandlers={swipeHandlers}
         />
 
       <OocDmChat
