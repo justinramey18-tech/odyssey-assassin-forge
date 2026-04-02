@@ -704,7 +704,20 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     }
   }, [open]);
 
-  // Auto-send rebirth orientation when entering as unbonded after death
+  // Save solo HP snapshot for homescreen dual bars
+  useEffect(() => {
+    if (!open) return;
+    const save = () => {
+      const current = autoSyncCallbacks?.getCurrentHP() ?? 0;
+      const max = characterContext?.maxHP ?? 0;
+      if (max > 0) saveSoloHP({ current, max });
+    };
+    save();
+    const interval = setInterval(save, 3000);
+    return () => { clearInterval(interval); save(); };
+  }, [open, autoSyncCallbacks, characterContext?.maxHP]);
+
+
   useEffect(() => {
     if (!open || !isUnbonded) return;
     const rebirthFlag = localStorage.getItem('odyssey-unbonded-rebirth');
