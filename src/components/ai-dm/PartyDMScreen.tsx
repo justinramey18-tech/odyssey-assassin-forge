@@ -105,6 +105,7 @@ interface PartyDMScreenProps {
   isMomoMoonDruid?: boolean;
   onShowOocChat?: () => void;
   onHPChange?: (change: number, type: 'damage' | 'healing') => void;
+  swipeHandlers?: SwipeHandlers;
 }
 
 const EMPTY_DRAGON_NETWORK: never[] = [];
