@@ -34,11 +34,12 @@ import { EmpyreanScreen } from '@/components/empyrean/EmpyreanScreen';
 import { EmpyreanHomeHeader } from '@/components/empyrean/EmpyreanHomeHeader';
 import { EmpyreanDragonTapArea } from '@/components/empyrean/EmpyreanDragonTapArea';
 import { EmpyreanDragonHPGlow } from '@/components/empyrean/EmpyreanDragonHPGlow';
+import { EmpyreanDragonBurnoutTint } from '@/components/empyrean/EmpyreanDragonBurnoutTint';
 import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
 import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { loadEmpyreanDMConfig } from '@/lib/empyreanDMPersona';
-import { getIsUnbonded } from '@/lib/dragonBondState';
+import { getIsUnbonded, getSavedBurnoutLevel } from '@/lib/dragonBondState';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import { GeraltCompanionScreen } from '@/components/companion';
 // New redesigned components
@@ -635,7 +636,14 @@ export function HomeScreen({
 
       {/* Empyrean HP-reactive overlay — dims dragon art as HP drops */}
       {appMode === 'empyrean' && (
-        <EmpyreanDragonHPGlow currentHP={currentHP} maxHP={maxHP} />
+        <>
+          <EmpyreanDragonHPGlow currentHP={currentHP} maxHP={maxHP} />
+          <EmpyreanDragonBurnoutTint
+            burnoutLevel={getSavedBurnoutLevel()}
+            maxBurnout={getIsUnbonded() ? 0 : 8}
+            isUnbonded={getIsUnbonded()}
+          />
+        </>
       )}
 
       <div className="flex flex-col h-screen overflow-hidden relative z-10">

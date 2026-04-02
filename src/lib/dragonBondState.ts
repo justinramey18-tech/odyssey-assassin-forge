@@ -87,6 +87,23 @@ export function setIsUnbonded(unbonded: boolean): void {
   } catch {}
 }
 
+// ── BURNOUT PERSISTENCE ──
+
+const BURNOUT_LEVEL_KEY = 'empyrean-burnout-level';
+
+export function getSavedBurnoutLevel(): number {
+  try {
+    const raw = getScopedItem(BURNOUT_LEVEL_KEY);
+    return raw ? parseInt(raw, 10) || 0 : 0;
+  } catch { return 0; }
+}
+
+export function saveBurnoutLevel(level: number): void {
+  try {
+    setScopedItem(BURNOUT_LEVEL_KEY, String(level));
+  } catch {}
+}
+
 // ── SCORE HELPERS ──
 
 export function getBondDescriptor(bond: number): string {

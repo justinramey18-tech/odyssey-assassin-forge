@@ -53,7 +53,7 @@ import {
   saveDragonNotes,
 } from '@/lib/empyreanDMPersona';
 import { useDragonBond } from '@/hooks/use-dragon-bond';
-import { getBondDescriptor, getTrustDescriptor, buildDragonChatPrompt, DRAGON_CHAT_SUMMARY_KEY, DRAGON_CHAT_KEY, resetBondState, getIsUnbonded, setIsUnbonded, saveBondState, DEFAULT_BOND, DEFAULT_TRUST } from '@/lib/dragonBondState';
+import { getBondDescriptor, getTrustDescriptor, buildDragonChatPrompt, DRAGON_CHAT_SUMMARY_KEY, DRAGON_CHAT_KEY, resetBondState, getIsUnbonded, setIsUnbonded, saveBondState, DEFAULT_BOND, DEFAULT_TRUST, getSavedBurnoutLevel, saveBurnoutLevel } from '@/lib/dragonBondState';
 import { getDragonColorHex } from '@/lib/dragonColors';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { getAuthToken } from '@/lib/auth-token';
@@ -195,9 +195,12 @@ export function EmpyreanDMScreen({
   const [showOocChat, setShowOocChat] = useState(false);
   const [npcInterjectionText, setNpcInterjectionText] = useState('');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
-  const [burnoutLevel, setBurnoutLevel] = useState(0);
+  const [burnoutLevel, setBurnoutLevel] = useState(() => getSavedBurnoutLevel());
   const burnoutLevelRef = useRef(burnoutLevel);
-  useEffect(() => { burnoutLevelRef.current = burnoutLevel; }, [burnoutLevel]);
+  useEffect(() => {
+    burnoutLevelRef.current = burnoutLevel;
+    saveBurnoutLevel(burnoutLevel);
+  }, [burnoutLevel]);
   const [currentSituation, setCurrentSituation] = useState<string>('exploration');
   const [dragonNotes, setDragonNotes] = useState(() => loadDragonNotes());
   const [initialSent, setInitialSent] = useState(false);
