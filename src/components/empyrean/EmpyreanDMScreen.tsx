@@ -85,6 +85,7 @@ interface EmpyreanDMScreenProps {
     getCurrentHP: () => number;
     getCurrentGold: () => number;
   };
+  embedded?: boolean;
 }
 
 const NOOP = () => {};
