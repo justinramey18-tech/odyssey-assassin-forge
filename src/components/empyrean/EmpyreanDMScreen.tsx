@@ -205,6 +205,7 @@ export function EmpyreanDMScreen({
   const [navExpanded, setNavExpanded] = useState(false);
   const [showAutopilotGuide, setShowAutopilotGuide] = useState(false);
   const [recapExpanded, setRecapExpanded] = useState(false);
+  const [recapDismissed, setRecapDismissed] = useState(false);
   const [showCampaignBuilder, setShowCampaignBuilder] = useState(false);
   const [showDeathSaves, setShowDeathSaves] = useState(false);
   const [showMemorial, setShowMemorial] = useState(false);
