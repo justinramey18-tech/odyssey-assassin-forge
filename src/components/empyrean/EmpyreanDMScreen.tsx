@@ -205,6 +205,7 @@ export function EmpyreanDMScreen({
   const [navExpanded, setNavExpanded] = useState(false);
   const [showAutopilotGuide, setShowAutopilotGuide] = useState(false);
   const [recapExpanded, setRecapExpanded] = useState(false);
+  const [recapDismissed, setRecapDismissed] = useState(false);
   const [showCampaignBuilder, setShowCampaignBuilder] = useState(false);
   const [showDeathSaves, setShowDeathSaves] = useState(false);
   const [showMemorial, setShowMemorial] = useState(false);
@@ -228,6 +229,7 @@ export function EmpyreanDMScreen({
   useEffect(() => {
     if (open) {
       setConfig(loadEmpyreanDMConfig());
+      setRecapDismissed(false);
       dragonBond.checkDecay();
     }
   }, [open]);
@@ -692,8 +694,32 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Also scroll to bottom when screen opens
+  useEffect(() => {
+    if (open) {
+      const t = setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
+      }, 100);
+      return () => clearTimeout(t);
+    }
+  }, [open]);
+
+  // Auto-send rebirth orientation when entering as unbonded after death
+  useEffect(() => {
+    if (!open || !isUnbonded) return;
+    const rebirthFlag = localStorage.getItem('odyssey-unbonded-rebirth');
+    if (rebirthFlag !== 'true') return;
+    localStorage.removeItem('odyssey-unbonded-rebirth');
+    const t = setTimeout(() => {
+      const rebirthPrompt = `[SYSTEM — NARRATIVE TRANSITION — NEW CHARACTER ENTERING]\n\nThe previous rider has fallen. A new character, ${characterName}, now enters the story as an unbonded rider — no dragon, no signet, no bond. This is their first moment in the campaign.\n\nNarrate the following in 2-3 paragraphs:\n1. A brief, atmospheric acknowledgment of what was lost — the squad's grief, an empty dragon perch, a name spoken quietly. Do not over-narrate the death; let it live in the background.\n2. Introduce ${characterName} arriving at Basgiath as an unbonded cadet. Describe the physical experience of being unbonded in a place built for bonded riders — the silence where a bond should be, the way other dragons look at them, the weight of walking instead of flying.\n3. End with a moment that establishes ${characterName}'s first challenge or interaction — a commanding officer assigning them, a fellow cadet's reaction, or a dragon that watches them a beat too long.\n\nSet the tone: this is not a punishment. This is a crucible. Make the player feel the weight of what they must earn back.`;
+      sendMessage(rebirthPrompt);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [open, isUnbonded, characterName, sendMessage]);
+
   const handleSend = useCallback(() => {
     if (!inputValue.trim() || isLoading) return;
+    setRecapDismissed(true);
     let messageToSend = inputValue.trim();
     
     // Inject Threshing authorization tag if authorized
@@ -1091,29 +1117,6 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
           </div>
         )}
 
-        {messages.length > 0 && campaignSummary && (
-          <div className="mb-4">
-            <button
-              onClick={() => setRecapExpanded(prev => !prev)}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-950/40 border border-purple-500/15 hover:border-purple-500/30 transition-all"
-            >
-              <span className="text-sm">📜</span>
-              <span className="text-xs font-cinzel text-purple-300/80 flex-1 text-left">Previously in your campaign...</span>
-              <ChevronDown className={cn(
-                "w-3.5 h-3.5 text-purple-400/50 transition-transform duration-200",
-                recapExpanded && "rotate-180"
-              )} />
-            </button>
-            {recapExpanded && (
-              <div className="mt-1.5 px-3 py-3 rounded-xl bg-purple-950/20 border border-purple-500/10">
-                <div className="text-xs text-purple-200/70 leading-relaxed whitespace-pre-wrap">
-                  {campaignSummary}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
         {messages.map(message => {
           const isUser = message.role === 'user';
           const isAssistant = message.role === 'assistant';
@@ -1285,6 +1288,30 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
                 <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Campaign recap — at bottom, visible until first message exchange */}
+        {messages.length > 0 && campaignSummary && !recapDismissed && (
+          <div className="mb-4">
+            <button
+              onClick={() => setRecapExpanded(prev => !prev)}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-950/40 border border-purple-500/15 hover:border-purple-500/30 transition-all"
+            >
+              <span className="text-sm">📜</span>
+              <span className="text-xs font-cinzel text-purple-300/80 flex-1 text-left">Previously in your campaign...</span>
+              <ChevronDown className={cn(
+                "w-3.5 h-3.5 text-purple-400/50 transition-transform duration-200",
+                recapExpanded && "rotate-180"
+              )} />
+            </button>
+            {recapExpanded && (
+              <div className="mt-1.5 px-3 py-3 rounded-xl bg-purple-950/20 border border-purple-500/10">
+                <div className="text-xs text-purple-200/70 leading-relaxed whitespace-pre-wrap">
+                  {campaignSummary}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
