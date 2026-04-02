@@ -628,53 +628,66 @@ export function HomeScreen({
         {/* Install Banner */}
         <InstallBanner />
 
-        {/* Minimal Utilities Header */}
-        <motion.header 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          className="flex items-center justify-between px-3 py-1.5 border-b border-white/10"
-        >
-          {/* Left: Hamburger, Background Upload */}
-          <div className="flex items-center gap-1">
-            <CharacterSavesTrigger onClick={() => setShowCharacterSaves(true)} />
-            
-            {/* Custom Background Upload Button */}
-            {onCustomBackgroundUpload && onCustomBackgroundClear && (
-              <BackgroundUploadButton
-                hasCustomBackground={!!customBackground}
-                onUpload={onCustomBackgroundUpload}
-                onClear={onCustomBackgroundClear}
-              />
-            )}
-          </div>
-          
-          {/* Right: Clock, Help */}
-          <div className="flex items-center gap-1">
-            <ClockWidget />
-            <button 
-                onClick={() => {
-                  triggerHaptic('light');
-                  setShowFAQDrawer(true);
-                }}
-                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-                style={{ touchAction: 'manipulation' }}
-                aria-label="Help & FAQ"
-              >
-                <HelpCircle className="w-4 h-4 text-white/80" />
-              </button>
-          </div>
-        </motion.header>
+        {appMode === 'empyrean' ? (
+          <EmpyreanHomeHeader
+            riderName={character.name}
+            level={character.level}
+            dragonName={loadEmpyreanDMConfig()?.dragonName}
+            dragonColor={loadEmpyreanDMConfig()?.dragonColor}
+            isUnbonded={getIsUnbonded()}
+            onGearPress={() => setShowDrawersMenu(true)}
+          />
+        ) : (
+          <>
+            {/* Minimal Utilities Header */}
+            <motion.header 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+              className="flex items-center justify-between px-3 py-1.5 border-b border-white/10"
+            >
+              {/* Left: Hamburger, Background Upload */}
+              <div className="flex items-center gap-1">
+                <CharacterSavesTrigger onClick={() => setShowCharacterSaves(true)} />
+                
+                {/* Custom Background Upload Button */}
+                {onCustomBackgroundUpload && onCustomBackgroundClear && (
+                  <BackgroundUploadButton
+                    hasCustomBackground={!!customBackground}
+                    onUpload={onCustomBackgroundUpload}
+                    onClear={onCustomBackgroundClear}
+                  />
+                )}
+              </div>
+              
+              {/* Right: Clock, Help */}
+              <div className="flex items-center gap-1">
+                <ClockWidget />
+                <button 
+                    onClick={() => {
+                      triggerHaptic('light');
+                      setShowFAQDrawer(true);
+                    }}
+                    className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                    style={{ touchAction: 'manipulation' }}
+                    aria-label="Help & FAQ"
+                  >
+                    <HelpCircle className="w-4 h-4 text-white/80" />
+                  </button>
+              </div>
+            </motion.header>
 
-        {/* Character Name Plaque - pinned under header */}
-        <CharacterNamePlaque 
-          name={character.name} 
-          level={character.level}
-          primaryClass={character.primaryClass}
-          dragonName={loadEmpyreanDMConfig()?.dragonName}
-          onOpenSettings={onOpenSettings}
-        />
-        {appMode !== 'empyrean' && <AlignmentDriftIndicator className="px-4 py-1" />}
+            {/* Character Name Plaque - pinned under header */}
+            <CharacterNamePlaque 
+              name={character.name} 
+              level={character.level}
+              primaryClass={character.primaryClass}
+              dragonName={loadEmpyreanDMConfig()?.dragonName}
+              onOpenSettings={onOpenSettings}
+            />
+            <AlignmentDriftIndicator className="px-4 py-1" />
+          </>
+        )}
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-auto flex flex-col">
