@@ -284,7 +284,24 @@ UNBONDED RIDER RULES:
     getGridSize: useCallback(() => ({ cols: 10, rows: 10 } as any), []),
   });
 
-  const dragonBond = useDragonBond({
+  // Save solo HP snapshot for homescreen display
+  useEffect(() => {
+    if (!open) return;
+    const interval = setInterval(() => {
+      const hp = autoSyncCallbacks?.getCurrentHP() ?? 0;
+      const max = characterContext?.maxHP ?? 1;
+      saveSoloHP({ current: hp, max });
+    }, 2000);
+    return () => {
+      clearInterval(interval);
+      // Save immediately on close
+      const hp = autoSyncCallbacks?.getCurrentHP() ?? 0;
+      const max = characterContext?.maxHP ?? 1;
+      saveSoloHP({ current: hp, max });
+    };
+  }, [open, autoSyncCallbacks, characterContext?.maxHP]);
+
+
     dragonName: config?.dragonName || '',
     characterName,
   });
