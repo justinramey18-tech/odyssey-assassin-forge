@@ -449,7 +449,7 @@ ${truncated}`);
   }
 
   return (
-    <div className="fixed inset-0 z-[60]">
+    <div className={cn(embedded ? "absolute inset-0" : "fixed inset-0 z-[60]")}>
       <PartyDMScreen
         onBack={onBack}
         partyId={partyId}
