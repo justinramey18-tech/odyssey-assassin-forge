@@ -1807,6 +1807,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         }}
         onDeath={() => {
           setShowDeathSaves(false);
+          setBurnoutLevel(0);
           setShowDeathTransition(true);
           // 2-second black transition then memorial
           setTimeout(() => {
