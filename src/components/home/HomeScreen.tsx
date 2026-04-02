@@ -636,7 +636,14 @@ export function HomeScreen({
 
       {/* Empyrean HP-reactive overlay — dims dragon art as HP drops */}
       {appMode === 'empyrean' && (
-        <EmpyreanDragonHPGlow currentHP={currentHP} maxHP={maxHP} />
+        <>
+          <EmpyreanDragonHPGlow currentHP={currentHP} maxHP={maxHP} />
+          <EmpyreanDragonBurnoutTint
+            burnoutLevel={getSavedBurnoutLevel()}
+            maxBurnout={getIsUnbonded() ? 0 : 8}
+            isUnbonded={getIsUnbonded()}
+          />
+        </>
       )}
 
       <div className="flex flex-col h-screen overflow-hidden relative z-10">
