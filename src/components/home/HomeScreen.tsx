@@ -663,6 +663,21 @@ export function HomeScreen({
       })()}
 
       <div className="flex flex-col h-screen overflow-hidden relative z-10">
+        {/* Empyrean Dual HP Bars */}
+        {appMode === 'empyrean' && (
+          <EmpyreanDualHPBars
+            soloHP={getSoloHP()}
+            partyHP={getPartyHP()}
+            onTapSolo={() => {
+              triggerHaptic('light');
+              setShowEmpyreanDM(true);
+            }}
+            onTapParty={() => {
+              triggerHaptic('light');
+              drawerContext?.openPartyDMScreen();
+            }}
+          />
+        )}
         {/* Install Banner */}
         <InstallBanner />
 
