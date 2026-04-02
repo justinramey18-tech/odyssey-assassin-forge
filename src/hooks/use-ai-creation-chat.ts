@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { WizardState, QUICK_START_DEFAULTS } from '@/components/wizard/types';
 import { HonestModeRules } from '@/lib/gameModes';
+import { isEmpyreanMode } from '@/lib/empyreanLabels';
 
 export type ChatMessage = {
   role: 'user' | 'assistant';
@@ -60,6 +61,15 @@ export interface CharacterBuildData {
     effect: string; duration: string;
     description: string; icon: string;
   }>;
+  empyrean?: {
+    dragonName: string;
+    dragonColor: string;
+    signetType: string;
+    yearAtBasgiath: string;
+    dragonPersonality: string;
+    campaignFocus: string;
+    unbonded: boolean;
+  };
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-creation-assistant`;
@@ -171,7 +181,10 @@ export function useAICreationChat() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: allMessages }),
+        body: JSON.stringify({
+          messages: allMessages,
+          appMode: isEmpyreanMode() ? 'empyrean' : undefined,
+        }),
         signal: abortRef.current.signal,
       });
 
