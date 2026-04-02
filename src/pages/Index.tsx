@@ -1627,10 +1627,16 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     if (result.success) {
       console.log('[Wizard] Character created:', result.appliedChanges);
       setShowWizard(false);
+      // Force immediate cloud save so newly created characters persist
+      setTimeout(() => {
+        autoSync.syncNow().then(() => {
+          console.log('[Wizard] Immediate cloud save completed');
+        }).catch(() => {});
+      }, 2000);
     } else {
       console.error('[Wizard] Creation failed:', result.errors);
     }
-  }, [wizardSetters]);
+  }, [wizardSetters, autoSync]);
 
   // ── AI Creation Assistant: apply character when navigated back with aiCreatedCharacter state ──
   const hasAppliedAICharacter = useRef(false);
@@ -1650,10 +1656,18 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         window.dispatchEvent(new Event('odyssey-character-loaded'));
         console.log('[AICreation] Dispatched odyssey-character-loaded for homebrew content sync');
       }, 100);
+      // Force an immediate cloud save so the character persists across sessions
+      setTimeout(() => {
+        autoSync.syncNow().then(() => {
+          console.log('[AICreation] Immediate cloud save completed');
+        }).catch((err) => {
+          console.error('[AICreation] Immediate cloud save failed:', err);
+        });
+      }, 2000); // Wait 2s for state to settle before syncing
     } else {
       console.error('[AICreation] Failed:', result.errors);
     }
-  }, [rosterState, wizardSetters]);
+  }, [rosterState, wizardSetters, autoSync]);
   
   // Quick start handler - uses utility for simplified state application
   const handleQuickStart = useCallback((wizardState: WizardState) => {
