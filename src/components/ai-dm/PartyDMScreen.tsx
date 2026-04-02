@@ -1325,6 +1325,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   useEffect(() => { partyDmRef.current = partyDm; });
 
   const handleSubmit = useCallback((text: string) => {
+    setRecapDismissed(true);
     partyDmRef.current.submitPrompt(text);
   }, []);
 
