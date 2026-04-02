@@ -490,7 +490,7 @@ serve(async (req) => {
         body: JSON.stringify({
           model: "claude-sonnet-4-5-20250929",
           max_tokens: 16384,
-          system: SYSTEM_PROMPT,
+          system: effectiveSystemPrompt,
           messages: userMessages,
           stream: true,
         }),
