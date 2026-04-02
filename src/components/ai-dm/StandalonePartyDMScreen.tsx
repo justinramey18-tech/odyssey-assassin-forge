@@ -7,6 +7,7 @@ import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { useCampaignSessions } from '@/hooks/use-campaign-sessions';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { PartyDMScreen } from './PartyDMScreen';
 import { GMGuidesManager } from './GMGuidesManager';
 
