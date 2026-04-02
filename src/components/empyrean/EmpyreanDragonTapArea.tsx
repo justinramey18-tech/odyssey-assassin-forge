@@ -3,12 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface EmpyreanDragonTapAreaProps {
   hasConfig: boolean;
+  isUnbonded?: boolean;
   onEnterCampaign: () => void;
   onSetupCampaign: () => void;
 }
 
 export function EmpyreanDragonTapArea({
   hasConfig,
+  isUnbonded,
   onEnterCampaign,
   onSetupCampaign,
 }: EmpyreanDragonTapAreaProps) {
