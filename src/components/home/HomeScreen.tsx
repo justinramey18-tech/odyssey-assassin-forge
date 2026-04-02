@@ -635,7 +635,19 @@ export function HomeScreen({
         />
       )}
 
-      {/* Content layer */}
+      {/* Empyrean HP/burnout/unbonded overlays */}
+      {appMode === 'empyrean' && (
+        <>
+          <EmpyreanUnbondedOverlay isUnbonded={getIsUnbonded()} />
+          <EmpyreanDragonHPGlow currentHP={currentHP} maxHP={maxHP} />
+          <EmpyreanDragonBurnoutTint
+            burnoutLevel={getSavedBurnoutLevel()}
+            maxBurnout={getIsUnbonded() ? 0 : 8}
+            isUnbonded={getIsUnbonded()}
+          />
+        </>
+      )}
+
       <div className="flex flex-col h-screen overflow-hidden relative z-10">
         {/* Install Banner */}
         <InstallBanner />
