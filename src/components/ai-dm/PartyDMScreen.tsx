@@ -62,6 +62,7 @@ import { DragonRiderSetupSheet } from './DragonRiderSetupSheet';
 import PartyDragonChat from './PartyDragonChat';
 import DragonTelegramScheduler from './DragonTelegramScheduler';
 import { Flame } from 'lucide-react';
+import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
 
