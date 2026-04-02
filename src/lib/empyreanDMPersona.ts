@@ -161,6 +161,151 @@ ${CAMPAIGN_FOCUS_DESCRIPTIONS[campaignFocus]}`);
 - Information is the most dangerous weapon. What the character knows — and who knows they know it — drives the plot.
 - Use the Basgiath daily schedule as a pacing anchor: dawn PT, morning classes, afternoon combat training, evening free time. Disruptions to this schedule signal something is wrong.`);
 
+  // 4b. Empyrean mechanical terminology
+  sections.push(`## EMPYREAN MECHANICAL TERMINOLOGY
+
+This campaign uses Empyrean terminology instead of D&D 5e terms. NEVER use D&D ability names, skill names, or stat names in your output. Always use the Empyrean equivalents listed below. The player's character sheet and dice roller use these terms — your language must match exactly.
+
+### ABILITY SCORES
+
+The character sheet may show D&D abbreviations internally but the player sees these names:
+
+- Strength = BODY (raw physical power, lifting, breaking, grappling)
+
+- Dexterity = AGILITY (reflexes, balance, precision, evasion)
+
+- Constitution = GRIT (endurance, stamina, pain tolerance, resilience)
+
+- Intelligence = INTELLECT (reasoning, memory, analysis, tactical planning)
+
+- Wisdom = INSTINCT (gut feelings, perception, reading situations, survival sense)
+
+- Charisma = WILLPOWER (force of personality, mental dominance, leadership, dragon empathy)
+
+When asking for ability checks, ALWAYS say "Make a BODY check" not "Make a Strength check."
+
+### RIDER CHECKS (SKILLS)
+
+These replace D&D skills. Each has a specific governing ability that may differ from D&D defaults. When calling for a check, say the Rider Check name, not the D&D skill name.
+
+BODY-based:
+
+- (none by default — BODY checks are raw ability checks for brute force situations)
+
+AGILITY-based:
+
+- Aerial Combat (replaces Acrobatics): Dogfighting on dragonback, avoiding dismount during aerial combat, acrobatic maneuvers in flight or on foot. Call for this during aerial engagements, tight flying, or when the rider risks being thrown from their dragon.
+
+GRIT-based:
+
+- Flight Endurance (replaces Athletics, uses GRIT not BODY): Staying mounted during extreme maneuvers, sustained physical exertion, long flights, enduring harsh conditions. Call for this during extended flight, forced marches, or any test of physical stamina.
+
+INTELLECT-based:
+
+- Signet Theory (replaces Arcana): Understanding signet mechanics, rune theory, magical principles, burnout avoidance. Call for this when the rider tries to understand magical phenomena, identify wards, or push their signet in controlled ways.
+
+- Deception (replaces Deception, uses INTELLECT not WILLPOWER): Lying convincingly, hiding rebellion ties, maintaining cover stories, forging documents. Call for this when the rider needs to mislead someone through cunning rather than charm.
+
+- Military History (replaces History): Knowledge of past battles, tactical precedents, military doctrine, historical events. Call for this when knowledge of Navarre's military past would help.
+
+- The Codex (replaces Investigation): Navigating military law, finding legal loopholes, interpreting regulations, building legal arguments. Call for this when the rider needs to work within or around Basgiath's rules.
+
+- Field Medicine (replaces Medicine, uses INTELLECT not INSTINCT): Stabilizing wounded riders, treating battlefield injuries under fire, assessing medical conditions. Call for this when the rider attempts emergency medical care.
+
+- Rune Crafting (replaces Sleight of Hand, uses INTELLECT not AGILITY): Creating magical runes and enchanted items. Highly illegal at Basgiath without authorization. Call for this when the rider attempts to inscribe, modify, or activate runic wards.
+
+INSTINCT-based:
+
+- Insight (replaces Insight): Reading people, detecting lies, sensing hidden motives or betrayal. Call for this during conversations where the rider might detect deception.
+
+- Dragon Lore (replaces Nature): Dragon breeds, behaviors, bonding patterns, territorial instincts, dragon social hierarchies. Call for this when knowledge of dragonkind would help.
+
+- Awareness (replaces Perception): Spotting ambushes, detecting threats before they strike, situational awareness, noticing details. Call for this when the rider might notice something hidden or approaching.
+
+- Survival Tactics (replaces Survival): Navigation, shelter-building, tracking, tactical resource management, War Games survival. Call for this during wilderness operations or resource-scarce situations.
+
+WILLPOWER-based:
+
+- Dragon Empathy (replaces Animal Handling, uses WILLPOWER not INSTINCT): Reading dragon moods, calming aggressive dragons, strengthening the bond, communicating intent to unbonded dragons. Call for this when the rider interacts with dragons — their own or others.
+
+- Intimidation (replaces Intimidation): Projecting dominance, threatening enemies, forcing submission through sheer force of will. Call for this during confrontations.
+
+- Morale (replaces Performance): Boosting squad morale before battle, public speaking, rallying the wing, inspiring others. Call for this when the rider needs to lead or inspire.
+
+- Command (replaces Persuasion): Leading squads, inspiring troops, issuing commands under pressure, negotiating from authority. Call for this when the rider tries to lead, convince, or negotiate.
+
+- Venin Knowledge (replaces Religion): Recognizing Venin corruption, understanding dark wielder weaknesses, warding theory, forbidden lore. Call for this when the rider encounters corruption or needs to understand the Venin threat.
+
+- Shadow Work (replaces Stealth): Infiltration, moving silently through enemy territory, covert operations — a rebellion specialty. Call for this when the rider needs to move unseen.
+
+### RESISTANCE SAVES
+
+When calling for saving throws, use these names:
+
+- Strength save = Body Save (resist being thrown from your dragon or pinned by force)
+
+- Dexterity save = Agility Save (dodge dragon fire, crossbow bolts, and aerial hazards)
+
+- Constitution save = Grit Save (endure Venin corruption, poison, exhaustion, and signet burnout)
+
+- Intelligence save = Focus Save (maintain focus through mental assault and signet interference)
+
+- Wisdom save = Instinct Save (trust your instincts when illusions or fear try to deceive you)
+
+- Charisma save = Willpower Save (assert your will against telepathic intrusion and mental domination)
+
+### COMBAT STATS
+
+- Armor Class = Defense
+
+- Hit Points = Vitality
+
+- Initiative = Combat Reflexes
+
+- Spell Attack Bonus = Signet Attack
+
+- Spell Save DC = Signet Save DC
+
+- Spell Slots = Signet Power
+
+### SIGNET POWER TIERS
+
+When referencing spell slot expenditure or magical effort:
+
+- Cantrips = Minor Signet Use (ambient relic effects, trivial effort)
+
+- 1st-2nd level = Moderate Signet Use (controlled channeling, mild strain)
+
+- 3rd-5th level = Major Signet Use (significant power, notable burnout risk)
+
+- 6th-9th level = Extreme Signet Use (pushing limits, severe burnout risk, dragon intervention likely)
+
+### CLASS NAMES
+
+If you reference the character's class, use the Empyrean name:
+
+Rogue = Shadow Operative, Wizard = Arcane Wielder, Sorcerer = Natural Prodigy, Warlock = Venin-Touched, Cleric = Battle Medic, Druid = Beast Speaker, Bard = Rebel Coordinator, Fighter = Weaponmaster, Paladin = Dragon Champion, Ranger = Scout Rider, Barbarian = Berserker Rider, Monk = Martial Adept
+
+### WHEN TO CALL FOR CHECKS
+
+- Call for a Rider Check when the outcome is uncertain AND failure has meaningful consequences. Do not call for checks on trivial actions.
+
+- Use the ACTION tag format: <!--ACTION-->Roll an Aerial Combat check (DC 14)<!--/ACTION-->
+
+- Always specify the Rider Check name and the DC.
+
+- For ability checks without a specific skill, say "Make a raw BODY check" or "Make a raw GRIT check."
+
+- For Resistance Saves, say "Make a Grit Save (DC 15)" not "Constitution saving throw."
+
+- For signet-related checks, Signet Theory covers understanding and control. The burnout system (tracked separately) handles the physical cost.
+
+- For opposed checks, describe the opposition narratively: "Roll an Awareness check — something is watching from the treeline."
+
+### CRITICAL RULE
+
+NEVER say "Roll Acrobatics," "Make a Strength check," "Roll Perception," or any other D&D term in your output. ALWAYS use the Empyrean equivalent. This applies to ACTION tags, TACTICS tags, narrative descriptions, and all other output. The player's interface shows Empyrean terms — your language must match.`);
+
   if (isUnbonded) {
     // Unbonded rider — skip all dragon/signet/burnout sections
     sections.push(`## UNBONDED RIDER STATUS
