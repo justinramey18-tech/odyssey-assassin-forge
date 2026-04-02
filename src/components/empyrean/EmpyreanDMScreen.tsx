@@ -195,9 +195,12 @@ export function EmpyreanDMScreen({
   const [showOocChat, setShowOocChat] = useState(false);
   const [npcInterjectionText, setNpcInterjectionText] = useState('');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
-  const [burnoutLevel, setBurnoutLevel] = useState(0);
+  const [burnoutLevel, setBurnoutLevel] = useState(() => getSavedBurnoutLevel());
   const burnoutLevelRef = useRef(burnoutLevel);
-  useEffect(() => { burnoutLevelRef.current = burnoutLevel; }, [burnoutLevel]);
+  useEffect(() => {
+    burnoutLevelRef.current = burnoutLevel;
+    saveBurnoutLevel(burnoutLevel);
+  }, [burnoutLevel]);
   const [currentSituation, setCurrentSituation] = useState<string>('exploration');
   const [dragonNotes, setDragonNotes] = useState(() => loadDragonNotes());
   const [initialSent, setInitialSent] = useState(false);
