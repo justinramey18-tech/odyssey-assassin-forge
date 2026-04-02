@@ -868,6 +868,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const dragonBonds = usePartyDragonBonds(isEmpyrean ? (partyId || null) : null, currentUserId || null, members);
   const [showEmpyreanBanner, setShowEmpyreanBanner] = useState(false);
 
+  // Save party HP snapshot for Empyrean homescreen
+  useEffect(() => {
+    if (!isEmpyrean || !characterContext) return;
+    const hp = characterContext.currentHP ?? 0;
+    const max = characterContext.maxHP ?? 1;
+    savePartyHP({ current: hp, max });
+  }, [isEmpyrean, characterContext?.currentHP, characterContext?.maxHP]);
+
 
   // Fix A: Clear scoped localStorage when user identity changes (prevents data bleed between accounts)
   const lastUserIdRef = useRef<string | null>(currentUserId ?? null);
