@@ -284,7 +284,7 @@ UNBONDED RIDER RULES:
     characterName,
   });
 
-  const maxBurnout = 8;
+  const maxBurnout = isUnbonded ? 0 : 8;
 
   const dmPersonaPrompt = useMemo(() => {
     if (!config) return undefined;
