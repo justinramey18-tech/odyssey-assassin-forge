@@ -50,7 +50,6 @@ export function EmpyreanDragonTapArea({
             <span className="text-[11px] font-cinzel uppercase tracking-[0.25em] text-white/25 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
               {isUnbonded ? 'Tap to prove yourself' : hasConfig ? 'Tap to enter' : 'Tap to begin'}
             </span>
-            </span>
             {/* Subtle downward pulse */}
             <motion.div
               animate={{ y: [0, 4, 0] }}
