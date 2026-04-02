@@ -664,7 +664,7 @@ export function HomeScreen({
           dragonName={loadEmpyreanDMConfig()?.dragonName}
           onOpenSettings={onOpenSettings}
         />
-        <AlignmentDriftIndicator className="px-4 py-1" />
+        {appMode !== 'empyrean' && <AlignmentDriftIndicator className="px-4 py-1" />}
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-auto flex flex-col">
