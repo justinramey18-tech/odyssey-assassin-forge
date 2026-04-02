@@ -183,7 +183,7 @@ export function useAICreationChat() {
         },
         body: JSON.stringify({
           messages: allMessages,
-          appMode: isEmpyreanMode() ? 'empyrean' : undefined,
+          appMode: isEmpyreanMode() ? 'empyrean' : 'standard',
         }),
         signal: abortRef.current.signal,
       });
