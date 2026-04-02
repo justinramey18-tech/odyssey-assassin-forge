@@ -21,19 +21,22 @@ const lorNavarre: EmpyreanGuide = {
   description: 'Geography, politics, the Empyrean, and the war that shapes everything.',
   content: `# World of Navarre — Setting Overview
 
-Navarre is a militaristic kingdom on a continent scarred by centuries of conflict with the Venin — corrupted wielders who drain the land of life to fuel dark magic. The kingdom is protected by an enormous ward line powered by wardstones, maintained by dragon riders and runic magic.
+Navarre is a militaristic kingdom on a continent scarred by centuries of conflict with the Venin — corrupted wielders who drain the land of life to fuel dark magic. The kingdom is protected by an enormous ward line powered by wardstones, maintained by dragon riders channeling power through their bonds.
 
 ## Geography
-Navarre occupies the eastern portion of the continent. The interior is mountainous, with Basgiath War College built into the Cliffs of Dralor overlooking the Isgaard Valley. The western frontier borders the Barrens — territory beyond the wards where the land is drained, grey, and lifeless. To the south lies Poromiel, a kingdom that uses gryphon riders instead of dragon riders. The northern territories are sparsely populated frontier zones where ward failures are most common.
+Navarre occupies the eastern portion of the continent. Basgiath War College is built into Basgiath Mountain in the Morraine Province, overlooking the Vale — the region's dragon hatching grounds — and the Iakobos River. The western frontier borders territory beyond the wards where the land is drained, grey, and lifeless. To the south lies Poromiel, a kingdom that uses gryphon riders instead of dragon riders. The frontier zones along the ward line are where failures are most common and patrols are most active.
 
 ## Political Structure
-The Empyrean is the ruling body — a council of senior dragon riders, military commanders, and political leaders. The Commandant of Basgiath holds enormous influence. Power flows through military rank. Scribes control information, and their leadership decides what the general population knows about the war. This information control is a deliberate policy: most citizens and even many riders do not know the true state of the ward line.
+The kingdom is governed through military hierarchy, with dragon riders occupying the highest tier of social and political power. The Commanding General holds enormous authority, and Basgiath's Commandant controls who becomes a rider and what cadets learn. Scribes control information flow, and their leadership decides what the general population knows about the war. This information control is a deliberate policy: most citizens and even many riders do not know the true state of the ward line.
 
 ## The War
 The conflict with the Venin is existential. Venin cross the ward line to attack settlements, drain the land, and corrupt wielders. The official position is that the wards are strong and the war is manageable. The truth — known to a rebel faction within the riders — is that the wards are failing, attacks are increasing, and Navarre is losing. This secret drives much of the political tension.
 
-## The Reunification Treaty
-Generations ago, warring dragon rider factions united under a single banner, founding Basgiath as a training institution and establishing the Empyrean as a governing body. The treaty ended centuries of riders fighting each other and redirected their power against the Venin. However, old bloodline rivalries persist beneath the surface of institutional unity.
+## The Unification
+Generations ago, warring dragon rider factions united under a single banner. The dragon dens offered their ancestral hatching grounds — including the Uaineloidsig line, which offered the Steelridge Mountain Range where Basgiath now stands — for the good of dragonkind. This unification founded Basgiath as a training institution and redirected rider power against the Venin. However, old bloodline rivalries persist beneath the surface of institutional unity.
+
+## Navarre's Six Provinces
+Navarre is divided into six provinces, each of which sends candidates to Basgiath during conscription. Some volunteer, others are sentenced as punishment, and most are conscripted. The province of Tyrrendor is particularly significant — it is the homeland of the Tyrrish people and the seat of the failed rebellion led by Fen Riorson.
 
 ## Atmosphere
 The world feels militaristic, secretive, and dangerous. Beauty exists — the dragons, the mountains, the bonds between riders — but it is always shadowed by the cost of war, institutional secrecy, and the knowledge that the people protecting you may also be lying to you.`,
