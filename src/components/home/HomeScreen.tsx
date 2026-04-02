@@ -53,6 +53,8 @@ import { DragonParticles } from './DragonParticles';
 import { PrestigeData } from '@/lib/prestige';
 import { ChroniclerHomeView } from './ChroniclerHomeView';
 import { AlignmentDriftIndicator } from '@/components/alignment/AlignmentDriftIndicator';
+import { EmpyreanDualHPBars } from '@/components/empyrean/EmpyreanDualHPBars';
+import { getSoloHP, getPartyHP } from '@/lib/dragonBondState';
 
 import homeBackground from '@/assets/home-background-mobile.jpg';
 import empyreanBackground from '@/assets/empyrean-bg.jpg';
