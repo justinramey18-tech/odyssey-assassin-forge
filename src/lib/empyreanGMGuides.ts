@@ -50,28 +50,28 @@ const lorBasgiath: EmpyreanGuide = {
   description: 'Quadrants, wing structure, daily life, curriculum, and chain of command.',
   content: `# Basgiath War College — Structure and Daily Life
 
-Basgiath is the only institution that trains dragon riders. Built into a mountain fortress, it is equal parts military academy, proving ground, and slaughterhouse. Not everyone who enters survives.
+Basgiath is the only institution that trains dragon riders. Built into Basgiath Mountain in the Morraine Province, it is equal parts military academy, proving ground, and slaughterhouse. Not everyone who enters survives.
 
 ## The Four Quadrants
-- **Riders Quadrant**: The elite. Students bond with dragons during Threshing and train in aerial combat, signet development, and tactical warfare. Highest mortality rate.
-- **Scribes Quadrant**: Intelligence and record-keeping. Scribes manage information, maintain archives, and serve as the bureaucratic backbone. They control what the public knows.
-- **Healers Quadrant**: Medical corps. Healers train in both conventional medicine and magical healing, treating injuries from training, combat, and signet burnout.
-- **Infantry Quadrant**: Ground forces. Infantry students train without dragons, serving as the foot soldiers, engineers, and support structure for the rider corps.
+- **Riders Quadrant**: The elite. Located in the Citadel — the upper portion of the fortress. Students bond with dragons during Threshing and train in aerial combat, signet development, and tactical warfare. Highest mortality rate — only about a quarter of cadets survive to graduation. The only rules that apply to riders come from the Codex, the Riders Quadrant's own legal code.
+- **Scribes Quadrant**: Intelligence and record-keeping, located below ground in the Archives. Scribes study and master the past while relaying and recording the present. They provide intelligence briefings (Battle Brief) to the Riders Quadrant and control what information reaches the public. Scribes are expected to maintain composure at all times — even hugging a friend could result in punishment. Their uniforms are pale blue.
+- **Healers Quadrant**: Located at the southern end of Basgiath, connected to the Riders Quadrant by a bridge to the infirmary. Healers do NOT have magic — they rely entirely on traditional tinctures, medical training, and surgical skill. They work alongside riders who possess the Mending signet for serious cases. Healers are sworn to never harm a beating heart and are taught to do everything in their power to save human life.
+- **Infantry Quadrant**: The largest quadrant, with nearly 1,000 cadets joining in a single year. Connected at the northern turret. Infantry are trained for land battle, outdoor survival, and camp operations. They carry shortswords as standard weapons. It takes nearly a full company of Infantry to compensate for the loss of one dragon rider.
 
 ## Wing and Squad Structure
-Riders are organized into Wings (led by a Wingleader) and further divided into Squads (led by a Squad Leader). A wing typically contains 3-4 squads of 5-8 riders each. Wing assignments are semi-permanent and create intense loyalty bonds. Inter-wing rivalry is encouraged by leadership as a training tool.
+Riders are organized into Wings (led by a Wingleader) and further divided into Sections (Flame, Claw, and Tail), then into Squads (led by a Squad Leader). Wing assignments are semi-permanent and create intense loyalty bonds. Inter-wing rivalry is encouraged by leadership as a training tool. Wingleader and section leader positions are typically held by third-year students, though exceptional second-years can achieve them.
 
 ## Daily Life
-Days begin before dawn. Morning physical training is followed by academic classes (history, tactics, languages, Battle Brief intelligence sessions), then afternoon combat training (sparring, flight exercises, signet drills). Evenings are nominally free but often consumed by studying, squad bonding, or recovering from injuries. Meals are communal in the mess hall — a social battlefield of its own.
+Days begin before dawn. Morning physical training is followed by academic classes (Battle Brief intelligence sessions, military history, tactics, languages, signet theory), then afternoon combat training (sparring, challenge matches, flight exercises, squad tactical drills). Evenings are nominally free but often consumed by studying, squad bonding, or recovering from injuries. Meals are communal in the mess hall — a social battlefield of its own. First-year riders cannot write or receive letters from family.
 
 ## The Parapet
-First-year riders must cross the parapet — a narrow, crumbling stone bridge with no railings over a lethal drop — on their first day. This is the first test: those who cannot cross die. It establishes immediately that Basgiath does not protect you from death.
+First-year riders must cross the parapet — a narrow, crumbling stone bridge with no railings over a lethal drop — on Conscription Day. This is the first test: those who cannot cross die. On average 15% of candidates die at the parapet before even entering the Riders Quadrant.
 
 ## Threshing
-The bonding ceremony where unbonded dragons choose their riders. Dragons are not assigned — they choose. Being rejected by every dragon means transfer to a different quadrant or, in some cases, death by a dragon who finds you unworthy. Threshing is terrifying, sacred, and the most important day of a rider's life.
+The bonding ceremony where unbonded dragons choose their riders, held on October 1st each year. Dragons are not assigned — they choose. Being rejected by every dragon means transfer to a different quadrant or death by a dragon who finds you unworthy. Threshing is terrifying, sacred, and the most important day of a rider's life.
 
 ## Chain of Command
-Commandant → Vice Commandant → Wing Commanders → Professors → Wingleaders → Squad Leaders → Cadets. Orders flow downward absolutely. Questioning the chain is insubordination. This rigid structure both protects and oppresses.`,
+Commanding General > Commandant > Vice Commandant > Wing Commanders > Professors > Wingleaders > Section Leaders > Squad Leaders > Cadets. Orders flow downward absolutely. Questioning the chain is insubordination. This rigid structure both protects and oppresses.`,
 };
 
 const lorDragonBonds: EmpyreanGuide = {
