@@ -1650,10 +1650,18 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         window.dispatchEvent(new Event('odyssey-character-loaded'));
         console.log('[AICreation] Dispatched odyssey-character-loaded for homebrew content sync');
       }, 100);
+      // Force an immediate cloud save so the character persists across sessions
+      setTimeout(() => {
+        autoSync.syncNow().then(() => {
+          console.log('[AICreation] Immediate cloud save completed');
+        }).catch((err) => {
+          console.error('[AICreation] Immediate cloud save failed:', err);
+        });
+      }, 2000); // Wait 2s for state to settle before syncing
     } else {
       console.error('[AICreation] Failed:', result.errors);
     }
-  }, [rosterState, wizardSetters]);
+  }, [rosterState, wizardSetters, autoSync]);
   
   // Quick start handler - uses utility for simplified state application
   const handleQuickStart = useCallback((wizardState: WizardState) => {
