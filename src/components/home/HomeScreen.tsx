@@ -766,6 +766,7 @@ export function HomeScreen({
 
 
             {/* DM Launch Buttons */}
+            {appMode !== 'empyrean' && (
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
@@ -827,8 +828,10 @@ export function HomeScreen({
                 </motion.button>
               )}
             </motion.div>
+            )}
 
             {/* Menus Bar */}
+            {appMode !== 'empyrean' && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -849,6 +852,7 @@ export function HomeScreen({
                 <span className="text-xs font-cinzel uppercase tracking-wider text-cyan-300">Menus</span>
               </button>
             </motion.div>
+            )}
 
             {/* Dynamic Health Bar - below D20 */}
             {showFeature('home.healthBar') && (
