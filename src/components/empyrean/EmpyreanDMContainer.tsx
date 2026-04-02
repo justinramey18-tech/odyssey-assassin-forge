@@ -46,13 +46,14 @@ export function EmpyreanDMContainer({
     try { setScopedItem(LAST_TAB_KEY, activeTab); } catch {}
   }, [activeTab]);
 
-  // Reset to saved tab when opened
+  // Always open on Party tab when in a party
   useEffect(() => {
-    if (open && hasParty) {
-      try {
-        const saved = getScopedItem(LAST_TAB_KEY);
-        if (saved === 'party' || saved === 'solo') setActiveTab(saved);
-      } catch {}
+    if (open) {
+      if (hasParty) {
+        setActiveTab('party');
+      } else {
+        setActiveTab('solo');
+      }
     }
   }, [open, hasParty]);
 

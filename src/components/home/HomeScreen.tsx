@@ -772,7 +772,12 @@ export function HomeScreen({
                   transition={{ delay: 0.5, duration: 0.4 }}
                   onClick={() => {
                     triggerHaptic('light');
-                    setShowEmpyreanDMContainer(true);
+                    const hasConfig = !!loadEmpyreanDMConfig();
+                    if (hasConfig) {
+                      setShowEmpyreanDMContainer(true);
+                    } else {
+                      setShowEmpyreanScreen(true);
+                    }
                   }}
                   className={cn(
                     "w-full flex flex-col items-center gap-2 py-4 rounded-xl",
