@@ -35,6 +35,7 @@ import { EmpyreanHomeHeader } from '@/components/empyrean/EmpyreanHomeHeader';
 import { EmpyreanDragonTapArea } from '@/components/empyrean/EmpyreanDragonTapArea';
 import { EmpyreanDragonHPGlow } from '@/components/empyrean/EmpyreanDragonHPGlow';
 import { EmpyreanDragonBurnoutTint } from '@/components/empyrean/EmpyreanDragonBurnoutTint';
+import { EmpyreanUnbondedOverlay } from '@/components/empyrean/EmpyreanUnbondedOverlay';
 import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
 import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
@@ -634,9 +635,10 @@ export function HomeScreen({
         />
       )}
 
-      {/* Empyrean HP-reactive overlay — dims dragon art as HP drops */}
+      {/* Empyrean HP/burnout/unbonded overlays */}
       {appMode === 'empyrean' && (
         <>
+          <EmpyreanUnbondedOverlay isUnbonded={getIsUnbonded()} />
           <EmpyreanDragonHPGlow currentHP={currentHP} maxHP={maxHP} />
           <EmpyreanDragonBurnoutTint
             burnoutLevel={getSavedBurnoutLevel()}
@@ -716,6 +718,7 @@ export function HomeScreen({
           {appMode === 'empyrean' ? (
             <EmpyreanDragonTapArea
               hasConfig={!!loadEmpyreanDMConfig()}
+              isUnbonded={getIsUnbonded()}
               onEnterCampaign={() => {
                 triggerHaptic('light');
                 setShowEmpyreanDM(true);

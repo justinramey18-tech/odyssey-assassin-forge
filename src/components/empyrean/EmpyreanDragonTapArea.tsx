@@ -3,12 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface EmpyreanDragonTapAreaProps {
   hasConfig: boolean;
+  isUnbonded?: boolean;
   onEnterCampaign: () => void;
   onSetupCampaign: () => void;
 }
 
 export function EmpyreanDragonTapArea({
   hasConfig,
+  isUnbonded,
   onEnterCampaign,
   onSetupCampaign,
 }: EmpyreanDragonTapAreaProps) {
@@ -46,7 +48,7 @@ export function EmpyreanDragonTapArea({
             className="flex flex-col items-center gap-2"
           >
             <span className="text-[11px] font-cinzel uppercase tracking-[0.25em] text-white/25 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-              {hasConfig ? 'Tap to enter' : 'Tap to begin'}
+              {isUnbonded ? 'Tap to prove yourself' : hasConfig ? 'Tap to enter' : 'Tap to begin'}
             </span>
             {/* Subtle downward pulse */}
             <motion.div
