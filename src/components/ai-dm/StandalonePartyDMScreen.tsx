@@ -53,6 +53,7 @@ interface StandalonePartyDMScreenProps {
   isMomoMoonDruid?: boolean;
   isSoloEmpyrean?: boolean;
   embedded?: boolean;
+  swipeHandlers?: SwipeHandlers;
 }
 
 export function StandalonePartyDMScreen({
