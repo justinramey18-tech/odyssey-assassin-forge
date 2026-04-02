@@ -181,6 +181,7 @@ export function EmpyreanDMScreen({
   characterContext,
   characterName,
   initialMessage,
+  embedded,
   autoSyncCallbacks,
 }: EmpyreanDMScreenProps) {
   const [config, setConfig] = useState<EmpyreanDMConfig | null>(() => loadEmpyreanDMConfig());
