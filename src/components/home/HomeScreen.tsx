@@ -700,6 +700,19 @@ export function HomeScreen({
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-auto flex flex-col">
+          {appMode === 'empyrean' ? (
+            <EmpyreanDragonTapArea
+              hasConfig={!!loadEmpyreanDMConfig()}
+              onEnterCampaign={() => {
+                triggerHaptic('light');
+                setShowEmpyreanDM(true);
+              }}
+              onSetupCampaign={() => {
+                triggerHaptic('light');
+                setShowEmpyreanSetup(true);
+              }}
+            />
+          ) : (
           <div className="flex flex-col gap-4 pb-[2px] mt-auto">
 
             {/* Wild Shape Details Overlay */}
