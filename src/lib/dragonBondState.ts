@@ -486,3 +486,37 @@ You may include one mood tag and zero or more memory/habit/sensation tags per re
 
   return sections.join('\n\n');
 }
+
+// ── EMPYREAN HP PERSISTENCE ──
+
+const SOLO_HP_KEY = 'empyrean-solo-hp';
+const PARTY_HP_KEY = 'empyrean-party-hp';
+
+export interface EmpyreanHP {
+  current: number;
+  max: number;
+}
+
+export function getSoloHP(): EmpyreanHP {
+  try {
+    const raw = getScopedItem(SOLO_HP_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { current: 0, max: 0 };
+}
+
+export function saveSoloHP(hp: EmpyreanHP): void {
+  try { setScopedItem(SOLO_HP_KEY, JSON.stringify(hp)); } catch {}
+}
+
+export function getPartyHP(): EmpyreanHP {
+  try {
+    const raw = getScopedItem(PARTY_HP_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { current: 0, max: 0 };
+}
+
+export function savePartyHP(hp: EmpyreanHP): void {
+  try { setScopedItem(PARTY_HP_KEY, JSON.stringify(hp)); } catch {}
+}

@@ -317,6 +317,19 @@ export function HomeScreen({
   const [showFAQDrawer, setShowFAQDrawer] = useState(false);
   const [showSoloConfirm, setShowSoloConfirm] = useState(false);
   const [showEmpyreanScreen, setShowEmpyreanScreen] = useState(false);
+  const [showEmpyreanDMContainer, setShowEmpyreanDMContainer] = useState(false);
+
+  // Temporary: redirect to existing Empyrean screen until the container is built
+  useEffect(() => {
+    if (showEmpyreanDMContainer) {
+      setShowEmpyreanDMContainer(false);
+      setShowEmpyreanScreen(true);
+    }
+  }, [showEmpyreanDMContainer]);
+
+  // Empyrean HP bars data
+  const empyreanSoloHP = appMode === 'empyrean' ? getSoloHP() : { current: 0, max: 0 };
+  const empyreanPartyHP = appMode === 'empyrean' ? getPartyHP() : { current: 0, max: 0 };
   const [showCompanionScreen, setShowCompanionScreen] = useState(false);
   const [geraltHpPct, setGeraltHpPct] = useState<number | undefined>(undefined);
   // Persist last-read message count per party in localStorage
