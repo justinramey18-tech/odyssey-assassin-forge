@@ -891,7 +891,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
   // No config — show placeholder
   if (!config) {
     return (
-      <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-gradient-to-b from-[#1a0a2e] via-background to-background gap-4 px-6">
+      <div className={cn("flex flex-col items-center justify-center bg-gradient-to-b from-[#1a0a2e] via-background to-background gap-4 px-6", embedded ? "absolute inset-0" : "fixed inset-0 z-[60]")}>
         <span className="text-5xl">🐉</span>
         <h2 className="text-xl font-cinzel font-bold text-purple-300 text-center">
           No Empyrean Campaign Configured
