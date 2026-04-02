@@ -912,7 +912,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#1a0a2e] via-background to-background">
+    <div className={cn("flex flex-col bg-gradient-to-b from-[#1a0a2e] via-background to-background", embedded ? "absolute inset-0" : "fixed inset-0 z-[60]")}>
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-purple-500/20 bg-background/80 backdrop-blur-sm shrink-0">
         <div className="flex items-center gap-2">
