@@ -1222,7 +1222,32 @@ export function HomeScreen({
         autoSyncCallbacks={autoSyncCallbacks}
       />
 
-      {/* FAQ Drawer */}
+      {/* Empyrean DM — direct entry from dragon tap */}
+      <EmpyreanDMScreen
+        open={showEmpyreanDM}
+        onClose={() => setShowEmpyreanDM(false)}
+        characterContext={drawerContext?.characterContext ?? { name: character.name, level: character.level, currentHP: 10, maxHP: 10, abilities: [], equippedAbilities: [], equipment: [], activeSetBonuses: [], consumables: [], cooldowns: { active: [], ready: [] }, prestigeLevel: 0, prestigeAbilities: [] } as any}
+        characterName={character.name}
+        autoSyncCallbacks={autoSyncCallbacks}
+      />
+
+      {/* Empyrean Campaign Setup — direct entry when no config */}
+      <EmpyreanCampaignSetup
+        open={showEmpyreanSetup}
+        onClose={() => setShowEmpyreanSetup(false)}
+        characterName={character.name}
+        addGuide={gmGuides.addGuide}
+        deleteGuide={gmGuides.deleteGuide}
+        onComplete={() => {
+          setShowEmpyreanSetup(false);
+          setShowEmpyreanDM(true);
+        }}
+        onLaunchWithScene={() => {
+          setShowEmpyreanSetup(false);
+          setShowEmpyreanDM(true);
+        }}
+      />
+
       <FAQDrawer open={showFAQDrawer} onOpenChange={setShowFAQDrawer} />
 
       {/* Solo Mode Confirmation */}
