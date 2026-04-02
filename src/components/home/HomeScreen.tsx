@@ -37,7 +37,9 @@ import { EmpyreanDragonHPGlow } from '@/components/empyrean/EmpyreanDragonHPGlow
 import { EmpyreanDragonBurnoutTint } from '@/components/empyrean/EmpyreanDragonBurnoutTint';
 import { EmpyreanUnbondedOverlay } from '@/components/empyrean/EmpyreanUnbondedOverlay';
 import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
+import { EmpyreanDMContainer } from '@/components/empyrean/EmpyreanDMContainer';
 import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
+import { StandalonePartyDMScreen } from '@/components/ai-dm/StandalonePartyDMScreen';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { loadEmpyreanDMConfig } from '@/lib/empyreanDMPersona';
 import { getIsUnbonded, getSavedBurnoutLevel, getSoloHP, getPartyHP } from '@/lib/dragonBondState';
@@ -1267,13 +1269,35 @@ export function HomeScreen({
         autoSyncCallbacks={autoSyncCallbacks}
       />
 
-      {/* Empyrean DM — direct entry from dragon tap */}
-      <EmpyreanDMScreen
+      {/* Empyrean DM — swipeable solo/party container */}
+      <EmpyreanDMContainer
         open={showEmpyreanDM}
         onClose={() => setShowEmpyreanDM(false)}
-        characterContext={drawerContext?.characterContext ?? { name: character.name, level: character.level, currentHP: 10, maxHP: 10, abilities: [], equippedAbilities: [], equipment: [], activeSetBonuses: [], consumables: [], cooldowns: { active: [], ready: [] }, prestigeLevel: 0, prestigeAbilities: [] } as any}
-        characterName={character.name}
-        autoSyncCallbacks={autoSyncCallbacks}
+        hasParty={!!partySync?.party?.partyId}
+        soloContent={
+          <EmpyreanDMScreen
+            open={true}
+            onClose={() => setShowEmpyreanDM(false)}
+            characterContext={drawerContext?.characterContext ?? { name: character.name, level: character.level, currentHP: 10, maxHP: 10, abilities: [], equippedAbilities: [], equipment: [], activeSetBonuses: [], consumables: [], cooldowns: { active: [], ready: [] }, prestigeLevel: 0, prestigeAbilities: [] } as any}
+            characterName={character.name}
+            autoSyncCallbacks={autoSyncCallbacks}
+            embedded={true}
+          />
+        }
+        partyContent={
+          <StandalonePartyDMScreen
+            onBack={() => setShowEmpyreanDM(false)}
+            characterContext={drawerContext?.characterContext ?? { name: character.name, level: character.level, currentHP: 10, maxHP: 10, abilities: [], equippedAbilities: [], equipment: [], activeSetBonuses: [], consumables: [], cooldowns: { active: [], ready: [] }, prestigeLevel: 0, prestigeAbilities: [] } as any}
+            partyId={partySync?.party?.partyId ?? null}
+            isPartyCreator={partySync?.party?.isCreator ?? false}
+            partyMembers={partySync?.party?.members ?? []}
+            userId={userId ?? ''}
+            characterName={character.name}
+            autoSyncCallbacks={autoSyncCallbacks}
+            embedded={true}
+            isSoloEmpyrean={true}
+          />
+        }
       />
 
       {/* Empyrean Campaign Setup — direct entry when no config */}
