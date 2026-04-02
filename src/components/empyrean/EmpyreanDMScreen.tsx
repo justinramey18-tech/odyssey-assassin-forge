@@ -718,6 +718,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
 
   const handleSend = useCallback(() => {
     if (!inputValue.trim() || isLoading) return;
+    setRecapDismissed(true);
     let messageToSend = inputValue.trim();
     
     // Inject Threshing authorization tag if authorized
