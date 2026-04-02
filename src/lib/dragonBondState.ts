@@ -87,57 +87,7 @@ export function setIsUnbonded(unbonded: boolean): void {
   } catch {}
 }
 
-// ── BURNOUT PERSISTENCE ──
-
-const BURNOUT_LEVEL_KEY = 'empyrean-burnout-level';
-
-export function getSavedBurnoutLevel(): number {
-  try {
-    const raw = getScopedItem(BURNOUT_LEVEL_KEY);
-    return raw ? parseInt(raw, 10) || 0 : 0;
-  } catch { return 0; }
-}
-
-export function saveBurnoutLevel(level: number): void {
-  try {
-    setScopedItem(BURNOUT_LEVEL_KEY, String(level));
-  } catch {}
-}
-
-// ── EMPYREAN HP PERSISTENCE ──
-
-const SOLO_HP_KEY = 'empyrean-solo-hp';
-const PARTY_HP_KEY = 'empyrean-party-hp';
-
-export interface EmpyreanHP {
-  current: number;
-  max: number;
-}
-
-export function getSoloHP(): EmpyreanHP {
-  try {
-    const raw = getScopedItem(SOLO_HP_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return { current: 0, max: 0 };
-}
-
-export function saveSoloHP(hp: EmpyreanHP): void {
-  try { setScopedItem(SOLO_HP_KEY, JSON.stringify(hp)); } catch {}
-}
-
-export function getPartyHP(): EmpyreanHP {
-  try {
-    const raw = getScopedItem(PARTY_HP_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return { current: 0, max: 0 };
-}
-
-export function savePartyHP(hp: EmpyreanHP): void {
-  try { setScopedItem(PARTY_HP_KEY, JSON.stringify(hp)); } catch {}
-}
-
+// ── SCORE HELPERS ──
 
 export function getBondDescriptor(bond: number): string {
   if (bond >= 81) return 'Legendary — near-telepathic unity';

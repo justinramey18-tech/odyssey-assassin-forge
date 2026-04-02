@@ -50,7 +50,6 @@ interface StandalonePartyDMScreenProps {
   wildShape?: UseWildShapeReturn;
   isMomoMoonDruid?: boolean;
   isSoloEmpyrean?: boolean;
-  embedded?: boolean;
 }
 
 export function StandalonePartyDMScreen({
@@ -66,7 +65,6 @@ export function StandalonePartyDMScreen({
   wildShape,
   isMomoMoonDruid,
   isSoloEmpyrean,
-  embedded,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
@@ -414,14 +412,14 @@ ${truncated}`);
   // Non-hosts (and non-co-hosts) wait for session to start
   if (!partyDm.isActive && !isHost) {
     return (
-      <div className={embedded ? "absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]" : "fixed inset-0 z-[60] flex flex-col items-center justify-center bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]"}>
-        {!embedded && <button
+      <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
+        <button
           onClick={onBack}
           className="absolute top-4 left-4 p-2 rounded-lg hover:bg-white/10 transition-colors"
           style={{ touchAction: 'manipulation' }}
         >
           <span className="text-white/80 text-sm font-cinzel">← Back</span>
-        </button>}
+        </button>
         <div className="text-center px-6">
           <div className="w-12 h-12 rounded-full bg-emerald-900/40 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
             <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
@@ -436,7 +434,7 @@ ${truncated}`);
   }
 
   return (
-    <div className={embedded ? "absolute inset-0" : "fixed inset-0 z-[60]"}>
+    <div className="fixed inset-0 z-[60]">
       <PartyDMScreen
         onBack={onBack}
         partyId={partyId}

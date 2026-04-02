@@ -53,7 +53,7 @@ import {
   saveDragonNotes,
 } from '@/lib/empyreanDMPersona';
 import { useDragonBond } from '@/hooks/use-dragon-bond';
-import { getBondDescriptor, getTrustDescriptor, buildDragonChatPrompt, DRAGON_CHAT_SUMMARY_KEY, DRAGON_CHAT_KEY, resetBondState, getIsUnbonded, setIsUnbonded, saveBondState, DEFAULT_BOND, DEFAULT_TRUST, getSavedBurnoutLevel, saveBurnoutLevel, saveSoloHP } from '@/lib/dragonBondState';
+import { getBondDescriptor, getTrustDescriptor, buildDragonChatPrompt, DRAGON_CHAT_SUMMARY_KEY, DRAGON_CHAT_KEY, resetBondState, getIsUnbonded, setIsUnbonded, saveBondState, DEFAULT_BOND, DEFAULT_TRUST } from '@/lib/dragonBondState';
 import { getDragonColorHex } from '@/lib/dragonColors';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { getAuthToken } from '@/lib/auth-token';
@@ -76,7 +76,6 @@ interface EmpyreanDMScreenProps {
   characterContext: CharacterContext;
   characterName: string;
   initialMessage?: string | null;
-  embedded?: boolean;
   autoSyncCallbacks?: {
     onHPChange: (change: number, type: 'damage' | 'healing') => void;
     onAddXP: (amount: number, source: string) => void;
@@ -181,7 +180,6 @@ export function EmpyreanDMScreen({
   characterContext,
   characterName,
   initialMessage,
-  embedded,
   autoSyncCallbacks,
 }: EmpyreanDMScreenProps) {
   const [config, setConfig] = useState<EmpyreanDMConfig | null>(() => loadEmpyreanDMConfig());
@@ -197,12 +195,9 @@ export function EmpyreanDMScreen({
   const [showOocChat, setShowOocChat] = useState(false);
   const [npcInterjectionText, setNpcInterjectionText] = useState('');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
-  const [burnoutLevel, setBurnoutLevel] = useState(() => getSavedBurnoutLevel());
+  const [burnoutLevel, setBurnoutLevel] = useState(0);
   const burnoutLevelRef = useRef(burnoutLevel);
-  useEffect(() => {
-    burnoutLevelRef.current = burnoutLevel;
-    saveBurnoutLevel(burnoutLevel);
-  }, [burnoutLevel]);
+  useEffect(() => { burnoutLevelRef.current = burnoutLevel; }, [burnoutLevel]);
   const [currentSituation, setCurrentSituation] = useState<string>('exploration');
   const [dragonNotes, setDragonNotes] = useState(() => loadDragonNotes());
   const [initialSent, setInitialSent] = useState(false);
@@ -285,23 +280,6 @@ UNBONDED RIDER RULES:
     getCurrentMarkers: useCallback(() => [], []),
     getGridSize: useCallback(() => ({ cols: 10, rows: 10 } as any), []),
   });
-
-  // Save solo HP snapshot for homescreen display
-  useEffect(() => {
-    if (!open) return;
-    const interval = setInterval(() => {
-      const hp = autoSyncCallbacks?.getCurrentHP() ?? 0;
-      const max = characterContext?.maxHP ?? 1;
-      saveSoloHP({ current: hp, max });
-    }, 2000);
-    return () => {
-      clearInterval(interval);
-      // Save immediately on close
-      const hp = autoSyncCallbacks?.getCurrentHP() ?? 0;
-      const max = characterContext?.maxHP ?? 1;
-      saveSoloHP({ current: hp, max });
-    };
-  }, [open, autoSyncCallbacks, characterContext?.maxHP]);
 
   const dragonBond = useDragonBond({
     dragonName: config?.dragonName || '',
@@ -898,7 +876,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
   // No config — show placeholder
   if (!config) {
     return (
-      <div className={cn("flex flex-col items-center justify-center bg-gradient-to-b from-[#1a0a2e] via-background to-background gap-4 px-6", embedded ? "absolute inset-0" : "fixed inset-0 z-[60]")}>
+      <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-gradient-to-b from-[#1a0a2e] via-background to-background gap-4 px-6">
         <span className="text-5xl">🐉</span>
         <h2 className="text-xl font-cinzel font-bold text-purple-300 text-center">
           No Empyrean Campaign Configured
@@ -919,9 +897,9 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
   }
 
   return (
-    <div className={cn("flex flex-col bg-gradient-to-b from-[#1a0a2e] via-background to-background", embedded ? "absolute inset-0" : "fixed inset-0 z-[60]")}>
-      {/* Header — hidden when embedded in EmpyreanDMContainer */}
-      {!embedded && <div className="flex items-center justify-between px-3 py-2.5 border-b border-purple-500/20 bg-background/80 backdrop-blur-sm shrink-0">
+    <div className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#1a0a2e] via-background to-background">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2.5 border-b border-purple-500/20 bg-background/80 backdrop-blur-sm shrink-0">
         <div className="flex items-center gap-2">
           <button
             onClick={onClose}
@@ -1026,7 +1004,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
             <BookOpen className="w-5 h-5 text-purple-400" />
           </button>
         </div>
-      </div>}
+      </div>
 
       {/* Auto-Sync Banner */}
       <AutoSyncBanner

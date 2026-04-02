@@ -31,20 +31,8 @@ import { CharacterSavesDrawer, CharacterSavesTrigger } from './CharacterSavesDra
 import { FAQDrawer } from './FAQDrawer';
 
 import { EmpyreanScreen } from '@/components/empyrean/EmpyreanScreen';
-import { EmpyreanHomeHeader } from '@/components/empyrean/EmpyreanHomeHeader';
-import { EmpyreanDragonTapArea } from '@/components/empyrean/EmpyreanDragonTapArea';
-import { EmpyreanDragonHPGlow } from '@/components/empyrean/EmpyreanDragonHPGlow';
-import { EmpyreanDragonBurnoutTint } from '@/components/empyrean/EmpyreanDragonBurnoutTint';
-import { EmpyreanUnbondedOverlay } from '@/components/empyrean/EmpyreanUnbondedOverlay';
-import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
-import { EmpyreanDMContainer } from '@/components/empyrean/EmpyreanDMContainer';
-import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
-import { StandalonePartyDMScreen } from '@/components/ai-dm/StandalonePartyDMScreen';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { loadEmpyreanDMConfig } from '@/lib/empyreanDMPersona';
-import { getIsUnbonded, getSavedBurnoutLevel, getSoloHP, getPartyHP } from '@/lib/dragonBondState';
-import { EmpyreanDualHPBars } from '@/components/empyrean/EmpyreanDualHPBars';
-import { useGMGuides } from '@/hooks/use-gm-guides';
 import { GeraltCompanionScreen } from '@/components/companion';
 // New redesigned components
 import { CharacterNamePlaque } from './CharacterNamePlaque';
@@ -327,9 +315,6 @@ export function HomeScreen({
   const [showFAQDrawer, setShowFAQDrawer] = useState(false);
   const [showSoloConfirm, setShowSoloConfirm] = useState(false);
   const [showEmpyreanScreen, setShowEmpyreanScreen] = useState(false);
-  const [showEmpyreanDM, setShowEmpyreanDM] = useState(false);
-  const [showEmpyreanSetup, setShowEmpyreanSetup] = useState(false);
-  const gmGuides = useGMGuides();
   const [showCompanionScreen, setShowCompanionScreen] = useState(false);
   const [geraltHpPct, setGeraltHpPct] = useState<number | undefined>(undefined);
   // Persist last-read message count per party in localStorage
@@ -577,12 +562,12 @@ export function HomeScreen({
       <BackgroundWrapper
         imagePath={defaultBg}
         videoSrc={activeVideoSrc}
-        overlayOpacity={appMode === 'empyrean' ? 25 : (customBackground ? 55 : 55)}
-        tintColor={appMode === 'empyrean' ? undefined : 'cyan'}
-        tintOpacity={appMode === 'empyrean' ? 0 : 10}
+        overlayOpacity={customBackground ? 55 : 55}
+        tintColor="cyan"
+        tintOpacity={10}
         fixed={true}
         backgroundSize="cover"
-        backgroundPosition={appMode === 'empyrean' ? 'center top' : 'center center'}
+        backgroundPosition="center center"
         className="fixed inset-0 z-0"
       >
         <div />
@@ -628,138 +613,61 @@ export function HomeScreen({
         )}
       </AnimatePresence>
 
-      {/* Empyrean edge gradient for text readability */}
-      {appMode === 'empyrean' && (
-        <div
-          className="fixed inset-0 pointer-events-none z-[5]"
-          style={{
-            background: 'linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 15%, transparent 75%, rgba(0,0,0,0.5) 100%)',
-          }}
-        />
-      )}
-
-      {/* Empyrean HP/burnout/unbonded overlays */}
-      {appMode === 'empyrean' && (() => {
-        const soloHPData = getSoloHP();
-        const partyHPData = getPartyHP();
-        const soloPct = soloHPData.max > 0 ? soloHPData.current / soloHPData.max : 1;
-        const partyPct = partyHPData.max > 0 ? partyHPData.current / partyHPData.max : 1;
-        const glowHP = soloHPData.max > 0 && partyHPData.max > 0
-          ? (soloPct <= partyPct ? soloHPData : partyHPData)
-          : soloHPData.max > 0
-          ? soloHPData
-          : partyHPData.max > 0
-          ? partyHPData
-          : { current: currentHP, max: maxHP };
-        return (
-          <>
-            <EmpyreanUnbondedOverlay isUnbonded={getIsUnbonded()} />
-            <EmpyreanDragonHPGlow currentHP={glowHP.current} maxHP={glowHP.max} />
-            <EmpyreanDragonBurnoutTint
-              burnoutLevel={getSavedBurnoutLevel()}
-              maxBurnout={getIsUnbonded() ? 0 : 8}
-              isUnbonded={getIsUnbonded()}
-            />
-          </>
-        );
-      })()}
-
+      {/* Content layer */}
       <div className="flex flex-col h-screen overflow-hidden relative z-10">
-        {/* Empyrean Dual HP Bars */}
-        {appMode === 'empyrean' && (
-          <EmpyreanDualHPBars
-            soloHP={getSoloHP()}
-            partyHP={getPartyHP()}
-            onTapSolo={() => {
-              triggerHaptic('light');
-              setShowEmpyreanDM(true);
-            }}
-            onTapParty={() => {
-              triggerHaptic('light');
-              drawerContext?.openPartyDMScreen();
-            }}
-          />
-        )}
         {/* Install Banner */}
         <InstallBanner />
 
-        {appMode === 'empyrean' ? (
-          <EmpyreanHomeHeader
-            riderName={character.name}
-            level={character.level}
-            dragonName={loadEmpyreanDMConfig()?.dragonName}
-            dragonColor={loadEmpyreanDMConfig()?.dragonColor}
-            isUnbonded={getIsUnbonded()}
-            onGearPress={() => setShowDrawersMenu(true)}
-          />
-        ) : (
-          <>
-            {/* Minimal Utilities Header */}
-            <motion.header 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              className="flex items-center justify-between px-3 py-1.5 border-b border-white/10"
-            >
-              {/* Left: Hamburger, Background Upload */}
-              <div className="flex items-center gap-1">
-                <CharacterSavesTrigger onClick={() => setShowCharacterSaves(true)} />
-                
-                {/* Custom Background Upload Button */}
-                {onCustomBackgroundUpload && onCustomBackgroundClear && (
-                  <BackgroundUploadButton
-                    hasCustomBackground={!!customBackground}
-                    onUpload={onCustomBackgroundUpload}
-                    onClear={onCustomBackgroundClear}
-                  />
-                )}
-              </div>
-              
-              {/* Right: Clock, Help */}
-              <div className="flex items-center gap-1">
-                <ClockWidget />
-                <button 
-                    onClick={() => {
-                      triggerHaptic('light');
-                      setShowFAQDrawer(true);
-                    }}
-                    className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-                    style={{ touchAction: 'manipulation' }}
-                    aria-label="Help & FAQ"
-                  >
-                    <HelpCircle className="w-4 h-4 text-white/80" />
-                  </button>
-              </div>
-            </motion.header>
+        {/* Minimal Utilities Header */}
+        <motion.header 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="flex items-center justify-between px-3 py-1.5 border-b border-white/10"
+        >
+          {/* Left: Hamburger, Background Upload */}
+          <div className="flex items-center gap-1">
+            <CharacterSavesTrigger onClick={() => setShowCharacterSaves(true)} />
+            
+            {/* Custom Background Upload Button */}
+            {onCustomBackgroundUpload && onCustomBackgroundClear && (
+              <BackgroundUploadButton
+                hasCustomBackground={!!customBackground}
+                onUpload={onCustomBackgroundUpload}
+                onClear={onCustomBackgroundClear}
+              />
+            )}
+          </div>
+          
+          {/* Right: Clock, Help */}
+          <div className="flex items-center gap-1">
+            <ClockWidget />
+            <button 
+                onClick={() => {
+                  triggerHaptic('light');
+                  setShowFAQDrawer(true);
+                }}
+                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                style={{ touchAction: 'manipulation' }}
+                aria-label="Help & FAQ"
+              >
+                <HelpCircle className="w-4 h-4 text-white/80" />
+              </button>
+          </div>
+        </motion.header>
 
-            {/* Character Name Plaque - pinned under header */}
-            <CharacterNamePlaque 
-              name={character.name} 
-              level={character.level}
-              primaryClass={character.primaryClass}
-              dragonName={loadEmpyreanDMConfig()?.dragonName}
-              onOpenSettings={onOpenSettings}
-            />
-            <AlignmentDriftIndicator className="px-4 py-1" />
-          </>
-        )}
+        {/* Character Name Plaque - pinned under header */}
+        <CharacterNamePlaque 
+          name={character.name} 
+          level={character.level}
+          primaryClass={character.primaryClass}
+          dragonName={loadEmpyreanDMConfig()?.dragonName}
+          onOpenSettings={onOpenSettings}
+        />
+        <AlignmentDriftIndicator className="px-4 py-1" />
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-auto flex flex-col">
-          {appMode === 'empyrean' ? (
-            <EmpyreanDragonTapArea
-              hasConfig={!!loadEmpyreanDMConfig()}
-              isUnbonded={getIsUnbonded()}
-              onEnterCampaign={() => {
-                triggerHaptic('light');
-                setShowEmpyreanDM(true);
-              }}
-              onSetupCampaign={() => {
-                triggerHaptic('light');
-                setShowEmpyreanSetup(true);
-              }}
-            />
-          ) : (
           <div className="flex flex-col gap-4 pb-[2px] mt-auto">
 
             {/* Wild Shape Details Overlay */}
@@ -858,7 +766,6 @@ export function HomeScreen({
 
 
             {/* DM Launch Buttons */}
-            {(
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
@@ -920,10 +827,8 @@ export function HomeScreen({
                 </motion.button>
               )}
             </motion.div>
-            )}
 
             {/* Menus Bar */}
-            {(
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -944,7 +849,6 @@ export function HomeScreen({
                 <span className="text-xs font-cinzel uppercase tracking-wider text-cyan-300">Menus</span>
               </button>
             </motion.div>
-            )}
 
             {/* Dynamic Health Bar - below D20 */}
             {showFeature('home.healthBar') && (
@@ -1001,7 +905,6 @@ export function HomeScreen({
             </div>
             )}
           </div>
-          )}
         </div>
 
         {/* Primary Navigation Cards Footer — Collapsible */}
@@ -1269,54 +1172,7 @@ export function HomeScreen({
         autoSyncCallbacks={autoSyncCallbacks}
       />
 
-      {/* Empyrean DM — swipeable solo/party container */}
-      <EmpyreanDMContainer
-        open={showEmpyreanDM}
-        onClose={() => setShowEmpyreanDM(false)}
-        hasParty={!!partySync?.party?.partyId}
-        soloContent={
-          <EmpyreanDMScreen
-            open={true}
-            onClose={() => setShowEmpyreanDM(false)}
-            characterContext={drawerContext?.characterContext ?? { name: character.name, level: character.level, currentHP: 10, maxHP: 10, abilities: [], equippedAbilities: [], equipment: [], activeSetBonuses: [], consumables: [], cooldowns: { active: [], ready: [] }, prestigeLevel: 0, prestigeAbilities: [] } as any}
-            characterName={character.name}
-            autoSyncCallbacks={autoSyncCallbacks}
-            embedded={true}
-          />
-        }
-        partyContent={
-          <StandalonePartyDMScreen
-            onBack={() => setShowEmpyreanDM(false)}
-            characterContext={drawerContext?.characterContext ?? { name: character.name, level: character.level, currentHP: 10, maxHP: 10, abilities: [], equippedAbilities: [], equipment: [], activeSetBonuses: [], consumables: [], cooldowns: { active: [], ready: [] }, prestigeLevel: 0, prestigeAbilities: [] } as any}
-            partyId={partySync?.party?.partyId ?? null}
-            isPartyCreator={partySync?.party?.isCreator ?? false}
-            partyMembers={partySync?.party?.members ?? []}
-            userId={userId ?? ''}
-            characterName={character.name}
-            autoSyncCallbacks={autoSyncCallbacks}
-            embedded={true}
-            isSoloEmpyrean={true}
-          />
-        }
-      />
-
-      {/* Empyrean Campaign Setup — direct entry when no config */}
-      <EmpyreanCampaignSetup
-        open={showEmpyreanSetup}
-        onClose={() => setShowEmpyreanSetup(false)}
-        characterName={character.name}
-        addGuide={gmGuides.addGuide}
-        deleteGuide={gmGuides.deleteGuide}
-        onComplete={() => {
-          setShowEmpyreanSetup(false);
-          setShowEmpyreanDM(true);
-        }}
-        onLaunchWithScene={() => {
-          setShowEmpyreanSetup(false);
-          setShowEmpyreanDM(true);
-        }}
-      />
-
+      {/* FAQ Drawer */}
       <FAQDrawer open={showFAQDrawer} onOpenChange={setShowFAQDrawer} />
 
       {/* Solo Mode Confirmation */}
