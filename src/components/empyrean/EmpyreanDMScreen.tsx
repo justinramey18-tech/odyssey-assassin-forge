@@ -301,7 +301,7 @@ UNBONDED RIDER RULES:
     };
   }, [open, autoSyncCallbacks, characterContext?.maxHP]);
 
-
+  const dragonBond = useDragonBond({
     dragonName: config?.dragonName || '',
     characterName,
   });
