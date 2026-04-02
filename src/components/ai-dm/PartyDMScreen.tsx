@@ -856,6 +856,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
   const [showDeathSaves, setShowDeathSaves] = useState(false);
+  const [recapExpanded, setRecapExpanded] = useState(false);
+  const [recapDismissed, setRecapDismissed] = useState(false);
   const [showMemorial, setShowMemorial] = useState(false);
   const [showDeathTransition, setShowDeathTransition] = useState(false);
   const narrator = useNarrator();
