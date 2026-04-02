@@ -284,7 +284,7 @@ UNBONDED RIDER RULES:
     characterName,
   });
 
-  const maxBurnout = 8;
+  const maxBurnout = isUnbonded ? 0 : 8;
 
   const dmPersonaPrompt = useMemo(() => {
     if (!config) return undefined;
@@ -1018,7 +1018,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
       {/* Messages */}
       <div className={cn(
         "flex-1 min-h-0 relative flex flex-col overflow-hidden",
-        maxBurnout > 0 && burnoutLevel >= maxBurnout ? "animate-[screen-shake_0.6s_ease-in-out_infinite]" : ""
+        !isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout ? "animate-[screen-shake_0.6s_ease-in-out_infinite]" : ""
       )}>
         {/* Burnout flame overlay — hidden when unbonded */}
         {!isUnbonded && config.signetType && (
@@ -1298,7 +1298,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         onTabChange={handleNavTabChange}
         isExpanded={navExpanded}
         onExpandedChange={setNavExpanded}
-        disabled={isLoading || (maxBurnout > 0 && burnoutLevel >= maxBurnout)}
+        disabled={isLoading || (!isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout)}
         oracleLabel={isUnbonded ? 'UNBONDED' : (config?.dragonName ? config.dragonName.toUpperCase() : 'DRAGON')}
         oracleColor={isUnbonded ? 'text-red-400/50' : (() => {
           const mood = dragonBond.bondState.mood;
@@ -1421,7 +1421,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
       {/* Input bar — sits above the fixed DMBottomNav (~54px collapsed height) */}
       <div className={cn(
         "shrink-0 border-t border-purple-500/20 bg-background/90 backdrop-blur-sm px-3 pt-2.5 pb-[60px]",
-        maxBurnout > 0 && burnoutLevel >= maxBurnout && "pointer-events-none opacity-40 select-none"
+        !isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout && "pointer-events-none opacity-40 select-none"
       )}>
         <div className="relative flex items-end gap-2">
           {npcMention.showAutocomplete && (
@@ -1807,6 +1807,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         }}
         onDeath={() => {
           setShowDeathSaves(false);
+          setBurnoutLevel(0);
           setShowDeathTransition(true);
           // 2-second black transition then memorial
           setTimeout(() => {
@@ -1876,6 +1877,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
 
           // 2. Existing logic
           setShowMemorial(false);
+          setBurnoutLevel(0);
           updateUnbondedStatus(true);
           resetBondState();
           if (config) {
