@@ -693,6 +693,29 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Also scroll to bottom when screen opens
+  useEffect(() => {
+    if (open) {
+      const t = setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
+      }, 100);
+      return () => clearTimeout(t);
+    }
+  }, [open]);
+
+  // Auto-send rebirth orientation when entering as unbonded after death
+  useEffect(() => {
+    if (!open || !isUnbonded) return;
+    const rebirthFlag = localStorage.getItem('odyssey-unbonded-rebirth');
+    if (rebirthFlag !== 'true') return;
+    localStorage.removeItem('odyssey-unbonded-rebirth');
+    const t = setTimeout(() => {
+      const rebirthPrompt = `[SYSTEM — NARRATIVE TRANSITION — NEW CHARACTER ENTERING]\n\nThe previous rider has fallen. A new character, ${characterName}, now enters the story as an unbonded rider — no dragon, no signet, no bond. This is their first moment in the campaign.\n\nNarrate the following in 2-3 paragraphs:\n1. A brief, atmospheric acknowledgment of what was lost — the squad's grief, an empty dragon perch, a name spoken quietly. Do not over-narrate the death; let it live in the background.\n2. Introduce ${characterName} arriving at Basgiath as an unbonded cadet. Describe the physical experience of being unbonded in a place built for bonded riders — the silence where a bond should be, the way other dragons look at them, the weight of walking instead of flying.\n3. End with a moment that establishes ${characterName}'s first challenge or interaction — a commanding officer assigning them, a fellow cadet's reaction, or a dragon that watches them a beat too long.\n\nSet the tone: this is not a punishment. This is a crucible. Make the player feel the weight of what they must earn back.`;
+      sendMessage(rebirthPrompt);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [open, isUnbonded, characterName, sendMessage]);
+
   const handleSend = useCallback(() => {
     if (!inputValue.trim() || isLoading) return;
     let messageToSend = inputValue.trim();
