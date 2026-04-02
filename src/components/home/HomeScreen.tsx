@@ -33,6 +33,7 @@ import { FAQDrawer } from './FAQDrawer';
 import { EmpyreanScreen } from '@/components/empyrean/EmpyreanScreen';
 import { EmpyreanHomeHeader } from '@/components/empyrean/EmpyreanHomeHeader';
 import { EmpyreanDragonTapArea } from '@/components/empyrean/EmpyreanDragonTapArea';
+import { EmpyreanDragonHPGlow } from '@/components/empyrean/EmpyreanDragonHPGlow';
 import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
 import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
@@ -632,7 +633,11 @@ export function HomeScreen({
         />
       )}
 
-      {/* Content layer */}
+      {/* Empyrean HP-reactive overlay — dims dragon art as HP drops */}
+      {appMode === 'empyrean' && (
+        <EmpyreanDragonHPGlow currentHP={currentHP} maxHP={maxHP} />
+      )}
+
       <div className="flex flex-col h-screen overflow-hidden relative z-10">
         {/* Install Banner */}
         <InstallBanner />
