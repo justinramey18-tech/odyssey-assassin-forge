@@ -70,6 +70,7 @@ export function StandalonePartyDMScreen({
   isMomoMoonDruid,
   isSoloEmpyrean,
   embedded = false,
+  swipeHandlers,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
 
