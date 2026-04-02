@@ -613,6 +613,16 @@ export function HomeScreen({
         )}
       </AnimatePresence>
 
+      {/* Empyrean edge gradient for text readability */}
+      {appMode === 'empyrean' && (
+        <div
+          className="fixed inset-0 pointer-events-none z-[5]"
+          style={{
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 15%, transparent 75%, rgba(0,0,0,0.5) 100%)',
+          }}
+        />
+      )}
+
       {/* Content layer */}
       <div className="flex flex-col h-screen overflow-hidden relative z-10">
         {/* Install Banner */}
