@@ -34,6 +34,7 @@ import { EmpyreanScreen } from '@/components/empyrean/EmpyreanScreen';
 import { EmpyreanHomeHeader } from '@/components/empyrean/EmpyreanHomeHeader';
 import { EmpyreanDragonTapArea } from '@/components/empyrean/EmpyreanDragonTapArea';
 import { EmpyreanDragonHPGlow } from '@/components/empyrean/EmpyreanDragonHPGlow';
+import { EmpyreanDragonBurnoutTint } from '@/components/empyrean/EmpyreanDragonBurnoutTint';
 import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
 import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
