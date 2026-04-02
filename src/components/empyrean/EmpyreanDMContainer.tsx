@@ -62,33 +62,31 @@ export function EmpyreanDMContainer({
     setActiveTab(tab);
   }, [activeTab]);
 
-  // Touch/swipe handling
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    touchDeltaRef.current = { x: 0, y: 0 };
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!touchStartRef.current) return;
-    touchDeltaRef.current = {
-      x: e.touches[0].clientX - touchStartRef.current.x,
-      y: e.touches[0].clientY - touchStartRef.current.y,
-    };
-  }, []);
-
-  const handleTouchEnd = useCallback(() => {
-    if (!touchStartRef.current || !hasParty) return;
-    const { x: deltaX, y: deltaY } = touchDeltaRef.current;
-    const threshold = 60;
-
-    if (Math.abs(deltaX) > threshold && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
-      if (deltaX < 0 && activeTab === 'solo') switchTo('party');
-      else if (deltaX > 0 && activeTab === 'party') switchTo('solo');
-    }
-
-    touchStartRef.current = null;
-    touchDeltaRef.current = { x: 0, y: 0 };
-  }, [activeTab, hasParty, switchTo]);
+  // Swipe handlers passed to child screens (attached to chat message area only)
+  const swipeHandlers: SwipeHandlers = useMemo(() => ({
+    onTouchStart: (e: React.TouchEvent) => {
+      touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      touchDeltaRef.current = { x: 0, y: 0 };
+    },
+    onTouchMove: (e: React.TouchEvent) => {
+      if (!touchStartRef.current) return;
+      touchDeltaRef.current = {
+        x: e.touches[0].clientX - touchStartRef.current.x,
+        y: e.touches[0].clientY - touchStartRef.current.y,
+      };
+    },
+    onTouchEnd: () => {
+      if (!touchStartRef.current || !hasParty) return;
+      const { x: deltaX, y: deltaY } = touchDeltaRef.current;
+      const threshold = 60;
+      if (Math.abs(deltaX) > threshold && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+        if (deltaX < 0 && activeTab === 'solo') switchTo('party');
+        else if (deltaX > 0 && activeTab === 'party') switchTo('solo');
+      }
+      touchStartRef.current = null;
+      touchDeltaRef.current = { x: 0, y: 0 };
+    },
+  }), [hasParty, activeTab, switchTo]);
 
   if (!open) return null;
 
