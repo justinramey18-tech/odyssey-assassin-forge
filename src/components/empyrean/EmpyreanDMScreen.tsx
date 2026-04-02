@@ -229,6 +229,7 @@ export function EmpyreanDMScreen({
   useEffect(() => {
     if (open) {
       setConfig(loadEmpyreanDMConfig());
+      setRecapDismissed(false);
       dragonBond.checkDecay();
     }
   }, [open]);
