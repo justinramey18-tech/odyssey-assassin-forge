@@ -562,12 +562,12 @@ export function HomeScreen({
       <BackgroundWrapper
         imagePath={defaultBg}
         videoSrc={activeVideoSrc}
-        overlayOpacity={customBackground ? 55 : 55}
-        tintColor="cyan"
-        tintOpacity={10}
+        overlayOpacity={appMode === 'empyrean' ? 25 : (customBackground ? 55 : 55)}
+        tintColor={appMode === 'empyrean' ? undefined : 'cyan'}
+        tintOpacity={appMode === 'empyrean' ? 0 : 10}
         fixed={true}
         backgroundSize="cover"
-        backgroundPosition="center center"
+        backgroundPosition={appMode === 'empyrean' ? 'center top' : 'center center'}
         className="fixed inset-0 z-0"
       >
         <div />
@@ -612,6 +612,16 @@ export function HomeScreen({
           <TransformationBurst key={`burst-${wildShapeFormName}`} cr={wildShapeFormCR ?? 0} formName={wildShapeFormName} />
         )}
       </AnimatePresence>
+
+      {/* Empyrean edge gradient for text readability */}
+      {appMode === 'empyrean' && (
+        <div
+          className="fixed inset-0 pointer-events-none z-[5]"
+          style={{
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 15%, transparent 75%, rgba(0,0,0,0.5) 100%)',
+          }}
+        />
+      )}
 
       {/* Content layer */}
       <div className="flex flex-col h-screen overflow-hidden relative z-10">
