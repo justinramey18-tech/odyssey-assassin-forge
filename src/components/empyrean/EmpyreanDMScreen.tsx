@@ -76,6 +76,7 @@ interface EmpyreanDMScreenProps {
   characterContext: CharacterContext;
   characterName: string;
   initialMessage?: string | null;
+  embedded?: boolean;
   autoSyncCallbacks?: {
     onHPChange: (change: number, type: 'damage' | 'healing') => void;
     onAddXP: (amount: number, source: string) => void;
