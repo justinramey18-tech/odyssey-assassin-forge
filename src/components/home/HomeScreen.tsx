@@ -33,11 +33,14 @@ import { FAQDrawer } from './FAQDrawer';
 import { EmpyreanScreen } from '@/components/empyrean/EmpyreanScreen';
 import { EmpyreanHomeHeader } from '@/components/empyrean/EmpyreanHomeHeader';
 import { EmpyreanDragonTapArea } from '@/components/empyrean/EmpyreanDragonTapArea';
+import { EmpyreanDragonHPGlow } from '@/components/empyrean/EmpyreanDragonHPGlow';
+import { EmpyreanDragonBurnoutTint } from '@/components/empyrean/EmpyreanDragonBurnoutTint';
+import { EmpyreanUnbondedOverlay } from '@/components/empyrean/EmpyreanUnbondedOverlay';
 import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
 import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { loadEmpyreanDMConfig } from '@/lib/empyreanDMPersona';
-import { getIsUnbonded } from '@/lib/dragonBondState';
+import { getIsUnbonded, getSavedBurnoutLevel } from '@/lib/dragonBondState';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import { GeraltCompanionScreen } from '@/components/companion';
 // New redesigned components
