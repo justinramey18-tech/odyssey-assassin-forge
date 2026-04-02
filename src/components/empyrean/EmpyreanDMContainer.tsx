@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -8,11 +8,17 @@ const LAST_TAB_KEY = 'empyrean-dm-last-tab';
 
 type EmpyreanDMTab = 'solo' | 'party';
 
+export interface SwipeHandlers {
+  onTouchStart: (e: React.TouchEvent) => void;
+  onTouchMove: (e: React.TouchEvent) => void;
+  onTouchEnd: () => void;
+}
+
 interface EmpyreanDMContainerProps {
   open: boolean;
   onClose: () => void;
-  renderSolo: () => React.ReactNode;
-  renderParty: () => React.ReactNode;
+  renderSolo: (swipeHandlers: SwipeHandlers) => React.ReactNode;
+  renderParty: (swipeHandlers: SwipeHandlers) => React.ReactNode;
   hasParty: boolean;
 }
 
