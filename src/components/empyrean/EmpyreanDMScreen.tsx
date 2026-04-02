@@ -218,6 +218,7 @@ export function EmpyreanDMScreen({
   const [showMemorial, setShowMemorial] = useState(false);
   const [showDeathTransition, setShowDeathTransition] = useState(false);
   const [threshingAuthorized, setThreshingAuthorized] = useState(false);
+  const [showThreshingCinematic, setShowThreshingCinematic] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
