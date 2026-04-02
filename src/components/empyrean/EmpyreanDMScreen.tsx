@@ -902,16 +902,39 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
           No Empyrean Campaign Configured
         </h2>
         <p className="text-sm text-muted-foreground text-center max-w-xs">
-          Run the Campaign Setup wizard first to configure your rider, lore guides, and campaign focus.
+          Configure your dragon rider, choose your lore, and set your campaign focus to begin.
         </p>
         <Button
-          variant="outline"
+          onClick={() => setShowSetup(true)}
+          className="mt-4 bg-purple-600 hover:bg-purple-700 text-white font-cinzel min-h-[48px] px-8"
+        >
+          <Sparkles className="w-4 h-4 mr-2" />
+          Run Campaign Setup
+        </Button>
+        <Button
+          variant="ghost"
           onClick={onClose}
-          className="mt-4 border-purple-500/30 text-purple-300"
+          className="border-purple-500/20 text-muted-foreground text-xs"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Go Back
         </Button>
+        <EmpyreanCampaignSetup
+          open={showSetup}
+          onClose={() => setShowSetup(false)}
+          characterName={characterName}
+          addGuide={addGuide}
+          deleteGuide={deleteGuide}
+          onComplete={(newConfig) => {
+            setConfig(newConfig);
+            setShowSetup(false);
+          }}
+          onLaunchWithScene={(newConfig, openingPrompt) => {
+            setConfig(newConfig);
+            setShowSetup(false);
+          }}
+          isUnbonded={getIsUnbonded()}
+        />
       </div>
     );
   }
