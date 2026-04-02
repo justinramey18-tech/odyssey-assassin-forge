@@ -954,6 +954,7 @@ export function HomeScreen({
             </div>
             )}
           </div>
+          )}
         </div>
 
         {/* Primary Navigation Cards Footer — Collapsible */}
