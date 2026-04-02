@@ -33,6 +33,7 @@ import { FAQDrawer } from './FAQDrawer';
 import { EmpyreanScreen } from '@/components/empyrean/EmpyreanScreen';
 import { EmpyreanHomeHeader } from '@/components/empyrean/EmpyreanHomeHeader';
 import { EmpyreanDragonTapArea } from '@/components/empyrean/EmpyreanDragonTapArea';
+import { EmpyreanDragonHPGlow } from '@/components/empyrean/EmpyreanDragonHPGlow';
 import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
 import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
