@@ -630,6 +630,13 @@ export function HomeScreen({
 
       {/* Content layer */}
       <div className="flex flex-col h-screen overflow-hidden relative z-10">
+        {/* Empyrean dual HP bars */}
+        {appMode === 'empyrean' && (
+          <EmpyreanDualHPBars
+            soloHP={empyreanSoloHP}
+            partyHP={empyreanPartyHP}
+          />
+        )}
         {/* Install Banner */}
         <InstallBanner />
 
