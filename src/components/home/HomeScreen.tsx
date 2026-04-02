@@ -322,13 +322,8 @@ export function HomeScreen({
   const [showEmpyreanScreen, setShowEmpyreanScreen] = useState(false);
   const [showEmpyreanDMContainer, setShowEmpyreanDMContainer] = useState(false);
 
-  // Temporary: redirect to existing Empyrean screen until the container is built
-  useEffect(() => {
-    if (showEmpyreanDMContainer) {
-      setShowEmpyreanDMContainer(false);
-      setShowEmpyreanScreen(true);
-    }
-  }, [showEmpyreanDMContainer]);
+
+
 
   // Empyrean HP bars data
   const empyreanSoloHP = appMode === 'empyrean' ? getSoloHP() : { current: 0, max: 0 };
