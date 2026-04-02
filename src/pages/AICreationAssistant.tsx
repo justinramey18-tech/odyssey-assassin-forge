@@ -10,6 +10,8 @@ import { setScopedItem } from '@/lib/scoped-storage';
 import aiCreationBg from '@/assets/ai-creation-bg.jpeg';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { saveHomebrewContentFromBuildData } from '@/lib/ai-creation/saveHomebrew';
+import { saveEmpyreanDMConfig, saveDragonNotes } from '@/lib/empyreanDMPersona';
+import { saveBondState, DEFAULT_BOND, DEFAULT_TRUST, setIsUnbonded } from '@/lib/dragonBondState';
 
 export default function AICreationAssistant() {
   const navigate = useNavigate();
