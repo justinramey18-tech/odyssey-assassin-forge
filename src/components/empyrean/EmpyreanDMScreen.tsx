@@ -1101,6 +1101,49 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         </div>
       )}
 
+      {/* Floating burnout indicator — shown in embedded mode when header is hidden */}
+      {embedded && !isUnbonded && maxBurnout > 0 && (
+        <div className="flex items-center justify-between px-4 py-1.5 bg-black/40 border-b border-purple-500/15 shrink-0">
+          <div className="flex items-center gap-2">
+            <Flame className="w-3.5 h-3.5 text-orange-400" />
+            <span className="text-[11px] font-cinzel text-white/60">Signet Strain</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <BurnoutIndicator level={burnoutLevel} maxBurnout={maxBurnout} />
+            <button
+              onClick={() => {
+                setBurnoutLevel(Math.max(0, burnoutLevel - 1));
+                setShowDeathSaves(false);
+                const maxHP = characterContext?.maxHP ?? 10;
+                const currentHP = autoSyncCallbacks?.getCurrentHP() ?? 0;
+                if (currentHP < maxHP) {
+                  autoSyncCallbacks?.onHPChange(maxHP - currentHP, 'healing');
+                }
+              }}
+              disabled={burnoutLevel <= 0}
+              className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white/60 hover:text-white text-xs font-mono flex items-center justify-center transition-colors"
+              style={{ touchAction: 'manipulation' }}
+            >
+              −
+            </button>
+            <span className={cn(
+              "text-[11px] font-mono min-w-[28px] text-center",
+              burnoutLevel === 0 ? "text-emerald-400" : burnoutLevel / maxBurnout < 0.4 ? "text-yellow-400" : burnoutLevel / maxBurnout < 0.75 ? "text-orange-400" : "text-red-400"
+            )}>
+              {burnoutLevel}/{maxBurnout}
+            </span>
+            <button
+              onClick={() => setBurnoutLevel(Math.min(maxBurnout, burnoutLevel + 1))}
+              disabled={burnoutLevel >= maxBurnout}
+              className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white/60 hover:text-white text-xs font-mono flex items-center justify-center transition-colors"
+              style={{ touchAction: 'manipulation' }}
+            >
+              +
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Messages */}
       <div className={cn(
         "flex-1 min-h-0 relative flex flex-col overflow-hidden",
