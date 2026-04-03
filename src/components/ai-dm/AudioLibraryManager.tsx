@@ -109,6 +109,7 @@ export function AudioLibraryManager({ onBack }: AudioLibraryManagerProps) {
 
     // Re-allow reloads now that the picker has closed
     allowReloads();
+    try { sessionStorage.removeItem('audio-lib-pending-slot'); } catch {}
 
     if (!file || !slot) return;
 
