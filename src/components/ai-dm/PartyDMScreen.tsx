@@ -1085,6 +1085,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             const data = await res.json();
             if (data.situation) {
               setPartySituation(data.situation);
+              spotify.playPresetById(data.situation);
             }
           }
         } catch { /* non-blocking — best effort */ }

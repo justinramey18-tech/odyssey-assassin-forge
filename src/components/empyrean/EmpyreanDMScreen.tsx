@@ -483,6 +483,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
             const data = await res.json();
             if (data.situation) {
               setCurrentSituation(data.situation);
+              spotify.playPresetById(data.situation);
             }
           }
         } catch { /* non-blocking — situation detection is best-effort */ }
