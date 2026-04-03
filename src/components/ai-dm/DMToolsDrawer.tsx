@@ -43,6 +43,7 @@ interface DMToolsDrawerProps {
   onWhisperTrayEnabledChange?: (enabled: boolean) => void;
   cinematicModeEnabled?: boolean;
   onCinematicModeEnabledChange?: (enabled: boolean) => void;
+  onAudioLibrary?: () => void;
   empyreanConfig?: { campaignFocus: string; dragonName: string; signetType: string; yearAtBasgiath: string } | null;
   dragonNotes?: string;
   onDragonNotesChange?: (notes: string) => void;
