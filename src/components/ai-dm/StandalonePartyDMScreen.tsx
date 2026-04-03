@@ -260,6 +260,12 @@ export function StandalonePartyDMScreen({
     toast('Dragon remembers: ' + memory, { icon: '🐉', duration: 3000 });
   }, [dragonBonds.myDragon, dragonBonds.updateMyDragon]);
 
+  const { weather } = useWeather();
+  const weatherWorldState = useMemo(() => {
+    if (!weather) return undefined;
+    return '## CURRENT WEATHER (REAL-WORLD SYNC)\n' + weatherToNarrativeContext(weather) + '\nWeave this weather naturally into your narration when describing outdoor scenes, travel, or environments. Do not mention it every response — only when it is relevant to the scene. If the party is indoors, the weather may be heard or seen through windows but should not dominate.';
+  }, [weather]);
+
   // Party DM hook — pass isHost as isCreator so co-hosts get host abilities
   const partyDm = usePartyDm({
     partyId: partyId || null,
@@ -270,6 +276,7 @@ export function StandalonePartyDMScreen({
     partyMembers: stablePartyMembers,
     customGuidesContent: gmGuides.enabledContent,
     memoryAnchorsContent: memoryAnchors.formattedForOracle,
+    worldStatePrompt: weatherWorldState,
     partyDragonConfigs,
     myDragonName: dragonBonds.myDragon?.dragonName,
     onBurnoutDetected: handleBurnoutDetected,
