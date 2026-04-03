@@ -148,7 +148,7 @@ export default function CinematicSlideshow({ slides, onComplete }: CinematicSlid
         {isLastSlide ? (
           <p
             className="text-center font-serif text-sm italic text-amber-400/70 cursor-pointer"
-            onClick={(e) => { e.stopPropagation(); onComplete(); }}
+            onClick={(e) => { e.stopPropagation(); stopAllAudio(); onComplete(); }}
             style={{ touchAction: 'manipulation' }}
           >
             Your turn. What do you do?
