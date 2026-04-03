@@ -1347,7 +1347,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         })}
 
         {/* Streaming indicator */}
-        {isLoading && !showSlideshow && messages[messages.length - 1]?.role !== 'assistant' && (
+        {isLoading && !showSlideshow && (cinematicModeEnabled || messages[messages.length - 1]?.role !== 'assistant') && (
           <div className="mb-3 flex justify-start">
             <div className="bg-card/60 border border-border/30 rounded-2xl px-4 py-3">
               <div className="flex gap-1.5">
