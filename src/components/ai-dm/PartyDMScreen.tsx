@@ -2997,27 +2997,43 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           </div>
         )
         ) : !hasSubmitted ? (
-          <PartyDMInput
-            ref={playerInputRef}
-            onSubmit={handleSubmit}
-            onReady={partyDm.setReady}
-            onReadyAutopilot={handleReadyAutopilot}
-            hasAfkGuide={!!myAfkGuide}
-            onPaste={handlePaste}
-            hasPrompt={!!partyDm.myPrompt}
-            currentUserId={currentUserId}
-            isUploadingPhoto={isUploadingPhoto}
-            isUploadingVideo={isUploadingVideo}
-            isUploadingAudio={isUploadingAudio}
-            onTakePhoto={() => photoCameraRef.current?.click()}
-            onRecordVideo={() => videoCameraRef.current?.click()}
-            onPickPhoto={() => { sessionStorage.setItem('pending-file-picker', 'photo'); photoInputRef.current?.click(); }}
-            onPickVideo={() => { sessionStorage.setItem('pending-file-picker', 'video'); videoInputRef.current?.click(); }}
-            onPickAudio={() => setShowAudioRecorder(true)}
-            onPickAudioFile={() => { sessionStorage.setItem('pending-file-picker', 'audio'); audioFileInputRef.current?.click(); }}
-            onCreatePoll={() => setShowPollCreator(true)}
-            npcNames={partyNPCNames}
-          />
+          <>
+            {isEmpyrean && partyDm.messages.length > 0 && (
+              <EmpyreanContextualActions
+                situation={partySituation}
+                characterName={members.find(m => m.user_id === currentUserId)?.character_name || 'Rider'}
+                dragonName={dragonBonds.myDragon?.dragonName || ''}
+                signetType={dragonBonds.myDragon?.signetType || ''}
+                onAction={(prompt) => {
+                  setRecapDismissed(true);
+                  partyDmRef.current.submitPrompt(prompt);
+                }}
+                disabled={partyDm.isGenerating}
+                isUnbonded={!dragonBonds.isSetup || !dragonBonds.myDragon?.dragonName}
+              />
+            )}
+            <PartyDMInput
+              ref={playerInputRef}
+              onSubmit={handleSubmit}
+              onReady={partyDm.setReady}
+              onReadyAutopilot={handleReadyAutopilot}
+              hasAfkGuide={!!myAfkGuide}
+              onPaste={handlePaste}
+              hasPrompt={!!partyDm.myPrompt}
+              currentUserId={currentUserId}
+              isUploadingPhoto={isUploadingPhoto}
+              isUploadingVideo={isUploadingVideo}
+              isUploadingAudio={isUploadingAudio}
+              onTakePhoto={() => photoCameraRef.current?.click()}
+              onRecordVideo={() => videoCameraRef.current?.click()}
+              onPickPhoto={() => { sessionStorage.setItem('pending-file-picker', 'photo'); photoInputRef.current?.click(); }}
+              onPickVideo={() => { sessionStorage.setItem('pending-file-picker', 'video'); videoInputRef.current?.click(); }}
+              onPickAudio={() => setShowAudioRecorder(true)}
+              onPickAudioFile={() => { sessionStorage.setItem('pending-file-picker', 'audio'); audioFileInputRef.current?.click(); }}
+              onCreatePoll={() => setShowPollCreator(true)}
+              npcNames={partyNPCNames}
+            />
+          </>
         ) : !isReady ? (
           <div className="space-y-2 max-w-2xl mx-auto">
             <div className="space-y-2">
