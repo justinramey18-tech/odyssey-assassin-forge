@@ -222,6 +222,8 @@ export function EmpyreanDMScreen({
   const [showDeathTransition, setShowDeathTransition] = useState(false);
   const [threshingAuthorized, setThreshingAuthorized] = useState(false);
   const [showThreshingCinematic, setShowThreshingCinematic] = useState(false);
+  const [showSlideshow, setShowSlideshow] = useState(false);
+  const [slideshowSlides, setSlideshowSlides] = useState<import('@/lib/parseSlides').Slide[]>([]);
   const [showSetup, setShowSetup] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
