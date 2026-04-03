@@ -3,6 +3,7 @@ import { ArrowLeft, Upload, Play, Trash2, Check, Music, Volume2 } from 'lucide-r
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { suppressReloads, allowReloads } from '@/lib/reload-guard';
 
 const BUCKET = 'cinematic-audio';
 
@@ -69,12 +70,26 @@ export function AudioLibraryManager({ onBack }: AudioLibraryManagerProps) {
 
   const handleUploadClick = (category: string, name: string) => {
     pendingSlotRef.current = `${category}/${name}`;
+    suppressReloads();
+
+    // If user cancels the picker, no 'change' fires — re-allow on window focus
+    const onFocus = () => {
+      // Small delay so 'change' event fires first if a file was selected
+      setTimeout(() => allowReloads(), 500);
+      window.removeEventListener('focus', onFocus);
+    };
+    window.addEventListener('focus', onFocus);
+
     fileInputRef.current?.click();
   };
 
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     const slot = pendingSlotRef.current;
+
+    // Re-allow reloads now that the picker has closed
+    allowReloads();
+
     if (!file || !slot) return;
 
     // Reset input so the same file can be re-selected
@@ -165,6 +180,7 @@ export function AudioLibraryManager({ onBack }: AudioLibraryManagerProps) {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      allowReloads(); // Safety net — ensure reloads aren't stuck suppressed
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
