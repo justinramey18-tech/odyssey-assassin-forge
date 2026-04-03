@@ -221,7 +221,7 @@ export function StatsDrawer({
           >
             <Heart className="w-5 h-5" />
           </span>
-          <h2 className="text-lg font-cinzel" style={{ color: '#ef4444' }}>Stats</h2>
+          <h2 className="text-lg font-cinzel" style={{ color: '#ef4444' }}>{empyrean ? 'Rider Stats' : 'Stats'}</h2>
         </div>
         <button
           onClick={() => onOpenChange(false)}
