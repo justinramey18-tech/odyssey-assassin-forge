@@ -1059,17 +1059,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
   }, []);
 
-  // Auto-mood for party DM: detect new assistant messages and trigger mood detection
-  useEffect(() => {
-    if (!spotify.autoMoodEnabled || !spotify.connected) return;
-    const msgs = partyDm.messages;
-    if (msgs.length === 0) return;
-    const lastMsg = msgs[msgs.length - 1];
-    if (lastMsg.role === 'assistant' && lastMsg.id !== lastProcessedMsgIdRef.current && lastMsg.content) {
-      lastProcessedMsgIdRef.current = lastMsg.id;
-      spotify.playMoodForText(lastMsg.content);
-    }
-  }, [partyDm.messages, spotify.autoMoodEnabled, spotify.connected, spotify.playMoodForText]);
 
   // AI situation detection for party mode (independent of Spotify)
   const lastSituationMsgIdRef = useRef<string | null>(null);
