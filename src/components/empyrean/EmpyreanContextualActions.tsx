@@ -23,7 +23,13 @@ const SITUATION_META: Record<string, { label: string; emoji: string; color: stri
   exploration: { label: 'Exploration', emoji: '🔍', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
   training:    { label: 'Training',    emoji: '📖', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
   downtime:    { label: 'Downtime',    emoji: '🏕️', color: 'bg-purple-500/20 text-purple-300 border-purple-500/30' },
-  crisis:      { label: 'Crisis',      emoji: '🚨', color: 'bg-orange-500/20 text-orange-300 border-orange-500/30' },
+  crisis:        { label: 'Crisis',        emoji: '🚨', color: 'bg-orange-500/20 text-orange-300 border-orange-500/30' },
+  flight:        { label: 'Flight',        emoji: '🦅', color: 'bg-sky-500/20 text-sky-300 border-sky-500/30' },
+  stealth:       { label: 'Stealth',       emoji: '🥷', color: 'bg-zinc-500/20 text-zinc-300 border-zinc-500/30' },
+  political:     { label: 'Political',     emoji: '🏛️', color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
+  wardline:      { label: 'Ward Line',     emoji: '🛡️', color: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' },
+  investigation: { label: 'Investigation', emoji: '🕵️', color: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' },
+  ritual:        { label: 'Ritual',        emoji: '🔮', color: 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/30' },
 };
 
 const EXECUTION_FIRE_AUDIO_URL = '/audio/dragon-execution-fire.mp3';
@@ -132,6 +138,54 @@ function buildActions(char: string, dragon: string, signet: string): Record<stri
       { id: 'x-protect', label: 'Protect Civilians', emoji: '🛡️', prompt: `${char} prioritizes protecting non-combatants in the crisis. Describe the protective action.` },
       { id: 'x-assess', label: 'Assess Threat', emoji: '🔍', prompt: `${char} holds position and assesses the threat before committing. Describe what they observe and the tactical calculation.` },
     ],
+    flight: [
+      { id: 'f-formation', label: 'Formation Flying', emoji: '🐉', prompt: `${char} and ${d} take position in the wing formation. Describe the formation, their position in it, and the view from altitude.` },
+      { id: 'f-dive', label: 'Combat Dive', emoji: '⬇️', prompt: `${char} commands ${d} into a steep combat dive. Describe the acceleration, the wind, the target rushing up, and the pull-out.` },
+      { id: 'f-evade', label: 'Evasive Maneuver', emoji: '🌪️', prompt: `${d} executes a barrel roll or sharp bank to evade. Describe the G-forces and ${char}'s grip on the saddle.` },
+      { id: 'f-thermal', label: 'Ride Thermals', emoji: '☁️', prompt: `${d} catches a thermal and spirals upward without wingbeats. Describe the quiet glide and what ${char} spots from this height.` },
+      { id: 'f-chase', label: 'Aerial Pursuit', emoji: '💨', prompt: `${char} and ${d} pursue a target through the sky. Describe the chase — banking turns, altitude changes, the dragon's instinct through the bond.` },
+      { id: 'f-hotland', label: 'Hot Landing', emoji: '🔥', prompt: `${char} and ${d} make a combat landing in hostile territory — fast, hard, ready to fight the moment claws hit ground.` },
+    ],
+    stealth: [
+      { id: 'st-shadow', label: 'Move in Shadow', emoji: '🌑', prompt: `${char} moves through darkness. Every footfall calculated, every breath controlled. Describe the movement and what they're avoiding.` },
+      { id: 'st-curfew', label: 'After Curfew', emoji: '🌙', prompt: `${char} navigates Basgiath after curfew. Describe the patrol patterns they dodge and where they're going.` },
+      { id: 'st-eavesdrop', label: 'Eavesdrop', emoji: '👂', prompt: `${char} listens to a conversation they shouldn't hear. Describe their position, what they overhear, and the risk of discovery.` },
+      { id: 'st-disguise', label: 'Blend In', emoji: '🎭', prompt: `${char} needs to be somewhere they don't belong. Describe how they change bearing and presence to pass unnoticed.` },
+      { id: 'st-dragonquiet', label: 'Silent Dragon', emoji: '🐉', prompt: `${char} needs ${d} to stay quiet. Describe the bond communication: the dragon's reluctance and eventual cooperation.` },
+      { id: 'st-plant', label: 'Plant Evidence', emoji: '📝', prompt: `${char} leaves something where the right person will find it. Describe the placement and what it's designed to make them believe.` },
+    ],
+    political: [
+      { id: 'po-tribunal', label: 'Face Tribunal', emoji: '⚖️', prompt: `${char} stands before an Empyrean tribunal or leadership hearing. Describe the chamber, the judges, and ${char}'s opening statement.` },
+      { id: 'po-alliance', label: 'Forge Alliance', emoji: '🤝', prompt: `${char} proposes an alliance with someone who has reason to refuse. Describe the pitch and the moment they consider it.` },
+      { id: 'po-challenge', label: 'Challenge Authority', emoji: '⚔️', prompt: `${char} publicly challenges a superior's decision. Describe the room's reaction and whether ${char} has enough backing.` },
+      { id: 'po-trade', label: 'Trade Intel', emoji: '🔄', prompt: `${char} trades intelligence — giving something valuable to get something more valuable. Describe the exchange.` },
+      { id: 'po-shield', label: 'Shield an Ally', emoji: '🛡️', prompt: `${char} takes political heat to protect someone else. Describe the sacrifice and why it's worth it.` },
+      { id: 'po-redirect', label: 'Subtle Redirect', emoji: '🧠', prompt: `${char} steers a political conversation toward their chosen conclusion without anyone realizing. Describe the technique.` },
+    ],
+    wardline: [
+      { id: 'w-patrol', label: 'Ward Patrol', emoji: '🚶', prompt: `${char} patrols a section of the ward line. Describe the ward's state — its hum, color, anomalies. What does ${s} sense?` },
+      { id: 'w-breach', label: 'Breach Response', emoji: '🚨', prompt: `The ward line has been breached. Describe the sensory experience — the ward screaming, the air changing, what comes through.` },
+      { id: 'w-repair', label: 'Channel into Ward', emoji: '⚡', prompt: `${char} channels ${s} into a weakened section of the ward. Describe feeding power into ancient stone and the burnout cost.` },
+      { id: 'w-beyond', label: 'Cross Beyond', emoji: '☠️', prompt: `${char} crosses the ward line into unprotected territory. Describe the moment of transition — what changes in the air, the ground, the bond.` },
+      { id: 'w-venin', label: 'Venin Contact', emoji: '👁️', prompt: `${char} encounters Venin near the ward line. Describe the corruption, the threat, and the first tactical decision.` },
+      { id: 'w-assess', label: 'Assess Ward Health', emoji: '📊', prompt: `${char} uses ${s} to deep-scan this ward section. Describe what the signet reveals about the ward's integrity and any hidden weaknesses.` },
+    ],
+    investigation: [
+      { id: 'i-archive', label: 'Search Archives', emoji: '📚', prompt: `${char} searches Basgiath's archives for specific information. Describe what they're looking for and what they find — or what's suspiciously missing.` },
+      { id: 'i-scene', label: 'Read the Scene', emoji: '🔍', prompt: `${char} examines a location for clues. Describe what they notice that others missed — tracks, residue, patterns, absences.` },
+      { id: 'i-question', label: 'Interrogate', emoji: '🗣️', prompt: `${char} questions someone who knows more than they're saying. Describe the verbal chess match and what slips through.` },
+      { id: 'i-signet', label: 'Signet Scan', emoji: '⚡', prompt: `${char} uses ${s} to detect magical traces, hidden enchantments, or residual signet energy in the area.` },
+      { id: 'i-connect', label: 'Connect the Dots', emoji: '🧩', prompt: `${char} lays out everything they know and looks for the pattern. Describe the moment of connection — what links the evidence together.` },
+      { id: 'i-dragon', label: 'Dragon\'s Memory', emoji: '🐉', prompt: `${char} asks ${d} to search ancestral memories for anything related to what they've discovered. What does the dragon recall?` },
+    ],
+    ritual: [
+      { id: 'r-prepare', label: 'Prepare', emoji: '🕯️', prompt: `${char} prepares for the ceremony — physically, mentally, emotionally. Describe the preparation and the weight of what's coming.` },
+      { id: 'r-witness', label: 'Bear Witness', emoji: '👁️', prompt: `${char} witnesses the ritual as it unfolds. Describe what they see, hear, and feel — especially through the bond with ${d}.` },
+      { id: 'r-participate', label: 'Step Forward', emoji: '🔥', prompt: `${char} takes an active role in the ceremony. Describe their part and the crowd's reaction.` },
+      { id: 'r-oath', label: 'Swear the Oath', emoji: '⚖️', prompt: `${char} makes a formal vow or oath. Describe the words, the witnesses, and the weight of commitment.` },
+      { id: 'r-defy', label: 'Break Protocol', emoji: '⚡', prompt: `${char} does something unexpected during the ritual — breaks tradition, speaks out of turn, or refuses a step. Describe the disruption.` },
+      { id: 'r-bond-moment', label: 'Bond Deepens', emoji: '💫', prompt: `The ceremony triggers something in the bond between ${char} and ${d}. Describe the deepening — the telepathic channel widening, shared emotion.` },
+    ],
   };
 }
 
@@ -164,6 +218,27 @@ function buildUnbondedActions(char: string): Record<string, ActionItem[]> {
     crisis: [
       { id: 'u-survive', label: 'Survive', emoji: '🔥', prompt: `${char} fights to survive the crisis with no dragon and no signet. Just human against whatever is coming. Make it desperate.` },
       { id: 'u-sacrifice', label: 'Put Yourself in Danger', emoji: '⚠️', prompt: `${char} steps into danger to protect someone else. Without a dragon bond as a safety net, this could be fatal. Narrate the stakes.` },
+    ],
+    flight: [
+      { id: 'u-ground-watch', label: 'Watch From Ground', emoji: '👀', prompt: `${char} watches the riders fly overhead. Describe what it feels like to be earthbound while others soar.` },
+    ],
+    stealth: [
+      { id: 'u-sneak', label: 'Move Unseen', emoji: '🌑', prompt: `${char} moves through Basgiath unseen. Without a dragon bond humming in their mind, the silence is absolute. Describe the stealth.` },
+      { id: 'u-listen', label: 'Eavesdrop', emoji: '👂', prompt: `${char} listens in on a conversation. Unbonded riders are easy to overlook. Use that.` },
+    ],
+    political: [
+      { id: 'u-stand', label: 'Stand Your Ground', emoji: '💪', prompt: `${char} makes a political argument despite having no dragon, no signet, no leverage — only conviction. Describe the audacity and the reaction.` },
+    ],
+    wardline: [
+      { id: 'u-footpatrol', label: 'Ground Patrol', emoji: '🚶', prompt: `${char} patrols the ward line on foot. Without a dragon's senses, they rely on their own. Describe what they notice.` },
+    ],
+    investigation: [
+      { id: 'u-dig', label: 'Dig Deeper', emoji: '🔍', prompt: `${char} investigates without signet abilities. Old-fashioned observation, logic, and persistence. Describe the detective work.` },
+      { id: 'u-overlooked', label: 'The Overlooked', emoji: '👻', prompt: `${char} uses their invisibility as an unbonded rider to access places and conversations that bonded riders can't.` },
+    ],
+    ritual: [
+      { id: 'u-witness-threshing', label: 'Watch the Threshing', emoji: '🐉', prompt: `${char} witnesses a Threshing ceremony. Describe the hunger to bond, the dragons evaluating candidates, the hope and dread.` },
+      { id: 'u-prove-worthy', label: 'Prove Worthy', emoji: '🔥', prompt: `${char} performs an act during the ceremony that draws attention — from riders, from officers, or from a dragon.` },
     ],
   };
 }

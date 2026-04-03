@@ -13,6 +13,8 @@ project_id = "sqvcszzbkyzidigsdqgk"
     verify_jwt = false
   [functions.detect-sfx-prompt]
     verify_jwt = false
+  [functions.detect-situation]
+    verify_jwt = false
   [functions.dev-assistant]
     verify_jwt = false
   [functions.homebrew-assistant]

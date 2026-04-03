@@ -469,6 +469,25 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         setShowThreshingCinematic(true);
       }
 
+      // Non-blocking AI situation detection
+      (async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+          const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/detect-situation`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ text: content.slice(0, 2000) }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.situation) {
+              setCurrentSituation(data.situation);
+            }
+          }
+        } catch { /* non-blocking — situation detection is best-effort */ }
+      })();
+
       // Trigger cinematic slideshow if enabled
       if (cinematicModeEnabled) {
         const slides = parseResponseIntoSlides(content);
