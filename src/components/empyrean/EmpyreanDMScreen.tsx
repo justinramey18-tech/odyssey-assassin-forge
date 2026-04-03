@@ -1111,7 +1111,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         onTouchEnd={swipeHandlers?.onTouchEnd}
       >
         {/* Burnout flame overlay — hidden when unbonded */}
-        {!isUnbonded && config.signetType && (
+        {!isUnbonded && maxBurnout > 0 && (
           <BurnoutFlameOverlay
             level={burnoutLevel}
             max={maxBurnout}
