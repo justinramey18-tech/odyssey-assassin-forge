@@ -112,19 +112,19 @@ function HPBar({
             {label}
           </span>
         </div>
-      </div>
+      </button>
     </motion.div>
   );
 }
 
-export function EmpyreanDualHPBars({ soloHP, partyHP }: EmpyreanDualHPBarsProps) {
+export function EmpyreanDualHPBars({ soloHP, partyHP, onSoloTap, onPartyTap }: EmpyreanDualHPBarsProps) {
   return (
     <>
       {soloHP.max > 0 && (
-        <HPBar currentHP={soloHP.current} maxHP={soloHP.max} label="SOLO" side="left" />
+        <HPBar currentHP={soloHP.current} maxHP={soloHP.max} label="SOLO" side="left" onTap={onSoloTap} />
       )}
       {partyHP.max > 0 && (
-        <HPBar currentHP={partyHP.current} maxHP={partyHP.max} label="PARTY" side="right" />
+        <HPBar currentHP={partyHP.current} maxHP={partyHP.max} label="PARTY" side="right" onTap={onPartyTap} />
       )}
     </>
   );
