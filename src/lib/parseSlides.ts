@@ -46,6 +46,7 @@ function extractSpeaker(text: string): string | undefined {
 export function stripCinematicTags(content: string): string {
   return content
     .replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '')
+    .replace(/<[^>]*>/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
