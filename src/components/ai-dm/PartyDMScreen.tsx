@@ -58,6 +58,8 @@ import type { CampaignSession } from '@/hooks/use-campaign-sessions';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
 import { useCinematicMode } from '@/hooks/use-cinematic-mode';
 import { parseResponseIntoSlides, stripCinematicTags } from '@/lib/parseSlides';
+import { preloadAudioFiles, extractAudioNames } from '@/lib/slideshowAudioLoader';
+import { getCtx as getAudioCtx } from '@/lib/slideshowAudioEngine';
 import { useBroadcastPlaylist } from '@/hooks/use-broadcast-playlist';
 import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { WildShapeSection } from '@/components/drawers/QuickActionsDrawer';
@@ -1082,6 +1084,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       lastSlideshowMsgIdRef.current = lastMsg.id;
       const slides = parseResponseIntoSlides(lastMsg.content);
       if (slides.length > 1) {
+        // Start preloading audio immediately, before slideshow component mounts
+        try {
+          const audioCtx = getAudioCtx();
+          const { sfxNames, ambienceNames } = extractAudioNames(slides);
+          preloadAudioFiles(audioCtx, sfxNames, ambienceNames);
+        } catch {}
         setSlideshowSlides(slides);
         setShowSlideshow(true);
       }

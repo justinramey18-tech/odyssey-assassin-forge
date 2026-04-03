@@ -589,11 +589,11 @@ export function playSFX(name: string): void {
   try {
     const c = getCtx();
 
-    // Try cached real audio file first
-    const buffer = getCachedBuffer('sfx', name);
-    if (buffer) {
+    // Fast path: if already cached, play immediately
+    const cached = getCachedBuffer('sfx', name);
+    if (cached) {
       const source = c.createBufferSource();
-      source.buffer = buffer;
+      source.buffer = cached;
       const gain = c.createGain();
       gain.gain.setValueAtTime(0.5, c.currentTime);
       source.connect(gain).connect(c.destination);
@@ -601,12 +601,39 @@ export function playSFX(name: string): void {
       return;
     }
 
-    // Fall back to synthesized sound
-    const builder = SFX_REGISTRY[name];
-    if (builder) builder(c);
+    // Try to load the real file with a timeout race
+    // If it loads within 800ms, play the real file
+    // If not, fall back to synth
+    const synthBuilder = SFX_REGISTRY[name];
+    let synthPlayed = false;
 
-    // Kick off background loading for next time (non-blocking)
-    loadAudioBuffer(c, 'sfx', name).catch(() => {});
+    const timeout = setTimeout(() => {
+      if (!synthPlayed && synthBuilder) {
+        synthPlayed = true;
+        synthBuilder(c);
+      }
+    }, 800);
+
+    loadAudioBuffer(c, 'sfx', name).then(buffer => {
+      clearTimeout(timeout);
+      if (buffer && !synthPlayed) {
+        const source = c.createBufferSource();
+        source.buffer = buffer;
+        const gain = c.createGain();
+        gain.gain.setValueAtTime(0.5, c.currentTime);
+        source.connect(gain).connect(c.destination);
+        source.start();
+      } else if (!buffer && !synthPlayed && synthBuilder) {
+        synthPlayed = true;
+        synthBuilder(c);
+      }
+    }).catch(() => {
+      clearTimeout(timeout);
+      if (!synthPlayed && synthBuilder) {
+        synthPlayed = true;
+        synthBuilder(c);
+      }
+    });
   } catch {
     // Audio not available — silent fail
   }
@@ -633,39 +660,73 @@ export function setAmbience(name: string): void {
       stopAmbienceLoop(currentAmbience, 1.5);
     }
 
-    // Try cached real audio file first
-    const buffer = getCachedBuffer('ambience', name);
-    if (buffer) {
+    // Set the name immediately to prevent duplicate triggers
+    currentAmbienceName = name;
+
+    // Fast path: if already cached, play immediately
+    const cached = getCachedBuffer('ambience', name);
+    if (cached) {
       const mg = c.createGain();
       mg.gain.setValueAtTime(0, c.currentTime);
       mg.connect(c.destination);
       mg.gain.linearRampToValueAtTime(0.4, c.currentTime + 1.5);
-
       const source = c.createBufferSource();
-      source.buffer = buffer;
+      source.buffer = cached;
       source.loop = true;
       source.connect(mg);
       source.start();
-
       currentAmbience = { nodes: [mg], sources: [source], gainNode: mg };
-      currentAmbienceName = name;
       return;
     }
 
-    // Fall back to synthesized ambience
-    const builder = AMBIENCE_BUILDERS[name];
-    if (!builder) return;
+    // Try to load the real file, fall back to synth
+    const synthBuilder = AMBIENCE_BUILDERS[name];
+    let started = false;
 
-    const mg = c.createGain();
-    mg.gain.setValueAtTime(0, c.currentTime);
-    mg.connect(c.destination);
-    mg.gain.linearRampToValueAtTime(1, c.currentTime + 1.5);
+    const timeout = setTimeout(() => {
+      if (!started && synthBuilder && currentAmbienceName === name) {
+        started = true;
+        const mg = c.createGain();
+        mg.gain.setValueAtTime(0, c.currentTime);
+        mg.connect(c.destination);
+        mg.gain.linearRampToValueAtTime(1, c.currentTime + 1.5);
+        currentAmbience = synthBuilder(c, mg);
+      }
+    }, 800);
 
-    currentAmbience = builder(c, mg);
-    currentAmbienceName = name;
-
-    // Kick off background loading for next time (non-blocking)
-    loadAudioBuffer(c, 'ambience', name).catch(() => {});
+    loadAudioBuffer(c, 'ambience', name).then(buffer => {
+      clearTimeout(timeout);
+      if (buffer && !started && currentAmbienceName === name) {
+        started = true;
+        const mg = c.createGain();
+        mg.gain.setValueAtTime(0, c.currentTime);
+        mg.connect(c.destination);
+        mg.gain.linearRampToValueAtTime(0.4, c.currentTime + 1.5);
+        const source = c.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+        source.connect(mg);
+        source.start();
+        currentAmbience = { nodes: [mg], sources: [source], gainNode: mg };
+      } else if (!buffer && !started && synthBuilder && currentAmbienceName === name) {
+        started = true;
+        const mg = c.createGain();
+        mg.gain.setValueAtTime(0, c.currentTime);
+        mg.connect(c.destination);
+        mg.gain.linearRampToValueAtTime(1, c.currentTime + 1.5);
+        currentAmbience = synthBuilder(c, mg);
+      }
+    }).catch(() => {
+      clearTimeout(timeout);
+      if (!started && synthBuilder && currentAmbienceName === name) {
+        started = true;
+        const mg = c.createGain();
+        mg.gain.setValueAtTime(0, c.currentTime);
+        mg.connect(c.destination);
+        mg.gain.linearRampToValueAtTime(1, c.currentTime + 1.5);
+        currentAmbience = synthBuilder(c, mg);
+      }
+    });
   } catch {
     // Audio not available — silent fail
   }
