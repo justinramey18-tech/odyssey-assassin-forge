@@ -68,6 +68,10 @@ import DragonTelegramScheduler from './DragonTelegramScheduler';
 import { Flame } from 'lucide-react';
 import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 
+function stripCinematicTagsFromDisplay(content: string): string {
+  return content.replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '');
+}
+
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
 
 interface PartyDMScreenProps {
@@ -556,7 +560,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                       ),
                     }}
                   >
-                    {message.content || '...'}
+                    {stripCinematicTagsFromDisplay(message.content || '...')}
                   </ReactMarkdown>
                 )}
               </div>
@@ -773,10 +777,10 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                 p: ({ children }) => <span>{children}</span>,
               }}
             >
-              {message.content.slice(message.content.indexOf(']: ') + 3)}
+              {stripCinematicTagsFromDisplay(message.content.slice(message.content.indexOf(']: ') + 3))}
             </ReactMarkdown>
           ) : (
-            <AfkAnnotatedContent content={message.content} afkNames={extractAfkNames(message.content)} />
+            <AfkAnnotatedContent content={stripCinematicTagsFromDisplay(message.content)} afkNames={extractAfkNames(message.content)} />
           )}
         </p>
         )}
@@ -3243,6 +3247,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onDemoteCoHost={onDemoteCoHost}
               whisperTrayEnabled={whisperTrayEnabled}
               onWhisperTrayEnabledChange={setWhisperTrayEnabled}
+              cinematicModeEnabled={cinematicModeEnabled}
+              onCinematicModeEnabledChange={setCinematicMode}
               onShowMemoryAnchors={onAddMemoryAnchor ? () => setShowMemoryAnchors(true) : undefined}
               memoryAnchorsCount={memoryAnchors?.length ?? 0}
               onShowQuests={partyId ? () => setShowQuests(true) : undefined}

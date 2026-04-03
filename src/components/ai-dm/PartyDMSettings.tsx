@@ -4,7 +4,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Flame, Theater, Megaphone } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Flame, Theater, Megaphone, Film } from 'lucide-react';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
 import { ResponseModeSelector } from './ResponseModeSelector';
@@ -122,6 +122,9 @@ export interface PartyDMSettingsProps {
   // Whisper tray
   whisperTrayEnabled?: boolean;
   onWhisperTrayEnabledChange?: (enabled: boolean) => void;
+  // Cinematic mode
+  cinematicModeEnabled?: boolean;
+  onCinematicModeEnabledChange?: (enabled: boolean) => void;
   // Memory anchors
   onShowMemoryAnchors?: () => void;
   memoryAnchorsCount?: number;
@@ -158,6 +161,7 @@ export function PartyDMSettings({
   onShowScheduledEvents, scheduledEventsCount = 0,
   members = [], coHostIds = [], currentUserId, onPromoteCoHost, onDemoteCoHost,
   whisperTrayEnabled, onWhisperTrayEnabledChange,
+  cinematicModeEnabled, onCinematicModeEnabledChange,
   onShowMemoryAnchors, memoryAnchorsCount = 0,
   onShowQuests, questsCount = 0,
   responseMode, onResponseModeChange,
@@ -349,6 +353,15 @@ export function PartyDMSettings({
             description="Show mechanical hints below AI responses"
             checked={whisperTrayEnabled ?? true}
             onCheckedChange={onWhisperTrayEnabledChange}
+          />
+        )}
+        {onCinematicModeEnabledChange != null && (
+          <ToggleRow
+            icon={<Film className={cn("w-4 h-4", cinematicModeEnabled ? "text-amber-400" : "text-muted-foreground")} />}
+            label="Cinematic Mode"
+            description="Tap-to-advance slideshow for DM responses"
+            checked={cinematicModeEnabled ?? true}
+            onCheckedChange={onCinematicModeEnabledChange}
           />
         )}
         {isCreator && (

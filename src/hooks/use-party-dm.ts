@@ -75,7 +75,7 @@ function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string
   if (msg.role !== 'assistant') return msg;
   const { narrative, whispers } = parseWhispers(msg.content);
   // Strip burnout and bond strain tags from narrative
-  const cleanNarrative = narrative.replace(BURNOUT_TAG_RE, '').replace(BURNOUT_TICK_TAG_RE, '').replace(BOND_STRAIN_TAG_RE, '').replace(BOND_GROWTH_TAG_RE, '').replace(DRAGON_MEMORY_TAG_RE, '').replace(DRAGON_BOND_FORMED_TAG_RE, '').replace(THRESHING_AUTHORIZED_TAG_RE, '').trim();
+  const cleanNarrative = narrative.replace(BURNOUT_TAG_RE, '').replace(BURNOUT_TICK_TAG_RE, '').replace(BOND_STRAIN_TAG_RE, '').replace(BOND_GROWTH_TAG_RE, '').replace(DRAGON_MEMORY_TAG_RE, '').replace(DRAGON_BOND_FORMED_TAG_RE, '').replace(THRESHING_AUTHORIZED_TAG_RE, '').replace(/<[^>]*>/g, '').trim();
   if (whispers.length === 0) return { ...msg, content: cleanNarrative };
 
   // Filter: keep actions + tactics (shared), and whispers targeted at this player or their dragon
