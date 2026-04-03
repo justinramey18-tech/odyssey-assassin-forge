@@ -290,10 +290,19 @@ export function useSpotify() {
           toast.success('Now playing on Spotify');
           return;
         } catch {
-          toast.error(
-            'Could not reach Spotify. Tap play on any song in the Spotify app first, then try again.',
-            { duration: 8000 }
-          );
+          const isMobile2 = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+          if (isMobile2) {
+            const playlistId2 = playlistUri.replace('spotify:playlist:', '');
+            window.location.href = `spotify:playlist:${playlistId2}:play`;
+            toast.success('Opening playlist in Spotify...', { duration: 3000 });
+            setTimeout(() => {
+              lastAutoMoodPresetIdRef.current = null;
+            }, 5000);
+          } else {
+            const playlistId2 = playlistUri.replace('spotify:playlist:', '');
+            window.open(`https://open.spotify.com/playlist/${playlistId2}`, '_blank');
+            toast.info('Opened playlist in Spotify', { duration: 3000 });
+          }
         }
       } else {
         toast.error(e.message || 'Failed to play playlist');
