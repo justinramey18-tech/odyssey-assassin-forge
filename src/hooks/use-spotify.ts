@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { loadWeatherEnabled } from '@/lib/weather';
+import type { WeatherCondition } from '@/lib/weather';
 import {
   isConnected,
   startAuth,

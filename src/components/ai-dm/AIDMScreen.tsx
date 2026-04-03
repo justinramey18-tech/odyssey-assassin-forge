@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useWeather } from '@/hooks/use-weather';
+import { weatherToNarrativeContext } from '@/lib/weather';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { useResponseMode } from '@/hooks/use-response-mode';
 import { useDraftPersist } from '@/hooks/use-draft-persist';
