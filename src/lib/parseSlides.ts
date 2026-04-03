@@ -66,7 +66,8 @@ export function parseResponseIntoSlides(rawContent: string): Slide[] {
     }
 
     // Strip tags from display text
-    const cleanText = block.replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '').trim();
+    const withoutCinematicTags = block.replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '');
+    const cleanText = withoutCinematicTags.replace(/<[^>]*>/g, '').trim();
 
     // If block was ONLY tags (no text after stripping), carry tags to next paragraph
     if (!cleanText) {

@@ -64,6 +64,7 @@ export default function CinematicSlideshow({ slides, onComplete }: CinematicSlid
 
   const advance = useCallback(() => {
     if (isLastSlide) {
+      stopAllAudio();
       onComplete();
     } else {
       setCurrentIndex(prev => prev + 1);
