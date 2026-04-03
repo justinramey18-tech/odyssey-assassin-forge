@@ -4,6 +4,8 @@ import { X } from 'lucide-react';
 import type { Slide } from '@/lib/parseSlides';
 import SlideRenderer from '@/components/empyrean/SlideRenderer';
 import SlideshowVFX from '@/components/empyrean/SlideshowVFX';
+import { getCtx } from '@/lib/slideshowAudioEngine';
+import { preloadAudioFiles, extractAudioNames } from '@/lib/slideshowAudioLoader';
 
 const MOOD_COLORS: Record<string, string> = {
   neutral: '#08080f',
