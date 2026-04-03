@@ -265,11 +265,22 @@ export function useSpotify() {
           return;
         }
 
-        // All retries exhausted — show helpful error
-        toast.error(
-          'Could not reach Spotify. Tap play on any song in the Spotify app first, then try again.',
-          { duration: 8000 }
-        );
+        // Nuclear fallback: open the playlist directly in the Spotify app via deep link.
+        // This bypasses the Connect API entirely and works on mobile even when
+        // no device is detected, because it launches/focuses the Spotify app directly.
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        if (isMobile) {
+          const playlistId = playlistUri.replace('spotify:playlist:', '');
+          window.location.href = `spotify:playlist:${playlistId}:play`;
+          toast.success('Opening playlist in Spotify...', { duration: 3000 });
+          setTimeout(() => {
+            lastAutoMoodPresetIdRef.current = null;
+          }, 5000);
+        } else {
+          const playlistId = playlistUri.replace('spotify:playlist:', '');
+          window.open(`https://open.spotify.com/playlist/${playlistId}`, '_blank');
+          toast.info('Opened playlist in Spotify', { duration: 3000 });
+        }
       }
     } catch (e: any) {
       if (e.message?.toLowerCase().includes('no active device') || e.message?.toLowerCase().includes('player command failed')) {
