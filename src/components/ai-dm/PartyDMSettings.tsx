@@ -122,6 +122,9 @@ export interface PartyDMSettingsProps {
   // Whisper tray
   whisperTrayEnabled?: boolean;
   onWhisperTrayEnabledChange?: (enabled: boolean) => void;
+  // Cinematic mode
+  cinematicModeEnabled?: boolean;
+  onCinematicModeEnabledChange?: (enabled: boolean) => void;
   // Memory anchors
   onShowMemoryAnchors?: () => void;
   memoryAnchorsCount?: number;
