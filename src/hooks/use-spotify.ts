@@ -35,7 +35,7 @@ interface PlaybackState {
   deviceName: string;
 }
 
-const AUTO_MOOD_COOLDOWN_MS = 30_000;
+const AUTO_MOOD_COOLDOWN_MS = 10_000;
 
 export function useSpotify() {
   const [connected, setConnected] = useState(isConnected);
