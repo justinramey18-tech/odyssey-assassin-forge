@@ -477,7 +477,7 @@ export function StatsDrawer({
                       "flex justify-between px-2 py-1 rounded",
                       hpBreakdown.constitutionHP >= 0 ? "bg-orange-500/10" : "bg-rose-500/10"
                     )}>
-                      <span className="text-orange-400">CON ({constitutionModifier >= 0 ? '+' : ''}{constitutionModifier})</span>
+                      <span className="text-orange-400">{getAbilityAbbr('con', 'CON')} ({constitutionModifier >= 0 ? '+' : ''}{constitutionModifier})</span>
                       <span className={cn(
                         "font-mono",
                         hpBreakdown.constitutionHP >= 0 ? "text-orange-400" : "text-rose-400"
