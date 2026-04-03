@@ -71,6 +71,15 @@ export function AudioLibraryManager({ onBack }: AudioLibraryManagerProps) {
   const handleUploadClick = (category: string, name: string) => {
     pendingSlotRef.current = `${category}/${name}`;
     suppressReloads();
+
+    // If user cancels the picker, no 'change' fires — re-allow on window focus
+    const onFocus = () => {
+      // Small delay so 'change' event fires first if a file was selected
+      setTimeout(() => allowReloads(), 500);
+      window.removeEventListener('focus', onFocus);
+    };
+    window.addEventListener('focus', onFocus);
+
     fileInputRef.current?.click();
   };
 
