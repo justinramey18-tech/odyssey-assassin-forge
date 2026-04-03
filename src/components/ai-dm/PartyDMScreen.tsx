@@ -3584,6 +3584,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         />
       )}
 
+      {/* Cinematic Slideshow */}
+      {showSlideshow && slideshowSlides.length > 0 && (
+        <CinematicSlideshow
+          slides={slideshowSlides}
+          onComplete={() => {
+            setShowSlideshow(false);
+            setSlideshowSlides([]);
+          }}
+        />
+      )}
+
       {/* Death Save Screen */}
       <DeathSaveScreen
         open={showDeathSaves}
