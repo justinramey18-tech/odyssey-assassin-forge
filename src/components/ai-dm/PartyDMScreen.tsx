@@ -9,6 +9,7 @@ import empyreanSpeaksImg from '@/assets/empyrean-speaks.jpg';
 import empyreanDmBg from '@/assets/empyrean-dm-bg.jpg';
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
 import CinematicSlideshow from '@/components/empyrean/CinematicSlideshow';
+import EmpyreanContextualActions from '@/components/empyrean/EmpyreanContextualActions';
 import { setIsUnbonded } from '@/lib/dragonBondState';
 import DeathSaveScreen from '@/components/empyrean/DeathSaveScreen';
 import MemorialScreen from '@/components/empyrean/MemorialScreen';
