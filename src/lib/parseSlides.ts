@@ -1,3 +1,5 @@
+import { autoTagResponse } from '@/lib/cinematicAutoTagger';
+
 export interface Slide {
   text: string;
   displayType: 'firstLine' | 'pullQuote' | 'dialogue' | 'normal';
