@@ -3,6 +3,7 @@ import { AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import type { Slide } from '@/lib/parseSlides';
 import SlideRenderer from '@/components/empyrean/SlideRenderer';
+import SlideshowVFX from '@/components/empyrean/SlideshowVFX';
 
 const MOOD_COLORS: Record<string, string> = {
   neutral: '#08080f',
