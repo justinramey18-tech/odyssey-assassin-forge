@@ -536,7 +536,7 @@ export function StatsDrawer({
               className="w-full gap-1 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/20"
             >
               <Shield className="w-3 h-3" />
-              Add Temp HP
+              {empyrean ? 'Add Temp Vitality' : 'Add Temp HP'}
             </Button>
           </div>
 
