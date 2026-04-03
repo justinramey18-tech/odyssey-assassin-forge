@@ -27,9 +27,22 @@ export function AudioLibraryManager({ onBack }: AudioLibraryManagerProps) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<string | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
+  const [pendingResume, setPendingResume] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const pendingSlotRef = useRef<string | null>(null);
+
+  // On mount, check if we were mid-upload when the app reloaded
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('audio-lib-pending-slot');
+      if (saved) {
+        sessionStorage.removeItem('audio-lib-pending-slot');
+        allowReloads();
+        setPendingResume(saved);
+      }
+    } catch {}
+  }, []);
 
   // Load list of existing files from the bucket
   const loadFiles = useCallback(async () => {
