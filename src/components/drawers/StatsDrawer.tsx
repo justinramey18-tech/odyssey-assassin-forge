@@ -249,7 +249,7 @@ export function StatsDrawer({
                 <div className="p-3 rounded-lg border bg-blue-500/10 border-blue-500/40 text-center">
                   <Shield className="w-5 h-5 mx-auto text-blue-400 mb-1" />
                   <div className="text-2xl font-bold text-blue-400">{equipmentStats.totalAC}</div>
-                  <div className="text-[10px] text-muted-foreground uppercase">AC</div>
+                  <div className="text-[10px] text-muted-foreground uppercase">{empyrean ? 'Defense' : 'AC'}</div>
                   {equipmentStats.acFromGear > 0 && (
                     <div className="text-[9px] text-blue-400/70">+{equipmentStats.acFromGear} gear</div>
                   )}
