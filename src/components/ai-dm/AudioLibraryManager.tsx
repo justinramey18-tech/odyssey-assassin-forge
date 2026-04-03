@@ -180,6 +180,7 @@ export function AudioLibraryManager({ onBack }: AudioLibraryManagerProps) {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      allowReloads(); // Safety net — ensure reloads aren't stuck suppressed
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
