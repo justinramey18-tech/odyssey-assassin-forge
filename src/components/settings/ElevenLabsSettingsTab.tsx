@@ -14,6 +14,7 @@ import { VoiceTuningWidget } from './VoiceTuningWidget';
 import { SoundEffectsWidget } from './SoundEffectsWidget';
 import { SettingsSection } from './SettingsSection';
 import { SpeechifyVoiceCloner } from './SpeechifyVoiceCloner';
+import { CinematicAudioLibrary } from './CinematicAudioLibrary';
 
 function ElevenLabsApiKeyInput() {
   const [keyInput, setKeyInput] = useState('');
@@ -424,6 +425,10 @@ export function ElevenLabsSettingsTab() {
 
         <SettingsSection title="Narration Speed">
           <NarrationSpeedSlider />
+        </SettingsSection>
+
+        <SettingsSection title="Cinematic Audio Library">
+          <CinematicAudioLibrary />
         </SettingsSection>
       </div>
     </div>
