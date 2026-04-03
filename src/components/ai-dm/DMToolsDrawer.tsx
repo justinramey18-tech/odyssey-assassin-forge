@@ -82,6 +82,7 @@ export function DMToolsDrawer({
   onWhisperTrayEnabledChange,
   cinematicModeEnabled,
   onCinematicModeEnabledChange,
+  onAudioLibrary,
   empyreanConfig,
   dragonNotes,
   onDragonNotesChange,
