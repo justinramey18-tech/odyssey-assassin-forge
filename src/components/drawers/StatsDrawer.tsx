@@ -412,7 +412,7 @@ export function StatsDrawer({
           <div className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
               <Heart className="w-4 h-4" style={{ color: hpColor }} />
-              Hit Points
+              {empyrean ? 'Vitality' : 'Hit Points'}
             </h3>
             
             {/* HP Display */}
