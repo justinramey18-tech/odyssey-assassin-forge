@@ -1063,6 +1063,27 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
   }, [partyDm.messages, spotify.autoMoodEnabled, spotify.connected, spotify.playMoodForText]);
 
+  // Cinematic slideshow trigger: detect new assistant DM messages
+  useEffect(() => {
+    if (!cinematicModeEnabled) return;
+    const msgs = partyDm.messages;
+    if (msgs.length === 0) return;
+    const lastMsg = msgs[msgs.length - 1];
+    if (
+      lastMsg.role === 'assistant' &&
+      lastMsg.sender_name === 'DM' &&
+      lastMsg.id !== lastSlideshowMsgIdRef.current &&
+      lastMsg.content
+    ) {
+      lastSlideshowMsgIdRef.current = lastMsg.id;
+      const slides = parseResponseIntoSlides(lastMsg.content);
+      if (slides.length > 1) {
+        setSlideshowSlides(slides);
+        setShowSlideshow(true);
+      }
+    }
+  }, [partyDm.messages, cinematicModeEnabled]);
+
   // Dragon narrative reaction: when a new DM message arrives in Empyrean mode,
   // trigger the dragon to react in the dragon chat
   const lastDragonReactionMsgIdRef = useRef<string | null>(null);
