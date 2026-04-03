@@ -302,6 +302,26 @@ export function AudioLibraryManager({ onBack }: AudioLibraryManagerProps) {
         onChange={handleFileSelected}
       />
 
+      {/* Resume banner — shown if app reloaded while picker was open */}
+      {pendingResume && (
+        <div className="px-4 py-3 bg-amber-500/10 border-b border-amber-500/20 flex items-center justify-between">
+          <span className="text-xs text-amber-200">
+            Upload for <strong className="capitalize">{pendingResume.split('/')[1]?.replace(/-/g, ' ')}</strong> was interrupted
+          </span>
+          <button
+            onClick={() => {
+              const [cat, name] = pendingResume.split('/');
+              setPendingResume(null);
+              if (cat && name) handleUploadClick(cat, name);
+            }}
+            className="text-xs px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 font-medium"
+            style={{ touchAction: 'manipulation' }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
