@@ -82,13 +82,20 @@ export function AudioLibraryManager({ onBack }: AudioLibraryManagerProps) {
   };
 
   const handleUploadClick = (category: string, name: string) => {
-    pendingSlotRef.current = `${category}/${name}`;
+    const slot = `${category}/${name}`;
+    pendingSlotRef.current = slot;
+    setPendingResume(null);
     suppressReloads();
+
+    // Persist so we can recover if Android kills the app
+    try { sessionStorage.setItem('audio-lib-pending-slot', slot); } catch {}
 
     // If user cancels the picker, no 'change' fires — re-allow on window focus
     const onFocus = () => {
-      // Small delay so 'change' event fires first if a file was selected
-      setTimeout(() => allowReloads(), 500);
+      setTimeout(() => {
+        allowReloads();
+        try { sessionStorage.removeItem('audio-lib-pending-slot'); } catch {}
+      }, 500);
       window.removeEventListener('focus', onFocus);
     };
     window.addEventListener('focus', onFocus);
