@@ -629,6 +629,14 @@ export function HomeScreen({
         )}
       </AnimatePresence>
 
+      {weather && (
+        <WeatherOverlay
+          condition={weather.condition}
+          windSpeed={weather.windSpeed}
+          isDay={weather.isDay}
+        />
+      )}
+
       {/* Content layer */}
       <div className="flex flex-col h-screen overflow-hidden relative z-10">
         {/* Empyrean dual HP bars */}
