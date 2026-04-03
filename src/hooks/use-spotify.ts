@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { loadWeatherEnabled } from '@/lib/weather';
+import type { WeatherCondition } from '@/lib/weather';
 import {
   isConnected,
   startAuth,
@@ -24,6 +26,30 @@ import {
 import { initPlayer, destroyPlayer, getSDKDeviceId, isSDKPlayerActive } from '@/lib/spotify-player-sdk';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+function getWeatherMoodHint(): string {
+  if (!loadWeatherEnabled()) return '';
+  try {
+    const raw = localStorage.getItem('odyssey-weather-cache');
+    if (!raw) return '';
+    const cached = JSON.parse(raw);
+    const condition: WeatherCondition = cached?.data?.condition;
+    if (!condition) return '';
+    const hints: Record<string, string> = {
+      'clear': '',
+      'cloudy': ' The real-world weather is overcast and grey.',
+      'fog': ' The real-world weather is foggy and mysterious.',
+      'drizzle': ' There is a light drizzle outside in the real world.',
+      'rain': ' It is raining outside in the real world.',
+      'heavy-rain': ' Heavy rain and wind dominate the real-world weather.',
+      'snow': ' Snow is falling in the real world.',
+      'thunderstorm': ' A thunderstorm is occurring in the real world.',
+    };
+    return hints[condition] || '';
+  } catch {
+    return '';
+  }
+}
 
 interface PlaybackState {
   isPlaying: boolean;
@@ -397,7 +423,7 @@ export function useSpotify() {
       const presetsForAI = moodPresets.map(p => ({ id: p.id, label: p.label }));
 
       const { data, error } = await supabase.functions.invoke('detect-mood', {
-        body: { text, presets: presetsForAI },
+        body: { text: text + getWeatherMoodHint(), presets: presetsForAI },
       });
 
       if (error) {

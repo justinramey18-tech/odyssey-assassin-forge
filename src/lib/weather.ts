@@ -58,3 +58,34 @@ export function loadWeatherCoords(): { lat: number; lon: number } | null {
 export function saveWeatherCoords(lat: number, lon: number): void {
   try { localStorage.setItem('odyssey-weather-coords', JSON.stringify({ lat, lon })); } catch {}
 }
+
+export function weatherToNarrativeContext(weather: WeatherData): string {
+  const temp = `Temperature is around ${Math.round(weather.temperature)}°F.`;
+  let wind = '';
+  if (weather.windSpeed > 35) wind = ` Gale-force winds make travel dangerous.`;
+  else if (weather.windSpeed > 20) wind = ` Strong winds howl through the area.`;
+  else if (weather.condition === 'rain' || weather.condition === 'heavy-rain' || weather.condition === 'thunderstorm') wind = ` Winds blow at ${Math.round(weather.windSpeed)}mph.`;
+
+  switch (weather.condition) {
+    case 'clear':
+      return weather.isDay
+        ? `The sky is clear and bright. Sunlight warms the land. ${temp}`
+        : `A clear night sky reveals a canopy of stars. The air is cool. ${temp}`;
+    case 'cloudy':
+      return `Heavy clouds blanket the sky, casting a grey pallor over the landscape. ${temp}`;
+    case 'fog':
+      return `A thick fog clings to the ground, reducing visibility to mere feet. The air is damp and still. ${temp}`;
+    case 'drizzle':
+      return `A light drizzle mists the air, barely enough to dampen cloaks. ${temp}`;
+    case 'rain':
+      return `Steady rain falls from iron-grey clouds, drumming against rooftops and pooling in the roads. ${temp}${wind}`;
+    case 'heavy-rain':
+      return `Torrential rain hammers down, turning paths to mud and reducing visibility. Wind gusts drive the rain sideways. ${temp}${wind}`;
+    case 'snow':
+      return `Snow falls silently, blanketing the world in white. The air is frigid. ${temp}`;
+    case 'thunderstorm':
+      return `A violent thunderstorm rages overhead. Lightning splits the sky and thunder shakes the ground. ${temp}${wind}`;
+    default:
+      return `${temp}`;
+  }
+}

@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useWeather } from '@/hooks/use-weather';
+import { weatherToNarrativeContext } from '@/lib/weather';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { useResponseMode } from '@/hooks/use-response-mode';
 import { useDraftPersist } from '@/hooks/use-draft-persist';
@@ -385,6 +387,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const { themeId: chatThemeId, theme: chatTheme, setTheme: setChatTheme } = useDMChatTheme();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const spotify = useSpotify();
+  const { weather } = useWeather();
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
 
@@ -502,7 +505,13 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   }, [setQuestFlag]);
 
   // Build world state prompt to inject into AI system prompt
-  const worldStatePrompt = useMemo(() => buildMemoryAnchorsPrompt(gameState), [gameState]);
+  const worldStatePrompt = useMemo(() => {
+    let prompt = buildMemoryAnchorsPrompt(gameState);
+    if (weather) {
+      prompt += '\n\n## CURRENT WEATHER (REAL-WORLD SYNC)\n' + weatherToNarrativeContext(weather) + '\nWeave this weather naturally into your narration when describing outdoor scenes, travel, or environments. Do not mention it every response — only when it is relevant to the scene. If the party is indoors, the weather may be heard or seen through windows but should not dominate.';
+    }
+    return prompt;
+  }, [gameState, weather]);
 
   const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, voiceNPC, addMediaMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, editMessage, deleteMessage, regenerateMessage, lastUsage, sessionUsage } = useAIDM({
     characterContext,
