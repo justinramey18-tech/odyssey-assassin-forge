@@ -438,7 +438,7 @@ export function useSpotify() {
   }, [connected, autoMoodEnabled, moodPresets, playPlaylist]);
 
   const playPresetById = useCallback(async (presetId: string) => {
-    if (!connected || !autoMoodEnabled) return;
+    if (!connected) return;
 
     const now = Date.now();
     if (now - lastAutoMoodTimeRef.current < AUTO_MOOD_COOLDOWN_MS) return;
