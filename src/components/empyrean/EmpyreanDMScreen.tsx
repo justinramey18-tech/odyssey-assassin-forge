@@ -178,6 +178,7 @@ function stripAllMetaTags(content: string): string {
     .replace(/<!--BOND_GROWTH:.+?-->/g, '')
     .replace(/<!--DRAGON_BOND_FORMED-->/g, '')
     .replace(/<!--THRESHING_AUTHORIZED:.+?-->/g, '')
+    .replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
