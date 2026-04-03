@@ -1181,7 +1181,11 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
           </div>
         )}
 
-        {messages.map(message => {
+        {messages.map((message, msgIndex) => {
+          // Hide the last assistant message while slideshow is playing
+          if (showSlideshow && message.role === 'assistant' && msgIndex === messages.length - 1) {
+            return null;
+          }
           const isUser = message.role === 'user';
           const isAssistant = message.role === 'assistant';
           const showActions = activeActionId === message.id;
