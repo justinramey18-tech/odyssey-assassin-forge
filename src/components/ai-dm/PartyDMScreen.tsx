@@ -870,6 +870,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const spotify = useSpotify();
   const drawerContext = usePromptDrawers();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
+  const { cinematicModeEnabled, setCinematicMode } = useCinematicMode();
+  const [showSlideshow, setShowSlideshow] = useState(false);
+  const [slideshowSlides, setSlideshowSlides] = useState<import('@/lib/parseSlides').Slide[]>([]);
+  const lastSlideshowMsgIdRef = useRef<string | null>(null);
   const dmPolls = useDmPolls(partyId || null);
   const partyNPCNames = useNPCAutocomplete(partyDm.messages as any);
   const isEmpyrean = partyDm.sessionConfig?.campaignType === 'empyrean';
