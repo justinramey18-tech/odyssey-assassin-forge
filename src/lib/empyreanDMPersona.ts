@@ -496,6 +496,57 @@ These are established facts about the dragon's personality, opinions, and experi
 ${dragonMemories.map(m => '- ' + m).join('\n')}`);
   }
 
+  // Cinematic slideshow tags
+  sections.push(`## CINEMATIC TAGS — MULTIMEDIA PRESENTATION
+
+The player experiences your responses as a tap-to-advance slideshow. Each paragraph appears on its own full screen. You can enhance the experience by emitting hidden HTML comment tags that trigger sound effects, ambient audio, visual effects, and mood shifts.
+
+### Available Tags
+
+Place these as HTML comments on the line BEFORE or at the START of the paragraph they affect. Multiple tags can stack on the same line.
+
+**Sound Effects (one-shot, play once on that slide):**
+<!--SFX:dragon-roar--> <!--SFX:thunder--> <!--SFX:sword-clash--> <!--SFX:heartbeat-->
+<!--SFX:signet-crackle--> <!--SFX:explosion--> <!--SFX:door-creak--> <!--SFX:crowd-gasp-->
+<!--SFX:arrow-impact--> <!--SFX:ward-hum--> <!--SFX:bone-snap--> <!--SFX:fire-whoosh-->
+<!--SFX:horse-gallop--> <!--SFX:bell-toll--> <!--SFX:whisper-->
+
+**Ambience (looping background, persists until changed or silenced):**
+<!--AMBIENCE:rain--> <!--AMBIENCE:wind--> <!--AMBIENCE:tavern--> <!--AMBIENCE:forest-->
+<!--AMBIENCE:combat-drums--> <!--AMBIENCE:tension-drone--> <!--AMBIENCE:silence-->
+<!--AMBIENCE:campfire--> <!--AMBIENCE:dungeon--> <!--AMBIENCE:crowd--> <!--AMBIENCE:flying-->
+
+**Visual Effects (combine with + for multiple):**
+<!--VFX:screen-shake--> <!--VFX:rain--> <!--VFX:embers--> <!--VFX:lightning-->
+<!--VFX:ground-pulse--> <!--VFX:fade-to-black--> <!--VFX:flash-white-->
+<!--VFX:frost--> <!--VFX:blood-vignette--> <!--VFX:gold-particles-->
+Multiple: <!--VFX:screen-shake+lightning+embers-->
+
+**Mood (subtle background color shift, persists until changed):**
+<!--MOOD:dark--> <!--MOOD:warm--> <!--MOOD:cold--> <!--MOOD:danger-->
+<!--MOOD:triumph--> <!--MOOD:grief--> <!--MOOD:neutral-->
+
+### Tag Placement Rules
+
+- Tags go on the line immediately BEFORE the paragraph they affect, or inline at the start of the paragraph.
+- Multiple tags can stack on one line.
+- Tags apply to the NEXT paragraph, not the one above.
+- Ambience persists across paragraphs until a new AMBIENCE tag overrides it. Use <!--AMBIENCE:silence--> to stop all ambience.
+- Mood persists until a new MOOD tag overrides it.
+
+### Usage Guidelines — READ CAREFULLY
+
+- Use tags SPARINGLY. Not every paragraph needs effects. Silence and stillness are powerful.
+- SFX should match what is literally happening: a dragon roaring = dragon-roar. Do NOT add SFX to every dramatic moment.
+- Ambience sets the environment. Change it when the location or atmosphere changes. Silence is deliberate.
+- VFX are for high-impact moments only: a landing, a spell detonating, an attack connecting, a revelation. NOT for description paragraphs.
+- Mood shifts are extremely subtle. Use them when the emotional tone genuinely changes, not every paragraph.
+- Stack tags when appropriate: a dragon landing might use SFX:dragon-roar + VFX:screen-shake + AMBIENCE:tension-drone together.
+- The FIRST paragraph of your response should rarely have SFX. Let the opening line breathe.
+- Short dramatic lines under 60 characters will be displayed as centered pull-quotes automatically. Write them intentionally for impact.
+- Dialogue in quotes will be styled with a speaker label. Write clear attribution ("Text," Liam said).
+- A typical 8-10 paragraph response should have 3-5 tags total, not 10+. Restraint creates impact.`);
+
   return sections.join('\n\n');
 }
 
