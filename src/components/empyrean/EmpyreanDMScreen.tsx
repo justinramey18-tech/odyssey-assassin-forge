@@ -27,6 +27,7 @@ import { useAIDM } from '@/hooks/use-ai-dm';
 import { useCampaignSessions, CampaignSession } from '@/hooks/use-campaign-sessions';
 import { CampaignDropdown } from '@/components/ai-dm/CampaignDropdown';
 import { CampaignSessionsManager } from '@/components/ai-dm/CampaignSessionsManager';
+import { AudioLibraryManager } from '@/components/ai-dm/AudioLibraryManager';
 import { DMToolsDrawer } from '@/components/ai-dm/DMToolsDrawer';
 import { DMBottomNav, DMNavTab } from '@/components/ai-dm/DMBottomNav';
 import { DMDiceRoller } from '@/components/ai-dm/DMDiceRoller';
