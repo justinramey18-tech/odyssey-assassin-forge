@@ -7,6 +7,7 @@ const KEYS = {
   expiresAt: 'spotify_expires_at',
   codeVerifier: 'spotify_code_verifier',
   moodPresets: 'spotify_mood_presets',
+  moodPresetsVersion: 'spotify_mood_presets_version',
   autoMood: 'spotify_auto_mood',
 } as const;
 
@@ -329,24 +330,27 @@ export interface MoodPreset {
 }
 
 export const DEFAULT_MOOD_PRESETS: MoodPreset[] = [
-  { id: 'combat', label: 'Combat', searchQuery: 'D&D combat battle epic orchestral', emoji: '⚔️' },
-  { id: 'tavern', label: 'Tavern & Inn', searchQuery: 'medieval tavern inn folk music', emoji: '🍺' },
-  { id: 'dungeon', label: 'Dark Dungeon', searchQuery: 'dark dungeon ambient horror', emoji: '🕯️' },
-  { id: 'exploration', label: 'Forest Exploration', searchQuery: 'fantasy forest exploration ambient nature', emoji: '🌲' },
-  { id: 'boss', label: 'Epic Boss Battle', searchQuery: 'epic boss battle orchestral intense', emoji: '🐉' },
-  { id: 'mystery', label: 'Mystery & Intrigue', searchQuery: 'mystery intrigue suspense ambient', emoji: '🔮' },
-  { id: 'village', label: 'Peaceful Village', searchQuery: 'peaceful village medieval calm ambient', emoji: '🏘️' },
-  { id: 'ocean', label: 'Ocean Voyage', searchQuery: 'ocean sea voyage sailing adventure ambient', emoji: '⛵' },
-  { id: 'court', label: 'Royal Court', searchQuery: 'royal court medieval regal fanfare orchestral', emoji: '👑' },
-  { id: 'stealth', label: 'Stealth & Shadows', searchQuery: 'stealth shadows sneaking dark ambient tense', emoji: '🗡️' },
-  { id: 'temple', label: 'Sacred Temple', searchQuery: 'sacred temple holy choir ambient peaceful', emoji: '⛪' },
-  { id: 'campfire', label: 'Campfire Rest', searchQuery: 'campfire rest night calm acoustic ambient', emoji: '🔥' },
+  { id: 'combat',        label: 'Combat',           searchQuery: 'epic battle combat orchestral intense', emoji: '⚔️' },
+  { id: 'flight',        label: 'Dragon Flight',    searchQuery: 'soaring flying epic orchestral wind adventure', emoji: '🦅' },
+  { id: 'stealth',       label: 'Stealth',          searchQuery: 'stealth dark ambient tense sneaking shadows', emoji: '🥷' },
+  { id: 'political',     label: 'Political Intrigue', searchQuery: 'royal court political drama orchestral suspense', emoji: '🏛️' },
+  { id: 'wardline',      label: 'Ward Line',        searchQuery: 'dark frontier ominous ambient tension danger', emoji: '🛡️' },
+  { id: 'investigation', label: 'Investigation',    searchQuery: 'mystery detective investigation ambient suspense', emoji: '🕵️' },
+  { id: 'ritual',        label: 'Ritual & Ceremony', searchQuery: 'ritual ceremony chanting mystical sacred ambient', emoji: '🔮' },
+  { id: 'social',        label: 'Social & Tavern',  searchQuery: 'medieval tavern folk music social cheerful', emoji: '🗣️' },
+  { id: 'training',      label: 'Training Grounds', searchQuery: 'training montage determined focused percussion', emoji: '📖' },
+  { id: 'exploration',   label: 'Exploration',      searchQuery: 'fantasy exploration adventure ambient nature discovery', emoji: '🔍' },
+  { id: 'downtime',      label: 'Rest & Downtime',  searchQuery: 'peaceful campfire rest calm acoustic ambient night', emoji: '🏕️' },
+  { id: 'crisis',        label: 'Crisis',           searchQuery: 'urgent danger alarm tense orchestral dramatic emergency', emoji: '🚨' },
 ];
 
 export function loadMoodPresets(): MoodPreset[] {
+  const CURRENT_VERSION = 2;
   try {
+    const storedVersion = localStorage.getItem(KEYS.moodPresetsVersion);
     const stored = localStorage.getItem(KEYS.moodPresets);
-    if (stored) {
+
+    if (storedVersion === String(CURRENT_VERSION) && stored) {
       const existing: MoodPreset[] = JSON.parse(stored);
       const existingIds = new Set(existing.map(p => p.id));
       const newDefaults = DEFAULT_MOOD_PRESETS.filter(p => !existingIds.has(p.id));
@@ -357,6 +361,28 @@ export function loadMoodPresets(): MoodPreset[] {
       }
       return existing;
     }
+
+    // Version mismatch or first load — migrate
+    let migrated = [...DEFAULT_MOOD_PRESETS];
+    if (stored) {
+      try {
+        const old: MoodPreset[] = JSON.parse(stored);
+        for (const oldPreset of old) {
+          if (oldPreset.playlistUri && oldPreset.manuallyAssigned) {
+            const match = migrated.find(p => p.id === oldPreset.id);
+            if (match) {
+              match.playlistUri = oldPreset.playlistUri;
+              match.playlistName = oldPreset.playlistName;
+              match.manuallyAssigned = true;
+            }
+          }
+        }
+      } catch {}
+    }
+
+    localStorage.setItem(KEYS.moodPresets, JSON.stringify(migrated));
+    localStorage.setItem(KEYS.moodPresetsVersion, String(CURRENT_VERSION));
+    return migrated;
   } catch {}
   return DEFAULT_MOOD_PRESETS;
 }

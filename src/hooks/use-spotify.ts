@@ -396,6 +396,43 @@ export function useSpotify() {
     }
   }, [connected, autoMoodEnabled, moodPresets, playPlaylist]);
 
+  const playPresetById = useCallback(async (presetId: string) => {
+    if (!connected || !autoMoodEnabled) return;
+
+    const now = Date.now();
+    if (now - lastAutoMoodTimeRef.current < AUTO_MOOD_COOLDOWN_MS) return;
+
+    if (presetId === lastAutoMoodPresetIdRef.current) return;
+
+    const preset = moodPresets.find(p => p.id === presetId);
+    if (!preset) return;
+
+    lastAutoMoodPresetIdRef.current = presetId;
+    lastAutoMoodTimeRef.current = now;
+
+    try {
+      if (preset.playlistUri) {
+        await playPlaylist(preset.playlistUri);
+      } else {
+        const results = await searchPlaylists(preset.searchQuery, 5);
+        if (results.length > 0) {
+          const best = results[0];
+          const updated = moodPresets.map(p =>
+            p.id === presetId
+              ? { ...p, playlistUri: best.uri, playlistName: best.name }
+              : p
+          );
+          setMoodPresets(updated);
+          saveMoodPresets(updated);
+          await playPlaylist(best.uri);
+        }
+      }
+      toast.success(`🎵 ${preset.emoji} ${preset.label}`, { duration: 3000 });
+    } catch (e) {
+      console.error('[Spotify] playPresetById error:', e);
+    }
+  }, [connected, autoMoodEnabled, moodPresets, playPlaylist]);
+
   return {
     connected,
     userName,
@@ -421,5 +458,6 @@ export function useSpotify() {
     clearPresetPlaylist,
     setAutoMoodEnabled,
     playMoodForText,
+    playPresetById,
   };
 }
