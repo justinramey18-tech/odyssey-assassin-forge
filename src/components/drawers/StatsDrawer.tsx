@@ -89,6 +89,7 @@ export function StatsDrawer({
   multiclassLevels = {},
   onHeal,
 }: StatsDrawerProps) {
+  const empyrean = isEmpyreanMode();
   // Local HP state (with default values based on level)
   const defaultMaxHP = 8 + (level - 1) * 5; // Simple formula: 8 + 5 per level
   const [localCurrentHP, setLocalCurrentHP] = useState(propCurrentHP ?? defaultMaxHP);
