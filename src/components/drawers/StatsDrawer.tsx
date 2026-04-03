@@ -155,7 +155,7 @@ export function StatsDrawer({
     updateHP(newCurrent, tempHP);
     setHpDelta('');
     
-    toast.success(`${characterName} heals for ${amount} HP!`);
+    toast.success(`${characterName} heals for ${amount} ${empyrean ? 'Vitality' : 'HP'}!`);
   };
 
   const handleAddTempHP = () => {
