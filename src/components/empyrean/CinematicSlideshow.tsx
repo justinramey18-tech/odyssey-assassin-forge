@@ -8,13 +8,13 @@ import { playSFX, setAmbience, stopAll as stopAllAudio, getCtx } from '@/lib/sli
 import { preloadAudioFiles, extractAudioNames } from '@/lib/slideshowAudioLoader';
 
 const MOOD_COLORS: Record<string, string> = {
-  neutral: '#08080f',
-  dark: '#060610',
-  warm: '#12080a',
-  cold: '#080a10',
-  danger: '#160804',
-  triumph: '#0a0a04',
-  grief: '#0a0810',
+  neutral: '#0a0a14',
+  dark: '#060612',
+  warm: '#1a0c08',
+  cold: '#080e1a',
+  danger: '#1e0808',
+  triumph: '#141208',
+  grief: '#100a18',
 };
 
 interface CinematicSlideshowProps {
