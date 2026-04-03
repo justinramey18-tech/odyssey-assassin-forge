@@ -30,6 +30,17 @@ export default function CinematicSlideshow({ slides, onComplete }: CinematicSlid
   const currentSlide = slides[currentIndex] ?? null;
   const isLastSlide = currentIndex >= totalSlides - 1;
 
+  // Preload all audio files referenced in this slideshow
+  useEffect(() => {
+    try {
+      const audioCtx = getCtx();
+      const { sfxNames, ambienceNames } = extractAudioNames(slides);
+      preloadAudioFiles(audioCtx, sfxNames, ambienceNames);
+    } catch {
+      // Audio context not available — synth fallback will handle it
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Update background color when mood changes
   useEffect(() => {
     if (currentSlide?.mood && MOOD_COLORS[currentSlide.mood]) {
