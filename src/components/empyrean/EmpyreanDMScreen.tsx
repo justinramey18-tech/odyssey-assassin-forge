@@ -43,6 +43,7 @@ import { NPCAutocomplete } from '@/components/ai-dm/NPCAutocomplete';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
+import { useCinematicMode } from '@/hooks/use-cinematic-mode';
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { AutoSyncBanner } from '@/components/ai-dm/AutoSyncBanner';
 import { useNarrator } from '@/hooks/use-narrator';
