@@ -15,6 +15,8 @@ project_id = "sqvcszzbkyzidigsdqgk"
     verify_jwt = false
   [functions.detect-situation]
     verify_jwt = false
+  [functions.tag-cinematic]
+    verify_jwt = false
   [functions.dev-assistant]
     verify_jwt = false
   [functions.homebrew-assistant]

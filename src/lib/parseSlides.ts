@@ -52,8 +52,7 @@ export function stripCinematicTags(content: string): string {
 }
 
 export function parseResponseIntoSlides(rawContent: string): Slide[] {
-  const taggedContent = autoTagResponse(rawContent);
-  const blocks = taggedContent.split('\n\n').map(b => b.trim()).filter(Boolean);
+  const blocks = rawContent.split('\n\n').map(b => b.trim()).filter(Boolean);
   const slides: Slide[] = [];
   let pendingTags: Array<{ type: string; value: string }> = [];
 

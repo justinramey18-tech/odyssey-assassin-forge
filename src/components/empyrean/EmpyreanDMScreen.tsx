@@ -488,13 +488,33 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         } catch { /* non-blocking — situation detection is best-effort */ }
       })();
 
-      // Trigger cinematic slideshow if enabled
+      // Cinematic slideshow: AI tags the narrative, then parse into slides
       if (cinematicModeEnabled) {
-        const slides = parseResponseIntoSlides(content);
-        if (slides.length > 1) {
-          setSlideshowSlides(slides);
-          setShowSlideshow(true);
-        }
+        (async () => {
+          let textForSlides = content;
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+            const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tag-cinematic`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+              body: JSON.stringify({ text: content }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.taggedText && data.taggedText.trim().length > 0) {
+                textForSlides = data.taggedText;
+              }
+            }
+          } catch {
+            // Tagging failed — continue with untagged content
+          }
+          const slides = parseResponseIntoSlides(textForSlides);
+          if (slides.length > 1) {
+            setSlideshowSlides(slides);
+            setShowSlideshow(true);
+          }
+        })();
       }
     },
     onQuestExtracted: (quests) => {
