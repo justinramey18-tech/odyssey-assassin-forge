@@ -1101,17 +1101,35 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       lastMsg.content
     ) {
       lastSlideshowMsgIdRef.current = lastMsg.id;
-      const slides = parseResponseIntoSlides(lastMsg.content);
-      if (slides.length > 1) {
-        // Start preloading audio immediately, before slideshow component mounts
+      (async () => {
+        let textForSlides = lastMsg.content;
         try {
-          const audioCtx = getAudioCtx();
-          const { sfxNames, ambienceNames } = extractAudioNames(slides);
-          preloadAudioFiles(audioCtx, sfxNames, ambienceNames);
-        } catch {}
-        setSlideshowSlides(slides);
-        setShowSlideshow(true);
-      }
+          const token = (await supabase.auth.getSession()).data.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+          const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tag-cinematic`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ text: lastMsg.content }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.taggedText && data.taggedText.trim().length > 0) {
+              textForSlides = data.taggedText;
+            }
+          }
+        } catch {
+          // Tagging failed — continue with untagged content
+        }
+        const slides = parseResponseIntoSlides(textForSlides);
+        if (slides.length > 1) {
+          try {
+            const audioCtx = getAudioCtx();
+            const { sfxNames, ambienceNames } = extractAudioNames(slides);
+            preloadAudioFiles(audioCtx, sfxNames, ambienceNames);
+          } catch {}
+          setSlideshowSlides(slides);
+          setShowSlideshow(true);
+        }
+      })();
     }
   }, [partyDm.messages, cinematicModeEnabled]);
 
