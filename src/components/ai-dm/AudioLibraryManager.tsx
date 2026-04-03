@@ -27,9 +27,22 @@ export function AudioLibraryManager({ onBack }: AudioLibraryManagerProps) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<string | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
+  const [pendingResume, setPendingResume] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const pendingSlotRef = useRef<string | null>(null);
+
+  // On mount, check if we were mid-upload when the app reloaded
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('audio-lib-pending-slot');
+      if (saved) {
+        sessionStorage.removeItem('audio-lib-pending-slot');
+        allowReloads();
+        setPendingResume(saved);
+      }
+    } catch {}
+  }, []);
 
   // Load list of existing files from the bucket
   const loadFiles = useCallback(async () => {
@@ -69,13 +82,20 @@ export function AudioLibraryManager({ onBack }: AudioLibraryManagerProps) {
   };
 
   const handleUploadClick = (category: string, name: string) => {
-    pendingSlotRef.current = `${category}/${name}`;
+    const slot = `${category}/${name}`;
+    pendingSlotRef.current = slot;
+    setPendingResume(null);
     suppressReloads();
+
+    // Persist so we can recover if Android kills the app
+    try { sessionStorage.setItem('audio-lib-pending-slot', slot); } catch {}
 
     // If user cancels the picker, no 'change' fires — re-allow on window focus
     const onFocus = () => {
-      // Small delay so 'change' event fires first if a file was selected
-      setTimeout(() => allowReloads(), 500);
+      setTimeout(() => {
+        allowReloads();
+        try { sessionStorage.removeItem('audio-lib-pending-slot'); } catch {}
+      }, 500);
       window.removeEventListener('focus', onFocus);
     };
     window.addEventListener('focus', onFocus);
@@ -89,6 +109,7 @@ export function AudioLibraryManager({ onBack }: AudioLibraryManagerProps) {
 
     // Re-allow reloads now that the picker has closed
     allowReloads();
+    try { sessionStorage.removeItem('audio-lib-pending-slot'); } catch {}
 
     if (!file || !slot) return;
 
@@ -280,6 +301,26 @@ export function AudioLibraryManager({ onBack }: AudioLibraryManagerProps) {
         className="hidden"
         onChange={handleFileSelected}
       />
+
+      {/* Resume banner — shown if app reloaded while picker was open */}
+      {pendingResume && (
+        <div className="px-4 py-3 bg-amber-500/10 border-b border-amber-500/20 flex items-center justify-between">
+          <span className="text-xs text-amber-200">
+            Upload for <strong className="capitalize">{pendingResume.split('/')[1]?.replace(/-/g, ' ')}</strong> was interrupted
+          </span>
+          <button
+            onClick={() => {
+              const [cat, name] = pendingResume.split('/');
+              setPendingResume(null);
+              if (cat && name) handleUploadClick(cat, name);
+            }}
+            className="text-xs px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 font-medium"
+            style={{ touchAction: 'manipulation' }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
