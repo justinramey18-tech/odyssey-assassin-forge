@@ -49,7 +49,7 @@ function HPBar({
       animate={{ opacity: 1, scaleY: 1 }}
       transition={{ duration: 0.4, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
       className={cn(
-        "absolute top-0 bottom-0 z-10 flex flex-col items-center pointer-events-none",
+        "absolute top-0 bottom-0 z-10 flex flex-col items-center",
         side === 'left' ? 'left-0' : 'right-0'
       )}
       style={{ transformOrigin: 'bottom', width: '22px' }}
