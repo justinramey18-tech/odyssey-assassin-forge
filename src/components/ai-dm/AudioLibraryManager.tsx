@@ -70,6 +70,7 @@ export function AudioLibraryManager({ onBack }: AudioLibraryManagerProps) {
 
   const handleUploadClick = (category: string, name: string) => {
     pendingSlotRef.current = `${category}/${name}`;
+    suppressReloads();
     fileInputRef.current?.click();
   };
 
