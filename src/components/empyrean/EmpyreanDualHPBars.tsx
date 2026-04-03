@@ -14,11 +14,13 @@ function HPBar({
   maxHP,
   label,
   side,
+  onTap,
 }: {
   currentHP: number;
   maxHP: number;
   label: string;
   side: 'left' | 'right';
+  onTap?: () => void;
 }) {
   const hpPercentage = Math.max(0, Math.min(100, (currentHP / maxHP) * 100));
   const isCritical = hpPercentage <= 25;
