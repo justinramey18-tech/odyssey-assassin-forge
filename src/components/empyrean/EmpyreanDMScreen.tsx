@@ -468,6 +468,15 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         toast('A dragon has chosen you!', { icon: '🐉', duration: 5000 });
         setShowThreshingCinematic(true);
       }
+
+      // Trigger cinematic slideshow if enabled
+      if (cinematicModeEnabled) {
+        const slides = parseResponseIntoSlides(content);
+        if (slides.length > 1) {
+          setSlideshowSlides(slides);
+          setShowSlideshow(true);
+        }
+      }
     },
     onQuestExtracted: (quests) => {
       for (const q of quests) {
