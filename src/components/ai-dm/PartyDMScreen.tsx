@@ -1856,6 +1856,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           ) : (
             <AnimatePresence initial={false}>
               {partyDm.messages.map((msg, idx) => {
+                // Hide the last assistant message while slideshow is playing
+                if (showSlideshow && msg.role === 'assistant' && idx === partyDm.messages.length - 1) {
+                  return null;
+                }
                 // Pre-compute AFK names from preceding user message
                 let afkNames: string[] | undefined;
                 if (msg.role === 'assistant' && idx > 0) {
