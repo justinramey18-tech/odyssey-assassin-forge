@@ -68,6 +68,10 @@ import DragonTelegramScheduler from './DragonTelegramScheduler';
 import { Flame } from 'lucide-react';
 import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 
+function stripCinematicTagsFromDisplay(content: string): string {
+  return content.replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '');
+}
+
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
 
 interface PartyDMScreenProps {
