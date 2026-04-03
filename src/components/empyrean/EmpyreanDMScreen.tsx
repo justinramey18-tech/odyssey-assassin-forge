@@ -1181,7 +1181,11 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
           </div>
         )}
 
-        {messages.map(message => {
+        {messages.map((message, msgIndex) => {
+          // Hide the last assistant message while slideshow is playing
+          if (showSlideshow && message.role === 'assistant' && msgIndex === messages.length - 1) {
+            return null;
+          }
           const isUser = message.role === 'user';
           const isAssistant = message.role === 'assistant';
           const showActions = activeActionId === message.id;
@@ -1343,7 +1347,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         })}
 
         {/* Streaming indicator */}
-        {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
+        {isLoading && !showSlideshow && messages[messages.length - 1]?.role !== 'assistant' && (
           <div className="mb-3 flex justify-start">
             <div className="bg-card/60 border border-border/30 rounded-2xl px-4 py-3">
               <div className="flex gap-1.5">
