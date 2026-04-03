@@ -349,7 +349,7 @@ export function StatsDrawer({
                 <button className="w-full flex items-center justify-between py-2 px-3 rounded-md border border-border/50 bg-card/50 hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-primary" />
-                    <span className="text-xs font-semibold uppercase tracking-wider">Class & Hit Dice</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider">{empyrean ? 'Role & Hit Dice' : 'Class & Hit Dice'}</span>
                   </div>
                   {showClassSection ? (
                     <ChevronUp className="w-4 h-4 text-muted-foreground" />
