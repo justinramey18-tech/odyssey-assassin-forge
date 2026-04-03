@@ -423,7 +423,7 @@ export function useSpotify() {
       const presetsForAI = moodPresets.map(p => ({ id: p.id, label: p.label }));
 
       const { data, error } = await supabase.functions.invoke('detect-mood', {
-        body: { text, presets: presetsForAI },
+        body: { text: text + getWeatherMoodHint(), presets: presetsForAI },
       });
 
       if (error) {
