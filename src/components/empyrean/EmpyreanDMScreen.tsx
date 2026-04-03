@@ -202,6 +202,7 @@ export function EmpyreanDMScreen({
   const [showSaves, setShowSaves] = useState(false);
   const [showGuides, setShowGuides] = useState(false);
   const [showWorldState, setShowWorldState] = useState(false);
+  const [showAudioLibrary, setShowAudioLibrary] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [showNpcScene, setShowNpcScene] = useState(false);
   const [showOocChat, setShowOocChat] = useState(false);
