@@ -41,6 +41,8 @@ interface DMToolsDrawerProps {
   onChatThemeChange?: (id: DMChatThemeId) => void;
   whisperTrayEnabled?: boolean;
   onWhisperTrayEnabledChange?: (enabled: boolean) => void;
+  cinematicModeEnabled?: boolean;
+  onCinematicModeEnabledChange?: (enabled: boolean) => void;
   empyreanConfig?: { campaignFocus: string; dragonName: string; signetType: string; yearAtBasgiath: string } | null;
   dragonNotes?: string;
   onDragonNotesChange?: (notes: string) => void;
