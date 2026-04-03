@@ -426,6 +426,10 @@ export function ElevenLabsSettingsTab() {
         <SettingsSection title="Narration Speed">
           <NarrationSpeedSlider />
         </SettingsSection>
+
+        <SettingsSection title="Cinematic Audio Library">
+          <CinematicAudioLibrary />
+        </SettingsSection>
       </div>
     </div>
   );
