@@ -292,12 +292,12 @@ export function StatsDrawer({
                     Attribute Bonuses
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    {renderStatBonus(equipmentStats.strength, 'STR', <Swords className="w-3 h-3" />, '#ef4444')}
-                    {renderStatBonus(equipmentStats.dexterity, 'DEX', <Move className="w-3 h-3" />, '#22c55e')}
-                    {renderStatBonus(equipmentStats.constitution, 'CON', <Heart className="w-3 h-3" />, '#f97316')}
-                    {renderStatBonus(equipmentStats.intelligence, 'INT', <Sparkles className="w-3 h-3" />, '#3b82f6')}
-                    {renderStatBonus(equipmentStats.wisdom, 'WIS', <Eye className="w-3 h-3" />, '#a855f7')}
-                    {renderStatBonus(equipmentStats.charisma, 'CHA', <Gem className="w-3 h-3" />, '#ec4899')}
+                    {renderStatBonus(equipmentStats.strength, getAbilityAbbr('str', 'STR'), <Swords className="w-3 h-3" />, '#ef4444')}
+                    {renderStatBonus(equipmentStats.dexterity, getAbilityAbbr('dex', 'DEX'), <Move className="w-3 h-3" />, '#22c55e')}
+                    {renderStatBonus(equipmentStats.constitution, getAbilityAbbr('con', 'CON'), <Heart className="w-3 h-3" />, '#f97316')}
+                    {renderStatBonus(equipmentStats.intelligence, getAbilityAbbr('int', 'INT'), <Sparkles className="w-3 h-3" />, '#3b82f6')}
+                    {renderStatBonus(equipmentStats.wisdom, getAbilityAbbr('wis', 'WIS'), <Eye className="w-3 h-3" />, '#a855f7')}
+                    {renderStatBonus(equipmentStats.charisma, getAbilityAbbr('cha', 'CHA'), <Gem className="w-3 h-3" />, '#ec4899')}
                   </div>
                 </div>
               )}
