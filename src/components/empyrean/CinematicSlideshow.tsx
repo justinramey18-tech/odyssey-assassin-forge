@@ -73,6 +73,12 @@ export default function CinematicSlideshow({ slides, onComplete }: CinematicSlid
         cursor: 'pointer',
       }}
     >
+      {/* Visual Effects Layer */}
+      <SlideshowVFX
+        slideVfx={currentSlide?.vfx ?? []}
+        slideKey={currentIndex}
+      />
+
       {/* Close button */}
       <div className="absolute top-3 right-3 z-10">
         <button
