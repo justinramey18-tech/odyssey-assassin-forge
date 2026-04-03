@@ -312,6 +312,7 @@ export function HomeScreen({
     wasWildShape.current = isWildShape;
   }, [isWildShape, wildShapeFormCR]);
   const stats = useEquipmentStats(equipment);
+  const { weather } = useWeather();
   const multiplier = XP_PRESETS[xpPreset].multiplier;
   const [showDrawersMenu, setShowDrawersMenu] = useState(false);
   
