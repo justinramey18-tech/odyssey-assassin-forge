@@ -309,7 +309,7 @@ export function StatsDrawer({
                     Other Bonuses
                   </div>
                   <div className="space-y-1">
-                    {renderStatBonus(equipmentStats.perception, 'Perception', <Eye className="w-3 h-3" />, '#a855f7')}
+                    {renderStatBonus(equipmentStats.perception, empyrean ? 'Awareness' : 'Perception', <Eye className="w-3 h-3" />, '#a855f7')}
                     {renderStatBonus(equipmentStats.saves, 'Saving Throws', <Save className="w-3 h-3" />, '#22c55e')}
                     {renderStatBonus(equipmentStats.movement, 'Movement', <Move className="w-3 h-3" />, '#3b82f6')}
                   </div>
