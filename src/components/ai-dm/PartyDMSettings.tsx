@@ -355,6 +355,15 @@ export function PartyDMSettings({
             onCheckedChange={onWhisperTrayEnabledChange}
           />
         )}
+        {onCinematicModeEnabledChange != null && (
+          <ToggleRow
+            icon={<Film className={cn("w-4 h-4", cinematicModeEnabled ? "text-amber-400" : "text-muted-foreground")} />}
+            label="Cinematic Mode"
+            description="Tap-to-advance slideshow for DM responses"
+            checked={cinematicModeEnabled ?? true}
+            onCheckedChange={onCinematicModeEnabledChange}
+          />
+        )}
         {isCreator && (
           <div className="px-3 py-2">
             <div className="flex items-center gap-2 mb-2">

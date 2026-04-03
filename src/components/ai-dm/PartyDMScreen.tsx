@@ -3247,6 +3247,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onDemoteCoHost={onDemoteCoHost}
               whisperTrayEnabled={whisperTrayEnabled}
               onWhisperTrayEnabledChange={setWhisperTrayEnabled}
+              cinematicModeEnabled={cinematicModeEnabled}
+              onCinematicModeEnabledChange={setCinematicMode}
               onShowMemoryAnchors={onAddMemoryAnchor ? () => setShowMemoryAnchors(true) : undefined}
               memoryAnchorsCount={memoryAnchors?.length ?? 0}
               onShowQuests={partyId ? () => setShowQuests(true) : undefined}
