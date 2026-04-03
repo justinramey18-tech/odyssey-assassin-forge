@@ -161,6 +161,7 @@ interface UsePartyDmOptions {
   partyMembers: Array<{ character_name: string; character_status: Record<string, unknown>; user_id: string }>;
   customGuidesContent?: string;
   memoryAnchorsContent?: string;
+  worldStatePrompt?: string;
   partyDragonConfigs?: Array<{ userId: string; characterName: string; config: { dragonName: string; signetType: string; bond: number; trust: number; mood: string; burnout: number } }>;
   myDragonName?: string;
   onBurnoutDetected?: (level: number) => void;
