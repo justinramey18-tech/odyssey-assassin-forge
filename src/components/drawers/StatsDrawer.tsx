@@ -493,7 +493,7 @@ export function StatsDrawer({
                     )}
                   </div>
                   <div className="flex justify-between px-2 py-1.5 rounded bg-white/10 font-semibold text-sm mt-2">
-                    <span>Total Max HP</span>
+                    <span>{empyrean ? 'Total Max Vitality' : 'Total Max HP'}</span>
                     <span className="font-mono" style={{ color: hpColor }}>{hpBreakdown.totalHP}</span>
                   </div>
                 </div>
