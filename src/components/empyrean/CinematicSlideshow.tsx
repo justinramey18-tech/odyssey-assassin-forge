@@ -110,7 +110,7 @@ export default function CinematicSlideshow({ slides, onComplete }: CinematicSlid
       {/* Close button */}
       <div className="absolute top-3 right-3 z-10">
         <button
-          onClick={(e) => { e.stopPropagation(); onComplete(); }}
+          onClick={(e) => { e.stopPropagation(); stopAllAudio(); onComplete(); }}
           className="w-8 h-8 rounded-full flex items-center justify-center bg-white/5 border border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10 transition-colors"
           style={{ touchAction: 'manipulation' }}
         >
