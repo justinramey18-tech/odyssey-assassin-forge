@@ -23,15 +23,8 @@ interface SfxRule {
 }
 
 const SFX_RULES: SfxRule[] = [
-  // DRAGON — very generous, dragons are the star
-  { pattern: /\bdragon|tairn|andarna|sgaeyl|codagh/i, sfx: 'dragon-roar', priority: 1 },
-  { pattern: /\bwing(?:s)?\s*(?:fold|spread|flare|beat|snap|open|tuck|extend|unfurl)/i, sfx: 'dragon-roar' },
-  { pattern: /\bdragon.*(?:land|roar|snarl|growl|shriek|bellow|scream|screech|hiss|rumbl|snort)/i, sfx: 'dragon-roar', priority: 2 },
-  { pattern: /\bclaws?\s*(?:goug|dig|scor|tear|scrape|rake|click|flex|extend)/i, sfx: 'dragon-roar' },
-  { pattern: /\btail\s*(?:lash|whip|slam|sweep|curl|coil|thrash|flick)/i, sfx: 'dragon-roar' },
-  { pattern: /\bscales?\s*(?:shift|shimmer|rattle|ripple|glow|darken|brighten|heat)/i, sfx: 'dragon-roar' },
-  { pattern: /\bdragon\s*fire|\bfire\s*breath|\bflame.*(?:erupt|burst|pour|stream|jet)|inferno/i, sfx: 'fire-whoosh', priority: 3 },
-  { pattern: /\bmassive\s*(?:head|form|body|shape|shadow|wing)|enormous\s*(?:dragon|beast|creature)/i, sfx: 'dragon-roar' },
+  // DRAGON — only fires when "roar" literally appears in the text
+  { pattern: /\broar(?:s|ed|ing)?\b/i, sfx: 'dragon-roar' },
 
   // MELEE COMBAT
   { pattern: /\bsword|blade|steel|dagger|axe|mace|hammer|spear|pike|halberd|glaive|rapier|scimitar|longsword|greatsword/i, sfx: 'sword-clash' },
