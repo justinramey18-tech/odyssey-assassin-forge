@@ -1068,8 +1068,22 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     if (lastMsg.role === 'assistant' && lastMsg.id !== lastProcessedMsgIdRef.current && lastMsg.content) {
       lastProcessedMsgIdRef.current = lastMsg.id;
       spotify.playMoodForText(lastMsg.content);
+    }
+  }, [partyDm.messages, spotify.autoMoodEnabled, spotify.connected, spotify.playMoodForText]);
 
-      // Non-blocking AI situation detection
+  // AI situation detection for party mode (independent of Spotify)
+  const lastSituationMsgIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isEmpyrean) return;
+    const msgs = partyDm.messages;
+    if (msgs.length === 0) return;
+    const lastMsg = msgs[msgs.length - 1];
+    if (
+      lastMsg.role === 'assistant' &&
+      lastMsg.id !== lastSituationMsgIdRef.current &&
+      lastMsg.content
+    ) {
+      lastSituationMsgIdRef.current = lastMsg.id;
       (async () => {
         try {
           const token = (await supabase.auth.getSession()).data.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -1084,10 +1098,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               setPartySituation(data.situation);
             }
           }
-        } catch { /* non-blocking */ }
+        } catch { /* non-blocking — best effort */ }
       })();
     }
-  }, [partyDm.messages, spotify.autoMoodEnabled, spotify.connected, spotify.playMoodForText]);
+  }, [partyDm.messages, isEmpyrean]);
 
   // Cinematic slideshow trigger: detect new assistant DM messages
   useEffect(() => {
