@@ -4,6 +4,8 @@ import { X } from 'lucide-react';
 import type { Slide } from '@/lib/parseSlides';
 import SlideRenderer from '@/components/empyrean/SlideRenderer';
 import SlideshowVFX from '@/components/empyrean/SlideshowVFX';
+import { getCtx } from '@/lib/slideshowAudioEngine';
+import { preloadAudioFiles, extractAudioNames } from '@/lib/slideshowAudioLoader';
 
 const MOOD_COLORS: Record<string, string> = {
   neutral: '#08080f',
@@ -27,6 +29,17 @@ export default function CinematicSlideshow({ slides, onComplete }: CinematicSlid
   const totalSlides = slides.length;
   const currentSlide = slides[currentIndex] ?? null;
   const isLastSlide = currentIndex >= totalSlides - 1;
+
+  // Preload all audio files referenced in this slideshow
+  useEffect(() => {
+    try {
+      const audioCtx = getCtx();
+      const { sfxNames, ambienceNames } = extractAudioNames(slides);
+      preloadAudioFiles(audioCtx, sfxNames, ambienceNames);
+    } catch {
+      // Audio context not available — synth fallback will handle it
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update background color when mood changes
   useEffect(() => {
