@@ -1183,6 +1183,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         customGuides: extraGuides,
         partyContext: partyContext || undefined,
         memoryAnchors: memoryAnchorsContent || undefined,
+        worldStatePrompt: worldStatePrompt || undefined,
         recentPartyChat: recentPartyChat.length > 0 ? recentPartyChat : undefined,
         recentDragonChat: recentDragonChat.length > 0 ? recentDragonChat : undefined,
         recentDragonNetwork: recentDragonNetwork.length > 0 ? recentDragonNetwork : undefined,
