@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { parseWhispers } from '@/lib/whisper-parser';
+import { parseResponseIntoSlides, stripCinematicTags } from '@/lib/parseSlides';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
 import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle, Theater, Megaphone, Minus, Plus, Sparkles } from 'lucide-react';
@@ -9,6 +10,7 @@ import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
 import DeathSaveScreen from '@/components/empyrean/DeathSaveScreen';
 import MemorialScreen from '@/components/empyrean/MemorialScreen';
 import ThreshingCinematic from '@/components/empyrean/ThreshingCinematic';
+import CinematicSlideshow from '@/components/empyrean/CinematicSlideshow';
 import { DragonRiderSetupSheet } from '@/components/ai-dm/DragonRiderSetupSheet';
 import { VerticalHealthBar } from '@/components/home/VerticalHealthBar';
 import { NpcSceneDialog } from '@/components/ai-dm/NpcSceneDialog';
@@ -41,6 +43,7 @@ import { NPCAutocomplete } from '@/components/ai-dm/NPCAutocomplete';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
+import { useCinematicMode } from '@/hooks/use-cinematic-mode';
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { AutoSyncBanner } from '@/components/ai-dm/AutoSyncBanner';
 import { useNarrator } from '@/hooks/use-narrator';
@@ -175,6 +178,7 @@ function stripAllMetaTags(content: string): string {
     .replace(/<!--BOND_GROWTH:.+?-->/g, '')
     .replace(/<!--DRAGON_BOND_FORMED-->/g, '')
     .replace(/<!--THRESHING_AUTHORIZED:.+?-->/g, '')
+    .replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -219,6 +223,8 @@ export function EmpyreanDMScreen({
   const [showDeathTransition, setShowDeathTransition] = useState(false);
   const [threshingAuthorized, setThreshingAuthorized] = useState(false);
   const [showThreshingCinematic, setShowThreshingCinematic] = useState(false);
+  const [showSlideshow, setShowSlideshow] = useState(false);
+  const [slideshowSlides, setSlideshowSlides] = useState<import('@/lib/parseSlides').Slide[]>([]);
   const [showSetup, setShowSetup] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -271,6 +277,7 @@ UNBONDED RIDER RULES:
   const { enabledContent, activeGuideIds, guides, addGuide, deleteGuide } = gmGuides;
   const { themeId: chatThemeId, setTheme: setChatTheme } = useDMChatTheme();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
+  const { cinematicModeEnabled, setCinematicMode } = useCinematicMode();
   const narrator = useNarrator();
   const spotify = useSpotify();
   const { responseMode, setResponseMode } = useResponseMode();
@@ -460,6 +467,15 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         }
         toast('A dragon has chosen you!', { icon: '🐉', duration: 5000 });
         setShowThreshingCinematic(true);
+      }
+
+      // Trigger cinematic slideshow if enabled
+      if (cinematicModeEnabled) {
+        const slides = parseResponseIntoSlides(content);
+        if (slides.length > 1) {
+          setSlideshowSlides(slides);
+          setShowSlideshow(true);
+        }
       }
     },
     onQuestExtracted: (quests) => {
@@ -1600,6 +1616,8 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         onChatThemeChange={setChatTheme}
         whisperTrayEnabled={whisperTrayEnabled}
         onWhisperTrayEnabledChange={setWhisperTrayEnabled}
+        cinematicModeEnabled={cinematicModeEnabled}
+        onCinematicModeEnabledChange={setCinematicMode}
         empyreanConfig={config ? { campaignFocus: config.campaignFocus, dragonName: config.dragonName, signetType: config.signetType, yearAtBasgiath: config.yearAtBasgiath } : null}
         dragonNotes={dragonNotes}
         onDragonNotesChange={handleDragonNotesChange}
@@ -1987,6 +2005,21 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Cinematic Slideshow */}
+      {showSlideshow && slideshowSlides.length > 0 && (
+        <CinematicSlideshow
+          slides={slideshowSlides}
+          onComplete={() => {
+            setShowSlideshow(false);
+            setSlideshowSlides([]);
+            // Scroll to the bottom so the player sees the full message in chat
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+          }}
+        />
+      )}
 
       {/* Threshing Cinematic */}
       <ThreshingCinematic
