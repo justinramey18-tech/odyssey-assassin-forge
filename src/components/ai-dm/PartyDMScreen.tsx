@@ -1025,7 +1025,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   }, [currentUserId, messageReactions]);
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
-  const lastProcessedMsgIdRef = useRef<string | null>(null);
+  
 
   // Reading bookmark state (per user, per party, localStorage)
   const bookmarkKey = partyId && currentUserId ? `party-bookmark-${partyId}-${currentUserId}` : null;
