@@ -1655,6 +1655,11 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         </div>
       )}
 
+      {/* Audio Library */}
+      {showAudioLibrary && (
+        <AudioLibraryManager onBack={() => setShowAudioLibrary(false)} />
+      )}
+
       {/* GM Guides Overlay */}
       {showGuides && (
         <GMGuidesManager
