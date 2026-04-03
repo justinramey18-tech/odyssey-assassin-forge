@@ -1857,7 +1857,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             <AnimatePresence initial={false}>
               {partyDm.messages.map((msg, idx) => {
                 // Hide the last assistant message while slideshow is playing
-                if (showSlideshow && msg.role === 'assistant' && idx === partyDm.messages.length - 1) {
+                if (msg.role === 'assistant' && idx === partyDm.messages.length - 1 && (showSlideshow || (partyDm.isGenerating && cinematicModeEnabled))) {
                   return null;
                 }
                 // Pre-compute AFK names from preceding user message
@@ -1990,7 +1990,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               })}
 
           {/* Loading / status indicator */}
-          {partyDm.isGenerating && !showSlideshow && (
+          {partyDm.isGenerating && !showSlideshow && (cinematicModeEnabled || partyDm.messages[partyDm.messages.length - 1]?.role !== 'assistant') && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-1">
               <div className="flex gap-2 items-center">
                 <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
