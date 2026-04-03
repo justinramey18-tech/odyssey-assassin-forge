@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 
 function RainVFX() {
   const drops = useMemo(() =>
-    Array.from({ length: 45 }, (_, i) => ({
+    Array.from({ length: 60 }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
       delay: Math.random() * 0.5,
@@ -22,9 +22,9 @@ function RainVFX() {
             style={{
               left: `${d.left}%`,
               top: '-20px',
-              width: '1px',
+              width: '2px',
               height: `${d.height}px`,
-              background: 'linear-gradient(to bottom, transparent, rgba(150,180,220,0.35))',
+              background: 'linear-gradient(to bottom, transparent, rgba(150,180,220,0.5))',
               animation: `vfx-rain-fall ${d.duration}s linear infinite`,
               animationDelay: `${d.delay}s`,
             }}
@@ -45,10 +45,10 @@ function RainVFX() {
 
 function EmbersVFX() {
   const particles = useMemo(() =>
-    Array.from({ length: 14 }, (_, i) => ({
+    Array.from({ length: 22 }, (_, i) => ({
       id: i,
       left: 10 + Math.random() * 80,
-      size: 2 + Math.random() * 3,
+      size: 3 + Math.random() * 4,
       hue: 20 + Math.random() * 25,
       lightness: 50 + Math.random() * 20,
       duration: 2.5 + Math.random() * 3,
@@ -69,7 +69,7 @@ function EmbersVFX() {
               width: `${p.size}px`,
               height: `${p.size}px`,
               background: `hsl(${p.hue}, 100%, ${p.lightness}%)`,
-              boxShadow: `0 0 ${p.size + 2}px hsl(${p.hue}, 100%, 50%)`,
+              boxShadow: `0 0 ${p.size + 4}px hsl(${p.hue}, 100%, 50%)`,
               animation: `vfx-ember-rise ${p.duration}s ease-out infinite`,
               animationDelay: `${p.delay}s`,
               ['--drift' as any]: `${p.drift}px`,
@@ -94,7 +94,7 @@ function FrostVFX() {
     Array.from({ length: 20 }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
-      size: 2 + Math.random() * 3,
+      size: 3 + Math.random() * 4,
       duration: 3 + Math.random() * 4,
       delay: Math.random() * 3,
       drift: (Math.random() - 0.5) * 40,
@@ -112,8 +112,8 @@ function FrostVFX() {
               top: '-10px',
               width: `${f.size}px`,
               height: `${f.size}px`,
-              background: 'rgba(180, 210, 240, 0.5)',
-              boxShadow: '0 0 4px rgba(180, 210, 240, 0.3)',
+              background: 'rgba(180, 210, 240, 0.6)',
+              boxShadow: '0 0 6px rgba(180, 210, 240, 0.4)',
               animation: `vfx-frost-fall ${f.duration}s ease-in-out infinite`,
               animationDelay: `${f.delay}s`,
               ['--drift' as any]: `${f.drift}px`,
@@ -135,7 +135,7 @@ function FrostVFX() {
 
 function GoldParticlesVFX() {
   const sparks = useMemo(() =>
-    Array.from({ length: 10 }, (_, i) => ({
+    Array.from({ length: 16 }, (_, i) => ({
       id: i,
       left: 15 + Math.random() * 70,
       top: 10 + Math.random() * 80,
@@ -149,12 +149,12 @@ function GoldParticlesVFX() {
         {sparks.map(s => (
           <div
             key={s.id}
-            className="absolute w-1 h-1 rounded-full"
+            className="absolute w-1.5 h-1.5 rounded-full"
             style={{
               left: `${s.left}%`,
               top: `${s.top}%`,
               background: '#daa520',
-              boxShadow: '0 0 6px #daa520, 0 0 12px rgba(218,165,32,0.3)',
+              boxShadow: '0 0 8px #daa520, 0 0 16px rgba(218,165,32,0.5)',
               animation: `vfx-gold-pulse ${s.duration}s ease-in-out infinite`,
               animationDelay: `${s.delay}s`,
             }}
@@ -193,7 +193,7 @@ function LightningVFX() {
   return (
     <div
       className="absolute inset-0 pointer-events-none z-[6]"
-      style={{ background: 'rgba(200,210,255,0.07)' }}
+      style={{ background: 'rgba(200,210,255,0.15)' }}
     />
   );
 }
@@ -204,8 +204,8 @@ function GroundPulseVFX() {
       <div
         className="absolute bottom-0 left-0 right-0 pointer-events-none z-[4]"
         style={{
-          height: '30%',
-          background: 'radial-gradient(ellipse at bottom, rgba(180,50,20,0.12) 0%, transparent 70%)',
+          height: '40%',
+          background: 'radial-gradient(ellipse at bottom, rgba(180,50,20,0.25) 0%, transparent 70%)',
           animation: 'vfx-ground-pulse 2s ease-in-out infinite',
         }}
       />
@@ -234,15 +234,15 @@ function ScreenShakeVFX({ onDone }: { onDone: () => void }) {
       }
       @keyframes vfx-screen-shake {
         0%, 100% { transform: translate(0); }
-        10% { transform: translate(-4px, 2px); }
-        20% { transform: translate(3px, -3px); }
-        30% { transform: translate(-3px, 1px); }
-        40% { transform: translate(2px, -2px); }
-        50% { transform: translate(-2px, 3px); }
-        60% { transform: translate(3px, -1px); }
-        70% { transform: translate(-1px, 2px); }
-        80% { transform: translate(2px, -2px); }
-        90% { transform: translate(-3px, 1px); }
+        10% { transform: translate(-6px, 3px); }
+        20% { transform: translate(5px, -5px); }
+        30% { transform: translate(-5px, 2px); }
+        40% { transform: translate(3px, -4px); }
+        50% { transform: translate(-4px, 5px); }
+        60% { transform: translate(5px, -2px); }
+        70% { transform: translate(-2px, 4px); }
+        80% { transform: translate(4px, -3px); }
+        90% { transform: translate(-5px, 2px); }
       }
     `}</style>
   );
@@ -262,7 +262,7 @@ function FlashWhiteVFX({ onDone }: { onDone: () => void }) {
       />
       <style>{`
         @keyframes vfx-flash-white {
-          0% { background: rgba(255,255,255,0.25); }
+          0% { background: rgba(255,255,255,0.4); }
           100% { background: rgba(255,255,255,0); }
         }
       `}</style>
@@ -309,7 +309,7 @@ function BloodVignetteVFX({ onDone }: { onDone: () => void }) {
       <style>{`
         @keyframes vfx-blood-vignette {
           0% { box-shadow: inset 0 0 0 0 rgba(120,10,10,0); }
-          30% { box-shadow: inset 0 0 80px 30px rgba(120,10,10,0.4); }
+          30% { box-shadow: inset 0 0 100px 40px rgba(120,10,10,0.5); }
           100% { box-shadow: inset 0 0 0 0 rgba(120,10,10,0); }
         }
       `}</style>
@@ -330,24 +330,16 @@ interface SlideshowVFXProps {
 }
 
 export default function SlideshowVFX({ slideVfx, slideKey }: SlideshowVFXProps) {
-  // Track which persistent effects are active (they accumulate across slides)
   const [persistentEffects, setPersistentEffects] = useState<Set<string>>(new Set());
-  // Track active one-shot effects for this slide
   const [activeOneShots, setActiveOneShots] = useState<Set<string>>(new Set());
-  // Track if screen-shake is active (applied as CSS class to parent)
   const [shaking, setShaking] = useState(false);
 
   useEffect(() => {
-    // Update persistent effects: add new ones from this slide
-    // (Persistent effects stay until a new slide does NOT include them,
-    //  OR we could keep them until explicitly cleared. For now: keep them
-    //  until a slide brings a new set of persistent effects that replaces them.)
     const newPersistent = slideVfx.filter(v => PERSISTENT_EFFECTS.has(v));
     if (newPersistent.length > 0) {
       setPersistentEffects(new Set(newPersistent));
     }
 
-    // Fire one-shots for this slide
     const newOneShots = slideVfx.filter(v => ONE_SHOT_EFFECTS.has(v));
     setActiveOneShots(new Set(newOneShots));
 
@@ -367,7 +359,6 @@ export default function SlideshowVFX({ slideVfx, slideKey }: SlideshowVFXProps) 
 
   return (
     <>
-      {/* Persistent particle effects */}
       {persistentEffects.has('rain') && <RainVFX />}
       {persistentEffects.has('embers') && <EmbersVFX />}
       {persistentEffects.has('frost') && <FrostVFX />}
@@ -375,7 +366,6 @@ export default function SlideshowVFX({ slideVfx, slideKey }: SlideshowVFXProps) 
       {persistentEffects.has('lightning') && <LightningVFX />}
       {persistentEffects.has('ground-pulse') && <GroundPulseVFX />}
 
-      {/* One-shot effects */}
       {activeOneShots.has('screen-shake') && (
         <ScreenShakeVFX onDone={() => removeOneShot('screen-shake')} />
       )}
@@ -389,11 +379,22 @@ export default function SlideshowVFX({ slideVfx, slideKey }: SlideshowVFXProps) 
         <BloodVignetteVFX onDone={() => removeOneShot('blood-vignette')} />
       )}
 
-      {/* Inject shake class on the parent via a global style when active */}
       {shaking && (
         <style>{`
           .cinematic-slideshow-root {
             animation: vfx-screen-shake 0.5s ease-in-out !important;
+          }
+          @keyframes vfx-screen-shake {
+            0%, 100% { transform: translate(0); }
+            10% { transform: translate(-6px, 3px); }
+            20% { transform: translate(5px, -5px); }
+            30% { transform: translate(-5px, 2px); }
+            40% { transform: translate(3px, -4px); }
+            50% { transform: translate(-4px, 5px); }
+            60% { transform: translate(5px, -2px); }
+            70% { transform: translate(-2px, 4px); }
+            80% { transform: translate(4px, -3px); }
+            90% { transform: translate(-5px, 2px); }
           }
         `}</style>
       )}

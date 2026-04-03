@@ -130,6 +130,14 @@ export default function CinematicSlideshow({ slides, onComplete }: CinematicSlid
         {/* Slide counter */}
         <p className="text-center text-[10px] text-white/25 tracking-widest mb-2.5 font-sans">
           {currentIndex + 1} / {totalSlides}
+          {currentSlide && (currentSlide.sfx.length > 0 || currentSlide.vfx.length > 0 || currentSlide.mood || currentSlide.ambience) && (
+            <span className="ml-2 text-amber-500/40">
+              {currentSlide.mood && `M:${currentSlide.mood} `}
+              {currentSlide.ambience && `A:${currentSlide.ambience} `}
+              {currentSlide.sfx.map(s => `S:${s} `)}
+              {currentSlide.vfx.map(v => `V:${v} `)}
+            </span>
+          )}
         </p>
 
         {/* Progress bar */}
