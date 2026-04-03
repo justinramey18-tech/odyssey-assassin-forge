@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils';
 interface EmpyreanDualHPBarsProps {
   soloHP: { current: number; max: number };
   partyHP: { current: number; max: number };
+  onSoloTap?: () => void;
+  onPartyTap?: () => void;
 }
 
 function HPBar({
