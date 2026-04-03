@@ -274,6 +274,7 @@ UNBONDED RIDER RULES:
   const { enabledContent, activeGuideIds, guides, addGuide, deleteGuide } = gmGuides;
   const { themeId: chatThemeId, setTheme: setChatTheme } = useDMChatTheme();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
+  const { cinematicModeEnabled, setCinematicMode } = useCinematicMode();
   const narrator = useNarrator();
   const spotify = useSpotify();
   const { responseMode, setResponseMode } = useResponseMode();
