@@ -2004,6 +2004,21 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         </SheetContent>
       </Sheet>
 
+      {/* Cinematic Slideshow */}
+      {showSlideshow && slideshowSlides.length > 0 && (
+        <CinematicSlideshow
+          slides={slideshowSlides}
+          onComplete={() => {
+            setShowSlideshow(false);
+            setSlideshowSlides([]);
+            // Scroll to the bottom so the player sees the full message in chat
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+          }}
+        />
+      )}
+
       {/* Threshing Cinematic */}
       <ThreshingCinematic
         open={showThreshingCinematic}
