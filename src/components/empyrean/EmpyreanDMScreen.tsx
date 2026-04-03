@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { parseResponseIntoSlides, stripCinematicTags } from '@/lib/parseSlides';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
+import { useWeather } from '@/hooks/use-weather';
+import { weatherToNarrativeContext } from '@/lib/weather';
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
 import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle, Theater, Megaphone, Minus, Plus, Sparkles } from 'lucide-react';
 import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
