@@ -77,6 +77,10 @@ export function AudioLibraryManager({ onBack }: AudioLibraryManagerProps) {
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     const slot = pendingSlotRef.current;
+
+    // Re-allow reloads now that the picker has closed
+    allowReloads();
+
     if (!file || !slot) return;
 
     // Reset input so the same file can be re-selected
