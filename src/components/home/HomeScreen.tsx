@@ -50,6 +50,8 @@ import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
 import { useOnlineStatus, useOnlineCount } from '@/hooks/use-online-status';
 import { WildShapeLightningBorder, CRScaledPulse, TransformationBurst } from './WildShapeLightningBorder';
 import { DragonParticles } from './DragonParticles';
+import WeatherOverlay from './WeatherOverlay';
+import { useWeather } from '@/hooks/use-weather';
 import { PrestigeData } from '@/lib/prestige';
 import { ChroniclerHomeView } from './ChroniclerHomeView';
 import { AlignmentDriftIndicator } from '@/components/alignment/AlignmentDriftIndicator';
@@ -310,6 +312,7 @@ export function HomeScreen({
     wasWildShape.current = isWildShape;
   }, [isWildShape, wildShapeFormCR]);
   const stats = useEquipmentStats(equipment);
+  const { weather } = useWeather();
   const multiplier = XP_PRESETS[xpPreset].multiplier;
   const [showDrawersMenu, setShowDrawersMenu] = useState(false);
   
@@ -625,6 +628,14 @@ export function HomeScreen({
           <TransformationBurst key={`burst-${wildShapeFormName}`} cr={wildShapeFormCR ?? 0} formName={wildShapeFormName} />
         )}
       </AnimatePresence>
+
+      {weather && (
+        <WeatherOverlay
+          condition={weather.condition}
+          windSpeed={weather.windSpeed}
+          isDay={weather.isDay}
+        />
+      )}
 
       {/* Content layer */}
       <div className="flex flex-col h-screen overflow-hidden relative z-10">
