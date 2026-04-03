@@ -633,6 +633,8 @@ export function HomeScreen({
           <EmpyreanDualHPBars
             soloHP={empyreanSoloHP}
             partyHP={empyreanPartyHP}
+            onSoloTap={() => drawerContext?.openStatsDrawer()}
+            onPartyTap={() => drawerContext?.openStatsDrawer()}
           />
         )}
         {/* Install Banner */}

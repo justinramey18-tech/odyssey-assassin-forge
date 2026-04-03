@@ -13,6 +13,7 @@ import DeathSaveScreen from '@/components/empyrean/DeathSaveScreen';
 import MemorialScreen from '@/components/empyrean/MemorialScreen';
 import { VerticalHealthBar } from '@/components/home/VerticalHealthBar';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
+import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause, MessageCircle, SmilePlus, Theater, Megaphone } from 'lucide-react';
@@ -864,6 +865,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [showDeathTransition, setShowDeathTransition] = useState(false);
   const narrator = useNarrator();
   const spotify = useSpotify();
+  const drawerContext = usePromptDrawers();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const dmPolls = useDmPolls(partyId || null);
   const partyNPCNames = useNPCAutocomplete(partyDm.messages as any);
@@ -1795,7 +1797,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             currentHP={characterContext.currentHP ?? 0}
             maxHP={characterContext.maxHP ?? 1}
             isWildShape={characterContext.wildShape?.isTransformed}
-            onTap={onBack}
+            onTap={() => drawerContext?.openStatsDrawer()}
           />
         )}
         <div ref={scrollRef} className={cn(

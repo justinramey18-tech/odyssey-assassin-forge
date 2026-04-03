@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils';
 interface EmpyreanDualHPBarsProps {
   soloHP: { current: number; max: number };
   partyHP: { current: number; max: number };
+  onSoloTap?: () => void;
+  onPartyTap?: () => void;
 }
 
 function HPBar({
@@ -12,11 +14,13 @@ function HPBar({
   maxHP,
   label,
   side,
+  onTap,
 }: {
   currentHP: number;
   maxHP: number;
   label: string;
   side: 'left' | 'right';
+  onTap?: () => void;
 }) {
   const hpPercentage = Math.max(0, Math.min(100, (currentHP / maxHP) * 100));
   const isCritical = hpPercentage <= 25;
@@ -47,12 +51,12 @@ function HPBar({
       animate={{ opacity: 1, scaleY: 1 }}
       transition={{ duration: 0.4, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
       className={cn(
-        "absolute top-0 bottom-0 z-10 flex flex-col items-center pointer-events-none",
+        "absolute top-0 bottom-0 z-10 flex flex-col items-center",
         side === 'left' ? 'left-0' : 'right-0'
       )}
       style={{ transformOrigin: 'bottom', width: '22px' }}
     >
-      <div className="relative w-full h-full">
+      <button onClick={onTap} className="relative w-full h-full pointer-events-auto" style={{ touchAction: 'manipulation', minWidth: '22px' }} aria-label={`${label} HP: ${currentHP}/${maxHP}`}>
         {/* Bar background */}
         <div
           className={cn(
@@ -110,19 +114,19 @@ function HPBar({
             {label}
           </span>
         </div>
-      </div>
+      </button>
     </motion.div>
   );
 }
 
-export function EmpyreanDualHPBars({ soloHP, partyHP }: EmpyreanDualHPBarsProps) {
+export function EmpyreanDualHPBars({ soloHP, partyHP, onSoloTap, onPartyTap }: EmpyreanDualHPBarsProps) {
   return (
     <>
       {soloHP.max > 0 && (
-        <HPBar currentHP={soloHP.current} maxHP={soloHP.max} label="SOLO" side="left" />
+        <HPBar currentHP={soloHP.current} maxHP={soloHP.max} label="SOLO" side="left" onTap={onSoloTap} />
       )}
       {partyHP.max > 0 && (
-        <HPBar currentHP={partyHP.current} maxHP={partyHP.max} label="PARTY" side="right" />
+        <HPBar currentHP={partyHP.current} maxHP={partyHP.max} label="PARTY" side="right" onTap={onPartyTap} />
       )}
     </>
   );

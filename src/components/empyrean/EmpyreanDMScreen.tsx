@@ -1119,7 +1119,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
           currentHP={autoSyncCallbacks?.getCurrentHP() ?? characterContext.currentHP}
           maxHP={characterContext.maxHP ?? 1}
           isWildShape={characterContext.wildShape?.isTransformed}
-          onTap={onClose}
+          onTap={() => drawerContext?.openStatsDrawer()}
         />
         {/* Default empyrean background — hidden when burnout is active */}
         {burnoutLevel <= 0 && (
