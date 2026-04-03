@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2, Brain, Cpu, Palette, Eye, Theater, Megaphone } from 'lucide-react';
+import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2, Brain, Cpu, Palette, Eye, Theater, Megaphone, Film } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import {
@@ -41,6 +41,8 @@ interface DMToolsDrawerProps {
   onChatThemeChange?: (id: DMChatThemeId) => void;
   whisperTrayEnabled?: boolean;
   onWhisperTrayEnabledChange?: (enabled: boolean) => void;
+  cinematicModeEnabled?: boolean;
+  onCinematicModeEnabledChange?: (enabled: boolean) => void;
   empyreanConfig?: { campaignFocus: string; dragonName: string; signetType: string; yearAtBasgiath: string } | null;
   dragonNotes?: string;
   onDragonNotesChange?: (notes: string) => void;
@@ -77,6 +79,8 @@ export function DMToolsDrawer({
   onChatThemeChange,
   whisperTrayEnabled,
   onWhisperTrayEnabledChange,
+  cinematicModeEnabled,
+  onCinematicModeEnabledChange,
   empyreanConfig,
   dragonNotes,
   onDragonNotesChange,
@@ -322,6 +326,25 @@ export function DMToolsDrawer({
               <Switch
                 checked={whisperTrayEnabled ?? true}
                 onCheckedChange={onWhisperTrayEnabledChange}
+              />
+            </div>
+          )}
+
+          {/* Cinematic Mode toggle */}
+          {onCinematicModeEnabledChange != null && (
+            <div className="flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors">
+              <div className="flex items-center gap-3">
+                <span className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center",
+                  cinematicModeEnabled ? "bg-amber-900/40 text-amber-400" : "bg-white/5 text-white/40"
+                )}>
+                  <Film className="w-4 h-4" />
+                </span>
+                <span className="text-sm font-cinzel text-white/80">Cinematic Mode</span>
+              </div>
+              <Switch
+                checked={cinematicModeEnabled ?? true}
+                onCheckedChange={onCinematicModeEnabledChange}
               />
             </div>
           )}
