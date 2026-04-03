@@ -560,7 +560,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                       ),
                     }}
                   >
-                    {message.content || '...'}
+                    {stripCinematicTagsFromDisplay(message.content || '...')}
                   </ReactMarkdown>
                 )}
               </div>
