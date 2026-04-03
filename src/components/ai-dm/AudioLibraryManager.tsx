@@ -3,6 +3,7 @@ import { ArrowLeft, Upload, Play, Trash2, Check, Music, Volume2 } from 'lucide-r
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { suppressReloads, allowReloads } from '@/lib/reload-guard';
 
 const BUCKET = 'cinematic-audio';
 
