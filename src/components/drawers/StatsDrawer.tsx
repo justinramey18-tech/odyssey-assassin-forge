@@ -460,7 +460,7 @@ export function StatsDrawer({
               {showHPBreakdown && (
                 <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
-                    HP Breakdown ({HP_CONFIG.HIT_DIE})
+                    {empyrean ? 'Vitality' : 'HP'} Breakdown ({HP_CONFIG.HIT_DIE})
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="flex justify-between px-2 py-1 rounded bg-white/5">
