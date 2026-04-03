@@ -1084,6 +1084,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       lastSlideshowMsgIdRef.current = lastMsg.id;
       const slides = parseResponseIntoSlides(lastMsg.content);
       if (slides.length > 1) {
+        // Start preloading audio immediately, before slideshow component mounts
+        try {
+          const audioCtx = getAudioCtx();
+          const { sfxNames, ambienceNames } = extractAudioNames(slides);
+          preloadAudioFiles(audioCtx, sfxNames, ambienceNames);
+        } catch {}
         setSlideshowSlides(slides);
         setShowSlideshow(true);
       }

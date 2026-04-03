@@ -660,39 +660,73 @@ export function setAmbience(name: string): void {
       stopAmbienceLoop(currentAmbience, 1.5);
     }
 
-    // Try cached real audio file first
-    const buffer = getCachedBuffer('ambience', name);
-    if (buffer) {
+    // Set the name immediately to prevent duplicate triggers
+    currentAmbienceName = name;
+
+    // Fast path: if already cached, play immediately
+    const cached = getCachedBuffer('ambience', name);
+    if (cached) {
       const mg = c.createGain();
       mg.gain.setValueAtTime(0, c.currentTime);
       mg.connect(c.destination);
       mg.gain.linearRampToValueAtTime(0.4, c.currentTime + 1.5);
-
       const source = c.createBufferSource();
-      source.buffer = buffer;
+      source.buffer = cached;
       source.loop = true;
       source.connect(mg);
       source.start();
-
       currentAmbience = { nodes: [mg], sources: [source], gainNode: mg };
-      currentAmbienceName = name;
       return;
     }
 
-    // Fall back to synthesized ambience
-    const builder = AMBIENCE_BUILDERS[name];
-    if (!builder) return;
+    // Try to load the real file, fall back to synth
+    const synthBuilder = AMBIENCE_BUILDERS[name];
+    let started = false;
 
-    const mg = c.createGain();
-    mg.gain.setValueAtTime(0, c.currentTime);
-    mg.connect(c.destination);
-    mg.gain.linearRampToValueAtTime(1, c.currentTime + 1.5);
+    const timeout = setTimeout(() => {
+      if (!started && synthBuilder && currentAmbienceName === name) {
+        started = true;
+        const mg = c.createGain();
+        mg.gain.setValueAtTime(0, c.currentTime);
+        mg.connect(c.destination);
+        mg.gain.linearRampToValueAtTime(1, c.currentTime + 1.5);
+        currentAmbience = synthBuilder(c, mg);
+      }
+    }, 800);
 
-    currentAmbience = builder(c, mg);
-    currentAmbienceName = name;
-
-    // Kick off background loading for next time (non-blocking)
-    loadAudioBuffer(c, 'ambience', name).catch(() => {});
+    loadAudioBuffer(c, 'ambience', name).then(buffer => {
+      clearTimeout(timeout);
+      if (buffer && !started && currentAmbienceName === name) {
+        started = true;
+        const mg = c.createGain();
+        mg.gain.setValueAtTime(0, c.currentTime);
+        mg.connect(c.destination);
+        mg.gain.linearRampToValueAtTime(0.4, c.currentTime + 1.5);
+        const source = c.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+        source.connect(mg);
+        source.start();
+        currentAmbience = { nodes: [mg], sources: [source], gainNode: mg };
+      } else if (!buffer && !started && synthBuilder && currentAmbienceName === name) {
+        started = true;
+        const mg = c.createGain();
+        mg.gain.setValueAtTime(0, c.currentTime);
+        mg.connect(c.destination);
+        mg.gain.linearRampToValueAtTime(1, c.currentTime + 1.5);
+        currentAmbience = synthBuilder(c, mg);
+      }
+    }).catch(() => {
+      clearTimeout(timeout);
+      if (!started && synthBuilder && currentAmbienceName === name) {
+        started = true;
+        const mg = c.createGain();
+        mg.gain.setValueAtTime(0, c.currentTime);
+        mg.connect(c.destination);
+        mg.gain.linearRampToValueAtTime(1, c.currentTime + 1.5);
+        currentAmbience = synthBuilder(c, mg);
+      }
+    });
   } catch {
     // Audio not available — silent fail
   }
