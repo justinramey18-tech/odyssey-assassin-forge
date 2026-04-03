@@ -1620,6 +1620,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         onWhisperTrayEnabledChange={setWhisperTrayEnabled}
         cinematicModeEnabled={cinematicModeEnabled}
         onCinematicModeEnabledChange={setCinematicMode}
+        onAudioLibrary={() => setShowAudioLibrary(true)}
         empyreanConfig={config ? { campaignFocus: config.campaignFocus, dragonName: config.dragonName, signetType: config.signetType, yearAtBasgiath: config.yearAtBasgiath } : null}
         dragonNotes={dragonNotes}
         onDragonNotesChange={handleDragonNotesChange}
