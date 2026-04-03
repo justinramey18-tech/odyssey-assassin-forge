@@ -23,7 +23,13 @@ const SITUATION_META: Record<string, { label: string; emoji: string; color: stri
   exploration: { label: 'Exploration', emoji: '🔍', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
   training:    { label: 'Training',    emoji: '📖', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
   downtime:    { label: 'Downtime',    emoji: '🏕️', color: 'bg-purple-500/20 text-purple-300 border-purple-500/30' },
-  crisis:      { label: 'Crisis',      emoji: '🚨', color: 'bg-orange-500/20 text-orange-300 border-orange-500/30' },
+  crisis:        { label: 'Crisis',        emoji: '🚨', color: 'bg-orange-500/20 text-orange-300 border-orange-500/30' },
+  flight:        { label: 'Flight',        emoji: '🦅', color: 'bg-sky-500/20 text-sky-300 border-sky-500/30' },
+  stealth:       { label: 'Stealth',       emoji: '🥷', color: 'bg-zinc-500/20 text-zinc-300 border-zinc-500/30' },
+  political:     { label: 'Political',     emoji: '🏛️', color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
+  wardline:      { label: 'Ward Line',     emoji: '🛡️', color: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' },
+  investigation: { label: 'Investigation', emoji: '🕵️', color: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' },
+  ritual:        { label: 'Ritual',        emoji: '🔮', color: 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/30' },
 };
 
 const EXECUTION_FIRE_AUDIO_URL = '/audio/dragon-execution-fire.mp3';
