@@ -219,6 +219,27 @@ function buildUnbondedActions(char: string): Record<string, ActionItem[]> {
       { id: 'u-survive', label: 'Survive', emoji: '🔥', prompt: `${char} fights to survive the crisis with no dragon and no signet. Just human against whatever is coming. Make it desperate.` },
       { id: 'u-sacrifice', label: 'Put Yourself in Danger', emoji: '⚠️', prompt: `${char} steps into danger to protect someone else. Without a dragon bond as a safety net, this could be fatal. Narrate the stakes.` },
     ],
+    flight: [
+      { id: 'u-ground-watch', label: 'Watch From Ground', emoji: '👀', prompt: `${char} watches the riders fly overhead. Describe what it feels like to be earthbound while others soar.` },
+    ],
+    stealth: [
+      { id: 'u-sneak', label: 'Move Unseen', emoji: '🌑', prompt: `${char} moves through Basgiath unseen. Without a dragon bond humming in their mind, the silence is absolute. Describe the stealth.` },
+      { id: 'u-listen', label: 'Eavesdrop', emoji: '👂', prompt: `${char} listens in on a conversation. Unbonded riders are easy to overlook. Use that.` },
+    ],
+    political: [
+      { id: 'u-stand', label: 'Stand Your Ground', emoji: '💪', prompt: `${char} makes a political argument despite having no dragon, no signet, no leverage — only conviction. Describe the audacity and the reaction.` },
+    ],
+    wardline: [
+      { id: 'u-footpatrol', label: 'Ground Patrol', emoji: '🚶', prompt: `${char} patrols the ward line on foot. Without a dragon's senses, they rely on their own. Describe what they notice.` },
+    ],
+    investigation: [
+      { id: 'u-dig', label: 'Dig Deeper', emoji: '🔍', prompt: `${char} investigates without signet abilities. Old-fashioned observation, logic, and persistence. Describe the detective work.` },
+      { id: 'u-overlooked', label: 'The Overlooked', emoji: '👻', prompt: `${char} uses their invisibility as an unbonded rider to access places and conversations that bonded riders can't.` },
+    ],
+    ritual: [
+      { id: 'u-witness-threshing', label: 'Watch the Threshing', emoji: '🐉', prompt: `${char} witnesses a Threshing ceremony. Describe the hunger to bond, the dragons evaluating candidates, the hope and dread.` },
+      { id: 'u-prove-worthy', label: 'Prove Worthy', emoji: '🔥', prompt: `${char} performs an act during the ceremony that draws attention — from riders, from officers, or from a dragon.` },
+    ],
   };
 }
 
