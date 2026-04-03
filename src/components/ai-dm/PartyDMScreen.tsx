@@ -878,6 +878,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const { cinematicModeEnabled, setCinematicMode } = useCinematicMode();
   const [showSlideshow, setShowSlideshow] = useState(false);
+  const [partySituation, setPartySituation] = useState('exploration');
   const [slideshowSlides, setSlideshowSlides] = useState<import('@/lib/parseSlides').Slide[]>([]);
   const lastSlideshowMsgIdRef = useRef<string | null>(null);
   const dmPolls = useDmPolls(partyId || null);
@@ -1066,6 +1067,24 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     if (lastMsg.role === 'assistant' && lastMsg.id !== lastProcessedMsgIdRef.current && lastMsg.content) {
       lastProcessedMsgIdRef.current = lastMsg.id;
       spotify.playMoodForText(lastMsg.content);
+
+      // Non-blocking AI situation detection
+      (async () => {
+        try {
+          const token = (await supabase.auth.getSession()).data.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+          const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/detect-situation`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ text: lastMsg.content.slice(0, 2000) }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.situation) {
+              setPartySituation(data.situation);
+            }
+          }
+        } catch { /* non-blocking */ }
+      })();
     }
   }, [partyDm.messages, spotify.autoMoodEnabled, spotify.connected, spotify.playMoodForText]);
 
