@@ -79,6 +79,8 @@ export function DMToolsDrawer({
   onChatThemeChange,
   whisperTrayEnabled,
   onWhisperTrayEnabledChange,
+  cinematicModeEnabled,
+  onCinematicModeEnabledChange,
   empyreanConfig,
   dragonNotes,
   onDragonNotesChange,
