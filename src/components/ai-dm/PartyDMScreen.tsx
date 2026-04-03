@@ -878,6 +878,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const { cinematicModeEnabled, setCinematicMode } = useCinematicMode();
   const [showSlideshow, setShowSlideshow] = useState(false);
+  const [partySituation, setPartySituation] = useState('exploration');
   const [slideshowSlides, setSlideshowSlides] = useState<import('@/lib/parseSlides').Slide[]>([]);
   const lastSlideshowMsgIdRef = useRef<string | null>(null);
   const dmPolls = useDmPolls(partyId || null);
