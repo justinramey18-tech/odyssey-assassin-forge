@@ -3,6 +3,7 @@ import { AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import type { Slide } from '@/lib/parseSlides';
 import SlideRenderer from '@/components/empyrean/SlideRenderer';
+import SlideshowVFX from '@/components/empyrean/SlideshowVFX';
 
 const MOOD_COLORS: Record<string, string> = {
   neutral: '#08080f',
@@ -63,7 +64,7 @@ export default function CinematicSlideshow({ slides, onComplete }: CinematicSlid
   return (
     <div
       onClick={handleTap}
-      className="fixed inset-0 z-[75] flex flex-col select-none"
+      className="fixed inset-0 z-[75] flex flex-col select-none cinematic-slideshow-root"
       style={{
         backgroundColor: bgColor,
         transition: 'background-color 1.5s ease',
@@ -72,6 +73,12 @@ export default function CinematicSlideshow({ slides, onComplete }: CinematicSlid
         cursor: 'pointer',
       }}
     >
+      {/* Visual Effects Layer */}
+      <SlideshowVFX
+        slideVfx={currentSlide?.vfx ?? []}
+        slideKey={currentIndex}
+      />
+
       {/* Close button */}
       <div className="absolute top-3 right-3 z-10">
         <button
