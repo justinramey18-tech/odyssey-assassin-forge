@@ -7,6 +7,7 @@ const KEYS = {
   expiresAt: 'spotify_expires_at',
   codeVerifier: 'spotify_code_verifier',
   moodPresets: 'spotify_mood_presets',
+  moodPresetsVersion: 'spotify_mood_presets_version',
   autoMood: 'spotify_auto_mood',
 } as const;
 
