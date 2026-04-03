@@ -42,9 +42,23 @@ export default function CinematicSlideshow({ slides, onComplete }: CinematicSlid
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update background color when mood changes
+  // Trigger mood, SFX, and ambience on slide change
   useEffect(() => {
-    if (currentSlide?.mood && MOOD_COLORS[currentSlide.mood]) {
+    if (!currentSlide) return;
+
+    // Update mood background color
+    if (currentSlide.mood && MOOD_COLORS[currentSlide.mood]) {
       setBgColor(MOOD_COLORS[currentSlide.mood]);
+    }
+
+    // Play one-shot sound effects
+    for (const sfx of currentSlide.sfx) {
+      playSFX(sfx);
+    }
+
+    // Set ambience (persists until changed)
+    if (currentSlide.ambience) {
+      setAmbience(currentSlide.ambience);
     }
   }, [currentIndex, currentSlide]);
 
