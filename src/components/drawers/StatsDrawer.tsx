@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { isEmpyreanMode, getAbilityAbbr } from '@/lib/empyreanLabels';
 import { Heart, Sparkles, Plus, Minus, Shield, Zap, Swords, Weight, Target, Eye, Save, Move, Gem, Info, ChevronDown, ChevronUp, Users, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
