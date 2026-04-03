@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2, Brain, Cpu, Palette, Eye, Theater, Megaphone, Film } from 'lucide-react';
+import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2, Brain, Cpu, Palette, Eye, Theater, Megaphone, Film, Music } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import {
@@ -43,6 +43,7 @@ interface DMToolsDrawerProps {
   onWhisperTrayEnabledChange?: (enabled: boolean) => void;
   cinematicModeEnabled?: boolean;
   onCinematicModeEnabledChange?: (enabled: boolean) => void;
+  onAudioLibrary?: () => void;
   empyreanConfig?: { campaignFocus: string; dragonName: string; signetType: string; yearAtBasgiath: string } | null;
   dragonNotes?: string;
   onDragonNotesChange?: (notes: string) => void;
@@ -81,6 +82,7 @@ export function DMToolsDrawer({
   onWhisperTrayEnabledChange,
   cinematicModeEnabled,
   onCinematicModeEnabledChange,
+  onAudioLibrary,
   empyreanConfig,
   dragonNotes,
   onDragonNotesChange,
@@ -347,6 +349,15 @@ export function DMToolsDrawer({
                 onCheckedChange={onCinematicModeEnabledChange}
               />
             </div>
+          )}
+
+          {/* Audio Library */}
+          {onAudioLibrary && (
+            <ToolRow
+              icon={<Music className="w-4 h-4" />}
+              label="Audio Library"
+              onClick={() => { onAudioLibrary(); onOpenChange(false); }}
+            />
           )}
 
           {/* Threshing Authorization — only visible when unbonded */}

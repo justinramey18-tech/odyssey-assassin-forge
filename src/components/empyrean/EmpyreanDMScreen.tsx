@@ -27,6 +27,7 @@ import { useAIDM } from '@/hooks/use-ai-dm';
 import { useCampaignSessions, CampaignSession } from '@/hooks/use-campaign-sessions';
 import { CampaignDropdown } from '@/components/ai-dm/CampaignDropdown';
 import { CampaignSessionsManager } from '@/components/ai-dm/CampaignSessionsManager';
+import { AudioLibraryManager } from '@/components/ai-dm/AudioLibraryManager';
 import { DMToolsDrawer } from '@/components/ai-dm/DMToolsDrawer';
 import { DMBottomNav, DMNavTab } from '@/components/ai-dm/DMBottomNav';
 import { DMDiceRoller } from '@/components/ai-dm/DMDiceRoller';
@@ -201,6 +202,7 @@ export function EmpyreanDMScreen({
   const [showSaves, setShowSaves] = useState(false);
   const [showGuides, setShowGuides] = useState(false);
   const [showWorldState, setShowWorldState] = useState(false);
+  const [showAudioLibrary, setShowAudioLibrary] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [showNpcScene, setShowNpcScene] = useState(false);
   const [showOocChat, setShowOocChat] = useState(false);
@@ -1618,6 +1620,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         onWhisperTrayEnabledChange={setWhisperTrayEnabled}
         cinematicModeEnabled={cinematicModeEnabled}
         onCinematicModeEnabledChange={setCinematicMode}
+        onAudioLibrary={() => setShowAudioLibrary(true)}
         empyreanConfig={config ? { campaignFocus: config.campaignFocus, dragonName: config.dragonName, signetType: config.signetType, yearAtBasgiath: config.yearAtBasgiath } : null}
         dragonNotes={dragonNotes}
         onDragonNotesChange={handleDragonNotesChange}
@@ -1650,6 +1653,11 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
             onRename={renameCampaignSession}
           />
         </div>
+      )}
+
+      {/* Audio Library */}
+      {showAudioLibrary && (
+        <AudioLibraryManager onBack={() => setShowAudioLibrary(false)} />
       )}
 
       {/* GM Guides Overlay */}
