@@ -17,6 +17,11 @@ export async function checkForUpdate(force = false): Promise<boolean> {
     if (registration.waiting) {
       // New version is ready — wait for the new worker to take control, then reload
       navigator.serviceWorker.addEventListener('controllerchange', () => {
+        // Don't reload if a file picker is open (iOS PWA backgrounding)
+        if (isReloadSuppressed()) {
+          console.info('[AutoUpdate] Reload suppressed — file picker active');
+          return;
+        }
         window.location.reload();
       }, { once: true });
       registration.waiting.postMessage({ type: 'SKIP_WAITING' });
