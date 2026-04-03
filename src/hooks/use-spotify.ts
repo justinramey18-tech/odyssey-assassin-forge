@@ -472,7 +472,7 @@ export function useSpotify() {
     } catch (e) {
       console.error('[Spotify] playPresetById error:', e);
     }
-  }, [connected, autoMoodEnabled, moodPresets, playPlaylist]);
+  }, [connected, moodPresets, playPlaylist]);
 
   return {
     connected,
