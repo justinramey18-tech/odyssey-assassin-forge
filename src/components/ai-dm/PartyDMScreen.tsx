@@ -865,6 +865,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [showDeathTransition, setShowDeathTransition] = useState(false);
   const narrator = useNarrator();
   const spotify = useSpotify();
+  const drawerContext = usePromptDrawers();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const dmPolls = useDmPolls(partyId || null);
   const partyNPCNames = useNPCAutocomplete(partyDm.messages as any);
