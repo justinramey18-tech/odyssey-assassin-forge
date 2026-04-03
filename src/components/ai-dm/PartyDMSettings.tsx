@@ -161,6 +161,7 @@ export function PartyDMSettings({
   onShowScheduledEvents, scheduledEventsCount = 0,
   members = [], coHostIds = [], currentUserId, onPromoteCoHost, onDemoteCoHost,
   whisperTrayEnabled, onWhisperTrayEnabledChange,
+  cinematicModeEnabled, onCinematicModeEnabledChange,
   onShowMemoryAnchors, memoryAnchorsCount = 0,
   onShowQuests, questsCount = 0,
   responseMode, onResponseModeChange,
