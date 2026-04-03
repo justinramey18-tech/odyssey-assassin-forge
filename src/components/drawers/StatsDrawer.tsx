@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { isEmpyreanMode, getAbilityAbbr } from '@/lib/empyreanLabels';
 import { Heart, Sparkles, Plus, Minus, Shield, Zap, Swords, Weight, Target, Eye, Save, Move, Gem, Info, ChevronDown, ChevronUp, Users, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -88,6 +89,7 @@ export function StatsDrawer({
   multiclassLevels = {},
   onHeal,
 }: StatsDrawerProps) {
+  const empyrean = isEmpyreanMode();
   // Local HP state (with default values based on level)
   const defaultMaxHP = 8 + (level - 1) * 5; // Simple formula: 8 + 5 per level
   const [localCurrentHP, setLocalCurrentHP] = useState(propCurrentHP ?? defaultMaxHP);
@@ -153,7 +155,7 @@ export function StatsDrawer({
     updateHP(newCurrent, tempHP);
     setHpDelta('');
     
-    toast.success(`${characterName} heals for ${amount} HP!`);
+    toast.success(`${characterName} heals for ${amount} ${empyrean ? 'Vitality' : 'HP'}!`);
   };
 
   const handleAddTempHP = () => {
@@ -163,7 +165,7 @@ export function StatsDrawer({
     updateHP(currentHP, newTemp);
     setHpDelta('');
     
-    toast.success(`${characterName} gains ${amount} temporary HP!`);
+    toast.success(`${characterName} gains ${amount} ${empyrean ? 'temporary Vitality' : 'temporary HP'}!`);
   };
 
   const handleQuickXP = (rewardType: XPRewardType) => {
@@ -219,7 +221,7 @@ export function StatsDrawer({
           >
             <Heart className="w-5 h-5" />
           </span>
-          <h2 className="text-lg font-cinzel" style={{ color: '#ef4444' }}>Stats</h2>
+          <h2 className="text-lg font-cinzel" style={{ color: '#ef4444' }}>{empyrean ? 'Rider Stats' : 'Stats'}</h2>
         </div>
         <button
           onClick={() => onOpenChange(false)}
@@ -247,7 +249,7 @@ export function StatsDrawer({
                 <div className="p-3 rounded-lg border bg-blue-500/10 border-blue-500/40 text-center">
                   <Shield className="w-5 h-5 mx-auto text-blue-400 mb-1" />
                   <div className="text-2xl font-bold text-blue-400">{equipmentStats.totalAC}</div>
-                  <div className="text-[10px] text-muted-foreground uppercase">AC</div>
+                  <div className="text-[10px] text-muted-foreground uppercase">{empyrean ? 'Defense' : 'AC'}</div>
                   {equipmentStats.acFromGear > 0 && (
                     <div className="text-[9px] text-blue-400/70">+{equipmentStats.acFromGear} gear</div>
                   )}
@@ -290,12 +292,12 @@ export function StatsDrawer({
                     Attribute Bonuses
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    {renderStatBonus(equipmentStats.strength, 'STR', <Swords className="w-3 h-3" />, '#ef4444')}
-                    {renderStatBonus(equipmentStats.dexterity, 'DEX', <Move className="w-3 h-3" />, '#22c55e')}
-                    {renderStatBonus(equipmentStats.constitution, 'CON', <Heart className="w-3 h-3" />, '#f97316')}
-                    {renderStatBonus(equipmentStats.intelligence, 'INT', <Sparkles className="w-3 h-3" />, '#3b82f6')}
-                    {renderStatBonus(equipmentStats.wisdom, 'WIS', <Eye className="w-3 h-3" />, '#a855f7')}
-                    {renderStatBonus(equipmentStats.charisma, 'CHA', <Gem className="w-3 h-3" />, '#ec4899')}
+                    {renderStatBonus(equipmentStats.strength, getAbilityAbbr('str', 'STR'), <Swords className="w-3 h-3" />, '#ef4444')}
+                    {renderStatBonus(equipmentStats.dexterity, getAbilityAbbr('dex', 'DEX'), <Move className="w-3 h-3" />, '#22c55e')}
+                    {renderStatBonus(equipmentStats.constitution, getAbilityAbbr('con', 'CON'), <Heart className="w-3 h-3" />, '#f97316')}
+                    {renderStatBonus(equipmentStats.intelligence, getAbilityAbbr('int', 'INT'), <Sparkles className="w-3 h-3" />, '#3b82f6')}
+                    {renderStatBonus(equipmentStats.wisdom, getAbilityAbbr('wis', 'WIS'), <Eye className="w-3 h-3" />, '#a855f7')}
+                    {renderStatBonus(equipmentStats.charisma, getAbilityAbbr('cha', 'CHA'), <Gem className="w-3 h-3" />, '#ec4899')}
                   </div>
                 </div>
               )}
@@ -307,7 +309,7 @@ export function StatsDrawer({
                     Other Bonuses
                   </div>
                   <div className="space-y-1">
-                    {renderStatBonus(equipmentStats.perception, 'Perception', <Eye className="w-3 h-3" />, '#a855f7')}
+                    {renderStatBonus(equipmentStats.perception, empyrean ? 'Awareness' : 'Perception', <Eye className="w-3 h-3" />, '#a855f7')}
                     {renderStatBonus(equipmentStats.saves, 'Saving Throws', <Save className="w-3 h-3" />, '#22c55e')}
                     {renderStatBonus(equipmentStats.movement, 'Movement', <Move className="w-3 h-3" />, '#3b82f6')}
                   </div>
@@ -347,7 +349,7 @@ export function StatsDrawer({
                 <button className="w-full flex items-center justify-between py-2 px-3 rounded-md border border-border/50 bg-card/50 hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-primary" />
-                    <span className="text-xs font-semibold uppercase tracking-wider">Class & Hit Dice</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider">{empyrean ? 'Role & Hit Dice' : 'Class & Hit Dice'}</span>
                   </div>
                   {showClassSection ? (
                     <ChevronUp className="w-4 h-4 text-muted-foreground" />
@@ -410,7 +412,7 @@ export function StatsDrawer({
           <div className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
               <Heart className="w-4 h-4" style={{ color: hpColor }} />
-              Hit Points
+              {empyrean ? 'Vitality' : 'Hit Points'}
             </h3>
             
             {/* HP Display */}
@@ -458,7 +460,7 @@ export function StatsDrawer({
               {showHPBreakdown && (
                 <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
-                    HP Breakdown ({HP_CONFIG.HIT_DIE})
+                    {empyrean ? 'Vitality' : 'HP'} Breakdown ({HP_CONFIG.HIT_DIE})
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="flex justify-between px-2 py-1 rounded bg-white/5">
@@ -475,7 +477,7 @@ export function StatsDrawer({
                       "flex justify-between px-2 py-1 rounded",
                       hpBreakdown.constitutionHP >= 0 ? "bg-orange-500/10" : "bg-rose-500/10"
                     )}>
-                      <span className="text-orange-400">CON ({constitutionModifier >= 0 ? '+' : ''}{constitutionModifier})</span>
+                      <span className="text-orange-400">{getAbilityAbbr('con', 'CON')} ({constitutionModifier >= 0 ? '+' : ''}{constitutionModifier})</span>
                       <span className={cn(
                         "font-mono",
                         hpBreakdown.constitutionHP >= 0 ? "text-orange-400" : "text-rose-400"
@@ -491,7 +493,7 @@ export function StatsDrawer({
                     )}
                   </div>
                   <div className="flex justify-between px-2 py-1.5 rounded bg-white/10 font-semibold text-sm mt-2">
-                    <span>Total Max HP</span>
+                    <span>{empyrean ? 'Total Max Vitality' : 'Total Max HP'}</span>
                     <span className="font-mono" style={{ color: hpColor }}>{hpBreakdown.totalHP}</span>
                   </div>
                 </div>
@@ -534,7 +536,7 @@ export function StatsDrawer({
               className="w-full gap-1 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/20"
             >
               <Shield className="w-3 h-3" />
-              Add Temp HP
+              {empyrean ? 'Add Temp Vitality' : 'Add Temp HP'}
             </Button>
           </div>
 
