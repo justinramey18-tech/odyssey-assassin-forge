@@ -387,6 +387,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const { themeId: chatThemeId, theme: chatTheme, setTheme: setChatTheme } = useDMChatTheme();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const spotify = useSpotify();
+  const { weather } = useWeather();
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
 
