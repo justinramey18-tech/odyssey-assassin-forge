@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { parseResponseIntoSlides, stripCinematicTags } from '@/lib/parseSlides';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
+import { useWeather } from '@/hooks/use-weather';
+import { weatherToNarrativeContext } from '@/lib/weather';
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
 import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle, Theater, Megaphone, Minus, Plus, Sparkles } from 'lucide-react';
 import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
@@ -344,9 +346,15 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
   }, [config, characterName, dragonNotes, dragonBond.bondState, dragonBond.bondState.totalChatExchanges, isUnbonded, threshingAuthorized]);
 
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
+  const { weather } = useWeather();
   const gameState = useDMGameState(trackingCampaignId);
-  const worldStatePrompt = useMemo(() => buildMemoryAnchorsPrompt(gameState.gameState), [gameState.gameState]);
-
+  const worldStatePrompt = useMemo(() => {
+    let prompt = buildMemoryAnchorsPrompt(gameState.gameState);
+    if (weather) {
+      prompt += '\n\n## CURRENT WEATHER (REAL-WORLD SYNC)\n' + weatherToNarrativeContext(weather) + '\nWeave this weather naturally into your narration when describing outdoor scenes, travel, or environments. Do not mention it every response — only when it is relevant to the scene. If the party is indoors, the weather may be heard or seen through windows but should not dominate.';
+    }
+    return prompt;
+  }, [gameState.gameState, weather]);
 
   const oocDmChat = useOocDmChat({
     characterContext,
