@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
-import { User, Swords, Wand2, BookOpen, Settings, ChevronRight, Mic, Code, Music, Send } from 'lucide-react';
+import { User, Swords, Wand2, BookOpen, Settings, ChevronRight, Mic, Code, Music, Send, Cloud } from 'lucide-react';
 
-export type SettingsTab = 'character' | 'gameplay' | 'customizations' | 'gameMaster' | 'elevenlabs' | 'spotify' | 'telegram' | 'appSystem' | 'devTools';
+export type SettingsTab = 'character' | 'gameplay' | 'customizations' | 'gameMaster' | 'elevenlabs' | 'spotify' | 'telegram' | 'weather' | 'appSystem' | 'devTools';
 
 interface TabConfig {
   id: SettingsTab;
@@ -59,6 +59,13 @@ const tabs: TabConfig[] = [
     label: 'Telegram',
     icon: Send,
     description: 'Notifications & commands',
+    color: 'text-sky-400'
+  },
+  {
+    id: 'weather',
+    label: 'Weather',
+    icon: Cloud,
+    description: 'Live weather overlays',
     color: 'text-sky-400'
   },
   { 

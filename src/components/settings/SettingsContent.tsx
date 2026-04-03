@@ -45,6 +45,7 @@ import { DevToolsPanel } from './DevToolsPanel';
 import { SpotifySettingsTab } from './SpotifySettingsTab';
 import { CharacterIdentityEditor } from './CharacterIdentityEditor';
 import { TelegramSettingsTab } from './TelegramSettingsTab';
+import { WeatherSettingsTab } from './WeatherSettingsTab';
 interface SettingsContentProps {
   activeTab: SettingsTab;
   characterName: string;
@@ -588,6 +589,11 @@ export function SettingsContent({
   // ─── TELEGRAM ───
   if (activeTab === 'telegram') {
     return <TelegramSettingsTab />;
+  }
+
+  // ─── WEATHER ───
+  if (activeTab === 'weather') {
+    return <WeatherSettingsTab />;
   }
 
   // ─── APP & SYSTEM ───
