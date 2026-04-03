@@ -351,6 +351,15 @@ export function DMToolsDrawer({
             </div>
           )}
 
+          {/* Audio Library */}
+          {onAudioLibrary && (
+            <ToolRow
+              icon={<Music className="w-4 h-4" />}
+              label="Audio Library"
+              onClick={() => { onAudioLibrary(); onOpenChange(false); }}
+            />
+          )}
+
           {/* Threshing Authorization — only visible when unbonded */}
           {isUnbonded && (
             <div className="mt-4 mx-1 p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
