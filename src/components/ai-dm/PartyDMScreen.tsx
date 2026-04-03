@@ -780,7 +780,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
               {stripCinematicTagsFromDisplay(message.content.slice(message.content.indexOf(']: ') + 3))}
             </ReactMarkdown>
           ) : (
-            <AfkAnnotatedContent content={message.content} afkNames={extractAfkNames(message.content)} />
+            <AfkAnnotatedContent content={stripCinematicTagsFromDisplay(message.content)} afkNames={extractAfkNames(message.content)} />
           )}
         </p>
         )}
