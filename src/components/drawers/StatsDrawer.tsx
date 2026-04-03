@@ -165,7 +165,7 @@ export function StatsDrawer({
     updateHP(currentHP, newTemp);
     setHpDelta('');
     
-    toast.success(`${characterName} gains ${amount} temporary HP!`);
+    toast.success(`${characterName} gains ${amount} ${empyrean ? 'temporary Vitality' : 'temporary HP'}!`);
   };
 
   const handleQuickXP = (rewardType: XPRewardType) => {
