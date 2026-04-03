@@ -989,7 +989,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
               <span className="truncate max-w-[140px]">{characterName}{!isUnbonded && config.dragonName ? ` & ${config.dragonName}` : ''}</span>
               {isUnbonded ? (
                 <span className="text-muted-foreground text-[10px]">No signet</span>
-              ) : config.signetType && (
+              ) : !isUnbonded && maxBurnout > 0 && (
                 <div className="flex items-center gap-1">
                   <BurnoutIndicator level={burnoutLevel} maxBurnout={maxBurnout} />
                   <button
