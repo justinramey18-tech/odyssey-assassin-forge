@@ -330,6 +330,25 @@ export function DMToolsDrawer({
             </div>
           )}
 
+          {/* Cinematic Mode toggle */}
+          {onCinematicModeEnabledChange != null && (
+            <div className="flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors">
+              <div className="flex items-center gap-3">
+                <span className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center",
+                  cinematicModeEnabled ? "bg-amber-900/40 text-amber-400" : "bg-white/5 text-white/40"
+                )}>
+                  <Film className="w-4 h-4" />
+                </span>
+                <span className="text-sm font-cinzel text-white/80">Cinematic Mode</span>
+              </div>
+              <Switch
+                checked={cinematicModeEnabled ?? true}
+                onCheckedChange={onCinematicModeEnabledChange}
+              />
+            </div>
+          )}
+
           {/* Threshing Authorization — only visible when unbonded */}
           {isUnbonded && (
             <div className="mt-4 mx-1 p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
