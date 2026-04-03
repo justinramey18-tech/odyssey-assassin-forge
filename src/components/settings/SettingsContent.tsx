@@ -590,6 +590,11 @@ export function SettingsContent({
     return <TelegramSettingsTab />;
   }
 
+  // ─── WEATHER ───
+  if (activeTab === 'weather') {
+    return <WeatherSettingsTab />;
+  }
+
   // ─── APP & SYSTEM ───
   if (activeTab === 'appSystem') {
     return (

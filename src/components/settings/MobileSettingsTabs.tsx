@@ -61,6 +61,13 @@ const tabs: TabConfig[] = [
     description: 'Notifications & commands',
     color: 'text-sky-400'
   },
+  {
+    id: 'weather',
+    label: 'Weather',
+    icon: Cloud,
+    description: 'Live weather overlays',
+    color: 'text-sky-400'
+  },
   { 
     id: 'appSystem',
     label: 'App & System', 
