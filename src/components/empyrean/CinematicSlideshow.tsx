@@ -4,7 +4,7 @@ import { X } from 'lucide-react';
 import type { Slide } from '@/lib/parseSlides';
 import SlideRenderer from '@/components/empyrean/SlideRenderer';
 import SlideshowVFX from '@/components/empyrean/SlideshowVFX';
-import { getCtx } from '@/lib/slideshowAudioEngine';
+import { playSFX, setAmbience, stopAll as stopAllAudio, getCtx } from '@/lib/slideshowAudioEngine';
 import { preloadAudioFiles, extractAudioNames } from '@/lib/slideshowAudioLoader';
 
 const MOOD_COLORS: Record<string, string> = {
@@ -42,14 +42,29 @@ export default function CinematicSlideshow({ slides, onComplete }: CinematicSlid
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update background color when mood changes
+  // Trigger mood, SFX, and ambience on slide change
   useEffect(() => {
-    if (currentSlide?.mood && MOOD_COLORS[currentSlide.mood]) {
+    if (!currentSlide) return;
+
+    // Update mood background color
+    if (currentSlide.mood && MOOD_COLORS[currentSlide.mood]) {
       setBgColor(MOOD_COLORS[currentSlide.mood]);
+    }
+
+    // Play one-shot sound effects
+    for (const sfx of currentSlide.sfx) {
+      playSFX(sfx);
+    }
+
+    // Set ambience (persists until changed)
+    if (currentSlide.ambience) {
+      setAmbience(currentSlide.ambience);
     }
   }, [currentIndex, currentSlide]);
 
   const advance = useCallback(() => {
     if (isLastSlide) {
+      stopAllAudio();
       onComplete();
     } else {
       setCurrentIndex(prev => prev + 1);
@@ -95,7 +110,7 @@ export default function CinematicSlideshow({ slides, onComplete }: CinematicSlid
       {/* Close button */}
       <div className="absolute top-3 right-3 z-10">
         <button
-          onClick={(e) => { e.stopPropagation(); onComplete(); }}
+          onClick={(e) => { e.stopPropagation(); stopAllAudio(); onComplete(); }}
           className="w-8 h-8 rounded-full flex items-center justify-center bg-white/5 border border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10 transition-colors"
           style={{ touchAction: 'manipulation' }}
         >
@@ -133,7 +148,7 @@ export default function CinematicSlideshow({ slides, onComplete }: CinematicSlid
         {isLastSlide ? (
           <p
             className="text-center font-serif text-sm italic text-amber-400/70 cursor-pointer"
-            onClick={(e) => { e.stopPropagation(); onComplete(); }}
+            onClick={(e) => { e.stopPropagation(); stopAllAudio(); onComplete(); }}
             style={{ touchAction: 'manipulation' }}
           >
             Your turn. What do you do?

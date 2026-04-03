@@ -46,6 +46,7 @@ function extractSpeaker(text: string): string | undefined {
 export function stripCinematicTags(content: string): string {
   return content
     .replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '')
+    .replace(/<[^>]*>/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -65,7 +66,8 @@ export function parseResponseIntoSlides(rawContent: string): Slide[] {
     }
 
     // Strip tags from display text
-    const cleanText = block.replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '').trim();
+    const withoutCinematicTags = block.replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '');
+    const cleanText = withoutCinematicTags.replace(/<[^>]*>/g, '').trim();
 
     // If block was ONLY tags (no text after stripping), carry tags to next paragraph
     if (!cleanText) {
