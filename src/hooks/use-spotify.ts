@@ -228,7 +228,7 @@ export function useSpotify() {
       const devices = await getDevices();
       const activeDevice = devices?.find((d: any) => d.is_active);
 
-      // Prefer active external device, fall back to SDK browser device
+      // Priority: active device > SDK browser player > any listed device
       let targetDeviceId = activeDevice?.id;
       let targetDeviceName = activeDevice?.name;
 
@@ -240,29 +240,50 @@ export function useSpotify() {
         targetDeviceName = devices[0].name;
       }
 
-      if (!targetDeviceId) {
-        // Auto-retry up to 3 times (wait for SDK to initialize)
-        if (isPremium !== false && retryCount < 3) {
-          if (retryCount === 0) {
-            toast.info('Browser player is loading — hang on...', { duration: 3000 });
-          }
-          setTimeout(() => playPlaylist(playlistUri, retryCount + 1), 2000);
-          return;
-        }
-
-        if (isPremium === false) {
-          toast.error('No Spotify device found. Open Spotify on your phone or computer first, then try again.', { duration: 6000 });
-        } else {
-          toast.error('No Spotify device found. Try again in a moment or open Spotify on another device.', { duration: 6000 });
-        }
+      if (targetDeviceId) {
+        // We have a device — play on it directly
+        await play({ context_uri: playlistUri, device_id: targetDeviceId });
+        toast.success(`Now playing on ${targetDeviceName}`);
         return;
       }
 
-      await play({ context_uri: playlistUri, device_id: targetDeviceId });
-      toast.success(`Now playing on ${targetDeviceName}`);
+      // No device found in device list. This is common on mobile where the
+      // Spotify app doesn't always register as a Connect device.
+      // Try playing WITHOUT a device_id — Spotify will route to the last
+      // active device automatically. This often works on mobile.
+      try {
+        await play({ context_uri: playlistUri });
+        toast.success('Now playing on Spotify');
+        return;
+      } catch (devicelessError: any) {
+        // Device-less play failed too. If we haven't retried yet, wait and retry.
+        if (retryCount < 2) {
+          if (retryCount === 0) {
+            toast.info('Looking for Spotify... make sure the app is open', { duration: 4000 });
+          }
+          setTimeout(() => playPlaylist(playlistUri, retryCount + 1), 3000);
+          return;
+        }
+
+        // All retries exhausted — show helpful error
+        toast.error(
+          'Could not reach Spotify. Tap play on any song in the Spotify app first, then try again.',
+          { duration: 8000 }
+        );
+      }
     } catch (e: any) {
-      if (e.message?.toLowerCase().includes('no active device')) {
-        toast.error('No Spotify device found. Open Spotify on your phone or computer first.', { duration: 6000 });
+      if (e.message?.toLowerCase().includes('no active device') || e.message?.toLowerCase().includes('player command failed')) {
+        // One more attempt without device_id before giving up
+        try {
+          await play({ context_uri: playlistUri });
+          toast.success('Now playing on Spotify');
+          return;
+        } catch {
+          toast.error(
+            'Could not reach Spotify. Tap play on any song in the Spotify app first, then try again.',
+            { duration: 8000 }
+          );
+        }
       } else {
         toast.error(e.message || 'Failed to play playlist');
       }
