@@ -54,7 +54,7 @@ function HPBar({
       )}
       style={{ transformOrigin: 'bottom', width: '22px' }}
     >
-      <div className="relative w-full h-full">
+      <button onClick={onTap} className="relative w-full h-full pointer-events-auto" style={{ touchAction: 'manipulation', minWidth: '22px' }} aria-label={`${label} HP: ${currentHP}/${maxHP}`}>
         {/* Bar background */}
         <div
           className={cn(
