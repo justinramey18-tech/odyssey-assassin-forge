@@ -8,6 +8,7 @@ import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import empyreanSpeaksImg from '@/assets/empyrean-speaks.jpg';
 import empyreanDmBg from '@/assets/empyrean-dm-bg.jpg';
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
+import CinematicSlideshow from '@/components/empyrean/CinematicSlideshow';
 import { setIsUnbonded } from '@/lib/dragonBondState';
 import DeathSaveScreen from '@/components/empyrean/DeathSaveScreen';
 import MemorialScreen from '@/components/empyrean/MemorialScreen';
@@ -55,6 +56,8 @@ import { ScheduledEventsSheet } from './ScheduledEventsSheet';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { CampaignSession } from '@/hooks/use-campaign-sessions';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
+import { useCinematicMode } from '@/hooks/use-cinematic-mode';
+import { parseResponseIntoSlides, stripCinematicTags } from '@/lib/parseSlides';
 import { useBroadcastPlaylist } from '@/hooks/use-broadcast-playlist';
 import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { WildShapeSection } from '@/components/drawers/QuickActionsDrawer';
@@ -867,6 +870,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const spotify = useSpotify();
   const drawerContext = usePromptDrawers();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
+  const { cinematicModeEnabled, setCinematicMode } = useCinematicMode();
+  const [showSlideshow, setShowSlideshow] = useState(false);
+  const [slideshowSlides, setSlideshowSlides] = useState<import('@/lib/parseSlides').Slide[]>([]);
+  const lastSlideshowMsgIdRef = useRef<string | null>(null);
   const dmPolls = useDmPolls(partyId || null);
   const partyNPCNames = useNPCAutocomplete(partyDm.messages as any);
   const isEmpyrean = partyDm.sessionConfig?.campaignType === 'empyrean';
@@ -1055,6 +1062,27 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       spotify.playMoodForText(lastMsg.content);
     }
   }, [partyDm.messages, spotify.autoMoodEnabled, spotify.connected, spotify.playMoodForText]);
+
+  // Cinematic slideshow trigger: detect new assistant DM messages
+  useEffect(() => {
+    if (!cinematicModeEnabled) return;
+    const msgs = partyDm.messages;
+    if (msgs.length === 0) return;
+    const lastMsg = msgs[msgs.length - 1];
+    if (
+      lastMsg.role === 'assistant' &&
+      lastMsg.sender_name === 'DM' &&
+      lastMsg.id !== lastSlideshowMsgIdRef.current &&
+      lastMsg.content
+    ) {
+      lastSlideshowMsgIdRef.current = lastMsg.id;
+      const slides = parseResponseIntoSlides(lastMsg.content);
+      if (slides.length > 1) {
+        setSlideshowSlides(slides);
+        setShowSlideshow(true);
+      }
+    }
+  }, [partyDm.messages, cinematicModeEnabled]);
 
   // Dragon narrative reaction: when a new DM message arrives in Empyrean mode,
   // trigger the dragon to react in the dragon chat
@@ -3552,6 +3580,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           }}
           onClearAllMemories={async () => {
             await dragonBonds.updateMyDragon({ memories: [] as any });
+          }}
+        />
+      )}
+
+      {/* Cinematic Slideshow */}
+      {showSlideshow && slideshowSlides.length > 0 && (
+        <CinematicSlideshow
+          slides={slideshowSlides}
+          onComplete={() => {
+            setShowSlideshow(false);
+            setSlideshowSlides([]);
           }}
         />
       )}
