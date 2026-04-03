@@ -391,7 +391,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
       if (autoSync.autoSyncEnabled) {
         autoSync.extractAndApply(content, characterContext);
       }
-      spotify.playMoodForText(content);
+      
 
       // Extract bond strain events
       const strainMatch = content.match(/<!--BOND_STRAIN:(.+?)-->/);
