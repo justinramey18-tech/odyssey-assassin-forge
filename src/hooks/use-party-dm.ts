@@ -161,6 +161,7 @@ interface UsePartyDmOptions {
   partyMembers: Array<{ character_name: string; character_status: Record<string, unknown>; user_id: string }>;
   customGuidesContent?: string;
   memoryAnchorsContent?: string;
+  worldStatePrompt?: string;
   partyDragonConfigs?: Array<{ userId: string; characterName: string; config: { dragonName: string; signetType: string; bond: number; trust: number; mood: string; burnout: number } }>;
   myDragonName?: string;
   onBurnoutDetected?: (level: number) => void;
@@ -172,7 +173,7 @@ interface UsePartyDmOptions {
   isSoloEmpyrean?: boolean;
 }
 
-export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, partyDragonConfigs, myDragonName, onBurnoutDetected, onBurnoutTickDetected, onBondStrainDetected, onBondGrowthDetected, onDragonMemoryDetected, onDragonBondFormed, isSoloEmpyrean }: UsePartyDmOptions) {
+export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, worldStatePrompt, partyDragonConfigs, myDragonName, onBurnoutDetected, onBurnoutTickDetected, onBondStrainDetected, onBondGrowthDetected, onDragonMemoryDetected, onDragonBondFormed, isSoloEmpyrean }: UsePartyDmOptions) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
   const [currentPrompts, setCurrentPrompts] = useState<PartyDmPrompt[]>([]);
@@ -1182,6 +1183,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         customGuides: extraGuides,
         partyContext: partyContext || undefined,
         memoryAnchors: memoryAnchorsContent || undefined,
+        worldStatePrompt: worldStatePrompt || undefined,
         recentPartyChat: recentPartyChat.length > 0 ? recentPartyChat : undefined,
         recentDragonChat: recentDragonChat.length > 0 ? recentDragonChat : undefined,
         recentDragonNetwork: recentDragonNetwork.length > 0 ? recentDragonNetwork : undefined,
@@ -1248,7 +1250,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       }
     }
     return assistantContent;
-  }, [characterContext, sessionConfig?.campaignSummary, memoryAnchorsContent, mergeConsecutiveRoles, fetchRecentPartyChat, fetchRecentDragonChat, fetchRecentDragonNetwork]);
+  }, [characterContext, sessionConfig?.campaignSummary, memoryAnchorsContent, worldStatePrompt, mergeConsecutiveRoles, fetchRecentPartyChat, fetchRecentDragonChat, fetchRecentDragonNetwork]);
 
 
   // Build party members system prompt section
