@@ -77,15 +77,6 @@ export default function CinematicSlideshow({ slides, onComplete }: CinematicSlid
     }
   }, [currentIndex]);
 
-  const handleTap = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    // If tap is in the left 60px, go back; otherwise advance
-    const x = e.clientX ?? (e as any).touches?.[0]?.clientX ?? 999;
-    if (x <= 60 && currentIndex > 0) {
-      goBack();
-    } else {
-      advance();
-    }
-  }, [advance, goBack, currentIndex]);
 
   if (!currentSlide) return null;
 
