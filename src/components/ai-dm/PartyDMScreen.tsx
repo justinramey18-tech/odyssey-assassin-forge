@@ -72,6 +72,7 @@ import { Flame } from 'lucide-react';
 import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 
 import { parseWhispers } from '@/lib/whisper-parser';
+import { formatForReadingMode, type FormattedReading } from '@/lib/reading-mode-formatter';
 
 function stripCinematicTagsFromDisplay(content: string): string {
   return content.replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '');
