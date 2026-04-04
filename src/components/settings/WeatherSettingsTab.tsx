@@ -158,7 +158,7 @@ export function WeatherSettingsTab() {
                   <p className="text-sm font-semibold text-foreground">
                     {Math.round(w.windSpeed)} mph {windDirectionToCompass(w.windDirection)}
                   </p>
-                  {w.windGusts > w.windSpeed && (
+                  {w.windGusts != null && w.windGusts > w.windSpeed && (
                     <p className="text-[10px] text-muted-foreground">Gusts: {Math.round(w.windGusts)} mph</p>
                   )}
                 </div>
