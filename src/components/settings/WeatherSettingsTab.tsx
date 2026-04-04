@@ -117,7 +117,7 @@ export function WeatherSettingsTab() {
                     {Math.round(w.temperature)}<span className="text-xl">°F</span>
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    H: {Math.round(w.tempMax)}° &nbsp; L: {Math.round(w.tempMin)}°
+                    H: {Math.round(w.tempMax ?? w.temperature)}° &nbsp; L: {Math.round(w.tempMin ?? w.temperature)}°
                   </p>
                 </div>
 
