@@ -5,7 +5,7 @@ import { SaveData } from './use-auto-save';
 import { setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
 import { SCOPED_KEYS } from '@/lib/scoped-keys';
 
-const CLOUD_DEBOUNCE_MS = 30000; // 30 seconds debounce for cloud saves
+const CLOUD_DEBOUNCE_MS = 10000; // 10 seconds debounce for cloud saves
 const LOCAL_DEBOUNCE_MS = 1000; // 1 second for local saves
 const STORAGE_KEY = 'odyssey-character-autosave';
 const CURRENT_VERSION = 2;
@@ -259,31 +259,64 @@ export function useAutoCloudSync(
     };
   }, [data, saveToCloudNow, enabled, isAuthenticated]);
 
-  // Save on page unload
+  // Save on page close/hide — uses multiple events for cross-platform reliability
   useEffect(() => {
     if (!enabled) return;
-    
-    const handleBeforeUnload = () => {
-      const saveData: SaveData = {
-        ...data,
-        savedAt: new Date().toISOString(),
-        version: CURRENT_VERSION,
-      };
-      
+
+    // Immediate local save (synchronous, always works)
+    const saveLocallySync = () => {
       try {
+        const saveData: SaveData = {
+          ...data,
+          savedAt: new Date().toISOString(),
+          version: CURRENT_VERSION,
+        };
         setScopedItem(STORAGE_KEY, JSON.stringify(saveData));
-        
-        if (isAuthenticated && pendingCloudSaveRef.current) {
-          saveToCloudNow();
-        }
+        lastLocalSaveRef.current = JSON.stringify(saveData);
       } catch (error) {
-        console.error('[AutoSave] Failed on unload:', error);
+        console.error('[AutoSave] Failed local save on hide:', error);
       }
     };
-    
+
+    // Cloud save attempt (async, best-effort on page close)
+    const triggerCloudSave = () => {
+      if (isAuthenticated && pendingCloudSaveRef.current) {
+        saveToCloudNow();
+      }
+    };
+
+    // beforeunload — works on desktop, unreliable on mobile
+    const handleBeforeUnload = () => {
+      saveLocallySync();
+      triggerCloudSave();
+    };
+
+    // visibilitychange — fires reliably on mobile when user switches apps,
+    // goes to home screen, or switches tabs. This is the PRIMARY mobile save event.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        console.log('[AutoSave] Page hidden — saving immediately');
+        saveLocallySync();
+        triggerCloudSave();
+      }
+    };
+
+    // pagehide — fires on mobile when the page is being unloaded or put into
+    // the back/forward cache. More reliable than beforeunload on iOS Safari.
+    const handlePageHide = () => {
+      console.log('[AutoSave] Page hide — saving immediately');
+      saveLocallySync();
+      triggerCloudSave();
+    };
+
     window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
+
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
     };
   }, [data, enabled, isAuthenticated, saveToCloudNow]);
 
