@@ -3755,6 +3755,72 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onBack();
         }}
       />
+
+      {/* Reading Mode Overlay */}
+      <AnimatePresence>
+        {readingMode && (() => {
+          const lastAssistant = [...partyDm.messages].reverse().find(m => m.role === 'assistant' && m.content?.trim());
+          if (!lastAssistant) return null;
+
+          const parsed = parseWhispers(lastAssistant.content || '');
+
+          return (
+            <motion.div
+              key="reading-mode"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              className="fixed inset-0 z-[70] flex flex-col bg-gradient-to-b from-[#0a0a10] via-[#0d0d14] to-[#0a0a10]"
+            >
+              {/* Minimal header */}
+              <div className="flex items-center justify-between px-4 py-3 shrink-0">
+                <span className="text-[10px] font-cinzel uppercase tracking-[0.2em] text-amber-500/40">
+                  The DM Speaks
+                </span>
+                <button
+                  onClick={() => setReadingMode(false)}
+                  className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <X className="w-4 h-4 text-white/40" />
+                </button>
+              </div>
+
+              {/* Scrollable narrative */}
+              <div className="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-8 pb-36">
+                <div className="max-w-2xl mx-auto pt-4">
+                  <div className="prose prose-invert prose-lg max-w-none leading-relaxed">
+                    <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                      {parsed.narrative}
+                    </ReactMarkdown>
+                  </div>
+
+                  {parsed.whispers.length > 0 && (
+                    <div className="mt-6">
+                      <WhisperTray whispers={parsed.whispers} />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Fixed bottom action */}
+              <div className="fixed bottom-0 left-0 right-0 p-4 pb-6 bg-gradient-to-t from-[#0a0a10] via-[#0a0a10]/95 to-transparent">
+                <button
+                  onClick={() => setReadingMode(false)}
+                  className="w-full py-4 rounded-xl border border-amber-500/30 bg-amber-900/20 hover:bg-amber-900/40 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <Swords className="w-5 h-5 text-amber-400" />
+                  <span className="font-cinzel text-sm font-bold uppercase tracking-[0.15em] text-amber-300">
+                    Done Reading — Ready to Play
+                  </span>
+                </button>
+              </div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
     </div>
   );
 }
