@@ -884,6 +884,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [partySituation, setPartySituation] = useState('exploration');
   const [slideshowSlides, setSlideshowSlides] = useState<import('@/lib/parseSlides').Slide[]>([]);
   const lastSlideshowMsgIdRef = useRef<string | null>(null);
+  const [readingMode, setReadingMode] = useState(false);
+  const prevIsGeneratingRef = useRef(false);
   const dmPolls = useDmPolls(partyId || null);
   const partyNPCNames = useNPCAutocomplete(partyDm.messages as any);
   const isEmpyrean = partyDm.sessionConfig?.campaignType === 'empyrean';
