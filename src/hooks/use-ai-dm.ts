@@ -726,7 +726,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
       setIsLoading(false);
       abortControllerRef.current = null;
     }
-  }, [messages, characterContext, customGuidesContent, campaignSummary, isLoading]);
+  }, [messages, characterContext, customGuidesContent, campaignSummary, worldStatePrompt, dmPersonaPrompt, responseModePrompt, isLoading]);
 
   const startNpcScene = useCallback(async (npcs: string[], scenePrompt: string, maxMessages: number = 12) => {
     if (isLoading) return;
