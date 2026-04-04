@@ -1508,7 +1508,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         diceContent={activeNavTab === 'dice' ? (
           <DMDiceRoller
             characterContext={characterContext}
-            onRollResult={handleUsePrompt}
+            onRollResult={handleAppendPrompt}
             disabled={isLoading}
           />
         ) : undefined}
