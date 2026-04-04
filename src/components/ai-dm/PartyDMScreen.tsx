@@ -72,6 +72,7 @@ import { Flame } from 'lucide-react';
 import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 
 import { parseWhispers } from '@/lib/whisper-parser';
+import { formatForReadingMode, type FormattedReading } from '@/lib/reading-mode-formatter';
 
 function stripCinematicTagsFromDisplay(content: string): string {
   return content.replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '');
@@ -886,6 +887,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const lastSlideshowMsgIdRef = useRef<string | null>(null);
   const [readingMode, setReadingMode] = useState(false);
   const prevIsGeneratingRef = useRef(false);
+  const [formattedReading, setFormattedReading] = useState<FormattedReading | null>(null);
+  const [isFormattingReading, setIsFormattingReading] = useState(false);
   const dmPolls = useDmPolls(partyId || null);
   const partyNPCNames = useNPCAutocomplete(partyDm.messages as any);
   const isEmpyrean = partyDm.sessionConfig?.campaignType === 'empyrean';
@@ -1158,8 +1161,34 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     prevIsGeneratingRef.current = partyDm.isGenerating;
   }, [partyDm.isGenerating, partyDm.messages, cinematicModeEnabled]);
 
+  // Trigger AI formatting when reading mode activates
+  useEffect(() => {
+    if (!readingMode) {
+      setFormattedReading(null);
+      setIsFormattingReading(false);
+      return;
+    }
 
-  // trigger the dragon to react in the dragon chat
+    const lastAssistant = [...partyDm.messages].reverse().find(m => m.role === 'assistant' && m.content?.trim());
+    if (!lastAssistant) return;
+
+    const parsed = parseWhispers(lastAssistant.content || '');
+    if (!parsed.narrative.trim()) return;
+
+    setIsFormattingReading(true);
+    formatForReadingMode(parsed.narrative)
+      .then(result => {
+        setFormattedReading(result);
+      })
+      .catch(() => {
+        setFormattedReading(null);
+      })
+      .finally(() => {
+        setIsFormattingReading(false);
+      });
+  }, [readingMode, partyDm.messages]);
+
+
   const lastDragonReactionMsgIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!isEmpyrean || !dragonBonds.isSetup || !dragonBonds.myDragon?.dragonName) return;
@@ -3773,8 +3802,144 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               transition={{ duration: 0.4 }}
               className="fixed inset-0 z-[70] flex flex-col bg-gradient-to-b from-[#0a0a10] via-[#0d0d14] to-[#0a0a10]"
             >
+              <style>{`
+                .rm-narration {
+                  font-size: 18px;
+                  line-height: 1.8;
+                  color: #e4e4e7;
+                  margin-bottom: 24px;
+                  font-family: 'Georgia', 'Times New Roman', serif;
+                }
+                .rm-action {
+                  font-size: 17px;
+                  line-height: 1.7;
+                  color: #fca5a5;
+                  margin-bottom: 24px;
+                  font-family: 'Georgia', serif;
+                  padding-left: 12px;
+                  border-left: 2px solid #ef444440;
+                }
+                .rm-internal {
+                  font-size: 17px;
+                  line-height: 1.8;
+                  color: #a1a1aa;
+                  font-style: italic;
+                  margin-bottom: 24px;
+                  font-family: 'Georgia', serif;
+                }
+                .rm-dialogue {
+                  margin-bottom: 20px;
+                }
+                .rm-speaker {
+                  display: block;
+                  font-size: 11px;
+                  font-weight: 700;
+                  text-transform: uppercase;
+                  letter-spacing: 0.12em;
+                  margin-bottom: 4px;
+                  font-family: -apple-system, sans-serif;
+                }
+                .rm-speech {
+                  display: block;
+                  font-size: 18px;
+                  line-height: 1.7;
+                  padding-left: 14px;
+                  border-left: 3px solid currentColor;
+                  font-family: 'Georgia', serif;
+                }
+                .rm-pullquote {
+                  font-size: 22px;
+                  line-height: 1.6;
+                  color: #fbbf24;
+                  font-style: italic;
+                  text-align: center;
+                  padding: 24px 16px;
+                  margin: 32px 0;
+                  border-top: 1px solid #fbbf2420;
+                  border-bottom: 1px solid #fbbf2420;
+                  font-family: 'Georgia', serif;
+                }
+                .rm-dramatic {
+                  color: #f9a8d4;
+                  font-style: italic;
+                }
+                .rm-ambient {
+                  color: #6b7280;
+                  font-style: italic;
+                  font-size: 15px;
+                }
+                .rm-highlight {
+                  color: #fbbf24;
+                  font-weight: 700;
+                }
+                .rm-beat {
+                  height: 32px;
+                }
+                .rm-divider {
+                  height: 1px;
+                  background: linear-gradient(to right, transparent, #ffffff15, transparent);
+                  margin: 32px 0;
+                }
+                @keyframes rm-shimmer {
+                  0% { background-position: -200% 0; }
+                  100% { background-position: 200% 0; }
+                }
+                .rm-shimmer-line {
+                  height: 16px;
+                  border-radius: 8px;
+                  background: linear-gradient(90deg, #ffffff08 25%, #ffffff15 50%, #ffffff08 75%);
+                  background-size: 200% 100%;
+                  animation: rm-shimmer 1.5s ease infinite;
+                  margin-bottom: 12px;
+                }
+                @keyframes rm-particle-float {
+                  0%, 100% { opacity: 0; transform: translateY(0) translateX(0); }
+                  20% { opacity: 0.6; }
+                  80% { opacity: 0.4; }
+                  100% { opacity: 0; transform: translateY(-100vh) translateX(var(--drift)); }
+                }
+              `}</style>
+
+              {/* Ambient background tint */}
+              <div
+                className="absolute inset-0 z-0 transition-colors duration-[2s]"
+                style={{
+                  background: formattedReading
+                    ? `radial-gradient(ellipse at 50% 30%, ${formattedReading.ambientColor}30 0%, #0a0a10 70%)`
+                    : 'none',
+                }}
+              />
+
+              {/* Particle layer */}
+              {formattedReading && formattedReading.particles !== 'none' && (
+                <div className="absolute inset-0 z-[1] pointer-events-none overflow-hidden">
+                  {Array.from({ length: 15 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="absolute rounded-full"
+                      style={{
+                        width: 2 + Math.random() * 3,
+                        height: 2 + Math.random() * 3,
+                        left: `${Math.random() * 100}%`,
+                        bottom: '-5%',
+                        background:
+                          formattedReading.particles === 'embers' ? '#f59e0b' :
+                          formattedReading.particles === 'sparks' ? '#fbbf24' :
+                          formattedReading.particles === 'snow' ? '#e2e8f0' :
+                          formattedReading.particles === 'dust' ? '#a1a1aa' :
+                          formattedReading.particles === 'mist' ? '#94a3b8' :
+                          '#94a3b8',
+                        opacity: 0,
+                        animation: `rm-particle-float ${6 + Math.random() * 8}s ease-in-out ${Math.random() * 5}s infinite`,
+                        ['--drift' as string]: `${(Math.random() - 0.5) * 40}px`,
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
               {/* Minimal header */}
-              <div className="flex items-center justify-between px-4 py-3 shrink-0">
+              <div className="flex items-center justify-between px-4 py-3 shrink-0 relative z-10">
                 <span className="text-[10px] font-cinzel uppercase tracking-[0.2em] text-amber-500/40">
                   The DM Speaks
                 </span>
@@ -3787,25 +3952,62 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 </button>
               </div>
 
-              {/* Scrollable narrative */}
-              <div className="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-8 pb-36">
+              {/* Content area */}
+              <div className="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-8 pb-36 relative z-10">
                 <div className="max-w-2xl mx-auto pt-4">
-                  <div className="prose prose-invert prose-lg max-w-none leading-relaxed">
-                    <ReactMarkdown rehypePlugins={[rehypeRaw]}>
-                      {parsed.narrative}
-                    </ReactMarkdown>
-                  </div>
-
-                  {parsed.whispers.length > 0 && (
-                    <div className="mt-6">
-                      <WhisperTray whispers={parsed.whispers} />
+                  {isFormattingReading ? (
+                    /* Loading shimmer */
+                    <div className="space-y-1">
+                      {Array.from({ length: 12 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="rm-shimmer-line"
+                          style={{ width: `${50 + Math.random() * 50}%`, animationDelay: `${i * 0.08}s` }}
+                        />
+                      ))}
                     </div>
+                  ) : formattedReading ? (
+                    /* AI-formatted cinematic HTML */
+                    <>
+                      {formattedReading.pullQuote && (
+                        <div className="text-center mb-8 pt-4">
+                          <p className="text-xl font-serif italic text-amber-400/60 leading-relaxed px-4">
+                            &ldquo;{formattedReading.pullQuote}&rdquo;
+                          </p>
+                        </div>
+                      )}
+                      <div dangerouslySetInnerHTML={{ __html: formattedReading.html }} />
+                    </>
+                  ) : (
+                    /* Fallback: plain text */
+                    <>
+                      <div className="prose prose-invert prose-lg max-w-none leading-relaxed">
+                        <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                          {parsed.narrative}
+                        </ReactMarkdown>
+                      </div>
+                      {parsed.whispers.length > 0 && (
+                        <div className="mt-6">
+                          <WhisperTray whispers={parsed.whispers} />
+                        </div>
+                      )}
+                    </>
                   )}
+
+                  {/* Whisper tray for formatted mode */}
+                  {formattedReading && !isFormattingReading && (() => {
+                    if (parsed.whispers.length === 0) return null;
+                    return (
+                      <div className="mt-8">
+                        <WhisperTray whispers={parsed.whispers} />
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
               {/* Fixed bottom action */}
-              <div className="fixed bottom-0 left-0 right-0 p-4 pb-6 bg-gradient-to-t from-[#0a0a10] via-[#0a0a10]/95 to-transparent">
+              <div className="fixed bottom-0 left-0 right-0 p-4 pb-6 bg-gradient-to-t from-[#0a0a10] via-[#0a0a10]/95 to-transparent relative z-10">
                 <button
                   onClick={() => setReadingMode(false)}
                   className="w-full py-4 rounded-xl border border-amber-500/30 bg-amber-900/20 hover:bg-amber-900/40 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2"
