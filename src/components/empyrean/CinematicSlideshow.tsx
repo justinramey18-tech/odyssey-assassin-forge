@@ -82,14 +82,12 @@ export default function CinematicSlideshow({ slides, onComplete }: CinematicSlid
 
   return (
     <div
-      onClick={handleTap}
       className="fixed inset-0 z-[75] flex flex-col select-none cinematic-slideshow-root"
       style={{
         backgroundColor: bgColor,
         transition: 'background-color 1.5s ease',
         WebkitTapHighlightColor: 'transparent',
         touchAction: 'manipulation',
-        cursor: 'pointer',
       }}
     >
       {/* Visual Effects Layer */}
