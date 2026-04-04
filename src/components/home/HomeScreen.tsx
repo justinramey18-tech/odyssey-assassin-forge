@@ -786,7 +786,8 @@ export function HomeScreen({
                   onClick={() => {
                     triggerHaptic('light');
                     const hasConfig = !!loadEmpyreanDMConfig();
-                    if (hasConfig) {
+                    const isInParty = !!partySync?.party?.partyId;
+                    if (hasConfig || isInParty) {
                       setShowEmpyreanDMContainer(true);
                     } else {
                       setShowEmpyreanScreen(true);
