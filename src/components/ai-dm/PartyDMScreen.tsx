@@ -1161,8 +1161,34 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     prevIsGeneratingRef.current = partyDm.isGenerating;
   }, [partyDm.isGenerating, partyDm.messages, cinematicModeEnabled]);
 
+  // Trigger AI formatting when reading mode activates
+  useEffect(() => {
+    if (!readingMode) {
+      setFormattedReading(null);
+      setIsFormattingReading(false);
+      return;
+    }
 
-  // trigger the dragon to react in the dragon chat
+    const lastAssistant = [...partyDm.messages].reverse().find(m => m.role === 'assistant' && m.content?.trim());
+    if (!lastAssistant) return;
+
+    const parsed = parseWhispers(lastAssistant.content || '');
+    if (!parsed.narrative.trim()) return;
+
+    setIsFormattingReading(true);
+    formatForReadingMode(parsed.narrative)
+      .then(result => {
+        setFormattedReading(result);
+      })
+      .catch(() => {
+        setFormattedReading(null);
+      })
+      .finally(() => {
+        setIsFormattingReading(false);
+      });
+  }, [readingMode, partyDm.messages]);
+
+
   const lastDragonReactionMsgIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!isEmpyrean || !dragonBonds.isSetup || !dragonBonds.myDragon?.dragonName) return;
