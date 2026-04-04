@@ -55,6 +55,22 @@ export function useAutoCloudSync(
     }
   }, [isAuthenticated, user?.id, fetchSaves]);
 
+  // Cache auth token for emergency save (needs to be synchronous during page close)
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      import('@/integrations/supabase/client').then(({ supabase }) => {
+        supabase.auth.getSession().then(({ data }) => {
+          const token = data.session?.access_token;
+          if (token) {
+            setCachedAuth(token, user.id);
+          }
+        });
+      });
+    } else {
+      clearCachedAuth();
+    }
+  }, [isAuthenticated, user?.id]);
+
   // Update last sync time when cloud saves are fetched
   useEffect(() => {
     if (cloudSaves.length === 0) return;
