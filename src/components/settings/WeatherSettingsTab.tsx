@@ -106,7 +106,7 @@ export function WeatherSettingsTab() {
                       {w.condition.replace('-', ' ')}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Feels like {Math.round(w.feelsLike)}°F
+                      Feels like {Math.round(w.feelsLike ?? w.temperature)}°F
                     </p>
                   </div>
                 </div>
