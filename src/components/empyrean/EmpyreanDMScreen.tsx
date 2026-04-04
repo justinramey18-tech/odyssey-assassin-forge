@@ -1781,7 +1781,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         onOpenChange={setShowCharacterActions}
         characterContext={characterContext}
         characterName={characterName}
-        onUsePrompt={handleUsePrompt}
+        onUsePrompt={handleAppendPrompt}
       />
 
       <EmpyreanAutopilotGuide
