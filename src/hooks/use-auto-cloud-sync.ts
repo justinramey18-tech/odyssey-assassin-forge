@@ -4,6 +4,7 @@ import { useCloudSave } from './use-cloud-save';
 import { SaveData } from './use-auto-save';
 import { setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
 import { SCOPED_KEYS } from '@/lib/scoped-keys';
+import { setCachedAuth, clearCachedAuth, emergencyCloudSave } from '@/lib/emergency-save';
 
 const CLOUD_DEBOUNCE_MS = 10000; // 10 seconds debounce for cloud saves
 const LOCAL_DEBOUNCE_MS = 1000; // 1 second for local saves
