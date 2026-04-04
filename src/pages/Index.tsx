@@ -1195,7 +1195,16 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     }
     
     toast({ title: '✏️ Character Renamed', description: `Now known as "${newName}"` });
-  }, [activeCloudSaveId, renameSave, partySync.party.partyId, user?.id, toast]);
+
+    // Force immediate cloud sync so the new name is written to character_data
+    // This prevents the rename from being lost if the user closes the app
+    // before the regular cloud auto-save debounce fires
+    setTimeout(() => {
+      autoSync.syncNow().catch(e =>
+        console.warn('[Rename] Failed to force cloud sync:', e)
+      );
+    }, 500);
+  }, [activeCloudSaveId, renameSave, partySync.party.partyId, user?.id, toast, autoSync]);
 
   // Handle loading cloud save - RESTORES ALL CHARACTER STATE
   const handleLoadCloudSave = useCallback(async (data: SaveData, saveId?: string) => {
