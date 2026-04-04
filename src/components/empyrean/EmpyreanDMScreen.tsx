@@ -404,7 +404,39 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
       if (autoSync.autoSyncEnabled) {
         autoSync.extractAndApply(content, characterContext);
       }
-      
+
+  // Auto-enter reading mode when generation completes (no cinematic)
+  useEffect(() => {
+    if (prevIsLoadingRef.current && !isLoading) {
+      if (!cinematicModeEnabled) {
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage?.role === 'assistant' && lastMessage.content?.trim()) {
+          setReadingMode(true);
+        }
+      }
+    }
+    prevIsLoadingRef.current = isLoading;
+  }, [isLoading, messages, cinematicModeEnabled]);
+
+  // Trigger AI formatting when reading mode activates
+  useEffect(() => {
+    if (!readingMode) {
+      setFormattedReading(null);
+      setIsFormattingReading(false);
+      return;
+    }
+    const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant' && m.content?.trim());
+    if (!lastAssistant) return;
+    const parsed = parseWhispers(lastAssistant.content || '');
+    if (!parsed.narrative.trim()) return;
+
+    setIsFormattingReading(true);
+    formatForReadingMode(parsed.narrative)
+      .then(result => { setFormattedReading(result); })
+      .catch(() => { setFormattedReading(null); })
+      .finally(() => { setIsFormattingReading(false); });
+  }, [readingMode, messages]);
+
 
       // Extract bond strain events
       const strainMatch = content.match(/<!--BOND_STRAIN:(.+?)-->/);
