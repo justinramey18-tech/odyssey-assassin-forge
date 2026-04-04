@@ -205,7 +205,7 @@ export function WeatherSettingsTab() {
               </div>
 
               {/* SECTION 3: 6-Hour Forecast Strip */}
-              {w.forecast.length > 0 && (
+              {w.forecast && w.forecast.length > 0 && (
                 <div>
                   <p className="text-xs font-cinzel uppercase tracking-wider text-muted-foreground mb-2 px-1">
                     Next 6 Hours
