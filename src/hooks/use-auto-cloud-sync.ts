@@ -5,7 +5,7 @@ import { SaveData } from './use-auto-save';
 import { setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
 import { SCOPED_KEYS } from '@/lib/scoped-keys';
 
-const CLOUD_DEBOUNCE_MS = 30000; // 30 seconds debounce for cloud saves
+const CLOUD_DEBOUNCE_MS = 10000; // 10 seconds debounce for cloud saves
 const LOCAL_DEBOUNCE_MS = 1000; // 1 second for local saves
 const STORAGE_KEY = 'odyssey-character-autosave';
 const CURRENT_VERSION = 2;
