@@ -789,6 +789,28 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     return () => { clearInterval(interval); save(); };
   }, [open, autoSyncCallbacks, characterContext?.maxHP]);
 
+  const handleAppendPrompt = useCallback((prompt: string) => {
+    if (isLoading) return;
+    setInputValue(prev => {
+      const trimmed = prev.trim();
+      if (trimmed) {
+        return trimmed + '\n' + prompt;
+      }
+      return prompt;
+    });
+    setActiveNavTab(null);
+    setNavExpanded(false);
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.style.height = 'auto';
+        textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 120) + 'px';
+        const len = textareaRef.current.value.length;
+        textareaRef.current.setSelectionRange(len, len);
+      }
+    }, 50);
+  }, [isLoading]);
+
 
   useEffect(() => {
     if (!open || !isUnbonded) return;
