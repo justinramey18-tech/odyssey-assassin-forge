@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Slide } from '@/lib/parseSlides';
 import SlideRenderer from '@/components/empyrean/SlideRenderer';
 import SlideshowVFX from '@/components/empyrean/SlideshowVFX';
@@ -77,28 +77,17 @@ export default function CinematicSlideshow({ slides, onComplete }: CinematicSlid
     }
   }, [currentIndex]);
 
-  const handleTap = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    // If tap is in the left 60px, go back; otherwise advance
-    const x = e.clientX ?? (e as any).touches?.[0]?.clientX ?? 999;
-    if (x <= 60 && currentIndex > 0) {
-      goBack();
-    } else {
-      advance();
-    }
-  }, [advance, goBack, currentIndex]);
 
   if (!currentSlide) return null;
 
   return (
     <div
-      onClick={handleTap}
       className="fixed inset-0 z-[75] flex flex-col select-none cinematic-slideshow-root"
       style={{
         backgroundColor: bgColor,
         transition: 'background-color 1.5s ease',
         WebkitTapHighlightColor: 'transparent',
         touchAction: 'manipulation',
-        cursor: 'pointer',
       }}
     >
       {/* Visual Effects Layer */}
@@ -125,23 +114,10 @@ export default function CinematicSlideshow({ slides, onComplete }: CinematicSlid
         </AnimatePresence>
       </div>
 
-      {/* Bottom bar: counter + progress + prompt */}
-      <div className="px-5 pb-5 relative z-10" onClick={(e) => e.stopPropagation()}>
-        {/* Slide counter */}
-        <p className="text-center text-[10px] text-white/25 tracking-widest mb-2.5 font-sans">
-          {currentIndex + 1} / {totalSlides}
-          {currentSlide && (currentSlide.sfx.length > 0 || currentSlide.vfx.length > 0 || currentSlide.mood || currentSlide.ambience) && (
-            <span className="ml-2 text-amber-500/40">
-              {currentSlide.mood && `M:${currentSlide.mood} `}
-              {currentSlide.ambience && `A:${currentSlide.ambience} `}
-              {currentSlide.sfx.map(s => `S:${s} `)}
-              {currentSlide.vfx.map(v => `V:${v} `)}
-            </span>
-          )}
-        </p>
-
+      {/* Bottom navigation bar */}
+      <div className="px-4 pb-5 relative z-10">
         {/* Progress bar */}
-        <div className="h-[2px] bg-white/5 rounded-full overflow-hidden mb-3">
+        <div className="h-[2px] bg-white/5 rounded-full overflow-hidden mb-4">
           <div
             className="h-full rounded-full"
             style={{
@@ -152,20 +128,44 @@ export default function CinematicSlideshow({ slides, onComplete }: CinematicSlid
           />
         </div>
 
-        {/* Last slide prompt or tap hint */}
-        {isLastSlide ? (
-          <p
-            className="text-center font-serif text-sm italic text-amber-400/70 cursor-pointer"
-            onClick={(e) => { e.stopPropagation(); stopAllAudio(); onComplete(); }}
+        {/* Navigation row */}
+        <div className="flex items-center justify-between">
+          {/* Back button — left side */}
+          <button
+            onClick={(e) => { e.stopPropagation(); goBack(); }}
+            disabled={currentIndex === 0}
+            className="flex items-center gap-1.5 px-4 py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/70 transition-all disabled:opacity-20 disabled:pointer-events-none"
             style={{ touchAction: 'manipulation' }}
           >
-            Your turn. What do you do?
-          </p>
-        ) : (
-          <p className="text-center text-[10px] text-white/15 tracking-wider font-sans">
-            tap to continue
-          </p>
-        )}
+            <ChevronLeft className="w-4 h-4" />
+            <span className="text-xs font-cinzel uppercase tracking-wider">Back</span>
+          </button>
+
+          {/* Slide counter — center */}
+          <span className="text-[10px] text-white/25 tracking-widest font-sans">
+            {currentIndex + 1} / {totalSlides}
+          </span>
+
+          {/* Next / Finish button — right side */}
+          {isLastSlide ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); stopAllAudio(); onComplete(); }}
+              className="flex items-center gap-1.5 px-4 py-3 rounded-xl border border-amber-500/30 bg-amber-900/20 hover:bg-amber-900/40 text-amber-300 transition-all active:scale-[0.97]"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <span className="text-xs font-cinzel uppercase tracking-wider">Continue</span>
+            </button>
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); advance(); }}
+              className="flex items-center gap-1.5 px-4 py-3 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-all active:scale-[0.97]"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <span className="text-xs font-cinzel uppercase tracking-wider">Next</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
