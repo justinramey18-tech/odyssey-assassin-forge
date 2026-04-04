@@ -4,6 +4,7 @@ import { useCloudSave } from './use-cloud-save';
 import { SaveData } from './use-auto-save';
 import { setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
 import { SCOPED_KEYS } from '@/lib/scoped-keys';
+import { setCachedAuth, clearCachedAuth, emergencyCloudSave } from '@/lib/emergency-save';
 
 const CLOUD_DEBOUNCE_MS = 10000; // 10 seconds debounce for cloud saves
 const LOCAL_DEBOUNCE_MS = 1000; // 1 second for local saves
@@ -53,6 +54,22 @@ export function useAutoCloudSync(
       fetchSaves().then(() => {});
     }
   }, [isAuthenticated, user?.id, fetchSaves]);
+
+  // Cache auth token for emergency save (needs to be synchronous during page close)
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      import('@/integrations/supabase/client').then(({ supabase }) => {
+        supabase.auth.getSession().then(({ data }) => {
+          const token = data.session?.access_token;
+          if (token) {
+            setCachedAuth(token, user.id);
+          }
+        });
+      });
+    } else {
+      clearCachedAuth();
+    }
+  }, [isAuthenticated, user?.id]);
 
   // Update last sync time when cloud saves are fetched
   useEffect(() => {
@@ -278,9 +295,12 @@ export function useAutoCloudSync(
       }
     };
 
-    // Cloud save attempt (async, best-effort on page close)
-    const triggerCloudSave = () => {
-      if (isAuthenticated && pendingCloudSaveRef.current) {
+    const triggerCloudSave = (useKeepalive: boolean = false) => {
+      if (!isAuthenticated || !pendingCloudSaveRef.current) return;
+      if (useKeepalive && data.character?.name) {
+        // Fire-and-forget keepalive request that survives page destruction
+        emergencyCloudSave(data as Record<string, unknown>, data.character.name);
+      } else {
         saveToCloudNow();
       }
     };
@@ -288,7 +308,7 @@ export function useAutoCloudSync(
     // beforeunload — works on desktop, unreliable on mobile
     const handleBeforeUnload = () => {
       saveLocallySync();
-      triggerCloudSave();
+      triggerCloudSave(true); // Use keepalive — page is being destroyed
     };
 
     // visibilitychange — fires reliably on mobile when user switches apps,
@@ -297,7 +317,7 @@ export function useAutoCloudSync(
       if (document.visibilityState === 'hidden') {
         console.log('[AutoSave] Page hidden — saving immediately');
         saveLocallySync();
-        triggerCloudSave();
+        triggerCloudSave(false); // Normal async — page is still alive
       }
     };
 
@@ -306,7 +326,7 @@ export function useAutoCloudSync(
     const handlePageHide = () => {
       console.log('[AutoSave] Page hide — saving immediately');
       saveLocallySync();
-      triggerCloudSave();
+      triggerCloudSave(true); // Use keepalive — page may be destroyed
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
