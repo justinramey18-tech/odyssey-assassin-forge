@@ -523,7 +523,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
       setIsLoading(false);
       abortControllerRef.current = null;
     }
-  }, [messages, characterContext, customGuidesContent, campaignSummary, isLoading, triggerSummaryIfNeeded]);
+  }, [messages, characterContext, customGuidesContent, campaignSummary, worldStatePrompt, dmPersonaPrompt, responseModePrompt, isLoading, triggerSummaryIfNeeded]);
 
   const voiceNPC = useCallback(async (npcNames: string | string[], playerMessage: string) => {
     if (!playerMessage.trim() || isLoading) return;
