@@ -20,8 +20,20 @@ function loadCache(): CachedWeather | null {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw);
-  } catch { return null; }
+    const parsed = JSON.parse(raw);
+    if (
+      !parsed?.data ||
+      typeof parsed.data.feelsLike !== 'number' ||
+      typeof parsed.data.humidity !== 'number' ||
+      !Array.isArray(parsed.data.forecast)
+    ) {
+      localStorage.removeItem(CACHE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 function saveCache(data: WeatherData): void {

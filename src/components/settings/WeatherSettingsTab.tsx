@@ -106,7 +106,7 @@ export function WeatherSettingsTab() {
                       {w.condition.replace('-', ' ')}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Feels like {Math.round(w.feelsLike)}°F
+                      Feels like {Math.round(w.feelsLike ?? w.temperature)}°F
                     </p>
                   </div>
                 </div>
@@ -117,7 +117,7 @@ export function WeatherSettingsTab() {
                     {Math.round(w.temperature)}<span className="text-xl">°F</span>
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    H: {Math.round(w.tempMax)}° &nbsp; L: {Math.round(w.tempMin)}°
+                    H: {Math.round(w.tempMax ?? w.temperature)}° &nbsp; L: {Math.round(w.tempMin ?? w.temperature)}°
                   </p>
                 </div>
 
@@ -158,7 +158,7 @@ export function WeatherSettingsTab() {
                   <p className="text-sm font-semibold text-foreground">
                     {Math.round(w.windSpeed)} mph {windDirectionToCompass(w.windDirection)}
                   </p>
-                  {w.windGusts > w.windSpeed && (
+                  {w.windGusts != null && w.windGusts > w.windSpeed && (
                     <p className="text-[10px] text-muted-foreground">Gusts: {Math.round(w.windGusts)} mph</p>
                   )}
                 </div>
@@ -205,7 +205,7 @@ export function WeatherSettingsTab() {
               </div>
 
               {/* SECTION 3: 6-Hour Forecast Strip */}
-              {w.forecast.length > 0 && (
+              {w.forecast && w.forecast.length > 0 && (
                 <div>
                   <p className="text-xs font-cinzel uppercase tracking-wider text-muted-foreground mb-2 px-1">
                     Next 6 Hours
