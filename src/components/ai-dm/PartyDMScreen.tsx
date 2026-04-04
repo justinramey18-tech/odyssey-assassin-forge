@@ -1142,7 +1142,23 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
   }, [partyDm.messages, cinematicModeEnabled]);
 
-  // Dragon narrative reaction: when a new DM message arrives in Empyrean mode,
+  // Auto-enter reading mode when generation completes (cinematic OFF)
+  useEffect(() => {
+    if (prevIsGeneratingRef.current && !partyDm.isGenerating) {
+      // Generation just completed
+      if (!cinematicModeEnabled) {
+        // No cinematic — go straight to reading mode
+        const lastMessage = partyDm.messages[partyDm.messages.length - 1];
+        if (lastMessage?.role === 'assistant' && lastMessage.content?.trim()) {
+          setReadingMode(true);
+        }
+      }
+      // If cinematic IS enabled, reading mode will activate when slideshow ends
+    }
+    prevIsGeneratingRef.current = partyDm.isGenerating;
+  }, [partyDm.isGenerating, partyDm.messages, cinematicModeEnabled]);
+
+
   // trigger the dragon to react in the dragon chat
   const lastDragonReactionMsgIdRef = useRef<string | null>(null);
   useEffect(() => {
