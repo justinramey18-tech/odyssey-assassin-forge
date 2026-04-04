@@ -295,9 +295,12 @@ export function useAutoCloudSync(
       }
     };
 
-    // Cloud save attempt (async, best-effort on page close)
-    const triggerCloudSave = () => {
-      if (isAuthenticated && pendingCloudSaveRef.current) {
+    const triggerCloudSave = (useKeepalive: boolean = false) => {
+      if (!isAuthenticated || !pendingCloudSaveRef.current) return;
+      if (useKeepalive && data.character?.name) {
+        // Fire-and-forget keepalive request that survives page destruction
+        emergencyCloudSave(data as Record<string, unknown>, data.character.name);
+      } else {
         saveToCloudNow();
       }
     };
@@ -305,7 +308,7 @@ export function useAutoCloudSync(
     // beforeunload — works on desktop, unreliable on mobile
     const handleBeforeUnload = () => {
       saveLocallySync();
-      triggerCloudSave();
+      triggerCloudSave(true); // Use keepalive — page is being destroyed
     };
 
     // visibilitychange — fires reliably on mobile when user switches apps,
@@ -314,7 +317,7 @@ export function useAutoCloudSync(
       if (document.visibilityState === 'hidden') {
         console.log('[AutoSave] Page hidden — saving immediately');
         saveLocallySync();
-        triggerCloudSave();
+        triggerCloudSave(false); // Normal async — page is still alive
       }
     };
 
@@ -323,7 +326,7 @@ export function useAutoCloudSync(
     const handlePageHide = () => {
       console.log('[AutoSave] Page hide — saving immediately');
       saveLocallySync();
-      triggerCloudSave();
+      triggerCloudSave(true); // Use keepalive — page may be destroyed
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
