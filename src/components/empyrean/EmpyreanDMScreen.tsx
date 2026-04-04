@@ -563,6 +563,38 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     setTrackingCampaignId(activeCampaignId);
   }, [activeCampaignId]);
 
+  // Auto-enter reading mode when generation completes (no cinematic)
+  useEffect(() => {
+    if (prevIsLoadingRef.current && !isLoading) {
+      if (!cinematicModeEnabled) {
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage?.role === 'assistant' && lastMessage.content?.trim()) {
+          setReadingMode(true);
+        }
+      }
+    }
+    prevIsLoadingRef.current = isLoading;
+  }, [isLoading, messages, cinematicModeEnabled]);
+
+  // Trigger AI formatting when reading mode activates
+  useEffect(() => {
+    if (!readingMode) {
+      setFormattedReading(null);
+      setIsFormattingReading(false);
+      return;
+    }
+    const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant' && m.content?.trim());
+    if (!lastAssistant) return;
+    const parsed = parseWhispers(lastAssistant.content || '');
+    if (!parsed.narrative.trim()) return;
+
+    setIsFormattingReading(true);
+    formatForReadingMode(parsed.narrative)
+      .then(result => { setFormattedReading(result); })
+      .catch(() => { setFormattedReading(null); })
+      .finally(() => { setIsFormattingReading(false); });
+  }, [readingMode, messages]);
+
   // Dragon narrative reaction: auto-trigger dragon chat response after each DM message
   const lastDragonReactionIdRef = useRef<string | null>(null);
   useEffect(() => {
