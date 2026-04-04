@@ -231,6 +231,10 @@ export function EmpyreanDMScreen({
   const [showSetup, setShowSetup] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [readingMode, setReadingMode] = useState(false);
+  const [formattedReading, setFormattedReading] = useState<FormattedReading | null>(null);
+  const [isFormattingReading, setIsFormattingReading] = useState(false);
+  const prevIsLoadingRef = useRef(false);
 
   // Reload config when screen opens
   const [showDragonChat, setShowDragonChat] = useState(false);
