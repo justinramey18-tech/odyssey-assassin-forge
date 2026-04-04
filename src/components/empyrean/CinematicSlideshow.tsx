@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Slide } from '@/lib/parseSlides';
 import SlideRenderer from '@/components/empyrean/SlideRenderer';
 import SlideshowVFX from '@/components/empyrean/SlideshowVFX';
