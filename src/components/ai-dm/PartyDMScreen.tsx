@@ -3687,6 +3687,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onComplete={() => {
             setShowSlideshow(false);
             setSlideshowSlides([]);
+            // After cinematic ends, show reading mode so player can read the full text
+            const lastMessage = partyDm.messages[partyDm.messages.length - 1];
+            if (lastMessage?.role === 'assistant' && lastMessage.content?.trim()) {
+              setReadingMode(true);
+            }
           }}
         />
       )}
