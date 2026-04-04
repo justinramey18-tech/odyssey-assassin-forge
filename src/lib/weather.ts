@@ -128,32 +128,123 @@ export function saveWeatherCoords(lat: number, lon: number): void {
 }
 
 export function weatherToNarrativeContext(weather: WeatherData): string {
-  const temp = `Temperature is around ${Math.round(weather.temperature)}°F.`;
-  let wind = '';
-  if (weather.windSpeed > 35) wind = ` Gale-force winds make travel dangerous.`;
-  else if (weather.windSpeed > 20) wind = ` Strong winds howl through the area.`;
-  else if (weather.condition === 'rain' || weather.condition === 'heavy-rain' || weather.condition === 'thunderstorm') wind = ` Winds blow at ${Math.round(weather.windSpeed)}mph.`;
+  const lines: string[] = [];
 
+  // 1. Time of day context from sunrise/sunset
+  if (weather.sunrise && weather.sunset) {
+    const now = new Date();
+    const sunrise = new Date(weather.sunrise);
+    const sunset = new Date(weather.sunset);
+    const sunriseHr = sunrise.getHours();
+    const sunsetHr = sunset.getHours();
+    const nowHr = now.getHours();
+
+    if (weather.isDay) {
+      if (nowHr <= sunriseHr + 1) {
+        lines.push('It is early dawn. The sun has just crested the horizon, casting long shadows.');
+      } else if (nowHr >= sunsetHr - 1) {
+        lines.push('The sun hangs low on the horizon, painting the sky in shades of amber and violet. Dusk approaches.');
+      } else if (nowHr >= 11 && nowHr <= 14) {
+        lines.push('The sun is at its peak — midday.');
+      }
+    } else {
+      if (nowHr <= 1 || nowHr >= 23) {
+        lines.push('It is the dead of night. Midnight has passed.');
+      } else if (nowHr >= sunsetHr && nowHr <= sunsetHr + 2) {
+        lines.push('Night has fallen recently. The last glow of twilight fades from the western sky.');
+      } else if (nowHr >= sunriseHr - 2 && nowHr < sunriseHr) {
+        lines.push('The darkest hours before dawn. The eastern sky shows no light yet.');
+      }
+    }
+  }
+
+  // 2. Core weather condition
+  const compass = windDirectionToCompass(weather.windDirection);
   switch (weather.condition) {
     case 'clear':
-      return weather.isDay
-        ? `The sky is clear and bright. Sunlight warms the land. ${temp}`
-        : `A clear night sky reveals a canopy of stars. The air is cool. ${temp}`;
+      if (weather.isDay) {
+        lines.push('The sky is clear and open. Unbroken blue stretches to every horizon.');
+        if (weather.uvIndex >= 8) lines.push('The sun beats down with punishing intensity — exposed skin burns quickly.');
+        else if (weather.uvIndex >= 5) lines.push('The sun is strong overhead.');
+      } else {
+        lines.push('A clear night sky reveals a canopy of stars. The air is still and open.');
+      }
+      break;
     case 'cloudy':
-      return `Heavy clouds blanket the sky, casting a grey pallor over the landscape. ${temp}`;
+      if (weather.cloudCover >= 90) lines.push('A solid ceiling of grey clouds smothers the sky. No sunlight breaks through.');
+      else if (weather.cloudCover >= 60) lines.push('Heavy clouds blanket most of the sky, casting a grey pallor over the landscape.');
+      else lines.push('Patches of cloud drift across the sky, intermittently blocking the light.');
+      break;
     case 'fog':
-      return `A thick fog clings to the ground, reducing visibility to mere feet. The air is damp and still. ${temp}`;
+      if (weather.visibility < 200) lines.push('A suffocating fog has descended. Visibility is almost zero — shapes vanish beyond arm\'s reach.');
+      else if (weather.visibility < 500) lines.push('Thick fog clings to the ground. Figures appear and disappear like ghosts at twenty paces.');
+      else lines.push('A light fog hangs in the air, softening the edges of the world. Distant landmarks are hazy outlines.');
+      break;
     case 'drizzle':
-      return `A light drizzle mists the air, barely enough to dampen cloaks. ${temp}`;
+      lines.push('A fine drizzle mists the air — barely enough to dampen a cloak, but persistent.');
+      break;
     case 'rain':
-      return `Steady rain falls from iron-grey clouds, drumming against rooftops and pooling in the roads. ${temp}${wind}`;
+      lines.push(`Steady rain falls from iron-grey clouds, drumming against rooftops and pooling in the roads. The wind pushes the rain from the ${compass}.`);
+      break;
     case 'heavy-rain':
-      return `Torrential rain hammers down, turning paths to mud and reducing visibility. Wind gusts drive the rain sideways. ${temp}${wind}`;
+      lines.push(`Torrential rain hammers down, turning paths to mud and reducing visibility. Wind from the ${compass} drives the rain sideways in sheets.`);
+      break;
     case 'snow':
-      return `Snow falls silently, blanketing the world in white. The air is frigid. ${temp}`;
+      lines.push('Snow falls steadily, blanketing the world in white. Each surface carries a growing layer of frost and powder.');
+      break;
     case 'thunderstorm':
-      return `A violent thunderstorm rages overhead. Lightning splits the sky and thunder shakes the ground. ${temp}${wind}`;
-    default:
-      return `${temp}`;
+      lines.push(`A violent thunderstorm rages. Lightning splits the sky at irregular intervals and thunder rolls across the landscape. Rain and wind from the ${compass} lash everything exposed.`);
+      break;
   }
+
+  // 3. Temperature sensation (NEVER state the number)
+  const feels = weather.feelsLike;
+  if (feels <= 10) lines.push('The cold is brutal and biting — breath crystallizes instantly and exposed skin goes numb within minutes.');
+  else if (feels <= 25) lines.push('The air is bitterly cold. Fingers stiffen and every breath is sharp in the lungs.');
+  else if (feels <= 40) lines.push('The air carries a raw chill that seeps through layers of clothing.');
+  else if (feels <= 55) lines.push('The air is cool and brisk.');
+  else if (feels <= 70) lines.push('The temperature is comfortable — neither warm nor cold.');
+  else if (feels <= 85) lines.push('The air is warm. Exertion brings sweat quickly.');
+  else if (feels <= 95) lines.push('The heat is oppressive. The air shimmers and sweat soaks through clothing.');
+  else lines.push('The heat is suffocating and dangerous. The air itself feels thick and hostile.');
+
+  // 4. Humidity modifier
+  if (weather.humidity >= 90 && weather.temperature >= 70) lines.push('The humidity is stifling — the air is thick as wet cloth.');
+  else if (weather.humidity >= 80 && weather.temperature >= 65) lines.push('The air is muggy and damp.');
+  else if (weather.humidity <= 20) lines.push('The air is bone-dry. Lips crack and throats parch.');
+
+  // 5. Wind detail
+  if (weather.windGusts >= 50) lines.push(`Gale-force gusts from the ${compass} threaten to knock travelers off their feet. Projectiles are unreliable.`);
+  else if (weather.windGusts >= 35) lines.push(`Powerful wind gusts from the ${compass} howl through the area, making ranged attacks difficult.`);
+  else if (weather.windSpeed >= 20) lines.push(`A strong wind blows from the ${compass}, tugging at cloaks and banners.`);
+  else if (weather.windSpeed >= 10) lines.push(`A moderate breeze blows from the ${compass}.`);
+
+  // 6. Visibility note (only if notably poor and not already covered by fog)
+  if (weather.condition !== 'fog' && weather.visibility < 2000) {
+    lines.push('Visibility is severely reduced — objects beyond a few hundred feet are obscured.');
+  }
+
+  // 7. Forecast foreshadowing (what's coming in the next few hours)
+  if (weather.forecast && weather.forecast.length >= 2) {
+    const upcoming = weather.forecast.slice(0, 3);
+    const incomingStorm = upcoming.find(f => f.condition === 'thunderstorm' || f.condition === 'heavy-rain');
+    const incomingRain = upcoming.find(f => f.condition === 'rain' || f.condition === 'drizzle');
+    const incomingSnow = upcoming.find(f => f.condition === 'snow');
+    const clearing = weather.condition !== 'clear' && upcoming.every(f => f.condition === 'clear' || f.condition === 'cloudy');
+    const highPrecipChance = upcoming.some(f => f.precipitationProbability >= 70);
+
+    if (incomingStorm && weather.condition !== 'thunderstorm') {
+      lines.push('FORECAST: A storm is building on the horizon. Dark clouds mass in the distance and the air pressure is dropping. The storm will arrive within hours.');
+    } else if (incomingSnow && weather.condition !== 'snow') {
+      lines.push('FORECAST: Snow is expected soon. The air has that sharp, metallic edge that precedes snowfall.');
+    } else if (incomingRain && weather.condition === 'clear') {
+      lines.push('FORECAST: Clouds are gathering. Rain is likely within the next few hours.');
+    } else if (clearing) {
+      lines.push('FORECAST: The weather is improving. Conditions should clear within the next few hours.');
+    } else if (highPrecipChance && weather.precipitation === 0) {
+      lines.push('FORECAST: Precipitation is likely soon. The air feels heavy with moisture.');
+    }
+  }
+
+  return lines.join(' ');
 }
