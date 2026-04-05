@@ -419,6 +419,8 @@ export default function DragonBondChat({
     }
   }, []);
 
+  if (!open) return null;
+
   const moodInfo = getMoodDescriptor(bondState.mood);
   const bondDesc = getBondDescriptor(bondState.bond);
   const trustDesc = getTrustDescriptor(bondState.trust);
