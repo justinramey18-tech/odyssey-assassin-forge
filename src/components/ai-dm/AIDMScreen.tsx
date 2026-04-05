@@ -548,12 +548,12 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     updateCampaignSummary(summary);
   }, [updateCampaignSummary]);
 
-  const [input, setInput, clearInput] = useDraftPersist('odyssey-solo-dm-draft');
+  const soloDMInputRef = useRef<SoloDMInputHandle>(null);
   const [showContext, setShowContext] = useState(false);
   const [showGuides, setShowGuides] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const npcNames = useNPCAutocomplete(messages);
 
   const handleLoadCampaign = useCallback((session: CampaignSession) => {
     loadCampaign(session.messages, session.campaign_summary, session.id, session.gm_guide_ids);
@@ -683,7 +683,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   }, []);
 
   const handleUsePrompt = useCallback((prompt: string) => {
-    setInput(prev => prev ? `${prev}\n${prompt}` : prompt);
+    soloDMInputRef.current?.appendText(prompt);
   }, []);
 
   const hpPercent = characterContext.maxHP > 0
