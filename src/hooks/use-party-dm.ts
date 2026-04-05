@@ -1841,21 +1841,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave, isSplitActive, splitState, streamAIResponse, buildPartyMembersGuide, generateSplitSummary, buildAfkGuidesContext, consumeCascadePrompts, insertPartyMessageHelper, empyreanPersonaPrompt, buildDragonBondsSection]);
 
-  // Auto-trigger generation when all ready (host only) — only in AI mode
-  const currentDmMode = sessionConfig?.dmMode || 'ai';
-  useEffect(() => {
-    if (!isCreator || !allReady || isGenerating) return;
-    // Don't auto-generate in human mode — AI and AI-approval both auto-trigger
-    if (currentDmMode === 'human' || currentDmMode === 'dialogue') return;
-    if (lastGeneratedRoundRef.current === sessionConfig?.currentRoundId) return;
-    if (autoGenTimerRef.current) clearTimeout(autoGenTimerRef.current);
-    autoGenTimerRef.current = setTimeout(() => {
-      generateResponse();
-    }, 2000);
-    return () => {
-      if (autoGenTimerRef.current) clearTimeout(autoGenTimerRef.current);
-    };
-  }, [allReady, isCreator, isGenerating, generateResponse, currentDmMode]);
+
 
   const editMessage = useCallback(async (messageId: string, newContent: string) => {
     if (!partyId || !isCreator) return;
