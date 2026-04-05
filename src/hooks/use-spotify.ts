@@ -281,6 +281,7 @@ export function useSpotify() {
       // active device automatically. This often works on mobile.
       try {
         await play({ context_uri: playlistUri });
+        try { await setShuffle(true); } catch { /* shuffle is best-effort */ }
         toast.success('Now playing on Spotify');
         return;
       } catch (devicelessError: any) {
