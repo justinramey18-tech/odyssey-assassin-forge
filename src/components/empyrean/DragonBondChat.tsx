@@ -86,6 +86,8 @@ export default function DragonBondChat({
   const [bondState, setBondState] = useState<DragonBondState>(() => loadBondState());
   const [statsExpanded, setStatsExpanded] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [dragonOpening, setDragonOpening] = useState<string | null>(null);
   const [showPersonality, setShowPersonality] = useState(false);
   const [showMemoryPanel, setShowMemoryPanel] = useState(false);
@@ -381,7 +383,41 @@ export default function DragonBondChat({
     [handleSend],
   );
 
-  if (!open) return null;
+  const handleCopyMessage = useCallback((text: string, messageId: string) => {
+    const stripped = text
+      .replace(/<!--.*?-->/g, '')
+      .replace(/\*\*/g, '')
+      .replace(/\*/g, '')
+      .replace(/<[^>]*>/g, '')
+      .trim();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(stripped).then(() => {
+        setCopiedId(messageId);
+        setTimeout(() => setCopiedId(null), 1500);
+      }).catch(() => {});
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = stripped;
+      ta.style.cssText = 'position:fixed;left:-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); setCopiedId(messageId); setTimeout(() => setCopiedId(null), 1500); } catch {}
+      document.body.removeChild(ta);
+    }
+  }, []);
+
+  const handlePointerDown = useCallback((text: string, messageId: string) => {
+    longPressTimerRef.current = setTimeout(() => {
+      handleCopyMessage(text, messageId);
+    }, 500);
+  }, [handleCopyMessage]);
+
+  const handlePointerUp = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
 
   const moodInfo = getMoodDescriptor(bondState.mood);
   const bondDesc = getBondDescriptor(bondState.bond);
@@ -764,9 +800,19 @@ export default function DragonBondChat({
                         isDragon
                           ? 'pl-3'
                           : 'border-r-2 border-white/[0.12] pr-3 text-right',
+                        'relative select-none',
                       )}
                       style={isDragon ? { borderLeft: `2px solid ${dragonColor || '#22d3ee'}80` } : undefined}
+                      onPointerDown={() => handlePointerDown(msg.content, msg.id)}
+                      onPointerUp={handlePointerUp}
+                      onPointerLeave={handlePointerUp}
+                      onContextMenu={(e) => { e.preventDefault(); handleCopyMessage(msg.content, msg.id); }}
                     >
+                      {copiedId === msg.id && (
+                        <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full pointer-events-none animate-pulse z-10">
+                          Copied
+                        </span>
+                      )}
                       {isDragon ? (
                         <div
                           className="italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1"
