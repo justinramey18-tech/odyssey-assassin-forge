@@ -86,6 +86,8 @@ export default function DragonBondChat({
   const [bondState, setBondState] = useState<DragonBondState>(() => loadBondState());
   const [statsExpanded, setStatsExpanded] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [dragonOpening, setDragonOpening] = useState<string | null>(null);
   const [showPersonality, setShowPersonality] = useState(false);
   const [showMemoryPanel, setShowMemoryPanel] = useState(false);
