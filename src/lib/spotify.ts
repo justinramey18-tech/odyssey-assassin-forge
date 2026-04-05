@@ -277,6 +277,12 @@ export async function setVolume(volumePercent: number) {
   await spotifyFetch(`/me/player/volume?volume_percent=${Math.round(volumePercent)}`, { method: 'PUT' });
 }
 
+export async function setShuffle(state: boolean, deviceId?: string) {
+  const params = new URLSearchParams({ state: String(state) });
+  if (deviceId) params.set('device_id', deviceId);
+  await spotifyFetch(`/me/player/shuffle?${params}`, { method: 'PUT' });
+}
+
 export async function getDevices() {
   const data = await spotifyFetch('/me/player/devices');
   return data?.devices || [];

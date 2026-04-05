@@ -316,6 +316,7 @@ export function useSpotify() {
         // One more attempt without device_id before giving up
         try {
           await play({ context_uri: playlistUri });
+          try { await setShuffle(true); } catch { /* shuffle is best-effort */ }
           toast.success('Now playing on Spotify');
           return;
         } catch {
