@@ -600,6 +600,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     soloDMInputRef.current?.setText('');
   }, [isLoading, sendMessage, voiceNPC]);
 
+  const handleQuickAction = useCallback((prompt: string) => {
+    sendMessage(prompt);
+  }, [sendMessage]);
+
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
     if (!items) return;
