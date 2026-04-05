@@ -12,6 +12,7 @@ import {
   skipNext,
   skipPrevious,
   setVolume as setSpotifyVolume,
+  setShuffle,
   searchPlaylists,
   getUserProfile,
   getDevices,
@@ -269,6 +270,7 @@ export function useSpotify() {
       if (targetDeviceId) {
         // We have a device — play on it directly
         await play({ context_uri: playlistUri, device_id: targetDeviceId });
+        try { await setShuffle(true, targetDeviceId); } catch { /* shuffle is best-effort */ }
         toast.success(`Now playing on ${targetDeviceName}`);
         return;
       }
@@ -279,6 +281,7 @@ export function useSpotify() {
       // active device automatically. This often works on mobile.
       try {
         await play({ context_uri: playlistUri });
+        try { await setShuffle(true); } catch { /* shuffle is best-effort */ }
         toast.success('Now playing on Spotify');
         return;
       } catch (devicelessError: any) {
@@ -313,6 +316,7 @@ export function useSpotify() {
         // One more attempt without device_id before giving up
         try {
           await play({ context_uri: playlistUri });
+          try { await setShuffle(true); } catch { /* shuffle is best-effort */ }
           toast.success('Now playing on Spotify');
           return;
         } catch {
