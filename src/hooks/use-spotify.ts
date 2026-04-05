@@ -12,6 +12,7 @@ import {
   skipNext,
   skipPrevious,
   setVolume as setSpotifyVolume,
+  setShuffle,
   searchPlaylists,
   getUserProfile,
   getDevices,
