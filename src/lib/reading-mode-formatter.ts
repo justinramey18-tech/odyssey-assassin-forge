@@ -64,9 +64,43 @@ HTML FORMATTING RULES:
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
 
+interface ModelSelection {
+  model: string;
+  user_api_key?: string;
+  user_openai_key?: string;
+}
+
+function selectBestFormatterModel(): ModelSelection {
+  // Priority 1: Claude Sonnet (best at creative structured HTML)
+  const anthropicKey = loadApiKey('anthropic');
+  if (anthropicKey) {
+    return {
+      model: 'anthropic/claude-sonnet-4-6',
+      user_api_key: anthropicKey,
+    };
+  }
+
+  // Priority 2: OpenAI GPT-5 (strong at formatting)
+  const openaiKey = loadApiKey('openai');
+  if (openaiKey) {
+    return {
+      model: 'openai-direct/gpt-5',
+      user_openai_key: openaiKey,
+    };
+  }
+
+  // Priority 3: Gemini 2.5 Flash via free Lovable gateway (good enough, fast)
+  return {
+    model: 'google/gemini-2.5-flash',
+  };
+}
+
 export async function formatForReadingMode(narrativeText: string): Promise<FormattedReading | null> {
   try {
     const authToken = await getAuthToken();
+
+    const selectedModel = selectBestFormatterModel();
+    console.log('[ReadingMode] Using model:', selectedModel.model);
 
     const resp = await fetch(AI_DM_URL, {
       method: 'POST',
@@ -74,8 +108,10 @@ export async function formatForReadingMode(narrativeText: string): Promise<Forma
       body: JSON.stringify({
         messages: [{ role: 'user', content: narrativeText }],
         systemPromptOverride: FORMAT_SYSTEM_PROMPT,
-        model: 'google/gemini-2.5-flash-lite',
+        model: selectedModel.model,
         maxTokens: 4000,
+        user_api_key: selectedModel.user_api_key || undefined,
+        user_openai_key: selectedModel.user_openai_key || undefined,
       }),
     });
 
