@@ -1034,53 +1034,23 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           }}
         />
         <div className="flex flex-col gap-2 max-w-2xl mx-auto">
-          <div className="relative flex items-end gap-2">
-            {npcMention.showAutocomplete && (
-              <NPCAutocomplete
-                names={npcMention.suggestions}
-                onSelect={npcMention.selectNPC}
-                activeIndex={npcMention.activeIndex}
-              />
-            )}
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={handleInputChange}
-              onKeyDown={(e) => {
-                if (npcMention.handleAutocompleteKeyDown(e)) return;
-                handleKeyDown(e);
+            <SoloDMInput
+              ref={soloDMInputRef}
+              onSend={(text) => {
+                const npcMatch = text.match(/^@(\w[\w\s]*?\w)\s+([\s\S]+)$/);
+                if (npcMatch) {
+                  voiceNPC(npcMatch[1].trim(), npcMatch[2].trim());
+                } else {
+                  sendMessage(text);
+                }
               }}
-              onSelect={npcMention.trackCursor}
+              onCancel={cancelRequest}
               onPaste={handlePaste}
-              placeholder="What do you do? (@NPC to talk to an NPC)"
-              rows={1}
-              className={cn("flex-1 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none resize-none min-h-[42px] max-h-[200px]", chatTheme.inputBg, chatTheme.inputBorder, "border focus:border-amber-500/40")}
-              disabled={isLoading}
+              isLoading={isLoading}
+              npcNames={npcNames}
+              inputClassName={cn(chatTheme.inputBg, chatTheme.inputBorder, "border focus:border-amber-500/40")}
+              sendActiveClassName={chatTheme.sendBtnActive}
             />
-            {isLoading ? (
-              <button
-                onClick={cancelRequest}
-                className="p-2.5 rounded-xl bg-red-900/40 border border-red-500/30 hover:bg-red-900/60 transition-colors shrink-0"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <Square className="w-5 h-5 text-red-400" />
-              </button>
-            ) : (
-              <button
-                onClick={handleSend}
-                disabled={!input.trim()}
-                className={cn(
-                  "p-2.5 rounded-xl border shrink-0 transition-colors",
-                  input.trim()
-                    ? chatTheme.sendBtnActive
-                    : "bg-white/5 border-white/10 opacity-40"
-                )}
-                style={{ touchAction: 'manipulation' }}
-              >
-                <Send className="w-5 h-5 text-amber-400" />
-              </button>
-            )}
-          </div>
           <div className="flex items-center gap-1 justify-center">
             {userId && (
               <>
