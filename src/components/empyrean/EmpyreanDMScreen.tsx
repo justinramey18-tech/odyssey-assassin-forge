@@ -204,10 +204,8 @@ export function EmpyreanDMScreen({
   const [showSaves, setShowSaves] = useState(false);
   const [showGuides, setShowGuides] = useState(false);
   const [showWorldState, setShowWorldState] = useState(false);
-  const [inputValue, setInputValue] = useState('');
   const [showNpcScene, setShowNpcScene] = useState(false);
   const [showOocChat, setShowOocChat] = useState(false);
-  const [npcInterjectionText, setNpcInterjectionText] = useState('');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [burnoutLevel, setBurnoutLevel] = useState(0);
   const burnoutLevelRef = useRef(burnoutLevel);
@@ -231,6 +229,8 @@ export function EmpyreanDMScreen({
   const [showSetup, setShowSetup] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const empyreanInputRef = useRef<EmpyreanDMInputHandle>(null);
+  const npcNames = useNPCAutocomplete(messages);
   const [readingMode, setReadingMode] = useState(false);
   const [formattedReading, setFormattedReading] = useState<FormattedReading | null>(null);
   const [isFormattingReading, setIsFormattingReading] = useState(false);
@@ -828,24 +828,9 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
 
   const handleAppendPrompt = useCallback((prompt: string) => {
     if (isLoading) return;
-    setInputValue(prev => {
-      const trimmed = prev.trim();
-      if (trimmed) {
-        return trimmed + '\n' + prompt;
-      }
-      return prompt;
-    });
+    empyreanInputRef.current?.appendText(prompt);
     setActiveNavTab(null);
     setNavExpanded(false);
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.style.height = 'auto';
-        textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 120) + 'px';
-        const len = textareaRef.current.value.length;
-        textareaRef.current.setSelectionRange(len, len);
-      }
-    }, 50);
   }, [isLoading]);
 
 
@@ -862,9 +847,10 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
   }, [open, isUnbonded, characterName, sendMessage]);
 
   const handleSend = useCallback(() => {
-    if (!inputValue.trim() || isLoading) return;
+    const text = empyreanInputRef.current?.getText()?.trim();
+    if (!text || isLoading) return;
     setRecapDismissed(true);
-    let messageToSend = inputValue.trim();
+    let messageToSend = text;
     
     // Inject Threshing authorization tag if authorized
     if (threshingAuthorized) {
@@ -884,17 +870,14 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     } else {
       sendMessage(messageToSend);
     }
-    setInputValue('');
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-    }
-  }, [inputValue, isLoading, sendMessage, voiceNPC, threshingAuthorized, characterName]);
+    empyreanInputRef.current?.setText('');
+  }, [isLoading, sendMessage, voiceNPC, threshingAuthorized, characterName]);
 
   const handlePromptSelect = useCallback((prompt: string) => {
     const filled = prompt.replace(/\[Character Name\]/g, characterName);
-    setInputValue(filled);
+    empyreanInputRef.current?.setText(filled);
     setShowPrompts(false);
-    textareaRef.current?.focus();
+    empyreanInputRef.current?.focus();
   }, [characterName]);
 
   const handleModelChange = useCallback((modelId: string) => {
