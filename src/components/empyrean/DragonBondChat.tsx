@@ -266,8 +266,6 @@ export default function DragonBondChat({
     }
   }, [showPersonality, dragonNotes]);
 
-  if (!open) return null;
-
 
   // Preserve scroll position across streaming re-renders
   const savedScrollRef = useRef<number | null>(null);
