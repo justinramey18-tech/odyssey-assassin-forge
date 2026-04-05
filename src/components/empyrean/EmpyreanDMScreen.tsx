@@ -228,8 +228,6 @@ export function EmpyreanDMScreen({
   const [slideshowSlides, setSlideshowSlides] = useState<import('@/lib/parseSlides').Slide[]>([]);
   const [showSetup, setShowSetup] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const empyreanInputRef = useRef<EmpyreanDMInputHandle>(null);
   const empyreanInputRef = useRef<EmpyreanDMInputHandle>(null);
   const [readingMode, setReadingMode] = useState(false);
   const [formattedReading, setFormattedReading] = useState<FormattedReading | null>(null);
