@@ -583,45 +583,22 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   }, [messages]);
 
   const handleSend = useCallback(() => {
-    if (!input.trim() || isLoading) return;
-    // Support multiple @NPC tags: @NPC1 @NPC2 message
-    const multiNpcMatch = input.trim().match(/^((?:@\S+\s+)+)(.+)$/s);
+    const text = soloDMInputRef.current?.getText()?.trim();
+    if (!text || isLoading) return;
+    const multiNpcMatch = text.match(/^((?:@\S+\s+)+)(.+)$/s);
     if (multiNpcMatch && voiceNPC) {
       const npcNames = [...multiNpcMatch[1].matchAll(/@(\S+)/g)].map(m => m[1]);
       const message = multiNpcMatch[2];
       if (npcNames.length > 0 && message.trim()) {
         voiceNPC(npcNames.length === 1 ? npcNames[0] : npcNames, message);
       } else {
-        sendMessage(input.trim());
+        sendMessage(text);
       }
     } else {
-      sendMessage(input.trim());
+      sendMessage(text);
     }
-    clearInput();
-    if (inputRef.current) {
-      inputRef.current.style.height = 'auto';
-    }
-  }, [input, isLoading, sendMessage, voiceNPC]);
-
-  // Enter creates newline on mobile; no send-on-enter
-  const handleKeyDown = useCallback((_e: React.KeyboardEvent) => {
-    // intentionally no-op: Enter naturally inserts a newline in textarea
-  }, []);
-
-  const handleQuickAction = useCallback((prompt: string) => {
-    sendMessage(prompt);
-  }, [sendMessage]);
-
-
-  const npcMention = useNPCMentionState(messages, inputRef, setInput, input);
-
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value);
-    const textarea = e.target;
-    textarea.style.height = 'auto';
-    textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
-    npcMention.trackCursor();
-  }, [npcMention.trackCursor]);
+    soloDMInputRef.current?.setText('');
+  }, [isLoading, sendMessage, voiceNPC]);
 
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
