@@ -1,4 +1,5 @@
 import { getAuthToken } from '@/lib/auth-token';
+import { loadApiKey } from '@/lib/api-keys';
 
 export interface FormattedReading {
   html: string;
