@@ -383,7 +383,41 @@ export default function DragonBondChat({
     [handleSend],
   );
 
-  if (!open) return null;
+  const handleCopyMessage = useCallback((text: string, messageId: string) => {
+    const stripped = text
+      .replace(/<!--.*?-->/g, '')
+      .replace(/\*\*/g, '')
+      .replace(/\*/g, '')
+      .replace(/<[^>]*>/g, '')
+      .trim();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(stripped).then(() => {
+        setCopiedId(messageId);
+        setTimeout(() => setCopiedId(null), 1500);
+      }).catch(() => {});
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = stripped;
+      ta.style.cssText = 'position:fixed;left:-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); setCopiedId(messageId); setTimeout(() => setCopiedId(null), 1500); } catch {}
+      document.body.removeChild(ta);
+    }
+  }, []);
+
+  const handlePointerDown = useCallback((text: string, messageId: string) => {
+    longPressTimerRef.current = setTimeout(() => {
+      handleCopyMessage(text, messageId);
+    }, 500);
+  }, [handleCopyMessage]);
+
+  const handlePointerUp = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
 
   const moodInfo = getMoodDescriptor(bondState.mood);
   const bondDesc = getBondDescriptor(bondState.bond);
