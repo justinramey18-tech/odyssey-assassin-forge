@@ -3,9 +3,8 @@ import { useWeather } from '@/hooks/use-weather';
 import { weatherToNarrativeContext } from '@/lib/weather';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { useResponseMode } from '@/hooks/use-response-mode';
-import { useDraftPersist } from '@/hooks/use-draft-persist';
-import { useNPCMentionState } from '@/hooks/use-npc-mention-state';
-import { NPCAutocomplete } from './NPCAutocomplete';
+import { useNPCAutocomplete } from '@/hooks/use-npc-autocomplete';
+import { SoloDMInput, type SoloDMInputHandle } from './SoloDMInput';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-models';
@@ -549,12 +548,12 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     updateCampaignSummary(summary);
   }, [updateCampaignSummary]);
 
-  const [input, setInput, clearInput] = useDraftPersist('odyssey-solo-dm-draft');
+  const soloDMInputRef = useRef<SoloDMInputHandle>(null);
   const [showContext, setShowContext] = useState(false);
   const [showGuides, setShowGuides] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const npcNames = useNPCAutocomplete(messages);
 
   const handleLoadCampaign = useCallback((session: CampaignSession) => {
     loadCampaign(session.messages, session.campaign_summary, session.id, session.gm_guide_ids);
@@ -584,45 +583,26 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   }, [messages]);
 
   const handleSend = useCallback(() => {
-    if (!input.trim() || isLoading) return;
-    // Support multiple @NPC tags: @NPC1 @NPC2 message
-    const multiNpcMatch = input.trim().match(/^((?:@\S+\s+)+)(.+)$/s);
+    const text = soloDMInputRef.current?.getText()?.trim();
+    if (!text || isLoading) return;
+    const multiNpcMatch = text.match(/^((?:@\S+\s+)+)(.+)$/s);
     if (multiNpcMatch && voiceNPC) {
       const npcNames = [...multiNpcMatch[1].matchAll(/@(\S+)/g)].map(m => m[1]);
       const message = multiNpcMatch[2];
       if (npcNames.length > 0 && message.trim()) {
         voiceNPC(npcNames.length === 1 ? npcNames[0] : npcNames, message);
       } else {
-        sendMessage(input.trim());
+        sendMessage(text);
       }
     } else {
-      sendMessage(input.trim());
+      sendMessage(text);
     }
-    clearInput();
-    if (inputRef.current) {
-      inputRef.current.style.height = 'auto';
-    }
-  }, [input, isLoading, sendMessage, voiceNPC]);
-
-  // Enter creates newline on mobile; no send-on-enter
-  const handleKeyDown = useCallback((_e: React.KeyboardEvent) => {
-    // intentionally no-op: Enter naturally inserts a newline in textarea
-  }, []);
+    soloDMInputRef.current?.setText('');
+  }, [isLoading, sendMessage, voiceNPC]);
 
   const handleQuickAction = useCallback((prompt: string) => {
     sendMessage(prompt);
   }, [sendMessage]);
-
-
-  const npcMention = useNPCMentionState(messages, inputRef, setInput, input);
-
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value);
-    const textarea = e.target;
-    textarea.style.height = 'auto';
-    textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
-    npcMention.trackCursor();
-  }, [npcMention.trackCursor]);
 
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
@@ -684,7 +664,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   }, []);
 
   const handleUsePrompt = useCallback((prompt: string) => {
-    setInput(prev => prev ? `${prev}\n${prompt}` : prompt);
+    soloDMInputRef.current?.appendText(prompt);
   }, []);
 
   const hpPercent = characterContext.maxHP > 0
@@ -1058,53 +1038,23 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           }}
         />
         <div className="flex flex-col gap-2 max-w-2xl mx-auto">
-          <div className="relative flex items-end gap-2">
-            {npcMention.showAutocomplete && (
-              <NPCAutocomplete
-                names={npcMention.suggestions}
-                onSelect={npcMention.selectNPC}
-                activeIndex={npcMention.activeIndex}
-              />
-            )}
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={handleInputChange}
-              onKeyDown={(e) => {
-                if (npcMention.handleAutocompleteKeyDown(e)) return;
-                handleKeyDown(e);
+            <SoloDMInput
+              ref={soloDMInputRef}
+              onSend={(text) => {
+                const npcMatch = text.match(/^@(\w[\w\s]*?\w)\s+([\s\S]+)$/);
+                if (npcMatch) {
+                  voiceNPC(npcMatch[1].trim(), npcMatch[2].trim());
+                } else {
+                  sendMessage(text);
+                }
               }}
-              onSelect={npcMention.trackCursor}
+              onCancel={cancelRequest}
               onPaste={handlePaste}
-              placeholder="What do you do? (@NPC to talk to an NPC)"
-              rows={1}
-              className={cn("flex-1 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none resize-none min-h-[42px] max-h-[200px]", chatTheme.inputBg, chatTheme.inputBorder, "border focus:border-amber-500/40")}
-              disabled={isLoading}
+              isLoading={isLoading}
+              npcNames={npcNames}
+              inputClassName={cn(chatTheme.inputBg, chatTheme.inputBorder, "border focus:border-amber-500/40")}
+              sendActiveClassName={chatTheme.sendBtnActive}
             />
-            {isLoading ? (
-              <button
-                onClick={cancelRequest}
-                className="p-2.5 rounded-xl bg-red-900/40 border border-red-500/30 hover:bg-red-900/60 transition-colors shrink-0"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <Square className="w-5 h-5 text-red-400" />
-              </button>
-            ) : (
-              <button
-                onClick={handleSend}
-                disabled={!input.trim()}
-                className={cn(
-                  "p-2.5 rounded-xl border shrink-0 transition-colors",
-                  input.trim()
-                    ? chatTheme.sendBtnActive
-                    : "bg-white/5 border-white/10 opacity-40"
-                )}
-                style={{ touchAction: 'manipulation' }}
-              >
-                <Send className="w-5 h-5 text-amber-400" />
-              </button>
-            )}
-          </div>
           <div className="flex items-center gap-1 justify-center">
             {userId && (
               <>
