@@ -270,6 +270,7 @@ export function useSpotify() {
       if (targetDeviceId) {
         // We have a device — play on it directly
         await play({ context_uri: playlistUri, device_id: targetDeviceId });
+        try { await setShuffle(true, targetDeviceId); } catch { /* shuffle is best-effort */ }
         toast.success(`Now playing on ${targetDeviceName}`);
         return;
       }
