@@ -41,8 +41,8 @@ import DragonBondChat from '@/components/empyrean/DragonBondChat';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import empyreanDmBg from '@/assets/empyrean-dm-bg.jpg';
 import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
-import { useNPCMentionState } from '@/hooks/use-npc-mention-state';
-import { NPCAutocomplete } from '@/components/ai-dm/NPCAutocomplete';
+import { useNPCAutocomplete } from '@/hooks/use-npc-autocomplete';
+import { EmpyreanDMInput, type EmpyreanDMInputHandle } from './EmpyreanDMInput';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
@@ -204,10 +204,8 @@ export function EmpyreanDMScreen({
   const [showSaves, setShowSaves] = useState(false);
   const [showGuides, setShowGuides] = useState(false);
   const [showWorldState, setShowWorldState] = useState(false);
-  const [inputValue, setInputValue] = useState('');
   const [showNpcScene, setShowNpcScene] = useState(false);
   const [showOocChat, setShowOocChat] = useState(false);
-  const [npcInterjectionText, setNpcInterjectionText] = useState('');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [burnoutLevel, setBurnoutLevel] = useState(0);
   const burnoutLevelRef = useRef(burnoutLevel);
@@ -230,7 +228,7 @@ export function EmpyreanDMScreen({
   const [slideshowSlides, setSlideshowSlides] = useState<import('@/lib/parseSlides').Slide[]>([]);
   const [showSetup, setShowSetup] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const empyreanInputRef = useRef<EmpyreanDMInputHandle>(null);
   const [readingMode, setReadingMode] = useState(false);
   const [formattedReading, setFormattedReading] = useState<FormattedReading | null>(null);
   const [isFormattingReading, setIsFormattingReading] = useState(false);
@@ -828,24 +826,9 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
 
   const handleAppendPrompt = useCallback((prompt: string) => {
     if (isLoading) return;
-    setInputValue(prev => {
-      const trimmed = prev.trim();
-      if (trimmed) {
-        return trimmed + '\n' + prompt;
-      }
-      return prompt;
-    });
+    empyreanInputRef.current?.appendText(prompt);
     setActiveNavTab(null);
     setNavExpanded(false);
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.style.height = 'auto';
-        textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 120) + 'px';
-        const len = textareaRef.current.value.length;
-        textareaRef.current.setSelectionRange(len, len);
-      }
-    }, 50);
   }, [isLoading]);
 
 
@@ -862,9 +845,10 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
   }, [open, isUnbonded, characterName, sendMessage]);
 
   const handleSend = useCallback(() => {
-    if (!inputValue.trim() || isLoading) return;
+    const text = empyreanInputRef.current?.getText()?.trim();
+    if (!text || isLoading) return;
     setRecapDismissed(true);
-    let messageToSend = inputValue.trim();
+    let messageToSend = text;
     
     // Inject Threshing authorization tag if authorized
     if (threshingAuthorized) {
@@ -884,17 +868,14 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     } else {
       sendMessage(messageToSend);
     }
-    setInputValue('');
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-    }
-  }, [inputValue, isLoading, sendMessage, voiceNPC, threshingAuthorized, characterName]);
+    empyreanInputRef.current?.setText('');
+  }, [isLoading, sendMessage, voiceNPC, threshingAuthorized, characterName]);
 
   const handlePromptSelect = useCallback((prompt: string) => {
     const filled = prompt.replace(/\[Character Name\]/g, characterName);
-    setInputValue(filled);
+    empyreanInputRef.current?.setText(filled);
     setShowPrompts(false);
-    textareaRef.current?.focus();
+    empyreanInputRef.current?.focus();
   }, [characterName]);
 
   const handleModelChange = useCallback((modelId: string) => {
@@ -1003,15 +984,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     sendMessage(filled);
     setShowPrompts(false);
   }, [characterName, sendMessage]);
-  const npcMention = useNPCMentionState(messages, textareaRef, setInputValue, inputValue);
-
-  // Auto-resize textarea
-  const handleTextareaInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInputValue(e.target.value);
-    e.target.style.height = 'auto';
-    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
-    npcMention.trackCursor();
-  }, [npcMention.trackCursor]);
+  const npcNames = useNPCAutocomplete(messages);
 
   const groupedPrompts = useMemo(() => groupPromptsByCategory(empyreanPrompts), []);
 
@@ -1668,73 +1641,26 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         "shrink-0 border-t border-purple-500/20 bg-background/90 backdrop-blur-sm px-3 pt-2.5 pb-[60px]",
         !isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout && "pointer-events-none opacity-40 select-none"
       )}>
-        <div className="relative flex items-end gap-2">
-          {npcMention.showAutocomplete && (
-            <NPCAutocomplete
-              names={npcMention.suggestions}
-              onSelect={npcMention.selectNPC}
-              activeIndex={npcMention.activeIndex}
-            />
-          )}
-          <button
-            onClick={() => setShowPrompts(true)}
-            className="p-2.5 rounded-lg hover:bg-purple-500/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
-          >
-            <BookOpen className="w-5 h-5 text-purple-400" />
-          </button>
-
-          <textarea
-            ref={npcSceneConfig?.active ? undefined : textareaRef}
-            value={npcSceneConfig?.active ? npcInterjectionText : inputValue}
-            onChange={npcSceneConfig?.active ? (e) => setNpcInterjectionText(e.target.value) : handleTextareaInput}
-            onSelect={npcSceneConfig?.active ? undefined : npcMention.trackCursor}
-            placeholder={npcSceneConfig?.active ? "Speak up — the NPCs will react to you..." : "What does your rider do... (@NPC to talk to an NPC)"}
-            rows={1}
-            className="flex-1 bg-card/30 border border-purple-500/20 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-purple-400 max-h-[120px] min-h-[44px]"
-            onKeyDown={e => {
-              if (!npcSceneConfig?.active && npcMention.handleAutocompleteKeyDown(e)) return;
-              // Enter creates newline on mobile; no send-on-enter.
-              // Players use the Send button. NPC autocomplete is handled above.
+        <div className="relative">
+          <EmpyreanDMInput
+            ref={empyreanInputRef}
+            onSend={(text) => {
+              const npcMatch = text.match(/^@(\w[\w\s]*?\w)\s+([\s\S]+)$/);
+              if (npcMatch) {
+                voiceNPC(npcMatch[1].trim(), npcMatch[2].trim());
+              } else if (threshingAuthorized) {
+                sendMessage(`[THRESHING AUTHORIZED] ${text}`);
+              } else {
+                sendMessage(text);
+              }
             }}
+            onCancel={cancelRequest}
+            onShowPrompts={() => setShowPrompts(true)}
+            isLoading={isLoading}
+            npcNames={npcNames}
+            npcSceneActive={!!npcSceneConfig?.active}
+            onNpcInterjection={(text) => submitNpcInterjection(text)}
           />
-
-          {isLoading ? (
-            npcSceneConfig?.active ? (
-              <button
-                onClick={() => {
-                  if (npcInterjectionText.trim()) {
-                    submitNpcInterjection(npcInterjectionText.trim());
-                    setNpcInterjectionText('');
-                  }
-                }}
-                disabled={!npcInterjectionText.trim()}
-                className="p-2.5 rounded-xl bg-primary/20 border border-primary/30 text-primary hover:bg-primary/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            ) : (
-              <button
-                onClick={cancelRequest}
-                className="p-2.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
-              >
-                <X className="w-5 h-5 text-red-400" />
-              </button>
-            )
-          ) : (
-            <button
-              onClick={handleSend}
-              disabled={!inputValue.trim()}
-              className={cn(
-                'p-2.5 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0',
-                inputValue.trim()
-                  ? 'bg-purple-600 hover:bg-purple-500 text-white'
-                  : 'bg-muted/30 text-muted-foreground',
-              )}
-            >
-              <Send className="w-5 h-5" />
-            </button>
-          )}
         </div>
       </div>
 
