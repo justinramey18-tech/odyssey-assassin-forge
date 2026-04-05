@@ -248,10 +248,27 @@ Deno.serve(async (req) => {
         });
       }
 
-      await supabase
+      const pid = body.partyId;
+      // Clean up dependent tables first (foreign keys may block party deletion)
+      await supabase.from('party_dm_prompts').delete().eq('party_id', pid);
+      await supabase.from('party_dm_messages').delete().eq('party_id', pid);
+      await supabase.from('party_shared_state').delete().eq('party_id', pid);
+      await supabase.from('scheduled_telegram_jobs').delete().eq('party_id', pid);
+      await supabase.from('party_members').delete().eq('party_id', pid);
+
+      // Now delete the party itself
+      const { error: deleteError } = await supabase
         .from('parties')
         .delete()
-        .eq('id', body.partyId);
+        .eq('id', pid);
+
+      if (deleteError) {
+        console.error('[disband] Delete error:', deleteError);
+        return new Response(JSON.stringify({ error: 'Failed to delete party: ' + deleteError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

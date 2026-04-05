@@ -57,6 +57,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
   const [showJoin, setShowJoin] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
   const [kickTarget, setKickTarget] = useState<PartyMember | null>(null);
+  const [showDisbandDialog, setShowDisbandDialog] = useState(false);
   const [showRolls, setShowRolls] = useState(false);
   const [showLoot, setShowLoot] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -354,20 +355,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => {
-              toast('Are you sure you want to disband the party?', {
-                description: 'This will remove all members and cannot be undone.',
-                action: {
-                  label: 'Disband',
-                  onClick: () => partySync.disbandParty(),
-                },
-                cancel: {
-                  label: 'Cancel',
-                  onClick: () => {},
-                },
-                duration: 10000,
-              });
-            }}
+            onClick={() => setShowDisbandDialog(true)}
             className="w-full gap-2"
           >
             <Trash2 className="w-3.5 h-3.5" />
