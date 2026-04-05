@@ -432,6 +432,33 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={showDisbandDialog} onOpenChange={setShowDisbandDialog}>
+        <AlertDialogContent className="bg-background border-border z-[200]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disband Party?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove all members and cannot be undone. All party DM messages and session data will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                try {
+                  await partySync.disbandParty();
+                } catch (e: any) {
+                  toast.error(e?.message || 'Failed to disband party');
+                }
+                setShowDisbandDialog(false);
+              }}
+            >
+              Disband
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
