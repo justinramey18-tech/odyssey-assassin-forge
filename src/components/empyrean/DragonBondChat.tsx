@@ -800,9 +800,19 @@ export default function DragonBondChat({
                         isDragon
                           ? 'pl-3'
                           : 'border-r-2 border-white/[0.12] pr-3 text-right',
+                        'relative select-none',
                       )}
                       style={isDragon ? { borderLeft: `2px solid ${dragonColor || '#22d3ee'}80` } : undefined}
+                      onPointerDown={() => handlePointerDown(msg.content, msg.id)}
+                      onPointerUp={handlePointerUp}
+                      onPointerLeave={handlePointerUp}
+                      onContextMenu={(e) => { e.preventDefault(); handleCopyMessage(msg.content, msg.id); }}
                     >
+                      {copiedId === msg.id && (
+                        <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full pointer-events-none animate-pulse z-10">
+                          Copied
+                        </span>
+                      )}
                       {isDragon ? (
                         <div
                           className="italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1"
