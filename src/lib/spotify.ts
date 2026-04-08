@@ -55,7 +55,11 @@ export function storeTokens(accessToken: string, refreshToken: string | null, ex
 
 export function clearTokens() {
   try {
-    Object.values(KEYS).forEach(k => localStorage.removeItem(k));
+    // Only clear auth-related keys — preserve mood presets, auto-mood, and version
+    localStorage.removeItem(KEYS.accessToken);
+    localStorage.removeItem(KEYS.refreshToken);
+    localStorage.removeItem(KEYS.expiresAt);
+    localStorage.removeItem(KEYS.codeVerifier);
   } catch {
     // ignore
   }
