@@ -561,26 +561,23 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     setTrackingCampaignId(activeCampaignId);
   }, [activeCampaignId]);
 
-  // Auto-enter reading mode when generation completes (no cinematic)
+  // Auto-enter reading mode when generation STARTS (non-cinematic) so user sees shimmer bars instead of raw text
   useEffect(() => {
-    if (prevIsLoadingRef.current && !isLoading) {
-      if (!cinematicModeEnabled) {
-        const lastMessage = messages[messages.length - 1];
-        if (lastMessage?.role === 'assistant' && lastMessage.content?.trim()) {
-          setReadingMode(true);
-        }
-      }
+    if (!prevIsLoadingRef.current && isLoading && !cinematicModeEnabled) {
+      setReadingMode(true);
     }
     prevIsLoadingRef.current = isLoading;
-  }, [isLoading, messages, cinematicModeEnabled]);
+  }, [isLoading, cinematicModeEnabled]);
 
-  // Trigger AI formatting when reading mode activates
+  // Trigger AI formatting when reading mode is active AND generation is complete
   useEffect(() => {
     if (!readingMode) {
       setFormattedReading(null);
       setIsFormattingReading(false);
       return;
     }
+    // Still generating — keep shimmer bars showing, do not start formatting yet
+    if (isLoading) return;
     const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant' && m.content?.trim());
     if (!lastAssistant) return;
     const parsed = parseWhispers(lastAssistant.content || '');
@@ -591,7 +588,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
       .then(result => { setFormattedReading(result); })
       .catch(() => { setFormattedReading(null); })
       .finally(() => { setIsFormattingReading(false); });
-  }, [readingMode, messages]);
+  }, [readingMode, isLoading, messages]);
 
   // Dragon narrative reaction: auto-trigger dragon chat response after each DM message
   const lastDragonReactionIdRef = useRef<string | null>(null);
@@ -1306,7 +1303,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
 
         {messages.map((message, msgIndex) => {
           // Hide the last assistant message while slideshow is playing
-          if (message.role === 'assistant' && msgIndex === messages.length - 1 && (showSlideshow || (isLoading && cinematicModeEnabled))) {
+          if (message.role === 'assistant' && msgIndex === messages.length - 1 && (showSlideshow || (isLoading && cinematicModeEnabled) || (isLoading && readingMode))) {
             return null;
           }
           const isUser = message.role === 'user';
@@ -2167,7 +2164,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
 
               <div className="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-8 pb-36 relative z-10">
                 <div className="max-w-2xl mx-auto pt-4">
-                  {isFormattingReading ? (
+                  {(isFormattingReading || !formattedReading) ? (
                     <div className="space-y-1">
                       {Array.from({ length: 12 }).map((_, i) => (
                         <div
