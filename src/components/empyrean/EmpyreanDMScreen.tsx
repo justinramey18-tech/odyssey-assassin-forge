@@ -360,22 +360,6 @@ export function EmpyreanDMScreen({
   const [currentTutorialIndex, setCurrentTutorialIndex] = useState(() => Math.floor(Math.random() * DND_TUTORIALS.length));
   const tutorialIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    if (readingMode && (isLoading || isFormattingReading || !formattedReading)) {
-      setCurrentTutorialIndex(Math.floor(Math.random() * DND_TUTORIALS.length));
-      tutorialIntervalRef.current = setInterval(() => {
-        setCurrentTutorialIndex(prev => (prev + 1) % DND_TUTORIALS.length);
-      }, 8000);
-      return () => {
-        if (tutorialIntervalRef.current) clearInterval(tutorialIntervalRef.current);
-      };
-    } else {
-      if (tutorialIntervalRef.current) {
-        clearInterval(tutorialIntervalRef.current);
-        tutorialIntervalRef.current = null;
-      }
-    }
-  }, [readingMode, isLoading, isFormattingReading, formattedReading]);
 
   // Reload config when screen opens
   const [showDragonChat, setShowDragonChat] = useState(false);
