@@ -2164,7 +2164,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
 
               <div className="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-8 pb-36 relative z-10">
                 <div className="max-w-2xl mx-auto pt-4">
-                  {(isFormattingReading || !formattedReading) ? (
+                  {(isLoading || isFormattingReading) ? (
                     <div className="space-y-1">
                       {Array.from({ length: 12 }).map((_, i) => (
                         <div
