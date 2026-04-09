@@ -234,6 +234,149 @@ export function EmpyreanDMScreen({
   const [isFormattingReading, setIsFormattingReading] = useState(false);
   const prevIsLoadingRef = useRef(false);
 
+  const DND_TUTORIALS = [
+    {
+      icon: "🎲",
+      title: "The d20 — Your New God",
+      body: "Welcome to Basgiath, where your entire goddamn future is decided by a 20-sided piece of plastic. Trying to not get thrown off your dragon at 300 feet? d20. Trying to lie to your wingleader's face about where you were last night? d20. Roll high and you are a war hero. Roll low and the DM describes your humiliation in pornographic detail. This die does not care about your feelings, your backstory, or your hopes and dreams."
+    },
+    {
+      icon: "📊",
+      title: "Your Six Stats — A Personality Test You Can Fail",
+      body: "Every rider has six stats: Body, Agility, Grit, Intellect, Instinct, and Willpower. Each has a score and a modifier — the modifier is the little number you actually add to dice rolls. Think of it this way: the score is how hot you think you are, the modifier is how hot you actually are. If any modifier is negative, your character is canonically, measurably terrible at something. Congratulations, you built that disaster on purpose."
+    },
+    {
+      icon: "💪",
+      title: "Body — For When Diplomacy Means a Fist",
+      body: "Body is brute force. Swinging your blade through a venin's skull, kicking down a barracks door at 3am, carrying your half-dead squadmate out of a ward line breach while they bleed all over your leathers. If your Body is low, you are the rider who cannot open a jar of healing draught while your friends are dying. That is your legacy. A jar defeated you."
+    },
+    {
+      icon: "🏃",
+      title: "Agility — Don't Fall Off the Damn Dragon",
+      body: "Agility is reflexes, speed, and not becoming a bloody smear on the mountainside. It powers Combat Agility — fighting without tripping over your own sword whether you are on the ground in Basgiath's training pit or five hundred feet up dodging another dragon's tail. Low Agility at a war college full of people who want you dead is like showing up to a knife fight with a strongly worded letter."
+    },
+    {
+      icon: "🪨",
+      title: "Grit — The 'Too Pissed Off to Die' Stat",
+      body: "Grit determines your Vitality — how much damage your body can absorb before you eat dirt. It also powers Flight Endurance, which is what keeps you conscious when your dragon does a vertical dive and every organ in your body tries to escape through your ass. Low Grit means you pass out during morning PT and miss the part where your wingleader announces your squad assignment. First impressions: ruined."
+    },
+    {
+      icon: "🧠",
+      title: "Intellect — The Nerd Stays Winning",
+      body: "Intellect powers Signet Theory (not blowing yourself up with your own magic), Field Medicine (keeping idiots alive on the battlefield), Rune Crafting (very illegal, very fun), The Codex (lawyering your way out of punishment), and Deception (lying with a straight face when command asks why there is a hole in the west wall). Dump this stat and you will drink the wrong potion, read the wrong rune, and accidentally confess to shit you did not even do."
+    },
+    {
+      icon: "👁️",
+      title: "Instinct — Your Internal 'Oh Shit' Alarm",
+      body: "Instinct powers Awareness — noticing the venin before it notices you, sensing the ambush in the tree line, realizing your professor is lying through their teeth about the ward line's integrity. Low Instinct riders are the ones who walk into the obviously trapped corridor and say 'it is probably fine' three seconds before it is the opposite of fine. Basgiath buries a lot of 'it is probably fine' riders."
+    },
+    {
+      icon: "🔥",
+      title: "Willpower — Absolute Unit Energy",
+      body: "Willpower is the stat that makes dragons give a shit about you. It powers Dragon Empathy (convincing a multi-ton apex predator to not eat you during Threshing), Command (making your squad follow orders when everything is on fire), Morale (being the reason people do not desert), and Intimidation (making an enemy piss themselves with eye contact alone). Low Willpower? Your dragon tolerates you. Your squad ignores you. Even the mess hall cook gives you the small portion."
+    },
+    {
+      icon: "⚔️",
+      title: "Attacking — Violence With Arithmetic",
+      body: "Roll d20, add your attack bonus. Beat the enemy's Defense and you hit. Then roll damage dice to see if you scratched them or absolutely ruined their day. Miss the Defense number and you just swung at air while a venin watches you with secondhand embarrassment. Combat at Basgiath is graded, by the way. Your wingleader is watching. Your squadmates are watching. The dragons are definitely watching. No pressure."
+    },
+    {
+      icon: "🛡️",
+      title: "Defense — The 'Please God Not the Face' Number",
+      body: "Defense is how hard you are to hit. Armor, shields, and Agility all raise it. If your Defense is shit, every venin, gryphon, and pissed-off cadet on the training grounds is about to use you as target practice. You did not survive the Parapet — that nightmare bridge where people literally fall to their death on day one — just to get taken out by a goblin with a stick. Wear your damn armor."
+    },
+    {
+      icon: "❤️",
+      title: "Vitality — Your Meat Points",
+      body: "Vitality is your health bar and it is the only thing between you and a very boring funeral. It goes up with Grit and leveling. It goes down every time something hits you, burns you, poisons you, or you push your signet past the point where your body starts cooking itself from the inside. Healing draughts help. Field Medicine helps. Not standing in dragon fire like it is a hot tub helps most of all."
+    },
+    {
+      icon: "💀",
+      title: "Zero Vitality — You Fucked Around. Now Find Out.",
+      body: "Vitality hits zero and you are face-down in the dirt making death saves. Roll d20 each turn: 10 or higher is a success, 9 or lower is a failure. Three successes and you stabilize. Three failures and you are dead — for real dead, not dramatic-pause dead. Your squadmate can heal you to skip this whole thing, but they have to actually like you enough to sprint across a battlefield. Do they? Do they really?"
+    },
+    {
+      icon: "💡",
+      title: "Advantage & Disadvantage — Fate Playing Favorites",
+      body: "Advantage: roll two d20s, keep the higher one. The universe briefly wants you to succeed. Maybe you flanked the enemy, maybe your dragon is backing you up, maybe you had a good idea for once. Disadvantage: roll two, keep the lower one. You are hungover, poisoned, fighting in darkness, or you just pissed off the DM. They cancel each other out because even Basgiath has rules. Some of the time."
+    },
+    {
+      icon: "✨",
+      title: "Signets — Magic That Might Literally Kill You",
+      body: "Your signet is your innate power, channeled through the relic — that bond-mark your dragon burned into your body. Minor uses are free. Everything else costs signet power. Here is the fun part: push too hard and burnout kicks in. That is not tiredness — that is your body failing to contain the energy. Your bones heat up. Your relic burns. Push past that and you die. Not 'take damage' die. Dead die. Budget your magic like your life depends on it, because holy shit it literally does."
+    },
+    {
+      icon: "⚡",
+      title: "Combat Reflexes — The Fast Die First (In a Good Way)",
+      body: "Fight breaks out. Everyone rolls d20 plus Agility modifier. Highest goes first. This determines whether you get to stab the venin before it corrupts your squad or whether you get to watch helplessly as everything goes sideways before your turn. At Basgiath, being slow means being dead. Roll high and you are a hero. Roll low and you are writing 'I should have trained harder' in your own blood."
+    },
+    {
+      icon: "🎭",
+      title: "Saving Throws — Dodging the Universe's Bullshit",
+      body: "A venin tries to rot your mind? Willpower Save. Dragon fire from a pissed-off unfamiliar dragon? Agility Save. Someone slips poison in your drink at the tavern outside Basgiath? Grit Save. Signet interference scrambling your focus? Focus Save. Roll d20, add the matching save bonus from your sheet. Beat the number and you shrug it off. Fail and you find out exactly how much that particular flavor of suffering costs. Navarre has a lot of flavors."
+    },
+    {
+      icon: "📏",
+      title: "Movement — 30 Feet of Bad Life Choices",
+      body: "You get 30 feet of movement per turn. Move, stab, keep moving — very action hero, very Basgiath combat training. But if you turn your back on someone without disengaging, they get a free swing at you. This is true for venin, for sparring partners, and for that one cadet who has been looking for an excuse to shank you since Threshing. Never turn your back. At Basgiath, that is not a metaphor."
+    },
+    {
+      icon: "🏕️",
+      title: "Resting — Even War Machines Need to Shut the Hell Down",
+      body: "Short rest: one hour. Spend Hit Dice to recover some Vitality. Think of it as stitching yourself up between fights and trying not to cry. Long rest: full night of sleep. All Vitality back, most abilities recharged. The real question is never 'should we rest' — it is 'can we rest without something killing us in our sleep.' Beyond the ward line, the answer is usually 'lol no.' Rest smart or die tired."
+    },
+    {
+      icon: "🤝",
+      title: "Proficiency — Being Less Dogshit at Specific Things",
+      body: "Proficiency means you trained in something and you add a bonus to rolls using it. That bonus grows as you level up. Proficient in Shadow Work? You can sneak past Basgiath's patrols. Not proficient? You step on a loose stone, knock over a lamp, alert three guards, wake up a dragon, and somehow set something on fire. You are now in The Codex getting court-martialed. That escalated fast."
+    },
+    {
+      icon: "🎯",
+      title: "Natural 20s and 1s — Emotional Terrorism",
+      body: "Natural 20: always hits, double damage dice. For one glorious moment you are the deadliest rider at Basgiath and your dragon is proud of you. You can feel it through the bond. Natural 1: automatic miss. Does not matter if you have trained for years. The die said eat shit and the die is law. Your sword flies out of your hand, your signet fizzles, or you punch yourself in the face. The wingleader is watching. They always are."
+    },
+    {
+      icon: "🗣️",
+      title: "Reactions — Free Violence on Company Time",
+      body: "You get one reaction per round. Most popular use: opportunity attacks. Enemy turns tail? Free swing at their retreating ass. Venin tries to disengage? Not on your watch. Think of it as the game rewarding you for being a vindictive little psycho who refuses to let anyone leave a fight cleanly. At Basgiath they call this 'good instincts.' Everywhere else they call it 'a personality disorder.' Same thing."
+    },
+    {
+      icon: "🔮",
+      title: "Concentration — Multitasking Will Kill You (Literally)",
+      body: "Some signet abilities need concentration. You can hold exactly one at a time because apparently your brain is single-threaded. Get hit while concentrating and you roll to see if you drop it. Spoiler: you will drop it while your squad is depending on it. That is not a bug, that is the burnout-adjacent anxiety the game was designed to give you. Want to cast something else that needs concentration? The first one dies immediately. Just like your plans."
+    },
+    {
+      icon: "📜",
+      title: "Your Turn — A Menu of Violence and Poor Judgment",
+      body: "Each turn: movement (up to your speed), one action (attack, signet, dash, dodge, hide, or help a squadmate who is probably going to waste it), and sometimes a bonus action. That is the whole buffet. No, you cannot attack twice. No, you cannot 'do a barrel roll and also cast a signet and also intimidate everyone.' This is Basgiath, not a damn action movie. Okay it is a damn action movie but the rules still apply."
+    },
+    {
+      icon: "🪙",
+      title: "Dice Notation — Math for People Who Ride Dragons",
+      body: "2d6 means roll two six-sided dice and add them. Number before the d is how many dice. Number after is how many sides. 1d20 is the one you roll most. 8d6 is what happens when a dragon opens its mouth and chooses violence. If someone tells you to roll 12d6, either something incredible is happening or you are about to be a war crime statistic. This is why riders collect dice like a personality trait."
+    }
+  ];
+
+  const [currentTutorialIndex, setCurrentTutorialIndex] = useState(() => Math.floor(Math.random() * DND_TUTORIALS.length));
+  const tutorialIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (readingMode && (isLoading || isFormattingReading || !formattedReading)) {
+      setCurrentTutorialIndex(Math.floor(Math.random() * DND_TUTORIALS.length));
+      tutorialIntervalRef.current = setInterval(() => {
+        setCurrentTutorialIndex(prev => (prev + 1) % DND_TUTORIALS.length);
+      }, 8000);
+      return () => {
+        if (tutorialIntervalRef.current) clearInterval(tutorialIntervalRef.current);
+      };
+    } else {
+      if (tutorialIntervalRef.current) {
+        clearInterval(tutorialIntervalRef.current);
+        tutorialIntervalRef.current = null;
+      }
+    }
+  }, [readingMode, isLoading, isFormattingReading, formattedReading]);
+
   // Reload config when screen opens
   const [showDragonChat, setShowDragonChat] = useState(false);
   const [showUnbondedDragonSheet, setShowUnbondedDragonSheet] = useState(false);
@@ -2106,6 +2249,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
                 @keyframes rm-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
                 .rm-shimmer-line { height: 16px; border-radius: 8px; background: linear-gradient(90deg, #ffffff08 25%, #ffffff15 50%, #ffffff08 75%); background-size: 200% 100%; animation: rm-shimmer 1.5s ease infinite; margin-bottom: 12px; }
                 @keyframes rm-particle-float { 0%, 100% { opacity: 0; transform: translateY(0) translateX(0); } 20% { opacity: 0.6; } 80% { opacity: 0.4; } 100% { opacity: 0; transform: translateY(-100vh) translateX(var(--drift)); } }
+                @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
               `}</style>
 
               <div
@@ -2165,14 +2309,51 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
               <div className="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-8 pb-36 relative z-10">
                 <div className="max-w-2xl mx-auto pt-4">
                   {(isLoading || isFormattingReading) ? (
-                    <div className="space-y-1">
-                      {Array.from({ length: 12 }).map((_, i) => (
+                    <div className="flex flex-col items-center justify-center min-h-[50vh] px-4">
+                      <div className="w-full max-w-sm">
+                        {/* Subtle loading indicator */}
+                        <div className="flex items-center justify-center gap-2 mb-8 opacity-50">
+                          <div className="flex gap-1.5">
+                            <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                          </div>
+                          <span className="text-[11px] uppercase tracking-widest text-purple-300/40 font-medium">Empyrean is writing</span>
+                        </div>
+
+                        {/* Tutorial card */}
                         <div
-                          key={i}
-                          className="rm-shimmer-line"
-                          style={{ width: `${50 + Math.random() * 50}%`, animationDelay: `${i * 0.08}s` }}
-                        />
-                      ))}
+                          key={currentTutorialIndex}
+                          className="animate-in fade-in duration-500"
+                          style={{ animation: 'fadeInUp 0.5s ease forwards' }}
+                        >
+                          <div className="rounded-2xl border border-amber-500/15 bg-gradient-to-b from-amber-500/[0.06] to-transparent p-6">
+                            <div className="flex items-center gap-3 mb-4">
+                              <span className="text-2xl">{DND_TUTORIALS[currentTutorialIndex].icon}</span>
+                              <div>
+                                <p className="text-[10px] uppercase tracking-[0.15em] text-amber-400/50 font-semibold mb-0.5">Rider's Field Guide</p>
+                                <p className="text-base font-semibold text-amber-200/90">{DND_TUTORIALS[currentTutorialIndex].title}</p>
+                              </div>
+                            </div>
+                            <p className="text-sm leading-relaxed text-zinc-300/80">{DND_TUTORIALS[currentTutorialIndex].body}</p>
+                          </div>
+                        </div>
+
+                        {/* Dot indicators showing cycle position */}
+                        <div className="flex items-center justify-center gap-1.5 mt-6">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <div
+                              key={i}
+                              className="w-1 h-1 rounded-full transition-all duration-300"
+                              style={{
+                                background: i === (currentTutorialIndex % 5) ? '#fbbf24' : '#ffffff15',
+                                width: i === (currentTutorialIndex % 5) ? 12 : 4,
+                                borderRadius: 4,
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   ) : formattedReading ? (
                     <>
