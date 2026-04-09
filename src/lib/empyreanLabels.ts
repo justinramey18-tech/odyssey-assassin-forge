@@ -49,7 +49,7 @@ export const EMPYREAN_SAVE_LABELS: Record<string, string> = {
 // ── Skill Labels ─────────────────────────────────────────────────────────
 
 export const EMPYREAN_SKILL_LABELS: Record<string, string> = {
-  acrobatics:      'Aerial Combat',
+  acrobatics:      'Combat Agility',
   animal_handling: 'Dragon Empathy',
   arcana:          'Signet Theory',
   athletics:       'Flight Endurance',
