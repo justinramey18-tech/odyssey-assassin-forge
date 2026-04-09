@@ -696,7 +696,25 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     prevIsLoadingRef.current = isLoading;
   }, [isLoading, cinematicModeEnabled]);
 
-  // Trigger AI formatting when reading mode is active AND generation is complete
+  // Rotate tutorial tips while loading screen is showing
+  useEffect(() => {
+    if (readingMode && (isLoading || isFormattingReading || !formattedReading)) {
+      setCurrentTutorialIndex(Math.floor(Math.random() * DND_TUTORIALS.length));
+      tutorialIntervalRef.current = setInterval(() => {
+        setCurrentTutorialIndex(prev => (prev + 1) % DND_TUTORIALS.length);
+      }, 8000);
+      return () => {
+        if (tutorialIntervalRef.current) clearInterval(tutorialIntervalRef.current);
+      };
+    } else {
+      if (tutorialIntervalRef.current) {
+        clearInterval(tutorialIntervalRef.current);
+        tutorialIntervalRef.current = null;
+      }
+    }
+  }, [readingMode, isLoading, isFormattingReading, formattedReading]);
+
+
   useEffect(() => {
     if (!readingMode) {
       setFormattedReading(null);
