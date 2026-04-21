@@ -367,6 +367,10 @@ export function EmpyreanDMScreen({
   const [showDragonChat, setShowDragonChat] = useState(false);
   const [diceRollerOpen, setDiceRollerOpen] = useState(false);
   const [diceRollerWhisperText, setDiceRollerWhisperText] = useState<string | null>(null);
+  const diceRollerHint: RollHint | null = useMemo(() => {
+    if (!diceRollerWhisperText) return null;
+    return parseRollHint(diceRollerWhisperText);
+  }, [diceRollerWhisperText]);
   const [showUnbondedDragonSheet, setShowUnbondedDragonSheet] = useState(false);
   const [showDragonSetup, setShowDragonSetup] = useState(false);
   const [isUnbonded, setIsUnbondedState] = useState(() => getIsUnbonded());
