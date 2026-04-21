@@ -624,7 +624,8 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false,
                       ? "bg-amber-900/15 border-amber-500/20 hover:bg-amber-900/25"
                       : isProf
                         ? "bg-emerald-900/15 border-emerald-500/20 hover:bg-emerald-900/25"
-                        : "bg-white/5 hover:bg-white/10 border-white/5"
+                        : "bg-white/5 hover:bg-white/10 border-white/5",
+                    rollHint?.skillId === skill.id && "ring-2 ring-amber-400/60 bg-amber-500/15"
                   )}
                   style={{ touchAction: 'manipulation' }}
                 >
@@ -692,7 +693,8 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false,
                     editMode && "ring-1 ring-white/10",
                     isProf
                       ? "bg-emerald-900/15 border-emerald-500/20 hover:bg-emerald-900/25"
-                      : "bg-white/5 hover:bg-white/10 border-white/5 hover:border-white/10"
+                      : "bg-white/5 hover:bg-white/10 border-white/5 hover:border-white/10",
+                    rollHint?.isSave && rollHint?.ability === key && !rollHint?.skillId && "ring-2 ring-amber-400/60 bg-amber-500/15"
                   )}
                   style={{ touchAction: 'manipulation' }}
                 >

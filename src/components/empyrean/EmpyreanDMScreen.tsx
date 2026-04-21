@@ -75,6 +75,7 @@ import CampaignBuilderChat from '@/components/ai-dm/CampaignBuilderChat';
 import type { CampaignBuildData } from '@/hooks/use-ai-campaign-chat';
 import { useEmpyreanAutopilot } from '@/hooks/use-empyrean-autopilot';
 import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
+import { parseRollHint, type RollHint } from '@/lib/whisperRollHint';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
