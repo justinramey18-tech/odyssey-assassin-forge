@@ -11,6 +11,7 @@ import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSet
 import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
 import { loadEmpyreanDMConfig, EmpyreanDMConfig } from '@/lib/empyreanDMPersona';
 import { CharacterContext } from '@/components/oracle/types';
+import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
 
 interface EmpyreanScreenProps {
   open: boolean;
@@ -155,58 +156,66 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext,
           </div>
 
           {/* Section: Prompts */}
-          <div className="space-y-2">
-            <h3 className="text-xs font-cinzel font-bold uppercase tracking-wider text-purple-400/70 px-1">
-              Prompts & Guides
-            </h3>
-            <SectionCard
-              icon={<Gem className="w-6 h-6 text-amber-400" />}
-              title="Empyrean Prompt Library"
-              description="59 themed RP prompts across 8 Infinity Stones — copy & paste into your AI DM"
-              color="bg-amber-500/15"
-              borderColor="border-amber-500/25"
-              onClick={() => setShowPrompts(true)}
-            />
-            <SectionCard
-              icon={<BookOpen className="w-6 h-6 text-cyan-400" />}
-              title="GM Guides — Campaign Pack"
-              description="Lore, tone, pacing, and session type guides — install to shape your AI DM"
-              color="bg-cyan-500/15"
-              borderColor="border-cyan-500/25"
-              onClick={() => setShowPack(true)}
-            />
-          </div>
+          {(EMPYREAN_FEATURE_FLAGS.showPromptLibrary || EMPYREAN_FEATURE_FLAGS.showCampaignPack) && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-cinzel font-bold uppercase tracking-wider text-purple-400/70 px-1">
+                Prompts & Guides
+              </h3>
+              {EMPYREAN_FEATURE_FLAGS.showPromptLibrary && (
+                <SectionCard
+                  icon={<Gem className="w-6 h-6 text-amber-400" />}
+                  title="Empyrean Prompt Library"
+                  description="59 themed RP prompts across 8 Infinity Stones — copy & paste into your AI DM"
+                  color="bg-amber-500/15"
+                  borderColor="border-amber-500/25"
+                  onClick={() => setShowPrompts(true)}
+                />
+              )}
+              {EMPYREAN_FEATURE_FLAGS.showCampaignPack && (
+                <SectionCard
+                  icon={<BookOpen className="w-6 h-6 text-cyan-400" />}
+                  title="GM Guides — Campaign Pack"
+                  description="Lore, tone, pacing, and session type guides — install to shape your AI DM"
+                  color="bg-cyan-500/15"
+                  borderColor="border-cyan-500/25"
+                  onClick={() => setShowPack(true)}
+                />
+              )}
+            </div>
+          )}
 
           {/* Section: Wizards */}
-          <div className="space-y-2">
-            <h3 className="text-xs font-cinzel font-bold uppercase tracking-wider text-purple-400/70 px-1">
-              Campaign Builders
-            </h3>
-            <SectionCard
-              icon={<ScrollText className="w-6 h-6 text-emerald-400" />}
-              title="Session Zero Wizard"
-              description="Set content boundaries, backstory depth, and player style preferences"
-              color="bg-emerald-500/15"
-              borderColor="border-emerald-500/25"
-              onClick={() => setShowSessionZero(true)}
-            />
-            <SectionCard
-              icon={<Map className="w-6 h-6 text-indigo-400" />}
-              title="Arc Planner Wizard"
-              description="Build multi-session arcs with templates, pacing, and branching paths"
-              color="bg-indigo-500/15"
-              borderColor="border-indigo-500/25"
-              onClick={() => setShowArcPlanner(true)}
-            />
-            <SectionCard
-              icon={<Target className="w-6 h-6 text-rose-400" />}
-              title="Session Planner"
-              description="Plan individual sessions with objectives, NPCs, and complications"
-              color="bg-rose-500/15"
-              borderColor="border-rose-500/25"
-              onClick={() => setShowSessionPlanner(true)}
-            />
-          </div>
+          {EMPYREAN_FEATURE_FLAGS.showPlanningWizards && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-cinzel font-bold uppercase tracking-wider text-purple-400/70 px-1">
+                Campaign Builders
+              </h3>
+              <SectionCard
+                icon={<ScrollText className="w-6 h-6 text-emerald-400" />}
+                title="Session Zero Wizard"
+                description="Set content boundaries, backstory depth, and player style preferences"
+                color="bg-emerald-500/15"
+                borderColor="border-emerald-500/25"
+                onClick={() => setShowSessionZero(true)}
+              />
+              <SectionCard
+                icon={<Map className="w-6 h-6 text-indigo-400" />}
+                title="Arc Planner Wizard"
+                description="Build multi-session arcs with templates, pacing, and branching paths"
+                color="bg-indigo-500/15"
+                borderColor="border-indigo-500/25"
+                onClick={() => setShowArcPlanner(true)}
+              />
+              <SectionCard
+                icon={<Target className="w-6 h-6 text-rose-400" />}
+                title="Session Planner"
+                description="Plan individual sessions with objectives, NPCs, and complications"
+                color="bg-rose-500/15"
+                borderColor="border-rose-500/25"
+                onClick={() => setShowSessionPlanner(true)}
+              />
+            </div>
+          )}
 
           <p className="text-[10px] text-muted-foreground text-center pt-4">
             Empyrean Campaign System v2.0
