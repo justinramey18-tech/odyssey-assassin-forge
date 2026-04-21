@@ -16,6 +16,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
 import { DM_CHAT_THEMES, DMChatThemeId } from '@/lib/dm-chat-themes';
+import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
 
 interface DMToolsDrawerProps {
   open: boolean;
