@@ -6,6 +6,8 @@ import type { Whisper } from '@/components/oracle/types';
 
 interface WhisperTrayProps {
   whispers: Whisper[];
+  /** Called when user taps the Roll button on an action whisper. Receives the whisper's text so the parent can decide how to open the dice roller. If omitted, no Roll button is shown. */
+  onRollDice?: (whisperContent: string) => void;
 }
 
 const ICON_MAP: Record<Whisper['type'], { icon: typeof Dices; label: string; color: string; border: string; bg: string }> = {
@@ -14,7 +16,7 @@ const ICON_MAP: Record<Whisper['type'], { icon: typeof Dices; label: string; col
   whisper: { icon: Eye,       label: 'Whisper', color: 'text-purple-400',  border: 'border-purple-500/30', bg: 'bg-purple-500/5' },
 };
 
-export function WhisperTray({ whispers }: WhisperTrayProps) {
+export function WhisperTray({ whispers, onRollDice }: WhisperTrayProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   if (!whispers.length) return null;
@@ -80,6 +82,19 @@ export function WhisperTray({ whispers }: WhisperTrayProps) {
                       <p className="text-sm text-foreground/90 leading-relaxed">
                         {whisper.content}
                       </p>
+                      {whisper.type === 'action' && onRollDice && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRollDice(whisper.content);
+                          }}
+                          className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/15 border border-amber-500/40 text-amber-300 hover:bg-amber-500/25 active:bg-amber-500/35 transition-colors"
+                          style={{ touchAction: 'manipulation' }}
+                        >
+                          <Dices className="w-3.5 h-3.5" />
+                          <span>Roll</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
