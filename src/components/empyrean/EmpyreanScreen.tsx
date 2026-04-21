@@ -90,6 +90,16 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext,
     }
   }, [open]);
 
+  // Re-read config/opening-scene whenever the DM sub-screen closes.
+  // This catches New Campaign wipes even when React batches the close + config-clear updates.
+  useEffect(() => {
+    if (!showDM) {
+      setEmpyreanConfig(loadEmpyreanDMConfig());
+      const saved = loadEmpyreanOpeningScene();
+      setPendingPrompt(saved || null);
+    }
+  }, [showDM]);
+
   const handleClose = useCallback(() => {
     onClose();
   }, [onClose]);

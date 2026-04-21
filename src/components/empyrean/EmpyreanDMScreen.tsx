@@ -1129,7 +1129,12 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     clearDragonNotes();
     clearEmpyreanOpeningScene();
     setConfig(null);
-    onClose();
+    console.log('[Empyrean] New Campaign — storage wiped, closing DM');
+    // Defer onClose one tick so React has a chance to process setConfig(null)
+    // and the parent effect picks up the storage wipe reliably.
+    setTimeout(() => {
+      onClose();
+    }, 0);
   }, [newGame, autopilot, onClose]);
 
   const handleCampaignBuilderComplete = useCallback(async (data: CampaignBuildData) => {
