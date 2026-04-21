@@ -9,6 +9,7 @@ import { ArcPlannerWizard } from '@/components/empyrean/ArcPlannerWizard';
 import { SessionPlannerWizard } from '@/components/empyrean/SessionPlannerWizard';
 import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
 import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
+import { EmpyreanAICampaignSetup } from '@/components/empyrean/EmpyreanAICampaignSetup';
 import { loadEmpyreanDMConfig, EmpyreanDMConfig } from '@/lib/empyreanDMPersona';
 import { CharacterContext } from '@/components/oracle/types';
 import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
