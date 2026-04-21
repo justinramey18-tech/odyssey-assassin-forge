@@ -75,6 +75,7 @@ import CampaignBuilderChat from '@/components/ai-dm/CampaignBuilderChat';
 import type { CampaignBuildData } from '@/hooks/use-ai-campaign-chat';
 import { useEmpyreanAutopilot } from '@/hooks/use-empyrean-autopilot';
 import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
+import { parseRollHint, type RollHint } from '@/lib/whisperRollHint';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -366,6 +367,10 @@ export function EmpyreanDMScreen({
   const [showDragonChat, setShowDragonChat] = useState(false);
   const [diceRollerOpen, setDiceRollerOpen] = useState(false);
   const [diceRollerWhisperText, setDiceRollerWhisperText] = useState<string | null>(null);
+  const diceRollerHint: RollHint | null = useMemo(() => {
+    if (!diceRollerWhisperText) return null;
+    return parseRollHint(diceRollerWhisperText);
+  }, [diceRollerWhisperText]);
   const [showUnbondedDragonSheet, setShowUnbondedDragonSheet] = useState(false);
   const [showDragonSetup, setShowDragonSetup] = useState(false);
   const [isUnbonded, setIsUnbondedState] = useState(() => getIsUnbonded());
@@ -2291,6 +2296,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
           <div className="flex-1 overflow-y-auto overscroll-contain">
             <DMDiceRoller
               characterContext={characterContext}
+              rollHint={diceRollerHint}
               onRollResult={(message) => {
                 handleAppendPrompt(message);
                 setDiceRollerOpen(false);

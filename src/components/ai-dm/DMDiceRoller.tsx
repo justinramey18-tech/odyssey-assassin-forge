@@ -7,6 +7,7 @@ import { rollWeightedDie, loadDiceOddsMode, saveDiceOddsMode, DICE_ODDS_CONFIGS,
 import { SKILLS, ABILITY_SCORES, type AbilityScore, getAbilityScoreDisplay, getSkillsForDisplay } from '@/lib/diceRollerConfig';
 import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import type { CharacterContext } from '@/components/oracle/types';
+import type { RollHint } from '@/lib/whisperRollHint';
 import { playDiceRattle, playDiceThud } from '@/lib/diceSounds';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { getProficiencyBonus } from '@/lib/magic/calculations';
@@ -18,6 +19,8 @@ interface DMDiceRollerProps {
   characterContext: CharacterContext;
   onRollResult: (message: string) => void;
   disabled?: boolean;
+  /** Optional pre-selection hint parsed from a whisper. When provided, the roller opens with these fields pre-selected and (if a DC is given) displays it prominently. */
+  rollHint?: RollHint | null;
 }
 
 interface RollDisplay {
@@ -233,8 +236,18 @@ function useLongPress(callback: () => void, ms = 500) {
   return { onTouchStart: onStart, onMouseDown: onStart, onTouchEnd: onEnd, onMouseUp: onEnd, onMouseLeave: onEnd };
 }
 
-export function DMDiceRoller({ characterContext, onRollResult, disabled = false }: DMDiceRollerProps) {
+export function DMDiceRoller({ characterContext, onRollResult, disabled = false, rollHint }: DMDiceRollerProps) {
   const [rollMode, setRollMode] = useState<RollMode>('normal');
+
+  // Apply roll hint: pre-set the roll mode when a hint arrives.
+  useEffect(() => {
+    if (rollHint) {
+      if (rollHint.rollMode === 'advantage' || rollHint.rollMode === 'disadvantage' || rollHint.rollMode === 'normal') {
+        setRollMode(rollHint.rollMode);
+      }
+    }
+  }, [rollHint]);
+
   const [currentOddsMode, setCurrentOddsMode] = useState<DiceOddsMode>(() => loadDiceOddsMode());
   const [lastRoll, setLastRoll] = useState<RollDisplay | null>(null);
   const [editMode, setEditMode] = useState(false);
@@ -375,6 +388,18 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
 
   return (
     <div className="bg-black/20 relative">
+      {/* DC banner (whisper-driven hint) */}
+      {rollHint && rollHint.dc != null && (
+        <div className="mx-3 mt-3 mb-2 px-3 py-2 rounded-lg border border-amber-500/30 bg-amber-500/10 text-[11px] text-amber-200 flex items-center justify-between">
+          <span className="font-mono tracking-wide">
+            DC {rollHint.dc}
+            {rollHint.isSave ? ' · save' : ' · check'}
+            {rollHint.skillId ? ` · ${rollHint.skillId.replace(/_/g, ' ')}` : (rollHint.ability ? ` · ${rollHint.ability.toUpperCase()}` : '')}
+          </span>
+          <span className="text-[9px] text-amber-300/60 uppercase tracking-wider">DM asked for this</span>
+        </div>
+      )}
+
       {/* Roll Result Display */}
       <AnimatePresence mode="wait">
         {lastRoll && (
@@ -599,7 +624,8 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
                       ? "bg-amber-900/15 border-amber-500/20 hover:bg-amber-900/25"
                       : isProf
                         ? "bg-emerald-900/15 border-emerald-500/20 hover:bg-emerald-900/25"
-                        : "bg-white/5 hover:bg-white/10 border-white/5"
+                        : "bg-white/5 hover:bg-white/10 border-white/5",
+                    rollHint?.skillId === skill.id && "ring-2 ring-amber-400/60 bg-amber-500/15"
                   )}
                   style={{ touchAction: 'manipulation' }}
                 >
@@ -667,7 +693,8 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
                     editMode && "ring-1 ring-white/10",
                     isProf
                       ? "bg-emerald-900/15 border-emerald-500/20 hover:bg-emerald-900/25"
-                      : "bg-white/5 hover:bg-white/10 border-white/5 hover:border-white/10"
+                      : "bg-white/5 hover:bg-white/10 border-white/5 hover:border-white/10",
+                    rollHint?.isSave && rollHint?.ability === key && !rollHint?.skillId && "ring-2 ring-amber-400/60 bg-amber-500/15"
                   )}
                   style={{ touchAction: 'manipulation' }}
                 >
