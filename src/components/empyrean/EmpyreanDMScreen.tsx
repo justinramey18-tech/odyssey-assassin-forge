@@ -74,6 +74,7 @@ import { EmpyreanAutopilotGuide } from '@/components/empyrean/EmpyreanAutopilotG
 import CampaignBuilderChat from '@/components/ai-dm/CampaignBuilderChat';
 import type { CampaignBuildData } from '@/hooks/use-ai-campaign-chat';
 import { useEmpyreanAutopilot } from '@/hooks/use-empyrean-autopilot';
+import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -1049,7 +1050,20 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
       return;
     }
     if (tab === 'afk') {
-      setShowAutopilotGuide(true);
+      if (EMPYREAN_FEATURE_FLAGS.showAutopilotGuideModal) {
+        setShowAutopilotGuide(true);
+      } else {
+        const ap = autopilotRef.current;
+        if (ap) {
+          const wasActive = ap.isAutopilotActive;
+          ap.toggleAutopilot();
+          if (!wasActive) {
+            toast.success('Autopilot enabled! Watch your rider act.');
+          } else {
+            toast('Autopilot disabled.');
+          }
+        }
+      }
       return;
     }
     // Dice and other tabs toggle the full-screen content panel
