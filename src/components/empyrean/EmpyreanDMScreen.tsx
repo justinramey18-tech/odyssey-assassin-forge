@@ -1099,6 +1099,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     lastAssistantMessage: lastAssistantMsg,
     isLoading,
   });
+  autopilotRef.current = autopilot;
 
   const handleNewCampaign = useCallback(() => {
     newGame();
