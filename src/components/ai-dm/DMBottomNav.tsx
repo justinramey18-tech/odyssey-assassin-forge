@@ -41,6 +41,8 @@ interface DMBottomNavProps {
   afkActiveBg?: string;
   /** Hide the DICE tab entirely from the nav (Empyrean solo mode — dice is surfaced via whisper tray instead). */
   hideDice?: boolean;
+  /** Hide the AFK/Autopilot tab entirely from the nav (Empyrean solo mode). Ignored if showWildShape is true. */
+  hideAfk?: boolean;
 }
 
 const BASE_TABS = [
@@ -66,7 +68,7 @@ const activeIndicatorColors: Record<DMNavTab, string> = {
   settings: 'bg-white/50',
 };
 
-export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive, oracleLabel, oracleColor, oracleActiveBg, afkLabel, afkColor, afkActiveBg, hideDice }: DMBottomNavProps) {
+export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive, oracleLabel, oracleColor, oracleActiveBg, afkLabel, afkColor, afkActiveBg, hideDice, hideAfk }: DMBottomNavProps) {
   const afkOrWildShape = showWildShape ? WILDSHAPE_TAB : AFK_TAB;
   const afkTab = {
     ...afkOrWildShape,
@@ -81,7 +83,13 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
     activeBg: oracleActiveBg || ORACLE_TAB.activeBg,
   };
   const baseTabs = hideDice ? BASE_TABS.filter(t => t.id !== 'dice') : BASE_TABS;
-  const tabs = [...baseTabs, afkTab, oracleTab, ...(showGeralt ? [GERALT_TAB] : []), SETTINGS_TAB];
+  const tabs = [
+    ...baseTabs,
+    ...((hideAfk && !showWildShape) ? [] : [afkTab]),
+    oracleTab,
+    ...(showGeralt ? [GERALT_TAB] : []),
+    SETTINGS_TAB,
+  ];
   const touchStartY = useRef(0);
   const touchStartTime = useRef(0);
 
