@@ -2132,10 +2132,52 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
           setShowDeathSaves(false);
           setBurnoutLevel(0);
           setShowDeathTransition(true);
-          // 2-second black transition then memorial
-          setTimeout(() => {
+          // 2-second black transition then memorial (or inline rebirth if flag off)
+          setTimeout(async () => {
+            if (EMPYREAN_FEATURE_FLAGS.showMemorialScreen) {
+              setShowDeathTransition(false);
+              setShowMemorial(true);
+              return;
+            }
+            // Memorial hidden — run rebirth logic inline (mirrors MemorialScreen.onBeginAgain)
+            const activeSaveId = localStorage.getItem('odyssey-active-cloud-save-id');
+            if (activeSaveId) {
+              try {
+                const { data: saveRow } = await supabase
+                  .from('character_saves')
+                  .select('extended_data')
+                  .eq('id', activeSaveId)
+                  .maybeSingle();
+                if (saveRow) {
+                  const existingExtended = (saveRow.extended_data as Record<string, unknown>) || {};
+                  await supabase
+                    .from('character_saves')
+                    .update({
+                      extended_data: { ...existingExtended, empyreanStatus: 'fallen' } as any,
+                    })
+                    .eq('id', activeSaveId);
+                }
+              } catch (e) {
+                console.error('[Death] Failed to mark save as fallen:', e);
+              }
+            }
+            saveSoloHP({ current: 0, max: 0 });
+            updateUnbondedStatus(true);
+            resetBondState();
+            if (config) {
+              const clearedConfig: EmpyreanDMConfig = {
+                ...config,
+                dragonName: '',
+                dragonColor: '',
+                signetType: '',
+              };
+              saveEmpyreanDMConfig(clearedConfig);
+              setConfig(clearedConfig);
+            }
+            localStorage.setItem('odyssey-unbonded-rebirth', 'true');
             setShowDeathTransition(false);
-            setShowMemorial(true);
+            toast('Your rider has fallen. Return to the hall to try again.', { duration: 4000 });
+            onClose();
           }, 2000);
         }}
       />
