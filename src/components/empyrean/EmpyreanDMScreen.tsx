@@ -364,6 +364,8 @@ export function EmpyreanDMScreen({
 
   // Reload config when screen opens
   const [showDragonChat, setShowDragonChat] = useState(false);
+  const [diceRollerOpen, setDiceRollerOpen] = useState(false);
+  const [diceRollerWhisperText, setDiceRollerWhisperText] = useState<string | null>(null);
   const [showUnbondedDragonSheet, setShowUnbondedDragonSheet] = useState(false);
   const [showDragonSetup, setShowDragonSetup] = useState(false);
   const [isUnbonded, setIsUnbondedState] = useState(() => getIsUnbonded());
@@ -966,6 +968,11 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     const interval = setInterval(save, 3000);
     return () => { clearInterval(interval); save(); };
   }, [open, autoSyncCallbacks, characterContext?.maxHP]);
+
+  const handleWhisperRoll = useCallback((whisperContent: string) => {
+    setDiceRollerWhisperText(whisperContent);
+    setDiceRollerOpen(true);
+  }, []);
 
   const handleAppendPrompt = useCallback((prompt: string) => {
     if (isLoading) return;
@@ -1615,7 +1622,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
                           </ReactMarkdown>
                         </div>
                         {whisperTrayEnabled && whispers.length > 0 && (
-                          <WhisperTray whispers={whispers} />
+                          <WhisperTray whispers={whispers} onRollDice={handleWhisperRoll} />
                         )}
                       </>
                     );
@@ -2436,7 +2443,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
                       </div>
                       {parsed.whispers.length > 0 && (
                         <div className="mt-6">
-                          <WhisperTray whispers={parsed.whispers} />
+                          <WhisperTray whispers={parsed.whispers} onRollDice={handleWhisperRoll} />
                         </div>
                       )}
                     </>
@@ -2444,7 +2451,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
 
                   {formattedReading && !isFormattingReading && parsed.whispers.length > 0 && (
                     <div className="mt-8">
-                      <WhisperTray whispers={parsed.whispers} />
+                      <WhisperTray whispers={parsed.whispers} onRollDice={handleWhisperRoll} />
                     </div>
                   )}
                 </div>
