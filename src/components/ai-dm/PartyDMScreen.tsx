@@ -13,6 +13,7 @@ import EmpyreanContextualActions from '@/components/empyrean/EmpyreanContextualA
 import { setIsUnbonded } from '@/lib/dragonBondState';
 import DeathSaveScreen from '@/components/empyrean/DeathSaveScreen';
 import MemorialScreen from '@/components/empyrean/MemorialScreen';
+import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
 import { VerticalHealthBar } from '@/components/home/VerticalHealthBar';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
@@ -1102,7 +1103,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   // Cinematic slideshow trigger: detect new assistant DM messages
   useEffect(() => {
-    if (!cinematicModeEnabled) return;
+    if (!cinematicModeEnabled || !EMPYREAN_FEATURE_FLAGS.showCinematicSlideshow) return;
     const msgs = partyDm.messages;
     if (msgs.length === 0) return;
     const lastMsg = msgs[msgs.length - 1];
@@ -3739,7 +3740,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           setShowDeathTransition(true);
           setTimeout(() => {
             setShowDeathTransition(false);
-            setShowMemorial(true);
+            if (EMPYREAN_FEATURE_FLAGS.showMemorialScreen) {
+              setShowMemorial(true);
+            } else {
+              // Memorial hidden — run rebirth logic inline (mirrors MemorialScreen.onBeginAgain in this file)
+              setIsUnbonded(true);
+              localStorage.setItem('odyssey-unbonded-rebirth', 'true');
+              toast('Your rider has fallen. Return to the hall to try again.', { duration: 4000 });
+              onBack();
+            }
           }, 2000);
         }}
       />
