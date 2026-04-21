@@ -44,6 +44,16 @@ export function clearEmpyreanDMConfig(): void {
   }
 }
 
+const DRAGON_NOTES_KEY = 'empyrean-dragon-notes';
+
+export function clearDragonNotes(): void {
+  try {
+    removeScopedItem(DRAGON_NOTES_KEY);
+  } catch (e) {
+    console.error('[EmpyreanDM] Failed to clear dragon notes:', e);
+  }
+}
+
 export function saveDragonNotes(notes: string): void {
   try {
     setScopedItem(DRAGON_NOTES_KEY, notes);

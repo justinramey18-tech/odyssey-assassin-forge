@@ -58,6 +58,9 @@ import {
   saveEmpyreanDMConfig,
   loadDragonNotes,
   saveDragonNotes,
+  clearEmpyreanDMConfig,
+  clearDragonNotes,
+  clearEmpyreanOpeningScene,
 } from '@/lib/empyreanDMPersona';
 import { useDragonBond } from '@/hooks/use-dragon-bond';
 import { getBondDescriptor, getTrustDescriptor, buildDragonChatPrompt, DRAGON_CHAT_SUMMARY_KEY, DRAGON_CHAT_KEY, resetBondState, getIsUnbonded, setIsUnbonded, saveBondState, DEFAULT_BOND, DEFAULT_TRUST, saveSoloHP } from '@/lib/dragonBondState';
@@ -1121,7 +1124,13 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     setShowToolsDrawer(false);
     if (autopilot.isAutopilotActive) autopilot.takeControl();
     setRecapExpanded(false);
-  }, [newGame, autopilot]);
+    // Wipe Empyrean campaign setup so the player is routed back to the setup menu
+    clearEmpyreanDMConfig();
+    clearDragonNotes();
+    clearEmpyreanOpeningScene();
+    setConfig(null);
+    onClose();
+  }, [newGame, autopilot, onClose]);
 
   const handleCampaignBuilderComplete = useCallback(async (data: CampaignBuildData) => {
     setShowCampaignBuilder(false);
