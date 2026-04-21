@@ -974,6 +974,8 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     setNavExpanded(false);
   }, [isLoading]);
 
+  // Ref to autopilot — needed because handleNavTabChange is defined before useEmpyreanAutopilot
+  const autopilotRef = useRef<ReturnType<typeof useEmpyreanAutopilot> | null>(null);
 
   useEffect(() => {
     if (!open || !isUnbonded) return;
