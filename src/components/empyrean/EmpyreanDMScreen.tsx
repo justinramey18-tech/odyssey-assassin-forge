@@ -2285,6 +2285,23 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         </SheetContent>
       </Sheet>
 
+      {/* Whisper-triggered Dice Roller */}
+      <Sheet open={diceRollerOpen} onOpenChange={setDiceRollerOpen}>
+        <SheetContent side="bottom" className="h-[85vh] p-0 bg-background/95 backdrop-blur-lg border-t border-amber-500/20 rounded-t-2xl overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-y-auto overscroll-contain">
+            <DMDiceRoller
+              characterContext={characterContext}
+              onRollResult={(message) => {
+                handleAppendPrompt(message);
+                setDiceRollerOpen(false);
+                setDiceRollerWhisperText(null);
+              }}
+              disabled={isLoading}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
+
       {/* Reading Mode Overlay */}
       <AnimatePresence>
         {readingMode && (() => {
