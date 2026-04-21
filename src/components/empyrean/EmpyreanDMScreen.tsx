@@ -1698,6 +1698,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         onExpandedChange={setNavExpanded}
         disabled={isLoading || (!isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout)}
         hideDice={true}
+        hideAfk={true}
         oracleLabel={isUnbonded ? 'UNBONDED' : (config?.dragonName ? config.dragonName.toUpperCase() : 'DRAGON')}
         oracleColor={isUnbonded ? 'text-red-400/50' : (() => {
           const mood = dragonBond.bondState.mood;
