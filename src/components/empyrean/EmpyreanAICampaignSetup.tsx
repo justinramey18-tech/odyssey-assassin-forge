@@ -8,6 +8,7 @@ import { useEmpyreanSetupChat } from '@/hooks/use-empyrean-setup-chat';
 import {
   saveEmpyreanDMConfig,
   saveDragonNotes,
+  saveEmpyreanOpeningScene,
   EmpyreanDMConfig,
   CampaignFocus,
 } from '@/lib/empyreanDMPersona';
@@ -111,6 +112,11 @@ export function EmpyreanAICampaignSetup({
       });
 
       const openingPrompt = buildData.openingScene || '';
+
+      // Persist the opening scene so it survives Clear Chat / DM close
+      if (openingPrompt) {
+        saveEmpyreanOpeningScene(openingPrompt);
+      }
 
       toast.success('Campaign forged. Entering Navarre...');
 
