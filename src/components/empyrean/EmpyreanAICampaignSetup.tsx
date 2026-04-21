@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Send, Sparkles, Loader2, Rocket } from 'lucide-react';
+import { X, Send, Sparkles, Loader2, Rocket, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -191,16 +191,27 @@ export function EmpyreanAICampaignSetup({
         )}
       </div>
 
-      {/* Apply button — shown when buildData is ready */}
+      {/* Apply / Regenerate buttons — shown when buildData is ready */}
       {buildData && (
-        <div className="shrink-0 px-4 pb-2">
+        <div className="shrink-0 px-4 pb-2 space-y-2">
           <Button
             onClick={handleApplyAndLaunch}
+            disabled={isLoading}
             className="w-full h-12 bg-gradient-to-r from-purple-500 to-amber-500 hover:from-purple-600 hover:to-amber-600 text-white font-cinzel font-semibold text-sm gap-2"
             style={{ touchAction: 'manipulation' }}
           >
             <Rocket className="w-4 h-4" />
             Apply & Enter Navarre
+          </Button>
+          <Button
+            onClick={() => sendMessage("Regenerate just the opening scene — keep all other choices the same. Give it a different mood, angle, or moment but stay true to my rider, dragon, and focus. Then output the full updated JSON block again.")}
+            disabled={isLoading}
+            variant="outline"
+            className="w-full h-10 border-purple-500/30 text-purple-300 hover:bg-purple-500/10 text-xs gap-2"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
+            Regenerate Opening Scene
           </Button>
         </div>
       )}
