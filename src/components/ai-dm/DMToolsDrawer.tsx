@@ -16,6 +16,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
 import { DM_CHAT_THEMES, DMChatThemeId } from '@/lib/dm-chat-themes';
+import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
 
 interface DMToolsDrawerProps {
   open: boolean;
@@ -180,16 +181,18 @@ export function DMToolsDrawer({
           />
 
           {/* GM Guides */}
-          <ToolRow
-            icon={<BookOpen className="w-4 h-4" />}
-            label="GM Guides"
-            badge={guidesCount > 0 ? guidesCount : undefined}
-            badgeColor="bg-amber-600"
-            onClick={() => closeAndRun(onGuides)}
-          />
+          {EMPYREAN_FEATURE_FLAGS.showCampaignPack && (
+            <ToolRow
+              icon={<BookOpen className="w-4 h-4" />}
+              label="GM Guides"
+              badge={guidesCount > 0 ? guidesCount : undefined}
+              badgeColor="bg-amber-600"
+              onClick={() => closeAndRun(onGuides)}
+            />
+          )}
 
           {/* Empyrean Prompts */}
-          {onEmpyreanPrompts && (
+          {EMPYREAN_FEATURE_FLAGS.showPromptLibrary && onEmpyreanPrompts && (
             <ToolRow
               icon={<span className="text-sm">🐉</span>}
               label="Empyrean Prompts"
