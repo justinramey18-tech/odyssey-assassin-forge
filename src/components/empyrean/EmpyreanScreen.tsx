@@ -293,6 +293,17 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext,
           setShowDM(true);
         }}
       />
+      <EmpyreanAICampaignSetup
+        open={showAISetup}
+        onClose={() => setShowAISetup(false)}
+        characterName={characterName}
+        onLaunch={(config, openingPrompt) => {
+          setEmpyreanConfig(config);
+          setPendingPrompt(openingPrompt);
+          setShowAISetup(false);
+          setShowDM(true);
+        }}
+      />
       <EmpyreanDMScreen
         open={showDM}
         onClose={() => { setShowDM(false); setPendingPrompt(null); }}
