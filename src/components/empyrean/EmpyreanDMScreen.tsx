@@ -2296,6 +2296,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
           <div className="flex-1 overflow-y-auto overscroll-contain">
             <DMDiceRoller
               characterContext={characterContext}
+              rollHint={diceRollerHint}
               onRollResult={(message) => {
                 handleAppendPrompt(message);
                 setDiceRollerOpen(false);
