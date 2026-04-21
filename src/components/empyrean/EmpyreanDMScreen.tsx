@@ -629,7 +629,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
       })();
 
       // Cinematic slideshow: AI tags the narrative, then parse into slides
-      if (cinematicModeEnabled) {
+      if (cinematicModeEnabled && EMPYREAN_FEATURE_FLAGS.showCinematicSlideshow) {
         (async () => {
           let textForSlides = content;
           try {
