@@ -181,16 +181,18 @@ export function DMToolsDrawer({
           />
 
           {/* GM Guides */}
-          <ToolRow
-            icon={<BookOpen className="w-4 h-4" />}
-            label="GM Guides"
-            badge={guidesCount > 0 ? guidesCount : undefined}
-            badgeColor="bg-amber-600"
-            onClick={() => closeAndRun(onGuides)}
-          />
+          {EMPYREAN_FEATURE_FLAGS.showCampaignPack && (
+            <ToolRow
+              icon={<BookOpen className="w-4 h-4" />}
+              label="GM Guides"
+              badge={guidesCount > 0 ? guidesCount : undefined}
+              badgeColor="bg-amber-600"
+              onClick={() => closeAndRun(onGuides)}
+            />
+          )}
 
           {/* Empyrean Prompts */}
-          {onEmpyreanPrompts && (
+          {EMPYREAN_FEATURE_FLAGS.showPromptLibrary && onEmpyreanPrompts && (
             <ToolRow
               icon={<span className="text-sm">🐉</span>}
               label="Empyrean Prompts"
