@@ -10,7 +10,7 @@ import { SessionPlannerWizard } from '@/components/empyrean/SessionPlannerWizard
 import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
 import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
 import { EmpyreanAICampaignSetup } from '@/components/empyrean/EmpyreanAICampaignSetup';
-import { loadEmpyreanDMConfig, EmpyreanDMConfig } from '@/lib/empyreanDMPersona';
+import { loadEmpyreanDMConfig, loadEmpyreanOpeningScene, EmpyreanDMConfig } from '@/lib/empyreanDMPersona';
 import { CharacterContext } from '@/components/oracle/types';
 import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
 
@@ -75,12 +75,19 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext,
   const [showSetup, setShowSetup] = useState(false);
   const [showDM, setShowDM] = useState(false);
   const [empyreanConfig, setEmpyreanConfig] = useState<EmpyreanDMConfig | null>(() => loadEmpyreanDMConfig());
-  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(() => {
+    const saved = loadEmpyreanOpeningScene();
+    return saved || null;
+  });
   const [showAISetup, setShowAISetup] = useState(false);
 
   // Reload config when screen opens
   useEffect(() => {
-    if (open) setEmpyreanConfig(loadEmpyreanDMConfig());
+    if (open) {
+      setEmpyreanConfig(loadEmpyreanDMConfig());
+      const saved = loadEmpyreanOpeningScene();
+      setPendingPrompt(saved || null);
+    }
   }, [open]);
 
   const handleClose = useCallback(() => {

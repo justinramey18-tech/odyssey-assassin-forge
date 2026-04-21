@@ -1,4 +1,4 @@
-import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
+import { getScopedItem, setScopedItem, removeScopedItem } from '@/lib/scoped-storage';
 
 export const EMPYREAN_DM_PERSONA_ID = 'empyrean-dm-persona';
 
@@ -51,6 +51,32 @@ export function loadDragonNotes(): string {
     return getScopedItem(DRAGON_NOTES_KEY) || '';
   } catch {
     return '';
+  }
+}
+
+const OPENING_SCENE_KEY = 'empyrean-opening-scene';
+
+export function saveEmpyreanOpeningScene(scene: string): void {
+  try {
+    setScopedItem(OPENING_SCENE_KEY, scene);
+  } catch (e) {
+    console.error('[EmpyreanDM] Failed to save opening scene:', e);
+  }
+}
+
+export function loadEmpyreanOpeningScene(): string {
+  try {
+    return getScopedItem(OPENING_SCENE_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+export function clearEmpyreanOpeningScene(): void {
+  try {
+    removeScopedItem(OPENING_SCENE_KEY);
+  } catch (e) {
+    console.error('[EmpyreanDM] Failed to clear opening scene:', e);
   }
 }
 
