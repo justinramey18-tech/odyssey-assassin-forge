@@ -313,7 +313,12 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext,
       />
       <EmpyreanDMScreen
         open={showDM}
-        onClose={() => { setShowDM(false); setPendingPrompt(null); }}
+        onClose={() => {
+          setShowDM(false);
+          setPendingPrompt(null);
+          // Re-read from storage to catch New Campaign wipes
+          setEmpyreanConfig(loadEmpyreanDMConfig());
+        }}
         characterContext={characterContext}
         characterName={characterName}
         initialMessage={pendingPrompt}

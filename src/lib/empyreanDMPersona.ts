@@ -36,7 +36,23 @@ export function loadEmpyreanDMConfig(): EmpyreanDMConfig | null {
   return null;
 }
 
+export function clearEmpyreanDMConfig(): void {
+  try {
+    removeScopedItem(STORAGE_KEY);
+  } catch (e) {
+    console.error('[EmpyreanDM] Failed to clear config:', e);
+  }
+}
+
 const DRAGON_NOTES_KEY = 'empyrean-dragon-notes';
+
+export function clearDragonNotes(): void {
+  try {
+    removeScopedItem(DRAGON_NOTES_KEY);
+  } catch (e) {
+    console.error('[EmpyreanDM] Failed to clear dragon notes:', e);
+  }
+}
 
 export function saveDragonNotes(notes: string): void {
   try {
