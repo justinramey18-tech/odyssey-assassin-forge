@@ -9,6 +9,7 @@ import { ArcPlannerWizard } from '@/components/empyrean/ArcPlannerWizard';
 import { SessionPlannerWizard } from '@/components/empyrean/SessionPlannerWizard';
 import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
 import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
+import { EmpyreanAICampaignSetup } from '@/components/empyrean/EmpyreanAICampaignSetup';
 import { loadEmpyreanDMConfig, EmpyreanDMConfig } from '@/lib/empyreanDMPersona';
 import { CharacterContext } from '@/components/oracle/types';
 import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
@@ -75,6 +76,7 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext,
   const [showDM, setShowDM] = useState(false);
   const [empyreanConfig, setEmpyreanConfig] = useState<EmpyreanDMConfig | null>(() => loadEmpyreanDMConfig());
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
+  const [showAISetup, setShowAISetup] = useState(false);
 
   // Reload config when screen opens
   useEffect(() => {
@@ -117,14 +119,31 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext,
               Empyrean DM
             </h3>
             {!empyreanConfig ? (
-              <SectionCard
-                icon={<Sparkles className="w-6 h-6 text-purple-400" />}
-                title="Launch Empyrean Campaign"
-                description="Configure your dragon rider, choose your lore, and enter Navarre with a specialized AI DM."
-                color="bg-purple-500/15"
-                borderColor="border-purple-500/25"
-                onClick={() => setShowSetup(true)}
-              />
+              <>
+                <button
+                  onClick={() => setShowAISetup(true)}
+                  className="w-full flex items-center gap-3 p-5 rounded-xl border-2 border-purple-500/40 bg-gradient-to-r from-purple-500/10 to-amber-500/5 backdrop-blur-sm hover:from-purple-500/20 hover:to-amber-500/10 active:scale-[0.98] transition-all duration-200"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0 bg-purple-500/20">
+                    <Sparkles className="w-7 h-7 text-purple-300" />
+                  </div>
+                  <div className="text-left min-w-0">
+                    <p className="text-base font-cinzel font-bold text-purple-300">Launch with AI</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Talk through your rider, dragon, signet, and focus — the Herald handles the rest.
+                    </p>
+                  </div>
+                </button>
+                <SectionCard
+                  icon={<Sparkles className="w-6 h-6 text-muted-foreground" />}
+                  title="Manual Setup"
+                  description="Configure your rider step-by-step with forms."
+                  color="bg-muted/30"
+                  borderColor="border-border/40"
+                  onClick={() => setShowSetup(true)}
+                />
+              </>
             ) : (
               <>
                 <button
@@ -271,6 +290,17 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext,
           setEmpyreanConfig(config);
           setPendingPrompt(openingPrompt);
           setShowSetup(false);
+          setShowDM(true);
+        }}
+      />
+      <EmpyreanAICampaignSetup
+        open={showAISetup}
+        onClose={() => setShowAISetup(false)}
+        characterName={characterName}
+        onLaunch={(config, openingPrompt) => {
+          setEmpyreanConfig(config);
+          setPendingPrompt(openingPrompt);
+          setShowAISetup(false);
           setShowDM(true);
         }}
       />
