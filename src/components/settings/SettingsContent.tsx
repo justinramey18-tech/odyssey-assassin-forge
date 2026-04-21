@@ -46,6 +46,7 @@ import { SpotifySettingsTab } from './SpotifySettingsTab';
 import { CharacterIdentityEditor } from './CharacterIdentityEditor';
 import { TelegramSettingsTab } from './TelegramSettingsTab';
 import { WeatherSettingsTab } from './WeatherSettingsTab';
+import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
 interface SettingsContentProps {
   activeTab: SettingsTab;
   characterName: string;
@@ -515,14 +516,20 @@ export function SettingsContent({
           </SettingsSection>
 
           <SettingsSection title="Campaign & Prompts">
-            <div className="flex gap-2 mb-4">
-              <Button variant="outline" size="sm" onClick={() => setShowEmpyreanPack(true)} className="flex-1 gap-2 h-10 border-amber-500/30 hover:bg-amber-500/10 text-amber-400">
-                <BookOpen className="w-4 h-4" />GM Guides
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowEmpyreanPrompts(true)} className="flex-1 gap-2 h-10 border-amber-500/30 hover:bg-amber-500/10 text-amber-400">
-                🐉 Prompts
-              </Button>
-            </div>
+            {(EMPYREAN_FEATURE_FLAGS.showCampaignPack || EMPYREAN_FEATURE_FLAGS.showPromptLibrary) && (
+              <div className="flex gap-2 mb-4">
+                {EMPYREAN_FEATURE_FLAGS.showCampaignPack && (
+                  <Button variant="outline" size="sm" onClick={() => setShowEmpyreanPack(true)} className="flex-1 gap-2 h-10 border-amber-500/30 hover:bg-amber-500/10 text-amber-400">
+                    <BookOpen className="w-4 h-4" />GM Guides
+                  </Button>
+                )}
+                {EMPYREAN_FEATURE_FLAGS.showPromptLibrary && (
+                  <Button variant="outline" size="sm" onClick={() => setShowEmpyreanPrompts(true)} className="flex-1 gap-2 h-10 border-amber-500/30 hover:bg-amber-500/10 text-amber-400">
+                    🐉 Prompts
+                  </Button>
+                )}
+              </div>
+            )}
             <GMGuidePrompts />
           </SettingsSection>
 
