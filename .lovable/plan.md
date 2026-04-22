@@ -1,44 +1,57 @@
 
 
-## Scaffold Character Sheet + Reduce Empyrean Solo Nav to 2 Tabs
+## Build out the Settings tab inside the Character Sheet
 
 ### What you'll see after this prompt
 
-The Empyrean solo DM bottom bar collapses from five tabs down to just two: **SHEET** (left) and **[DRAGON NAME]** (right). Tapping SHEET slides up a full-screen panel with your character name in the header and three section tabs across the top — **Character**, **Talk to the DM**, **Settings**. Each section currently shows a clearly-marked placeholder explaining what's coming. Tapping the dragon name still opens Dragon Bond Chat exactly as before.
+Open the Empyrean DM → tap **SHEET** → tap the **Settings** tab. The placeholder is gone, replaced with grouped sections:
 
-This is foundation work only. The three sections will be filled in by the next prompts. Everything currently behind the hidden tabs (Prompts library, Actions drawer, AFK guide, Settings drawer) stays wired in the background so we can flip a single flag to restore any of them.
+- **Campaign** — Campaign Saves (opens the existing saves drawer).
+- **Gameplay** — Dice Odds dropdown (Fair / Heroic / Dramatic / Chaotic / Cursed), Auto-Sync toggle (only when enabled by parent), Whisper Trays toggle, Cinematic Mode toggle.
+- **Appearance** — AI Model dropdown, Chat Theme picker (3-column grid of colored swatches).
+- **Configuration** — Reconfigure Campaign (returns to the Empyrean campaign menu).
+- **Danger Zone** — red-tinted block with **Clear Chat** (clears messages, keeps setup) and **New Campaign** (confirmation dialog, then full wipe + return to setup menu).
+
+Each action that navigates away first closes the sheet so the next screen has a clean stage. The new layout uses small reusable row primitives (a labeled row, a toggle row, a picker row) so all sections look consistent.
 
 ### What's being added
 
-**1. New file: `src/components/empyrean/CharacterSheet.tsx`**
-- Full-screen overlay panel (z-[70]) with a header showing the character name and a close button.
-- Horizontal scrollable tab strip with three pill buttons (Character / Talk to the DM / Settings), each with its own color theme.
-- Animated content area that swaps between three placeholder sections.
+**1. Updated: `src/components/empyrean/CharacterSheet.tsx`**
+- New props on `CharacterSheetProps` for every setting and action (campaign saves callback, dice odds value/setter, three toggles, model + theme value/setters, reconfigure / clear chat / new campaign callbacks, plus a `showAutoSync` flag so the Auto-Sync row only appears when meaningful).
+- Settings tab placeholder replaced with a real `SettingsTab` component that renders the five sections above.
+- Internal AlertDialog confirmation for **New Campaign**.
+- Three small layout primitives (`SettingsSection`, `SettingsRow`, `SettingsToggleRow`, `SettingsPickerRow`) defined in the same file.
+- Imports added for Switch, Select, Button, AlertDialog, plus `DM_MODELS` / `getModelLabel`, `DM_CHAT_THEMES`, and `DICE_ODDS_CONFIGS`.
 
-**2. Updated: `src/components/ai-dm/DMBottomNav.tsx`**
-- New optional flags: `hideAfk`, `hidePrompts`, `hideActions`, `hideSettings`, `showCharacterSheet`, plus an `onCharacterSheet` callback.
-- New tab definition for SHEET (sky-blue, ScrollText icon).
-- Tab list builder updated so each hide-flag filters its tab and the SHEET tab is prepended when enabled.
-- Tap handler routes the SHEET tab to its callback instead of the normal tab-change flow.
-
-**3. Updated: `src/components/empyrean/EmpyreanDMScreen.tsx`**
-- New local state `characterSheetOpen` to control the panel.
-- DMBottomNav receives all five hide flags + `showCharacterSheet` + the open callback.
-- CharacterSheet is mounted near the other drawers and reads the existing character name.
+**2. Updated: `src/components/empyrean/EmpyreanDMScreen.tsx`**
+- Adds local `diceOddsMode` state initialized from `loadDiceOddsMode()` and persisted via `saveDiceOddsMode()` on change (shared storage with the standard dice tab).
+- Passes the new prop set into `<CharacterSheet />`, wiring each one to existing hooks already present in this file:
+  - Whisper Trays → `useWhisperTrayEnabled`
+  - Cinematic Mode → `useCinematicMode`
+  - Chat Theme → `useDMChatTheme`
+  - Auto-Sync → `useDmAutoSync` (with `showAutoSync` set from `!!autoSyncCallbacks`)
+  - AI Model → existing `selectedModel` / `handleModelChange`
+  - Campaign Saves → `setShowSaves(true)`
+  - Reconfigure Campaign → existing `onClose`
+  - Clear Chat → existing `clearMessages`
+  - New Campaign → existing `handleNewCampaign`
 
 ### What stays untouched (reversibility safety net)
 
-- All existing drawers, sheets, hooks, and tab handlers in EmpyreanDMScreen remain mounted and wired. Hiding is purely a nav-visibility change — flipping any `hide*` flag back to `false` instantly restores that tab.
-- Party DM and standard AI DM are not modified — they keep their full nav.
-- The Dragon Bond (oracle) tab is unchanged.
-- The contextual action pills above the chat are not touched.
+- The old `DMToolsDrawer` JSX stays mounted in `EmpyreanDMScreen`; it's just unreachable while the SETTINGS nav tab is hidden.
+- `CharacterTabPlaceholder` and `TalkTabPlaceholder` are not modified — those get filled in by later prompts.
+- `CampaignSessionsManager`, `handleNewCampaign`, `clearMessages`, and `onClose` keep their current behavior.
+- Party DM and standard AI DM are not touched.
 
-### Verification checklist (matches the task)
+### Verification checklist
 
-- Empyrean solo nav shows only SHEET + [DRAGON NAME].
-- Tapping SHEET opens the full-screen panel with three working tab pills and placeholder content in each.
-- Close button returns to the DM chat.
-- Dragon Bond tab still opens Dragon Bond Chat.
-- Party DM and standard AI DM nav unchanged.
-- No TypeScript errors.
+- App compiles with no TypeScript errors.
+- Settings tab shows all six sections in the order above.
+- Dice Odds change persists (visible in localStorage and reflected when the dice tab is opened from a non-Empyrean DM).
+- Whisper Trays / Cinematic Mode toggles flip immediately and survive sheet close/reopen.
+- AI Model and Chat Theme persist across sessions.
+- Reconfigure Campaign closes the sheet and returns the player to the Empyrean menu.
+- Clear Chat closes the sheet and clears messages without wiping setup.
+- New Campaign shows confirmation; on confirm, wipes setup and routes back to the Launch menu.
+- Party DM and standard AI DM are unchanged. Setting `hideSettings={false}` would restore the old Tools drawer entry point.
 
