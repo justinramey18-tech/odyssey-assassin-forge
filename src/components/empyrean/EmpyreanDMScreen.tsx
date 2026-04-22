@@ -86,7 +86,7 @@ import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 
 interface EmpyreanDMScreenProps {
   open: boolean;
-  onClose: () => void;
+  onClose: (reason?: 'newCampaign') => void;
   characterContext: CharacterContext;
   characterName: string;
   initialMessage?: string | null;
@@ -1133,7 +1133,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     // Defer onClose one tick so React has a chance to process setConfig(null)
     // and the parent effect picks up the storage wipe reliably.
     setTimeout(() => {
-      onClose();
+      onClose('newCampaign');
     }, 0);
   }, [newGame, autopilot, onClose]);
 
@@ -1195,7 +1195,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         </Button>
         <Button
           variant="ghost"
-          onClick={onClose}
+          onClick={() => onClose()}
           className="border-purple-500/20 text-muted-foreground text-xs"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -1227,7 +1227,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
       {!embedded && <div className="flex items-center justify-between px-3 py-2.5 border-b border-purple-500/20 bg-background/80 backdrop-blur-sm shrink-0">
         <div className="flex items-center gap-2">
           <button
-            onClick={onClose}
+            onClick={() => onClose()}
             className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           >
             <ArrowLeft className="w-5 h-5 text-purple-300" />
