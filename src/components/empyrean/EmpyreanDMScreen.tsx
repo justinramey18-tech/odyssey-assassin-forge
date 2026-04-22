@@ -86,7 +86,7 @@ import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 
 interface EmpyreanDMScreenProps {
   open: boolean;
-  onClose: () => void;
+  onClose: (reason?: 'newCampaign') => void;
   characterContext: CharacterContext;
   characterName: string;
   initialMessage?: string | null;
@@ -1133,7 +1133,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     // Defer onClose one tick so React has a chance to process setConfig(null)
     // and the parent effect picks up the storage wipe reliably.
     setTimeout(() => {
-      onClose();
+      onClose('newCampaign');
     }, 0);
   }, [newGame, autopilot, onClose]);
 
