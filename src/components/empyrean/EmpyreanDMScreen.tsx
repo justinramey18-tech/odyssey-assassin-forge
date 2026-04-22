@@ -32,6 +32,7 @@ import { CampaignDropdown } from '@/components/ai-dm/CampaignDropdown';
 import { CampaignSessionsManager } from '@/components/ai-dm/CampaignSessionsManager';
 import { DMToolsDrawer } from '@/components/ai-dm/DMToolsDrawer';
 import { DMBottomNav, DMNavTab } from '@/components/ai-dm/DMBottomNav';
+import { CharacterSheet } from '@/components/empyrean/CharacterSheet';
 import { DMDiceRoller } from '@/components/ai-dm/DMDiceRoller';
 import { GMGuidesManager } from '@/components/ai-dm/GMGuidesManager';
 import { WorldStatePanel } from '@/components/ai-dm/WorldStatePanel';
@@ -204,6 +205,7 @@ export function EmpyreanDMScreen({
   const [config, setConfig] = useState<EmpyreanDMConfig | null>(() => loadEmpyreanDMConfig());
   const [selectedModel, setSelectedModel] = useState(loadEmpyreanModel);
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
+  const [characterSheetOpen, setCharacterSheetOpen] = useState(false);
   const [showPrompts, setShowPrompts] = useState(false);
   const [showCharacterActions, setShowCharacterActions] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
@@ -1704,6 +1706,11 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         disabled={isLoading || (!isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout)}
         hideDice={true}
         hideAfk={true}
+        hidePrompts={true}
+        hideActions={true}
+        hideSettings={true}
+        showCharacterSheet={true}
+        onCharacterSheet={() => setCharacterSheetOpen(true)}
         oracleLabel={isUnbonded ? 'UNBONDED' : (config?.dragonName ? config.dragonName.toUpperCase() : 'DRAGON')}
         oracleColor={isUnbonded ? 'text-red-400/50' : (() => {
           const mood = dragonBond.bondState.mood;
@@ -1850,6 +1857,13 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
           />
         </div>
       </div>
+
+      {/* Character Sheet — full-screen overlay (Empyrean solo) */}
+      <CharacterSheet
+        open={characterSheetOpen}
+        onClose={() => setCharacterSheetOpen(false)}
+        characterName={characterName}
+      />
 
       {/* DMToolsDrawer */}
       <DMToolsDrawer
