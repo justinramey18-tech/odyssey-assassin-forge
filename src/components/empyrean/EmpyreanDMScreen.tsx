@@ -1858,6 +1858,13 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         </div>
       </div>
 
+      {/* Character Sheet — full-screen overlay (Empyrean solo) */}
+      <CharacterSheet
+        open={characterSheetOpen}
+        onClose={() => setCharacterSheetOpen(false)}
+        characterName={characterName}
+      />
+
       {/* DMToolsDrawer */}
       <DMToolsDrawer
         open={showToolsDrawer}
