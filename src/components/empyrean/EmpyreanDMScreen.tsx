@@ -63,6 +63,7 @@ import {
   clearDragonNotes,
   clearEmpyreanOpeningScene,
 } from '@/lib/empyreanDMPersona';
+import { loadDiceOddsMode, saveDiceOddsMode, type DiceOddsMode } from '@/lib/diceOdds';
 import { useDragonBond } from '@/hooks/use-dragon-bond';
 import { getBondDescriptor, getTrustDescriptor, buildDragonChatPrompt, DRAGON_CHAT_SUMMARY_KEY, DRAGON_CHAT_KEY, resetBondState, getIsUnbonded, setIsUnbonded, saveBondState, DEFAULT_BOND, DEFAULT_TRUST, saveSoloHP } from '@/lib/dragonBondState';
 import { getDragonColorHex } from '@/lib/dragonColors';
@@ -204,6 +205,7 @@ export function EmpyreanDMScreen({
 }: EmpyreanDMScreenProps) {
   const [config, setConfig] = useState<EmpyreanDMConfig | null>(() => loadEmpyreanDMConfig());
   const [selectedModel, setSelectedModel] = useState(loadEmpyreanModel);
+  const [diceOddsMode, setDiceOddsMode] = useState<DiceOddsMode>(() => loadDiceOddsMode());
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
   const [characterSheetOpen, setCharacterSheetOpen] = useState(false);
   const [showPrompts, setShowPrompts] = useState(false);
@@ -1863,6 +1865,26 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         open={characterSheetOpen}
         onClose={() => setCharacterSheetOpen(false)}
         characterName={characterName}
+        onCampaignSaves={() => setShowSaves(true)}
+        diceOddsMode={diceOddsMode}
+        onDiceOddsModeChange={(mode) => {
+          setDiceOddsMode(mode);
+          saveDiceOddsMode(mode);
+        }}
+        autoSyncEnabled={autoSync.autoSyncEnabled}
+        onToggleAutoSync={autoSync.toggleAutoSync}
+        showAutoSync={!!autoSyncCallbacks}
+        whisperTrayEnabled={whisperTrayEnabled}
+        onWhisperTrayEnabledChange={setWhisperTrayEnabled}
+        cinematicModeEnabled={cinematicModeEnabled}
+        onCinematicModeEnabledChange={setCinematicMode}
+        selectedModel={selectedModel}
+        onModelChange={handleModelChange}
+        chatThemeId={chatThemeId}
+        onChatThemeChange={setChatTheme}
+        onReconfigureCampaign={onClose}
+        onClearChat={clearMessages}
+        onNewCampaign={handleNewCampaign}
       />
 
       {/* DMToolsDrawer */}
