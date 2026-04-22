@@ -21,7 +21,7 @@ interface CharacterSheetProps {
   diceOddsMode: DiceOddsMode;
   onDiceOddsModeChange: (mode: DiceOddsMode) => void;
   autoSyncEnabled: boolean;
-  onToggleAutoSync: () => void;
+  onToggleAutoSync: (enabled: boolean) => void;
   showAutoSync: boolean;
   whisperTrayEnabled: boolean;
   onWhisperTrayEnabledChange: (v: boolean) => void;
@@ -197,7 +197,7 @@ interface SettingsTabProps {
   diceOddsMode: DiceOddsMode;
   onDiceOddsModeChange: (mode: DiceOddsMode) => void;
   autoSyncEnabled: boolean;
-  onToggleAutoSync: () => void;
+  onToggleAutoSync: (enabled: boolean) => void;
   showAutoSync: boolean;
   whisperTrayEnabled: boolean;
   onWhisperTrayEnabledChange: (v: boolean) => void;
