@@ -1,84 +1,44 @@
 
 
-# Prompt 3 of 5: Unbonded Campaign State
+## Scaffold Character Sheet + Reduce Empyrean Solo Nav to 2 Tabs
 
-## Overview
+### What you'll see after this prompt
 
-After a rider dies and clicks "Begin again" from the memorial screen, they re-enter the campaign without a dragon, signet, or bond chat. This prompt gates all dragon-related features behind an `isUnbonded` flag and provides unbonded-specific actions, DM persona, and a GM guide.
+The Empyrean solo DM bottom bar collapses from five tabs down to just two: **SHEET** (left) and **[DRAGON NAME]** (right). Tapping SHEET slides up a full-screen panel with your character name in the header and three section tabs across the top — **Character**, **Talk to the DM**, **Settings**. Each section currently shows a clearly-marked placeholder explaining what's coming. Tapping the dragon name still opens Dragon Bond Chat exactly as before.
 
-## Changes
+This is foundation work only. The three sections will be filled in by the next prompts. Everything currently behind the hidden tabs (Prompts library, Actions drawer, AFK guide, Settings drawer) stays wired in the background so we can flip a single flag to restore any of them.
 
-### 1. `src/lib/dragonBondState.ts` — Add unbonded helpers
+### What's being added
 
-Add `UNBONDED_KEY = 'empyrean-unbonded-status'` constant and two functions:
-- `getIsUnbonded()` — reads from scoped storage, returns boolean
-- `setIsUnbonded(unbonded: boolean)` — writes to scoped storage
+**1. New file: `src/components/empyrean/CharacterSheet.tsx`**
+- Full-screen overlay panel (z-[70]) with a header showing the character name and a close button.
+- Horizontal scrollable tab strip with three pill buttons (Character / Talk to the DM / Settings), each with its own color theme.
+- Animated content area that swaps between three placeholder sections.
 
-### 2. Register the new key in all three registries
+**2. Updated: `src/components/ai-dm/DMBottomNav.tsx`**
+- New optional flags: `hideAfk`, `hidePrompts`, `hideActions`, `hideSettings`, `showCharacterSheet`, plus an `onCharacterSheet` callback.
+- New tab definition for SHEET (sky-blue, ScrollText icon).
+- Tab list builder updated so each hide-flag filters its tab and the SHEET tab is prepended when enabled.
+- Tap handler routes the SHEET tab to its callback instead of the normal tab-change flow.
 
-- `src/lib/scoped-keys.ts` — add `'empyrean-unbonded-status'` to `SCOPED_KEYS`
-- `src/lib/resetApp.ts` — add `'empyrean-unbonded-status'` to `ALL_STORAGE_KEYS`
-- `src/hooks/use-auto-save.ts` — add `empyreanUnbondedStatus?: boolean` to `SaveData` interface
+**3. Updated: `src/components/empyrean/EmpyreanDMScreen.tsx`**
+- New local state `characterSheetOpen` to control the panel.
+- DMBottomNav receives all five hide flags + `showCharacterSheet` + the open callback.
+- CharacterSheet is mounted near the other drawers and reads the existing character name.
 
-### 3. `src/components/empyrean/EmpyreanDMScreen.tsx` — Gate dragon features
+### What stays untouched (reversibility safety net)
 
-Read `isUnbonded` via `useMemo(() => getIsUnbonded(), [])` on mount.
+- All existing drawers, sheets, hooks, and tab handlers in EmpyreanDMScreen remain mounted and wired. Hiding is purely a nav-visibility change — flipping any `hide*` flag back to `false` instantly restores that tab.
+- Party DM and standard AI DM are not modified — they keep their full nav.
+- The Dragon Bond (oracle) tab is unchanged.
+- The contextual action pills above the chat are not touched.
 
-**A. Dragon chat**: When `isUnbonded`, tapping the oracle tab opens a Sheet with an empty state ("The silence is vast. No bond stirs.") instead of `DragonBondChat`.
+### Verification checklist (matches the task)
 
-**B. Burnout system**: When `isUnbonded`, force `burnoutLevel` to 0, hide burnout +/- buttons, skip `BurnoutFlameOverlay`, replace `BurnoutIndicator` with "No signet" label.
-
-**C. Contextual actions**: Pass `isUnbonded` prop to `EmpyreanContextualActions`.
-
-**D. Bottom nav oracle tab**: When `isUnbonded`, set `oracleLabel="UNBONDED"`, `oracleColor="text-red-400/50"`, `oracleActiveBg="bg-red-500/5"`, `oracleCount={0}`.
-
-**E. Unbonded banner**: Render a small red-tinted banner above messages when `isUnbonded`.
-
-**F. Auto-install GM guide**: `useEffect` that installs the "Threshing Rebirth Protocol" guide via `addGuide` when `isUnbonded` and guide doesn't exist.
-
-**G. Pass `isUnbonded` to `buildEmpyreanDMPersona()`** in the `dmPersonaPrompt` useMemo.
-
-**H. Memorial `onBeginAgain`**: Add `setIsUnbonded(true)` call alongside the existing reset logic.
-
-### 4. `src/components/empyrean/EmpyreanContextualActions.tsx` — Unbonded actions
-
-Add `isUnbonded?: boolean` to props. Define `UNBONDED_ACTIONS` (combat, social, training, exploration, downtime, crisis) with ground-only, no-dragon actions as specified. When `isUnbonded`, use `UNBONDED_ACTIONS` instead of `buildActions(...)`.
-
-### 5. `src/components/empyrean/EmpyreanCampaignSetup.tsx` — Skip dragon config
-
-Add `isUnbonded?: boolean` to props. When `isUnbonded`, replace the dragon name and signet inputs in step 0 with a red-tinted notice card ("UNBONDED RIDER — You have not yet been chosen during Threshing..."). Force `dragonName: ''` and `signetType: ''` on launch.
-
-### 6. `src/lib/empyreanDMPersona.ts` — Unbonded persona
-
-Add `isUnbonded: boolean = false` parameter to `buildEmpyreanDMPersona()`. When true:
-- Skip CHARACTER INTEGRATION dragon/signet sentences
-- Skip DRAGON IN THE NARRATIVE section
-- Skip SIGNET BURNOUT TRACKING section
-- Skip BOND STRAIN/GROWTH EVENTS sections
-- Skip DRAGON MEMORY FORMATION section
-- Skip BURNOUT TICK EVENTS section
-- Skip DRAGON-RIDER BOND STATUS section
-- Skip RECENT DRAGON-RIDER PRIVATE COMMUNICATION section
-- Skip DRAGON'S PERSISTENT MEMORIES section
-- Insert new UNBONDED RIDER STATUS section with combat, narrative, party dragon, and NPC handling instructions
-
-### 7. `src/components/ai-dm/PartyDMScreen.tsx` — Mirror unbonded support
-
-Read `isUnbonded` and apply the same memorial `onBeginAgain` call to `setIsUnbonded(true)`.
-
-## Files Modified
-
-| File | Change |
-|------|--------|
-| `src/lib/dragonBondState.ts` | Add `getIsUnbonded` / `setIsUnbonded` |
-| `src/lib/scoped-keys.ts` | Register new key |
-| `src/lib/resetApp.ts` | Register new key |
-| `src/hooks/use-auto-save.ts` | Add field to `SaveData` |
-| `src/components/empyrean/EmpyreanDMScreen.tsx` | Gate dragon features, banner, GM guide, persona param |
-| `src/components/empyrean/EmpyreanContextualActions.tsx` | Unbonded action sets |
-| `src/components/empyrean/EmpyreanCampaignSetup.tsx` | Skip dragon config |
-| `src/lib/empyreanDMPersona.ts` | `isUnbonded` parameter, unbonded persona section |
-| `src/components/ai-dm/PartyDMScreen.tsx` | `setIsUnbonded(true)` in memorial flow |
-
-No new files created. No existing bonded code removed — only gated behind `!isUnbonded` checks.
+- Empyrean solo nav shows only SHEET + [DRAGON NAME].
+- Tapping SHEET opens the full-screen panel with three working tab pills and placeholder content in each.
+- Close button returns to the DM chat.
+- Dragon Bond tab still opens Dragon Bond Chat.
+- Party DM and standard AI DM nav unchanged.
+- No TypeScript errors.
 
