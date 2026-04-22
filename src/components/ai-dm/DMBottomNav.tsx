@@ -1,9 +1,9 @@
 import { useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Dices, Gem, ListChecks, Bird, Ghost, Settings, Eye, X, PawPrint } from 'lucide-react';
+import { Dices, Gem, ListChecks, Bird, Ghost, Settings, Eye, X, PawPrint, ScrollText } from 'lucide-react';
 
-export type DMNavTab = 'dice' | 'prompts' | 'actions' | 'geralt' | 'afk' | 'oracle' | 'settings' | 'wildshape';
+export type DMNavTab = 'dice' | 'prompts' | 'actions' | 'geralt' | 'afk' | 'oracle' | 'settings' | 'wildshape' | 'character';
 
 interface DMBottomNavProps {
   activeTab: DMNavTab | null;
@@ -41,8 +41,18 @@ interface DMBottomNavProps {
   afkActiveBg?: string;
   /** Hide the DICE tab entirely from the nav (Empyrean solo mode — dice is surfaced via whisper tray instead). */
   hideDice?: boolean;
-  /** Hide the AFK/Autopilot tab entirely from the nav (Empyrean solo mode). Ignored if showWildShape is true. */
+  /** Hide the AFK tab entirely from the nav (Empyrean solo mode). Ignored if showWildShape is true. */
   hideAfk?: boolean;
+  /** Hide the RP PROMPTS tab entirely from the nav (Empyrean solo mode). */
+  hidePrompts?: boolean;
+  /** Hide the ACTIONS tab entirely from the nav (Empyrean solo mode — actions surface as pill columns above chat instead). */
+  hideActions?: boolean;
+  /** Hide the SETTINGS tab entirely from the nav (Empyrean solo mode — settings now live inside the Character Sheet). */
+  hideSettings?: boolean;
+  /** Show the SHEET tab (Character Sheet) in the nav. */
+  showCharacterSheet?: boolean;
+  /** Callback fired when the SHEET tab is tapped. Required when showCharacterSheet is true. */
+  onCharacterSheet?: () => void;
 }
 
 const BASE_TABS = [
@@ -56,6 +66,7 @@ const AFK_TAB = { id: 'afk' as DMNavTab, label: 'AFK', icon: Ghost, color: 'text
 const WILDSHAPE_TAB = { id: 'wildshape' as DMNavTab, label: 'SHAPES', icon: PawPrint, color: 'text-green-400', activeBg: 'bg-green-500/10' };
 const ORACLE_TAB = { id: 'oracle' as DMNavTab, label: 'ORACLE', icon: Eye, color: 'text-cyan-400', activeBg: 'bg-cyan-500/10' };
 const SETTINGS_TAB = { id: 'settings' as DMNavTab, label: 'SETTINGS', icon: Settings, color: 'text-white/70', activeBg: 'bg-white/5' };
+const CHARACTER_SHEET_TAB = { id: 'character' as DMNavTab, label: 'SHEET', icon: ScrollText, color: 'text-sky-400', activeBg: 'bg-sky-500/10' };
 
 const activeIndicatorColors: Record<DMNavTab, string> = {
   dice: 'bg-amber-500',
@@ -66,9 +77,10 @@ const activeIndicatorColors: Record<DMNavTab, string> = {
   wildshape: 'bg-green-500',
   oracle: 'bg-cyan-500',
   settings: 'bg-white/50',
+  character: 'bg-sky-500',
 };
 
-export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive, oracleLabel, oracleColor, oracleActiveBg, afkLabel, afkColor, afkActiveBg, hideDice, hideAfk }: DMBottomNavProps) {
+export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive, oracleLabel, oracleColor, oracleActiveBg, afkLabel, afkColor, afkActiveBg, hideDice, hideAfk, hidePrompts, hideActions, hideSettings, showCharacterSheet, onCharacterSheet }: DMBottomNavProps) {
   const afkOrWildShape = showWildShape ? WILDSHAPE_TAB : AFK_TAB;
   const afkTab = {
     ...afkOrWildShape,
@@ -82,13 +94,17 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
     color: oracleColor || ORACLE_TAB.color,
     activeBg: oracleActiveBg || ORACLE_TAB.activeBg,
   };
-  const baseTabs = hideDice ? BASE_TABS.filter(t => t.id !== 'dice') : BASE_TABS;
+  let baseTabs = BASE_TABS;
+  if (hideDice) baseTabs = baseTabs.filter(t => t.id !== 'dice');
+  if (hidePrompts) baseTabs = baseTabs.filter(t => t.id !== 'prompts');
+  if (hideActions) baseTabs = baseTabs.filter(t => t.id !== 'actions');
   const tabs = [
+    ...(showCharacterSheet ? [CHARACTER_SHEET_TAB] : []),
     ...baseTabs,
     ...((hideAfk && !showWildShape) ? [] : [afkTab]),
     oracleTab,
     ...(showGeralt ? [GERALT_TAB] : []),
-    SETTINGS_TAB,
+    ...(hideSettings ? [] : [SETTINGS_TAB]),
   ];
   const touchStartY = useRef(0);
   const touchStartTime = useRef(0);
@@ -205,7 +221,13 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
                     return (
                       <button
                         key={tab.id}
-                        onClick={() => onTabChange(tab.id)}
+                        onClick={() => {
+                          if (tab.id === 'character') {
+                            onCharacterSheet?.();
+                            return;
+                          }
+                          onTabChange(tab.id);
+                        }}
                         disabled={disabled}
                         className={cn(
                           "flex-1 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 relative",
