@@ -39,6 +39,7 @@ interface CharacterSheetProps {
   onOpenAbilityPicker?: () => void;
   onOpenLoadout?: () => void;
   onOpenAbilityTrees?: () => void;
+  onOpenEmpyreanCooldowns?: () => void;
 }
 
 const TABS: Array<{ id: CharacterSheetTab; label: string; icon: React.ComponentType<{ className?: string }>; color: string; accent: string }> = [
@@ -73,6 +74,7 @@ export function CharacterSheet({
   onOpenAbilityPicker,
   onOpenLoadout,
   onOpenAbilityTrees,
+  onOpenEmpyreanCooldowns,
 }: CharacterSheetProps) {
   const [activeTab, setActiveTab] = useState<CharacterSheetTab>(initialTab);
 
@@ -141,7 +143,7 @@ export function CharacterSheet({
             transition={{ duration: 0.15 }}
             className="h-full"
           >
-            {activeTab === 'character' && <CharacterTab onCloseSheet={onClose} onOpenInventory={onOpenInventory} onOpenAbilityPicker={onOpenAbilityPicker} onOpenLoadout={onOpenLoadout} onOpenAbilityTrees={onOpenAbilityTrees} />}
+            {activeTab === 'character' && <CharacterTab onCloseSheet={onClose} onOpenInventory={onOpenInventory} onOpenAbilityPicker={onOpenAbilityPicker} onOpenLoadout={onOpenLoadout} onOpenAbilityTrees={onOpenAbilityTrees} onOpenEmpyreanCooldowns={onOpenEmpyreanCooldowns} />}
             {activeTab === 'talk' && <TalkTabPlaceholder />}
             {activeTab === 'settings' && (
               <SettingsTab
@@ -181,9 +183,10 @@ interface CharacterTabProps {
   onOpenAbilityPicker?: () => void;
   onOpenLoadout?: () => void;
   onOpenAbilityTrees?: () => void;
+  onOpenEmpyreanCooldowns?: () => void;
 }
 
-function CharacterTab({ onCloseSheet, onOpenInventory, onOpenAbilityPicker, onOpenLoadout, onOpenAbilityTrees }: CharacterTabProps) {
+function CharacterTab({ onCloseSheet, onOpenInventory, onOpenAbilityPicker, onOpenLoadout, onOpenAbilityTrees, onOpenEmpyreanCooldowns }: CharacterTabProps) {
   const drawers = usePromptDrawers();
 
   const openDrawerThenClose = useCallback((openFn: () => void) => {
@@ -228,8 +231,15 @@ function CharacterTab({ onCloseSheet, onOpenInventory, onOpenAbilityPicker, onOp
         <CharacterRow
           icon={<Activity className="w-4 h-4 text-emerald-300" />}
           label="Cooldowns"
-          description="Track cooldown timers for active abilities."
-          onClick={() => openDrawerThenClose(drawers.openCooldownDrawer)}
+          description="Turns until abilities recover."
+          onClick={() => {
+            if (onOpenEmpyreanCooldowns) {
+              onCloseSheet();
+              setTimeout(onOpenEmpyreanCooldowns, 0);
+            } else {
+              openDrawerThenClose(drawers.openCooldownDrawer);
+            }
+          }}
         />
         <CharacterRow
           icon={<Shield className="w-4 h-4 text-purple-300" />}
