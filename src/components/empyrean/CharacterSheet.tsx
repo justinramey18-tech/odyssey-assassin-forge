@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import { X, User, MessageCircle, Settings as SettingsIcon, FolderOpen, Dices, Zap, Eye, Film, Cpu, Palette, RotateCcw, Trash2, AlertTriangle } from 'lucide-react';
+import { X, User, MessageCircle, Settings as SettingsIcon, FolderOpen, Dices, Zap, Eye, Film, Cpu, Palette, RotateCcw, Trash2, AlertTriangle, Heart, Swords, Shield, Activity, Flame, Backpack } from 'lucide-react';
+import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
@@ -132,7 +133,7 @@ export function CharacterSheet({
             transition={{ duration: 0.15 }}
             className="h-full"
           >
-            {activeTab === 'character' && <CharacterTabPlaceholder />}
+            {activeTab === 'character' && <CharacterTab onCloseSheet={onClose} />}
             {activeTab === 'talk' && <TalkTabPlaceholder />}
             {activeTab === 'settings' && (
               <SettingsTab
@@ -166,15 +167,116 @@ export function CharacterSheet({
 // ── Placeholder tab contents ──────────────────────────────────────────────────
 // These will be replaced in subsequent prompts.
 
-function CharacterTabPlaceholder() {
+interface CharacterTabProps {
+  onCloseSheet: () => void;
+}
+
+function CharacterTab({ onCloseSheet }: CharacterTabProps) {
+  const drawers = usePromptDrawers();
+
+  const openDrawerThenClose = useCallback((openFn: () => void) => {
+    onCloseSheet();
+    setTimeout(openFn, 0);
+  }, [onCloseSheet]);
+
   return (
-    <div className="px-4 py-6 space-y-3">
-      <h2 className="text-xl font-cinzel font-bold text-sky-300">Character</h2>
-      <p className="text-sm text-muted-foreground leading-relaxed">
-        Rider stats, gear, signet management, and dragon personality will live here.
-      </p>
-      <p className="text-xs text-muted-foreground/70 italic">— Placeholder. Content coming in next prompts.</p>
+    <div className="px-4 py-5 space-y-6 pb-10">
+      {/* ─── Stats & Progression ─── */}
+      <CharacterSection title="Stats & Progression">
+        <CharacterRow
+          icon={<Heart className="w-4 h-4 text-rose-300" />}
+          label="HP, Ability Scores & XP"
+          description="Health, ability score breakdown, level, and XP tracker."
+          onClick={() => openDrawerThenClose(drawers.openStatsDrawer)}
+        />
+        <CharacterRow
+          icon={<Swords className="w-4 h-4 text-amber-300" />}
+          label="Abilities"
+          description="Active and passive abilities with tier effects."
+          onClick={() => openDrawerThenClose(drawers.openAbilitiesDrawer)}
+        />
+        <CharacterRow
+          icon={<Activity className="w-4 h-4 text-emerald-300" />}
+          label="Cooldowns"
+          description="Track cooldown timers for active abilities."
+          onClick={() => openDrawerThenClose(drawers.openCooldownDrawer)}
+        />
+        <CharacterRow
+          icon={<Shield className="w-4 h-4 text-purple-300" />}
+          label="Conditions"
+          description="Status effects currently active on your rider."
+          onClick={() => openDrawerThenClose(drawers.openConditionsDrawer)}
+        />
+      </CharacterSection>
+
+      {/* ─── Signet ─── */}
+      <CharacterSection title="Signet">
+        <CharacterRow
+          icon={<Flame className="w-4 h-4 text-red-300/60" />}
+          label="Signet Management"
+          description="Interactive burnout tracking, channel controls, and grounding — coming soon."
+          disabled
+        />
+      </CharacterSection>
+
+      {/* ─── Equipment ─── */}
+      <CharacterSection title="Equipment">
+        <CharacterRow
+          icon={<Backpack className="w-4 h-4 text-cyan-300" />}
+          label="Gear & Inventory"
+          description="Equipped gear, inventory, and quick actions."
+          onClick={() => openDrawerThenClose(drawers.openQuickActionsDrawer)}
+        />
+        <CharacterRow
+          icon={<Zap className="w-4 h-4 text-indigo-300" />}
+          label="Set Bonuses"
+          description="Active set bonuses from equipped gear."
+          onClick={() => openDrawerThenClose(drawers.openSetBonusDrawer)}
+        />
+      </CharacterSection>
     </div>
+  );
+}
+
+function CharacterSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <h3 className="text-xs font-cinzel font-bold uppercase tracking-wider text-sky-400/70 px-1">{title}</h3>
+      <div className="rounded-xl border border-border/40 bg-muted/10 overflow-hidden divide-y divide-border/30">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+interface CharacterRowProps {
+  icon: React.ReactNode;
+  label: string;
+  description?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+}
+
+function CharacterRow({ icon, label, description, onClick, disabled }: CharacterRowProps) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'w-full flex items-center gap-3 px-4 py-3 transition-colors text-left',
+        disabled
+          ? 'opacity-50 cursor-not-allowed'
+          : 'hover:bg-muted/30 active:bg-muted/40'
+      )}
+      style={{ touchAction: 'manipulation' }}
+    >
+      <span className="shrink-0">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-cinzel text-foreground">{label}</p>
+        {description && <p className="text-[11px] text-muted-foreground leading-snug">{description}</p>}
+      </div>
+      {!disabled && onClick && <span className="text-muted-foreground/60 text-lg leading-none shrink-0">›</span>}
+    </button>
   );
 }
 
