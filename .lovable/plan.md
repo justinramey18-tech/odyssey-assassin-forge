@@ -1,45 +1,62 @@
 
 
-## Build out the Character tab — menu of drawer-launcher rows
+## Fix the broken update flow and stale-cache problem
+
+### The problem in plain language
+
+Right now, every time you publish a new version of the app, your phone keeps showing the old one until you manually wipe browser site data. The "Check for Updates" button doesn't reliably help. There are three cooperating reasons:
+
+1. The offline/cache helper (the "service worker") that gets installed with new builds never actually takes over — it sits politely in the background waiting for permission that we never give it.
+2. The app's main HTML page is cached aggressively, so even when new JavaScript files exist on the server, the browser keeps loading the old HTML, which still points at the old JavaScript.
+3. The app has no "the new version just took over — reload now" listener, so even when an update does install, the page doesn't refresh to use it.
+
+We have to fix all three together. Fixing one or two leaves the chain broken.
 
 ### What you'll see after this prompt
 
-Open the Empyrean DM → tap **SHEET**. The Character tab (default) now shows a tidy menu of three sections:
-
-- **Stats & Progression** — HP / Ability Scores / XP, Abilities, Cooldowns, Conditions
-- **Signet** — Signet Management (greyed-out "coming soon" row, real version arrives in a later prompt)
-- **Equipment** — Gear & Inventory, Set Bonuses
-
-Tap any active row → the Character Sheet closes and the matching drawer slides open over the DM chat (the existing drawers — same data, same controls). Close the drawer → you're back at the DM chat. Reopening the Sheet starts on the Character tab again.
+- Within ~30 seconds of a new deploy, the app reloads itself on your phone with the new version. No manual steps.
+- Tapping **Settings → Check for Updates** either says "Update found! Applying…" and reloads within 1–2 seconds, or confirms "You have the latest version".
+- No more clearing site data after deploys.
+- Offline navigation still works (cached HTML is used as a fallback when the network is down).
+- Auth, Supabase calls, and font caching all behave exactly as before.
 
 ### What's being changed
 
-**Single file: `src/components/empyrean/CharacterSheet.tsx`**
+**1. `vite.config.ts` — the cache rules**
+- Tell new background helpers to take over immediately (`skipWaiting`, `clientsClaim`).
+- Clean up old leftover caches automatically (`cleanupOutdatedCaches`).
+- Stop pre-caching `index.html`. Instead, always try the network first for it (with a 3-second timeout), falling back to cache only when offline. This is what makes new bundle hashes get picked up immediately.
+- Keep all existing rules (Supabase = network only, Google Fonts = cache first) untouched.
 
-- Add icons to the lucide import: `Heart`, `Swords`, `Shield`, `Activity`, `Flame`, `Backpack`.
-- Import `usePromptDrawers` from the existing drawer provider.
-- Delete the `CharacterTabPlaceholder` function.
-- Add a new `CharacterTab` component that:
-  - Reads the existing drawer context via `usePromptDrawers()` — no new state, no prop plumbing.
-  - Renders three sections of rows. Tapping a row closes the Sheet first (so the lower-z drawer is visible), then opens the drawer on the next tick.
-  - Renders the Signet Management row as a disabled placeholder with a "coming soon" hint.
-- Add two small layout primitives next to the existing Settings primitives: `CharacterSection` (titled grouping) and `CharacterRow` (icon + label + description + chevron, with disabled support).
-- Update the active-tab branch in the render to mount `<CharacterTab onCloseSheet={onClose} />` instead of the placeholder.
+**2. `src/main.tsx` — the auto-reload listener**
+- Add a small block at the bottom that listens for "a new version just took control" and reloads the page once when it happens. A guard flag prevents reload loops.
+- We do NOT manually register the service worker — the existing PWA plugin already does that.
+
+**3. `src/components/settings/SettingsContent.tsx` — the Check for Updates button**
+- Rewrite the button's handler to be more robust:
+  - If a new version is already waiting → tell it to activate, show "Update found! Applying…", and let the new auto-reload listener handle the refresh (with an 8-second hard-fallback reload just in case).
+  - If a new version is mid-install → wait for install to finish, then activate it.
+  - If nothing's new → "You have the latest version".
+  - Friendly messages for "no service worker" and "not supported" cases (e.g. local dev).
+- The "Refresh App" button stays exactly as-is as a hard fallback.
 
 ### What stays untouched
 
-- `PromptDrawerProvider.tsx` and all six drawers (Stats, Abilities, Conditions, Cooldown, Quick Actions, Set Bonus) — consumed as-is.
-- `EmpyreanDMScreen.tsx` — no new props or state needed.
-- The Settings tab and all its primitives / the New Campaign confirmation dialog — fully preserved.
-- The Talk to the DM tab — still a placeholder for later prompts.
-- The Dragon Bond nav tab — unchanged.
-- Party DM and standard AI DM — unaffected.
+- `public/custom-sw.js` (still imported as before).
+- The PWA manifest, icons, theme colors, `registerType: 'autoUpdate'`.
+- All other runtime caching rules (Supabase, Google Fonts, gstatic).
+- The Updates & API settings section layout — only the button's logic changes.
+- Every other component in `SettingsContent.tsx`.
+
+### One-time caveat
+
+The very first reload after this deploy will still show the old version once, because the currently-installed background helper has to be replaced by the new one. After that single transition, all future deploys will auto-update within ~30 seconds.
 
 ### Verification
 
-- Character tab shows three sections with the expected rows.
-- Each active row closes the Sheet and opens the matching drawer over the DM chat.
-- Signet Management row is visibly disabled with the "coming soon" description.
-- Settings and Talk tabs unchanged.
-- No TypeScript errors.
+- App compiles cleanly.
+- After the one-time transition reload, push a tiny visible change → phone updates itself within ~30 seconds.
+- Check for Updates button shows correct messages in all three states (update found / installing / up to date).
+- Offline navigation still works.
+- Console shows `[SW] New service worker activated — reloading for fresh bundles` once per update.
 
