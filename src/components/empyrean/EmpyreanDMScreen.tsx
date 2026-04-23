@@ -1942,6 +1942,10 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         } : undefined}
         onOpenAbilityPicker={() => setAbilityPickerOpen(true)}
         onOpenLoadout={() => setRiderLoadoutOpen(true)}
+        onOpenAbilitiesScreen={onNavigateToTab ? () => {
+          onNavigateToTab('abilities');
+          onClose();
+        } : undefined}
       />
 
       {/* Empyrean Rider Loadout — full-screen paper doll */}
@@ -1962,6 +1966,10 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         cooldowns={narrativeCooldowns}
         onUseAbility={handleUseEmpyreanAbility}
         isLoading={isLoading}
+        onGoToAbilitiesScreen={onNavigateToTab ? () => {
+          onNavigateToTab('abilities');
+          onClose();
+        } : undefined}
       />
 
       {/* DMToolsDrawer */}

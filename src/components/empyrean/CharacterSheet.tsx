@@ -38,6 +38,7 @@ interface CharacterSheetProps {
   onOpenInventory?: () => void;
   onOpenAbilityPicker?: () => void;
   onOpenLoadout?: () => void;
+  onOpenAbilitiesScreen?: () => void;
 }
 
 const TABS: Array<{ id: CharacterSheetTab; label: string; icon: React.ComponentType<{ className?: string }>; color: string; accent: string }> = [
@@ -71,6 +72,7 @@ export function CharacterSheet({
   onOpenInventory,
   onOpenAbilityPicker,
   onOpenLoadout,
+  onOpenAbilitiesScreen,
 }: CharacterSheetProps) {
   const [activeTab, setActiveTab] = useState<CharacterSheetTab>(initialTab);
 
@@ -139,7 +141,7 @@ export function CharacterSheet({
             transition={{ duration: 0.15 }}
             className="h-full"
           >
-            {activeTab === 'character' && <CharacterTab onCloseSheet={onClose} onOpenInventory={onOpenInventory} onOpenAbilityPicker={onOpenAbilityPicker} onOpenLoadout={onOpenLoadout} />}
+            {activeTab === 'character' && <CharacterTab onCloseSheet={onClose} onOpenInventory={onOpenInventory} onOpenAbilityPicker={onOpenAbilityPicker} onOpenLoadout={onOpenLoadout} onOpenAbilitiesScreen={onOpenAbilitiesScreen} />}
             {activeTab === 'talk' && <TalkTabPlaceholder />}
             {activeTab === 'settings' && (
               <SettingsTab
@@ -178,9 +180,10 @@ interface CharacterTabProps {
   onOpenInventory?: () => void;
   onOpenAbilityPicker?: () => void;
   onOpenLoadout?: () => void;
+  onOpenAbilitiesScreen?: () => void;
 }
 
-function CharacterTab({ onCloseSheet, onOpenInventory, onOpenAbilityPicker, onOpenLoadout }: CharacterTabProps) {
+function CharacterTab({ onCloseSheet, onOpenInventory, onOpenAbilityPicker, onOpenLoadout, onOpenAbilitiesScreen }: CharacterTabProps) {
   const drawers = usePromptDrawers();
 
   const openDrawerThenClose = useCallback((openFn: () => void) => {
@@ -210,12 +213,6 @@ function CharacterTab({ onCloseSheet, onOpenInventory, onOpenAbilityPicker, onOp
               openDrawerThenClose(drawers.openAbilitiesDrawer);
             }
           }}
-        />
-        <CharacterRow
-          icon={<Swords className="w-4 h-4 text-slate-400" />}
-          label="Manage Abilities"
-          description="Browse, equip, and tier up abilities."
-          onClick={() => openDrawerThenClose(drawers.openAbilitiesDrawer)}
         />
         <CharacterRow
           icon={<Activity className="w-4 h-4 text-emerald-300" />}
