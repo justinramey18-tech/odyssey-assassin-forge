@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { X, User, Coins } from 'lucide-react';
-import { toast } from 'sonner';
 import { LoadoutSlotCard } from '@/components/empyrean/LoadoutSlotCard';
+import { LoadoutSlotDrawer } from '@/components/empyrean/LoadoutSlotDrawer';
 import {
   loadEmpyreanLoadout,
   loadEmpyreanGold,
