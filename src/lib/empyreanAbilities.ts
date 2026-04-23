@@ -45,6 +45,19 @@ export const TIER_GOLD_COST: Record<EmpyreanAbilityTier, number> = {
   t3: 200,
 };
 
+/** Base cooldown in turns per tier, BEFORE level scaling. */
+export const BASE_TIER_COOLDOWN: Record<EmpyreanAbilityTier, number> = {
+  t1: 3,
+  t2: 5,
+  t3: 8,
+};
+
+/** Rider recovers 1 turn of cooldown per this many character levels. */
+export const LEVEL_SCALE_DIVISOR = 4;
+
+/** Cooldown floor. A fully optimized high-level rider still has to wait at least this long between uses. */
+export const MIN_COOLDOWN = 1;
+
 // ─── Tree Metadata ─────────────────────────────────────────────────────────
 
 export const TREE_META: Record<EmpyreanAbilityTree, {
@@ -407,4 +420,28 @@ export function validatePurchase(abilityId: string, currentGold: number): string
   const cost = getAbilityCost(ability);
   if (currentGold < cost) return `Not enough gold. Costs ${cost}, you have ${currentGold}.`;
   return null;
+}
+
+// ─── Cooldown Computation ──────────────────────────────────────────────────
+
+/**
+ * Compute the narrative cooldown (in DM turns) for an Empyrean ability
+ * given the rider's current character level. Higher-tier abilities have
+ * longer base cooldowns; higher-level riders recover faster.
+ * Formula: BASE_TIER_COOLDOWN[tier] − floor(level / LEVEL_SCALE_DIVISOR),
+ * clamped to MIN_COOLDOWN.
+ */
+export function computeCooldownTurns(tier: EmpyreanAbilityTier, level: number): number {
+  const lvl = Number.isFinite(level) && level > 0 ? Math.floor(level) : 1;
+  const base = BASE_TIER_COOLDOWN[tier];
+  const reduction = Math.floor(lvl / LEVEL_SCALE_DIVISOR);
+  return Math.max(MIN_COOLDOWN, base - reduction);
+}
+
+/**
+ * Convenience: compute cooldown directly from an ability object + level.
+ * Returns the floored turn count, respecting MIN_COOLDOWN.
+ */
+export function computeCooldownForAbility(ability: EmpyreanAbility, level: number): number {
+  return computeCooldownTurns(ability.tier, level);
 }

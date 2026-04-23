@@ -87,6 +87,7 @@ import { EmpyreanAbilityPicker } from '@/components/empyrean/EmpyreanAbilityPick
 import { RiderLoadoutScreen } from '@/components/empyrean/RiderLoadoutScreen';
 import { EmpyreanAbilitiesScreen } from '@/components/empyrean/EmpyreanAbilitiesScreen';
 import { EmpyreanCooldownsDrawer } from '@/components/empyrean/EmpyreanCooldownsDrawer';
+import { computeCooldownTurns, getAbilityById } from '@/lib/empyreanAbilities';
 import {
   loadNarrativeCooldowns,
   decrementAllNarrativeCooldowns,
@@ -1144,11 +1145,18 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
   }, [messages]);
 
   const handleUseEmpyreanAbility = useCallback((abilityId: string, generatedPrompt: string) => {
-    // Start cooldown BEFORE sending so the UI reflects it immediately.
-    startNarrativeCooldown(abilityId, DEFAULT_NARRATIVE_COOLDOWN);
+    // Compute cooldown dynamically from tier + rider level. Falls back to the
+    // default if the ability can't be found (shouldn't happen — picker only
+    // surfaces valid unlocked abilities — but we degrade safely).
+    const ability = getAbilityById(abilityId);
+    const level = (characterContext as any)?.level ?? 1;
+    const turns = ability
+      ? computeCooldownTurns(ability.tier, level)
+      : DEFAULT_NARRATIVE_COOLDOWN;
+    startNarrativeCooldown(abilityId, turns);
     setNarrativeCooldowns(loadNarrativeCooldowns());
     handleUsePrompt(generatedPrompt);
-  }, [handleUsePrompt]);
+  }, [handleUsePrompt, characterContext]);
 
   const lastAssistantMsg = useMemo(() => {
     const last = [...messages].reverse().find(m => m.role === 'assistant');
