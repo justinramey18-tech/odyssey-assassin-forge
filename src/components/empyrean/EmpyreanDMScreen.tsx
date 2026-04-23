@@ -84,6 +84,7 @@ import { parseRollHint, type RollHint } from '@/lib/whisperRollHint';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { EmpyreanAbilityPicker } from '@/components/empyrean/EmpyreanAbilityPicker';
+import { RiderLoadoutScreen } from '@/components/empyrean/RiderLoadoutScreen';
 import {
   loadNarrativeCooldowns,
   decrementAllNarrativeCooldowns,
@@ -220,6 +221,7 @@ export function EmpyreanDMScreen({
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
   const [characterSheetOpen, setCharacterSheetOpen] = useState(false);
   const [abilityPickerOpen, setAbilityPickerOpen] = useState(false);
+  const [riderLoadoutOpen, setRiderLoadoutOpen] = useState(false);
   const [narrativeCooldowns, setNarrativeCooldowns] = useState<NarrativeCooldownMap>(() => loadNarrativeCooldowns());
   const prevAssistantMessageCountRef = useRef<number>(0);
   const [showPrompts, setShowPrompts] = useState(false);
@@ -1939,6 +1941,15 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
           onClose();
         } : undefined}
         onOpenAbilityPicker={() => setAbilityPickerOpen(true)}
+        onOpenLoadout={() => setRiderLoadoutOpen(true)}
+      />
+
+      {/* Empyrean Rider Loadout — full-screen paper doll */}
+      <RiderLoadoutScreen
+        open={riderLoadoutOpen}
+        onClose={() => setRiderLoadoutOpen(false)}
+        characterName={characterName}
+        riderLevel={(characterContext as any)?.level ?? 1}
       />
 
       {/* Empyrean Ability Picker — bottom sheet */}
