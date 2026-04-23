@@ -1637,7 +1637,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
                           </ReactMarkdown>
                         </div>
                         {whisperTrayEnabled && whispers.length > 0 && (
-                          <WhisperTray whispers={whispers} onRollDice={handleWhisperRoll} />
+                          <WhisperTray whispers={whispers} onAutoRoll={handleWhisperAutoRoll} onOpenRoller={handleWhisperOpenRoller} />
                         )}
                       </>
                     );
