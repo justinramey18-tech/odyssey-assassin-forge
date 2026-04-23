@@ -51,9 +51,28 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         importScripts: ['/custom-sw.js'],
         navigateFallbackDenylist: [/^\/auth/, /^\/reset-password/, /^\/~oauth/],
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff,woff2}"],
+        // NOTE: html removed from globPatterns — index.html is served NetworkFirst via runtimeCaching below.
+        // This ensures new bundle hashes are picked up immediately when a new build is deployed.
+        globPatterns: ["**/*.{js,css,ico,png,svg,jpg,jpeg,webp,woff,woff2}"],
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MB limit for large bundles
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
+          {
+            // NetworkFirst for HTML so new deploys are picked up immediately.
+            // Falls back to cache only when offline.
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'html-cache',
+              networkTimeoutSeconds: 3,
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24, // 1 day fallback
+              },
+            },
+          },
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
             handler: "NetworkOnly",

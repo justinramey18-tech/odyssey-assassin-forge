@@ -157,35 +157,48 @@ export function SettingsContent({
   const handleCheckForUpdates = async () => {
     setIsCheckingForUpdates(true);
     try {
-      if ('serviceWorker' in navigator) {
-        const registration = await navigator.serviceWorker.getRegistration();
-        if (registration) {
-          await registration.update();
-          if (registration.waiting) {
-            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-            toast.success('Update found! Refreshing app...', { description: 'The app will reload with the latest version.', duration: 2000 });
-            setTimeout(() => window.location.reload(), 1500);
-          } else if (registration.installing) {
-            toast.info('Update installing...', { description: 'A new version is being installed.' });
-            registration.installing.addEventListener('statechange', (e) => {
-              const sw = e.target as ServiceWorker;
-              if (sw.state === 'installed' && navigator.serviceWorker.controller) {
-                sw.postMessage({ type: 'SKIP_WAITING' });
-                setTimeout(() => window.location.reload(), 1500);
-              }
-            });
-          } else {
-            toast.success('You have the latest version!', { description: 'No updates available.' });
-          }
-        } else {
-          toast.info('No service worker registered', { description: 'Updates are handled automatically on page refresh.' });
-        }
-      } else {
+      if (!('serviceWorker' in navigator)) {
         toast.info('Updates not supported', { description: 'Try refreshing the page.' });
+        return;
       }
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (!registration) {
+        toast.info('No service worker registered', { description: 'Refreshing the page will pick up any updates.' });
+        return;
+      }
+      // Trigger an update check against the network.
+      await registration.update();
+
+      // Case A: A new SW is already waiting.
+      if (registration.waiting) {
+        toast.success('Update found! Applying...', { description: 'The app will reload with the latest version.', duration: 2000 });
+        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        // controllerchange listener in main.tsx handles the reload.
+        // Fallback: if controllerchange doesn't fire in 8s, force a reload.
+        setTimeout(() => { window.location.reload(); }, 8000);
+        return;
+      }
+
+      // Case B: A new SW is installing right now.
+      if (registration.installing) {
+        toast.info('Update installing...', { description: 'Please wait.' });
+        const installing = registration.installing;
+        const onStateChange = () => {
+          if (installing.state === 'installed') {
+            installing.postMessage({ type: 'SKIP_WAITING' });
+            installing.removeEventListener('statechange', onStateChange);
+            setTimeout(() => { window.location.reload(); }, 8000);
+          }
+        };
+        installing.addEventListener('statechange', onStateChange);
+        return;
+      }
+
+      // Case C: No update available.
+      toast.success('You have the latest version', { description: 'No updates available right now.' });
     } catch (error) {
       console.error('[Settings] Update check failed:', error);
-      toast.error('Update check failed', { description: 'Please try refreshing the page manually.' });
+      toast.error('Update check failed', { description: 'Try the Refresh App button instead.' });
     } finally {
       setIsCheckingForUpdates(false);
     }
