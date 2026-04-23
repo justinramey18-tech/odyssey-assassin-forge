@@ -1141,15 +1141,6 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     }
   }, [messages]);
 
-  const abilityTiersMap = useMemo(() => {
-    const m = new Map<string, number>();
-    const charAbilities: Array<{ abilityId: string; currentTier?: number }> = (characterContext as any)?.abilities || [];
-    for (const ca of charAbilities) {
-      if (ca.abilityId) m.set(ca.abilityId, ca.currentTier || 1);
-    }
-    return m;
-  }, [characterContext]);
-
   const handleUseEmpyreanAbility = useCallback((abilityId: string, generatedPrompt: string) => {
     // Start cooldown BEFORE sending so the UI reflects it immediately.
     startNarrativeCooldown(abilityId, DEFAULT_NARRATIVE_COOLDOWN);
@@ -1965,9 +1956,6 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
       <EmpyreanAbilityPicker
         open={abilityPickerOpen}
         onOpenChange={setAbilityPickerOpen}
-        characterName={characterName}
-        equippedAbilityIds={(characterContext as any)?.equippedAbilities || []}
-        abilityTiers={abilityTiersMap}
         cooldowns={narrativeCooldowns}
         onUseAbility={handleUseEmpyreanAbility}
         isLoading={isLoading}
