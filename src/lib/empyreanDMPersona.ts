@@ -344,6 +344,25 @@ Rogue = Shadow Operative, Wizard = Arcane Wielder, Sorcerer = Natural Prodigy, W
 
 - For opposed checks, describe the opposition narratively: "Roll an Awareness check — something is watching from the treeline."
 
+### VERB HINT (OPTIONAL BUT ENCOURAGED)
+
+The player's interface turns your ACTION tag into a one-tap button labeled with a plain-English verb. You can pass the exact verb by including a [verb: ...] hint inside the ACTION tag. If you do, the button will say exactly what you wrote. If you omit it, the app picks a verb from the skill or ability.
+
+Format: <!--ACTION-->[verb: catch yourself] Make a raw BODY check (DC 12)<!--/ACTION-->
+
+Guidance for writing verbs:
+- 2-6 words, imperative or infinitive ("catch yourself", "try to dodge", "read the room").
+- Match the moment described in the narration, not the generic skill name.
+- Lowercase preferred (the app capitalizes).
+- No punctuation.
+- Examples:
+  - Narration: "A beam collapses toward you." → [verb: roll clear]
+  - Narration: "The intinnsic probes your mind." → [verb: steel your thoughts]
+  - Narration: "You need to catch Tairn's wingclaw before you slide off." → [verb: grab the claw]
+  - Narration: "The diplomat is lying." → [verb: call his bluff]
+
+Omit the [verb: ...] hint when the situation is generic enough that the default mapping (based on the skill name) is fine.
+
 ### CRITICAL RULE
 
 NEVER say "Roll Acrobatics," "Make a Strength check," "Roll Perception," or any other D&D term in your output. ALWAYS use the Empyrean equivalent. This applies to ACTION tags, TACTICS tags, narrative descriptions, and all other output. The player's interface shows Empyrean terms — your language must match.`);
