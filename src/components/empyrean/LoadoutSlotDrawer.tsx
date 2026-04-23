@@ -201,6 +201,14 @@ function OwnedPanel({ items, onEquip, onDelete, onJumpToForge }: {
   );
 }
 
+interface ForgedPreview {
+  name: string;
+  description: string;
+  stats: EmpyreanStatBlock;
+  rarity: EmpyreanRarity;
+  slot: EmpyreanSlot;
+}
+
 function ForgePanel({ slot, loadout, gold, riderLevel, onForged }: {
   slot: EmpyreanSlot;
   loadout: EmpyreanLoadoutState;
@@ -208,86 +216,161 @@ function ForgePanel({ slot, loadout, gold, riderLevel, onForged }: {
   riderLevel: number;
   onForged: () => void;
 }) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
   const [rarity, setRarity] = useState<EmpyreanRarity>('common');
-  const [selectedStats, setSelectedStats] = useState<EmpyreanStatKey[]>([]);
+  const [prose, setProse] = useState('');
+  const [isForging, setIsForging] = useState(false);
+  const [preview, setPreview] = useState<ForgedPreview | null>(null);
+  const [sessionGoldCharged, setSessionGoldCharged] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const budget = RARITY_STAT_BUDGET[rarity];
-  const maxStats = budget.statCount;
   const cost = getForgeCost(slot, rarity, loadout);
   const isFirstForge = cost === 0;
   const validation = validateForge({ slot, rarity, riderLevel, currentGold: gold, state: loadout });
 
-  const toggleStat = (stat: EmpyreanStatKey) => {
-    setSelectedStats(prev => {
-      if (prev.includes(stat)) return prev.filter(s => s !== stat);
-      if (prev.length >= maxStats) return prev;
-      return [...prev, stat];
-    });
-  };
-
-  useEffect(() => {
-    if (selectedStats.length > maxStats) {
-      setSelectedStats(prev => prev.slice(0, maxStats));
+  const callForge = useCallback(async () => {
+    setIsForging(true);
+    setError(null);
+    try {
+      const { data, error: invokeErr } = await supabase.functions.invoke('empyrean-forge-item', {
+        body: {
+          prose: prose.trim(),
+          slot,
+          rarity,
+          riderLevel,
+          characterName: undefined,
+        },
+      });
+      if (invokeErr) throw invokeErr;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.item) throw new Error('No item returned');
+      setPreview(data.item as ForgedPreview);
+    } catch (e: any) {
+      console.error('[Forge] invoke failed:', e);
+      setError(e?.message || 'Forge failed. Try again.');
+    } finally {
+      setIsForging(false);
     }
-  }, [maxStats, selectedStats.length]);
+  }, [prose, slot, rarity, riderLevel]);
 
-  const canSubmit =
-    name.trim().length > 0 &&
-    selectedStats.length === budget.statCount &&
-    !validation;
+  const handleInitialForge = useCallback(async () => {
+    if (prose.trim().length === 0) return;
+    if (validation) { setError(validation); return; }
+    if (!isFirstForge) {
+      addEmpyreanGold(-cost);
+    }
+    setSessionGoldCharged(true);
+    await callForge();
+  }, [prose, validation, isFirstForge, cost, callForge]);
 
-  const handleForge = useCallback(() => {
-    if (!canSubmit) return;
-    const stats: EmpyreanStatBlock = {};
-    selectedStats.forEach((stat, i) => {
-      stats[stat] = budget.values[i];
-    });
+  const handleRegenerate = useCallback(async () => {
+    await callForge();
+  }, [callForge]);
+
+  const handleEquip = useCallback(() => {
+    if (!preview) return;
     const item = createEmpyreanGearItem({
-      name: name.trim(),
-      slot,
-      rarity,
-      description: description.trim() || 'A forged item.',
-      stats,
+      name: preview.name,
+      slot: preview.slot,
+      rarity: preview.rarity,
+      description: preview.description,
+      stats: preview.stats,
+      forgedFrom: prose.trim(),
     });
-    commitForge({ item, state: loadout });
+    const state = loadEmpyreanLoadout();
+    const alreadyFree = state.freeForgesSpent.includes(slot);
+    const updated: EmpyreanLoadoutState = {
+      ...state,
+      inventory: [...state.inventory, item],
+      freeForgesSpent: alreadyFree ? state.freeForgesSpent : [...state.freeForgesSpent, slot],
+    };
+    saveEmpyreanLoadout(updated);
+    equipItem(item.id);
     toast.success(`Forged: ${item.name}`);
-    setName('');
-    setDescription('');
-    setSelectedStats([]);
+    setPreview(null);
+    setProse('');
+    setSessionGoldCharged(false);
+    setError(null);
     onForged();
-  }, [canSubmit, name, description, rarity, slot, loadout, selectedStats, budget.values, onForged]);
+  }, [preview, slot, prose, onForged]);
+
+  const handleCancel = useCallback(() => {
+    setPreview(null);
+    setError(null);
+  }, []);
+
+  if (preview) {
+    const rm = RARITY_META[preview.rarity];
+    return (
+      <div className="space-y-4 pt-2">
+        <div
+          className="rounded-xl border p-4 space-y-3"
+          style={{
+            borderColor: `${rm.color}70`,
+            background: `linear-gradient(180deg, ${rm.glow}, rgba(0,0,0,0.25))`,
+            boxShadow: `0 0 20px ${rm.glow}`,
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 shrink-0" style={{ color: rm.color }} />
+            <h3 className="font-cinzel font-bold text-base leading-tight min-w-0 flex-1" style={{ color: rm.color }}>
+              {preview.name}
+            </h3>
+          </div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-white/50">
+            {rm.label} · {SLOT_META[preview.slot].label}
+          </p>
+          <p className="text-xs leading-relaxed text-white/80 italic">
+            {preview.description}
+          </p>
+          {Object.keys(preview.stats).length > 0 && (
+            <div className="grid grid-cols-2 gap-1.5 pt-1">
+              {ALL_STATS.filter(s => preview.stats[s]).map(stat => (
+                <div key={stat} className="flex items-center justify-between px-2.5 py-1 rounded-md bg-black/30 border border-white/10">
+                  <span className="text-[11px] text-white/70">{STAT_META[stat].label}</span>
+                  <span className="text-xs font-bold text-amber-300">+{preview.stats[stat]}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          <Button
+            onClick={handleRegenerate}
+            disabled={isForging}
+            variant="outline"
+            className="flex-1 gap-2"
+          >
+            {isForging ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            Regenerate
+          </Button>
+          <Button
+            onClick={handleEquip}
+            className="flex-1 bg-amber-600 hover:bg-amber-700 text-white gap-2"
+          >
+            <CheckIcon className="w-4 h-4" />
+            Equip
+          </Button>
+        </div>
+        <Button
+          onClick={handleCancel}
+          variant="ghost"
+          className="w-full text-xs text-muted-foreground"
+        >
+          Cancel forge {sessionGoldCharged && !isFirstForge && `(—${cost} gold not refunded)`}
+        </Button>
+
+        {error && <p className="text-xs text-red-400 text-center">{error}</p>}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 pt-2">
       <div className="px-3 py-2 rounded-md bg-amber-500/10 border border-amber-500/25">
-        <p className="text-[11px] text-amber-200/80">
-          <span className="font-semibold">Manual forge (G3):</span> G4 will replace this with AI-generated items based on prose descriptions.
+        <p className="text-[11px] text-amber-200/80 leading-relaxed">
+          <span className="font-semibold">Forge:</span> Describe what you want. The AI will name it, write its lore, and assign stats within the rarity budget. You can regenerate freely until you equip.
         </p>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="forge-name" className="text-xs">Item name</Label>
-        <Input
-          id="forge-name"
-          placeholder="e.g. Venin's Shoulder"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          maxLength={40}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="forge-desc" className="text-xs">Description (optional)</Label>
-        <Textarea
-          id="forge-desc"
-          placeholder="Flavor text..."
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={2}
-          maxLength={200}
-        />
       </div>
 
       <div className="space-y-2">
@@ -316,47 +399,31 @@ function ForgePanel({ slot, loadout, gold, riderLevel, onForged }: {
       </div>
 
       <div className="space-y-2">
-        <Label className="text-xs">
-          Stats (pick {budget.statCount})
-          {selectedStats.length > 0 && <span className="text-muted-foreground ml-1">— bonuses: {budget.values.slice(0, selectedStats.length).map(v => `+${v}`).join(', ')}</span>}
-        </Label>
-        <div className="grid grid-cols-2 gap-1.5">
-          {ALL_STATS.map(stat => {
-            const checked = selectedStats.includes(stat);
-            const idx = selectedStats.indexOf(stat);
-            const bonusForThis = checked ? budget.values[idx] : null;
-            return (
-              <button
-                key={stat}
-                onClick={() => toggleStat(stat)}
-                className={cn(
-                  'flex items-center justify-between px-3 py-2 rounded-md border text-xs transition-colors',
-                  checked
-                    ? 'border-amber-400/50 bg-amber-500/15 text-amber-100'
-                    : 'border-white/10 bg-transparent hover:bg-white/5 text-white/70',
-                  (!checked && selectedStats.length >= maxStats) && 'opacity-40 pointer-events-none'
-                )}
-                style={{ touchAction: 'manipulation' }}
-              >
-                <span className="truncate">{STAT_META[stat].label}</span>
-                {bonusForThis !== null && <span className="font-bold text-amber-300 shrink-0">+{bonusForThis}</span>}
-              </button>
-            );
-          })}
-        </div>
+        <Label htmlFor="forge-prose" className="text-xs">Describe what you want to forge</Label>
+        <Textarea
+          id="forge-prose"
+          placeholder="e.g. A scarred leather pauldron stripped from a fallen venin, still smelling of smoke..."
+          value={prose}
+          onChange={(e) => setProse(e.target.value)}
+          rows={4}
+          maxLength={400}
+        />
+        <p className="text-[10px] text-muted-foreground text-right">{prose.length}/400</p>
       </div>
 
-      {validation && (
-        <p className="text-xs text-red-400">{validation}</p>
-      )}
+      {validation && <p className="text-xs text-red-400">{validation}</p>}
+      {error && <p className="text-xs text-red-400">{error}</p>}
 
       <Button
-        onClick={handleForge}
-        disabled={!canSubmit}
+        onClick={handleInitialForge}
+        disabled={isForging || prose.trim().length === 0 || !!validation}
         className="w-full bg-amber-600 hover:bg-amber-700 text-white gap-2 h-12"
       >
-        <Hammer className="w-4 h-4" />
-        {isFirstForge ? 'Forge (free)' : `Forge (-${cost} gold)`}
+        {isForging ? (
+          <><Loader2 className="w-4 h-4 animate-spin" />Forging...</>
+        ) : (
+          <><Sparkles className="w-4 h-4" />{isFirstForge ? 'Forge (free)' : `Forge (-${cost} gold)`}</>
+        )}
       </Button>
     </div>
   );
