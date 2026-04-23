@@ -12,3 +12,18 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </StrictMode>
 );
+
+// ── Service Worker update coordination ──────────────────────────────────────
+// When a new service worker activates (via skipWaiting in workbox config),
+// the browser fires 'controllerchange'. At that point we force a reload so
+// the page re-requests HTML (NetworkFirst) and gets the new bundle hashes.
+// A reload flag prevents infinite reload loops.
+if ('serviceWorker' in navigator) {
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloaded) return;
+    reloaded = true;
+    console.log('[SW] New service worker activated — reloading for fresh bundles');
+    window.location.reload();
+  });
+}
