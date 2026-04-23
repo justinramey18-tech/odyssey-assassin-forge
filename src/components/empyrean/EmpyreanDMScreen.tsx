@@ -85,6 +85,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
+import type { NavigableTab } from '@/components/navigation/types';
 
 interface EmpyreanDMScreenProps {
   open: boolean;
@@ -103,6 +104,7 @@ interface EmpyreanDMScreenProps {
   };
   embedded?: boolean;
   swipeHandlers?: SwipeHandlers;
+  onNavigateToTab?: (tab: NavigableTab) => void;
 }
 
 const NOOP = () => {};
@@ -202,6 +204,7 @@ export function EmpyreanDMScreen({
   autoSyncCallbacks,
   embedded = false,
   swipeHandlers,
+  onNavigateToTab,
 }: EmpyreanDMScreenProps) {
   const [config, setConfig] = useState<EmpyreanDMConfig | null>(() => loadEmpyreanDMConfig());
   const [selectedModel, setSelectedModel] = useState(loadEmpyreanModel);
@@ -1885,6 +1888,10 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         onReconfigureCampaign={() => onClose('reconfigure')}
         onClearChat={clearMessages}
         onNewCampaign={handleNewCampaign}
+        onOpenInventory={onNavigateToTab ? () => {
+          onNavigateToTab('inventory');
+          onClose();
+        } : undefined}
       />
 
       {/* DMToolsDrawer */}

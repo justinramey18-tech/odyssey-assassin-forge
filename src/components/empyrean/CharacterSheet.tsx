@@ -35,6 +35,7 @@ interface CharacterSheetProps {
   onReconfigureCampaign: () => void;
   onClearChat: () => void;
   onNewCampaign: () => void;
+  onOpenInventory?: () => void;
 }
 
 const TABS: Array<{ id: CharacterSheetTab; label: string; icon: React.ComponentType<{ className?: string }>; color: string; accent: string }> = [
@@ -65,6 +66,7 @@ export function CharacterSheet({
   onReconfigureCampaign,
   onClearChat,
   onNewCampaign,
+  onOpenInventory,
 }: CharacterSheetProps) {
   const [activeTab, setActiveTab] = useState<CharacterSheetTab>(initialTab);
 
@@ -133,7 +135,7 @@ export function CharacterSheet({
             transition={{ duration: 0.15 }}
             className="h-full"
           >
-            {activeTab === 'character' && <CharacterTab onCloseSheet={onClose} />}
+            {activeTab === 'character' && <CharacterTab onCloseSheet={onClose} onOpenInventory={onOpenInventory} />}
             {activeTab === 'talk' && <TalkTabPlaceholder />}
             {activeTab === 'settings' && (
               <SettingsTab
@@ -169,9 +171,10 @@ export function CharacterSheet({
 
 interface CharacterTabProps {
   onCloseSheet: () => void;
+  onOpenInventory?: () => void;
 }
 
-function CharacterTab({ onCloseSheet }: CharacterTabProps) {
+function CharacterTab({ onCloseSheet, onOpenInventory }: CharacterTabProps) {
   const drawers = usePromptDrawers();
 
   const openDrawerThenClose = useCallback((openFn: () => void) => {
@@ -224,8 +227,15 @@ function CharacterTab({ onCloseSheet }: CharacterTabProps) {
         <CharacterRow
           icon={<Backpack className="w-4 h-4 text-cyan-300" />}
           label="Gear & Inventory"
-          description="Equipped gear, inventory, and quick actions."
-          onClick={() => openDrawerThenClose(drawers.openQuickActionsDrawer)}
+          description="Manage your equipped gear, generate new items, and browse inventory."
+          onClick={() => {
+            if (onOpenInventory) {
+              onCloseSheet();
+              setTimeout(onOpenInventory, 0);
+            } else {
+              openDrawerThenClose(drawers.openQuickActionsDrawer);
+            }
+          }}
         />
         <CharacterRow
           icon={<Zap className="w-4 h-4 text-indigo-300" />}
