@@ -37,6 +37,7 @@ interface CharacterSheetProps {
   onNewCampaign: () => void;
   onOpenInventory?: () => void;
   onOpenAbilityPicker?: () => void;
+  onOpenLoadout?: () => void;
 }
 
 const TABS: Array<{ id: CharacterSheetTab; label: string; icon: React.ComponentType<{ className?: string }>; color: string; accent: string }> = [
@@ -69,6 +70,7 @@ export function CharacterSheet({
   onNewCampaign,
   onOpenInventory,
   onOpenAbilityPicker,
+  onOpenLoadout,
 }: CharacterSheetProps) {
   const [activeTab, setActiveTab] = useState<CharacterSheetTab>(initialTab);
 
@@ -137,7 +139,7 @@ export function CharacterSheet({
             transition={{ duration: 0.15 }}
             className="h-full"
           >
-            {activeTab === 'character' && <CharacterTab onCloseSheet={onClose} onOpenInventory={onOpenInventory} onOpenAbilityPicker={onOpenAbilityPicker} />}
+            {activeTab === 'character' && <CharacterTab onCloseSheet={onClose} onOpenInventory={onOpenInventory} onOpenAbilityPicker={onOpenAbilityPicker} onOpenLoadout={onOpenLoadout} />}
             {activeTab === 'talk' && <TalkTabPlaceholder />}
             {activeTab === 'settings' && (
               <SettingsTab
@@ -175,9 +177,10 @@ interface CharacterTabProps {
   onCloseSheet: () => void;
   onOpenInventory?: () => void;
   onOpenAbilityPicker?: () => void;
+  onOpenLoadout?: () => void;
 }
 
-function CharacterTab({ onCloseSheet, onOpenInventory, onOpenAbilityPicker }: CharacterTabProps) {
+function CharacterTab({ onCloseSheet, onOpenInventory, onOpenAbilityPicker, onOpenLoadout }: CharacterTabProps) {
   const drawers = usePromptDrawers();
 
   const openDrawerThenClose = useCallback((openFn: () => void) => {
@@ -242,10 +245,13 @@ function CharacterTab({ onCloseSheet, onOpenInventory, onOpenAbilityPicker }: Ch
       <CharacterSection title="Equipment">
         <CharacterRow
           icon={<Backpack className="w-4 h-4 text-cyan-300" />}
-          label="Gear & Inventory"
-          description="Manage your equipped gear, generate new items, and browse inventory."
+          label="Rider Loadout"
+          description="Equipped gear, paper doll view, and the Forge."
           onClick={() => {
-            if (onOpenInventory) {
+            if (onOpenLoadout) {
+              onCloseSheet();
+              setTimeout(onOpenLoadout, 0);
+            } else if (onOpenInventory) {
               onCloseSheet();
               setTimeout(onOpenInventory, 0);
             } else {
