@@ -1401,6 +1401,7 @@ export function HomeScreen({
             autoSyncCallbacks={autoSyncCallbacks}
             embedded={true}
             swipeHandlers={swipeHandlers}
+            onNavigateToTab={onNavigateToTab}
           />
         )}
         renderParty={(swipeHandlers) => (
