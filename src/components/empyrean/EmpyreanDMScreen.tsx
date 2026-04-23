@@ -1637,7 +1637,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
                           </ReactMarkdown>
                         </div>
                         {whisperTrayEnabled && whispers.length > 0 && (
-                          <WhisperTray whispers={whispers} onRollDice={handleWhisperRoll} />
+                          <WhisperTray whispers={whispers} onAutoRoll={handleWhisperAutoRoll} onOpenRoller={handleWhisperOpenRoller} />
                         )}
                       </>
                     );
@@ -2564,7 +2564,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
                       </div>
                       {parsed.whispers.length > 0 && (
                         <div className="mt-6">
-                          <WhisperTray whispers={parsed.whispers} onRollDice={handleWhisperRoll} />
+                          <WhisperTray whispers={parsed.whispers} onAutoRoll={handleWhisperAutoRoll} onOpenRoller={handleWhisperOpenRoller} />
                         </div>
                       )}
                     </>
@@ -2572,7 +2572,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
 
                   {formattedReading && !isFormattingReading && parsed.whispers.length > 0 && (
                     <div className="mt-8">
-                      <WhisperTray whispers={parsed.whispers} onRollDice={handleWhisperRoll} />
+                      <WhisperTray whispers={parsed.whispers} onAutoRoll={handleWhisperAutoRoll} onOpenRoller={handleWhisperOpenRoller} />
                     </div>
                   )}
                 </div>
