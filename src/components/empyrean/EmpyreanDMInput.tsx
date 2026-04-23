@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useImperativeHandle, forwardRef, memo } from 'react';
-import { Send, BookOpen, X } from 'lucide-react';
+import { Send, ScrollText, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getAtMentionQuery, filterNPCNames } from '@/hooks/use-npc-autocomplete';
 import { NPCAutocomplete } from '@/components/ai-dm/NPCAutocomplete';
@@ -15,7 +15,7 @@ export interface EmpyreanDMInputHandle {
 interface EmpyreanDMInputProps {
   onSend: (text: string) => void;
   onCancel: () => void;
-  onShowPrompts: () => void;
+  onOpenCharacterSheet: () => void;
   isLoading: boolean;
   npcNames: string[];
   placeholder?: string;
@@ -25,7 +25,7 @@ interface EmpyreanDMInputProps {
 }
 
 export const EmpyreanDMInput = memo(forwardRef<EmpyreanDMInputHandle, EmpyreanDMInputProps>(function EmpyreanDMInput(
-  { onSend, onCancel, onShowPrompts, isLoading, npcNames, placeholder, npcSceneActive, onNpcInterjection, npcScenePlaceholder },
+  { onSend, onCancel, onOpenCharacterSheet, isLoading, npcNames, placeholder, npcSceneActive, onNpcInterjection, npcScenePlaceholder },
   ref
 ) {
   const [input, setInput, clearInput] = useDraftPersist('odyssey-empyrean-dm-draft');
@@ -132,11 +132,12 @@ export const EmpyreanDMInput = memo(forwardRef<EmpyreanDMInputHandle, EmpyreanDM
 
       {!npcSceneActive && (
         <button
-          onClick={onShowPrompts}
-          className="p-2.5 rounded-lg hover:bg-purple-500/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
+          onClick={onOpenCharacterSheet}
+          className="p-2.5 rounded-lg hover:bg-sky-500/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
           style={{ touchAction: 'manipulation' }}
+          aria-label="Character Sheet"
         >
-          <BookOpen className="w-5 h-5 text-purple-400" />
+          <ScrollText className="w-5 h-5 text-sky-400" />
         </button>
       )}
 
