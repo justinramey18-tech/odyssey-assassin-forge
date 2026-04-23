@@ -40,6 +40,7 @@ interface CharacterSheetProps {
   onOpenLoadout?: () => void;
   onOpenAbilityTrees?: () => void;
   onOpenEmpyreanCooldowns?: () => void;
+  onOpenSignetManagement?: () => void;
 }
 
 const TABS: Array<{ id: CharacterSheetTab; label: string; icon: React.ComponentType<{ className?: string }>; color: string; accent: string }> = [
@@ -75,6 +76,7 @@ export function CharacterSheet({
   onOpenLoadout,
   onOpenAbilityTrees,
   onOpenEmpyreanCooldowns,
+  onOpenSignetManagement,
 }: CharacterSheetProps) {
   const [activeTab, setActiveTab] = useState<CharacterSheetTab>(initialTab);
 
@@ -143,7 +145,7 @@ export function CharacterSheet({
             transition={{ duration: 0.15 }}
             className="h-full"
           >
-            {activeTab === 'character' && <CharacterTab onCloseSheet={onClose} onOpenInventory={onOpenInventory} onOpenAbilityPicker={onOpenAbilityPicker} onOpenLoadout={onOpenLoadout} onOpenAbilityTrees={onOpenAbilityTrees} onOpenEmpyreanCooldowns={onOpenEmpyreanCooldowns} />}
+            {activeTab === 'character' && <CharacterTab onCloseSheet={onClose} onOpenInventory={onOpenInventory} onOpenAbilityPicker={onOpenAbilityPicker} onOpenLoadout={onOpenLoadout} onOpenAbilityTrees={onOpenAbilityTrees} onOpenEmpyreanCooldowns={onOpenEmpyreanCooldowns} onOpenSignetManagement={onOpenSignetManagement} />}
             {activeTab === 'talk' && <TalkTabPlaceholder />}
             {activeTab === 'settings' && (
               <SettingsTab
@@ -184,9 +186,10 @@ interface CharacterTabProps {
   onOpenLoadout?: () => void;
   onOpenAbilityTrees?: () => void;
   onOpenEmpyreanCooldowns?: () => void;
+  onOpenSignetManagement?: () => void;
 }
 
-function CharacterTab({ onCloseSheet, onOpenInventory, onOpenAbilityPicker, onOpenLoadout, onOpenAbilityTrees, onOpenEmpyreanCooldowns }: CharacterTabProps) {
+function CharacterTab({ onCloseSheet, onOpenInventory, onOpenAbilityPicker, onOpenLoadout, onOpenAbilityTrees, onOpenEmpyreanCooldowns, onOpenSignetManagement }: CharacterTabProps) {
   const drawers = usePromptDrawers();
 
   const openDrawerThenClose = useCallback((openFn: () => void) => {
@@ -252,10 +255,15 @@ function CharacterTab({ onCloseSheet, onOpenInventory, onOpenAbilityPicker, onOp
       {/* ─── Signet ─── */}
       <CharacterSection title="Signet">
         <CharacterRow
-          icon={<Flame className="w-4 h-4 text-red-300/60" />}
+          icon={<Flame className="w-4 h-4 text-red-300" />}
           label="Signet Management"
-          description="Interactive burnout tracking, channel controls, and grounding — coming soon."
-          disabled
+          description="Track strain, ground yourself, reset between sessions."
+          onClick={() => {
+            if (onOpenSignetManagement) {
+              onCloseSheet();
+              setTimeout(onOpenSignetManagement, 0);
+            }
+          }}
         />
       </CharacterSection>
 

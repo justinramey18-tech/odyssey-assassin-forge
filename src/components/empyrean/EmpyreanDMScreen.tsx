@@ -87,6 +87,7 @@ import { EmpyreanAbilityPicker } from '@/components/empyrean/EmpyreanAbilityPick
 import { RiderLoadoutScreen } from '@/components/empyrean/RiderLoadoutScreen';
 import { EmpyreanAbilitiesScreen } from '@/components/empyrean/EmpyreanAbilitiesScreen';
 import { EmpyreanCooldownsDrawer } from '@/components/empyrean/EmpyreanCooldownsDrawer';
+import { SignetManagementDrawer } from '@/components/empyrean/SignetManagementDrawer';
 import { computeCooldownTurns, getAbilityById } from '@/lib/empyreanAbilities';
 import {
   loadNarrativeCooldowns,
@@ -227,6 +228,7 @@ export function EmpyreanDMScreen({
   const [riderLoadoutOpen, setRiderLoadoutOpen] = useState(false);
   const [abilityTreesOpen, setAbilityTreesOpen] = useState(false);
   const [empyreanCooldownsOpen, setEmpyreanCooldownsOpen] = useState(false);
+  const [signetManagementOpen, setSignetManagementOpen] = useState(false);
   const [narrativeCooldowns, setNarrativeCooldowns] = useState<NarrativeCooldownMap>(() => loadNarrativeCooldowns());
   const prevAssistantMessageCountRef = useRef<number>(0);
   const [showPrompts, setShowPrompts] = useState(false);
