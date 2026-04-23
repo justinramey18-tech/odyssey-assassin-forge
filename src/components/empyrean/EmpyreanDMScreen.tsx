@@ -81,6 +81,7 @@ import type { CampaignBuildData } from '@/hooks/use-ai-campaign-chat';
 import { useEmpyreanAutopilot } from '@/hooks/use-empyrean-autopilot';
 import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
 import { parseRollHint, type RollHint } from '@/lib/whisperRollHint';
+import { performWhisperRoll, resolveWhisperAutoRoll } from '@/lib/whisperAutoRoll';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { EmpyreanAbilityPicker } from '@/components/empyrean/EmpyreanAbilityPicker';
