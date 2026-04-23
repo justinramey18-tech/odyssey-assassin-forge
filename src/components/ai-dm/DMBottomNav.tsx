@@ -53,6 +53,10 @@ interface DMBottomNavProps {
   showCharacterSheet?: boolean;
   /** Callback fired when the SHEET tab is tapped. Required when showCharacterSheet is true. */
   onCharacterSheet?: () => void;
+  /** Override the notch handle label (default: 'TOOLS'). */
+  notchLabelOverride?: string;
+  /** Override the notch handle icon emoji (default: '⚔'). */
+  notchIconOverride?: string;
 }
 
 const BASE_TABS = [
@@ -80,7 +84,7 @@ const activeIndicatorColors: Record<DMNavTab, string> = {
   character: 'bg-sky-500',
 };
 
-export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive, oracleLabel, oracleColor, oracleActiveBg, afkLabel, afkColor, afkActiveBg, hideDice, hideAfk, hidePrompts, hideActions, hideSettings, showCharacterSheet, onCharacterSheet }: DMBottomNavProps) {
+export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive, oracleLabel, oracleColor, oracleActiveBg, afkLabel, afkColor, afkActiveBg, hideDice, hideAfk, hidePrompts, hideActions, hideSettings, showCharacterSheet, onCharacterSheet, notchLabelOverride, notchIconOverride }: DMBottomNavProps) {
   const afkOrWildShape = showWildShape ? WILDSHAPE_TAB : AFK_TAB;
   const afkTab = {
     ...afkOrWildShape,
@@ -195,7 +199,7 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
             )} />
             {!isExpanded && (
               <span className="text-[11px] font-mono text-amber-400/60 mt-1 tracking-widest select-none font-semibold">
-                ⚔ TOOLS
+                {notchIconOverride ?? '⚔'} {notchLabelOverride ?? 'TOOLS'}
               </span>
             )}
           </div>
