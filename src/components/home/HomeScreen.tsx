@@ -324,6 +324,7 @@ export function HomeScreen({
   const [showSoloConfirm, setShowSoloConfirm] = useState(false);
   const [showEmpyreanScreen, setShowEmpyreanScreen] = useState(false);
   const [showEmpyreanDMContainer, setShowEmpyreanDMContainer] = useState(false);
+  const [empyreanScreenAutoOpen, setEmpyreanScreenAutoOpen] = useState<'manual' | null>(null);
 
 
 
@@ -1367,10 +1368,15 @@ export function HomeScreen({
       {/* Empyrean Campaign Screen */}
       <EmpyreanScreen
         open={showEmpyreanScreen}
-        onClose={() => setShowEmpyreanScreen(false)}
+        onClose={() => {
+          setShowEmpyreanScreen(false);
+          setEmpyreanScreenAutoOpen(null);
+        }}
         characterName={character.name}
         characterContext={drawerContext?.characterContext ?? { name: character.name, level: character.level, currentHP: 10, maxHP: 10, abilities: [], equippedAbilities: [], equipment: [], activeSetBonuses: [], consumables: [], cooldowns: { active: [], ready: [] }, prestigeLevel: 0, prestigeAbilities: [] } as any}
         autoSyncCallbacks={autoSyncCallbacks}
+        autoOpen={empyreanScreenAutoOpen}
+        onAutoOpenConsumed={() => setEmpyreanScreenAutoOpen(null)}
       />
 
       {/* Empyrean Swipeable DM Container */}
@@ -1384,6 +1390,9 @@ export function HomeScreen({
             onClose={(reason) => {
               setShowEmpyreanDMContainer(false);
               if (reason === 'newCampaign') {
+                setShowEmpyreanScreen(true);
+              } else if (reason === 'reconfigure') {
+                setEmpyreanScreenAutoOpen('manual');
                 setShowEmpyreanScreen(true);
               }
             }}

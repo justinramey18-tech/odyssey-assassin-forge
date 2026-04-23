@@ -35,6 +35,7 @@ interface EmpyreanCampaignSetupProps {
   onComplete: (config: EmpyreanDMConfig) => void;
   onLaunchWithScene?: (config: EmpyreanDMConfig, openingPrompt: string) => void;
   isUnbonded?: boolean;
+  initialConfig?: EmpyreanDMConfig | null;
 }
 
 const STEPS = ['Your Rider', 'Campaign Focus', 'World Lore', 'Campaign Tone', 'Review & Launch'] as const;
@@ -145,23 +146,28 @@ export function EmpyreanCampaignSetup({
   onComplete,
   onLaunchWithScene,
   isUnbonded = false,
+  initialConfig,
 }: EmpyreanCampaignSetupProps) {
   const [step, setStep] = useState(0);
 
   // Step 1 — Rider
-  const [dragonName, setDragonName] = useState('');
-  const [dragonColor, setDragonColor] = useState('deep-red');
-  const [signetType, setSignetType] = useState('');
-  const [yearAtBasgiath, setYearAtBasgiath] = useState('first-year');
+  const [dragonName, setDragonName] = useState(initialConfig?.dragonName || '');
+  const [dragonColor, setDragonColor] = useState(initialConfig?.dragonColor || 'deep-red');
+  const [signetType, setSignetType] = useState(initialConfig?.signetType || '');
+  const [yearAtBasgiath, setYearAtBasgiath] = useState(initialConfig?.yearAtBasgiath || 'first-year');
 
   // Step 2 — Focus
-  const [campaignFocus, setCampaignFocus] = useState<CampaignFocus>('balanced');
+  const [campaignFocus, setCampaignFocus] = useState<CampaignFocus>(initialConfig?.campaignFocus || 'balanced');
 
   // Step 3 — Lore
-  const [selectedLore, setSelectedLore] = useState<Set<string>>(() => new Set(DEFAULT_LORE_IDS));
+  const [selectedLore, setSelectedLore] = useState<Set<string>>(
+    () => new Set(initialConfig?.selectedLoreGuides ?? Array.from(DEFAULT_LORE_IDS))
+  );
 
   // Step 4 — Tone
-  const [selectedTone, setSelectedTone] = useState<Set<string>>(() => new Set(DEFAULT_META_IDS));
+  const [selectedTone, setSelectedTone] = useState<Set<string>>(
+    () => new Set(initialConfig?.selectedToneGuides ?? Array.from(DEFAULT_META_IDS))
+  );
 
   const toggleLore = useCallback((id: string) => {
     setSelectedLore(prev => {

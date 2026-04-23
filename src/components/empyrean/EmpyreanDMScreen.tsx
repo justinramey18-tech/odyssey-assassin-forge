@@ -88,7 +88,7 @@ import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 
 interface EmpyreanDMScreenProps {
   open: boolean;
-  onClose: (reason?: 'newCampaign') => void;
+  onClose: (reason?: 'newCampaign' | 'reconfigure') => void;
   characterContext: CharacterContext;
   characterName: string;
   initialMessage?: string | null;
@@ -1882,7 +1882,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         onModelChange={handleModelChange}
         chatThemeId={chatThemeId}
         onChatThemeChange={setChatTheme}
-        onReconfigureCampaign={onClose}
+        onReconfigureCampaign={() => onClose('reconfigure')}
         onClearChat={clearMessages}
         onNewCampaign={handleNewCampaign}
       />
