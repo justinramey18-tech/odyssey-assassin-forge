@@ -136,6 +136,7 @@ export function EmpyreanAbilityPicker({
                 );
               })}
             </div>
+            )}
           </div>
         </SheetContent>
       </Sheet>
