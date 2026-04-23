@@ -86,6 +86,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { EmpyreanAbilityPicker } from '@/components/empyrean/EmpyreanAbilityPicker';
 import { RiderLoadoutScreen } from '@/components/empyrean/RiderLoadoutScreen';
 import { EmpyreanAbilitiesScreen } from '@/components/empyrean/EmpyreanAbilitiesScreen';
+import { EmpyreanCooldownsDrawer } from '@/components/empyrean/EmpyreanCooldownsDrawer';
 import {
   loadNarrativeCooldowns,
   decrementAllNarrativeCooldowns,
@@ -224,6 +225,7 @@ export function EmpyreanDMScreen({
   const [abilityPickerOpen, setAbilityPickerOpen] = useState(false);
   const [riderLoadoutOpen, setRiderLoadoutOpen] = useState(false);
   const [abilityTreesOpen, setAbilityTreesOpen] = useState(false);
+  const [empyreanCooldownsOpen, setEmpyreanCooldownsOpen] = useState(false);
   const [narrativeCooldowns, setNarrativeCooldowns] = useState<NarrativeCooldownMap>(() => loadNarrativeCooldowns());
   const prevAssistantMessageCountRef = useRef<number>(0);
   const [showPrompts, setShowPrompts] = useState(false);
@@ -1936,6 +1938,15 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         onOpenAbilityPicker={() => setAbilityPickerOpen(true)}
         onOpenLoadout={() => setRiderLoadoutOpen(true)}
         onOpenAbilityTrees={() => setAbilityTreesOpen(true)}
+        onOpenEmpyreanCooldowns={() => setEmpyreanCooldownsOpen(true)}
+      />
+
+      {/* Empyrean Cooldowns — bottom sheet */}
+      <EmpyreanCooldownsDrawer
+        open={empyreanCooldownsOpen}
+        onOpenChange={setEmpyreanCooldownsOpen}
+        cooldowns={narrativeCooldowns}
+        onCooldownsCleared={() => setNarrativeCooldowns(loadNarrativeCooldowns())}
       />
 
       {/* Empyrean Rider Loadout — full-screen paper doll */}
