@@ -1,5 +1,91 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+
+const LONG_PRESS_MS = 450;
+
+/**
+ * Hook that distinguishes a tap (fires onTap) from a long-press
+ * (fires onLongPress and suppresses the tap). Works for mouse + touch.
+ */
+function usePressPreview(onTap: () => void, onLongPress: () => void) {
+  const timerRef = useRef<number | null>(null);
+  const longFiredRef = useRef(false);
+
+  const start = useCallback(() => {
+    longFiredRef.current = false;
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => {
+      longFiredRef.current = true;
+      onLongPress();
+    }, LONG_PRESS_MS);
+  }, [onLongPress]);
+
+  const cancel = useCallback(() => {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const end = useCallback(() => {
+    cancel();
+    if (!longFiredRef.current) onTap();
+  }, [cancel, onTap]);
+
+  useEffect(() => () => { if (timerRef.current) window.clearTimeout(timerRef.current); }, []);
+
+  return {
+    onMouseDown: start,
+    onMouseUp: end,
+    onMouseLeave: cancel,
+    onTouchStart: start,
+    onTouchEnd: (e: React.TouchEvent) => { e.preventDefault(); end(); },
+    onTouchCancel: cancel,
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+  };
+}
+
+interface PreviewPillProps {
+  emoji: string;
+  label: string;
+  prompt: string;
+  disabled?: boolean;
+  className: string;
+  onSend: () => void;
+  previewOpen: boolean;
+  onOpenPreview: () => void;
+  onClosePreview: () => void;
+}
+
+function PreviewPill({ emoji, label, prompt, disabled, className, onSend, previewOpen, onOpenPreview, onClosePreview }: PreviewPillProps) {
+  const handlers = usePressPreview(onSend, onOpenPreview);
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        className={className}
+        style={{ touchAction: 'manipulation', WebkitUserSelect: 'none', userSelect: 'none' }}
+        {...handlers}
+      >
+        <span className="shrink-0 text-sm">{emoji}</span>
+        <span className="min-w-0 flex-1 truncate">{label}</span>
+      </button>
+      {previewOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={onClosePreview} onTouchStart={onClosePreview} />
+          <div
+            role="tooltip"
+            className="absolute left-0 right-0 bottom-full mb-1.5 z-50 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg p-2.5 text-[11px] leading-snug animate-in fade-in zoom-in-95"
+          >
+            <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground mb-1">Preview · tap pill to send</div>
+            <div className="whitespace-pre-wrap">{prompt}</div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 interface ActionItem {
   id: string;
@@ -279,6 +365,7 @@ export default function EmpyreanContextualActions({
 
   const [dragonExpanded, setDragonExpanded] = useState(false);
   const [situationExpanded, setSituationExpanded] = useState(false);
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
   const handleDragonAction = React.useCallback((action: ActionItem) => {
     if (action.id === 'da-execution-fire') {
@@ -316,16 +403,18 @@ export default function EmpyreanContextualActions({
           {dragonExpanded && (
             <div className="flex flex-col gap-1.5 pb-1">
               {dragonActions.map((a) => (
-                <button
+                <PreviewPill
                   key={a.id}
+                  emoji={a.emoji}
+                  label={a.label}
+                  prompt={a.prompt}
                   disabled={disabled}
-                  onClick={() => handleDragonAction(a)}
                   className="w-full inline-flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium bg-amber-500/10 border border-amber-500/20 text-amber-300 hover:bg-amber-500/20 active:bg-amber-500/30 transition-colors disabled:opacity-40 disabled:pointer-events-none text-left"
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <span className="shrink-0 text-sm">{a.emoji}</span>
-                  <span className="min-w-0 flex-1 truncate">{a.label}</span>
-                </button>
+                  onSend={() => handleDragonAction(a)}
+                  previewOpen={previewId === a.id}
+                  onOpenPreview={() => setPreviewId(a.id)}
+                  onClosePreview={() => setPreviewId(null)}
+                />
               ))}
             </div>
           )}
@@ -353,16 +442,18 @@ export default function EmpyreanContextualActions({
           {situationExpanded && (
             <div className="flex flex-col gap-1.5 pb-1">
               {actions.map((a) => (
-                <button
+                <PreviewPill
                   key={a.id}
+                  emoji={a.emoji}
+                  label={a.label}
+                  prompt={a.prompt}
                   disabled={disabled}
-                  onClick={() => onAction(a.prompt)}
                   className="w-full inline-flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium bg-purple-500/10 border border-purple-500/20 text-purple-300 hover:bg-purple-500/20 active:bg-purple-500/30 transition-colors disabled:opacity-40 disabled:pointer-events-none text-left"
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <span className="shrink-0 text-sm">{a.emoji}</span>
-                  <span className="min-w-0 flex-1 truncate">{a.label}</span>
-                </button>
+                  onSend={() => onAction(a.prompt)}
+                  previewOpen={previewId === a.id}
+                  onOpenPreview={() => setPreviewId(a.id)}
+                  onClosePreview={() => setPreviewId(null)}
+                />
               ))}
             </div>
           )}
