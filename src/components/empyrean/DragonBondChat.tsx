@@ -102,6 +102,19 @@ export default function DragonBondChat({
   const moodDurationRef = useRef<number>(0);
   const validTransitionsRef = useRef<DragonMood[]>([bondState.mood]);
   const recommendedMoodRef = useRef<DragonMood>(bondState.mood);
+  // Snapshot of unread dragon messages captured at the moment the chat opens.
+  // The parent's markChatOpened() clears the live array immediately on open,
+  // so we hold onto this snapshot for display.
+  const [unreadSnapshot, setUnreadSnapshot] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (open) {
+      setUnreadSnapshot(unreadDragonMessages ?? []);
+    } else {
+      setUnreadSnapshot([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // Recompute system prompt with mood pressure engine
   const dragonSystemPrompt = useMemo(() => {
@@ -767,9 +780,9 @@ export default function DragonBondChat({
                 </div>
               </div>
             )}
-            {unreadDragonMessages && unreadDragonMessages.length > 0 && (
+            {unreadSnapshot.length > 0 && (
               <>
-                {unreadDragonMessages.map((msg, i) => (
+                {unreadSnapshot.map((msg, i) => (
                   <div key={`unread-${i}`} className="mb-6 pr-12">
                     <div className="border-l-2 border-cyan-500/30 pl-3">
                       <span className="text-[9px] font-mono text-cyan-400/40 block mb-0.5">from the narrative</span>

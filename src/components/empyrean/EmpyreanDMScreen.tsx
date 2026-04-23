@@ -1781,8 +1781,10 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         hidePrompts={true}
         hideActions={true}
         hideSettings={true}
-        showCharacterSheet={true}
+        showCharacterSheet={false}
         onCharacterSheet={() => setCharacterSheetOpen(true)}
+        notchLabelOverride={config?.dragonName ? config.dragonName.toUpperCase() : undefined}
+        notchIconOverride="🐉"
         oracleLabel={isUnbonded ? 'UNBONDED' : (config?.dragonName ? config.dragonName.toUpperCase() : 'DRAGON')}
         oracleColor={isUnbonded ? 'text-red-400/50' : (() => {
           const mood = dragonBond.bondState.mood;
@@ -1921,7 +1923,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
               }
             }}
             onCancel={cancelRequest}
-            onShowPrompts={() => setShowPrompts(true)}
+            onOpenCharacterSheet={() => setCharacterSheetOpen(true)}
             isLoading={isLoading}
             npcNames={npcNames}
             npcSceneActive={!!npcSceneConfig?.active}
