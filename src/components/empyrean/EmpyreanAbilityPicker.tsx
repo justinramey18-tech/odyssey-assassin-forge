@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
-import { Zap, Clock } from 'lucide-react';
+import { Zap, Clock, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { allAbilities } from '@/lib/abilities';
@@ -19,6 +20,7 @@ interface EmpyreanAbilityPickerProps {
   cooldowns: NarrativeCooldownMap;
   onUseAbility: (abilityId: string, generatedPrompt: string) => void;
   isLoading: boolean;
+  onGoToAbilitiesScreen?: () => void;
 }
 
 export function EmpyreanAbilityPicker({
@@ -30,6 +32,7 @@ export function EmpyreanAbilityPicker({
   cooldowns,
   onUseAbility,
   isLoading,
+  onGoToAbilitiesScreen,
 }: EmpyreanAbilityPickerProps) {
   const [pending, setPending] = useState<{ ability: Ability; prompt: string } | null>(null);
 
@@ -62,11 +65,29 @@ export function EmpyreanAbilityPicker({
             </SheetTitle>
           </SheetHeader>
           <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-3">
-            {equippedAbilities.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                No abilities equipped. Visit the Abilities drawer to equip some to your loadout.
-              </p>
-            )}
+            {equippedAbilities.length === 0 ? (
+              <div className="py-10 px-4 text-center space-y-4">
+                <Sparkles className="w-8 h-8 text-amber-400/40 mx-auto" />
+                <div className="space-y-1.5">
+                  <p className="text-sm font-cinzel text-foreground">No abilities equipped</p>
+                  <p className="text-xs text-muted-foreground">
+                    Head to the Abilities screen to unlock, tier up, and equip abilities to your loadout slots.
+                  </p>
+                </div>
+                {onGoToAbilitiesScreen && (
+                  <Button
+                    onClick={() => {
+                      onOpenChange(false);
+                      setTimeout(onGoToAbilitiesScreen, 0);
+                    }}
+                    className="bg-amber-600 hover:bg-amber-700 text-white gap-2 mt-2"
+                  >
+                    <Zap className="w-4 h-4" />
+                    Equip Abilities
+                  </Button>
+                )}
+              </div>
+            ) : (
             <div className="space-y-2">
               {equippedAbilities.map(ability => {
                 const onCooldown = isOnNarrativeCooldown(cooldowns, ability.id);
