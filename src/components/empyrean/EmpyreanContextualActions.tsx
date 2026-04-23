@@ -365,6 +365,7 @@ export default function EmpyreanContextualActions({
 
   const [dragonExpanded, setDragonExpanded] = useState(false);
   const [situationExpanded, setSituationExpanded] = useState(false);
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
   const handleDragonAction = React.useCallback((action: ActionItem) => {
     if (action.id === 'da-execution-fire') {
