@@ -28,6 +28,8 @@ interface EmpyreanScreenProps {
     getCurrentHP: () => number;
     getCurrentGold: () => number;
   };
+  autoOpen?: 'manual' | null;
+  onAutoOpenConsumed?: () => void;
 }
 
 interface SectionCardProps {
@@ -65,7 +67,7 @@ function SectionCard({ icon, title, description, color, borderColor, onClick }: 
   );
 }
 
-export function EmpyreanScreen({ open, onClose, characterName, characterContext, autoSyncCallbacks }: EmpyreanScreenProps) {
+export function EmpyreanScreen({ open, onClose, characterName, characterContext, autoSyncCallbacks, autoOpen, onAutoOpenConsumed }: EmpyreanScreenProps) {
   const { guides, addGuide, deleteGuide, updateGuide } = useGMGuides();
   const [showPack, setShowPack] = useState(false);
   const [showPrompts, setShowPrompts] = useState(false);
@@ -89,6 +91,14 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext,
       setPendingPrompt(saved || null);
     }
   }, [open]);
+
+  // Auto-open Manual Setup when signaled by parent (e.g. Reconfigure from DM Settings)
+  useEffect(() => {
+    if (open && autoOpen === 'manual') {
+      setShowSetup(true);
+      onAutoOpenConsumed?.();
+    }
+  }, [open, autoOpen, onAutoOpenConsumed]);
 
   // Re-read config/opening-scene whenever the DM sub-screen closes.
   // This catches New Campaign wipes even when React batches the close + config-clear updates.
@@ -309,6 +319,7 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext,
           setShowSetup(false);
           setShowDM(true);
         }}
+        initialConfig={empyreanConfig}
       />
       <EmpyreanAICampaignSetup
         open={showAISetup}
