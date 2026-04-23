@@ -1,49 +1,45 @@
 
 
-## Fix Reconfigure Campaign — pre-fill the form with existing values
+## Build out the Character tab — menu of drawer-launcher rows
 
 ### What you'll see after this prompt
 
-In the Empyrean DM, tap **SHEET → Settings → Reconfigure Campaign**. Instead of being dumped on the home screen, the DM closes, the Empyrean menu surfaces briefly, and the **Manual Setup** form opens automatically with every field already filled in from your current campaign — dragon name, color, signet, year, focus, lore picks, tone picks. Tweak any value, walk through the steps, launch — only the changed values update. New Campaign and the back arrow keep their existing behavior.
+Open the Empyrean DM → tap **SHEET**. The Character tab (default) now shows a tidy menu of three sections:
+
+- **Stats & Progression** — HP / Ability Scores / XP, Abilities, Cooldowns, Conditions
+- **Signet** — Signet Management (greyed-out "coming soon" row, real version arrives in a later prompt)
+- **Equipment** — Gear & Inventory, Set Bonuses
+
+Tap any active row → the Character Sheet closes and the matching drawer slides open over the DM chat (the existing drawers — same data, same controls). Close the drawer → you're back at the DM chat. Reopening the Sheet starts on the Character tab again.
 
 ### What's being changed
 
-**1. `src/components/empyrean/EmpyreanDMScreen.tsx`**
-- Extend the `onClose` reason union from `'newCampaign'` to `'newCampaign' | 'reconfigure'`.
-- The Reconfigure row in CharacterSheet now closes the DM with reason `'reconfigure'` instead of a plain close.
+**Single file: `src/components/empyrean/CharacterSheet.tsx`**
 
-**2. `src/components/home/HomeScreen.tsx`**
-- New piece of local state: `empyreanScreenAutoOpen` (either `'manual'` or `null`) used to tell the Empyrean menu to auto-open the Manual Setup form.
-- The DM's `onClose` handler now also catches `'reconfigure'` — sets the auto-open flag and opens the Empyrean menu.
-- The `<EmpyreanScreen>` render gets two new props: `autoOpen` and `onAutoOpenConsumed` (the menu calls the latter once it has acted on the signal so it doesn't re-fire).
-- Closing the Empyrean menu also clears the auto-open flag.
-
-**3. `src/components/empyrean/EmpyreanScreen.tsx`**
-- Accepts the new `autoOpen` and `onAutoOpenConsumed` props.
-- A small effect: when the menu opens with `autoOpen === 'manual'`, it immediately flips `showSetup` true and calls the consumed callback.
-- Passes the existing `empyreanConfig` into `<EmpyreanCampaignSetup>` as `initialConfig` so the form can pre-fill regardless of how it was opened.
-
-**4. `src/components/empyrean/EmpyreanCampaignSetup.tsx`**
-- New optional prop `initialConfig?: EmpyreanDMConfig | null`.
-- The Step 1 fields (`dragonName`, `dragonColor`, `signetType`, `yearAtBasgiath`), Step 2 (`campaignFocus`), Step 3 (`selectedLore`), and Step 4 (`selectedTone`) initialize from `initialConfig` when present, else fall back to today's defaults.
-- `selectedLore`/`selectedTone` (the actual variable names in this file — not `selectedLoreIds`/`selectedMetaIds`) hydrate from `initialConfig.selectedLoreGuides` / `initialConfig.selectedToneGuides`.
-- Save/launch logic is untouched — submitting still overwrites the same storage key cleanly.
+- Add icons to the lucide import: `Heart`, `Swords`, `Shield`, `Activity`, `Flame`, `Backpack`.
+- Import `usePromptDrawers` from the existing drawer provider.
+- Delete the `CharacterTabPlaceholder` function.
+- Add a new `CharacterTab` component that:
+  - Reads the existing drawer context via `usePromptDrawers()` — no new state, no prop plumbing.
+  - Renders three sections of rows. Tapping a row closes the Sheet first (so the lower-z drawer is visible), then opens the drawer on the next tick.
+  - Renders the Signet Management row as a disabled placeholder with a "coming soon" hint.
+- Add two small layout primitives next to the existing Settings primitives: `CharacterSection` (titled grouping) and `CharacterRow` (icon + label + description + chevron, with disabled support).
+- Update the active-tab branch in the render to mount `<CharacterTab onCloseSheet={onClose} />` instead of the placeholder.
 
 ### What stays untouched
 
-- `'newCampaign'` reason handling — still wipes config and opens the setup menu fresh.
-- AI Setup (`EmpyreanAICampaignSetup`) routing — unchanged.
-- Party DM, AIDMScreen, and other DM screens.
-- The Empyrean menu cards (Launch with AI / Manual Setup / Enter DM / Reconfigure) — they still work; the Reconfigure card now also benefits from the pre-fill since `initialConfig` is wired in for all entry paths.
-- The back arrow at the top of the DM container — still returns to HomeScreen with no auto-open.
-- The `isUnbonded` behavior — empty dragon fields still render correctly because the prefill only takes effect when values exist.
+- `PromptDrawerProvider.tsx` and all six drawers (Stats, Abilities, Conditions, Cooldown, Quick Actions, Set Bonus) — consumed as-is.
+- `EmpyreanDMScreen.tsx` — no new props or state needed.
+- The Settings tab and all its primitives / the New Campaign confirmation dialog — fully preserved.
+- The Talk to the DM tab — still a placeholder for later prompts.
+- The Dragon Bond nav tab — unchanged.
+- Party DM and standard AI DM — unaffected.
 
 ### Verification
 
-- Reconfigure from Settings auto-opens the Manual Setup form pre-filled with current campaign values.
-- Editing one field (e.g. year) and launching keeps every other value intact.
-- New Campaign still wipes everything and lands on the empty setup menu.
-- Back arrow still goes to HomeScreen with no setup opened.
-- Tapping Reconfigure card directly from the Empyrean menu also shows pre-filled values.
+- Character tab shows three sections with the expected rows.
+- Each active row closes the Sheet and opens the matching drawer over the DM chat.
+- Signet Management row is visibly disabled with the "coming soon" description.
+- Settings and Talk tabs unchanged.
 - No TypeScript errors.
 
