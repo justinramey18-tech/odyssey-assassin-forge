@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ActionItem {
   id: string;
@@ -276,6 +277,9 @@ export default function EmpyreanContextualActions({
   const actions = allActions[situation] ?? allActions.exploration ?? [];
   const meta = SITUATION_META[situation] ?? SITUATION_META.exploration;
 
+  const [dragonExpanded, setDragonExpanded] = useState(false);
+  const [situationExpanded, setSituationExpanded] = useState(false);
+
   const handleDragonAction = React.useCallback((action: ActionItem) => {
     if (action.id === 'da-execution-fire') {
       playExecutionFireAudio();
@@ -291,49 +295,79 @@ export default function EmpyreanContextualActions({
 
   return (
     <div className="flex flex-col gap-1.5 px-3 py-2">
-      {/* Dragon Actions — always visible when bonded */}
+      {/* Dragon Actions — collapsed header, expandable column */}
       {dragonActions.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <span className="self-start inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border bg-amber-500/20 text-amber-300 border-amber-500/30">
-            🐉 Dragon
-          </span>
-          <div className="flex gap-2 overflow-x-auto scrollbar-none flex-nowrap pb-1">
-            {dragonActions.map((a) => (
-              <button
-                key={a.id}
-                disabled={disabled}
-                onClick={() => handleDragonAction(a)}
-                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-500/10 border border-amber-500/20 text-amber-300 hover:bg-amber-500/20 active:bg-amber-500/30 transition-colors disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap"
-              >
-                <span>{a.emoji}</span>
-                <span>{a.label}</span>
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={() => setDragonExpanded(v => !v)}
+            aria-expanded={dragonExpanded}
+            aria-label={`${dragonExpanded ? 'Collapse' : 'Expand'} dragon actions`}
+            className="self-start inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border bg-amber-500/20 text-amber-300 border-amber-500/30 hover:bg-amber-500/30 active:bg-amber-500/40 transition-colors"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <span>🐉 Dragon</span>
+            <span className="text-amber-200/80">({dragonActions.length})</span>
+            {dragonExpanded
+              ? <ChevronUp className="w-3 h-3" />
+              : <ChevronDown className="w-3 h-3" />
+            }
+          </button>
+          {dragonExpanded && (
+            <div className="flex flex-col gap-1.5 pb-1">
+              {dragonActions.map((a) => (
+                <button
+                  key={a.id}
+                  disabled={disabled}
+                  onClick={() => handleDragonAction(a)}
+                  className="w-full inline-flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium bg-amber-500/10 border border-amber-500/20 text-amber-300 hover:bg-amber-500/20 active:bg-amber-500/30 transition-colors disabled:opacity-40 disabled:pointer-events-none text-left"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <span className="shrink-0 text-sm">{a.emoji}</span>
+                  <span className="min-w-0 flex-1 truncate">{a.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Situation badge */}
-      <span
-        className={`self-start inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${meta.color}`}
-      >
-        {meta.emoji} {meta.label}
-      </span>
-
-      {/* Scrollable action pills */}
-      <div className="flex gap-2 overflow-x-auto scrollbar-none flex-nowrap pb-1">
-        {actions.map((a) => (
+      {/* Situation — collapsed header, expandable column */}
+      {actions.length > 0 && (
+        <div className="flex flex-col gap-1.5">
           <button
-            key={a.id}
-            disabled={disabled}
-            onClick={() => onAction(a.prompt)}
-            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-purple-500/10 border border-purple-500/20 text-purple-300 hover:bg-purple-500/20 active:bg-purple-500/30 transition-colors disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap"
+            type="button"
+            onClick={() => setSituationExpanded(v => !v)}
+            aria-expanded={situationExpanded}
+            aria-label={`${situationExpanded ? 'Collapse' : 'Expand'} ${meta.label.toLowerCase()} actions`}
+            className={`self-start inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border transition-colors hover:brightness-125 active:brightness-150 ${meta.color}`}
+            style={{ touchAction: 'manipulation' }}
           >
-            <span>{a.emoji}</span>
-            <span>{a.label}</span>
+            <span>{meta.emoji} {meta.label}</span>
+            <span className="opacity-80">({actions.length})</span>
+            {situationExpanded
+              ? <ChevronUp className="w-3 h-3" />
+              : <ChevronDown className="w-3 h-3" />
+            }
           </button>
-        ))}
-      </div>
+          {situationExpanded && (
+            <div className="flex flex-col gap-1.5 pb-1">
+              {actions.map((a) => (
+                <button
+                  key={a.id}
+                  disabled={disabled}
+                  onClick={() => onAction(a.prompt)}
+                  className="w-full inline-flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium bg-purple-500/10 border border-purple-500/20 text-purple-300 hover:bg-purple-500/20 active:bg-purple-500/30 transition-colors disabled:opacity-40 disabled:pointer-events-none text-left"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <span className="shrink-0 text-sm">{a.emoji}</span>
+                  <span className="min-w-0 flex-1 truncate">{a.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
