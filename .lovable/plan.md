@@ -1,57 +1,49 @@
 
 
-## Build out the Settings tab inside the Character Sheet
+## Fix Reconfigure Campaign — pre-fill the form with existing values
 
 ### What you'll see after this prompt
 
-Open the Empyrean DM → tap **SHEET** → tap the **Settings** tab. The placeholder is gone, replaced with grouped sections:
+In the Empyrean DM, tap **SHEET → Settings → Reconfigure Campaign**. Instead of being dumped on the home screen, the DM closes, the Empyrean menu surfaces briefly, and the **Manual Setup** form opens automatically with every field already filled in from your current campaign — dragon name, color, signet, year, focus, lore picks, tone picks. Tweak any value, walk through the steps, launch — only the changed values update. New Campaign and the back arrow keep their existing behavior.
 
-- **Campaign** — Campaign Saves (opens the existing saves drawer).
-- **Gameplay** — Dice Odds dropdown (Fair / Heroic / Dramatic / Chaotic / Cursed), Auto-Sync toggle (only when enabled by parent), Whisper Trays toggle, Cinematic Mode toggle.
-- **Appearance** — AI Model dropdown, Chat Theme picker (3-column grid of colored swatches).
-- **Configuration** — Reconfigure Campaign (returns to the Empyrean campaign menu).
-- **Danger Zone** — red-tinted block with **Clear Chat** (clears messages, keeps setup) and **New Campaign** (confirmation dialog, then full wipe + return to setup menu).
+### What's being changed
 
-Each action that navigates away first closes the sheet so the next screen has a clean stage. The new layout uses small reusable row primitives (a labeled row, a toggle row, a picker row) so all sections look consistent.
+**1. `src/components/empyrean/EmpyreanDMScreen.tsx`**
+- Extend the `onClose` reason union from `'newCampaign'` to `'newCampaign' | 'reconfigure'`.
+- The Reconfigure row in CharacterSheet now closes the DM with reason `'reconfigure'` instead of a plain close.
 
-### What's being added
+**2. `src/components/home/HomeScreen.tsx`**
+- New piece of local state: `empyreanScreenAutoOpen` (either `'manual'` or `null`) used to tell the Empyrean menu to auto-open the Manual Setup form.
+- The DM's `onClose` handler now also catches `'reconfigure'` — sets the auto-open flag and opens the Empyrean menu.
+- The `<EmpyreanScreen>` render gets two new props: `autoOpen` and `onAutoOpenConsumed` (the menu calls the latter once it has acted on the signal so it doesn't re-fire).
+- Closing the Empyrean menu also clears the auto-open flag.
 
-**1. Updated: `src/components/empyrean/CharacterSheet.tsx`**
-- New props on `CharacterSheetProps` for every setting and action (campaign saves callback, dice odds value/setter, three toggles, model + theme value/setters, reconfigure / clear chat / new campaign callbacks, plus a `showAutoSync` flag so the Auto-Sync row only appears when meaningful).
-- Settings tab placeholder replaced with a real `SettingsTab` component that renders the five sections above.
-- Internal AlertDialog confirmation for **New Campaign**.
-- Three small layout primitives (`SettingsSection`, `SettingsRow`, `SettingsToggleRow`, `SettingsPickerRow`) defined in the same file.
-- Imports added for Switch, Select, Button, AlertDialog, plus `DM_MODELS` / `getModelLabel`, `DM_CHAT_THEMES`, and `DICE_ODDS_CONFIGS`.
+**3. `src/components/empyrean/EmpyreanScreen.tsx`**
+- Accepts the new `autoOpen` and `onAutoOpenConsumed` props.
+- A small effect: when the menu opens with `autoOpen === 'manual'`, it immediately flips `showSetup` true and calls the consumed callback.
+- Passes the existing `empyreanConfig` into `<EmpyreanCampaignSetup>` as `initialConfig` so the form can pre-fill regardless of how it was opened.
 
-**2. Updated: `src/components/empyrean/EmpyreanDMScreen.tsx`**
-- Adds local `diceOddsMode` state initialized from `loadDiceOddsMode()` and persisted via `saveDiceOddsMode()` on change (shared storage with the standard dice tab).
-- Passes the new prop set into `<CharacterSheet />`, wiring each one to existing hooks already present in this file:
-  - Whisper Trays → `useWhisperTrayEnabled`
-  - Cinematic Mode → `useCinematicMode`
-  - Chat Theme → `useDMChatTheme`
-  - Auto-Sync → `useDmAutoSync` (with `showAutoSync` set from `!!autoSyncCallbacks`)
-  - AI Model → existing `selectedModel` / `handleModelChange`
-  - Campaign Saves → `setShowSaves(true)`
-  - Reconfigure Campaign → existing `onClose`
-  - Clear Chat → existing `clearMessages`
-  - New Campaign → existing `handleNewCampaign`
+**4. `src/components/empyrean/EmpyreanCampaignSetup.tsx`**
+- New optional prop `initialConfig?: EmpyreanDMConfig | null`.
+- The Step 1 fields (`dragonName`, `dragonColor`, `signetType`, `yearAtBasgiath`), Step 2 (`campaignFocus`), Step 3 (`selectedLore`), and Step 4 (`selectedTone`) initialize from `initialConfig` when present, else fall back to today's defaults.
+- `selectedLore`/`selectedTone` (the actual variable names in this file — not `selectedLoreIds`/`selectedMetaIds`) hydrate from `initialConfig.selectedLoreGuides` / `initialConfig.selectedToneGuides`.
+- Save/launch logic is untouched — submitting still overwrites the same storage key cleanly.
 
-### What stays untouched (reversibility safety net)
+### What stays untouched
 
-- The old `DMToolsDrawer` JSX stays mounted in `EmpyreanDMScreen`; it's just unreachable while the SETTINGS nav tab is hidden.
-- `CharacterTabPlaceholder` and `TalkTabPlaceholder` are not modified — those get filled in by later prompts.
-- `CampaignSessionsManager`, `handleNewCampaign`, `clearMessages`, and `onClose` keep their current behavior.
-- Party DM and standard AI DM are not touched.
+- `'newCampaign'` reason handling — still wipes config and opens the setup menu fresh.
+- AI Setup (`EmpyreanAICampaignSetup`) routing — unchanged.
+- Party DM, AIDMScreen, and other DM screens.
+- The Empyrean menu cards (Launch with AI / Manual Setup / Enter DM / Reconfigure) — they still work; the Reconfigure card now also benefits from the pre-fill since `initialConfig` is wired in for all entry paths.
+- The back arrow at the top of the DM container — still returns to HomeScreen with no auto-open.
+- The `isUnbonded` behavior — empty dragon fields still render correctly because the prefill only takes effect when values exist.
 
-### Verification checklist
+### Verification
 
-- App compiles with no TypeScript errors.
-- Settings tab shows all six sections in the order above.
-- Dice Odds change persists (visible in localStorage and reflected when the dice tab is opened from a non-Empyrean DM).
-- Whisper Trays / Cinematic Mode toggles flip immediately and survive sheet close/reopen.
-- AI Model and Chat Theme persist across sessions.
-- Reconfigure Campaign closes the sheet and returns the player to the Empyrean menu.
-- Clear Chat closes the sheet and clears messages without wiping setup.
-- New Campaign shows confirmation; on confirm, wipes setup and routes back to the Launch menu.
-- Party DM and standard AI DM are unchanged. Setting `hideSettings={false}` would restore the old Tools drawer entry point.
+- Reconfigure from Settings auto-opens the Manual Setup form pre-filled with current campaign values.
+- Editing one field (e.g. year) and launching keeps every other value intact.
+- New Campaign still wipes everything and lands on the empty setup menu.
+- Back arrow still goes to HomeScreen with no setup opened.
+- Tapping Reconfigure card directly from the Empyrean menu also shows pre-filled values.
+- No TypeScript errors.
 
