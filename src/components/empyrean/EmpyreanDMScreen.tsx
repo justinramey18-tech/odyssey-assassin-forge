@@ -266,6 +266,19 @@ export function EmpyreanDMScreen({
   const [isFormattingReading, setIsFormattingReading] = useState(false);
   const prevIsLoadingRef = useRef(false);
 
+  // One-time cleanup: a previous build had a buggy auto-reaction feature that
+  // inflated unreadDragonMessages with content users could never view. Clear any
+  // stale entries on mount so users aren't stuck with a phantom badge count.
+  const didCleanupStaleUnreadRef = useRef(false);
+  useEffect(() => {
+    if (didCleanupStaleUnreadRef.current) return;
+    didCleanupStaleUnreadRef.current = true;
+    if (dragonBond.bondState.unreadDragonMessages.length > 0) {
+      dragonBond.markChatOpened();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const DND_TUTORIALS = [
     {
       icon: "🎲",
