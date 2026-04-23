@@ -72,6 +72,9 @@ export function EmpyreanAbilityPicker({
                 const onCooldown = isOnNarrativeCooldown(cooldowns, ability.id);
                 const turnsLeft = getCooldownTurns(cooldowns, ability.id);
                 const tier = (abilityTiers.get(ability.id) || 1) as 1 | 2 | 3;
+                const tierEffect = ability.tierEffects.find(e => e.tier === tier)?.description
+                  || ability.tierEffects[0]?.description
+                  || '';
                 return (
                   <button
                     key={ability.id}
@@ -95,9 +98,9 @@ export function EmpyreanAbilityPicker({
                             T{tier}
                           </span>
                         </div>
-                        {ability.description && (
+                        {tierEffect && (
                           <p className="text-[11px] text-muted-foreground leading-snug mt-0.5 line-clamp-2">
-                            {ability.description}
+                            {tierEffect}
                           </p>
                         )}
                       </div>
