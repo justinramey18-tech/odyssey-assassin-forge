@@ -85,6 +85,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { EmpyreanAbilityPicker } from '@/components/empyrean/EmpyreanAbilityPicker';
 import { RiderLoadoutScreen } from '@/components/empyrean/RiderLoadoutScreen';
+import { EmpyreanAbilitiesScreen } from '@/components/empyrean/EmpyreanAbilitiesScreen';
 import {
   loadNarrativeCooldowns,
   decrementAllNarrativeCooldowns,
@@ -222,6 +223,7 @@ export function EmpyreanDMScreen({
   const [characterSheetOpen, setCharacterSheetOpen] = useState(false);
   const [abilityPickerOpen, setAbilityPickerOpen] = useState(false);
   const [riderLoadoutOpen, setRiderLoadoutOpen] = useState(false);
+  const [abilityTreesOpen, setAbilityTreesOpen] = useState(false);
   const [narrativeCooldowns, setNarrativeCooldowns] = useState<NarrativeCooldownMap>(() => loadNarrativeCooldowns());
   const prevAssistantMessageCountRef = useRef<number>(0);
   const [showPrompts, setShowPrompts] = useState(false);
@@ -1942,10 +1944,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         } : undefined}
         onOpenAbilityPicker={() => setAbilityPickerOpen(true)}
         onOpenLoadout={() => setRiderLoadoutOpen(true)}
-        onOpenAbilitiesScreen={onNavigateToTab ? () => {
-          onNavigateToTab('abilities');
-          onClose();
-        } : undefined}
+        onOpenAbilityTrees={() => setAbilityTreesOpen(true)}
       />
 
       {/* Empyrean Rider Loadout — full-screen paper doll */}
@@ -1954,6 +1953,12 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         onClose={() => setRiderLoadoutOpen(false)}
         characterName={characterName}
         riderLevel={(characterContext as any)?.level ?? 1}
+      />
+
+      {/* Empyrean Ability Trees — full-screen overlay */}
+      <EmpyreanAbilitiesScreen
+        open={abilityTreesOpen}
+        onClose={() => setAbilityTreesOpen(false)}
       />
 
       {/* Empyrean Ability Picker — bottom sheet */}
@@ -1966,10 +1971,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         cooldowns={narrativeCooldowns}
         onUseAbility={handleUseEmpyreanAbility}
         isLoading={isLoading}
-        onGoToAbilitiesScreen={onNavigateToTab ? () => {
-          onNavigateToTab('abilities');
-          onClose();
-        } : undefined}
+        onGoToAbilitiesScreen={() => setAbilityTreesOpen(true)}
       />
 
       {/* DMToolsDrawer */}

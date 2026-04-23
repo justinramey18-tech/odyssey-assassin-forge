@@ -69,9 +69,9 @@ export function EmpyreanAbilityPicker({
               <div className="py-10 px-4 text-center space-y-4">
                 <Sparkles className="w-8 h-8 text-amber-400/40 mx-auto" />
                 <div className="space-y-1.5">
-                  <p className="text-sm font-cinzel text-foreground">No abilities equipped</p>
+                  <p className="text-sm font-cinzel text-foreground">No abilities unlocked</p>
                   <p className="text-xs text-muted-foreground">
-                    Head to the Abilities screen to unlock, tier up, and equip abilities to your loadout slots.
+                    Unlock abilities from the Combat, Bond, Channeling, or Mental trees using gold.
                   </p>
                 </div>
                 {onGoToAbilitiesScreen && (
@@ -83,7 +83,7 @@ export function EmpyreanAbilityPicker({
                     className="bg-amber-600 hover:bg-amber-700 text-white gap-2 mt-2"
                   >
                     <Zap className="w-4 h-4" />
-                    Equip Abilities
+                    Open Ability Trees
                   </Button>
                 )}
               </div>

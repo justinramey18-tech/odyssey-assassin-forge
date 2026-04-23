@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { X, User, MessageCircle, Settings as SettingsIcon, FolderOpen, Dices, Zap, Eye, Film, Cpu, Palette, RotateCcw, Trash2, AlertTriangle, Heart, Swords, Shield, Activity, Flame, Backpack } from 'lucide-react';
+import { X, User, MessageCircle, Settings as SettingsIcon, FolderOpen, Dices, Zap, Eye, Film, Cpu, Palette, RotateCcw, Trash2, AlertTriangle, Heart, Swords, Shield, Activity, Flame, Backpack, Sparkles } from 'lucide-react';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -38,7 +38,7 @@ interface CharacterSheetProps {
   onOpenInventory?: () => void;
   onOpenAbilityPicker?: () => void;
   onOpenLoadout?: () => void;
-  onOpenAbilitiesScreen?: () => void;
+  onOpenAbilityTrees?: () => void;
 }
 
 const TABS: Array<{ id: CharacterSheetTab; label: string; icon: React.ComponentType<{ className?: string }>; color: string; accent: string }> = [
@@ -72,7 +72,7 @@ export function CharacterSheet({
   onOpenInventory,
   onOpenAbilityPicker,
   onOpenLoadout,
-  onOpenAbilitiesScreen,
+  onOpenAbilityTrees,
 }: CharacterSheetProps) {
   const [activeTab, setActiveTab] = useState<CharacterSheetTab>(initialTab);
 
@@ -141,7 +141,7 @@ export function CharacterSheet({
             transition={{ duration: 0.15 }}
             className="h-full"
           >
-            {activeTab === 'character' && <CharacterTab onCloseSheet={onClose} onOpenInventory={onOpenInventory} onOpenAbilityPicker={onOpenAbilityPicker} onOpenLoadout={onOpenLoadout} onOpenAbilitiesScreen={onOpenAbilitiesScreen} />}
+            {activeTab === 'character' && <CharacterTab onCloseSheet={onClose} onOpenInventory={onOpenInventory} onOpenAbilityPicker={onOpenAbilityPicker} onOpenLoadout={onOpenLoadout} onOpenAbilityTrees={onOpenAbilityTrees} />}
             {activeTab === 'talk' && <TalkTabPlaceholder />}
             {activeTab === 'settings' && (
               <SettingsTab
@@ -180,10 +180,10 @@ interface CharacterTabProps {
   onOpenInventory?: () => void;
   onOpenAbilityPicker?: () => void;
   onOpenLoadout?: () => void;
-  onOpenAbilitiesScreen?: () => void;
+  onOpenAbilityTrees?: () => void;
 }
 
-function CharacterTab({ onCloseSheet, onOpenInventory, onOpenAbilityPicker, onOpenLoadout, onOpenAbilitiesScreen }: CharacterTabProps) {
+function CharacterTab({ onCloseSheet, onOpenInventory, onOpenAbilityPicker, onOpenLoadout, onOpenAbilityTrees }: CharacterTabProps) {
   const drawers = usePromptDrawers();
 
   const openDrawerThenClose = useCallback((openFn: () => void) => {
@@ -211,6 +211,17 @@ function CharacterTab({ onCloseSheet, onOpenInventory, onOpenAbilityPicker, onOp
               setTimeout(onOpenAbilityPicker, 0);
             } else {
               openDrawerThenClose(drawers.openAbilitiesDrawer);
+            }
+          }}
+        />
+        <CharacterRow
+          icon={<Sparkles className="w-4 h-4 text-amber-300" />}
+          label="Ability Trees"
+          description="Unlock new abilities with gold. Combat, Bond, Channeling, Mental."
+          onClick={() => {
+            if (onOpenAbilityTrees) {
+              onCloseSheet();
+              setTimeout(onOpenAbilityTrees, 0);
             }
           }}
         />
