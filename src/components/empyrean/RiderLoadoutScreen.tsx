@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { X, User, Coins } from 'lucide-react';
-import { toast } from 'sonner';
 import { LoadoutSlotCard } from '@/components/empyrean/LoadoutSlotCard';
+import { LoadoutSlotDrawer } from '@/components/empyrean/LoadoutSlotDrawer';
 import {
   loadEmpyreanLoadout,
   loadEmpyreanGold,
@@ -20,8 +20,9 @@ interface RiderLoadoutScreenProps {
 export function RiderLoadoutScreen({ open, onClose, characterName, riderLevel }: RiderLoadoutScreenProps) {
   const [loadout, setLoadout] = useState<EmpyreanLoadoutState>(() => loadEmpyreanLoadout());
   const [gold, setGold] = useState<number>(() => loadEmpyreanGold());
+  const [activeSlot, setActiveSlot] = useState<EmpyreanSlot | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Reload state whenever screen opens (catches any changes made elsewhere).
   useEffect(() => {
     if (open) {
       setLoadout(loadEmpyreanLoadout());
@@ -29,9 +30,14 @@ export function RiderLoadoutScreen({ open, onClose, characterName, riderLevel }:
     }
   }, [open]);
 
+  const reloadState = useCallback(() => {
+    setLoadout(loadEmpyreanLoadout());
+    setGold(loadEmpyreanGold());
+  }, []);
+
   const handleSlotTap = useCallback((slot: EmpyreanSlot) => {
-    // G3 will replace this with a proper slot drawer.
-    toast.info(`${slot} slot drawer — coming in G3`, { duration: 1500 });
+    setActiveSlot(slot);
+    setDrawerOpen(true);
   }, []);
 
   if (!open) return null;
@@ -120,6 +126,19 @@ export function RiderLoadoutScreen({ open, onClose, characterName, riderLevel }:
           </p>
         </div>
       </div>
+
+      <LoadoutSlotDrawer
+        open={drawerOpen}
+        onOpenChange={(v) => {
+          setDrawerOpen(v);
+          if (!v) reloadState();
+        }}
+        slot={activeSlot}
+        loadout={loadout}
+        gold={gold}
+        riderLevel={riderLevel}
+        onStateChanged={reloadState}
+      />
     </div>
   );
 }
