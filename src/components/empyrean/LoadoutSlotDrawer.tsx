@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Package, Hammer, Shield, Trash2, Check } from 'lucide-react';
+import { Package, Hammer, Shield, Trash2, Check, Sparkles, Loader2, Check as CheckIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -13,6 +14,7 @@ import {
   RARITY_META,
   STAT_META,
   RARITY_STAT_BUDGET,
+  RARITY_GOLD_COST,
   ALL_RARITIES,
   ALL_STATS,
   createEmpyreanGearItem,
@@ -24,6 +26,9 @@ import {
   getForgeCost,
   getEquippedItem,
   getInventoryBySlot,
+  loadEmpyreanLoadout,
+  saveEmpyreanLoadout,
+  addEmpyreanGold,
   type EmpyreanSlot,
   type EmpyreanRarity,
   type EmpyreanStatKey,
