@@ -19,6 +19,8 @@ export interface RollHint {
   dc: number | null;
   /** Whether the hint explicitly mentions advantage or disadvantage */
   rollMode: 'normal' | 'advantage' | 'disadvantage';
+  /** Optional explicit verb provided by the DM via [verb: ...] syntax */
+  explicitVerb: string | null;
 }
 
 const ABILITY_PATTERNS: Array<{ regex: RegExp; ability: AbilityScore }> = [
@@ -62,6 +64,32 @@ const DC_REGEX = /\bdc\s*(\d{1,2})\b/i;
 const ADV_REGEX = /\badvantage\b/i;
 const DIS_REGEX = /\bdisadvantage\b/i;
 
+// Empyrean terminology mappings — DM outputs these instead of D&D terms.
+const EMPYREAN_SKILL_PATTERNS: Array<{ regex: RegExp; skillId: string }> = [
+  { regex: /\baerial[\s_-]combat\b/i,   skillId: 'athletics' },
+  { regex: /\bawareness\b/i,            skillId: 'perception' },
+  { regex: /\bsignet[\s_-]theory\b/i,   skillId: 'arcana' },
+  { regex: /\briding\b/i,               skillId: 'animal_handling' },
+  { regex: /\bdragonspeech\b/i,         skillId: 'persuasion' },
+  { regex: /\bshadowcraft\b/i,          skillId: 'stealth' },
+  { regex: /\bbattle[\s_-]sense\b/i,    skillId: 'insight' },
+  { regex: /\bfieldcraft\b/i,           skillId: 'survival' },
+  { regex: /\bcourt[\s_-]presence\b/i,  skillId: 'persuasion' },
+  { regex: /\bintimidate(?:\s+tactics)?\b/i, skillId: 'intimidation' },
+];
+
+const EMPYREAN_ABILITY_PATTERNS: Array<{ regex: RegExp; ability: AbilityScore }> = [
+  { regex: /\bbody\b/i,        ability: 'str' },
+  { regex: /\breflexes\b/i,    ability: 'dex' },
+  { regex: /\b(constitution\s+save|grit\s+save|grit\s+check)\b/i, ability: 'con' },
+  { regex: /\bwill\b/i,        ability: 'wis' },
+  { regex: /\bresolve\b/i,     ability: 'wis' },
+  { regex: /\bpresence\b/i,    ability: 'cha' },
+];
+
+// Explicit verb syntax: "[verb: catch yourself]"
+const VERB_REGEX = /\[verb:\s*([^\]]{1,60})\]/i;
+
 export function parseRollHint(whisperContent: string): RollHint {
   const text = whisperContent || '';
 
@@ -81,6 +109,26 @@ export function parseRollHint(whisperContent: string): RollHint {
     }
   }
 
+  // Check Empyrean skill synonyms if no D&D skill matched.
+  if (!skillId) {
+    for (const p of EMPYREAN_SKILL_PATTERNS) {
+      if (p.regex.test(text)) {
+        skillId = p.skillId;
+        break;
+      }
+    }
+  }
+
+  // Check Empyrean ability synonyms if no D&D ability matched.
+  if (!ability) {
+    for (const p of EMPYREAN_ABILITY_PATTERNS) {
+      if (p.regex.test(text)) {
+        ability = p.ability;
+        break;
+      }
+    }
+  }
+
   const isSave = SAVE_REGEX.test(text);
 
   let dc: number | null = null;
@@ -94,5 +142,11 @@ export function parseRollHint(whisperContent: string): RollHint {
   if (DIS_REGEX.test(text)) rollMode = 'disadvantage';
   else if (ADV_REGEX.test(text)) rollMode = 'advantage';
 
-  return { ability, skillId, isSave, dc, rollMode };
+  let explicitVerb: string | null = null;
+  const verbMatch = text.match(VERB_REGEX);
+  if (verbMatch) {
+    explicitVerb = verbMatch[1].trim().slice(0, 60);
+  }
+
+  return { ability, skillId, isSave, dc, rollMode, explicitVerb };
 }

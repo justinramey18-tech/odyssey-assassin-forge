@@ -909,10 +909,26 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     return () => { clearInterval(interval); save(); };
   }, [open, autoSyncCallbacks, characterContext?.maxHP]);
 
-  const handleWhisperRoll = useCallback((whisperContent: string) => {
+  const handleWhisperOpenRoller = useCallback((whisperContent: string) => {
     setDiceRollerWhisperText(whisperContent);
     setDiceRollerOpen(true);
   }, []);
+
+  const handleWhisperAutoRoll = useCallback((whisperContent: string) => {
+    const hint = parseRollHint(whisperContent);
+    const auto = resolveWhisperAutoRoll(hint);
+    if (!auto.canAutoRoll || !auto.actionPhrase) {
+      setDiceRollerWhisperText(whisperContent);
+      setDiceRollerOpen(true);
+      return;
+    }
+    const result = performWhisperRoll({
+      hint,
+      actionPhrase: auto.actionPhrase,
+      characterContext,
+    });
+    empyreanInputRef.current?.appendText(result.chatMessage);
+  }, [characterContext]);
 
   const handleAppendPrompt = useCallback((prompt: string) => {
     if (isLoading) return;
