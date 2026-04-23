@@ -1965,9 +1965,6 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
       <EmpyreanAbilityPicker
         open={abilityPickerOpen}
         onOpenChange={setAbilityPickerOpen}
-        characterName={characterName}
-        equippedAbilityIds={(characterContext as any)?.equippedAbilities || []}
-        abilityTiers={abilityTiersMap}
         cooldowns={narrativeCooldowns}
         onUseAbility={handleUseEmpyreanAbility}
         isLoading={isLoading}
