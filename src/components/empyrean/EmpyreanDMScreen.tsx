@@ -83,6 +83,14 @@ import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
 import { parseRollHint, type RollHint } from '@/lib/whisperRollHint';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { EmpyreanAbilityPicker } from '@/components/empyrean/EmpyreanAbilityPicker';
+import {
+  loadNarrativeCooldowns,
+  decrementAllNarrativeCooldowns,
+  startNarrativeCooldown,
+  DEFAULT_NARRATIVE_COOLDOWN,
+  type NarrativeCooldownMap,
+} from '@/lib/narrativeCooldowns';
 
 import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 import type { NavigableTab } from '@/components/navigation/types';
@@ -211,6 +219,9 @@ export function EmpyreanDMScreen({
   const [diceOddsMode, setDiceOddsMode] = useState<DiceOddsMode>(() => loadDiceOddsMode());
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
   const [characterSheetOpen, setCharacterSheetOpen] = useState(false);
+  const [abilityPickerOpen, setAbilityPickerOpen] = useState(false);
+  const [narrativeCooldowns, setNarrativeCooldowns] = useState<NarrativeCooldownMap>(() => loadNarrativeCooldowns());
+  const prevAssistantMessageCountRef = useRef<number>(0);
   const [showPrompts, setShowPrompts] = useState(false);
   const [showCharacterActions, setShowCharacterActions] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
@@ -1107,6 +1118,41 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     }
   }, [isLoading, sendMessage]);
 
+  // Narrative cooldowns: decrement when a new DM assistant response arrives.
+  useEffect(() => {
+    const assistantCount = messages.filter(m => m.role === 'assistant' && m.content?.trim()).length;
+    // On mount, just capture the count. Only decrement when count INCREASES past the captured value.
+    if (prevAssistantMessageCountRef.current === 0 && assistantCount > 0) {
+      prevAssistantMessageCountRef.current = assistantCount;
+      return;
+    }
+    if (assistantCount > prevAssistantMessageCountRef.current) {
+      const delta = assistantCount - prevAssistantMessageCountRef.current;
+      prevAssistantMessageCountRef.current = assistantCount;
+      let latest: NarrativeCooldownMap = loadNarrativeCooldowns();
+      for (let i = 0; i < delta; i++) {
+        latest = decrementAllNarrativeCooldowns();
+      }
+      setNarrativeCooldowns(latest);
+    }
+  }, [messages]);
+
+  const abilityTiersMap = useMemo(() => {
+    const m = new Map<string, number>();
+    const charAbilities: Array<{ abilityId: string; currentTier?: number }> = (characterContext as any)?.abilities || [];
+    for (const ca of charAbilities) {
+      if (ca.abilityId) m.set(ca.abilityId, ca.currentTier || 1);
+    }
+    return m;
+  }, [characterContext]);
+
+  const handleUseEmpyreanAbility = useCallback((abilityId: string, generatedPrompt: string) => {
+    // Start cooldown BEFORE sending so the UI reflects it immediately.
+    startNarrativeCooldown(abilityId, DEFAULT_NARRATIVE_COOLDOWN);
+    setNarrativeCooldowns(loadNarrativeCooldowns());
+    handleUsePrompt(generatedPrompt);
+  }, [handleUsePrompt]);
+
   const lastAssistantMsg = useMemo(() => {
     const last = [...messages].reverse().find(m => m.role === 'assistant');
     return last?.content ?? null;
@@ -1892,6 +1938,19 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
           onNavigateToTab('inventory');
           onClose();
         } : undefined}
+        onOpenAbilityPicker={() => setAbilityPickerOpen(true)}
+      />
+
+      {/* Empyrean Ability Picker — bottom sheet */}
+      <EmpyreanAbilityPicker
+        open={abilityPickerOpen}
+        onOpenChange={setAbilityPickerOpen}
+        characterName={characterName}
+        equippedAbilityIds={(characterContext as any)?.equippedAbilities || []}
+        abilityTiers={abilityTiersMap}
+        cooldowns={narrativeCooldowns}
+        onUseAbility={handleUseEmpyreanAbility}
+        isLoading={isLoading}
       />
 
       {/* DMToolsDrawer */}
