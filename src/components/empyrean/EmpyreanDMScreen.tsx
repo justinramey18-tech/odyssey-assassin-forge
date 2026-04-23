@@ -1160,6 +1160,20 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     handleUsePrompt(generatedPrompt);
   }, [handleUsePrompt, characterContext]);
 
+  const handleGroundYourself = useCallback(() => {
+    // Narrative beat sent to the DM.
+    const groundingPrompt = 'I take a moment to ground myself — breathe, feel my weight settle, let the signet heat bleed out through my skin. Describe the pause, what grounds me, and the scene as I steady.';
+    handleUsePrompt(groundingPrompt);
+    // Reduce burnout by 2, floored at 0.
+    setBurnoutLevel(prev => Math.max(0, prev - 2));
+    setSignetManagementOpen(false);
+  }, [handleUsePrompt]);
+
+  const handleResetStrain = useCallback(() => {
+    // Silent reset — no DM beat.
+    setBurnoutLevel(0);
+  }, []);
+
   const lastAssistantMsg = useMemo(() => {
     const last = [...messages].reverse().find(m => m.role === 'assistant');
     return last?.content ?? null;
@@ -1949,6 +1963,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         onOpenLoadout={() => setRiderLoadoutOpen(true)}
         onOpenAbilityTrees={() => setAbilityTreesOpen(true)}
         onOpenEmpyreanCooldowns={() => setEmpyreanCooldownsOpen(true)}
+        onOpenSignetManagement={() => setSignetManagementOpen(true)}
       />
 
       {/* Empyrean Cooldowns — bottom sheet */}
@@ -1957,6 +1972,17 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         onOpenChange={setEmpyreanCooldownsOpen}
         cooldowns={narrativeCooldowns}
         onCooldownsCleared={() => setNarrativeCooldowns(loadNarrativeCooldowns())}
+      />
+
+      {/* Signet Management — bottom sheet */}
+      <SignetManagementDrawer
+        open={signetManagementOpen}
+        onOpenChange={setSignetManagementOpen}
+        signetType={config?.signetType || ''}
+        burnoutLevel={burnoutLevel}
+        maxBurnout={maxBurnout}
+        onGroundYourself={handleGroundYourself}
+        onResetStrain={handleResetStrain}
       />
 
       {/* Empyrean Rider Loadout — full-screen paper doll */}
