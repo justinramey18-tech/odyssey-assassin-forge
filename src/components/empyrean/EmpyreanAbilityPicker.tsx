@@ -12,6 +12,7 @@ import {
 } from '@/lib/empyreanAbilities';
 import type { NarrativeCooldownMap } from '@/lib/narrativeCooldowns';
 import { getCooldownTurns, isOnNarrativeCooldown } from '@/lib/narrativeCooldowns';
+import { debugLog, sampleDomState } from '@/lib/debugLog';
 
 interface EmpyreanAbilityPickerProps {
   open: boolean;
@@ -42,21 +43,18 @@ export function EmpyreanAbilityPicker({
 
   const confirmUse = useCallback(() => {
     if (!pending) return;
-    // Capture the prompt data BEFORE clearing state.
+    debugLog('confirm', `confirmUse start id=${pending.id}`);
+    sampleDomState('confirm-start');
     const captured = pending;
-    // Close the AlertDialog FIRST by clearing its open state. Let Radix process
-    // its unmount and body-pointer-events cleanup before closing the Sheet.
-    // Closing both overlays in the same tick causes a known Radix race
-    // condition that leaves `pointer-events: none` stuck on <body>, freezing
-    // the entire app. The staggered close below avoids that.
     setPending(null);
-    // Fire the ability AFTER state is cleared so the user sees the dialog
-    // dismiss cleanly before the streaming response begins.
+    debugLog('confirm', 'setPending(null) done');
     onUseAbility(captured.id, captured.prompt);
-    // Close the Sheet on the next tick. requestAnimationFrame is preferred
-    // over setTimeout(0) because it aligns with Radix's own animation timing.
+    debugLog('confirm', 'onUseAbility done');
     requestAnimationFrame(() => {
+      debugLog('confirm', 'RAF — calling onOpenChange(false)');
+      sampleDomState('before-picker-close');
       onOpenChange(false);
+      requestAnimationFrame(() => sampleDomState('after-picker-close-raf'));
     });
   }, [pending, onUseAbility, onOpenChange]);
 
@@ -68,7 +66,7 @@ export function EmpyreanAbilityPicker({
 
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
+      <Sheet open={open} onOpenChange={(v) => { debugLog('sheet', `Picker Sheet onOpenChange v=${v}`); onOpenChange(v); }}>
         <SheetContent side="bottom" className="h-[85vh] p-0 bg-background/95 backdrop-blur-lg border-t border-amber-500/30 rounded-t-2xl overflow-hidden flex flex-col">
           <SheetHeader className="px-4 py-3 border-b border-border/40">
             <SheetTitle className="text-base font-cinzel text-amber-300 flex items-center gap-2">
@@ -174,7 +172,7 @@ export function EmpyreanAbilityPicker({
         </SheetContent>
       </Sheet>
 
-      <AlertDialog open={!!pending} onOpenChange={(v) => { if (!v) setPending(null); }}>
+      <AlertDialog open={!!pending} onOpenChange={(v) => { debugLog('dialog', `AlertDialog onOpenChange v=${v}`); if (!v) setPending(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Use {pending?.name}?</AlertDialogTitle>
