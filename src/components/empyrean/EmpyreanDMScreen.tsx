@@ -6,7 +6,7 @@ import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { useWeather } from '@/hooks/use-weather';
 import { weatherToNarrativeContext } from '@/lib/weather';
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
-import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle, Theater, Megaphone, Minus, Plus, Sparkles, Swords } from 'lucide-react';
+import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle, Theater, Megaphone, Minus, Plus, Sparkles, Swords, HelpCircle } from 'lucide-react';
 import { formatForReadingMode, type FormattedReading } from '@/lib/reading-mode-formatter';
 import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
