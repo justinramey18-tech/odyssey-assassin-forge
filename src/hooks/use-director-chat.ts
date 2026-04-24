@@ -29,6 +29,7 @@ export interface DirectorProposedAction {
   memory_anchor?: string;
   new_dragon_personality?: string;
   ooc_note?: string;
+  turns_remaining?: number;
 }
 
 export interface DirectorMessage {
@@ -142,6 +143,7 @@ export function useDirectorChat(opts: UseDirectorChatOptions = {}) {
         memory_anchor: a.memory_anchor,
         new_dragon_personality: a.new_dragon_personality,
         ooc_note: a.ooc_note,
+        turns_remaining: typeof a.turns_remaining === 'number' ? a.turns_remaining : undefined,
       }));
 
       const assistantMsg: DirectorMessage = {

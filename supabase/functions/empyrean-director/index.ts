@@ -43,7 +43,14 @@ const DIRECTOR_TOOL = {
               new_summary: { type: "string", description: "For update_campaign_summary. 100-800 words third-person past tense." },
               memory_anchor: { type: "string", description: "For add_memory_anchor. 10-40 words." },
               new_dragon_personality: { type: "string", description: "For update_dragon_personality. 30-300 words." },
-              ooc_note: { type: "string", description: "For ooc_passthrough. 1-3 sentences." },
+              ooc_note: {
+                type: "string",
+                description: "For ooc_passthrough. The transient narrative fact to silently inject into the main DM's context on its upcoming turn(s). Written in third person past or present tense, as a fact the DM should know. 1-3 sentences. Examples: 'The character just farted in fear.' / 'The armor strap on the right shoulder is broken and hanging loose.' / 'There is a shallow cut across the character's left cheek, still bleeding.'",
+              },
+              turns_remaining: {
+                type: "number",
+                description: "For ooc_passthrough. How many main DM response turns this context should stay active before fading. Any positive integer. Choose based on the nature of the note: a brief reaction (fart, stumble) is 1-2 turns; an ongoing physical state (broken armor, fresh wound, charm still worn) can be 4-10. If the user's intent about duration is unclear, ASK in the reply before proposing — don't guess for substantial or ambiguous cases.",
+              },
               rationale: { type: "string", description: "Brief 1-sentence justification shown in the confirmation UI." },
             },
             required: ["type", "rationale"],
@@ -83,7 +90,16 @@ You figure out which of the 7 action types (if any) they're asking for, and you 
 4. update_campaign_summary — Rewrite the persistent campaign recap. Field: new_summary (100-800 words, third-person past tense). Destructive.
 5. add_memory_anchor — Pin a single fact that should persist across sessions. Field: memory_anchor (10-40 words). Additive.
 6. update_dragon_personality — Rewrite the dragon's personality notes. Field: new_dragon_personality (30-300 words). Destructive if replacing existing notes.
-7. ooc_passthrough — Directive to append to the main DM's next turn. Field: ooc_note (1-3 sentences). Non-persistent.
+7. ooc_passthrough — Silently inject a transient fact into the main DM's system prompt for the next N turns, so the DM can work it into narration naturally without the user sending an OOC message. Fields: ooc_note (1-3 sentences, third person), turns_remaining (positive integer). Duration guidance:
+   - Brief reactions, twitches, impulsive moments: 1-2 turns.
+   - Physical states that would persist (wound, broken gear, borrowed item): 4-10 turns.
+   - When unclear, ASK in your reply: "Should this linger a few turns or just this moment?" — then wait for the user to clarify before proposing.
+   Example conversation:
+     User: "My character farts in fear."
+     Director: (reply) "Got it. Single-turn thing?"
+     User: "Yeah just this one."
+     Director: (proposes action) ooc_passthrough with ooc_note="The character just farted in fear." and turns_remaining=1
+   Do NOT auto-fill the user's input. The note injects silently into the main DM's context.
 
 ## RULES
 
@@ -257,7 +273,12 @@ serve(async (req) => {
       } else if (t === "ooc_passthrough") {
         const note = typeof action.ooc_note === "string" ? action.ooc_note.trim().slice(0, 800) : "";
         if (!note) continue;
-        cleanActions.push({ type: t, ooc_note: note, rationale });
+        // Turn count: clamp to sensible floor; no upper cap — trust the Director.
+        const rawTurns = typeof action.turns_remaining === "number" && Number.isFinite(action.turns_remaining)
+          ? Math.floor(action.turns_remaining)
+          : 2; // default if Director omits
+        const turns = Math.max(1, rawTurns);
+        cleanActions.push({ type: t, ooc_note: note, turns_remaining: turns, rationale });
       }
     }
 

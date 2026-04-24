@@ -274,13 +274,16 @@ function getActionMeta(action: DirectorProposedAction): { label: string; preview
         destructive: true,
         defaultRationale: 'Rewrite dragon personality notes.',
       };
-    case 'ooc_passthrough':
+    case 'ooc_passthrough': {
+      const turns = typeof action.turns_remaining === 'number' && action.turns_remaining > 0 ? action.turns_remaining : 2;
+      const turnLabel = turns === 1 ? '1 turn' : `${turns} turns`;
       return {
-        label: 'OOC TO DM',
+        label: `OOC · ${turnLabel}`,
         preview: action.ooc_note || null,
         destructive: false,
-        defaultRationale: 'Pass note to the main DM.',
+        defaultRationale: 'Silent context for the next DM turn(s).',
       };
+    }
     default:
       return { label: 'ACTION', preview: null, destructive: false, defaultRationale: '' };
   }
