@@ -35,6 +35,8 @@ const DIRECTOR_TOOL = {
                   "add_memory_anchor",
                   "update_dragon_personality",
                   "ooc_passthrough",
+                  "update_character_identity",
+                  "update_campaign_settings",
                 ],
               },
               guide_name: { type: "string", description: "For install_guide. 2-5 words." },
@@ -50,6 +52,30 @@ const DIRECTOR_TOOL = {
               turns_remaining: {
                 type: "number",
                 description: "For ooc_passthrough. How many main DM response turns this context should stay active before fading. Any positive integer. Choose based on the nature of the note: a brief reaction (fart, stumble) is 1-2 turns; an ongoing physical state (broken armor, fresh wound, charm still worn) can be 4-10. If the user's intent about duration is unclear, ASK in the reply before proposing — don't guess for substantial or ambiguous cases.",
+              },
+              new_character_name: { type: "string", description: "For update_character_identity. The rider's new name. Omit if not changing." },
+              new_dragon_name: { type: "string", description: "For update_character_identity. The dragon's new name. Omit if not changing." },
+              new_dragon_color: { type: "string", description: "For update_character_identity. New dragon color/description (e.g. 'Black', 'Orange with copper scales'). Omit if not changing." },
+              new_signet_type: { type: "string", description: "For update_character_identity. New signet description (e.g. 'Telekinesis', 'I can read emotions at close range'). Omit if not changing." },
+              new_year_at_basgiath: { type: "string", description: "For update_character_identity. New year value (e.g. 'First Year', 'Second Year', 'Third Year'). Omit if not changing." },
+              new_campaign_focus: {
+                type: "string",
+                enum: ["combat", "political", "romance", "mystery", "survival", "balanced"],
+                description: "For update_campaign_settings. The campaign focus to switch to. Omit if not changing.",
+              },
+              set_lore_guides: {
+                type: "array",
+                items: { type: "string" },
+                description: "For update_campaign_settings. REPLACE the full active lore guide ID list. IDs MUST match existing ones from the state context's lore_guide_catalog. Omit if not changing.",
+              },
+              set_tone_guides: {
+                type: "array",
+                items: { type: "string" },
+                description: "For update_campaign_settings. REPLACE the full active tone guide ID list. IDs MUST match existing ones from the state context's tone_guide_catalog. Omit if not changing.",
+              },
+              set_session_template: {
+                type: ["string", "null"],
+                description: "For update_campaign_settings. New session template id OR null to clear. ID must match the state context's session_template_catalog. Omit if not changing.",
               },
               rationale: { type: "string", description: "Brief 1-sentence justification shown in the confirmation UI." },
             },
@@ -100,6 +126,16 @@ You figure out which of the 7 action types (if any) they're asking for, and you 
      User: "Yeah just this one."
      Director: (proposes action) ooc_passthrough with ooc_note="The character just farted in fear." and turns_remaining=1
    Do NOT auto-fill the user's input. The note injects silently into the main DM's context.
+8. update_character_identity — Edit free-text identity fields. Any subset of: new_character_name, new_dragon_name, new_dragon_color, new_signet_type, new_year_at_basgiath. Include ONLY the fields that the user is changing. Use when:
+   - User renames their character, dragon, or describes them differently.
+   - User progresses to a new year at Basgiath.
+   - User's signet changes or they describe it more accurately.
+   This is destructive (overwrites existing values) — describe the change clearly in the reply and ONE action per message.
+9. update_campaign_settings — Edit the structured campaign settings. Any subset of: new_campaign_focus, set_lore_guides, set_tone_guides, set_session_template.
+   - For campaign_focus: map user intent to one of: combat, political, romance, mystery, survival, balanced.
+   - For lore/tone guides: check the CURRENT ACTIVE ones from state, plus the full catalog. Include the FULL desired ID array in set_lore_guides or set_tone_guides (replaces current list — NOT a delta). If the user says "add a lore guide for X", compute the full list = currentActive + newId. If they say "remove X", it's currentActive minus that id.
+   - For session_template: pass the id OR null to clear.
+   This is destructive. Describe what's changing in the reply. If user intent maps to multiple changes, use one update_campaign_settings action with multiple fields, not multiple actions.
 
 ## RULES
 
@@ -111,6 +147,8 @@ You figure out which of the 7 action types (if any) they're asking for, and you 
 6. NEVER roleplay as the dragon, an NPC, or the player's character. You are the Director, out of scene.
 7. NEVER advance the story. If the user asks "what happens next", redirect them to the main DM.
 8. KEEP GUIDE CONTENT DM-FACING. Guides are instructions sent to the main DM's system prompt. Write them accordingly.
+9. CATALOG DISCIPLINE: For update_campaign_settings, NEVER invent guide IDs or template IDs. Only use IDs present in the state context's catalog sections. If the user asks for something that has no matching catalog entry, say so in the reply and do not propose the action — suggest they use Reconfigure Campaign in Settings to edit the full form.
+10. IDENTITY CHANGES ARE NARRATIVELY DISRUPTIVE: When the user asks to rename their character, dragon, or change signet mid-campaign, ACKNOWLEDGE the in-fiction weight of the change in your reply ("That's a major shift — the DM will adjust. Applying now."). For trivial changes (year advancement, color description tweak) just propose directly.
 
 ## OUTPUT FORMAT
 
@@ -177,6 +215,37 @@ serve(async (req) => {
       stateSections.push(`## CAMPAIGN IDENTIFIERS\n  Rider: ${characterName || "(unknown)"}\n  Dragon: ${dragonName || "(unknown)"}`);
     }
 
+    if (state?.campaign_config && typeof state.campaign_config === "object") {
+      const cc = state.campaign_config;
+      const configLines: string[] = [];
+      configLines.push(`  Character name: ${cc.character_name || "(unset)"}`);
+      configLines.push(`  Dragon name: ${cc.dragon_name || "(unset)"}`);
+      configLines.push(`  Dragon color: ${cc.dragon_color || "(unset)"}`);
+      configLines.push(`  Signet: ${cc.signet_type || "(unset)"}`);
+      configLines.push(`  Year at Basgiath: ${cc.year_at_basgiath || "(unset)"}`);
+      configLines.push(`  Campaign focus: ${cc.campaign_focus || "(unset)"}`);
+      configLines.push(`  Session template: ${cc.session_template || "(none)"}`);
+      configLines.push(`  Active lore guides: ${Array.isArray(cc.active_lore_guide_ids) && cc.active_lore_guide_ids.length > 0 ? cc.active_lore_guide_ids.join(", ") : "(none)"}`);
+      configLines.push(`  Active tone guides: ${Array.isArray(cc.active_tone_guide_ids) && cc.active_tone_guide_ids.length > 0 ? cc.active_tone_guide_ids.join(", ") : "(none)"}`);
+      stateSections.push(`## CURRENT CAMPAIGN CONFIG\n${configLines.join("\n")}`);
+    }
+
+    const loreCatalog = Array.isArray(state?.lore_guide_catalog) ? state.lore_guide_catalog : [];
+    if (loreCatalog.length > 0) {
+      const lines = loreCatalog.slice(0, 40).map((g: any) => `  - ${g.id}: ${g.name}${g.description ? ` — ${String(g.description).slice(0, 120)}` : ""}`).join("\n");
+      stateSections.push(`## LORE GUIDE CATALOG\n${lines}`);
+    }
+    const toneCatalog = Array.isArray(state?.tone_guide_catalog) ? state.tone_guide_catalog : [];
+    if (toneCatalog.length > 0) {
+      const lines = toneCatalog.slice(0, 40).map((g: any) => `  - ${g.id}: ${g.name}${g.description ? ` — ${String(g.description).slice(0, 120)}` : ""}`).join("\n");
+      stateSections.push(`## TONE GUIDE CATALOG\n${lines}`);
+    }
+    const templateCatalog = Array.isArray(state?.session_template_catalog) ? state.session_template_catalog : [];
+    if (templateCatalog.length > 0) {
+      const lines = templateCatalog.slice(0, 30).map((g: any) => `  - ${g.id}: ${g.name}${g.description ? ` — ${String(g.description).slice(0, 120)}` : ""}`).join("\n");
+      stateSections.push(`## SESSION TEMPLATE CATALOG\n${lines}`);
+    }
+
     const contextBlock = stateSections.join("\n\n");
     const fullSystemPrompt = `${SYSTEM_PROMPT}\n\n## CURRENT CAMPAIGN STATE\n\n${contextBlock}`;
 
@@ -240,6 +309,7 @@ serve(async (req) => {
     const ALLOWED_TYPES = new Set([
       "install_guide", "disable_guide", "delete_guide", "update_campaign_summary",
       "add_memory_anchor", "update_dragon_personality", "ooc_passthrough",
+      "update_character_identity", "update_campaign_settings",
     ]);
 
     const cleanActions: any[] = [];
@@ -279,6 +349,34 @@ serve(async (req) => {
           : 2; // default if Director omits
         const turns = Math.max(1, rawTurns);
         cleanActions.push({ type: t, ooc_note: note, turns_remaining: turns, rationale });
+      } else if (t === "update_character_identity") {
+        const fields: any = {};
+        if (typeof action.new_character_name === "string" && action.new_character_name.trim()) fields.new_character_name = action.new_character_name.trim().slice(0, 100);
+        if (typeof action.new_dragon_name === "string" && action.new_dragon_name.trim()) fields.new_dragon_name = action.new_dragon_name.trim().slice(0, 100);
+        if (typeof action.new_dragon_color === "string" && action.new_dragon_color.trim()) fields.new_dragon_color = action.new_dragon_color.trim().slice(0, 100);
+        if (typeof action.new_signet_type === "string" && action.new_signet_type.trim()) fields.new_signet_type = action.new_signet_type.trim().slice(0, 300);
+        if (typeof action.new_year_at_basgiath === "string" && action.new_year_at_basgiath.trim()) fields.new_year_at_basgiath = action.new_year_at_basgiath.trim().slice(0, 50);
+        if (Object.keys(fields).length === 0) continue;
+        cleanActions.push({ type: t, ...fields, rationale });
+      } else if (t === "update_campaign_settings") {
+        const ALLOWED_FOCUS = new Set(["combat", "political", "romance", "mystery", "survival", "balanced"]);
+        const fields: any = {};
+        if (typeof action.new_campaign_focus === "string" && ALLOWED_FOCUS.has(action.new_campaign_focus)) {
+          fields.new_campaign_focus = action.new_campaign_focus;
+        }
+        if (Array.isArray(action.set_lore_guides)) {
+          fields.set_lore_guides = action.set_lore_guides.filter((s: any) => typeof s === "string").slice(0, 30);
+        }
+        if (Array.isArray(action.set_tone_guides)) {
+          fields.set_tone_guides = action.set_tone_guides.filter((s: any) => typeof s === "string").slice(0, 30);
+        }
+        if (action.set_session_template === null) {
+          fields.set_session_template = null;
+        } else if (typeof action.set_session_template === "string" && action.set_session_template.trim()) {
+          fields.set_session_template = action.set_session_template.trim();
+        }
+        if (Object.keys(fields).length === 0) continue;
+        cleanActions.push({ type: t, ...fields, rationale });
       }
     }
 

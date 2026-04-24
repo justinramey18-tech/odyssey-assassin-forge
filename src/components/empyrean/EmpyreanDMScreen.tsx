@@ -79,7 +79,7 @@ import {
 } from '@/lib/empyreanLoadout';
 
 import { empyreanPrompts } from '@/lib/empyreanPrompts';
-import { EMPYREAN_SESSION_GUIDES } from '@/lib/empyreanGMGuides';
+import { EMPYREAN_SESSION_GUIDES, EMPYREAN_LORE_GUIDES, EMPYREAN_TONE_GUIDES } from '@/lib/empyreanGMGuides';
 import { DM_MODELS } from '@/lib/dm-models';
 import { useSpotify } from '@/hooks/use-spotify';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
@@ -1097,6 +1097,98 @@ ${oocLines}`;
           };
           setActiveOOCNotes(prev => [...prev, newNote]);
           toast.success(`Noted — DM will see this for the next ${turns} ${turns === 1 ? 'turn' : 'turns'}.`);
+          break;
+        }
+        case 'update_character_identity': {
+          if (!config) {
+            toast.error('No campaign config loaded.');
+            return;
+          }
+          const updated: typeof config = { ...config };
+          const changed: string[] = [];
+          if (action.new_character_name && action.new_character_name !== config.characterName) {
+            updated.characterName = action.new_character_name;
+            changed.push('character name');
+          }
+          if (action.new_dragon_name && action.new_dragon_name !== config.dragonName) {
+            updated.dragonName = action.new_dragon_name;
+            changed.push('dragon name');
+          }
+          if (action.new_dragon_color && action.new_dragon_color !== config.dragonColor) {
+            updated.dragonColor = action.new_dragon_color;
+            changed.push('dragon color');
+          }
+          if (action.new_signet_type && action.new_signet_type !== config.signetType) {
+            updated.signetType = action.new_signet_type;
+            changed.push('signet');
+          }
+          if (action.new_year_at_basgiath && action.new_year_at_basgiath !== config.yearAtBasgiath) {
+            updated.yearAtBasgiath = action.new_year_at_basgiath;
+            changed.push('year');
+          }
+          if (changed.length === 0) {
+            toast.info('No changes detected.');
+            return;
+          }
+          setConfig(updated);
+          saveEmpyreanDMConfig(updated);
+          toast.success(`Updated: ${changed.join(', ')}.`);
+          break;
+        }
+        case 'update_campaign_settings': {
+          if (!config) {
+            toast.error('No campaign config loaded.');
+            return;
+          }
+          const updated: typeof config = { ...config };
+          const changed: string[] = [];
+          const ALLOWED_FOCUS = new Set(['combat', 'political', 'romance', 'mystery', 'survival', 'balanced']);
+          if (action.new_campaign_focus && ALLOWED_FOCUS.has(action.new_campaign_focus) && action.new_campaign_focus !== config.campaignFocus) {
+            updated.campaignFocus = action.new_campaign_focus as typeof config.campaignFocus;
+            changed.push(`focus → ${action.new_campaign_focus}`);
+          }
+          if (Array.isArray(action.set_lore_guides)) {
+            const validIds = new Set(EMPYREAN_LORE_GUIDES.map(g => g.id));
+            const filtered = action.set_lore_guides.filter((id: string) => validIds.has(id));
+            const dropped = action.set_lore_guides.length - filtered.length;
+            if (dropped > 0) {
+              console.warn('[Director] Dropped', dropped, 'unknown lore guide ids:', action.set_lore_guides.filter((id: string) => !validIds.has(id)));
+            }
+            updated.selectedLoreGuides = filtered;
+            changed.push(`lore guides (${filtered.length})`);
+          }
+          if (Array.isArray(action.set_tone_guides)) {
+            const validIds = new Set(EMPYREAN_TONE_GUIDES.map(g => g.id));
+            const filtered = action.set_tone_guides.filter((id: string) => validIds.has(id));
+            const dropped = action.set_tone_guides.length - filtered.length;
+            if (dropped > 0) {
+              console.warn('[Director] Dropped', dropped, 'unknown tone guide ids:', action.set_tone_guides.filter((id: string) => !validIds.has(id)));
+            }
+            updated.selectedToneGuides = filtered;
+            changed.push(`tone guides (${filtered.length})`);
+          }
+          if (action.set_session_template !== undefined) {
+            if (action.set_session_template === null) {
+              updated.selectedSessionTemplate = null;
+              changed.push('template (cleared)');
+            } else {
+              const validTemplateIds = new Set(EMPYREAN_SESSION_GUIDES.map(g => g.id));
+              if (validTemplateIds.has(action.set_session_template)) {
+                updated.selectedSessionTemplate = action.set_session_template;
+                changed.push(`template → ${action.set_session_template}`);
+              } else {
+                toast.error(`Unknown template id: ${action.set_session_template}`);
+                return;
+              }
+            }
+          }
+          if (changed.length === 0) {
+            toast.info('No settings changes detected.');
+            return;
+          }
+          setConfig(updated);
+          saveEmpyreanDMConfig(updated);
+          toast.success(`Settings updated: ${changed.join(' · ')}.`);
           break;
         }
         default:
