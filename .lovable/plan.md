@@ -1,73 +1,67 @@
 
 
-## Whisper Tray → One-Tap Intent Buttons
+## Why the Director can't change anything (and why the AI DM doesn't see it)
 
-Turn the current "Roll" button on each whisper into a plain-English action like **"Try to dodge"** or **"Catch the reins"** that auto-rolls and posts a narrative result to chat. New players never see dice jargon; experienced players still get the number in parentheses.
+### The functional bug
 
-### What changes for the player
+When you tap **Confirm** on a Director suggestion, nothing actually saves. The card disappears, you get a friendly toast, and the AI DM never finds out anything happened.
 
-Before: Whisper says "Make a Dexterity save (DC 15)" → tap "🎲 Roll" → full dice roller opens with DEX/DC/advantage controls → confirm → result posts.
+In plain terms: the Director chat is correctly proposing changes, but the "apply this change" wire was never connected. The Confirm button is still running the placeholder behavior from earlier development — the one that says "yes, I'll pretend I did it" without writing to memory anchors, the campaign summary, the dragon personality, or anywhere else.
 
-After: Same whisper → button reads **"Try to dodge"** → one tap → chat shows *"I tried to dodge."* ✨ **Success** (17).
+That's why the AI DM, when you asked OOC, knew nothing about your fart memory: the memory was never saved. It was acknowledged in the Director chat and immediately discarded.
 
-### Verb selection (in priority order)
+### The "third-year cadet" expectation is separate
 
-1. **DM-provided verb** (most accurate): the DM can optionally include `[verb: catch the reins]` inside an ACTION tag and that exact phrase becomes the button label.
-2. **Skill mapping**: `perception → "Try to notice"`, `stealth → "Try to sneak past"`, `athletics → "Push through"`, etc.
-3. **Ability mapping**: `DEX save → "Try to dodge"`, `CON save → "Endure it"`, `WIS check → "Trust your gut"`, etc. Saves and checks get different verbs.
-4. **Vague fallback**: if the whisper has no skill/ability/verb, button reads **"Roll for it"** and tapping opens the full dice roller (current behavior preserved).
+Even after the wire is fixed, "change me from a first-year to a third-year cadet" won't directly rewrite the year field on your character sheet. That field (`yearAtBasgiath`) is set during campaign setup and isn't one of the seven things the Director can edit.
 
-### Result message format
+What the Director *can* do for that request:
+- Pin a **memory anchor** like "The rider has been promoted to third-year cadet, mid-campaign."
+- Update the **campaign summary** to reflect the time skip and new rank.
 
-- Standard: `*I tried to notice.* ✨ **Success** (15).`
-- Crit: `*I tried to dodge.* ⭐ **Critical success** (25).`
-- Fumble: `*I tried to sneak past.* 💀 **Fumble** (4).`
-- No DC in whisper: `*I muscled through.* 🎲 **Rolled** (14).`
+Both of those will make the AI DM treat you as a third-year going forward — but the cosmetic year value on your character setup screen will still read "first-year" until you reconfigure the campaign manually. I'll mention this in the toast/confirmation copy so it's clear.
 
-The roll uses the same dice engine, modifiers, proficiency bonuses, and weighted-odds setting as the full dice roller — no mechanical drift.
+---
 
-### Empyrean terminology recognition
+## The fix
 
-The whisper parser is extended so it understands BOTH D&D terms (Perception, Dexterity save) AND Empyrean terms the DM actually uses:
+### 1. Connect the Confirm button to real save actions
+In the Empyrean DM screen, add the dispatcher that actually performs each of the 7 action types:
+- **Install/disable/delete guide** → use the existing GM Guides system (already loaded in the screen).
+- **Update campaign summary** → save to the Empyrean-specific summary key (NOT the default one — important so the right AI session reads it).
+- **Pin memory anchor** → call the existing dragon bond memory function.
+- **Update dragon personality** → update the dragon notes state and persist via the existing save helper.
+- **OOC passthrough** → drop the note into the input bar prefixed with "(out of character: …)" for you to review and send.
 
-| Empyrean term | Maps to | Verb |
-|---|---|---|
-| Awareness | perception | Try to notice |
-| Aerial Combat | athletics | Push through |
-| Signet Theory | arcana | Recall what you know |
-| Riding | animal handling | Try to calm them |
-| Shadowcraft | stealth | Try to sneak past |
-| Battle Sense | insight | Read them |
-| BODY check | STR | Muscle through |
-| Reflexes | DEX | Try to react |
-| Grit Save | CON save | Endure it |
-| Will / Resolve | WIS | Resist the pull |
-| Presence | CHA | Work the moment |
+Each of these uses functions that *already exist* in the codebase and are *already used* elsewhere — we're just calling them from a new place.
 
-### Files
+### 2. Wire it through to the Director chat
+Pass the new dispatcher down through the Character Sheet to the Director chat component. Once it's connected, Confirm will:
+- Actually save the change.
+- Show a success toast naming what changed.
+- Auto-dismiss the card.
+- Re-throw on failure so the card stays visible if something breaks (so you can retry).
 
-**Create**
-- `src/lib/whisperAutoRoll.ts` — verb tables, resolver, roll executor, narrative formatter
+### 3. Use the right campaign summary storage
+The Empyrean DM uses its own summary key (`empyrean-dm-campaign-summary`), separate from the regular Solo DM. The Director must save to that one or the Empyrean AI won't see updates. The dispatcher will pass the Empyrean key explicitly to the save function.
 
-**Modify**
-- `src/lib/whisperRollHint.ts` — add Empyrean synonym tables, add `[verb: ...]` extraction, add `explicitVerb` to `RollHint`
-- `src/components/ai-dm/WhisperTray.tsx` — replace `onRollDice` prop with `onAutoRoll` + `onOpenRoller`; render verb label
-- `src/components/empyrean/EmpyreanDMScreen.tsx` — split `handleWhisperRoll` into `handleWhisperAutoRoll` (in-place roll + post to chat via `handleAppendPrompt`) and `handleWhisperOpenRoller` (opens dice sheet); update all 3 `<WhisperTray>` callsites
-- `src/lib/empyreanDMPersona.ts` — add an optional **VERB HINT** subsection under "WHEN TO CALL FOR CHECKS" documenting `[verb: ...]` syntax with examples
+### 4. Mid-campaign year promotions
+For requests like the third-year change, the Director already proposes either a guide or a memory anchor — that path is fine and will start working as soon as the wire is connected. No new action type needed.
 
-### Out of scope / preserved
+---
 
-- AIDMScreen and PartyDMScreen render `<WhisperTray>` without a roll prop today — they keep working with no button, no changes needed.
-- DMDiceRoller, dice odds, proficiency math, and the roller sheet itself: untouched. Vague whispers still open it as the safety net.
-- Signet Management, Cooldowns, Rider Loadout, Ability Trees, Dragon Bond Chat: untouched.
-- Advantage/disadvantage from the whisper text is respected automatically (parser already extracts `rollMode`); no user toggle on the button.
-- One tap = one roll. No re-roll button, no skip button.
+## Files touched
 
-### Verification (post-deploy)
+- `src/components/empyrean/EmpyreanDMScreen.tsx` — add the dispatcher function and pass it to `<CharacterSheet>` as `onConfirmDirectorAction`.
 
-1. Empyrean DM narrates "Make an Awareness check (DC 12)" → button says **"Try to notice"** → tap → chat posts result with success/failure.
-2. "Make a Grit Save (DC 13)" → button **"Endure it"** → auto-rolls.
-3. DM writes `[verb: catch the reins] Roll Riding (DC 10)` → button **"Catch the reins"** → posts *"I caught the reins."*
-4. Vague whisper "Make a check" → button **"Roll for it"** → opens full dice roller (fallback preserved).
-5. Disadvantage whisper rolls 2d20 keeps lowest; crit/fumble emoji and label change correctly.
+That's it. No edge function changes, no new hooks, no schema work. One file.
+
+---
+
+## How you'll know it's working
+
+After deploy:
+1. Open Talk to the DM. Say *"Pin a memory that I farted in fear during my first dragon flight."*
+2. Tap Confirm. Toast: **"Memory anchor pinned."**
+3. Switch to the main DM. Ask OOC *"What memory anchors do you have?"* — the fart should appear.
+4. Say *"Update the campaign summary to note I'm now a third-year cadet."* → Confirm → main DM treats you as third-year.
 
