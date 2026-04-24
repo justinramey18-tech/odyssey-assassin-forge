@@ -284,6 +284,35 @@ function getActionMeta(action: DirectorProposedAction): { label: string; preview
         defaultRationale: 'Silent context for the next DM turn(s).',
       };
     }
+    case 'update_character_identity': {
+      const changes: string[] = [];
+      if (action.new_character_name) changes.push(`Name: ${action.new_character_name}`);
+      if (action.new_dragon_name) changes.push(`Dragon: ${action.new_dragon_name}`);
+      if (action.new_dragon_color) changes.push(`Dragon color: ${action.new_dragon_color}`);
+      if (action.new_signet_type) changes.push(`Signet: ${action.new_signet_type.length > 80 ? action.new_signet_type.slice(0, 77) + '…' : action.new_signet_type}`);
+      if (action.new_year_at_basgiath) changes.push(`Year: ${action.new_year_at_basgiath}`);
+      return {
+        label: 'UPDATE IDENTITY',
+        preview: changes.length > 0 ? changes.join(' · ') : null,
+        destructive: true,
+        defaultRationale: 'Rewrite rider or dragon identity.',
+      };
+    }
+    case 'update_campaign_settings': {
+      const changes: string[] = [];
+      if (action.new_campaign_focus) changes.push(`Focus: ${action.new_campaign_focus}`);
+      if (Array.isArray(action.set_lore_guides)) changes.push(`Lore guides: ${action.set_lore_guides.length}`);
+      if (Array.isArray(action.set_tone_guides)) changes.push(`Tone guides: ${action.set_tone_guides.length}`);
+      if (action.set_session_template !== undefined) {
+        changes.push(`Template: ${action.set_session_template || '(cleared)'}`);
+      }
+      return {
+        label: 'UPDATE SETTINGS',
+        preview: changes.length > 0 ? changes.join(' · ') : null,
+        destructive: true,
+        defaultRationale: 'Adjust campaign settings.',
+      };
+    }
     default:
       return { label: 'ACTION', preview: null, destructive: false, defaultRationale: '' };
   }

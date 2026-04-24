@@ -4,6 +4,8 @@ import { getScopedItem, setScopedItem, removeScopedItem } from '@/lib/scoped-sto
 import { loadGMGuides } from '@/lib/gm-guides-storage';
 import { loadBondState } from '@/lib/dragonBondState';
 import { loadCampaignSummary } from '@/lib/campaign-summary-storage';
+import { loadEmpyreanDMConfig } from '@/lib/empyreanDMPersona';
+import { EMPYREAN_LORE_GUIDES, EMPYREAN_TONE_GUIDES, EMPYREAN_SESSION_GUIDES } from '@/lib/empyreanGMGuides';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -14,7 +16,9 @@ export type DirectorActionType =
   | 'update_campaign_summary'
   | 'add_memory_anchor'
   | 'update_dragon_personality'
-  | 'ooc_passthrough';
+  | 'ooc_passthrough'
+  | 'update_character_identity'
+  | 'update_campaign_settings';
 
 export interface DirectorProposedAction {
   /** Unique client-assigned id so dismiss/confirm can target the right card. */
@@ -30,6 +34,17 @@ export interface DirectorProposedAction {
   new_dragon_personality?: string;
   ooc_note?: string;
   turns_remaining?: number;
+  // update_character_identity
+  new_character_name?: string;
+  new_dragon_name?: string;
+  new_dragon_color?: string;
+  new_signet_type?: string;
+  new_year_at_basgiath?: string;
+  // update_campaign_settings
+  new_campaign_focus?: string;
+  set_lore_guides?: string[];
+  set_tone_guides?: string[];
+  set_session_template?: string | null;
 }
 
 export interface DirectorMessage {
@@ -92,6 +107,7 @@ export function useDirectorChat(opts: UseDirectorChatOptions = {}) {
       .filter((m: any) => m && typeof m.text === 'string')
       .map((m: any) => m.text);
     const campaignSummary = loadCampaignSummary() ?? '';
+    const campaignCfg = loadEmpyreanDMConfig();
     return {
       guides,
       dragon_personality: dragonNotes || '',
@@ -99,6 +115,20 @@ export function useDirectorChat(opts: UseDirectorChatOptions = {}) {
       memory_anchors: memoryAnchors,
       dragon_name: dragonName || '',
       character_name: characterName || '',
+      campaign_config: campaignCfg ? {
+        character_name: campaignCfg.characterName || '',
+        dragon_name: campaignCfg.dragonName || '',
+        dragon_color: campaignCfg.dragonColor || '',
+        signet_type: campaignCfg.signetType || '',
+        year_at_basgiath: campaignCfg.yearAtBasgiath || '',
+        campaign_focus: campaignCfg.campaignFocus || 'balanced',
+        session_template: campaignCfg.selectedSessionTemplate || null,
+        active_lore_guide_ids: campaignCfg.selectedLoreGuides || [],
+        active_tone_guide_ids: campaignCfg.selectedToneGuides || [],
+      } : null,
+      lore_guide_catalog: EMPYREAN_LORE_GUIDES.map(g => ({ id: g.id, name: g.name, description: g.description })),
+      tone_guide_catalog: EMPYREAN_TONE_GUIDES.map(g => ({ id: g.id, name: g.name, description: g.description })),
+      session_template_catalog: EMPYREAN_SESSION_GUIDES.map(g => ({ id: g.id, name: g.name, description: g.description })),
     };
   }, [dragonName, characterName, dragonNotes]);
 
@@ -144,6 +174,15 @@ export function useDirectorChat(opts: UseDirectorChatOptions = {}) {
         new_dragon_personality: a.new_dragon_personality,
         ooc_note: a.ooc_note,
         turns_remaining: typeof a.turns_remaining === 'number' ? a.turns_remaining : undefined,
+        new_character_name: a.new_character_name,
+        new_dragon_name: a.new_dragon_name,
+        new_dragon_color: a.new_dragon_color,
+        new_signet_type: a.new_signet_type,
+        new_year_at_basgiath: a.new_year_at_basgiath,
+        new_campaign_focus: a.new_campaign_focus,
+        set_lore_guides: a.set_lore_guides,
+        set_tone_guides: a.set_tone_guides,
+        set_session_template: a.set_session_template,
       }));
 
       const assistantMsg: DirectorMessage = {
