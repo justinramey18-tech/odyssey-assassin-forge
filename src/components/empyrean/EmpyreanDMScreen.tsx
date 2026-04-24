@@ -69,6 +69,14 @@ import { getBondDescriptor, getTrustDescriptor, buildDragonChatPrompt, DRAGON_CH
 import { getDragonColorHex } from '@/lib/dragonColors';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { saveCampaignSummary } from '@/lib/campaign-summary-storage';
+import {
+  loadEmpyreanLoadout,
+  getEquippedItem,
+  ALL_SLOTS as EMPYREAN_ALL_SLOTS,
+  SLOT_META as EMPYREAN_SLOT_META,
+  RARITY_META as EMPYREAN_RARITY_META,
+  type EmpyreanLoadoutState,
+} from '@/lib/empyreanLoadout';
 
 import { empyreanPrompts } from '@/lib/empyreanPrompts';
 import { EMPYREAN_SESSION_GUIDES } from '@/lib/empyreanGMGuides';
