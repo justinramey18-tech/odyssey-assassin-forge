@@ -1,5 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo, useSyncExternalStore } from 'react';
-import { debugLog, sampleDomState, getDebugEvents, type DebugEvent } from '@/lib/debugLog';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { parseResponseIntoSlides, stripCinematicTags } from '@/lib/parseSlides';
@@ -1313,13 +1312,11 @@ ${oocLines}`;
   }, []);
 
   const handleUsePrompt = useCallback((prompt: string) => {
-    debugLog('prompt', `handleUsePrompt isLoading=${isLoading} promptLen=${prompt.length}`);
     if (!isLoading) {
       sendMessage(prompt);
       setActiveNavTab(null);
       setNavExpanded(false);
     }
-    debugLog('prompt', `handleUsePrompt returned`);
   }, [isLoading, sendMessage]);
 
   // Narrative cooldowns: decrement when a new DM assistant response arrives.
@@ -1342,8 +1339,6 @@ ${oocLines}`;
   }, [messages]);
 
   const handleUseEmpyreanAbility = useCallback((abilityId: string, generatedPrompt: string) => {
-    debugLog('ability', `handleUseEmpyreanAbility id=${abilityId}`);
-    sampleDomState('ability-start');
     // Compute cooldown dynamically from tier + rider level. Falls back to the
     // default if the ability can't be found (shouldn't happen — picker only
     // surfaces valid unlocked abilities — but we degrade safely).
@@ -1355,38 +1350,7 @@ ${oocLines}`;
     startNarrativeCooldown(abilityId, turns);
     setNarrativeCooldowns(loadNarrativeCooldowns());
     handleUsePrompt(generatedPrompt);
-    debugLog('ability', `handleUseEmpyreanAbility returned`);
   }, [handleUsePrompt, characterContext]);
-
-  // ─── DIAGNOSTIC: debug event subscription ─────────────────────────────
-  const debugEvents = useSyncExternalStore(
-    (cb) => {
-      window.addEventListener('debug-log-update', cb);
-      return () => window.removeEventListener('debug-log-update', cb);
-    },
-    () => getDebugEvents(),
-    () => []
-  );
-
-  // DIAGNOSTIC: log isLoading transitions + sample DOM after each flip.
-  const prevIsLoadingDebugRef = useRef(isLoading);
-  useEffect(() => {
-    if (prevIsLoadingDebugRef.current !== isLoading) {
-      debugLog('loading', `isLoading ${prevIsLoadingDebugRef.current} -> ${isLoading}`);
-      prevIsLoadingDebugRef.current = isLoading;
-      requestAnimationFrame(() => sampleDomState(`after-isLoading-${isLoading}`));
-    }
-  }, [isLoading]);
-
-  // DIAGNOSTIC: log abilityPickerOpen transitions.
-  const prevAbilityPickerOpenRef = useRef(abilityPickerOpen);
-  useEffect(() => {
-    if (prevAbilityPickerOpenRef.current !== abilityPickerOpen) {
-      debugLog('picker', `abilityPickerOpen ${prevAbilityPickerOpenRef.current} -> ${abilityPickerOpen}`);
-      prevAbilityPickerOpenRef.current = abilityPickerOpen;
-      requestAnimationFrame(() => sampleDomState(`after-picker-${abilityPickerOpen ? 'open' : 'close'}`));
-    }
-  }, [abilityPickerOpen]);
 
   const handleGroundYourself = useCallback(() => {
     // Narrative beat sent to the DM.
@@ -1525,33 +1489,6 @@ ${oocLines}`;
 
   return (
     <div className={cn("flex flex-col bg-gradient-to-b from-[#1a0a2e] via-background to-background", embedded ? "absolute inset-0" : "fixed inset-0 z-[60]")}>
-      {/* DIAGNOSTIC: debug strip — remove when ability lockup is fixed */}
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          maxHeight: '40vh',
-          overflowY: 'auto',
-          background: 'rgba(0,0,0,0.78)',
-          color: '#7fff7f',
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          lineHeight: 1.25,
-          padding: '2px 4px',
-          zIndex: 99999,
-          pointerEvents: 'none',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-all',
-        }}
-      >
-        {debugEvents.slice(-15).map((e: DebugEvent, i: number) => (
-          <div key={`${e.t}-${i}`}>
-            {e.t}ms [{e.tag}] {e.msg}
-          </div>
-        ))}
-      </div>
       {/* Header — hidden when embedded in container */}
       {!embedded && <div className="flex items-center justify-between px-3 py-2.5 border-b border-purple-500/20 bg-background/80 backdrop-blur-sm shrink-0">
         <div className="flex items-center gap-2">
