@@ -83,6 +83,9 @@ export function CharacterSheet({
   onOpenAbilityTrees,
   onOpenEmpyreanCooldowns,
   onOpenSignetManagement,
+  dragonName,
+  dragonNotes,
+  onConfirmDirectorAction,
 }: CharacterSheetProps) {
   const [activeTab, setActiveTab] = useState<CharacterSheetTab>(initialTab);
 
@@ -152,7 +155,14 @@ export function CharacterSheet({
             className="h-full"
           >
             {activeTab === 'character' && <CharacterTab onCloseSheet={onClose} onOpenInventory={onOpenInventory} onOpenAbilityPicker={onOpenAbilityPicker} onOpenLoadout={onOpenLoadout} onOpenAbilityTrees={onOpenAbilityTrees} onOpenEmpyreanCooldowns={onOpenEmpyreanCooldowns} onOpenSignetManagement={onOpenSignetManagement} />}
-            {activeTab === 'talk' && <TalkTabPlaceholder />}
+            {activeTab === 'talk' && (
+              <DirectorChat
+                dragonName={dragonName}
+                characterName={characterName}
+                dragonNotes={dragonNotes}
+                onConfirmAction={onConfirmDirectorAction}
+              />
+            )}
             {activeTab === 'settings' && (
               <SettingsTab
                 onCampaignSaves={onCampaignSaves}
