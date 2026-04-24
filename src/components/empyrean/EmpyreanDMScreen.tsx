@@ -98,6 +98,8 @@ import { RiderLoadoutScreen } from '@/components/empyrean/RiderLoadoutScreen';
 import { EmpyreanAbilitiesScreen } from '@/components/empyrean/EmpyreanAbilitiesScreen';
 import { EmpyreanCooldownsDrawer } from '@/components/empyrean/EmpyreanCooldownsDrawer';
 import { SignetManagementDrawer } from '@/components/empyrean/SignetManagementDrawer';
+import { OOCNotesSheet, type ActiveOOCNote } from '@/components/empyrean/OOCNotesSheet';
+import { Eye } from 'lucide-react';
 import { computeCooldownTurns, getAbilityById } from '@/lib/empyreanAbilities';
 import {
   loadNarrativeCooldowns,
@@ -240,6 +242,8 @@ export function EmpyreanDMScreen({
   const [abilityTreesOpen, setAbilityTreesOpen] = useState(false);
   const [empyreanCooldownsOpen, setEmpyreanCooldownsOpen] = useState(false);
   const [signetManagementOpen, setSignetManagementOpen] = useState(false);
+  const [activeOOCNotes, setActiveOOCNotes] = useState<ActiveOOCNote[]>([]);
+  const [oocNotesSheetOpen, setOOCNotesSheetOpen] = useState(false);
   const [narrativeCooldowns, setNarrativeCooldowns] = useState<NarrativeCooldownMap>(() => loadNarrativeCooldowns());
   const prevAssistantMessageCountRef = useRef<number>(0);
   const [showPrompts, setShowPrompts] = useState(false);
@@ -534,8 +538,16 @@ THE AFTERMATH: The party reacts. The world rewrites. End with a sense that every
 
 CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very end of your response. Do NOT emit it until the narration is complete.`;
     }
+    if (activeOOCNotes.length > 0) {
+      const oocLines = activeOOCNotes.map(n => `- ${n.text}`).join('\n');
+      persona += `\n\n## RECENT OUT-OF-CHARACTER CONTEXT
+
+The following facts about the character or the moment are known to you but not stated in the player's messages. Work them into your narration naturally when the moment fits — do NOT announce them; do NOT say "I notice that..." — just let them inform your description of the scene, the NPCs' reactions, or the character's body. Do not repeat these facts if they have already been woven in.
+
+${oocLines}`;
+    }
     return persona;
-  }, [config, characterName, dragonNotes, dragonBond.bondState, dragonBond.bondState.totalChatExchanges, isUnbonded, threshingAuthorized]);
+  }, [config, characterName, dragonNotes, dragonBond.bondState, dragonBond.bondState.totalChatExchanges, isUnbonded, threshingAuthorized, activeOOCNotes]);
 
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
   const { weather } = useWeather();
@@ -1057,8 +1069,16 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
             toast.error('OOC note is empty.');
             return;
           }
-          handleAppendPrompt(`(out of character: ${action.ooc_note})`);
-          toast.success('OOC note added to your input. Review and send when ready.');
+          const turns = typeof action.turns_remaining === 'number' && action.turns_remaining > 0
+            ? Math.floor(action.turns_remaining)
+            : 2;
+          const newNote: ActiveOOCNote = {
+            id: `ooc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            text: action.ooc_note.trim(),
+            turnsRemaining: turns,
+          };
+          setActiveOOCNotes(prev => [...prev, newNote]);
+          toast.success(`Noted — DM will see this for the next ${turns} ${turns === 1 ? 'turn' : 'turns'}.`);
           break;
         }
         default:
