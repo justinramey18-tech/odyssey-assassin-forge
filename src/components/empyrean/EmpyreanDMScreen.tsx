@@ -2076,6 +2076,15 @@ ${oocLines}`;
         onConfirmDirectorAction={handleConfirmDirectorAction}
       />
 
+      {/* OOC Notes — bottom sheet showing active silent context for the main DM */}
+      <OOCNotesSheet
+        open={oocNotesSheetOpen}
+        onOpenChange={setOOCNotesSheetOpen}
+        notes={activeOOCNotes}
+        onClearNote={(id) => setActiveOOCNotes(prev => prev.filter(n => n.id !== id))}
+        onClearAll={() => setActiveOOCNotes([])}
+      />
+
       {/* Empyrean Cooldowns — bottom sheet */}
       <EmpyreanCooldownsDrawer
         open={empyreanCooldownsOpen}
