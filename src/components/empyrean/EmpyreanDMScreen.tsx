@@ -6,7 +6,7 @@ import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { useWeather } from '@/hooks/use-weather';
 import { weatherToNarrativeContext } from '@/lib/weather';
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
-import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle, Theater, Megaphone, Minus, Plus, Sparkles, Swords } from 'lucide-react';
+import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle, Theater, Megaphone, Minus, Plus, Sparkles, Swords, HelpCircle } from 'lucide-react';
 import { formatForReadingMode, type FormattedReading } from '@/lib/reading-mode-formatter';
 import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
@@ -236,6 +236,7 @@ export function EmpyreanDMScreen({
   const [diceOddsMode, setDiceOddsMode] = useState<DiceOddsMode>(() => loadDiceOddsMode());
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
   const [characterSheetOpen, setCharacterSheetOpen] = useState(false);
+  const [characterSheetInitialTab, setCharacterSheetInitialTab] = useState<'character' | 'talk' | 'settings'>('character');
   const [abilityPickerOpen, setAbilityPickerOpen] = useState(false);
   const [riderLoadoutOpen, setRiderLoadoutOpen] = useState(false);
   const [empyreanLoadout, setEmpyreanLoadout] = useState<EmpyreanLoadoutState>(() => loadEmpyreanLoadout());
@@ -987,6 +988,11 @@ ${oocLines}`;
     });
     empyreanInputRef.current?.appendText(result.chatMessage);
   }, [characterContext]);
+
+  const handleAskDirector = useCallback(() => {
+    setCharacterSheetInitialTab('talk');
+    setCharacterSheetOpen(true);
+  }, []);
 
   const handleAppendPrompt = useCallback((prompt: string) => {
     if (isLoading) return;
@@ -2067,22 +2073,35 @@ ${oocLines}`;
         </div>
       )}
 
-      {/* Contextual Actions — always visible when messages exist */}
+      {/* Contextual Actions + Ask Director shortcut */}
       {messages.length > 0 && config && (
-        <EmpyreanContextualActions
-          situation={currentSituation}
-          characterName={config?.characterName || characterName}
-          dragonName={config?.dragonName || ''}
-          signetType={config?.signetType || ''}
-          onAction={(prompt) => {
-            if (!isLoading) {
-              sendMessage(prompt);
-              setActiveNavTab(null);
-            }
-          }}
-          disabled={isLoading || (!isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout)}
-          isUnbonded={isUnbonded}
-        />
+        <div className="flex items-stretch gap-1.5">
+          <div className="flex-1 min-w-0">
+            <EmpyreanContextualActions
+              situation={currentSituation}
+              characterName={config?.characterName || characterName}
+              dragonName={config?.dragonName || ''}
+              signetType={config?.signetType || ''}
+              onAction={(prompt) => {
+                if (!isLoading) {
+                  sendMessage(prompt);
+                  setActiveNavTab(null);
+                }
+              }}
+              disabled={isLoading || (!isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout)}
+              isUnbonded={isUnbonded}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleAskDirector}
+            aria-label="Ask the Director"
+            className="shrink-0 self-center mr-3 w-10 h-10 rounded-full border border-cyan-500/35 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 active:bg-cyan-500/30 transition-colors flex items-center justify-center"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <HelpCircle className="w-5 h-5" />
+          </button>
+        </div>
       )}
 
         {npcSceneConfig?.active && (
@@ -2132,7 +2151,11 @@ ${oocLines}`;
       {/* Character Sheet — full-screen overlay (Empyrean solo) */}
       <CharacterSheet
         open={characterSheetOpen}
-        onClose={() => setCharacterSheetOpen(false)}
+        onClose={() => {
+          setCharacterSheetOpen(false);
+          setCharacterSheetInitialTab('character');
+        }}
+        initialTab={characterSheetInitialTab}
         characterName={characterName}
         onCampaignSaves={() => setShowSaves(true)}
         diceOddsMode={diceOddsMode}
