@@ -50,7 +50,6 @@ interface CharacterSheetProps {
 
 const TABS: Array<{ id: CharacterSheetTab; label: string; icon: React.ComponentType<{ className?: string }>; color: string; accent: string }> = [
   { id: 'character', label: 'Character',      icon: User,          color: 'text-sky-300',    accent: 'border-sky-400/50 bg-sky-500/10' },
-  { id: 'talk',      label: 'Talk to the DM', icon: MessageCircle, color: 'text-amber-300',  accent: 'border-amber-400/50 bg-amber-500/10' },
   { id: 'settings',  label: 'Settings',       icon: SettingsIcon,  color: 'text-slate-300',  accent: 'border-slate-400/50 bg-slate-500/10' },
 ];
 
@@ -154,14 +153,6 @@ export function CharacterSheet({
             className="h-full"
           >
             {activeTab === 'character' && <CharacterTab onCloseSheet={onClose} onOpenInventory={onOpenInventory} onOpenAbilityPicker={onOpenAbilityPicker} onOpenLoadout={onOpenLoadout} onOpenAbilityTrees={onOpenAbilityTrees} onOpenEmpyreanCooldowns={onOpenEmpyreanCooldowns} onOpenSignetManagement={onOpenSignetManagement} />}
-            {activeTab === 'talk' && (
-              <DirectorChat
-                dragonName={dragonName}
-                characterName={characterName}
-                dragonNotes={dragonNotes}
-                onConfirmAction={onConfirmDirectorAction}
-              />
-            )}
             {activeTab === 'settings' && (
               <SettingsTab
                 onCampaignSaves={onCampaignSaves}
