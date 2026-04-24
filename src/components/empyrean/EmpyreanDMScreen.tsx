@@ -237,6 +237,7 @@ export function EmpyreanDMScreen({
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
   const [characterSheetOpen, setCharacterSheetOpen] = useState(false);
   const [characterSheetInitialTab, setCharacterSheetInitialTab] = useState<'character' | 'talk' | 'settings'>('character');
+  const [directorChatOpen, setDirectorChatOpen] = useState(false);
   const [abilityPickerOpen, setAbilityPickerOpen] = useState(false);
   const [riderLoadoutOpen, setRiderLoadoutOpen] = useState(false);
   const [empyreanLoadout, setEmpyreanLoadout] = useState<EmpyreanLoadoutState>(() => loadEmpyreanLoadout());
