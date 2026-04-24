@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { X, User, MessageCircle, Settings as SettingsIcon, FolderOpen, Dices, Zap, Eye, Film, Cpu, Palette, RotateCcw, Trash2, AlertTriangle, Heart, Swords, Shield, Activity, Flame, Backpack, Sparkles } from 'lucide-react';
+import { X, User, Settings as SettingsIcon, FolderOpen, Dices, Zap, Eye, Film, Cpu, Palette, RotateCcw, Trash2, AlertTriangle, Heart, Swords, Shield, Activity, Flame, Backpack, Sparkles } from 'lucide-react';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -9,9 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
 import { DM_CHAT_THEMES, type DMChatThemeId } from '@/lib/dm-chat-themes';
 import { DICE_ODDS_CONFIGS, type DiceOddsMode } from '@/lib/diceOdds';
-import { DirectorChat } from '@/components/empyrean/DirectorChat';
-
-export type CharacterSheetTab = 'character' | 'talk' | 'settings';
+export type CharacterSheetTab = 'character' | 'settings';
 
 interface CharacterSheetProps {
   open: boolean;
@@ -42,10 +40,6 @@ interface CharacterSheetProps {
   onOpenAbilityTrees?: () => void;
   onOpenEmpyreanCooldowns?: () => void;
   onOpenSignetManagement?: () => void;
-  // Director chat (Talk to the DM tab)
-  dragonName?: string;
-  dragonNotes?: string;
-  onConfirmDirectorAction?: (action: any) => void | Promise<void>;
 }
 
 const TABS: Array<{ id: CharacterSheetTab; label: string; icon: React.ComponentType<{ className?: string }>; color: string; accent: string }> = [
@@ -81,9 +75,6 @@ export function CharacterSheet({
   onOpenAbilityTrees,
   onOpenEmpyreanCooldowns,
   onOpenSignetManagement,
-  dragonName,
-  dragonNotes,
-  onConfirmDirectorAction,
 }: CharacterSheetProps) {
   const [activeTab, setActiveTab] = useState<CharacterSheetTab>(initialTab);
 
