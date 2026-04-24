@@ -548,8 +548,43 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     return prompt;
   }, [gameState.gameState, weather]);
 
+  // ─── Empyrean loadout → AI DM context override ──────────────────────────
+  // Refresh local loadout snapshot on mount, when character changes,
+  // and whenever the Rider Loadout drawer closes (the moment gear changes).
+  useEffect(() => {
+    const refresh = () => setEmpyreanLoadout(loadEmpyreanLoadout());
+    refresh();
+    window.addEventListener('odyssey-character-loaded', refresh);
+    return () => window.removeEventListener('odyssey-character-loaded', refresh);
+  }, []);
+
+  const prevRiderLoadoutOpenRef = useRef(riderLoadoutOpen);
+  useEffect(() => {
+    if (prevRiderLoadoutOpenRef.current && !riderLoadoutOpen) {
+      setEmpyreanLoadout(loadEmpyreanLoadout());
+    }
+    prevRiderLoadoutOpenRef.current = riderLoadoutOpen;
+  }, [riderLoadoutOpen]);
+
+  // Build augmented character context: replace legacy equipment[] with
+  // the Empyrean-equipped items projected into the same {slot, name, rarity} shape.
+  const empyreanCharacterContext = useMemo<CharacterContext>(() => {
+    const equipment = EMPYREAN_ALL_SLOTS
+      .map(slot => {
+        const item = getEquippedItem(empyreanLoadout, slot);
+        if (!item) return null;
+        return {
+          slot: EMPYREAN_SLOT_META[slot].label,
+          name: item.name,
+          rarity: EMPYREAN_RARITY_META[item.rarity].label,
+        };
+      })
+      .filter((e): e is { slot: string; name: string; rarity: string } => !!e);
+    return { ...characterContext, equipment };
+  }, [characterContext, empyreanLoadout]);
+
   const oocDmChat = useOocDmChat({
-    characterContext,
+    characterContext: empyreanCharacterContext,
     campaignSummary: null,
     customGuidesContent: enabledContent,
     campaignType: 'empyrean',
