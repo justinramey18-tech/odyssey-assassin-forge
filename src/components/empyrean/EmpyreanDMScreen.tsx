@@ -40,6 +40,8 @@ import { PartyDMQuickActions } from '@/components/ai-dm/PartyDMQuickActions';
 import EmpyreanContextualActions from '@/components/empyrean/EmpyreanContextualActions';
 import DragonBondChat from '@/components/empyrean/DragonBondChat';
 import { useGMGuides } from '@/hooks/use-gm-guides';
+import { saveCampaignSummary } from '@/lib/campaign-summary-storage';
+import type { DirectorProposedAction } from '@/hooks/use-director-chat';
 import empyreanDmBg from '@/assets/empyrean-dm-bg.jpg';
 import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
 import { useNPCAutocomplete } from '@/hooks/use-npc-autocomplete';
@@ -937,6 +939,90 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     setActiveNavTab(null);
     setNavExpanded(false);
   }, [isLoading]);
+
+  // Director (Talk to the DM) — dispatcher for confirmed proposed actions.
+  const handleConfirmDirectorAction = useCallback(async (action: DirectorProposedAction) => {
+    try {
+      switch (action.type) {
+        case 'install_guide': {
+          if (!action.guide_name || !action.guide_content) {
+            toast.error('Guide data incomplete.');
+            throw new Error('Guide data incomplete.');
+          }
+          gmGuides.addGuide(action.guide_name, action.guide_content);
+          toast.success(`Guide installed: ${action.guide_name}`);
+          break;
+        }
+        case 'disable_guide': {
+          const target = gmGuides.guides.find(g => g.id === action.guide_id);
+          if (!target) {
+            toast.error('Guide not found — it may have been removed.');
+            throw new Error('Guide not found.');
+          }
+          if (target.enabled) {
+            gmGuides.toggleGuide(target.id);
+            toast.success(`Disabled: ${target.name}`);
+          } else {
+            toast.info(`Already disabled: ${target.name}`);
+          }
+          break;
+        }
+        case 'delete_guide': {
+          const target = gmGuides.guides.find(g => g.id === action.guide_id);
+          if (!target) {
+            toast.error('Guide not found — it may have been removed.');
+            throw new Error('Guide not found.');
+          }
+          gmGuides.deleteGuide(target.id);
+          toast.success(`Deleted: ${target.name}`);
+          break;
+        }
+        case 'update_campaign_summary': {
+          if (!action.new_summary) {
+            toast.error('New summary is empty.');
+            throw new Error('Empty summary.');
+          }
+          saveCampaignSummary(action.new_summary);
+          toast.success('Campaign summary updated.');
+          break;
+        }
+        case 'add_memory_anchor': {
+          if (!action.memory_anchor) {
+            toast.error('Memory anchor is empty.');
+            throw new Error('Empty memory.');
+          }
+          dragonBond.addNarrativeMemory(action.memory_anchor);
+          toast.success('Memory anchor pinned.');
+          break;
+        }
+        case 'update_dragon_personality': {
+          if (!action.new_dragon_personality) {
+            toast.error('Dragon personality is empty.');
+            throw new Error('Empty personality.');
+          }
+          setDragonNotes(action.new_dragon_personality);
+          saveDragonNotes(action.new_dragon_personality);
+          toast.success('Dragon personality updated.');
+          break;
+        }
+        case 'ooc_passthrough': {
+          if (!action.ooc_note) {
+            toast.error('OOC note is empty.');
+            throw new Error('Empty OOC note.');
+          }
+          handleAppendPrompt(`(out of character: ${action.ooc_note})`);
+          toast.success('OOC note added to your input. Review and send when ready.');
+          break;
+        }
+        default:
+          toast.error('Unknown action type.');
+          throw new Error('Unknown action type.');
+      }
+    } catch (e: any) {
+      console.error('[Director] dispatch failed:', e);
+      throw e; // Re-throw so the chat UI keeps the card visible on failure.
+    }
+  }, [gmGuides, dragonBond, handleAppendPrompt]);
 
   // Ref to autopilot — needed because handleNavTabChange is defined before useEmpyreanAutopilot
   const autopilotRef = useRef<ReturnType<typeof useEmpyreanAutopilot> | null>(null);
@@ -1888,6 +1974,9 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         onOpenAbilityTrees={() => setAbilityTreesOpen(true)}
         onOpenEmpyreanCooldowns={() => setEmpyreanCooldownsOpen(true)}
         onOpenSignetManagement={() => setSignetManagementOpen(true)}
+        dragonName={config?.dragonName}
+        dragonNotes={dragonNotes}
+        onConfirmDirectorAction={handleConfirmDirectorAction}
       />
 
       {/* Empyrean Cooldowns — bottom sheet */}
