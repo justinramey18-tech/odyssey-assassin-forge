@@ -236,6 +236,7 @@ export function EmpyreanDMScreen({
   const [characterSheetOpen, setCharacterSheetOpen] = useState(false);
   const [abilityPickerOpen, setAbilityPickerOpen] = useState(false);
   const [riderLoadoutOpen, setRiderLoadoutOpen] = useState(false);
+  const [empyreanLoadout, setEmpyreanLoadout] = useState<EmpyreanLoadoutState>(() => loadEmpyreanLoadout());
   const [abilityTreesOpen, setAbilityTreesOpen] = useState(false);
   const [empyreanCooldownsOpen, setEmpyreanCooldownsOpen] = useState(false);
   const [signetManagementOpen, setSignetManagementOpen] = useState(false);
