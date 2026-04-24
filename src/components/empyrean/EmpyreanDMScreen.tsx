@@ -98,6 +98,8 @@ import { RiderLoadoutScreen } from '@/components/empyrean/RiderLoadoutScreen';
 import { EmpyreanAbilitiesScreen } from '@/components/empyrean/EmpyreanAbilitiesScreen';
 import { EmpyreanCooldownsDrawer } from '@/components/empyrean/EmpyreanCooldownsDrawer';
 import { SignetManagementDrawer } from '@/components/empyrean/SignetManagementDrawer';
+import { OOCNotesSheet, type ActiveOOCNote } from '@/components/empyrean/OOCNotesSheet';
+import { Eye } from 'lucide-react';
 import { computeCooldownTurns, getAbilityById } from '@/lib/empyreanAbilities';
 import {
   loadNarrativeCooldowns,
@@ -240,6 +242,8 @@ export function EmpyreanDMScreen({
   const [abilityTreesOpen, setAbilityTreesOpen] = useState(false);
   const [empyreanCooldownsOpen, setEmpyreanCooldownsOpen] = useState(false);
   const [signetManagementOpen, setSignetManagementOpen] = useState(false);
+  const [activeOOCNotes, setActiveOOCNotes] = useState<ActiveOOCNote[]>([]);
+  const [oocNotesSheetOpen, setOOCNotesSheetOpen] = useState(false);
   const [narrativeCooldowns, setNarrativeCooldowns] = useState<NarrativeCooldownMap>(() => loadNarrativeCooldowns());
   const prevAssistantMessageCountRef = useRef<number>(0);
   const [showPrompts, setShowPrompts] = useState(false);
@@ -534,8 +538,16 @@ THE AFTERMATH: The party reacts. The world rewrites. End with a sense that every
 
 CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very end of your response. Do NOT emit it until the narration is complete.`;
     }
+    if (activeOOCNotes.length > 0) {
+      const oocLines = activeOOCNotes.map(n => `- ${n.text}`).join('\n');
+      persona += `\n\n## RECENT OUT-OF-CHARACTER CONTEXT
+
+The following facts about the character or the moment are known to you but not stated in the player's messages. Work them into your narration naturally when the moment fits — do NOT announce them; do NOT say "I notice that..." — just let them inform your description of the scene, the NPCs' reactions, or the character's body. Do not repeat these facts if they have already been woven in.
+
+${oocLines}`;
+    }
     return persona;
-  }, [config, characterName, dragonNotes, dragonBond.bondState, dragonBond.bondState.totalChatExchanges, isUnbonded, threshingAuthorized]);
+  }, [config, characterName, dragonNotes, dragonBond.bondState, dragonBond.bondState.totalChatExchanges, isUnbonded, threshingAuthorized, activeOOCNotes]);
 
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
   const { weather } = useWeather();
@@ -983,6 +995,24 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     setNavExpanded(false);
   }, [isLoading]);
 
+  // Decrement active OOC notes after each new main DM assistant response.
+  const lastOOCAssistantIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role !== 'assistant') return;
+    const msgId = lastMsg.content?.substring(0, 80) ?? '';
+    if (msgId === lastOOCAssistantIdRef.current) return;
+    lastOOCAssistantIdRef.current = msgId;
+    if (activeOOCNotes.length === 0) return;
+    setActiveOOCNotes(prev =>
+      prev
+        .map(n => ({ ...n, turnsRemaining: n.turnsRemaining - 1 }))
+        .filter(n => n.turnsRemaining > 0)
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
+
   // ─── Director (Talk to the DM) action dispatcher ─────────────────────────
   const handleConfirmDirectorAction = useCallback(async (action: any) => {
     try {
@@ -1057,8 +1087,16 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
             toast.error('OOC note is empty.');
             return;
           }
-          handleAppendPrompt(`(out of character: ${action.ooc_note})`);
-          toast.success('OOC note added to your input. Review and send when ready.');
+          const turns = typeof action.turns_remaining === 'number' && action.turns_remaining > 0
+            ? Math.floor(action.turns_remaining)
+            : 2;
+          const newNote: ActiveOOCNote = {
+            id: `ooc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            text: action.ooc_note.trim(),
+            turnsRemaining: turns,
+          };
+          setActiveOOCNotes(prev => [...prev, newNote]);
+          toast.success(`Noted — DM will see this for the next ${turns} ${turns === 1 ? 'turn' : 'turns'}.`);
           break;
         }
         default:
@@ -1424,6 +1462,17 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
           </div>
         </div>
         <div className="flex items-center gap-1">
+          {activeOOCNotes.length > 0 && (
+            <button
+              onClick={() => setOOCNotesSheetOpen(true)}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border bg-cyan-500/10 border-cyan-500/30 text-cyan-300 text-[10px] font-semibold uppercase tracking-wider hover:bg-cyan-500/20 active:bg-cyan-500/30 transition-colors"
+              style={{ touchAction: 'manipulation' }}
+              aria-label={`${activeOOCNotes.length} active OOC ${activeOOCNotes.length === 1 ? 'note' : 'notes'}`}
+            >
+              <Eye className="w-3 h-3" />
+              <span>{activeOOCNotes.length} active</span>
+            </button>
+          )}
           {/* Narrator controls */}
           {narrator.hasTTSKey && (
             <>
@@ -2025,6 +2074,15 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         dragonName={config?.dragonName}
         dragonNotes={dragonNotes}
         onConfirmDirectorAction={handleConfirmDirectorAction}
+      />
+
+      {/* OOC Notes — bottom sheet showing active silent context for the main DM */}
+      <OOCNotesSheet
+        open={oocNotesSheetOpen}
+        onOpenChange={setOOCNotesSheetOpen}
+        notes={activeOOCNotes}
+        onClearNote={(id) => setActiveOOCNotes(prev => prev.filter(n => n.id !== id))}
+        onClearAll={() => setActiveOOCNotes([])}
       />
 
       {/* Empyrean Cooldowns — bottom sheet */}
