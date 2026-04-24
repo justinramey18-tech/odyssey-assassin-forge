@@ -624,7 +624,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     summarizeStorageKey: EMPYREAN_SUMMARY_KEY,
     onMessageComplete: (content: string) => {
       if (autoSync.autoSyncEnabled) {
-        autoSync.extractAndApply(content, characterContext);
+        autoSync.extractAndApply(content, empyreanCharacterContext);
       }
 
 
