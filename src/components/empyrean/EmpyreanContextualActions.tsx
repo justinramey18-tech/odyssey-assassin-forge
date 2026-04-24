@@ -382,26 +382,47 @@ export default function EmpyreanContextualActions({
 
   return (
     <div className="flex flex-col gap-1.5 px-3 py-2">
-      {/* Dragon Actions — collapsed header, expandable column */}
-      {dragonActions.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <button
-            type="button"
-            onClick={() => setDragonExpanded(v => !v)}
-            aria-expanded={dragonExpanded}
-            aria-label={`${dragonExpanded ? 'Collapse' : 'Expand'} dragon actions`}
-            className="self-start inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border bg-amber-500/20 text-amber-300 border-amber-500/30 hover:bg-amber-500/30 active:bg-amber-500/40 transition-colors"
-            style={{ touchAction: 'manipulation' }}
-          >
-            <span>🐉 Dragon</span>
-            <span className="text-amber-200/80">({dragonActions.length})</span>
-            {dragonExpanded
-              ? <ChevronUp className="w-3 h-3" />
-              : <ChevronDown className="w-3 h-3" />
-            }
-          </button>
-          {dragonExpanded && (
-            <div className="flex flex-col gap-1.5 pb-1">
+      {/* Row 1: Headers side-by-side */}
+      {(dragonActions.length > 0 || actions.length > 0) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {dragonActions.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setDragonExpanded(v => !v)}
+              aria-expanded={dragonExpanded}
+              aria-label={`${dragonExpanded ? 'Collapse' : 'Expand'} dragon actions`}
+              className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border bg-amber-500/20 text-amber-300 border-amber-500/30 hover:bg-amber-500/30 active:bg-amber-500/40 transition-colors"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <span>🐉 Dragon</span>
+              <span className="text-amber-200/80">({dragonActions.length})</span>
+              {dragonExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+          )}
+          {actions.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSituationExpanded(v => !v)}
+              aria-expanded={situationExpanded}
+              aria-label={`${situationExpanded ? 'Collapse' : 'Expand'} ${meta.label.toLowerCase()} actions`}
+              className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border transition-colors hover:brightness-125 active:brightness-150 ${meta.color}`}
+              style={{ touchAction: 'manipulation' }}
+            >
+              <span>{meta.emoji} {meta.label}</span>
+              <span className="opacity-80">({actions.length})</span>
+              {situationExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Row 2: Expanded columns side-by-side when both open, full-width when one open */}
+      {(dragonExpanded || situationExpanded) && (
+        <div className={`grid gap-2 pb-1 ${
+          (dragonExpanded && dragonActions.length > 0 && situationExpanded && actions.length > 0) ? 'grid-cols-2' : 'grid-cols-1'
+        }`}>
+          {dragonExpanded && dragonActions.length > 0 && (
+            <div className="flex flex-col gap-1.5">
               {dragonActions.map((a) => (
                 <PreviewPill
                   key={a.id}
@@ -418,29 +439,8 @@ export default function EmpyreanContextualActions({
               ))}
             </div>
           )}
-        </div>
-      )}
-
-      {/* Situation — collapsed header, expandable column */}
-      {actions.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <button
-            type="button"
-            onClick={() => setSituationExpanded(v => !v)}
-            aria-expanded={situationExpanded}
-            aria-label={`${situationExpanded ? 'Collapse' : 'Expand'} ${meta.label.toLowerCase()} actions`}
-            className={`self-start inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border transition-colors hover:brightness-125 active:brightness-150 ${meta.color}`}
-            style={{ touchAction: 'manipulation' }}
-          >
-            <span>{meta.emoji} {meta.label}</span>
-            <span className="opacity-80">({actions.length})</span>
-            {situationExpanded
-              ? <ChevronUp className="w-3 h-3" />
-              : <ChevronDown className="w-3 h-3" />
-            }
-          </button>
-          {situationExpanded && (
-            <div className="flex flex-col gap-1.5 pb-1">
+          {situationExpanded && actions.length > 0 && (
+            <div className="flex flex-col gap-1.5">
               {actions.map((a) => (
                 <PreviewPill
                   key={a.id}
