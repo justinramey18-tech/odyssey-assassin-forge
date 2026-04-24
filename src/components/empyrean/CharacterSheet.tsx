@@ -9,6 +9,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
 import { DM_CHAT_THEMES, type DMChatThemeId } from '@/lib/dm-chat-themes';
 import { DICE_ODDS_CONFIGS, type DiceOddsMode } from '@/lib/diceOdds';
+import { DirectorChat } from '@/components/empyrean/DirectorChat';
+import type { DirectorProposedAction } from '@/hooks/use-director-chat';
 
 export type CharacterSheetTab = 'character' | 'talk' | 'settings';
 
@@ -41,6 +43,10 @@ interface CharacterSheetProps {
   onOpenAbilityTrees?: () => void;
   onOpenEmpyreanCooldowns?: () => void;
   onOpenSignetManagement?: () => void;
+  // Director (Talk to the DM tab)
+  dragonName?: string;
+  dragonNotes?: string;
+  onConfirmDirectorAction?: (action: DirectorProposedAction) => void | Promise<void>;
 }
 
 const TABS: Array<{ id: CharacterSheetTab; label: string; icon: React.ComponentType<{ className?: string }>; color: string; accent: string }> = [
@@ -77,6 +83,9 @@ export function CharacterSheet({
   onOpenAbilityTrees,
   onOpenEmpyreanCooldowns,
   onOpenSignetManagement,
+  dragonName,
+  dragonNotes,
+  onConfirmDirectorAction,
 }: CharacterSheetProps) {
   const [activeTab, setActiveTab] = useState<CharacterSheetTab>(initialTab);
 
@@ -146,7 +155,14 @@ export function CharacterSheet({
             className="h-full"
           >
             {activeTab === 'character' && <CharacterTab onCloseSheet={onClose} onOpenInventory={onOpenInventory} onOpenAbilityPicker={onOpenAbilityPicker} onOpenLoadout={onOpenLoadout} onOpenAbilityTrees={onOpenAbilityTrees} onOpenEmpyreanCooldowns={onOpenEmpyreanCooldowns} onOpenSignetManagement={onOpenSignetManagement} />}
-            {activeTab === 'talk' && <TalkTabPlaceholder />}
+            {activeTab === 'talk' && (
+              <DirectorChat
+                dragonName={dragonName}
+                characterName={characterName}
+                dragonNotes={dragonNotes}
+                onConfirmAction={onConfirmDirectorAction}
+              />
+            )}
             {activeTab === 'settings' && (
               <SettingsTab
                 onCampaignSaves={onCampaignSaves}
