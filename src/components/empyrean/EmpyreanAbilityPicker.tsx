@@ -42,9 +42,22 @@ export function EmpyreanAbilityPicker({
 
   const confirmUse = useCallback(() => {
     if (!pending) return;
-    onUseAbility(pending.id, pending.prompt);
+    // Capture the prompt data BEFORE clearing state.
+    const captured = pending;
+    // Close the AlertDialog FIRST by clearing its open state. Let Radix process
+    // its unmount and body-pointer-events cleanup before closing the Sheet.
+    // Closing both overlays in the same tick causes a known Radix race
+    // condition that leaves `pointer-events: none` stuck on <body>, freezing
+    // the entire app. The staggered close below avoids that.
     setPending(null);
-    onOpenChange(false);
+    // Fire the ability AFTER state is cleared so the user sees the dialog
+    // dismiss cleanly before the streaming response begins.
+    onUseAbility(captured.id, captured.prompt);
+    // Close the Sheet on the next tick. requestAnimationFrame is preferred
+    // over setTimeout(0) because it aligns with Radix's own animation timing.
+    requestAnimationFrame(() => {
+      onOpenChange(false);
+    });
   }, [pending, onUseAbility, onOpenChange]);
 
   // Group unlocked abilities by tree for display.
