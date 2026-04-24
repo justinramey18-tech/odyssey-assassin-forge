@@ -1,67 +1,39 @@
 
 
-## Why your Empyrean gear isn't reaching the AI DM
+## Talk to the DM — full campaign reconfiguration via chat
 
-### The functional bug
+### What changes
+The Director already handles guides, memory anchors, summaries, dragon personality, and OOC notes. This adds the last two missing slots: **identity** (rider/dragon names, color, signet, year) and **campaign settings** (focus, lore guides, tone guides, session template). After this, anything you can edit in the Reconfigure Campaign form is also reachable through natural conversation with the Director.
 
-Empyrean has its own gear system — a separate forge/loadout living under storage key `empyrean-loadout`. It's completely walled off from the legacy "Assassin's Ledger" inventory, on purpose.
+The Reconfigure Campaign form stays untouched as the wholesale-edit backup.
 
-But when the AI DM gets told what gear you're wearing, it's reading from the *legacy* inventory, not the Empyrean loadout. So you can equip a freshly forged Rider's Leathers in the Empyrean character sheet, and the AI DM will keep narrating you in whatever's pinned to the old Assassin's Ledger slots (or nothing at all if those are empty).
+### How it works
+- The Director receives, alongside everything it already gets, a snapshot of your **current campaign config** plus a **catalog** of valid lore-guide IDs, tone-guide IDs, and session-template IDs.
+- When you say "make it darker" or "shift focus to political", the Director picks the right catalog IDs and proposes a single card.
+- For renames or year advancement, it acknowledges the in-fiction weight ("That's a major shift…") then proposes an UPDATE IDENTITY card.
+- If you ask for something that isn't in the catalog (e.g. "Steampunk Gritty tone"), the Director tells you and points you at the Reconfigure form instead of inventing IDs.
 
-That's why nothing you forge or equip in Empyrean ever shows up in the DM's descriptions or affects what it knows about your kit.
+### Two new action card types
+- **UPDATE IDENTITY** — shows whichever of name / dragon / color / signet / year are changing. Destructive (overwrites). Confirm → setConfig + save.
+- **UPDATE SETTINGS** — shows focus / guide counts / template. Destructive. Replaces the full lore- or tone-guide list (not a delta). Confirm → setConfig + save. Unknown IDs are filtered out client-side with a warn log.
 
-### Where the wires miss each other
+### Files touched
+- `supabase/functions/empyrean-director/index.ts` — add 2 enum values, payload schema fields, system-prompt sections (action types 8 & 9), 2 catalog discipline rules, current-config + catalog blocks in the state serializer, 2 new validation branches.
+- `src/hooks/use-director-chat.ts` — extend `DirectorActionType` and `DirectorProposedAction` with the new fields; propagate them in the raw-to-typed mapper; extend `buildStatePayload` to ship `campaign_config` + the three catalogs (id/name/description only — no guide bodies).
+- `src/components/empyrean/DirectorChat.tsx` — add 2 new cases in `getActionMeta` so the cards render previews.
+- `src/components/empyrean/EmpyreanDMScreen.tsx` — add 2 dispatcher branches in `handleConfirmDirectorAction`. Each diff-checks against current config, calls `setConfig` + `saveEmpyreanDMConfig`, validates IDs against the catalogs, and toasts a summary of what changed.
 
-The character context that gets handed to the AI DM is built once, in a shared provider that serves both Empyrean and the regular game. It only knows about the legacy gear shape. The Empyrean loadout has its own storage, its own item type, and its own helper for summarizing equipped items — but nothing reads that helper into the DM context.
+### Guards (carried from the brief)
+- Identity fields are free text — no catalog validation.
+- Guide-list updates are full replacements, not deltas. Director computes `current + new` or `current − removed` itself.
+- Catalog payload is id + name + short description only — guide bodies are never sent (keeps payload small).
+- One action per Confirm. No batched transactions, no undo, no auto-close of the Talk tab.
+- All earlier action types unchanged.
 
----
-
-## The fix
-
-### Override the equipment list at the Empyrean DM layer
-
-Inside `EmpyreanDMScreen.tsx`, just before the `characterContext` is passed into `useAIDM`, replace its `equipment` field with the Empyrean loadout's currently equipped items, projected into the same `{ slot, name, rarity }` shape the AI DM already expects.
-
-That means:
-- The shared provider keeps building the legacy context untouched (so Assassin's Ledger keeps working).
-- Empyrean gets a clean override at its boundary — no cross-contamination.
-- The AI DM edge function needs no changes: it already iterates `equipment[]` and prints `EQUIPPED GEAR: Name (slot, rarity)`.
-
-### Keep it fresh when you forge or swap gear
-
-Read the Empyrean loadout into local state in `EmpyreanDMScreen`. Refresh that state in three situations:
-1. On mount, and on the `odyssey-character-loaded` event (matches the standard hook pattern).
-2. Whenever the Rider Loadout drawer closes (`riderLoadoutOpen` flips from true to false) — the only moment gear can have just changed.
-3. After a successful Director "install/disable/delete" or other relevant Director action that might touch gear (defensive; cheap).
-
-### Build the override
-
-For each equipped slot in the Empyrean loadout, push `{ slot: <empyrean slot label>, name: item.name, rarity: <rarity label> }` into a fresh array. Replace `characterContext.equipment` with that array via a memo whose dependencies are `characterContext` and the local Empyrean loadout state.
-
-Pass the *augmented* context (not the original) to:
-- `useAIDM` (the main DM)
-- `useOocDmChat` (the Director's OOC channel that also reads gear)
-- Any other consumer in the file that takes `characterContext`
-
-### Empty state
-
-If nothing is equipped in Empyrean, pass an empty `equipment: []`. Do NOT fall back to the legacy gear — that's the bug we're fixing. The DM should know you're unequipped so it narrates that honestly.
-
----
-
-## Files touched
-
-- `src/components/empyrean/EmpyreanDMScreen.tsx` — read Empyrean loadout, build override array, replace `characterContext.equipment`, pass augmented context everywhere `characterContext` is currently passed.
-
-That's it. One file. No edge function changes, no storage migrations, no changes to the shared provider or the legacy gear path.
-
----
-
-## How you'll know it's working
-
-1. Open Empyrean → Character Sheet → Rider Loadout. Forge or equip a chest item (e.g., "Reinforced Leathers, Rare").
-2. Close the loadout drawer. Open the AI DM input and ask OOC: *"What gear am I wearing right now?"*
-3. **Expected:** the DM lists Reinforced Leathers (and any other equipped Empyrean pieces). No mention of legacy Assassin's Ledger items unless you also equipped them there.
-4. Unequip everything in the Empyrean loadout. Ask again. The DM should describe you as unequipped, not silently fall back to old gear.
-5. Regression check: open Assassin's Ledger / regular AI DM. Its gear narration is unchanged — still uses the legacy inventory.
+### How you'll know it's working
+1. "Change my name to Xeyrin" → UPDATE IDENTITY card → Confirm → header reflects new name, persists across reload.
+2. "Shift focus to political intrigue" → UPDATE SETTINGS card with `Focus: political` → Confirm → reflected in next DM turn and in Reconfigure form.
+3. "Make it darker, more horror" → Director picks the matching tone-guide ID(s) from the catalog and proposes UPDATE SETTINGS.
+4. "Add the Steampunk Gritty tone guide" → Director declines, suggests Reconfigure form.
+5. Open Settings → Reconfigure Campaign → form pre-fills with whatever the Director just changed. Backup path still works.
 
