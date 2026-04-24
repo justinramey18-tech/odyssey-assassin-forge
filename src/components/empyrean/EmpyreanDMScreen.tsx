@@ -995,6 +995,24 @@ ${oocLines}`;
     setNavExpanded(false);
   }, [isLoading]);
 
+  // Decrement active OOC notes after each new main DM assistant response.
+  const lastOOCAssistantIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role !== 'assistant') return;
+    const msgId = lastMsg.content?.substring(0, 80) ?? '';
+    if (msgId === lastOOCAssistantIdRef.current) return;
+    lastOOCAssistantIdRef.current = msgId;
+    if (activeOOCNotes.length === 0) return;
+    setActiveOOCNotes(prev =>
+      prev
+        .map(n => ({ ...n, turnsRemaining: n.turnsRemaining - 1 }))
+        .filter(n => n.turnsRemaining > 0)
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
+
   // ─── Director (Talk to the DM) action dispatcher ─────────────────────────
   const handleConfirmDirectorAction = useCallback(async (action: any) => {
     try {
@@ -1444,6 +1462,17 @@ ${oocLines}`;
           </div>
         </div>
         <div className="flex items-center gap-1">
+          {activeOOCNotes.length > 0 && (
+            <button
+              onClick={() => setOOCNotesSheetOpen(true)}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border bg-cyan-500/10 border-cyan-500/30 text-cyan-300 text-[10px] font-semibold uppercase tracking-wider hover:bg-cyan-500/20 active:bg-cyan-500/30 transition-colors"
+              style={{ touchAction: 'manipulation' }}
+              aria-label={`${activeOOCNotes.length} active OOC ${activeOOCNotes.length === 1 ? 'note' : 'notes'}`}
+            >
+              <Eye className="w-3 h-3" />
+              <span>{activeOOCNotes.length} active</span>
+            </button>
+          )}
           {/* Narrator controls */}
           {narrator.hasTTSKey && (
             <>
