@@ -33,6 +33,7 @@ import { CampaignSessionsManager } from '@/components/ai-dm/CampaignSessionsMana
 import { DMToolsDrawer } from '@/components/ai-dm/DMToolsDrawer';
 import { DMBottomNav, DMNavTab } from '@/components/ai-dm/DMBottomNav';
 import { CharacterSheet } from '@/components/empyrean/CharacterSheet';
+import { EmpyreanDirectorScreen } from '@/components/empyrean/EmpyreanDirectorScreen';
 import { DMDiceRoller } from '@/components/ai-dm/DMDiceRoller';
 import { GMGuidesManager } from '@/components/ai-dm/GMGuidesManager';
 import { WorldStatePanel } from '@/components/ai-dm/WorldStatePanel';
@@ -236,8 +237,7 @@ export function EmpyreanDMScreen({
   const [diceOddsMode, setDiceOddsMode] = useState<DiceOddsMode>(() => loadDiceOddsMode());
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
   const [characterSheetOpen, setCharacterSheetOpen] = useState(false);
-  const [characterSheetInitialTab, setCharacterSheetInitialTab] = useState<'character' | 'talk' | 'settings'>('character');
-  const [directorChatOpen, setDirectorChatOpen] = useState(false);
+  const [directorScreenOpen, setDirectorScreenOpen] = useState(false);
   const [abilityPickerOpen, setAbilityPickerOpen] = useState(false);
   const [riderLoadoutOpen, setRiderLoadoutOpen] = useState(false);
   const [empyreanLoadout, setEmpyreanLoadout] = useState<EmpyreanLoadoutState>(() => loadEmpyreanLoadout());
@@ -991,8 +991,7 @@ ${oocLines}`;
   }, [characterContext]);
 
   const handleAskDirector = useCallback(() => {
-    setCharacterSheetInitialTab('talk');
-    setCharacterSheetOpen(true);
+    setDirectorScreenOpen(true);
   }, []);
 
   const handleAppendPrompt = useCallback((prompt: string) => {
@@ -2097,7 +2096,7 @@ ${oocLines}`;
             type="button"
             onClick={handleAskDirector}
             aria-label="Ask the Director"
-            className="shrink-0 self-center mr-3 w-10 h-10 rounded-full border border-cyan-500/35 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 active:bg-cyan-500/30 transition-colors flex items-center justify-center"
+            className="shrink-0 self-center mr-3 w-10 h-10 rounded-full border border-red-500/40 bg-red-500/15 text-red-300 hover:bg-red-500/25 active:bg-red-500/35 transition-colors flex items-center justify-center"
             style={{ touchAction: 'manipulation' }}
           >
             <HelpCircle className="w-5 h-5" />
@@ -2152,11 +2151,7 @@ ${oocLines}`;
       {/* Character Sheet — full-screen overlay (Empyrean solo) */}
       <CharacterSheet
         open={characterSheetOpen}
-        onClose={() => {
-          setCharacterSheetOpen(false);
-          setCharacterSheetInitialTab('character');
-        }}
-        initialTab={characterSheetInitialTab}
+        onClose={() => setCharacterSheetOpen(false)}
         characterName={characterName}
         onCampaignSaves={() => setShowSaves(true)}
         diceOddsMode={diceOddsMode}
@@ -2187,9 +2182,16 @@ ${oocLines}`;
         onOpenAbilityTrees={() => setAbilityTreesOpen(true)}
         onOpenEmpyreanCooldowns={() => setEmpyreanCooldownsOpen(true)}
         onOpenSignetManagement={() => setSignetManagementOpen(true)}
+      />
+
+      {/* Talk to the DM — full-screen overlay (Empyrean Director) */}
+      <EmpyreanDirectorScreen
+        open={directorScreenOpen}
+        onClose={() => setDirectorScreenOpen(false)}
         dragonName={config?.dragonName}
+        characterName={characterName}
         dragonNotes={dragonNotes}
-        onConfirmDirectorAction={handleConfirmDirectorAction}
+        onConfirmAction={handleConfirmDirectorAction}
       />
 
       {/* OOC Notes — bottom sheet showing active silent context for the main DM */}
