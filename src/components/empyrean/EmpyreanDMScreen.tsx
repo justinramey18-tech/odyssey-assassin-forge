@@ -614,7 +614,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     setActiveCampaignId,
     newGame,
   } = useAIDM({
-    characterContext,
+    characterContext: empyreanCharacterContext,
     customGuidesContent: enabledContent,
     dmPersonaPrompt,
     responseModePrompt: resolveResponseModePrompt(responseMode),
