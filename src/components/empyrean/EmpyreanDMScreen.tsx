@@ -1888,6 +1888,8 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
         onOpenAbilityTrees={() => setAbilityTreesOpen(true)}
         onOpenEmpyreanCooldowns={() => setEmpyreanCooldownsOpen(true)}
         onOpenSignetManagement={() => setSignetManagementOpen(true)}
+        dragonName={config?.dragonName}
+        dragonNotes={dragonNotes}
       />
 
       {/* Empyrean Cooldowns — bottom sheet */}
