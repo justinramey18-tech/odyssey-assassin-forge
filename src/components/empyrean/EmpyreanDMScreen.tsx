@@ -938,6 +938,95 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     setNavExpanded(false);
   }, [isLoading]);
 
+  // ─── Director (Talk to the DM) action dispatcher ─────────────────────────
+  const handleConfirmDirectorAction = useCallback(async (action: any) => {
+    try {
+      switch (action.type) {
+        case 'install_guide': {
+          if (!action.guide_name || !action.guide_content) {
+            toast.error('Guide data incomplete.');
+            return;
+          }
+          const ok = gmGuides.addGuide(action.guide_name, action.guide_content);
+          if (!ok) return; // addGuide already toasted the reason
+          toast.success(`Guide installed: ${action.guide_name}`);
+          break;
+        }
+        case 'disable_guide': {
+          const target = gmGuides.guides.find(g => g.id === action.guide_id);
+          if (!target) {
+            toast.error('Guide not found — it may have been removed.');
+            return;
+          }
+          if (target.enabled) {
+            gmGuides.toggleGuide(target.id);
+            toast.success(`Disabled: ${target.name}`);
+          } else {
+            toast.info(`Already disabled: ${target.name}`);
+          }
+          break;
+        }
+        case 'delete_guide': {
+          const target = gmGuides.guides.find(g => g.id === action.guide_id);
+          if (!target) {
+            toast.error('Guide not found — it may have been removed.');
+            return;
+          }
+          gmGuides.deleteGuide(target.id);
+          toast.success(`Deleted: ${target.name}`);
+          break;
+        }
+        case 'update_campaign_summary': {
+          if (!action.new_summary) {
+            toast.error('New summary is empty.');
+            return;
+          }
+          // Save under the Empyrean-specific key so the Empyrean DM session reads it.
+          saveCampaignSummary(action.new_summary, EMPYREAN_SUMMARY_KEY);
+          toast.success('Campaign summary updated.');
+          break;
+        }
+        case 'add_memory_anchor': {
+          if (!action.memory_anchor) {
+            toast.error('Memory anchor is empty.');
+            return;
+          }
+          dragonBond.addNarrativeMemory(action.memory_anchor);
+          toast.success('Memory anchor pinned.');
+          break;
+        }
+        case 'update_dragon_personality': {
+          if (!action.new_dragon_personality) {
+            toast.error('Dragon personality is empty.');
+            return;
+          }
+          setDragonNotes(action.new_dragon_personality);
+          try { saveDragonNotes(action.new_dragon_personality); } catch (e) {
+            console.error('[Director] saveDragonNotes failed:', e);
+          }
+          toast.success('Dragon personality updated.');
+          break;
+        }
+        case 'ooc_passthrough': {
+          if (!action.ooc_note) {
+            toast.error('OOC note is empty.');
+            return;
+          }
+          handleAppendPrompt(`(out of character: ${action.ooc_note})`);
+          toast.success('OOC note added to your input. Review and send when ready.');
+          break;
+        }
+        default:
+          toast.error('Unknown action type.');
+          return;
+      }
+    } catch (e: any) {
+      console.error('[Director] dispatch failed:', e);
+      toast.error(e?.message || 'Failed to apply action.');
+      throw e; // Re-throw so the chat UI does NOT auto-dismiss the card on failure.
+    }
+  }, [gmGuides, dragonBond, handleAppendPrompt]);
+
   // Ref to autopilot — needed because handleNavTabChange is defined before useEmpyreanAutopilot
   const autopilotRef = useRef<ReturnType<typeof useEmpyreanAutopilot> | null>(null);
 
