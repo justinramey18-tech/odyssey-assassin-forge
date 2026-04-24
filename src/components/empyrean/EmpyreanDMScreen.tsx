@@ -69,6 +69,14 @@ import { getBondDescriptor, getTrustDescriptor, buildDragonChatPrompt, DRAGON_CH
 import { getDragonColorHex } from '@/lib/dragonColors';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { saveCampaignSummary } from '@/lib/campaign-summary-storage';
+import {
+  loadEmpyreanLoadout,
+  getEquippedItem,
+  ALL_SLOTS as EMPYREAN_ALL_SLOTS,
+  SLOT_META as EMPYREAN_SLOT_META,
+  RARITY_META as EMPYREAN_RARITY_META,
+  type EmpyreanLoadoutState,
+} from '@/lib/empyreanLoadout';
 
 import { empyreanPrompts } from '@/lib/empyreanPrompts';
 import { EMPYREAN_SESSION_GUIDES } from '@/lib/empyreanGMGuides';
@@ -228,6 +236,7 @@ export function EmpyreanDMScreen({
   const [characterSheetOpen, setCharacterSheetOpen] = useState(false);
   const [abilityPickerOpen, setAbilityPickerOpen] = useState(false);
   const [riderLoadoutOpen, setRiderLoadoutOpen] = useState(false);
+  const [empyreanLoadout, setEmpyreanLoadout] = useState<EmpyreanLoadoutState>(() => loadEmpyreanLoadout());
   const [abilityTreesOpen, setAbilityTreesOpen] = useState(false);
   const [empyreanCooldownsOpen, setEmpyreanCooldownsOpen] = useState(false);
   const [signetManagementOpen, setSignetManagementOpen] = useState(false);
@@ -539,8 +548,43 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     return prompt;
   }, [gameState.gameState, weather]);
 
+  // ─── Empyrean loadout → AI DM context override ──────────────────────────
+  // Refresh local loadout snapshot on mount, when character changes,
+  // and whenever the Rider Loadout drawer closes (the moment gear changes).
+  useEffect(() => {
+    const refresh = () => setEmpyreanLoadout(loadEmpyreanLoadout());
+    refresh();
+    window.addEventListener('odyssey-character-loaded', refresh);
+    return () => window.removeEventListener('odyssey-character-loaded', refresh);
+  }, []);
+
+  const prevRiderLoadoutOpenRef = useRef(riderLoadoutOpen);
+  useEffect(() => {
+    if (prevRiderLoadoutOpenRef.current && !riderLoadoutOpen) {
+      setEmpyreanLoadout(loadEmpyreanLoadout());
+    }
+    prevRiderLoadoutOpenRef.current = riderLoadoutOpen;
+  }, [riderLoadoutOpen]);
+
+  // Build augmented character context: replace legacy equipment[] with
+  // the Empyrean-equipped items projected into the same {slot, name, rarity} shape.
+  const empyreanCharacterContext = useMemo<CharacterContext>(() => {
+    const equipment = EMPYREAN_ALL_SLOTS
+      .map(slot => {
+        const item = getEquippedItem(empyreanLoadout, slot);
+        if (!item) return null;
+        return {
+          slot: EMPYREAN_SLOT_META[slot].label,
+          name: item.name,
+          rarity: EMPYREAN_RARITY_META[item.rarity].label,
+        };
+      })
+      .filter((e): e is { slot: string; name: string; rarity: string } => !!e);
+    return { ...characterContext, equipment };
+  }, [characterContext, empyreanLoadout]);
+
   const oocDmChat = useOocDmChat({
-    characterContext,
+    characterContext: empyreanCharacterContext,
     campaignSummary: null,
     customGuidesContent: enabledContent,
     campaignType: 'empyrean',
@@ -570,7 +614,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     setActiveCampaignId,
     newGame,
   } = useAIDM({
-    characterContext,
+    characterContext: empyreanCharacterContext,
     customGuidesContent: enabledContent,
     dmPersonaPrompt,
     responseModePrompt: resolveResponseModePrompt(responseMode),
@@ -580,7 +624,7 @@ CRITICAL: After narrating the bond, emit <!--DRAGON_BOND_FORMED--> at the very e
     summarizeStorageKey: EMPYREAN_SUMMARY_KEY,
     onMessageComplete: (content: string) => {
       if (autoSync.autoSyncEnabled) {
-        autoSync.extractAndApply(content, characterContext);
+        autoSync.extractAndApply(content, empyreanCharacterContext);
       }
 
 
