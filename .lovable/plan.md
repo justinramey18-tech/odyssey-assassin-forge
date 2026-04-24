@@ -1,67 +1,67 @@
 
 
-## Why the Director can't change anything (and why the AI DM doesn't see it)
+## Why your Empyrean gear isn't reaching the AI DM
 
 ### The functional bug
 
-When you tap **Confirm** on a Director suggestion, nothing actually saves. The card disappears, you get a friendly toast, and the AI DM never finds out anything happened.
+Empyrean has its own gear system — a separate forge/loadout living under storage key `empyrean-loadout`. It's completely walled off from the legacy "Assassin's Ledger" inventory, on purpose.
 
-In plain terms: the Director chat is correctly proposing changes, but the "apply this change" wire was never connected. The Confirm button is still running the placeholder behavior from earlier development — the one that says "yes, I'll pretend I did it" without writing to memory anchors, the campaign summary, the dragon personality, or anywhere else.
+But when the AI DM gets told what gear you're wearing, it's reading from the *legacy* inventory, not the Empyrean loadout. So you can equip a freshly forged Rider's Leathers in the Empyrean character sheet, and the AI DM will keep narrating you in whatever's pinned to the old Assassin's Ledger slots (or nothing at all if those are empty).
 
-That's why the AI DM, when you asked OOC, knew nothing about your fart memory: the memory was never saved. It was acknowledged in the Director chat and immediately discarded.
+That's why nothing you forge or equip in Empyrean ever shows up in the DM's descriptions or affects what it knows about your kit.
 
-### The "third-year cadet" expectation is separate
+### Where the wires miss each other
 
-Even after the wire is fixed, "change me from a first-year to a third-year cadet" won't directly rewrite the year field on your character sheet. That field (`yearAtBasgiath`) is set during campaign setup and isn't one of the seven things the Director can edit.
-
-What the Director *can* do for that request:
-- Pin a **memory anchor** like "The rider has been promoted to third-year cadet, mid-campaign."
-- Update the **campaign summary** to reflect the time skip and new rank.
-
-Both of those will make the AI DM treat you as a third-year going forward — but the cosmetic year value on your character setup screen will still read "first-year" until you reconfigure the campaign manually. I'll mention this in the toast/confirmation copy so it's clear.
+The character context that gets handed to the AI DM is built once, in a shared provider that serves both Empyrean and the regular game. It only knows about the legacy gear shape. The Empyrean loadout has its own storage, its own item type, and its own helper for summarizing equipped items — but nothing reads that helper into the DM context.
 
 ---
 
 ## The fix
 
-### 1. Connect the Confirm button to real save actions
-In the Empyrean DM screen, add the dispatcher that actually performs each of the 7 action types:
-- **Install/disable/delete guide** → use the existing GM Guides system (already loaded in the screen).
-- **Update campaign summary** → save to the Empyrean-specific summary key (NOT the default one — important so the right AI session reads it).
-- **Pin memory anchor** → call the existing dragon bond memory function.
-- **Update dragon personality** → update the dragon notes state and persist via the existing save helper.
-- **OOC passthrough** → drop the note into the input bar prefixed with "(out of character: …)" for you to review and send.
+### Override the equipment list at the Empyrean DM layer
 
-Each of these uses functions that *already exist* in the codebase and are *already used* elsewhere — we're just calling them from a new place.
+Inside `EmpyreanDMScreen.tsx`, just before the `characterContext` is passed into `useAIDM`, replace its `equipment` field with the Empyrean loadout's currently equipped items, projected into the same `{ slot, name, rarity }` shape the AI DM already expects.
 
-### 2. Wire it through to the Director chat
-Pass the new dispatcher down through the Character Sheet to the Director chat component. Once it's connected, Confirm will:
-- Actually save the change.
-- Show a success toast naming what changed.
-- Auto-dismiss the card.
-- Re-throw on failure so the card stays visible if something breaks (so you can retry).
+That means:
+- The shared provider keeps building the legacy context untouched (so Assassin's Ledger keeps working).
+- Empyrean gets a clean override at its boundary — no cross-contamination.
+- The AI DM edge function needs no changes: it already iterates `equipment[]` and prints `EQUIPPED GEAR: Name (slot, rarity)`.
 
-### 3. Use the right campaign summary storage
-The Empyrean DM uses its own summary key (`empyrean-dm-campaign-summary`), separate from the regular Solo DM. The Director must save to that one or the Empyrean AI won't see updates. The dispatcher will pass the Empyrean key explicitly to the save function.
+### Keep it fresh when you forge or swap gear
 
-### 4. Mid-campaign year promotions
-For requests like the third-year change, the Director already proposes either a guide or a memory anchor — that path is fine and will start working as soon as the wire is connected. No new action type needed.
+Read the Empyrean loadout into local state in `EmpyreanDMScreen`. Refresh that state in three situations:
+1. On mount, and on the `odyssey-character-loaded` event (matches the standard hook pattern).
+2. Whenever the Rider Loadout drawer closes (`riderLoadoutOpen` flips from true to false) — the only moment gear can have just changed.
+3. After a successful Director "install/disable/delete" or other relevant Director action that might touch gear (defensive; cheap).
+
+### Build the override
+
+For each equipped slot in the Empyrean loadout, push `{ slot: <empyrean slot label>, name: item.name, rarity: <rarity label> }` into a fresh array. Replace `characterContext.equipment` with that array via a memo whose dependencies are `characterContext` and the local Empyrean loadout state.
+
+Pass the *augmented* context (not the original) to:
+- `useAIDM` (the main DM)
+- `useOocDmChat` (the Director's OOC channel that also reads gear)
+- Any other consumer in the file that takes `characterContext`
+
+### Empty state
+
+If nothing is equipped in Empyrean, pass an empty `equipment: []`. Do NOT fall back to the legacy gear — that's the bug we're fixing. The DM should know you're unequipped so it narrates that honestly.
 
 ---
 
 ## Files touched
 
-- `src/components/empyrean/EmpyreanDMScreen.tsx` — add the dispatcher function and pass it to `<CharacterSheet>` as `onConfirmDirectorAction`.
+- `src/components/empyrean/EmpyreanDMScreen.tsx` — read Empyrean loadout, build override array, replace `characterContext.equipment`, pass augmented context everywhere `characterContext` is currently passed.
 
-That's it. No edge function changes, no new hooks, no schema work. One file.
+That's it. One file. No edge function changes, no storage migrations, no changes to the shared provider or the legacy gear path.
 
 ---
 
 ## How you'll know it's working
 
-After deploy:
-1. Open Talk to the DM. Say *"Pin a memory that I farted in fear during my first dragon flight."*
-2. Tap Confirm. Toast: **"Memory anchor pinned."**
-3. Switch to the main DM. Ask OOC *"What memory anchors do you have?"* — the fart should appear.
-4. Say *"Update the campaign summary to note I'm now a third-year cadet."* → Confirm → main DM treats you as third-year.
+1. Open Empyrean → Character Sheet → Rider Loadout. Forge or equip a chest item (e.g., "Reinforced Leathers, Rare").
+2. Close the loadout drawer. Open the AI DM input and ask OOC: *"What gear am I wearing right now?"*
+3. **Expected:** the DM lists Reinforced Leathers (and any other equipped Empyrean pieces). No mention of legacy Assassin's Ledger items unless you also equipped them there.
+4. Unequip everything in the Empyrean loadout. Ask again. The DM should describe you as unequipped, not silently fall back to old gear.
+5. Regression check: open Assassin's Ledger / regular AI DM. Its gear narration is unchanged — still uses the legacy inventory.
 
