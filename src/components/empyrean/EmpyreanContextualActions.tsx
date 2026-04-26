@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Sparkles, Loader2, ArrowLeft } from 'lucide-react';
 
 const LONG_PRESS_MS = 450;
 
@@ -102,7 +102,14 @@ interface EmpyreanContextualActionsProps {
   onAction: (prompt: string) => void;
   disabled?: boolean;
   isUnbonded?: boolean;
+  fetchMasterworkPills?: (category: 'dragon' | 'situation', situationLabel: string) => Promise<ActionItem[]>;
 }
+
+type MasterworkState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'loaded'; pills: ActionItem[] }
+  | { status: 'error'; error: string };
 
 const SITUATION_META: Record<string, { label: string; emoji: string; color: string }> = {
   combat:      { label: 'Combat',      emoji: '⚔️', color: 'bg-red-500/20 text-red-300 border-red-500/30' },
@@ -349,6 +356,7 @@ export default function EmpyreanContextualActions({
   onAction,
   disabled = false,
   isUnbonded = false,
+  fetchMasterworkPills,
 }: EmpyreanContextualActionsProps) {
   const allActions = React.useMemo(
     () => isUnbonded ? buildUnbondedActions(characterName) : buildActions(characterName, dragonName, signetType),
@@ -366,6 +374,8 @@ export default function EmpyreanContextualActions({
   const [dragonExpanded, setDragonExpanded] = useState(false);
   const [situationExpanded, setSituationExpanded] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [masterworkDragon, setMasterworkDragon] = useState<MasterworkState>({ status: 'idle' });
+  const [masterworkSituation, setMasterworkSituation] = useState<MasterworkState>({ status: 'idle' });
 
   const handleDragonAction = React.useCallback((action: ActionItem) => {
     if (action.id === 'da-execution-fire') {
@@ -379,6 +389,28 @@ export default function EmpyreanContextualActions({
     }
     onAction(action.prompt);
   }, [onAction]);
+
+  const generateMasterwork = useCallback(async (category: 'dragon' | 'situation') => {
+    if (!fetchMasterworkPills) return;
+    const setter = category === 'dragon' ? setMasterworkDragon : setMasterworkSituation;
+    setter({ status: 'loading' });
+    try {
+      const pills = await fetchMasterworkPills(category, meta.label);
+      if (!Array.isArray(pills) || pills.length === 0) {
+        setter({ status: 'error', error: 'No pills returned.' });
+        return;
+      }
+      setter({ status: 'loaded', pills });
+    } catch (e: any) {
+      console.error('[masterwork] generation failed:', e);
+      setter({ status: 'error', error: e?.message || 'Failed to generate pills.' });
+    }
+  }, [fetchMasterworkPills, meta.label]);
+
+  const revertMasterwork = useCallback((category: 'dragon' | 'situation') => {
+    if (category === 'dragon') setMasterworkDragon({ status: 'idle' });
+    else setMasterworkSituation({ status: 'idle' });
+  }, []);
 
   return (
     <div className="flex flex-col gap-1.5 px-3 py-2">
@@ -423,42 +455,170 @@ export default function EmpyreanContextualActions({
         }`}>
           {dragonExpanded && dragonActions.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              {dragonActions.map((a) => (
-                <PreviewPill
-                  key={a.id}
-                  emoji={a.emoji}
-                  label={a.label}
-                  prompt={a.prompt}
-                  disabled={disabled}
-                  className="w-full inline-flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium bg-amber-500/10 border border-amber-500/20 text-amber-300 hover:bg-amber-500/20 active:bg-amber-500/30 transition-colors disabled:opacity-40 disabled:pointer-events-none text-left"
-                  onSend={() => handleDragonAction(a)}
-                  previewOpen={previewId === a.id}
-                  onOpenPreview={() => setPreviewId(a.id)}
-                  onClosePreview={() => setPreviewId(null)}
-                />
-              ))}
+              <MasterworkColumnHeader
+                category="dragon"
+                state={masterworkDragon}
+                disabled={disabled || !fetchMasterworkPills}
+                onGenerate={() => generateMasterwork('dragon')}
+                onRevert={() => revertMasterwork('dragon')}
+              />
+              {masterworkDragon.status === 'loaded' ? (
+                masterworkDragon.pills.map((a) => (
+                  <PreviewPill
+                    key={a.id}
+                    emoji={a.emoji}
+                    label={a.label}
+                    prompt={a.prompt}
+                    disabled={disabled}
+                    className="w-full inline-flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium bg-amber-500/15 border border-amber-500/30 text-amber-200 hover:bg-amber-500/25 active:bg-amber-500/35 transition-colors disabled:opacity-40 disabled:pointer-events-none text-left"
+                    onSend={() => onAction(a.prompt)}
+                    previewOpen={previewId === a.id}
+                    onOpenPreview={() => setPreviewId(a.id)}
+                    onClosePreview={() => setPreviewId(null)}
+                  />
+                ))
+              ) : masterworkDragon.status === 'loading' ? (
+                <MasterworkSkeleton count={4} accent="amber" />
+              ) : (
+                dragonActions.map((a) => (
+                  <PreviewPill
+                    key={a.id}
+                    emoji={a.emoji}
+                    label={a.label}
+                    prompt={a.prompt}
+                    disabled={disabled}
+                    className="w-full inline-flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium bg-amber-500/10 border border-amber-500/20 text-amber-300 hover:bg-amber-500/20 active:bg-amber-500/30 transition-colors disabled:opacity-40 disabled:pointer-events-none text-left"
+                    onSend={() => handleDragonAction(a)}
+                    previewOpen={previewId === a.id}
+                    onOpenPreview={() => setPreviewId(a.id)}
+                    onClosePreview={() => setPreviewId(null)}
+                  />
+                ))
+              )}
             </div>
           )}
           {situationExpanded && actions.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              {actions.map((a) => (
-                <PreviewPill
-                  key={a.id}
-                  emoji={a.emoji}
-                  label={a.label}
-                  prompt={a.prompt}
-                  disabled={disabled}
-                  className="w-full inline-flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium bg-purple-500/10 border border-purple-500/20 text-purple-300 hover:bg-purple-500/20 active:bg-purple-500/30 transition-colors disabled:opacity-40 disabled:pointer-events-none text-left"
-                  onSend={() => onAction(a.prompt)}
-                  previewOpen={previewId === a.id}
-                  onOpenPreview={() => setPreviewId(a.id)}
-                  onClosePreview={() => setPreviewId(null)}
-                />
-              ))}
+              <MasterworkColumnHeader
+                category="situation"
+                state={masterworkSituation}
+                disabled={disabled || !fetchMasterworkPills}
+                onGenerate={() => generateMasterwork('situation')}
+                onRevert={() => revertMasterwork('situation')}
+              />
+              {masterworkSituation.status === 'loaded' ? (
+                masterworkSituation.pills.map((a) => (
+                  <PreviewPill
+                    key={a.id}
+                    emoji={a.emoji}
+                    label={a.label}
+                    prompt={a.prompt}
+                    disabled={disabled}
+                    className="w-full inline-flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium bg-purple-500/15 border border-purple-500/30 text-purple-200 hover:bg-purple-500/25 active:bg-purple-500/35 transition-colors disabled:opacity-40 disabled:pointer-events-none text-left"
+                    onSend={() => onAction(a.prompt)}
+                    previewOpen={previewId === a.id}
+                    onOpenPreview={() => setPreviewId(a.id)}
+                    onClosePreview={() => setPreviewId(null)}
+                  />
+                ))
+              ) : masterworkSituation.status === 'loading' ? (
+                <MasterworkSkeleton count={4} accent="purple" />
+              ) : (
+                actions.map((a) => (
+                  <PreviewPill
+                    key={a.id}
+                    emoji={a.emoji}
+                    label={a.label}
+                    prompt={a.prompt}
+                    disabled={disabled}
+                    className="w-full inline-flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium bg-purple-500/10 border border-purple-500/20 text-purple-300 hover:bg-purple-500/20 active:bg-purple-500/30 transition-colors disabled:opacity-40 disabled:pointer-events-none text-left"
+                    onSend={() => onAction(a.prompt)}
+                    previewOpen={previewId === a.id}
+                    onOpenPreview={() => setPreviewId(a.id)}
+                    onClosePreview={() => setPreviewId(null)}
+                  />
+                ))
+              )}
             </div>
           )}
         </div>
       )}
     </div>
+  );
+}
+
+function MasterworkColumnHeader({
+  category,
+  state,
+  disabled,
+  onGenerate,
+  onRevert,
+}: {
+  category: 'dragon' | 'situation';
+  state: MasterworkState;
+  disabled: boolean;
+  onGenerate: () => void;
+  onRevert: () => void;
+}) {
+  const accent = category === 'dragon' ? 'amber' : 'purple';
+  const accentClasses = accent === 'amber'
+    ? 'border-amber-500/40 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20 active:bg-amber-500/30'
+    : 'border-purple-500/40 bg-purple-500/10 text-purple-200 hover:bg-purple-500/20 active:bg-purple-500/30';
+
+  if (state.status === 'loaded') {
+    return (
+      <button
+        type="button"
+        onClick={onRevert}
+        className={`self-start inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full border transition-colors ${accentClasses}`}
+        style={{ touchAction: 'manipulation' }}
+      >
+        <ArrowLeft className="w-3 h-3" />
+        <span>Show defaults</span>
+      </button>
+    );
+  }
+
+  if (state.status === 'loading') {
+    return (
+      <div className={`self-start inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full border ${accentClasses} opacity-80`}>
+        <Loader2 className="w-3 h-3 animate-spin" />
+        <span>Generating moves...</span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onGenerate}
+        disabled={disabled}
+        className={`self-start inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full border transition-colors disabled:opacity-40 disabled:pointer-events-none ${accentClasses}`}
+        style={{ touchAction: 'manipulation' }}
+      >
+        <Sparkles className="w-3 h-3" />
+        <span>Masterwork</span>
+      </button>
+      {state.status === 'error' && (
+        <p className="text-[10px] text-red-300/90 leading-snug px-1">{state.error}</p>
+      )}
+    </>
+  );
+}
+
+function MasterworkSkeleton({ count, accent }: { count: number; accent: 'amber' | 'purple' }) {
+  const tint = accent === 'amber'
+    ? 'bg-amber-500/5 border-amber-500/15'
+    : 'bg-purple-500/5 border-purple-500/15';
+  return (
+    <>
+      {Array.from({ length: count }).map((_, i) => (
+        <div
+          key={i}
+          className={`w-full h-9 rounded-lg border ${tint} animate-pulse`}
+        />
+      ))}
+    </>
   );
 }
