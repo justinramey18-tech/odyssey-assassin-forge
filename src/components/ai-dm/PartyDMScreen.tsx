@@ -51,6 +51,9 @@ import { loadSelectedModel, saveSelectedModel } from '@/lib/dm-models';
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-party-dm';
 import { DMDiceRoller } from './DMDiceRoller';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { parseRollHint } from '@/lib/whisperRollHint';
+import { resolveWhisperAutoRoll, performWhisperRoll } from '@/lib/whisperAutoRoll';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
 import { RoundTimer, TimerSettings } from './RoundTimer';
 import { AfkPersonalityGuide } from './AfkPersonalityGuide';
@@ -382,7 +385,7 @@ function MessageReactions({ messageId, reactions, currentUserId, onAddReaction, 
   );
 }
 
-const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction }: {
+const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction, onWhisperAutoRoll, onWhisperOpenRoller }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -405,6 +408,8 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   reactions?: ReactionData[];
   onAddReaction?: (messageId: string, emoji: string) => void;
   onRemoveReaction?: (messageId: string, emoji: string) => void;
+  onWhisperAutoRoll?: (whisperContent: string) => void;
+  onWhisperOpenRoller?: (whisperContent: string) => void;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
@@ -649,7 +654,11 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
         {/* Whisper tray below the AI message bubble, filtered to current player */}
         {whisperTrayEnabled && filteredWhispers.length > 0 && (
           <div className="ml-[calc(1.75rem+0.375rem)]">
-            <WhisperTray whispers={filteredWhispers} />
+            <WhisperTray
+              whispers={filteredWhispers}
+              onAutoRoll={onWhisperAutoRoll}
+              onOpenRoller={onWhisperOpenRoller}
+            />
           </div>
         )}
       </>
@@ -1473,6 +1482,61 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     setTimeout(() => partyDmRef.current.setReady(), 100);
   }, [myAfkGuide]);
 
+  // Empyrean masterwork pills generator (Party mode)
+  const handleFetchMasterworkPills = useCallback(
+    async (category: 'dragon' | 'situation', situationLabel: string) => {
+      const recentAssistantMessages = partyDm.messages.filter((m: any) => m.role === 'assistant').slice(-2);
+      const recentNarrative = recentAssistantMessages.map((m: any) => m.content).join('\n\n').slice(0, 2500);
+      if (!recentNarrative.trim()) {
+        throw new Error('No recent narrative to riff on yet.');
+      }
+      const myMember = members.find(m => m.user_id === currentUserId);
+      const { data, error } = await supabase.functions.invoke('empyrean-masterwork-pills', {
+        body: {
+          category,
+          situation_label: situationLabel,
+          recent_narrative: recentNarrative,
+          character_name: myMember?.character_name || 'Rider',
+          dragon_name: dragonBonds.myDragon?.dragonName || '',
+          signet_type: dragonBonds.myDragon?.signetType || '',
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      if (!Array.isArray((data as any)?.pills)) throw new Error('Invalid response from masterwork generator.');
+      return (data as any).pills;
+    },
+    [partyDm.messages, members, currentUserId, dragonBonds.myDragon?.dragonName, dragonBonds.myDragon?.signetType]
+  );
+
+  // Whisper roll: state + handlers
+  const [diceRollerOpen, setDiceRollerOpen] = useState(false);
+  const [diceRollerWhisperText, setDiceRollerWhisperText] = useState<string | null>(null);
+
+  const handleWhisperAutoRoll = useCallback((whisperContent: string) => {
+    const hint = parseRollHint(whisperContent);
+    const auto = resolveWhisperAutoRoll(hint);
+    if (!auto.canAutoRoll || !auto.actionPhrase) {
+      setDiceRollerWhisperText(whisperContent);
+      setDiceRollerOpen(true);
+      return;
+    }
+    const myMember = members.find(m => m.user_id === currentUserId);
+    const characterContext: any = {
+      level: (myMember as any)?.level ?? 1,
+      abilityScores: (myMember as any)?.ability_scores ?? (myMember as any)?.stats ?? {},
+      skillProficiencies: (myMember as any)?.skill_proficiencies ?? [],
+      savingThrowProficiencies: (myMember as any)?.saving_throw_proficiencies ?? [],
+    };
+    const result = performWhisperRoll({ hint, actionPhrase: auto.actionPhrase, characterContext });
+    partyDmRef.current.submitPrompt(result.chatMessage);
+  }, [members, currentUserId]);
+
+  const handleWhisperOpenRoller = useCallback((whisperContent: string) => {
+    setDiceRollerWhisperText(whisperContent);
+    setDiceRollerOpen(true);
+  }, []);
+
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -2008,6 +2072,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     reactions={messageReactions.filter(r => r.message_id === msg.id)}
                     onAddReaction={addReaction}
                     onRemoveReaction={removeReaction}
+                    onWhisperAutoRoll={isEmpyrean ? handleWhisperAutoRoll : undefined}
+                    onWhisperOpenRoller={isEmpyrean ? handleWhisperOpenRoller : undefined}
                   />
                 </React.Fragment>
                 );
@@ -3064,6 +3130,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 }}
                 disabled={partyDm.isGenerating}
                 isUnbonded={!dragonBonds.isSetup || !dragonBonds.myDragon?.dragonName}
+                fetchMasterworkPills={handleFetchMasterworkPills}
               />
             )}
             <PartyDMInput
@@ -3611,6 +3678,28 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           });
         }}
       />
+
+      {/* Whisper-driven dice roller (Empyrean party mode) */}
+      <Sheet open={diceRollerOpen} onOpenChange={setDiceRollerOpen}>
+        <SheetContent side="bottom" className="h-[85vh] p-0 bg-background/95 backdrop-blur-lg border-t border-amber-500/30 rounded-t-2xl overflow-hidden flex flex-col">
+          <DMDiceRoller
+            rollHint={diceRollerWhisperText ? parseRollHint(diceRollerWhisperText) : null}
+            characterContext={(() => {
+              const myMember = members.find(m => m.user_id === currentUserId);
+              return {
+                level: (myMember as any)?.level ?? 1,
+                abilityScores: (myMember as any)?.ability_scores ?? (myMember as any)?.stats ?? {},
+                skillProficiencies: (myMember as any)?.skill_proficiencies ?? [],
+                savingThrowProficiencies: (myMember as any)?.saving_throw_proficiencies ?? [],
+              } as any;
+            })()}
+            onRollResult={(text: string) => {
+              partyDmRef.current.submitPrompt(text);
+              setDiceRollerOpen(false);
+            }}
+          />
+        </SheetContent>
+      </Sheet>
 
       {/* Dragon Telegram Scheduler (host only, empyrean mode) */}
       {isCreator && isEmpyrean && partyId && (
