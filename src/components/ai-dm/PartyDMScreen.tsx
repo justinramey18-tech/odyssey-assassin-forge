@@ -1482,6 +1482,61 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     setTimeout(() => partyDmRef.current.setReady(), 100);
   }, [myAfkGuide]);
 
+  // Empyrean masterwork pills generator (Party mode)
+  const handleFetchMasterworkPills = useCallback(
+    async (category: 'dragon' | 'situation', situationLabel: string) => {
+      const recentAssistantMessages = partyDm.messages.filter((m: any) => m.role === 'assistant').slice(-2);
+      const recentNarrative = recentAssistantMessages.map((m: any) => m.content).join('\n\n').slice(0, 2500);
+      if (!recentNarrative.trim()) {
+        throw new Error('No recent narrative to riff on yet.');
+      }
+      const myMember = members.find(m => m.user_id === currentUserId);
+      const { data, error } = await supabase.functions.invoke('empyrean-masterwork-pills', {
+        body: {
+          category,
+          situation_label: situationLabel,
+          recent_narrative: recentNarrative,
+          character_name: myMember?.character_name || 'Rider',
+          dragon_name: dragonBonds.myDragon?.dragonName || '',
+          signet_type: dragonBonds.myDragon?.signetType || '',
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      if (!Array.isArray((data as any)?.pills)) throw new Error('Invalid response from masterwork generator.');
+      return (data as any).pills;
+    },
+    [partyDm.messages, members, currentUserId, dragonBonds.myDragon?.dragonName, dragonBonds.myDragon?.signetType]
+  );
+
+  // Whisper roll: state + handlers
+  const [diceRollerOpen, setDiceRollerOpen] = useState(false);
+  const [diceRollerWhisperText, setDiceRollerWhisperText] = useState<string | null>(null);
+
+  const handleWhisperAutoRoll = useCallback((whisperContent: string) => {
+    const hint = parseRollHint(whisperContent);
+    const auto = resolveWhisperAutoRoll(hint);
+    if (!auto.canAutoRoll || !auto.actionPhrase) {
+      setDiceRollerWhisperText(whisperContent);
+      setDiceRollerOpen(true);
+      return;
+    }
+    const myMember = members.find(m => m.user_id === currentUserId);
+    const characterContext: any = {
+      level: (myMember as any)?.level ?? 1,
+      abilityScores: (myMember as any)?.ability_scores ?? (myMember as any)?.stats ?? {},
+      skillProficiencies: (myMember as any)?.skill_proficiencies ?? [],
+      savingThrowProficiencies: (myMember as any)?.saving_throw_proficiencies ?? [],
+    };
+    const result = performWhisperRoll({ hint, actionPhrase: auto.actionPhrase, characterContext });
+    partyDmRef.current.submitPrompt(result.chatMessage);
+  }, [members, currentUserId]);
+
+  const handleWhisperOpenRoller = useCallback((whisperContent: string) => {
+    setDiceRollerWhisperText(whisperContent);
+    setDiceRollerOpen(true);
+  }, []);
+
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
     if (!items) return;
