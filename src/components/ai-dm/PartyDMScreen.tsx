@@ -3679,6 +3679,29 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         }}
       />
 
+      {/* Whisper-driven dice roller (Empyrean party mode) */}
+      <Sheet open={diceRollerOpen} onOpenChange={setDiceRollerOpen}>
+        <SheetContent side="bottom" className="h-[85vh] p-0 bg-background/95 backdrop-blur-lg border-t border-amber-500/30 rounded-t-2xl overflow-hidden flex flex-col">
+          <DMDiceRoller
+            whisperText={diceRollerWhisperText}
+            onClose={() => setDiceRollerOpen(false)}
+            characterContext={(() => {
+              const myMember = members.find(m => m.user_id === currentUserId);
+              return {
+                level: (myMember as any)?.level ?? 1,
+                abilityScores: (myMember as any)?.ability_scores ?? (myMember as any)?.stats ?? {},
+                skillProficiencies: (myMember as any)?.skill_proficiencies ?? [],
+                savingThrowProficiencies: (myMember as any)?.saving_throw_proficiencies ?? [],
+              } as any;
+            })()}
+            onRollResult={(text: string) => {
+              partyDmRef.current.submitPrompt(text);
+              setDiceRollerOpen(false);
+            }}
+          />
+        </SheetContent>
+      </Sheet>
+
       {/* Dragon Telegram Scheduler (host only, empyrean mode) */}
       {isCreator && isEmpyrean && partyId && (
         <DragonTelegramScheduler
