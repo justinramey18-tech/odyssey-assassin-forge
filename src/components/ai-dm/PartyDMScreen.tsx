@@ -2072,6 +2072,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     reactions={messageReactions.filter(r => r.message_id === msg.id)}
                     onAddReaction={addReaction}
                     onRemoveReaction={removeReaction}
+                    onWhisperAutoRoll={isEmpyrean ? handleWhisperAutoRoll : undefined}
+                    onWhisperOpenRoller={isEmpyrean ? handleWhisperOpenRoller : undefined}
                   />
                 </React.Fragment>
                 );
