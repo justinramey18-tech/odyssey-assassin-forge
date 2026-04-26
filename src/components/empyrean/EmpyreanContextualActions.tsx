@@ -356,6 +356,7 @@ export default function EmpyreanContextualActions({
   onAction,
   disabled = false,
   isUnbonded = false,
+  fetchMasterworkPills,
 }: EmpyreanContextualActionsProps) {
   const allActions = React.useMemo(
     () => isUnbonded ? buildUnbondedActions(characterName) : buildActions(characterName, dragonName, signetType),
