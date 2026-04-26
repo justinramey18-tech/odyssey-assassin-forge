@@ -546,3 +546,79 @@ export default function EmpyreanContextualActions({
     </div>
   );
 }
+
+function MasterworkColumnHeader({
+  category,
+  state,
+  disabled,
+  onGenerate,
+  onRevert,
+}: {
+  category: 'dragon' | 'situation';
+  state: MasterworkState;
+  disabled: boolean;
+  onGenerate: () => void;
+  onRevert: () => void;
+}) {
+  const accent = category === 'dragon' ? 'amber' : 'purple';
+  const accentClasses = accent === 'amber'
+    ? 'border-amber-500/40 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20 active:bg-amber-500/30'
+    : 'border-purple-500/40 bg-purple-500/10 text-purple-200 hover:bg-purple-500/20 active:bg-purple-500/30';
+
+  if (state.status === 'loaded') {
+    return (
+      <button
+        type="button"
+        onClick={onRevert}
+        className={`self-start inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full border transition-colors ${accentClasses}`}
+        style={{ touchAction: 'manipulation' }}
+      >
+        <ArrowLeft className="w-3 h-3" />
+        <span>Show defaults</span>
+      </button>
+    );
+  }
+
+  if (state.status === 'loading') {
+    return (
+      <div className={`self-start inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full border ${accentClasses} opacity-80`}>
+        <Loader2 className="w-3 h-3 animate-spin" />
+        <span>Generating moves...</span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onGenerate}
+        disabled={disabled}
+        className={`self-start inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full border transition-colors disabled:opacity-40 disabled:pointer-events-none ${accentClasses}`}
+        style={{ touchAction: 'manipulation' }}
+      >
+        <Sparkles className="w-3 h-3" />
+        <span>Masterwork</span>
+      </button>
+      {state.status === 'error' && (
+        <p className="text-[10px] text-red-300/90 leading-snug px-1">{state.error}</p>
+      )}
+    </>
+  );
+}
+
+function MasterworkSkeleton({ count, accent }: { count: number; accent: 'amber' | 'purple' }) {
+  const tint = accent === 'amber'
+    ? 'bg-amber-500/5 border-amber-500/15'
+    : 'bg-purple-500/5 border-purple-500/15';
+  return (
+    <>
+      {Array.from({ length: count }).map((_, i) => (
+        <div
+          key={i}
+          className={`w-full h-9 rounded-lg border ${tint} animate-pulse`}
+        />
+      ))}
+    </>
+  );
+}
