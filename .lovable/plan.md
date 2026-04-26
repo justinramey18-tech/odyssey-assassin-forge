@@ -1,39 +1,53 @@
+## Masterwork Pills for Empyrean DM
 
+Add an AI-generated alternative to the static contextual action pills in the Empyrean Solo DM. Each expanded column (Dragon, Situation) gets a small "✨ Masterwork" button that swaps the static pills for 4 AI-tailored pills based on the most recent narrative beat. State is per-column and persists until the user taps "← Show defaults".
 
-## Talk to the DM — full campaign reconfiguration via chat
+### 1. New edge function: `supabase/functions/empyrean-masterwork-pills/index.ts`
 
-### What changes
-The Director already handles guides, memory anchors, summaries, dragon personality, and OOC notes. This adds the last two missing slots: **identity** (rider/dragon names, color, signet, year) and **campaign settings** (focus, lore guides, tone guides, session template). After this, anything you can edit in the Reconfigure Campaign form is also reachable through natural conversation with the Director.
+- Accepts `{ category: 'dragon' | 'situation', situation_label, recent_narrative, character_name, dragon_name, signet_type }`.
+- Calls Lovable AI gateway (`google/gemini-2.5-flash`) with a strict tool-call schema (`generate_masterwork_pills`) returning exactly 4 pills `{ label, emoji, prompt }`.
+- Server-side system prompt encodes Empyrean tone + per-column flavor (dragon-synergy vs. independent-rider).
+- Validates / sanitizes the tool call output, attaches stable `id`s, returns `{ pills }` or a structured error (handles 429/402 explicitly).
+- No DB or auth dependency. CORS headers on every response. `verify_jwt = false` (added to `supabase/config.toml`).
 
-The Reconfigure Campaign form stays untouched as the wholesale-edit backup.
+### 2. `src/components/empyrean/EmpyreanContextualActions.tsx`
 
-### How it works
-- The Director receives, alongside everything it already gets, a snapshot of your **current campaign config** plus a **catalog** of valid lore-guide IDs, tone-guide IDs, and session-template IDs.
-- When you say "make it darker" or "shift focus to political", the Director picks the right catalog IDs and proposes a single card.
-- For renames or year advancement, it acknowledges the in-fiction weight ("That's a major shift…") then proposes an UPDATE IDENTITY card.
-- If you ask for something that isn't in the catalog (e.g. "Steampunk Gritty tone"), the Director tells you and points you at the Reconfigure form instead of inventing IDs.
+- Add a new optional prop `fetchMasterworkPills?: (category, situationLabel) => Promise<ActionItem[]>`.
+- Add two independent `MasterworkState` slots (one per column): `idle | loading | loaded | error`.
+- Add `generateMasterwork(category)` and `revertMasterwork(category)` callbacks.
+- In each expanded column, prepend a `MasterworkColumnHeader`:
+  - idle/error → small "✨ Masterwork" button (column-tinted, amber for Dragon / purple for Situation), with inline red error text on failure.
+  - loading → "Generating moves…" with spinner.
+  - loaded → "← Show defaults" revert button.
+- When `loaded`, render the AI pills via the existing `PreviewPill` (same long-press preview, same tap-to-send). When `loading`, render 4 pulsing skeleton rows. Otherwise render the existing static pills unchanged.
+- Masterwork pills use slightly more saturated tints (`/15` backgrounds) to subtly differentiate.
+- No auto-revert: state only changes on explicit user action or a fresh generate.
 
-### Two new action card types
-- **UPDATE IDENTITY** — shows whichever of name / dragon / color / signet / year are changing. Destructive (overwrites). Confirm → setConfig + save.
-- **UPDATE SETTINGS** — shows focus / guide counts / template. Destructive. Replaces the full lore- or tone-guide list (not a delta). Confirm → setConfig + save. Unknown IDs are filtered out client-side with a warn log.
+### 3. `src/components/empyrean/EmpyreanDMScreen.tsx`
 
-### Files touched
-- `supabase/functions/empyrean-director/index.ts` — add 2 enum values, payload schema fields, system-prompt sections (action types 8 & 9), 2 catalog discipline rules, current-config + catalog blocks in the state serializer, 2 new validation branches.
-- `src/hooks/use-director-chat.ts` — extend `DirectorActionType` and `DirectorProposedAction` with the new fields; propagate them in the raw-to-typed mapper; extend `buildStatePayload` to ship `campaign_config` + the three catalogs (id/name/description only — no guide bodies).
-- `src/components/empyrean/DirectorChat.tsx` — add 2 new cases in `getActionMeta` so the cards render previews.
-- `src/components/empyrean/EmpyreanDMScreen.tsx` — add 2 dispatcher branches in `handleConfirmDirectorAction`. Each diff-checks against current config, calls `setConfig` + `saveEmpyreanDMConfig`, validates IDs against the catalogs, and toasts a summary of what changed.
+- Add `handleFetchMasterworkPills` (`useCallback`) that:
+  - Joins the last 1–2 assistant messages into `recent_narrative` (capped at 2500 chars). Throws "No recent narrative to riff on yet." if empty.
+  - Invokes `supabase.functions.invoke('empyrean-masterwork-pills', { body: {...} })` with category, situation label, character/dragon/signet from `config`.
+  - Surfaces edge function errors and validates the `pills` array shape; returns the array.
+- Pass it as `fetchMasterworkPills={handleFetchMasterworkPills}` on the existing `<EmpyreanContextualActions />`.
 
-### Guards (carried from the brief)
-- Identity fields are free text — no catalog validation.
-- Guide-list updates are full replacements, not deltas. Director computes `current + new` or `current − removed` itself.
-- Catalog payload is id + name + short description only — guide bodies are never sent (keeps payload small).
-- One action per Confirm. No batched transactions, no undo, no auto-close of the Talk tab.
-- All earlier action types unchanged.
+### Guards (do NOT change)
 
-### How you'll know it's working
-1. "Change my name to Xeyrin" → UPDATE IDENTITY card → Confirm → header reflects new name, persists across reload.
-2. "Shift focus to political intrigue" → UPDATE SETTINGS card with `Focus: political` → Confirm → reflected in next DM turn and in Reconfigure form.
-3. "Make it darker, more horror" → Director picks the matching tone-guide ID(s) from the catalog and proposes UPDATE SETTINGS.
-4. "Add the Steampunk Gritty tone guide" → Director declines, suggests Reconfigure form.
-5. Open Settings → Reconfigure Campaign → form pre-fills with whatever the Director just changed. Backup path still works.
+- Static pill behavior, `handleDragonAction`, action derivations, `SITUATION_META` lookup — untouched.
+- `EmpyreanAbilityPicker`, `EmpyreanDirectorScreen`, cooldowns, signet drawer, loadout — untouched.
+- Party DM, standard AIDM, Assassin's Ledger — untouched (Empyrean-only feature).
+- No useEffect that resets masterwork state on message/loading changes.
+- Masterwork header only renders when its column is expanded.
+- `PreviewPill` and `usePressPreview` reused as-is — long-press preview works identically for both pill types.
 
+### Verification after implementation
+
+- Edge function deploys and returns 4 pills for both `dragon` and `situation` categories.
+- Expanding either column shows the new ✨ Masterwork button at the top.
+- Tap → spinner + 4 skeleton rows → 4 tinted AI pills with character-specific labels.
+- Tap an AI pill → prompt sends to DM exactly like a static pill; column stays in masterwork state after the DM responds.
+- Long-press an AI pill → preview popover with full prompt text.
+- "← Show defaults" → restores static pills.
+- Both columns operate independently (one can be masterwork, the other static, simultaneously).
+- Error path shows inline red text under the header; retry works.
+- Regression: chat, dice, OOC notes, signet, cooldowns, abilities, loadout, dragon chat, Director screen, Party DM, standard AIDM all unchanged.
