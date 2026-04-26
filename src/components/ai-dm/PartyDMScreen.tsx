@@ -3130,6 +3130,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 }}
                 disabled={partyDm.isGenerating}
                 isUnbonded={!dragonBonds.isSetup || !dragonBonds.myDragon?.dragonName}
+                fetchMasterworkPills={handleFetchMasterworkPills}
               />
             )}
             <PartyDMInput
