@@ -2090,6 +2090,27 @@ ${oocLines}`;
               }}
               disabled={isLoading || (!isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout)}
               isUnbonded={isUnbonded}
+              fetchMasterworkPills={async (category, situationLabel) => {
+                const recentAssistantMessages = messages.filter(m => m.role === 'assistant').slice(-2);
+                const recentNarrative = recentAssistantMessages.map(m => m.content).join('\n\n').slice(0, 2500);
+                if (!recentNarrative.trim()) {
+                  throw new Error('No recent narrative to riff on yet.');
+                }
+                const { data, error } = await supabase.functions.invoke('empyrean-masterwork-pills', {
+                  body: {
+                    category,
+                    situation_label: situationLabel,
+                    recent_narrative: recentNarrative,
+                    character_name: config?.characterName || characterName,
+                    dragon_name: config?.dragonName || '',
+                    signet_type: config?.signetType || '',
+                  },
+                });
+                if (error) throw error;
+                if (data?.error) throw new Error(data.error);
+                if (!Array.isArray(data?.pills)) throw new Error('Invalid response from masterwork generator.');
+                return data.pills;
+              }}
             />
           </div>
           <button
