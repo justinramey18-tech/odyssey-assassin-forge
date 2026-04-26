@@ -102,7 +102,14 @@ interface EmpyreanContextualActionsProps {
   onAction: (prompt: string) => void;
   disabled?: boolean;
   isUnbonded?: boolean;
+  fetchMasterworkPills?: (category: 'dragon' | 'situation', situationLabel: string) => Promise<ActionItem[]>;
 }
+
+type MasterworkState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'loaded'; pills: ActionItem[] }
+  | { status: 'error'; error: string };
 
 const SITUATION_META: Record<string, { label: string; emoji: string; color: string }> = {
   combat:      { label: 'Combat',      emoji: '⚔️', color: 'bg-red-500/20 text-red-300 border-red-500/30' },
