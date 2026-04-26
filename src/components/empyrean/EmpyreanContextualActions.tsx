@@ -374,6 +374,8 @@ export default function EmpyreanContextualActions({
   const [dragonExpanded, setDragonExpanded] = useState(false);
   const [situationExpanded, setSituationExpanded] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [masterworkDragon, setMasterworkDragon] = useState<MasterworkState>({ status: 'idle' });
+  const [masterworkSituation, setMasterworkSituation] = useState<MasterworkState>({ status: 'idle' });
 
   const handleDragonAction = React.useCallback((action: ActionItem) => {
     if (action.id === 'da-execution-fire') {
@@ -387,6 +389,28 @@ export default function EmpyreanContextualActions({
     }
     onAction(action.prompt);
   }, [onAction]);
+
+  const generateMasterwork = useCallback(async (category: 'dragon' | 'situation') => {
+    if (!fetchMasterworkPills) return;
+    const setter = category === 'dragon' ? setMasterworkDragon : setMasterworkSituation;
+    setter({ status: 'loading' });
+    try {
+      const pills = await fetchMasterworkPills(category, meta.label);
+      if (!Array.isArray(pills) || pills.length === 0) {
+        setter({ status: 'error', error: 'No pills returned.' });
+        return;
+      }
+      setter({ status: 'loaded', pills });
+    } catch (e: any) {
+      console.error('[masterwork] generation failed:', e);
+      setter({ status: 'error', error: e?.message || 'Failed to generate pills.' });
+    }
+  }, [fetchMasterworkPills, meta.label]);
+
+  const revertMasterwork = useCallback((category: 'dragon' | 'situation') => {
+    if (category === 'dragon') setMasterworkDragon({ status: 'idle' });
+    else setMasterworkSituation({ status: 'idle' });
+  }, []);
 
   return (
     <div className="flex flex-col gap-1.5 px-3 py-2">
