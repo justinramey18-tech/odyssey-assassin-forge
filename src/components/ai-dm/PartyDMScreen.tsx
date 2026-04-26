@@ -3683,8 +3683,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       <Sheet open={diceRollerOpen} onOpenChange={setDiceRollerOpen}>
         <SheetContent side="bottom" className="h-[85vh] p-0 bg-background/95 backdrop-blur-lg border-t border-amber-500/30 rounded-t-2xl overflow-hidden flex flex-col">
           <DMDiceRoller
-            whisperText={diceRollerWhisperText}
-            onClose={() => setDiceRollerOpen(false)}
+            rollHint={diceRollerWhisperText ? parseRollHint(diceRollerWhisperText) : null}
             characterContext={(() => {
               const myMember = members.find(m => m.user_id === currentUserId);
               return {
