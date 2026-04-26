@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Sparkles, Loader2, ArrowLeft } from 'lucide-react';
 
 const LONG_PRESS_MS = 450;
 
