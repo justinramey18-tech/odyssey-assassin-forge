@@ -772,6 +772,8 @@ ${truncated}`);
         const showLockOutScreen = !isPartyCreator
           && campaignStarted
           && myOnboardingStatus !== 'complete'
+          && myOnboardingStatus !== 'in_progress'
+          && myOnboardingStatus !== 'pending'
           && !forceShowOnboarding;
         if (!showLockOutScreen) return null;
         return (
