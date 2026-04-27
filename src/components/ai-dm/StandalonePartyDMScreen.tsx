@@ -675,11 +675,12 @@ ${truncated}`);
         )}
       </AnimatePresence>
 
-      {/* Player Onboarding Overlay (non-host players whose status is in_progress) */}
+      {/* Player Onboarding Overlay (non-host players whose status is in_progress, or who tapped "Build my character" from lockout) */}
       {(() => {
         const myMember = partyMembers.find(m => m.user_id === userId);
         const myOnboardingStatus = (myMember as any)?.onboarding_status || 'pending';
-        const showPlayerOnboarding = !isPartyCreator && myOnboardingStatus === 'in_progress';
+        const playerOnboardingNeeded = !isPartyCreator && myOnboardingStatus !== 'complete';
+        const showPlayerOnboarding = playerOnboardingNeeded && (myOnboardingStatus === 'in_progress' || forceShowOnboarding);
         if (!showPlayerOnboarding) return null;
 
         const hostMember = partyMembers.find(m => m.user_id !== userId && (m as any).onboarding_status === 'complete')
@@ -698,11 +699,40 @@ ${truncated}`);
             campaignPlan={campaignPlan}
             hostCharacterSummary={hostCharacterSummary}
             onComplete={() => {
+              setForceShowOnboarding(false);
               // Realtime party_members subscription will pick up onboarding_status='complete' and unmount this overlay.
             }}
           />
         );
       })()}
+
+      {/* Lock-out screen for non-host players who haven't completed onboarding after host started campaign */}
+      {(() => {
+        const myMember = partyMembers.find(m => m.user_id === userId);
+        const myOnboardingStatus = (myMember as any)?.onboarding_status || 'pending';
+        const showLockOutScreen = !isPartyCreator
+          && campaignStarted
+          && myOnboardingStatus !== 'complete'
+          && !forceShowOnboarding;
+        if (!showLockOutScreen) return null;
+        return (
+          <PlayerLockedOutScreen onOpenOnboarding={() => setForceShowOnboarding(true)} />
+        );
+      })()}
+
+      {/* Host's Start Campaign panel */}
+      <HostStartCampaignPanel
+        open={showStartCampaignPanel}
+        onOpenChange={setShowStartCampaignPanel}
+        partyId={partyId}
+        hostUserId={isPartyCreator ? userId : null}
+        members={partyMembers.map<PartyMemberOnboardingView>((m) => ({
+          user_id: m.user_id,
+          display_name: memberDisplayNames[m.user_id],
+          onboarding_status: ((m as any).onboarding_status || 'pending') as PartyMemberOnboardingView['onboarding_status'],
+        }))}
+        onCampaignStarted={() => setCampaignStarted(true)}
+      />
     </div>
   );
 }
