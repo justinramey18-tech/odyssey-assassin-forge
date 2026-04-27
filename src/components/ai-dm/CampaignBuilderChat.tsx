@@ -233,7 +233,16 @@ export default function CampaignBuilderChat({ partyMembers, characterName, chara
         {buildData && (
           <div className="shrink-0 px-4 py-2 border-t border-amber-900/30 bg-black/60 backdrop-blur-md">
             <Button
-              onClick={() => onComplete(buildData)}
+              onClick={async () => {
+                onComplete(buildData);
+                if (mode === 'party-host' && onApplyHostOnboarding) {
+                  try {
+                    await onApplyHostOnboarding();
+                  } catch (e) {
+                    console.error('[CampaignBuilder] onApplyHostOnboarding failed:', e);
+                  }
+                }
+              }}
               className="w-full bg-amber-600 hover:bg-amber-500 text-white font-cinzel tracking-wider"
               size="lg"
             >
