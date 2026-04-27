@@ -713,7 +713,8 @@ ${truncated}`);
         const myMember = partyMembers.find(m => m.user_id === userId);
         const myOnboardingStatus = (myMember as any)?.onboarding_status || 'pending';
         const playerOnboardingNeeded = !isPartyCreator && myOnboardingStatus !== 'complete';
-        const showPlayerOnboarding = playerOnboardingNeeded && (myOnboardingStatus === 'in_progress' || forceShowOnboarding);
+        const showPlayerOnboarding = playerOnboardingNeeded
+          && (myOnboardingStatus === 'in_progress' || myOnboardingStatus === 'pending' || forceShowOnboarding);
         if (!showPlayerOnboarding) return null;
 
         const hostMember = partyMembers.find(m => m.user_id !== userId && (m as any).onboarding_status === 'complete')
