@@ -59,7 +59,10 @@ function stripSuggestions(content: string): string {
   return content.replace(/\n?\[SUGGESTIONS:\s*.*?\]\s*$/, '').trimEnd();
 }
 
-export function useAICampaignChat() {
+export type CampaignBuilderMode = 'solo' | 'standalone-party' | 'party-host';
+
+export function useAICampaignChat(options?: { mode?: CampaignBuilderMode }) {
+  const mode = options?.mode ?? 'solo';
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [buildData, setBuildData] = useState<CampaignBuildData | null>(null);
