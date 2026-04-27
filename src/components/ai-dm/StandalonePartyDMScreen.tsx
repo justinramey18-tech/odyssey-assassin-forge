@@ -13,6 +13,9 @@ import { cn } from '@/lib/utils';
 import { PartyDMScreen } from './PartyDMScreen';
 import { GMGuidesManager } from './GMGuidesManager';
 import { PlayerOnboardingScreen } from './PlayerOnboardingScreen';
+import { HostStartCampaignPanel, type PartyMemberOnboardingView } from './HostStartCampaignPanel';
+import { PlayerLockedOutScreen } from './PlayerLockedOutScreen';
+import { Play } from 'lucide-react';
 
 import { PartyCampaignSaves } from './PartyCampaignSaves';
 import CampaignBuilderChat from './CampaignBuilderChat';
@@ -93,6 +96,57 @@ export function StandalonePartyDMScreen({
   const [showOocChat, setShowOocChat] = useState(false);
   const [partyCreatorId, setPartyCreatorId] = useState<string | null>(null);
   const [coHostIds, setCoHostIds] = useState<string[]>([]);
+  const [showStartCampaignPanel, setShowStartCampaignPanel] = useState(false);
+  const [forceShowOnboarding, setForceShowOnboarding] = useState(false);
+  const [campaignStarted, setCampaignStarted] = useState<boolean>(false);
+  const [memberDisplayNames, setMemberDisplayNames] = useState<Record<string, string>>({});
+
+  // Fetch + subscribe to parties.campaign_started
+  useEffect(() => {
+    if (!partyId) return;
+    let cancelled = false;
+    supabase
+      .from('parties')
+      .select('campaign_started')
+      .eq('id', partyId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data) setCampaignStarted(data.campaign_started === true);
+      });
+    const channel = supabase
+      .channel(`party-campaign-started-${partyId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'parties', filter: `id=eq.${partyId}` },
+        (payload) => {
+          const next = (payload.new as { campaign_started?: boolean } | null)?.campaign_started;
+          if (typeof next === 'boolean') setCampaignStarted(next);
+        }
+      )
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [partyId]);
+
+  // Fetch display names for party members (for the host's start panel)
+  useEffect(() => {
+    if (!isPartyCreator || partyMembers.length === 0) return;
+    const ids = partyMembers.map((m) => m.user_id);
+    supabase
+      .from('profiles')
+      .select('user_id, display_name')
+      .in('user_id', ids)
+      .then(({ data }) => {
+        if (!data) return;
+        const map: Record<string, string> = {};
+        for (const row of data as Array<{ user_id: string; display_name: string | null }>) {
+          if (row.display_name) map[row.user_id] = row.display_name;
+        }
+        setMemberDisplayNames(map);
+      });
+  }, [isPartyCreator, partyMembers]);
 
   // Fetch party creator ID (for non-creators)
   useEffect(() => {
@@ -466,6 +520,16 @@ ${truncated}`);
 
   return (
     <div className={cn(embedded ? "absolute inset-0" : "fixed inset-0 z-[60]")}>
+      {isPartyCreator && !campaignStarted && (
+        <button
+          onClick={() => setShowStartCampaignPanel(true)}
+          className="absolute top-2 left-1/2 -translate-x-1/2 z-[61] px-3 py-2 bg-amber-500/15 border border-amber-500/30 rounded-md text-xs font-semibold text-amber-200 hover:bg-amber-500/25 transition-colors flex items-center justify-center gap-2"
+          style={{ touchAction: 'manipulation' }}
+        >
+          <Play className="w-3.5 h-3.5" />
+          Manage start of campaign
+        </button>
+      )}
       <PartyDMScreen
         onBack={onBack}
         partyId={partyId}
@@ -611,11 +675,12 @@ ${truncated}`);
         )}
       </AnimatePresence>
 
-      {/* Player Onboarding Overlay (non-host players whose status is in_progress) */}
+      {/* Player Onboarding Overlay (non-host players whose status is in_progress, or who tapped "Build my character" from lockout) */}
       {(() => {
         const myMember = partyMembers.find(m => m.user_id === userId);
         const myOnboardingStatus = (myMember as any)?.onboarding_status || 'pending';
-        const showPlayerOnboarding = !isPartyCreator && myOnboardingStatus === 'in_progress';
+        const playerOnboardingNeeded = !isPartyCreator && myOnboardingStatus !== 'complete';
+        const showPlayerOnboarding = playerOnboardingNeeded && (myOnboardingStatus === 'in_progress' || forceShowOnboarding);
         if (!showPlayerOnboarding) return null;
 
         const hostMember = partyMembers.find(m => m.user_id !== userId && (m as any).onboarding_status === 'complete')
@@ -634,11 +699,40 @@ ${truncated}`);
             campaignPlan={campaignPlan}
             hostCharacterSummary={hostCharacterSummary}
             onComplete={() => {
+              setForceShowOnboarding(false);
               // Realtime party_members subscription will pick up onboarding_status='complete' and unmount this overlay.
             }}
           />
         );
       })()}
+
+      {/* Lock-out screen for non-host players who haven't completed onboarding after host started campaign */}
+      {(() => {
+        const myMember = partyMembers.find(m => m.user_id === userId);
+        const myOnboardingStatus = (myMember as any)?.onboarding_status || 'pending';
+        const showLockOutScreen = !isPartyCreator
+          && campaignStarted
+          && myOnboardingStatus !== 'complete'
+          && !forceShowOnboarding;
+        if (!showLockOutScreen) return null;
+        return (
+          <PlayerLockedOutScreen onOpenOnboarding={() => setForceShowOnboarding(true)} />
+        );
+      })()}
+
+      {/* Host's Start Campaign panel */}
+      <HostStartCampaignPanel
+        open={showStartCampaignPanel}
+        onOpenChange={setShowStartCampaignPanel}
+        partyId={partyId}
+        hostUserId={isPartyCreator ? userId : null}
+        members={partyMembers.map<PartyMemberOnboardingView>((m) => ({
+          user_id: m.user_id,
+          display_name: memberDisplayNames[m.user_id],
+          onboarding_status: ((m as any).onboarding_status || 'pending') as PartyMemberOnboardingView['onboarding_status'],
+        }))}
+        onCampaignStarted={() => setCampaignStarted(true)}
+      />
     </div>
   );
 }
