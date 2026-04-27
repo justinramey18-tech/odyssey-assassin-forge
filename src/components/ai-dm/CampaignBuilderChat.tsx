@@ -50,7 +50,12 @@ export default function CampaignBuilderChat({ partyMembers, characterName, chara
       if (characterIdentity?.class) identityParts.push(characterIdentity.class);
       const identityStr = identityParts.length > 0 ? ` (${identityParts.join(' ')})` : '';
 
-      if (partyMembers && partyMembers.length > 0) {
+      if (mode === 'party-host') {
+        // Host-only mode: greet as the showrunner, do NOT enumerate other players
+        const name = characterName || 'Adventurer';
+        const lvl = characterLevel || 1;
+        greeting = `Hello! I'm the host setting up a new multiplayer party campaign. I want to build the world and my own character. Other players will join later and create their own characters during their own onboarding — please don't ask me about their characters or design them. My character is ${name}${identityStr}, Level ${lvl}.`;
+      } else if (partyMembers && partyMembers.length > 0) {
         const levelInfo = partyMembers.some(m => (m.character_status as any)?.level)
           ? ` Levels: ${partyMembers.map(m => `${m.character_name} (Lvl ${(m.character_status as any)?.level || '?'})`).join(', ')}.`
           : '';
