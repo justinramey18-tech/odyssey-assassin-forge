@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { useAICampaignChat, CampaignBuildData } from '@/hooks/use-ai-campaign-chat';
 import ReactMarkdown from 'react-markdown';
 
+export type CampaignBuilderMode = 'solo' | 'standalone-party' | 'party-host';
+
 interface CampaignBuilderChatProps {
   partyMembers?: Array<{ character_name: string; character_status?: Record<string, unknown> }>;
   characterName?: string;
@@ -15,12 +17,14 @@ interface CampaignBuilderChatProps {
     backstory?: string;
   };
   existingGuidesContent?: string;
+  mode?: CampaignBuilderMode;
   onComplete: (data: CampaignBuildData) => void;
+  onApplyHostOnboarding?: () => Promise<void>;
   onSkip: () => void;
 }
 
-export default function CampaignBuilderChat({ partyMembers, characterName, characterLevel, characterIdentity, existingGuidesContent, onComplete, onSkip }: CampaignBuilderChatProps) {
-  const { messages, isLoading, buildData, error, suggestions, sendMessage, reset } = useAICampaignChat();
+export default function CampaignBuilderChat({ partyMembers, characterName, characterLevel, characterIdentity, existingGuidesContent, mode = 'solo', onComplete, onApplyHostOnboarding, onSkip }: CampaignBuilderChatProps) {
+  const { messages, isLoading, buildData, error, suggestions, sendMessage, reset } = useAICampaignChat({ mode });
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
