@@ -185,6 +185,7 @@ export function StandalonePartyDMScreen({
     customGuidesContent: gmGuides.enabledContent,
     campaignType: isSoloEmpyrean ? 'empyrean' : 'dnd',
     selectedModel: undefined,
+    preserveFullCommand: true,
   });
 
   // Memory Anchors — long-term campaign facts shared across party
