@@ -614,6 +614,8 @@ export type Database = {
       }
       parties: {
         Row: {
+          campaign_started: boolean
+          campaign_started_at: string | null
           created_at: string
           created_by: string
           id: string
@@ -621,6 +623,8 @@ export type Database = {
           link_code: string
         }
         Insert: {
+          campaign_started?: boolean
+          campaign_started_at?: string | null
           created_at?: string
           created_by: string
           id?: string
@@ -628,6 +632,8 @@ export type Database = {
           link_code: string
         }
         Update: {
+          campaign_started?: boolean
+          campaign_started_at?: string | null
           created_at?: string
           created_by?: string
           id?: string
@@ -909,6 +915,9 @@ export type Database = {
           character_status: Json
           id: string
           joined_at: string
+          onboarding_completed_at: string | null
+          onboarding_started_at: string | null
+          onboarding_status: string
           party_id: string
           updated_at: string
           user_id: string
@@ -918,6 +927,9 @@ export type Database = {
           character_status?: Json
           id?: string
           joined_at?: string
+          onboarding_completed_at?: string | null
+          onboarding_started_at?: string | null
+          onboarding_status?: string
           party_id: string
           updated_at?: string
           user_id: string
@@ -927,6 +939,9 @@ export type Database = {
           character_status?: Json
           id?: string
           joined_at?: string
+          onboarding_completed_at?: string | null
+          onboarding_started_at?: string | null
+          onboarding_status?: string
           party_id?: string
           updated_at?: string
           user_id?: string
@@ -1039,6 +1054,44 @@ export type Database = {
             columns: ["reply_to_id"]
             isOneToOne: false
             referencedRelation: "party_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      party_onboarding_requests: {
+        Row: {
+          created_at: string
+          id: string
+          party_id: string
+          reason: string | null
+          resolved_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          party_id: string
+          reason?: string | null
+          resolved_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          party_id?: string
+          reason?: string | null
+          resolved_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_onboarding_requests_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
             referencedColumns: ["id"]
           },
         ]
