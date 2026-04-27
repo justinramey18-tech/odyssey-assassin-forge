@@ -12,6 +12,8 @@ interface UseOocDmChatOptions {
   campaignType?: 'dnd' | 'empyrean';
   selectedModel?: string;
   storageKeySuffix?: string;
+  /** When true, the AI preserves full multi-part directives in the COMMAND tag instead of forcing a one-sentence summary. Use this for callers (e.g. StandalonePartyDM) that want to apply complex prompts to the story. Defaults to false for backward compatibility. */
+  preserveFullCommand?: boolean;
 }
 
 export function useOocDmChat({
