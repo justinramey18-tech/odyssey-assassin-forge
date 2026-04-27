@@ -101,6 +101,7 @@ export function StandalonePartyDMScreen({
   const [coHostIds, setCoHostIds] = useState<string[]>([]);
   const [showStartCampaignPanel, setShowStartCampaignPanel] = useState(false);
   const [forceShowOnboarding, setForceShowOnboarding] = useState(false);
+  const [justAppliedOnboarding, setJustAppliedOnboarding] = useState(false);
   const [campaignStarted, setCampaignStarted] = useState<boolean>(false);
   const [memberDisplayNames, setMemberDisplayNames] = useState<Record<string, string>>({});
   const [showRedoDialog, setShowRedoDialog] = useState(false);
@@ -131,6 +132,28 @@ export function StandalonePartyDMScreen({
         }
       });
   }, [partyMembers, isPartyCreator, partyId, userId]);
+
+  // Once realtime confirms onboarding is complete, drop the optimistic flag.
+  // Future re-onboarding (status reset to 'in_progress' via host approval) still works.
+  useEffect(() => {
+    if (!justAppliedOnboarding) return;
+    const myMember = partyMembers.find(m => m.user_id === userId);
+    const status = (myMember as any)?.onboarding_status;
+    if (status === 'complete') {
+      setJustAppliedOnboarding(false);
+    }
+  }, [justAppliedOnboarding, partyMembers, userId]);
+
+  // Safety net: if realtime never confirms after apply, drop the flag after 10s
+  // so the screen logic re-evaluates. In a healthy session, this never fires
+  // because the realtime path resets the flag much faster.
+  useEffect(() => {
+    if (!justAppliedOnboarding) return;
+    const t = setTimeout(() => {
+      setJustAppliedOnboarding(false);
+    }, 10000);
+    return () => clearTimeout(t);
+  }, [justAppliedOnboarding]);
 
   // Fetch + subscribe to parties.campaign_started
   useEffect(() => {
@@ -739,7 +762,8 @@ ${truncated}`);
         const myOnboardingStatus = (myMember as any)?.onboarding_status || 'pending';
         const playerOnboardingNeeded = !isPartyCreator && myOnboardingStatus !== 'complete';
         const showPlayerOnboarding = playerOnboardingNeeded
-          && (myOnboardingStatus === 'in_progress' || myOnboardingStatus === 'pending' || forceShowOnboarding);
+          && (myOnboardingStatus === 'in_progress' || myOnboardingStatus === 'pending' || forceShowOnboarding)
+          && !justAppliedOnboarding;
         if (!showPlayerOnboarding) return null;
 
         const hostMember = partyMembers.find(m => m.user_id !== userId && (m as any).onboarding_status === 'complete')
@@ -759,7 +783,7 @@ ${truncated}`);
             hostCharacterSummary={hostCharacterSummary}
             onComplete={() => {
               setForceShowOnboarding(false);
-              // Realtime party_members subscription will pick up onboarding_status='complete' and unmount this overlay.
+              setJustAppliedOnboarding(true);
             }}
           />
         );
