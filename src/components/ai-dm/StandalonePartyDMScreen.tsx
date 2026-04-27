@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { PartyDMScreen } from './PartyDMScreen';
 import { GMGuidesManager } from './GMGuidesManager';
+import { PlayerOnboardingScreen } from './PlayerOnboardingScreen';
 
 import { PartyCampaignSaves } from './PartyCampaignSaves';
 import CampaignBuilderChat from './CampaignBuilderChat';
@@ -609,6 +610,35 @@ ${truncated}`);
           />
         )}
       </AnimatePresence>
+
+      {/* Player Onboarding Overlay (non-host players whose status is in_progress) */}
+      {(() => {
+        const myMember = partyMembers.find(m => m.user_id === userId);
+        const myOnboardingStatus = (myMember as any)?.onboarding_status || 'pending';
+        const showPlayerOnboarding = !isPartyCreator && myOnboardingStatus === 'in_progress';
+        if (!showPlayerOnboarding) return null;
+
+        const hostMember = partyMembers.find(m => (m as any).user_id && (m as any).user_id !== userId && isPartyCreator === false)
+          || partyMembers[0];
+        const campaignPlan = (partyDm.sessionConfig as any)?.campaignSummary || '';
+        const hostStatus = (hostMember as any)?.character_status || {};
+        const hostCharacterSummary = hostMember
+          ? `Host's character: ${hostMember.character_name}${hostStatus?.signet_type ? ` (signet: ${hostStatus.signet_type})` : ''}${hostStatus?.dragon_name ? `, bonded to ${hostStatus.dragon_name}` : ''}.`
+          : '';
+
+        return (
+          <PlayerOnboardingScreen
+            open={showPlayerOnboarding}
+            partyId={partyId}
+            userId={userId}
+            campaignPlan={campaignPlan}
+            hostCharacterSummary={hostCharacterSummary}
+            onComplete={() => {
+              // Realtime party_members subscription will pick up onboarding_status='complete' and unmount this overlay.
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }
