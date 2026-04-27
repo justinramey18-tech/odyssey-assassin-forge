@@ -23,6 +23,7 @@ export function useOocDmChat({
   campaignType = 'dnd',
   selectedModel,
   storageKeySuffix,
+  preserveFullCommand = false,
 }: UseOocDmChatOptions) {
   const suffix = storageKeySuffix || '';
   const chatKey = OOC_CHAT_KEY + suffix;
