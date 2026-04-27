@@ -618,8 +618,8 @@ ${truncated}`);
         const showPlayerOnboarding = !isPartyCreator && myOnboardingStatus === 'in_progress';
         if (!showPlayerOnboarding) return null;
 
-        const hostMember = partyMembers.find(m => (m as any).user_id && (m as any).user_id !== userId && isPartyCreator === false)
-          || partyMembers[0];
+        const hostMember = partyMembers.find(m => m.user_id !== userId && (m as any).onboarding_status === 'complete')
+          || partyMembers.find(m => m.user_id !== userId);
         const campaignPlan = (partyDm.sessionConfig as any)?.campaignSummary || '';
         const hostStatus = (hostMember as any)?.character_status || {};
         const hostCharacterSummary = hostMember
