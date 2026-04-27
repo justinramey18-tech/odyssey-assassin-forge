@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { useAICampaignChat, CampaignBuildData } from '@/hooks/use-ai-campaign-chat';
 import ReactMarkdown from 'react-markdown';
 
+export type CampaignBuilderMode = 'solo' | 'standalone-party' | 'party-host';
+
 interface CampaignBuilderChatProps {
   partyMembers?: Array<{ character_name: string; character_status?: Record<string, unknown> }>;
   characterName?: string;
@@ -15,12 +17,14 @@ interface CampaignBuilderChatProps {
     backstory?: string;
   };
   existingGuidesContent?: string;
+  mode?: CampaignBuilderMode;
   onComplete: (data: CampaignBuildData) => void;
+  onApplyHostOnboarding?: () => Promise<void>;
   onSkip: () => void;
 }
 
-export default function CampaignBuilderChat({ partyMembers, characterName, characterLevel, characterIdentity, existingGuidesContent, onComplete, onSkip }: CampaignBuilderChatProps) {
-  const { messages, isLoading, buildData, error, suggestions, sendMessage, reset } = useAICampaignChat();
+export default function CampaignBuilderChat({ partyMembers, characterName, characterLevel, characterIdentity, existingGuidesContent, mode = 'solo', onComplete, onApplyHostOnboarding, onSkip }: CampaignBuilderChatProps) {
+  const { messages, isLoading, buildData, error, suggestions, sendMessage, reset } = useAICampaignChat({ mode });
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -46,7 +50,12 @@ export default function CampaignBuilderChat({ partyMembers, characterName, chara
       if (characterIdentity?.class) identityParts.push(characterIdentity.class);
       const identityStr = identityParts.length > 0 ? ` (${identityParts.join(' ')})` : '';
 
-      if (partyMembers && partyMembers.length > 0) {
+      if (mode === 'party-host') {
+        // Host-only mode: greet as the showrunner, do NOT enumerate other players
+        const name = characterName || 'Adventurer';
+        const lvl = characterLevel || 1;
+        greeting = `Hello! I'm the host setting up a new multiplayer party campaign. I want to build the world and my own character. Other players will join later and create their own characters during their own onboarding — please don't ask me about their characters or design them. My character is ${name}${identityStr}, Level ${lvl}.`;
+      } else if (partyMembers && partyMembers.length > 0) {
         const levelInfo = partyMembers.some(m => (m.character_status as any)?.level)
           ? ` Levels: ${partyMembers.map(m => `${m.character_name} (Lvl ${(m.character_status as any)?.level || '?'})`).join(', ')}.`
           : '';
@@ -224,7 +233,16 @@ export default function CampaignBuilderChat({ partyMembers, characterName, chara
         {buildData && (
           <div className="shrink-0 px-4 py-2 border-t border-amber-900/30 bg-black/60 backdrop-blur-md">
             <Button
-              onClick={() => onComplete(buildData)}
+              onClick={async () => {
+                onComplete(buildData);
+                if (mode === 'party-host' && onApplyHostOnboarding) {
+                  try {
+                    await onApplyHostOnboarding();
+                  } catch (e) {
+                    console.error('[CampaignBuilder] onApplyHostOnboarding failed:', e);
+                  }
+                }
+              }}
               className="w-full bg-amber-600 hover:bg-amber-500 text-white font-cinzel tracking-wider"
               size="lg"
             >

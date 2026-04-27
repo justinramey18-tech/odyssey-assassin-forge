@@ -59,7 +59,10 @@ function stripSuggestions(content: string): string {
   return content.replace(/\n?\[SUGGESTIONS:\s*.*?\]\s*$/, '').trimEnd();
 }
 
-export function useAICampaignChat() {
+export type CampaignBuilderMode = 'solo' | 'standalone-party' | 'party-host';
+
+export function useAICampaignChat(options?: { mode?: CampaignBuilderMode }) {
+  const mode = options?.mode ?? 'solo';
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [buildData, setBuildData] = useState<CampaignBuildData | null>(null);
@@ -94,7 +97,7 @@ export function useAICampaignChat() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: allMessages }),
+        body: JSON.stringify({ messages: allMessages, mode }),
         signal: abortRef.current.signal,
       });
 
@@ -175,7 +178,7 @@ export function useAICampaignChat() {
     } finally {
       setIsLoading(false);
     }
-  }, [messages]);
+  }, [messages, mode]);
 
   const reset = useCallback(() => {
     abortRef.current?.abort();
