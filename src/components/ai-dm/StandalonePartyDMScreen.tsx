@@ -15,7 +15,10 @@ import { GMGuidesManager } from './GMGuidesManager';
 import { PlayerOnboardingScreen } from './PlayerOnboardingScreen';
 import { HostStartCampaignPanel, type PartyMemberOnboardingView } from './HostStartCampaignPanel';
 import { PlayerLockedOutScreen } from './PlayerLockedOutScreen';
-import { Play } from 'lucide-react';
+import { PlayerRedoRequestDialog } from './PlayerRedoRequestDialog';
+import { HostOnboardingRequestsPanel } from './HostOnboardingRequestsPanel';
+import { usePartyOnboardingRequests } from '@/hooks/use-party-onboarding-requests';
+import { Play, MessageCircle } from 'lucide-react';
 
 import { PartyCampaignSaves } from './PartyCampaignSaves';
 import CampaignBuilderChat from './CampaignBuilderChat';
@@ -100,6 +103,9 @@ export function StandalonePartyDMScreen({
   const [forceShowOnboarding, setForceShowOnboarding] = useState(false);
   const [campaignStarted, setCampaignStarted] = useState<boolean>(false);
   const [memberDisplayNames, setMemberDisplayNames] = useState<Record<string, string>>({});
+  const [showRedoDialog, setShowRedoDialog] = useState(false);
+  const [showRequestsPanel, setShowRequestsPanel] = useState(false);
+  const onboardingRequests = usePartyOnboardingRequests({ partyId });
 
   // Fetch + subscribe to parties.campaign_started
   useEffect(() => {
