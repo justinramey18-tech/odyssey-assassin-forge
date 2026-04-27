@@ -766,6 +766,25 @@ ${truncated}`);
         }))}
         onCampaignStarted={() => setCampaignStarted(true)}
       />
+
+      <PlayerRedoRequestDialog
+        open={showRedoDialog}
+        onOpenChange={setShowRedoDialog}
+        onSubmit={async (reason) => {
+          if (!userId) return false;
+          return onboardingRequests.submitRequest(userId, reason);
+        }}
+        hasExistingPending={!!(userId && onboardingRequests.myPendingRequest(userId))}
+      />
+
+      <HostOnboardingRequestsPanel
+        open={showRequestsPanel}
+        onOpenChange={setShowRequestsPanel}
+        pendingRequests={onboardingRequests.pendingRequests}
+        memberDisplayNames={memberDisplayNames}
+        onApprove={onboardingRequests.approveRequest}
+        onDeny={onboardingRequests.denyRequest}
+      />
     </div>
   );
 }
