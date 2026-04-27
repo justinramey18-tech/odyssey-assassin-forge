@@ -15,7 +15,10 @@ import { GMGuidesManager } from './GMGuidesManager';
 import { PlayerOnboardingScreen } from './PlayerOnboardingScreen';
 import { HostStartCampaignPanel, type PartyMemberOnboardingView } from './HostStartCampaignPanel';
 import { PlayerLockedOutScreen } from './PlayerLockedOutScreen';
-import { Play } from 'lucide-react';
+import { PlayerRedoRequestDialog } from './PlayerRedoRequestDialog';
+import { HostOnboardingRequestsPanel } from './HostOnboardingRequestsPanel';
+import { usePartyOnboardingRequests } from '@/hooks/use-party-onboarding-requests';
+import { Play, MessageCircle } from 'lucide-react';
 
 import { PartyCampaignSaves } from './PartyCampaignSaves';
 import CampaignBuilderChat from './CampaignBuilderChat';
@@ -100,6 +103,9 @@ export function StandalonePartyDMScreen({
   const [forceShowOnboarding, setForceShowOnboarding] = useState(false);
   const [campaignStarted, setCampaignStarted] = useState<boolean>(false);
   const [memberDisplayNames, setMemberDisplayNames] = useState<Record<string, string>>({});
+  const [showRedoDialog, setShowRedoDialog] = useState(false);
+  const [showRequestsPanel, setShowRequestsPanel] = useState(false);
+  const onboardingRequests = usePartyOnboardingRequests({ partyId });
 
   // Fetch + subscribe to parties.campaign_started
   useEffect(() => {
@@ -530,6 +536,33 @@ ${truncated}`);
           Manage start of campaign
         </button>
       )}
+      {isPartyCreator && onboardingRequests.pendingRequests.length > 0 && (
+        <button
+          onClick={() => setShowRequestsPanel(true)}
+          className="absolute top-12 left-1/2 -translate-x-1/2 z-[61] px-3 py-2 bg-amber-500/15 border border-amber-500/30 rounded-md text-xs font-semibold text-amber-200 hover:bg-amber-500/25 transition-colors flex items-center justify-center gap-2"
+          style={{ touchAction: 'manipulation' }}
+        >
+          <MessageCircle className="w-3.5 h-3.5" />
+          Onboarding requests
+          <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500 text-amber-950 text-[10px] font-bold">
+            {onboardingRequests.pendingRequests.length}
+          </span>
+        </button>
+      )}
+      {(() => {
+        const myMember = partyMembers.find(m => m.user_id === userId);
+        const myStatus = (myMember as any)?.onboarding_status || 'pending';
+        if (isPartyCreator || myStatus !== 'complete' || !campaignStarted) return null;
+        return (
+          <button
+            onClick={() => setShowRedoDialog(true)}
+            className="absolute bottom-2 left-1/2 -translate-x-1/2 z-[61] text-[11px] text-muted-foreground hover:text-amber-300 transition-colors py-1.5 px-3 underline-offset-2 hover:underline"
+            style={{ touchAction: 'manipulation' }}
+          >
+            Request character redo
+          </button>
+        );
+      })()}
       <PartyDMScreen
         onBack={onBack}
         partyId={partyId}
@@ -732,6 +765,25 @@ ${truncated}`);
           onboarding_status: ((m as any).onboarding_status || 'pending') as PartyMemberOnboardingView['onboarding_status'],
         }))}
         onCampaignStarted={() => setCampaignStarted(true)}
+      />
+
+      <PlayerRedoRequestDialog
+        open={showRedoDialog}
+        onOpenChange={setShowRedoDialog}
+        onSubmit={async (reason) => {
+          if (!userId) return false;
+          return onboardingRequests.submitRequest(userId, reason);
+        }}
+        hasExistingPending={!!(userId && onboardingRequests.myPendingRequest(userId))}
+      />
+
+      <HostOnboardingRequestsPanel
+        open={showRequestsPanel}
+        onOpenChange={setShowRequestsPanel}
+        pendingRequests={onboardingRequests.pendingRequests}
+        memberDisplayNames={memberDisplayNames}
+        onApprove={onboardingRequests.approveRequest}
+        onDeny={onboardingRequests.denyRequest}
       />
     </div>
   );
