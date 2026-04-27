@@ -165,7 +165,10 @@ serve(async (req) => {
   }
 
   try {
-    const { messages } = await req.json();
+    const body = await req.json();
+    const { messages } = body;
+    const mode: 'solo' | 'standalone-party' | 'party-host' = body.mode || 'solo';
+    const systemPrompt = buildSystemPrompt(mode);
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
 
