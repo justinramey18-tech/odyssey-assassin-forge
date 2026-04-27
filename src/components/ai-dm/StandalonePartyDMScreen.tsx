@@ -571,7 +571,36 @@ ${truncated}`);
               backstory: characterContext.backstory || undefined,
             }}
             existingGuidesContent={gmGuides.enabledContent}
+            mode={isPartyCreator ? 'party-host' : 'standalone-party'}
             onComplete={handleCampaignBuilderComplete}
+            onApplyHostOnboarding={async () => {
+              if (!userId || !partyId || !isPartyCreator) return;
+              try {
+                const nowIso = new Date().toISOString();
+                const { error: hostErr } = await supabase
+                  .from('party_members')
+                  .update({
+                    onboarding_status: 'complete',
+                    onboarding_completed_at: nowIso,
+                  })
+                  .eq('party_id', partyId)
+                  .eq('user_id', userId);
+                if (hostErr) console.error('[HostOnboarding] mark host complete failed:', hostErr);
+
+                const { error: othersErr } = await supabase
+                  .from('party_members')
+                  .update({
+                    onboarding_status: 'in_progress',
+                    onboarding_started_at: nowIso,
+                  })
+                  .eq('party_id', partyId)
+                  .neq('user_id', userId)
+                  .eq('onboarding_status', 'pending');
+                if (othersErr) console.error('[HostOnboarding] signal others failed:', othersErr);
+              } catch (e) {
+                console.error('[HostOnboarding] unexpected error:', e);
+              }
+            }}
             onSkip={() => {
               setShowCampaignBuilder(false);
               partyDm.startNewCampaign();
