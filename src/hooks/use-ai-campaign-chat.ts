@@ -178,7 +178,7 @@ export function useAICampaignChat(options?: { mode?: CampaignBuilderMode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [messages]);
+  }, [messages, mode]);
 
   const reset = useCallback(() => {
     abortRef.current?.abort();
