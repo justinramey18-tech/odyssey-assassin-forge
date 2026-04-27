@@ -96,6 +96,57 @@ export function StandalonePartyDMScreen({
   const [showOocChat, setShowOocChat] = useState(false);
   const [partyCreatorId, setPartyCreatorId] = useState<string | null>(null);
   const [coHostIds, setCoHostIds] = useState<string[]>([]);
+  const [showStartCampaignPanel, setShowStartCampaignPanel] = useState(false);
+  const [forceShowOnboarding, setForceShowOnboarding] = useState(false);
+  const [campaignStarted, setCampaignStarted] = useState<boolean>(false);
+  const [memberDisplayNames, setMemberDisplayNames] = useState<Record<string, string>>({});
+
+  // Fetch + subscribe to parties.campaign_started
+  useEffect(() => {
+    if (!partyId) return;
+    let cancelled = false;
+    supabase
+      .from('parties')
+      .select('campaign_started')
+      .eq('id', partyId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data) setCampaignStarted(data.campaign_started === true);
+      });
+    const channel = supabase
+      .channel(`party-campaign-started-${partyId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'parties', filter: `id=eq.${partyId}` },
+        (payload) => {
+          const next = (payload.new as { campaign_started?: boolean } | null)?.campaign_started;
+          if (typeof next === 'boolean') setCampaignStarted(next);
+        }
+      )
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [partyId]);
+
+  // Fetch display names for party members (for the host's start panel)
+  useEffect(() => {
+    if (!isPartyCreator || partyMembers.length === 0) return;
+    const ids = partyMembers.map((m) => m.user_id);
+    supabase
+      .from('profiles')
+      .select('user_id, display_name')
+      .in('user_id', ids)
+      .then(({ data }) => {
+        if (!data) return;
+        const map: Record<string, string> = {};
+        for (const row of data as Array<{ user_id: string; display_name: string | null }>) {
+          if (row.display_name) map[row.user_id] = row.display_name;
+        }
+        setMemberDisplayNames(map);
+      });
+  }, [isPartyCreator, partyMembers]);
 
   // Fetch party creator ID (for non-creators)
   useEffect(() => {
