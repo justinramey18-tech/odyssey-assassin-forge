@@ -125,7 +125,8 @@ ${campaignSummary ? `CAMPAIGN CONTEXT (for your reference, do not include in com
     if (!lastAssistant || lastAssistant.content === lastAssistantRef.current) return;
     lastAssistantRef.current = lastAssistant.content;
 
-    const match = lastAssistant.content.match(/<!--COMMAND:(.+?)-->/);
+    // [\s\S] matches across newlines so multi-line COMMAND payloads parse correctly.
+    const match = lastAssistant.content.match(/<!--COMMAND:([\s\S]+?)-->/);
     if (match) {
       setPendingCommand(match[1].trim());
     } else {
