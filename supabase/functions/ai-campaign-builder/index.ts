@@ -179,7 +179,7 @@ serve(async (req) => {
     }));
 
     // Estimate input size and reject if too large (prevent context window overflow)
-    const totalInputChars = SYSTEM_PROMPT.length + userMessages.reduce((sum: number, m: { content: string }) => sum + m.content.length, 0);
+    const totalInputChars = systemPrompt.length + userMessages.reduce((sum: number, m: { content: string }) => sum + m.content.length, 0);
     const estimatedTokens = Math.ceil(totalInputChars / 3.5); // ~3.5 chars per token for mixed content
     const MAX_INPUT_TOKENS = 150000;
 
