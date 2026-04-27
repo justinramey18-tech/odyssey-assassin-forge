@@ -106,6 +106,31 @@ export function StandalonePartyDMScreen({
   const [showRedoDialog, setShowRedoDialog] = useState(false);
   const [showRequestsPanel, setShowRequestsPanel] = useState(false);
   const onboardingRequests = usePartyOnboardingRequests({ partyId });
+  const promotedToInProgressRef = useRef(false);
+
+  // Late-joiner: promote 'pending' onboarding_status to 'in_progress' once when overlay opens
+  useEffect(() => {
+    if (promotedToInProgressRef.current) return;
+    if (isPartyCreator) return;
+    if (!partyId || !userId) return;
+    const myMember = partyMembers.find(m => m.user_id === userId);
+    const myOnboardingStatus = (myMember as any)?.onboarding_status || 'pending';
+    if (myOnboardingStatus !== 'pending') return;
+    promotedToInProgressRef.current = true;
+    supabase
+      .from('party_members')
+      .update({
+        onboarding_status: 'in_progress',
+        onboarding_started_at: new Date().toISOString(),
+      })
+      .eq('party_id', partyId)
+      .eq('user_id', userId)
+      .then(({ error }) => {
+        if (error) {
+          console.error('[late-joiner] promote to in_progress failed:', error);
+        }
+      });
+  }, [partyMembers, isPartyCreator, partyId, userId]);
 
   // Fetch + subscribe to parties.campaign_started
   useEffect(() => {
@@ -713,7 +738,8 @@ ${truncated}`);
         const myMember = partyMembers.find(m => m.user_id === userId);
         const myOnboardingStatus = (myMember as any)?.onboarding_status || 'pending';
         const playerOnboardingNeeded = !isPartyCreator && myOnboardingStatus !== 'complete';
-        const showPlayerOnboarding = playerOnboardingNeeded && (myOnboardingStatus === 'in_progress' || forceShowOnboarding);
+        const showPlayerOnboarding = playerOnboardingNeeded
+          && (myOnboardingStatus === 'in_progress' || myOnboardingStatus === 'pending' || forceShowOnboarding);
         if (!showPlayerOnboarding) return null;
 
         const hostMember = partyMembers.find(m => m.user_id !== userId && (m as any).onboarding_status === 'complete')
@@ -746,6 +772,8 @@ ${truncated}`);
         const showLockOutScreen = !isPartyCreator
           && campaignStarted
           && myOnboardingStatus !== 'complete'
+          && myOnboardingStatus !== 'in_progress'
+          && myOnboardingStatus !== 'pending'
           && !forceShowOnboarding;
         if (!showLockOutScreen) return null;
         return (
