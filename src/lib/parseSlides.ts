@@ -7,6 +7,31 @@ export interface Slide {
   vfx: string[];
   mood: string | null;
   music: string | null;
+  intensity?: number;
+}
+
+export interface CinematicBeat {
+  text: string;
+  intensity: number;
+  sfx: string[];
+  ambience: string | null;
+  vfx: string[];
+  mood: string | null;
+}
+
+export function parseBeatsIntoSlides(beats: CinematicBeat[]): Slide[] {
+  if (!Array.isArray(beats) || beats.length === 0) return [];
+  return beats.map((beat, idx) => ({
+    text: beat.text,
+    displayType: idx === 0 ? 'firstLine' : (beat.intensity === 5 ? 'pullQuote' : 'normal'),
+    speaker: undefined,
+    sfx: Array.isArray(beat.sfx) ? beat.sfx : [],
+    ambience: beat.ambience || null,
+    vfx: Array.isArray(beat.vfx) ? beat.vfx : [],
+    mood: beat.mood || null,
+    music: null,
+    intensity: beat.intensity,
+  }));
 }
 
 const TAG_REGEX = /<!--(SFX|AMBIENCE|VFX|MOOD|MUSIC):(.+?)-->/g;

@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { parseWhispers } from '@/lib/whisper-parser';
-import { parseResponseIntoSlides, stripCinematicTags } from '@/lib/parseSlides';
+import { parseResponseIntoSlides, stripCinematicTags, parseBeatsIntoSlides } from '@/lib/parseSlides';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { useWeather } from '@/hooks/use-weather';
 import { weatherToNarrativeContext } from '@/lib/weather';
@@ -741,7 +741,6 @@ ${oocLines}`;
       // Cinematic slideshow: AI tags the narrative, then parse into slides
       if (cinematicModeEnabled && EMPYREAN_FEATURE_FLAGS.showCinematicSlideshow) {
         (async () => {
-          let textForSlides = content;
           try {
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -752,17 +751,17 @@ ${oocLines}`;
             });
             if (res.ok) {
               const data = await res.json();
-              if (data.taggedText && data.taggedText.trim().length > 0) {
-                textForSlides = data.taggedText;
+              if (Array.isArray(data.beats) && data.beats.length > 0) {
+                const slides = parseBeatsIntoSlides(data.beats);
+                if (slides.length > 0) {
+                  setSlideshowSlides(slides);
+                  setShowSlideshow(true);
+                }
               }
+              // beats === null → AI failed, silently skip cinematic for this response
             }
           } catch {
-            // Tagging failed — continue with untagged content
-          }
-          const slides = parseResponseIntoSlides(textForSlides);
-          if (slides.length > 1) {
-            setSlideshowSlides(slides);
-            setShowSlideshow(true);
+            // Network failure — skip cinematic, response still appears in chat
           }
         })();
       }

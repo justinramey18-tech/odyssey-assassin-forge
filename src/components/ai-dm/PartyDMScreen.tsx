@@ -62,7 +62,7 @@ import type { CharacterContext } from '@/components/oracle/types';
 import type { CampaignSession } from '@/hooks/use-campaign-sessions';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
 import { useCinematicMode } from '@/hooks/use-cinematic-mode';
-import { parseResponseIntoSlides, stripCinematicTags } from '@/lib/parseSlides';
+import { parseResponseIntoSlides, stripCinematicTags, parseBeatsIntoSlides } from '@/lib/parseSlides';
 import { preloadAudioFiles, extractAudioNames } from '@/lib/slideshowAudioLoader';
 import { getCtx as getAudioCtx } from '@/lib/slideshowAudioEngine';
 import { useBroadcastPlaylist } from '@/hooks/use-broadcast-playlist';
@@ -1121,7 +1121,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     ) {
       lastSlideshowMsgIdRef.current = lastMsg.id;
       (async () => {
-        let textForSlides = lastMsg.content;
         try {
           const token = (await supabase.auth.getSession()).data.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
           const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tag-cinematic`, {
@@ -1131,22 +1130,22 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           });
           if (res.ok) {
             const data = await res.json();
-            if (data.taggedText && data.taggedText.trim().length > 0) {
-              textForSlides = data.taggedText;
+            if (Array.isArray(data.beats) && data.beats.length > 0) {
+              const slides = parseBeatsIntoSlides(data.beats);
+              if (slides.length > 0) {
+                try {
+                  const audioCtx = getAudioCtx();
+                  const { sfxNames, ambienceNames } = extractAudioNames(slides);
+                  preloadAudioFiles(audioCtx, sfxNames, ambienceNames);
+                } catch {}
+                setSlideshowSlides(slides);
+                setShowSlideshow(true);
+              }
             }
+            // beats === null → AI failed, silently skip cinematic for this response
           }
         } catch {
-          // Tagging failed — continue with untagged content
-        }
-        const slides = parseResponseIntoSlides(textForSlides);
-        if (slides.length > 1) {
-          try {
-            const audioCtx = getAudioCtx();
-            const { sfxNames, ambienceNames } = extractAudioNames(slides);
-            preloadAudioFiles(audioCtx, sfxNames, ambienceNames);
-          } catch {}
-          setSlideshowSlides(slides);
-          setShowSlideshow(true);
+          // Network failure — skip cinematic, response still appears in chat
         }
       })();
     }
