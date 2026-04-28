@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { Slide } from '@/lib/parseSlides';
 import SlideRenderer from '@/components/empyrean/SlideRenderer';
 import SlideshowVFX from '@/components/empyrean/SlideshowVFX';
@@ -107,8 +108,13 @@ export default function CinematicSlideshow({ slides, onComplete }: CinematicSlid
         </button>
       </div>
 
-      {/* Slide content — vertically centered */}
-      <div className="flex-1 flex items-center justify-center">
+      {/* Slide content — vertically centered. Peak beat (intensity 5) gets emphasis. */}
+      <div
+        className={cn(
+          "flex-1 flex items-center justify-center",
+          currentSlide?.intensity === 5 && "scale-105 transition-transform duration-300 [filter:drop-shadow(0_0_12px_rgba(251,191,36,0.4))]"
+        )}
+      >
         <AnimatePresence mode="wait">
           <SlideRenderer key={currentIndex} slide={currentSlide} />
         </AnimatePresence>
