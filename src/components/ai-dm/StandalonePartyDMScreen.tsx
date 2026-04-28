@@ -18,6 +18,7 @@ import { PlayerLockedOutScreen } from './PlayerLockedOutScreen';
 import { PlayerRedoRequestDialog } from './PlayerRedoRequestDialog';
 import { HostOnboardingRequestsPanel } from './HostOnboardingRequestsPanel';
 import { usePartyOnboardingRequests } from '@/hooks/use-party-onboarding-requests';
+import { PartyDirectorScreen } from './PartyDirectorScreen';
 import { Play, MessageCircle } from 'lucide-react';
 
 import { PartyCampaignSaves } from './PartyCampaignSaves';
@@ -96,6 +97,7 @@ export function StandalonePartyDMScreen({
   }, [autoSyncCallbacks, characterContext?.currentHP, characterContext?.maxHP]);
   const [showSaves, setShowSaves] = useState(false);
   const [showCampaignBuilder, setShowCampaignBuilder] = useState(false);
+  const [showDirectorScreen, setShowDirectorScreen] = useState(false);
   const [showOocChat, setShowOocChat] = useState(false);
   const [partyCreatorId, setPartyCreatorId] = useState<string | null>(null);
   const [coHostIds, setCoHostIds] = useState<string[]>([]);

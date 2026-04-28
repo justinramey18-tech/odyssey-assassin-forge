@@ -2863,35 +2863,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           return bLevel >= bMax ? 'pointer-events-none opacity-40 select-none' : '';
         })()
       )}>
-        {!isDialogueMode && !partyDm.isGenerating && !(isCreator && partyDm.pendingDraft) && !(isCreator && partyDm.sessionConfig?.dmMode === 'human') && (
-          <div className="flex items-center gap-1.5 mb-2 max-w-2xl mx-auto">
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors text-xs text-white/40 hover:text-white/60"
-                  disabled={isUploadingPhoto || isUploadingVideo || isUploadingAudio}
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  {(isUploadingPhoto || isUploadingVideo || isUploadingAudio) ? (
-                    <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
-                  ) : (
-                    <Paperclip className="w-3.5 h-3.5" />
-                  )}
-                  Share Media
-                </button>
-              </PopoverTrigger>
-              <PopoverContent side="top" align="start" className="w-48 p-1.5 z-[70]">
-                <button onClick={() => photoCameraRef.current?.click()} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs" style={{ touchAction: 'manipulation' }}><Camera className="w-4 h-4" /> Take Photo</button>
-                <button onClick={() => videoCameraRef.current?.click()} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs" style={{ touchAction: 'manipulation' }}><Film className="w-4 h-4" /> Record Video</button>
-                <div className="border-t border-white/5 my-0.5" />
-                <button onClick={() => { sessionStorage.setItem('pending-file-picker', 'photo'); photoInputRef.current?.click(); }} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs" style={{ touchAction: 'manipulation' }}><ImageIcon className="w-4 h-4" /> Photo from Gallery</button>
-                <button onClick={() => { sessionStorage.setItem('pending-file-picker', 'video'); videoInputRef.current?.click(); }} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs" style={{ touchAction: 'manipulation' }}><Film className="w-4 h-4" /> Video from Gallery</button>
-                <button onClick={() => setShowAudioRecorder(true)} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs" style={{ touchAction: 'manipulation' }}><Music className="w-4 h-4" /> Record Audio</button>
-                <button onClick={() => { sessionStorage.setItem('pending-file-picker', 'audio'); audioFileInputRef.current?.click(); }} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs" style={{ touchAction: 'manipulation' }}><Music className="w-4 h-4" /> Audio from Files</button>
-              </PopoverContent>
-            </Popover>
-          </div>
-        )}
+        {/* Share Media button removed — paperclip in PartyDMInput is the canonical attachment entry. */}
+
         {isCreator && partyDm.pendingDraft ? (
           <DraftReviewPanel
             draftContent={partyDm.pendingDraft.content}
