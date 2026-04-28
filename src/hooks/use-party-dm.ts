@@ -1390,6 +1390,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     );
     const afkLines: string[] = [];
     const afkPromptLines: string[] = [];
+    const afkEntries: Array<{ userId: string; characterName: string; content: string }> = [];
     const consumedCascades: { userId: string; remainingCascade: string[] }[] = [];
 
     for (const m of absentMembers) {
@@ -1401,21 +1402,27 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         // Use the first cascade prompt
         const nextPrompt = cascade[0];
         const remaining = cascade.slice(1);
-        afkPromptLines.push(`[${m.character_name}] (AFK — Cascade Prompt): ${nextPrompt}`);
+        const line = `[${m.character_name}] (AFK — Cascade Prompt): ${nextPrompt}`;
+        afkPromptLines.push(line);
         afkLines.push(`- ${m.character_name}: ${guide || '(no general guide)'}`);
         consumedCascades.push({ userId: m.user_id, remainingCascade: remaining });
+        afkEntries.push({ userId: m.user_id, characterName: m.character_name, content: line });
       } else if (guide) {
+        const line = `[${m.character_name}] (AFK): ${guide}`;
         afkLines.push(`- ${m.character_name}: ${guide}`);
-        afkPromptLines.push(`[${m.character_name}] (AFK): ${guide}`);
+        afkPromptLines.push(line);
+        afkEntries.push({ userId: m.user_id, characterName: m.character_name, content: line });
       } else {
-        afkPromptLines.push(`[${m.character_name}]: Holds their action`);
+        const line = `[${m.character_name}]: Holds their action`;
+        afkPromptLines.push(line);
+        afkEntries.push({ userId: m.user_id, characterName: m.character_name, content: line });
       }
     }
     const guidesSection = afkLines.length > 0
       ? `\n\n## AFK CHARACTER GUIDES\nRoleplay the following absent characters in-character based on their personality descriptions:\n${afkLines.join('\n')}`
       : '';
     const promptSection = afkPromptLines.length > 0 ? '\n' + afkPromptLines.join('\n') : '';
-    return { guidesSection, promptSection, consumedCascades };
+    return { guidesSection, promptSection, consumedCascades, afkEntries };
   }, [partyMembers]);
 
   // Consume cascade prompts after they've been used for AFK members
