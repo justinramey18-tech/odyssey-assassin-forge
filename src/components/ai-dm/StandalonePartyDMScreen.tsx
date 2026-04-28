@@ -18,6 +18,7 @@ import { PlayerLockedOutScreen } from './PlayerLockedOutScreen';
 import { PlayerRedoRequestDialog } from './PlayerRedoRequestDialog';
 import { HostOnboardingRequestsPanel } from './HostOnboardingRequestsPanel';
 import { usePartyOnboardingRequests } from '@/hooks/use-party-onboarding-requests';
+import { PartyDirectorScreen } from './PartyDirectorScreen';
 import { Play, MessageCircle } from 'lucide-react';
 
 import { PartyCampaignSaves } from './PartyCampaignSaves';
@@ -96,6 +97,7 @@ export function StandalonePartyDMScreen({
   }, [autoSyncCallbacks, characterContext?.currentHP, characterContext?.maxHP]);
   const [showSaves, setShowSaves] = useState(false);
   const [showCampaignBuilder, setShowCampaignBuilder] = useState(false);
+  const [showDirectorScreen, setShowDirectorScreen] = useState(false);
   const [showOocChat, setShowOocChat] = useState(false);
   const [partyCreatorId, setPartyCreatorId] = useState<string | null>(null);
   const [coHostIds, setCoHostIds] = useState<string[]>([]);
@@ -605,6 +607,38 @@ ${truncated}`);
 
   return (
     <div className={cn(embedded ? "absolute inset-0" : "fixed inset-0 z-[60]")}>
+      {!showCampaignBuilder && (
+        <button
+          onClick={() => setShowDirectorScreen(true)}
+          className="absolute top-2 left-2 z-[61] inline-flex items-center justify-center w-9 h-9 rounded-full bg-red-600/85 border border-red-400/40 hover:bg-red-600 active:bg-red-700 transition-colors shadow-lg"
+          aria-label="Talk to the DM"
+          style={{ touchAction: 'manipulation' }}
+        >
+          <span className="text-white text-base font-bold">?</span>
+        </button>
+      )}
+      <PartyDirectorScreen
+        open={showDirectorScreen}
+        onClose={() => setShowDirectorScreen(false)}
+        partyId={partyId}
+        userId={userId}
+        campaignPlan={(partyDm.sessionConfig as any)?.campaignSummary || ''}
+        characterContext={(() => {
+          const myMember = partyMembers.find(m => m.user_id === userId);
+          const status = (myMember as any)?.character_status || {};
+          const parts: string[] = [];
+          if (myMember?.character_name) parts.push(`Name: ${myMember.character_name}`);
+          if (status.dragon_name) parts.push(`Dragon: ${status.dragon_name}${status.dragon_color ? ` (${status.dragon_color})` : ''}`);
+          if (status.signet_type) parts.push(`Signet: ${status.signet_type}`);
+          if (status.year_at_basgiath) parts.push(`Year: ${status.year_at_basgiath}`);
+          if (status.backstory) parts.push(`Backstory: ${status.backstory}`);
+          if (status.personality) parts.push(`Personality: ${status.personality}`);
+          return parts.join('\n');
+        })()}
+        onPublicAction={(actionText) => {
+          partyDm.submitPrompt(actionText);
+        }}
+      />
       {isPartyCreator && !campaignStarted && (
         <button
           onClick={() => setShowStartCampaignPanel(true)}
