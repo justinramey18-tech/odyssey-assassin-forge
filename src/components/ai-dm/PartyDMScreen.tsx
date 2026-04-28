@@ -124,6 +124,9 @@ interface PartyDMScreenProps {
   onShowOocChat?: () => void;
   onHPChange?: (change: number, type: 'damage' | 'healing') => void;
   swipeHandlers?: SwipeHandlers;
+  /** Player redo request (non-host only, when eligible) */
+  onRequestCharacterRedo?: () => void;
+  hasPendingRedoRequest?: boolean;
 }
 
 const EMPTY_DRAGON_NETWORK: never[] = [];
