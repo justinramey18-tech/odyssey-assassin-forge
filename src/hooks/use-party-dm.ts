@@ -1390,6 +1390,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     );
     const afkLines: string[] = [];
     const afkPromptLines: string[] = [];
+    const afkEntries: Array<{ userId: string; characterName: string; content: string }> = [];
     const consumedCascades: { userId: string; remainingCascade: string[] }[] = [];
 
     for (const m of absentMembers) {
@@ -1401,21 +1402,27 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         // Use the first cascade prompt
         const nextPrompt = cascade[0];
         const remaining = cascade.slice(1);
-        afkPromptLines.push(`[${m.character_name}] (AFK — Cascade Prompt): ${nextPrompt}`);
+        const line = `[${m.character_name}] (AFK — Cascade Prompt): ${nextPrompt}`;
+        afkPromptLines.push(line);
         afkLines.push(`- ${m.character_name}: ${guide || '(no general guide)'}`);
         consumedCascades.push({ userId: m.user_id, remainingCascade: remaining });
+        afkEntries.push({ userId: m.user_id, characterName: m.character_name, content: line });
       } else if (guide) {
+        const line = `[${m.character_name}] (AFK): ${guide}`;
         afkLines.push(`- ${m.character_name}: ${guide}`);
-        afkPromptLines.push(`[${m.character_name}] (AFK): ${guide}`);
+        afkPromptLines.push(line);
+        afkEntries.push({ userId: m.user_id, characterName: m.character_name, content: line });
       } else {
-        afkPromptLines.push(`[${m.character_name}]: Holds their action`);
+        const line = `[${m.character_name}]: Holds their action`;
+        afkPromptLines.push(line);
+        afkEntries.push({ userId: m.user_id, characterName: m.character_name, content: line });
       }
     }
     const guidesSection = afkLines.length > 0
       ? `\n\n## AFK CHARACTER GUIDES\nRoleplay the following absent characters in-character based on their personality descriptions:\n${afkLines.join('\n')}`
       : '';
     const promptSection = afkPromptLines.length > 0 ? '\n' + afkPromptLines.join('\n') : '';
-    return { guidesSection, promptSection, consumedCascades };
+    return { guidesSection, promptSection, consumedCascades, afkEntries };
   }, [partyMembers]);
 
   // Consume cascade prompts after they've been used for AFK members
@@ -1583,8 +1590,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
         // --- Team Alpha ---
         if (alphaPrompts.length > 0) {
-          const { guidesSection: alphaAfkGuides, promptSection: alphaAfkPrompts, consumedCascades: alphaConsumed } = suppressAfkGuides
-            ? { guidesSection: '', promptSection: '', consumedCascades: [] }
+          const { guidesSection: alphaAfkGuides, promptSection: alphaAfkPrompts, consumedCascades: alphaConsumed, afkEntries: alphaAfkEntries } = suppressAfkGuides
+            ? { guidesSection: '', promptSection: '', consumedCascades: [], afkEntries: [] as Array<{ userId: string; characterName: string; content: string }> }
             : buildAfkGuidesContext(alphaPrompts, splitState.alphaMembers);
           allConsumedCascades = [...allConsumedCascades, ...alphaConsumed];
           const alphaRawCombined = alphaPrompts
@@ -1593,14 +1600,28 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
           const alphaForAI = alphaRawCombined;
 
-          await insertPartyMessage({
-            party_id: partyId,
-            role: 'user',
-            content: alphaRawCombined,
-            sender_user_id: user.id,
-            sender_name: splitState.alphaName || 'Team Alpha',
-            team: 'alpha',
-          });
+          // Insert one row per ready player on Team Alpha (privacy: each row carries player's user_id)
+          for (const p of alphaPrompts) {
+            await insertPartyMessage({
+              party_id: partyId,
+              role: 'user',
+              content: formatPromptLine(p),
+              sender_user_id: p.user_id,
+              sender_name: p.character_name || 'Player',
+              team: 'alpha',
+            });
+          }
+          // Insert one row per AFK Team Alpha member
+          for (const entry of alphaAfkEntries) {
+            await insertPartyMessage({
+              party_id: partyId,
+              role: 'user',
+              content: entry.content,
+              sender_user_id: entry.userId,
+              sender_name: entry.characterName || 'Player',
+              team: 'alpha',
+            });
+          }
 
           const alphaMembersSummary = buildPartyMembersGuide(splitState.alphaMembers);
           const alphaApiMsgs = alphaMessages.map(m => ({ role: m.role, content: m.content }));
@@ -1639,8 +1660,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
         // --- Team Beta ---
         if (betaPrompts.length > 0) {
-          const { guidesSection: betaAfkGuides, promptSection: betaAfkPrompts, consumedCascades: betaConsumed } = suppressAfkGuides
-            ? { guidesSection: '', promptSection: '', consumedCascades: [] }
+          const { guidesSection: betaAfkGuides, promptSection: betaAfkPrompts, consumedCascades: betaConsumed, afkEntries: betaAfkEntries } = suppressAfkGuides
+            ? { guidesSection: '', promptSection: '', consumedCascades: [], afkEntries: [] as Array<{ userId: string; characterName: string; content: string }> }
             : buildAfkGuidesContext(betaPrompts, splitState.betaMembers);
           allConsumedCascades = [...allConsumedCascades, ...betaConsumed];
           const betaRawCombined = betaPrompts
@@ -1649,14 +1670,28 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
           const betaForAI = betaRawCombined;
 
-          await insertPartyMessage({
-            party_id: partyId,
-            role: 'user',
-            content: betaRawCombined,
-            sender_user_id: user.id,
-            sender_name: splitState.betaName || 'Team Beta',
-            team: 'beta',
-          });
+          // Insert one row per ready player on Team Beta (privacy: each row carries player's user_id)
+          for (const p of betaPrompts) {
+            await insertPartyMessage({
+              party_id: partyId,
+              role: 'user',
+              content: formatPromptLine(p),
+              sender_user_id: p.user_id,
+              sender_name: p.character_name || 'Player',
+              team: 'beta',
+            });
+          }
+          // Insert one row per AFK Team Beta member
+          for (const entry of betaAfkEntries) {
+            await insertPartyMessage({
+              party_id: partyId,
+              role: 'user',
+              content: entry.content,
+              sender_user_id: entry.userId,
+              sender_name: entry.characterName || 'Player',
+              team: 'beta',
+            });
+          }
 
           const betaMembersSummary = buildPartyMembersGuide(splitState.betaMembers);
           const betaApiMsgs = betaMessages.map(m => ({ role: m.role, content: m.content }));
@@ -1757,8 +1792,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
       } else {
         // === NORMAL MODE ===
-        const { guidesSection: afkGuidesSection, promptSection: afkPromptSection, consumedCascades: normalConsumed } = suppressAfkGuides
-          ? { guidesSection: '', promptSection: '', consumedCascades: [] }
+        const { guidesSection: afkGuidesSection, promptSection: afkPromptSection, consumedCascades: normalConsumed, afkEntries: normalAfkEntries } = suppressAfkGuides
+          ? { guidesSection: '', promptSection: '', consumedCascades: [], afkEntries: [] as Array<{ userId: string; characterName: string; content: string }> }
           : buildAfkGuidesContext(readyPrompts);
         const rawCombined = readyPrompts
           .map(formatPromptLine)
@@ -1771,14 +1806,29 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         // In approval mode, don't insert user message yet — defer to approveDraft
         let insertedUserMsgId: string | null = null;
         if (!isApprovalMode) {
-          const insertedMsg = await insertPartyMessageHelper(partyId, {
-            party_id: partyId,
-            role: 'user',
-            content: rawCombined,
-            sender_user_id: user.id,
-            sender_name: 'Party',
-          });
-          insertedUserMsgId = insertedMsg?.id || null;
+          // Insert one row per ready player (privacy: each row carries player's own user_id)
+          for (const p of readyPrompts) {
+            await insertPartyMessage({
+              party_id: partyId,
+              role: 'user',
+              content: formatPromptLine(p),
+              sender_user_id: p.user_id,
+              sender_name: p.character_name || 'Player',
+            });
+          }
+          // Insert one row per AFK member
+          for (const entry of normalAfkEntries) {
+            await insertPartyMessage({
+              party_id: partyId,
+              role: 'user',
+              content: entry.content,
+              sender_user_id: entry.userId,
+              sender_name: entry.characterName || 'Player',
+            });
+          }
+          // Per-player rows mean there's no single bundle id to track for rollback;
+          // downstream rollback via insertedUserMsgId is now a no-op.
+          insertedUserMsgId = null;
         }
 
         const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
