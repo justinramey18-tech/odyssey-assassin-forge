@@ -1590,8 +1590,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
         // --- Team Alpha ---
         if (alphaPrompts.length > 0) {
-          const { guidesSection: alphaAfkGuides, promptSection: alphaAfkPrompts, consumedCascades: alphaConsumed } = suppressAfkGuides
-            ? { guidesSection: '', promptSection: '', consumedCascades: [] }
+          const { guidesSection: alphaAfkGuides, promptSection: alphaAfkPrompts, consumedCascades: alphaConsumed, afkEntries: alphaAfkEntries } = suppressAfkGuides
+            ? { guidesSection: '', promptSection: '', consumedCascades: [], afkEntries: [] as Array<{ userId: string; characterName: string; content: string }> }
             : buildAfkGuidesContext(alphaPrompts, splitState.alphaMembers);
           allConsumedCascades = [...allConsumedCascades, ...alphaConsumed];
           const alphaRawCombined = alphaPrompts
@@ -1600,14 +1600,28 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
           const alphaForAI = alphaRawCombined;
 
-          await insertPartyMessage({
-            party_id: partyId,
-            role: 'user',
-            content: alphaRawCombined,
-            sender_user_id: user.id,
-            sender_name: splitState.alphaName || 'Team Alpha',
-            team: 'alpha',
-          });
+          // Insert one row per ready player on Team Alpha (privacy: each row carries player's user_id)
+          for (const p of alphaPrompts) {
+            await insertPartyMessage({
+              party_id: partyId,
+              role: 'user',
+              content: formatPromptLine(p),
+              sender_user_id: p.user_id,
+              sender_name: p.character_name || 'Player',
+              team: 'alpha',
+            });
+          }
+          // Insert one row per AFK Team Alpha member
+          for (const entry of alphaAfkEntries) {
+            await insertPartyMessage({
+              party_id: partyId,
+              role: 'user',
+              content: entry.content,
+              sender_user_id: entry.userId,
+              sender_name: entry.characterName || 'Player',
+              team: 'alpha',
+            });
+          }
 
           const alphaMembersSummary = buildPartyMembersGuide(splitState.alphaMembers);
           const alphaApiMsgs = alphaMessages.map(m => ({ role: m.role, content: m.content }));
