@@ -3353,6 +3353,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onShowSplitInitiator={() => setShowSplitInitiator(true)}
               onShowNpcScene={() => setShowNpcScene(true)}
               onShowOocChat={onShowOocChat}
+              onRequestCharacterRedo={onRequestCharacterRedo}
+              hasPendingRedoRequest={hasPendingRedoRequest}
               onShowRegroupDialog={() => setShowRegroupDialog(true)}
               onShowSplitSummaries={() => setShowSplitSummaries(true)}
               onShowPreSplitChat={() => setShowPreSplitChat(true)}
