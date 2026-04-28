@@ -1792,8 +1792,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
       } else {
         // === NORMAL MODE ===
-        const { guidesSection: afkGuidesSection, promptSection: afkPromptSection, consumedCascades: normalConsumed } = suppressAfkGuides
-          ? { guidesSection: '', promptSection: '', consumedCascades: [] }
+        const { guidesSection: afkGuidesSection, promptSection: afkPromptSection, consumedCascades: normalConsumed, afkEntries: normalAfkEntries } = suppressAfkGuides
+          ? { guidesSection: '', promptSection: '', consumedCascades: [], afkEntries: [] as Array<{ userId: string; characterName: string; content: string }> }
           : buildAfkGuidesContext(readyPrompts);
         const rawCombined = readyPrompts
           .map(formatPromptLine)
@@ -1806,14 +1806,29 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         // In approval mode, don't insert user message yet — defer to approveDraft
         let insertedUserMsgId: string | null = null;
         if (!isApprovalMode) {
-          const insertedMsg = await insertPartyMessageHelper(partyId, {
-            party_id: partyId,
-            role: 'user',
-            content: rawCombined,
-            sender_user_id: user.id,
-            sender_name: 'Party',
-          });
-          insertedUserMsgId = insertedMsg?.id || null;
+          // Insert one row per ready player (privacy: each row carries player's own user_id)
+          for (const p of readyPrompts) {
+            await insertPartyMessage({
+              party_id: partyId,
+              role: 'user',
+              content: formatPromptLine(p),
+              sender_user_id: p.user_id,
+              sender_name: p.character_name || 'Player',
+            });
+          }
+          // Insert one row per AFK member
+          for (const entry of normalAfkEntries) {
+            await insertPartyMessage({
+              party_id: partyId,
+              role: 'user',
+              content: entry.content,
+              sender_user_id: entry.userId,
+              sender_name: entry.characterName || 'Player',
+            });
+          }
+          // Per-player rows mean there's no single bundle id to track for rollback;
+          // downstream rollback via insertedUserMsgId is now a no-op.
+          insertedUserMsgId = null;
         }
 
         const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
