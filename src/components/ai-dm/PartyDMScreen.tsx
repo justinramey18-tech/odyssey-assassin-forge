@@ -124,6 +124,9 @@ interface PartyDMScreenProps {
   onShowOocChat?: () => void;
   onHPChange?: (change: number, type: 'damage' | 'healing') => void;
   swipeHandlers?: SwipeHandlers;
+  /** Player redo request (non-host only, when eligible) */
+  onRequestCharacterRedo?: () => void;
+  hasPendingRedoRequest?: boolean;
 }
 
 const EMPTY_DRAGON_NETWORK: never[] = [];
@@ -877,7 +880,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.reactions?.every((r, i) => r.id === next.reactions?.[i]?.id);
 });
 
-export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, swipeHandlers }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, swipeHandlers, onRequestCharacterRedo, hasPendingRedoRequest }: PartyDMScreenProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
@@ -3350,6 +3353,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onShowSplitInitiator={() => setShowSplitInitiator(true)}
               onShowNpcScene={() => setShowNpcScene(true)}
               onShowOocChat={onShowOocChat}
+              onRequestCharacterRedo={onRequestCharacterRedo}
+              hasPendingRedoRequest={hasPendingRedoRequest}
               onShowRegroupDialog={() => setShowRegroupDialog(true)}
               onShowSplitSummaries={() => setShowSplitSummaries(true)}
               onShowPreSplitChat={() => setShowPreSplitChat(true)}

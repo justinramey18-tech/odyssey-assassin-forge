@@ -4,7 +4,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Flame, Theater, Megaphone, Film } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Flame, Theater, Megaphone, Film, RefreshCw } from 'lucide-react';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
 import { ResponseModeSelector } from './ResponseModeSelector';
@@ -146,6 +146,9 @@ export interface PartyDMSettingsProps {
   empyreanFocus?: string;
   onEmpyreanFocusChange?: (focus: string) => void;
   onShowOocChat?: () => void;
+  // Player redo request (non-host only)
+  onRequestCharacterRedo?: () => void;
+  hasPendingRedoRequest?: boolean;
 }
 
 export function PartyDMSettings({
@@ -169,6 +172,7 @@ export function PartyDMSettings({
   dialogueAutoIntervene, onDialogueAutoInterveneChange,
   campaignType = 'dnd', onCampaignTypeChange,
   empyreanFocus = 'balanced', onEmpyreanFocusChange,
+  onRequestCharacterRedo, hasPendingRedoRequest = false,
 }: PartyDMSettingsProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   return (
@@ -462,6 +466,15 @@ export function PartyDMSettings({
             description="Schedule narrative events for a specific date & time"
             badge={scheduledEventsCount}
             onClick={onShowScheduledEvents}
+          />
+        )}
+        {onRequestCharacterRedo && (
+          <ToolRow
+            icon={<RefreshCw className={cn("w-4 h-4", hasPendingRedoRequest ? "text-amber-400" : "")} />}
+            label="Request Character Redo"
+            description={hasPendingRedoRequest ? 'Awaiting host approval…' : 'Ask the host to redo your character'}
+            onClick={onRequestCharacterRedo}
+            disabled={hasPendingRedoRequest}
           />
         )}
         {hasBookmark && onClearBookmark && (

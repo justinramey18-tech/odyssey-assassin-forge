@@ -628,20 +628,6 @@ ${truncated}`);
           </span>
         </button>
       )}
-      {(() => {
-        const myMember = partyMembers.find(m => m.user_id === userId);
-        const myStatus = (myMember as any)?.onboarding_status || 'pending';
-        if (isPartyCreator || myStatus !== 'complete' || !campaignStarted) return null;
-        return (
-          <button
-            onClick={() => setShowRedoDialog(true)}
-            className="absolute bottom-2 left-1/2 -translate-x-1/2 z-[61] text-[11px] text-muted-foreground hover:text-amber-300 transition-colors py-1.5 px-3 underline-offset-2 hover:underline"
-            style={{ touchAction: 'manipulation' }}
-          >
-            Request character redo
-          </button>
-        );
-      })()}
       <PartyDMScreen
         onBack={onBack}
         partyId={partyId}
@@ -679,6 +665,13 @@ ${truncated}`);
           isMomoMoonDruid={isMomoMoonDruid}
           onHPChange={autoSyncCallbacks?.onHPChange}
           swipeHandlers={swipeHandlers}
+          onRequestCharacterRedo={(() => {
+            const myMember = partyMembers.find(m => m.user_id === userId);
+            const myStatus = (myMember as any)?.onboarding_status || 'pending';
+            if (isPartyCreator || myStatus !== 'complete' || !campaignStarted) return undefined;
+            return () => setShowRedoDialog(true);
+          })()}
+          hasPendingRedoRequest={!!(userId && onboardingRequests.myPendingRequest(userId))}
         />
 
       <OocDmChat
