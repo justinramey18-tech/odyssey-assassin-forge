@@ -1169,6 +1169,56 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const recentDragonChat = await fetchRecentDragonChat();
     const recentDragonNetwork = await fetchRecentDragonNetwork();
 
+    // Fetch unconsumed Director private actions per player (privacy: keyed by user_id internally only)
+    const directorPrivatesMap: Record<string, string[]> = await (async () => {
+      if (!partyId) return {};
+      try {
+        const { data, error } = await (supabase as any)
+          .from('party_director_messages')
+          .select('user_id, content, created_at')
+          .eq('party_id', partyId)
+          .eq('category', 'private_action')
+          .eq('consumed_by_dm', false)
+          .eq('role', 'user')
+          .order('created_at', { ascending: true })
+          .limit(50);
+        if (error || !data) return {};
+        const grouped: Record<string, string[]> = {};
+        for (const row of data as any[]) {
+          const uid = row.user_id;
+          if (!uid) continue;
+          if (!grouped[uid]) grouped[uid] = [];
+          grouped[uid].push(row.content || '');
+        }
+        return grouped;
+      } catch (e) {
+        console.error('[party-dm] fetchUnconsumedDirectorPrivates failed:', e);
+        return {};
+      }
+    })();
+
+    const directorPrivatesContext = (() => {
+      const entries: string[] = [];
+      for (const member of partyMembers) {
+        const uid = (member as any).user_id;
+        const name = (member as any).character_name || 'Player';
+        const privates = directorPrivatesMap[uid];
+        if (privates && privates.length > 0) {
+          entries.push(`### ${name}'s private notes to the DM (NOT visible to other players):\n${privates.map(p => `- ${p}`).join('\n')}`);
+        }
+      }
+      if (entries.length === 0) return undefined;
+      return [
+        '## PRIVATE PLAYER ACTIONS (FROM DIRECTOR CHANNEL)',
+        'Each player has a private channel to share secret moves and hidden character details.',
+        'These notes are HIDDEN from other players. Use them when generating narrative — but DO NOT explicitly call them out as "secret" in your response. Surface them naturally only if they\'re relevant to the current scene; otherwise hold them as DM knowledge for later.',
+        '',
+        ...entries,
+      ].join('\n');
+    })();
+
+    const enhancedPartyContext = [partyContext, directorPrivatesContext].filter(Boolean).join('\n\n') || undefined;
+
     const authToken = await getAuthToken();
     const response = await fetch(AI_DM_URL, {
       method: 'POST',
@@ -1181,7 +1231,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         characterContext,
         campaignSummary: sessionConfig?.campaignSummary || undefined,
         customGuides: extraGuides,
-        partyContext: partyContext || undefined,
+        partyContext: enhancedPartyContext,
         memoryAnchors: memoryAnchorsContent || undefined,
         worldStatePrompt: worldStatePrompt || undefined,
         recentPartyChat: recentPartyChat.length > 0 ? recentPartyChat : undefined,
@@ -1189,6 +1239,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         recentDragonNetwork: recentDragonNetwork.length > 0 ? recentDragonNetwork : undefined,
         responseModePrompt: responseModePrompt || undefined,
         dmPersonaPrompt: dmPersonaPrompt || undefined,
+        directorPrivatesContext: directorPrivatesContext || undefined,
         model: loadSelectedModel(),
         user_api_key: loadApiKey('anthropic') || undefined,
         user_openai_key: loadApiKey('openai') || undefined,
@@ -1249,8 +1300,27 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         } catch { /* skip */ }
       }
     }
+
+    // Mark consumed private_actions after successful generation (do not block response on errors)
+    if (partyId && Object.keys(directorPrivatesMap).length > 0) {
+      try {
+        await (supabase as any)
+          .from('party_director_messages')
+          .update({
+            consumed_by_dm: true,
+            consumed_at: new Date().toISOString(),
+          })
+          .eq('party_id', partyId)
+          .eq('category', 'private_action')
+          .eq('consumed_by_dm', false)
+          .eq('role', 'user');
+      } catch (e) {
+        console.error('[party-dm] mark consumed failed:', e);
+      }
+    }
+
     return assistantContent;
-  }, [characterContext, sessionConfig?.campaignSummary, memoryAnchorsContent, worldStatePrompt, mergeConsecutiveRoles, fetchRecentPartyChat, fetchRecentDragonChat, fetchRecentDragonNetwork]);
+  }, [characterContext, sessionConfig?.campaignSummary, memoryAnchorsContent, worldStatePrompt, mergeConsecutiveRoles, fetchRecentPartyChat, fetchRecentDragonChat, fetchRecentDragonNetwork, partyId, partyMembers]);
 
 
   // Build party members system prompt section
