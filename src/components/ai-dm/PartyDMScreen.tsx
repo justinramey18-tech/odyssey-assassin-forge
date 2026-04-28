@@ -660,8 +660,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     );
   }
 
-  // Detect whisper messages
-  const isWhisper = message.team?.startsWith('whisper:');
+  // Detect whisper messages (isWhisper hoisted above for private-mode check)
   const whisperTargetName = (() => {
     if (!isWhisper || !message.team) return '';
     const parts = message.team.split(':');
