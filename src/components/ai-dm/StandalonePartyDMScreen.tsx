@@ -546,8 +546,39 @@ ${truncated}`);
     return '\n\n' + sections.join('\n\n');
   }, [dragonBonds.myDragon, dragonBonds.dragonChatMessages, dragonBonds.lastMoodShift]);
 
-  // Non-hosts (and non-co-hosts) wait for session to start
+  // Non-hosts wait for session to start — UNLESS they still need to onboard,
+  // in which case the onboarding screen takes priority (they can build their
+  // character while the host finishes the architect).
   if (!partyDm.isActive && !isHost) {
+    const myMember = partyMembers.find(m => m.user_id === userId);
+    const myOnboardingStatus = (myMember as any)?.onboarding_status || 'pending';
+    const needsOnboarding = !isPartyCreator
+      && myOnboardingStatus !== 'complete'
+      && !justAppliedOnboarding;
+
+    if (needsOnboarding) {
+      const hostMember = partyMembers.find(m => m.user_id !== userId && (m as any).onboarding_status === 'complete')
+        || partyMembers.find(m => m.user_id !== userId);
+      const campaignPlan = (partyDm.sessionConfig as any)?.campaignSummary || '';
+      const hostStatus = (hostMember as any)?.character_status || {};
+      const hostCharacterSummary = hostMember
+        ? `Host's character: ${hostMember.character_name}${hostStatus?.signet_type ? ` (signet: ${hostStatus.signet_type})` : ''}${hostStatus?.dragon_name ? `, bonded to ${hostStatus.dragon_name}` : ''}.`
+        : '';
+      return (
+        <PlayerOnboardingScreen
+          open={true}
+          partyId={partyId}
+          userId={userId}
+          campaignPlan={campaignPlan}
+          hostCharacterSummary={hostCharacterSummary}
+          onComplete={() => {
+            setForceShowOnboarding(false);
+            setJustAppliedOnboarding(true);
+          }}
+        />
+      );
+    }
+
     return (
       <div className={cn("flex flex-col items-center justify-center bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]", embedded ? "absolute inset-0" : "fixed inset-0 z-[60]")}>
         {!embedded && (
