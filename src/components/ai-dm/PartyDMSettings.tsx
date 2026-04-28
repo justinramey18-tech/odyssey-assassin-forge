@@ -146,6 +146,9 @@ export interface PartyDMSettingsProps {
   empyreanFocus?: string;
   onEmpyreanFocusChange?: (focus: string) => void;
   onShowOocChat?: () => void;
+  // Player redo request (non-host only)
+  onRequestCharacterRedo?: () => void;
+  hasPendingRedoRequest?: boolean;
 }
 
 export function PartyDMSettings({
