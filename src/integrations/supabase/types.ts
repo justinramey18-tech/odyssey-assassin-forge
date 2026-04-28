@@ -771,6 +771,97 @@ export type Database = {
           },
         ]
       }
+      party_director_escalations: {
+        Row: {
+          ai_rationale: string | null
+          created_at: string
+          host_comment: string | null
+          id: string
+          party_id: string
+          request_text: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          ai_rationale?: string | null
+          created_at?: string
+          host_comment?: string | null
+          id?: string
+          party_id: string
+          request_text: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          ai_rationale?: string | null
+          created_at?: string
+          host_comment?: string | null
+          id?: string
+          party_id?: string
+          request_text?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_director_escalations_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      party_director_messages: {
+        Row: {
+          category: string | null
+          consumed_by_dm: boolean
+          content: string
+          created_at: string
+          id: string
+          overridden: boolean
+          party_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          consumed_by_dm?: boolean
+          content: string
+          created_at?: string
+          id?: string
+          overridden?: boolean
+          party_id: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          consumed_by_dm?: boolean
+          content?: string
+          created_at?: string
+          id?: string
+          overridden?: boolean
+          party_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_director_messages_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       party_dm_messages: {
         Row: {
           content: string
