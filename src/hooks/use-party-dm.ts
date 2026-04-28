@@ -1660,8 +1660,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
         // --- Team Beta ---
         if (betaPrompts.length > 0) {
-          const { guidesSection: betaAfkGuides, promptSection: betaAfkPrompts, consumedCascades: betaConsumed } = suppressAfkGuides
-            ? { guidesSection: '', promptSection: '', consumedCascades: [] }
+          const { guidesSection: betaAfkGuides, promptSection: betaAfkPrompts, consumedCascades: betaConsumed, afkEntries: betaAfkEntries } = suppressAfkGuides
+            ? { guidesSection: '', promptSection: '', consumedCascades: [], afkEntries: [] as Array<{ userId: string; characterName: string; content: string }> }
             : buildAfkGuidesContext(betaPrompts, splitState.betaMembers);
           allConsumedCascades = [...allConsumedCascades, ...betaConsumed];
           const betaRawCombined = betaPrompts
@@ -1670,14 +1670,28 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
           const betaForAI = betaRawCombined;
 
-          await insertPartyMessage({
-            party_id: partyId,
-            role: 'user',
-            content: betaRawCombined,
-            sender_user_id: user.id,
-            sender_name: splitState.betaName || 'Team Beta',
-            team: 'beta',
-          });
+          // Insert one row per ready player on Team Beta (privacy: each row carries player's user_id)
+          for (const p of betaPrompts) {
+            await insertPartyMessage({
+              party_id: partyId,
+              role: 'user',
+              content: formatPromptLine(p),
+              sender_user_id: p.user_id,
+              sender_name: p.character_name || 'Player',
+              team: 'beta',
+            });
+          }
+          // Insert one row per AFK Team Beta member
+          for (const entry of betaAfkEntries) {
+            await insertPartyMessage({
+              party_id: partyId,
+              role: 'user',
+              content: entry.content,
+              sender_user_id: entry.userId,
+              sender_name: entry.characterName || 'Player',
+              team: 'beta',
+            });
+          }
 
           const betaMembersSummary = buildPartyMembersGuide(splitState.betaMembers);
           const betaApiMsgs = betaMessages.map(m => ({ role: m.role, content: m.content }));
