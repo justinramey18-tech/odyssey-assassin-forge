@@ -425,22 +425,14 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
 
   const afkCharNames = afkCharNamesProp ?? [];
 
-  // In private mode, hide other players' user messages content
-  if (!isAssistant && !isMine && mode === 'private') {
-    return (
-      <div className="flex gap-1.5 justify-start min-w-0">
-        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 opacity-50"
-          style={{ backgroundColor: getMemberColor(message.sender_user_id || '', members) + '30', border: `1px solid ${getMemberColor(message.sender_user_id || '', members)}40` }}>
-          <Shield className="w-3.5 h-3.5" style={{ color: getMemberColor(message.sender_user_id || '', members) }} />
-        </div>
-        <div className="flex-1 min-w-0 rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 bg-white/5 border border-white/8 rounded-bl-sm">
-          <p className="text-[11px] font-semibold mb-0.5" style={{ color: getMemberColor(message.sender_user_id || '', members) }}>
-            {message.sender_name}
-          </p>
-          <p className="text-sm text-white/40 italic">Taking action...</p>
-        </div>
-      </div>
-    );
+  // Private mode: hide non-assistant messages that are NOT the current user's own.
+  // The "Party Actions" aggregate bubble has sender_user_id that does NOT match
+  // currentUserId, so it gets hidden too. The user's own individual prompts
+  // (isMine = true) stay visible. Whispers and dialogue messages always render.
+  // The DM still receives all prompts — only the chat rendering is suppressed.
+  const isWhisper = message.team?.startsWith('whisper:');
+  if (mode === 'private' && !isAssistant && !isMine && !isWhisper && !isDialogueMessage) {
+    return null;
   }
 
   if (isAssistant) {
