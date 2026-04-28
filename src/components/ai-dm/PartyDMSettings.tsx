@@ -468,6 +468,15 @@ export function PartyDMSettings({
             onClick={onShowScheduledEvents}
           />
         )}
+        {onRequestCharacterRedo && (
+          <ToolRow
+            icon={<RefreshCw className={cn("w-4 h-4", hasPendingRedoRequest ? "text-amber-400" : "")} />}
+            label="Request Character Redo"
+            description={hasPendingRedoRequest ? 'Awaiting host approval…' : 'Ask the host to redo your character'}
+            onClick={onRequestCharacterRedo}
+            disabled={hasPendingRedoRequest}
+          />
+        )}
         {hasBookmark && onClearBookmark && (
           <ToolRow
             icon={<BookmarkX className="w-4 h-4 text-amber-400" />}
