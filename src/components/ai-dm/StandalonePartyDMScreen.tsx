@@ -912,6 +912,16 @@ ${truncated}`);
         onApprove={onboardingRequests.approveRequest}
         onDeny={onboardingRequests.denyRequest}
       />
+
+      <HostDirectorEscalationsPanel
+        open={showDirectorEscalationsPanel}
+        onOpenChange={setShowDirectorEscalationsPanel}
+        pendingEscalations={directorEscalations.pendingEscalations}
+        memberDisplayNames={memberDisplayNames}
+        hostUserId={userId}
+        onApprove={directorEscalations.approve}
+        onDeny={directorEscalations.deny}
+      />
     </div>
   );
 }
