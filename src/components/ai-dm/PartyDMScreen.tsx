@@ -431,7 +431,10 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   // (isMine = true) stay visible. Whispers and dialogue messages always render.
   // The DM still receives all prompts — only the chat rendering is suppressed.
   const isWhisper = message.team?.startsWith('whisper:');
-  if (mode === 'private' && !isAssistant && !isMine && !isWhisper && !isDialogueMessage) {
+  // AFK / autopilot rows are always visible regardless of mode — the existence of a
+  // "Holds their action" or AFK guide line is informational, not private content.
+  const isAfkLine = AFK_LINE_REGEX.test(message.content || '');
+  if (mode === 'private' && !isAssistant && !isMine && !isWhisper && !isDialogueMessage && !isAfkLine) {
     return null;
   }
 
