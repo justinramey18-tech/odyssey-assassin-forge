@@ -614,9 +614,9 @@ ${truncated}`);
       {!showCampaignBuilder && (
         <button
           onClick={() => setShowDirectorScreen(true)}
-          className="absolute top-2 left-2 z-[61] inline-flex items-center justify-center w-9 h-9 rounded-full bg-red-600/85 border border-red-400/40 hover:bg-red-600 active:bg-red-700 transition-colors shadow-lg"
+          className="absolute right-2 z-[61] inline-flex items-center justify-center w-9 h-9 rounded-full bg-red-600/85 border border-red-400/40 hover:bg-red-600 active:bg-red-700 transition-colors shadow-lg"
           aria-label="Talk to the DM"
-          style={{ touchAction: 'manipulation' }}
+          style={{ bottom: '11rem', touchAction: 'manipulation' }}
         >
           <span className="text-white text-base font-bold">?</span>
         </button>
