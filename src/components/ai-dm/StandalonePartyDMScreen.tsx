@@ -19,7 +19,9 @@ import { PlayerRedoRequestDialog } from './PlayerRedoRequestDialog';
 import { HostOnboardingRequestsPanel } from './HostOnboardingRequestsPanel';
 import { usePartyOnboardingRequests } from '@/hooks/use-party-onboarding-requests';
 import { PartyDirectorScreen } from './PartyDirectorScreen';
-import { Play, MessageCircle } from 'lucide-react';
+import { HostDirectorEscalationsPanel } from './HostDirectorEscalationsPanel';
+import { usePartyDirectorEscalations } from '@/hooks/use-party-director-escalations';
+import { Play, MessageCircle, AlertTriangle } from 'lucide-react';
 
 import { PartyCampaignSaves } from './PartyCampaignSaves';
 import CampaignBuilderChat from './CampaignBuilderChat';
@@ -108,7 +110,9 @@ export function StandalonePartyDMScreen({
   const [memberDisplayNames, setMemberDisplayNames] = useState<Record<string, string>>({});
   const [showRedoDialog, setShowRedoDialog] = useState(false);
   const [showRequestsPanel, setShowRequestsPanel] = useState(false);
+  const [showDirectorEscalationsPanel, setShowDirectorEscalationsPanel] = useState(false);
   const onboardingRequests = usePartyOnboardingRequests({ partyId });
+  const directorEscalations = usePartyDirectorEscalations({ partyId });
   const promotedToInProgressRef = useRef(false);
 
   // Late-joiner: promote 'pending' onboarding_status to 'in_progress' once when overlay opens
@@ -659,6 +663,19 @@ ${truncated}`);
           Onboarding requests
           <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500 text-amber-950 text-[10px] font-bold">
             {onboardingRequests.pendingRequests.length}
+          </span>
+        </button>
+      )}
+      {isPartyCreator && directorEscalations.pendingEscalations.length > 0 && (
+        <button
+          onClick={() => setShowDirectorEscalationsPanel(true)}
+          className="absolute top-[5.5rem] left-1/2 -translate-x-1/2 z-[61] px-3 py-2 bg-amber-500/15 border border-amber-500/30 rounded-md text-xs font-semibold text-amber-200 hover:bg-amber-500/25 transition-colors flex items-center justify-center gap-2"
+          style={{ touchAction: 'manipulation' }}
+        >
+          <AlertTriangle className="w-3.5 h-3.5" />
+          Director requests
+          <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500 text-amber-950 text-[10px] font-bold">
+            {directorEscalations.pendingEscalations.length}
           </span>
         </button>
       )}
