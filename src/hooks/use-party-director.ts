@@ -38,14 +38,14 @@ export function usePartyDirector({ partyId, userId, campaignPlan, characterConte
     let cancelled = false;
     setIsLoading(true);
 
-    supabase
+    (supabase as any)
       .from('party_director_messages')
       .select('*')
       .eq('party_id', partyId)
       .eq('user_id', userId)
       .order('created_at', { ascending: true })
       .limit(200)
-      .then(({ data, error: fetchErr }) => {
+      .then(({ data, error: fetchErr }: { data: any; error: any }) => {
         if (cancelled) return;
         if (fetchErr) {
           console.error('[party-director] fetch failed:', fetchErr);
@@ -123,7 +123,7 @@ export function usePartyDirector({ partyId, userId, campaignPlan, characterConte
 
   const clear = useCallback(async () => {
     if (!partyId || !userId) return;
-    const { error: delErr } = await supabase
+    const { error: delErr } = await (supabase as any)
       .from('party_director_messages')
       .delete()
       .eq('party_id', partyId)
