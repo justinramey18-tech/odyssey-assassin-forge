@@ -1691,6 +1691,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               sender_user_id: entry.userId,
               sender_name: entry.characterName || 'Player',
               team: 'beta',
+              is_afk_marker: true,
             });
           }
 
