@@ -425,18 +425,12 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
 
   const afkCharNames = afkCharNamesProp ?? [];
 
-  // Private mode: hide non-assistant messages that are NOT the current user's own.
-  // The "Party Actions" aggregate bubble has sender_user_id that does NOT match
-  // currentUserId, so it gets hidden too. The user's own individual prompts
-  // (isMine = true) stay visible. Whispers and dialogue messages always render.
-  // The DM still receives all prompts — only the chat rendering is suppressed.
+  // Privacy is enforced at the database layer via RLS (parties.private_mode +
+  // party_dm_messages.is_afk_marker). The Supabase SELECT policy will not return
+  // other players' user-role rows when the party is in private mode, so any row
+  // that reaches this renderer is allowed to be visible. No render-time filter
+  // needed.
   const isWhisper = message.team?.startsWith('whisper:');
-  // AFK / autopilot rows are always visible regardless of mode — the existence of a
-  // "Holds their action" or AFK guide line is informational, not private content.
-  const isAfkLine = AFK_LINE_REGEX.test(message.content || '');
-  if (mode === 'private' && !isAssistant && !isMine && !isWhisper && !isDialogueMessage && !isAfkLine) {
-    return null;
-  }
 
   if (isAssistant) {
     const myCharName = members.find(m => m.user_id === currentUserId)?.character_name;
