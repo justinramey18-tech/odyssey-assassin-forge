@@ -1455,6 +1455,32 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   // Shared helper: insert a party DM message and update local state
   const insertPartyMessageHelper = useCallback(async (pId: string, insertData: Record<string, unknown>) => {
+    // When the host inserts a user-role row on behalf of another player (private mode round advance),
+    // the new privacy SELECT policy hides that row from the host. Using INSERT...RETURNING via .select()
+    // would then fail RLS (42501). Detect that case and skip the RETURNING — realtime will deliver the
+    // row to the row's owner, and the host shouldn't see it under private mode anyway.
+    const role = insertData.role as string | undefined;
+    const senderUserId = insertData.sender_user_id as string | undefined;
+    const isAfkMarker = insertData.is_afk_marker === true;
+    const team = insertData.team as string | undefined;
+    const isWhisper = typeof team === 'string' && team.startsWith('whisper:');
+    const isProxyUserInsert =
+      role === 'user' &&
+      !isAfkMarker &&
+      !isWhisper &&
+      !!senderUserId &&
+      !!user?.id &&
+      senderUserId !== user.id;
+
+    if (isProxyUserInsert) {
+      const { error } = await (supabase.from('party_dm_messages') as any).insert(insertData);
+      if (error) {
+        throw new Error(`Failed to save message: ${error.message}`);
+      }
+      // No local state update — realtime delivers to the owning subscriber; host is filtered out by RLS.
+      return null;
+    }
+
     const { data, error } = await (supabase.from('party_dm_messages') as any)
       .insert(insertData)
       .select('*')
@@ -1472,7 +1498,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
 
     return data as PartyDmMessage | null;
-  }, []);
+  }, [user]);
 
   const generateResponse = useCallback(async () => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
