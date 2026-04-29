@@ -3288,6 +3288,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     .eq('party_id', partyId)
                     .eq('state_type', 'dm_session')
                     .then(() => {});
+                  // Also persist on parties.private_mode so the RLS SELECT policy
+                  // on party_dm_messages enforces per-player visibility.
+                  (supabase.from('parties') as any)
+                    .update({ private_mode: newMode === 'private' })
+                    .eq('id', partyId)
+                    .then(() => {});
                 }
               }}
               isCreator={isCreator}
