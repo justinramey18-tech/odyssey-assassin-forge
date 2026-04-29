@@ -2064,7 +2064,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     whisperTrayEnabled={whisperTrayEnabled}
                     isBookmarked={msg.id === bookmarkedMessageId}
                     onBookmark={handleSetBookmark}
-                    isDialogueMessage={msg.role === 'user' && msg.sender_name !== 'Party' && msg.sender_name !== 'System' && msg.content.startsWith('[' + msg.sender_name + ']: ')}
+                    isDialogueMessage={isDialogueMode && msg.role === 'user' && msg.sender_name !== 'Party' && msg.sender_name !== 'System' && msg.content.startsWith('[' + msg.sender_name + ']: ')}
                     reactions={messageReactions.filter(r => r.message_id === msg.id)}
                     onAddReaction={addReaction}
                     onRemoveReaction={removeReaction}
