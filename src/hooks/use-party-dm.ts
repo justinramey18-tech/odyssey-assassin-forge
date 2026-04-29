@@ -57,6 +57,7 @@ export interface PartyDmMessage {
   created_at: string;
   team?: string | null;
   whispers?: Whisper[];
+  is_afk_marker?: boolean;
 }
 
 /**
@@ -1620,6 +1621,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               sender_user_id: entry.userId,
               sender_name: entry.characterName || 'Player',
               team: 'alpha',
+              is_afk_marker: true,
             });
           }
 
@@ -1690,6 +1692,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               sender_user_id: entry.userId,
               sender_name: entry.characterName || 'Player',
               team: 'beta',
+              is_afk_marker: true,
             });
           }
 
@@ -1824,6 +1827,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               content: entry.content,
               sender_user_id: entry.userId,
               sender_name: entry.characterName || 'Player',
+              is_afk_marker: true,
             });
           }
           // Per-player rows mean there's no single bundle id to track for rollback;

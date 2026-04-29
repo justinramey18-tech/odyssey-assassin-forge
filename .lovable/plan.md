@@ -1,58 +1,64 @@
-# Cinematic Mode → Structured Beats Redesign
+## Bulletproof Private Mode via RLS
 
-Replace the current "tag the original DM text" cinematic flow with an AI-distilled **beats array** (3, 5, or 7 beats). The center beat is always the peak (intensity 5) with the heaviest SFX/VFX; surrounding beats ramp up (setup) and ramp down (consequence). Original DM text stays untouched in chat history — cinematic mode just shows the distilled overlay.
+Replace the leaky render-time privacy filter with database-level enforcement. When the host enables Private Mode, the Supabase SELECT policy on `party_messages` will physically refuse to return other players' user-role rows to each viewer. Render code can no longer leak content it never receives.
 
-## Files modified
+### Step 1 — New migration
 
-### 1. `supabase/functions/tag-cinematic/index.ts` — full rewrite
-- Switch from text-tagging to structured **tool-calling** (`build_cinematic_beats`).
-- Model: `google/gemini-2.5-flash`, `tool_choice` forced to the function.
-- Schema enforces `beats[]` with `text`, `intensity` (1–5), `sfx[]`, `ambience`, `vfx[]`, `mood`, with strict enum lists (same SFX/AMBIENCE/VFX/MOOD library as today).
-- System prompt instructs: pick exactly 3, 5, or 7 beats based on scene length; rewrite each beat in own voice ≤30 words; peak in the middle gets primary SFX + heavy VFX; setup/consequence ramp.
-- Server-side sanitization: clamp word count to 30, clamp intensity to 1–5, filter tag arrays against allowed enums, reject non-{3,5,7} counts (return `beats: null`), force middle beat to intensity 5 defensively.
-- Always returns `{ beats: CinematicBeat[] | null }` with HTTP 200 on AI failure (fail-open so caller silently skips cinematic).
+Create `supabase/migrations/<new_timestamp>_party_messages_private_mode.sql`:
 
-### 2. `src/lib/parseSlides.ts` — additive
-- Add optional `intensity?: number` to existing `Slide` interface.
-- Add new exported `CinematicBeat` interface and `parseBeatsIntoSlides(beats)` function.
-  - Maps each beat → Slide. `displayType`: index 0 → `firstLine`, intensity 5 → `pullQuote`, others → `normal`. Carries through `sfx`, `ambience`, `vfx`, `mood`, `intensity`. `music` always null, `speaker` undefined.
-- Keep `parseResponseIntoSlides` and `stripCinematicTags` in place (still used by `PartyDMScreen` for display stripping of legacy messages — don't break old chat history).
+- `ALTER TABLE public.parties ADD COLUMN IF NOT EXISTS private_mode boolean NOT NULL DEFAULT false;`
+- `ALTER TABLE public.party_messages ADD COLUMN IF NOT EXISTS is_afk_marker boolean NOT NULL DEFAULT false;`
+- Partial indexes on both new columns for hot-path lookups.
+- New `SECURITY DEFINER` SQL function `public.party_is_private(_party_id uuid) returns boolean` that reads `parties.private_mode` with fixed search_path.
+- `DROP POLICY "Party members can read messages" ON public.party_messages;`
+- `CREATE POLICY "Party members can read messages with privacy" ... FOR SELECT TO authenticated USING (is_party_member(auth.uid(), party_id) AND (NOT party_is_private(party_id) OR role = 'assistant' OR (role = 'user' AND user_id = auth.uid()) OR is_afk_marker = true OR (team IS NOT NULL AND team LIKE 'whisper:%')))`
+- INSERT/UPDATE/DELETE policies and realtime publication untouched.
 
-### 3. `src/components/empyrean/EmpyreanDMScreen.tsx` — call site swap
-- Add `parseBeatsIntoSlides` to existing import (keep `parseResponseIntoSlides`/`stripCinematicTags` since they may still be referenced elsewhere in file).
-- Replace the `tag-cinematic` fetch block (~lines 742–768): drop `taggedText` handling and `parseResponseIntoSlides(textForSlides)`. Instead, expect `data.beats` (array). If `Array.isArray(data.beats) && data.beats.length > 0`, build slides via `parseBeatsIntoSlides` and launch slideshow. If `beats` is `null`/empty, silently skip — full text remains in chat.
+### Step 2 — `src/components/ai-dm/PartyDMScreen.tsx`
 
-### 4. `src/components/ai-dm/PartyDMScreen.tsx` — call site swap
-- Same refactor at ~line 1124: switch from tagged-text path to beats path, add `parseBeatsIntoSlides` to import.
-- **Keep** `stripCinematicTags` import and the local `stripCinematicTagsFromDisplay` helper — they're still used in 3 places (lines 573, 793, 796) to clean legacy message content for display. Untouched.
+**A. Toggle handler (~line 3288):** in `onToggleMode`, after the existing `party_shared_state` update, also write the boolean to the new column:
 
-### 5. `src/components/empyrean/CinematicSlideshow.tsx` — peak emphasis
-- Compute `const isPeak = currentSlide?.intensity === 5;`.
-- Apply subtle scale + amber drop-shadow on the slide content container (the `<div>` wrapping `SlideRenderer` at ~line 111) when `isPeak`. Tailwind: `scale-105 transition-transform duration-300 [filter:drop-shadow(0_0_12px_rgba(251,191,36,0.4))]`.
-- Audio engine, ambience, VFX wiring all unchanged — they consume the same Slide shape.
+```ts
+(supabase.from('parties') as any)
+  .update({ private_mode: newMode === 'private' })
+  .eq('id', partyId)
+  .then(() => {});
+```
 
-## Guardrails (explicit no-touches)
+**B. Render-time check (~lines 428–439):** delete the entire `if (mode === 'private' && !isAssistant && !isMine && !isWhisper && !isDialogueMessage && !isAfkLine) return null;` block and the `isAfkLine` constant (verified unused elsewhere in this file). Keep `const isWhisper = message.team?.startsWith('whisper:');` as it's used downstream. Replace the surrounding comment with a note that privacy is now enforced via RLS.
 
-- `slideshowAudioEngine`, `slideshowAudioLoader`, `SlideshowVFX` — unchanged.
-- `use-cinematic-mode.ts` — unchanged.
-- `EMPYREAN_FEATURE_FLAGS.showCinematicSlideshow` gate — unchanged.
-- DM response generation/storage — unchanged. Full text still saved to chat history.
-- Tag enums (SFX/AMBIENCE/VFX/MOOD) — exact same values, no new tags.
-- No caching/persistence of beats — fresh per response.
-- `parseResponseIntoSlides` and `stripCinematicTags` retained (cleanup is a future pass).
+`AFK_LINE_REGEX` itself stays — it's still used at lines 243 and 279 by other logic.
 
-## Technical notes
+### Step 3 — `src/hooks/use-party-dm.ts`
 
-- The new endpoint contract is `POST /functions/v1/tag-cinematic { text } → { beats: CinematicBeat[] | null }`. Both call sites updated atomically; no parallel old/new mode.
-- `Slide.intensity` is optional, so `parseResponseIntoSlides` (which doesn't set it) keeps compiling.
-- AI fail-open: 4xx/5xx from gateway, missing tool call, JSON parse errors, or invalid beat count all return `{ beats: null }` with status 200. Caller's `Array.isArray(...) && length > 0` check naturally skips cinematic; chat text still renders normally.
-- Edge function will be auto-deployed by the platform after the file write — no manual deploy step needed.
+Add `is_afk_marker: true` to the three AFK insert loops (and only those), keeping non-AFK player prompt inserts unchanged:
 
-## Verification after deploy
+- Line ~1616 `for (const entry of alphaAfkEntries)` — alpha split AFK insert.
+- Line ~1686 `for (const entry of betaAfkEntries)` — beta split AFK insert.
+- Line ~1821 `for (const entry of normalAfkEntries)` — non-split AFK insert.
 
-- TypeScript compiles clean.
-- Cinematic ON + medium DM response → slideshow with 3/5/7 beats, middle beat scaled + glowing, primary SFX on peak.
-- Cinematic OFF → no slideshow, full text in chat (no regression).
-- Party DM with cinematic ON for one player → slideshow plays for that player only.
-- AI failure path → no slideshow, no error toast, chat text intact.
-- Legacy messages with old `<!--SFX:...-->` tags in their content still render correctly via existing `stripCinematicTagsFromDisplay`.
+`insertPartyMessage` accepts `Record<string, unknown>`, so no helper-type change needed.
+
+### Step 4 — TypeScript message type
+
+If a `PartyDmMessage` interface exists with the `party_messages` columns, add optional `is_afk_marker?: boolean;`. Otherwise rely on the regenerated `src/integrations/supabase/types.ts` (auto-updated by the migration).
+
+### Step 5 — One-time host action after deploy
+
+Existing parties default to `private_mode = false`. Hosts who already had Private Mode on (stored in `state_data.mode`) must toggle Private Mode OFF then ON once to populate the new column. This is documented but not automated.
+
+### Guards (do not touch)
+
+- INSERT/UPDATE/DELETE policies on `party_messages`.
+- `is_party_member`, realtime publication, dialogue mode logic.
+- Per-player row insert refactor.
+- Director / OOC / Whisper / Empyrean / Solo / onboarding / dragon bonds flows.
+- DM context assembly — AI still receives the full combined prompt string.
+
+### Verification
+
+- TypeScript compiles, migration applies cleanly.
+- Two-player party in Private Mode: each player sees only their own user prompts + assistant narrative + AFK markers. Other player's prompt rows literally absent from the client (verifiable in network tab and via raw SQL as that user).
+- Shared Mode unchanged.
+- Realtime respects RLS — no flicker of hidden rows on insert.
+- Whispers, Director, dialogue mode, AFK guides, splits all unaffected.
