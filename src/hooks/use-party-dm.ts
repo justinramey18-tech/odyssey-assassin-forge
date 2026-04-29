@@ -57,6 +57,7 @@ export interface PartyDmMessage {
   created_at: string;
   team?: string | null;
   whispers?: Whisper[];
+  is_afk_marker?: boolean;
 }
 
 /**
