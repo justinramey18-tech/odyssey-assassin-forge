@@ -1826,6 +1826,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               content: entry.content,
               sender_user_id: entry.userId,
               sender_name: entry.characterName || 'Player',
+              is_afk_marker: true,
             });
           }
           // Per-player rows mean there's no single bundle id to track for rollback;
