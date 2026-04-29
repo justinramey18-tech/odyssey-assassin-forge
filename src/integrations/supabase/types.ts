@@ -621,6 +621,7 @@ export type Database = {
           id: string
           is_active: boolean
           link_code: string
+          private_mode: boolean
         }
         Insert: {
           campaign_started?: boolean
@@ -630,6 +631,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           link_code: string
+          private_mode?: boolean
         }
         Update: {
           campaign_started?: boolean
@@ -639,6 +641,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           link_code?: string
+          private_mode?: boolean
         }
         Relationships: []
       }
@@ -867,6 +870,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          is_afk_marker: boolean
           party_id: string
           role: string
           sender_name: string
@@ -877,6 +881,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          is_afk_marker?: boolean
           party_id: string
           role: string
           sender_name?: string
@@ -887,6 +892,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          is_afk_marker?: boolean
           party_id?: string
           role?: string
           sender_name?: string
@@ -1724,6 +1730,7 @@ export type Database = {
         }
         Returns: number
       }
+      party_is_private: { Args: { _party_id: string }; Returns: boolean }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
