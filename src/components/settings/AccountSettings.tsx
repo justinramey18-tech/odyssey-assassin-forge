@@ -32,6 +32,39 @@ export function AccountSettings({ userEmail }: AccountSettingsProps) {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
+  // Recovery code state
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [codeLoading, setCodeLoading] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+
+  const isSyntheticUser = userEmail.toLowerCase().endsWith('@odyssey.local');
+
+  const handleGenerateRecoveryCode = useCallback(async () => {
+    setCodeLoading(true);
+    try {
+      const code = generateRecoveryCode();
+      const { error } = await supabase.functions.invoke('set-recovery-code', { body: { code } });
+      if (error) throw error;
+      setGeneratedCode(code);
+      toast.success('New recovery code generated. Save it now — you will not see it again.');
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not generate recovery code.');
+    } finally {
+      setCodeLoading(false);
+    }
+  }, []);
+
+  const copyRecoveryCode = useCallback(async () => {
+    if (!generatedCode) return;
+    try {
+      await navigator.clipboard.writeText(generatedCode);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    } catch {
+      toast.error('Could not copy.');
+    }
+  }, [generatedCode]);
+
   const handleChangeEmail = useCallback(async () => {
     const result = emailSchema.safeParse(newEmail);
     if (!result.success) {
