@@ -47,3 +47,9 @@ project_id = "sqvcszzbkyzidigsdqgk"
     verify_jwt = false
   [functions.telegram-scheduled-dispatch]
     verify_jwt = false
+  [functions.check-username]
+    verify_jwt = false
+  [functions.recover-password]
+    verify_jwt = false
+  [functions.set-recovery-code]
+    verify_jwt = true
