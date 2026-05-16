@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import Install from "./pages/Install";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
+import RecoverAccount from "./pages/RecoverAccount";
 import NotFound from "./pages/NotFound";
 import Features from "./pages/Features";
 import CharacterRoster from "./pages/CharacterRoster";
