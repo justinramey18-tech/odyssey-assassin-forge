@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import Install from "./pages/Install";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
+import RecoverAccount from "./pages/RecoverAccount";
 import NotFound from "./pages/NotFound";
 import Features from "./pages/Features";
 import CharacterRoster from "./pages/CharacterRoster";
@@ -47,6 +48,7 @@ const App = () => {
             <Route path="/install" element={<Install />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/recover-account" element={<RecoverAccount />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

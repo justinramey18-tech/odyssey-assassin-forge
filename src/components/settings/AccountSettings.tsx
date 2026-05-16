@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Mail, Lock, Loader2, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Loader2, ChevronDown, ChevronUp, Eye, EyeOff, KeyRound, Copy, Check, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { z } from 'zod';
+import { generateRecoveryCode } from '@/lib/recovery-code';
 
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
@@ -30,6 +31,39 @@ export function AccountSettings({ userEmail }: AccountSettingsProps) {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+
+  // Recovery code state
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [codeLoading, setCodeLoading] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+
+  const isSyntheticUser = userEmail.toLowerCase().endsWith('@odyssey.local');
+
+  const handleGenerateRecoveryCode = useCallback(async () => {
+    setCodeLoading(true);
+    try {
+      const code = generateRecoveryCode();
+      const { error } = await supabase.functions.invoke('set-recovery-code', { body: { code } });
+      if (error) throw error;
+      setGeneratedCode(code);
+      toast.success('New recovery code generated. Save it now — you will not see it again.');
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not generate recovery code.');
+    } finally {
+      setCodeLoading(false);
+    }
+  }, []);
+
+  const copyRecoveryCode = useCallback(async () => {
+    if (!generatedCode) return;
+    try {
+      await navigator.clipboard.writeText(generatedCode);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    } catch {
+      toast.error('Could not copy.');
+    }
+  }, [generatedCode]);
 
   const handleChangeEmail = useCallback(async () => {
     const result = emailSchema.safeParse(newEmail);
@@ -203,6 +237,44 @@ export function AccountSettings({ userEmail }: AccountSettingsProps) {
             >
               {passwordLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Lock className="w-3 h-3" />}
               Update Password
+            </Button>
+          </div>
+
+          <Separator />
+
+          {/* Recovery Code */}
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <KeyRound className="w-3 h-3" />
+              Recovery Code
+            </Label>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {isSyntheticUser
+                ? 'Your only way to reset a forgotten password. Generating a new code invalidates the old one.'
+                : 'Optional backup if you ever lose access to your email. Generating a new code invalidates the old one.'}
+            </p>
+
+            {generatedCode && (
+              <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-2 space-y-2">
+                <div className="flex items-center gap-1.5 text-amber-400 text-xs">
+                  <ShieldAlert className="w-3 h-3" />
+                  Save this now — you will not see it again.
+                </div>
+                <div className="font-mono text-center text-base tracking-widest text-foreground select-all break-all bg-background/40 rounded p-2">
+                  {generatedCode}
+                </div>
+                <Button size="sm" variant="outline" className="w-full gap-1.5" onClick={copyRecoveryCode}>
+                  {codeCopied ? <><Check className="w-3 h-3" /> Copied</> : <><Copy className="w-3 h-3" /> Copy Code</>}
+                </Button>
+              </div>
+            )}
+
+            <Button
+              size="sm" variant="outline" className="w-full gap-1.5"
+              onClick={handleGenerateRecoveryCode} disabled={codeLoading}
+            >
+              {codeLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <KeyRound className="w-3 h-3" />}
+              {generatedCode ? 'Generate Another Code' : 'Generate New Recovery Code'}
             </Button>
           </div>
         </div>

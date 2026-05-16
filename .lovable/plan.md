@@ -1,64 +1,44 @@
-## Bulletproof Private Mode via RLS
+# Username + Password Login (no emails)
 
-Replace the leaky render-time privacy filter with database-level enforcement. When the host enables Private Mode, the Supabase SELECT policy on `party_messages` will physically refuse to return other players' user-role rows to each viewer. Render code can no longer leak content it never receives.
+## What changes for the user
 
-### Step 1 — New migration
+**New users** see a clean form: **Username**, **Password**, **Confirm Password**. No email field. No "check your inbox." Account is created instantly and they're signed straight in.
 
-Create `supabase/migrations/<new_timestamp>_party_messages_private_mode.sql`:
+**Forgot password** no longer sends an email. Instead, at sign-up time we show each new user a one-time **Recovery Code** (16 characters, like `XK7P-9QM2-WR4N-8VTH`). We tell them: *"Save this somewhere safe. It's the only way to reset your password — we have no email to send a reset link to."* If they later forget their password, they type their username + recovery code on a new "Forgot Password" screen, then set a new password.
 
-- `ALTER TABLE public.parties ADD COLUMN IF NOT EXISTS private_mode boolean NOT NULL DEFAULT false;`
-- `ALTER TABLE public.party_messages ADD COLUMN IF NOT EXISTS is_afk_marker boolean NOT NULL DEFAULT false;`
-- Partial indexes on both new columns for hot-path lookups.
-- New `SECURITY DEFINER` SQL function `public.party_is_private(_party_id uuid) returns boolean` that reads `parties.private_mode` with fixed search_path.
-- `DROP POLICY "Party members can read messages" ON public.party_messages;`
-- `CREATE POLICY "Party members can read messages with privacy" ... FOR SELECT TO authenticated USING (is_party_member(auth.uid(), party_id) AND (NOT party_is_private(party_id) OR role = 'assistant' OR (role = 'user' AND user_id = auth.uid()) OR is_afk_marker = true OR (team IS NOT NULL AND team LIKE 'whisper:%')))`
-- INSERT/UPDATE/DELETE policies and realtime publication untouched.
+**Existing users who signed up with a real email**: nothing changes. They keep signing in with their email + password exactly as before. Google sign-in also continues to work for users who already use it.
 
-### Step 2 — `src/components/ai-dm/PartyDMScreen.tsx`
+## How it works under the hood (for the technical record)
 
-**A. Toggle handler (~line 3288):** in `onToggleMode`, after the existing `party_shared_state` update, also write the boolean to the new column:
+Supabase Auth requires an email address per account. For username-only signups we synthesize one — `username@odyssey.local` — and store it as the user's auth email. The user never sees or types this; they only see their username. Existing accounts with real emails are untouched, so their logins keep working.
 
-```ts
-(supabase.from('parties') as any)
-  .update({ private_mode: newMode === 'private' })
-  .eq('id', partyId)
-  .then(() => {});
-```
+Usernames are validated (3–24 characters, letters/numbers/underscore/hyphen, case-insensitive, must be unique). Reserved words like `admin`, `support`, `system` are blocked. On submit we lowercase the username, append `@odyssey.local`, and hand that to Supabase as the email.
 
-**B. Render-time check (~lines 428–439):** delete the entire `if (mode === 'private' && !isAssistant && !isMine && !isWhisper && !isDialogueMessage && !isAfkLine) return null;` block and the `isAfkLine` constant (verified unused elsewhere in this file). Keep `const isWhisper = message.team?.startsWith('whisper:');` as it's used downstream. Replace the surrounding comment with a note that privacy is now enforced via RLS.
+The recovery code is generated client-side at signup (cryptographically random), shown once on screen with a Copy button, and a hash of it (bcrypt-style via pgcrypto) is stored in a new `account_recovery` table keyed by user id. The plain code never touches the database. Password recovery: user submits username + code, an edge function looks up the user, verifies the hash, and (using the service role) updates the password. The code is consumed on use; user is offered a fresh one after successful recovery.
 
-`AFK_LINE_REGEX` itself stays — it's still used at lines 243 and 279 by other logic.
+## Files / pieces to build
 
-### Step 3 — `src/hooks/use-party-dm.ts`
+1. **Database migration** — `account_recovery` table (user_id, code_hash, created_at, used_at) with RLS so only the owner can read their own row; service role writes during recovery. Enable the `pgcrypto` extension if not already on for bcrypt verification.
+2. **New edge function** `recover-password` — accepts `{ username, recoveryCode, newPassword }`, verifies hash with service role, updates the auth password, marks code used. Validates input with zod, includes CORS.
+3. **New edge function** `check-username` — accepts `{ username }`, returns whether `username@odyssey.local` already exists. Used to give instant "username taken" feedback at signup.
+4. **`src/pages/Auth.tsx`** — replace email field with username field on signup + login. Drop the email-confirmation success message. Drop the link to the old forgot-password (email reset) flow and replace with the new code-based flow. Keep Google sign-in button. Keep existing email login working (we'll accept either a username OR an email containing `@` in the username field on the login screen — if it contains `@`, send as-is; otherwise append `@odyssey.local`).
+5. **New "Recovery Code shown" screen** — surfaces immediately after successful signup with the code in a large monospace block, Copy button, and a checkbox "I've saved my recovery code" the user must tick before continuing to the app.
+6. **New `src/pages/RecoverAccount.tsx`** — username + recovery code + new password form, calls the `recover-password` edge function.
+7. **`src/pages/ResetPassword.tsx`** — keep for legacy email users who still receive reset links. No changes needed.
+8. **Supabase auth setting** — turn on **auto-confirm email signups** so synthesized `@odyssey.local` accounts don't sit in "pending verification" state. (This also means real-email signups are no longer email-verified — acceptable per request.)
+9. **`src/components/settings/AccountSettings.tsx`** — add a "Recovery Code" section: shows last-generated date, offers "Generate New Code" (invalidates old one). Keeps existing email/password change controls for users who do have a real email.
+10. **Memory update** — record that auto-confirm is now ON intentionally, overriding the prior `mem://auth/email-configuration` rule.
 
-Add `is_afk_marker: true` to the three AFK insert loops (and only those), keeping non-AFK player prompt inserts unchanged:
+## Edge cases handled
 
-- Line ~1616 `for (const entry of alphaAfkEntries)` — alpha split AFK insert.
-- Line ~1686 `for (const entry of betaAfkEntries)` — beta split AFK insert.
-- Line ~1821 `for (const entry of normalAfkEntries)` — non-split AFK insert.
+- Username already taken → inline error before submit.
+- Existing real-email user trying to log in: still works (we don't append `@odyssey.local` if the input already has `@`).
+- User who loses both password and recovery code → permanently locked out (matches the no-email model; we surface this clearly at signup).
+- Google sign-in users have no username; they continue using Google. We don't force them to pick a username.
 
-`insertPartyMessage` accepts `Record<string, unknown>`, so no helper-type change needed.
+## What does NOT change
 
-### Step 4 — TypeScript message type
-
-If a `PartyDmMessage` interface exists with the `party_messages` columns, add optional `is_afk_marker?: boolean;`. Otherwise rely on the regenerated `src/integrations/supabase/types.ts` (auto-updated by the migration).
-
-### Step 5 — One-time host action after deploy
-
-Existing parties default to `private_mode = false`. Hosts who already had Private Mode on (stored in `state_data.mode`) must toggle Private Mode OFF then ON once to populate the new column. This is documented but not automated.
-
-### Guards (do not touch)
-
-- INSERT/UPDATE/DELETE policies on `party_messages`.
-- `is_party_member`, realtime publication, dialogue mode logic.
-- Per-player row insert refactor.
-- Director / OOC / Whisper / Empyrean / Solo / onboarding / dragon bonds flows.
-- DM context assembly — AI still receives the full combined prompt string.
-
-### Verification
-
-- TypeScript compiles, migration applies cleanly.
-- Two-player party in Private Mode: each player sees only their own user prompts + assistant narrative + AFK markers. Other player's prompt rows literally absent from the client (verifiable in network tab and via raw SQL as that user).
-- Shared Mode unchanged.
-- Realtime respects RLS — no flicker of hidden rows on insert.
-- Whispers, Director, dialogue mode, AFK guides, splits all unaffected.
+- Google sign-in
+- Existing email-based accounts (login, password reset via email, profile data)
+- Roles, RLS, character data, cloud saves
+- The `/reset-password` page (legacy email flow still works)
