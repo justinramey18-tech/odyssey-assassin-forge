@@ -239,6 +239,44 @@ export function AccountSettings({ userEmail }: AccountSettingsProps) {
               Update Password
             </Button>
           </div>
+
+          <Separator />
+
+          {/* Recovery Code */}
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <KeyRound className="w-3 h-3" />
+              Recovery Code
+            </Label>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {isSyntheticUser
+                ? 'Your only way to reset a forgotten password. Generating a new code invalidates the old one.'
+                : 'Optional backup if you ever lose access to your email. Generating a new code invalidates the old one.'}
+            </p>
+
+            {generatedCode && (
+              <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-2 space-y-2">
+                <div className="flex items-center gap-1.5 text-amber-400 text-xs">
+                  <ShieldAlert className="w-3 h-3" />
+                  Save this now — you will not see it again.
+                </div>
+                <div className="font-mono text-center text-base tracking-widest text-foreground select-all break-all bg-background/40 rounded p-2">
+                  {generatedCode}
+                </div>
+                <Button size="sm" variant="outline" className="w-full gap-1.5" onClick={copyRecoveryCode}>
+                  {codeCopied ? <><Check className="w-3 h-3" /> Copied</> : <><Copy className="w-3 h-3" /> Copy Code</>}
+                </Button>
+              </div>
+            )}
+
+            <Button
+              size="sm" variant="outline" className="w-full gap-1.5"
+              onClick={handleGenerateRecoveryCode} disabled={codeLoading}
+            >
+              {codeLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <KeyRound className="w-3 h-3" />}
+              {generatedCode ? 'Generate Another Code' : 'Generate New Recovery Code'}
+            </Button>
+          </div>
         </div>
       )}
     </div>
