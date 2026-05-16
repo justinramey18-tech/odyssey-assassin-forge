@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Mail, Lock, Loader2, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Loader2, ChevronDown, ChevronUp, Eye, EyeOff, KeyRound, Copy, Check, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { z } from 'zod';
+import { generateRecoveryCode } from '@/lib/recovery-code';
 
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
