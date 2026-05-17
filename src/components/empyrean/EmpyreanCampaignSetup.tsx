@@ -31,7 +31,9 @@ interface EmpyreanCampaignSetupProps {
   onClose: () => void;
   characterName: string;
   addGuide: (name: string, content: string, customId?: string) => boolean;
+  addGuides: (items: Array<{ name: string; content: string; customId?: string }>) => { added: number; skipped: number };
   deleteGuide: (id: string) => void;
+  deleteGuides: (ids: string[]) => void;
   onComplete: (config: EmpyreanDMConfig) => void;
   onLaunchWithScene?: (config: EmpyreanDMConfig, openingPrompt: string) => void;
   isUnbonded?: boolean;
