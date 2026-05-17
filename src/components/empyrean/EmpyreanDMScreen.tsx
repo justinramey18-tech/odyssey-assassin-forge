@@ -474,7 +474,7 @@ UNBONDED RIDER RULES:
   }, [isUnbonded, open]);
 
   const gmGuides = useGMGuides();
-  const { enabledContent, activeGuideIds, guides, addGuide, deleteGuide } = gmGuides;
+  const { enabledContent, activeGuideIds, guides, addGuide, addGuides, deleteGuide, deleteGuides } = gmGuides;
   const { themeId: chatThemeId, setTheme: setChatTheme } = useDMChatTheme();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const { cinematicModeEnabled, setCinematicMode } = useCinematicMode();
