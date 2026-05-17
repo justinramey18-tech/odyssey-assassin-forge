@@ -214,6 +214,17 @@ export function useGMGuides(ownerUserId?: string, mode?: 'solo' | 'solo-empyrean
     toast.success('Guide deleted');
   }, [guides, persist, deleteFromCloud]);
 
+  const deleteGuides = useCallback((ids: string[]) => {
+    if (ids.length === 0) return;
+    for (const id of ids) deletedIdsRef.current.add(id);
+    setGuides(prev => {
+      const next = prev.filter(g => !ids.includes(g.id));
+      if (!isCloudMode) saveGMGuides(next, mode);
+      return next;
+    });
+    for (const id of ids) deleteFromCloud(id);
+  }, [isCloudMode, mode, deleteFromCloud]);
+
   const toggleGuide = useCallback((id: string) => {
     const existing = guides.find(g => g.id === id);
     if (!existing) return;
