@@ -217,20 +217,18 @@ export function EmpyreanCampaignSetup({
     // Save config
     saveEmpyreanDMConfig(config);
 
-    // Install selected lore guides
+    // Install selected lore guides via batch helpers to avoid React state-batching races.
     const allGuides = [...EMPYREAN_LORE_GUIDES, ...EMPYREAN_META_GUIDES, ...EMPYREAN_SESSION_GUIDES];
     const selectedIds = new Set([...selectedLore, ...selectedTone]);
 
-    // Remove previously installed Empyrean guides to prevent duplicates on reconfigure
-    const allGuideIds = allGuides.map(g => g.id);
-    for (const id of allGuideIds) {
-      deleteGuide(id);
-    }
-    for (const guide of allGuides) {
-      if (selectedIds.has(guide.id)) {
-        addGuide(guide.name, guide.content, guide.id);
-      }
-    }
+    // 1. Remove previously installed Empyrean guides to prevent duplicates on reconfigure.
+    deleteGuides(allGuides.map(g => g.id));
+
+    // 2. Install all selected guides in a single batch state update.
+    const toInstall = allGuides
+      .filter(g => selectedIds.has(g.id))
+      .map(g => ({ name: g.name, content: g.content, customId: g.id }));
+    addGuides(toInstall);
 
     onComplete(config);
     
