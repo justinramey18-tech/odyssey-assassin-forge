@@ -261,8 +261,10 @@ export function useGMGuides(ownerUserId?: string, mode?: 'solo' | 'solo-empyrean
   return {
     guides,
     addGuide,
+    addGuides,
     updateGuide,
     deleteGuide,
+    deleteGuides,
     toggleGuide,
     totalChars,
     enabledContent,
