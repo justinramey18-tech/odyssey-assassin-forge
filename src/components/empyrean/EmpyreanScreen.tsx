@@ -308,7 +308,9 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext,
         onClose={() => setShowSetup(false)}
         characterName={characterName}
         addGuide={addGuide}
+        addGuides={addGuides}
         deleteGuide={deleteGuide}
+        deleteGuides={deleteGuides}
         onComplete={(config) => {
           setEmpyreanConfig(config);
           setShowSetup(false);
