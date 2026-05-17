@@ -68,7 +68,7 @@ function SectionCard({ icon, title, description, color, borderColor, onClick }: 
 }
 
 export function EmpyreanScreen({ open, onClose, characterName, characterContext, autoSyncCallbacks, autoOpen, onAutoOpenConsumed }: EmpyreanScreenProps) {
-  const { guides, addGuide, deleteGuide, updateGuide } = useGMGuides();
+  const { guides, addGuide, addGuides, deleteGuide, deleteGuides, updateGuide } = useGMGuides();
   const [showPack, setShowPack] = useState(false);
   const [showPrompts, setShowPrompts] = useState(false);
   const [showSessionZero, setShowSessionZero] = useState(false);
@@ -308,7 +308,9 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext,
         onClose={() => setShowSetup(false)}
         characterName={characterName}
         addGuide={addGuide}
+        addGuides={addGuides}
         deleteGuide={deleteGuide}
+        deleteGuides={deleteGuides}
         onComplete={(config) => {
           setEmpyreanConfig(config);
           setShowSetup(false);

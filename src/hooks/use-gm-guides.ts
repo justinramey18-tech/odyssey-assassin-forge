@@ -132,6 +132,60 @@ export function useGMGuides(ownerUserId?: string, mode?: 'solo' | 'solo-empyrean
     return true;
   }, [guides, persist, persistToCloud]);
 
+  const addGuides = useCallback((items: Array<{ name: string; content: string; customId?: string }>): { added: number; skipped: number } => {
+    const prepared = items.map(item => ({
+      ...item,
+      resolvedId: item.customId ?? crypto.randomUUID(),
+      oversizeIndividual: item.content.length > MAX_GUIDE_CHARS,
+    }));
+
+    let added = 0;
+    let skipped = 0;
+
+    setGuides(prev => {
+      const acc: GMGuide[] = [...prev];
+      for (const p of prepared) {
+        if (p.oversizeIndividual) { skipped += 1; continue; }
+        if (!canAddContent(acc, p.content.length)) {
+          skipped += 1;
+          p.oversizeIndividual = true;
+          continue;
+        }
+        acc.push({
+          id: p.resolvedId,
+          name: (p.name || 'Untitled Guide').trim(),
+          content: p.content,
+          enabled: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        added += 1;
+      }
+      if (!isCloudMode) {
+        saveGMGuides(acc, mode);
+      }
+      return acc;
+    });
+
+    if (isCloudMode) {
+      for (const p of prepared) {
+        if (p.oversizeIndividual) continue;
+        persistToCloud({
+          id: p.resolvedId,
+          name: (p.name || 'Untitled Guide').trim(),
+          content: p.content,
+          enabled: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
+
+    if (added > 0) toast.success(`${added} guide${added === 1 ? '' : 's'} added`);
+    if (skipped > 0) toast.error(`${skipped} guide${skipped === 1 ? '' : 's'} skipped (size limit)`);
+    return { added, skipped };
+  }, [isCloudMode, mode, persistToCloud]);
+
   const updateGuide = useCallback((id: string, updates: Partial<Pick<GMGuide, 'name' | 'content' | 'enabled'>>): boolean => {
     const existing = guides.find(g => g.id === id);
     if (!existing) return false;
@@ -159,6 +213,17 @@ export function useGMGuides(ownerUserId?: string, mode?: 'solo' | 'solo-empyrean
     deleteFromCloud(id);
     toast.success('Guide deleted');
   }, [guides, persist, deleteFromCloud]);
+
+  const deleteGuides = useCallback((ids: string[]) => {
+    if (ids.length === 0) return;
+    for (const id of ids) deletedIdsRef.current.add(id);
+    setGuides(prev => {
+      const next = prev.filter(g => !ids.includes(g.id));
+      if (!isCloudMode) saveGMGuides(next, mode);
+      return next;
+    });
+    for (const id of ids) deleteFromCloud(id);
+  }, [isCloudMode, mode, deleteFromCloud]);
 
   const toggleGuide = useCallback((id: string) => {
     const existing = guides.find(g => g.id === id);
@@ -196,8 +261,10 @@ export function useGMGuides(ownerUserId?: string, mode?: 'solo' | 'solo-empyrean
   return {
     guides,
     addGuide,
+    addGuides,
     updateGuide,
     deleteGuide,
+    deleteGuides,
     toggleGuide,
     totalChars,
     enabledContent,
