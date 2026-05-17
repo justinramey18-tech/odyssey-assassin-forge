@@ -1471,7 +1471,9 @@ ${oocLines}`;
           onClose={() => setShowSetup(false)}
           characterName={characterName}
           addGuide={addGuide}
+          addGuides={addGuides}
           deleteGuide={deleteGuide}
+          deleteGuides={deleteGuides}
           onComplete={(newConfig) => {
             setConfig(newConfig);
             setShowSetup(false);
