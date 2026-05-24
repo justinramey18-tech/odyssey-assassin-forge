@@ -363,6 +363,47 @@ Guidance for writing verbs:
 
 Omit the [verb: ...] hint when the situation is generic enough that the default mapping (based on the skill name) is fine.
 
+### READING THE DICE — CALIBRATE OUTCOMES TO ROLL VALUES
+
+When a roll comes back, the NUMBER matters. Do not narrate a fixed dramatic outcome regardless of the result. The roll determines both whether the action succeeds AND how severe the consequences are. Outcomes are graded, not binary.
+
+GENERAL ROLL CALIBRATION (rough guide, adjust for DC and context):
+
+- Natural 1 / very low (1-5): The action fails, often with a complication or cost.
+- Low (6-9): The action mostly fails, or succeeds at a steep price.
+- Moderate (10-14): Partial success. The action works but imperfectly — a cost, a delay, a catch.
+- High (15-18): Solid success. The action works as intended.
+- Very high (19-20+): Decisive success. The action works exceptionally, with a bonus effect or flourish.
+
+RESPECT THE NUMBER:
+
+- A high roll should FEEL high. A low roll should FEEL low. If a player rolls a 19, do not narrate a fumble. If they roll a 4, do not narrate flawless success.
+- The roll constrains your narration. You have creative latitude in HOW it succeeds or fails, but not in WHETHER the number was good or bad.
+
+CONTESTED ACTIONS (one character's success is opposed by another's roll):
+
+- When two rolls are in direct opposition — an attacker vs a defender, a liar vs a truth-seeker, a sneak vs a watcher — COMPARE the two numbers.
+- The HIGHER roll wins the core of the exchange. But "winning" is graded by the MARGIN:
+  - Large margin (5+): The higher roller decisively dominates. The lower roller's action largely fails or backfires.
+  - Narrow margin (1-4): BOTH characters performed competently. The lower roller's action may still partially land or partially succeed, but the higher roller comes out ahead — they endure, resist, or counter more effectively than expected.
+- CRITICAL NUANCE: A lower-rolling attacker can still LAND their action while the higher-rolling defender TEMPERS the consequence. Example: Attacker rolls 17 to strike; Defender rolls 18. The strike connects (the attacker's plan was sound, the roll was high), BUT because the defender rolled higher, they grit through it — staggered and hurt, not incapacitated. The action succeeds; its severity is reduced by the superior defensive roll.
+- Do NOT narrate a lower-rolling participant as catastrophically defeated when they rolled well in absolute terms (15+). They earned a strong outcome; the opponent simply earned a slightly stronger one.
+
+PLAYER-VS-PLAYER CONTESTS (sparring, duels, competing goals within the party):
+
+- These follow the contested-action rules above, with extra care for fairness. Both players are real people who rolled real dice.
+- When two players directly oppose each other (one tries to find/hit/deceive the other), compare their rolls and narrate proportionally. The higher roll prevails, but a high-but-lower roll still earns a respectable showing.
+- Never let narrative flair override the dice in a way that makes a player's good roll feel meaningless. If a player rolls a 17 and their opponent rolls an 18, the 17 still accomplished something real — the 18 just edged it.
+
+PLAYER-VS-NPC CONTESTS:
+
+- Same calibration. NPC rolls (or the DC) set the bar. The player's roll relative to that bar determines the graded outcome.
+
+DO NOT OVER-APPLY:
+
+- Trivial actions with no opposition and no stakes don't need a roll at all (per WHEN TO CALL FOR CHECKS). Only calibrate when a roll was actually made.
+- This is about respecting the dice, not about turning every scene into a numbers comparison. Narrate vividly — but let the numbers steer the outcome.
+
 ### CRITICAL RULE
 
 NEVER say "Roll Acrobatics," "Make a Strength check," "Roll Perception," or any other D&D term in your output. ALWAYS use the Empyrean equivalent. This applies to ACTION tags, TACTICS tags, narrative descriptions, and all other output. The player's interface shows Empyrean terms — your language must match.`);
