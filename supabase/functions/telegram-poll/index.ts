@@ -2235,6 +2235,51 @@ async function processCommand(
     return;
   }
 
+  // /yo MESSAGE — general AI assistant (no game context), with conversation memory
+  if (cmd === '/yo' || cmd.startsWith('/yo ')) {
+    const arg = cleaned.substring(3).trim();
+
+    if (arg.toLowerCase() === 'clear' || arg.toLowerCase() === 'reset' || arg.toLowerCase() === 'forget') {
+      await clearYoHistory(chatId, supabase);
+      await sendTelegram(chatId, '🧹 Memory wiped. Who are you again?', lovableKey, telegramKey);
+      return;
+    }
+
+    if (!arg) {
+      await sendTelegram(chatId, '💬 Usage: <code>/yo what should I make for dinner</code>\n\nI\'m your assistant — ask me anything (not game stuff, that\'s /ask). I remember our last 20 messages. Say <code>/yo clear</code> to wipe my memory.', lovableKey, telegramKey);
+      return;
+    }
+
+    const history = await getYoHistory(chatId, supabase);
+
+    let convoBlock = '';
+    if (history.length > 0) {
+      convoBlock = 'RECENT CONVERSATION (oldest to newest):\n' +
+        history.map(h => `${h.role === 'user' ? 'User' : 'You'}: ${h.content}`).join('\n') +
+        '\n\n';
+    }
+    const userContent = `${convoBlock}User's new message: ${arg}`;
+
+    await saveYoMessage(chatId, 'user', arg, supabase);
+
+    try {
+      const answer = await callDeadpoolAI(
+        YO_ASSISTANT_PERSONA,
+        userContent,
+        2000,
+        lovableKey,
+      ) || 'I got nothing. Try again.';
+
+      await saveYoMessage(chatId, 'assistant', answer, supabase);
+      await sendTelegram(chatId, answer, lovableKey, telegramKey);
+    } catch (err) {
+      console.error('/yo AI error:', err);
+      await sendTelegram(chatId, '❌ My brain short-circuited. Try again.', lovableKey, telegramKey);
+    }
+    return;
+  }
+
+
   // Unknown command
   if (cmd.startsWith('/')) {
     await sendTelegram(chatId, `❓ Unknown command. Type /help for all commands.`, lovableKey, telegramKey);
