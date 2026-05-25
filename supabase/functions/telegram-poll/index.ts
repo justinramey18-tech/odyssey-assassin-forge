@@ -623,6 +623,10 @@ async function processCommand(
       `<i>/ask Can I use Shield as a reaction underwater?\n` +
       `/ask What should I do about the missing shipment?\n` +
       `/ask How does Polearm Master work with Sentinel?</i>\n\n\n` +
+      `<code>/yo</code>  +  anything\n\n` +
+      `Your personal AI assistant — sarcastic, unfiltered, remembers your last 20 messages. NOT game-related (use /ask for that). Try <code>/yo clear</code> to wipe its memory.\n\n` +
+      `<i>/yo what should I make for dinner\n` +
+      `/yo explain quantum entanglement like I'm five</i>\n\n\n` +
       `<code>/suggest</code>\n\n` +
       `The AI looks at your current HP, spell slots, conditions, abilities, and the situation — then suggests 3 concrete tactical options for your next turn.\n\n\n` +
       `<code>/scene</code>\n\n` +
