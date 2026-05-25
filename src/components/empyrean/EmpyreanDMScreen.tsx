@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { parseResponseIntoSlides, stripCinematicTags, parseBeatsIntoSlides } from '@/lib/parseSlides';
@@ -8,12 +8,12 @@ import { weatherToNarrativeContext } from '@/lib/weather';
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
 import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle, Theater, Megaphone, Minus, Plus, Sparkles, Swords, HelpCircle } from 'lucide-react';
 import { formatForReadingMode, type FormattedReading } from '@/lib/reading-mode-formatter';
-import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
+const EmpyreanCampaignSetup = lazy(() => import('@/components/empyrean/EmpyreanCampaignSetup').then(m => ({ default: m.EmpyreanCampaignSetup })));
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
-import DeathSaveScreen from '@/components/empyrean/DeathSaveScreen';
-import MemorialScreen from '@/components/empyrean/MemorialScreen';
-import ThreshingCinematic from '@/components/empyrean/ThreshingCinematic';
-import CinematicSlideshow from '@/components/empyrean/CinematicSlideshow';
+const DeathSaveScreen = lazy(() => import('@/components/empyrean/DeathSaveScreen'));
+const MemorialScreen = lazy(() => import('@/components/empyrean/MemorialScreen'));
+const ThreshingCinematic = lazy(() => import('@/components/empyrean/ThreshingCinematic'));
+const CinematicSlideshow = lazy(() => import('@/components/empyrean/CinematicSlideshow'));
 import { DragonRiderSetupSheet } from '@/components/ai-dm/DragonRiderSetupSheet';
 import { VerticalHealthBar } from '@/components/home/VerticalHealthBar';
 import { NpcSceneDialog } from '@/components/ai-dm/NpcSceneDialog';
@@ -1466,24 +1466,26 @@ ${oocLines}`;
           <ArrowLeft className="w-4 h-4 mr-2" />
           Go Back
         </Button>
-        <EmpyreanCampaignSetup
-          open={showSetup}
-          onClose={() => setShowSetup(false)}
-          characterName={characterName}
-          addGuide={addGuide}
-          addGuides={addGuides}
-          deleteGuide={deleteGuide}
-          deleteGuides={deleteGuides}
-          onComplete={(newConfig) => {
-            setConfig(newConfig);
-            setShowSetup(false);
-          }}
-          onLaunchWithScene={(newConfig, openingPrompt) => {
-            setConfig(newConfig);
-            setShowSetup(false);
-          }}
-          isUnbonded={getIsUnbonded()}
-        />
+        <Suspense fallback={null}>
+          <EmpyreanCampaignSetup
+            open={showSetup}
+            onClose={() => setShowSetup(false)}
+            characterName={characterName}
+            addGuide={addGuide}
+            addGuides={addGuides}
+            deleteGuide={deleteGuide}
+            deleteGuides={deleteGuides}
+            onComplete={(newConfig) => {
+              setConfig(newConfig);
+              setShowSetup(false);
+            }}
+            onLaunchWithScene={(newConfig, openingPrompt) => {
+              setConfig(newConfig);
+              setShowSetup(false);
+            }}
+            isUnbonded={getIsUnbonded()}
+          />
+        </Suspense>
       </div>
     );
   }
@@ -2564,68 +2566,70 @@ ${oocLines}`;
       </AnimatePresence>
 
       {/* Death Save Screen */}
-      <DeathSaveScreen
-        open={showDeathSaves}
-        characterName={characterName}
-        dragonName={config?.dragonName || 'your dragon'}
-        onStabilize={() => {
-          setShowDeathSaves(false);
-          autoSyncCallbacks?.onHPChange(1, 'healing');
-          setBurnoutLevel(7);
-        }}
-        onDeath={() => {
-          setShowDeathSaves(false);
-          setBurnoutLevel(0);
-          setShowDeathTransition(true);
-          // 2-second black transition then memorial (or inline rebirth if flag off)
-          setTimeout(async () => {
-            if (EMPYREAN_FEATURE_FLAGS.showMemorialScreen) {
-              setShowDeathTransition(false);
-              setShowMemorial(true);
-              return;
-            }
-            // Memorial hidden — run rebirth logic inline (mirrors MemorialScreen.onBeginAgain)
-            const activeSaveId = localStorage.getItem('odyssey-active-cloud-save-id');
-            if (activeSaveId) {
-              try {
-                const { data: saveRow } = await supabase
-                  .from('character_saves')
-                  .select('extended_data')
-                  .eq('id', activeSaveId)
-                  .maybeSingle();
-                if (saveRow) {
-                  const existingExtended = (saveRow.extended_data as Record<string, unknown>) || {};
-                  await supabase
-                    .from('character_saves')
-                    .update({
-                      extended_data: { ...existingExtended, empyreanStatus: 'fallen' } as any,
-                    })
-                    .eq('id', activeSaveId);
-                }
-              } catch (e) {
-                console.error('[Death] Failed to mark save as fallen:', e);
+      <Suspense fallback={null}>
+        <DeathSaveScreen
+          open={showDeathSaves}
+          characterName={characterName}
+          dragonName={config?.dragonName || 'your dragon'}
+          onStabilize={() => {
+            setShowDeathSaves(false);
+            autoSyncCallbacks?.onHPChange(1, 'healing');
+            setBurnoutLevel(7);
+          }}
+          onDeath={() => {
+            setShowDeathSaves(false);
+            setBurnoutLevel(0);
+            setShowDeathTransition(true);
+            // 2-second black transition then memorial (or inline rebirth if flag off)
+            setTimeout(async () => {
+              if (EMPYREAN_FEATURE_FLAGS.showMemorialScreen) {
+                setShowDeathTransition(false);
+                setShowMemorial(true);
+                return;
               }
-            }
-            saveSoloHP({ current: 0, max: 0 });
-            updateUnbondedStatus(true);
-            resetBondState();
-            if (config) {
-              const clearedConfig: EmpyreanDMConfig = {
-                ...config,
-                dragonName: '',
-                dragonColor: '',
-                signetType: '',
-              };
-              saveEmpyreanDMConfig(clearedConfig);
-              setConfig(clearedConfig);
-            }
-            localStorage.setItem('odyssey-unbonded-rebirth', 'true');
-            setShowDeathTransition(false);
-            toast('Your rider has fallen. Return to the hall to try again.', { duration: 4000 });
-            onClose();
-          }, 2000);
-        }}
-      />
+              // Memorial hidden — run rebirth logic inline (mirrors MemorialScreen.onBeginAgain)
+              const activeSaveId = localStorage.getItem('odyssey-active-cloud-save-id');
+              if (activeSaveId) {
+                try {
+                  const { data: saveRow } = await supabase
+                    .from('character_saves')
+                    .select('extended_data')
+                    .eq('id', activeSaveId)
+                    .maybeSingle();
+                  if (saveRow) {
+                    const existingExtended = (saveRow.extended_data as Record<string, unknown>) || {};
+                    await supabase
+                      .from('character_saves')
+                      .update({
+                        extended_data: { ...existingExtended, empyreanStatus: 'fallen' } as any,
+                      })
+                      .eq('id', activeSaveId);
+                  }
+                } catch (e) {
+                  console.error('[Death] Failed to mark save as fallen:', e);
+                }
+              }
+              saveSoloHP({ current: 0, max: 0 });
+              updateUnbondedStatus(true);
+              resetBondState();
+              if (config) {
+                const clearedConfig: EmpyreanDMConfig = {
+                  ...config,
+                  dragonName: '',
+                  dragonColor: '',
+                  signetType: '',
+                };
+                saveEmpyreanDMConfig(clearedConfig);
+                setConfig(clearedConfig);
+              }
+              localStorage.setItem('odyssey-unbonded-rebirth', 'true');
+              setShowDeathTransition(false);
+              toast('Your rider has fallen. Return to the hall to try again.', { duration: 4000 });
+              onClose();
+            }, 2000);
+          }}
+        />
+      </Suspense>
 
       {/* Death transition — black with pulsing red dot */}
       {showDeathTransition && (
@@ -2648,63 +2652,65 @@ ${oocLines}`;
       )}
 
       {/* Memorial Screen */}
-      <MemorialScreen
-        open={showMemorial}
-        riderName={characterName}
-        dragonName={config?.dragonName || 'Unknown Dragon'}
-        dragonColor={getDragonColorHex(config?.dragonColor)}
-        signetType={config?.signetType || '—'}
-        bondLevel={dragonBond.bondState.bond}
-        maxBondLevel={100}
-        characterLevel={characterContext?.level || 1}
-        sessionsPlayed={dragonBond.bondState.totalChatExchanges}
-        causeOfDeath="Burnout — failed to ground"
-        squadName={config?.yearAtBasgiath ? `${config.yearAtBasgiath} — Basgiath War College` : 'Basgiath War College'}
-        onBeginAgain={async () => {
-          // 1. Mark the current cloud save as fallen in Supabase
-          const activeSaveId = localStorage.getItem('odyssey-active-cloud-save-id');
-          if (activeSaveId) {
-            try {
-              const { data: saveRow } = await supabase
-                .from('character_saves')
-                .select('extended_data')
-                .eq('id', activeSaveId)
-                .maybeSingle();
-
-              if (saveRow) {
-                const existingExtended = (saveRow.extended_data as Record<string, unknown>) || {};
-                await supabase
+      <Suspense fallback={null}>
+        <MemorialScreen
+          open={showMemorial}
+          riderName={characterName}
+          dragonName={config?.dragonName || 'Unknown Dragon'}
+          dragonColor={getDragonColorHex(config?.dragonColor)}
+          signetType={config?.signetType || '—'}
+          bondLevel={dragonBond.bondState.bond}
+          maxBondLevel={100}
+          characterLevel={characterContext?.level || 1}
+          sessionsPlayed={dragonBond.bondState.totalChatExchanges}
+          causeOfDeath="Burnout — failed to ground"
+          squadName={config?.yearAtBasgiath ? `${config.yearAtBasgiath} — Basgiath War College` : 'Basgiath War College'}
+          onBeginAgain={async () => {
+            // 1. Mark the current cloud save as fallen in Supabase
+            const activeSaveId = localStorage.getItem('odyssey-active-cloud-save-id');
+            if (activeSaveId) {
+              try {
+                const { data: saveRow } = await supabase
                   .from('character_saves')
-                  .update({
-                    extended_data: { ...existingExtended, empyreanStatus: 'fallen' } as any,
-                  })
-                  .eq('id', activeSaveId);
-              }
-            } catch (e) {
-              console.error('[Memorial] Failed to mark save as fallen:', e);
-            }
-          }
+                  .select('extended_data')
+                  .eq('id', activeSaveId)
+                  .maybeSingle();
 
-          // 2. Existing logic
-          setShowMemorial(false);
-          setBurnoutLevel(0);
-          saveSoloHP({ current: 0, max: 0 });
-          updateUnbondedStatus(true);
-          resetBondState();
-          if (config) {
-            const clearedConfig: EmpyreanDMConfig = {
-              ...config,
-              dragonName: '',
-              dragonColor: '',
-              signetType: '',
-            };
-            saveEmpyreanDMConfig(clearedConfig);
-            setConfig(clearedConfig);
-          }
-          localStorage.setItem('odyssey-unbonded-rebirth', 'true');
-          onClose();
-        }}
-      />
+                if (saveRow) {
+                  const existingExtended = (saveRow.extended_data as Record<string, unknown>) || {};
+                  await supabase
+                    .from('character_saves')
+                    .update({
+                      extended_data: { ...existingExtended, empyreanStatus: 'fallen' } as any,
+                    })
+                    .eq('id', activeSaveId);
+                }
+              } catch (e) {
+                console.error('[Memorial] Failed to mark save as fallen:', e);
+              }
+            }
+
+            // 2. Existing logic
+            setShowMemorial(false);
+            setBurnoutLevel(0);
+            saveSoloHP({ current: 0, max: 0 });
+            updateUnbondedStatus(true);
+            resetBondState();
+            if (config) {
+              const clearedConfig: EmpyreanDMConfig = {
+                ...config,
+                dragonName: '',
+                dragonColor: '',
+                signetType: '',
+              };
+              saveEmpyreanDMConfig(clearedConfig);
+              setConfig(clearedConfig);
+            }
+            localStorage.setItem('odyssey-unbonded-rebirth', 'true');
+            onClose();
+          }}
+        />
+      </Suspense>
 
       {/* Unbonded dragon empty state sheet */}
       <Sheet open={showUnbondedDragonSheet} onOpenChange={setShowUnbondedDragonSheet}>
@@ -2937,32 +2943,36 @@ ${oocLines}`;
 
       {/* Cinematic Slideshow */}
       {showSlideshow && slideshowSlides.length > 0 && (
-        <CinematicSlideshow
-          slides={slideshowSlides}
-          onComplete={() => {
-            setShowSlideshow(false);
-            setSlideshowSlides([]);
-            const lastMessage = messages[messages.length - 1];
-            if (lastMessage?.role === 'assistant' && lastMessage.content?.trim()) {
-              setReadingMode(true);
-            } else {
-              setTimeout(() => {
-                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-              }, 100);
-            }
-          }}
-        />
+        <Suspense fallback={null}>
+          <CinematicSlideshow
+            slides={slideshowSlides}
+            onComplete={() => {
+              setShowSlideshow(false);
+              setSlideshowSlides([]);
+              const lastMessage = messages[messages.length - 1];
+              if (lastMessage?.role === 'assistant' && lastMessage.content?.trim()) {
+                setReadingMode(true);
+              } else {
+                setTimeout(() => {
+                  messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                }, 100);
+              }
+            }}
+          />
+        </Suspense>
       )}
 
       {/* Threshing Cinematic */}
-      <ThreshingCinematic
-        open={showThreshingCinematic}
-        riderName={characterName}
-        onConfigureDragon={() => {
-          setShowThreshingCinematic(false);
-          setShowDragonSetup(true);
-        }}
-      />
+      <Suspense fallback={null}>
+        <ThreshingCinematic
+          open={showThreshingCinematic}
+          riderName={characterName}
+          onConfigureDragon={() => {
+            setShowThreshingCinematic(false);
+            setShowDragonSetup(true);
+          }}
+        />
+      </Suspense>
 
       {/* Dragon Rider Setup Sheet (post-Threshing) */}
       <DragonRiderSetupSheet
