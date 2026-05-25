@@ -1,44 +1,58 @@
-# Username + Password Login (no emails)
+## Goal
+Reduce initial load time of the Empyrean AI DM screen (especially party mode) without any behavior changes. Two fixes: lazy-load heavy/rare code paths, and parallelize the party initial fetch.
 
-## What changes for the user
+## Changes
 
-**New users** see a clean form: **Username**, **Password**, **Confirm Password**. No email field. No "check your inbox." Account is created instantly and they're signed straight in.
+### 1. `src/App.tsx` — lazy-load route pages
+- Keep `Index` eager (primary route).
+- Convert `Install`, `Auth`, `ResetPassword`, `RecoverAccount`, `NotFound`, `Features`, `CharacterRoster`, `AICreationAssistant` to `React.lazy()` imports.
+- Wrap the `<Routes>` block inside `<BrowserRouter>` in a single `<Suspense fallback={<div className="min-h-screen bg-background" />}>` boundary.
 
-**Forgot password** no longer sends an email. Instead, at sign-up time we show each new user a one-time **Recovery Code** (16 characters, like `XK7P-9QM2-WR4N-8VTH`). We tell them: *"Save this somewhere safe. It's the only way to reset your password — we have no email to send a reset link to."* If they later forget their password, they type their username + recovery code on a new "Forgot Password" screen, then set a new password.
+### 2. `src/pages/Index.tsx` — lazy-load heavy conditional screens
+- Add `lazy, Suspense` to the React import.
+- Convert these to lazy imports (using `.then(m => ({ default: m.NAME }))` for named exports, plain form for defaults — verify each per file):
+  - `NarrativeForgeScreen`
+  - `ChronicleSyncScreen`
+  - `ConstellationScreen`
+  - `AchievementsScreen`
+  - `CombatTabScreen`
+  - `AbilitiesScreen`
+  - `UnifiedInventoryScreen`
+  - `InventoryScreen`
+- Wrap the main conditional screen render area in one high-level `<Suspense fallback={<div className="min-h-screen bg-background" />}>`.
+- Leave eager: HomeScreen, ModeSelectionScreen, headers, navigation, and anything on the default home view.
 
-**Existing users who signed up with a real email**: nothing changes. They keep signing in with their email + password exactly as before. Google sign-in also continues to work for users who already use it.
+### 3. `src/components/empyrean/EmpyreanDMScreen.tsx` — lazy-load rare overlays
+- Add `lazy, Suspense` to the React import.
+- Convert to lazy (verify default vs named export for each):
+  - `CinematicSlideshow`
+  - `ThreshingCinematic`
+  - `MemorialScreen`
+  - `DeathSaveScreen`
+  - `EmpyreanCampaignSetup` (named export — use `.then` wrapper)
+  - `BurnoutFlameOverlay` only if non-trivial in size; otherwise leave eager.
+- Wrap each lazy overlay's render site in its own inline `<Suspense fallback={null}>` (they're already conditionally rendered).
+- Do NOT lazy-load the chat, input bar, pills, bottom nav, or character sheet.
 
-## How it works under the hood (for the technical record)
+### 4. `src/hooks/use-party-dm.ts` — parallelize + (optionally) trim initial fetch
+In the effect around line 367:
+- Run the `party_dm_messages` fetch and the `party_dm_prompts` fetch in `Promise.all`. Use a resolved `{ data: null }` placeholder when there's no `currentRoundId`.
+- Switch the messages query to `order('created_at', { ascending: false }).limit(200)` and reverse the result before `setMessages` so downstream order is unchanged (ascending/oldest-first).
+- Keep limit at 200 — `messages` likely feeds AI context downstream; safer not to shrink.
+- Keep the split-backfill block after the parallel block, behavior unchanged.
+- Keep the dependency array unchanged.
+- Keep all realtime subscriptions and the rest of the file untouched.
 
-Supabase Auth requires an email address per account. For username-only signups we synthesize one — `username@odyssey.local` — and store it as the user's auth email. The user never sees or types this; they only see their username. Existing accounts with real emails are untouched, so their logins keep working.
+## Guards
+- No behavior, prop, or logic changes anywhere.
+- Every `lazy()` usage is wrapped in `Suspense` with a non-layout-shifting fallback (`null` for overlays, dark full-screen div for routes/screens).
+- Named exports keep the `.then(m => ({ default: m.NAME }))` wrapper — no export-shape changes.
+- Message ordering passed to `setMessages` remains ascending (oldest first).
+- No reduction of message limit below 200.
+- No changes to Solo vs Party branching, Director, onboarding, private mode, or any feature flag.
 
-Usernames are validated (3–24 characters, letters/numbers/underscore/hyphen, case-insensitive, must be unique). Reserved words like `admin`, `support`, `system` are blocked. On submit we lowercase the username, append `@odyssey.local`, and hand that to Supabase as the email.
-
-The recovery code is generated client-side at signup (cryptographically random), shown once on screen with a Copy button, and a hash of it (bcrypt-style via pgcrypto) is stored in a new `account_recovery` table keyed by user id. The plain code never touches the database. Password recovery: user submits username + code, an edge function looks up the user, verifies the hash, and (using the service role) updates the password. The code is consumed on use; user is offered a fresh one after successful recovery.
-
-## Files / pieces to build
-
-1. **Database migration** — `account_recovery` table (user_id, code_hash, created_at, used_at) with RLS so only the owner can read their own row; service role writes during recovery. Enable the `pgcrypto` extension if not already on for bcrypt verification.
-2. **New edge function** `recover-password` — accepts `{ username, recoveryCode, newPassword }`, verifies hash with service role, updates the auth password, marks code used. Validates input with zod, includes CORS.
-3. **New edge function** `check-username` — accepts `{ username }`, returns whether `username@odyssey.local` already exists. Used to give instant "username taken" feedback at signup.
-4. **`src/pages/Auth.tsx`** — replace email field with username field on signup + login. Drop the email-confirmation success message. Drop the link to the old forgot-password (email reset) flow and replace with the new code-based flow. Keep Google sign-in button. Keep existing email login working (we'll accept either a username OR an email containing `@` in the username field on the login screen — if it contains `@`, send as-is; otherwise append `@odyssey.local`).
-5. **New "Recovery Code shown" screen** — surfaces immediately after successful signup with the code in a large monospace block, Copy button, and a checkbox "I've saved my recovery code" the user must tick before continuing to the app.
-6. **New `src/pages/RecoverAccount.tsx`** — username + recovery code + new password form, calls the `recover-password` edge function.
-7. **`src/pages/ResetPassword.tsx`** — keep for legacy email users who still receive reset links. No changes needed.
-8. **Supabase auth setting** — turn on **auto-confirm email signups** so synthesized `@odyssey.local` accounts don't sit in "pending verification" state. (This also means real-email signups are no longer email-verified — acceptable per request.)
-9. **`src/components/settings/AccountSettings.tsx`** — add a "Recovery Code" section: shows last-generated date, offers "Generate New Code" (invalidates old one). Keeps existing email/password change controls for users who do have a real email.
-10. **Memory update** — record that auto-confirm is now ON intentionally, overriding the prior `mem://auth/email-configuration` rule.
-
-## Edge cases handled
-
-- Username already taken → inline error before submit.
-- Existing real-email user trying to log in: still works (we don't append `@odyssey.local` if the input already has `@`).
-- User who loses both password and recovery code → permanently locked out (matches the no-email model; we surface this clearly at signup).
-- Google sign-in users have no username; they continue using Google. We don't force them to pick a username.
-
-## What does NOT change
-
-- Google sign-in
-- Existing email-based accounts (login, password reset via email, profile data)
-- Roles, RLS, character data, cloud saves
-- The `/reset-password` page (legacy email flow still works)
+## Verification after build
+- Home route still renders instantly with no flash.
+- Navigating to Auth/Recover/etc. works (lazy chunks load).
+- Empyrean DM opens; cinematic/threshing/death/memorial/setup overlays trigger correctly when their conditions are met.
+- Party DM session loads messages in original order; prompts appear; split backfill still works on the empty+split path.
