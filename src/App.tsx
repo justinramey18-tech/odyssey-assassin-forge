@@ -40,19 +40,21 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/roster" element={<CharacterRoster />} />
-            <Route path="/features" element={<Features />} />
-            <Route path="/ai-create" element={<AICreationAssistant />} />
-            
-            <Route path="/install" element={<Install />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/recover-account" element={<RecoverAccount />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <Suspense fallback={<div className="min-h-screen bg-background" />}>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/roster" element={<CharacterRoster />} />
+              <Route path="/features" element={<Features />} />
+              <Route path="/ai-create" element={<AICreationAssistant />} />
+
+              <Route path="/install" element={<Install />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/recover-account" element={<RecoverAccount />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
       </BrowserRouter>
     </TooltipProvider>
   </BuildProvider>
