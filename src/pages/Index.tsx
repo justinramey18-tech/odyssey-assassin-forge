@@ -2806,6 +2806,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
 
         {/* Content Area - Conditional Rendering Based on Active Sub-Tab */}
         <div className="flex-1">
+          <Suspense fallback={<div className="min-h-screen bg-background" />}>
           {/* FIGHTING CATEGORY */}
           {/* Combat Sub-Tab */}
           {activeTab === 'combat' && (
@@ -3201,7 +3202,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
               onBack={() => categoryNav.navigateToSubTab('scribe')}
             />
           )}
+          </Suspense>
         </div>
+
 
         {/* Cloud Save Modal */}
         <CloudSaveModal
