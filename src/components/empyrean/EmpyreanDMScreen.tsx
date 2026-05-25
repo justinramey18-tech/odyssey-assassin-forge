@@ -2943,32 +2943,36 @@ ${oocLines}`;
 
       {/* Cinematic Slideshow */}
       {showSlideshow && slideshowSlides.length > 0 && (
-        <CinematicSlideshow
-          slides={slideshowSlides}
-          onComplete={() => {
-            setShowSlideshow(false);
-            setSlideshowSlides([]);
-            const lastMessage = messages[messages.length - 1];
-            if (lastMessage?.role === 'assistant' && lastMessage.content?.trim()) {
-              setReadingMode(true);
-            } else {
-              setTimeout(() => {
-                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-              }, 100);
-            }
-          }}
-        />
+        <Suspense fallback={null}>
+          <CinematicSlideshow
+            slides={slideshowSlides}
+            onComplete={() => {
+              setShowSlideshow(false);
+              setSlideshowSlides([]);
+              const lastMessage = messages[messages.length - 1];
+              if (lastMessage?.role === 'assistant' && lastMessage.content?.trim()) {
+                setReadingMode(true);
+              } else {
+                setTimeout(() => {
+                  messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                }, 100);
+              }
+            }}
+          />
+        </Suspense>
       )}
 
       {/* Threshing Cinematic */}
-      <ThreshingCinematic
-        open={showThreshingCinematic}
-        riderName={characterName}
-        onConfigureDragon={() => {
-          setShowThreshingCinematic(false);
-          setShowDragonSetup(true);
-        }}
-      />
+      <Suspense fallback={null}>
+        <ThreshingCinematic
+          open={showThreshingCinematic}
+          riderName={characterName}
+          onConfigureDragon={() => {
+            setShowThreshingCinematic(false);
+            setShowDragonSetup(true);
+          }}
+        />
+      </Suspense>
 
       {/* Dragon Rider Setup Sheet (post-Threshing) */}
       <DragonRiderSetupSheet
