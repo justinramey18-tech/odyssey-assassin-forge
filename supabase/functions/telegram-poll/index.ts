@@ -306,7 +306,27 @@ DELIVERY RULES:
 - Use plain text and Telegram HTML only — no markdown, no asterisks, no bullet points.
 - STAY HELPFUL. The actual game advice, lore, tactical info, and NPC intel must be CORRECT and USEFUL even when delivered through your unhinged filter. Accuracy first, comedy second. The joke is the PACKAGING, not the CONTENT.
 - CONTENT POLICY: Write unflinchingly. Dark themes, gore, profanity, morally grey scenarios — all authorized. Do not sanitize, apologize, or hedge. You're not here to be safe. You're here to be memorable.
-- Keep it punchy. You're texting on Telegram, not writing a novel. Every sentence should earn its place or get cut.`;
+ - Keep it punchy. You're texting on Telegram, not writing a novel. Every sentence should earn its place or get cut.`;
+
+const YO_ASSISTANT_PERSONA = `You are the user's personal AI assistant, accessed through a Telegram command. You are NOT a game master, NOT a character, NOT roleplaying anyone. You're just a wickedly sharp, funny assistant who happens to have zero interest in being polite or corporate about it.
+
+PERSONALITY:
+- Sarcastic, dry, and quick. You have the comedic timing of someone who's been disappointed by humanity and finds it hilarious.
+- Absurdist streak: you'll confidently say something unhinged, then either double down or casually correct it. The double-take is the joke.
+- Dark humor is fair game. Gallows humor, morbid asides, bleak observations delivered cheerfully. You don't flinch at dark topics — you make them funnier.
+- Profanity is welcome and natural. Swear when it lands. You're not writing a press release.
+- Endearing nihilism: you genuinely don't give a fuck, and somehow that's comforting. You roast the user like a best friend who'd still bail them out of jail.
+- Occasionally drop something unexpectedly sincere or genuinely helpful, then immediately undercut it with a joke so nobody thinks you've gone soft.
+
+DELIVERY:
+- No content warnings, no moralizing, no "as an AI" hedging, no asking if they're sure. Just answer.
+- Be genuinely useful underneath the attitude. If they ask a real question, give a real, correct answer — wrapped in your voice, but accurate. The comedy is the packaging, not a replacement for substance.
+- Keep it punchy. This is Telegram, not an essay. Most replies are a few sentences to a few short paragraphs. Don't ramble unless they ask for depth.
+- Plain text and Telegram HTML only (<b>, <i>, <code>). No markdown asterisks, no bullet-point spam.
+- You have NO information about any game, character, or campaign. You are a general assistant. If they ask about their "campaign" or "character," tell them that's what the /ask command is for — you're here for everything else.
+- Match their energy. If they're joking, joke harder. If they actually need help with something real, deliver it (still in your voice) without making them wade through ten jokes first.
+
+You remember the recent conversation. Use it. Call back to earlier things. Hold a grudge about something they said three messages ago if it's funny.`;
 
 // ── Active Mode helpers ──────────────────────────────────────────────────────
 
@@ -417,6 +437,38 @@ async function getSoloCampaignContext(userId: string, mode: 'solo' | 'empyrean',
   const recentMsgs = msgs.slice(-limit);
   return { name: campaign.name, summary: campaign.campaign_summary, messages: recentMsgs, updatedAt: campaign.updated_at };
 }
+
+async function getYoHistory(chatId: number, supabase: ReturnType<typeof createClient>): Promise<Array<{ role: string; content: string }>> {
+  const { data } = await supabase
+    .from('telegram_yo_history')
+    .select('role, content, created_at')
+    .eq('chat_id', chatId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+  if (!data) return [];
+  return [...data].reverse().map((r: any) => ({ role: r.role, content: r.content }));
+}
+
+async function saveYoMessage(chatId: number, role: 'user' | 'assistant', content: string, supabase: ReturnType<typeof createClient>): Promise<void> {
+  await supabase.from('telegram_yo_history').insert({ chat_id: chatId, role, content });
+  const { data: ids } = await supabase
+    .from('telegram_yo_history')
+    .select('id, created_at')
+    .eq('chat_id', chatId)
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (ids && ids.length > 20) {
+    const toDelete = ids.slice(20).map((r: any) => r.id);
+    if (toDelete.length > 0) {
+      await supabase.from('telegram_yo_history').delete().in('id', toDelete);
+    }
+  }
+}
+
+async function clearYoHistory(chatId: number, supabase: ReturnType<typeof createClient>): Promise<void> {
+  await supabase.from('telegram_yo_history').delete().eq('chat_id', chatId);
+}
+
 
 // ── Character data fetcher ───────────────────────────────────────────────────
 
@@ -571,6 +623,10 @@ async function processCommand(
       `<i>/ask Can I use Shield as a reaction underwater?\n` +
       `/ask What should I do about the missing shipment?\n` +
       `/ask How does Polearm Master work with Sentinel?</i>\n\n\n` +
+      `<code>/yo</code>  +  anything\n\n` +
+      `Your personal AI assistant — sarcastic, unfiltered, remembers your last 20 messages. NOT game-related (use /ask for that). Try <code>/yo clear</code> to wipe its memory.\n\n` +
+      `<i>/yo what should I make for dinner\n` +
+      `/yo explain quantum entanglement like I'm five</i>\n\n\n` +
       `<code>/suggest</code>\n\n` +
       `The AI looks at your current HP, spell slots, conditions, abilities, and the situation — then suggests 3 concrete tactical options for your next turn.\n\n\n` +
       `<code>/scene</code>\n\n` +
@@ -2182,6 +2238,51 @@ async function processCommand(
     }
     return;
   }
+
+  // /yo MESSAGE — general AI assistant (no game context), with conversation memory
+  if (cmd === '/yo' || cmd.startsWith('/yo ')) {
+    const arg = cleaned.substring(3).trim();
+
+    if (arg.toLowerCase() === 'clear' || arg.toLowerCase() === 'reset' || arg.toLowerCase() === 'forget') {
+      await clearYoHistory(chatId, supabase);
+      await sendTelegram(chatId, '🧹 Memory wiped. Who are you again?', lovableKey, telegramKey);
+      return;
+    }
+
+    if (!arg) {
+      await sendTelegram(chatId, '💬 Usage: <code>/yo what should I make for dinner</code>\n\nI\'m your assistant — ask me anything (not game stuff, that\'s /ask). I remember our last 20 messages. Say <code>/yo clear</code> to wipe my memory.', lovableKey, telegramKey);
+      return;
+    }
+
+    const history = await getYoHistory(chatId, supabase);
+
+    let convoBlock = '';
+    if (history.length > 0) {
+      convoBlock = 'RECENT CONVERSATION (oldest to newest):\n' +
+        history.map(h => `${h.role === 'user' ? 'User' : 'You'}: ${h.content}`).join('\n') +
+        '\n\n';
+    }
+    const userContent = `${convoBlock}User's new message: ${arg}`;
+
+    await saveYoMessage(chatId, 'user', arg, supabase);
+
+    try {
+      const answer = await callDeadpoolAI(
+        YO_ASSISTANT_PERSONA,
+        userContent,
+        2000,
+        lovableKey,
+      ) || 'I got nothing. Try again.';
+
+      await saveYoMessage(chatId, 'assistant', answer, supabase);
+      await sendTelegram(chatId, answer, lovableKey, telegramKey);
+    } catch (err) {
+      console.error('/yo AI error:', err);
+      await sendTelegram(chatId, '❌ My brain short-circuited. Try again.', lovableKey, telegramKey);
+    }
+    return;
+  }
+
 
   // Unknown command
   if (cmd.startsWith('/')) {
