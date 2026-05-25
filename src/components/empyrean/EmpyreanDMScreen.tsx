@@ -1466,24 +1466,26 @@ ${oocLines}`;
           <ArrowLeft className="w-4 h-4 mr-2" />
           Go Back
         </Button>
-        <EmpyreanCampaignSetup
-          open={showSetup}
-          onClose={() => setShowSetup(false)}
-          characterName={characterName}
-          addGuide={addGuide}
-          addGuides={addGuides}
-          deleteGuide={deleteGuide}
-          deleteGuides={deleteGuides}
-          onComplete={(newConfig) => {
-            setConfig(newConfig);
-            setShowSetup(false);
-          }}
-          onLaunchWithScene={(newConfig, openingPrompt) => {
-            setConfig(newConfig);
-            setShowSetup(false);
-          }}
-          isUnbonded={getIsUnbonded()}
-        />
+        <Suspense fallback={null}>
+          <EmpyreanCampaignSetup
+            open={showSetup}
+            onClose={() => setShowSetup(false)}
+            characterName={characterName}
+            addGuide={addGuide}
+            addGuides={addGuides}
+            deleteGuide={deleteGuide}
+            deleteGuides={deleteGuides}
+            onComplete={(newConfig) => {
+              setConfig(newConfig);
+              setShowSetup(false);
+            }}
+            onLaunchWithScene={(newConfig, openingPrompt) => {
+              setConfig(newConfig);
+              setShowSetup(false);
+            }}
+            isUnbonded={getIsUnbonded()}
+          />
+        </Suspense>
       </div>
     );
   }
