@@ -438,6 +438,38 @@ async function getSoloCampaignContext(userId: string, mode: 'solo' | 'empyrean',
   return { name: campaign.name, summary: campaign.campaign_summary, messages: recentMsgs, updatedAt: campaign.updated_at };
 }
 
+async function getYoHistory(chatId: number, supabase: ReturnType<typeof createClient>): Promise<Array<{ role: string; content: string }>> {
+  const { data } = await supabase
+    .from('telegram_yo_history')
+    .select('role, content, created_at')
+    .eq('chat_id', chatId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+  if (!data) return [];
+  return [...data].reverse().map((r: any) => ({ role: r.role, content: r.content }));
+}
+
+async function saveYoMessage(chatId: number, role: 'user' | 'assistant', content: string, supabase: ReturnType<typeof createClient>): Promise<void> {
+  await supabase.from('telegram_yo_history').insert({ chat_id: chatId, role, content });
+  const { data: ids } = await supabase
+    .from('telegram_yo_history')
+    .select('id, created_at')
+    .eq('chat_id', chatId)
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (ids && ids.length > 20) {
+    const toDelete = ids.slice(20).map((r: any) => r.id);
+    if (toDelete.length > 0) {
+      await supabase.from('telegram_yo_history').delete().in('id', toDelete);
+    }
+  }
+}
+
+async function clearYoHistory(chatId: number, supabase: ReturnType<typeof createClient>): Promise<void> {
+  await supabase.from('telegram_yo_history').delete().eq('chat_id', chatId);
+}
+
+
 // ── Character data fetcher ───────────────────────────────────────────────────
 
 async function getCharacterData(userId: string, supabase: ReturnType<typeof createClient>) {
