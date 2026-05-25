@@ -2652,63 +2652,65 @@ ${oocLines}`;
       )}
 
       {/* Memorial Screen */}
-      <MemorialScreen
-        open={showMemorial}
-        riderName={characterName}
-        dragonName={config?.dragonName || 'Unknown Dragon'}
-        dragonColor={getDragonColorHex(config?.dragonColor)}
-        signetType={config?.signetType || '—'}
-        bondLevel={dragonBond.bondState.bond}
-        maxBondLevel={100}
-        characterLevel={characterContext?.level || 1}
-        sessionsPlayed={dragonBond.bondState.totalChatExchanges}
-        causeOfDeath="Burnout — failed to ground"
-        squadName={config?.yearAtBasgiath ? `${config.yearAtBasgiath} — Basgiath War College` : 'Basgiath War College'}
-        onBeginAgain={async () => {
-          // 1. Mark the current cloud save as fallen in Supabase
-          const activeSaveId = localStorage.getItem('odyssey-active-cloud-save-id');
-          if (activeSaveId) {
-            try {
-              const { data: saveRow } = await supabase
-                .from('character_saves')
-                .select('extended_data')
-                .eq('id', activeSaveId)
-                .maybeSingle();
-
-              if (saveRow) {
-                const existingExtended = (saveRow.extended_data as Record<string, unknown>) || {};
-                await supabase
+      <Suspense fallback={null}>
+        <MemorialScreen
+          open={showMemorial}
+          riderName={characterName}
+          dragonName={config?.dragonName || 'Unknown Dragon'}
+          dragonColor={getDragonColorHex(config?.dragonColor)}
+          signetType={config?.signetType || '—'}
+          bondLevel={dragonBond.bondState.bond}
+          maxBondLevel={100}
+          characterLevel={characterContext?.level || 1}
+          sessionsPlayed={dragonBond.bondState.totalChatExchanges}
+          causeOfDeath="Burnout — failed to ground"
+          squadName={config?.yearAtBasgiath ? `${config.yearAtBasgiath} — Basgiath War College` : 'Basgiath War College'}
+          onBeginAgain={async () => {
+            // 1. Mark the current cloud save as fallen in Supabase
+            const activeSaveId = localStorage.getItem('odyssey-active-cloud-save-id');
+            if (activeSaveId) {
+              try {
+                const { data: saveRow } = await supabase
                   .from('character_saves')
-                  .update({
-                    extended_data: { ...existingExtended, empyreanStatus: 'fallen' } as any,
-                  })
-                  .eq('id', activeSaveId);
-              }
-            } catch (e) {
-              console.error('[Memorial] Failed to mark save as fallen:', e);
-            }
-          }
+                  .select('extended_data')
+                  .eq('id', activeSaveId)
+                  .maybeSingle();
 
-          // 2. Existing logic
-          setShowMemorial(false);
-          setBurnoutLevel(0);
-          saveSoloHP({ current: 0, max: 0 });
-          updateUnbondedStatus(true);
-          resetBondState();
-          if (config) {
-            const clearedConfig: EmpyreanDMConfig = {
-              ...config,
-              dragonName: '',
-              dragonColor: '',
-              signetType: '',
-            };
-            saveEmpyreanDMConfig(clearedConfig);
-            setConfig(clearedConfig);
-          }
-          localStorage.setItem('odyssey-unbonded-rebirth', 'true');
-          onClose();
-        }}
-      />
+                if (saveRow) {
+                  const existingExtended = (saveRow.extended_data as Record<string, unknown>) || {};
+                  await supabase
+                    .from('character_saves')
+                    .update({
+                      extended_data: { ...existingExtended, empyreanStatus: 'fallen' } as any,
+                    })
+                    .eq('id', activeSaveId);
+                }
+              } catch (e) {
+                console.error('[Memorial] Failed to mark save as fallen:', e);
+              }
+            }
+
+            // 2. Existing logic
+            setShowMemorial(false);
+            setBurnoutLevel(0);
+            saveSoloHP({ current: 0, max: 0 });
+            updateUnbondedStatus(true);
+            resetBondState();
+            if (config) {
+              const clearedConfig: EmpyreanDMConfig = {
+                ...config,
+                dragonName: '',
+                dragonColor: '',
+                signetType: '',
+              };
+              saveEmpyreanDMConfig(clearedConfig);
+              setConfig(clearedConfig);
+            }
+            localStorage.setItem('odyssey-unbonded-rebirth', 'true');
+            onClose();
+          }}
+        />
+      </Suspense>
 
       {/* Unbonded dragon empty state sheet */}
       <Sheet open={showUnbondedDragonSheet} onOpenChange={setShowUnbondedDragonSheet}>
