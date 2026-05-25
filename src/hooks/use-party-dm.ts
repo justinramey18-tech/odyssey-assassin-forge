@@ -368,20 +368,25 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (!partyId || !isActive) return;
 
     (async () => {
-      const { data: msgs } = await (supabase.from('party_dm_messages') as any)
-        .select('*')
-        .eq('party_id', partyId)
-        .order('created_at', { ascending: true })
-        .limit(200);
-      if (msgs) setMessages(msgs);
-
-      if (sessionConfig?.currentRoundId) {
-        const { data: prompts } = await (supabase.from('party_dm_prompts') as any)
+      const roundId = sessionConfig?.currentRoundId;
+      const [msgsRes, promptsRes] = await Promise.all([
+        (supabase.from('party_dm_messages') as any)
           .select('*')
           .eq('party_id', partyId)
-          .eq('round_id', sessionConfig.currentRoundId);
-        if (prompts) setCurrentPrompts(prompts);
-      }
+          .order('created_at', { ascending: false })
+          .limit(200),
+        roundId
+          ? (supabase.from('party_dm_prompts') as any)
+              .select('*')
+              .eq('party_id', partyId)
+              .eq('round_id', roundId)
+          : Promise.resolve({ data: null }),
+      ]);
+
+      const msgs = msgsRes.data ? [...msgsRes.data].reverse() : [];
+      setMessages(msgs);
+      if (promptsRes.data) setCurrentPrompts(promptsRes.data);
+
 
       // Backfill: if split is active but team chats are empty, seed from snapshot
       if (msgs && msgs.length === 0 && sessionConfig?.splitActive) {
