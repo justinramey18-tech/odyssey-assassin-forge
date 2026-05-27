@@ -922,21 +922,24 @@ ${oocLines}`;
     if (!open) setInitialSent(false);
   }, [open]);
 
-  // Parse burnout tags from assistant messages
+  // Deterministic recovery + SITUATION tag parsing on new assistant messages.
+  // Burnout is no longer parsed from AI tags — the app fully owns it.
   useEffect(() => {
+    if (isLoading) return; // wait for streaming to finalize
     const lastMsg = messages[messages.length - 1];
-    if (lastMsg?.role === 'assistant' && lastMsg.content) {
-      const match = lastMsg.content.match(/<!--BURNOUT:(\d+)-->/);
-      if (match) {
-        const level = Math.min(maxBurnout, Math.max(0, parseInt(match[1], 10)));
-        setBurnoutLevel(level);
-      }
-      const situationMatch = lastMsg.content.match(/<!--SITUATION:(\w+)-->/);
-      if (situationMatch) {
-        setCurrentSituation(situationMatch[1]);
-      }
+    if (!lastMsg || lastMsg.role !== 'assistant' || !lastMsg.content) return;
+    if (lastProcessedMsgIdRef.current === lastMsg.id) return;
+    lastProcessedMsgIdRef.current = lastMsg.id;
+
+    // Recovery: if the signet was NOT used this round, burnout cools by 1.
+    if (!signetUsedThisRoundRef.current) {
+      setBurnoutLevel(prev => Math.max(0, prev - 1));
     }
-  }, [messages]);
+    signetUsedThisRoundRef.current = false;
+
+    const situationMatch = lastMsg.content.match(/<!--SITUATION:(\w+)-->/);
+    if (situationMatch) setCurrentSituation(situationMatch[1]);
+  }, [messages, isLoading]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
