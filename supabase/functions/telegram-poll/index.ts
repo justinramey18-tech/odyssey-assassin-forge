@@ -614,7 +614,9 @@ async function processCommand(
       `<code>/ready</code>\n\n` +
       `Ready up for your party's current round with no specific action.\n\n` +
       `<code>/ready I attack the goblin with my longsword</code>\n\n` +
-      `Submit your action AND ready up in one step. Your party will see what you plan to do.`,
+      `Submit your action AND ready up in one step. Your party will see what you plan to do.\n\n\n` +
+      `<code>/retract</code>\n\n` +
+      `Cancel your readied action this round. Removes your prompt so you can rewrite it (or just back out). Aliases: /unready, /cancel.`,
       lovableKey, telegramKey,
     );
     // Message 5: Campaign
