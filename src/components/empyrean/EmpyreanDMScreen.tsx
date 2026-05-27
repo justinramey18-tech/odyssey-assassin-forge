@@ -1228,12 +1228,21 @@ ${oocLines}`;
     if (!text || isLoading) return;
     setRecapDismissed(true);
     let messageToSend = text;
-    
+
     // Inject Threshing authorization tag if authorized
     if (threshingAuthorized) {
       messageToSend += '\n\n<!--THRESHING_AUTHORIZED:' + characterName + '-->';
     }
-    
+
+    // Deterministic signet channeling: apply burnout, tag intensity for AI.
+    if (armedSignetIntensity != null) {
+      const newBurnout = Math.min(maxBurnout, burnoutLevelRef.current + armedSignetIntensity);
+      setBurnoutLevel(newBurnout);
+      messageToSend += `\n\n[SIGNET CHANNELED — intensity ${armedSignetIntensity}/8. Narrate the signet's power proportional to this intensity: 1 is a faint flicker, 8 is a catastrophic, bond-threatening overload.]`;
+      signetUsedThisRoundRef.current = true;
+      setArmedSignetIntensity(null);
+    }
+
     // Support multiple @NPC tags: @NPC1 @NPC2 message
     const multiNpcMatch = messageToSend.match(/^((?:@\S+\s+)+)(.+)$/s);
     if (multiNpcMatch && voiceNPC) {
@@ -1248,7 +1257,7 @@ ${oocLines}`;
       sendMessage(messageToSend);
     }
     empyreanInputRef.current?.setText('');
-  }, [isLoading, sendMessage, voiceNPC, threshingAuthorized, characterName]);
+  }, [isLoading, sendMessage, voiceNPC, threshingAuthorized, characterName, armedSignetIntensity, maxBurnout]);
 
   const handlePromptSelect = useCallback((prompt: string) => {
     const filled = prompt.replace(/\[Character Name\]/g, characterName);
