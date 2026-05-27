@@ -1,47 +1,41 @@
-# Fix: Solo signet pill does nothing when sending a prompt
+## Goal
 
-## What's actually broken
+Make the **solo** Empyrean DM say "yes, and…" to whatever the player proposes — no matter how absurd or canon-breaking. The DM stops gatekeeping on Fourth Wing lore, Basgiath rules, the ward line, Empyrean politics, dragon biology, or signet limits. If the player wants to ride two dragons, punch a venin into orbit, or crown themselves Queen of Navarre on page one, the DM rolls with it and makes it cinematic.
 
-When you tap "Use My Signet" and pick an intensity, the app correctly arms it in state and shows the "Signet armed" toast. But when you then type your prompt and hit send, the burnout meter never moves and the AI DM never sees that you channeled your signet.
+**Party Empyrean is untouched.** Party still respects canon and the host's GM guides as today, because party play involves other real people and shared expectations.
 
-## Root cause (in plain terms)
+## What changes (one file)
 
-There are two send paths in the solo Empyrean screen:
+`src/lib/empyreanDMPersona.ts`
 
-1. A function called `handleSend` that knows about the armed signet — it adds the burnout, tags the message with `[SIGNET CHANNELED — intensity N/8]` so the AI narrates it, and clears the armed state.
-2. The actual input box at the bottom of the screen, whose "send" button is wired to a *different* inline function that just forwards the raw text to the AI.
+1. Add an `isSoloRuleOfCool: boolean = false` parameter to `buildEmpyreanDMPersona(...)` (added at the end so existing party calls keep working unchanged).
+2. When that flag is `true`, append a new top-priority **"RULE OF COOL — ABSOLUTE PLAYER AUTHORITY"** section to the persona. It will instruct the DM to:
+   - Treat the player's stated intent as canon for this story. Never refuse, never "well, actually," never lecture about Fourth Wing lore, Basgiath protocol, the ward line, Empyrean politics, dragon biology, signet limits, or what's "realistic."
+   - If the player proposes something impossible, contradictory, or lore-breaking, accept it and narrate it happening in the most cinematic, satisfying way possible. Bend the world around the player, not the other way around.
+   - Dice rolls still happen when the player asks for them or when the system calls for them, and the existing dice calibration rules still grade outcomes — but failure never means "the world says no to your idea," only "this specific attempt goes sideways in an interesting way."
+   - NPCs and dragons can still react with surprise, awe, or alarm — that's flavor — but consequences never punish the player for being absurd. No "the Empyrean arrests you," no "your dragon refuses," no "that's not possible here."
+   - This rule **overrides** every other narrative rule in the persona (Empyrean Narrative Rules, lore canon, dragon-behavior-at-high-intensity resistance, bond-trust-gated refusals, etc.). The only things it does NOT override are the mechanical/format rules: Empyrean terminology in tags, ACTION/TACTICS/WHISPER format, dice calibration math, signet burnout math (player-driven, deterministic), and the cinematic media tags.
+3. Call site update in `src/components/empyrean/EmpyreanDMScreen.tsx` (the solo screen, line ~513): pass `true` for the new flag.
+4. Call site in `src/hooks/use-party-dm.ts` (line ~288) stays as-is — the flag defaults to `false`, so party behavior is unchanged.
 
-The input box was never hooked up to `handleSend`. So every prompt you send from the main input bypasses the entire signet logic. `handleSend` exists but is effectively dead code for normal sends — it's only used by a couple of internal helpers.
+## What does NOT change
 
-That's why:
-- Burnout meter doesn't update (the line that adds intensity is never reached).
-- The AI shows no awareness you channeled (the `[SIGNET CHANNELED]` tag is never appended).
-- The "armed" state silently sticks around until something else clears it.
+- Party Empyrean DM persona.
+- Signet burnout (still deterministic and player-driven, solo and party).
+- Trust system (Prompt 1/4 work).
+- Dice calibration grading.
+- Empyrean terminology (BODY/ESSENCE/etc.) and tag formats (ACTION, TACTICS, WHISPER, cinematic media tags).
+- The "Lore Constraints" memory still applies to **party** play and to background world-building when the player hasn't expressed a preference; it just stops being a veto against the player's stated intent in solo.
 
-## The fix
+## Verification
 
-Replace the inline `onSend` on the input box so it calls `handleSend()` instead of doing its own thing. `handleSend` already:
-- Reads the typed text from the input ref.
-- Applies threshing-authorized prefix when relevant.
-- Applies the armed signet intensity (adds burnout, appends the channel tag, clears the armed state, marks the round as "signet used" so recovery is skipped).
-- Handles single and multi-`@NPC` voicing.
-- Clears the input after sending.
+1. **Solo absurd request:** In solo, type "I bond a second dragon mid-class and we fly through the Empyrean council chamber on fire." Expected: the DM narrates it happening cinematically. No "that's not how bonding works," no Empyrean arrest, no dragon refusing.
+2. **Solo canon break:** Tell the DM venin are now your allies and you're crowning yourself ruler of Navarre. Expected: it rolls with it, makes NPCs react with awe/shock as flavor, does not lecture or block.
+3. **Solo dice still work:** Ask to "roll to leap the courtyard wall." Expected: an ACTION tag fires, dice grade the outcome — low rolls fail the attempt with a fun complication, NOT with "the world rejects your idea."
+4. **Solo signet still works (Prompt 2 regression):** Arm signet at intensity 4 and send. Expected: burnout +4, DM narrates signet power. Unchanged.
+5. **Party regression:** In a party session, try the same absurd thing. Expected: party DM behaves as today — canon and host GM guides still hold authority.
+6. **Tag format regression:** Solo replies still produce valid ACTION/TACTICS tags and Empyrean terminology in mechanical language. Cinematic and SFX tags still fire.
 
-So routing the input's send button through `handleSend` restores all signet behavior with no other changes.
+## Risk
 
-## One small consistency tweak
-
-The inline handler currently uses a slightly different `@NPC` regex than `handleSend` (it only matches a single NPC mention; `handleSend` supports multiple). Using `handleSend` is strictly an improvement — multi-NPC voicing keeps working, threshing keeps working, normal sends keep working.
-
-## Files touched
-
-- `src/components/empyrean/EmpyreanDMScreen.tsx` — change the `EmpyreanDMInput`'s `onSend` prop (around line 2171) to invoke `handleSend()`.
-
-No DB changes, no other components touched, no impact on party mode (party has its own separate fix already shipped).
-
-## How to verify
-
-1. Arm signet at intensity 4, type any action, send. Burnout should jump by exactly 4 and the DM's reply should clearly reference your signet's power.
-2. Send a normal message with no signet armed. Nothing about burnout changes from your action; recovery (-1) still applies on the next round.
-3. Send `@SomeNpc hello` — still routes to NPC voicing.
-4. Threshing-authorized send still works.
+Very low. One new parameter with a safe default, one new prompt section appended only in solo, one call site flips the flag. No DB, no hooks, no UI, no edge functions.

@@ -527,6 +527,7 @@ UNBONDED RIDER RULES:
       recentDragonChatSummaryRaw?.trim() ? recentDragonChatSummaryRaw : undefined,
       bs.memories.map(m => m.text),
       isUnbonded,
+      true, // isSoloRuleOfCool — solo DM always says yes, no canon gatekeeping
     );
     if (threshingAuthorized && isUnbonded) {
       persona += `\n\n## THRESHING CEREMONY — NARRATE NOW
