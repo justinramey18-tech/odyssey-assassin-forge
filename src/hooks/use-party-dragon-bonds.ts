@@ -72,7 +72,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
   const [chatRowId, setChatRowId] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [isVoicing, setIsVoicing] = useState(false);
-  const [sessionChatCount, setSessionChatCount] = useState(0);
+  
   const [dragonNetworkMessages] = useState<DragonNetworkMessage[]>([]);
   const mountedRef = useRef(true);
   const reactionCooldownRef = useRef<Map<string, number>>(new Map());
