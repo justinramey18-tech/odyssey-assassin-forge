@@ -31,6 +31,7 @@ import type { CharacterContext } from '@/components/oracle/types';
 import { useOocDmChat } from '@/hooks/use-ooc-dm-chat';
 import { OocDmChat } from './OocDmChat';
 import { EMPYREAN_LORE_GUIDES } from '@/lib/empyreanGMGuides';
+import { detectCampaignType } from '@/lib/campaignTypeDetect';
 import { getBondDescriptor, getTrustDescriptor, savePartyHP } from '@/lib/dragonBondState';
 import { usePartyDragonBonds } from '@/hooks/use-party-dragon-bonds';
 import type { PartyMember } from '@/hooks/use-party-sync';
@@ -107,6 +108,7 @@ export function StandalonePartyDMScreen({
   const [forceShowOnboarding, setForceShowOnboarding] = useState(false);
   const [justAppliedOnboarding, setJustAppliedOnboarding] = useState(false);
   const [campaignStarted, setCampaignStarted] = useState<boolean>(false);
+  const [partyCampaignType, setPartyCampaignType] = useState<'dnd' | 'empyrean'>('dnd');
   const [memberDisplayNames, setMemberDisplayNames] = useState<Record<string, string>>({});
   const [showRedoDialog, setShowRedoDialog] = useState(false);
   const [showRequestsPanel, setShowRequestsPanel] = useState(false);
@@ -161,17 +163,20 @@ export function StandalonePartyDMScreen({
     return () => clearTimeout(t);
   }, [justAppliedOnboarding]);
 
-  // Fetch + subscribe to parties.campaign_started
+  // Fetch + subscribe to parties.campaign_started and parties.campaign_type
   useEffect(() => {
     if (!partyId) return;
     let cancelled = false;
     supabase
       .from('parties')
-      .select('campaign_started')
+      .select('campaign_started, campaign_type')
       .eq('id', partyId)
       .maybeSingle()
       .then(({ data }) => {
-        if (!cancelled && data) setCampaignStarted(data.campaign_started === true);
+        if (cancelled || !data) return;
+        setCampaignStarted((data as any).campaign_started === true);
+        const ct = (data as any).campaign_type;
+        if (ct === 'empyrean' || ct === 'dnd') setPartyCampaignType(ct);
       });
     const channel = supabase
       .channel(`party-campaign-started-${partyId}`)
@@ -179,8 +184,11 @@ export function StandalonePartyDMScreen({
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'parties', filter: `id=eq.${partyId}` },
         (payload) => {
-          const next = (payload.new as { campaign_started?: boolean } | null)?.campaign_started;
-          if (typeof next === 'boolean') setCampaignStarted(next);
+          const row = payload.new as { campaign_started?: boolean; campaign_type?: string } | null;
+          if (typeof row?.campaign_started === 'boolean') setCampaignStarted(row.campaign_started);
+          if (row?.campaign_type === 'empyrean' || row?.campaign_type === 'dnd') {
+            setPartyCampaignType(row.campaign_type);
+          }
         }
       )
       .subscribe();
@@ -298,7 +306,10 @@ export function StandalonePartyDMScreen({
     characterContext,
     campaignSummary: null,
     customGuidesContent: gmGuides.enabledContent,
-    campaignType: isSoloEmpyrean ? 'empyrean' : 'dnd',
+    // Source of truth: solo flag for solo entry; the parties row otherwise.
+    // (Previously hard-coded 'dnd' for multiplayer, silently disabling
+    // Empyrean persona/pills/burnout for Fourth Wing parties.)
+    campaignType: isSoloEmpyrean ? 'empyrean' : partyCampaignType,
     selectedModel: undefined,
     preserveFullCommand: true,
   });
@@ -403,6 +414,18 @@ export function StandalonePartyDMScreen({
     enabled: isHost,
   });
 
+  // Sync parties.campaign_type into the active session config (host-only writes).
+  // This fixes legacy multiplayer Empyrean sessions whose sessionConfig was
+  // stuck on 'dnd' due to the long-standing line-301 bug.
+  useEffect(() => {
+    if (!isHost) return;
+    if (!partyDm.isActive) return;
+    const current = partyDm.sessionConfig?.campaignType;
+    if (current !== partyCampaignType) {
+      partyDm.updateSessionConfig({ campaignType: partyCampaignType });
+    }
+  }, [isHost, partyDm.isActive, partyDm.sessionConfig?.campaignType, partyCampaignType, partyDm.updateSessionConfig]);
+
   // Campaign Builder completion handler
   const handleCampaignBuilderComplete = useCallback(async (data: CampaignBuildData) => {
     setShowCampaignBuilder(false);
@@ -411,7 +434,21 @@ export function StandalonePartyDMScreen({
     await partyDm.startNewCampaign(data.campaignName);
     memoryAnchors.clearAll();
 
-    // 2. Set the campaign summary, save GM guide, seed anchors, post opening scene
+    // 2. Auto-detect campaign type from the generated content and persist
+    //    it on the parties row so the party is filed under the correct mode.
+    if (isHost && partyId) {
+      try {
+        const blob = [data.campaignName, data.campaignSummary, data.gmGuide]
+          .filter(Boolean).join(' ');
+        const detected = detectCampaignType(blob);
+        await supabase.from('parties').update({ campaign_type: detected }).eq('id', partyId);
+        setPartyCampaignType(detected);
+      } catch (e) {
+        console.error('[campaign-type] auto-detect/persist failed:', e);
+      }
+    }
+
+    // 3. Set the campaign summary, save GM guide, seed anchors, post opening scene
     setTimeout(async () => {
       partyDm.updateSessionConfig({ campaignSummary: data.campaignSummary });
 
@@ -734,7 +771,7 @@ ${truncated}`);
           }, 300);
         }}
         onDismissCommand={oocDmChat.clearPendingCommand}
-        campaignType={isSoloEmpyrean ? 'empyrean' : 'dnd'}
+        campaignType={isSoloEmpyrean ? 'empyrean' : partyCampaignType}
       />
 
       {/* GM Guides Overlay */}
