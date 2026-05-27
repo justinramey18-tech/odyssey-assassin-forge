@@ -104,6 +104,9 @@ interface EmpyreanContextualActionsProps {
   disabled?: boolean;
   isUnbonded?: boolean;
   fetchMasterworkPills?: (category: 'dragon' | 'situation', situationLabel: string) => Promise<ActionItem[]>;
+  currentBurnout?: number;
+  maxBurnout?: number;
+  onArmSignet?: (intensity: number) => void;
 }
 
 type MasterworkState =
