@@ -4,7 +4,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Flame, Theater, Megaphone, Film, RefreshCw } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Theater, Megaphone, Film, RefreshCw } from 'lucide-react';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
 import { ResponseModeSelector } from './ResponseModeSelector';
@@ -140,11 +140,6 @@ export interface PartyDMSettingsProps {
   // Dialogue auto-intervention
   dialogueAutoIntervene?: boolean;
   onDialogueAutoInterveneChange?: (enabled: boolean) => void;
-  // Campaign type
-  campaignType?: 'dnd' | 'empyrean';
-  onCampaignTypeChange?: (type: 'dnd' | 'empyrean') => void;
-  empyreanFocus?: string;
-  onEmpyreanFocusChange?: (focus: string) => void;
   onShowOocChat?: () => void;
   // Player redo request (non-host only)
   onRequestCharacterRedo?: () => void;
@@ -170,8 +165,6 @@ export function PartyDMSettings({
   responseMode, onResponseModeChange,
   hasBookmark, onClearBookmark,
   dialogueAutoIntervene, onDialogueAutoInterveneChange,
-  campaignType = 'dnd', onCampaignTypeChange,
-  empyreanFocus = 'balanced', onEmpyreanFocusChange,
   onRequestCharacterRedo, hasPendingRedoRequest = false,
 }: PartyDMSettingsProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
@@ -179,73 +172,6 @@ export function PartyDMSettings({
     <div className="px-3 py-3 space-y-2.5 w-full">
       {/* Session Controls */}
       {/* Campaign Type (creator only) */}
-      {isCreator && onCampaignTypeChange && (
-        <SettingsSection title="Campaign World" icon={<Sword className="w-4 h-4 text-amber-400" />}>
-          <div className="px-3 py-2 space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => onCampaignTypeChange('dnd')}
-                style={{ touchAction: 'manipulation' }}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all min-h-[48px]",
-                  "active:scale-[0.97]",
-                  campaignType === 'dnd'
-                    ? "border-red-500/60 bg-red-500/10 text-red-300"
-                    : "border-border/40 bg-muted/10 text-muted-foreground hover:bg-muted/20"
-                )}
-              >
-                <Sword className="w-4 h-4 shrink-0" />
-                <div className="text-left">
-                  <p className="text-sm font-medium">D&D 5e</p>
-                  <p className="text-[10px] opacity-60">Generic campaign</p>
-                </div>
-              </button>
-              <button
-                onClick={() => onCampaignTypeChange('empyrean')}
-                style={{ touchAction: 'manipulation' }}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all min-h-[48px]",
-                  "active:scale-[0.97]",
-                  campaignType === 'empyrean'
-                    ? "border-amber-500/60 bg-amber-500/10 text-amber-300"
-                    : "border-border/40 bg-muted/10 text-muted-foreground hover:bg-muted/20"
-                )}
-              >
-                <Flame className="w-4 h-4 shrink-0" />
-                <div className="text-left">
-                  <p className="text-sm font-medium">Empyrean</p>
-                  <p className="text-[10px] opacity-60">Dragon riders</p>
-                </div>
-              </button>
-            </div>
-
-            {campaignType === 'empyrean' && onEmpyreanFocusChange && (
-              <div>
-                <p className="text-[11px] text-muted-foreground mb-1.5 px-0.5">Campaign Focus</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {(['combat', 'political', 'romance', 'mystery', 'survival', 'balanced'] as const).map(focus => (
-                    <button
-                      key={focus}
-                      onClick={() => onEmpyreanFocusChange(focus)}
-                      className={cn(
-                        "px-2.5 py-1.5 rounded text-[11px] font-medium capitalize transition-all min-h-[32px]",
-                        "active:scale-[0.96]",
-                        empyreanFocus === focus
-                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                          : "bg-muted/10 text-muted-foreground border border-border/30 hover:bg-muted/20"
-                      )}
-                    >
-                      {focus}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </SettingsSection>
-      )}
-
-      {/* Session Controls */}
       <SettingsSection title="Session Controls" icon={<ClipboardList className="w-4 h-4 text-amber-400" />}>
         {isCreator && onDmModeChange && (
           <div className="px-3 py-2">
