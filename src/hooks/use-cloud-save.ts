@@ -143,6 +143,15 @@ export function useCloudSave(userId: string | undefined) {
         }
       }
       extendedData.scopedLocalStorage = scopedLocalStorage;
+
+      // Tag with current app mode if not already set (preserves user overrides)
+      const existingType = extendedData.campaignType as string | undefined;
+      if (!existingType) {
+        const currentAppMode = (typeof window !== 'undefined' && localStorage.getItem('odyssey-app-mode')) || 'fullAccess';
+        extendedData.campaignType = currentAppMode === 'empyrean' ? 'empyrean' : 'dnd';
+      }
+
+
       
       // Prepare data for database (cast to Json type)
       const dbData = {
