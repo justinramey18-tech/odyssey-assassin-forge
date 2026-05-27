@@ -24,7 +24,7 @@ import {
   type DragonBondState,
   type DragonMood,
 } from '@/lib/dragonBondState';
-import { computeTrustDelta } from '@/lib/bondTrust';
+import { computeTrustDelta, parseAITrustTag, reconcileAITrust } from '@/lib/bondTrust';
 import type { CharacterContext } from '@/components/oracle/types';
 
 interface DragonBondChatProps {
