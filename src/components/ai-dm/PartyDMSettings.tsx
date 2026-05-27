@@ -140,11 +140,6 @@ export interface PartyDMSettingsProps {
   // Dialogue auto-intervention
   dialogueAutoIntervene?: boolean;
   onDialogueAutoInterveneChange?: (enabled: boolean) => void;
-  // Campaign type
-  campaignType?: 'dnd' | 'empyrean';
-  onCampaignTypeChange?: (type: 'dnd' | 'empyrean') => void;
-  empyreanFocus?: string;
-  onEmpyreanFocusChange?: (focus: string) => void;
   onShowOocChat?: () => void;
   // Player redo request (non-host only)
   onRequestCharacterRedo?: () => void;
