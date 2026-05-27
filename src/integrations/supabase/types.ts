@@ -637,6 +637,7 @@ export type Database = {
         Row: {
           campaign_started: boolean
           campaign_started_at: string | null
+          campaign_type: string | null
           created_at: string
           created_by: string
           id: string
@@ -647,6 +648,7 @@ export type Database = {
         Insert: {
           campaign_started?: boolean
           campaign_started_at?: string | null
+          campaign_type?: string | null
           created_at?: string
           created_by: string
           id?: string
@@ -657,6 +659,7 @@ export type Database = {
         Update: {
           campaign_started?: boolean
           campaign_started_at?: string | null
+          campaign_type?: string | null
           created_at?: string
           created_by?: string
           id?: string
