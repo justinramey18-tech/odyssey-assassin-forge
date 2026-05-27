@@ -249,24 +249,14 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (lastMsg.id === lastParsedMsgIdRef.current) return;
     lastParsedMsgIdRef.current = lastMsg.id;
 
-    const burnoutMatch = lastMsg.content.match(/<!--BURNOUT:(\d+)-->/);
-    if (burnoutMatch) {
-      const level = parseInt(burnoutMatch[1], 10);
-      if (level >= 0 && level <= 9) onBurnoutRef.current?.(level);
-    }
+    // BURNOUT and BURNOUT_TICK tags are deprecated — burnout is now app-controlled, not AI-controlled.
+    // Tags are still stripped from displayed text (see BURNOUT_TAG_RE above), but no longer mutate state.
 
     const strainMatch = lastMsg.content.match(/<!--BOND_STRAIN:(.+?)-->/);
     if (strainMatch) {
       onBondStrainRef.current?.(strainMatch[1]);
     }
 
-    // Parse BURNOUT_TICK: increment burnout by 1
-    const tickMatch = lastMsg.content.match(/<!--BURNOUT_TICK:(.+?)-->/);
-    if (tickMatch) {
-      // Use onBurnoutDetected with -1 sentinel to signal "increment by 1"
-      // The handler in StandalonePartyDMScreen will interpret this
-      onBurnoutTickRef.current?.(tickMatch[1]);
-    }
 
     // Parse BOND_GROWTH: increase bond by 3
     const bondGrowthMatch = lastMsg.content.match(/<!--BOND_GROWTH:(.+?)-->/);
