@@ -104,6 +104,7 @@ export interface PartyDmPrompt {
   round_id: string;
   created_at: string;
   team?: string | null;
+  signet_intensity?: number | null;
 }
 
 export type DmMode = 'ai' | 'human' | 'ai-approval' | 'dialogue';
