@@ -421,7 +421,21 @@ export function StandalonePartyDMScreen({
     await partyDm.startNewCampaign(data.campaignName);
     memoryAnchors.clearAll();
 
-    // 2. Set the campaign summary, save GM guide, seed anchors, post opening scene
+    // 2. Auto-detect campaign type from the generated content and persist
+    //    it on the parties row so the party is filed under the correct mode.
+    if (isHost && partyId) {
+      try {
+        const blob = [data.campaignName, data.campaignSummary, data.gmGuide]
+          .filter(Boolean).join(' ');
+        const detected = detectCampaignType(blob);
+        await supabase.from('parties').update({ campaign_type: detected }).eq('id', partyId);
+        setPartyCampaignType(detected);
+      } catch (e) {
+        console.error('[campaign-type] auto-detect/persist failed:', e);
+      }
+    }
+
+    // 3. Set the campaign summary, save GM guide, seed anchors, post opening scene
     setTimeout(async () => {
       partyDm.updateSessionConfig({ campaignSummary: data.campaignSummary });
 
