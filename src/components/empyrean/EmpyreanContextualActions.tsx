@@ -380,6 +380,9 @@ export default function EmpyreanContextualActions({
 
   const [dragonExpanded, setDragonExpanded] = useState(false);
   const [situationExpanded, setSituationExpanded] = useState(false);
+  const [armingSignet, setArmingSignet] = useState(false);
+  const signetMaxed = !isUnbonded && maxBurnout > 0 && currentBurnout >= maxBurnout;
+
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [masterworkDragon, setMasterworkDragon] = useState<MasterworkState>({ status: 'idle' });
   const [masterworkSituation, setMasterworkSituation] = useState<MasterworkState>({ status: 'idle' });
