@@ -1462,8 +1462,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   const handleSubmit = useCallback((text: string) => {
     setRecapDismissed(true);
-    partyDmRef.current.submitPrompt(text);
-  }, []);
+    let finalPrompt = text;
+    if (armedSignetIntensity != null) {
+      finalPrompt = `${text}\n\n[SIGNET CHANNELED — intensity ${armedSignetIntensity}/8. Narrate signet power proportional to this intensity: 1 = faint flicker, 8 = catastrophic overload.]`;
+    }
+    partyDmRef.current.submitPrompt(finalPrompt, armedSignetIntensity ?? undefined);
+    setArmedSignetIntensity(null);
+  }, [armedSignetIntensity]);
 
   const handleReadyAutopilot = useCallback(() => {
     if (!myAfkGuide) return;
