@@ -721,7 +721,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     } finally {
       if (mountedRef.current) setIsSending(false);
     }
-  }, [partyId, userId, myDragon, isSending, dragonChatMessages, sessionChatCount, saveDragonChat, myRowId, allDragonConfigs, partyMembers]);
+  }, [partyId, userId, myDragon, isSending, dragonChatMessages, saveDragonChat, myRowId, allDragonConfigs, partyMembers]);
 
   // Save full dragon config
   const saveMyDragon = useCallback(async (config: PartyDragonConfig) => {
