@@ -193,7 +193,7 @@ export default function DragonBondChat({
         updated = { ...updated, speechHabits: currentHabits.slice(-5) };
       }
 
-      // Increment chat counts
+      // Increment chat counts FIRST so trust math sees the post-exchange count.
       updated = {
         ...updated,
         totalChatExchanges: updated.totalChatExchanges + 1,
@@ -201,11 +201,52 @@ export default function DragonBondChat({
         lastContactTimestamp: new Date().toISOString(),
       };
 
+      // ── TRUST: prefer AI-judged signal, fall back to keyword scoring ──
+      const playerMessage = lastPlayerMessageRef.current || '';
+      const aiSignal = parseAITrustTag(content);
+      // Always classify emotion via keyword pass so the emotional log stays
+      // consistent regardless of which trust path fires.
+      const keywordResult = computeTrustDelta({
+        message: playerMessage,
+        totalChatExchanges: updated.totalChatExchanges,
+        bond: updated.bond ?? 15,
+      });
+
+      let trustDelta = 0;
+      let trustBreakBroken = false;
+      if (aiSignal) {
+        const reconciled = reconcileAITrust(aiSignal, playerMessage);
+        trustDelta = reconciled.trustDelta;
+        trustBreakBroken = reconciled.trustBreak.broken;
+      } else {
+        trustDelta = keywordResult.trustDelta;
+        trustBreakBroken = keywordResult.trustBreak.broken;
+      }
+
+      if (trustDelta > 0) {
+        updated = addTrust(updated, trustDelta);
+      } else if (trustDelta < 0) {
+        updated = reduceTrust(updated, Math.abs(trustDelta));
+        if (trustBreakBroken) {
+          updated = { ...updated, mood: 'distant' as DragonMood };
+        }
+      }
+
+      const emotionalLog = [...(updated.riderEmotionalLog || []), { tag: keywordResult.emotionTag, timestamp: new Date().toISOString() }].slice(-15);
+      updated = { ...updated, riderEmotionalLog: emotionalLog };
+
+      // Detect rider declarations from the player message (independent of AI tag).
+      const declaration = detectRiderDeclaration(playerMessage);
+      if (declaration) {
+        updated = addMemory(updated, declaration, 'rider-said');
+      }
+
       setBondState(updated);
       saveBondState(updated);
     },
-    [bondState],
+    [bondState, dragonName],
   );
+
 
   const handleDeleteMemory = useCallback((memoryId: string) => {
     setBondState(prev => {
