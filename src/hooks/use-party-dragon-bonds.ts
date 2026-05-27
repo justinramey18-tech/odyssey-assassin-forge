@@ -2,7 +2,8 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { type PartyDragonConfig } from '@/hooks/use-party-dm';
 import { getAuthToken } from '@/lib/auth-token';
-import { buildDragonChatPrompt, addMemory, detectTrustBreak, detectRiderDeclaration, classifyRiderEmotion, computeMoodPressure, buildConstrainedMoodOptions, type DragonMood, type DragonMemory } from '@/lib/dragonBondState';
+import { buildDragonChatPrompt, addMemory, detectRiderDeclaration, computeMoodPressure, buildConstrainedMoodOptions, type DragonMood, type DragonMemory } from '@/lib/dragonBondState';
+import { computeTrustDelta } from '@/lib/bondTrust';
 import { loadSelectedModel } from '@/lib/dm-models';
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
@@ -17,6 +18,7 @@ const DEFAULT_DRAGON: PartyDragonConfig = {
   mood: 'calm',
   burnout: 0,
   memories: [],
+  totalChatExchanges: 0,
 };
 
 interface DragonEntry {
@@ -44,31 +46,7 @@ export interface DragonNetworkMessage {
   timestamp: string;
 }
 
-// Trust-building keyword patterns (same as use-dragon-bond.ts)
-const QUESTION_PATTERNS = [
-  'how do you feel', 'what do you think', 'are you okay',
-  'tell me about', 'what do you remember', 'do you want', 'how are you',
-];
-const GRATITUDE_PATTERNS = [
-  'i trust you', 'thank you', "i'm glad", 'i appreciate',
-  'you were right', "i'm sorry",
-];
-const VULNERABILITY_PATTERNS = [
-  "i'm afraid", "i'm scared", "i don't know",
-  'i need help', 'i failed', "i'm worried",
-];
-const AUTONOMY_PATTERNS = [
-  'what would you prefer', 'your choice',
-  "i won't force you", 'you decide',
-];
-
-function matchesAny(text: string, patterns: string[]): boolean {
-  const lower = text.toLowerCase();
-  return patterns.some(p => lower.includes(p));
-}
-
-const SESSION_CHAT_CAP = 5;
-const MAX_TRUST_PER_EXCHANGE = 4;
+// Trust patterns/matching live in @/lib/bondTrust (single source of truth).
 
 const COMBAT_WORDS = ['fight', 'danger', 'battle', 'enemy', 'attack', 'die', 'kill'];
 
@@ -94,7 +72,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
   const [chatRowId, setChatRowId] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [isVoicing, setIsVoicing] = useState(false);
-  const [sessionChatCount, setSessionChatCount] = useState(0);
+  
   const [dragonNetworkMessages] = useState<DragonNetworkMessage[]>([]);
   const mountedRef = useRef(true);
   const reactionCooldownRef = useRef<Map<string, number>>(new Map());
@@ -688,45 +666,32 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         updatedDragon = { ...updatedDragon, speechHabits: currentHabits.slice(-5) };
       }
 
-      // Process trust from player message
-      const newSessionCount = sessionChatCount + 1;
-      setSessionChatCount(newSessionCount);
-      const bondLevel = myDragon.bond ?? 15;
-      const effectiveChatCap = bondLevel >= 76 ? 12 : bondLevel >= 51 ? 9 : bondLevel >= 26 ? 7 : 5;
-      let trustDelta = newSessionCount <= effectiveChatCap ? 1 : 0;
+      // Process trust from player message (shared computation)
+      const result = computeTrustDelta({
+        message: text,
+        totalChatExchanges: (myDragon.totalChatExchanges ?? 0),
+        bond: myDragon.bond ?? 15,
+      });
+      const trustDelta = result.trustDelta;
 
-      const questionMatch = matchesAny(text, QUESTION_PATTERNS);
-      const gratitudeMatch = matchesAny(text, GRATITUDE_PATTERNS);
-      const vulnerabilityMatch = matchesAny(text, VULNERABILITY_PATTERNS);
-      const autonomyMatch = matchesAny(text, AUTONOMY_PATTERNS);
-
-      if (questionMatch) trustDelta += 1;
-      if (gratitudeMatch) trustDelta += 1;
-      if (vulnerabilityMatch) trustDelta += 2;
-      if (autonomyMatch) trustDelta += 1;
-      trustDelta = Math.min(trustDelta, MAX_TRUST_PER_EXCHANGE);
-
-      const trustBreak = detectTrustBreak(text);
-      if (trustBreak.broken) {
-        trustDelta = -trustBreak.severity;
-        updatedDragon = { ...updatedDragon, mood: 'distant' };
-      }
+      updatedDragon = {
+        ...updatedDragon,
+        totalChatExchanges: (myDragon.totalChatExchanges ?? 0) + 1,
+      };
 
       if (trustDelta !== 0) {
         updatedDragon = {
           ...updatedDragon,
           trust: Math.max(0, Math.min(100, (updatedDragon.trust || 10) + trustDelta)),
         };
+        if (result.trustBreak.broken) {
+          updatedDragon = { ...updatedDragon, mood: 'distant' };
+        }
       }
 
-      // Classify and log rider emotion
-      const emotionTag = classifyRiderEmotion(
-        text,
-        trustBreak,
-        { question: questionMatch, gratitude: gratitudeMatch, vulnerability: vulnerabilityMatch, autonomy: autonomyMatch },
-      );
-      const emotionalLog = [...(updatedDragon.riderEmotionalLog || []), { tag: emotionTag, timestamp: new Date().toISOString() }].slice(-15);
+      const emotionalLog = [...(updatedDragon.riderEmotionalLog || []), { tag: result.emotionTag, timestamp: new Date().toISOString() }].slice(-15);
       updatedDragon = { ...updatedDragon, riderEmotionalLog: emotionalLog };
+
 
       // Detect rider declarations and save as rider-said memories
       const declaration = detectRiderDeclaration(text);
@@ -756,7 +721,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     } finally {
       if (mountedRef.current) setIsSending(false);
     }
-  }, [partyId, userId, myDragon, isSending, dragonChatMessages, sessionChatCount, saveDragonChat, myRowId, allDragonConfigs, partyMembers]);
+  }, [partyId, userId, myDragon, isSending, dragonChatMessages, saveDragonChat, myRowId, allDragonConfigs, partyMembers]);
 
   // Save full dragon config
   const saveMyDragon = useCallback(async (config: PartyDragonConfig) => {
