@@ -18,6 +18,7 @@ const DEFAULT_DRAGON: PartyDragonConfig = {
   mood: 'calm',
   burnout: 0,
   memories: [],
+  totalChatExchanges: 0,
 };
 
 interface DragonEntry {
