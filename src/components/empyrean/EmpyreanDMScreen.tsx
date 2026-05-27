@@ -666,13 +666,8 @@ ${oocLines}`;
         toast('Bond deepens: ' + bondGrowthMatch[1], { icon: '🐉' });
       }
 
-      // Extract burnout tick events
-      const burnoutTickMatch = content.match(/<!--BURNOUT_TICK:(.+?)-->/);
-      if (burnoutTickMatch) {
-        const nextBurnout = Math.min((burnoutLevelRef.current ?? 0) + 1, maxBurnout);
-        setBurnoutLevel(nextBurnout);
-        toast('Signet strain: ' + burnoutTickMatch[1], { icon: '🔥' });
-      }
+
+
 
       // Extract dragon whispers from parsed whispers
       const parsed = parseWhispers(content);
