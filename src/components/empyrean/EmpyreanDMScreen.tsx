@@ -2103,6 +2103,12 @@ ${oocLines}`;
               }}
               disabled={isLoading || (!isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout)}
               isUnbonded={isUnbonded}
+              currentBurnout={burnoutLevel}
+              maxBurnout={maxBurnout}
+              onArmSignet={(intensity) => {
+                setArmedSignetIntensity(intensity);
+                toast(`🔥 Signet armed at intensity ${intensity}. Your next action channels it.`);
+              }}
               fetchMasterworkPills={async (category, situationLabel) => {
                 const recentAssistantMessages = messages.filter(m => m.role === 'assistant').slice(-2);
                 const recentNarrative = recentAssistantMessages.map(m => m.content).join('\n\n').slice(0, 2500);
