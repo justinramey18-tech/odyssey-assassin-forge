@@ -165,8 +165,6 @@ export function PartyDMSettings({
   responseMode, onResponseModeChange,
   hasBookmark, onClearBookmark,
   dialogueAutoIntervene, onDialogueAutoInterveneChange,
-  campaignType = 'dnd', onCampaignTypeChange,
-  empyreanFocus = 'balanced', onEmpyreanFocusChange,
   onRequestCharacterRedo, hasPendingRedoRequest = false,
 }: PartyDMSettingsProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
