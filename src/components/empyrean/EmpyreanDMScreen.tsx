@@ -2168,16 +2168,7 @@ ${oocLines}`;
         <div className="relative">
           <EmpyreanDMInput
             ref={empyreanInputRef}
-            onSend={(text) => {
-              const npcMatch = text.match(/^@(\w[\w\s]*?\w)\s+([\s\S]+)$/);
-              if (npcMatch) {
-                voiceNPC(npcMatch[1].trim(), npcMatch[2].trim());
-              } else if (threshingAuthorized) {
-                sendMessage(`[THRESHING AUTHORIZED] ${text}`);
-              } else {
-                sendMessage(text);
-              }
-            }}
+            onSend={() => handleSend()}
             onCancel={cancelRequest}
             onOpenCharacterSheet={() => setCharacterSheetOpen(true)}
             isLoading={isLoading}
