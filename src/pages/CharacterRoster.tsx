@@ -4,6 +4,8 @@ import { RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useCloudSave } from '@/hooks/use-cloud-save';
 import { useAppMode } from '@/hooks/use-app-mode';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export default function CharacterRoster() {
   const navigate = useNavigate();
@@ -11,6 +13,7 @@ export default function CharacterRoster() {
   const { cloudSaves, fetchSaves, loadFromCloud, loading: savesLoading } = useCloudSave(user?.id);
   const { effectiveMode } = useAppMode();
   const [initialFetchDone, setInitialFetchDone] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -35,9 +38,11 @@ export default function CharacterRoster() {
     return cloudSaves.filter(s => s.preview?.campaignType !== 'empyrean');
   }, [cloudSaves, effectiveMode]);
 
+  const displaySaves = showAll ? cloudSaves : filteredSaves;
+
   // Auto-load single character or redirect to creation
   useEffect(() => {
-    if (!initialFetchDone || savesLoading) return;
+    if (!initialFetchDone || savesLoading || showAll) return;
 
     if (cloudSaves.length === 0) {
       // Truly empty — go straight to character creation
@@ -49,6 +54,9 @@ export default function CharacterRoster() {
     // Has characters but none in this mode → show empty state (no auto-navigate)
     if (filteredSaves.length === 0) return;
 
+    // Only auto-load when there's exactly one matching character
+    if (filteredSaves.length !== 1) return;
+
     // Load the first filtered save automatically
     const save = filteredSaves[0];
     loadFromCloud(save.id).then((data) => {
@@ -57,10 +65,10 @@ export default function CharacterRoster() {
         navigate('/', { state: { saveData: data, saveId: save.id }, replace: true });
       }
     });
-  }, [initialFetchDone, savesLoading, cloudSaves, filteredSaves, loadFromCloud, navigate]);
+  }, [initialFetchDone, savesLoading, cloudSaves, filteredSaves, loadFromCloud, navigate, showAll]);
 
   const showEmptyForMode =
-    initialFetchDone && !savesLoading && cloudSaves.length > 0 && filteredSaves.length === 0;
+    initialFetchDone && !savesLoading && cloudSaves.length > 0 && filteredSaves.length === 0 && !showAll;
 
   if (showEmptyForMode) {
     const label = effectiveMode === 'empyrean' ? 'Empyrean' : 'D&D';
@@ -87,9 +95,128 @@ export default function CharacterRoster() {
     );
   }
 
+  // Loading state
+  if (!initialFetchDone || savesLoading) {
+    return (
+      <div className="fixed inset-0 bg-background flex items-center justify-center">
+        <RefreshCw className="w-6 h-6 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  // If we got here, show the roster list
   return (
-    <div className="fixed inset-0 bg-background flex items-center justify-center">
-      <RefreshCw className="w-6 h-6 text-primary animate-spin" />
+    <div className="fixed inset-0 bg-background flex flex-col">
+      <div className="flex-1 overflow-y-auto px-4 py-6">
+        <h1 className="text-xl font-cinzel font-bold text-foreground mb-1">Character Roster</h1>
+        <p className="text-sm text-muted-foreground mb-4">
+          {cloudSaves.length} character{cloudSaves.length !== 1 ? 's' : ''} saved
+        </p>
+
+        {/* Show-all toggle */}
+        {effectiveMode !== 'fullAccess' && cloudSaves.length > filteredSaves.length && (
+          <button
+            onClick={() => setShowAll(s => !s)}
+            className="text-xs text-muted-foreground underline mb-4 self-start"
+            style={{ touchAction: 'manipulation' }}
+          >
+            {showAll
+              ? `Show only ${effectiveMode === 'empyrean' ? 'Empyrean' : "D&D"} characters`
+              : 'Show all characters'}
+          </button>
+        )}
+
+        {displaySaves.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-sm text-muted-foreground mb-4">No characters found.</p>
+            <button
+              onClick={() => {
+                localStorage.removeItem('odyssey-active-cloud-save-id');
+                navigate('/', { state: { newCharacter: true }, replace: true });
+              }}
+              className="px-6 py-3 rounded-xl bg-primary text-primary-foreground font-bold font-cinzel text-sm shadow-lg shadow-primary/20 hover:bg-primary/90 transition-colors"
+            >
+              Create New Hero
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {displaySaves.map((save) => (
+              <button
+                key={save.id}
+                onClick={() => {
+                  loadFromCloud(save.id).then((data) => {
+                    if (data) {
+                      localStorage.setItem('odyssey-active-cloud-save-id', save.id);
+                      navigate('/', { state: { saveData: data, saveId: save.id }, replace: true });
+                    }
+                  });
+                }}
+                className="w-full text-left p-4 rounded-xl border border-border/50 bg-card/50 hover:bg-card transition-colors active:scale-[0.98]"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-cinzel font-bold text-sm text-foreground truncate">
+                      {save.preview?.name || 'Unnamed Character'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {save.preview?.class || 'No class'} · Level {save.preview?.level || 1}
+                    </p>
+                  </div>
+                  {/* Campaign type flip badge */}
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      const newType = save.preview?.campaignType === 'empyrean' ? 'dnd' : 'empyrean';
+                      try {
+                        const { data } = await supabase
+                          .from('character_saves')
+                          .select('extended_data')
+                          .eq('id', save.id)
+                          .single();
+                        if (!data) return;
+                        const ext = (data.extended_data as Record<string, unknown>) || {};
+                        ext.campaignType = newType;
+                        const { error } = await supabase
+                          .from('character_saves')
+                          .update({ extended_data: ext })
+                          .eq('id', save.id);
+                        if (error) {
+                          toast.error('Failed to update character type');
+                          return;
+                        }
+                        await fetchSaves();
+                        toast.success(`Marked as ${newType === 'empyrean' ? 'Empyrean' : 'D&D'} character`);
+                      } catch (err) {
+                        console.error('flip campaignType failed:', err);
+                        toast.error('Failed to update character type');
+                      }
+                    }}
+                    className="shrink-0 text-[10px] px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 border border-white/10"
+                    style={{ touchAction: 'manipulation' }}
+                    title="Tap to change campaign type"
+                  >
+                    {save.preview?.campaignType === 'empyrean' ? '🔥 Empyrean' : '⚔️ D&D'}
+                  </button>
+                </div>
+                <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                  <span>HP {save.preview?.currentHP ?? '-'}/{save.preview?.maxHP ?? '-'}</span>
+                  <span>·</span>
+                  <span>AC {save.preview?.ac ?? '-'}</span>
+                  <span>·</span>
+                  <span>{save.preview?.gold ?? 0}g</span>
+                </div>
+                {save.updatedAt && (
+                  <p className="text-[10px] text-muted-foreground/60 mt-1.5">
+                    Updated {new Date(save.updatedAt).toLocaleDateString()}
+                  </p>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
