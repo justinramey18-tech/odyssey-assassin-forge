@@ -143,6 +143,7 @@ export function SettingsContent({
   const [showSoloConfirmSettings, setShowSoloConfirmSettings] = useState(false);
   const [showEmpyreanPack, setShowEmpyreanPack] = useState(false);
   const [showEmpyreanPrompts, setShowEmpyreanPrompts] = useState(false);
+  const showEmpyreanSections = appMode === 'empyrean' || appMode === 'fullAccess';
   
   const auth = useAuth();
   const gmGuides = useGMGuides();
@@ -529,7 +530,7 @@ export function SettingsContent({
           </SettingsSection>
 
           <SettingsSection title="Campaign & Prompts">
-            {(EMPYREAN_FEATURE_FLAGS.showCampaignPack || EMPYREAN_FEATURE_FLAGS.showPromptLibrary) && (
+            {showEmpyreanSections && (EMPYREAN_FEATURE_FLAGS.showCampaignPack || EMPYREAN_FEATURE_FLAGS.showPromptLibrary) && (
               <div className="flex gap-2 mb-4">
                 {EMPYREAN_FEATURE_FLAGS.showCampaignPack && (
                   <Button variant="outline" size="sm" onClick={() => setShowEmpyreanPack(true)} className="flex-1 gap-2 h-10 border-amber-500/30 hover:bg-amber-500/10 text-amber-400">
@@ -578,19 +579,23 @@ export function SettingsContent({
           )}
 
           {/* Empyrean drawers */}
-          <EmpyreanCampaignPack
-            open={showEmpyreanPack}
-            onOpenChange={setShowEmpyreanPack}
-            guides={gmGuides.guides}
-            addGuide={gmGuides.addGuide}
-            deleteGuide={gmGuides.deleteGuide}
-            updateGuide={gmGuides.updateGuide}
-          />
-          <EmpyreanPromptLibrary
-            open={showEmpyreanPrompts}
-            onOpenChange={setShowEmpyreanPrompts}
-            characterName={characterName}
-          />
+          {showEmpyreanSections && (
+            <>
+              <EmpyreanCampaignPack
+                open={showEmpyreanPack}
+                onOpenChange={setShowEmpyreanPack}
+                guides={gmGuides.guides}
+                addGuide={gmGuides.addGuide}
+                deleteGuide={gmGuides.deleteGuide}
+                updateGuide={gmGuides.updateGuide}
+              />
+              <EmpyreanPromptLibrary
+                open={showEmpyreanPrompts}
+                onOpenChange={setShowEmpyreanPrompts}
+                characterName={characterName}
+              />
+            </>
+          )}
         </div>
       </div>
     );
