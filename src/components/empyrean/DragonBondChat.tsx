@@ -24,7 +24,7 @@ import {
   type DragonBondState,
   type DragonMood,
 } from '@/lib/dragonBondState';
-import { computeTrustDelta } from '@/lib/bondTrust';
+import { computeTrustDelta, parseAITrustTag, reconcileAITrust } from '@/lib/bondTrust';
 import type { CharacterContext } from '@/components/oracle/types';
 
 interface DragonBondChatProps {
@@ -98,6 +98,9 @@ export default function DragonBondChat({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
+  // Most recent player message — read by handleMessageComplete so the
+  // trust judgement can use the SAME text the dragon was replying to.
+  const lastPlayerMessageRef = useRef<string>('');
   const moodDurationRef = useRef<number>(0);
   const validTransitionsRef = useRef<DragonMood[]>([bondState.mood]);
   const recommendedMoodRef = useRef<DragonMood>(bondState.mood);
@@ -190,7 +193,7 @@ export default function DragonBondChat({
         updated = { ...updated, speechHabits: currentHabits.slice(-5) };
       }
 
-      // Increment chat counts
+      // Increment chat counts FIRST so trust math sees the post-exchange count.
       updated = {
         ...updated,
         totalChatExchanges: updated.totalChatExchanges + 1,
@@ -198,11 +201,52 @@ export default function DragonBondChat({
         lastContactTimestamp: new Date().toISOString(),
       };
 
+      // ── TRUST: prefer AI-judged signal, fall back to keyword scoring ──
+      const playerMessage = lastPlayerMessageRef.current || '';
+      const aiSignal = parseAITrustTag(content);
+      // Always classify emotion via keyword pass so the emotional log stays
+      // consistent regardless of which trust path fires.
+      const keywordResult = computeTrustDelta({
+        message: playerMessage,
+        totalChatExchanges: updated.totalChatExchanges,
+        bond: updated.bond ?? 15,
+      });
+
+      let trustDelta = 0;
+      let trustBreakBroken = false;
+      if (aiSignal) {
+        const reconciled = reconcileAITrust(aiSignal, playerMessage);
+        trustDelta = reconciled.trustDelta;
+        trustBreakBroken = reconciled.trustBreak.broken;
+      } else {
+        trustDelta = keywordResult.trustDelta;
+        trustBreakBroken = keywordResult.trustBreak.broken;
+      }
+
+      if (trustDelta > 0) {
+        updated = addTrust(updated, trustDelta);
+      } else if (trustDelta < 0) {
+        updated = reduceTrust(updated, Math.abs(trustDelta));
+        if (trustBreakBroken) {
+          updated = { ...updated, mood: 'distant' as DragonMood };
+        }
+      }
+
+      const emotionalLog = [...(updated.riderEmotionalLog || []), { tag: keywordResult.emotionTag, timestamp: new Date().toISOString() }].slice(-15);
+      updated = { ...updated, riderEmotionalLog: emotionalLog };
+
+      // Detect rider declarations from the player message (independent of AI tag).
+      const declaration = detectRiderDeclaration(playerMessage);
+      if (declaration) {
+        updated = addMemory(updated, declaration, 'rider-said');
+      }
+
       setBondState(updated);
       saveBondState(updated);
     },
-    [bondState],
+    [bondState, dragonName],
   );
+
 
   const handleDeleteMemory = useCallback((memoryId: string) => {
     setBondState(prev => {
@@ -310,39 +354,13 @@ export default function DragonBondChat({
   const handleSend = useCallback(() => {
     if (!inputValue.trim() || isLoading) return;
     const text = inputValue.trim();
-
-    // ── Trust scoring (delegated to shared module) ──
-    setBondState(prev => {
-      let state = { ...prev };
-      const result = computeTrustDelta({
-        message: text,
-        totalChatExchanges: state.totalChatExchanges,
-        bond: state.bond ?? 15,
-      });
-      const { trustDelta } = result;
-
-      if (trustDelta > 0) {
-        state = addTrust(state, trustDelta);
-      } else if (trustDelta < 0) {
-        state = reduceTrust(state, Math.abs(trustDelta));
-        state = { ...state, mood: 'distant' as DragonMood };
-      }
-
-      const emotionalLog = [...(state.riderEmotionalLog || []), { tag: result.emotionTag, timestamp: new Date().toISOString() }].slice(-15);
-      state = { ...state, riderEmotionalLog: emotionalLog };
-
-      const declaration = detectRiderDeclaration(text);
-      if (declaration) {
-        state = addMemory(state, declaration, 'rider-said');
-      }
-
-      saveBondState(state);
-      return state;
-    });
-
+    // Stash for handleMessageComplete so trust/declaration logic can run
+    // against the exact message the dragon is replying to.
+    lastPlayerMessageRef.current = text;
     sendMessage(text);
     setInputValue('');
   }, [inputValue, isLoading, sendMessage]);
+
 
 
   const handleKeyDown = useCallback(

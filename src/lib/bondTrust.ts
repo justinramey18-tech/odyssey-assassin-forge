@@ -86,3 +86,61 @@ export function computeTrustDelta(input: TrustComputeInput): TrustComputeResult 
     trustBreak,
   };
 }
+
+// ──────────────────────────────────────────────────────────────────────
+// AI-judged trust (preferred path). The dragon-chat AI may emit a tag
+// like:   <!--TRUST:+2:shared a real fear-->
+// This module parses, clamps, and merges that signal with the keyword
+// trust-break safety net. computeTrustDelta() above remains the fallback
+// whenever the AI signal is absent.
+// ──────────────────────────────────────────────────────────────────────
+
+export interface AITrustSignal {
+  /** Raw delta from the AI, will be clamped. */
+  trustDelta: number;
+  reason: string;
+}
+
+/** AI may return -3..+3 per exchange. We allow trust-break to push lower
+ *  (down to -5) but never let positive runaway above +3. */
+export function clampAITrust(delta: number): number {
+  if (!Number.isFinite(delta)) return 0;
+  return Math.max(-5, Math.min(3, Math.round(delta)));
+}
+
+/** Parse the hidden <!--TRUST:+N:reason--> tag from a dragon reply.
+ *  Returns null if no tag is present. */
+export function parseAITrustTag(content: string): AITrustSignal | null {
+  if (!content) return null;
+  const m = content.match(/<!--\s*TRUST\s*:\s*([+-]?\d+)\s*:\s*(.*?)\s*-->/i);
+  if (!m) return null;
+  const raw = parseInt(m[1], 10);
+  if (!Number.isFinite(raw)) return null;
+  return { trustDelta: raw, reason: (m[2] || '').trim() || 'the dragon weighed your words' };
+}
+
+/** Strip the trust tag from a string so it never reaches the user. */
+export function stripAITrustTag(content: string): string {
+  return content.replace(/<!--\s*TRUST\s*:\s*[+-]?\d+\s*:.*?-->/gi, '');
+}
+
+/**
+ * Merge an AI-judged trust delta with the keyword trust-break safety net.
+ * If the message is clearly hostile, take the MORE negative of the two so
+ * the AI cannot under-judge cruelty.
+ */
+export function reconcileAITrust(
+  aiSignal: AITrustSignal,
+  playerMessage: string,
+): { trustDelta: number; reason: string; trustBreak: ReturnType<typeof detectTrustBreak> } {
+  const clamped = clampAITrust(aiSignal.trustDelta);
+  const trustBreak = detectTrustBreak(playerMessage);
+  if (trustBreak.broken) {
+    const keywordDelta = -trustBreak.severity;
+    if (keywordDelta < clamped) {
+      return { trustDelta: keywordDelta, reason: trustBreak.reason, trustBreak };
+    }
+  }
+  return { trustDelta: clamped, reason: aiSignal.reason, trustBreak };
+}
+
