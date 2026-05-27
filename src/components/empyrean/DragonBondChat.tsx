@@ -354,39 +354,13 @@ export default function DragonBondChat({
   const handleSend = useCallback(() => {
     if (!inputValue.trim() || isLoading) return;
     const text = inputValue.trim();
-
-    // ── Trust scoring (delegated to shared module) ──
-    setBondState(prev => {
-      let state = { ...prev };
-      const result = computeTrustDelta({
-        message: text,
-        totalChatExchanges: state.totalChatExchanges,
-        bond: state.bond ?? 15,
-      });
-      const { trustDelta } = result;
-
-      if (trustDelta > 0) {
-        state = addTrust(state, trustDelta);
-      } else if (trustDelta < 0) {
-        state = reduceTrust(state, Math.abs(trustDelta));
-        state = { ...state, mood: 'distant' as DragonMood };
-      }
-
-      const emotionalLog = [...(state.riderEmotionalLog || []), { tag: result.emotionTag, timestamp: new Date().toISOString() }].slice(-15);
-      state = { ...state, riderEmotionalLog: emotionalLog };
-
-      const declaration = detectRiderDeclaration(text);
-      if (declaration) {
-        state = addMemory(state, declaration, 'rider-said');
-      }
-
-      saveBondState(state);
-      return state;
-    });
-
+    // Stash for handleMessageComplete so trust/declaration logic can run
+    // against the exact message the dragon is replying to.
+    lastPlayerMessageRef.current = text;
     sendMessage(text);
     setInputValue('');
   }, [inputValue, isLoading, sendMessage]);
+
 
 
   const handleKeyDown = useCallback(
