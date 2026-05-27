@@ -259,6 +259,9 @@ export function EmpyreanDMScreen({
   const [burnoutLevel, setBurnoutLevel] = useState(0);
   const burnoutLevelRef = useRef(burnoutLevel);
   useEffect(() => { burnoutLevelRef.current = burnoutLevel; }, [burnoutLevel]);
+  const [armedSignetIntensity, setArmedSignetIntensity] = useState<number | null>(null);
+  const signetUsedThisRoundRef = useRef(false);
+  const lastProcessedMsgIdRef = useRef<string | null>(null);
   const [currentSituation, setCurrentSituation] = useState<string>('exploration');
   const [dragonNotes, setDragonNotes] = useState(() => loadDragonNotes());
   const [initialSent, setInitialSent] = useState(false);
