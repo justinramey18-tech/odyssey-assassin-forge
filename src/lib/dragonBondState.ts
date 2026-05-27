@@ -482,7 +482,20 @@ When you experience strong emotion during this exchange — pride, fury, protect
 <!--BOND_SENSE:a brief physical description of what the rider feels through the bond-->
 Examples: <!--BOND_SENSE:A flash of heat across your shoulders, phantom scales prickling--> or <!--BOND_SENSE:Cold emptiness where warmth should be-->
 ` : ''}
-You may include one mood tag and zero or more memory/habit/sensation tags per response. Place them at the very end.`);
+You may include one mood tag and zero or more memory/habit/sensation tags per response. Place them at the very end.
+
+After your reply, judge the emotional sincerity and weight of the RIDER'S last message (not your own reply, not message length) and append exactly one trust tag on its own line at the very end:
+<!--TRUST:+N:short reason-->
+Where N is an integer from -3 to +3:
+  +3 = profound vulnerability, sacrifice, or unguarded loyalty
+  +2 = a real fear shared, a sincere apology, a moment of genuine care
+  +1 = warm, curious, or honestly engaged
+   0 = neutral, transactional, small talk
+  -1 = dismissive, cold, or curt
+  -2 = manipulative, condescending, or treating you as a tool
+  -3 = openly hostile, cruel, or betraying
+Judge intent and sincerity, not vocabulary. A heartfelt sentence with no "trust"/"thank you" keywords still earns +2 or +3.
+Examples: <!--TRUST:+2:shared a real fear-->  <!--TRUST:0:gave an order coldly-->  <!--TRUST:-2:treated me like a mount-->`);
 
   return sections.join('\n\n');
 }
