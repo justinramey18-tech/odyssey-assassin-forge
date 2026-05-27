@@ -483,19 +483,36 @@ async function getCharacterData(userId: string, supabase: ReturnType<typeof crea
   return data;
 }
 
-async function getUserIdFromChat(chatId: number, supabase: ReturnType<typeof createClient>): Promise<string | null> {
-  const { data } = await supabase
+async function getUserIdFromChat(
+  chatId: number,
+  senderId: number | null,
+  supabase: ReturnType<typeof createClient>,
+): Promise<string | null> {
+  // Primary: resolve by individual Telegram sender id (correct in group chats).
+  if (senderId != null) {
+    const { data: bySender } = await supabase
+      .from('telegram_user_links')
+      .select('user_id')
+      .eq('telegram_user_id', senderId)
+      .maybeSingle();
+    if (bySender?.user_id) return bySender.user_id;
+  }
+  // Fallback: legacy rows that predate per-sender identity (telegram_user_id IS NULL).
+  // Only safe in a 1:1 DM chat where chat_id maps to exactly one user.
+  const { data: byChat } = await supabase
     .from('telegram_user_links')
     .select('user_id')
     .eq('chat_id', chatId)
-    .maybeSingle();
-  return data?.user_id || null;
+    .is('telegram_user_id', null);
+  if (byChat && byChat.length === 1) return byChat[0].user_id;
+  return null;
 }
 
 // ── Command processor ────────────────────────────────────────────────────────
 
 async function processCommand(
   chatId: number,
+  senderId: number | null,
   text: string,
   username: string | null,
   supabase: ReturnType<typeof createClient>,
@@ -656,6 +673,10 @@ async function processCommand(
       await sendTelegram(chatId, '❌ Usage: /link YOUR_CODE', lovableKey, telegramKey);
       return;
     }
+    if (senderId == null) {
+      await sendTelegram(chatId, '❌ Could not read your Telegram identity. Try sending the command again.', lovableKey, telegramKey);
+      return;
+    }
     const { data: linkCode } = await supabase
       .from('telegram_link_codes')
       .select('*')
@@ -666,20 +687,22 @@ async function processCommand(
       await sendTelegram(chatId, '❌ Invalid or expired code. Generate a new one in Settings → Telegram.', lovableKey, telegramKey);
       return;
     }
-    // Check if this chat is already linked (to any user — chat_id has a UNIQUE constraint)
+    // Identify the linking row by the individual sender, not the (possibly shared) chat.
     const { data: existingLink } = await supabase
       .from('telegram_user_links')
       .select('id, user_id')
-      .eq('chat_id', chatId)
+      .eq('telegram_user_id', senderId)
       .maybeSingle();
 
     let linkErr;
     if (existingLink) {
-      // Chat already linked — update to point to the new user (re-link scenario)
+      // Sender already linked — update (re-link or moved to a new chat)
       const { error } = await supabase
         .from('telegram_user_links')
         .update({
           user_id: linkCode.user_id,
+          telegram_user_id: senderId,
+          chat_id: chatId,
           username: username || null,
           linked_at: new Date().toISOString(),
           notify_modes: ['solo', 'party', 'empyrean'],
@@ -692,6 +715,7 @@ async function processCommand(
         .from('telegram_user_links')
         .insert({
           user_id: linkCode.user_id,
+          telegram_user_id: senderId,
           chat_id: chatId,
           username: username || null,
           linked_at: new Date().toISOString(),
@@ -714,13 +738,18 @@ async function processCommand(
 
   // /unlink
   if (cmd === '/unlink') {
-    const { error } = await supabase.from('telegram_user_links').delete().eq('chat_id', chatId);
+    // Prefer deleting the specific sender's link; fall back to legacy chat-only rows.
+    const query = senderId != null
+      ? supabase.from('telegram_user_links').delete().eq('telegram_user_id', senderId)
+      : supabase.from('telegram_user_links').delete().eq('chat_id', chatId).is('telegram_user_id', null);
+    const { error } = await query;
     await sendTelegram(chatId,
       error ? '❌ Failed to unlink.' : '✅ Account unlinked.',
       lovableKey, telegramKey,
     );
     return;
   }
+
 
   // /status
   if (cmd === '/status') {
@@ -763,7 +792,7 @@ async function processCommand(
 
   // /mode [solo|party|empyrean]
   if (cmd === '/mode' || cmd.startsWith('/mode ')) {
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
 
     const modeArg = parts[1]?.toLowerCase();
@@ -837,7 +866,7 @@ async function processCommand(
 
   // /character
   if (cmd === '/character') {
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
     const save = await getCharacterData(userId, supabase);
     if (!save) { await sendTelegram(chatId, '❌ No character found. Create one in the app first.', lovableKey, telegramKey); return; }
@@ -880,7 +909,7 @@ async function processCommand(
 
   // /stats
   if (cmd === '/stats') {
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
     const save = await getCharacterData(userId, supabase);
     if (!save) { await sendTelegram(chatId, '❌ No character found.', lovableKey, telegramKey); return; }
@@ -905,7 +934,7 @@ async function processCommand(
 
   // /hp
   if (cmd === '/hp') {
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
     const save = await getCharacterData(userId, supabase);
     if (!save) { await sendTelegram(chatId, '❌ No character found.', lovableKey, telegramKey); return; }
@@ -930,7 +959,7 @@ async function processCommand(
 
   // /slots
   if (cmd === '/slots') {
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
     const save = await getCharacterData(userId, supabase);
     if (!save) { await sendTelegram(chatId, '❌ No character found.', lovableKey, telegramKey); return; }
@@ -953,7 +982,7 @@ async function processCommand(
 
   // /dragon [NAME]
   if (cmd === '/dragon' || cmd.startsWith('/dragon ')) {
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
 
     const dragonNameArg = parts.slice(1).join(' ').trim();
@@ -1130,7 +1159,7 @@ async function processCommand(
       await sendTelegram(chatId, '❌ Usage:\n<code>/bond How are you feeling?</code>\n<code>/bond Gwen, what do you think?</code>\n\nIf you have multiple dragons, prefix with the name:\n<code>/bond:solo How are you?</code>\n<code>/bond:party How are you?</code>', lovableKey, telegramKey);
       return;
     }
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
 
     // Determine source filter from /bond:solo or /bond:party, or use active mode
@@ -1309,7 +1338,7 @@ async function processCommand(
 
   // /party
   if (cmd === '/party') {
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
 
     const { data: memberships } = await supabase
@@ -1402,7 +1431,7 @@ async function processCommand(
 
   // /ready [optional prompt text]
   if (cmd === '/ready' || cmd.startsWith('/ready ')) {
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
     const mode = await getActiveMode(chatId, supabase);
     if (mode !== 'party') {
@@ -1529,7 +1558,7 @@ async function processCommand(
       await sendTelegram(chatId, '❌ Usage: /damage 15', lovableKey, telegramKey);
       return;
     }
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first.', lovableKey, telegramKey); return; }
     const save = await getCharacterData(userId, supabase);
     if (!save) { await sendTelegram(chatId, '❌ No character found.', lovableKey, telegramKey); return; }
@@ -1568,7 +1597,7 @@ async function processCommand(
       await sendTelegram(chatId, '❌ Usage: /heal 10', lovableKey, telegramKey);
       return;
     }
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first.', lovableKey, telegramKey); return; }
     const save = await getCharacterData(userId, supabase);
     if (!save) { await sendTelegram(chatId, '❌ No character found.', lovableKey, telegramKey); return; }
@@ -1599,7 +1628,7 @@ async function processCommand(
       await sendTelegram(chatId, '❌ Usage: /cast 3 (spell level 1-9)', lovableKey, telegramKey);
       return;
     }
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first.', lovableKey, telegramKey); return; }
     const save = await getCharacterData(userId, supabase);
     if (!save) { await sendTelegram(chatId, '❌ No character found.', lovableKey, telegramKey); return; }
@@ -1637,7 +1666,7 @@ async function processCommand(
 
   // /initiative
   if (cmd === '/initiative') {
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first.', lovableKey, telegramKey); return; }
     const save = await getCharacterData(userId, supabase);
     if (!save) { await sendTelegram(chatId, '❌ No character found.', lovableKey, telegramKey); return; }
@@ -1656,7 +1685,7 @@ async function processCommand(
 
   // /quests [mode]
   if (cmd === '/quests' || cmd.startsWith('/quests ')) {
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first.', lovableKey, telegramKey); return; }
 
     const modeFilter = parts[1]?.toLowerCase();
@@ -1772,7 +1801,7 @@ async function processCommand(
 
   // /recap
   if (cmd === '/recap') {
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first.', lovableKey, telegramKey); return; }
     const mode = await getActiveMode(chatId, supabase);
 
@@ -1863,7 +1892,7 @@ async function processCommand(
 
   // /spells — List prepared and known spells
   if (cmd === '/spells') {
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
     const save = await getCharacterData(userId, supabase);
     if (!save) { await sendTelegram(chatId, '❌ No character found.', lovableKey, telegramKey); return; }
@@ -1908,7 +1937,7 @@ async function processCommand(
 
   // /last — Show the last DM narrative message (mode-aware)
   if (cmd === '/last') {
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
     const mode = await getActiveMode(chatId, supabase);
 
@@ -1981,7 +2010,7 @@ async function processCommand(
 
   // /scene — AI-generated "where are we right now" summary (mode-aware)
   if (cmd === '/scene') {
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
     const mode = await getActiveMode(chatId, supabase);
 
@@ -2039,7 +2068,7 @@ async function processCommand(
       await sendTelegram(chatId, '❌ Usage: /who Rhiannon', lovableKey, telegramKey);
       return;
     }
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
     const mode = await getActiveMode(chatId, supabase);
 
@@ -2115,7 +2144,7 @@ async function processCommand(
       await sendTelegram(chatId, '❌ Usage: /ask Can I use my signet ability underwater?', lovableKey, telegramKey);
       return;
     }
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
     const mode = await getActiveMode(chatId, supabase);
     const save = await getCharacterData(userId, supabase);
@@ -2180,7 +2209,7 @@ async function processCommand(
 
   // /suggest — AI tactical suggestions (mode-aware)
   if (cmd === '/suggest') {
-    const userId = await getUserIdFromChat(chatId, supabase);
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
     const mode = await getActiveMode(chatId, supabase);
     const save = await getCharacterData(userId, supabase);
@@ -2375,6 +2404,7 @@ Deno.serve(async (req) => {
       if (msg?.text && msg.text.startsWith('/')) {
         await processCommand(
           msg.chat.id,
+          msg.from?.id ?? null,
           msg.text,
           msg.from?.username || null,
           supabase,

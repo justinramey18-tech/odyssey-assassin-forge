@@ -1656,6 +1656,7 @@ export type Database = {
           notify_ready_up: boolean
           notify_timer: boolean
           telegram_active_mode: string
+          telegram_user_id: number | null
           user_id: string
           username: string | null
         }
@@ -1671,6 +1672,7 @@ export type Database = {
           notify_ready_up?: boolean
           notify_timer?: boolean
           telegram_active_mode?: string
+          telegram_user_id?: number | null
           user_id: string
           username?: string | null
         }
@@ -1686,6 +1688,7 @@ export type Database = {
           notify_ready_up?: boolean
           notify_timer?: boolean
           telegram_active_mode?: string
+          telegram_user_id?: number | null
           user_id?: string
           username?: string | null
         }
