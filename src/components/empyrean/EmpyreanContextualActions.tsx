@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { ChevronDown, ChevronUp, Sparkles, Loader2, ArrowLeft } from 'lucide-react';
+import { SignetIntensitySelector } from './SignetIntensitySelector';
 
 const LONG_PRESS_MS = 450;
 
