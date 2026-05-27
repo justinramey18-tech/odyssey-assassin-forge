@@ -483,19 +483,36 @@ async function getCharacterData(userId: string, supabase: ReturnType<typeof crea
   return data;
 }
 
-async function getUserIdFromChat(chatId: number, supabase: ReturnType<typeof createClient>): Promise<string | null> {
-  const { data } = await supabase
+async function getUserIdFromChat(
+  chatId: number,
+  senderId: number | null,
+  supabase: ReturnType<typeof createClient>,
+): Promise<string | null> {
+  // Primary: resolve by individual Telegram sender id (correct in group chats).
+  if (senderId != null) {
+    const { data: bySender } = await supabase
+      .from('telegram_user_links')
+      .select('user_id')
+      .eq('telegram_user_id', senderId)
+      .maybeSingle();
+    if (bySender?.user_id) return bySender.user_id;
+  }
+  // Fallback: legacy rows that predate per-sender identity (telegram_user_id IS NULL).
+  // Only safe in a 1:1 DM chat where chat_id maps to exactly one user.
+  const { data: byChat } = await supabase
     .from('telegram_user_links')
     .select('user_id')
     .eq('chat_id', chatId)
-    .maybeSingle();
-  return data?.user_id || null;
+    .is('telegram_user_id', null);
+  if (byChat && byChat.length === 1) return byChat[0].user_id;
+  return null;
 }
 
 // ── Command processor ────────────────────────────────────────────────────────
 
 async function processCommand(
   chatId: number,
+  senderId: number | null,
   text: string,
   username: string | null,
   supabase: ReturnType<typeof createClient>,
