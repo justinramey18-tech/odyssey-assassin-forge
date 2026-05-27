@@ -14,6 +14,7 @@ export interface CloudSavePreview {
   proficiencies?: number;
   hasInspiration?: boolean;
   empyreanStatus?: string;
+  campaignType?: 'dnd' | 'empyrean';
 }
 
 export interface CloudSave {
