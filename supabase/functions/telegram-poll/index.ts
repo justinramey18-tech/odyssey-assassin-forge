@@ -673,6 +673,10 @@ async function processCommand(
       await sendTelegram(chatId, '❌ Usage: /link YOUR_CODE', lovableKey, telegramKey);
       return;
     }
+    if (senderId == null) {
+      await sendTelegram(chatId, '❌ Could not read your Telegram identity. Try sending the command again.', lovableKey, telegramKey);
+      return;
+    }
     const { data: linkCode } = await supabase
       .from('telegram_link_codes')
       .select('*')
@@ -683,20 +687,22 @@ async function processCommand(
       await sendTelegram(chatId, '❌ Invalid or expired code. Generate a new one in Settings → Telegram.', lovableKey, telegramKey);
       return;
     }
-    // Check if this chat is already linked (to any user — chat_id has a UNIQUE constraint)
+    // Identify the linking row by the individual sender, not the (possibly shared) chat.
     const { data: existingLink } = await supabase
       .from('telegram_user_links')
       .select('id, user_id')
-      .eq('chat_id', chatId)
+      .eq('telegram_user_id', senderId)
       .maybeSingle();
 
     let linkErr;
     if (existingLink) {
-      // Chat already linked — update to point to the new user (re-link scenario)
+      // Sender already linked — update (re-link or moved to a new chat)
       const { error } = await supabase
         .from('telegram_user_links')
         .update({
           user_id: linkCode.user_id,
+          telegram_user_id: senderId,
+          chat_id: chatId,
           username: username || null,
           linked_at: new Date().toISOString(),
           notify_modes: ['solo', 'party', 'empyrean'],
@@ -709,6 +715,7 @@ async function processCommand(
         .from('telegram_user_links')
         .insert({
           user_id: linkCode.user_id,
+          telegram_user_id: senderId,
           chat_id: chatId,
           username: username || null,
           linked_at: new Date().toISOString(),
