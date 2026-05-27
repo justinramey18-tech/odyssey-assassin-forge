@@ -98,6 +98,9 @@ export default function DragonBondChat({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
+  // Most recent player message — read by handleMessageComplete so the
+  // trust judgement can use the SAME text the dragon was replying to.
+  const lastPlayerMessageRef = useRef<string>('');
   const moodDurationRef = useRef<number>(0);
   const validTransitionsRef = useRef<DragonMood[]>([bondState.mood]);
   const recommendedMoodRef = useRef<DragonMood>(bondState.mood);
