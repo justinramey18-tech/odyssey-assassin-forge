@@ -690,45 +690,32 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         updatedDragon = { ...updatedDragon, speechHabits: currentHabits.slice(-5) };
       }
 
-      // Process trust from player message
-      const newSessionCount = sessionChatCount + 1;
-      setSessionChatCount(newSessionCount);
-      const bondLevel = myDragon.bond ?? 15;
-      const effectiveChatCap = bondLevel >= 76 ? 12 : bondLevel >= 51 ? 9 : bondLevel >= 26 ? 7 : 5;
-      let trustDelta = newSessionCount <= effectiveChatCap ? 1 : 0;
+      // Process trust from player message (shared computation)
+      const result = computeTrustDelta({
+        message: text,
+        totalChatExchanges: (myDragon.totalChatExchanges ?? 0),
+        bond: myDragon.bond ?? 15,
+      });
+      const trustDelta = result.trustDelta;
 
-      const questionMatch = matchesAny(text, QUESTION_PATTERNS);
-      const gratitudeMatch = matchesAny(text, GRATITUDE_PATTERNS);
-      const vulnerabilityMatch = matchesAny(text, VULNERABILITY_PATTERNS);
-      const autonomyMatch = matchesAny(text, AUTONOMY_PATTERNS);
-
-      if (questionMatch) trustDelta += 1;
-      if (gratitudeMatch) trustDelta += 1;
-      if (vulnerabilityMatch) trustDelta += 2;
-      if (autonomyMatch) trustDelta += 1;
-      trustDelta = Math.min(trustDelta, MAX_TRUST_PER_EXCHANGE);
-
-      const trustBreak = detectTrustBreak(text);
-      if (trustBreak.broken) {
-        trustDelta = -trustBreak.severity;
-        updatedDragon = { ...updatedDragon, mood: 'distant' };
-      }
+      updatedDragon = {
+        ...updatedDragon,
+        totalChatExchanges: (myDragon.totalChatExchanges ?? 0) + 1,
+      };
 
       if (trustDelta !== 0) {
         updatedDragon = {
           ...updatedDragon,
           trust: Math.max(0, Math.min(100, (updatedDragon.trust || 10) + trustDelta)),
         };
+        if (result.trustBreak.broken) {
+          updatedDragon = { ...updatedDragon, mood: 'distant' };
+        }
       }
 
-      // Classify and log rider emotion
-      const emotionTag = classifyRiderEmotion(
-        text,
-        trustBreak,
-        { question: questionMatch, gratitude: gratitudeMatch, vulnerability: vulnerabilityMatch, autonomy: autonomyMatch },
-      );
-      const emotionalLog = [...(updatedDragon.riderEmotionalLog || []), { tag: emotionTag, timestamp: new Date().toISOString() }].slice(-15);
+      const emotionalLog = [...(updatedDragon.riderEmotionalLog || []), { tag: result.emotionTag, timestamp: new Date().toISOString() }].slice(-15);
       updatedDragon = { ...updatedDragon, riderEmotionalLog: emotionalLog };
+
 
       // Detect rider declarations and save as rider-said memories
       const declaration = detectRiderDeclaration(text);
