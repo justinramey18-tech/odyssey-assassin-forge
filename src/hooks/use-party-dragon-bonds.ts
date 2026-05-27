@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { type PartyDragonConfig } from '@/hooks/use-party-dm';
 import { getAuthToken } from '@/lib/auth-token';
 import { buildDragonChatPrompt, addMemory, detectRiderDeclaration, computeMoodPressure, buildConstrainedMoodOptions, type DragonMood, type DragonMemory } from '@/lib/dragonBondState';
-import { computeTrustDelta } from '@/lib/bondTrust';
+import { computeTrustDelta, parseAITrustTag, reconcileAITrust } from '@/lib/bondTrust';
 import { loadSelectedModel } from '@/lib/dm-models';
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
