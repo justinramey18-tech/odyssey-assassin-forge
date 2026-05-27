@@ -2404,6 +2404,7 @@ Deno.serve(async (req) => {
       if (msg?.text && msg.text.startsWith('/')) {
         await processCommand(
           msg.chat.id,
+          msg.from?.id ?? null,
           msg.text,
           msg.from?.username || null,
           supabase,
