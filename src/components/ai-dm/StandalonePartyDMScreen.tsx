@@ -414,6 +414,18 @@ export function StandalonePartyDMScreen({
     enabled: isHost,
   });
 
+  // Sync parties.campaign_type into the active session config (host-only writes).
+  // This fixes legacy multiplayer Empyrean sessions whose sessionConfig was
+  // stuck on 'dnd' due to the long-standing line-301 bug.
+  useEffect(() => {
+    if (!isHost) return;
+    if (!partyDm.isActive) return;
+    const current = partyDm.sessionConfig?.campaignType;
+    if (current !== partyCampaignType) {
+      partyDm.updateSessionConfig({ campaignType: partyCampaignType });
+    }
+  }, [isHost, partyDm.isActive, partyDm.sessionConfig?.campaignType, partyCampaignType, partyDm.updateSessionConfig]);
+
   // Campaign Builder completion handler
   const handleCampaignBuilderComplete = useCallback(async (data: CampaignBuildData) => {
     setShowCampaignBuilder(false);
