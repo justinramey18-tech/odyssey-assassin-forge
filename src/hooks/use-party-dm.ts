@@ -1333,7 +1333,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       if (isEmpyrean && partyDragonConfigs) {
         const dc = partyDragonConfigs.find(d => d.userId === m.user_id);
         if (dc) {
-          line += ` | Dragon: ${dc.config.dragonName}, Signet: ${dc.config.signetType || 'unknown'}, Bond: ${getBondDescriptor(dc.config.bond)}, Burnout: ${dc.config.burnout}/${dc.config.bond >= 76 ? 9 : dc.config.bond >= 51 ? 7 : dc.config.bond >= 26 ? 5 : 4}`;
+          line += ` | Dragon: ${dc.config.dragonName}, Signet: ${dc.config.signetType || 'unknown'}, Bond: ${getBondDescriptor(dc.config.bond)}, Burnout: ${dc.config.burnout}/8`;
         }
       }
       return line;
