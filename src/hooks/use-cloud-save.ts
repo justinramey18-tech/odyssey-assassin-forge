@@ -14,6 +14,7 @@ export interface CloudSavePreview {
   proficiencies?: number;
   hasInspiration?: boolean;
   empyreanStatus?: string;
+  campaignType?: 'dnd' | 'empyrean';
 }
 
 export interface CloudSave {
@@ -73,6 +74,7 @@ export function useCloudSave(userId: string | undefined) {
             : undefined;
           preview.hasInspiration = extData.inspiration as boolean | undefined;
           preview.empyreanStatus = extData.empyreanStatus as string | undefined;
+          preview.campaignType = (extData.campaignType as 'dnd' | 'empyrean' | undefined) || 'dnd';
         }
         if (consumablesData) {
           preview.consumables = consumablesData.reduce((sum, c) => sum + (c.quantity ?? 0), 0);
@@ -141,6 +143,15 @@ export function useCloudSave(userId: string | undefined) {
         }
       }
       extendedData.scopedLocalStorage = scopedLocalStorage;
+
+      // Tag with current app mode if not already set (preserves user overrides)
+      const existingType = extendedData.campaignType as string | undefined;
+      if (!existingType) {
+        const currentAppMode = (typeof window !== 'undefined' && localStorage.getItem('odyssey-app-mode')) || 'fullAccess';
+        extendedData.campaignType = currentAppMode === 'empyrean' ? 'empyrean' : 'dnd';
+      }
+
+
       
       // Prepare data for database (cast to Json type)
       const dbData = {
