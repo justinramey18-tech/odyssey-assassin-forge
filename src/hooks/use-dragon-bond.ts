@@ -66,45 +66,12 @@ export function useDragonBond({ dragonName, characterName, onTrustChange, onBond
         lastContactTimestamp: new Date().toISOString(),
       };
 
-      // Base trust (capped by dynamic session count based on bond level)
-      const bondLevel = state.bond ?? 15;
-      const effectiveChatCap = bondLevel >= 76 ? 12 : bondLevel >= 51 ? 9 : bondLevel >= 26 ? 7 : 5;
-      let trustDelta = state.sessionChatCount <= effectiveChatCap ? 1 : 0;
-      let reason = 'conversation';
-
-      // Bonus patterns
-      const questionMatch = matchesAny(playerMessage, QUESTION_PATTERNS);
-      const gratitudeMatch = matchesAny(playerMessage, GRATITUDE_PATTERNS);
-      const vulnerabilityMatch = matchesAny(playerMessage, VULNERABILITY_PATTERNS);
-      const autonomyMatch = matchesAny(playerMessage, AUTONOMY_PATTERNS);
-
-      if (questionMatch) {
-        trustDelta += 1;
-        reason = 'genuine curiosity';
-      }
-      if (gratitudeMatch) {
-        trustDelta += 1;
-        reason = 'trust and gratitude';
-      }
-      if (vulnerabilityMatch) {
-        trustDelta += 2;
-        reason = 'shared vulnerability';
-      }
-      if (autonomyMatch) {
-        trustDelta += 1;
-        reason = 'respecting autonomy';
-      }
-
-      // Trust-breaking overrides trust-building
-      const trustBreak = detectTrustBreak(playerMessage);
-      if (trustBreak.broken) {
-        trustDelta = -trustBreak.severity;
-        reason = trustBreak.reason;
-        state = { ...state, mood: 'distant' as const };
-      } else {
-        // Cap positive trust
-        trustDelta = Math.min(trustDelta, MAX_TRUST_PER_EXCHANGE);
-      }
+      const result = computeTrustDelta({
+        message: playerMessage,
+        totalChatExchanges: state.totalChatExchanges,
+        bond: state.bond ?? 15,
+      });
+      const { trustDelta, reason } = result;
 
       if (trustDelta > 0) {
         state = addTrust(state, trustDelta);
@@ -112,15 +79,10 @@ export function useDragonBond({ dragonName, characterName, onTrustChange, onBond
       } else if (trustDelta < 0) {
         state = reduceTrust(state, Math.abs(trustDelta));
         onTrustChangeRef.current?.(trustDelta, reason);
+        state = { ...state, mood: 'distant' as const };
       }
 
-      // Classify and log rider emotion
-      const emotionTag = classifyRiderEmotion(
-        playerMessage,
-        trustBreak,
-        { question: questionMatch, gratitude: gratitudeMatch, vulnerability: vulnerabilityMatch, autonomy: autonomyMatch },
-      );
-      const emotionalLog = [...(state.riderEmotionalLog || []), { tag: emotionTag, timestamp: new Date().toISOString() }].slice(-15);
+      const emotionalLog = [...(state.riderEmotionalLog || []), { tag: result.emotionTag, timestamp: new Date().toISOString() }].slice(-15);
       state = { ...state, riderEmotionalLog: emotionalLog };
 
       // Detect rider declarations and save as rider-said memories
@@ -133,6 +95,7 @@ export function useDragonBond({ dragonName, characterName, onTrustChange, onBond
       return state;
     });
   }, []);
+
 
   const processCombatBond = useCallback(() => {
     setBondState(prev => {
