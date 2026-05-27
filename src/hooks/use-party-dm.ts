@@ -1925,6 +1925,42 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         }
       }
 
+      // === Deterministic signet burnout (Empyrean only) ===
+      // Host-side: for each ready player, +signet_intensity (cap 8) if they channeled.
+      // For all other party members with a dragon_bond row, -1 recovery (floor 0).
+      // Burnout is fully app-controlled — the AI does not mutate it.
+      if (sessionConfig.campaignType === 'empyrean' && isCreator) {
+        try {
+          const { data: bondRows } = await (supabase.from('party_shared_state') as any)
+            .select('id, user_id, state_data')
+            .eq('party_id', partyId)
+            .eq('state_type', 'dragon_bond');
+          if (bondRows && bondRows.length > 0) {
+            const intensityByUser = new Map<string, number>();
+            for (const p of readyPrompts) {
+              const intensity = Math.max(0, Math.min(8, (p as any).signet_intensity || 0));
+              if (intensity > 0) intensityByUser.set(p.user_id, intensity);
+            }
+            for (const row of bondRows as Array<{ id: string; user_id: string; state_data: any }>) {
+              const cfg = row.state_data || {};
+              const cur = typeof cfg.burnout === 'number' ? cfg.burnout : 0;
+              const intensity = intensityByUser.get(row.user_id) || 0;
+              const next = intensity > 0
+                ? Math.min(8, cur + intensity)
+                : Math.max(0, cur - 1);
+              if (next !== cur) {
+                await (supabase.from('party_shared_state') as any)
+                  .update({ state_data: { ...cfg, burnout: next }, updated_at: new Date().toISOString() })
+                  .eq('id', row.id);
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('[PartyDM] Failed to apply deterministic burnout:', err);
+        }
+      }
+
+
       // Clear prompts and start new round
       // In split mode: always clear (no draft review step) and only clear the team that generated
       // In normal mode: skip clearing in ai-approval (deferred to approveDraft)
