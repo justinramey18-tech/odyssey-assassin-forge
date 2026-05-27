@@ -738,13 +738,18 @@ async function processCommand(
 
   // /unlink
   if (cmd === '/unlink') {
-    const { error } = await supabase.from('telegram_user_links').delete().eq('chat_id', chatId);
+    // Prefer deleting the specific sender's link; fall back to legacy chat-only rows.
+    const query = senderId != null
+      ? supabase.from('telegram_user_links').delete().eq('telegram_user_id', senderId)
+      : supabase.from('telegram_user_links').delete().eq('chat_id', chatId).is('telegram_user_id', null);
+    const { error } = await query;
     await sendTelegram(chatId,
       error ? '❌ Failed to unlink.' : '✅ Account unlinked.',
       lovableKey, telegramKey,
     );
     return;
   }
+
 
   // /status
   if (cmd === '/status') {
