@@ -4,15 +4,14 @@ import {
   saveBondState,
   addTrust,
   reduceTrust,
-  detectTrustBreak,
   detectRiderDeclaration,
-  classifyRiderEmotion,
   addBond,
   addMemory,
   DEFAULT_TRUST,
   DEFAULT_BOND,
   type DragonBondState,
 } from '@/lib/dragonBondState';
+import { computeTrustDelta } from '@/lib/bondTrust';
 import { isEllieEasterEgg } from '@/lib/easter-eggs';
 
 interface UseDragonBondOptions {
@@ -22,32 +21,7 @@ interface UseDragonBondOptions {
   onBondChange?: (delta: number, reason: string) => void;
 }
 
-// Trust-building keyword patterns
-const QUESTION_PATTERNS = [
-  'how do you feel', 'what do you think', 'are you okay',
-  'tell me about', 'what do you remember', 'do you want', 'how are you',
-];
-const GRATITUDE_PATTERNS = [
-  'i trust you', 'thank you', "i'm glad", 'i appreciate',
-  'you were right', "i'm sorry",
-];
-const VULNERABILITY_PATTERNS = [
-  "i'm afraid", "i'm scared", "i don't know",
-  'i need help', 'i failed', "i'm worried",
-];
-const AUTONOMY_PATTERNS = [
-  'what would you prefer', 'your choice',
-  "i won't force you", 'you decide',
-];
-
-function matchesAny(text: string, patterns: string[]): boolean {
-  const lower = text.toLowerCase();
-  return patterns.some(p => lower.includes(p));
-}
-
 const DECAY_DAYS = 7;
-const SESSION_CHAT_CAP = 5;
-const MAX_TRUST_PER_EXCHANGE = 4;
 
 export function useDragonBond({ dragonName, characterName, onTrustChange, onBondChange }: UseDragonBondOptions) {
   const [bondState, setBondState] = useState<DragonBondState>(() => {
