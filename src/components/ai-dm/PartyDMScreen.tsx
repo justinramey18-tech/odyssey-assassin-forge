@@ -1220,6 +1220,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [isUploadingAudio, setIsUploadingAudio] = useState(false);
   const [showAudioRecorder, setShowAudioRecorder] = useState(false);
   const [showPollCreator, setShowPollCreator] = useState(false);
+  const [armedSignetIntensity, setArmedSignetIntensity] = useState<number | null>(null);
 
   // Detect if the page was killed during a file picker operation (common on mobile)
   useEffect(() => {
