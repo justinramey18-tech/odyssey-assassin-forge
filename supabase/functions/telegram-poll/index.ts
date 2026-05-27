@@ -1551,6 +1551,98 @@ async function processCommand(
     return;
   }
 
+  // /retract — remove the player's readied prompt for the current round
+  if (cmd === '/retract' || cmd === '/unready' || cmd === '/cancel') {
+    const userId = await getUserIdFromChat(chatId, senderId, supabase);
+    if (!userId) { await sendTelegram(chatId, '🔗 Link your account first with /link CODE', lovableKey, telegramKey); return; }
+
+    const mode = await getActiveMode(chatId, supabase);
+    if (mode !== 'party') {
+      await sendTelegram(chatId, `↩️ Retract is only available in party mode. Your current mode is <b>${mode}</b>.`, lovableKey, telegramKey);
+      return;
+    }
+
+    const { data: memberships } = await supabase
+      .from('party_members')
+      .select('party_id, character_name')
+      .eq('user_id', userId);
+
+    if (!memberships || memberships.length === 0) {
+      await sendTelegram(chatId, '👥 You are not in any party.', lovableKey, telegramKey);
+      return;
+    }
+
+    let activePartyId: string | null = null;
+    let characterName = 'Unknown';
+    let currentRoundId: string | null = null;
+
+    for (const m of memberships) {
+      const { data: sessionState } = await supabase
+        .from('party_shared_state')
+        .select('state_data')
+        .eq('party_id', m.party_id)
+        .eq('state_type', 'dm_session')
+        .maybeSingle();
+
+      const session = sessionState?.state_data as any;
+      if (session?.active === true && session?.currentRoundId) {
+        activePartyId = m.party_id;
+        characterName = m.character_name || 'Unknown';
+        currentRoundId = session.currentRoundId;
+        break;
+      }
+    }
+
+    if (!activePartyId || !currentRoundId) {
+      await sendTelegram(chatId, '❌ No active DM session found in any of your parties.', lovableKey, telegramKey);
+      return;
+    }
+
+    const { data: existingPrompt } = await supabase
+      .from('party_dm_prompts')
+      .select('id, is_ready')
+      .eq('party_id', activePartyId)
+      .eq('round_id', currentRoundId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!existingPrompt) {
+      await sendTelegram(chatId, '🤷 You have nothing to retract this round.', lovableKey, telegramKey);
+      return;
+    }
+
+    const { error: delErr } = await supabase
+      .from('party_dm_prompts')
+      .delete()
+      .eq('id', existingPrompt.id);
+
+    if (delErr) {
+      console.error('/retract delete error:', delErr);
+      await sendTelegram(chatId, '❌ Failed to retract. Try again.', lovableKey, telegramKey);
+      return;
+    }
+
+    const { data: allMembers } = await supabase
+      .from('party_members')
+      .select('user_id')
+      .eq('party_id', activePartyId);
+
+    const { data: allPrompts } = await supabase
+      .from('party_dm_prompts')
+      .select('is_ready')
+      .eq('party_id', activePartyId)
+      .eq('round_id', currentRoundId);
+
+    const totalMembers = allMembers?.length || 0;
+    const readyCount = (allPrompts || []).filter((p: any) => p.is_ready).length;
+
+    await sendTelegram(chatId,
+      `↩️ <b>${characterName}</b> retracted their action.\n\n📊 ${readyCount}/${totalMembers} players ready.`,
+      lovableKey, telegramKey,
+    );
+    return;
+  }
+
   // /damage N
   if (cmd.startsWith('/damage ')) {
     const amount = parseInt(parts[1]);
