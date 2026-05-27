@@ -3425,18 +3425,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               }}
               dialogueAutoIntervene={partyDm.sessionConfig?.dialogueAutoIntervene ?? false}
               onDialogueAutoInterveneChange={(enabled) => partyDm.updateSessionConfig({ dialogueAutoIntervene: enabled })}
-              campaignType={partyDm.sessionConfig?.campaignType || 'dnd'}
-              onCampaignTypeChange={(type) => {
-                partyDm.updateSessionConfig({ campaignType: type });
-                // Persist to parties row so app-mode filtering and reloads
-                // know the campaign type without relying on dm_session state.
-                if (partyId) {
-                  supabase.from('parties').update({ campaign_type: type }).eq('id', partyId)
-                    .then(({ error }) => { if (error) console.error('[campaign-type] persist failed:', error); });
-                }
-              }}
-              empyreanFocus={partyDm.sessionConfig?.empyreanFocus || 'balanced'}
-              onEmpyreanFocusChange={(focus) => partyDm.updateSessionConfig({ empyreanFocus: focus as 'combat' | 'political' | 'romance' | 'mystery' | 'survival' | 'balanced' })}
               hasBookmark={!!bookmarkedMessageId}
               onClearBookmark={() => {
                 if (bookmarkKey) {
