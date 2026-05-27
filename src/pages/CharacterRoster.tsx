@@ -158,10 +158,10 @@ export default function CharacterRoster() {
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="font-cinzel font-bold text-sm text-foreground truncate">
-                      {save.preview?.name || 'Unnamed Character'}
+                      {save.character_name || save.save_name || 'Unnamed Character'}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {save.preview?.class || 'No class'} · Level {save.preview?.level || 1}
+                      Level {save.character_level || 1}
                     </p>
                   </div>
                   {/* Campaign type flip badge */}
@@ -176,11 +176,11 @@ export default function CharacterRoster() {
                           .eq('id', save.id)
                           .single();
                         if (!data) return;
-                        const ext = (data.extended_data as Record<string, unknown>) || {};
+                        const ext = (data.extended_data as Record<string, unknown> | null) || {};
                         ext.campaignType = newType;
                         const { error } = await supabase
                           .from('character_saves')
-                          .update({ extended_data: ext })
+                          .update({ extended_data: ext as Json })
                           .eq('id', save.id);
                         if (error) {
                           toast.error('Failed to update character type');
@@ -201,15 +201,11 @@ export default function CharacterRoster() {
                   </button>
                 </div>
                 <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                  <span>HP {save.preview?.currentHP ?? '-'}/{save.preview?.maxHP ?? '-'}</span>
-                  <span>·</span>
-                  <span>AC {save.preview?.ac ?? '-'}</span>
-                  <span>·</span>
                   <span>{save.preview?.gold ?? 0}g</span>
                 </div>
-                {save.updatedAt && (
+                {save.updated_at && (
                   <p className="text-[10px] text-muted-foreground/60 mt-1.5">
-                    Updated {new Date(save.updatedAt).toLocaleDateString()}
+                    Updated {new Date(save.updated_at).toLocaleDateString()}
                   </p>
                 )}
               </button>
