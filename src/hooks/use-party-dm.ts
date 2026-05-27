@@ -806,7 +806,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   const submitLockRef = useRef(false);
 
-  const submitPrompt = useCallback(async (text: string) => {
+  const submitPrompt = useCallback(async (text: string, signetIntensity?: number) => {
     if (!partyId || !user) return;
     if (submitLockRef.current) return;
     const resolvedConfig = await resolveSessionConfig();
@@ -826,6 +826,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       prompt: text.trim(),
       is_ready: false,
       round_id: resolvedConfig.currentRoundId,
+      signet_intensity: signetIntensity ?? null,
     };
     // Tag with team if split is active
     if (isSplitActive && myTeam) {
@@ -842,6 +843,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       round_id: resolvedConfig.currentRoundId,
       created_at: new Date().toISOString(),
       team: (isSplitActive && myTeam) ? myTeam : null,
+      signet_intensity: signetIntensity ?? null,
     };
     setCurrentPrompts(prev => [...prev, optimisticPrompt]);
     const { error } = await (supabase.from('party_dm_prompts') as any).insert(insertData);
