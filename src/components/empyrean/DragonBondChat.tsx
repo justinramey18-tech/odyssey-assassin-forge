@@ -20,12 +20,11 @@ import {
   removeMemory,
   addTrust,
   reduceTrust,
-  detectTrustBreak,
   detectRiderDeclaration,
-  classifyRiderEmotion,
   type DragonBondState,
   type DragonMood,
 } from '@/lib/dragonBondState';
+import { computeTrustDelta } from '@/lib/bondTrust';
 import type { CharacterContext } from '@/components/oracle/types';
 
 interface DragonBondChatProps {
