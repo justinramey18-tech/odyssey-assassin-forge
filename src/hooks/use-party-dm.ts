@@ -151,6 +151,7 @@ export interface PartyDragonConfig {
   memories: Array<{ id: string; text: string; createdAt: string }>;
   speechHabits?: string[];
   riderEmotionalLog?: Array<{ tag: string; timestamp: string }>;
+  totalChatExchanges?: number;
 }
 
 interface UsePartyDmOptions {
