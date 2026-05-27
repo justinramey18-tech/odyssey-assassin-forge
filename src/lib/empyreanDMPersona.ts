@@ -500,19 +500,7 @@ When a significant event occurs that a dragon would permanently remember — a m
 
 Use sparingly, maximum once per session. Only for genuinely memorable moments, not routine events.`);
 
-    // 7f. Burnout Tick Events
-    sections.push(`## BURNOUT TICK EVENTS
-
-When the rider uses their signet in a way that would increase burnout — casting under stress, pushing past limits, channeling at high intensity, or sustaining signet use over multiple rounds — include exactly one tag:
-
-<!--BURNOUT_TICK:brief reason-->
-
-Rules:
-- Emit at most one BURNOUT_TICK per DM response.
-- Do NOT emit for trivial/ambient magic (mage lights, minor relic warmth, passive signet awareness).
-- Only emit when the signet is actively channeled with effort or strain.
-- The reason should be a short phrase describing what caused the strain (e.g., "sustained lightning volley", "forced truth-read under duress", "shadow cloak held through combat").
-- This tag is separate from the BURNOUT:N absolute level tag. BURNOUT_TICK signals incremental strain; the app handles the math.`);
+    // 7f. Burnout tick events removed — the app fully owns burnout (see SIGNET INTENSITY section).
   }
 
   // 8. Recurring NPC Cast
