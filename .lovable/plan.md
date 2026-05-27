@@ -1,58 +1,47 @@
-## Goal
-Reduce initial load time of the Empyrean AI DM screen (especially party mode) without any behavior changes. Two fixes: lazy-load heavy/rare code paths, and parallelize the party initial fetch.
+# Fix: Solo signet pill does nothing when sending a prompt
 
-## Changes
+## What's actually broken
 
-### 1. `src/App.tsx` — lazy-load route pages
-- Keep `Index` eager (primary route).
-- Convert `Install`, `Auth`, `ResetPassword`, `RecoverAccount`, `NotFound`, `Features`, `CharacterRoster`, `AICreationAssistant` to `React.lazy()` imports.
-- Wrap the `<Routes>` block inside `<BrowserRouter>` in a single `<Suspense fallback={<div className="min-h-screen bg-background" />}>` boundary.
+When you tap "Use My Signet" and pick an intensity, the app correctly arms it in state and shows the "Signet armed" toast. But when you then type your prompt and hit send, the burnout meter never moves and the AI DM never sees that you channeled your signet.
 
-### 2. `src/pages/Index.tsx` — lazy-load heavy conditional screens
-- Add `lazy, Suspense` to the React import.
-- Convert these to lazy imports (using `.then(m => ({ default: m.NAME }))` for named exports, plain form for defaults — verify each per file):
-  - `NarrativeForgeScreen`
-  - `ChronicleSyncScreen`
-  - `ConstellationScreen`
-  - `AchievementsScreen`
-  - `CombatTabScreen`
-  - `AbilitiesScreen`
-  - `UnifiedInventoryScreen`
-  - `InventoryScreen`
-- Wrap the main conditional screen render area in one high-level `<Suspense fallback={<div className="min-h-screen bg-background" />}>`.
-- Leave eager: HomeScreen, ModeSelectionScreen, headers, navigation, and anything on the default home view.
+## Root cause (in plain terms)
 
-### 3. `src/components/empyrean/EmpyreanDMScreen.tsx` — lazy-load rare overlays
-- Add `lazy, Suspense` to the React import.
-- Convert to lazy (verify default vs named export for each):
-  - `CinematicSlideshow`
-  - `ThreshingCinematic`
-  - `MemorialScreen`
-  - `DeathSaveScreen`
-  - `EmpyreanCampaignSetup` (named export — use `.then` wrapper)
-  - `BurnoutFlameOverlay` only if non-trivial in size; otherwise leave eager.
-- Wrap each lazy overlay's render site in its own inline `<Suspense fallback={null}>` (they're already conditionally rendered).
-- Do NOT lazy-load the chat, input bar, pills, bottom nav, or character sheet.
+There are two send paths in the solo Empyrean screen:
 
-### 4. `src/hooks/use-party-dm.ts` — parallelize + (optionally) trim initial fetch
-In the effect around line 367:
-- Run the `party_dm_messages` fetch and the `party_dm_prompts` fetch in `Promise.all`. Use a resolved `{ data: null }` placeholder when there's no `currentRoundId`.
-- Switch the messages query to `order('created_at', { ascending: false }).limit(200)` and reverse the result before `setMessages` so downstream order is unchanged (ascending/oldest-first).
-- Keep limit at 200 — `messages` likely feeds AI context downstream; safer not to shrink.
-- Keep the split-backfill block after the parallel block, behavior unchanged.
-- Keep the dependency array unchanged.
-- Keep all realtime subscriptions and the rest of the file untouched.
+1. A function called `handleSend` that knows about the armed signet — it adds the burnout, tags the message with `[SIGNET CHANNELED — intensity N/8]` so the AI narrates it, and clears the armed state.
+2. The actual input box at the bottom of the screen, whose "send" button is wired to a *different* inline function that just forwards the raw text to the AI.
 
-## Guards
-- No behavior, prop, or logic changes anywhere.
-- Every `lazy()` usage is wrapped in `Suspense` with a non-layout-shifting fallback (`null` for overlays, dark full-screen div for routes/screens).
-- Named exports keep the `.then(m => ({ default: m.NAME }))` wrapper — no export-shape changes.
-- Message ordering passed to `setMessages` remains ascending (oldest first).
-- No reduction of message limit below 200.
-- No changes to Solo vs Party branching, Director, onboarding, private mode, or any feature flag.
+The input box was never hooked up to `handleSend`. So every prompt you send from the main input bypasses the entire signet logic. `handleSend` exists but is effectively dead code for normal sends — it's only used by a couple of internal helpers.
 
-## Verification after build
-- Home route still renders instantly with no flash.
-- Navigating to Auth/Recover/etc. works (lazy chunks load).
-- Empyrean DM opens; cinematic/threshing/death/memorial/setup overlays trigger correctly when their conditions are met.
-- Party DM session loads messages in original order; prompts appear; split backfill still works on the empty+split path.
+That's why:
+- Burnout meter doesn't update (the line that adds intensity is never reached).
+- The AI shows no awareness you channeled (the `[SIGNET CHANNELED]` tag is never appended).
+- The "armed" state silently sticks around until something else clears it.
+
+## The fix
+
+Replace the inline `onSend` on the input box so it calls `handleSend()` instead of doing its own thing. `handleSend` already:
+- Reads the typed text from the input ref.
+- Applies threshing-authorized prefix when relevant.
+- Applies the armed signet intensity (adds burnout, appends the channel tag, clears the armed state, marks the round as "signet used" so recovery is skipped).
+- Handles single and multi-`@NPC` voicing.
+- Clears the input after sending.
+
+So routing the input's send button through `handleSend` restores all signet behavior with no other changes.
+
+## One small consistency tweak
+
+The inline handler currently uses a slightly different `@NPC` regex than `handleSend` (it only matches a single NPC mention; `handleSend` supports multiple). Using `handleSend` is strictly an improvement — multi-NPC voicing keeps working, threshing keeps working, normal sends keep working.
+
+## Files touched
+
+- `src/components/empyrean/EmpyreanDMScreen.tsx` — change the `EmpyreanDMInput`'s `onSend` prop (around line 2171) to invoke `handleSend()`.
+
+No DB changes, no other components touched, no impact on party mode (party has its own separate fix already shipped).
+
+## How to verify
+
+1. Arm signet at intensity 4, type any action, send. Burnout should jump by exactly 4 and the DM's reply should clearly reference your signet's power.
+2. Send a normal message with no signet armed. Nothing about burnout changes from your action; recovery (-1) still applies on the next round.
+3. Send `@SomeNpc hello` — still routes to NPC voicing.
+4. Threshing-authorized send still works.
