@@ -452,49 +452,26 @@ RULES:
     }
     sections.push(dragonSection);
 
-    // 7. Signet Burnout Tracking
-    const maxBurnout = bondLevel >= 76 ? 12 : bondLevel >= 51 ? 11 : bondLevel >= 26 ? 10 : 8;
+    // 7. Signet Intensity (app-controlled burnout)
+    const maxBurnout = 8;
 
-    sections.push(`## SIGNET BURNOUT TRACKING
+    sections.push(`## SIGNET INTENSITY (APP-CONTROLLED BURNOUT)
 
-The rider's dragon bond (${bondLevel}/100) determines their burnout ceiling. A stronger bond means the dragon actively buffers the rider's capacity. A weaker bond means the channel is unstable and the ceiling is actually lower than normal.
+Burnout is tracked by the app, not by you. Do NOT emit any burnout tags (no <!--BURNOUT:N-->, no <!--BURNOUT_TICK-->). The app owns the math entirely.
 
-Maximum burnout level for this rider: ${maxBurnout}
+When the player channels their signet, their action will include a note like "[SIGNET CHANNELED — intensity N/8]". Narrate the signet's power proportional to N:
+- 1 = a faint, controlled flicker — barely visible exertion.
+- 2-3 = a focused, deliberate channel — clear effect but contained.
+- 4-5 = a strong, visible exertion — sweat, heat, the rider clearly working for it.
+- 6-7 = dangerous overextension — bones humming, vision strobing, the dragon alarmed and pushing back through the bond.
+- 8 = a catastrophic, bond-threatening overload — the rider near collapse, the dragon may physically intervene or cry out, the bond itself straining.
 
-After any scene where the character uses their signet, output exactly one hidden tag:
-<!--BURNOUT:X-->
-where X is a whole number from 0 to ${maxBurnout}. Place it at the very end of your response, after any SITUATION tag.
+If no "[SIGNET CHANNELED — intensity N/8]" note appears in the player's message, the player did NOT use their signet this turn. Do not narrate signet exertion or burnout symptoms. Lesser magic (mage lights, minor relic warmth, passive bond awareness) is free and never narrated as strain.
 
-POWER SOURCE RULES:
-- Lesser magic (lighting mage lights, nudging small objects via relic) costs NOTHING. Never increase burnout for lesser magic. Only the signet ability costs burnout.
-- Controlled, brief signet use: +1
-- Sustained or hard use: +2
-- Desperate overextension past visible limits: +3
-- If the rider is distant from their dragon, treat their effective bond as 25 lower — the channel attenuates with distance.
+DRAGON BEHAVIOR AT HIGH INTENSITY: At intensity 4+, the dragon actively resists the power flow — describe this as the bond pulling back, the dragon's voice cutting through with urgency. At 6+, the dragon is absorbing overflow and suffering for it. At 8, the dragon may physically land and refuse to let the rider continue.
 
-SCALE (describe symptoms in narrative, never state the number):
-0 = No strain. Relic is warm, nothing more.
-1 = Bone-deep heat at the relic site. Minor, ignorable.
-2 = Heat spreading through chest and limbs. Nosebleed from pressure. Hands unsteady.
-3 = Bones feel like they are burning. Vision strobing. Muscle lock risk. The dragon notices through the bond.
-4 = Skin hot to the touch, visibly reddening near the relic. Collapse imminent. The dragon is alarmed and pushing back through the bond.
-5 = Veins glowing — signet pulsing visibly beneath skin. Rider feels the heat in their bones.
-${maxBurnout >= 6 ? `6 = Body at limit — dragon is actively buffering excess energy. The rider's nose bleeds freely.` : ''}
-${maxBurnout >= 7 ? `7 = Dragon absorbing overflow — the bond itself is straining. Pain echoes between rider and dragon.` : ''}
-${maxBurnout >= 8 ? `8 = Rider and dragon both near limit. The rider is barely conscious, losing focus. Dragon's scales burn hot.` : ''}
-${maxBurnout >= 9 ? `9 = Critical co-overload. Rider is seizing or unconscious. Dragon in visible physical distress.` : ''}
-${maxBurnout >= 10 ? `10 = Dragon desperately absorbing excess — its own scales are cracking from the strain.` : ''}
-${maxBurnout >= 11 ? `11 = Mutual collapse imminent. The bond feels like it is tearing apart. Survival unlikely without intervention.` : ''}
-${maxBurnout >= 12 ? `12 = Maximum theoretical capacity — only the deepest bonds have ever reached this and survived. The dragon must sever the channel or both die.` : ''}
+SIGNET-SPECIFIC SYMPTOMS at high intensity: Heat and lightning — muscle seizure, metallic taste, the relic site burning. Shadow and stealth — sensory dissolution. Mental and truth-sense — involuntary intrusion of others' thoughts. Physical enhancement — bones and muscle pushed past tolerance. Elemental — the body experiences the inverse element at peak intensity.`);
 
-RECOVERY:
-- Levels 1–2: One rest or sleep scene.
-- Levels 3–4: Multiple rest scenes. Dragon proximity is required — the bond actively helps the body process the residual energy.
-- Levels 5+: Emergency care, extended rest, dragon must also recover. May leave permanent physical damage even with full recovery.
-
-SIGNET-SPECIFIC SYMPTOMS: Always derive the physical experience from the nature of the power. Heat and lightning signets — uncontrolled discharge, muscle seizure, metallic taste, the relic site burning. Shadow and stealth signets — sensory dissolution, inability to distinguish what is real. Mental and truth-sense signets — involuntary intrusion of others' thoughts, inability to block sensation. Physical enhancement signets — bones and muscle pushed past structural tolerance. Elemental signets — the body experiences the inverse of the element at high burnout (a cold wielder overheats; a fire wielder may go cold).
-
-DRAGON BEHAVIOR AT HIGH BURNOUT: At level 3+, the dragon will actively resist the power flow — describe this as the bond pulling back, the dragon's voice cutting through with urgency. At level 5+ for strong-bonded riders, the dragon is absorbing overflow and suffering for it. At level 7+, the dragon may physically land and refuse to let the rider continue, overriding the rider's will.`);
 
     // 7c. Bond Strain Events
     sections.push(`## BOND STRAIN EVENTS
@@ -523,19 +500,7 @@ When a significant event occurs that a dragon would permanently remember — a m
 
 Use sparingly, maximum once per session. Only for genuinely memorable moments, not routine events.`);
 
-    // 7f. Burnout Tick Events
-    sections.push(`## BURNOUT TICK EVENTS
-
-When the rider uses their signet in a way that would increase burnout — casting under stress, pushing past limits, channeling at high intensity, or sustaining signet use over multiple rounds — include exactly one tag:
-
-<!--BURNOUT_TICK:brief reason-->
-
-Rules:
-- Emit at most one BURNOUT_TICK per DM response.
-- Do NOT emit for trivial/ambient magic (mage lights, minor relic warmth, passive signet awareness).
-- Only emit when the signet is actively channeled with effort or strain.
-- The reason should be a short phrase describing what caused the strain (e.g., "sustained lightning volley", "forced truth-read under duress", "shadow cloak held through combat").
-- This tag is separate from the BURNOUT:N absolute level tag. BURNOUT_TICK signals incremental strain; the app handles the math.`);
+    // 7f. Burnout tick events removed — the app fully owns burnout (see SIGNET INTENSITY section).
   }
 
   // 8. Recurring NPC Cast

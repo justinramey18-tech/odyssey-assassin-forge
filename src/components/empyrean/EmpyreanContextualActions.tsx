@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { ChevronDown, ChevronUp, Sparkles, Loader2, ArrowLeft } from 'lucide-react';
+import { SignetIntensitySelector } from './SignetIntensitySelector';
 
 const LONG_PRESS_MS = 450;
 
@@ -103,6 +104,9 @@ interface EmpyreanContextualActionsProps {
   disabled?: boolean;
   isUnbonded?: boolean;
   fetchMasterworkPills?: (category: 'dragon' | 'situation', situationLabel: string) => Promise<ActionItem[]>;
+  currentBurnout?: number;
+  maxBurnout?: number;
+  onArmSignet?: (intensity: number) => void;
 }
 
 type MasterworkState =
@@ -357,6 +361,9 @@ export default function EmpyreanContextualActions({
   disabled = false,
   isUnbonded = false,
   fetchMasterworkPills,
+  currentBurnout = 0,
+  maxBurnout = 0,
+  onArmSignet,
 }: EmpyreanContextualActionsProps) {
   const allActions = React.useMemo(
     () => isUnbonded ? buildUnbondedActions(characterName) : buildActions(characterName, dragonName, signetType),
@@ -373,6 +380,9 @@ export default function EmpyreanContextualActions({
 
   const [dragonExpanded, setDragonExpanded] = useState(false);
   const [situationExpanded, setSituationExpanded] = useState(false);
+  const [armingSignet, setArmingSignet] = useState(false);
+  const signetMaxed = !isUnbonded && maxBurnout > 0 && currentBurnout >= maxBurnout;
+
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [masterworkDragon, setMasterworkDragon] = useState<MasterworkState>({ status: 'idle' });
   const [masterworkSituation, setMasterworkSituation] = useState<MasterworkState>({ status: 'idle' });
@@ -414,6 +424,37 @@ export default function EmpyreanContextualActions({
 
   return (
     <div className="flex flex-col gap-1.5 px-3 py-2">
+      {/* Signet arming row (only when bonded) */}
+      {!isUnbonded && onArmSignet && (
+        <>
+          {!armingSignet && (
+            <div className="flex">
+              <button
+                type="button"
+                onClick={() => setArmingSignet(true)}
+                disabled={disabled || signetMaxed}
+                className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border bg-amber-500/20 text-amber-200 border-amber-500/40 hover:bg-amber-500/30 active:bg-amber-500/40 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                style={{ touchAction: 'manipulation' }}
+              >
+                🔥 Use My Signet {signetMaxed ? '(Burned Out)' : ''}
+              </button>
+            </div>
+          )}
+          {armingSignet && (
+            <SignetIntensitySelector
+              currentBurnout={currentBurnout}
+              maxBurnout={maxBurnout}
+              selected={null}
+              onSelect={(n) => {
+                setArmingSignet(false);
+                onArmSignet(n);
+              }}
+              onCancel={() => setArmingSignet(false)}
+            />
+          )}
+        </>
+      )}
+
       {/* Row 1: Headers side-by-side */}
       {(dragonActions.length > 0 || actions.length > 0) && (
         <div className="flex flex-wrap items-center gap-2">

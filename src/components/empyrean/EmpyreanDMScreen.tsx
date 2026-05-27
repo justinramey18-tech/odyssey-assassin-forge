@@ -259,6 +259,9 @@ export function EmpyreanDMScreen({
   const [burnoutLevel, setBurnoutLevel] = useState(0);
   const burnoutLevelRef = useRef(burnoutLevel);
   useEffect(() => { burnoutLevelRef.current = burnoutLevel; }, [burnoutLevel]);
+  const [armedSignetIntensity, setArmedSignetIntensity] = useState<number | null>(null);
+  const signetUsedThisRoundRef = useRef(false);
+  const lastProcessedMsgIdRef = useRef<string | null>(null);
   const [currentSituation, setCurrentSituation] = useState<string>('exploration');
   const [dragonNotes, setDragonNotes] = useState(() => loadDragonNotes());
   const [initialSent, setInitialSent] = useState(false);
@@ -663,13 +666,8 @@ ${oocLines}`;
         toast('Bond deepens: ' + bondGrowthMatch[1], { icon: '🐉' });
       }
 
-      // Extract burnout tick events
-      const burnoutTickMatch = content.match(/<!--BURNOUT_TICK:(.+?)-->/);
-      if (burnoutTickMatch) {
-        const nextBurnout = Math.min((burnoutLevelRef.current ?? 0) + 1, maxBurnout);
-        setBurnoutLevel(nextBurnout);
-        toast('Signet strain: ' + burnoutTickMatch[1], { icon: '🔥' });
-      }
+
+
 
       // Extract dragon whispers from parsed whispers
       const parsed = parseWhispers(content);
@@ -924,21 +922,24 @@ ${oocLines}`;
     if (!open) setInitialSent(false);
   }, [open]);
 
-  // Parse burnout tags from assistant messages
+  // Deterministic recovery + SITUATION tag parsing on new assistant messages.
+  // Burnout is no longer parsed from AI tags — the app fully owns it.
   useEffect(() => {
+    if (isLoading) return; // wait for streaming to finalize
     const lastMsg = messages[messages.length - 1];
-    if (lastMsg?.role === 'assistant' && lastMsg.content) {
-      const match = lastMsg.content.match(/<!--BURNOUT:(\d+)-->/);
-      if (match) {
-        const level = Math.min(maxBurnout, Math.max(0, parseInt(match[1], 10)));
-        setBurnoutLevel(level);
-      }
-      const situationMatch = lastMsg.content.match(/<!--SITUATION:(\w+)-->/);
-      if (situationMatch) {
-        setCurrentSituation(situationMatch[1]);
-      }
+    if (!lastMsg || lastMsg.role !== 'assistant' || !lastMsg.content) return;
+    if (lastProcessedMsgIdRef.current === lastMsg.id) return;
+    lastProcessedMsgIdRef.current = lastMsg.id;
+
+    // Recovery: if the signet was NOT used this round, burnout cools by 1.
+    if (!signetUsedThisRoundRef.current) {
+      setBurnoutLevel(prev => Math.max(0, prev - 1));
     }
-  }, [messages]);
+    signetUsedThisRoundRef.current = false;
+
+    const situationMatch = lastMsg.content.match(/<!--SITUATION:(\w+)-->/);
+    if (situationMatch) setCurrentSituation(situationMatch[1]);
+  }, [messages, isLoading]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -1227,12 +1228,21 @@ ${oocLines}`;
     if (!text || isLoading) return;
     setRecapDismissed(true);
     let messageToSend = text;
-    
+
     // Inject Threshing authorization tag if authorized
     if (threshingAuthorized) {
       messageToSend += '\n\n<!--THRESHING_AUTHORIZED:' + characterName + '-->';
     }
-    
+
+    // Deterministic signet channeling: apply burnout, tag intensity for AI.
+    if (armedSignetIntensity != null) {
+      const newBurnout = Math.min(maxBurnout, burnoutLevelRef.current + armedSignetIntensity);
+      setBurnoutLevel(newBurnout);
+      messageToSend += `\n\n[SIGNET CHANNELED — intensity ${armedSignetIntensity}/8. Narrate the signet's power proportional to this intensity: 1 is a faint flicker, 8 is a catastrophic, bond-threatening overload.]`;
+      signetUsedThisRoundRef.current = true;
+      setArmedSignetIntensity(null);
+    }
+
     // Support multiple @NPC tags: @NPC1 @NPC2 message
     const multiNpcMatch = messageToSend.match(/^((?:@\S+\s+)+)(.+)$/s);
     if (multiNpcMatch && voiceNPC) {
@@ -1247,7 +1257,7 @@ ${oocLines}`;
       sendMessage(messageToSend);
     }
     empyreanInputRef.current?.setText('');
-  }, [isLoading, sendMessage, voiceNPC, threshingAuthorized, characterName]);
+  }, [isLoading, sendMessage, voiceNPC, threshingAuthorized, characterName, armedSignetIntensity, maxBurnout]);
 
   const handlePromptSelect = useCallback((prompt: string) => {
     const filled = prompt.replace(/\[Character Name\]/g, characterName);
@@ -2093,6 +2103,12 @@ ${oocLines}`;
               }}
               disabled={isLoading || (!isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout)}
               isUnbonded={isUnbonded}
+              currentBurnout={burnoutLevel}
+              maxBurnout={maxBurnout}
+              onArmSignet={(intensity) => {
+                setArmedSignetIntensity(intensity);
+                toast(`🔥 Signet armed at intensity ${intensity}. Your next action channels it.`);
+              }}
               fetchMasterworkPills={async (category, situationLabel) => {
                 const recentAssistantMessages = messages.filter(m => m.role === 'assistant').slice(-2);
                 const recentNarrative = recentAssistantMessages.map(m => m.content).join('\n\n').slice(0, 2500);
