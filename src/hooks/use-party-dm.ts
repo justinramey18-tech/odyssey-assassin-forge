@@ -104,6 +104,7 @@ export interface PartyDmPrompt {
   round_id: string;
   created_at: string;
   team?: string | null;
+  signet_intensity?: number | null;
 }
 
 export type DmMode = 'ai' | 'human' | 'ai-approval' | 'dialogue';
@@ -248,24 +249,14 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (lastMsg.id === lastParsedMsgIdRef.current) return;
     lastParsedMsgIdRef.current = lastMsg.id;
 
-    const burnoutMatch = lastMsg.content.match(/<!--BURNOUT:(\d+)-->/);
-    if (burnoutMatch) {
-      const level = parseInt(burnoutMatch[1], 10);
-      if (level >= 0 && level <= 9) onBurnoutRef.current?.(level);
-    }
+    // BURNOUT and BURNOUT_TICK tags are deprecated — burnout is now app-controlled, not AI-controlled.
+    // Tags are still stripped from displayed text (see BURNOUT_TAG_RE above), but no longer mutate state.
 
     const strainMatch = lastMsg.content.match(/<!--BOND_STRAIN:(.+?)-->/);
     if (strainMatch) {
       onBondStrainRef.current?.(strainMatch[1]);
     }
 
-    // Parse BURNOUT_TICK: increment burnout by 1
-    const tickMatch = lastMsg.content.match(/<!--BURNOUT_TICK:(.+?)-->/);
-    if (tickMatch) {
-      // Use onBurnoutDetected with -1 sentinel to signal "increment by 1"
-      // The handler in StandalonePartyDMScreen will interpret this
-      onBurnoutTickRef.current?.(tickMatch[1]);
-    }
 
     // Parse BOND_GROWTH: increase bond by 3
     const bondGrowthMatch = lastMsg.content.match(/<!--BOND_GROWTH:(.+?)-->/);
@@ -815,7 +806,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   const submitLockRef = useRef(false);
 
-  const submitPrompt = useCallback(async (text: string) => {
+  const submitPrompt = useCallback(async (text: string, signetIntensity?: number) => {
     if (!partyId || !user) return;
     if (submitLockRef.current) return;
     const resolvedConfig = await resolveSessionConfig();
@@ -835,6 +826,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       prompt: text.trim(),
       is_ready: false,
       round_id: resolvedConfig.currentRoundId,
+      signet_intensity: signetIntensity ?? null,
     };
     // Tag with team if split is active
     if (isSplitActive && myTeam) {
@@ -851,6 +843,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       round_id: resolvedConfig.currentRoundId,
       created_at: new Date().toISOString(),
       team: (isSplitActive && myTeam) ? myTeam : null,
+      signet_intensity: signetIntensity ?? null,
     };
     setCurrentPrompts(prev => [...prev, optimisticPrompt]);
     const { error } = await (supabase.from('party_dm_prompts') as any).insert(insertData);
@@ -1342,7 +1335,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       if (isEmpyrean && partyDragonConfigs) {
         const dc = partyDragonConfigs.find(d => d.userId === m.user_id);
         if (dc) {
-          line += ` | Dragon: ${dc.config.dragonName}, Signet: ${dc.config.signetType || 'unknown'}, Bond: ${getBondDescriptor(dc.config.bond)}, Burnout: ${dc.config.burnout}/${dc.config.bond >= 76 ? 9 : dc.config.bond >= 51 ? 7 : dc.config.bond >= 26 ? 5 : 4}`;
+          line += ` | Dragon: ${dc.config.dragonName}, Signet: ${dc.config.signetType || 'unknown'}, Bond: ${getBondDescriptor(dc.config.bond)}, Burnout: ${dc.config.burnout}/8`;
         }
       }
       return line;
@@ -1598,7 +1591,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       if (sessionConfig?.campaignType === 'empyrean' && freshDragonConfigs) {
         const dc = freshDragonConfigs.find((d: any) => d.userId === m.user_id);
         if (dc) {
-          line += ` | Dragon: ${dc.config.dragonName}, Signet: ${dc.config.signetType || 'unknown'}, Bond: ${getBondDescriptor(dc.config.bond)}, Burnout: ${dc.config.burnout}/${dc.config.bond >= 76 ? 9 : dc.config.bond >= 51 ? 7 : dc.config.bond >= 26 ? 5 : 4}`;
+          line += ` | Dragon: ${dc.config.dragonName}, Signet: ${dc.config.signetType || 'unknown'}, Bond: ${getBondDescriptor(dc.config.bond)}, Burnout: ${dc.config.burnout}/8`;
         }
       }
       return line;
@@ -1931,6 +1924,42 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           await consumeCascadePrompts(normalConsumed);
         }
       }
+
+      // === Deterministic signet burnout (Empyrean only) ===
+      // Host-side: for each ready player, +signet_intensity (cap 8) if they channeled.
+      // For all other party members with a dragon_bond row, -1 recovery (floor 0).
+      // Burnout is fully app-controlled — the AI does not mutate it.
+      if (sessionConfig.campaignType === 'empyrean' && isCreator) {
+        try {
+          const { data: bondRows } = await (supabase.from('party_shared_state') as any)
+            .select('id, user_id, state_data')
+            .eq('party_id', partyId)
+            .eq('state_type', 'dragon_bond');
+          if (bondRows && bondRows.length > 0) {
+            const intensityByUser = new Map<string, number>();
+            for (const p of readyPrompts) {
+              const intensity = Math.max(0, Math.min(8, (p as any).signet_intensity || 0));
+              if (intensity > 0) intensityByUser.set(p.user_id, intensity);
+            }
+            for (const row of bondRows as Array<{ id: string; user_id: string; state_data: any }>) {
+              const cfg = row.state_data || {};
+              const cur = typeof cfg.burnout === 'number' ? cfg.burnout : 0;
+              const intensity = intensityByUser.get(row.user_id) || 0;
+              const next = intensity > 0
+                ? Math.min(8, cur + intensity)
+                : Math.max(0, cur - 1);
+              if (next !== cur) {
+                await (supabase.from('party_shared_state') as any)
+                  .update({ state_data: { ...cfg, burnout: next }, updated_at: new Date().toISOString() })
+                  .eq('id', row.id);
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('[PartyDM] Failed to apply deterministic burnout:', err);
+        }
+      }
+
 
       // Clear prompts and start new round
       // In split mode: always clear (no draft review step) and only clear the team that generated

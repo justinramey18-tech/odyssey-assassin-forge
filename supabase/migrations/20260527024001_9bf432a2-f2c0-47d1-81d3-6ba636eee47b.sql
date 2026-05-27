@@ -1,0 +1,1 @@
+ALTER TABLE public.party_dm_prompts ADD COLUMN IF NOT EXISTS signet_intensity integer;

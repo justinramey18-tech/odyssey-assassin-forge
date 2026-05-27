@@ -759,7 +759,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
 
   // Burnout shortcut
   const updateBurnout = useCallback(async (level: number) => {
-    await updateMyDragon({ burnout: Math.max(0, Math.min(12, level)) });
+    await updateMyDragon({ burnout: Math.max(0, Math.min(8, level)) });
   }, [updateMyDragon]);
 
   // Bond & trust delta shortcut

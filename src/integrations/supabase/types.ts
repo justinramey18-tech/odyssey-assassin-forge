@@ -939,6 +939,7 @@ export type Database = {
           party_id: string
           prompt: string
           round_id: string
+          signet_intensity: number | null
           team: string | null
           user_id: string
         }
@@ -950,6 +951,7 @@ export type Database = {
           party_id: string
           prompt: string
           round_id: string
+          signet_intensity?: number | null
           team?: string | null
           user_id: string
         }
@@ -961,6 +963,7 @@ export type Database = {
           party_id?: string
           prompt?: string
           round_id?: string
+          signet_intensity?: number | null
           team?: string | null
           user_id?: string
         }

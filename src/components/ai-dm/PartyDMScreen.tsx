@@ -1220,6 +1220,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [isUploadingAudio, setIsUploadingAudio] = useState(false);
   const [showAudioRecorder, setShowAudioRecorder] = useState(false);
   const [showPollCreator, setShowPollCreator] = useState(false);
+  const [armedSignetIntensity, setArmedSignetIntensity] = useState<number | null>(null);
 
   // Detect if the page was killed during a file picker operation (common on mobile)
   useEffect(() => {
@@ -1461,8 +1462,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   const handleSubmit = useCallback((text: string) => {
     setRecapDismissed(true);
-    partyDmRef.current.submitPrompt(text);
-  }, []);
+    let finalPrompt = text;
+    if (armedSignetIntensity != null) {
+      finalPrompt = `${text}\n\n[SIGNET CHANNELED — intensity ${armedSignetIntensity}/8. Narrate signet power proportional to this intensity: 1 = faint flicker, 8 = catastrophic overload.]`;
+    }
+    partyDmRef.current.submitPrompt(finalPrompt, armedSignetIntensity ?? undefined);
+    setArmedSignetIntensity(null);
+  }, [armedSignetIntensity]);
 
   const handleReadyAutopilot = useCallback(() => {
     if (!myAfkGuide) return;
@@ -3094,6 +3100,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 disabled={partyDm.isGenerating}
                 isUnbonded={!dragonBonds.isSetup || !dragonBonds.myDragon?.dragonName}
                 fetchMasterworkPills={handleFetchMasterworkPills}
+                currentBurnout={dragonBonds.myDragon?.burnout ?? 0}
+                maxBurnout={8}
+                onArmSignet={(intensity) => {
+                  setArmedSignetIntensity(intensity);
+                  toast(`🔥 Signet armed at intensity ${intensity}/8. It channels when you ready up.`, { icon: '⚡' });
+                }}
               />
             )}
             <PartyDMInput
