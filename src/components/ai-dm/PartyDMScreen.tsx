@@ -3100,6 +3100,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 disabled={partyDm.isGenerating}
                 isUnbonded={!dragonBonds.isSetup || !dragonBonds.myDragon?.dragonName}
                 fetchMasterworkPills={handleFetchMasterworkPills}
+                currentBurnout={dragonBonds.myDragon?.burnout ?? 0}
+                maxBurnout={8}
+                onArmSignet={(intensity) => {
+                  setArmedSignetIntensity(intensity);
+                  toast(`🔥 Signet armed at intensity ${intensity}/8. It channels when you ready up.`, { icon: '⚡' });
+                }}
               />
             )}
             <PartyDMInput
