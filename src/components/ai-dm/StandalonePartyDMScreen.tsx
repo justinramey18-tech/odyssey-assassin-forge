@@ -337,19 +337,10 @@ export function StandalonePartyDMScreen({
     });
   }, [dragonBonds.allDragonConfigs, partyMembers]);
 
-  const handleBurnoutDetected = useCallback((level: number) => {
-    dragonBonds.updateBurnout(level);
-  }, [dragonBonds.updateBurnout]);
-
-  const handleBurnoutTickDetected = useCallback((reason: string) => {
-    // Read latest values directly from dragonBonds to avoid stale closures
-    const currentBurnout = dragonBonds.myDragon?.burnout ?? 0;
-    const bond = dragonBonds.myDragon?.bond ?? 15;
-    const maxBurnout = bond >= 76 ? 12 : bond >= 51 ? 11 : bond >= 26 ? 10 : 8;
-    const nextBurnout = Math.min(currentBurnout + 1, maxBurnout);
-    dragonBonds.updateBurnout(nextBurnout);
-    toast('Signet strain: ' + reason, { icon: '🔥' });
-  }, [dragonBonds]);
+  // Burnout is now app-controlled (deterministic) via use-party-dm round resolution.
+  // The legacy AI-driven BURNOUT/BURNOUT_TICK callbacks are no longer wired.
+  const handleBurnoutDetected = useCallback((_level: number) => {}, []);
+  const handleBurnoutTickDetected = useCallback((_reason: string) => {}, []);
 
   const handleBondStrainDetected = useCallback((reason: string) => {
     dragonBonds.updateBondAndTrust(0, -5);
