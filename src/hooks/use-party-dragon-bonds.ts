@@ -666,30 +666,41 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         updatedDragon = { ...updatedDragon, speechHabits: currentHabits.slice(-5) };
       }
 
-      // Process trust from player message (shared computation)
-      const result = computeTrustDelta({
-        message: text,
-        totalChatExchanges: (myDragon.totalChatExchanges ?? 0),
-        bond: myDragon.bond ?? 15,
-      });
-      const trustDelta = result.trustDelta;
-
+      // Process trust — prefer AI-judged signal, fall back to keyword scoring.
       updatedDragon = {
         ...updatedDragon,
         totalChatExchanges: (myDragon.totalChatExchanges ?? 0) + 1,
       };
+
+      const keywordResult = computeTrustDelta({
+        message: text,
+        totalChatExchanges: updatedDragon.totalChatExchanges,
+        bond: myDragon.bond ?? 15,
+      });
+      const aiSignal = parseAITrustTag(assistantContent);
+
+      let trustDelta = 0;
+      let trustBreakBroken = false;
+      if (aiSignal) {
+        const reconciled = reconcileAITrust(aiSignal, text);
+        trustDelta = reconciled.trustDelta;
+        trustBreakBroken = reconciled.trustBreak.broken;
+      } else {
+        trustDelta = keywordResult.trustDelta;
+        trustBreakBroken = keywordResult.trustBreak.broken;
+      }
 
       if (trustDelta !== 0) {
         updatedDragon = {
           ...updatedDragon,
           trust: Math.max(0, Math.min(100, (updatedDragon.trust || 10) + trustDelta)),
         };
-        if (result.trustBreak.broken) {
+        if (trustBreakBroken) {
           updatedDragon = { ...updatedDragon, mood: 'distant' };
         }
       }
 
-      const emotionalLog = [...(updatedDragon.riderEmotionalLog || []), { tag: result.emotionTag, timestamp: new Date().toISOString() }].slice(-15);
+      const emotionalLog = [...(updatedDragon.riderEmotionalLog || []), { tag: keywordResult.emotionTag, timestamp: new Date().toISOString() }].slice(-15);
       updatedDragon = { ...updatedDragon, riderEmotionalLog: emotionalLog };
 
 
