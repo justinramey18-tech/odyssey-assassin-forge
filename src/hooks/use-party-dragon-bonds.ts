@@ -46,31 +46,7 @@ export interface DragonNetworkMessage {
   timestamp: string;
 }
 
-// Trust-building keyword patterns (same as use-dragon-bond.ts)
-const QUESTION_PATTERNS = [
-  'how do you feel', 'what do you think', 'are you okay',
-  'tell me about', 'what do you remember', 'do you want', 'how are you',
-];
-const GRATITUDE_PATTERNS = [
-  'i trust you', 'thank you', "i'm glad", 'i appreciate',
-  'you were right', "i'm sorry",
-];
-const VULNERABILITY_PATTERNS = [
-  "i'm afraid", "i'm scared", "i don't know",
-  'i need help', 'i failed', "i'm worried",
-];
-const AUTONOMY_PATTERNS = [
-  'what would you prefer', 'your choice',
-  "i won't force you", 'you decide',
-];
-
-function matchesAny(text: string, patterns: string[]): boolean {
-  const lower = text.toLowerCase();
-  return patterns.some(p => lower.includes(p));
-}
-
-const SESSION_CHAT_CAP = 5;
-const MAX_TRUST_PER_EXCHANGE = 4;
+// Trust patterns/matching live in @/lib/bondTrust (single source of truth).
 
 const COMBAT_WORDS = ['fight', 'danger', 'battle', 'enemy', 'attack', 'die', 'kill'];
 
