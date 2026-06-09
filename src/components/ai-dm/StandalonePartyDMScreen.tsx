@@ -336,6 +336,42 @@ export function StandalonePartyDMScreen({
     [partyMembers]
   );
 
+  // Pre-built character summary for the player onboarding AI. If the player
+  // already built a character via the AI Creation Assistant (or any wizard),
+  // hand that to the onboarding assistant so it confirms and fits-to-world
+  // instead of asking the player to start from scratch.
+  const playerExistingCharacter = useMemo(() => {
+    const myMember = partyMembers.find(m => m.user_id === userId);
+    const myStatus = (myMember?.character_status as Record<string, any>) || {};
+    const lines: string[] = [];
+    const name = characterContext?.name || characterName || myMember?.character_name || '';
+    if (name) lines.push(`Name: ${name}`);
+    if (characterContext?.level) lines.push(`Level: ${characterContext.level}`);
+    const classBits: string[] = [];
+    if (characterContext?.multiclassBreakdown && Object.keys(characterContext.multiclassBreakdown).length) {
+      classBits.push(Object.entries(characterContext.multiclassBreakdown).map(([c, l]) => `${c} ${l}`).join(' / '));
+    } else if (characterContext?.characterClass) {
+      classBits.push(characterContext.characterClass);
+    }
+    if (characterContext?.subclass) classBits.push(`(${characterContext.subclass})`);
+    if (classBits.length) lines.push(`Class: ${classBits.join(' ')}`);
+    if (characterContext?.gender || characterContext?.race) {
+      lines.push(`Identity: ${[characterContext?.gender, characterContext?.race].filter(Boolean).join(' ')}`);
+    }
+    if (characterContext?.deity) lines.push(`Deity: ${characterContext.deity}`);
+    if (characterContext?.domain) lines.push(`Domain: ${characterContext.domain}`);
+    if (myStatus.dragon_name) lines.push(`Dragon: ${myStatus.dragon_name}${myStatus.dragon_color ? ` (${myStatus.dragon_color})` : ''}`);
+    if (myStatus.signet_type) lines.push(`Signet: ${myStatus.signet_type}`);
+    if (myStatus.year_at_basgiath) lines.push(`Year at Basgiath: ${myStatus.year_at_basgiath}`);
+    if (characterContext?.backstory) lines.push(`Backstory: ${characterContext.backstory.slice(0, 800)}`);
+    if (myStatus.personality) lines.push(`Personality: ${myStatus.personality}`);
+    const equipped = (characterContext?.equipment || []).slice(0, 6).map(e => e.name).filter(Boolean);
+    if (equipped.length) lines.push(`Equipped: ${equipped.join(', ')}`);
+    const abilities = (characterContext?.abilities || []).slice(0, 6).map(a => a.name).filter(Boolean);
+    if (abilities.length) lines.push(`Signature abilities: ${abilities.join(', ')}`);
+    return lines.join('\n');
+  }, [partyMembers, userId, characterContext, characterName]);
+
   // Dragon bonds for Empyrean campaigns
   const dragonBonds = usePartyDragonBonds(partyId || null, userId || null, stablePartyMembers);
   const partyDragonConfigs = useMemo(() => {
