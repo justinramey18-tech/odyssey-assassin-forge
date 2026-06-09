@@ -473,6 +473,13 @@
   pointer-events: auto;
 }
 
+/* Closed or hidden portal layers must never intercept mobile taps. */
+[data-radix-portal] [data-state="closed"],
+[data-radix-portal] [aria-hidden="true"],
+[data-radix-portal] [hidden] {
+  pointer-events: none !important;
+}
+
 /* ═══════════════════════════════════════════════════
    Low-end device & reduced-motion safeguards
    Galaxy A14 5G and similar budget Android devices
