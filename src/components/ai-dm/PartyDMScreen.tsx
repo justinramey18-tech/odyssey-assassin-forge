@@ -31,6 +31,7 @@ import { PartyQuestsPanel } from './PartyQuestsPanel';
 import { DMComposePanel } from './DMComposePanel';
 import { DraftReviewPanel } from './DraftReviewPanel';
 import { NpcSceneDialog } from './NpcSceneDialog';
+import { DevAssistantChat } from '@/components/settings/DevAssistantChat';
 
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { CampaignDropdown } from './CampaignDropdown';
@@ -1262,6 +1263,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [showPreSplitChat, setShowPreSplitChat] = useState(false);
   const [showTimerSettings, setShowTimerSettings] = useState(false);
   const [showAfkGuide, setShowAfkGuide] = useState(false);
+  const [devAssistantOpen, setDevAssistantOpen] = useState(false);
   const [showScheduledEvents, setShowScheduledEvents] = useState(false);
   const [showMemoryAnchors, setShowMemoryAnchors] = useState(false);
   const [showQuests, setShowQuests] = useState(false);
@@ -3323,6 +3325,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onShowGuides={onShowGuides}
               onShowChat={onShowChat}
               onShowAfkGuide={() => setShowAfkGuide(true)}
+              onShowDevAssistant={() => setDevAssistantOpen(true)}
               guidesCount={guidesCount}
               myAfkGuide={myAfkGuide}
               myAfkCascadeCount={myAfkCascade?.length ?? 0}
@@ -3698,6 +3701,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           isCreator={isCreator}
         />
       )}
+
+      {/* Dev Assistant */}
+      <DevAssistantChat
+        open={devAssistantOpen}
+        onClose={() => setDevAssistantOpen(false)}
+      />
 
       {/* Party Dragon Chat */}
       {isEmpyrean && dragonBonds.isSetup && (
