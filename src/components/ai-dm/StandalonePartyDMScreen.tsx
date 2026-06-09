@@ -709,6 +709,7 @@ ${truncated}`);
           campaignPlan={campaignPlan}
           hostCharacterSummary={hostCharacterSummary}
           playerExistingCharacter={playerExistingCharacter}
+          campaignType={partyCampaignType === 'empyrean' ? 'empyrean' : 'dnd'}
           onComplete={() => {
             setForceShowOnboarding(false);
             setJustAppliedOnboarding(true);
@@ -989,6 +990,7 @@ ${truncated}`);
             campaignPlan={campaignPlan}
             hostCharacterSummary={hostCharacterSummary}
             playerExistingCharacter={playerExistingCharacter}
+            campaignType={partyCampaignType === 'empyrean' ? 'empyrean' : 'dnd'}
             onComplete={() => {
               setForceShowOnboarding(false);
               setJustAppliedOnboarding(true);

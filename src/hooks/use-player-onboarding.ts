@@ -118,7 +118,7 @@ export function usePlayerOnboarding({ partyId, userId, campaignPlan, hostCharact
     } finally {
       setIsSending(false);
     }
-  }, [messages, isSending, campaignPlan, hostCharacterSummary, playerExistingCharacter]);
+  }, [messages, isSending, campaignPlan, hostCharacterSummary, playerExistingCharacter, campaignType]);
 
   const apply = useCallback(async (): Promise<boolean> => {
     if (!pendingFinalized || !partyId || !userId) return false;
