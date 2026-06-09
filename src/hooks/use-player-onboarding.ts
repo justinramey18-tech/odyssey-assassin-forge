@@ -10,12 +10,20 @@ export interface OnboardingMessage {
 
 export interface FinalizedCharacter {
   character_name: string;
-  dragon_name: string;
-  dragon_color: string;
-  signet_type: string;
-  year_at_basgiath: string;
-  backstory: string;
-  personality: string;
+  // D&D fields
+  race?: string;
+  character_class?: string;
+  alignment?: string;
+  bonds?: string;
+  flaws?: string;
+  // Empyrean fields
+  dragon_name?: string;
+  dragon_color?: string;
+  signet_type?: string;
+  year_at_basgiath?: string;
+  // Shared
+  backstory?: string;
+  personality?: string;
 }
 
 interface UsePlayerOnboardingOptions {
@@ -24,9 +32,10 @@ interface UsePlayerOnboardingOptions {
   campaignPlan?: string;
   hostCharacterSummary?: string;
   playerExistingCharacter?: string;
+  campaignType?: 'dnd' | 'empyrean';
 }
 
-export function usePlayerOnboarding({ partyId, userId, campaignPlan, hostCharacterSummary, playerExistingCharacter }: UsePlayerOnboardingOptions) {
+export function usePlayerOnboarding({ partyId, userId, campaignPlan, hostCharacterSummary, playerExistingCharacter, campaignType }: UsePlayerOnboardingOptions) {
   const [messages, setMessages] = useState<OnboardingMessage[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,6 +93,7 @@ export function usePlayerOnboarding({ partyId, userId, campaignPlan, hostCharact
           campaign_plan: campaignPlan || '',
           host_character_summary: hostCharacterSummary || '',
           player_existing_character: playerExistingCharacter || '',
+          campaign_type: campaignType || 'empyrean',
         },
       });
       if (invokeErr) throw invokeErr;
@@ -108,20 +118,27 @@ export function usePlayerOnboarding({ partyId, userId, campaignPlan, hostCharact
     } finally {
       setIsSending(false);
     }
-  }, [messages, isSending, campaignPlan, hostCharacterSummary, playerExistingCharacter]);
+  }, [messages, isSending, campaignPlan, hostCharacterSummary, playerExistingCharacter, campaignType]);
 
   const apply = useCallback(async (): Promise<boolean> => {
     if (!pendingFinalized || !partyId || !userId) return false;
     setIsApplying(true);
     try {
-      const characterStatus = {
-        dragon_name: pendingFinalized.dragon_name,
-        dragon_color: pendingFinalized.dragon_color,
-        signet_type: pendingFinalized.signet_type,
-        year_at_basgiath: pendingFinalized.year_at_basgiath,
-        backstory: pendingFinalized.backstory,
-        personality: pendingFinalized.personality,
-      };
+      const characterStatus: Record<string, string> = {};
+      // D&D fields
+      if (pendingFinalized.race) characterStatus.race = pendingFinalized.race;
+      if (pendingFinalized.character_class) characterStatus.character_class = pendingFinalized.character_class;
+      if (pendingFinalized.alignment) characterStatus.alignment = pendingFinalized.alignment;
+      if (pendingFinalized.bonds) characterStatus.bonds = pendingFinalized.bonds;
+      if (pendingFinalized.flaws) characterStatus.flaws = pendingFinalized.flaws;
+      // Empyrean fields
+      if (pendingFinalized.dragon_name) characterStatus.dragon_name = pendingFinalized.dragon_name;
+      if (pendingFinalized.dragon_color) characterStatus.dragon_color = pendingFinalized.dragon_color;
+      if (pendingFinalized.signet_type) characterStatus.signet_type = pendingFinalized.signet_type;
+      if (pendingFinalized.year_at_basgiath) characterStatus.year_at_basgiath = pendingFinalized.year_at_basgiath;
+      // Shared
+      if (pendingFinalized.backstory) characterStatus.backstory = pendingFinalized.backstory;
+      if (pendingFinalized.personality) characterStatus.personality = pendingFinalized.personality;
 
       const { error: updateErr } = await supabase
         .from('party_members')

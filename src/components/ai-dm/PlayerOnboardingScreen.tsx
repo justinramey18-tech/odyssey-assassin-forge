@@ -12,6 +12,7 @@ interface PlayerOnboardingScreenProps {
   campaignPlan?: string;
   hostCharacterSummary?: string;
   playerExistingCharacter?: string;
+  campaignType?: 'dnd' | 'empyrean';
   /** Called after the player's character is successfully applied. Parent should hide the screen. */
   onComplete: () => void;
 }
@@ -23,10 +24,11 @@ export function PlayerOnboardingScreen({
   campaignPlan,
   hostCharacterSummary,
   playerExistingCharacter,
+  campaignType,
   onComplete,
 }: PlayerOnboardingScreenProps) {
   const { messages, isSending, error, pendingFinalized, isApplying, send, apply, dismissFinalized } = usePlayerOnboarding({
-    partyId, userId, campaignPlan, hostCharacterSummary, playerExistingCharacter,
+    partyId, userId, campaignPlan, hostCharacterSummary, playerExistingCharacter, campaignType,
   });
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
