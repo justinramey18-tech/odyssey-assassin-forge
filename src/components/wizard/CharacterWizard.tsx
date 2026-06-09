@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, type TouchEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useWizardState } from './hooks/use-wizard-state';
@@ -39,12 +39,30 @@ export function CharacterWizard({
 }: CharacterWizardProps) {
   const [mode, setMode] = useState<WizardMode>('choice');
   const [showResumePrompt, setShowResumePrompt] = useState(false);
+  const lastActivationRef = useRef(0);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   
   const wizard = useWizardState();
   const { state, hasResumableProgress, restoreProgress, clearProgress, reset } = wizard;
   const { canProceed, validateStep: getValidation } = useWizardValidation(state);
+
+  const runOnce = useCallback((action: () => void) => {
+    const now = Date.now();
+    if (now - lastActivationRef.current < 350) return;
+    lastActivationRef.current = now;
+    action();
+  }, []);
+
+  const pressProps = useCallback((action: () => void) => ({
+    type: 'button' as const,
+    onClick: () => runOnce(action),
+    onTouchEnd: (event: TouchEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      runOnce(action);
+    },
+    style: { touchAction: 'manipulation' as const },
+  }), [runOnce]);
 
   // Check for resumable progress on initial render
   useState(() => {
@@ -69,6 +87,14 @@ export function CharacterWizard({
       setMode('wizard');
     }
   }, [state, onQuickStart, wizard]);
+
+  const handleAICreationAssistant = useCallback(() => {
+    try {
+      navigate('/ai-create');
+    } catch {
+      window.location.assign('/ai-create');
+    }
+  }, [navigate]);
 
   // Handle resume from saved progress
   const handleResume = useCallback(() => {
