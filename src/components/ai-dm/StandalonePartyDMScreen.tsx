@@ -67,6 +67,7 @@ interface StandalonePartyDMScreenProps {
   isSoloEmpyrean?: boolean;
   embedded?: boolean;
   swipeHandlers?: SwipeHandlers;
+  autoOpenCampaignBuilder?: boolean;
 }
 
 export function StandalonePartyDMScreen({
@@ -84,6 +85,7 @@ export function StandalonePartyDMScreen({
   isSoloEmpyrean,
   embedded = false,
   swipeHandlers,
+  autoOpenCampaignBuilder,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
 
@@ -116,6 +118,13 @@ export function StandalonePartyDMScreen({
   const onboardingRequests = usePartyOnboardingRequests({ partyId });
   const directorEscalations = usePartyDirectorEscalations({ partyId });
   const promotedToInProgressRef = useRef(false);
+
+  // Auto-open campaign builder when triggered from home screen
+  useEffect(() => {
+    if (autoOpenCampaignBuilder && isPartyCreator) {
+      setShowCampaignBuilder(true);
+    }
+  }, [autoOpenCampaignBuilder, isPartyCreator]);
 
   // Late-joiner: promote 'pending' onboarding_status to 'in_progress' once when overlay opens
   useEffect(() => {

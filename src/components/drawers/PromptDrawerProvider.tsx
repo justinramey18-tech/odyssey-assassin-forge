@@ -56,6 +56,7 @@ interface PromptDrawerContextValue {
   openQuickActionsDrawer: () => void;
   openAIDMScreen: () => void;
   openPartyDMScreen: () => void;
+  openPartyDMCampaignBuilder: () => void;
   closeAllDrawers: () => void;
   // Cooldown system exposure
   triggerCooldown: (abilityId: string) => void;
@@ -230,6 +231,7 @@ export function PromptDrawerProvider({
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [aiDMOpen, setAiDMOpen] = useState(false);
   const [partyDMOpen, setPartyDMOpen] = useState(false);
+  const [partyDMBuilderAutoOpen, setPartyDMBuilderAutoOpen] = useState(false);
 
   // Personality gate for Solo DM
   const personalityGate = usePersonalityGate({ userId });
@@ -554,6 +556,7 @@ export function PromptDrawerProvider({
       closeAllDrawers(); setAiDMOpen(true);
     }, [closeAllDrawers]),
     openPartyDMScreen: useCallback(() => { closeAllDrawers(); setPartyDMOpen(true); }, [closeAllDrawers]),
+    openPartyDMCampaignBuilder: useCallback(() => { closeAllDrawers(); setPartyDMOpen(true); setPartyDMBuilderAutoOpen(true); }, [closeAllDrawers]),
     closeAllDrawers,
     // Cooldown system exposure
     triggerCooldown: cooldownSystem.triggerCooldown,
@@ -781,17 +784,18 @@ export function PromptDrawerProvider({
           {/* Standalone Party DM Full-Screen Overlay */}
           {partyDMOpen && (
             <StandalonePartyDMScreen
-              onBack={() => { setPartyDMOpen(false); }}
+              onBack={() => { setPartyDMOpen(false); setPartyDMBuilderAutoOpen(false); }}
               characterContext={aiDMCharacterContext}
               partyId={partyId ?? null}
               isPartyCreator={isPartyCreator}
               partyMembers={partyMembers}
               userId={userId ?? ''}
               characterName={character.name}
-              onShowChat={onOpenPartyChat ? () => { setPartyDMOpen(false); onOpenPartyChat(); } : undefined}
+              onShowChat={onOpenPartyChat ? () => { setPartyDMOpen(false); setPartyDMBuilderAutoOpen(false); onOpenPartyChat(); } : undefined}
               autoSyncCallbacks={autoSyncCallbacks}
               wildShape={wildShape}
               isMomoMoonDruid={isMomoEasterEgg(character.name) && character.primaryClass === 'druid' && subclass?.toLowerCase().includes('moon')}
+              autoOpenCampaignBuilder={partyDMBuilderAutoOpen}
             />
           )}
         </>
