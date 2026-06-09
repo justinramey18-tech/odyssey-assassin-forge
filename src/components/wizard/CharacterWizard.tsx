@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, type TouchEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useWizardState } from './hooks/use-wizard-state';
@@ -39,12 +39,30 @@ export function CharacterWizard({
 }: CharacterWizardProps) {
   const [mode, setMode] = useState<WizardMode>('choice');
   const [showResumePrompt, setShowResumePrompt] = useState(false);
+  const lastActivationRef = useRef(0);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   
   const wizard = useWizardState();
   const { state, hasResumableProgress, restoreProgress, clearProgress, reset } = wizard;
   const { canProceed, validateStep: getValidation } = useWizardValidation(state);
+
+  const runOnce = useCallback((action: () => void) => {
+    const now = Date.now();
+    if (now - lastActivationRef.current < 350) return;
+    lastActivationRef.current = now;
+    action();
+  }, []);
+
+  const pressProps = useCallback((action: () => void) => ({
+    type: 'button' as const,
+    onClick: () => runOnce(action),
+    onTouchEnd: (event: TouchEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      runOnce(action);
+    },
+    style: { touchAction: 'manipulation' as const },
+  }), [runOnce]);
 
   // Check for resumable progress on initial render
   useState(() => {
@@ -69,6 +87,14 @@ export function CharacterWizard({
       setMode('wizard');
     }
   }, [state, onQuickStart, wizard]);
+
+  const handleAICreationAssistant = useCallback(() => {
+    try {
+      navigate('/ai-create');
+    } catch {
+      window.location.assign('/ai-create');
+    }
+  }, [navigate]);
 
   // Handle resume from saved progress
   const handleResume = useCallback(() => {
@@ -249,7 +275,7 @@ export function CharacterWizard({
           <div className="parchment-bg rounded-lg border border-border p-6 space-y-4">
             {/* Quick Start */}
             <button
-              onClick={handleQuickStart}
+              {...pressProps(handleQuickStart)}
               className="w-full p-4 rounded-lg border-2 border-border bg-background/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-left group"
             >
               <div className="flex items-center gap-3 mb-2">
@@ -268,7 +294,7 @@ export function CharacterWizard({
 
             {/* Custom Build */}
             <button
-              onClick={() => setMode('wizard')}
+              {...pressProps(() => setMode('wizard'))}
               className="w-full p-4 rounded-lg border-2 border-border bg-background/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-left group"
             >
               <div className="flex items-center gap-3 mb-2">
@@ -287,7 +313,7 @@ export function CharacterWizard({
 
             {/* AI Creation Assistant */}
             <button
-              onClick={() => navigate('/ai-create')}
+              {...pressProps(handleAICreationAssistant)}
               className="w-full p-4 rounded-lg border-2 border-border bg-background/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-left group"
             >
               <div className="flex items-center gap-3 mb-2">
@@ -307,7 +333,7 @@ export function CharacterWizard({
             {/* Load from Cloud */}
             {onLoadCloud && (
               <button
-                onClick={onLoadCloud}
+                {...pressProps(onLoadCloud)}
                 className="w-full p-4 rounded-lg border-2 border-border bg-background/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-left group"
               >
                 <div className="flex items-center gap-3 mb-2">
