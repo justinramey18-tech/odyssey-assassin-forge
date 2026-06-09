@@ -118,6 +118,13 @@ export function StandalonePartyDMScreen({
   const directorEscalations = usePartyDirectorEscalations({ partyId });
   const promotedToInProgressRef = useRef(false);
 
+  // Auto-open campaign builder when triggered from home screen
+  useEffect(() => {
+    if (autoOpenCampaignBuilder && isPartyCreator) {
+      setShowCampaignBuilder(true);
+    }
+  }, [autoOpenCampaignBuilder, isPartyCreator]);
+
   // Late-joiner: promote 'pending' onboarding_status to 'in_progress' once when overlay opens
   useEffect(() => {
     if (promotedToInProgressRef.current) return;
