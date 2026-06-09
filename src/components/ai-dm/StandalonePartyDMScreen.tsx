@@ -38,6 +38,8 @@ import type { PartyMember } from '@/hooks/use-party-sync';
 import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 
 import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
+import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
+import { getScopedItem } from '@/lib/scoped-storage';
 
 // Stable no-op fallbacks (module-level for referential stability)
 const NOOP = () => {};
