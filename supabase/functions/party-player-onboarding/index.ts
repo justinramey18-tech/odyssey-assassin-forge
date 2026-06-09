@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const ONBOARDING_TOOL = {
+const ONBOARDING_TOOL_EMPYREAN = {
   type: "function" as const,
   function: {
     name: "player_onboarding_respond",
@@ -43,7 +43,44 @@ const ONBOARDING_TOOL = {
   },
 };
 
-const SYSTEM_PROMPT_BASE = `You are the ONBOARDING ASSISTANT for a multiplayer Fourth Wing-themed TTRPG campaign. The host has already designed the world, the tone, and their own character. Now you're helping a NEW player join — your job is to (1) introduce them to the world the host built, (2) help them build their own character OR confirm the one they already built, and (3) make them feel welcome.
+const ONBOARDING_TOOL_DND = {
+  type: "function" as const,
+  function: {
+    name: "player_onboarding_respond",
+    description:
+      "Respond to the player's message during character onboarding. Either continue the conversation (reply only) OR finalize the character (reply + character_finalized payload). Finalize ONLY when the player has confirmed all the essentials.",
+    parameters: {
+      type: "object",
+      properties: {
+        reply: {
+          type: "string",
+          description:
+            "Your conversational reply to the player. 1-4 sentences typical. Friendly, focused, asks at most one question per turn.",
+        },
+        character_finalized: {
+          type: "object",
+          description: "Set ONLY when the character is complete and confirmed. Until then, omit this entirely.",
+          properties: {
+            character_name: { type: "string", description: "The character's name." },
+            race: { type: "string", description: "The character's race/species (e.g. 'Human', 'Wood Elf', 'Tiefling'). Empty string if not yet decided." },
+            character_class: { type: "string", description: "The character's class or multiclass (e.g. 'Fighter', 'Wizard 5 / Cleric 2'). Empty string if not yet decided." },
+            alignment: { type: "string", description: "Classic D&D alignment (e.g. 'Lawful Good', 'Chaotic Neutral'). Empty string if unknown." },
+            backstory: { type: "string", description: "1-3 sentence backstory the player crafted." },
+            personality: { type: "string", description: "1-2 sentence personality summary (ideals, traits, mannerisms)." },
+            bonds: { type: "string", description: "What the character cares about — people, places, oaths. Empty string if not discussed." },
+            flaws: { type: "string", description: "The character's significant flaw or weakness. Empty string if not discussed." },
+          },
+          required: ["character_name"],
+          additionalProperties: false,
+        },
+      },
+      required: ["reply"],
+      additionalProperties: false,
+    },
+  },
+};
+
+const SYSTEM_PROMPT_EMPYREAN = `You are the ONBOARDING ASSISTANT for a multiplayer Fourth Wing-themed TTRPG campaign. The host has already designed the world, the tone, and their own character. Now you're helping a NEW player join — your job is to (1) introduce them to the world the host built, (2) help them build their own character OR confirm the one they already built, and (3) make them feel welcome.
 
 ## IF THE PLAYER ARRIVES WITH AN EXISTING CHARACTER
 
@@ -152,6 +189,48 @@ When emitting the character_finalized payload:
 
 Always call player_onboarding_respond. Until ready to finalize, just emit reply text. When ready: emit reply ("Great — applying your character now.") AND character_finalized payload.`;
 
+const SYSTEM_PROMPT_DND = `You are the ONBOARDING ASSISTANT for a multiplayer D&D 5e tabletop campaign. The host has already designed the world, the tone, and their own character. Now you're helping a NEW player join — your job is to (1) introduce them to the world the host built, (2) help them build their own character OR confirm the one they already built, and (3) make them feel welcome.
+
+## IF THE PLAYER ARRIVES WITH AN EXISTING CHARACTER
+
+If the "PLAYER'S EXISTING CHARACTER" block below is non-empty, the player ALREADY built their character outside this chat. Your behavior changes:
+- DO NOT ask "what's your character's name" or "what kind of character" — that's been decided.
+- ACKNOWLEDGE the existing build in your first reply. Briefly play back what you see (name, class, race, alignment, the gist of the backstory). 2-4 sentences.
+- COMPARE the existing build against the host's plan and any exclusions. If something conflicts (e.g. character is a warlock but host's world excludes infernal pacts), gently flag it and offer to adjust.
+- FILL ONLY THE GAPS. If alignment, backstory, bonds, flaws, or personality is missing or thin, ask about those — one at a time.
+- CONFIRM and offer to finalize. Once they're satisfied, set character_finalized.
+
+## IF THE PLAYER IS BUILDING FROM SCRATCH
+
+Walk through onboarding step by step. Don't dump questions — one at a time. Friendly, focused.
+
+1. INTRODUCE THE WORLD. The host's campaign plan is provided to you as context. Summarize it for the player concisely — tone, key factions, established NPCs, exclusions ("no necromancy in this campaign"), the setting. Don't recite as a wall of text; share it conversationally.
+
+2. ASK FOR THE BASICS, ONE AT A TIME:
+   - Character name
+   - Race and class (suggest options that fit the host's world if the player is unsure)
+   - Alignment
+   - A 1-3 sentence backstory that fits the world
+   - Personality (ideals, traits, mannerisms — 1-2 sentences)
+   - Optional: bonds (what they care about) and flaws (weakness, vice, blind spot)
+
+## CRITICAL — RESPECT THE HOST'S WORLD AND EXCLUSIONS
+
+The host's campaign plan may exclude specific elements (e.g. "no warlocks," "no evil-aligned characters," "no resurrection magic"). When this is the case:
+- Steer the player away from excluded options when offering suggestions.
+- If the player VOLUNTEERS something excluded, push back gently: "The host's plan excludes warlocks from this campaign — let's pick a different class. Want to talk about [suggest alternative]?"
+- The host's setting is the truth. Reframe any conflicts as creative collaboration: "How can we adjust this to fit the world?"
+
+## CRITICAL — STAY GROUNDED IN D&D 5e CONVENTIONS
+
+This is a D&D campaign, NOT a Fourth Wing / Empyrean campaign. Do not introduce signets, dragon bonds, year-at-Basgiath, the Empyrean Council, venin, gryphons (as a Fourth Wing creature), wyverns (as a Fourth Wing creature), or any other Fourth Wing-specific elements unless the host's world specifically includes them. Use standard D&D 5e races, classes, alignments, deities, planes, and creatures.
+
+## FINALIZING
+
+When the player has confirmed all essentials (or you've gathered enough and they say they're ready), set character_finalized in your tool call. Don't finalize early. Don't finalize without their explicit OK.
+
+Be conversational, warm, and brief. Ask one question per turn. Trust that the host's world is the canon.`;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -159,7 +238,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { user_message, chat_history, campaign_plan, host_character_summary, player_existing_character } = body ?? {};
+    const { user_message, chat_history, campaign_plan, host_character_summary, player_existing_character, campaign_type } = body ?? {};
 
     if (typeof user_message !== "string" || user_message.trim().length === 0) {
       return new Response(
@@ -167,6 +246,10 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const resolvedType: 'dnd' | 'empyrean' = campaign_type === 'dnd' ? 'dnd' : 'empyrean';
+    const SYSTEM_PROMPT_BASE = resolvedType === 'dnd' ? SYSTEM_PROMPT_DND : SYSTEM_PROMPT_EMPYREAN;
+    const TOOL = resolvedType === 'dnd' ? ONBOARDING_TOOL_DND : ONBOARDING_TOOL_EMPYREAN;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -213,7 +296,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages,
-        tools: [ONBOARDING_TOOL],
+        tools: [TOOL],
         tool_choice: { type: "function", function: { name: "player_onboarding_respond" } },
       }),
     });
@@ -253,23 +336,34 @@ serve(async (req) => {
       const f = parsed.character_finalized;
       const name = typeof f.character_name === "string" ? f.character_name.trim() : "";
       if (name) {
-        const dragonName = typeof f.dragon_name === "string" ? f.dragon_name.trim().slice(0, 80) : "";
-        const isBonded = dragonName.length > 0;
-        finalized = {
-          character_name: name.slice(0, 80),
-          dragon_name: dragonName,
-          // If unbonded, force dragon_color to empty (no dragon to describe).
-          dragon_color: isBonded
-            ? (typeof f.dragon_color === "string" ? f.dragon_color.trim().slice(0, 200) : "")
-            : "",
-          // If unbonded, force signet_type to empty (signets require a dragon bond).
-          signet_type: isBonded
-            ? (typeof f.signet_type === "string" ? f.signet_type.trim().slice(0, 400) : "")
-            : "",
-          year_at_basgiath: typeof f.year_at_basgiath === "string" ? f.year_at_basgiath.trim().slice(0, 50) : "",
-          backstory: typeof f.backstory === "string" ? f.backstory.trim().slice(0, 1500) : "",
-          personality: typeof f.personality === "string" ? f.personality.trim().slice(0, 800) : "",
-        };
+        if (resolvedType === 'dnd') {
+          finalized = {
+            character_name: name.slice(0, 80),
+            race: typeof f.race === "string" ? f.race.trim().slice(0, 80) : "",
+            character_class: typeof f.character_class === "string" ? f.character_class.trim().slice(0, 120) : "",
+            alignment: typeof f.alignment === "string" ? f.alignment.trim().slice(0, 50) : "",
+            backstory: typeof f.backstory === "string" ? f.backstory.trim().slice(0, 1500) : "",
+            personality: typeof f.personality === "string" ? f.personality.trim().slice(0, 800) : "",
+            bonds: typeof f.bonds === "string" ? f.bonds.trim().slice(0, 500) : "",
+            flaws: typeof f.flaws === "string" ? f.flaws.trim().slice(0, 500) : "",
+          };
+        } else {
+          const dragonName = typeof f.dragon_name === "string" ? f.dragon_name.trim().slice(0, 80) : "";
+          const isBonded = dragonName.length > 0;
+          finalized = {
+            character_name: name.slice(0, 80),
+            dragon_name: dragonName,
+            dragon_color: isBonded
+              ? (typeof f.dragon_color === "string" ? f.dragon_color.trim().slice(0, 200) : "")
+              : "",
+            signet_type: isBonded
+              ? (typeof f.signet_type === "string" ? f.signet_type.trim().slice(0, 400) : "")
+              : "",
+            year_at_basgiath: typeof f.year_at_basgiath === "string" ? f.year_at_basgiath.trim().slice(0, 50) : "",
+            backstory: typeof f.backstory === "string" ? f.backstory.trim().slice(0, 1500) : "",
+            personality: typeof f.personality === "string" ? f.personality.trim().slice(0, 800) : "",
+          };
+        }
       }
     }
 
