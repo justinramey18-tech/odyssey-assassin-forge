@@ -342,10 +342,21 @@ export function StandalonePartyDMScreen({
   // already built a character via the AI Creation Assistant (or any wizard),
   // hand that to the onboarding assistant so it confirms and fits-to-world
   // instead of asking the player to start from scratch.
+  const { driftZone, historyCount: alignmentHistoryCount } = useAlignmentDrift();
+
   const playerExistingCharacter = useMemo(() => {
     const myMember = partyMembers.find(m => m.user_id === userId);
     const myStatus = (myMember?.character_status as Record<string, any>) || {};
+
+    // Narrative fields written by AI Creation Assistant live in scoped localStorage,
+    // not on the characterContext object. Read them directly.
+    const storedBackstory = getScopedItem('dnd-character-backstory') || '';
+    const storedGender = getScopedItem('dnd-character-gender') || '';
+    const storedRace = getScopedItem('dnd-character-race') || '';
+    const storedRelationshipsRaw = getScopedItem('dnd-character-relationships') || '';
+
     const lines: string[] = [];
+
     const name = characterContext?.name || characterName || myMember?.character_name || '';
     if (name) lines.push(`Name: ${name}`);
     if (characterContext?.level) lines.push(`Level: ${characterContext.level}`);
@@ -357,22 +368,67 @@ export function StandalonePartyDMScreen({
     }
     if (characterContext?.subclass) classBits.push(`(${characterContext.subclass})`);
     if (classBits.length) lines.push(`Class: ${classBits.join(' ')}`);
-    if (characterContext?.gender || characterContext?.race) {
-      lines.push(`Identity: ${[characterContext?.gender, characterContext?.race].filter(Boolean).join(' ')}`);
-    }
+
+    const gender = storedGender || characterContext?.gender || '';
+    const race = storedRace || characterContext?.race || '';
+    if (gender || race) lines.push(`Identity: ${[gender, race].filter(Boolean).join(' ')}`);
+
     if (characterContext?.deity) lines.push(`Deity: ${characterContext.deity}`);
     if (characterContext?.domain) lines.push(`Domain: ${characterContext.domain}`);
+
+    if (driftZone && alignmentHistoryCount > 0) {
+      lines.push(`Alignment: ${driftZone}`);
+    }
+
+    const backstory = (storedBackstory || characterContext?.backstory || '').trim();
+    if (backstory) lines.push(`Backstory: ${backstory.slice(0, 1200)}`);
+
+    let relationshipsText = '';
+    if (storedRelationshipsRaw) {
+      try {
+        const parsed = JSON.parse(storedRelationshipsRaw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          relationshipsText = parsed
+            .slice(0, 5)
+            .map((r: any) => {
+              if (typeof r === 'string') return r;
+              const n = r?.name || '';
+              const d = r?.disposition ? ` (${r.disposition})` : '';
+              const note = r?.notes ? ` — ${r.notes}` : '';
+              return `${n}${d}${note}`.trim();
+            })
+            .filter(Boolean)
+            .join('; ');
+        } else if (typeof parsed === 'string' && parsed.trim()) {
+          relationshipsText = parsed.trim();
+        }
+      } catch {
+        relationshipsText = storedRelationshipsRaw.trim();
+      }
+    }
+    if (!relationshipsText && characterContext?.relationships && characterContext.relationships.length) {
+      relationshipsText = characterContext.relationships
+        .slice(0, 5)
+        .map(r => `${r.name}${r.disposition ? ` (${r.disposition})` : ''}${r.notes ? ` — ${r.notes}` : ''}`)
+        .join('; ');
+    }
+    if (relationshipsText) lines.push(`Relationships: ${relationshipsText.slice(0, 600)}`);
+
+    if (myStatus.personality) lines.push(`Personality: ${myStatus.personality}`);
+
     if (myStatus.dragon_name) lines.push(`Dragon: ${myStatus.dragon_name}${myStatus.dragon_color ? ` (${myStatus.dragon_color})` : ''}`);
     if (myStatus.signet_type) lines.push(`Signet: ${myStatus.signet_type}`);
     if (myStatus.year_at_basgiath) lines.push(`Year at Basgiath: ${myStatus.year_at_basgiath}`);
-    if (characterContext?.backstory) lines.push(`Backstory: ${characterContext.backstory.slice(0, 800)}`);
-    if (myStatus.personality) lines.push(`Personality: ${myStatus.personality}`);
+
     const equipped = (characterContext?.equipment || []).slice(0, 6).map(e => e.name).filter(Boolean);
     if (equipped.length) lines.push(`Equipped: ${equipped.join(', ')}`);
     const abilities = (characterContext?.abilities || []).slice(0, 6).map(a => a.name).filter(Boolean);
     if (abilities.length) lines.push(`Signature abilities: ${abilities.join(', ')}`);
+
     return lines.join('\n');
-  }, [partyMembers, userId, characterContext, characterName]);
+  }, [partyMembers, userId, characterContext, characterName, driftZone, alignmentHistoryCount]);
+
+
 
   // Dragon bonds for Empyrean campaigns
   const dragonBonds = usePartyDragonBonds(partyId || null, userId || null, stablePartyMembers);
