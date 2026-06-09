@@ -56,6 +56,7 @@ interface PromptDrawerContextValue {
   openQuickActionsDrawer: () => void;
   openAIDMScreen: () => void;
   openPartyDMScreen: () => void;
+  openPartyDMCampaignBuilder: () => void;
   closeAllDrawers: () => void;
   // Cooldown system exposure
   triggerCooldown: (abilityId: string) => void;
