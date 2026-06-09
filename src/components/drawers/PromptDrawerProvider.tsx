@@ -556,6 +556,7 @@ export function PromptDrawerProvider({
       closeAllDrawers(); setAiDMOpen(true);
     }, [closeAllDrawers]),
     openPartyDMScreen: useCallback(() => { closeAllDrawers(); setPartyDMOpen(true); }, [closeAllDrawers]),
+    openPartyDMCampaignBuilder: useCallback(() => { closeAllDrawers(); setPartyDMOpen(true); setPartyDMBuilderAutoOpen(true); }, [closeAllDrawers]),
     closeAllDrawers,
     // Cooldown system exposure
     triggerCooldown: cooldownSystem.triggerCooldown,
