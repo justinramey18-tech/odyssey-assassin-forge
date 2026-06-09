@@ -3702,6 +3702,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         />
       )}
 
+      {/* Dev Assistant */}
+      <DevAssistantChat
+        open={devAssistantOpen}
+        onClose={() => setDevAssistantOpen(false)}
+      />
+
       {/* Party Dragon Chat */}
       {isEmpyrean && dragonBonds.isSetup && (
         <PartyDragonChat
