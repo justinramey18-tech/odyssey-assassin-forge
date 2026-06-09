@@ -23,22 +23,27 @@ interface UsePlayerOnboardingOptions {
   userId: string | null;
   campaignPlan?: string;
   hostCharacterSummary?: string;
+  playerExistingCharacter?: string;
 }
 
-export function usePlayerOnboarding({ partyId, userId, campaignPlan, hostCharacterSummary }: UsePlayerOnboardingOptions) {
+export function usePlayerOnboarding({ partyId, userId, campaignPlan, hostCharacterSummary, playerExistingCharacter }: UsePlayerOnboardingOptions) {
   const [messages, setMessages] = useState<OnboardingMessage[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingFinalized, setPendingFinalized] = useState<FinalizedCharacter | null>(null);
   const [isApplying, setIsApplying] = useState(false);
 
-  // Greeting on first open.
+  // Greeting on first open. Tailored to whether the player arrives with an existing build.
   useEffect(() => {
     if (messages.length === 0 && partyId && userId) {
+      const hasExisting = (playerExistingCharacter || '').trim().length > 0;
+      const greeting = hasExisting
+        ? "Welcome to the campaign. I can already see the character you built — let's just confirm the details fit the host's world, fill in anything missing, and get you in. Ready when you are."
+        : "Welcome to the campaign. The host has set up the world — let me catch you up, and we'll build your character together. What kind of rider do you want to play?";
       setMessages([{
         id: `msg_${Date.now()}_seed`,
         role: 'assistant',
-        content: "Welcome to the campaign. The host has set up the world — let me catch you up, and we'll build your character together. What kind of rider do you want to play?",
+        content: greeting,
         timestamp: Date.now(),
       }]);
     }
@@ -67,6 +72,7 @@ export function usePlayerOnboarding({ partyId, userId, campaignPlan, hostCharact
           chat_history: history,
           campaign_plan: campaignPlan || '',
           host_character_summary: hostCharacterSummary || '',
+          player_existing_character: playerExistingCharacter || '',
         },
       });
       if (invokeErr) throw invokeErr;
@@ -91,7 +97,7 @@ export function usePlayerOnboarding({ partyId, userId, campaignPlan, hostCharact
     } finally {
       setIsSending(false);
     }
-  }, [messages, isSending, campaignPlan, hostCharacterSummary]);
+  }, [messages, isSending, campaignPlan, hostCharacterSummary, playerExistingCharacter]);
 
   const apply = useCallback(async (): Promise<boolean> => {
     if (!pendingFinalized || !partyId || !userId) return false;

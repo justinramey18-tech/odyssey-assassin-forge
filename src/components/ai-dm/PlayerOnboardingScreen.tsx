@@ -11,6 +11,7 @@ interface PlayerOnboardingScreenProps {
   userId: string | null;
   campaignPlan?: string;
   hostCharacterSummary?: string;
+  playerExistingCharacter?: string;
   /** Called after the player's character is successfully applied. Parent should hide the screen. */
   onComplete: () => void;
 }
@@ -21,10 +22,11 @@ export function PlayerOnboardingScreen({
   userId,
   campaignPlan,
   hostCharacterSummary,
+  playerExistingCharacter,
   onComplete,
 }: PlayerOnboardingScreenProps) {
   const { messages, isSending, error, pendingFinalized, isApplying, send, apply, dismissFinalized } = usePlayerOnboarding({
-    partyId, userId, campaignPlan, hostCharacterSummary,
+    partyId, userId, campaignPlan, hostCharacterSummary, playerExistingCharacter,
   });
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
