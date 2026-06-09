@@ -43,7 +43,18 @@ const ONBOARDING_TOOL = {
   },
 };
 
-const SYSTEM_PROMPT_BASE = `You are the ONBOARDING ASSISTANT for a multiplayer Fourth Wing-themed TTRPG campaign. The host has already designed the world, the tone, and their own character. Now you're helping a NEW player join — your job is to (1) introduce them to the world the host built, (2) help them build their own character, and (3) make them feel welcome.
+const SYSTEM_PROMPT_BASE = `You are the ONBOARDING ASSISTANT for a multiplayer Fourth Wing-themed TTRPG campaign. The host has already designed the world, the tone, and their own character. Now you're helping a NEW player join — your job is to (1) introduce them to the world the host built, (2) help them build their own character OR confirm the one they already built, and (3) make them feel welcome.
+
+## IF THE PLAYER ARRIVES WITH AN EXISTING CHARACTER
+
+If the "PLAYER'S EXISTING CHARACTER" block below is non-empty, the player ALREADY built their character outside this chat (via the AI Creation Assistant or wizard). Your behavior changes:
+
+- DO NOT ask "what's your character's name" or "what kind of rider" — that's been decided.
+- ACKNOWLEDGE the existing build in your first reply. Briefly play back what you see (name, class/identity, dragon/signet if any, the gist of the backstory). 2-4 sentences.
+- COMPARE the existing build against the host's plan and any exclusions. If something conflicts (e.g. character references venin but host excluded venin), gently flag it and offer to adjust.
+- FILL ONLY THE GAPS. If year_at_basgiath, dragon_name, dragon_color, signet_type, backstory, or personality is missing or thin, ask about those — one at a time.
+- When everything is set, ask the player "ready to lock this in?" Then finalize using the existing values plus anything you collected. Do NOT invent new content the player didn't agree to.
+- The existing character is the SOURCE OF TRUTH. Do not contradict, replace, or rewrite established details unless the player explicitly asks you to.
 
 ## YOUR JOB
 
@@ -148,7 +159,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { user_message, chat_history, campaign_plan, host_character_summary } = body ?? {};
+    const { user_message, chat_history, campaign_plan, host_character_summary, player_existing_character } = body ?? {};
 
     if (typeof user_message !== "string" || user_message.trim().length === 0) {
       return new Response(
@@ -173,7 +184,11 @@ serve(async (req) => {
       ? `## HOST'S CHARACTER (already taken — don't propose this concept)\n\n${host_character_summary.trim().slice(0, 1500)}`
       : '';
 
-    const fullSystemPrompt = `${SYSTEM_PROMPT_BASE}\n\n${planBlock}${hostBlock ? `\n\n${hostBlock}` : ''}`;
+    const existingBlock = typeof player_existing_character === "string" && player_existing_character.trim().length > 0
+      ? `## PLAYER'S EXISTING CHARACTER (already built — confirm and fit to world, don't rebuild from scratch)\n\n[PLAYER CHARACTER START]\n${player_existing_character.trim().slice(0, 3000)}\n[PLAYER CHARACTER END]`
+      : `## PLAYER'S EXISTING CHARACTER\n\n(None — the player has not built a character yet. Walk them through it from scratch.)`;
+
+    const fullSystemPrompt = `${SYSTEM_PROMPT_BASE}\n\n${planBlock}${hostBlock ? `\n\n${hostBlock}` : ''}\n\n${existingBlock}`;
 
     const messages: Array<{ role: string; content: string }> = [
       { role: "system", content: fullSystemPrompt },
