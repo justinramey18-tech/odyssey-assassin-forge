@@ -4,7 +4,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Theater, Megaphone, Film, RefreshCw } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Theater, Megaphone, Film, RefreshCw, Code2 } from 'lucide-react';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
 import { ResponseModeSelector } from './ResponseModeSelector';
@@ -90,6 +90,7 @@ export interface PartyDMSettingsProps {
   onShowSaves?: () => void;
   onShowGuides?: () => void;
   onShowChat?: () => void;
+  onShowDevAssistant?: () => void;
   onShowAfkGuide: () => void;
   guidesCount?: number;
   myAfkGuide?: string | null;
@@ -151,7 +152,7 @@ export function PartyDMSettings({
   autoSyncEnabled, onToggleAutoSync, isExtracting, selectedModel, onModelChange,
   pushState, onTogglePush,
   dmMode = 'ai', onDmModeChange,
-  onShowMap, onShowSaves, onShowGuides, onShowChat, onShowAfkGuide,
+  onShowMap, onShowSaves, onShowGuides, onShowChat, onShowDevAssistant, onShowAfkGuide,
   guidesCount = 0, myAfkGuide, myAfkCascadeCount = 0,
   isSplitActive, memberCount, onShowSplitInitiator, onShowNpcScene, onShowRegroupDialog, onShowSplitSummaries, onShowPreSplitChat, onShowOocChat,
   onNewCampaign, onEndSession,
@@ -392,6 +393,14 @@ export function PartyDMSettings({
             description="Schedule narrative events for a specific date & time"
             badge={scheduledEventsCount}
             onClick={onShowScheduledEvents}
+          />
+        )}
+        {isCreator && onShowDevAssistant && (
+          <ToolRow
+            icon={<Code2 className="w-4 h-4 text-blue-400" />}
+            label="Dev Assistant"
+            description="Ask questions about the app — uses your saved codebase & instructions"
+            onClick={onShowDevAssistant}
           />
         )}
         {onRequestCharacterRedo && (
