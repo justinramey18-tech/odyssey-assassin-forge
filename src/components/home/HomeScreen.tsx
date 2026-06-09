@@ -1033,6 +1033,30 @@ export function HomeScreen({
                 )}
               </motion.div>
 
+              {/* Host Campaign Architect shortcut */}
+              {partySync?.party?.isCreator && playMode === 'party' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.85, ease: [0.16, 1, 0.3, 1] }}
+                  className="px-4"
+                >
+                  <button
+                    onClick={() => { triggerHaptic('light'); drawerContext?.openPartyDMCampaignBuilder(); }}
+                    className={cn(
+                      "w-full flex items-center justify-center gap-2 py-3 rounded-xl",
+                      "border border-amber-500/40 bg-amber-950/25 backdrop-blur-sm",
+                      "hover:bg-amber-900/35 hover:border-amber-400/60",
+                      "active:scale-[0.98] transition-all duration-200"
+                    )}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <Wand2 className="w-5 h-5 text-amber-400" />
+                    <span className="text-sm font-cinzel uppercase tracking-wider text-amber-300">New Game / Campaign Architect</span>
+                  </button>
+                </motion.div>
+              )}
+
               {/* Menus Bar */}
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
