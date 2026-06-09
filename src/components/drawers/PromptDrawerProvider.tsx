@@ -231,6 +231,7 @@ export function PromptDrawerProvider({
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [aiDMOpen, setAiDMOpen] = useState(false);
   const [partyDMOpen, setPartyDMOpen] = useState(false);
+  const [partyDMBuilderAutoOpen, setPartyDMBuilderAutoOpen] = useState(false);
 
   // Personality gate for Solo DM
   const personalityGate = usePersonalityGate({ userId });
