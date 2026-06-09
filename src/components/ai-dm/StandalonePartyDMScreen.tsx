@@ -67,6 +67,7 @@ interface StandalonePartyDMScreenProps {
   isSoloEmpyrean?: boolean;
   embedded?: boolean;
   swipeHandlers?: SwipeHandlers;
+  autoOpenCampaignBuilder?: boolean;
 }
 
 export function StandalonePartyDMScreen({
