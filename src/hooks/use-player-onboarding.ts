@@ -72,6 +72,7 @@ export function usePlayerOnboarding({ partyId, userId, campaignPlan, hostCharact
           chat_history: history,
           campaign_plan: campaignPlan || '',
           host_character_summary: hostCharacterSummary || '',
+          player_existing_character: playerExistingCharacter || '',
         },
       });
       if (invokeErr) throw invokeErr;
