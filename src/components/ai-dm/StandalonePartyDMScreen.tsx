@@ -85,6 +85,7 @@ export function StandalonePartyDMScreen({
   isSoloEmpyrean,
   embedded = false,
   swipeHandlers,
+  autoOpenCampaignBuilder,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
 
