@@ -650,6 +650,7 @@ ${truncated}`);
           userId={userId}
           campaignPlan={campaignPlan}
           hostCharacterSummary={hostCharacterSummary}
+          playerExistingCharacter={playerExistingCharacter}
           onComplete={() => {
             setForceShowOnboarding(false);
             setJustAppliedOnboarding(true);
@@ -929,6 +930,7 @@ ${truncated}`);
             userId={userId}
             campaignPlan={campaignPlan}
             hostCharacterSummary={hostCharacterSummary}
+            playerExistingCharacter={playerExistingCharacter}
             onComplete={() => {
               setForceShowOnboarding(false);
               setJustAppliedOnboarding(true);
