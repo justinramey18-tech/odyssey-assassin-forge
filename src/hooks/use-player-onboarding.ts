@@ -34,21 +34,32 @@ export function usePlayerOnboarding({ partyId, userId, campaignPlan, hostCharact
   const [isApplying, setIsApplying] = useState(false);
 
   // Greeting on first open. Tailored to whether the player arrives with an existing build.
+  // Re-seeds while still empty if the existing-character summary arrives asynchronously
+  // (e.g., character context loads after the screen mounts).
   useEffect(() => {
-    if (messages.length === 0 && partyId && userId) {
-      const hasExisting = (playerExistingCharacter || '').trim().length > 0;
+    if (!partyId || !userId) return;
+    setMessages(prev => {
+      // Only seed/replace if the only message is the auto-greeting (or empty).
+      if (prev.length > 1) return prev;
+      if (prev.length === 1 && !prev[0].id.endsWith('_seed')) return prev;
+      const existing = (playerExistingCharacter || '').trim();
+      const hasExisting = existing.length > 0;
+      const preview = hasExisting
+        ? existing.split('\n').slice(0, 4).join('\n')
+        : '';
       const greeting = hasExisting
-        ? "Welcome to the campaign. I can already see the character you built — let's just confirm the details fit the host's world, fill in anything missing, and get you in. Ready when you are."
+        ? `Welcome to the campaign. I can already see the character you built:\n\n${preview}\n\nLet's confirm these details fit the host's world, fill in anything missing, and get you in. Ready when you are.`
         : "Welcome to the campaign. The host has set up the world — let me catch you up, and we'll build your character together. What kind of rider do you want to play?";
-      setMessages([{
+      const seed = {
         id: `msg_${Date.now()}_seed`,
-        role: 'assistant',
+        role: 'assistant' as const,
         content: greeting,
         timestamp: Date.now(),
-      }]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [partyId, userId]);
+      };
+      if (prev.length === 1 && prev[0].content === greeting) return prev;
+      return [seed];
+    });
+  }, [partyId, userId, playerExistingCharacter]);
 
   const send = useCallback(async (text: string) => {
     const trimmed = text.trim();
