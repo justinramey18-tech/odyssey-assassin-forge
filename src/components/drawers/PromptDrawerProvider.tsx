@@ -784,17 +784,18 @@ export function PromptDrawerProvider({
           {/* Standalone Party DM Full-Screen Overlay */}
           {partyDMOpen && (
             <StandalonePartyDMScreen
-              onBack={() => { setPartyDMOpen(false); }}
+              onBack={() => { setPartyDMOpen(false); setPartyDMBuilderAutoOpen(false); }}
               characterContext={aiDMCharacterContext}
               partyId={partyId ?? null}
               isPartyCreator={isPartyCreator}
               partyMembers={partyMembers}
               userId={userId ?? ''}
               characterName={character.name}
-              onShowChat={onOpenPartyChat ? () => { setPartyDMOpen(false); onOpenPartyChat(); } : undefined}
+              onShowChat={onOpenPartyChat ? () => { setPartyDMOpen(false); setPartyDMBuilderAutoOpen(false); onOpenPartyChat(); } : undefined}
               autoSyncCallbacks={autoSyncCallbacks}
               wildShape={wildShape}
               isMomoMoonDruid={isMomoEasterEgg(character.name) && character.primaryClass === 'druid' && subclass?.toLowerCase().includes('moon')}
+              autoOpenCampaignBuilder={partyDMBuilderAutoOpen}
             />
           )}
         </>
