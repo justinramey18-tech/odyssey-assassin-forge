@@ -275,7 +275,7 @@ export function CharacterWizard({
           <div className="parchment-bg rounded-lg border border-border p-6 space-y-4">
             {/* Quick Start */}
             <button
-              onClick={handleQuickStart}
+              {...pressProps(handleQuickStart)}
               className="w-full p-4 rounded-lg border-2 border-border bg-background/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-left group"
             >
               <div className="flex items-center gap-3 mb-2">
@@ -294,7 +294,7 @@ export function CharacterWizard({
 
             {/* Custom Build */}
             <button
-              onClick={() => setMode('wizard')}
+              {...pressProps(() => setMode('wizard'))}
               className="w-full p-4 rounded-lg border-2 border-border bg-background/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-left group"
             >
               <div className="flex items-center gap-3 mb-2">
@@ -313,7 +313,7 @@ export function CharacterWizard({
 
             {/* AI Creation Assistant */}
             <button
-              onClick={() => navigate('/ai-create')}
+              {...pressProps(handleAICreationAssistant)}
               className="w-full p-4 rounded-lg border-2 border-border bg-background/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-left group"
             >
               <div className="flex items-center gap-3 mb-2">
@@ -333,7 +333,7 @@ export function CharacterWizard({
             {/* Load from Cloud */}
             {onLoadCloud && (
               <button
-                onClick={onLoadCloud}
+                {...pressProps(onLoadCloud)}
                 className="w-full p-4 rounded-lg border-2 border-border bg-background/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-left group"
               >
                 <div className="flex items-center gap-3 mb-2">
