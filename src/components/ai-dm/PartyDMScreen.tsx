@@ -19,7 +19,7 @@ import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause, MessageCircle, SmilePlus, Theater, Megaphone, Swords } from 'lucide-react';
+import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, ChevronRight, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause, MessageCircle, SmilePlus, Theater, Megaphone, Swords } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer, PreSplitChatViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -2242,27 +2242,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               </motion.div>
             )}
           </AnimatePresence>
-          {/* Campaign recap — at bottom, visible until first action submit */}
-          {partyDm.messages.length > 0 && partyDm.sessionConfig?.campaignSummary && !recapDismissed && (
+          {/* Dad Huddle — quick jump to Party Chat */}
+          {partyDm.messages.length > 0 && !recapDismissed && onShowChat && (
             <div className="mb-4 mx-1">
               <button
-                onClick={() => setRecapExpanded(prev => !prev)}
+                onClick={() => onShowChat?.()}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-950/30 border border-amber-500/15 hover:border-amber-500/30 transition-all"
               >
-                <span className="text-sm">📜</span>
-                <span className="text-xs font-cinzel text-amber-300/80 flex-1 text-left">Previously in your campaign...</span>
-                <ChevronDown className={cn(
-                  "w-3.5 h-3.5 text-amber-400/50 transition-transform duration-200",
-                  recapExpanded && "rotate-180"
-                )} />
+                <MessageSquare className="w-3.5 h-3.5 text-amber-300/80" />
+                <span className="text-xs font-cinzel text-amber-300/80 flex-1 text-left">Dad Huddle — Consult with Other Players</span>
+                <ChevronRight className="w-3.5 h-3.5 text-amber-400/50" />
               </button>
-              {recapExpanded && (
-                <div className="mt-1.5 px-3 py-3 rounded-xl bg-amber-950/15 border border-amber-500/10">
-                  <div className="text-xs text-amber-200/60 leading-relaxed whitespace-pre-wrap">
-                    {partyDm.sessionConfig.campaignSummary}
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
