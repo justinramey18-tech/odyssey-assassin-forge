@@ -3174,6 +3174,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   </p>
                 </div>
                 <button
+                  onClick={handleCopyMyPrompt}
+                  className="px-3 py-2 rounded-lg hover:bg-amber-900/20 transition-colors text-amber-300/70 hover:text-amber-300 border border-amber-500/20"
+                  style={{ touchAction: 'manipulation' }}
+                  title="Copy prompt to clipboard"
+                  aria-label="Copy prompt to clipboard"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+                <button
                   onClick={() => {
                     const promptText = partyDm.myPrompt?.prompt || '';
                     // Don't restore autopilot prompts to the text input
@@ -3187,6 +3196,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 >
                   Retract
                 </button>
+
               </div>
               <Button
                 onClick={partyDm.setReady}
