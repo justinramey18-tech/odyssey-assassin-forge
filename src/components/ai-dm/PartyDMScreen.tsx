@@ -1480,6 +1480,45 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     setTimeout(() => partyDmRef.current.setReady(), 100);
   }, [myAfkGuide]);
 
+  const [showReadiedPromptPreview, setShowReadiedPromptPreview] = useState(false);
+
+  useEffect(() => {
+    if (!partyDm.myPrompt) setShowReadiedPromptPreview(false);
+  }, [partyDm.myPrompt]);
+
+  const handleCopyMyPrompt = useCallback(async () => {
+    const promptText = partyDm.myPrompt?.prompt || '';
+    if (!promptText || (promptText.startsWith('<<') && promptText.endsWith('>>'))) {
+      toast.error('No prompt to copy');
+      return;
+    }
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(promptText);
+        toast.success('Prompt copied to clipboard');
+        return;
+      }
+    } catch {
+      // Fall through to legacy fallback below.
+    }
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = promptText;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (ok) toast.success('Prompt copied to clipboard');
+      else toast.error('Copy failed — long-press to copy manually');
+    } catch {
+      toast.error('Copy failed — long-press to copy manually');
+    }
+  }, [partyDm.myPrompt]);
+
+
   // Empyrean masterwork pills generator (Party mode)
   const handleFetchMasterworkPills = useCallback(
     async (category: 'dragon' | 'situation', situationLabel: string) => {
