@@ -1480,6 +1480,45 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     setTimeout(() => partyDmRef.current.setReady(), 100);
   }, [myAfkGuide]);
 
+  const [showReadiedPromptPreview, setShowReadiedPromptPreview] = useState(false);
+
+  useEffect(() => {
+    if (!partyDm.myPrompt) setShowReadiedPromptPreview(false);
+  }, [partyDm.myPrompt]);
+
+  const handleCopyMyPrompt = useCallback(async () => {
+    const promptText = partyDm.myPrompt?.prompt || '';
+    if (!promptText || (promptText.startsWith('<<') && promptText.endsWith('>>'))) {
+      toast.error('No prompt to copy');
+      return;
+    }
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(promptText);
+        toast.success('Prompt copied to clipboard');
+        return;
+      }
+    } catch {
+      // Fall through to legacy fallback below.
+    }
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = promptText;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (ok) toast.success('Prompt copied to clipboard');
+      else toast.error('Copy failed — long-press to copy manually');
+    } catch {
+      toast.error('Copy failed — long-press to copy manually');
+    }
+  }, [partyDm.myPrompt]);
+
+
   // Empyrean masterwork pills generator (Party mode)
   const handleFetchMasterworkPills = useCallback(
     async (category: 'dragon' | 'situation', situationLabel: string) => {
@@ -3135,6 +3174,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   </p>
                 </div>
                 <button
+                  onClick={handleCopyMyPrompt}
+                  className="px-3 py-2 rounded-lg hover:bg-amber-900/20 transition-colors text-amber-300/70 hover:text-amber-300 border border-amber-500/20"
+                  style={{ touchAction: 'manipulation' }}
+                  title="Copy prompt to clipboard"
+                  aria-label="Copy prompt to clipboard"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+                <button
                   onClick={() => {
                     const promptText = partyDm.myPrompt?.prompt || '';
                     // Don't restore autopilot prompts to the text input
@@ -3148,6 +3196,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 >
                   Retract
                 </button>
+
               </div>
               <Button
                 onClick={partyDm.setReady}
@@ -3161,31 +3210,61 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           </div>
         ) : (
           <div className="flex items-center justify-between max-w-2xl mx-auto">
-            <div className="flex items-center gap-2">
-              <CheckCheck className="w-4 h-4 text-emerald-400" />
-              <span className="text-sm text-emerald-300/70">
-                {isDialogueMode
-                  ? 'Dialogue mode — chat freely!'
-                  : (partyDm.sessionConfig?.dmMode === 'human')
-                    ? 'Ready! Waiting for the DM...'
-                    : (partyDm.sessionConfig?.dmMode === 'ai-approval')
-                      ? 'Ready! AI will draft a response for DM review...'
-                      : 'Ready! Waiting for others...'}
-              </span>
-              <button
-                onClick={() => {
-                  const promptText = partyDm.myPrompt?.prompt || '';
-                  if (promptText) {
-                    playerInputRef.current?.setText(promptText);
-                  }
-                  partyDm.retractPrompt();
-                }}
-                disabled={partyDm.isGenerating}
-                className="ml-2 px-2 py-0.5 text-[11px] rounded border border-amber-500/30 bg-amber-900/20 text-amber-300 hover:bg-amber-900/40 transition-colors disabled:opacity-40"
-              >
-                Retract
-              </button>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <CheckCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <span className="text-sm text-emerald-300/70">
+                  {isDialogueMode
+                    ? 'Dialogue mode — chat freely!'
+                    : (partyDm.sessionConfig?.dmMode === 'human')
+                      ? 'Ready! Waiting for the DM...'
+                      : (partyDm.sessionConfig?.dmMode === 'ai-approval')
+                        ? 'Ready! AI will draft a response for DM review...'
+                        : 'Ready! Waiting for others...'}
+                </span>
+                {partyDm.myPrompt?.prompt && !(partyDm.myPrompt.prompt.startsWith('<<') && partyDm.myPrompt.prompt.endsWith('>>')) && (
+                  <button
+                    onClick={() => setShowReadiedPromptPreview(v => !v)}
+                    className="text-[11px] text-emerald-300/60 hover:text-emerald-300 underline underline-offset-2"
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    {showReadiedPromptPreview ? 'Hide' : 'View'}
+                  </button>
+                )}
+                <button
+                  onClick={handleCopyMyPrompt}
+                  disabled={partyDm.isGenerating}
+                  className="px-2 py-0.5 rounded border border-amber-500/30 bg-amber-900/20 text-amber-300 hover:bg-amber-900/40 transition-colors disabled:opacity-40"
+                  style={{ touchAction: 'manipulation' }}
+                  title="Copy prompt to clipboard"
+                  aria-label="Copy prompt to clipboard"
+                >
+                  <Copy className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => {
+                    const promptText = partyDm.myPrompt?.prompt || '';
+                    if (promptText) {
+                      playerInputRef.current?.setText(promptText);
+                    }
+                    partyDm.retractPrompt();
+                  }}
+                  disabled={partyDm.isGenerating}
+                  className="ml-2 px-2 py-0.5 text-[11px] rounded border border-amber-500/30 bg-amber-900/20 text-amber-300 hover:bg-amber-900/40 transition-colors disabled:opacity-40"
+                >
+                  Retract
+                </button>
+              </div>
+              {showReadiedPromptPreview && partyDm.myPrompt?.prompt && (
+                <div className="mt-2 p-2 rounded-lg bg-white/5 border border-emerald-900/30">
+                  <p className="text-[10px] text-white/40 mb-0.5">Your readied prompt:</p>
+                  <p className="text-sm text-white/80 whitespace-pre-wrap break-words">
+                    {partyDm.myPrompt.prompt}
+                  </p>
+                </div>
+              )}
             </div>
+
             <div className="flex items-center gap-2">
               {/* Narrator speaker button */}
                {narrator.hasTTSKey && (
