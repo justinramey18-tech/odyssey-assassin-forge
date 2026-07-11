@@ -3082,7 +3082,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               </button>
             )}
           </div>
-        )
         ) : !hasSubmitted && !isMyTurn ? (
           <div className="max-w-2xl mx-auto py-4 px-3 text-center space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20">
