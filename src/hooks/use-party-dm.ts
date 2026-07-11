@@ -875,6 +875,35 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (!user || !partyId) return;
     const resolvedConfig = await resolveSessionConfig();
     if (!resolvedConfig) { toast.error('No active session'); return; }
+
+    // Couples Mode: claim the turn on first submission, or block if not your turn.
+    const inTurnBased = (resolvedConfig.dmMode || 'ai') === 'turnBased';
+    if (inTurnBased) {
+      if (!resolvedConfig.turnUserId) {
+        // Conditional claim: re-check under fresh read to avoid double-claim race.
+        const { data: freshState } = await supabase
+          .from('party_shared_state')
+          .select('state_data')
+          .eq('party_id', partyId)
+          .eq('state_type', 'dm_session')
+          .maybeSingle();
+        const freshTurnUserId = (freshState?.state_data as any)?.turnUserId;
+        if (!freshTurnUserId) {
+          const patched = { ...(freshState?.state_data as any || resolvedConfig), turnUserId: user.id };
+          await (supabase.from('party_shared_state') as any)
+            .update({ state_data: patched })
+            .eq('party_id', partyId)
+            .eq('state_type', 'dm_session');
+        } else if (freshTurnUserId !== user.id) {
+          toast.error("It's not your turn yet.");
+          return;
+        }
+      } else if (resolvedConfig.turnUserId !== user.id) {
+        toast.error("It's not your turn yet.");
+        return;
+      }
+    }
+
     const myPrompt = currentPrompts.find(p => p.user_id === user.id);
     if (myPrompt) {
       // Optimistic update
