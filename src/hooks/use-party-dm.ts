@@ -107,7 +107,7 @@ export interface PartyDmPrompt {
   signet_intensity?: number | null;
 }
 
-export type DmMode = 'ai' | 'human' | 'ai-approval' | 'dialogue';
+export type DmMode = 'ai' | 'human' | 'ai-approval' | 'dialogue' | 'turnBased';
 
 export interface DmSessionConfig {
   active: boolean;
@@ -116,7 +116,10 @@ export interface DmSessionConfig {
   campaignSummary: string | null;
   isGenerating: boolean;
   splitActive?: boolean;
-  dmMode?: DmMode; // 'ai' (default) | 'human' | 'ai-approval'
+  dmMode?: DmMode; // 'ai' (default) | 'human' | 'ai-approval' | 'dialogue' | 'turnBased'
+  // Couples Mode (turnBased dmMode): whose turn it currently is. Null/undefined = unclaimed,
+  // first ready submission in turnBased mode claims it as the starting player.
+  turnUserId?: string | null;
   // Round timer
   timerEnabled?: boolean;
   timerDurationSeconds?: number; // default duration for new rounds
