@@ -2036,6 +2036,11 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         lastGeneratedRoundRef.current = sessionConfig.currentRoundId;
 
         const newRoundId = crypto.randomUUID();
+        let nextTurnUserId = sessionConfig.turnUserId;
+        if (isTurnBased) {
+          const otherMember = partyMembers.find(m => m.user_id !== sessionConfig.turnUserId);
+          nextTurnUserId = otherMember?.user_id ?? sessionConfig.turnUserId;
+        }
         const newConfig: DmSessionConfig = {
           ...sessionConfig,
           currentRoundId: newRoundId,
@@ -2044,6 +2049,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           timerStartedAt: sessionConfig.timerEnabled ? new Date().toISOString() : null,
           timerPausedRemaining: null,
           extensionRequests: [],
+          ...(isTurnBased ? { turnUserId: nextTurnUserId } : {}),
         };
         await (supabase.from('party_shared_state') as any)
           .update({ state_data: newConfig })
