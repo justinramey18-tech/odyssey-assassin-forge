@@ -107,7 +107,7 @@ export interface PartyDmPrompt {
   signet_intensity?: number | null;
 }
 
-export type DmMode = 'ai' | 'human' | 'ai-approval' | 'dialogue';
+export type DmMode = 'ai' | 'human' | 'ai-approval' | 'dialogue' | 'turnBased';
 
 export interface DmSessionConfig {
   active: boolean;
@@ -116,7 +116,10 @@ export interface DmSessionConfig {
   campaignSummary: string | null;
   isGenerating: boolean;
   splitActive?: boolean;
-  dmMode?: DmMode; // 'ai' (default) | 'human' | 'ai-approval'
+  dmMode?: DmMode; // 'ai' (default) | 'human' | 'ai-approval' | 'dialogue' | 'turnBased'
+  // Couples Mode (turnBased dmMode): whose turn it currently is. Null/undefined = unclaimed,
+  // first ready submission in turnBased mode claims it as the starting player.
+  turnUserId?: string | null;
   // Round timer
   timerEnabled?: boolean;
   timerDurationSeconds?: number; // default duration for new rounds
@@ -335,6 +338,19 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const alphaReady = alphaPrompts.length >= splitState.alphaMembers.length && alphaPrompts.every(p => p.is_ready);
     const betaReady = betaPrompts.length >= splitState.betaMembers.length && betaPrompts.every(p => p.is_ready);
     return alphaReady || betaReady;
+  })();
+
+  const isTurnBasedMode = (sessionConfig?.dmMode || 'ai') === 'turnBased';
+
+  // In turnBased mode, only the current turn-holder's ready prompt matters.
+  // If no turn is claimed yet, ANY member's ready prompt counts (first-to-submit claims it).
+  const turnReady = (() => {
+    if (!isTurnBasedMode) return false;
+    const claimedTurnUserId = sessionConfig?.turnUserId;
+    if (claimedTurnUserId) {
+      return activePrompts.some(p => p.user_id === claimedTurnUserId && p.is_ready);
+    }
+    return activePrompts.some(p => p.is_ready);
   })();
 
   // Filter messages based on team membership + enrich with parsed whispers
@@ -859,6 +875,35 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (!user || !partyId) return;
     const resolvedConfig = await resolveSessionConfig();
     if (!resolvedConfig) { toast.error('No active session'); return; }
+
+    // Couples Mode: claim the turn on first submission, or block if not your turn.
+    const inTurnBased = (resolvedConfig.dmMode || 'ai') === 'turnBased';
+    if (inTurnBased) {
+      if (!resolvedConfig.turnUserId) {
+        // Conditional claim: re-check under fresh read to avoid double-claim race.
+        const { data: freshState } = await supabase
+          .from('party_shared_state')
+          .select('state_data')
+          .eq('party_id', partyId)
+          .eq('state_type', 'dm_session')
+          .maybeSingle();
+        const freshTurnUserId = (freshState?.state_data as any)?.turnUserId;
+        if (!freshTurnUserId) {
+          const patched = { ...(freshState?.state_data as any || resolvedConfig), turnUserId: user.id };
+          await (supabase.from('party_shared_state') as any)
+            .update({ state_data: patched })
+            .eq('party_id', partyId)
+            .eq('state_type', 'dm_session');
+        } else if (freshTurnUserId !== user.id) {
+          toast.error("It's not your turn yet.");
+          return;
+        }
+      } else if (resolvedConfig.turnUserId !== user.id) {
+        toast.error("It's not your turn yet.");
+        return;
+      }
+    }
+
     const myPrompt = currentPrompts.find(p => p.user_id === user.id);
     if (myPrompt) {
       // Optimistic update
@@ -1502,7 +1547,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const generateResponse = useCallback(async () => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
 
-    const readyPrompts = currentPrompts.filter(p => p.is_ready && memberUserIds.has(p.user_id));
+    const isTurnBased = (sessionConfig.dmMode || 'ai') === 'turnBased';
+    const readyPrompts = isTurnBased
+      ? currentPrompts.filter(p => p.is_ready && memberUserIds.has(p.user_id) && p.user_id === sessionConfig.turnUserId)
+      : currentPrompts.filter(p => p.is_ready && memberUserIds.has(p.user_id));
     if (readyPrompts.length === 0) {
       toast.error('No ready prompts to generate from');
       return;
@@ -1822,7 +1870,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         // === NORMAL MODE ===
         const { guidesSection: afkGuidesSection, promptSection: afkPromptSection, consumedCascades: normalConsumed, afkEntries: normalAfkEntries } = suppressAfkGuides
           ? { guidesSection: '', promptSection: '', consumedCascades: [], afkEntries: [] as Array<{ userId: string; characterName: string; content: string }> }
-          : buildAfkGuidesContext(readyPrompts);
+          : buildAfkGuidesContext(readyPrompts, isTurnBased && sessionConfig.turnUserId ? [sessionConfig.turnUserId] : undefined);
         const rawCombined = readyPrompts
           .map(formatPromptLine)
           .join('\n') + afkPromptSection;
@@ -1988,6 +2036,11 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         lastGeneratedRoundRef.current = sessionConfig.currentRoundId;
 
         const newRoundId = crypto.randomUUID();
+        let nextTurnUserId = sessionConfig.turnUserId;
+        if (isTurnBased) {
+          const otherMember = partyMembers.find(m => m.user_id !== sessionConfig.turnUserId);
+          nextTurnUserId = otherMember?.user_id ?? sessionConfig.turnUserId;
+        }
         const newConfig: DmSessionConfig = {
           ...sessionConfig,
           currentRoundId: newRoundId,
@@ -1996,6 +2049,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           timerStartedAt: sessionConfig.timerEnabled ? new Date().toISOString() : null,
           timerPausedRemaining: null,
           extensionRequests: [],
+          ...(isTurnBased ? { turnUserId: nextTurnUserId } : {}),
         };
         await (supabase.from('party_shared_state') as any)
           .update({ state_data: newConfig })
@@ -3596,6 +3650,9 @@ Rules:
     isFullSummarizing,
     fullSummarize,
     allReady,
+    isTurnBasedMode,
+    turnReady,
+    currentTurnUserId: sessionConfig?.turnUserId ?? null,
     myPrompt,
     activeCampaignId,
     lastAutoSaveTime,
@@ -3646,7 +3703,7 @@ Rules:
     dismissExtensions,
   }), [
     filteredMessages, messages, currentPrompts, sessionConfig, isActive,
-    computedIsGenerating, isSummarizing, isFullSummarizing, fullSummarize, allReady, myPrompt, activeCampaignId,
+    computedIsGenerating, isSummarizing, isFullSummarizing, fullSummarize, allReady, isTurnBasedMode, turnReady, myPrompt, activeCampaignId,
     lastAutoSaveTime, splitState, isSplitActive, myTeam, pendingDraft,
     startSession, endSession, startNewCampaign, saveCampaign, loadCampaign,
     submitPrompt, editPrompt, retractPrompt, setReady, unready,
