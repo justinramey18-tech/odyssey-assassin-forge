@@ -4,7 +4,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Theater, Megaphone, Film, RefreshCw, Code2 } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Heart, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Theater, Megaphone, Film, RefreshCw, Code2 } from 'lucide-react';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
 import { ResponseModeSelector } from './ResponseModeSelector';
@@ -181,39 +181,46 @@ export function PartyDMSettings({
               <span className="text-sm font-medium text-foreground">DM Mode</span>
             </div>
             <div className="grid grid-cols-4 gap-1.5">
-              {([
-                { value: 'ai' as DmMode, icon: <Bot className="w-3.5 h-3.5" />, label: 'AI DM', desc: 'AI generates responses' },
-                { value: 'human' as DmMode, icon: <Pen className="w-3.5 h-3.5" />, label: 'Human DM', desc: 'You write all responses' },
-                { value: 'ai-approval' as DmMode, icon: <ShieldCheck className="w-3.5 h-3.5" />, label: 'AI + Approval', desc: 'Review AI drafts first' },
-                { value: 'dialogue' as DmMode, icon: <MessageCircle className="w-3.5 h-3.5" />, label: 'Dialogue', desc: 'Free-flowing player chat' },
-              ]).map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => onDmModeChange(opt.value)}
-                  className={cn(
-                    "flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg text-center transition-all min-h-[60px]",
-                    "border",
-                    dmMode === opt.value
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-muted/10 text-muted-foreground hover:bg-muted/20"
-                  )}
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <div className="relative">
-                    {opt.icon}
-                    {dmMode === opt.value && (
-                      <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400" />
+              {(() => {
+                const baseModeOptions = [
+                  { value: 'ai' as DmMode, icon: <Bot className="w-3.5 h-3.5" />, label: 'AI DM', desc: 'AI generates responses' },
+                  { value: 'human' as DmMode, icon: <Pen className="w-3.5 h-3.5" />, label: 'Human DM', desc: 'You write all responses' },
+                  { value: 'ai-approval' as DmMode, icon: <ShieldCheck className="w-3.5 h-3.5" />, label: 'AI + Approval', desc: 'Review AI drafts first' },
+                  { value: 'dialogue' as DmMode, icon: <MessageCircle className="w-3.5 h-3.5" />, label: 'Dialogue', desc: 'Free-flowing player chat' },
+                ];
+                const modeOptions = memberCount === 2
+                  ? [...baseModeOptions, { value: 'turnBased' as DmMode, icon: <Heart className="w-3.5 h-3.5" />, label: 'Couples Mode', desc: 'Strict turns — one action, one response, then the other player goes' }]
+                  : baseModeOptions;
+                return modeOptions.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => onDmModeChange(opt.value)}
+                    className={cn(
+                      "flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg text-center transition-all min-h-[60px]",
+                      "border",
+                      dmMode === opt.value
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-muted/10 text-muted-foreground hover:bg-muted/20"
                     )}
-                  </div>
-                  <span className="text-[11px] font-semibold leading-tight">{opt.label}</span>
-                </button>
-              ))}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <div className="relative">
+                      {opt.icon}
+                      {dmMode === opt.value && (
+                        <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400" />
+                      )}
+                    </div>
+                    <span className="text-[11px] font-semibold leading-tight">{opt.label}</span>
+                  </button>
+                ));
+              })()}
             </div>
             <p className="text-[10px] text-muted-foreground mt-1.5 px-0.5">
               {dmMode === 'ai' && 'AI generates and broadcasts responses automatically.'}
               {dmMode === 'human' && 'You write narrative responses manually. No AI involved.'}
               {dmMode === 'ai-approval' && 'AI drafts a response for you to review, edit, and approve before players see it.'}
               {dmMode === 'dialogue' && 'Players chat freely in-character. Tap "Call the DM" when you want AI narration.'}
+              {dmMode === 'turnBased' && 'Couples Mode: players take strict turns. Submit your action, the AI responds immediately, then it\'s the other player\'s turn.'}
             </p>
           </div>
         )}
