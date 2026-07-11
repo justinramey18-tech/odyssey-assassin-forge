@@ -1675,6 +1675,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const hasSubmitted = !!partyDm.myPrompt;
   const isReady = partyDm.myPrompt?.is_ready ?? false;
   const isDialogueMode = partyDm.sessionConfig?.dmMode === 'dialogue';
+  const isTurnBasedMode = partyDm.isTurnBasedMode;
+  const currentTurnUserId = partyDm.currentTurnUserId;
+  const isMyTurn = !isTurnBasedMode || !currentTurnUserId || currentTurnUserId === currentUserId;
+  const turnHolderName = isTurnBasedMode && currentTurnUserId
+    ? (members.find(m => m.user_id === currentTurnUserId)?.character_name || 'Your partner')
+    : '';
   const [dialogueText, setDialogueText] = useState('');
   const [whisperTarget, setWhisperTarget] = useState<{ user_id: string; character_name: string } | null>(null);
   const [whisperPickerOpen, setWhisperPickerOpen] = useState(false);
@@ -3077,6 +3083,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             )}
           </div>
         )
+        ) : !hasSubmitted && !isMyTurn ? (
+          <div className="max-w-2xl mx-auto py-4 px-3 text-center space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+              <Loader2 className="w-3.5 h-3.5 text-amber-400/70 animate-spin" />
+              <span className="text-xs text-amber-300/80">Waiting for {turnHolderName}'s turn</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              It's not your turn yet. Chat with the party, check your character, or just enjoy the story — you'll get your turn right after {turnHolderName} acts.
+            </p>
+          </div>
         ) : !hasSubmitted ? (
           <>
             {isEmpyrean && partyDm.messages.length > 0 && (
@@ -3164,8 +3180,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             <div className="flex items-center gap-2">
               <CheckCheck className="w-4 h-4 text-emerald-400" />
               <span className="text-sm text-emerald-300/70">
-                {isDialogueMode
-                  ? 'Dialogue mode — chat freely!'
+              {isDialogueMode
+                ? 'Dialogue mode — chat freely!'
+                : isTurnBasedMode
+                  ? 'Your turn is in! The AI is responding...'
                   : (partyDm.sessionConfig?.dmMode === 'human')
                     ? 'Ready! Waiting for the DM...'
                     : (partyDm.sessionConfig?.dmMode === 'ai-approval')
