@@ -340,6 +340,19 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     return alphaReady || betaReady;
   })();
 
+  const isTurnBasedMode = (sessionConfig?.dmMode || 'ai') === 'turnBased';
+
+  // In turnBased mode, only the current turn-holder's ready prompt matters.
+  // If no turn is claimed yet, ANY member's ready prompt counts (first-to-submit claims it).
+  const turnReady = (() => {
+    if (!isTurnBasedMode) return false;
+    const claimedTurnUserId = sessionConfig?.turnUserId;
+    if (claimedTurnUserId) {
+      return activePrompts.some(p => p.user_id === claimedTurnUserId && p.is_ready);
+    }
+    return activePrompts.some(p => p.is_ready);
+  })();
+
   // Filter messages based on team membership + enrich with parsed whispers
   const filteredMessages = useMemo(() => {
     // First filter whisper visibility — only sender and recipient can see
