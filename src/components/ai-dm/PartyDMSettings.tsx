@@ -150,6 +150,10 @@ export interface PartyDMSettingsProps {
   chatBackground?: string | null;
   onChatBackgroundUpload?: (file: File) => Promise<void> | void;
   onChatBackgroundClear?: () => void;
+  chatBackgroundOpacity?: number;
+  chatBackgroundBlur?: number;
+  onChatBackgroundOpacityChange?: (value: number) => void;
+  onChatBackgroundBlurChange?: (value: number) => void;
 }
 
 export function PartyDMSettings({
