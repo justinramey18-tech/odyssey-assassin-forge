@@ -177,6 +177,8 @@ export function PartyDMSettings({
   dialogueAutoIntervene, onDialogueAutoInterveneChange,
   onRequestCharacterRedo, hasPendingRedoRequest = false,
   chatBackground, onChatBackgroundUpload, onChatBackgroundClear,
+  chatBackgroundOpacity = 0.28, chatBackgroundBlur = 0,
+  onChatBackgroundOpacityChange, onChatBackgroundBlurChange,
 }: PartyDMSettingsProps) {
   const bgFileInputRef = useRef<HTMLInputElement>(null);
   const originalCreator = isOriginalCreatorProp ?? isCreator;
