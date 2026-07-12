@@ -1998,14 +1998,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         )}
         {/* Custom user-uploaded chat background (personal, per-character) */}
         {chatBackground.background && (
-          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+          <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
             <div
               className="absolute inset-0"
               style={{
                 backgroundImage: `url(${chatBackground.background})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
-                opacity: 0.28,
+                opacity: chatBackground.settings.opacity,
+                filter: chatBackground.settings.blur > 0 ? `blur(${chatBackground.settings.blur}px)` : undefined,
+                transform: chatBackground.settings.blur > 0 ? 'scale(1.05)' : undefined,
               }}
             />
             <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/70" />
