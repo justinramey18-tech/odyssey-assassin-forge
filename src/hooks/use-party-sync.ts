@@ -1376,7 +1376,7 @@ export function usePartySync(): UsePartySyncReturn {
       party_id: party.partyId,
       user_id: user.id,
       sender_name: senderName,
-      message: message.slice(0, 500),
+      message: message,
     };
     if (options?.replyToId) insertData.reply_to_id = options.replyToId;
     if (options?.imageUrl) insertData.image_url = options.imageUrl;
@@ -1393,7 +1393,7 @@ export function usePartySync(): UsePartySyncReturn {
     if (!user || !party.partyId) return;
 
     await (supabase.from('party_messages') as any)
-      .update({ message: newText.slice(0, 200), updated_at: new Date().toISOString() })
+      .update({ message: newText, updated_at: new Date().toISOString() })
       .eq('id', messageId)
       .eq('user_id', user.id);
   }, [user, party.partyId]);
