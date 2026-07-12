@@ -1270,6 +1270,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [showQuests, setShowQuests] = useState(false);
   const [questsCount, setQuestsCount] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const chatBackground = usePartyChatBackground();
 
   // Load party quest count — Fix B: guard with currentUserId
   useEffect(() => {
