@@ -986,35 +986,6 @@ ${truncated}`);
         );
       })()}
 
-      {/* Lock-out screen for non-host players who haven't completed onboarding after host started campaign */}
-      {(() => {
-        const myMember = partyMembers.find(m => m.user_id === userId);
-        const myOnboardingStatus = (myMember as any)?.onboarding_status || 'pending';
-        const showLockOutScreen = !isPartyCreator
-          && campaignStarted
-          && myOnboardingStatus !== 'complete'
-          && myOnboardingStatus !== 'in_progress'
-          && myOnboardingStatus !== 'pending'
-          && !forceShowOnboarding;
-        if (!showLockOutScreen) return null;
-        return (
-          <PlayerLockedOutScreen onOpenOnboarding={() => setForceShowOnboarding(true)} />
-        );
-      })()}
-
-      {/* Host's Start Campaign panel */}
-      <HostStartCampaignPanel
-        open={showStartCampaignPanel}
-        onOpenChange={setShowStartCampaignPanel}
-        partyId={partyId}
-        hostUserId={isPartyCreator ? userId : null}
-        members={partyMembers.map<PartyMemberOnboardingView>((m) => ({
-          user_id: m.user_id,
-          display_name: memberDisplayNames[m.user_id],
-          onboarding_status: ((m as any).onboarding_status || 'pending') as PartyMemberOnboardingView['onboarding_status'],
-        }))}
-        onCampaignStarted={() => setCampaignStarted(true)}
-      />
 
       <PlayerRedoRequestDialog
         open={showRedoDialog}
