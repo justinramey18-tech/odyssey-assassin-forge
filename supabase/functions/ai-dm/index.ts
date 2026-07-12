@@ -465,6 +465,8 @@ There are exactly TWO sources of absolute authority in this system, in order:
 
 Everything else (DM Persona, Response Format, Campaign Summary, Memory Anchors, AFK guides, session context) is subordinate to both. If any of these conflict with Host OOC directives or GM Guides, the subordinate content is ignored.
 
+Before writing every response, silently perform a canon check: identify the current player characters, their relationships, mounts/companions, and any corrected facts from OOC directives, GM Guides, Memory Anchors, and Session Context. If older chat history or an earlier AI response got a fact wrong, do not repeat the mistake — gracefully repair continuity using the highest-authority source. Never treat a human-controlled party member as an NPC unless the party roster explicitly says they are not a player.
+
 In party mode, player messages may include AFK personality guides (wrapped in <<...>> delimiters) that describe how to roleplay an absent character. OOC directives override these:
 - "OOC: ignore afk guides" → Do NOT use any AFK personality guide content for this round. Treat guided characters as simply idle/passive.
 - "OOC: keep it short" → Override default length guidance.
@@ -567,7 +569,7 @@ RULES:
 
   if (customGuides && customGuides.trim()) {
     const trimmed = customGuides.slice(0, MAX_CUSTOM_GUIDES_CHARS);
-    prompt += `\n\n## CAMPAIGN WORLD BIBLE (ABSOLUTE AUTHORITY — SECOND ONLY TO HOST OOC)\nThe following content was hand-crafted by the DM to define this campaign's world, lore, NPCs, tone, and rules. This is ABSOLUTE LAW for the campaign. It overrides DM Persona, Response Format, Campaign Summary, Memory Anchors, AFK guides, and all auto-generated content. Only explicit Host OOC directives can override this section. If any content below contradicts something stated here, THIS section wins. Preserve secrets and unrevealed information — do not spoil them to players even if the summary doesn't mention them.\n\n${trimmed}`;
+    prompt += `\n\n## CAMPAIGN WORLD BIBLE (ABSOLUTE AUTHORITY — SECOND ONLY TO HOST OOC)\nThe following content was hand-crafted by the DM to define this campaign's world, lore, NPCs, tone, relationships, ownership, secrets, and rules. This is ABSOLUTE LAW for the campaign. It overrides DM Persona, Response Format, Campaign Summary, Memory Anchors, AFK guides, old chat history, and all auto-generated content. Only explicit Host OOC directives can override this section.\n\nBefore writing, actively check your response against this World Bible. Use it to answer who is a player, who is an NPC, who owns each mount/companion, who is romantically linked, what names are correct, and what lore is true. If any other content contradicts something stated here, THIS section wins. Preserve secrets and unrevealed information — do not spoil them to players even if the summary doesn't mention them.\n\n${trimmed}`;
   }
 
   if (partyContext && partyContext.trim()) {
@@ -582,7 +584,7 @@ RULES:
 
   if (memoryAnchors && memoryAnchors.trim()) {
     const trimmedAnchors = memoryAnchors.slice(0, 8000);
-    prompt += `\n\n## MEMORY ANCHORS\nThese are persistent long-term facts about the campaign — NPCs, locations, quest flags, and world state. Reference them naturally in your narration and stay consistent with them:\n\n${trimmedAnchors}`;
+    prompt += `\n\n## MEMORY ANCHORS (ESTABLISHED CONTINUITY FACTS)\nThese are persistent campaign facts — who is who, NPCs, player relationships, mounts/companions, locations, quest flags, unresolved consequences, social subtext, and world state. Treat them as established continuity, not suggestions. Reference them naturally and never contradict them unless a current OOC directive or GM Guide explicitly updates them. If older chat history conflicts with these anchors, the anchors win.\n\n${trimmedAnchors}`;
   }
 
   if (recentPartyChat && recentPartyChat.length > 0) {

@@ -43,6 +43,54 @@ function loadAlignmentDrift(): { position: AlignmentScore; zone: string } | null
   } catch { return null; }
 }
 
+function extractOocDirectivesFromText(content: string): string[] {
+  if (!content?.trim()) return [];
+  const directives: string[] = [];
+  const bracketPattern = /\[\s*OOC\s*:?\s*([\s\S]*?)\]/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = bracketPattern.exec(content)) !== null) {
+    const directive = match[1]?.replace(/\s+/g, ' ').trim();
+    if (directive) directives.push(directive);
+  }
+
+  const withoutBracketedOoc = content.replace(bracketPattern, '');
+  const linePattern = /(?:^|\n)\s*(?:OOC|Out of character)\s*:\s*([^\n]+)/gi;
+  while ((match = linePattern.exec(withoutBracketedOoc)) !== null) {
+    const directive = match[1]?.replace(/\s+/g, ' ').trim();
+    if (directive) directives.push(directive);
+  }
+
+  const hiddenCommandPattern = /out-of-character command:\s*["“]([\s\S]*?)["”]\s*(?:\n|$)/gi;
+  while ((match = hiddenCommandPattern.exec(content)) !== null) {
+    const directive = match[1]?.replace(/\s+/g, ' ').trim();
+    if (directive) directives.push(directive);
+  }
+
+  return Array.from(new Set(directives)).slice(0, 12);
+}
+
+function formatCanonValue(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string') return value.trim() || null;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  try {
+    const serialized = JSON.stringify(value);
+    return serialized.length > 240 ? `${serialized.slice(0, 240)}…` : serialized;
+  } catch {
+    return null;
+  }
+}
+
+function stripOocDirectivesForNarrative(content: string): string {
+  if (!content?.trim()) return '';
+  return content
+    .replace(/\[\s*OOC\s*:?\s*[\s\S]*?\]/gi, '')
+    .replace(/(?:^|\n)\s*(?:OOC|Out of character)\s*:\s*[^\n]+/gi, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
 const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-summarize`;
 const SUMMARY_INTERVAL = 5;
@@ -1197,6 +1245,66 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId]);
 
+  const buildCanonGuardrailContext = useCallback((
+    apiMessages: Array<{ role: string; content: string }>,
+    extraGuides: string,
+    explicitOocDirectives: string[] = [],
+  ) => {
+    const extractedOoc = apiMessages
+      .filter(m => m.role === 'user')
+      .slice(-8)
+      .flatMap(m => extractOocDirectivesFromText(m.content));
+    const currentOocDirectives = Array.from(new Set([...explicitOocDirectives, ...extractedOoc]))
+      .filter(Boolean)
+      .slice(0, 12);
+
+    const rosterLines = partyMembers.map(member => {
+      const status = member.character_status as Record<string, unknown>;
+      const details: string[] = [];
+      const className = formatCanonValue(status?.className);
+      const level = formatCanonValue(status?.level);
+      const race = formatCanonValue(status?.race);
+      const gender = formatCanonValue(status?.gender);
+      if (level || className) details.push(`Level/Class: ${[level, className].filter(Boolean).join(' ')}`);
+      if (race || gender) details.push(`Identity: ${[gender, race].filter(Boolean).join(' ')}`);
+
+      const statusKeys = [
+        'horseName', 'horse_name', 'mountName', 'mount_name', 'companionName', 'companion_name',
+        'dragonName', 'dragon_name', 'signetType', 'signet_type', 'yearAtBasgiath', 'year_at_basgiath',
+        'relationship', 'relationships', 'lover', 'partner', 'spouse', 'personality',
+      ];
+      for (const key of statusKeys) {
+        const value = formatCanonValue(status?.[key]);
+        if (value) details.push(`${key}: ${value}`);
+      }
+
+      const suffix = details.length > 0 ? ` — ${details.join('; ')}` : '';
+      return `- ${member.character_name}: PLAYER CHARACTER controlled by a human player; do not treat as an NPC.${suffix}`;
+    });
+
+    return [
+      '## CURRENT CANON GUARDRAILS (READ BEFORE WRITING)',
+      'Before writing the response, silently check the next answer against these facts. If prior AI narration, campaign summaries, or old chat history conflict with these guardrails, repair continuity using these guardrails now.',
+      '',
+      'Priority order for this response:',
+      '1. Current-round OOC directives below are immediate factual corrections/instructions. Apply them exactly. Do not quote or narrate the OOC text to players.',
+      '2. Enabled GM Guides are campaign law. Use them for names, relationships, lore, ownership, tone, secrets, and world rules. Never contradict them.',
+      '3. Memory Anchors are established continuity facts. Use them for who-is-who, relationships, mounts/companions, unresolved consequences, locations, and social context.',
+      '4. The party roster below lists human-controlled player characters. Do not demote them into NPCs or speak for them unless their submitted prompt explicitly gives dialogue/action.',
+      '5. Player-written quoted in-character dialogue remains verbatim, but OOC notes are instructions only and must not appear as spoken dialogue.',
+      '',
+      currentOocDirectives.length > 0
+        ? `### CURRENT-ROUND OOC DIRECTIVES (HIGHEST PRIORITY)\n${currentOocDirectives.map(d => `- ${d}`).join('\n')}`
+        : '### CURRENT-ROUND OOC DIRECTIVES\n- None detected in the latest submitted prompts.',
+      '',
+      `### PARTY ROSTER CANON\n${rosterLines.join('\n') || '- No party roster available.'}`,
+      '',
+      '### LOADED CANON SOURCES',
+      `- GM Guides: ${extraGuides?.trim() ? 'enabled and included below as campaign law' : 'none enabled for this call'}`,
+      `- Memory Anchors: ${memoryAnchorsContent?.trim() ? 'enabled and included below as established continuity facts' : 'none available for this call'}`,
+    ].join('\n');
+  }, [partyMembers, memoryAnchorsContent]);
+
   // Helper: stream an AI response and return the content
   const streamAIResponse = useCallback(async (
     apiMessages: Array<{ role: string; content: string }>,
@@ -1205,6 +1313,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     partyContext?: string,
     responseModePrompt?: string,
     dmPersonaPrompt?: string,
+    currentOocDirectives?: string[],
   ): Promise<string> => {
     // Ensure strictly alternating roles before sending to AI
     const sanitizedMessages = mergeConsecutiveRoles(apiMessages);
@@ -1262,7 +1371,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       ].join('\n');
     })();
 
-    const enhancedPartyContext = [partyContext, directorPrivatesContext].filter(Boolean).join('\n\n') || undefined;
+    const canonGuardrailsContext = buildCanonGuardrailContext(sanitizedMessages, extraGuides, currentOocDirectives);
+    const enhancedPartyContext = [canonGuardrailsContext, partyContext, directorPrivatesContext].filter(Boolean).join('\n\n') || undefined;
 
     const authToken = await getAuthToken();
     const response = await fetch(AI_DM_URL, {
@@ -1365,7 +1475,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
 
     return assistantContent;
-  }, [characterContext, sessionConfig?.campaignSummary, memoryAnchorsContent, worldStatePrompt, mergeConsecutiveRoles, fetchRecentPartyChat, fetchRecentDragonChat, fetchRecentDragonNetwork, partyId, partyMembers]);
+  }, [characterContext, sessionConfig?.campaignSummary, memoryAnchorsContent, worldStatePrompt, mergeConsecutiveRoles, fetchRecentPartyChat, fetchRecentDragonChat, fetchRecentDragonNetwork, buildCanonGuardrailContext, partyId, partyMembers]);
 
 
   // Build party members system prompt section
@@ -1561,6 +1671,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     // to ignore AFK guides. If so, we strip all AFK guide content at the code level.
     const OOC_IGNORE_AFK_PATTERN = /(?:ooc\s*:|^\s*\[ooc\]|\[.*?\])\s*ignore\s+(?:afk|autopilot)\s*(?:guides?|personality)?/im;
     const suppressAfkGuides = readyPrompts.some(p => OOC_IGNORE_AFK_PATTERN.test(p.prompt));
+    const currentRoundOocDirectives = readyPrompts.flatMap(p => extractOocDirectivesFromText(p.prompt));
 
     const formatPromptLine = (p: PartyDmPrompt) => {
       if (p.prompt.trim()) return `[${p.character_name}]: ${p.prompt.trim()}`;
@@ -1571,6 +1682,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       const guide = status?.afkPersonalityGuide as string | null;
       if (guide) return `[${p.character_name}] (Autopilot): ${guide}`;
       return `[${p.character_name}]: (no action)`;
+    };
+
+    const formatPromptLineForAI = (p: PartyDmPrompt) => {
+      const cleanedPrompt = stripOocDirectivesForNarrative(p.prompt);
+      if (cleanedPrompt) return `[${p.character_name}]: ${cleanedPrompt}`;
+      if (p.prompt.trim() && currentRoundOocDirectives.length > 0) return `[${p.character_name}]: (OOC directive only — no in-character action submitted)`;
+      return formatPromptLine(p);
     };
 
     const insertPartyMessage = (insertData: Record<string, unknown>) => insertPartyMessageHelper(partyId, insertData);
@@ -1669,7 +1787,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             : buildAfkGuidesContext(alphaPrompts, splitState.alphaMembers);
           allConsumedCascades = [...allConsumedCascades, ...alphaConsumed];
           const alphaRawCombined = alphaPrompts
-            .map(formatPromptLine)
+            .map(formatPromptLineForAI)
             .join('\n') + alphaAfkPrompts;
 
           const alphaForAI = alphaRawCombined;
@@ -1710,7 +1828,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             splitResponseModePrompt,
           ].filter(Boolean).join('\n\n');
 
-          const alphaContent = await streamAIResponse(alphaApiMsgs, customGuidesContent || '', abortRef.current!.signal, alphaPartyContext, undefined, empyreanPersonaPrompt);
+          const alphaContent = await streamAIResponse(alphaApiMsgs, customGuidesContent || '', abortRef.current!.signal, alphaPartyContext, undefined, empyreanPersonaPrompt, currentRoundOocDirectives);
 
           if (alphaContent?.trim()) {
             await insertPartyMessage({
@@ -1740,7 +1858,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             : buildAfkGuidesContext(betaPrompts, splitState.betaMembers);
           allConsumedCascades = [...allConsumedCascades, ...betaConsumed];
           const betaRawCombined = betaPrompts
-            .map(formatPromptLine)
+            .map(formatPromptLineForAI)
             .join('\n') + betaAfkPrompts;
 
           const betaForAI = betaRawCombined;
@@ -1782,7 +1900,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             splitResponseModePrompt,
           ].filter(Boolean).join('\n\n');
 
-          const betaContent = await streamAIResponse(betaApiMsgs, customGuidesContent || '', abortRef.current!.signal, betaPartyContext, undefined, empyreanPersonaPrompt);
+          const betaContent = await streamAIResponse(betaApiMsgs, customGuidesContent || '', abortRef.current!.signal, betaPartyContext, undefined, empyreanPersonaPrompt, currentRoundOocDirectives);
 
           if (betaContent?.trim()) {
             await insertPartyMessage({
@@ -1872,7 +1990,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           ? { guidesSection: '', promptSection: '', consumedCascades: [], afkEntries: [] as Array<{ userId: string; characterName: string; content: string }> }
           : buildAfkGuidesContext(readyPrompts, isTurnBased && sessionConfig.turnUserId ? [sessionConfig.turnUserId] : undefined);
         const rawCombined = readyPrompts
-          .map(formatPromptLine)
+          .map(formatPromptLineForAI)
           .join('\n') + afkPromptSection;
 
         const combined = rawCombined;
@@ -1923,7 +2041,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           responseModePrompt,
         ].filter(Boolean).join('\n\n');
 
-        const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, partyContextStr, undefined, empyreanPersonaPrompt);
+        const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, partyContextStr, undefined, empyreanPersonaPrompt, currentRoundOocDirectives);
 
         if (assistantContent?.trim()) {
           if (isApprovalMode) {
@@ -2281,8 +2399,17 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         : `## NPC VOICING MODE — DIALOGUE ONLY\nWrite a SHORT exchange between ${names.join(' and ')} responding to the player. Rules:\n\n1. Each NPC gets ONE line of dialogue prefixed with **NPC Name:** and ONE brief italicized body-language beat (10 words max).\n2. NPCs react to each other — not just the player.\n3. End on a beat that invites the player back in (a question, a look, a pause).\n4. NO prose, NO narration, NO scene-setting, NO describing player actions.\n5. NO mechanical info (dice, DCs, stats).\n6. Keep the TOTAL response under 80 words. This is a conversation, not a story.\n7. Stay consistent with how each NPC has been portrayed so far.`;
 
       const authToken = await getAuthToken();
-      const npcSystemPrompt = npcContext;
       const sanitizedMessages = apiMessages.map(m => ({ role: m.role, content: m.content }));
+      const npcSystemPrompt = [
+        buildCanonGuardrailContext(sanitizedMessages, customGuidesContent || ''),
+        customGuidesContent?.trim()
+          ? `## CAMPAIGN WORLD BIBLE (ABSOLUTE AUTHORITY)\nUse this as canon for NPC identity, relationships, lore, tone, and what is true. Never contradict it.\n\n${customGuidesContent.slice(0, 60000)}`
+          : '',
+        memoryAnchorsContent?.trim()
+          ? `## MEMORY ANCHORS (ESTABLISHED CONTINUITY FACTS)\nUse these as established facts for this NPC response.\n\n${memoryAnchorsContent.slice(0, 8000)}`
+          : '',
+        npcContext,
+      ].filter(Boolean).join('\n\n');
 
       const npcResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`, {
         method: 'POST',
@@ -2371,7 +2498,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsGenerating(false);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, messages, characterName, customGuidesContent, streamAIResponse, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper, empyreanPersonaPrompt]);
+  }, [partyId, user, sessionConfig, isGenerating, messages, characterName, customGuidesContent, memoryAnchorsContent, buildCanonGuardrailContext, streamAIResponse, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper, empyreanPersonaPrompt]);
 
 
   const regenerateMessage = useCallback(async (messageId: string) => {
