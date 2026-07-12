@@ -182,7 +182,7 @@ export function StandalonePartyDMScreen({
       .maybeSingle()
       .then(({ data }) => {
         if (cancelled || !data) return;
-        setCampaignStarted((data as any).campaign_started === true);
+        // campaign_started gate removed
         const ct = (data as any).campaign_type;
         if (ct === 'empyrean' || ct === 'dnd') setPartyCampaignType(ct);
       });
