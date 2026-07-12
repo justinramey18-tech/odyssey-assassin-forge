@@ -1996,6 +1996,21 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
           </div>
         )}
+        {/* Custom user-uploaded chat background (personal, per-character) */}
+        {chatBackground.background && (
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: `url(${chatBackground.background})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                opacity: 0.28,
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/70" />
+          </div>
+        )}
         <AnimatePresence>
           {showEmpyreanBanner && (
             <motion.button
