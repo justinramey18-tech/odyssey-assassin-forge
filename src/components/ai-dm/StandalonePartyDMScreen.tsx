@@ -193,7 +193,7 @@ export function StandalonePartyDMScreen({
         { event: 'UPDATE', schema: 'public', table: 'parties', filter: `id=eq.${partyId}` },
         (payload) => {
           const row = payload.new as { campaign_started?: boolean; campaign_type?: string } | null;
-          if (typeof row?.campaign_started === 'boolean') setCampaignStarted(row.campaign_started);
+          // campaign_started gate removed
           if (row?.campaign_type === 'empyrean' || row?.campaign_type === 'dnd') {
             setPartyCampaignType(row.campaign_type);
           }
