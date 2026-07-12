@@ -415,7 +415,7 @@ export function FullscreenPartyChat({
                               )}
                               <div className="space-y-1">
                                 <div className={cn("text-sm leading-snug break-words [overflow-wrap:anywhere] prose prose-invert max-w-none font-sans normal-case prose-p:my-1.5 prose-p:leading-snug prose-headings:my-1.5 prose-headings:font-semibold prose-h1:text-base prose-h2:text-sm prose-h3:text-sm prose-h4:text-sm prose-ul:my-1.5 prose-ul:pl-5 prose-ol:my-1.5 prose-ol:pl-5 prose-li:my-0.5 prose-li:marker:text-muted-foreground prose-strong:text-foreground prose-em:text-foreground/90 prose-code:text-[12px] prose-code:break-all prose-pre:my-1.5 prose-pre:p-2 prose-pre:text-[12px] prose-pre:whitespace-pre-wrap prose-pre:break-words prose-a:break-all prose-hr:my-2 prose-blockquote:my-1.5 prose-blockquote:pl-3 prose-blockquote:border-l-2", isMsgDragon ? "text-purple-200/80 italic" : "text-foreground/90")}>
-                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.message}</ReactMarkdown>
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownLinkComponents}>{msg.message}</ReactMarkdown>
                                 </div>
                                 {msg.image_url && (
                                   <a href={msg.image_url} target="_blank" rel="noopener noreferrer" className="block mb-1">
