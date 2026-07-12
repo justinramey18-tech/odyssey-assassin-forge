@@ -46,6 +46,7 @@ export const SCOPED_KEYS = [
   // Party
   'odyssey-active-party-id',
   'odyssey-party-chat-background',
+  'odyssey-party-chat-background-settings',
   // Narrative & AI
   'narrative-forge-saved-stories',
   'narrative-forge-active-story-id',
