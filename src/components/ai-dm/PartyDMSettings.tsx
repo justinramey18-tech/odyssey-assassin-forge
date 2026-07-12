@@ -374,6 +374,38 @@ export function PartyDMSettings({
         )}
       </SettingsSection>
 
+      {/* Round Controls (host only) — recover from mis-taps / mistaken deletes */}
+      {isCreator && (onRedoLastRound || (onReclaimTurn && dmMode === 'turnBased')) && (
+        <SettingsSection title="Round Controls" icon={<RotateCcw className="w-4 h-4 text-amber-400" />}>
+          {onReclaimTurn && dmMode === 'turnBased' && (
+            <ToolRow
+              icon={<Undo2 className="w-4 h-4 text-amber-400" />}
+              label="Take my turn back"
+              description="Couples Mode only — set the current turn back to you so you can go again."
+              onClick={() => {
+                if (confirm("Reclaim the turn? The current turn will be handed back to you so you can submit again.")) {
+                  onReclaimTurn();
+                }
+              }}
+            />
+          )}
+          {onRedoLastRound && (
+            <ToolRow
+              icon={<RotateCcw className="w-4 h-4 text-amber-400" />}
+              label="Redo last round"
+              description="Deletes the most recent DM response and player prompt, then reopens the round so you can resubmit."
+              onClick={() => {
+                if (confirm("Redo the last round? This deletes the last DM response and the player prompt that triggered it, then reopens the round.")) {
+                  onRedoLastRound();
+                }
+              }}
+            />
+          )}
+          <p className="text-[10px] text-muted-foreground px-3 pb-2">Host only. Use if you accidentally deleted an AI response or need to restart the round.</p>
+        </SettingsSection>
+      )}
+
+
       {/* Response Style (creator-only) */}
       {isCreator && onResponseModeChange && (
         <SettingsSection title="Response Style" icon={<Palette className="w-4 h-4 text-amber-400" />}>
