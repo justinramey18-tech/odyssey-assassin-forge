@@ -4,7 +4,8 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Heart, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Theater, Megaphone, Film, RefreshCw, Code2 } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Heart, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Theater, Megaphone, Film, RefreshCw, Code2, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { useRef } from 'react';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
 import { ResponseModeSelector } from './ResponseModeSelector';
@@ -145,6 +146,10 @@ export interface PartyDMSettingsProps {
   // Player redo request (non-host only)
   onRequestCharacterRedo?: () => void;
   hasPendingRedoRequest?: boolean;
+  // Chat background (per-character personal preference)
+  chatBackground?: string | null;
+  onChatBackgroundUpload?: (file: File) => Promise<void> | void;
+  onChatBackgroundClear?: () => void;
 }
 
 export function PartyDMSettings({
@@ -167,7 +172,9 @@ export function PartyDMSettings({
   hasBookmark, onClearBookmark,
   dialogueAutoIntervene, onDialogueAutoInterveneChange,
   onRequestCharacterRedo, hasPendingRedoRequest = false,
+  chatBackground, onChatBackgroundUpload, onChatBackgroundClear,
 }: PartyDMSettingsProps) {
+  const bgFileInputRef = useRef<HTMLInputElement>(null);
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   return (
     <div className="px-3 py-3 space-y-2.5 w-full">
@@ -427,7 +434,47 @@ export function PartyDMSettings({
             onClick={onClearBookmark}
           />
         )}
+        {onChatBackgroundUpload && (
+          <>
+            <input
+              ref={bgFileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                  await onChatBackgroundUpload(file);
+                  toast.success('Chat background updated');
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : 'Failed to upload image');
+                } finally {
+                  if (bgFileInputRef.current) bgFileInputRef.current.value = '';
+                }
+              }}
+            />
+            <ToolRow
+              icon={<ImageIcon className={cn('w-4 h-4', chatBackground ? 'text-emerald-400' : '')} />}
+              label={chatBackground ? 'Change Chat Background' : 'Upload Chat Background'}
+              description={chatBackground ? 'Tap to replace your custom image' : 'Set a personal image behind the chat'}
+              onClick={() => bgFileInputRef.current?.click()}
+            />
+            {chatBackground && onChatBackgroundClear && (
+              <ToolRow
+                icon={<Trash2 className="w-4 h-4 text-red-400" />}
+                label="Clear Chat Background"
+                description="Restore the default background"
+                onClick={() => {
+                  onChatBackgroundClear();
+                  toast.success('Chat background cleared');
+                }}
+              />
+            )}
+          </>
+        )}
       </SettingsSection>
+
 
       {/* Spotify Controls */}
       <SettingsSection title="Ambient Music" icon={<Music className="w-4 h-4 text-emerald-400" />}>

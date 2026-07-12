@@ -96,6 +96,8 @@ const ALL_STORAGE_KEYS = [
   'odyssey-dm-response-mode',
   // Empyrean unbonded status
   'empyrean-unbonded-status',
+  // Party chat background
+  'odyssey-party-chat-background',
 ] as const;
 
 /**

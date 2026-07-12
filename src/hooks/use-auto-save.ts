@@ -70,6 +70,7 @@ export interface SaveData {
   };
   partyId?: string | null;
   backgroundUrl?: string | null;
+  partyChatBackground?: string | null;
   dmChatTheme?: string | null;
   synthesisRecentModes?: string[];
   dmResponseMode?: string | null;

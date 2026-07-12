@@ -26,6 +26,7 @@ import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { WhisperTray } from './WhisperTray';
 import { OraclePanel } from '@/components/oracle/OraclePanel';
 import { PartyDMSettings } from './PartyDMSettings';
+import { usePartyChatBackground } from '@/hooks/use-party-chat-background';
 import { PartyMemoryAnchorsPanel } from './PartyMemoryAnchorsPanel';
 import { PartyQuestsPanel } from './PartyQuestsPanel';
 import { DMComposePanel } from './DMComposePanel';
@@ -1269,6 +1270,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [showQuests, setShowQuests] = useState(false);
   const [questsCount, setQuestsCount] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const chatBackground = usePartyChatBackground();
 
   // Load party quest count — Fix B: guard with currentUserId
   useEffect(() => {
@@ -1992,6 +1994,21 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               opacity: 0.18,
             }} />
             <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
+          </div>
+        )}
+        {/* Custom user-uploaded chat background (personal, per-character) */}
+        {chatBackground.background && (
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: `url(${chatBackground.background})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                opacity: 0.28,
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/70" />
           </div>
         )}
         <AnimatePresence>
@@ -3361,6 +3378,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onShowOocChat={onShowOocChat}
               onRequestCharacterRedo={onRequestCharacterRedo}
               hasPendingRedoRequest={hasPendingRedoRequest}
+              chatBackground={chatBackground.background}
+              onChatBackgroundUpload={chatBackground.handleImageUpload}
+              onChatBackgroundClear={chatBackground.clearBackground}
               onShowRegroupDialog={() => setShowRegroupDialog(true)}
               onShowSplitSummaries={() => setShowSplitSummaries(true)}
               onShowPreSplitChat={() => setShowPreSplitChat(true)}
