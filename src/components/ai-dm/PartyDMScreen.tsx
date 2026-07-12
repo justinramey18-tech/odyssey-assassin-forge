@@ -3487,6 +3487,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   toast.success('Bookmark cleared');
                 }
               }}
+              onReclaimTurn={partyDm.reclaimTurn}
+              onRedoLastRound={partyDm.redoLastRound}
             />
           ) : undefined}
           oracleContent={activeNavTab === 'oracle' && characterContext ? (() => {

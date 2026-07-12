@@ -2924,6 +2924,90 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     setSessionConfig(updated);
   }, [partyId, resolveSessionConfig]);
 
+  // Host-only: reclaim the current turn in Couples/turn-based mode so the host can go again.
+  const reclaimTurn = useCallback(async () => {
+    if (!partyId || !user || !isCreator) return;
+    const base = await resolveSessionConfig();
+    if (!base) { toast.error('No active session'); return; }
+    if ((base.dmMode || 'ai') !== 'turnBased') {
+      toast.error('Reclaim turn only works in Couples Mode');
+      return;
+    }
+    // Clear any lingering ready prompts for the current round so a stale ready
+    // doesn't immediately auto-generate.
+    await (supabase.from('party_dm_prompts') as any)
+      .delete()
+      .eq('party_id', partyId)
+      .eq('round_id', base.currentRoundId);
+    setCurrentPrompts([]);
+    await (supabase.from('party_shared_state') as any)
+      .update({ state_data: { ...base, turnUserId: user.id, isGenerating: false } })
+      .eq('party_id', partyId)
+      .eq('state_type', 'dm_session');
+    setSessionConfig({ ...base, turnUserId: user.id, isGenerating: false });
+    toast.success("Turn reclaimed — it's your turn again.");
+  }, [partyId, user, isCreator, resolveSessionConfig]);
+
+  // Host-only: undo the most recent round. Deletes the last assistant message
+  // and the immediately-preceding user prompt message, clears any pending
+  // prompts, starts a fresh round, and (in turn-based mode) sets the turn back
+  // to whoever went last so the host can effectively "redo" the round.
+  const redoLastRound = useCallback(async () => {
+    if (!partyId || !user || !isCreator) return;
+    const base = await resolveSessionConfig();
+    if (!base) { toast.error('No active session'); return; }
+
+    // Find most recent assistant message and immediately-preceding user message
+    const lastAssistantIdx = [...messages].reverse().findIndex(m => m.role === 'assistant');
+    const assistantIdx = lastAssistantIdx >= 0 ? messages.length - 1 - lastAssistantIdx : -1;
+    const assistantMsg = assistantIdx >= 0 ? messages[assistantIdx] : null;
+    const precedingUserMsg = assistantIdx > 0
+      ? [...messages.slice(0, assistantIdx)].reverse().find(m => m.role === 'user')
+      : (messages.length > 0 && messages[messages.length - 1].role === 'user' ? messages[messages.length - 1] : null);
+
+    const idsToDelete: string[] = [];
+    if (assistantMsg?.id) idsToDelete.push(assistantMsg.id);
+    if (precedingUserMsg?.id) idsToDelete.push(precedingUserMsg.id);
+
+    if (idsToDelete.length > 0) {
+      await (supabase.from('party_dm_messages') as any)
+        .delete()
+        .eq('party_id', partyId)
+        .in('id', idsToDelete);
+      setMessages(prev => prev.filter(m => !idsToDelete.includes(m.id)));
+    }
+
+    // Clear any prompts (any round — the round is being redone)
+    await (supabase.from('party_dm_prompts') as any)
+      .delete()
+      .eq('party_id', partyId);
+    setCurrentPrompts([]);
+
+    // Start a fresh round. In turn-based mode, hand the turn back to whoever
+    // went last (the user_id on the preceding user prompt message).
+    const newRoundId = crypto.randomUUID();
+    const isTurnBased = (base.dmMode || 'ai') === 'turnBased';
+    const lastActorUserId = precedingUserMsg?.sender_user_id || user.id;
+    const newConfig: DmSessionConfig = {
+      ...base,
+      currentRoundId: newRoundId,
+      isGenerating: false,
+      timerStartedAt: base.timerEnabled ? new Date().toISOString() : null,
+      timerPausedRemaining: null,
+      extensionRequests: [],
+      ...(isTurnBased ? { turnUserId: lastActorUserId } : {}),
+    };
+    await (supabase.from('party_shared_state') as any)
+      .update({ state_data: newConfig })
+      .eq('party_id', partyId)
+      .eq('state_type', 'dm_session');
+    setSessionConfig(newConfig);
+    // Reset the auto-generate guard so a fresh ready in this new round can fire.
+    lastGeneratedRoundRef.current = null;
+    toast.success('Last round undone — go again.');
+  }, [partyId, user, isCreator, resolveSessionConfig, messages]);
+
+
   // Full campaign summarization — processes entire chat history in batches
   const fullSummarize = useCallback(async () => {
     if (!partyId || !user) {
@@ -3692,6 +3776,8 @@ Rules:
     initiateSplit,
     regroupParty,
     updateSessionConfig,
+    reclaimTurn,
+    redoLastRound,
     // Timer
     setTimerConfig,
     startTimer,
@@ -3710,7 +3796,7 @@ Rules:
     generateResponse, sendManualDmMessage, approveDraft, discardDraft,
     editMessage, deleteMessage, sendDialogueMessage, sendWhisper, callDM, voiceNPC, startNpcScene, stopNpcScene, submitNpcInterjection, generateDialogueRecap, regenerateMessage, regenerateWhispers,
     addMediaMessage, stopGeneration, applyOocCommand, initiateSplit, regroupParty,
-    updateSessionConfig, setTimerConfig, startTimer, pauseTimer, resumeTimer,
+    updateSessionConfig, reclaimTurn, redoLastRound, setTimerConfig, startTimer, pauseTimer, resumeTimer,
     cancelTimer, requestExtension, approveExtension, dismissExtensions,
   ]);
 }

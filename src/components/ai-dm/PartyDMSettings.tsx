@@ -5,7 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Heart, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Theater, Megaphone, Film, RefreshCw, Code2, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Heart, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Theater, Megaphone, Film, RefreshCw, Code2, Image as ImageIcon, Trash2, Undo2, RotateCcw } from 'lucide-react';
 import { useRef } from 'react';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
@@ -155,6 +155,9 @@ export interface PartyDMSettingsProps {
   chatBackgroundBlur?: number;
   onChatBackgroundOpacityChange?: (value: number) => void;
   onChatBackgroundBlurChange?: (value: number) => void;
+  // Host round controls
+  onReclaimTurn?: () => void;
+  onRedoLastRound?: () => void;
 }
 
 export function PartyDMSettings({
@@ -180,6 +183,7 @@ export function PartyDMSettings({
   chatBackground, onChatBackgroundUpload, onChatBackgroundClear,
   chatBackgroundOpacity = 0.28, chatBackgroundBlur = 0,
   onChatBackgroundOpacityChange, onChatBackgroundBlurChange,
+  onReclaimTurn, onRedoLastRound,
 }: PartyDMSettingsProps) {
   const bgFileInputRef = useRef<HTMLInputElement>(null);
   const originalCreator = isOriginalCreatorProp ?? isCreator;
@@ -369,6 +373,38 @@ export function PartyDMSettings({
           </div>
         )}
       </SettingsSection>
+
+      {/* Round Controls (host only) — recover from mis-taps / mistaken deletes */}
+      {isCreator && (onRedoLastRound || (onReclaimTurn && dmMode === 'turnBased')) && (
+        <SettingsSection title="Round Controls" icon={<RotateCcw className="w-4 h-4 text-amber-400" />}>
+          {onReclaimTurn && dmMode === 'turnBased' && (
+            <ToolRow
+              icon={<Undo2 className="w-4 h-4 text-amber-400" />}
+              label="Take my turn back"
+              description="Couples Mode only — set the current turn back to you so you can go again."
+              onClick={() => {
+                if (confirm("Reclaim the turn? The current turn will be handed back to you so you can submit again.")) {
+                  onReclaimTurn();
+                }
+              }}
+            />
+          )}
+          {onRedoLastRound && (
+            <ToolRow
+              icon={<RotateCcw className="w-4 h-4 text-amber-400" />}
+              label="Redo last round"
+              description="Deletes the most recent DM response and player prompt, then reopens the round so you can resubmit."
+              onClick={() => {
+                if (confirm("Redo the last round? This deletes the last DM response and the player prompt that triggered it, then reopens the round.")) {
+                  onRedoLastRound();
+                }
+              }}
+            />
+          )}
+          <p className="text-[10px] text-muted-foreground px-3 pb-2">Host only. Use if you accidentally deleted an AI response or need to restart the round.</p>
+        </SettingsSection>
+      )}
+
 
       {/* Response Style (creator-only) */}
       {isCreator && onResponseModeChange && (
