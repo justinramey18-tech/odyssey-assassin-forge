@@ -1245,6 +1245,66 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId]);
 
+  const buildCanonGuardrailContext = useCallback((
+    apiMessages: Array<{ role: string; content: string }>,
+    extraGuides: string,
+    explicitOocDirectives: string[] = [],
+  ) => {
+    const extractedOoc = apiMessages
+      .filter(m => m.role === 'user')
+      .slice(-8)
+      .flatMap(m => extractOocDirectivesFromText(m.content));
+    const currentOocDirectives = Array.from(new Set([...explicitOocDirectives, ...extractedOoc]))
+      .filter(Boolean)
+      .slice(0, 12);
+
+    const rosterLines = partyMembers.map(member => {
+      const status = member.character_status as Record<string, unknown>;
+      const details: string[] = [];
+      const className = formatCanonValue(status?.className);
+      const level = formatCanonValue(status?.level);
+      const race = formatCanonValue(status?.race);
+      const gender = formatCanonValue(status?.gender);
+      if (level || className) details.push(`Level/Class: ${[level, className].filter(Boolean).join(' ')}`);
+      if (race || gender) details.push(`Identity: ${[gender, race].filter(Boolean).join(' ')}`);
+
+      const statusKeys = [
+        'horseName', 'horse_name', 'mountName', 'mount_name', 'companionName', 'companion_name',
+        'dragonName', 'dragon_name', 'signetType', 'signet_type', 'yearAtBasgiath', 'year_at_basgiath',
+        'relationship', 'relationships', 'lover', 'partner', 'spouse', 'personality',
+      ];
+      for (const key of statusKeys) {
+        const value = formatCanonValue(status?.[key]);
+        if (value) details.push(`${key}: ${value}`);
+      }
+
+      const suffix = details.length > 0 ? ` — ${details.join('; ')}` : '';
+      return `- ${member.character_name}: PLAYER CHARACTER controlled by a human player; do not treat as an NPC.${suffix}`;
+    });
+
+    return [
+      '## CURRENT CANON GUARDRAILS (READ BEFORE WRITING)',
+      'Before writing the response, silently check the next answer against these facts. If prior AI narration, campaign summaries, or old chat history conflict with these guardrails, repair continuity using these guardrails now.',
+      '',
+      'Priority order for this response:',
+      '1. Current-round OOC directives below are immediate factual corrections/instructions. Apply them exactly. Do not quote or narrate the OOC text to players.',
+      '2. Enabled GM Guides are campaign law. Use them for names, relationships, lore, ownership, tone, secrets, and world rules. Never contradict them.',
+      '3. Memory Anchors are established continuity facts. Use them for who-is-who, relationships, mounts/companions, unresolved consequences, locations, and social context.',
+      '4. The party roster below lists human-controlled player characters. Do not demote them into NPCs or speak for them unless their submitted prompt explicitly gives dialogue/action.',
+      '5. Player-written quoted in-character dialogue remains verbatim, but OOC notes are instructions only and must not appear as spoken dialogue.',
+      '',
+      currentOocDirectives.length > 0
+        ? `### CURRENT-ROUND OOC DIRECTIVES (HIGHEST PRIORITY)\n${currentOocDirectives.map(d => `- ${d}`).join('\n')}`
+        : '### CURRENT-ROUND OOC DIRECTIVES\n- None detected in the latest submitted prompts.',
+      '',
+      `### PARTY ROSTER CANON\n${rosterLines.join('\n') || '- No party roster available.'}`,
+      '',
+      '### LOADED CANON SOURCES',
+      `- GM Guides: ${extraGuides?.trim() ? 'enabled and included below as campaign law' : 'none enabled for this call'}`,
+      `- Memory Anchors: ${memoryAnchorsContent?.trim() ? 'enabled and included below as established continuity facts' : 'none available for this call'}`,
+    ].join('\n');
+  }, [partyMembers, memoryAnchorsContent]);
+
   // Helper: stream an AI response and return the content
   const streamAIResponse = useCallback(async (
     apiMessages: Array<{ role: string; content: string }>,
@@ -1253,6 +1313,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     partyContext?: string,
     responseModePrompt?: string,
     dmPersonaPrompt?: string,
+    currentOocDirectives?: string[],
   ): Promise<string> => {
     // Ensure strictly alternating roles before sending to AI
     const sanitizedMessages = mergeConsecutiveRoles(apiMessages);
@@ -1310,7 +1371,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       ].join('\n');
     })();
 
-    const enhancedPartyContext = [partyContext, directorPrivatesContext].filter(Boolean).join('\n\n') || undefined;
+    const canonGuardrailsContext = buildCanonGuardrailContext(sanitizedMessages, extraGuides, currentOocDirectives);
+    const enhancedPartyContext = [canonGuardrailsContext, partyContext, directorPrivatesContext].filter(Boolean).join('\n\n') || undefined;
 
     const authToken = await getAuthToken();
     const response = await fetch(AI_DM_URL, {
@@ -1413,7 +1475,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
 
     return assistantContent;
-  }, [characterContext, sessionConfig?.campaignSummary, memoryAnchorsContent, worldStatePrompt, mergeConsecutiveRoles, fetchRecentPartyChat, fetchRecentDragonChat, fetchRecentDragonNetwork, partyId, partyMembers]);
+  }, [characterContext, sessionConfig?.campaignSummary, memoryAnchorsContent, worldStatePrompt, mergeConsecutiveRoles, fetchRecentPartyChat, fetchRecentDragonChat, fetchRecentDragonNetwork, buildCanonGuardrailContext, partyId, partyMembers]);
 
 
   // Build party members system prompt section
