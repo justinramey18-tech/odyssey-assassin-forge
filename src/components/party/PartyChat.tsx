@@ -93,13 +93,19 @@ export function PartyChat({ messages, currentUserId, onSend }: PartyChatProps) {
 
 function ChatInput({ text, setText, onSend, sending }: { text: string; setText: (v: string) => void; onSend: () => void; sending: boolean }) {
   return (
-    <div className="flex gap-1.5">
-      <Input
+    <div className="flex gap-1.5 items-end">
+      <Textarea
         value={text}
-        onChange={(e) => setText(e.target.value.slice(0, 200))}
-        onKeyDown={(e) => { if (e.key === 'Enter') onSend(); }}
-        placeholder="Message party..."
-        className="h-8 text-xs"
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            onSend();
+          }
+        }}
+        placeholder="Message party... (Shift+Enter for new line)"
+        className="min-h-[32px] max-h-[200px] text-xs py-1.5 resize-none"
+        rows={1}
         disabled={sending}
       />
       <Button size="sm" className="h-8 w-8 p-0 shrink-0" onClick={onSend} disabled={!text.trim() || sending}>
