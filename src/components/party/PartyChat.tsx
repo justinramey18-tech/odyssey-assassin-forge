@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export interface PartyChatMessage {
   id: string;
@@ -76,12 +78,12 @@ export function PartyChat({ messages, currentUserId, onSend }: PartyChatProps) {
                 <span className="font-medium truncate max-w-[100px]">{msg.sender_name}</span>
                 <span className="text-[9px] text-muted-foreground shrink-0">{getTimeAgo(msg.created_at)}</span>
               </div>
-              <p className="text-foreground/80 mt-0.5 break-words">
-                {msg.message}
+              <div className="text-foreground/80 mt-0.5 break-words prose prose-invert prose-xs max-w-none prose-p:my-1 prose-headings:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-pre:my-1 prose-code:text-[11px]">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.message}</ReactMarkdown>
                 {msg.updated_at && (
                   <span className="text-[9px] text-muted-foreground/60 ml-1 italic">(edited)</span>
                 )}
-              </p>
+              </div>
             </div>
           );
         })}
