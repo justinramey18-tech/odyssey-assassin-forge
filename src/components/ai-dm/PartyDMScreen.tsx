@@ -3378,6 +3378,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onShowOocChat={onShowOocChat}
               onRequestCharacterRedo={onRequestCharacterRedo}
               hasPendingRedoRequest={hasPendingRedoRequest}
+              chatBackground={chatBackground.background}
+              onChatBackgroundUpload={chatBackground.handleImageUpload}
+              onChatBackgroundClear={chatBackground.clearBackground}
               onShowRegroupDialog={() => setShowRegroupDialog(true)}
               onShowSplitSummaries={() => setShowSplitSummaries(true)}
               onShowPreSplitChat={() => setShowPreSplitChat(true)}
