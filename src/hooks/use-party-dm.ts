@@ -2399,8 +2399,17 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         : `## NPC VOICING MODE — DIALOGUE ONLY\nWrite a SHORT exchange between ${names.join(' and ')} responding to the player. Rules:\n\n1. Each NPC gets ONE line of dialogue prefixed with **NPC Name:** and ONE brief italicized body-language beat (10 words max).\n2. NPCs react to each other — not just the player.\n3. End on a beat that invites the player back in (a question, a look, a pause).\n4. NO prose, NO narration, NO scene-setting, NO describing player actions.\n5. NO mechanical info (dice, DCs, stats).\n6. Keep the TOTAL response under 80 words. This is a conversation, not a story.\n7. Stay consistent with how each NPC has been portrayed so far.`;
 
       const authToken = await getAuthToken();
-      const npcSystemPrompt = npcContext;
       const sanitizedMessages = apiMessages.map(m => ({ role: m.role, content: m.content }));
+      const npcSystemPrompt = [
+        buildCanonGuardrailContext(sanitizedMessages, customGuidesContent || ''),
+        customGuidesContent?.trim()
+          ? `## CAMPAIGN WORLD BIBLE (ABSOLUTE AUTHORITY)\nUse this as canon for NPC identity, relationships, lore, tone, and what is true. Never contradict it.\n\n${customGuidesContent.slice(0, 60000)}`
+          : '',
+        memoryAnchorsContent?.trim()
+          ? `## MEMORY ANCHORS (ESTABLISHED CONTINUITY FACTS)\nUse these as established facts for this NPC response.\n\n${memoryAnchorsContent.slice(0, 8000)}`
+          : '',
+        npcContext,
+      ].filter(Boolean).join('\n\n');
 
       const npcResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`, {
         method: 'POST',
@@ -2489,7 +2498,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsGenerating(false);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, messages, characterName, customGuidesContent, streamAIResponse, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper, empyreanPersonaPrompt]);
+  }, [partyId, user, sessionConfig, isGenerating, messages, characterName, customGuidesContent, memoryAnchorsContent, buildCanonGuardrailContext, streamAIResponse, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper, empyreanPersonaPrompt]);
 
 
   const regenerateMessage = useCallback(async (messageId: string) => {
