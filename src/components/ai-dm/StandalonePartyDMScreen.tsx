@@ -773,16 +773,6 @@ ${truncated}`);
           partyDm.submitPrompt(actionText);
         }}
       />
-      {isPartyCreator && !campaignStarted && (
-        <button
-          onClick={() => setShowStartCampaignPanel(true)}
-          className="absolute top-2 left-1/2 -translate-x-1/2 z-[61] px-3 py-2 bg-amber-500/15 border border-amber-500/30 rounded-md text-xs font-semibold text-amber-200 hover:bg-amber-500/25 transition-colors flex items-center justify-center gap-2"
-          style={{ touchAction: 'manipulation' }}
-        >
-          <Play className="w-3.5 h-3.5" />
-          Manage start of campaign
-        </button>
-      )}
       {isPartyCreator && onboardingRequests.pendingRequests.length > 0 && (
         <button
           onClick={() => setShowRequestsPanel(true)}
