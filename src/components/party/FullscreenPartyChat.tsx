@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { PartyChatMessage } from './PartyChat';
 import type { MessageReaction } from '@/hooks/use-party-sync';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface FullscreenPartyChatProps {
   open: boolean;
@@ -411,7 +413,9 @@ export function FullscreenPartyChat({
                                 </div>
                               )}
                               <div className="space-y-1">
-                                <p className={cn("text-sm break-words", isMsgDragon ? "text-purple-200/80 italic" : "text-foreground/90")}>{msg.message}</p>
+                                <div className={cn("text-sm break-words prose prose-invert prose-sm max-w-none prose-p:my-1 prose-headings:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-pre:my-1 font-sans normal-case", isMsgDragon ? "text-purple-200/80 italic" : "text-foreground/90")}>
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.message}</ReactMarkdown>
+                                </div>
                                 {msg.image_url && (
                                   <a href={msg.image_url} target="_blank" rel="noopener noreferrer" className="block mb-1">
                                     <img src={msg.image_url} alt="Message image" className="max-w-full max-h-32 rounded" />
