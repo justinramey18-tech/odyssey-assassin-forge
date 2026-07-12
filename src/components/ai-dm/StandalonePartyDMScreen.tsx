@@ -106,10 +106,9 @@ export function StandalonePartyDMScreen({
   const [showOocChat, setShowOocChat] = useState(false);
   const [partyCreatorId, setPartyCreatorId] = useState<string | null>(null);
   const [coHostIds, setCoHostIds] = useState<string[]>([]);
-  const [showStartCampaignPanel, setShowStartCampaignPanel] = useState(false);
   const [forceShowOnboarding, setForceShowOnboarding] = useState(false);
   const [justAppliedOnboarding, setJustAppliedOnboarding] = useState(false);
-  const [campaignStarted, setCampaignStarted] = useState<boolean>(false);
+
   const [partyCampaignType, setPartyCampaignType] = useState<'dnd' | 'empyrean'>('dnd');
   const [memberDisplayNames, setMemberDisplayNames] = useState<Record<string, string>>({});
   const [showRedoDialog, setShowRedoDialog] = useState(false);
