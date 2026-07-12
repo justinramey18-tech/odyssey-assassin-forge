@@ -183,6 +183,7 @@ export function PartyDMSettings({
   chatBackground, onChatBackgroundUpload, onChatBackgroundClear,
   chatBackgroundOpacity = 0.28, chatBackgroundBlur = 0,
   onChatBackgroundOpacityChange, onChatBackgroundBlurChange,
+  onReclaimTurn, onRedoLastRound,
 }: PartyDMSettingsProps) {
   const bgFileInputRef = useRef<HTMLInputElement>(null);
   const originalCreator = isOriginalCreatorProp ?? isCreator;
