@@ -43,6 +43,36 @@ function loadAlignmentDrift(): { position: AlignmentScore; zone: string } | null
   } catch { return null; }
 }
 
+function extractOocDirectivesFromText(content: string): string[] {
+  if (!content?.trim()) return [];
+  const directives: string[] = [];
+  const bracketPattern = /\[\s*OOC\s*:?\s*([\s\S]*?)\]/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = bracketPattern.exec(content)) !== null) {
+    const directive = match[1]?.replace(/\s+/g, ' ').trim();
+    if (directive) directives.push(directive);
+  }
+
+  const withoutBracketedOoc = content.replace(bracketPattern, '');
+  const linePattern = /(?:^|\n)\s*(?:OOC|Out of character)\s*:\s*([^\n]+)/gi;
+  while ((match = linePattern.exec(withoutBracketedOoc)) !== null) {
+    const directive = match[1]?.replace(/\s+/g, ' ').trim();
+    if (directive) directives.push(directive);
+  }
+
+  return Array.from(new Set(directives)).slice(0, 12);
+}
+
+function stripOocDirectivesForNarrative(content: string): string {
+  if (!content?.trim()) return '';
+  return content
+    .replace(/\[\s*OOC\s*:?\s*[\s\S]*?\]/gi, '')
+    .replace(/(?:^|\n)\s*(?:OOC|Out of character)\s*:\s*[^\n]+/gi, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
 const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-summarize`;
 const SUMMARY_INTERVAL = 5;
