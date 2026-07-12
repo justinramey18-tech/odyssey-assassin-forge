@@ -434,7 +434,47 @@ export function PartyDMSettings({
             onClick={onClearBookmark}
           />
         )}
+        {onChatBackgroundUpload && (
+          <>
+            <input
+              ref={bgFileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                  await onChatBackgroundUpload(file);
+                  toast.success('Chat background updated');
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : 'Failed to upload image');
+                } finally {
+                  if (bgFileInputRef.current) bgFileInputRef.current.value = '';
+                }
+              }}
+            />
+            <ToolRow
+              icon={<ImageIcon className={cn('w-4 h-4', chatBackground ? 'text-emerald-400' : '')} />}
+              label={chatBackground ? 'Change Chat Background' : 'Upload Chat Background'}
+              description={chatBackground ? 'Tap to replace your custom image' : 'Set a personal image behind the chat'}
+              onClick={() => bgFileInputRef.current?.click()}
+            />
+            {chatBackground && onChatBackgroundClear && (
+              <ToolRow
+                icon={<Trash2 className="w-4 h-4 text-red-400" />}
+                label="Clear Chat Background"
+                description="Restore the default background"
+                onClick={() => {
+                  onChatBackgroundClear();
+                  toast.success('Chat background cleared');
+                }}
+              />
+            )}
+          </>
+        )}
       </SettingsSection>
+
 
       {/* Spotify Controls */}
       <SettingsSection title="Ambient Music" icon={<Music className="w-4 h-4 text-emerald-400" />}>
