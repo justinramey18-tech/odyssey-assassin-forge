@@ -1671,6 +1671,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     // to ignore AFK guides. If so, we strip all AFK guide content at the code level.
     const OOC_IGNORE_AFK_PATTERN = /(?:ooc\s*:|^\s*\[ooc\]|\[.*?\])\s*ignore\s+(?:afk|autopilot)\s*(?:guides?|personality)?/im;
     const suppressAfkGuides = readyPrompts.some(p => OOC_IGNORE_AFK_PATTERN.test(p.prompt));
+    const currentRoundOocDirectives = readyPrompts.flatMap(p => extractOocDirectivesFromText(p.prompt));
 
     const formatPromptLine = (p: PartyDmPrompt) => {
       if (p.prompt.trim()) return `[${p.character_name}]: ${p.prompt.trim()}`;
@@ -1681,6 +1682,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       const guide = status?.afkPersonalityGuide as string | null;
       if (guide) return `[${p.character_name}] (Autopilot): ${guide}`;
       return `[${p.character_name}]: (no action)`;
+    };
+
+    const formatPromptLineForAI = (p: PartyDmPrompt) => {
+      const cleanedPrompt = stripOocDirectivesForNarrative(p.prompt);
+      if (cleanedPrompt) return `[${p.character_name}]: ${cleanedPrompt}`;
+      if (p.prompt.trim() && currentRoundOocDirectives.length > 0) return `[${p.character_name}]: (OOC directive only — no in-character action submitted)`;
+      return formatPromptLine(p);
     };
 
     const insertPartyMessage = (insertData: Record<string, unknown>) => insertPartyMessageHelper(partyId, insertData);
@@ -1779,7 +1787,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             : buildAfkGuidesContext(alphaPrompts, splitState.alphaMembers);
           allConsumedCascades = [...allConsumedCascades, ...alphaConsumed];
           const alphaRawCombined = alphaPrompts
-            .map(formatPromptLine)
+            .map(formatPromptLineForAI)
             .join('\n') + alphaAfkPrompts;
 
           const alphaForAI = alphaRawCombined;
@@ -1820,7 +1828,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             splitResponseModePrompt,
           ].filter(Boolean).join('\n\n');
 
-          const alphaContent = await streamAIResponse(alphaApiMsgs, customGuidesContent || '', abortRef.current!.signal, alphaPartyContext, undefined, empyreanPersonaPrompt);
+          const alphaContent = await streamAIResponse(alphaApiMsgs, customGuidesContent || '', abortRef.current!.signal, alphaPartyContext, undefined, empyreanPersonaPrompt, currentRoundOocDirectives);
 
           if (alphaContent?.trim()) {
             await insertPartyMessage({
@@ -1850,7 +1858,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             : buildAfkGuidesContext(betaPrompts, splitState.betaMembers);
           allConsumedCascades = [...allConsumedCascades, ...betaConsumed];
           const betaRawCombined = betaPrompts
-            .map(formatPromptLine)
+            .map(formatPromptLineForAI)
             .join('\n') + betaAfkPrompts;
 
           const betaForAI = betaRawCombined;
@@ -1892,7 +1900,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             splitResponseModePrompt,
           ].filter(Boolean).join('\n\n');
 
-          const betaContent = await streamAIResponse(betaApiMsgs, customGuidesContent || '', abortRef.current!.signal, betaPartyContext, undefined, empyreanPersonaPrompt);
+          const betaContent = await streamAIResponse(betaApiMsgs, customGuidesContent || '', abortRef.current!.signal, betaPartyContext, undefined, empyreanPersonaPrompt, currentRoundOocDirectives);
 
           if (betaContent?.trim()) {
             await insertPartyMessage({
@@ -1982,7 +1990,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           ? { guidesSection: '', promptSection: '', consumedCascades: [], afkEntries: [] as Array<{ userId: string; characterName: string; content: string }> }
           : buildAfkGuidesContext(readyPrompts, isTurnBased && sessionConfig.turnUserId ? [sessionConfig.turnUserId] : undefined);
         const rawCombined = readyPrompts
-          .map(formatPromptLine)
+          .map(formatPromptLineForAI)
           .join('\n') + afkPromptSection;
 
         const combined = rawCombined;
@@ -2033,7 +2041,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           responseModePrompt,
         ].filter(Boolean).join('\n\n');
 
-        const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, partyContextStr, undefined, empyreanPersonaPrompt);
+        const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, partyContextStr, undefined, empyreanPersonaPrompt, currentRoundOocDirectives);
 
         if (assistantContent?.trim()) {
           if (isApprovalMode) {
