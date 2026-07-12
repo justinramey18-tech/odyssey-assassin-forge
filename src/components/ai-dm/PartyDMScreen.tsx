@@ -3383,6 +3383,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               chatBackground={chatBackground.background}
               onChatBackgroundUpload={chatBackground.handleImageUpload}
               onChatBackgroundClear={chatBackground.clearBackground}
+              chatBackgroundOpacity={chatBackground.settings.opacity}
+              chatBackgroundBlur={chatBackground.settings.blur}
+              onChatBackgroundOpacityChange={chatBackground.setOpacity}
+              onChatBackgroundBlurChange={chatBackground.setBlur}
               onShowRegroupDialog={() => setShowRegroupDialog(true)}
               onShowSplitSummaries={() => setShowSplitSummaries(true)}
               onShowPreSplitChat={() => setShowPreSplitChat(true)}
