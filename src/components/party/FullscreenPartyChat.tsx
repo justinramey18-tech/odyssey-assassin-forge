@@ -9,6 +9,7 @@ import type { PartyChatMessage } from './PartyChat';
 import type { MessageReaction } from '@/hooks/use-party-sync';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { markdownLinkComponents } from './markdown-link';
 
 interface FullscreenPartyChatProps {
   open: boolean;
