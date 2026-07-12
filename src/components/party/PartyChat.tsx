@@ -79,8 +79,8 @@ export function PartyChat({ messages, currentUserId, onSend }: PartyChatProps) {
                 <span className="font-medium truncate max-w-[100px]">{msg.sender_name}</span>
                 <span className="text-[9px] text-muted-foreground shrink-0">{getTimeAgo(msg.created_at)}</span>
               </div>
-              <div className="text-foreground/80 mt-0.5 text-xs leading-snug break-words [overflow-wrap:anywhere] prose prose-invert max-w-none prose-p:my-1 prose-p:leading-snug prose-headings:my-1 prose-headings:font-semibold prose-h1:text-sm prose-h2:text-sm prose-h3:text-xs prose-h4:text-xs prose-ul:my-1 prose-ul:pl-4 prose-ol:my-1 prose-ol:pl-4 prose-li:my-0 prose-li:marker:text-muted-foreground prose-strong:text-foreground prose-em:text-foreground/90 prose-code:text-[11px] prose-code:break-all prose-pre:my-1 prose-pre:p-2 prose-pre:text-[11px] prose-pre:whitespace-pre-wrap prose-pre:break-words prose-a:break-all prose-hr:my-2">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.message}</ReactMarkdown>
+              <div className="text-foreground/80 mt-0.5 text-xs leading-snug break-words [overflow-wrap:anywhere] prose prose-invert max-w-none prose-p:my-1 prose-p:leading-snug prose-headings:my-1 prose-headings:font-semibold prose-h1:text-sm prose-h2:text-sm prose-h3:text-xs prose-h4:text-xs prose-ul:my-1 prose-ul:pl-4 prose-ol:my-1 prose-ol:pl-4 prose-li:my-0 prose-li:marker:text-muted-foreground prose-strong:text-foreground prose-em:text-foreground/90 prose-code:text-[11px] prose-code:break-all prose-pre:my-1 prose-pre:p-2 prose-pre:text-[11px] prose-pre:whitespace-pre-wrap prose-pre:break-words prose-hr:my-2">
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownLinkComponents}>{msg.message}</ReactMarkdown>
                 {msg.updated_at && (
                   <span className="text-[9px] text-muted-foreground/60 ml-1 italic">(edited)</span>
                 )}
