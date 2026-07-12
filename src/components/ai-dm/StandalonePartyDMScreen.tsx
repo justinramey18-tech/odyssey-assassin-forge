@@ -109,6 +109,12 @@ export function StandalonePartyDMScreen({
   const [forceShowOnboarding, setForceShowOnboarding] = useState(false);
   const [justAppliedOnboarding, setJustAppliedOnboarding] = useState(false);
 
+  // Tracks the LAST DIRECTLY-VERIFIED onboarding_status for the current user, fetched
+  // straight from the DB rather than relying on the (possibly stale/lagging) partyMembers
+  // realtime array. Used as a trustworthy fallback when deciding whether to re-show onboarding.
+  const [verifiedOnboardingStatus, setVerifiedOnboardingStatus] = useState<string | null>(null);
+
+
   const [partyCampaignType, setPartyCampaignType] = useState<'dnd' | 'empyrean'>('dnd');
   const [memberDisplayNames, setMemberDisplayNames] = useState<Record<string, string>>({});
   const [showRedoDialog, setShowRedoDialog] = useState(false);
@@ -149,27 +155,55 @@ export function StandalonePartyDMScreen({
       });
   }, [partyMembers, isPartyCreator, partyId, userId]);
 
-  // Once realtime confirms onboarding is complete, drop the optimistic flag.
-  // Future re-onboarding (status reset to 'in_progress' via host approval) still works.
+  // Fast path: once realtime confirms completion via the shared partyMembers array,
+  // record it as verified and drop the suppression flag.
   useEffect(() => {
-    if (!justAppliedOnboarding) return;
+    if (!partyId || !userId) return;
     const myMember = partyMembers.find(m => m.user_id === userId);
     const status = (myMember as any)?.onboarding_status;
-    if (status === 'complete') {
+    if (status) {
+      setVerifiedOnboardingStatus(status);
+    }
+    if (justAppliedOnboarding && status === 'complete') {
       setJustAppliedOnboarding(false);
     }
-  }, [justAppliedOnboarding, partyMembers, userId]);
+  }, [justAppliedOnboarding, partyMembers, userId, partyId]);
 
-  // Safety net: if realtime never confirms after apply, drop the flag after 10s
-  // so the screen logic re-evaluates. In a healthy session, this never fires
-  // because the realtime path resets the flag much faster.
+  // Safety net: if realtime hasn't confirmed within 10s, do NOT blindly drop the flag —
+  // verify directly against the database first. This closes the race that was bouncing
+  // players back into onboarding after they'd already completed it.
   useEffect(() => {
-    if (!justAppliedOnboarding) return;
-    const t = setTimeout(() => {
-      setJustAppliedOnboarding(false);
+    if (!justAppliedOnboarding || !partyId || !userId) return;
+    const t = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('party_members')
+          .select('onboarding_status')
+          .eq('party_id', partyId)
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (error) {
+          console.error('[onboarding-verify] fresh read failed:', error);
+          // Unknown state — do NOT drop the suppression on an inconclusive read.
+          // Better to stay suppressed a little longer than to falsely re-show onboarding.
+          return;
+        }
+        const freshStatus = (data as any)?.onboarding_status;
+        if (freshStatus === 'complete') {
+          setVerifiedOnboardingStatus('complete');
+          setJustAppliedOnboarding(false);
+        } else {
+          // Write genuinely hasn't landed yet (or failed). Keep suppression active and
+          // check again shortly rather than exposing the player to a false re-onboard.
+          console.warn('[onboarding-verify] status still not complete after 10s:', freshStatus);
+        }
+      } catch (e) {
+        console.error('[onboarding-verify] unexpected error:', e);
+      }
     }, 10000);
     return () => clearTimeout(t);
-  }, [justAppliedOnboarding]);
+  }, [justAppliedOnboarding, partyId, userId]);
+
 
   // Fetch + subscribe to parties.campaign_started and parties.campaign_type
   useEffect(() => {
@@ -685,10 +719,11 @@ ${truncated}`);
   // character while the host finishes the architect).
   if (!partyDm.isActive && !isHost) {
     const myMember = partyMembers.find(m => m.user_id === userId);
-    const myOnboardingStatus = (myMember as any)?.onboarding_status || 'pending';
+    const myOnboardingStatus = verifiedOnboardingStatus || (myMember as any)?.onboarding_status || 'pending';
     const needsOnboarding = !isPartyCreator
       && myOnboardingStatus !== 'complete'
       && !justAppliedOnboarding;
+
 
     if (needsOnboarding) {
       const hostMember = partyMembers.find(m => m.user_id !== userId && (m as any).onboarding_status === 'complete')
@@ -954,8 +989,9 @@ ${truncated}`);
       {/* Player Onboarding Overlay (non-host players whose status is in_progress, or who tapped "Build my character" from lockout) */}
       {(() => {
         const myMember = partyMembers.find(m => m.user_id === userId);
-        const myOnboardingStatus = (myMember as any)?.onboarding_status || 'pending';
+        const myOnboardingStatus = verifiedOnboardingStatus || (myMember as any)?.onboarding_status || 'pending';
         const playerOnboardingNeeded = !isPartyCreator && myOnboardingStatus !== 'complete';
+
         const showPlayerOnboarding = playerOnboardingNeeded
           && (myOnboardingStatus === 'in_progress' || myOnboardingStatus === 'pending' || forceShowOnboarding)
           && !justAppliedOnboarding;
