@@ -1,45 +1,74 @@
+## Plan
 
-## What's happening today
+### What I’ll fix
 
-Your party session runs in rounds. When the AI finishes a response, the app immediately:
+The DM is receiving some of your extra context, but it is not being protected strongly enough at the exact moment it writes the next response. I’ll make the app lift the important pieces into a clear “current canon” block before every AI response, so details like:
 
-1. Starts a fresh round (new round ID, all prompts cleared).
-2. In Couples/turn-based mode, flips the turn to the other player.
+- Candace is a player, not an NPC
+- Phoenix is Candace’s horse
+- Gwen is Ramey’s horse
+- Candace is Ramey’s lover and companion
+- OOC notes are instructions, not story dialogue
 
-So when you deleted the AI response by mistake, the "AI response is gone" but the round has already moved on — the other player is now on the clock, and your resubmitted prompt has nowhere to land. There is currently no button to rewind that.
+are treated as rules for the next answer instead of optional background.
 
-Separately, when a player writes dialogue in their prompt (e.g. `"I told him: 'Hand over the key or I'll break it off you.'"`), the AI paraphrases it in its narration instead of quoting the player's exact words. There is no instruction in the DM's rulebook that says "use player dialogue verbatim."
+### 1. Promote current OOC notes into a top-priority instruction block
 
-## What I'll change
+When a player prompt contains OOC text, such as:
 
-### 1. Host-only "Take turn back" / "Redo my turn" control
+```text
+[OOC: CANDACE IS A PLAYER. HER HORSE IS NAMED PHOENIX...]
+```
 
-In the party DM tools drawer (host only), add a new **Round Controls** section with two actions:
+I’ll have the party DM separate that from the roleplay text and send it to the AI as a high-priority “Current Round OOC Directives” section.
 
-- **Take my turn back** — visible only in Couples/turn-based mode. Sets the current turn back to the host, so they can submit again. Confirmation dialog first so it isn't hit accidentally.
-- **Redo last round** — visible in any party mode. Deletes the most recent AI response (if it's still there) *and* the most recent player prompt message that preceded it, clears any lingering prompt submissions for the current round, starts a fresh round, and (in turn-based mode) sets the turn back to whoever went last. This is the "I fat-fingered delete, give me a real do-over" button.
+This makes the AI use it as truth before it interprets the scene.
 
-Both actions are gated to the host and show a "Host only" note. Non-hosts get nothing new. This is the temporary override you asked for — no schema changes, just orchestrating existing round/turn state that already exists in the session config.
+### 2. Strengthen GM Guides as campaign law
 
-I will also surface a small **"⟲ Redo last round"** shortcut directly on the DM's most recent message bubble for the host, so it's one tap away right where the mistake usually happens (right where the delete button lives now).
+I’ll adjust the DM’s rulebook so the enabled GM Guides are not just included, but explicitly checked before the response is written.
 
-### 2. Preserve player dialogue verbatim
+The DM will be told, in plain terms:
 
-Update the DM's rulebook (the system prompt used for both the normal party DM and the Couples/turn-based party DM) to add an explicit rule:
+- GM Guides define canon.
+- Do not contradict them.
+- If a message, summary, or old AI response conflicts with the guides, the guides win.
+- Use guide facts for names, relationships, ownership, locations, and lore.
 
-> **Player-written dialogue is sacred.** When a player's prompt contains quoted speech (anything inside `"..."`, `'...'`, or `“...”`), reproduce those exact words verbatim inside the narration as that character's spoken line. Do not paraphrase, shorten, or rewrite it. Build the surrounding scene — tone, reaction, NPC response — around the player's exact words. Only paraphrase if the player clearly wrote a summary of intent instead of actual dialogue (e.g. "I try to talk him down" with no quotes).
+### 3. Strengthen Memory Anchors as continuity facts
 
-I'll also add a shorter version of the same rule for the AFK/auto-pilot flow and the dialogue-mode flow so it applies everywhere the AI responds to a player.
+I’ll upgrade memory anchors from “reference them naturally” to “these are established facts.”
 
-## Out of scope
+The DM will be told to use them for:
 
-- No changes to how rounds are stored in the database.
-- No changes to the AI model itself, just its instructions.
-- No changes for non-host players — the turn override is a host-only tool by design.
+- who is who
+- who owns which companion/mount
+- relationships between characters
+- unresolved promises, threats, social tension, and scene facts
+
+Memory anchors will also be placed in a stronger “canon continuity” section so they are harder for the AI to ignore.
+
+### 4. Add a current-round continuity check
+
+Before the AI responds, the app will assemble a small checklist from the current prompt, guides, anchors, and party list. The AI will be instructed to silently check for contradictions before writing.
+
+This is specifically aimed at preventing mistakes like treating a player character as an NPC, confusing whose horse is whose, or inventing relationship dynamics that contradict the latest OOC note.
+
+### 5. Keep player dialogue verbatim
+
+I’ll keep the previous “player dialogue is sacred” rule, but make it work alongside OOC handling:
+
+- Quoted in-character speech must appear exactly as the player wrote it.
+- OOC text should guide the response but should not be repeated as story dialogue.
+- The AI should build NPC reactions around the player’s exact words, not paraphrase them.
+
+### 6. Verify the exact call path used by party DM
+
+I’ll update the normal party response path, turn-based path, split-party path, and hidden OOC-command path so they all receive the same strengthened canon rules.
 
 ## Files I expect to touch
 
-- `src/hooks/use-party-dm.ts` — add a `redoLastRound` / `reclaimTurn` action.
-- `src/components/ai-dm/PartyDMSettings.tsx` (tools drawer) — new Round Controls section.
-- `src/components/ai-dm/PartyDMScreen.tsx` — wire props + optional "Redo last round" affordance on the last DM message.
-- `supabase/functions/ai-dm/index.ts` — add the "verbatim dialogue" rule to the system prompt.
+- `src/hooks/use-party-dm.ts`
+- `supabase/functions/ai-dm/index.ts`
+
+I do not plan to change the database or reset any campaign data.
