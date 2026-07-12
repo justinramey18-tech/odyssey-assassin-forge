@@ -13,15 +13,13 @@ import { cn } from '@/lib/utils';
 import { PartyDMScreen } from './PartyDMScreen';
 import { GMGuidesManager } from './GMGuidesManager';
 import { PlayerOnboardingScreen } from './PlayerOnboardingScreen';
-import { HostStartCampaignPanel, type PartyMemberOnboardingView } from './HostStartCampaignPanel';
-import { PlayerLockedOutScreen } from './PlayerLockedOutScreen';
 import { PlayerRedoRequestDialog } from './PlayerRedoRequestDialog';
 import { HostOnboardingRequestsPanel } from './HostOnboardingRequestsPanel';
 import { usePartyOnboardingRequests } from '@/hooks/use-party-onboarding-requests';
 import { PartyDirectorScreen } from './PartyDirectorScreen';
 import { HostDirectorEscalationsPanel } from './HostDirectorEscalationsPanel';
 import { usePartyDirectorEscalations } from '@/hooks/use-party-director-escalations';
-import { Play, MessageCircle, AlertTriangle } from 'lucide-react';
+import { MessageCircle, AlertTriangle } from 'lucide-react';
 
 import { PartyCampaignSaves } from './PartyCampaignSaves';
 import CampaignBuilderChat from './CampaignBuilderChat';
@@ -108,10 +106,9 @@ export function StandalonePartyDMScreen({
   const [showOocChat, setShowOocChat] = useState(false);
   const [partyCreatorId, setPartyCreatorId] = useState<string | null>(null);
   const [coHostIds, setCoHostIds] = useState<string[]>([]);
-  const [showStartCampaignPanel, setShowStartCampaignPanel] = useState(false);
   const [forceShowOnboarding, setForceShowOnboarding] = useState(false);
   const [justAppliedOnboarding, setJustAppliedOnboarding] = useState(false);
-  const [campaignStarted, setCampaignStarted] = useState<boolean>(false);
+
   const [partyCampaignType, setPartyCampaignType] = useState<'dnd' | 'empyrean'>('dnd');
   const [memberDisplayNames, setMemberDisplayNames] = useState<Record<string, string>>({});
   const [showRedoDialog, setShowRedoDialog] = useState(false);
@@ -185,7 +182,7 @@ export function StandalonePartyDMScreen({
       .maybeSingle()
       .then(({ data }) => {
         if (cancelled || !data) return;
-        setCampaignStarted((data as any).campaign_started === true);
+        // campaign_started gate removed
         const ct = (data as any).campaign_type;
         if (ct === 'empyrean' || ct === 'dnd') setPartyCampaignType(ct);
       });
@@ -196,7 +193,7 @@ export function StandalonePartyDMScreen({
         { event: 'UPDATE', schema: 'public', table: 'parties', filter: `id=eq.${partyId}` },
         (payload) => {
           const row = payload.new as { campaign_started?: boolean; campaign_type?: string } | null;
-          if (typeof row?.campaign_started === 'boolean') setCampaignStarted(row.campaign_started);
+          // campaign_started gate removed
           if (row?.campaign_type === 'empyrean' || row?.campaign_type === 'dnd') {
             setPartyCampaignType(row.campaign_type);
           }
@@ -776,16 +773,6 @@ ${truncated}`);
           partyDm.submitPrompt(actionText);
         }}
       />
-      {isPartyCreator && !campaignStarted && (
-        <button
-          onClick={() => setShowStartCampaignPanel(true)}
-          className="absolute top-2 left-1/2 -translate-x-1/2 z-[61] px-3 py-2 bg-amber-500/15 border border-amber-500/30 rounded-md text-xs font-semibold text-amber-200 hover:bg-amber-500/25 transition-colors flex items-center justify-center gap-2"
-          style={{ touchAction: 'manipulation' }}
-        >
-          <Play className="w-3.5 h-3.5" />
-          Manage start of campaign
-        </button>
-      )}
       {isPartyCreator && onboardingRequests.pendingRequests.length > 0 && (
         <button
           onClick={() => setShowRequestsPanel(true)}
@@ -852,7 +839,7 @@ ${truncated}`);
           onRequestCharacterRedo={(() => {
             const myMember = partyMembers.find(m => m.user_id === userId);
             const myStatus = (myMember as any)?.onboarding_status || 'pending';
-            if (isPartyCreator || myStatus !== 'complete' || !campaignStarted) return undefined;
+            if (isPartyCreator || myStatus !== 'complete') return undefined;
             return () => setShowRedoDialog(true);
           })()}
           hasPendingRedoRequest={!!(userId && onboardingRequests.myPendingRequest(userId))}
@@ -999,35 +986,6 @@ ${truncated}`);
         );
       })()}
 
-      {/* Lock-out screen for non-host players who haven't completed onboarding after host started campaign */}
-      {(() => {
-        const myMember = partyMembers.find(m => m.user_id === userId);
-        const myOnboardingStatus = (myMember as any)?.onboarding_status || 'pending';
-        const showLockOutScreen = !isPartyCreator
-          && campaignStarted
-          && myOnboardingStatus !== 'complete'
-          && myOnboardingStatus !== 'in_progress'
-          && myOnboardingStatus !== 'pending'
-          && !forceShowOnboarding;
-        if (!showLockOutScreen) return null;
-        return (
-          <PlayerLockedOutScreen onOpenOnboarding={() => setForceShowOnboarding(true)} />
-        );
-      })()}
-
-      {/* Host's Start Campaign panel */}
-      <HostStartCampaignPanel
-        open={showStartCampaignPanel}
-        onOpenChange={setShowStartCampaignPanel}
-        partyId={partyId}
-        hostUserId={isPartyCreator ? userId : null}
-        members={partyMembers.map<PartyMemberOnboardingView>((m) => ({
-          user_id: m.user_id,
-          display_name: memberDisplayNames[m.user_id],
-          onboarding_status: ((m as any).onboarding_status || 'pending') as PartyMemberOnboardingView['onboarding_status'],
-        }))}
-        onCampaignStarted={() => setCampaignStarted(true)}
-      />
 
       <PlayerRedoRequestDialog
         open={showRedoDialog}

@@ -1,22 +1,26 @@
+# Remove the "Start Campaign" gate
+
 ## Goal
-Replace the "Previously in your campaign…" recap banner at the bottom of the Party DM chat with a navigation button labeled "Dad Huddle — Consult with Other Players" that opens the existing Party Chat overlay.
+The "Manage start of campaign" flow (the amber button at the top of the Party DM screen, the Start Campaign modal, the "Finish your own character before starting" warning, and the "Start Anyway / locked out" logic) is getting in the way of just playing. You've decided to use GM Guides to set the tone/rules of a campaign instead, so this whole gate is unnecessary.
 
-## Where the change happens
-- File: `src/components/ai-dm/PartyDMScreen.tsx`
-- Location: lines ~2245–2267 (the amber recap block that renders the scroll icon, the "Previously in your campaign..." label, the chevron, and the expandable summary)
+## What will change (user-visible)
 
-## What changes
-1. Remove the entire collapsible recap block (the button + expanded summary panel).
-2. Remove the now-unused `recapExpanded` state (keep `recapDismissed` — it's still set elsewhere at lines 1466, 1477, 3099 and harmlessly persists).
-3. Render a new button in the same spot, styled to match the existing amber/cinzel aesthetic so it feels native to the DM screen:
-   - Label: "Dad Huddle — Consult with Other Players"
-   - Icon: `MessageSquare` (lucide) on the left, small chevron-right on the right
-   - On click: calls the existing `onShowChat?.()` prop (already wired in PartyDMScreen — it opens the Party Chat overlay used by the Tools → Party Chat entry)
-4. Visibility rules stay the same as today: only show when there are messages and the recap hasn't been dismissed (so the button doesn't appear on a blank screen and disappears once the player commits an action, mirroring current behavior). If you'd prefer it to always be visible, say so and I'll drop the gating.
+- The amber **"Manage start of campaign"** button at the top of the Party DM screen goes away.
+- The **Start Campaign** popup (with Player Status / Pending / "Start Anyway (X locked out)") is no longer reachable and won't be shown.
+- The **"Finish your own character (via the Architect) before starting the campaign"** warning is gone.
+- The **lock-out screen** shown to players who hadn't finished onboarding after the host pressed Start is gone — everyone can participate in the party DM immediately.
+- The **"Request Character Redo"** entry in Tools (which was only enabled after the campaign was officially "started") will now be available to non-host players who have completed onboarding, without waiting for a start signal.
 
-## Out of scope
-- No changes to Empyrean DM screen (separate file `EmpyreanDMScreen.tsx`), unless you want the same treatment there.
-- No changes to Party Chat itself, the Tools menu, onboarding, recap generation logic, or the campaignSummary data — that data simply stops being surfaced from this spot.
+## What will NOT change
 
-## Clarifying note
-Your message said "at the bottom of each AI response" — in the current code this banner actually renders **once** at the bottom of the whole message list (not per-message), which matches your screenshot. The plan replaces that single banner. If you actually want a per-message button under every DM reply, that's a different (larger) change — let me know.
+- GM Guides, Party Chat, Dad Huddle, Tools menu (including Dev Assistant), Couples Mode, Director, memory anchors, campaign saves, scheduled events, and every other feature stay exactly as they are.
+- The onboarding/Architect flow itself is untouched — players can still go through it. It's just no longer a wall in front of the campaign.
+- The host's ability to open the Campaign Builder from the home screen or Tools is untouched.
+- No database changes. No changes to Solo DM or Empyrean setup.
+
+## Files touched
+
+- `src/components/ai-dm/StandalonePartyDMScreen.tsx` — remove the start-campaign button, the `HostStartCampaignPanel` render, the `PlayerLockedOutScreen` block, the `campaignStarted` state, and the `showStartCampaignPanel` state. Update the `onRequestCharacterRedo` condition to drop the `campaignStarted` requirement.
+- `src/components/ai-dm/HostStartCampaignPanel.tsx` — delete (no longer used).
+
+That's the entire change. Small, contained, and reversible via chat history if you ever want it back.
