@@ -155,6 +155,9 @@ export interface PartyDMSettingsProps {
   chatBackgroundBlur?: number;
   onChatBackgroundOpacityChange?: (value: number) => void;
   onChatBackgroundBlurChange?: (value: number) => void;
+  // Host round controls
+  onReclaimTurn?: () => void;
+  onRedoLastRound?: () => void;
 }
 
 export function PartyDMSettings({
