@@ -146,6 +146,10 @@ export interface PartyDMSettingsProps {
   // Player redo request (non-host only)
   onRequestCharacterRedo?: () => void;
   hasPendingRedoRequest?: boolean;
+  // Chat background (per-character personal preference)
+  chatBackground?: string | null;
+  onChatBackgroundUpload?: (file: File) => Promise<void> | void;
+  onChatBackgroundClear?: () => void;
 }
 
 export function PartyDMSettings({
