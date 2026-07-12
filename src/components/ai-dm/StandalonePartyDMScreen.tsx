@@ -839,7 +839,7 @@ ${truncated}`);
           onRequestCharacterRedo={(() => {
             const myMember = partyMembers.find(m => m.user_id === userId);
             const myStatus = (myMember as any)?.onboarding_status || 'pending';
-            if (isPartyCreator || myStatus !== 'complete' || !campaignStarted) return undefined;
+            if (isPartyCreator || myStatus !== 'complete') return undefined;
             return () => setShowRedoDialog(true);
           })()}
           hasPendingRedoRequest={!!(userId && onboardingRequests.myPendingRequest(userId))}
