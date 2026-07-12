@@ -26,6 +26,7 @@ import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { WhisperTray } from './WhisperTray';
 import { OraclePanel } from '@/components/oracle/OraclePanel';
 import { PartyDMSettings } from './PartyDMSettings';
+import { usePartyChatBackground } from '@/hooks/use-party-chat-background';
 import { PartyMemoryAnchorsPanel } from './PartyMemoryAnchorsPanel';
 import { PartyQuestsPanel } from './PartyQuestsPanel';
 import { DMComposePanel } from './DMComposePanel';
