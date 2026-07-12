@@ -61,7 +61,25 @@ function extractOocDirectivesFromText(content: string): string[] {
     if (directive) directives.push(directive);
   }
 
+  const hiddenCommandPattern = /out-of-character command:\s*["“]([\s\S]*?)["”]\s*(?:\n|$)/gi;
+  while ((match = hiddenCommandPattern.exec(content)) !== null) {
+    const directive = match[1]?.replace(/\s+/g, ' ').trim();
+    if (directive) directives.push(directive);
+  }
+
   return Array.from(new Set(directives)).slice(0, 12);
+}
+
+function formatCanonValue(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string') return value.trim() || null;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  try {
+    const serialized = JSON.stringify(value);
+    return serialized.length > 240 ? `${serialized.slice(0, 240)}…` : serialized;
+  } catch {
+    return null;
+  }
 }
 
 function stripOocDirectivesForNarrative(content: string): string {
