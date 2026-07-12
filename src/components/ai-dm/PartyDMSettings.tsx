@@ -172,7 +172,9 @@ export function PartyDMSettings({
   hasBookmark, onClearBookmark,
   dialogueAutoIntervene, onDialogueAutoInterveneChange,
   onRequestCharacterRedo, hasPendingRedoRequest = false,
+  chatBackground, onChatBackgroundUpload, onChatBackgroundClear,
 }: PartyDMSettingsProps) {
+  const bgFileInputRef = useRef<HTMLInputElement>(null);
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   return (
     <div className="px-3 py-3 space-y-2.5 w-full">
