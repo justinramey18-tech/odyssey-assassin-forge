@@ -98,6 +98,7 @@ const ALL_STORAGE_KEYS = [
   'empyrean-unbonded-status',
   // Party chat background
   'odyssey-party-chat-background',
+  'odyssey-party-chat-background-settings',
 ] as const;
 
 /**
