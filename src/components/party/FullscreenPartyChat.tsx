@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Send, X, MessageSquare, Pencil, Trash2, CheckSquare, Square, XCircle, Pin, PinOff, ImagePlus, Reply, ChevronDown, ChevronUp, SmilePlus, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { PartyChatMessage } from './PartyChat';
@@ -385,7 +386,7 @@ export function FullscreenPartyChat({
                           {isEditing ? (
                             <div className="flex-1 flex gap-1.5">
                               <Input ref={editInputRef} value={editText}
-                                onChange={(e) => setEditText(e.target.value.slice(0, 500))}
+                                onChange={(e) => setEditText(e.target.value)}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') handleEditSave();
                                   if (e.key === 'Escape') { setEditingId(null); setEditText(''); }
@@ -600,13 +601,14 @@ export function FullscreenPartyChat({
               </div>
             )}
             <div className="flex gap-2">
-              <Input
-                ref={inputRef}
+              <Textarea
+                ref={inputRef as any}
                 value={text}
-                onChange={(e) => { setText(e.target.value.slice(0, 500)); onTyping?.(); }}
+                onChange={(e) => { setText(e.target.value); onTyping?.(); }}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                placeholder="Say something in party chat..."
-                className="text-sm"
+                placeholder="Say something in party chat... (Shift+Enter for new line)"
+                className="text-sm min-h-[40px] max-h-[240px] resize-none"
+                rows={1}
                 disabled={sending || uploadingImage}
               />
               <Button size="icon" variant="ghost" onClick={() => fileInputRef.current?.click()}
