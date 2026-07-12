@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { PartyChatMessage } from './PartyChat';
 import type { MessageReaction } from '@/hooks/use-party-sync';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface FullscreenPartyChatProps {
   open: boolean;
