@@ -467,6 +467,42 @@ export function PartyDMSettings({
               description={chatBackground ? 'Tap to replace your custom image' : 'Set a personal image behind the chat'}
               onClick={() => bgFileInputRef.current?.click()}
             />
+            {chatBackground && (
+              <div className="px-3 py-2 space-y-3">
+                {onChatBackgroundOpacityChange && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-medium text-foreground">Background Opacity</span>
+                      <span className="text-[11px] text-muted-foreground tabular-nums">{Math.round(chatBackgroundOpacity * 100)}%</span>
+                    </div>
+                    <Slider
+                      value={[Math.round(chatBackgroundOpacity * 100)]}
+                      min={5}
+                      max={80}
+                      step={1}
+                      onValueChange={(v) => onChatBackgroundOpacityChange((v[0] ?? 28) / 100)}
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-1">Kept under 80% so message text stays readable.</p>
+                  </div>
+                )}
+                {onChatBackgroundBlurChange && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-medium text-foreground">Background Blur</span>
+                      <span className="text-[11px] text-muted-foreground tabular-nums">{chatBackgroundBlur}px</span>
+                    </div>
+                    <Slider
+                      value={[chatBackgroundBlur]}
+                      min={0}
+                      max={20}
+                      step={1}
+                      onValueChange={(v) => onChatBackgroundBlurChange(v[0] ?? 0)}
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-1">Blur busy images to reduce visual noise behind messages.</p>
+                  </div>
+                )}
+              </div>
+            )}
             {chatBackground && onChatBackgroundClear && (
               <ToolRow
                 icon={<Trash2 className="w-4 h-4 text-red-400" />}
