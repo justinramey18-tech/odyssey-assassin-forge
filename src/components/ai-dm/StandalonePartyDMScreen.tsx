@@ -19,7 +19,7 @@ import { usePartyOnboardingRequests } from '@/hooks/use-party-onboarding-request
 import { PartyDirectorScreen } from './PartyDirectorScreen';
 import { HostDirectorEscalationsPanel } from './HostDirectorEscalationsPanel';
 import { usePartyDirectorEscalations } from '@/hooks/use-party-director-escalations';
-import { Play, MessageCircle, AlertTriangle } from 'lucide-react';
+import { MessageCircle, AlertTriangle } from 'lucide-react';
 
 import { PartyCampaignSaves } from './PartyCampaignSaves';
 import CampaignBuilderChat from './CampaignBuilderChat';
