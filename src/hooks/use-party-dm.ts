@@ -2501,7 +2501,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   }, [partyId, user, sessionConfig, isGenerating, messages, characterName, customGuidesContent, memoryAnchorsContent, buildCanonGuardrailContext, streamAIResponse, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper, empyreanPersonaPrompt]);
 
 
-  const regenerateMessage = useCallback(async (messageId: string) => {
+  const regenerateMessage = useCallback(async (messageId: string, steeringNote?: string) => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
     const msgIndex = messages.findIndex(m => m.id === messageId);
     if (msgIndex === -1) return;
@@ -2568,6 +2568,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           `## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
         ].filter(Boolean).join('\n\n');
         guides = customGuidesContent || '';
+      }
+
+      if (steeringNote && steeringNote.trim()) {
+        apiMessages.push({
+          role: 'user',
+          content: `[DIRECTOR NOTE — Regeneration Request]\nThe players were not satisfied with the previous version of this response and asked for this specific change. Rewrite your response incorporating it, keeping everything else about the scene and established facts consistent:\n"${steeringNote.trim()}"`,
+        });
       }
 
       const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal, regenPartyContext);
