@@ -1,74 +1,60 @@
-## Plan
+## Goal
 
-### What I’ll fix
+Make the AI DM actually follow your GM Guides by (1) putting them at the very top of its instructions and (2) trimming the giant standing rulebook that currently sits above them.
 
-The DM is receiving some of your extra context, but it is not being protected strongly enough at the exact moment it writes the next response. I’ll make the app lift the important pieces into a clear “current canon” block before every AI response, so details like:
+Only touches one file: `supabase/functions/ai-dm/index.ts` (the party DM's instruction builder). No database changes, no UI changes, no changes to how guides are written or stored.
 
-- Candace is a player, not an NPC
-- Phoenix is Candace’s horse
-- Gwen is Ramey’s horse
-- Candace is Ramey’s lover and companion
-- OOC notes are instructions, not story dialogue
+---
 
-are treated as rules for the next answer instead of optional background.
+## What changes, in plain terms
 
-### 1. Promote current OOC notes into a top-priority instruction block
+### 1. Move GM Guides to the top
 
-When a player prompt contains OOC text, such as:
+Right now the AI reads about 4,000–5,000 words of generic DM rules before it ever sees your Campaign World Bible (GM Guides). By then it's already anchored on the generic instructions.
 
-```text
-[OOC: CANDACE IS A PLAYER. HER HORSE IS NAMED PHOENIX...]
-```
+New order at the top of the instructions:
 
-I’ll have the party DM separate that from the roleplay text and send it to the AI as a high-priority “Current Round OOC Directives” section.
+1. Short role line ("You are the DM for this campaign.")
+2. **Authority Hierarchy** (OOC = highest, GM Guides = second)
+3. **Campaign World Bible (your GM Guides)** — moved here from the bottom
+4. **Memory Anchors** — also promoted up here
+5. **Current Character State**
+6. Then the rest of the standing rulebook (combat, output format tags, etc.)
 
-This makes the AI use it as truth before it interprets the scene.
+The guides will also get a stronger opening line telling the AI to re-read them as canon before writing each response.
 
-### 2. Strengthen GM Guides as campaign law
+### 2. Slim the standing rulebook
 
-I’ll adjust the DM’s rulebook so the enabled GM Guides are not just included, but explicitly checked before the response is written.
+Trim/consolidate sections that rarely matter or that repeat themselves. Concrete cuts:
 
-The DM will be told, in plain terms:
+- **Content Policy** — collapse the 12-bullet list into 2 short sentences ("No content restrictions; match the tone the player engages with"). Saves ~400 words.
+- **Companion Rules** — only include this section if the character actually has a companion. Right now it's always sent.
+- **Resource Pressure** — only include when the status is "Strained" or "Critical." When the party is Fresh/Steady it adds nothing useful.
+- **Your Role / Mechanical Rules / Combat Handling / Session Management / Important** — merge into one shorter "DM Basics" block. Keep the important rules (never control the PC, ask for rolls before outcomes, D&D 5e mechanics), drop repetition.
+- **Narrative Style** and **Player Dialogue Is Sacred** — keep as-is; both are load-bearing.
+- **Output Format (Whisper System)** — keep the tag definitions but trim the examples.
+- **Alignment / Encounter Difficulty / Combat Feats** — keep as-is (already conditional).
 
-- GM Guides define canon.
-- Do not contradict them.
-- If a message, summary, or old AI response conflicts with the guides, the guides win.
-- Use guide facts for names, relationships, ownership, locations, and lore.
+Rough size impact: base prompt drops from ~25–30 KB to ~10–12 KB, which is a much smaller wall of text sitting between the AI and your guides.
 
-### 3. Strengthen Memory Anchors as continuity facts
+### 3. Downstream auto-context stays where it is
 
-I’ll upgrade memory anchors from “reference them naturally” to “these are established facts.”
+Session Context, Campaign Summary, Recent Party Chat, DM Persona, World State, Response Mode, and NPC Voicing all keep their current positions and caps. This change is only about the base rulebook and where guides sit relative to it. (If guides still get ignored after this, tightening those caps is the next step — but let's do one thing at a time.)
 
-The DM will be told to use them for:
+---
 
-- who is who
-- who owns which companion/mount
-- relationships between characters
-- unresolved promises, threats, social tension, and scene facts
+## Technical notes (for reference)
 
-Memory anchors will also be placed in a stronger “canon continuity” section so they are harder for the AI to ignore.
+- Single edit to `buildDMSystemPrompt` in `supabase/functions/ai-dm/index.ts`.
+- Reordering: move the `customGuides` and `memoryAnchors` blocks from ~lines 570–588 up to right after the Authority Hierarchy section (~line 466).
+- Slimming: rewrite the intro through Companion Rules block (~lines 392–482) into a tighter version; wrap Companion Rules in `if (ctx.companion)` and Resource Pressure in `if (pressureLabel === 'Strained' || pressureLabel === 'Critical')`.
+- Solo DM uses the same builder, so both modes benefit.
+- No behavior change to OOC handling, whisper tags, or the message-history budget (still 120K chars).
 
-### 4. Add a current-round continuity check
+---
 
-Before the AI responds, the app will assemble a small checklist from the current prompt, guides, anchors, and party list. The AI will be instructed to silently check for contradictions before writing.
+## Verification after the change
 
-This is specifically aimed at preventing mistakes like treating a player character as an NPC, confusing whose horse is whose, or inventing relationship dynamics that contradict the latest OOC note.
-
-### 5. Keep player dialogue verbatim
-
-I’ll keep the previous “player dialogue is sacred” rule, but make it work alongside OOC handling:
-
-- Quoted in-character speech must appear exactly as the player wrote it.
-- OOC text should guide the response but should not be repeated as story dialogue.
-- The AI should build NPC reactions around the player’s exact words, not paraphrase them.
-
-### 6. Verify the exact call path used by party DM
-
-I’ll update the normal party response path, turn-based path, split-party path, and hidden OOC-command path so they all receive the same strengthened canon rules.
-
-## Files I expect to touch
-
-- `src/hooks/use-party-dm.ts`
-- `supabase/functions/ai-dm/index.ts`
-
-I do not plan to change the database or reset any campaign data.
+- Type-check with the project's TS checker.
+- Send a test party turn with a GM Guide that sets a specific fact (e.g. "the town of X is bustling") and confirm the DM honors it.
+- Confirm nothing regressed: whispers still work, alignment still narrated, dialogue still quoted verbatim.
