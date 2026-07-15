@@ -399,7 +399,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   onCopy?: (content: string) => void;
   onEdit?: (messageId: string, content: string) => void;
   onDelete?: (messageId: string) => void;
-  onRegenerate?: (messageId: string) => void;
+  onRegenerate?: (messageId: string, note?: string) => void;
   onRegenerateWhispers?: (messageId: string) => void;
   showTeamTag?: boolean;
   afkCharNames?: string[];
