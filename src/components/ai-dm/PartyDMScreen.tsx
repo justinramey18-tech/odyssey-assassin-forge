@@ -419,6 +419,8 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
   const [editContent, setEditContent] = useState('');
+  const [showRegenNote, setShowRegenNote] = useState(false);
+  const [regenNoteText, setRegenNoteText] = useState('');
   const isAssistant = message.role === 'assistant';
   const isMine = message.sender_user_id === currentUserId;
   const videoMatch = message.content.match(PARTY_VIDEO_REGEX);
@@ -572,6 +574,44 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
               </div>
             )}
 
+            {showRegenNote && (
+              <div className="mt-2 space-y-2 p-2 rounded-lg bg-amber-950/20 border border-amber-500/20">
+                <p className="text-[10px] text-amber-300/70">
+                  Tell the DM what to change. Leave blank for a plain reroll.
+                </p>
+                <textarea
+                  value={regenNoteText}
+                  onChange={(e) => setRegenNoteText(e.target.value)}
+                  placeholder="e.g. make the town have people in it instead of being abandoned"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 resize-none min-h-[60px]"
+                  rows={3}
+                  autoFocus
+                />
+                <div className="flex gap-1.5 justify-end">
+                  <Button
+                    onClick={() => { setShowRegenNote(false); setRegenNoteText(''); }}
+                    size="sm"
+                    variant="ghost"
+                    className="text-white/40 hover:text-white/70 h-7 px-2 text-xs"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      onRegenerate?.(message.id, regenNoteText.trim() || undefined);
+                      setShowRegenNote(false);
+                      setRegenNoteText('');
+                    }}
+                    size="sm"
+                    className="gap-1 bg-amber-900/40 border border-amber-500/30 hover:bg-amber-900/60 text-amber-300 h-7 px-2 text-xs"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Regenerate
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Reactions (assistant messages) */}
             {reactions && onAddReaction && onRemoveReaction && (
               <MessageReactions messageId={message.id} reactions={reactions} currentUserId={currentUserId} onAddReaction={onAddReaction} onRemoveReaction={onRemoveReaction} />
@@ -624,6 +664,13 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                       title="Regenerate"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => { setShowRegenNote(true); setShowActions(false); }}
+                      className="p-1.5 rounded hover:bg-amber-900/30 text-amber-400/60 hover:text-amber-300 transition-colors"
+                      title="Regenerate with a note"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => { onRegenerateWhispers?.(message.id); setShowActions(false); }}
@@ -1632,8 +1679,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     partyDmRef.current.deleteMessage?.(messageId);
   }, []);
 
-  const handleRegenerateMessage = useCallback((messageId: string) => {
-    partyDmRef.current.regenerateMessage?.(messageId);
+  const handleRegenerateMessage = useCallback((messageId: string, note?: string) => {
+    partyDmRef.current.regenerateMessage?.(messageId, note);
   }, []);
 
   const handleRegenerateWhispers = useCallback((messageId: string) => {
