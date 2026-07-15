@@ -2501,7 +2501,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   }, [partyId, user, sessionConfig, isGenerating, messages, characterName, customGuidesContent, memoryAnchorsContent, buildCanonGuardrailContext, streamAIResponse, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper, empyreanPersonaPrompt]);
 
 
-  const regenerateMessage = useCallback(async (messageId: string) => {
+  const regenerateMessage = useCallback(async (messageId: string, steeringNote?: string) => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
     const msgIndex = messages.findIndex(m => m.id === messageId);
     if (msgIndex === -1) return;
