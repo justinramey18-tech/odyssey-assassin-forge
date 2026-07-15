@@ -2570,6 +2570,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         guides = customGuidesContent || '';
       }
 
+      if (steeringNote && steeringNote.trim()) {
+        apiMessages.push({
+          role: 'user',
+          content: `[DIRECTOR NOTE — Regeneration Request]\nThe players were not satisfied with the previous version of this response and asked for this specific change. Rewrite your response incorporating it, keeping everything else about the scene and established facts consistent:\n"${steeringNote.trim()}"`,
+        });
+      }
+
       const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal, regenPartyContext);
 
       if (assistantContent) {
