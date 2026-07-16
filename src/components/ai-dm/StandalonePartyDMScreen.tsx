@@ -359,7 +359,6 @@ export function StandalonePartyDMScreen({
   // Memory Anchors — long-term campaign facts shared across party
   const memoryAnchors = usePartyMemoryAnchors({ partyId: partyId || null });
 
-
   const stablePartyMembers = useMemo(() =>
     partyMembers.map(m => ({
       character_name: m.character_name,
@@ -538,6 +537,16 @@ export function StandalonePartyDMScreen({
     onDragonMemoryDetected: handleDragonMemoryDetected,
     isSoloEmpyrean,
   });
+
+  const directorCampaignContext = useMemo(() => [
+    gmGuides.enabledContent ? `## GM GUIDES (CAMPAIGN WORLD BIBLE — ABSOLUTE CANON)\n${gmGuides.enabledContent}` : '',
+    memoryAnchors.formattedForOracle ? `## MEMORY ANCHORS (ESTABLISHED FACTS)\n${memoryAnchors.formattedForOracle}` : '',
+    (partyDm.sessionConfig as any)?.campaignSummary ? `## CAMPAIGN SUMMARY\n${(partyDm.sessionConfig as any).campaignSummary}` : '',
+  ].filter(Boolean).join('\n\n'), [
+    gmGuides.enabledContent,
+    memoryAnchors.formattedForOracle,
+    partyDm.sessionConfig,
+  ]);
 
   // Auto-extract memory anchors from new DM responses (host-only to avoid duplicates)
   usePartyMemoryExtraction({
@@ -791,11 +800,7 @@ ${truncated}`);
         onClose={() => setShowDirectorScreen(false)}
         partyId={partyId}
         userId={userId}
-        campaignPlan={[
-          gmGuides.enabledContent ? `## GM GUIDES (CAMPAIGN WORLD BIBLE — ABSOLUTE CANON)\n${gmGuides.enabledContent}` : '',
-          memoryAnchors.formattedForOracle ? `## MEMORY ANCHORS (ESTABLISHED FACTS)\n${memoryAnchors.formattedForOracle}` : '',
-          (partyDm.sessionConfig as any)?.campaignSummary ? `## CAMPAIGN SUMMARY\n${(partyDm.sessionConfig as any).campaignSummary}` : '',
-        ].filter(Boolean).join('\n\n')}
+        campaignPlan={directorCampaignContext}
         characterContext={(() => {
           const myMember = partyMembers.find(m => m.user_id === userId);
           const status = (myMember as any)?.character_status || {};
