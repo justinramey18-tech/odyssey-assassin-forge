@@ -791,7 +791,11 @@ ${truncated}`);
         onClose={() => setShowDirectorScreen(false)}
         partyId={partyId}
         userId={userId}
-        campaignPlan={(partyDm.sessionConfig as any)?.campaignSummary || ''}
+        campaignPlan={[
+          gmGuides.enabledContent ? `## GM GUIDES (CAMPAIGN WORLD BIBLE — ABSOLUTE CANON)\n${gmGuides.enabledContent}` : '',
+          memoryAnchors.formattedForOracle ? `## MEMORY ANCHORS (ESTABLISHED FACTS)\n${memoryAnchors.formattedForOracle}` : '',
+          (partyDm.sessionConfig as any)?.campaignSummary ? `## CAMPAIGN SUMMARY\n${(partyDm.sessionConfig as any).campaignSummary}` : '',
+        ].filter(Boolean).join('\n\n')}
         characterContext={(() => {
           const myMember = partyMembers.find(m => m.user_id === userId);
           const status = (myMember as any)?.character_status || {};
