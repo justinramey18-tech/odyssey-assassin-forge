@@ -7,6 +7,32 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const HOST_GUIDES_CHAR_LIMIT = 30000;
+const CAMPAIGN_CONTEXT_CHAR_LIMIT = 40000;
+const CHARACTER_CONTEXT_CHAR_LIMIT = 3000;
+
+function trimToLimit(value: string, limit: number): string {
+  const trimmed = value.trim();
+  if (trimmed.length <= limit) return trimmed;
+  return `${trimmed.slice(0, limit)}\n\n[Context trimmed to stay within the private DM limit.]`;
+}
+
+function formatMemoryAnchors(rawAnchors: unknown): string {
+  if (!Array.isArray(rawAnchors) || rawAnchors.length === 0) return '';
+
+  return rawAnchors
+    .slice(0, 30)
+    .map((anchor: any) => {
+      const category = typeof anchor?.category === 'string' ? anchor.category.toUpperCase() : 'FACT';
+      const key = typeof anchor?.key === 'string' ? anchor.key : '';
+      const value = typeof anchor?.value === 'string' ? anchor.value : '';
+      if (!key && !value) return '';
+      return `[${category}] ${key}${key && value ? ': ' : ''}${value}`;
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
 const DIRECTOR_TOOL = {
   type: "function" as const,
   function: {
@@ -49,6 +75,14 @@ const SYSTEM_PROMPT_BASE = `You are the DIRECTOR — an out-of-fiction AI assist
 ## ROLE
 
 You are NOT the DM. You don't narrate scenes. You don't describe outcomes. You're the player's private liaison who helps them act in secret, ask questions, or request narrative changes that the host needs to approve.
+
+## CAMPAIGN CONTEXT AUTHORITY
+
+The HOST GM GUIDES, MEMORY ANCHORS, and CAMPAIGN SUMMARY below are authoritative campaign context. Use them before general Fourth Wing canon. GM Guides and Memory Anchors override generic assumptions.
+
+For questions, search the provided context first. Do NOT use the fallback phrase if the answer appears in, or can be directly inferred from, the GM Guides, Memory Anchors, Campaign Summary, or the player's character block.
+
+If the player asks what GM Guides are applied, answer from the ACTIVE GM GUIDE INDEX. Briefly name or summarize the active guides/topics; do not claim ignorance when the index is present.
 
 ## CLASSIFICATION RUBRIC
 
@@ -101,7 +135,7 @@ Examples:
 
 For each category your reply text serves a different purpose:
 
-- QUESTION: Answer briefly from the campaign plan. 1-3 sentences. If you don't know, say "I don't have details on that — the DM will figure it out."
+- QUESTION: Answer briefly from the provided campaign context. 1-3 sentences. Use GM Guides and Memory Anchors first, then Campaign Summary, then general Fourth Wing canon. Only if the context is truly missing should you say "I don't have details on that — the DM will figure it out."
 - PRIVATE_ACTION: Acknowledge concisely. "Got it — your character does this in secret. The DM will know but won't reveal it until relevant." DON'T narrate the outcome.
 - PUBLIC_ACTION: Acknowledge that this is going to the round. "I'll send this to the round — everyone will see it." Set public_action_text to a clean version of the action.
 - ESCALATED: Tell player "This needs the host's approval. I've sent it to them." Set rationale to a short reason ("Affects another player's character" / "Adds new lore" / etc).
@@ -162,12 +196,97 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const planBlock = typeof campaign_plan === "string" && campaign_plan.trim().length > 0
-      ? `## HOST'S CAMPAIGN PLAN\n\n${campaign_plan.trim().slice(0, 5000)}`
-      : `## HOST'S CAMPAIGN PLAN\n\n(Not provided. Make general assumptions based on Fourth Wing canon.)`;
+    const { data: partyRow, error: partyErr } = await supabase
+      .from('parties')
+      .select('created_by')
+      .eq('id', party_id)
+      .maybeSingle();
+
+    if (partyErr || !partyRow?.created_by) {
+      return new Response(
+        JSON.stringify({ error: "Party not found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (partyRow.created_by !== user_id) {
+      const { data: membershipRow } = await supabase
+        .from('party_members')
+        .select('user_id')
+        .eq('party_id', party_id)
+        .eq('user_id', user_id)
+        .maybeSingle();
+
+      if (!membershipRow) {
+        return new Response(
+          JSON.stringify({ error: "You are not a member of this party" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    const { data: guideRows } = await supabase
+      .from('gm_guides')
+      .select('name, content')
+      .eq('user_id', partyRow.created_by)
+      .eq('mode', 'party')
+      .eq('enabled', true)
+      .order('created_at', { ascending: true });
+
+    const guideIndex = Array.isArray(guideRows) && guideRows.length > 0
+      ? `## ACTIVE GM GUIDE INDEX\n${guideRows.map((g: any) => `- ${g.name || 'Untitled Guide'}`).join('\n')}`
+      : '';
+
+    const hostGuides = Array.isArray(guideRows) && guideRows.length > 0
+      ? trimToLimit(
+          guideRows
+            .map((g: any) => `### ${g.name || 'Untitled Guide'}\n${g.content || ''}`)
+            .join('\n\n---\n\n'),
+          HOST_GUIDES_CHAR_LIMIT
+        )
+      : '';
+
+    const { data: memoryRow } = await supabase
+      .from('party_shared_state')
+      .select('state_data')
+      .eq('party_id', party_id)
+      .eq('state_type', 'party_memory_anchors')
+      .limit(1)
+      .maybeSingle();
+
+    const memoryAnchors = formatMemoryAnchors((memoryRow as any)?.state_data?.anchors);
+
+    const { data: sessionRow } = await supabase
+      .from('party_shared_state')
+      .select('state_data')
+      .eq('party_id', party_id)
+      .eq('state_type', 'dm_session')
+      .limit(1)
+      .maybeSingle();
+
+    const sessionSummary = typeof (sessionRow as any)?.state_data?.campaignSummary === 'string'
+      ? (sessionRow as any).state_data.campaignSummary.trim()
+      : '';
+
+    const authoritativeContext = [
+      guideIndex,
+      hostGuides ? `## HOST GM GUIDES (CAMPAIGN WORLD BIBLE — ABSOLUTE CANON)\n\n${hostGuides}` : '',
+      memoryAnchors ? `## MEMORY ANCHORS (ESTABLISHED FACTS)\n\n${memoryAnchors}` : '',
+      sessionSummary ? `## CAMPAIGN SUMMARY\n\n${sessionSummary}` : '',
+    ].filter(Boolean).join('\n\n');
+
+    const suppliedContext = typeof campaign_plan === "string" && campaign_plan.trim().length > 0
+      ? campaign_plan.trim()
+      : '';
+
+    const resolvedCampaignContext = authoritativeContext || suppliedContext;
+
+    const planBlock = resolvedCampaignContext
+      ? `## HOST'S CAMPAIGN CONTEXT\n\n${trimToLimit(resolvedCampaignContext, CAMPAIGN_CONTEXT_CHAR_LIMIT)}`
+      : `## HOST'S CAMPAIGN CONTEXT\n\n(Not provided. Make general assumptions based on Fourth Wing canon.)`;
 
     const characterBlock = typeof character_context === "string" && character_context.trim().length > 0
-      ? `## PLAYER'S CHARACTER\n\n${character_context.trim().slice(0, 1500)}`
+      ? `## PLAYER'S CHARACTER\n\n${trimToLimit(character_context, CHARACTER_CONTEXT_CHAR_LIMIT)}`
       : '';
 
     const fullSystemPrompt = `${SYSTEM_PROMPT_BASE}\n\n${planBlock}${characterBlock ? `\n\n${characterBlock}` : ''}`;
