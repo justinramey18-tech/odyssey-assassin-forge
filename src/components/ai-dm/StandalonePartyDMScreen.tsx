@@ -793,7 +793,7 @@ ${truncated}`);
         userId={userId}
         campaignPlan={[
           gmGuides.enabledContent ? `## GM GUIDES (CAMPAIGN WORLD BIBLE — ABSOLUTE CANON)\n${gmGuides.enabledContent}` : '',
-          memoryAnchors.formattedContent ? `## MEMORY ANCHORS (ESTABLISHED FACTS)\n${memoryAnchors.formattedContent}` : '',
+          memoryAnchors.formattedForOracle ? `## MEMORY ANCHORS (ESTABLISHED FACTS)\n${memoryAnchors.formattedForOracle}` : '',
           (partyDm.sessionConfig as any)?.campaignSummary ? `## CAMPAIGN SUMMARY\n${(partyDm.sessionConfig as any).campaignSummary}` : '',
         ].filter(Boolean).join('\n\n')}
         characterContext={(() => {
