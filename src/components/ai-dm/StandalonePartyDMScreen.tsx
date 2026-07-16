@@ -359,6 +359,16 @@ export function StandalonePartyDMScreen({
   // Memory Anchors — long-term campaign facts shared across party
   const memoryAnchors = usePartyMemoryAnchors({ partyId: partyId || null });
 
+  const directorCampaignContext = useMemo(() => [
+    gmGuides.enabledContent ? `## GM GUIDES (CAMPAIGN WORLD BIBLE — ABSOLUTE CANON)\n${gmGuides.enabledContent}` : '',
+    memoryAnchors.formattedForOracle ? `## MEMORY ANCHORS (ESTABLISHED FACTS)\n${memoryAnchors.formattedForOracle}` : '',
+    (partyDm.sessionConfig as any)?.campaignSummary ? `## CAMPAIGN SUMMARY\n${(partyDm.sessionConfig as any).campaignSummary}` : '',
+  ].filter(Boolean).join('\n\n'), [
+    gmGuides.enabledContent,
+    memoryAnchors.formattedForOracle,
+    partyDm.sessionConfig,
+  ]);
+
 
   const stablePartyMembers = useMemo(() =>
     partyMembers.map(m => ({
@@ -791,11 +801,7 @@ ${truncated}`);
         onClose={() => setShowDirectorScreen(false)}
         partyId={partyId}
         userId={userId}
-        campaignPlan={[
-          gmGuides.enabledContent ? `## GM GUIDES (CAMPAIGN WORLD BIBLE — ABSOLUTE CANON)\n${gmGuides.enabledContent}` : '',
-          memoryAnchors.formattedForOracle ? `## MEMORY ANCHORS (ESTABLISHED FACTS)\n${memoryAnchors.formattedForOracle}` : '',
-          (partyDm.sessionConfig as any)?.campaignSummary ? `## CAMPAIGN SUMMARY\n${(partyDm.sessionConfig as any).campaignSummary}` : '',
-        ].filter(Boolean).join('\n\n')}
+        campaignPlan={directorCampaignContext}
         characterContext={(() => {
           const myMember = partyMembers.find(m => m.user_id === userId);
           const status = (myMember as any)?.character_status || {};
