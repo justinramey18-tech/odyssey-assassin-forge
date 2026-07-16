@@ -196,6 +196,19 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    const { data: authData, error: authErr } = token
+      ? await supabase.auth.getUser(token)
+      : { data: { user: null }, error: new Error("Missing auth token") } as any;
+
+    if (authErr || !authData?.user || authData.user.id !== user_id) {
+      return new Response(
+        JSON.stringify({ error: "You must be signed in as this player to use the private DM." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { data: partyRow, error: partyErr } = await supabase
       .from('parties')
       .select('created_by')
