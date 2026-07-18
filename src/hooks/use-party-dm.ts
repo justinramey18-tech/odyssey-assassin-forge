@@ -515,6 +515,20 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       if (splitData?.state_data) {
         setSplitState(splitData.state_data as DmSplitState);
       }
+
+      // Load persisted active mood preset for this party (per-partyId persistence).
+      try {
+        const { data: moodRow } = await (supabase.from('party_shared_state') as any)
+          .select('state_data')
+          .eq('party_id', partyId)
+          .eq('state_type', 'active_mood')
+          .maybeSingle();
+        if (moodRow?.state_data?.presetId) {
+          setActiveMoodPresetIdState(moodRow.state_data.presetId as string);
+        }
+      } catch (e) {
+        console.error('[PartyDM] failed to load active_mood:', e);
+      }
     })();
   }, [partyId]);
 
