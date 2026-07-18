@@ -8,6 +8,7 @@ import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
 import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Heart, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Theater, Megaphone, Film, RefreshCw, Code2, Image as ImageIcon, Trash2, Undo2, RotateCcw, Download } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { exportPartyStory } from '@/lib/exportPartyStory';
+import { exportGMGuides } from '@/lib/exportGMGuides';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
 import { ResponseModeSelector } from './ResponseModeSelector';
