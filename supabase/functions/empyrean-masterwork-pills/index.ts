@@ -89,6 +89,8 @@ FORMAT:
 - DO NOT repeat or lightly rephrase what the DM already narrated — suggest what the PLAYER does NEXT, in response.
 - Vary the suggestions: don't make all 4 the same flavor (e.g. not four aggressive options, not four cautious ones) unless the moment genuinely only supports one register.
 
+CRITICAL RECENCY RULE: Your suggestions must respond to THE CURRENT MOMENT (the most recent beat), not to earlier events or the campaign background. If an older event conflicts with what just happened, the most recent beat wins. A suggestion that ignores the latest development is useless — always anchor to what just happened.
+
 Always call the generate_masterwork_pills tool. Always return exactly 4 pills.`;
 
 serve(async (req) => {
@@ -149,16 +151,27 @@ serve(async (req) => {
 - Dragon: ${dragon_name || '(unnamed)'}
 - Signet: ${signet_type || '(unknown signet)'}`;
 
-    const narrativeBlock = `## RECENT NARRATIVE (the moment to riff on)
+    // No truncation — the client already bounds this to the last 8 messages.
+    // Send the full narrative so the newest events are never lost.
+    const narrativeParts = recent_narrative.split('\n\n').filter(Boolean);
+    const latestBeat = narrativeParts.length > 0 ? narrativeParts[narrativeParts.length - 1] : recent_narrative;
 
-${recent_narrative.slice(0, 2000)}`;
+    const narrativeBlock = `## RECENT NARRATIVE (chronological — oldest first, newest last)
+
+${recent_narrative}
+
+## THE CURRENT MOMENT (react to THIS)
+
+This is the most recent thing that happened — your suggestions MUST make sense as a direct response to it, not to earlier events:
+
+${latestBeat}`;
 
     const activeSystemPrompt = isStoryMode ? SYSTEM_PROMPT_STORY : SYSTEM_PROMPT_BASE;
     const summaryBlock = (isStoryMode && campaign_summary)
-      ? `## CAMPAIGN SO FAR (for context — do not restate this to the player, just be aware of it)\n${String(campaign_summary).slice(0, 1500)}`
+      ? `## CAMPAIGN BACKGROUND (distant context only — do NOT base suggestions primarily on this; it is older than the recent narrative below)\n${String(campaign_summary).slice(0, 900)}`
       : '';
     const systemPrompt = isStoryMode
-      ? `${activeSystemPrompt}\n\n${categoryBlock}\n\n${characterBlock}\n\n${summaryBlock}\n\n${narrativeBlock}`
+      ? `${activeSystemPrompt}\n\n${categoryBlock}\n\n${summaryBlock}\n\n${characterBlock}\n\n${narrativeBlock}`
       : `${activeSystemPrompt}\n\n${categoryBlock}\n\n${characterBlock}\n\n${narrativeBlock}`;
 
     const response = await fetch(
