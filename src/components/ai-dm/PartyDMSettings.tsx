@@ -188,6 +188,20 @@ export function PartyDMSettings({
 }: PartyDMSettingsProps) {
   const bgFileInputRef = useRef<HTMLInputElement>(null);
   const originalCreator = isOriginalCreatorProp ?? isCreator;
+  const [exportingStory, setExportingStory] = useState(false);
+
+  const handleDownloadStory = async () => {
+    if (!partyId) { toast.error('No active party'); return; }
+    setExportingStory(true);
+    try {
+      await exportPartyStory(partyId, 'campaign', members);
+      toast.success('Story downloaded');
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not export story');
+    } finally {
+      setExportingStory(false);
+    }
+  };
   return (
     <div className="px-3 py-3 space-y-2.5 w-full">
       {/* Session Controls */}
