@@ -5,8 +5,9 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Heart, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Theater, Megaphone, Film, RefreshCw, Code2, Image as ImageIcon, Trash2, Undo2, RotateCcw } from 'lucide-react';
-import { useRef } from 'react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Heart, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Theater, Megaphone, Film, RefreshCw, Code2, Image as ImageIcon, Trash2, Undo2, RotateCcw, Download } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { exportPartyStory } from '@/lib/exportPartyStory';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
 import { ResponseModeSelector } from './ResponseModeSelector';
@@ -187,6 +188,20 @@ export function PartyDMSettings({
 }: PartyDMSettingsProps) {
   const bgFileInputRef = useRef<HTMLInputElement>(null);
   const originalCreator = isOriginalCreatorProp ?? isCreator;
+  const [exportingStory, setExportingStory] = useState(false);
+
+  const handleDownloadStory = async () => {
+    if (!partyId) { toast.error('No active party'); return; }
+    setExportingStory(true);
+    try {
+      await exportPartyStory(partyId, 'campaign', members);
+      toast.success('Story downloaded');
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not export story');
+    } finally {
+      setExportingStory(false);
+    }
+  };
   return (
     <div className="px-3 py-3 space-y-2.5 w-full">
       {/* Session Controls */}
@@ -424,6 +439,13 @@ export function PartyDMSettings({
         {onShowSaves && (
           <ToolRow icon={<FolderOpen className="w-4 h-4" />} label="Campaign Saves" description="Manage saved campaigns" onClick={onShowSaves} />
         )}
+        <ToolRow
+          icon={<Download className="w-4 h-4" />}
+          label={exportingStory ? 'Preparing…' : 'Download Full Story'}
+          description="Export the entire campaign transcript as a zip (for feeding to an assistant)"
+          onClick={exportingStory ? undefined : handleDownloadStory}
+          disabled={exportingStory}
+        />
         {onShowGuides && (
           <ToolRow icon={<BookOpen className="w-4 h-4" />} label="GM Guides" description="Custom rules and lore" badge={guidesCount} onClick={onShowGuides} />
         )}
