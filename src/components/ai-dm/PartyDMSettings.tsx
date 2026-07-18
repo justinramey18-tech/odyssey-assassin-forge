@@ -439,6 +439,13 @@ export function PartyDMSettings({
         {onShowSaves && (
           <ToolRow icon={<FolderOpen className="w-4 h-4" />} label="Campaign Saves" description="Manage saved campaigns" onClick={onShowSaves} />
         )}
+        <ToolRow
+          icon={<Download className="w-4 h-4" />}
+          label={exportingStory ? 'Preparing…' : 'Download Full Story'}
+          description="Export the entire campaign transcript as a zip (for feeding to an assistant)"
+          onClick={exportingStory ? undefined : handleDownloadStory}
+          disabled={exportingStory}
+        />
         {onShowGuides && (
           <ToolRow icon={<BookOpen className="w-4 h-4" />} label="GM Guides" description="Custom rules and lore" badge={guidesCount} onClick={onShowGuides} />
         )}
