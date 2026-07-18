@@ -1580,8 +1580,22 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   // Story-mode masterwork pills (non-Empyrean party campaigns)
   const handleFetchStoryPills = useCallback(async () => {
-    const recentAssistantMessages = partyDm.messages.filter((m: any) => m.role === 'assistant').slice(-2);
-    const recentNarrative = recentAssistantMessages.map((m: any) => m.content).join('\n\n').slice(0, 2500);
+    // Include the recent back-and-forth (DM + this player + other players), not just DM replies,
+    // so suggestions respond to what the player themselves was actually just doing.
+    const recentMessages = partyDm.messages.slice(-8);
+    const recentNarrative = recentMessages
+      .map((m: any) => {
+        if (m.role === 'assistant') return `[DM]: ${m.content}`;
+        if (m.role === 'user' && m.sender_user_id === currentUserId) return `[You]: ${m.content}`;
+        if (m.role === 'user') {
+          const speaker = members.find(mem => mem.user_id === m.sender_user_id)?.character_name || 'Another player';
+          return `[${speaker}]: ${m.content}`;
+        }
+        return '';
+      })
+      .filter(Boolean)
+      .join('\n\n')
+      .slice(0, 3500);
     if (!recentNarrative.trim()) {
       throw new Error('No recent narrative to riff on yet.');
     }
@@ -1593,11 +1607,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     const alignment = (myDriftZone && myAlignmentHistoryCount > 0) ? myDriftZone : (myStatus.alignment || '');
     const bonds = myStatus.bonds || '';
     const flaws = myStatus.flaws || '';
+    const campaignSummary = (partyDm.sessionConfig as any)?.campaignSummary || '';
 
     const { data, error } = await supabase.functions.invoke('empyrean-masterwork-pills', {
       body: {
         category: 'story',
         recent_narrative: recentNarrative,
+        campaign_summary: campaignSummary,
         character_name: myMember?.character_name || 'the player',
         character_backstory: backstory,
         character_personality: personality,
@@ -1610,7 +1626,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     if ((data as any)?.error) throw new Error((data as any).error);
     if (!Array.isArray((data as any)?.pills)) throw new Error('Invalid response from suggestion generator.');
     return (data as any).pills;
-  }, [partyDm.messages, members, currentUserId, myDriftZone, myAlignmentHistoryCount]);
+  }, [partyDm.messages, (partyDm.sessionConfig as any)?.campaignSummary, members, currentUserId, myDriftZone, myAlignmentHistoryCount]);
 
 
   // Whisper roll: state + handlers
