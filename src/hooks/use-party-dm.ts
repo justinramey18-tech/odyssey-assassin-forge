@@ -634,6 +634,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           if (old.state_type === 'dm_split') {
             setSplitState(null);
           }
+          if (old.state_type === 'active_mood') {
+            setActiveMoodPresetIdState(null);
+          }
           return;
         }
         const row = (payload.new || payload.old) as { state_type: string; state_data: unknown };
@@ -642,6 +645,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         }
         if (row.state_type === 'dm_split') {
           setSplitState(row.state_data as DmSplitState);
+        }
+        if (row.state_type === 'active_mood') {
+          const data = row.state_data as { presetId?: string | null };
+          setActiveMoodPresetIdState(data?.presetId ?? null);
         }
       })
       .subscribe();
