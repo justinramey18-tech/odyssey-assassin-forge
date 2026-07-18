@@ -39,6 +39,7 @@ function PresetPill({ preset, spotify, onSelected }: { preset: MoodPreset; spoti
     } else {
       spotify.searchAndAssignPreset(preset.id);
     }
+    onSelected?.(preset.id);
   };
 
   const handleTouchStart = () => {
