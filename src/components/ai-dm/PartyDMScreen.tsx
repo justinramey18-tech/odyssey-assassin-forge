@@ -946,6 +946,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const partyNPCNames = useNPCAutocomplete(partyDm.messages as any);
   const isEmpyrean = partyDm.sessionConfig?.campaignType === 'empyrean';
   const dragonBonds = usePartyDragonBonds(isEmpyrean ? (partyId || null) : null, currentUserId || null, members);
+  const { driftZone: myDriftZone, historyCount: myAlignmentHistoryCount } = useAlignmentDrift();
   const [showEmpyreanBanner, setShowEmpyreanBanner] = useState(false);
 
 
