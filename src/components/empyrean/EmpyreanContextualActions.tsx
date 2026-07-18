@@ -648,7 +648,7 @@ function MasterworkColumnHeader({
   );
 }
 
-function MasterworkSkeleton({ count, accent }: { count: number; accent: 'amber' | 'purple' }) {
+export function MasterworkSkeleton({ count, accent }: { count: number; accent: 'amber' | 'purple' }) {
   const tint = accent === 'amber'
     ? 'bg-amber-500/5 border-amber-500/15'
     : 'bg-purple-500/5 border-purple-500/15';
