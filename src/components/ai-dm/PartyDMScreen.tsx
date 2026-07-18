@@ -1578,6 +1578,41 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     [partyDm.messages, members, currentUserId, dragonBonds.myDragon?.dragonName, dragonBonds.myDragon?.signetType]
   );
 
+  // Story-mode masterwork pills (non-Empyrean party campaigns)
+  const handleFetchStoryPills = useCallback(async () => {
+    const recentAssistantMessages = partyDm.messages.filter((m: any) => m.role === 'assistant').slice(-2);
+    const recentNarrative = recentAssistantMessages.map((m: any) => m.content).join('\n\n').slice(0, 2500);
+    if (!recentNarrative.trim()) {
+      throw new Error('No recent narrative to riff on yet.');
+    }
+    const myMember = members.find(m => m.user_id === currentUserId);
+    const myStatus = (myMember as any)?.character_status || {};
+    const storedBackstory = getScopedItem('dnd-character-backstory') || '';
+    const backstory = storedBackstory || myStatus.backstory || '';
+    const personality = myStatus.personality || '';
+    const alignment = (myDriftZone && myAlignmentHistoryCount > 0) ? myDriftZone : (myStatus.alignment || '');
+    const bonds = myStatus.bonds || '';
+    const flaws = myStatus.flaws || '';
+
+    const { data, error } = await supabase.functions.invoke('empyrean-masterwork-pills', {
+      body: {
+        category: 'story',
+        recent_narrative: recentNarrative,
+        character_name: myMember?.character_name || 'the player',
+        character_backstory: backstory,
+        character_personality: personality,
+        character_alignment: alignment,
+        character_bonds: bonds,
+        character_flaws: flaws,
+      },
+    });
+    if (error) throw error;
+    if ((data as any)?.error) throw new Error((data as any).error);
+    if (!Array.isArray((data as any)?.pills)) throw new Error('Invalid response from suggestion generator.');
+    return (data as any).pills;
+  }, [partyDm.messages, members, currentUserId, myDriftZone, myAlignmentHistoryCount]);
+
+
   // Whisper roll: state + handlers
   const [diceRollerOpen, setDiceRollerOpen] = useState(false);
   const [diceRollerWhisperText, setDiceRollerWhisperText] = useState<string | null>(null);
