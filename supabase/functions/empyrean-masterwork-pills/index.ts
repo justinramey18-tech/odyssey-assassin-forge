@@ -110,6 +110,7 @@ serve(async (req) => {
       character_alignment,
       character_bonds,
       character_flaws,
+      campaign_summary,
     } = body ?? {};
 
     if (category !== 'dragon' && category !== 'situation' && category !== 'story') {
