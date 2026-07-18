@@ -941,6 +941,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const { cinematicModeEnabled, setCinematicMode } = useCinematicMode();
   const [showSlideshow, setShowSlideshow] = useState(false);
   const [partySituation, setPartySituation] = useState('exploration');
+  const [musicPanelOpen, setMusicPanelOpen] = useState(false);
   const [slideshowSlides, setSlideshowSlides] = useState<import('@/lib/parseSlides').Slide[]>([]);
   const lastSlideshowMsgIdRef = useRef<string | null>(null);
   const [readingMode, setReadingMode] = useState(false);
@@ -1989,12 +1990,27 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
       {/* Spotify mood controls for non-Empyrean party campaigns (host only) */}
       {isCreator && !isEmpyrean && (
-        <div className="border-b border-amber-900/20 bg-black/20">
-          <DMSpotifyControls
-            partyId={partyId}
-            isCreator={isCreator}
-            presetFilter={PARTY_MOOD_PRESETS}
-          />
+        <div className="mx-2 my-1 rounded-lg border border-amber-900/30 bg-black/30 overflow-hidden">
+          <button
+            onClick={() => setMusicPanelOpen(o => !o)}
+            className="w-full flex items-center justify-between px-3 py-2 text-amber-300/80 hover:text-amber-300 hover:bg-amber-900/20 transition-colors"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <span className="flex items-center gap-2 text-xs font-cinzel">
+              <Music className="w-3.5 h-3.5" />
+              Music & Mood
+            </span>
+            {musicPanelOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+          {musicPanelOpen && (
+            <div className="px-1 pb-2">
+              <DMSpotifyControls
+                partyId={partyId}
+                isCreator={isCreator}
+                presetFilter={PARTY_MOOD_PRESETS}
+              />
+            </div>
+          )}
         </div>
       )}
 
