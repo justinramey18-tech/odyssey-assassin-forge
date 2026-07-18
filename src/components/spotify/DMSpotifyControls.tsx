@@ -330,8 +330,7 @@ export function DMSpotifyControls({ partyId, isCreator = false, presetFilter, on
           {spotify.moodPresets
             .filter(preset => !presetFilter || presetFilter.includes(preset.id) || preset.id.startsWith('custom_'))
             .map(preset => (
-              <PresetPill key={preset.id} preset={preset} spotify={spotify} />
-            ))}
+              <PresetPill key={preset.id} preset={preset} spotify={spotify} onSelected={onPresetSelected} />)
         </div>
 
 
