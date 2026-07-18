@@ -1127,6 +1127,21 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   }, []);
 
 
+  // Synced active mood preset — plays on all clients when host changes it, and restores on party reopen.
+  const lastPlayedMoodRef = useRef<string | null>(null);
+  useEffect(() => {
+    const presetId = partyDm.activeMoodPresetId;
+    if (!presetId) return;
+    if (!spotify.connected) return;
+    if (lastPlayedMoodRef.current === presetId) return;
+    lastPlayedMoodRef.current = presetId;
+    try {
+      spotify.playPresetById(presetId);
+    } catch (e) {
+      console.error('[PartyDM] failed to play synced mood preset:', e);
+    }
+  }, [partyDm.activeMoodPresetId, spotify.connected, spotify]);
+
   // AI situation detection for party mode (independent of Spotify)
   const lastSituationMsgIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -2008,6 +2023,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 partyId={partyId}
                 isCreator={isCreator}
                 presetFilter={PARTY_MOOD_PRESETS}
+                onPresetSelected={(presetId) => {
+                  lastPlayedMoodRef.current = presetId;
+                  partyDm.setActiveMoodPreset(presetId);
+                }}
               />
             </div>
           )}

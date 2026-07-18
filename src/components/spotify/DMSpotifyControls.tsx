@@ -11,10 +11,11 @@ interface DMSpotifyControlsProps {
   partyId?: string | null;
   isCreator?: boolean;
   presetFilter?: string[]; // if provided, only presets whose id is in this list are shown (plus custom presets)
+  onPresetSelected?: (presetId: string) => void;
 }
 
 
-function PresetPill({ preset, spotify }: { preset: MoodPreset; spotify: ReturnType<typeof useSpotify> }) {
+function PresetPill({ preset, spotify, onSelected }: { preset: MoodPreset; spotify: ReturnType<typeof useSpotify>; onSelected?: (presetId: string) => void }) {
   const [linkInput, setLinkInput] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
   const [open, setOpen] = useState(false);
@@ -38,6 +39,7 @@ function PresetPill({ preset, spotify }: { preset: MoodPreset; spotify: ReturnTy
     } else {
       spotify.searchAndAssignPreset(preset.id);
     }
+    onSelected?.(preset.id);
   };
 
   const handleTouchStart = () => {
@@ -156,7 +158,7 @@ function PresetPill({ preset, spotify }: { preset: MoodPreset; spotify: ReturnTy
   );
 }
 
-export function DMSpotifyControls({ partyId, isCreator = false, presetFilter }: DMSpotifyControlsProps = {}) {
+export function DMSpotifyControls({ partyId, isCreator = false, presetFilter, onPresetSelected }: DMSpotifyControlsProps = {}) {
   const spotify = useSpotify();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newLabel, setNewLabel] = useState('');
@@ -328,7 +330,7 @@ export function DMSpotifyControls({ partyId, isCreator = false, presetFilter }: 
           {spotify.moodPresets
             .filter(preset => !presetFilter || presetFilter.includes(preset.id) || preset.id.startsWith('custom_'))
             .map(preset => (
-              <PresetPill key={preset.id} preset={preset} spotify={spotify} />
+              <PresetPill key={preset.id} preset={preset} spotify={spotify} onSelected={onPresetSelected} />
             ))}
         </div>
 
