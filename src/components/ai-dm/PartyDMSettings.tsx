@@ -97,6 +97,7 @@ export interface PartyDMSettingsProps {
   onShowDevAssistant?: () => void;
   onShowAfkGuide: () => void;
   guidesCount?: number;
+  guides?: Array<{ id: string; name: string; content: string; enabled: boolean; createdAt?: string; updatedAt?: string }>;
   myAfkGuide?: string | null;
   myAfkCascadeCount?: number;
   // Party (creator-only)
@@ -168,7 +169,7 @@ export function PartyDMSettings({
   pushState, onTogglePush,
   dmMode = 'ai', onDmModeChange,
   onShowMap, onShowSaves, onShowGuides, onShowChat, onShowDevAssistant, onShowAfkGuide,
-  guidesCount = 0, myAfkGuide, myAfkCascadeCount = 0,
+  guidesCount = 0, guides = [], myAfkGuide, myAfkCascadeCount = 0,
   isSplitActive, memberCount, onShowSplitInitiator, onShowNpcScene, onShowRegroupDialog, onShowSplitSummaries, onShowPreSplitChat, onShowOocChat,
   onNewCampaign, onEndSession,
   timerEnabled, timerDurationSeconds, onTimerEnabledChange, onTimerDurationChange,
@@ -190,6 +191,7 @@ export function PartyDMSettings({
   const bgFileInputRef = useRef<HTMLInputElement>(null);
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   const [exportingStory, setExportingStory] = useState(false);
+  const [exportingGuides, setExportingGuides] = useState(false);
 
   const handleDownloadStory = async () => {
     if (!partyId) { toast.error('No active party'); return; }
@@ -201,6 +203,19 @@ export function PartyDMSettings({
       toast.error(e?.message || 'Could not export story');
     } finally {
       setExportingStory(false);
+    }
+  };
+
+  const handleDownloadGuides = async () => {
+    if (!guides || guides.length === 0) { toast.error('No GM guides to export'); return; }
+    setExportingGuides(true);
+    try {
+      await exportGMGuides(guides, 'campaign');
+      toast.success('GM guides downloaded');
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not export guides');
+    } finally {
+      setExportingGuides(false);
     }
   };
   return (
@@ -450,6 +465,13 @@ export function PartyDMSettings({
         {onShowGuides && (
           <ToolRow icon={<BookOpen className="w-4 h-4" />} label="GM Guides" description="Custom rules and lore" badge={guidesCount} onClick={onShowGuides} />
         )}
+        <ToolRow
+          icon={<Download className="w-4 h-4" />}
+          label={exportingGuides ? 'Preparing…' : 'Download GM Guides'}
+          description="Export all campaign GM guides as a zip (for feeding to an assistant)"
+          onClick={exportingGuides ? undefined : handleDownloadGuides}
+          disabled={exportingGuides}
+        />
         {onShowMemoryAnchors && (
           <ToolRow icon={<Brain className={cn("w-4 h-4", memoryAnchorsCount > 0 ? "text-purple-400" : "")} />} label="Memory Anchors" description="Long-term campaign facts for the Oracle" badge={memoryAnchorsCount} onClick={onShowMemoryAnchors} />
         )}
