@@ -10,7 +10,9 @@ import type { MoodPreset } from '@/lib/spotify';
 interface DMSpotifyControlsProps {
   partyId?: string | null;
   isCreator?: boolean;
+  presetFilter?: string[]; // if provided, only presets whose id is in this list are shown (plus custom presets)
 }
+
 
 function PresetPill({ preset, spotify }: { preset: MoodPreset; spotify: ReturnType<typeof useSpotify> }) {
   const [linkInput, setLinkInput] = useState('');
@@ -154,7 +156,7 @@ function PresetPill({ preset, spotify }: { preset: MoodPreset; spotify: ReturnTy
   );
 }
 
-export function DMSpotifyControls({ partyId, isCreator = false }: DMSpotifyControlsProps = {}) {
+export function DMSpotifyControls({ partyId, isCreator = false, presetFilter }: DMSpotifyControlsProps = {}) {
   const spotify = useSpotify();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newLabel, setNewLabel] = useState('');
@@ -323,10 +325,13 @@ export function DMSpotifyControls({ partyId, isCreator = false }: DMSpotifyContr
         )}
 
         <div className="flex flex-wrap gap-1.5">
-          {spotify.moodPresets.map(preset => (
-            <PresetPill key={preset.id} preset={preset} spotify={spotify} />
-          ))}
+          {spotify.moodPresets
+            .filter(preset => !presetFilter || presetFilter.includes(preset.id) || preset.id.startsWith('custom_'))
+            .map(preset => (
+              <PresetPill key={preset.id} preset={preset} spotify={spotify} />
+            ))}
         </div>
+
 
         <p className="text-[9px] text-muted-foreground/60 text-center">Tap to play · Hold to edit link</p>
       </div>
