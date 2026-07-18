@@ -700,6 +700,31 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     toast.info('Party DM session ended');
   }, [partyId, user]);
 
+  // Shared active mood preset (one row per party, any host/co-host can update).
+  const setActiveMoodPreset = useCallback(async (presetId: string | null) => {
+    if (!partyId || !user) return;
+    setActiveMoodPresetIdState(presetId);
+    try {
+      const { data: existing } = await (supabase.from('party_shared_state') as any)
+        .select('id')
+        .eq('party_id', partyId)
+        .eq('state_type', 'active_mood')
+        .maybeSingle();
+      const payload = { presetId, updatedAt: new Date().toISOString() };
+      if (existing?.id) {
+        await (supabase.from('party_shared_state') as any)
+          .update({ state_data: payload })
+          .eq('id', existing.id);
+      } else {
+        await (supabase.from('party_shared_state') as any)
+          .insert({ party_id: partyId, user_id: user.id, state_type: 'active_mood', state_data: payload });
+      }
+    } catch (e) {
+      console.error('[PartyDM] failed to write active_mood:', e);
+    }
+  }, [partyId, user]);
+
+
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
   const [lastAutoSaveTime, setLastAutoSaveTime] = useState<Date | null>(null);
 
