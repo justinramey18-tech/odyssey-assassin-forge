@@ -34,6 +34,8 @@ import { DraftReviewPanel } from './DraftReviewPanel';
 import { NpcSceneDialog } from './NpcSceneDialog';
 import { DevAssistantChat } from '@/components/settings/DevAssistantChat';
 import { StoryMasterworkActions } from './StoryMasterworkActions';
+import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
+
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 import { getScopedItem } from '@/lib/scoped-storage';
 
@@ -137,8 +139,10 @@ interface PartyDMScreenProps {
 
 const EMPTY_DRAGON_NETWORK: never[] = [];
 const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4'];
+const PARTY_MOOD_PRESETS = ['combat', 'exploration', 'social', 'downtime'];
 
 function formatAutoSaveTime(date: Date): string {
+
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffSecs = Math.floor(diffMs / 1000);
@@ -1983,7 +1987,19 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       </div>
       )}
 
+      {/* Spotify mood controls for non-Empyrean party campaigns (host only) */}
+      {isCreator && !isEmpyrean && (
+        <div className="border-b border-amber-900/20 bg-black/20">
+          <DMSpotifyControls
+            partyId={partyId}
+            isCreator={isCreator}
+            presetFilter={PARTY_MOOD_PRESETS}
+          />
+        </div>
+      )}
+
       {/* New Campaign Name Input */}
+
       <AnimatePresence>
         {showNewCampaignInput && (
           <motion.div
