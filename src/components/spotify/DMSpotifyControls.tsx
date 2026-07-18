@@ -11,10 +11,11 @@ interface DMSpotifyControlsProps {
   partyId?: string | null;
   isCreator?: boolean;
   presetFilter?: string[]; // if provided, only presets whose id is in this list are shown (plus custom presets)
+  onPresetSelected?: (presetId: string) => void;
 }
 
 
-function PresetPill({ preset, spotify }: { preset: MoodPreset; spotify: ReturnType<typeof useSpotify> }) {
+function PresetPill({ preset, spotify, onSelected }: { preset: MoodPreset; spotify: ReturnType<typeof useSpotify>; onSelected?: (presetId: string) => void }) {
   const [linkInput, setLinkInput] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
   const [open, setOpen] = useState(false);
