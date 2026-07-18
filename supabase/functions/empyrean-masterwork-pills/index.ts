@@ -105,11 +105,16 @@ serve(async (req) => {
       character_name,
       dragon_name,
       signet_type,
+      character_backstory,
+      character_personality,
+      character_alignment,
+      character_bonds,
+      character_flaws,
     } = body ?? {};
 
-    if (category !== 'dragon' && category !== 'situation') {
+    if (category !== 'dragon' && category !== 'situation' && category !== 'story') {
       return new Response(
-        JSON.stringify({ error: "category must be 'dragon' or 'situation'" }),
+        JSON.stringify({ error: "category must be 'dragon', 'situation', or 'story'" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -128,11 +133,17 @@ serve(async (req) => {
       );
     }
 
-    const categoryBlock = category === 'dragon'
-      ? `## YOUR TASK\n\nGenerate 4 DRAGON column masterwork pills. Each must involve the bonded dragon (${dragon_name || "the rider's dragon"}) in some way. Even subtle uses of the bond count.`
-      : `## YOUR TASK\n\nGenerate 4 SITUATION column masterwork pills. The current situation is: ${situation_label || 'unspecified'}. The pills should reflect actions the rider can take INDEPENDENTLY of their dragon, suited to a ${situation_label || 'general'} moment.`;
+    const isStoryMode = category === 'story';
 
-    const characterBlock = `## CHARACTER CONTEXT
+    const categoryBlock = isStoryMode
+      ? `## YOUR TASK\n\nGenerate exactly 4 tailored next-move suggestions (a natural mix of dialogue and action) for ${character_name || 'the player'}, responding to what just happened below.`
+      : category === 'dragon'
+        ? `## YOUR TASK\n\nGenerate 4 DRAGON column masterwork pills. Each must involve the bonded dragon (${dragon_name || "the rider's dragon"}) in some way. Even subtle uses of the bond count.`
+        : `## YOUR TASK\n\nGenerate 4 SITUATION column masterwork pills. The current situation is: ${situation_label || 'unspecified'}. The pills should reflect actions the rider can take INDEPENDENTLY of their dragon, suited to a ${situation_label || 'general'} moment.`;
+
+    const characterBlock = isStoryMode
+      ? `## CHARACTER\n- Name: ${character_name || 'the player'}${character_backstory ? `\n- Backstory: ${String(character_backstory).slice(0, 800)}` : ''}${character_personality ? `\n- Personality: ${String(character_personality).slice(0, 400)}` : ''}${character_alignment ? `\n- Alignment: ${character_alignment}` : ''}${character_bonds ? `\n- Cares about: ${String(character_bonds).slice(0, 300)}` : ''}${character_flaws ? `\n- Flaw: ${String(character_flaws).slice(0, 300)}` : ''}`
+      : `## CHARACTER CONTEXT
 - Rider: ${character_name || '(unnamed)'}
 - Dragon: ${dragon_name || '(unnamed)'}
 - Signet: ${signet_type || '(unknown signet)'}`;
@@ -141,7 +152,8 @@ serve(async (req) => {
 
 ${recent_narrative.slice(0, 2000)}`;
 
-    const systemPrompt = `${SYSTEM_PROMPT_BASE}\n\n${categoryBlock}\n\n${characterBlock}\n\n${narrativeBlock}`;
+    const activeSystemPrompt = isStoryMode ? SYSTEM_PROMPT_STORY : SYSTEM_PROMPT_BASE;
+    const systemPrompt = `${activeSystemPrompt}\n\n${categoryBlock}\n\n${characterBlock}\n\n${narrativeBlock}`;
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
