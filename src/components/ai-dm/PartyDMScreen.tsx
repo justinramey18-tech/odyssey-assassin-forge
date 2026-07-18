@@ -1582,20 +1582,38 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const handleFetchStoryPills = useCallback(async () => {
     // Include the recent back-and-forth (DM + this player + other players), not just DM replies,
     // so suggestions respond to what the player themselves was actually just doing.
-    const recentMessages = partyDm.messages.slice(-8);
-    const recentNarrative = recentMessages
-      .map((m: any) => {
-        if (m.role === 'assistant') return `[DM]: ${m.content}`;
-        if (m.role === 'user' && m.sender_user_id === currentUserId) return `[You]: ${m.content}`;
-        if (m.role === 'user') {
-          const speaker = members.find(mem => mem.user_id === m.sender_user_id)?.character_name || 'Another player';
-          return `[${speaker}]: ${m.content}`;
-        }
-        return '';
-      })
-      .filter(Boolean)
-      .join('\n\n')
-      .slice(0, 3500);
+    // Build the recent narrative newest-last, but NEVER front-truncate the joined
+    // string — that would discard the most recent (and often longest) beat, which is
+    // exactly the moment the suggestions must react to.
+    // Strategy: walk the last 8 messages from NEWEST to oldest, add each (capped per
+    // message so one giant DM reply can't crowd everything out), and stop once we hit
+    // a total budget. This guarantees the latest beat is always included in full-ish.
+    const PER_MESSAGE_CAP = 1800;   // enough for a rich beat without runaway size
+    const TOTAL_BUDGET = 8000;      // generous overall budget; newest content prioritized
+    const window = partyDm.messages.slice(-8);
+
+    const labeled: string[] = [];
+    let used = 0;
+    for (let i = window.length - 1; i >= 0; i--) {
+      const m: any = window[i];
+      let speaker: string;
+      if (m.role === 'assistant') speaker = 'DM';
+      else if (m.role === 'user' && m.sender_user_id === currentUserId) speaker = 'You';
+      else if (m.role === 'user') speaker = members.find(mem => mem.user_id === m.sender_user_id)?.character_name || 'Another player';
+      else continue;
+
+      const raw = (m.content || '').toString();
+      if (!raw.trim()) continue;
+      // Cap each message from its END if very long (keep the most recent portion of a long beat).
+      const body = raw.length > PER_MESSAGE_CAP ? '…' + raw.slice(raw.length - PER_MESSAGE_CAP) : raw;
+      const entry = `[${speaker}]: ${body}`;
+
+      if (used + entry.length > TOTAL_BUDGET && labeled.length > 0) break;
+      labeled.push(entry);          // building newest-first...
+      used += entry.length;
+    }
+    labeled.reverse();              // ...then restore chronological order (oldest-first) for the model
+    const recentNarrative = labeled.join('\n\n');
     if (!recentNarrative.trim()) {
       throw new Error('No recent narrative to riff on yet.');
     }
