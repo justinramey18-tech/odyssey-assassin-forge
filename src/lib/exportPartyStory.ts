@@ -1,4 +1,4 @@
-import * as JSZip from 'jszip';
+import JSZip from 'jszip';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ExportMemberLookup {
@@ -86,7 +86,7 @@ export async function exportPartyStory(
   const markdown = lines.join('\n');
   const rawJson = JSON.stringify(all, null, 2);
 
-  const zip = new (JSZip as any)();
+  const zip = new JSZip();
   const safeLabel = (partyLabel || 'campaign').replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 40) || 'campaign';
   zip.file(`${safeLabel}-transcript.md`, markdown);
   zip.file(`${safeLabel}-messages.json`, rawJson);
