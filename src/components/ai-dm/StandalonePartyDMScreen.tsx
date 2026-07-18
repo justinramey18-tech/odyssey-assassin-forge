@@ -863,6 +863,7 @@ ${truncated}`);
         onToggleAutoSync={autoSync.toggleAutoSync}
         isExtracting={autoSync.isExtracting}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
+        guides={gmGuides.guides}
         gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '') + dragonContextForDM}
         onShowOocChat={() => setShowOocChat(true)}
         memoryAnchorsContent={memoryAnchors.formattedForOracle}
