@@ -3981,5 +3981,6 @@ Rules:
     addMediaMessage, stopGeneration, applyOocCommand, initiateSplit, regroupParty,
     updateSessionConfig, reclaimTurn, redoLastRound, setTimerConfig, startTimer, pauseTimer, resumeTimer,
     cancelTimer, requestExtension, approveExtension, dismissExtensions,
+    activeMoodPresetId, setActiveMoodPreset,
   ]);
 }
