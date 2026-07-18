@@ -350,6 +350,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   // Split state
   const [splitState, setSplitState] = useState<DmSplitState | null>(null);
+  const [activeMoodPresetId, setActiveMoodPresetIdState] = useState<string | null>(null);
 
   const isActive = sessionConfig?.active === true;
   const isSplitActive = splitState?.active === true;
