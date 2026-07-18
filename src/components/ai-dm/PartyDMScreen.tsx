@@ -3257,9 +3257,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             {!isEmpyrean && partyDm.messages.length > 0 && (
               <StoryMasterworkActions
                 disabled={partyDm.isGenerating}
-                onAction={(prompt) => {
+                onSelect={(prompt) => {
                   setRecapDismissed(true);
-                  partyDmRef.current.submitPrompt(prompt);
+                  playerInputRef.current?.setText(prompt);
                 }}
                 fetchStoryPills={handleFetchStoryPills}
               />
