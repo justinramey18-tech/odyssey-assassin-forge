@@ -350,6 +350,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   // Split state
   const [splitState, setSplitState] = useState<DmSplitState | null>(null);
+  const [activeMoodPresetId, setActiveMoodPresetIdState] = useState<string | null>(null);
 
   const isActive = sessionConfig?.active === true;
   const isSplitActive = splitState?.active === true;
@@ -514,6 +515,20 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       if (splitData?.state_data) {
         setSplitState(splitData.state_data as DmSplitState);
       }
+
+      // Load persisted active mood preset for this party (per-partyId persistence).
+      try {
+        const { data: moodRow } = await (supabase.from('party_shared_state') as any)
+          .select('state_data')
+          .eq('party_id', partyId)
+          .eq('state_type', 'active_mood')
+          .maybeSingle();
+        if (moodRow?.state_data?.presetId) {
+          setActiveMoodPresetIdState(moodRow.state_data.presetId as string);
+        }
+      } catch (e) {
+        console.error('[PartyDM] failed to load active_mood:', e);
+      }
     })();
   }, [partyId]);
 
@@ -619,6 +634,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           if (old.state_type === 'dm_split') {
             setSplitState(null);
           }
+          if (old.state_type === 'active_mood') {
+            setActiveMoodPresetIdState(null);
+          }
           return;
         }
         const row = (payload.new || payload.old) as { state_type: string; state_data: unknown };
@@ -627,6 +645,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         }
         if (row.state_type === 'dm_split') {
           setSplitState(row.state_data as DmSplitState);
+        }
+        if (row.state_type === 'active_mood') {
+          const data = row.state_data as { presetId?: string | null };
+          setActiveMoodPresetIdState(data?.presetId ?? null);
         }
       })
       .subscribe();
@@ -677,6 +699,31 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     setCurrentPrompts([]);
     toast.info('Party DM session ended');
   }, [partyId, user]);
+
+  // Shared active mood preset (one row per party, any host/co-host can update).
+  const setActiveMoodPreset = useCallback(async (presetId: string | null) => {
+    if (!partyId || !user) return;
+    setActiveMoodPresetIdState(presetId);
+    try {
+      const { data: existing } = await (supabase.from('party_shared_state') as any)
+        .select('id')
+        .eq('party_id', partyId)
+        .eq('state_type', 'active_mood')
+        .maybeSingle();
+      const payload = { presetId, updatedAt: new Date().toISOString() };
+      if (existing?.id) {
+        await (supabase.from('party_shared_state') as any)
+          .update({ state_data: payload })
+          .eq('id', existing.id);
+      } else {
+        await (supabase.from('party_shared_state') as any)
+          .insert({ party_id: partyId, user_id: user.id, state_type: 'active_mood', state_data: payload });
+      }
+    } catch (e) {
+      console.error('[PartyDM] failed to write active_mood:', e);
+    }
+  }, [partyId, user]);
+
 
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
   const [lastAutoSaveTime, setLastAutoSaveTime] = useState<Date | null>(null);
@@ -3921,6 +3968,8 @@ Rules:
     requestExtension,
     approveExtension,
     dismissExtensions,
+    activeMoodPresetId,
+    setActiveMoodPreset,
   }), [
     filteredMessages, messages, currentPrompts, sessionConfig, isActive,
     computedIsGenerating, isSummarizing, isFullSummarizing, fullSummarize, allReady, isTurnBasedMode, turnReady, myPrompt, activeCampaignId,
@@ -3932,5 +3981,6 @@ Rules:
     addMediaMessage, stopGeneration, applyOocCommand, initiateSplit, regroupParty,
     updateSessionConfig, reclaimTurn, redoLastRound, setTimerConfig, startTimer, pauseTimer, resumeTimer,
     cancelTimer, requestExtension, approveExtension, dismissExtensions,
+    activeMoodPresetId, setActiveMoodPreset,
   ]);
 }
