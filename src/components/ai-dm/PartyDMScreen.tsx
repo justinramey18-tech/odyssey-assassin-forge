@@ -33,6 +33,9 @@ import { DMComposePanel } from './DMComposePanel';
 import { DraftReviewPanel } from './DraftReviewPanel';
 import { NpcSceneDialog } from './NpcSceneDialog';
 import { DevAssistantChat } from '@/components/settings/DevAssistantChat';
+import { StoryMasterworkActions } from './StoryMasterworkActions';
+import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
+import { getScopedItem } from '@/lib/scoped-storage';
 
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { CampaignDropdown } from './CampaignDropdown';
