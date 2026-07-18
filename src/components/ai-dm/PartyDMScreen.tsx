@@ -2008,6 +2008,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 partyId={partyId}
                 isCreator={isCreator}
                 presetFilter={PARTY_MOOD_PRESETS}
+                onPresetSelected={(presetId) => {
+                  lastPlayedMoodRef.current = presetId;
+                  partyDm.setActiveMoodPreset(presetId);
+                }}
               />
             </div>
           )}
