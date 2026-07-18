@@ -153,7 +153,12 @@ serve(async (req) => {
 ${recent_narrative.slice(0, 2000)}`;
 
     const activeSystemPrompt = isStoryMode ? SYSTEM_PROMPT_STORY : SYSTEM_PROMPT_BASE;
-    const systemPrompt = `${activeSystemPrompt}\n\n${categoryBlock}\n\n${characterBlock}\n\n${narrativeBlock}`;
+    const summaryBlock = (isStoryMode && campaign_summary)
+      ? `## CAMPAIGN SO FAR (for context — do not restate this to the player, just be aware of it)\n${String(campaign_summary).slice(0, 1500)}`
+      : '';
+    const systemPrompt = isStoryMode
+      ? `${activeSystemPrompt}\n\n${categoryBlock}\n\n${characterBlock}\n\n${summaryBlock}\n\n${narrativeBlock}`
+      : `${activeSystemPrompt}\n\n${categoryBlock}\n\n${characterBlock}\n\n${narrativeBlock}`;
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
