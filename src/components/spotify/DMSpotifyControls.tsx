@@ -158,7 +158,7 @@ function PresetPill({ preset, spotify, onSelected }: { preset: MoodPreset; spoti
   );
 }
 
-export function DMSpotifyControls({ partyId, isCreator = false, presetFilter }: DMSpotifyControlsProps = {}) {
+export function DMSpotifyControls({ partyId, isCreator = false, presetFilter, onPresetSelected }: DMSpotifyControlsProps = {}) {
   const spotify = useSpotify();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newLabel, setNewLabel] = useState('');
