@@ -3968,6 +3968,8 @@ Rules:
     requestExtension,
     approveExtension,
     dismissExtensions,
+    activeMoodPresetId,
+    setActiveMoodPreset,
   }), [
     filteredMessages, messages, currentPrompts, sessionConfig, isActive,
     computedIsGenerating, isSummarizing, isFullSummarizing, fullSummarize, allReady, isTurnBasedMode, turnReady, myPrompt, activeCampaignId,
