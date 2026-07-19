@@ -3589,6 +3589,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               
               onShowSaves={onShowSaves}
               onShowGuides={onShowGuides}
+              onShowCharacterGuideBuilder={onShowCharacterGuideBuilder}
               onShowChat={onShowChat}
               onShowAfkGuide={() => setShowAfkGuide(true)}
               onShowDevAssistant={() => setDevAssistantOpen(true)}
