@@ -595,10 +595,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const p = payload.new as PartyDmPrompt;
+          // Ignore prompts that don't belong to the current round (prevents cross-round leakage).
+          if (currentRoundIdRef.current && p.round_id !== currentRoundIdRef.current) return;
           setCurrentPrompts(prev => {
+            // Dedupe by id AND by user: one prompt per user in a round; newest row wins.
             if (prev.some(x => x.id === p.id)) return prev;
-            const updated = [...prev, p];
-            // Notify if the inserted prompt is already ready and not from current user
+            const withoutSameUser = prev.filter(x => x.user_id !== p.user_id);
+            const updated = [...withoutSameUser, p];
             if (p.is_ready && p.user_id !== user?.id) {
               const readyCount = updated.filter(x => x.is_ready).length;
               sendReadyUpNotification(p.character_name, readyCount, memberCount);
@@ -608,14 +611,17 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         } else if (payload.eventType === 'UPDATE') {
           const p = payload.new as PartyDmPrompt;
           const oldPrompt = payload.old as Partial<PartyDmPrompt>;
+          if (currentRoundIdRef.current && p.round_id !== currentRoundIdRef.current) return;
           setCurrentPrompts(prev => {
-            const updated = prev.map(x => x.id === p.id ? p : x);
-            // Notify on is_ready transition (false → true) from another user
+            const exists = prev.some(x => x.id === p.id);
+            const base = exists
+              ? prev.map(x => x.id === p.id ? p : x)
+              : [...prev.filter(x => x.user_id !== p.user_id), p];
             if (p.is_ready && !oldPrompt.is_ready && p.user_id !== user?.id) {
-              const readyCount = updated.filter(x => x.is_ready).length;
+              const readyCount = base.filter(x => x.is_ready).length;
               sendReadyUpNotification(p.character_name, readyCount, memberCount);
             }
-            return updated;
+            return base;
           });
         } else if (payload.eventType === 'DELETE') {
           const old = payload.old as { id?: string };
