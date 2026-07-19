@@ -1,40 +1,48 @@
-## The bug in plain language
+## Goal
+Make it physically impossible for two devices to start the AI narration for the same party + round at the same time. Today the "only host narrates" rule lives on each device; if two devices both believe they're the host (or the host double-taps), the AI can be called twice for one round and produce conflicting story beats. The database will now be the single source of truth for "this round is being narrated."
 
-On the party DM screen, the textbox and the green Ready button are two separate steps today:
+## How it will work (plain language)
 
-1. Type your action → tap the little **arrow / Send** button (this actually files your action into the round).
-2. Then tap **Ready**.
+1. Add a small new bookkeeping table in the database whose only job is to hold a **one-and-only-one claim ticket per (party, round)**.
+2. When someone's app tries to start narration, it first tries to drop a ticket into that table for the current round. The database itself refuses to accept a second ticket for the same round — that refusal is the lock.
+3. If the ticket lands, that device is the narrator, calls the AI, saves the response, then clears the ticket (or marks it complete). If the ticket is refused, the device silently backs off — no duplicate AI call, no duplicate story.
+4. A safety timer: if a ticket sits unfinished for too long (e.g., the narrator crashed or lost signal), it's considered stale and another device is allowed to reclaim it. This prevents a wedged round.
 
-If you type an action and then tap **Ready** *without* first tapping Send, the app throws away what you typed and files you as "Ready (No Action)". That's exactly what the screenshot shows — text is sitting in the box, but the button still says "Ready (No Action)" and Candace is checked in with no action.
+## What changes
 
-The Ready button is hard-wired to the "no action" path. It never looks at the textbox.
+### Database (new table)
+`party_round_locks`
+- `party_id` + `round_id` together form the **primary key** — this is what makes duplicates physically impossible.
+- `holder_user_id` — who claimed it.
+- `status` — `in_progress` or `completed`.
+- `started_at`, `completed_at`, `expires_at` — used by the safety timer.
+- RLS: only party members can read; only the claim holder (or service role) can update/delete their own row.
+- Grants: `authenticated` + `service_role`, standard pattern.
 
-## The fix
+### App-side narration flow (`src/hooks/use-party-dm.ts`, `generateResponse`)
+Before calling the AI:
+- Try to insert the claim row for the current round.
+- If insert succeeds → proceed with narration as today.
+- If insert fails because a row already exists AND that row is fresh (not past `expires_at`) → abort silently, let the real holder do it.
+- If the existing row is stale (past `expires_at`) → take it over by updating it to the current user with a new expiry, then proceed.
 
-Make the green Ready button smart about the textbox:
+After the AI returns (success or failure):
+- Mark the row `completed` (or delete it) so the next round starts clean.
+- On error, also release so a retry is possible.
 
-- **When the textbox is empty** → button reads **"Ready (No Action)"** and behaves exactly as it does today (file the player as ready with nothing to do).
-- **When there is typed text** → button reads **"Ready"** (drops the "No Action" tag), and tapping it:
-  1. Files the typed text as that player's action (same code path as tapping the Send arrow), then
-  2. Marks them ready.
-  3. Clears the textbox draft so the next round starts clean.
+### Existing in-memory host-only guard
+Keep it as a fast local check (avoids pointless DB round-trips), but the DB claim is now the authoritative gate. The local flag becomes a courtesy, not a safety mechanism.
 
-That's it — one button, two behaviors driven by whether the textbox has content. Users no longer have to remember the two-tap Send-then-Ready dance.
+## What this fixes
+- Two devices both thinking they're host → only one wins the claim; the other backs off.
+- Rapid double-tap on "Generate" → second tap sees the fresh claim and does nothing.
+- Crashed/disconnected narrator → the safety timer allows someone else to recover the round instead of it being frozen forever.
 
-### Where the change lives (technical note)
+## What this does not change
+- Player prompt submission, ready-up, dedupe logic, UI, and toasts stay exactly as they are.
+- No change to the AI edge function itself — the lock lives entirely around the call site in the party hook.
 
-Single file: `src/components/ai-dm/PartyDMInput.tsx`.
-
-- The component already tracks the draft text (`input`) and already has a `handleSubmit` that calls `onSubmit(text)` and clears the draft.
-- Change the Ready `<Button>`'s label to depend on `input.trim()` (same condition the Send arrow already uses to enable itself).
-- Change its `onClick` to: if `input.trim()` is non-empty, call `handleSubmit()` first, then `onReady()`; otherwise just `onReady()` (today's behavior).
-- The AFK-guide variant (which shows "No Action" + "Autopilot" side-by-side) gets the same treatment on the "No Action" button so it flips to "Ready" when text is present.
-
-No changes to `PartyDMScreen.tsx`, the `use-party-dm` hook, the database, or the ready/round-queue logic — those already handle "submit then ready" correctly (that's what the Autopilot path does at line 1593-1594).
-
-### Verification
-
-- Type text → button label flips to "Ready", Send arrow stays enabled.
-- Tap Ready with text → row in Round Queue shows "Ready (with action)" and the typed prompt, textbox clears.
-- Tap Ready with empty textbox → row shows "Ready (no action)" exactly like today.
-- Send arrow still works on its own for players who prefer the two-tap flow.
+## Rollout
+1. One migration: create `party_round_locks` with primary key, RLS, grants, and an index on `expires_at`.
+2. One code change in `use-party-dm.ts`'s `generateResponse` to claim → run → release, with the stale-takeover branch.
+3. Manual verification: fire two "Generate" clicks back-to-back from two tabs; confirm exactly one AI response is produced and the other tab logs a quiet "already narrating" skip.

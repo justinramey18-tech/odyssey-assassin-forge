@@ -1300,6 +1300,36 @@ export type Database = {
         }
         Relationships: []
       }
+      party_round_locks: {
+        Row: {
+          completed_at: string | null
+          expires_at: string
+          holder_user_id: string
+          party_id: string
+          round_id: string
+          started_at: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          expires_at?: string
+          holder_user_id: string
+          party_id: string
+          round_id: string
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          expires_at?: string
+          holder_user_id?: string
+          party_id?: string
+          round_id?: string
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       party_scheduled_events: {
         Row: {
           created_at: string
