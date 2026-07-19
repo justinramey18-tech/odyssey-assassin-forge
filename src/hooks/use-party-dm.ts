@@ -942,8 +942,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (!resolvedConfig) { toast.error('No active session'); return; }
     const existing = currentPrompts.find(p => p.user_id === user.id);
     if (existing) {
-      toast.error('You already submitted a prompt this round');
-      return;
+      // If this is a real, current-round row, block (genuine duplicate).
+      if (existing.round_id === resolvedConfig.currentRoundId) {
+        toast.error('You already submitted a prompt this round');
+        return;
+      }
+      // Otherwise it's a stale row from a prior round left in state — clear it and proceed.
+      setCurrentPrompts(prev => prev.filter(p => p.user_id !== user.id));
     }
     submitLockRef.current = true;
     const optimisticId = crypto.randomUUID();
@@ -975,19 +980,21 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       signet_intensity: signetIntensity ?? null,
     };
     setCurrentPrompts(prev => [...prev.filter(p => p.user_id !== user.id), optimisticPrompt]);
-    // Remove any prior prompt for this user in this round to avoid duplicate rows.
-    await (supabase.from('party_dm_prompts') as any)
-      .delete()
-      .eq('party_id', partyId)
-      .eq('user_id', user.id)
-      .eq('round_id', resolvedConfig.currentRoundId);
-    const { error } = await (supabase.from('party_dm_prompts') as any).insert(insertData);
-    if (error) {
-      // Rollback optimistic update on failure
+    try {
+      const { error } = await (supabase.from('party_dm_prompts') as any).insert(insertData);
+      if (error) {
+        setCurrentPrompts(prev => prev.filter(p => p.id !== optimisticId));
+        console.error('[PartyDM] submitPrompt insert failed:', error);
+        toast.error(`Failed to submit: ${error.message || error.code || 'unknown error'}`);
+      }
+    } catch (e: any) {
       setCurrentPrompts(prev => prev.filter(p => p.id !== optimisticId));
-      toast.error('Failed to submit prompt');
+      console.error('[PartyDM] submitPrompt threw:', e);
+      toast.error(`Failed to submit: ${e?.message || 'unexpected error'}`);
+    } finally {
+      submitLockRef.current = false;
     }
-    submitLockRef.current = false;
+
   }, [partyId, user, resolveSessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 
   const setReady = useCallback(async () => {
