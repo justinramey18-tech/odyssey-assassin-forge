@@ -1031,17 +1031,27 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       }
     }
 
+    // Authoritative: read THIS user's current-round row straight from the DB (not stale local state).
+    const { data: existingRow } = await (supabase.from('party_dm_prompts') as any)
+      .select('id, prompt')
+      .eq('party_id', partyId)
+      .eq('user_id', user.id)
+      .eq('round_id', resolvedConfig.currentRoundId)
+      .maybeSingle();
+
     const myPrompt = currentPrompts.find(p => p.user_id === user.id);
-    if (myPrompt) {
-      // Optimistic update
-      setCurrentPrompts(prev => prev.map(p => p.id === myPrompt.id ? { ...p, is_ready: true } : p));
+
+    if (existingRow) {
+      // A real prompt row exists — just mark it ready. NEVER insert a blank duplicate.
+      setCurrentPrompts(prev => prev.map(p => p.user_id === user.id ? { ...p, is_ready: true } : p));
       await (supabase.from('party_dm_prompts') as any)
         .update({ is_ready: true })
-        .eq('id', myPrompt.id);
+        .eq('id', existingRow.id);
     } else {
-      const optimisticId = crypto.randomUUID();
+      // No prompt exists for this user this round → genuine "ready with no action".
+      // Upsert on the natural key so it can never duplicate (constraint-safe).
+      const nowIso = new Date().toISOString();
       const insertData: Record<string, unknown> = {
-        id: optimisticId,
         party_id: partyId,
         user_id: user.id,
         character_name: characterName,
@@ -1049,23 +1059,23 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         is_ready: true,
         round_id: resolvedConfig.currentRoundId,
       };
-      if (isSplitActive && myTeam) {
-        insertData.team = myTeam;
-      }
-      // Optimistic update
-      const optimisticPrompt: PartyDmPrompt = {
-        id: optimisticId,
-        party_id: partyId,
-        user_id: user.id,
-        character_name: characterName,
-        prompt: '',
-        is_ready: true,
-        round_id: resolvedConfig.currentRoundId,
-        created_at: new Date().toISOString(),
-        team: (isSplitActive && myTeam) ? myTeam : null,
-      };
-      setCurrentPrompts(prev => [...prev, optimisticPrompt]);
-      await (supabase.from('party_dm_prompts') as any).insert(insertData);
+      if (isSplitActive && myTeam) insertData.team = myTeam;
+      setCurrentPrompts(prev => {
+        const withoutSelf = prev.filter(p => p.user_id !== user.id);
+        return [...withoutSelf, {
+          id: crypto.randomUUID(),
+          party_id: partyId,
+          user_id: user.id,
+          character_name: characterName,
+          prompt: '',
+          is_ready: true,
+          round_id: resolvedConfig.currentRoundId,
+          created_at: nowIso,
+          team: (isSplitActive && myTeam) ? myTeam : null,
+        } as PartyDmPrompt];
+      });
+      await (supabase.from('party_dm_prompts') as any)
+        .upsert(insertData, { onConflict: 'party_id,round_id,user_id' });
     }
 
     // Send Telegram ready-up notification (non-blocking, includes self)
