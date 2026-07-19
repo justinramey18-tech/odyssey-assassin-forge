@@ -89,6 +89,7 @@ export function StandalonePartyDMScreen({
   autoOpenCampaignBuilder,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
+  const [showCharacterGuideBuilder, setShowCharacterGuideBuilder] = useState(false);
 
   // Save party HP snapshot for homescreen dual bars
   useEffect(() => {
