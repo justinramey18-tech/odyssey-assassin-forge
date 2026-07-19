@@ -981,7 +981,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     };
     setCurrentPrompts(prev => [...prev.filter(p => p.user_id !== user.id), optimisticPrompt]);
     try {
-      const { error } = await (supabase.from('party_dm_prompts') as any).insert(insertData);
+      const { error } = await (supabase.from('party_dm_prompts') as any)
+        .upsert(insertData, { onConflict: 'party_id,round_id,user_id' });
       if (error) {
         setCurrentPrompts(prev => prev.filter(p => p.id !== optimisticId));
         console.error('[PartyDM] submitPrompt insert failed:', error);
