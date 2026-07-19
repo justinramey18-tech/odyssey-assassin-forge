@@ -889,41 +889,8 @@ ${truncated}`);
         )}
       </AnimatePresence>
 
-      {/* Player Onboarding Overlay (non-host players whose status is in_progress, or who tapped "Build my character" from lockout) */}
-      {(() => {
-        const myMember = partyMembers.find(m => m.user_id === userId);
-        const myOnboardingStatus = verifiedOnboardingStatus || (myMember as any)?.onboarding_status || 'pending';
-        const playerOnboardingNeeded = !isPartyCreator && myOnboardingStatus !== 'complete';
 
-        const showPlayerOnboarding = playerOnboardingNeeded
-          && (myOnboardingStatus === 'in_progress' || myOnboardingStatus === 'pending' || forceShowOnboarding)
-          && !justAppliedOnboarding;
-        if (!showPlayerOnboarding) return null;
 
-        const hostMember = partyMembers.find(m => m.user_id !== userId && (m as any).onboarding_status === 'complete')
-          || partyMembers.find(m => m.user_id !== userId);
-        const campaignPlan = (partyDm.sessionConfig as any)?.campaignSummary || '';
-        const hostStatus = (hostMember as any)?.character_status || {};
-        const hostCharacterSummary = hostMember
-          ? `Host's character: ${hostMember.character_name}${hostStatus?.signet_type ? ` (signet: ${hostStatus.signet_type})` : ''}${hostStatus?.dragon_name ? `, bonded to ${hostStatus.dragon_name}` : ''}.`
-          : '';
-
-        return (
-          <PlayerOnboardingScreen
-            open={showPlayerOnboarding}
-            partyId={partyId}
-            userId={userId}
-            campaignPlan={campaignPlan}
-            hostCharacterSummary={hostCharacterSummary}
-            playerExistingCharacter={playerExistingCharacter}
-            campaignType={partyCampaignType === 'empyrean' ? 'empyrean' : 'dnd'}
-            onComplete={() => {
-              setForceShowOnboarding(false);
-              setJustAppliedOnboarding(true);
-            }}
-          />
-        );
-      })()}
 
 
       <PlayerRedoRequestDialog
