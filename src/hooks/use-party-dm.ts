@@ -1047,6 +1047,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       await (supabase.from('party_dm_prompts') as any)
         .update({ is_ready: true })
         .eq('id', existingRow.id);
+      const hasText = !!(existingRow.prompt && String(existingRow.prompt).trim());
+      toast.success(hasText ? 'Ready — your submitted prompt will be used' : 'Ready — no action this round');
     } else {
       // No prompt exists for this user this round → genuine "ready with no action".
       // Upsert on the natural key so it can never duplicate (constraint-safe).
@@ -1076,6 +1078,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       });
       await (supabase.from('party_dm_prompts') as any)
         .upsert(insertData, { onConflict: 'party_id,round_id,user_id' });
+      toast.success('Ready — no action this round');
     }
 
     // Send Telegram ready-up notification (non-blocking, includes self)
