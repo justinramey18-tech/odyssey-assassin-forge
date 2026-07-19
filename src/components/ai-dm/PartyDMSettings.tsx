@@ -466,6 +466,14 @@ export function PartyDMSettings({
         {onShowGuides && (
           <ToolRow icon={<BookOpen className="w-4 h-4" />} label="GM Guides" description="Custom rules and lore" badge={guidesCount} onClick={onShowGuides} />
         )}
+        {onShowCharacterGuideBuilder && (
+          <ToolRow
+            icon={<UserPlus className="w-4 h-4 text-amber-400" />}
+            label="Create Character with AI"
+            description="Build a character through conversation — saves as a GM guide"
+            onClick={onShowCharacterGuideBuilder}
+          />
+        )}
         <ToolRow
           icon={<Download className="w-4 h-4" />}
           label={exportingGuides ? 'Preparing…' : 'Download GM Guides'}
