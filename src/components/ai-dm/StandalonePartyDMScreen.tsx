@@ -751,6 +751,7 @@ ${truncated}`);
         memberCount={partyMembers.length}
         members={partyMembers.map(m => ({ user_id: m.user_id, character_name: m.character_name, character_status: m.character_status as Record<string, unknown> }))}
         onShowGuides={() => setShowGuides(true)}
+        onShowCharacterGuideBuilder={() => setShowCharacterGuideBuilder(true)}
         
         onShowSaves={() => setShowSaves(true)}
         onShowChat={onShowChat}
