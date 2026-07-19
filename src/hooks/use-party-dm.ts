@@ -445,11 +445,18 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       const msgs = msgsRes.data ? [...msgsRes.data].reverse() : [];
       setMessages(msgs);
       if (promptsRes.data) {
-        // Keep only the newest prompt per user (guards against any legacy duplicate rows).
+        // Dedupe per user: prefer a real (non-blank) prompt over a blank placeholder;
+        // among rows of equal "realness", prefer the newest. Guards against legacy dupes.
         const byUser = new Map<string, PartyDmPrompt>();
+        const hasText = (r: PartyDmPrompt) => !!(r.prompt && String(r.prompt).trim());
         for (const row of promptsRes.data as PartyDmPrompt[]) {
           const existing = byUser.get(row.user_id);
-          if (!existing || new Date(row.created_at as any) > new Date(existing.created_at as any)) {
+          if (!existing) { byUser.set(row.user_id, row); continue; }
+          const rowReal = hasText(row);
+          const existReal = hasText(existing);
+          if (rowReal && !existReal) { byUser.set(row.user_id, row); continue; }
+          if (!rowReal && existReal) continue;
+          if (new Date(row.created_at as any) > new Date(existing.created_at as any)) {
             byUser.set(row.user_id, row);
           }
         }
@@ -593,20 +600,27 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         table: 'party_dm_prompts',
         filter: `party_id=eq.${partyId}`,
       }, (payload) => {
+        const hasText = (r: Partial<PartyDmPrompt>) => !!(r.prompt && String(r.prompt).trim());
         if (payload.eventType === 'INSERT') {
           const p = payload.new as PartyDmPrompt;
           // Ignore prompts that don't belong to the current round (prevents cross-round leakage).
           if (currentRoundIdRef.current && p.round_id !== currentRoundIdRef.current) return;
           setCurrentPrompts(prev => {
-            // Dedupe by id AND by user: one prompt per user in a round; newest row wins.
             if (prev.some(x => x.id === p.id)) return prev;
-            const withoutSameUser = prev.filter(x => x.user_id !== p.user_id);
-            const updated = [...withoutSameUser, p];
+            // Real-time dedupe: if a same-user row already exists, keep whichever has real text.
+            const sameUser = prev.find(x => x.user_id === p.user_id);
+            let next: PartyDmPrompt[];
+            if (sameUser && hasText(sameUser) && !hasText(p)) {
+              // Existing real prompt beats an incoming blank placeholder.
+              next = prev;
+            } else {
+              next = [...prev.filter(x => x.user_id !== p.user_id), p];
+            }
             if (p.is_ready && p.user_id !== user?.id) {
-              const readyCount = updated.filter(x => x.is_ready).length;
+              const readyCount = next.filter(x => x.is_ready).length;
               sendReadyUpNotification(p.character_name, readyCount, memberCount);
             }
-            return updated;
+            return next;
           });
         } else if (payload.eventType === 'UPDATE') {
           const p = payload.new as PartyDmPrompt;
@@ -614,6 +628,11 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           if (currentRoundIdRef.current && p.round_id !== currentRoundIdRef.current) return;
           setCurrentPrompts(prev => {
             const exists = prev.some(x => x.id === p.id);
+            const sameUserOther = prev.find(x => x.user_id === p.user_id && x.id !== p.id);
+            // If a same-user real prompt already exists and the incoming update is blank, ignore it.
+            if (!exists && sameUserOther && hasText(sameUserOther) && !hasText(p)) {
+              return prev;
+            }
             const base = exists
               ? prev.map(x => x.id === p.id ? p : x)
               : [...prev.filter(x => x.user_id !== p.user_id), p];
@@ -1051,7 +1070,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       toast.success(hasText ? 'Ready — your submitted prompt will be used' : 'Ready — no action this round');
     } else {
       // No prompt exists for this user this round → genuine "ready with no action".
-      // Upsert on the natural key so it can never duplicate (constraint-safe).
+      // Use insert-ignore-on-conflict so a concurrent real submitPrompt is NEVER overwritten
+      // with blank. Then flip is_ready=true without touching the prompt column.
       const nowIso = new Date().toISOString();
       const insertData: Record<string, unknown> = {
         party_id: partyId,
@@ -1076,9 +1096,19 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           team: (isSplitActive && myTeam) ? myTeam : null,
         } as PartyDmPrompt];
       });
+      // 1) Insert-if-missing (never overwrite existing prompt text on conflict).
       await (supabase.from('party_dm_prompts') as any)
-        .upsert(insertData, { onConflict: 'party_id,round_id,user_id' });
-      toast.success('Ready — no action this round');
+        .upsert(insertData, { onConflict: 'party_id,round_id,user_id', ignoreDuplicates: true });
+      // 2) Guarantee is_ready=true on whichever row now exists (real or blank).
+      const { data: nowRow } = await (supabase.from('party_dm_prompts') as any)
+        .update({ is_ready: true })
+        .eq('party_id', partyId)
+        .eq('user_id', user.id)
+        .eq('round_id', resolvedConfig.currentRoundId)
+        .select('prompt')
+        .maybeSingle();
+      const nowHasText = !!(nowRow?.prompt && String(nowRow.prompt).trim());
+      toast.success(nowHasText ? 'Ready — your submitted prompt will be used' : 'Ready — no action this round');
     }
 
     // Send Telegram ready-up notification (non-blocking, includes self)
