@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { PartyDMScreen } from './PartyDMScreen';
 import { GMGuidesManager } from './GMGuidesManager';
+import { CharacterGuideBuilder } from './CharacterGuideBuilder';
 
 import { PlayerRedoRequestDialog } from './PlayerRedoRequestDialog';
 import { HostOnboardingRequestsPanel } from './HostOnboardingRequestsPanel';
