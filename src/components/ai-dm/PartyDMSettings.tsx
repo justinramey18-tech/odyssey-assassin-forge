@@ -5,7 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Heart, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Theater, Megaphone, Film, RefreshCw, Code2, Image as ImageIcon, Trash2, Undo2, RotateCcw, Download } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Heart, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Theater, Megaphone, Film, RefreshCw, Code2, Image as ImageIcon, Trash2, Undo2, RotateCcw, Download, UserPlus } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { exportPartyStory } from '@/lib/exportPartyStory';
 import { exportGMGuides } from '@/lib/exportGMGuides';
@@ -95,6 +95,7 @@ export interface PartyDMSettingsProps {
   onShowGuides?: () => void;
   onShowChat?: () => void;
   onShowDevAssistant?: () => void;
+  onShowCharacterGuideBuilder?: () => void;
   onShowAfkGuide: () => void;
   guidesCount?: number;
   guides?: Array<{ id: string; name: string; content: string; enabled: boolean; createdAt?: string; updatedAt?: string }>;
@@ -168,7 +169,7 @@ export function PartyDMSettings({
   autoSyncEnabled, onToggleAutoSync, isExtracting, selectedModel, onModelChange,
   pushState, onTogglePush,
   dmMode = 'ai', onDmModeChange,
-  onShowMap, onShowSaves, onShowGuides, onShowChat, onShowDevAssistant, onShowAfkGuide,
+  onShowMap, onShowSaves, onShowGuides, onShowChat, onShowDevAssistant, onShowCharacterGuideBuilder, onShowAfkGuide,
   guidesCount = 0, guides = [], myAfkGuide, myAfkCascadeCount = 0,
   isSplitActive, memberCount, onShowSplitInitiator, onShowNpcScene, onShowRegroupDialog, onShowSplitSummaries, onShowPreSplitChat, onShowOocChat,
   onNewCampaign, onEndSession,
@@ -464,6 +465,14 @@ export function PartyDMSettings({
         />
         {onShowGuides && (
           <ToolRow icon={<BookOpen className="w-4 h-4" />} label="GM Guides" description="Custom rules and lore" badge={guidesCount} onClick={onShowGuides} />
+        )}
+        {onShowCharacterGuideBuilder && (
+          <ToolRow
+            icon={<UserPlus className="w-4 h-4 text-amber-400" />}
+            label="Create Character with AI"
+            description="Build a character through conversation — saves as a GM guide"
+            onClick={onShowCharacterGuideBuilder}
+          />
         )}
         <ToolRow
           icon={<Download className="w-4 h-4" />}

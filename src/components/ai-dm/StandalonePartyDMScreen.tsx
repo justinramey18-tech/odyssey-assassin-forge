@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { PartyDMScreen } from './PartyDMScreen';
 import { GMGuidesManager } from './GMGuidesManager';
+import { CharacterGuideBuilder } from './CharacterGuideBuilder';
 
 import { PlayerRedoRequestDialog } from './PlayerRedoRequestDialog';
 import { HostOnboardingRequestsPanel } from './HostOnboardingRequestsPanel';
@@ -88,6 +89,7 @@ export function StandalonePartyDMScreen({
   autoOpenCampaignBuilder,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
+  const [showCharacterGuideBuilder, setShowCharacterGuideBuilder] = useState(false);
 
   // Save party HP snapshot for homescreen dual bars
   useEffect(() => {
@@ -749,6 +751,7 @@ ${truncated}`);
         memberCount={partyMembers.length}
         members={partyMembers.map(m => ({ user_id: m.user_id, character_name: m.character_name, character_status: m.character_status as Record<string, unknown> }))}
         onShowGuides={() => setShowGuides(true)}
+        onShowCharacterGuideBuilder={() => setShowCharacterGuideBuilder(true)}
         
         onShowSaves={() => setShowSaves(true)}
         onShowChat={onShowChat}
@@ -823,6 +826,17 @@ ${truncated}`);
           isFullSummarizing={partyDm.isFullSummarizing}
         />
       )}
+
+      {/* Character Guide Builder */}
+      <CharacterGuideBuilder
+        open={showCharacterGuideBuilder}
+        onClose={() => setShowCharacterGuideBuilder(false)}
+        campaignType={isSoloEmpyrean ? 'empyrean' : partyCampaignType}
+        campaignPlan={(partyDm.sessionConfig as any)?.campaignSummary || ''}
+        onGuideCreated={(name, content) => {
+          gmGuides.addGuide(name, content);
+        }}
+      />
 
       {/* Campaign Saves Overlay */}
       {showSaves && (
