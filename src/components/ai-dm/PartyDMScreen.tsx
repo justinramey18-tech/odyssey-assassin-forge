@@ -2709,7 +2709,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                             </span>
                           )}
                           {prompt?.is_ready ? (
-                            <CheckCheck className="w-3 h-3 text-emerald-400" />
+                            <>
+                              <span className={cn(
+                                "text-[8px] font-semibold uppercase tracking-wider shrink-0 px-1.5 py-0.5 rounded",
+                                hasAction ? "bg-emerald-500/20 text-emerald-200" : "bg-white/10 text-white/50"
+                              )}>
+                                {hasAction ? 'Prompt queued' : 'No action'}
+                              </span>
+                              <CheckCheck className="w-3 h-3 text-emerald-400" />
+                            </>
                           ) : prompt ? (
                             <Check className="w-3 h-3 text-amber-400" />
                           ) : (
