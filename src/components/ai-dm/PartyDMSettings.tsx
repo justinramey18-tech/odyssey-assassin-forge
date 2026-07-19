@@ -95,6 +95,7 @@ export interface PartyDMSettingsProps {
   onShowGuides?: () => void;
   onShowChat?: () => void;
   onShowDevAssistant?: () => void;
+  onShowCharacterGuideBuilder?: () => void;
   onShowAfkGuide: () => void;
   guidesCount?: number;
   guides?: Array<{ id: string; name: string; content: string; enabled: boolean; createdAt?: string; updatedAt?: string }>;
