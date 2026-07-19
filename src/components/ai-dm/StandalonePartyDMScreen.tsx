@@ -4,7 +4,7 @@ import { usePartyMemoryAnchors } from '@/hooks/use-party-memory-anchors';
 import { usePartyMemoryExtraction } from '@/hooks/use-party-memory-extraction';
 import { usePartyDm } from '@/hooks/use-party-dm';
 import { useWeather } from '@/hooks/use-weather';
-import { weatherToNarrativeContext, getCachedWeather, buildWeatherPrompt, loadWeatherEnabled } from '@/lib/weather';
+import { getCachedWeather, buildWeatherPrompt, loadWeatherEnabled } from '@/lib/weather';
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { useCampaignSessions } from '@/hooks/use-campaign-sessions';
 import { supabase } from '@/integrations/supabase/client';
