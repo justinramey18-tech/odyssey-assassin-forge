@@ -1,31 +1,40 @@
-## Problem
-The private “Talk to the DM” channel is still answering as if it has no campaign details. The likely causes are:
+## The bug in plain language
 
-- It only sends the first 5,000 characters of the campaign/guide bundle, so real GM Guides can be cut off.
-- Non-host players may be sending their own empty guide list instead of the host’s guide list.
-- The private DM prompt tells the AI to fall back to “I don’t have details…” too easily, even when the answer may be in the guide/memory/campaign text.
-- The prompt does not explicitly support meta-questions like “What GM guides are applied?”
+On the party DM screen, the textbox and the green Ready button are two separate steps today:
 
-## Plan
-1. **Make the private DM receive the right source of truth**
-   - Build one reusable campaign-context string for the private DM.
-   - Include enabled GM Guides, Memory Anchors, and Campaign Summary in clear labeled sections.
-   - For non-host players, load/use the original host’s guides instead of an empty local guide set.
+1. Type your action → tap the little **arrow / Send** button (this actually files your action into the round).
+2. Then tap **Ready**.
 
-2. **Stop cutting off the useful guide text**
-   - Increase the private DM campaign-context limit from 5,000 chars to a safer bounded size.
-   - Keep separate caps for guide context and character context so it stays controlled but not useless.
+If you type an action and then tap **Ready** *without* first tapping Send, the app throws away what you typed and files you as "Ready (No Action)". That's exactly what the screenshot shows — text is sitting in the box, but the button still says "Ready (No Action)" and Candace is checked in with no action.
 
-3. **Strengthen the private DM instructions**
-   - Tell it that GM Guides and Memory Anchors are authoritative.
-   - Tell it to answer from those sections first before using the “I don’t have details” fallback.
-   - Add explicit handling for “what guides are applied” so it summarizes the active guide names/topics instead of claiming ignorance.
+The Ready button is hard-wired to the "no action" path. It never looks at the textbox.
 
-4. **Preserve privacy and current behavior**
-   - Keep the Director as an out-of-fiction private liaison.
-   - Keep secret actions private and public actions routed to the party round.
-   - Do not make it narrate scenes or alter established outcomes.
+## The fix
 
-5. **Validate**
-   - Typecheck the changed files.
-   - Confirm the request body sent to the private DM includes GM Guides / Memory Anchors / Campaign Summary sections before the AI call.
+Make the green Ready button smart about the textbox:
+
+- **When the textbox is empty** → button reads **"Ready (No Action)"** and behaves exactly as it does today (file the player as ready with nothing to do).
+- **When there is typed text** → button reads **"Ready"** (drops the "No Action" tag), and tapping it:
+  1. Files the typed text as that player's action (same code path as tapping the Send arrow), then
+  2. Marks them ready.
+  3. Clears the textbox draft so the next round starts clean.
+
+That's it — one button, two behaviors driven by whether the textbox has content. Users no longer have to remember the two-tap Send-then-Ready dance.
+
+### Where the change lives (technical note)
+
+Single file: `src/components/ai-dm/PartyDMInput.tsx`.
+
+- The component already tracks the draft text (`input`) and already has a `handleSubmit` that calls `onSubmit(text)` and clears the draft.
+- Change the Ready `<Button>`'s label to depend on `input.trim()` (same condition the Send arrow already uses to enable itself).
+- Change its `onClick` to: if `input.trim()` is non-empty, call `handleSubmit()` first, then `onReady()`; otherwise just `onReady()` (today's behavior).
+- The AFK-guide variant (which shows "No Action" + "Autopilot" side-by-side) gets the same treatment on the "No Action" button so it flips to "Ready" when text is present.
+
+No changes to `PartyDMScreen.tsx`, the `use-party-dm` hook, the database, or the ready/round-queue logic — those already handle "submit then ready" correctly (that's what the Autopilot path does at line 1593-1594).
+
+### Verification
+
+- Type text → button label flips to "Ready", Send arrow stays enabled.
+- Tap Ready with text → row in Round Queue shows "Ready (with action)" and the typed prompt, textbox clears.
+- Tap Ready with empty textbox → row shows "Ready (no action)" exactly like today.
+- Send arrow still works on its own for players who prefer the two-tap flow.

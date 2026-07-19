@@ -208,12 +208,22 @@ export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProp
       </div>
       <div className="flex items-center gap-2">
         <Button
-          onClick={onReady}
+          onClick={() => {
+            const trimmed = input.trim();
+            if (trimmed) {
+              onSubmit(trimmed);
+              clearInput();
+              if (inputRef.current) inputRef.current.style.height = 'auto';
+              setTimeout(() => onReady(), 100);
+            } else {
+              onReady();
+            }
+          }}
           className={cn("gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300", hasAfkGuide ? "flex-1" : "flex-1")}
           size="sm"
         >
           <Check className="w-4 h-4" />
-          {hasAfkGuide ? 'No Action' : 'Ready (No Action)'}
+          {input.trim() ? 'Ready' : (hasAfkGuide ? 'No Action' : 'Ready (No Action)')}
         </Button>
         {hasAfkGuide && (
           <Button
