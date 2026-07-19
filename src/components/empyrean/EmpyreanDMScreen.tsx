@@ -4,7 +4,7 @@ import { parseWhispers } from '@/lib/whisper-parser';
 import { parseResponseIntoSlides, stripCinematicTags, parseBeatsIntoSlides } from '@/lib/parseSlides';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { useWeather } from '@/hooks/use-weather';
-import { weatherToNarrativeContext } from '@/lib/weather';
+import { getCachedWeather, buildWeatherPrompt, loadWeatherEnabled } from '@/lib/weather';
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
 import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle, Theater, Megaphone, Minus, Plus, Sparkles, Swords, HelpCircle } from 'lucide-react';
 import { formatForReadingMode, type FormattedReading } from '@/lib/reading-mode-formatter';
@@ -560,9 +560,11 @@ ${oocLines}`;
   const gameState = useDMGameState(trackingCampaignId);
   const worldStatePrompt = useMemo(() => {
     let prompt = buildMemoryAnchorsPrompt(gameState.gameState);
-    if (weather) {
-      prompt += '\n\n## CURRENT WEATHER (REAL-WORLD SYNC — MANDATORY)\n' + weatherToNarrativeContext(weather) + '\nYou MUST incorporate this weather into your narration. Rules:\n1. Your FIRST response in any new scene or session MUST describe the weather as part of the environment — use sensory details (sound of rain, feel of wind, visibility in fog, cold of snow).\n2. In subsequent outdoor responses, reference the weather at least briefly — how it affects the ground, visibility, comfort, or mood.\n3. If the party is indoors, mention the weather through windows, sounds on the roof, drafts under doors, or characters arriving wet/cold.\n4. In combat outdoors, note how weather affects the battlefield — slippery ground, obscured vision, wind affecting projectiles.\n5. Do NOT repeat the same weather description verbatim — vary your phrasing each time.\n6. Do NOT state the temperature as a number. Describe it through sensation (biting cold, oppressive heat, comfortable warmth).';
+    if (loadWeatherEnabled()) {
+      const block = buildWeatherPrompt(weather || getCachedWeather());
+      if (block) prompt += '\n\n' + block;
     }
+
     return prompt;
   }, [gameState.gameState, weather]);
 

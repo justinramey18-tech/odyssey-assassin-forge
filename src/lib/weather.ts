@@ -224,27 +224,31 @@ export function weatherToNarrativeContext(weather: WeatherData): string {
     lines.push('Visibility is severely reduced — objects beyond a few hundred feet are obscured.');
   }
 
-  // 7. Forecast foreshadowing (what's coming in the next few hours)
-  if (weather.forecast && weather.forecast.length >= 2) {
-    const upcoming = weather.forecast.slice(0, 3);
-    const incomingStorm = upcoming.find(f => f.condition === 'thunderstorm' || f.condition === 'heavy-rain');
-    const incomingRain = upcoming.find(f => f.condition === 'rain' || f.condition === 'drizzle');
-    const incomingSnow = upcoming.find(f => f.condition === 'snow');
-    const clearing = weather.condition !== 'clear' && upcoming.every(f => f.condition === 'clear' || f.condition === 'cloudy');
-    const highPrecipChance = upcoming.some(f => f.precipitationProbability >= 70);
-
-    if (incomingStorm && weather.condition !== 'thunderstorm') {
-      lines.push('FORECAST: A storm is building on the horizon. Dark clouds mass in the distance and the air pressure is dropping. The storm will arrive within hours.');
-    } else if (incomingSnow && weather.condition !== 'snow') {
-      lines.push('FORECAST: Snow is expected soon. The air has that sharp, metallic edge that precedes snowfall.');
-    } else if (incomingRain && weather.condition === 'clear') {
-      lines.push('FORECAST: Clouds are gathering. Rain is likely within the next few hours.');
-    } else if (clearing) {
-      lines.push('FORECAST: The weather is improving. Conditions should clear within the next few hours.');
-    } else if (highPrecipChance && weather.precipitation === 0) {
-      lines.push('FORECAST: Precipitation is likely soon. The air feels heavy with moisture.');
-    }
-  }
-
   return lines.join(' ');
 }
+
+export function getCachedWeather(): WeatherData | null {
+  try {
+    const raw = localStorage.getItem('odyssey-weather-cache');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function buildWeatherPrompt(weather: WeatherData | null): string {
+  if (!weather) return '';
+  return '## CURRENT WEATHER (REAL-WORLD SYNC — MANDATORY)\n'
+    + weatherToNarrativeContext(weather)
+    + '\nYou MUST incorporate this weather into your narration. Rules:\n'
+    + '1. Your FIRST response in any new scene or session MUST describe the weather as part of the environment — use sensory details (sound of rain, feel of wind, visibility in fog, cold of snow).\n'
+    + '2. In subsequent outdoor responses, reference the weather at least briefly — how it affects the ground, visibility, comfort, or mood.\n'
+    + '3. If the party is indoors, mention the weather through windows, sounds on the roof, drafts under doors, or characters arriving wet/cold.\n'
+    + '4. In combat outdoors, note how weather affects the battlefield — slippery ground, obscured vision, wind affecting projectiles.\n'
+    + '5. Do NOT repeat the same weather description verbatim — vary your phrasing each time.\n'
+    + '6. Do NOT state the temperature as a number. Describe it through sensation (biting cold, oppressive heat, comfortable warmth).\n'
+    + '7. Describe ONLY the current conditions. Do NOT predict or foreshadow future weather (no "it will clear," "a storm is coming," etc.) — you do not have reliable forecast data.';
+}
+
