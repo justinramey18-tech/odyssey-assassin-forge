@@ -1747,9 +1747,20 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (!partyId || !user || !sessionConfig || isGenerating) return;
 
     const isTurnBased = (sessionConfig.dmMode || 'ai') === 'turnBased';
-    const readyPrompts = isTurnBased
+    const rawReadyPrompts = isTurnBased
       ? currentPrompts.filter(p => p.is_ready && memberUserIds.has(p.user_id) && p.user_id === sessionConfig.turnUserId)
       : currentPrompts.filter(p => p.is_ready && memberUserIds.has(p.user_id));
+    // Dedupe per user: prefer non-blank prompts over blank "(no action)", then newest.
+    const byUser = new Map<string, PartyDmPrompt>();
+    for (const p of rawReadyPrompts) {
+      const existing = byUser.get(p.user_id);
+      if (!existing) { byUser.set(p.user_id, p); continue; }
+      const existingBlank = !existing.prompt || existing.prompt.trim() === '';
+      const currentBlank = !p.prompt || p.prompt.trim() === '';
+      if (existingBlank && !currentBlank) byUser.set(p.user_id, p);
+      else if (existingBlank === currentBlank && new Date(p.created_at as any) > new Date(existing.created_at as any)) byUser.set(p.user_id, p);
+    }
+    const readyPrompts = Array.from(byUser.values());
     if (readyPrompts.length === 0) {
       toast.error('No ready prompts to generate from');
       return;
