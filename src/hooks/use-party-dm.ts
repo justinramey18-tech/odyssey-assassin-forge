@@ -1070,7 +1070,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       toast.success(hasText ? 'Ready — your submitted prompt will be used' : 'Ready — no action this round');
     } else {
       // No prompt exists for this user this round → genuine "ready with no action".
-      // Upsert on the natural key so it can never duplicate (constraint-safe).
+      // Use insert-ignore-on-conflict so a concurrent real submitPrompt is NEVER overwritten
+      // with blank. Then flip is_ready=true without touching the prompt column.
       const nowIso = new Date().toISOString();
       const insertData: Record<string, unknown> = {
         party_id: partyId,
@@ -1095,9 +1096,19 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           team: (isSplitActive && myTeam) ? myTeam : null,
         } as PartyDmPrompt];
       });
+      // 1) Insert-if-missing (never overwrite existing prompt text on conflict).
       await (supabase.from('party_dm_prompts') as any)
-        .upsert(insertData, { onConflict: 'party_id,round_id,user_id' });
-      toast.success('Ready — no action this round');
+        .upsert(insertData, { onConflict: 'party_id,round_id,user_id', ignoreDuplicates: true });
+      // 2) Guarantee is_ready=true on whichever row now exists (real or blank).
+      const { data: nowRow } = await (supabase.from('party_dm_prompts') as any)
+        .update({ is_ready: true })
+        .eq('party_id', partyId)
+        .eq('user_id', user.id)
+        .eq('round_id', resolvedConfig.currentRoundId)
+        .select('prompt')
+        .maybeSingle();
+      const nowHasText = !!(nowRow?.prompt && String(nowRow.prompt).trim());
+      toast.success(nowHasText ? 'Ready — your submitted prompt will be used' : 'Ready — no action this round');
     }
 
     // Send Telegram ready-up notification (non-blocking, includes self)
