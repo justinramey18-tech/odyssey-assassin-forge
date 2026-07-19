@@ -827,6 +827,17 @@ ${truncated}`);
         />
       )}
 
+      {/* Character Guide Builder */}
+      <CharacterGuideBuilder
+        open={showCharacterGuideBuilder}
+        onClose={() => setShowCharacterGuideBuilder(false)}
+        campaignType={isSoloEmpyrean ? 'empyrean' : partyCampaignType}
+        campaignPlan={(partyDm.sessionConfig as any)?.campaignSummary || ''}
+        onGuideCreated={(name, content) => {
+          gmGuides.addGuide(name, content);
+        }}
+      />
+
       {/* Campaign Saves Overlay */}
       {showSaves && (
         <PartyCampaignSaves
