@@ -444,7 +444,17 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
       const msgs = msgsRes.data ? [...msgsRes.data].reverse() : [];
       setMessages(msgs);
-      if (promptsRes.data) setCurrentPrompts(promptsRes.data);
+      if (promptsRes.data) {
+        // Keep only the newest prompt per user (guards against any legacy duplicate rows).
+        const byUser = new Map<string, PartyDmPrompt>();
+        for (const row of promptsRes.data as PartyDmPrompt[]) {
+          const existing = byUser.get(row.user_id);
+          if (!existing || new Date(row.created_at as any) > new Date(existing.created_at as any)) {
+            byUser.set(row.user_id, row);
+          }
+        }
+        setCurrentPrompts(Array.from(byUser.values()));
+      }
 
 
       // Backfill: if split is active but team chats are empty, seed from snapshot
