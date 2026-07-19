@@ -1828,6 +1828,56 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
     setIsGenerating(true);
 
+    // ── DB-level per-round claim ticket ──
+    // The party_round_locks table has PK (party_id, round_id), so at most ONE
+    // insert per round can ever succeed. This is the authoritative gate that
+    // prevents two devices (or a rapid double-tap) from starting narration
+    // twice for the same round. Stale locks (past expires_at) can be taken over.
+    const lockRoundId = sessionConfig.currentRoundId;
+    let lockClaimed = false;
+    try {
+      const { error: claimErr } = await (supabase.from('party_round_locks') as any)
+        .insert({
+          party_id: partyId,
+          round_id: lockRoundId,
+          holder_user_id: user.id,
+          status: 'in_progress',
+          expires_at: new Date(Date.now() + 90_000).toISOString(),
+        });
+      if (!claimErr) {
+        lockClaimed = true;
+      } else {
+        // Insert lost the race — check if the existing lock is stale and steal it.
+        const { data: existing } = await (supabase.from('party_round_locks') as any)
+          .select('holder_user_id, expires_at, status')
+          .eq('party_id', partyId)
+          .eq('round_id', lockRoundId)
+          .maybeSingle();
+        const isStale = existing && (existing.status === 'completed' || (existing.expires_at && new Date(existing.expires_at) < new Date()));
+        if (isStale) {
+          const { data: stolen } = await (supabase.from('party_round_locks') as any)
+            .update({
+              holder_user_id: user.id,
+              status: 'in_progress',
+              started_at: new Date().toISOString(),
+              completed_at: null,
+              expires_at: new Date(Date.now() + 90_000).toISOString(),
+            })
+            .eq('party_id', partyId)
+            .eq('round_id', lockRoundId)
+            .select('holder_user_id');
+          if (stolen && stolen.length > 0) lockClaimed = true;
+        }
+      }
+    } catch (e) {
+      console.error('[PartyDM] Round lock claim failed:', e);
+    }
+    if (!lockClaimed) {
+      console.log('[PartyDM] Another device is already narrating this round, skipping');
+      setIsGenerating(false);
+      return;
+    }
+
     // Atomic database lock: only proceed if isGenerating was false
     // This prevents multiple clients from triggering generation simultaneously
     const { data: lockData, error: stateErr } = await (supabase.from('party_shared_state') as any)
@@ -1841,9 +1891,16 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     // If no rows updated, another client already claimed generation
     if (!lockData || lockData.length === 0) {
       console.log('[PartyDM] Generation already in progress on another client, skipping');
+      // Release DB round lock so a subsequent retry isn't wedged.
+      await (supabase.from('party_round_locks') as any)
+        .delete()
+        .eq('party_id', partyId)
+        .eq('round_id', lockRoundId)
+        .eq('holder_user_id', user.id);
       setIsGenerating(false);
       return;
     }
+
 
     // Re-fetch latest dragon configs right before generation for accuracy
     let freshDragonConfigs = partyDragonConfigs;
@@ -2326,9 +2383,20 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         .eq('party_id', partyId)
         .eq('state_type', 'dm_session');
     } finally {
+      // Release the DB-level per-round claim ticket so the next round starts clean.
+      try {
+        await (supabase.from('party_round_locks') as any)
+          .delete()
+          .eq('party_id', partyId)
+          .eq('round_id', lockRoundId)
+          .eq('holder_user_id', user.id);
+      } catch (e) {
+        console.warn('[PartyDM] Failed to release round lock:', e);
+      }
       setIsGenerating(false);
       abortRef.current = null;
     }
+
   }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave, isSplitActive, splitState, streamAIResponse, buildPartyMembersGuide, generateSplitSummary, buildAfkGuidesContext, consumeCascadePrompts, insertPartyMessageHelper, empyreanPersonaPrompt, buildDragonBondsSection]);
 
 
