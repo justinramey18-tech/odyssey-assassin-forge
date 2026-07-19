@@ -106,13 +106,8 @@ export function StandalonePartyDMScreen({
   const [showOocChat, setShowOocChat] = useState(false);
   const [partyCreatorId, setPartyCreatorId] = useState<string | null>(null);
   const [coHostIds, setCoHostIds] = useState<string[]>([]);
-  const [forceShowOnboarding, setForceShowOnboarding] = useState(false);
-  const [justAppliedOnboarding, setJustAppliedOnboarding] = useState(false);
 
-  // Tracks the LAST DIRECTLY-VERIFIED onboarding_status for the current user, fetched
-  // straight from the DB rather than relying on the (possibly stale/lagging) partyMembers
-  // realtime array. Used as a trustworthy fallback when deciding whether to re-show onboarding.
-  const [verifiedOnboardingStatus, setVerifiedOnboardingStatus] = useState<string | null>(null);
+
 
 
   const [partyCampaignType, setPartyCampaignType] = useState<'dnd' | 'empyrean'>('dnd');
