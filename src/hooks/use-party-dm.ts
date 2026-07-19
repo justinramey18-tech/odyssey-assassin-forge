@@ -235,10 +235,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [isFullSummarizing, setIsFullSummarizing] = useState(false);
   const [sessionConfig, setSessionConfig] = useState<DmSessionConfig | null>(null);
   const sessionConfigRef = useRef<DmSessionConfig | null>(null);
+  const currentRoundIdRef = useRef<string | null>(null);
 
   // Keep ref in sync for use in async callbacks
   useEffect(() => {
     sessionConfigRef.current = sessionConfig;
+    currentRoundIdRef.current = sessionConfig?.currentRoundId ?? null;
   }, [sessionConfig]);
 
   /** Resolve sessionConfig from memory or DB fallback */
