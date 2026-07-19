@@ -600,20 +600,27 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         table: 'party_dm_prompts',
         filter: `party_id=eq.${partyId}`,
       }, (payload) => {
+        const hasText = (r: Partial<PartyDmPrompt>) => !!(r.prompt && String(r.prompt).trim());
         if (payload.eventType === 'INSERT') {
           const p = payload.new as PartyDmPrompt;
           // Ignore prompts that don't belong to the current round (prevents cross-round leakage).
           if (currentRoundIdRef.current && p.round_id !== currentRoundIdRef.current) return;
           setCurrentPrompts(prev => {
-            // Dedupe by id AND by user: one prompt per user in a round; newest row wins.
             if (prev.some(x => x.id === p.id)) return prev;
-            const withoutSameUser = prev.filter(x => x.user_id !== p.user_id);
-            const updated = [...withoutSameUser, p];
+            // Real-time dedupe: if a same-user row already exists, keep whichever has real text.
+            const sameUser = prev.find(x => x.user_id === p.user_id);
+            let next: PartyDmPrompt[];
+            if (sameUser && hasText(sameUser) && !hasText(p)) {
+              // Existing real prompt beats an incoming blank placeholder.
+              next = prev;
+            } else {
+              next = [...prev.filter(x => x.user_id !== p.user_id), p];
+            }
             if (p.is_ready && p.user_id !== user?.id) {
-              const readyCount = updated.filter(x => x.is_ready).length;
+              const readyCount = next.filter(x => x.is_ready).length;
               sendReadyUpNotification(p.character_name, readyCount, memberCount);
             }
-            return updated;
+            return next;
           });
         } else if (payload.eventType === 'UPDATE') {
           const p = payload.new as PartyDmPrompt;
@@ -621,6 +628,11 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           if (currentRoundIdRef.current && p.round_id !== currentRoundIdRef.current) return;
           setCurrentPrompts(prev => {
             const exists = prev.some(x => x.id === p.id);
+            const sameUserOther = prev.find(x => x.user_id === p.user_id && x.id !== p.id);
+            // If a same-user real prompt already exists and the incoming update is blank, ignore it.
+            if (!exists && sameUserOther && hasText(sameUserOther) && !hasText(p)) {
+              return prev;
+            }
             const base = exists
               ? prev.map(x => x.id === p.id ? p : x)
               : [...prev.filter(x => x.user_id !== p.user_id), p];
