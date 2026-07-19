@@ -2383,9 +2383,20 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         .eq('party_id', partyId)
         .eq('state_type', 'dm_session');
     } finally {
+      // Release the DB-level per-round claim ticket so the next round starts clean.
+      try {
+        await (supabase.from('party_round_locks') as any)
+          .delete()
+          .eq('party_id', partyId)
+          .eq('round_id', lockRoundId)
+          .eq('holder_user_id', user.id);
+      } catch (e) {
+        console.warn('[PartyDM] Failed to release round lock:', e);
+      }
       setIsGenerating(false);
       abortRef.current = null;
     }
+
   }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave, isSplitActive, splitState, streamAIResponse, buildPartyMembersGuide, generateSplitSummary, buildAfkGuidesContext, consumeCascadePrompts, insertPartyMessageHelper, empyreanPersonaPrompt, buildDragonBondsSection]);
 
 
