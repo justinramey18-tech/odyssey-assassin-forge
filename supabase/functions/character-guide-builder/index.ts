@@ -29,7 +29,7 @@ const GUIDE_TOOL = {
             guide_markdown: {
               type: "string",
               description:
-                "The FULL formatted GM guide, wrapped in the exact <<<<<< ... >>>>>> envelope described in the system prompt. Under 8000 characters.",
+                "The FULL formatted GM guide, wrapped in the exact <<<<<< ... >>>>>> envelope described in the system prompt. Under 15000 characters.",
             },
           },
           required: ["character_name", "guide_markdown"],
@@ -118,7 +118,7 @@ CRITICAL: This guide is the AUTHORITATIVE definition of {character_name}. If any
 
 <<<<<< END CHARACTER DEFINITION >>>>>>
 
-Keep the whole guide_markdown under 8000 characters. Fill each section based on what the user told you. Do not invent contradictions.`;
+Keep the whole guide_markdown under 15000 characters. Fill each section based on what the user told you. Do not invent contradictions.`;
 
 const NPC_OUTPUT_FORMAT = `## FINAL OUTPUT FORMAT (NPC)
 
@@ -153,7 +153,7 @@ TYPE: NPC (DM-Controlled)
 
 <<<<<< END NPC DEFINITION >>>>>>
 
-Keep the whole guide_markdown under 8000 characters. Fill each section based on what the host told you.`;
+Keep the whole guide_markdown under 15000 characters. Fill each section based on what the host told you.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -272,7 +272,7 @@ serve(async (req) => {
           md = `${openTag}\n\n${md}\n\n${closeTag}`;
         }
 
-        if (md.length > 8000) md = md.slice(0, 8000);
+        if (md.length > 15000) md = md.slice(0, 15000);
 
         finalized = {
           character_name: name.slice(0, 120),
