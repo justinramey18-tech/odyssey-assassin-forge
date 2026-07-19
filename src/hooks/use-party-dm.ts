@@ -445,11 +445,18 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       const msgs = msgsRes.data ? [...msgsRes.data].reverse() : [];
       setMessages(msgs);
       if (promptsRes.data) {
-        // Keep only the newest prompt per user (guards against any legacy duplicate rows).
+        // Dedupe per user: prefer a real (non-blank) prompt over a blank placeholder;
+        // among rows of equal "realness", prefer the newest. Guards against legacy dupes.
         const byUser = new Map<string, PartyDmPrompt>();
+        const hasText = (r: PartyDmPrompt) => !!(r.prompt && String(r.prompt).trim());
         for (const row of promptsRes.data as PartyDmPrompt[]) {
           const existing = byUser.get(row.user_id);
-          if (!existing || new Date(row.created_at as any) > new Date(existing.created_at as any)) {
+          if (!existing) { byUser.set(row.user_id, row); continue; }
+          const rowReal = hasText(row);
+          const existReal = hasText(existing);
+          if (rowReal && !existReal) { byUser.set(row.user_id, row); continue; }
+          if (!rowReal && existReal) continue;
+          if (new Date(row.created_at as any) > new Date(existing.created_at as any)) {
             byUser.set(row.user_id, row);
           }
         }
