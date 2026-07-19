@@ -22,6 +22,9 @@ import {
   saveAutoMood,
   extractPlaylistId,
   getPlaylistInfo,
+  getStoredTokens,
+  isTokenExpired,
+  refreshAccessToken,
   type MoodPreset,
 } from '@/lib/spotify';
 import { initPlayer, destroyPlayer, getSDKDeviceId, isSDKPlayerActive } from '@/lib/spotify-player-sdk';
@@ -96,6 +99,29 @@ export function useSpotify() {
         }
       });
     }
+  }, []);
+
+  // Restore persisted Spotify session on mount: silently refresh an expired
+  // access token using the stored refresh token so users stay logged in.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const hasCode = new URL(window.location.href).searchParams.get('code');
+      if (hasCode) return; // OAuth callback effect handles this
+
+      const { accessToken, refreshToken } = getStoredTokens();
+      if (!refreshToken) {
+        if (!accessToken && !cancelled) setConnected(false);
+        return;
+      }
+      if (!accessToken || isTokenExpired()) {
+        const ok = await refreshAccessToken();
+        if (!cancelled) setConnected(ok);
+      } else if (!cancelled) {
+        setConnected(true);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   // Fetch user profile when connected

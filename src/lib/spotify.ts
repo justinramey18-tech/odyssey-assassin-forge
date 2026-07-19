@@ -145,37 +145,55 @@ export async function refreshAccessToken(): Promise<boolean> {
   const { refreshToken } = getStoredTokens();
   if (!refreshToken) return false;
 
+  let data: any = null;
+  let error: any = null;
   try {
-    const { data, error } = await supabase.functions.invoke('spotify-auth', {
+    const res = await supabase.functions.invoke('spotify-auth', {
       body: { action: 'refresh', refresh_token: refreshToken },
     });
-
-    if (error || !data?.access_token) {
-      console.error('[Spotify] Token refresh failed:', error || data);
-      clearTokens();
-      return false;
-    }
-
-    storeTokens(data.access_token, data.refresh_token || refreshToken, data.expires_in);
-    return true;
+    data = res.data;
+    error = res.error;
   } catch (e) {
-    console.error('[Spotify] Refresh error:', e);
-    clearTokens();
+    // Transient network error — do NOT clear tokens; caller can retry later.
+    console.warn('[Spotify] Refresh network error (keeping tokens):', e);
     return false;
   }
+
+  if (data?.access_token) {
+    storeTokens(data.access_token, data.refresh_token || refreshToken, data.expires_in);
+    return true;
+  }
+
+  // Distinguish invalid_grant / auth rejection from transient errors.
+  const errStr = JSON.stringify(error || data || '').toLowerCase();
+  const definitivelyInvalid =
+    errStr.includes('invalid_grant') ||
+    errStr.includes('invalid refresh') ||
+    errStr.includes('revoked') ||
+    errStr.includes('unauthorized');
+
+  if (definitivelyInvalid) {
+    console.error('[Spotify] Refresh token invalid, clearing:', error || data);
+    clearTokens();
+  } else {
+    console.warn('[Spotify] Refresh failed transiently (keeping tokens):', error || data);
+  }
+  return false;
 }
 
 // ── Spotify API Helpers ───────────────────────────────────────────────────
-async function getValidToken(): Promise<string | null> {
-  if (isTokenExpired()) {
+export async function getValidAccessToken(): Promise<string | null> {
+  const { accessToken, refreshToken } = getStoredTokens();
+  if (accessToken && !isTokenExpired()) return accessToken;
+  if (refreshToken) {
     const ok = await refreshAccessToken();
-    if (!ok) return null;
+    if (ok) return getStoredTokens().accessToken;
   }
-  return getStoredTokens().accessToken;
+  return null;
 }
 
-async function spotifyFetch(endpoint: string, options: RequestInit = {}): Promise<any> {
-  const token = await getValidToken();
+async function spotifyFetch(endpoint: string, options: RequestInit = {}, _retry = false): Promise<any> {
+  const token = await getValidAccessToken();
   if (!token) throw new Error('No valid Spotify token');
 
   const res = await fetch(`https://api.spotify.com/v1${endpoint}`, {
@@ -186,6 +204,14 @@ async function spotifyFetch(endpoint: string, options: RequestInit = {}): Promis
       ...options.headers,
     },
   });
+
+  // Self-heal on 401: refresh once and retry.
+  if (res.status === 401 && !_retry) {
+    const ok = await refreshAccessToken();
+    if (ok) return spotifyFetch(endpoint, options, true);
+    clearTokens();
+    throw new Error('Spotify session expired. Please reconnect.');
+  }
 
   if (res.status === 204) return null;
 
