@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { PartyDMScreen } from './PartyDMScreen';
 import { GMGuidesManager } from './GMGuidesManager';
-import { PlayerOnboardingScreen } from './PlayerOnboardingScreen';
+
 import { PlayerRedoRequestDialog } from './PlayerRedoRequestDialog';
 import { HostOnboardingRequestsPanel } from './HostOnboardingRequestsPanel';
 import { usePartyOnboardingRequests } from '@/hooks/use-party-onboarding-requests';
@@ -106,13 +106,8 @@ export function StandalonePartyDMScreen({
   const [showOocChat, setShowOocChat] = useState(false);
   const [partyCreatorId, setPartyCreatorId] = useState<string | null>(null);
   const [coHostIds, setCoHostIds] = useState<string[]>([]);
-  const [forceShowOnboarding, setForceShowOnboarding] = useState(false);
-  const [justAppliedOnboarding, setJustAppliedOnboarding] = useState(false);
 
-  // Tracks the LAST DIRECTLY-VERIFIED onboarding_status for the current user, fetched
-  // straight from the DB rather than relying on the (possibly stale/lagging) partyMembers
-  // realtime array. Used as a trustworthy fallback when deciding whether to re-show onboarding.
-  const [verifiedOnboardingStatus, setVerifiedOnboardingStatus] = useState<string | null>(null);
+
 
 
   const [partyCampaignType, setPartyCampaignType] = useState<'dnd' | 'empyrean'>('dnd');
@@ -122,7 +117,6 @@ export function StandalonePartyDMScreen({
   const [showDirectorEscalationsPanel, setShowDirectorEscalationsPanel] = useState(false);
   const onboardingRequests = usePartyOnboardingRequests({ partyId });
   const directorEscalations = usePartyDirectorEscalations({ partyId });
-  const promotedToInProgressRef = useRef(false);
 
   // Auto-open campaign builder when triggered from home screen
   useEffect(() => {
@@ -131,78 +125,7 @@ export function StandalonePartyDMScreen({
     }
   }, [autoOpenCampaignBuilder, isPartyCreator]);
 
-  // Late-joiner: promote 'pending' onboarding_status to 'in_progress' once when overlay opens
-  useEffect(() => {
-    if (promotedToInProgressRef.current) return;
-    if (isPartyCreator) return;
-    if (!partyId || !userId) return;
-    const myMember = partyMembers.find(m => m.user_id === userId);
-    const myOnboardingStatus = (myMember as any)?.onboarding_status || 'pending';
-    if (myOnboardingStatus !== 'pending') return;
-    promotedToInProgressRef.current = true;
-    supabase
-      .from('party_members')
-      .update({
-        onboarding_status: 'in_progress',
-        onboarding_started_at: new Date().toISOString(),
-      })
-      .eq('party_id', partyId)
-      .eq('user_id', userId)
-      .then(({ error }) => {
-        if (error) {
-          console.error('[late-joiner] promote to in_progress failed:', error);
-        }
-      });
-  }, [partyMembers, isPartyCreator, partyId, userId]);
 
-  // Fast path: once realtime confirms completion via the shared partyMembers array,
-  // record it as verified and drop the suppression flag.
-  useEffect(() => {
-    if (!partyId || !userId) return;
-    const myMember = partyMembers.find(m => m.user_id === userId);
-    const status = (myMember as any)?.onboarding_status;
-    if (status) {
-      setVerifiedOnboardingStatus(status);
-    }
-    if (justAppliedOnboarding && status === 'complete') {
-      setJustAppliedOnboarding(false);
-    }
-  }, [justAppliedOnboarding, partyMembers, userId, partyId]);
-
-  // Safety net: if realtime hasn't confirmed within 10s, do NOT blindly drop the flag —
-  // verify directly against the database first. This closes the race that was bouncing
-  // players back into onboarding after they'd already completed it.
-  useEffect(() => {
-    if (!justAppliedOnboarding || !partyId || !userId) return;
-    const t = setTimeout(async () => {
-      try {
-        const { data, error } = await supabase
-          .from('party_members')
-          .select('onboarding_status')
-          .eq('party_id', partyId)
-          .eq('user_id', userId)
-          .maybeSingle();
-        if (error) {
-          console.error('[onboarding-verify] fresh read failed:', error);
-          // Unknown state — do NOT drop the suppression on an inconclusive read.
-          // Better to stay suppressed a little longer than to falsely re-show onboarding.
-          return;
-        }
-        const freshStatus = (data as any)?.onboarding_status;
-        if (freshStatus === 'complete') {
-          setVerifiedOnboardingStatus('complete');
-          setJustAppliedOnboarding(false);
-        } else {
-          // Write genuinely hasn't landed yet (or failed). Keep suppression active and
-          // check again shortly rather than exposing the player to a false re-onboard.
-          console.warn('[onboarding-verify] status still not complete after 10s:', freshStatus);
-        }
-      } catch (e) {
-        console.error('[onboarding-verify] unexpected error:', e);
-      }
-    }, 10000);
-    return () => clearTimeout(t);
-  }, [justAppliedOnboarding, partyId, userId]);
 
 
   // Fetch + subscribe to parties.campaign_started and parties.campaign_type
@@ -725,41 +648,9 @@ ${truncated}`);
     return '\n\n' + sections.join('\n\n');
   }, [dragonBonds.myDragon, dragonBonds.dragonChatMessages, dragonBonds.lastMoodShift]);
 
-  // Non-hosts wait for session to start — UNLESS they still need to onboard,
-  // in which case the onboarding screen takes priority (they can build their
-  // character while the host finishes the architect).
+  // Non-hosts wait for session to start.
   if (!partyDm.isActive && !isHost) {
-    const myMember = partyMembers.find(m => m.user_id === userId);
-    const myOnboardingStatus = verifiedOnboardingStatus || (myMember as any)?.onboarding_status || 'pending';
-    const needsOnboarding = !isPartyCreator
-      && myOnboardingStatus !== 'complete'
-      && !justAppliedOnboarding;
 
-
-    if (needsOnboarding) {
-      const hostMember = partyMembers.find(m => m.user_id !== userId && (m as any).onboarding_status === 'complete')
-        || partyMembers.find(m => m.user_id !== userId);
-      const campaignPlan = (partyDm.sessionConfig as any)?.campaignSummary || '';
-      const hostStatus = (hostMember as any)?.character_status || {};
-      const hostCharacterSummary = hostMember
-        ? `Host's character: ${hostMember.character_name}${hostStatus?.signet_type ? ` (signet: ${hostStatus.signet_type})` : ''}${hostStatus?.dragon_name ? `, bonded to ${hostStatus.dragon_name}` : ''}.`
-        : '';
-      return (
-        <PlayerOnboardingScreen
-          open={true}
-          partyId={partyId}
-          userId={userId}
-          campaignPlan={campaignPlan}
-          hostCharacterSummary={hostCharacterSummary}
-          playerExistingCharacter={playerExistingCharacter}
-          campaignType={partyCampaignType === 'empyrean' ? 'empyrean' : 'dnd'}
-          onComplete={() => {
-            setForceShowOnboarding(false);
-            setJustAppliedOnboarding(true);
-          }}
-        />
-      );
-    }
 
     return (
       <div className={cn("flex flex-col items-center justify-center bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]", embedded ? "absolute inset-0" : "fixed inset-0 z-[60]")}>
@@ -998,41 +889,8 @@ ${truncated}`);
         )}
       </AnimatePresence>
 
-      {/* Player Onboarding Overlay (non-host players whose status is in_progress, or who tapped "Build my character" from lockout) */}
-      {(() => {
-        const myMember = partyMembers.find(m => m.user_id === userId);
-        const myOnboardingStatus = verifiedOnboardingStatus || (myMember as any)?.onboarding_status || 'pending';
-        const playerOnboardingNeeded = !isPartyCreator && myOnboardingStatus !== 'complete';
 
-        const showPlayerOnboarding = playerOnboardingNeeded
-          && (myOnboardingStatus === 'in_progress' || myOnboardingStatus === 'pending' || forceShowOnboarding)
-          && !justAppliedOnboarding;
-        if (!showPlayerOnboarding) return null;
 
-        const hostMember = partyMembers.find(m => m.user_id !== userId && (m as any).onboarding_status === 'complete')
-          || partyMembers.find(m => m.user_id !== userId);
-        const campaignPlan = (partyDm.sessionConfig as any)?.campaignSummary || '';
-        const hostStatus = (hostMember as any)?.character_status || {};
-        const hostCharacterSummary = hostMember
-          ? `Host's character: ${hostMember.character_name}${hostStatus?.signet_type ? ` (signet: ${hostStatus.signet_type})` : ''}${hostStatus?.dragon_name ? `, bonded to ${hostStatus.dragon_name}` : ''}.`
-          : '';
-
-        return (
-          <PlayerOnboardingScreen
-            open={showPlayerOnboarding}
-            partyId={partyId}
-            userId={userId}
-            campaignPlan={campaignPlan}
-            hostCharacterSummary={hostCharacterSummary}
-            playerExistingCharacter={playerExistingCharacter}
-            campaignType={partyCampaignType === 'empyrean' ? 'empyrean' : 'dnd'}
-            onComplete={() => {
-              setForceShowOnboarding(false);
-              setJustAppliedOnboarding(true);
-            }}
-          />
-        );
-      })()}
 
 
       <PlayerRedoRequestDialog
