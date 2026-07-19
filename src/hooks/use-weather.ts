@@ -112,8 +112,12 @@ export function useWeather() {
 
   // Init on mount
   useEffect(() => {
-    if (enabled) resolveAndFetch();
+    if (!enabled) return;
+    const cached = loadCache();
+    if (cached) setWeather(cached.data);
+    resolveAndFetch();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   const refresh = useCallback(() => {
     if (!enabled) return;
