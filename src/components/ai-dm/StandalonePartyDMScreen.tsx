@@ -117,7 +117,6 @@ export function StandalonePartyDMScreen({
   const [showDirectorEscalationsPanel, setShowDirectorEscalationsPanel] = useState(false);
   const onboardingRequests = usePartyOnboardingRequests({ partyId });
   const directorEscalations = usePartyDirectorEscalations({ partyId });
-  const promotedToInProgressRef = useRef(false);
 
   // Auto-open campaign builder when triggered from home screen
   useEffect(() => {
@@ -126,78 +125,7 @@ export function StandalonePartyDMScreen({
     }
   }, [autoOpenCampaignBuilder, isPartyCreator]);
 
-  // Late-joiner: promote 'pending' onboarding_status to 'in_progress' once when overlay opens
-  useEffect(() => {
-    if (promotedToInProgressRef.current) return;
-    if (isPartyCreator) return;
-    if (!partyId || !userId) return;
-    const myMember = partyMembers.find(m => m.user_id === userId);
-    const myOnboardingStatus = (myMember as any)?.onboarding_status || 'pending';
-    if (myOnboardingStatus !== 'pending') return;
-    promotedToInProgressRef.current = true;
-    supabase
-      .from('party_members')
-      .update({
-        onboarding_status: 'in_progress',
-        onboarding_started_at: new Date().toISOString(),
-      })
-      .eq('party_id', partyId)
-      .eq('user_id', userId)
-      .then(({ error }) => {
-        if (error) {
-          console.error('[late-joiner] promote to in_progress failed:', error);
-        }
-      });
-  }, [partyMembers, isPartyCreator, partyId, userId]);
 
-  // Fast path: once realtime confirms completion via the shared partyMembers array,
-  // record it as verified and drop the suppression flag.
-  useEffect(() => {
-    if (!partyId || !userId) return;
-    const myMember = partyMembers.find(m => m.user_id === userId);
-    const status = (myMember as any)?.onboarding_status;
-    if (status) {
-      setVerifiedOnboardingStatus(status);
-    }
-    if (justAppliedOnboarding && status === 'complete') {
-      setJustAppliedOnboarding(false);
-    }
-  }, [justAppliedOnboarding, partyMembers, userId, partyId]);
-
-  // Safety net: if realtime hasn't confirmed within 10s, do NOT blindly drop the flag —
-  // verify directly against the database first. This closes the race that was bouncing
-  // players back into onboarding after they'd already completed it.
-  useEffect(() => {
-    if (!justAppliedOnboarding || !partyId || !userId) return;
-    const t = setTimeout(async () => {
-      try {
-        const { data, error } = await supabase
-          .from('party_members')
-          .select('onboarding_status')
-          .eq('party_id', partyId)
-          .eq('user_id', userId)
-          .maybeSingle();
-        if (error) {
-          console.error('[onboarding-verify] fresh read failed:', error);
-          // Unknown state — do NOT drop the suppression on an inconclusive read.
-          // Better to stay suppressed a little longer than to falsely re-show onboarding.
-          return;
-        }
-        const freshStatus = (data as any)?.onboarding_status;
-        if (freshStatus === 'complete') {
-          setVerifiedOnboardingStatus('complete');
-          setJustAppliedOnboarding(false);
-        } else {
-          // Write genuinely hasn't landed yet (or failed). Keep suppression active and
-          // check again shortly rather than exposing the player to a false re-onboard.
-          console.warn('[onboarding-verify] status still not complete after 10s:', freshStatus);
-        }
-      } catch (e) {
-        console.error('[onboarding-verify] unexpected error:', e);
-      }
-    }, 10000);
-    return () => clearTimeout(t);
-  }, [justAppliedOnboarding, partyId, userId]);
 
 
   // Fetch + subscribe to parties.campaign_started and parties.campaign_type
