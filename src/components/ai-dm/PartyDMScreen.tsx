@@ -1142,10 +1142,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
   }, [partyDm.activeMoodPresetId, spotify.connected, spotify]);
 
-  // AI situation detection for party mode (independent of Spotify)
+  // AI situation detection for party mode (Auto-Mood)
   const lastSituationMsgIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!isEmpyrean) return;
+    // Auto-mood runs for ALL party campaigns (D&D and Empyrean), but only when the
+    // user has Auto-Mood enabled and Spotify is connected.
+    if (!spotify.autoMoodEnabled) return;
+    if (!spotify.connected) return;
+
     const msgs = partyDm.messages;
     if (msgs.length === 0) return;
     const lastMsg = msgs[msgs.length - 1];
@@ -1166,14 +1170,32 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           if (res.ok) {
             const data = await res.json();
             if (data.situation) {
-              setPartySituation(data.situation);
-              spotify.playPresetById(data.situation);
+              let situationId = data.situation;
+              if (!isEmpyrean) {
+                const CORE = ['combat', 'exploration', 'social', 'downtime'];
+                if (!CORE.includes(situationId)) {
+                  // Map Empyrean/other situations to the nearest D&D preset.
+                  const MAP: Record<string, string> = {
+                    flight: 'exploration',
+                    stealth: 'exploration',
+                    investigation: 'exploration',
+                    political: 'social',
+                    ritual: 'downtime',
+                    training: 'combat',
+                    crisis: 'combat',
+                    wardline: 'combat',
+                  };
+                  situationId = MAP[situationId] || 'exploration';
+                }
+              }
+              setPartySituation(situationId);
+              spotify.playPresetById(situationId);
             }
           }
         } catch { /* non-blocking — best effort */ }
       })();
     }
-  }, [partyDm.messages, isEmpyrean]);
+  }, [partyDm.messages, spotify.autoMoodEnabled, spotify.connected]);
 
   // Cinematic slideshow trigger: detect new assistant DM messages
   useEffect(() => {
