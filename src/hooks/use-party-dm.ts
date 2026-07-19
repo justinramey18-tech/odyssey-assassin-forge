@@ -974,7 +974,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       team: (isSplitActive && myTeam) ? myTeam : null,
       signet_intensity: signetIntensity ?? null,
     };
-    setCurrentPrompts(prev => [...prev, optimisticPrompt]);
+    setCurrentPrompts(prev => [...prev.filter(p => p.user_id !== user.id), optimisticPrompt]);
+    // Remove any prior prompt for this user in this round to avoid duplicate rows.
+    await (supabase.from('party_dm_prompts') as any)
+      .delete()
+      .eq('party_id', partyId)
+      .eq('user_id', user.id)
+      .eq('round_id', resolvedConfig.currentRoundId);
     const { error } = await (supabase.from('party_dm_prompts') as any).insert(insertData);
     if (error) {
       // Rollback optimistic update on failure
