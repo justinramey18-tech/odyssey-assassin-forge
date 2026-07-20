@@ -40,6 +40,10 @@ export interface Crossover {
   mySide: 'a' | 'b';
   otherCharacterName: string;
   otherStoryDigest: string | null;
+  liveBeatA?: string | null;
+  liveBeatAAt?: string | null;
+  liveBeatB?: string | null;
+  liveBeatBAt?: string | null;
 }
 
 export type RelationKind = 'ally' | 'friend' | 'rival' | 'enemy' | 'owes-you' | 'you-owe-them' | 'acquaintance';
