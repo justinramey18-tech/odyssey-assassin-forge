@@ -1934,6 +1934,7 @@ export type Database = {
           digest_updated_at: string | null
           id: string
           joined_at: string
+          region: string | null
           story_digest: string | null
           universe_id: string
           user_id: string
@@ -1946,6 +1947,7 @@ export type Database = {
           digest_updated_at?: string | null
           id?: string
           joined_at?: string
+          region?: string | null
           story_digest?: string | null
           universe_id: string
           user_id: string
@@ -1958,6 +1960,7 @@ export type Database = {
           digest_updated_at?: string | null
           id?: string
           joined_at?: string
+          region?: string | null
           story_digest?: string | null
           universe_id?: string
           user_id?: string

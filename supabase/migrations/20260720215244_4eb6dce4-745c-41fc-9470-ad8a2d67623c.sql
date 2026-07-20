@@ -1,0 +1,1 @@
+ALTER TABLE public.universe_members ADD COLUMN IF NOT EXISTS region text;
