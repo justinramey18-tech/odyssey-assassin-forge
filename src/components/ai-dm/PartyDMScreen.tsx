@@ -1699,10 +1699,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         character_alignment: alignment,
         character_bonds: bonds,
         character_flaws: flaws,
+        model: (partyDm.sessionConfig as any)?.model || undefined,
       },
     });
-    if (error) throw error;
-    if ((data as any)?.error) throw new Error((data as any).error);
+    if (error || (data as any)?.error) {
+      const detail = (data as any)?.error || error?.message || '';
+      throw new Error(
+        detail.includes('did not produce') || detail.includes('gateway') || detail.includes('non-2xx')
+          ? "Couldn't generate suggestions for this scene — it may be too intense for the suggestion helper. Try writing your own move, or tap Regenerate."
+          : (detail || "Couldn't generate suggestions right now. Try again.")
+      );
+    }
     if (!Array.isArray((data as any)?.pills)) throw new Error('Invalid response from suggestion generator.');
     return (data as any).pills;
   }, [partyDm.messages, (partyDm.sessionConfig as any)?.campaignSummary, members, currentUserId, myDriftZone, myAlignmentHistoryCount]);
