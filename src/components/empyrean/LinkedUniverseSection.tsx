@@ -398,6 +398,9 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
                     <span className="px-1.5 py-0.5 rounded bg-black/40 border border-slate-700/60 text-white/70">
                       {vis}
                     </span>
+                    <span className="px-1.5 py-0.5 rounded bg-black/40 border border-amber-400/30 text-amber-200/90" title="This rider's current in-fiction day">
+                      Day {m.storyDay ?? 0}
+                    </span>
                   </div>
                   {isMe && (
                     <div className="flex items-center gap-1.5 pt-0.5">
