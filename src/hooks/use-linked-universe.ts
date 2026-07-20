@@ -12,6 +12,7 @@ export interface UniverseMember {
   digestUpdatedAt: string | null;
   visibility: string;
   region: string | null;
+  storyDay: number;
 }
 
 export interface UniverseEvent {
@@ -21,6 +22,7 @@ export interface UniverseEvent {
   importance: number;
   createdAt: string | null;
   createdByName: string | null;
+  occurredOnDay: number;
 }
 
 export interface Crossover {
