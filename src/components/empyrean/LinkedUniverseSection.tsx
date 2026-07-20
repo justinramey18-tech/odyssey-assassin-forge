@@ -204,6 +204,11 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
   const [crossoverPremise, setCrossoverPremise] = useState('');
   const [regionDraft, setRegionDraft] = useState('');
   const [savingRegion, setSavingRegion] = useState(false);
+  const [dayDraft, setDayDraft] = useState<string>('');
+  const [savingDay, setSavingDay] = useState(false);
+  useEffect(() => {
+    setDayDraft(String(myStoryDay ?? 0));
+  }, [myStoryDay, ownMember?.id]);
   useEffect(() => {
     setDigestDraft(ownMember?.storyDigest ?? '');
   }, [ownMember?.id, ownMember?.storyDigest]);
