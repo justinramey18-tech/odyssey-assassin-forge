@@ -516,9 +516,16 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     return prompt;
   }, [gameState, weather]);
 
+  // Linked Universe — uses gameStateCampaignId (synced from activeCampaignId) to avoid ordering cycle with useAIDM
+  const linkedUniverse = useLinkedUniverse({ campaignId: gameStateCampaignId });
+  const combinedGuidesContent = useMemo(
+    () => [gmGuides.enabledContent, linkedUniverse.universeContext].filter(Boolean).join('\n\n'),
+    [gmGuides.enabledContent, linkedUniverse.universeContext]
+  );
+
   const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, voiceNPC, addMediaMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, editMessage, deleteMessage, regenerateMessage, lastUsage, sessionUsage } = useAIDM({
     characterContext,
-    customGuidesContent: gmGuides.enabledContent,
+    customGuidesContent: combinedGuidesContent,
     worldStatePrompt,
     dmPersonaPrompt,
     responseModePrompt: resolveResponseModePrompt(responseMode) || undefined,
@@ -1205,6 +1212,13 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         onChatThemeChange={setChatTheme}
         whisperTrayEnabled={whisperTrayEnabled}
         onWhisperTrayEnabledChange={setWhisperTrayEnabled}
+        linkedUniverseSection={
+          <LinkedUniverseSection
+            campaignId={activeCampaignId}
+            characterName={characterName || 'Adventurer'}
+            controller={linkedUniverse}
+          />
+        }
       />
 
       {/* GM Guides Overlay */}
