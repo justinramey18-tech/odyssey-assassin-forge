@@ -607,13 +607,19 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
 
     for (const { m, tier } of finalScoped) {
       const regionTag = m.region?.trim() ? ` [${m.region.trim()}]` : '';
+      const rel = relationshipByMember.get(m.id);
+      const historyLine = rel
+        ? `YOUR HISTORY WITH THEM: ${RELATION_LABELS[rel.relation]}${rel.note ? ` — ${rel.note}` : ''}`
+        : null;
       if (tier === 'headline') {
         const firstLine = m.storyDigest!.split('\n').map(s => s.trim()).find(s => s.length > 0) || '';
         lines.push(`• ${m.characterName}${regionTag} is also in this world: ${firstLine}`);
+        if (historyLine) lines.push(`  ${historyLine}`);
         lines.push('');
       } else {
         lines.push(`--- LINKED RIDER: ${m.characterName}${regionTag} (played by another player) ---`);
         lines.push(m.storyDigest!.trim());
+        if (historyLine) lines.push(historyLine);
         lines.push('');
       }
     }
@@ -624,9 +630,10 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     lines.push('2. Direct scenes with a linked character should be brief — their player controls their words and choices in spirit.');
     lines.push('3. Any world-changing events you narrate should stay consistent with the SHARED CANON list above.');
     lines.push('4. If details conflict, favor the SHARED CANON list.');
+    lines.push('5. When YOUR HISTORY WITH THEM is provided, weave that prior bond or grudge into how they behave toward the player — reference past dealings naturally.');
 
     return lines.join('\n');
-  }, [state.universe, state.members, state.events, campaignId, ownMember?.region]);
+  }, [state.universe, state.members, state.events, campaignId, ownMember?.region, relationshipByMember]);
 
   const requestCrossover = useCallback(async (toMemberId: string, scenePremise: string) => {
     const cid = campaignRef.current;
