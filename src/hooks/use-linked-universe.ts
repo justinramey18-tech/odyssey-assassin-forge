@@ -14,9 +14,12 @@ export interface UniverseMember {
 }
 
 export interface UniverseEvent {
+  id: string;
   eventText: string;
   eventType: string;
   importance: number;
+  createdAt: string | null;
+  createdByName: string | null;
 }
 
 export interface LinkedUniverseState {
