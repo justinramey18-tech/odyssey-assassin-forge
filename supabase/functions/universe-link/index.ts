@@ -353,6 +353,8 @@ Deno.serve(async (req) => {
           .eq('id', membership.universe_id);
       }
       return json({ success: true, storyDay });
+    }
+
 
     if (action === 'setRelationship') {
       const { fromCampaignId, toMemberId, relation, note } = body;
