@@ -548,6 +548,11 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
                                   Major
                                 </span>
                               )}
+                              {ev.occurredOnDay > 0 && (
+                                <span className="text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-black/50 text-amber-200/90 border border-amber-400/25">
+                                  Day {ev.occurredOnDay}
+                                </span>
+                              )}
                               <span className="text-[10px] text-white/45">{timeAgo(ev.createdAt)}</span>
                             </div>
                             <p className="text-[12px] text-white/85 leading-snug break-words">
