@@ -322,6 +322,7 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     ownMember,
     saveMyDigest,
     generateDigestFromSummary,
+    checkConflict,
     universeContext,
     isSignedIn: !!user,
   };
