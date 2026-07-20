@@ -742,6 +742,7 @@ TIME rules — "dayAdvance": Estimate how many in-fiction DAYS passed during the
       const crossovers = (rows || []).map((r: any) => {
         const iAmFrom = r.from_member === me.id;
         const other = memMap.get(iAmFrom ? r.to_member : r.from_member);
+        const mine = memMap.get(iAmFrom ? r.from_member : r.to_member);
         return {
           id: r.id,
           universeId: r.universe_id,
@@ -751,6 +752,13 @@ TIME rules — "dayAdvance": Estimate how many in-fiction DAYS passed during the
           status: r.status,
           narrationA: r.narration_a,
           narrationB: r.narration_b,
+          liveBeatA: r.live_beat_a,
+          liveBeatAAt: r.live_beat_a_at,
+          liveBeatB: r.live_beat_b,
+          liveBeatBAt: r.live_beat_b_at,
+          fromCharacterName: memMap.get(r.from_member)?.character_name ?? 'Unknown Rider',
+          toCharacterName: memMap.get(r.to_member)?.character_name ?? 'Unknown Rider',
+          myCharacterName: mine?.character_name ?? null,
           createdAt: r.created_at,
           resolvedAt: r.resolved_at,
           direction: iAmFrom ? 'outgoing' : 'incoming',
@@ -762,6 +770,7 @@ TIME rules — "dayAdvance": Estimate how many in-fiction DAYS passed during the
 
       return json({ crossovers, myMemberId: me.id });
     }
+
 
     if (action === 'saveCrossoverNarration') {
       const { crossoverId, side, narration, relation, note } = body;
