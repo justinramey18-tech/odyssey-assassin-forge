@@ -1983,6 +1983,61 @@ export type Database = {
           },
         ]
       }
+      universe_relationships: {
+        Row: {
+          created_at: string
+          id: string
+          member_a: string
+          member_b: string
+          note: string | null
+          relation: string
+          universe_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          member_a: string
+          member_b: string
+          note?: string | null
+          relation?: string
+          universe_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          member_a?: string
+          member_b?: string
+          note?: string | null
+          relation?: string
+          universe_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "universe_relationships_member_a_fkey"
+            columns: ["member_a"]
+            isOneToOne: false
+            referencedRelation: "universe_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "universe_relationships_member_b_fkey"
+            columns: ["member_b"]
+            isOneToOne: false
+            referencedRelation: "universe_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "universe_relationships_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "linked_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
