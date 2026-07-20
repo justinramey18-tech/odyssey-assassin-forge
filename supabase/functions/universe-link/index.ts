@@ -572,7 +572,7 @@ TIME rules — "dayAdvance": Estimate how many in-fiction DAYS passed during the
         console.error('event extraction failed (non-blocking)', e);
       }
 
-      return json({ success: true, digest, eventsAdded });
+      return json({ success: true, digest, eventsAdded, dayAdvance, storyDay: newStoryDay });
     }
 
     if (action === 'flagConflict') {
