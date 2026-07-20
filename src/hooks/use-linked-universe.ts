@@ -83,16 +83,21 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     }
     setState(prev => ({ ...prev, isLoading: true }));
     try {
-      const res = await invoke('status', { campaignId: cid });
-      if (res.error || res.data?.error) {
+      const [statusRes, cxRes] = await Promise.all([
+        invoke('status', { campaignId: cid }),
+        invoke('listCrossovers', { campaignId: cid }),
+      ]);
+      if (statusRes.error || statusRes.data?.error) {
         setState({ ...DEFAULT_STATE, isLoading: false });
         return;
       }
-      const { universe, members, events } = res.data || {};
+      const { universe, members, events } = statusRes.data || {};
       if (!universe) {
         setState({ ...DEFAULT_STATE, isLoading: false });
         return;
       }
+      const crossovers = (cxRes.data?.crossovers || []) as Crossover[];
+      const myMemberId = (cxRes.data?.myMemberId as string) || null;
       setState({
         universe: {
           id: universe.id,
@@ -116,6 +121,8 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
           createdAt: e.created_at ?? null,
           createdByName: e.created_by_name ?? null,
         })),
+        crossovers,
+        myMemberId,
         isLoading: false,
       });
     } catch {
