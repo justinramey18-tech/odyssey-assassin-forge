@@ -64,7 +64,7 @@ export interface UniverseRelationship {
 }
 
 export interface LinkedUniverseState {
-  universe: { id: string; name: string; linkCode: string } | null;
+  universe: { id: string; name: string; linkCode: string; currentDay: number } | null;
   members: UniverseMember[];
   events: UniverseEvent[];
   crossovers: Crossover[];
