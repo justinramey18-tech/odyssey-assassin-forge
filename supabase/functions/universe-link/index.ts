@@ -314,6 +314,46 @@ Deno.serve(async (req) => {
       return json({ success: true, region });
     }
 
+    if (action === 'setStoryDay') {
+      const { campaignId } = body;
+      let storyDay = parseInt(String(body.storyDay ?? 0), 10);
+      if (!Number.isFinite(storyDay)) storyDay = 0;
+      if (storyDay < 0) storyDay = 0;
+      if (storyDay > 100000) storyDay = 100000;
+      if (!campaignId) return json({ error: 'campaignId required' }, 400);
+      if (!(await verifyCampaignOwnership(campaignId))) {
+        return json({ error: 'You do not own this campaign' }, 403);
+      }
+
+      const { data: membership } = await supabase
+        .from('universe_members')
+        .select('id, universe_id')
+        .eq('campaign_id', campaignId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!membership) return json({ error: 'Campaign is not linked to a universe' }, 404);
+
+      const { error: mErr } = await supabase
+        .from('universe_members')
+        .update({ story_day: storyDay })
+        .eq('id', membership.id);
+      if (mErr) return json({ error: mErr.message }, 500);
+
+      // Bump universe clock if this rider is furthest ahead
+      const { data: uni } = await supabase
+        .from('linked_universes')
+        .select('current_day')
+        .eq('id', membership.universe_id)
+        .maybeSingle();
+      const cur = uni?.current_day ?? 0;
+      if (storyDay > cur) {
+        await supabase
+          .from('linked_universes')
+          .update({ current_day: storyDay })
+          .eq('id', membership.universe_id);
+      }
+      return json({ success: true, storyDay });
+
     if (action === 'setRelationship') {
       const { fromCampaignId, toMemberId, relation, note } = body;
       if (!fromCampaignId || !toMemberId) return json({ error: 'fromCampaignId and toMemberId required' }, 400);
