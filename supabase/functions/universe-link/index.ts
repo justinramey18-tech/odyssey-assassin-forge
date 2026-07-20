@@ -300,6 +300,44 @@ Deno.serve(async (req) => {
 
       if (updateErr) return json({ error: updateErr.message }, 500);
       return json({ success: true, region });
+    }
+
+    if (action === 'setRelationship') {
+      const { fromCampaignId, toMemberId, relation, note } = body;
+      if (!fromCampaignId || !toMemberId) return json({ error: 'fromCampaignId and toMemberId required' }, 400);
+      const ALLOWED = ['ally', 'friend', 'rival', 'enemy', 'owes-you', 'you-owe-them', 'acquaintance'];
+      const rel = typeof relation === 'string' && ALLOWED.includes(relation) ? relation : 'acquaintance';
+      const cleanNote = typeof note === 'string' ? note.trim().slice(0, 500) || null : null;
+      if (!(await verifyCampaignOwnership(fromCampaignId))) return json({ error: 'You do not own this campaign' }, 403);
+
+      const fromMember = await memberFromCampaign(fromCampaignId);
+      if (!fromMember) return json({ error: 'Campaign not linked to a universe' }, 404);
+
+      const { data: toMember } = await supabase
+        .from('universe_members')
+        .select('id, universe_id')
+        .eq('id', toMemberId)
+        .maybeSingle();
+      if (!toMember || toMember.universe_id !== fromMember.universe_id) {
+        return json({ error: 'Target rider is not in this universe' }, 400);
+      }
+      if (toMember.id === fromMember.id) {
+        return json({ error: 'You cannot set a relationship with yourself' }, 400);
+      }
+
+      const { error: upErr } = await supabase
+        .from('universe_relationships')
+        .upsert({
+          universe_id: fromMember.universe_id,
+          member_a: fromMember.id,
+          member_b: toMember.id,
+          relation: rel,
+          note: cleanNote,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'universe_id,member_a,member_b' });
+      if (upErr) return json({ error: upErr.message }, 500);
+      return json({ success: true, relation: rel, note: cleanNote });
+    }
 
     if (action === 'generateDigest') {
       const { campaignId, campaignSummary, characterName } = body;
