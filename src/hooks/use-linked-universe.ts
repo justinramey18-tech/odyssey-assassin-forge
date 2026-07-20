@@ -674,6 +674,8 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     markSeen,
     myVisibility,
     setVisibility,
+    myRegion,
+    setRegion,
     isSignedIn: !!user,
   };
 
