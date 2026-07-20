@@ -459,6 +459,168 @@ EVENTS rules: ONLY include things that would be visible or consequential to OTHE
       }
     }
 
+    // ============ CROSSOVERS ============
+    async function memberFromCampaign(campaignId: string) {
+      const { data } = await supabase
+        .from('universe_members')
+        .select('id, universe_id, character_name')
+        .eq('campaign_id', campaignId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      return data;
+    }
+
+    if (action === 'requestCrossover') {
+      const { fromCampaignId, toMemberId, scenePremise } = body;
+      if (!fromCampaignId || !toMemberId) return json({ error: 'fromCampaignId and toMemberId required' }, 400);
+      if (!(await verifyCampaignOwnership(fromCampaignId))) return json({ error: 'You do not own this campaign' }, 403);
+
+      const fromMember = await memberFromCampaign(fromCampaignId);
+      if (!fromMember) return json({ error: 'Campaign not linked to a universe' }, 404);
+
+      const { data: toMember } = await supabase
+        .from('universe_members')
+        .select('id, universe_id')
+        .eq('id', toMemberId)
+        .maybeSingle();
+      if (!toMember || toMember.universe_id !== fromMember.universe_id) {
+        return json({ error: 'Target rider is not in this universe' }, 400);
+      }
+      if (toMember.id === fromMember.id) {
+        return json({ error: 'You cannot request a crossover with yourself' }, 400);
+      }
+
+      const { data: inserted, error: insErr } = await supabase
+        .from('crossover_requests')
+        .insert({
+          universe_id: fromMember.universe_id,
+          from_member: fromMember.id,
+          to_member: toMember.id,
+          scene_premise: typeof scenePremise === 'string' ? scenePremise.slice(0, 500) : null,
+          status: 'pending',
+        })
+        .select()
+        .single();
+      if (insErr) return json({ error: insErr.message }, 500);
+      return json({ crossover: inserted });
+    }
+
+    if (action === 'respondCrossover') {
+      const { crossoverId, accept } = body;
+      if (!crossoverId) return json({ error: 'crossoverId required' }, 400);
+
+      const { data: cx } = await supabase
+        .from('crossover_requests')
+        .select('id, to_member, status')
+        .eq('id', crossoverId)
+        .maybeSingle();
+      if (!cx) return json({ error: 'Crossover not found' }, 404);
+      if (cx.status !== 'pending') return json({ error: 'Already resolved' }, 400);
+
+      const { data: toM } = await supabase
+        .from('universe_members')
+        .select('user_id')
+        .eq('id', cx.to_member)
+        .maybeSingle();
+      if (!toM || toM.user_id !== user.id) return json({ error: 'Only the invited rider can respond' }, 403);
+
+      const newStatus = accept ? 'accepted' : 'declined';
+      const { error: upErr } = await supabase
+        .from('crossover_requests')
+        .update({ status: newStatus, resolved_at: accept ? null : new Date().toISOString() })
+        .eq('id', crossoverId);
+      if (upErr) return json({ error: upErr.message }, 500);
+      return json({ success: true, status: newStatus });
+    }
+
+    if (action === 'listCrossovers') {
+      const { campaignId } = body;
+      if (!campaignId) return json({ error: 'campaignId required' }, 400);
+      const me = await memberFromCampaign(campaignId);
+      if (!me) return json({ crossovers: [] });
+
+      const { data: rows } = await supabase
+        .from('crossover_requests')
+        .select('*')
+        .eq('universe_id', me.universe_id)
+        .or(`from_member.eq.${me.id},to_member.eq.${me.id}`)
+        .order('created_at', { ascending: false })
+        .limit(30);
+
+      const memberIds = new Set<string>();
+      (rows || []).forEach((r: any) => { memberIds.add(r.from_member); memberIds.add(r.to_member); });
+      const { data: memberRows } = memberIds.size
+        ? await supabase
+            .from('universe_members')
+            .select('id, character_name, story_digest, campaign_id')
+            .in('id', Array.from(memberIds))
+        : { data: [] as any[] };
+      const memMap = new Map<string, any>();
+      (memberRows || []).forEach((m: any) => memMap.set(m.id, m));
+
+      const crossovers = (rows || []).map((r: any) => {
+        const iAmFrom = r.from_member === me.id;
+        const other = memMap.get(iAmFrom ? r.to_member : r.from_member);
+        return {
+          id: r.id,
+          universeId: r.universe_id,
+          fromMember: r.from_member,
+          toMember: r.to_member,
+          scenePremise: r.scene_premise,
+          status: r.status,
+          narrationA: r.narration_a,
+          narrationB: r.narration_b,
+          createdAt: r.created_at,
+          resolvedAt: r.resolved_at,
+          direction: iAmFrom ? 'outgoing' : 'incoming',
+          mySide: iAmFrom ? 'a' : 'b',
+          otherCharacterName: other?.character_name ?? 'Unknown Rider',
+          otherStoryDigest: other?.story_digest ?? null,
+        };
+      });
+
+      return json({ crossovers, myMemberId: me.id });
+    }
+
+    if (action === 'saveCrossoverNarration') {
+      const { crossoverId, side, narration } = body;
+      if (!crossoverId || (side !== 'a' && side !== 'b') || typeof narration !== 'string') {
+        return json({ error: 'crossoverId, side (a|b), narration required' }, 400);
+      }
+
+      const { data: cx } = await supabase
+        .from('crossover_requests')
+        .select('*')
+        .eq('id', crossoverId)
+        .maybeSingle();
+      if (!cx) return json({ error: 'Crossover not found' }, 404);
+
+      const memberIdForSide = side === 'a' ? cx.from_member : cx.to_member;
+      const { data: memberRow } = await supabase
+        .from('universe_members')
+        .select('user_id')
+        .eq('id', memberIdForSide)
+        .maybeSingle();
+      if (!memberRow || memberRow.user_id !== user.id) {
+        return json({ error: 'You may only save your own side' }, 403);
+      }
+
+      const trimmed = narration.slice(0, 8000);
+      const patch: Record<string, unknown> = side === 'a' ? { narration_a: trimmed } : { narration_b: trimmed };
+      const bothPresent = side === 'a' ? (trimmed && cx.narration_b) : (cx.narration_a && trimmed);
+      if (bothPresent) {
+        patch.status = 'completed';
+        patch.resolved_at = new Date().toISOString();
+      }
+
+      const { error: upErr } = await supabase
+        .from('crossover_requests')
+        .update(patch)
+        .eq('id', crossoverId);
+      if (upErr) return json({ error: upErr.message }, 500);
+      return json({ success: true, completed: !!bothPresent });
+    }
+
     return json({ error: 'Unknown action' }, 400);
   } catch (err) {
     return json({ error: (err as Error).message }, 500);
