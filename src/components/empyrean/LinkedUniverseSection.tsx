@@ -215,38 +215,94 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
         <div>
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-white/50 mb-1.5">
             <Users className="w-3 h-3" />
-            Linked Riders ({members.length})
+            Roster ({members.length})
           </div>
           <div className="space-y-1.5">
-            {members.map(m => (
-              <div
-                key={m.id}
-                className="rounded-md border border-slate-700/50 bg-black/25 px-2.5 py-2"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-white/90 truncate">
-                    {m.characterName}
-                    {m.campaignId === campaignId && (
-                      <span className="ml-1.5 text-[10px] text-amber-300/70">(you)</span>
-                    )}
-                  </span>
-                  {m.digestUpdatedAt && (
-                    <span className="text-[10px] text-white/50 shrink-0">
-                      {timeAgo(m.digestUpdatedAt)}
+            {members.map(m => {
+              const isMe = m.campaignId === campaignId;
+              const vis = m.visibility === 'hidden' ? 'Hidden' : m.visibility === 'headline' ? 'Headline' : 'Full';
+              return (
+                <div
+                  key={m.id}
+                  className="rounded-md border border-slate-700/50 bg-black/25 px-2.5 py-2 space-y-1.5"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-white/90 truncate">
+                      {m.characterName}
+                      {isMe && (
+                        <span className="ml-1.5 text-[10px] text-amber-300/70">(you)</span>
+                      )}
                     </span>
+                    {m.digestUpdatedAt && (
+                      <span className="text-[10px] text-white/50 shrink-0">
+                        {timeAgo(m.digestUpdatedAt)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/40 border border-slate-700/60 text-white/70">
+                      <MapPin className="w-3 h-3 text-amber-300/70" />
+                      {m.region?.trim() || 'Global'}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded bg-black/40 border border-slate-700/60 text-white/70">
+                      {vis}
+                    </span>
+                  </div>
+                  {isMe && (
+                    <div className="flex items-center gap-1.5 pt-0.5">
+                      <Input
+                        value={regionDraft}
+                        onChange={(e) => setRegionDraft(e.target.value.slice(0, 64))}
+                        placeholder="Set your region — e.g. Basgiath, The Front"
+                        className="h-9 bg-black/40 border-slate-700 text-xs flex-1"
+                        maxLength={64}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="min-h-[36px] px-2 text-[11px] border-amber-400/30 text-amber-200 hover:bg-amber-500/10"
+                        disabled={savingRegion || (regionDraft.trim() || null) === (m.region ?? null)}
+                        onClick={async () => {
+                          setSavingRegion(true);
+                          await setRegion(regionDraft.trim() ? regionDraft.trim() : null);
+                          setSavingRegion(false);
+                        }}
+                      >
+                        Save
+                      </Button>
+                      {(m.region || regionDraft) && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="min-h-[36px] px-2 text-[11px] text-white/60"
+                          disabled={savingRegion}
+                          onClick={async () => {
+                            setSavingRegion(true);
+                            setRegionDraft('');
+                            await setRegion(null);
+                            setSavingRegion(false);
+                          }}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  {!m.storyDigest && (
+                    <p className="text-[11px] text-muted-foreground italic">
+                      No story shared yet
+                    </p>
                   )}
                 </div>
-                {!m.storyDigest && (
-                  <p className="text-[11px] text-muted-foreground italic mt-0.5">
-                    No story shared yet
-                  </p>
-                )}
-              </div>
-            ))}
+              );
+            })}
             {members.length === 0 && (
               <p className="text-xs text-muted-foreground italic">No linked riders yet.</p>
             )}
           </div>
+          <p className="text-[10px] text-white/40 italic mt-1.5 leading-snug">
+            Region is optional. With a region set, your DM prioritizes same-region riders in context.
+          </p>
         </div>
 
         {/* Rumor Feed — read-only shared canon */}
