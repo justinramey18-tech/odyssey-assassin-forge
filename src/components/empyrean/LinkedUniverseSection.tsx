@@ -159,6 +159,77 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
           </div>
         </div>
 
+        {/* Rumor Feed — read-only shared canon */}
+        <div className="rounded-md border border-slate-700/60 bg-black/25">
+          <button
+            onClick={() => setRumorOpen(v => !v)}
+            className="w-full min-h-[44px] flex items-center justify-between px-3 py-2 text-left"
+          >
+            <span className="flex items-center gap-1.5 text-xs uppercase tracking-widest text-white/70">
+              <Radio className="w-3.5 h-3.5 text-amber-300/80" />
+              Rumor Feed
+              {rumorFeed.length > 0 && (
+                <span className="ml-1 text-[10px] text-amber-300/70 normal-case tracking-normal">
+                  ({rumorFeed.length})
+                </span>
+              )}
+            </span>
+            {rumorOpen ? <ChevronUp className="w-4 h-4 text-white/60" /> : <ChevronDown className="w-4 h-4 text-white/60" />}
+          </button>
+          {rumorOpen && (
+            <div className="px-3 pb-3">
+              {rumorFeed.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground italic leading-snug">
+                  No rumors yet. As linked riders play, world events will appear here.
+                </p>
+              ) : (
+                <div className="max-h-[280px] overflow-y-auto space-y-1.5 pr-1">
+                  {rumorFeed.map(ev => {
+                    const Icon =
+                      ev.eventType === 'location' ? MapPin :
+                      ev.eventType === 'npc' ? UserIcon :
+                      ev.eventType === 'death' ? Skull :
+                      ev.eventType === 'crossover' ? Link2 :
+                      ScrollText;
+                    const isMajor = ev.importance >= 3;
+                    return (
+                      <div
+                        key={ev.id}
+                        className={`rounded-md bg-black/30 px-2.5 py-2 border-l-2 ${
+                          isMajor ? 'border-amber-400/70' : 'border-slate-600/50'
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <Icon className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${isMajor ? 'text-amber-300' : 'text-white/50'}`} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                              {isMajor && (
+                                <span className="text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-200 border border-amber-400/30">
+                                  Major
+                                </span>
+                              )}
+                              <span className="text-[10px] text-white/45">{timeAgo(ev.createdAt)}</span>
+                            </div>
+                            <p className="text-[12px] text-white/85 leading-snug break-words">
+                              {ev.eventText}
+                            </p>
+                            {ev.createdByName && (
+                              <p className="text-[10px] text-white/40 italic mt-0.5">
+                                — via {ev.createdByName}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+
         {ownMember && (
           <div className="rounded-md border border-slate-700/60 bg-black/25">
             <button
