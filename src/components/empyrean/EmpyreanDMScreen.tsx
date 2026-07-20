@@ -968,6 +968,33 @@ ${oocLines}`;
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Auto-save crossover narration when the DM responds after a "Play this scene" activation
+  const crossoverCaptureRef = useRef<{ id: string; side: 'a' | 'b'; lastMsgIdBefore: string | null } | null>(null);
+  useEffect(() => {
+    if (linkedUniverse.activeCrossoverId && linkedUniverse.activeCrossover) {
+      if (!crossoverCaptureRef.current || crossoverCaptureRef.current.id !== linkedUniverse.activeCrossoverId) {
+        const lastId = messages.length ? messages[messages.length - 1].id : null;
+        crossoverCaptureRef.current = {
+          id: linkedUniverse.activeCrossoverId,
+          side: linkedUniverse.activeCrossover.mySide,
+          lastMsgIdBefore: lastId,
+        };
+      }
+    }
+  }, [linkedUniverse.activeCrossoverId, linkedUniverse.activeCrossover, messages]);
+
+  useEffect(() => {
+    const capture = crossoverCaptureRef.current;
+    if (!capture || isLoading || messages.length === 0) return;
+    const last = messages[messages.length - 1];
+    if (last.role !== 'assistant' || !last.content?.trim()) return;
+    if (last.id === capture.lastMsgIdBefore) return;
+    linkedUniverse.saveCrossoverNarration(capture.id, capture.side, last.content).finally(() => {
+      crossoverCaptureRef.current = null;
+      linkedUniverse.clearActiveCrossover();
+    });
+  }, [messages, isLoading, linkedUniverse]);
+
   // Also scroll to bottom when screen opens
   useEffect(() => {
     if (open) {
