@@ -272,6 +272,9 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
         lines.push(`• [${importanceLabel(ev.importance)}] ${ev.eventText}`);
       }
       lines.push('');
+      lines.push('--- CANON CONSISTENCY (binding) ---');
+      lines.push('The SHARED CANON events above are established facts in this world. When you narrate, you MUST NOT contradict them. If the player attempts something that would contradict canon (e.g. visiting a place that canon says was destroyed, or interacting with someone canon says is dead), acknowledge the established fact in the fiction rather than ignoring it. You may build on canon, add nuance, or reveal new details, but you may not reverse an established world-changing event unless the fiction explicitly earns it.');
+      lines.push('');
     }
 
     for (const m of others) {
