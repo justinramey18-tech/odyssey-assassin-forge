@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
 import { DM_CHAT_THEMES, type DMChatThemeId } from '@/lib/dm-chat-themes';
 import { DICE_ODDS_CONFIGS, type DiceOddsMode } from '@/lib/diceOdds';
+import { LinkedUniverseSection } from '@/components/empyrean/LinkedUniverseSection';
 export type CharacterSheetTab = 'character' | 'settings';
 
 interface CharacterSheetProps {
@@ -43,6 +44,7 @@ interface CharacterSheetProps {
   onOpenAbilityTrees?: () => void;
   onOpenEmpyreanCooldowns?: () => void;
   onOpenSignetManagement?: () => void;
+  activeCampaignId?: string | null;
 }
 
 const TABS: Array<{ id: CharacterSheetTab; label: string; icon: React.ComponentType<{ className?: string }>; color: string; accent: string }> = [
@@ -80,6 +82,7 @@ export function CharacterSheet({
   onOpenAbilityTrees,
   onOpenEmpyreanCooldowns,
   onOpenSignetManagement,
+  activeCampaignId,
 }: CharacterSheetProps) {
   const [activeTab, setActiveTab] = useState<CharacterSheetTab>(initialTab);
 
@@ -171,7 +174,10 @@ export function CharacterSheet({
                 onClearChat={onClearChat}
                 onNewCampaign={onNewCampaign}
                 onCloseSheet={onClose}
+                activeCampaignId={activeCampaignId ?? null}
+                characterName={characterName}
               />
+
             )}
           </motion.div>
         </AnimatePresence>
@@ -377,6 +383,8 @@ interface SettingsTabProps {
   onClearChat: () => void;
   onNewCampaign: () => void;
   onCloseSheet: () => void;
+  activeCampaignId: string | null;
+  characterName: string;
 }
 
 function SettingsTab({
@@ -400,6 +408,8 @@ function SettingsTab({
   onClearChat,
   onNewCampaign,
   onCloseSheet,
+  activeCampaignId,
+  characterName,
 }: SettingsTabProps) {
   const [confirmNewCampaign, setConfirmNewCampaign] = useState(false);
 
@@ -434,7 +444,11 @@ function SettingsTab({
             }
           />
         )}
+        <div className="pt-2">
+          <LinkedUniverseSection campaignId={activeCampaignId} characterName={characterName} />
+        </div>
       </SettingsSection>
+
 
       {/* ─── Gameplay ────────────────────── */}
       <SettingsSection title="Gameplay">

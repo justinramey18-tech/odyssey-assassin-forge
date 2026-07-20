@@ -2187,9 +2187,11 @@ ${oocLines}`;
         open={characterSheetOpen}
         onClose={() => setCharacterSheetOpen(false)}
         characterName={characterName}
+        activeCampaignId={activeCampaignId}
         onCampaignSaves={() => setShowSaves(true)}
         onGuides={() => setShowGuides(true)}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
+
         diceOddsMode={diceOddsMode}
         onDiceOddsModeChange={(mode) => {
           setDiceOddsMode(mode);
