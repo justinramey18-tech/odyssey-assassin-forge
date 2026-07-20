@@ -225,8 +225,45 @@ Deno.serve(async (req) => {
         relationships = rels || [];
       }
 
-      return json({ universe, members: members || [], events: eventsWithNames, relationships });
+      // Include active/recent crossovers with live-beat fields so the client can
+      // inject the other side's most recent narration into its DM context.
+      let crossovers: any[] = [];
+      if (myMember) {
+        const { data: cxRows } = await supabase
+          .from('crossover_requests')
+          .select('*')
+          .eq('universe_id', universeId)
+          .or(`from_member.eq.${myMember.id},to_member.eq.${myMember.id}`)
+          .order('created_at', { ascending: false })
+          .limit(30);
+        crossovers = (cxRows || []).map((r: any) => {
+          const iAmFrom = r.from_member === myMember.id;
+          return {
+            id: r.id,
+            universeId: r.universe_id,
+            fromMember: r.from_member,
+            toMember: r.to_member,
+            scenePremise: r.scene_premise,
+            status: r.status,
+            narrationA: r.narration_a,
+            narrationB: r.narration_b,
+            liveBeatA: r.live_beat_a,
+            liveBeatAAt: r.live_beat_a_at,
+            liveBeatB: r.live_beat_b,
+            liveBeatBAt: r.live_beat_b_at,
+            fromCharacterName: memberNameById.get(r.from_member) ?? 'Unknown Rider',
+            toCharacterName: memberNameById.get(r.to_member) ?? 'Unknown Rider',
+            createdAt: r.created_at,
+            resolvedAt: r.resolved_at,
+            direction: iAmFrom ? 'outgoing' : 'incoming',
+            mySide: iAmFrom ? 'a' : 'b',
+          };
+        });
+      }
+
+      return json({ universe, members: members || [], events: eventsWithNames, relationships, crossovers });
     }
+
 
     if (action === 'saveDigest') {
       const { campaignId, digest } = body;
