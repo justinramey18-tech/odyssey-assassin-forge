@@ -523,6 +523,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     [gmGuides.enabledContent, linkedUniverse.universeContext]
   );
 
+  // Auto-update Linked Universe story digest whenever the campaign summary changes
+  const linkedUniverseRef = useRef(linkedUniverse);
+  linkedUniverseRef.current = linkedUniverse;
+
   const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, voiceNPC, addMediaMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, editMessage, deleteMessage, regenerateMessage, lastUsage, sessionUsage } = useAIDM({
     characterContext,
     customGuidesContent: combinedGuidesContent,
