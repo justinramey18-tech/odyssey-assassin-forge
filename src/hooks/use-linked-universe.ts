@@ -14,9 +14,12 @@ export interface UniverseMember {
 }
 
 export interface UniverseEvent {
+  id: string;
   eventText: string;
   eventType: string;
   importance: number;
+  createdAt: string | null;
+  createdByName: string | null;
 }
 
 export interface LinkedUniverseState {
@@ -85,9 +88,12 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
           visibility: m.visibility ?? 'full',
         })),
         events: (events || []).map((e: any) => ({
+          id: e.id,
           eventText: e.event_text,
           eventType: e.event_type,
           importance: e.importance,
+          createdAt: e.created_at ?? null,
+          createdByName: e.created_by_name ?? null,
         })),
         isLoading: false,
       });

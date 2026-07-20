@@ -199,14 +199,21 @@ Deno.serve(async (req) => {
 
       const { data: events } = await supabase
         .from('universe_events')
-        .select('*')
+        .select('id, event_text, event_type, importance, created_at, created_by_member, is_canon')
         .eq('universe_id', universeId)
         .eq('is_canon', true)
-        .order('importance', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(25);
 
-      return json({ universe, members: members || [], events: events || [] });
+      // Attribute each event to the member (character) who created it
+      const memberNameById = new Map<string, string>();
+      for (const m of members || []) memberNameById.set(m.id, m.character_name);
+      const eventsWithNames = (events || []).map((e: any) => ({
+        ...e,
+        created_by_name: e.created_by_member ? memberNameById.get(e.created_by_member) || null : null,
+      }));
+
+      return json({ universe, members: members || [], events: eventsWithNames });
     }
 
     if (action === 'saveDigest') {
