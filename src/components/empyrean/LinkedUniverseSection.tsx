@@ -45,6 +45,7 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
     universe,
     members,
     events,
+    crossovers,
     isLoading,
     createUniverse,
     joinUniverse,
@@ -52,6 +53,10 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
     isSignedIn,
     ownMember,
     saveMyDigest,
+    requestCrossover,
+    respondCrossover,
+    activateCrossover,
+    activeCrossoverId,
   } = hook;
 
   const rumorFeed = useMemo(
