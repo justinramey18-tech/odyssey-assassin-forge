@@ -135,7 +135,7 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     refresh();
   }, [campaignId, user?.id, refresh]);
 
-  // Poll every 5 minutes + refresh on focus, so digests from other players arrive
+  // Slow safety poll (15 min) + refresh on focus. Realtime does the heavy lifting below.
   useEffect(() => {
     if (!campaignId || !user) return;
     const interval = window.setInterval(() => { refresh(); }, POLL_INTERVAL_MS);
@@ -151,6 +151,57 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [campaignId, user, refresh]);
+
+  // Realtime subscription scoped to the current universe.
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const subscribedUniverseIdRef = useRef<string | null>(null);
+  const debounceTimerRef = useRef<number | null>(null);
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+
+  useEffect(() => {
+    const universeId = state.universe?.id ?? null;
+    if (subscribedUniverseIdRef.current === universeId && channelRef.current) return;
+
+    // Tear down previous channel
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+      subscribedUniverseIdRef.current = null;
+    }
+    if (!universeId) return;
+
+    const scheduleRefresh = () => {
+      if (debounceTimerRef.current != null) return;
+      debounceTimerRef.current = window.setTimeout(() => {
+        debounceTimerRef.current = null;
+        refreshRef.current();
+      }, REALTIME_DEBOUNCE_MS);
+    };
+
+    const filter = `universe_id=eq.${universeId}`;
+    const channel = supabase
+      .channel(`universe:${universeId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'universe_members', filter }, scheduleRefresh)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'universe_events', filter }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'crossover_requests', filter }, scheduleRefresh)
+      .subscribe();
+
+    channelRef.current = channel;
+    subscribedUniverseIdRef.current = universeId;
+
+    return () => {
+      if (debounceTimerRef.current != null) {
+        window.clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+        subscribedUniverseIdRef.current = null;
+      }
+    };
+  }, [state.universe?.id]);
 
   const createUniverse = useCallback(async (name: string, characterName: string) => {
     if (!user) { toast.error('Sign in to create a linked universe'); return null; }
