@@ -22,10 +22,29 @@ export interface UniverseEvent {
   createdByName: string | null;
 }
 
+export interface Crossover {
+  id: string;
+  universeId: string;
+  fromMember: string;
+  toMember: string;
+  scenePremise: string | null;
+  status: 'pending' | 'accepted' | 'declined' | 'completed';
+  narrationA: string | null;
+  narrationB: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+  direction: 'outgoing' | 'incoming';
+  mySide: 'a' | 'b';
+  otherCharacterName: string;
+  otherStoryDigest: string | null;
+}
+
 export interface LinkedUniverseState {
   universe: { id: string; name: string; linkCode: string } | null;
   members: UniverseMember[];
   events: UniverseEvent[];
+  crossovers: Crossover[];
+  myMemberId: string | null;
   isLoading: boolean;
 }
 
@@ -33,6 +52,8 @@ const DEFAULT_STATE: LinkedUniverseState = {
   universe: null,
   members: [],
   events: [],
+  crossovers: [],
+  myMemberId: null,
   isLoading: false,
 };
 
