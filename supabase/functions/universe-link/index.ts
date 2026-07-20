@@ -691,7 +691,7 @@ EVENTS rules: ONLY include things that would be visible or consequential to OTHE
     }
 
     if (action === 'saveCrossoverNarration') {
-      const { crossoverId, side, narration } = body;
+      const { crossoverId, side, narration, relation, note } = body;
       if (!crossoverId || (side !== 'a' && side !== 'b') || typeof narration !== 'string') {
         return json({ error: 'crossoverId, side (a|b), narration required' }, 400);
       }
@@ -704,6 +704,7 @@ EVENTS rules: ONLY include things that would be visible or consequential to OTHE
       if (!cx) return json({ error: 'Crossover not found' }, 404);
 
       const memberIdForSide = side === 'a' ? cx.from_member : cx.to_member;
+      const otherMemberId = side === 'a' ? cx.to_member : cx.from_member;
       const { data: memberRow } = await supabase
         .from('universe_members')
         .select('user_id')
@@ -726,6 +727,23 @@ EVENTS rules: ONLY include things that would be visible or consequential to OTHE
         .update(patch)
         .eq('id', crossoverId);
       if (upErr) return json({ error: upErr.message }, 500);
+
+      // Optional inline relationship upsert from the caller's side
+      const ALLOWED = ['ally', 'friend', 'rival', 'enemy', 'owes-you', 'you-owe-them', 'acquaintance'];
+      if (typeof relation === 'string' && ALLOWED.includes(relation)) {
+        const cleanNote = typeof note === 'string' ? note.trim().slice(0, 500) || null : null;
+        await supabase
+          .from('universe_relationships')
+          .upsert({
+            universe_id: cx.universe_id,
+            member_a: memberIdForSide,
+            member_b: otherMemberId,
+            relation,
+            note: cleanNote,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'universe_id,member_a,member_b' });
+      }
+
       return json({ success: true, completed: !!bothPresent });
     }
 
