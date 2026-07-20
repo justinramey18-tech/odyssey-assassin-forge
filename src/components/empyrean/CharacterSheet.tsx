@@ -173,7 +173,10 @@ export function CharacterSheet({
                 onClearChat={onClearChat}
                 onNewCampaign={onNewCampaign}
                 onCloseSheet={onClose}
+                activeCampaignId={activeCampaignId ?? null}
+                characterName={characterName}
               />
+
             )}
           </motion.div>
         </AnimatePresence>
@@ -379,6 +382,8 @@ interface SettingsTabProps {
   onClearChat: () => void;
   onNewCampaign: () => void;
   onCloseSheet: () => void;
+  activeCampaignId: string | null;
+  characterName: string;
 }
 
 function SettingsTab({
@@ -402,6 +407,8 @@ function SettingsTab({
   onClearChat,
   onNewCampaign,
   onCloseSheet,
+  activeCampaignId,
+  characterName,
 }: SettingsTabProps) {
   const [confirmNewCampaign, setConfirmNewCampaign] = useState(false);
 
