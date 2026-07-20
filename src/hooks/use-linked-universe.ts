@@ -848,6 +848,8 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     activeCrossover,
     activeCrossoverId,
     pendingCrossoverPrompt,
+    liveBeatContext,
+    pushLiveBeat,
     pendingCrossoversForMe,
     unseenEvents,
     markSeen,
