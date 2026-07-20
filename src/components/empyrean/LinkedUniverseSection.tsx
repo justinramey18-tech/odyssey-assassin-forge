@@ -14,7 +14,94 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { useLinkedUniverse, type LinkedUniverseController } from '@/hooks/use-linked-universe';
+import { useLinkedUniverse, type LinkedUniverseController, type RelationKind, RELATION_LABELS, type UniverseRelationship } from '@/hooks/use-linked-universe';
+
+const RELATION_OPTIONS: RelationKind[] = ['ally', 'friend', 'rival', 'enemy', 'owes-you', 'you-owe-them', 'acquaintance'];
+
+function RelationshipEditor({
+  memberId,
+  characterName,
+  current,
+  onSave,
+  compact,
+}: {
+  memberId: string;
+  characterName: string;
+  current: UniverseRelationship | undefined;
+  onSave: (rel: RelationKind, note: string | null) => Promise<boolean> | void;
+  compact?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [rel, setRel] = useState<RelationKind>(current?.relation ?? 'acquaintance');
+  const [note, setNote] = useState<string>(current?.note ?? '');
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    setRel(current?.relation ?? 'acquaintance');
+    setNote(current?.note ?? '');
+  }, [current?.id, current?.relation, current?.note]);
+
+  const label = current ? RELATION_LABELS[current.relation] : 'Set relationship';
+  return (
+    <div className={`rounded-md border border-slate-700/60 bg-black/25 ${compact ? 'p-2' : 'p-2.5'} space-y-2`}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full min-h-[36px] flex items-center justify-between gap-2 text-left"
+      >
+        <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-widest text-white/60">
+          <Heart className="w-3 h-3 text-rose-300/70" />
+          {current ? `You: ${label}` : `How do you see ${characterName}?`}
+        </span>
+        {open ? <ChevronUp className="w-4 h-4 text-white/60" /> : <ChevronDown className="w-4 h-4 text-white/60" />}
+      </button>
+      {open && (
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-1.5">
+            {RELATION_OPTIONS.map(opt => {
+              const active = rel === opt;
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setRel(opt)}
+                  className={`min-h-[36px] rounded-md px-2 py-1.5 text-[11px] font-medium border transition ${
+                    active
+                      ? 'bg-rose-500/20 border-rose-400/50 text-rose-100'
+                      : 'bg-black/30 border-slate-700/60 text-white/70 hover:bg-black/50'
+                  }`}
+                >
+                  {RELATION_LABELS[opt]}
+                </button>
+              );
+            })}
+          </div>
+          <Textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value.slice(0, 500))}
+            placeholder="Optional note — e.g. Stole my wardstone at Basgiath"
+            className="min-h-[56px] bg-black/40 border-slate-700 text-[12px]"
+            maxLength={500}
+          />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] text-white/40">{note.length}/500 · Only your side is saved</span>
+            <Button
+              size="sm"
+              className="min-h-[36px] bg-rose-500/70 hover:bg-rose-500 text-white"
+              disabled={saving || (rel === (current?.relation ?? 'acquaintance') && (note.trim() || null) === (current?.note ?? null))}
+              onClick={async () => {
+                setSaving(true);
+                await onSave(rel, note.trim() ? note.trim() : null);
+                setSaving(false);
+                setOpen(false);
+              }}
+            >
+              <Save className="w-3.5 h-3.5 mr-1" /> Save
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function timeAgo(iso: string | null): string {
   if (!iso) return '';
