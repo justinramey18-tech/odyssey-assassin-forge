@@ -164,11 +164,11 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
                   onChange={(e) => setDigestDraft(e.target.value)}
                   placeholder={DIGEST_PLACEHOLDER}
                   className="min-h-[140px] bg-black/40 border-slate-700 text-sm"
-                  maxLength={2000}
+                  maxLength={5000}
                 />
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[10px] text-white/40">
-                    {digestDraft.length}/2000 · Other players' DMs will see this
+                    {digestDraft.length}/5000 · Other players' DMs will see this
                   </span>
                   <Button
                     size="sm"
