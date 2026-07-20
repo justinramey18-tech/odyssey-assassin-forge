@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { X, User, Settings as SettingsIcon, FolderOpen, Dices, Zap, Eye, Film, Cpu, Palette, RotateCcw, Trash2, AlertTriangle, Heart, Swords, Shield, Activity, Flame, Backpack, Sparkles } from 'lucide-react';
+import { X, User, Settings as SettingsIcon, FolderOpen, Dices, Zap, Eye, Film, Cpu, Palette, RotateCcw, Trash2, AlertTriangle, Heart, Swords, Shield, Activity, Flame, Backpack, Sparkles, BookOpen } from 'lucide-react';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,7 @@ interface CharacterSheetProps {
   characterName: string;
   // Settings tab props
   onCampaignSaves: () => void;
+  onGuides?: () => void;
   diceOddsMode: DiceOddsMode;
   onDiceOddsModeChange: (mode: DiceOddsMode) => void;
   autoSyncEnabled: boolean;
@@ -53,6 +54,7 @@ export function CharacterSheet({
   initialTab = 'character',
   characterName,
   onCampaignSaves,
+  onGuides,
   diceOddsMode,
   onDiceOddsModeChange,
   autoSyncEnabled,
@@ -147,6 +149,7 @@ export function CharacterSheet({
             {activeTab === 'settings' && (
               <SettingsTab
                 onCampaignSaves={onCampaignSaves}
+                onGuides={onGuides}
                 diceOddsMode={diceOddsMode}
                 onDiceOddsModeChange={onDiceOddsModeChange}
                 autoSyncEnabled={autoSyncEnabled}
@@ -351,6 +354,7 @@ function TalkTabPlaceholder() {
 
 interface SettingsTabProps {
   onCampaignSaves: () => void;
+  onGuides?: () => void;
   diceOddsMode: DiceOddsMode;
   onDiceOddsModeChange: (mode: DiceOddsMode) => void;
   autoSyncEnabled: boolean;
@@ -372,6 +376,7 @@ interface SettingsTabProps {
 
 function SettingsTab({
   onCampaignSaves,
+  onGuides,
   diceOddsMode,
   onDiceOddsModeChange,
   autoSyncEnabled,
@@ -407,6 +412,15 @@ function SettingsTab({
           onClick={() => closeAndRun(onCampaignSaves)}
           chevron
         />
+        {onGuides && (
+          <SettingsRow
+            icon={<BookOpen className="w-4 h-4 text-amber-300" />}
+            label="GM Guides"
+            description="Custom rules and lore for your DM"
+            onClick={() => closeAndRun(onGuides)}
+            chevron
+          />
+        )}
       </SettingsSection>
 
       {/* ─── Gameplay ────────────────────── */}
