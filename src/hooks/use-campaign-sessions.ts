@@ -83,9 +83,11 @@ export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
     campaignSummary: string | null,
     existingId?: string,
     memoryAnchors?: MemoryAnchor[],
+    options?: { silent?: boolean },
   ): Promise<string | null> => {
+    const silent = options?.silent === true;
     if (!userId) {
-      toast.error('Sign in to save campaigns');
+      if (!silent) toast.error('Sign in to save campaigns');
       return null;
     }
     try {
@@ -108,7 +110,7 @@ export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
           .eq('id', existingId)
           .eq('user_id', userId);
         if (error) throw error;
-        toast.success('Campaign saved');
+        if (!silent) toast.success('Campaign saved');
         await loadSessions();
         return existingId;
       } else {
@@ -125,16 +127,16 @@ export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
           .select('id')
           .single();
         if (error) throw error;
-        toast.success('Campaign saved');
+        if (!silent) toast.success('Campaign saved');
         await loadSessions();
         return data.id;
       }
     } catch (error) {
       console.error('Failed to save campaign:', error);
-      toast.error('Failed to save campaign');
+      if (!silent) toast.error('Failed to save campaign');
       return null;
     }
-  }, [userId, loadSessions]);
+  }, [userId, loadSessions, mode]);
 
   const deleteSession = useCallback(async (id: string) => {
     if (!userId) {
