@@ -85,7 +85,9 @@ export function CharacterSheet({
   onOpenEmpyreanCooldowns,
   onOpenSignetManagement,
   activeCampaignId,
+  linkedUniverse,
 }: CharacterSheetProps) {
+
   const [activeTab, setActiveTab] = useState<CharacterSheetTab>(initialTab);
 
   const handleClose = useCallback(() => {
