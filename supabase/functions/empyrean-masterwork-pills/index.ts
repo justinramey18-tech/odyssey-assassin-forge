@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const DEFAULT_MODEL = 'google/gemini-3-pro-preview';
-const ALLOWED_MODELS = new Set([
+const LOVABLE_GATEWAY_MODELS = new Set([
   'google/gemini-3-pro-preview',
   'google/gemini-2.5-pro',
   'google/gemini-2.5-flash',
@@ -18,6 +18,26 @@ const ALLOWED_MODELS = new Set([
   'openai/gpt-5-nano',
   'openai/gpt-5.2',
 ]);
+const OPENAI_DIRECT_MODELS: Record<string, string> = {
+  'openai-direct/gpt-5': 'gpt-5',
+  'openai-direct/gpt-4o': 'gpt-4o',
+  'openai-direct/gpt-4o-mini': 'gpt-4o-mini',
+  'openai-direct/gpt-4-turbo': 'gpt-4-turbo',
+  'openai-direct/o1': 'o1',
+  'openai-direct/o1-mini': 'o1-mini',
+};
+const XAI_MODELS: Record<string, string> = {
+  'xai-direct/grok-4': 'grok-4',
+  'xai-direct/grok-3': 'grok-3',
+  'xai-direct/grok-3-mini': 'grok-3-mini',
+  'xai-direct/grok-2-latest': 'grok-2-latest',
+};
+const ANTHROPIC_MODELS: Record<string, string> = {
+  'anthropic/claude-sonnet-4': 'claude-sonnet-4-20250514',
+  'anthropic/claude-sonnet-4-5': 'claude-sonnet-4-5-20250929',
+  'anthropic/claude-sonnet-4-6': 'claude-sonnet-4-5-20250929',
+  'anthropic/claude-haiku-4-5': 'claude-haiku-4-5-20250929',
+};
 
 const PILL_TOOL = {
   type: "function" as const,
