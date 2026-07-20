@@ -558,6 +558,13 @@ ${oocLines}`;
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
   const { weather } = useWeather();
   const gameState = useDMGameState(trackingCampaignId);
+  const linkedUniverse = useLinkedUniverse({ campaignId: trackingCampaignId });
+  const universeContext = linkedUniverse.universeContext;
+  const combinedGuidesContent = useMemo(
+    () => [enabledContent, universeContext].filter(Boolean).join('\n\n'),
+    [enabledContent, universeContext]
+  );
+
   const worldStatePrompt = useMemo(() => {
     let prompt = buildMemoryAnchorsPrompt(gameState.gameState);
     if (loadWeatherEnabled()) {
