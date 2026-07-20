@@ -213,7 +213,19 @@ Deno.serve(async (req) => {
         created_by_name: e.created_by_member ? memberNameById.get(e.created_by_member) || null : null,
       }));
 
-      return json({ universe, members: members || [], events: eventsWithNames });
+      // Caller's outgoing relationships (their view of others)
+      const myMember = (members || []).find((m: any) => m.user_id === user.id && m.campaign_id === campaignId);
+      let relationships: any[] = [];
+      if (myMember) {
+        const { data: rels } = await supabase
+          .from('universe_relationships')
+          .select('id, member_a, member_b, relation, note, updated_at')
+          .eq('universe_id', universeId)
+          .eq('member_a', myMember.id);
+        relationships = rels || [];
+      }
+
+      return json({ universe, members: members || [], events: eventsWithNames, relationships });
     }
 
     if (action === 'saveDigest') {
