@@ -600,6 +600,36 @@ export type Database = {
         }
         Relationships: []
       }
+      linked_universes: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean
+          link_code: string
+          max_members: number
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean
+          link_code: string
+          max_members?: number
+          name?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean
+          link_code?: string
+          max_members?: number
+          name?: string
+        }
+        Relationships: []
+      }
       notifications_log: {
         Row: {
           created_at: string
@@ -1786,6 +1816,108 @@ export type Database = {
           video_url?: string
         }
         Relationships: []
+      }
+      universe_events: {
+        Row: {
+          created_at: string
+          created_by_member: string | null
+          event_text: string
+          event_type: string
+          id: string
+          importance: number
+          is_canon: boolean
+          universe_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by_member?: string | null
+          event_text: string
+          event_type?: string
+          id?: string
+          importance?: number
+          is_canon?: boolean
+          universe_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by_member?: string | null
+          event_text?: string
+          event_type?: string
+          id?: string
+          importance?: number
+          is_canon?: boolean
+          universe_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "universe_events_created_by_member_fkey"
+            columns: ["created_by_member"]
+            isOneToOne: false
+            referencedRelation: "universe_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "universe_events_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "linked_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      universe_members: {
+        Row: {
+          campaign_id: string
+          character_card: Json
+          character_name: string
+          digest_updated_at: string | null
+          id: string
+          joined_at: string
+          story_digest: string | null
+          universe_id: string
+          user_id: string
+          visibility: string
+        }
+        Insert: {
+          campaign_id: string
+          character_card?: Json
+          character_name?: string
+          digest_updated_at?: string | null
+          id?: string
+          joined_at?: string
+          story_digest?: string | null
+          universe_id: string
+          user_id: string
+          visibility?: string
+        }
+        Update: {
+          campaign_id?: string
+          character_card?: Json
+          character_name?: string
+          digest_updated_at?: string | null
+          id?: string
+          joined_at?: string
+          story_digest?: string | null
+          universe_id?: string
+          user_id?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "universe_members_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ai_dm_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "universe_members_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "linked_universes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
