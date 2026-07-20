@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Sparkles, Copy, Users, LogOut, Plus, LogIn, ChevronDown, ChevronUp, Save } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Sparkles, Copy, Users, LogOut, Plus, LogIn, ChevronDown, ChevronUp, Save, ScrollText, MapPin, User as UserIcon, Skull, Link2, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
