@@ -433,6 +433,34 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     }
   }, [invoke, refresh]);
 
+  const setVisibility = useCallback(async (value: 'full' | 'headline' | 'hidden') => {
+    const cid = campaignRef.current;
+    if (!cid) { toast.error('Save your campaign first'); return false; }
+    if (!['full', 'headline', 'hidden'].includes(value)) return false;
+    try {
+      const res = await invoke('setVisibility', { campaignId: cid, visibility: value });
+      if (res.error || res.data?.error) {
+        toast.error(res.data?.error || 'Failed to update visibility');
+        return false;
+      }
+      toast.success(
+        value === 'full' ? 'Story visibility: Full' :
+        value === 'headline' ? 'Story visibility: Headline only' :
+        'Story visibility: Hidden'
+      );
+      await refresh();
+      return true;
+    } catch {
+      toast.error('Failed to update visibility');
+      return false;
+    }
+  }, [invoke, refresh]);
+
+  const myVisibility = useMemo<'full' | 'headline' | 'hidden'>(() => {
+    const v = ownMember?.visibility;
+    return v === 'headline' || v === 'hidden' ? v : 'full';
+  }, [ownMember?.visibility]);
+
   const universeContext = useMemo(() => {
     if (!state.universe) return null;
     const others = state.members.filter(
@@ -461,10 +489,19 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     }
 
     for (const m of others) {
-      lines.push(`--- LINKED RIDER: ${m.characterName} (played by another player) ---`);
-      lines.push(m.storyDigest!.trim());
-      lines.push('');
+      const tier = m.visibility === 'headline' ? 'headline' : 'full';
+      if (tier === 'headline') {
+        // Only the first line (typically the CHARACTER: line) — no RECENT/HOOKS
+        const firstLine = m.storyDigest!.split('\n').map(s => s.trim()).find(s => s.length > 0) || '';
+        lines.push(`• ${m.characterName} is also in this world: ${firstLine}`);
+        lines.push('');
+      } else {
+        lines.push(`--- LINKED RIDER: ${m.characterName} (played by another player) ---`);
+        lines.push(m.storyDigest!.trim());
+        lines.push('');
+      }
     }
+
 
     lines.push('--- INTERACTION RULES ---');
     lines.push('1. Linked characters may appear as background NPCs or in rumors freely.');
@@ -580,6 +617,8 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     pendingCrossoversForMe,
     unseenEvents,
     markSeen,
+    myVisibility,
+    setVisibility,
     isSignedIn: !!user,
   };
 
