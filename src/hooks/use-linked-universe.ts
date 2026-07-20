@@ -116,13 +116,21 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
         setState({ ...DEFAULT_STATE, isLoading: false });
         return;
       }
-      const { universe, members, events } = statusRes.data || {};
+      const { universe, members, events, relationships: relsRaw } = statusRes.data || {};
       if (!universe) {
         setState({ ...DEFAULT_STATE, isLoading: false });
         return;
       }
       const crossovers = (cxRes.data?.crossovers || []) as Crossover[];
       const myMemberId = (cxRes.data?.myMemberId as string) || null;
+      const relationships: UniverseRelationship[] = (relsRaw || []).map((r: any) => ({
+        id: r.id,
+        memberA: r.member_a,
+        memberB: r.member_b,
+        relation: r.relation,
+        note: r.note ?? null,
+        updatedAt: r.updated_at ?? null,
+      }));
       setState({
         universe: {
           id: universe.id,
@@ -148,6 +156,7 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
           createdByName: e.created_by_name ?? null,
         })),
         crossovers,
+        relationships,
         myMemberId,
         isLoading: false,
       });
