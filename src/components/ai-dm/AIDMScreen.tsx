@@ -40,6 +40,8 @@ import type { CampaignBuildData } from '@/hooks/use-ai-campaign-chat';
 import { WhisperTray } from './WhisperTray';
 import { OracleWhisperFeed } from './OracleWhisperFeed';
 import { AutoSyncBanner } from './AutoSyncBanner';
+import { useLinkedUniverse } from '@/hooks/use-linked-universe';
+import { LinkedUniverseSection } from '@/components/empyrean/LinkedUniverseSection';
 
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 
