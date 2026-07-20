@@ -126,7 +126,9 @@ serve(async (req) => {
       character_bonds,
       character_flaws,
       campaign_summary,
+      model,
     } = body ?? {};
+    const resolvedModel = (typeof model === 'string' && ALLOWED_MODELS.has(model)) ? model : DEFAULT_MODEL;
 
     if (category !== 'dragon' && category !== 'situation' && category !== 'story') {
       return new Response(
