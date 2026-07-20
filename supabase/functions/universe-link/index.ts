@@ -225,8 +225,45 @@ Deno.serve(async (req) => {
         relationships = rels || [];
       }
 
-      return json({ universe, members: members || [], events: eventsWithNames, relationships });
+      // Include active/recent crossovers with live-beat fields so the client can
+      // inject the other side's most recent narration into its DM context.
+      let crossovers: any[] = [];
+      if (myMember) {
+        const { data: cxRows } = await supabase
+          .from('crossover_requests')
+          .select('*')
+          .eq('universe_id', universeId)
+          .or(`from_member.eq.${myMember.id},to_member.eq.${myMember.id}`)
+          .order('created_at', { ascending: false })
+          .limit(30);
+        crossovers = (cxRows || []).map((r: any) => {
+          const iAmFrom = r.from_member === myMember.id;
+          return {
+            id: r.id,
+            universeId: r.universe_id,
+            fromMember: r.from_member,
+            toMember: r.to_member,
+            scenePremise: r.scene_premise,
+            status: r.status,
+            narrationA: r.narration_a,
+            narrationB: r.narration_b,
+            liveBeatA: r.live_beat_a,
+            liveBeatAAt: r.live_beat_a_at,
+            liveBeatB: r.live_beat_b,
+            liveBeatBAt: r.live_beat_b_at,
+            fromCharacterName: memberNameById.get(r.from_member) ?? 'Unknown Rider',
+            toCharacterName: memberNameById.get(r.to_member) ?? 'Unknown Rider',
+            createdAt: r.created_at,
+            resolvedAt: r.resolved_at,
+            direction: iAmFrom ? 'outgoing' : 'incoming',
+            mySide: iAmFrom ? 'a' : 'b',
+          };
+        });
+      }
+
+      return json({ universe, members: members || [], events: eventsWithNames, relationships, crossovers });
     }
+
 
     if (action === 'saveDigest') {
       const { campaignId, digest } = body;
@@ -742,6 +779,7 @@ TIME rules — "dayAdvance": Estimate how many in-fiction DAYS passed during the
       const crossovers = (rows || []).map((r: any) => {
         const iAmFrom = r.from_member === me.id;
         const other = memMap.get(iAmFrom ? r.to_member : r.from_member);
+        const mine = memMap.get(iAmFrom ? r.from_member : r.to_member);
         return {
           id: r.id,
           universeId: r.universe_id,
@@ -751,6 +789,13 @@ TIME rules — "dayAdvance": Estimate how many in-fiction DAYS passed during the
           status: r.status,
           narrationA: r.narration_a,
           narrationB: r.narration_b,
+          liveBeatA: r.live_beat_a,
+          liveBeatAAt: r.live_beat_a_at,
+          liveBeatB: r.live_beat_b,
+          liveBeatBAt: r.live_beat_b_at,
+          fromCharacterName: memMap.get(r.from_member)?.character_name ?? 'Unknown Rider',
+          toCharacterName: memMap.get(r.to_member)?.character_name ?? 'Unknown Rider',
+          myCharacterName: mine?.character_name ?? null,
           createdAt: r.created_at,
           resolvedAt: r.resolved_at,
           direction: iAmFrom ? 'outgoing' : 'incoming',
@@ -762,6 +807,7 @@ TIME rules — "dayAdvance": Estimate how many in-fiction DAYS passed during the
 
       return json({ crossovers, myMemberId: me.id });
     }
+
 
     if (action === 'saveCrossoverNarration') {
       const { crossoverId, side, narration, relation, note } = body;
@@ -820,8 +866,55 @@ TIME rules — "dayAdvance": Estimate how many in-fiction DAYS passed during the
       return json({ success: true, completed: !!bothPresent });
     }
 
+    if (action === 'pushBeat') {
+      const { crossoverId, campaignId, narration } = body;
+      if (!crossoverId || !campaignId || typeof narration !== 'string') {
+        return json({ error: 'crossoverId, campaignId, narration required' }, 400);
+      }
+      if (!(await verifyCampaignOwnership(campaignId))) {
+        return json({ error: 'You do not own this campaign' }, 403);
+      }
+
+      const { data: cx } = await supabase
+        .from('crossover_requests')
+        .select('id, status, from_member, to_member')
+        .eq('id', crossoverId)
+        .maybeSingle();
+      if (!cx) return json({ skipped: true, reason: 'not_found' });
+      if (cx.status !== 'accepted') return json({ skipped: true, reason: 'not_active' });
+
+      const me = await memberFromCampaign(campaignId);
+      if (!me) return json({ skipped: true, reason: 'not_member' });
+
+      let side: 'a' | 'b' | null = null;
+      if (me.id === cx.from_member) side = 'a';
+      else if (me.id === cx.to_member) side = 'b';
+      if (!side) return json({ skipped: true, reason: 'not_participant' });
+
+      // Strip HTML comments and span tags, then keep the trailing ~2000 chars
+      const cleaned = narration
+        .replace(/<!--[\s\S]*?-->/g, '')
+        .replace(/<\/?span[^>]*>/gi, '')
+        .trim();
+      const trimmed = cleaned.length > 2000 ? cleaned.slice(-2000) : cleaned;
+      const nowIso = new Date().toISOString();
+
+      const patch: Record<string, unknown> = side === 'a'
+        ? { live_beat_a: trimmed, live_beat_a_at: nowIso }
+        : { live_beat_b: trimmed, live_beat_b_at: nowIso };
+
+      const { error: upErr } = await supabase
+        .from('crossover_requests')
+        .update(patch)
+        .eq('id', crossoverId);
+      if (upErr) return json({ error: upErr.message }, 500);
+
+      return json({ success: true, side });
+    }
+
     return json({ error: 'Unknown action' }, 400);
   } catch (err) {
     return json({ error: (err as Error).message }, 500);
   }
 });
+

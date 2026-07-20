@@ -405,6 +405,10 @@ export type Database = {
           created_at: string
           from_member: string
           id: string
+          live_beat_a: string | null
+          live_beat_a_at: string | null
+          live_beat_b: string | null
+          live_beat_b_at: string | null
           narration_a: string | null
           narration_b: string | null
           resolved_at: string | null
@@ -417,6 +421,10 @@ export type Database = {
           created_at?: string
           from_member: string
           id?: string
+          live_beat_a?: string | null
+          live_beat_a_at?: string | null
+          live_beat_b?: string | null
+          live_beat_b_at?: string | null
           narration_a?: string | null
           narration_b?: string | null
           resolved_at?: string | null
@@ -429,6 +437,10 @@ export type Database = {
           created_at?: string
           from_member?: string
           id?: string
+          live_beat_a?: string | null
+          live_beat_a_at?: string | null
+          live_beat_b?: string | null
+          live_beat_b_at?: string | null
           narration_a?: string | null
           narration_b?: string | null
           resolved_at?: string | null
