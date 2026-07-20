@@ -1705,6 +1705,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         character_bonds: bonds,
         character_flaws: flaws,
         model: (partyDm.sessionConfig as any)?.model || undefined,
+        user_api_key: loadApiKey('anthropic') || undefined,
+        user_openai_key: loadApiKey('openai') || undefined,
+        user_xai_key: loadApiKey('xai') || undefined,
       },
     });
     if (error || (data as any)?.error) {
