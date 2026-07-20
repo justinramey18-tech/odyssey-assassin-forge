@@ -147,7 +147,13 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
           <span className="text-sm font-cinzel font-semibold text-amber-200 truncate">
             {universe.name}
           </span>
+          {(pendingCrossoversForMe + unseenEvents) > 0 && (
+            <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold bg-amber-400/90 text-black">
+              {pendingCrossoversForMe + unseenEvents}
+            </span>
+          )}
         </div>
+
 
         <button
           onClick={() => copy(universe.linkCode)}
