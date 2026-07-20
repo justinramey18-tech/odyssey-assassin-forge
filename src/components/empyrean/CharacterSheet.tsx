@@ -180,7 +180,9 @@ export function CharacterSheet({
                 onCloseSheet={onClose}
                 activeCampaignId={activeCampaignId ?? null}
                 characterName={characterName}
+                linkedUniverse={linkedUniverse}
               />
+
 
             )}
           </motion.div>
