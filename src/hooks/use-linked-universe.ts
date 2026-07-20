@@ -40,11 +40,33 @@ export interface Crossover {
   otherStoryDigest: string | null;
 }
 
+export type RelationKind = 'ally' | 'friend' | 'rival' | 'enemy' | 'owes-you' | 'you-owe-them' | 'acquaintance';
+
+export const RELATION_LABELS: Record<RelationKind, string> = {
+  ally: 'Ally',
+  friend: 'Friend',
+  rival: 'Rival',
+  enemy: 'Enemy',
+  'owes-you': 'Owes you a debt',
+  'you-owe-them': 'You owe them',
+  acquaintance: 'Acquaintance',
+};
+
+export interface UniverseRelationship {
+  id: string;
+  memberA: string;
+  memberB: string;
+  relation: RelationKind;
+  note: string | null;
+  updatedAt: string | null;
+}
+
 export interface LinkedUniverseState {
   universe: { id: string; name: string; linkCode: string } | null;
   members: UniverseMember[];
   events: UniverseEvent[];
   crossovers: Crossover[];
+  relationships: UniverseRelationship[];
   myMemberId: string | null;
   isLoading: boolean;
 }
@@ -54,6 +76,7 @@ const DEFAULT_STATE: LinkedUniverseState = {
   members: [],
   events: [],
   crossovers: [],
+  relationships: [],
   myMemberId: null,
   isLoading: false,
 };
@@ -93,13 +116,21 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
         setState({ ...DEFAULT_STATE, isLoading: false });
         return;
       }
-      const { universe, members, events } = statusRes.data || {};
+      const { universe, members, events, relationships: relsRaw } = statusRes.data || {};
       if (!universe) {
         setState({ ...DEFAULT_STATE, isLoading: false });
         return;
       }
       const crossovers = (cxRes.data?.crossovers || []) as Crossover[];
       const myMemberId = (cxRes.data?.myMemberId as string) || null;
+      const relationships: UniverseRelationship[] = (relsRaw || []).map((r: any) => ({
+        id: r.id,
+        memberA: r.member_a,
+        memberB: r.member_b,
+        relation: r.relation,
+        note: r.note ?? null,
+        updatedAt: r.updated_at ?? null,
+      }));
       setState({
         universe: {
           id: universe.id,
@@ -125,6 +156,7 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
           createdByName: e.created_by_name ?? null,
         })),
         crossovers,
+        relationships,
         myMemberId,
         isLoading: false,
       });
@@ -484,6 +516,35 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     }
   }, [invoke, refresh]);
 
+  const setRelationship = useCallback(async (toMemberId: string, relation: RelationKind, note?: string | null) => {
+    const cid = campaignRef.current;
+    if (!cid) { toast.error('Save your campaign first'); return false; }
+    try {
+      const res = await invoke('setRelationship', {
+        fromCampaignId: cid,
+        toMemberId,
+        relation,
+        note: note ?? null,
+      });
+      if (res.error || res.data?.error) {
+        toast.error(res.data?.error || 'Failed to update relationship');
+        return false;
+      }
+      toast.success(`Relationship set: ${RELATION_LABELS[relation]}`);
+      await refresh();
+      return true;
+    } catch {
+      toast.error('Failed to update relationship');
+      return false;
+    }
+  }, [invoke, refresh]);
+
+  const relationshipByMember = useMemo(() => {
+    const map = new Map<string, UniverseRelationship>();
+    for (const r of state.relationships) map.set(r.memberB, r);
+    return map;
+  }, [state.relationships]);
+
   const MAX_FULL_DIGESTS = 6;
 
   const universeContext = useMemo(() => {
@@ -546,13 +607,19 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
 
     for (const { m, tier } of finalScoped) {
       const regionTag = m.region?.trim() ? ` [${m.region.trim()}]` : '';
+      const rel = relationshipByMember.get(m.id);
+      const historyLine = rel
+        ? `YOUR HISTORY WITH THEM: ${RELATION_LABELS[rel.relation]}${rel.note ? ` — ${rel.note}` : ''}`
+        : null;
       if (tier === 'headline') {
         const firstLine = m.storyDigest!.split('\n').map(s => s.trim()).find(s => s.length > 0) || '';
         lines.push(`• ${m.characterName}${regionTag} is also in this world: ${firstLine}`);
+        if (historyLine) lines.push(`  ${historyLine}`);
         lines.push('');
       } else {
         lines.push(`--- LINKED RIDER: ${m.characterName}${regionTag} (played by another player) ---`);
         lines.push(m.storyDigest!.trim());
+        if (historyLine) lines.push(historyLine);
         lines.push('');
       }
     }
@@ -563,9 +630,10 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     lines.push('2. Direct scenes with a linked character should be brief — their player controls their words and choices in spirit.');
     lines.push('3. Any world-changing events you narrate should stay consistent with the SHARED CANON list above.');
     lines.push('4. If details conflict, favor the SHARED CANON list.');
+    lines.push('5. When YOUR HISTORY WITH THEM is provided, weave that prior bond or grudge into how they behave toward the player — reference past dealings naturally.');
 
     return lines.join('\n');
-  }, [state.universe, state.members, state.events, campaignId, ownMember?.region]);
+  }, [state.universe, state.members, state.events, campaignId, ownMember?.region, relationshipByMember]);
 
   const requestCrossover = useCallback(async (toMemberId: string, scenePremise: string) => {
     const cid = campaignRef.current;
@@ -605,9 +673,19 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     }
   }, [invoke, refresh]);
 
-  const saveCrossoverNarration = useCallback(async (crossoverId: string, side: 'a' | 'b', narration: string) => {
+  const saveCrossoverNarration = useCallback(async (
+    crossoverId: string,
+    side: 'a' | 'b',
+    narration: string,
+    relationUpdate?: { relation: RelationKind; note?: string | null } | null,
+  ) => {
     try {
-      const res = await invoke('saveCrossoverNarration', { crossoverId, side, narration });
+      const payload: Record<string, unknown> = { crossoverId, side, narration };
+      if (relationUpdate && relationUpdate.relation) {
+        payload.relation = relationUpdate.relation;
+        payload.note = relationUpdate.note ?? null;
+      }
+      const res = await invoke('saveCrossoverNarration', payload);
       if (res.error || res.data?.error) return false;
       await refresh();
       return true;
@@ -676,6 +754,8 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     setVisibility,
     myRegion,
     setRegion,
+    setRelationship,
+    relationshipByMember,
     isSignedIn: !!user,
   };
 

@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Sparkles, Copy, Users, LogOut, Plus, LogIn, ChevronDown, ChevronUp, Save, ScrollText, MapPin, User as UserIcon, Skull, Link2, Radio, Play, Check, X, Send } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Sparkles, Copy, Users, LogOut, Plus, LogIn, ChevronDown, ChevronUp, Save, ScrollText, MapPin, User as UserIcon, Skull, Link2, Radio, Play, Check, X, Send, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,7 +14,94 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { useLinkedUniverse, type LinkedUniverseController } from '@/hooks/use-linked-universe';
+import { useLinkedUniverse, type LinkedUniverseController, type RelationKind, RELATION_LABELS, type UniverseRelationship } from '@/hooks/use-linked-universe';
+
+const RELATION_OPTIONS: RelationKind[] = ['ally', 'friend', 'rival', 'enemy', 'owes-you', 'you-owe-them', 'acquaintance'];
+
+function RelationshipEditor({
+  memberId,
+  characterName,
+  current,
+  onSave,
+  compact,
+}: {
+  memberId: string;
+  characterName: string;
+  current: UniverseRelationship | undefined;
+  onSave: (rel: RelationKind, note: string | null) => Promise<boolean> | void;
+  compact?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [rel, setRel] = useState<RelationKind>(current?.relation ?? 'acquaintance');
+  const [note, setNote] = useState<string>(current?.note ?? '');
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    setRel(current?.relation ?? 'acquaintance');
+    setNote(current?.note ?? '');
+  }, [current?.id, current?.relation, current?.note]);
+
+  const label = current ? RELATION_LABELS[current.relation] : 'Set relationship';
+  return (
+    <div className={`rounded-md border border-slate-700/60 bg-black/25 ${compact ? 'p-2' : 'p-2.5'} space-y-2`}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full min-h-[36px] flex items-center justify-between gap-2 text-left"
+      >
+        <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-widest text-white/60">
+          <Heart className="w-3 h-3 text-rose-300/70" />
+          {current ? `You: ${label}` : `How do you see ${characterName}?`}
+        </span>
+        {open ? <ChevronUp className="w-4 h-4 text-white/60" /> : <ChevronDown className="w-4 h-4 text-white/60" />}
+      </button>
+      {open && (
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-1.5">
+            {RELATION_OPTIONS.map(opt => {
+              const active = rel === opt;
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setRel(opt)}
+                  className={`min-h-[36px] rounded-md px-2 py-1.5 text-[11px] font-medium border transition ${
+                    active
+                      ? 'bg-rose-500/20 border-rose-400/50 text-rose-100'
+                      : 'bg-black/30 border-slate-700/60 text-white/70 hover:bg-black/50'
+                  }`}
+                >
+                  {RELATION_LABELS[opt]}
+                </button>
+              );
+            })}
+          </div>
+          <Textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value.slice(0, 500))}
+            placeholder="Optional note — e.g. Stole my wardstone at Basgiath"
+            className="min-h-[56px] bg-black/40 border-slate-700 text-[12px]"
+            maxLength={500}
+          />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] text-white/40">{note.length}/500 · Only your side is saved</span>
+            <Button
+              size="sm"
+              className="min-h-[36px] bg-rose-500/70 hover:bg-rose-500 text-white"
+              disabled={saving || (rel === (current?.relation ?? 'acquaintance') && (note.trim() || null) === (current?.note ?? null))}
+              onClick={async () => {
+                setSaving(true);
+                await onSave(rel, note.trim() ? note.trim() : null);
+                setSaving(false);
+                setOpen(false);
+              }}
+            >
+              <Save className="w-3.5 h-3.5 mr-1" /> Save
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function timeAgo(iso: string | null): string {
   if (!iso) return '';
@@ -64,7 +151,25 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
     setVisibility,
     myRegion,
     setRegion,
+    setRelationship,
+    relationshipByMember,
   } = hook;
+
+  // One-time prompt after a crossover completes: nudge player to set relationship
+  const promptedCrossoverRef = useRef<Set<string>>(new Set());
+  const [relationshipPromptFor, setRelationshipPromptFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (!crossovers || crossovers.length === 0) return;
+    for (const cx of crossovers) {
+      if (cx.status !== 'completed') continue;
+      if (promptedCrossoverRef.current.has(cx.id)) continue;
+      promptedCrossoverRef.current.add(cx.id);
+      const otherMemberId = cx.mySide === 'a' ? cx.toMember : cx.fromMember;
+      if (relationshipByMember.get(otherMemberId)) continue;
+      setRelationshipPromptFor(otherMemberId);
+      break;
+    }
+  }, [crossovers, relationshipByMember]);
 
   // Clear unseen badge when the section mounts / campaign switches
   useEffect(() => {
@@ -176,6 +281,44 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
           </div>
           <Copy className="w-4 h-4 text-amber-300/80" />
         </button>
+
+        {relationshipPromptFor && (() => {
+          const target = members.find(m => m.id === relationshipPromptFor);
+          if (!target) return null;
+          return (
+            <div className="rounded-md border border-rose-400/40 bg-rose-500/10 p-2.5 space-y-2">
+              <div className="flex items-start gap-2">
+                <Heart className="w-4 h-4 text-rose-300 mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-[12px] text-rose-100 font-medium">
+                    How does <span className="font-semibold">{target.characterName}</span> stand with your character now?
+                  </p>
+                  <p className="text-[10px] text-rose-100/70 leading-snug mt-0.5">
+                    Your DM will remember this next time your paths cross.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setRelationshipPromptFor(null)}
+                  className="text-rose-200/70 hover:text-rose-100 min-h-[24px] px-1"
+                  aria-label="Dismiss"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <RelationshipEditor
+                memberId={target.id}
+                characterName={target.characterName}
+                current={relationshipByMember.get(target.id)}
+                onSave={async (rel, note) => {
+                  const ok = await setRelationship(target.id, rel, note);
+                  if (ok) setRelationshipPromptFor(null);
+                  return ok;
+                }}
+              />
+            </div>
+          );
+        })()}
+
 
         {/* Story Visibility — controls what other DMs receive about you */}
         <div className="rounded-md border border-slate-700/60 bg-black/25 p-2.5 space-y-2">
@@ -292,6 +435,15 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
                     <p className="text-[11px] text-muted-foreground italic">
                       No story shared yet
                     </p>
+                  )}
+                  {!isMe && (
+                    <RelationshipEditor
+                      memberId={m.id}
+                      characterName={m.characterName}
+                      current={relationshipByMember.get(m.id)}
+                      onSave={(rel, note) => setRelationship(m.id, rel, note)}
+                      compact
+                    />
                   )}
                 </div>
               );
@@ -543,7 +695,9 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
                 {completedCrossovers.length > 0 && (
                   <div className="space-y-1.5">
                     <div className="text-[10px] uppercase tracking-widest text-white/50">Shared Memories</div>
-                    {completedCrossovers.map(cx => (
+                    {completedCrossovers.map(cx => {
+                      const otherMemberId = cx.mySide === 'a' ? cx.toMember : cx.fromMember;
+                      return (
                       <div key={cx.id} className="rounded-md bg-black/30 border border-slate-700/50 p-2.5 space-y-2">
                         <div className="text-[11px] text-amber-200/90 font-semibold">
                           With {cx.otherCharacterName}
@@ -563,8 +717,16 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
                             </p>
                           </div>
                         </div>
+                        <RelationshipEditor
+                          memberId={otherMemberId}
+                          characterName={cx.otherCharacterName}
+                          current={relationshipByMember.get(otherMemberId)}
+                          onSave={(rel, note) => setRelationship(otherMemberId, rel, note)}
+                          compact
+                        />
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
