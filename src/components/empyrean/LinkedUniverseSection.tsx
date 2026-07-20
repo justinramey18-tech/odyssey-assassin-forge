@@ -57,7 +57,17 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
     respondCrossover,
     activateCrossover,
     activeCrossoverId,
+    pendingCrossoversForMe,
+    unseenEvents,
+    markSeen,
   } = hook;
+
+  // Clear unseen badge when the section mounts / campaign switches
+  useEffect(() => {
+    if (universe) markSeen();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [universe?.id]);
+
 
   const rumorFeed = useMemo(
     () => [...events].sort((a, b) => {
