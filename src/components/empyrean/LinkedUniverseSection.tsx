@@ -75,11 +75,36 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
 
   const [digestOpen, setDigestOpen] = useState(false);
   const [rumorOpen, setRumorOpen] = useState(false);
+  const [crossoversOpen, setCrossoversOpen] = useState(false);
   const [digestDraft, setDigestDraft] = useState('');
   const [savingDigest, setSavingDigest] = useState(false);
+  const [crossoverDraftFor, setCrossoverDraftFor] = useState<string | null>(null);
+  const [crossoverPremise, setCrossoverPremise] = useState('');
   useEffect(() => {
     setDigestDraft(ownMember?.storyDigest ?? '');
   }, [ownMember?.id, ownMember?.storyDigest]);
+
+  const otherMembers = useMemo(
+    () => members.filter(m => m.campaignId !== campaignId),
+    [members, campaignId]
+  );
+  const incomingPending = useMemo(
+    () => crossovers.filter(c => c.direction === 'incoming' && c.status === 'pending'),
+    [crossovers]
+  );
+  const outgoingPending = useMemo(
+    () => crossovers.filter(c => c.direction === 'outgoing' && c.status === 'pending'),
+    [crossovers]
+  );
+  const acceptedCrossovers = useMemo(
+    () => crossovers.filter(c => c.status === 'accepted'),
+    [crossovers]
+  );
+  const completedCrossovers = useMemo(
+    () => crossovers.filter(c => c.status === 'completed').slice(0, 5),
+    [crossovers]
+  );
+  const crossoverBadge = incomingPending.length + acceptedCrossovers.length;
 
   const disabled = !isSignedIn || !campaignId;
 
