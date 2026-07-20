@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { Sparkles, Copy, Users, LogOut, Plus, LogIn } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Sparkles, Copy, Users, LogOut, Plus, LogIn, ChevronDown, ChevronUp, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,7 +14,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { useLinkedUniverse } from '@/hooks/use-linked-universe';
+import { useLinkedUniverse, type LinkedUniverseController } from '@/hooks/use-linked-universe';
 
 function timeAgo(iso: string | null): string {
   if (!iso) return '';
@@ -30,9 +31,16 @@ function timeAgo(iso: string | null): string {
 interface Props {
   campaignId: string | null;
   characterName: string;
+  controller?: LinkedUniverseController;
 }
 
-export function LinkedUniverseSection({ campaignId, characterName }: Props) {
+const DIGEST_PLACEHOLDER =
+  'Describe your character and current story in a few lines. Other players\' DMs will see this. Example: CHARACTER: Ramey, 2nd-year rider, lightning signet. LOCATION: Basgiath east wing. RECENT: Survived a venin ambush at the ward line. HOOKS: Carries a stolen wardstone fragment.';
+
+export function LinkedUniverseSection({ campaignId, characterName, controller }: Props) {
+  const internal = useLinkedUniverse({ campaignId: controller ? null : campaignId });
+  const hook = controller ?? internal;
+
   const {
     universe,
     members,
@@ -41,12 +49,21 @@ export function LinkedUniverseSection({ campaignId, characterName }: Props) {
     joinUniverse,
     leaveUniverse,
     isSignedIn,
-  } = useLinkedUniverse({ campaignId });
+    ownMember,
+    saveMyDigest,
+  } = hook;
 
   const [mode, setMode] = useState<'idle' | 'create' | 'join'>('idle');
   const [name, setName] = useState('Shared Universe');
   const [code, setCode] = useState('');
   const [confirmUnlink, setConfirmUnlink] = useState(false);
+
+  const [digestOpen, setDigestOpen] = useState(false);
+  const [digestDraft, setDigestDraft] = useState('');
+  const [savingDigest, setSavingDigest] = useState(false);
+  useEffect(() => {
+    setDigestDraft(ownMember?.storyDigest ?? '');
+  }, [ownMember?.id, ownMember?.storyDigest]);
 
   const disabled = !isSignedIn || !campaignId;
 
@@ -106,7 +123,12 @@ export function LinkedUniverseSection({ campaignId, characterName }: Props) {
                 className="rounded-md border border-slate-700/50 bg-black/25 px-2.5 py-2"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-white/90 truncate">{m.characterName}</span>
+                  <span className="text-sm text-white/90 truncate">
+                    {m.characterName}
+                    {m.campaignId === campaignId && (
+                      <span className="ml-1.5 text-[10px] text-amber-300/70">(you)</span>
+                    )}
+                  </span>
                   {m.digestUpdatedAt && (
                     <span className="text-[10px] text-white/50 shrink-0">
                       {timeAgo(m.digestUpdatedAt)}
@@ -125,6 +147,47 @@ export function LinkedUniverseSection({ campaignId, characterName }: Props) {
             )}
           </div>
         </div>
+
+        {ownMember && (
+          <div className="rounded-md border border-slate-700/60 bg-black/25">
+            <button
+              onClick={() => setDigestOpen(v => !v)}
+              className="w-full min-h-[44px] flex items-center justify-between px-3 py-2 text-left"
+            >
+              <span className="text-xs uppercase tracking-widest text-white/70">My Story Digest</span>
+              {digestOpen ? <ChevronUp className="w-4 h-4 text-white/60" /> : <ChevronDown className="w-4 h-4 text-white/60" />}
+            </button>
+            {digestOpen && (
+              <div className="px-3 pb-3 space-y-2">
+                <Textarea
+                  value={digestDraft}
+                  onChange={(e) => setDigestDraft(e.target.value)}
+                  placeholder={DIGEST_PLACEHOLDER}
+                  className="min-h-[140px] bg-black/40 border-slate-700 text-sm"
+                  maxLength={2000}
+                />
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-white/40">
+                    {digestDraft.length}/2000 · Other players' DMs will see this
+                  </span>
+                  <Button
+                    size="sm"
+                    className="min-h-[36px] bg-amber-500/80 hover:bg-amber-500 text-black"
+                    disabled={savingDigest || digestDraft === (ownMember.storyDigest ?? '')}
+                    onClick={async () => {
+                      setSavingDigest(true);
+                      await saveMyDigest(digestDraft);
+                      setSavingDigest(false);
+                    }}
+                  >
+                    <Save className="w-3.5 h-3.5 mr-1" />
+                    Save
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <Button
           variant="destructive"

@@ -45,7 +45,9 @@ interface CharacterSheetProps {
   onOpenEmpyreanCooldowns?: () => void;
   onOpenSignetManagement?: () => void;
   activeCampaignId?: string | null;
+  linkedUniverse?: import('@/hooks/use-linked-universe').LinkedUniverseController;
 }
+
 
 const TABS: Array<{ id: CharacterSheetTab; label: string; icon: React.ComponentType<{ className?: string }>; color: string; accent: string }> = [
   { id: 'character', label: 'Character',      icon: User,          color: 'text-sky-300',    accent: 'border-sky-400/50 bg-sky-500/10' },
@@ -83,7 +85,9 @@ export function CharacterSheet({
   onOpenEmpyreanCooldowns,
   onOpenSignetManagement,
   activeCampaignId,
+  linkedUniverse,
 }: CharacterSheetProps) {
+
   const [activeTab, setActiveTab] = useState<CharacterSheetTab>(initialTab);
 
   const handleClose = useCallback(() => {
@@ -176,7 +180,9 @@ export function CharacterSheet({
                 onCloseSheet={onClose}
                 activeCampaignId={activeCampaignId ?? null}
                 characterName={characterName}
+                linkedUniverse={linkedUniverse}
               />
+
 
             )}
           </motion.div>
@@ -385,7 +391,9 @@ interface SettingsTabProps {
   onCloseSheet: () => void;
   activeCampaignId: string | null;
   characterName: string;
+  linkedUniverse?: import('@/hooks/use-linked-universe').LinkedUniverseController;
 }
+
 
 function SettingsTab({
   onCampaignSaves,
@@ -410,7 +418,9 @@ function SettingsTab({
   onCloseSheet,
   activeCampaignId,
   characterName,
+  linkedUniverse,
 }: SettingsTabProps) {
+
   const [confirmNewCampaign, setConfirmNewCampaign] = useState(false);
 
   const closeAndRun = useCallback((fn: () => void) => {
@@ -445,7 +455,7 @@ function SettingsTab({
           />
         )}
         <div className="pt-2">
-          <LinkedUniverseSection campaignId={activeCampaignId} characterName={characterName} />
+          <LinkedUniverseSection campaignId={activeCampaignId} characterName={characterName} controller={linkedUniverse} />
         </div>
       </SettingsSection>
 

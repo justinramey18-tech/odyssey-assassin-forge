@@ -33,6 +33,8 @@ import { CampaignSessionsManager } from '@/components/ai-dm/CampaignSessionsMana
 import { DMToolsDrawer } from '@/components/ai-dm/DMToolsDrawer';
 import { DMBottomNav, DMNavTab } from '@/components/ai-dm/DMBottomNav';
 import { CharacterSheet } from '@/components/empyrean/CharacterSheet';
+import { useLinkedUniverse } from '@/hooks/use-linked-universe';
+
 import { EmpyreanDirectorScreen } from '@/components/empyrean/EmpyreanDirectorScreen';
 import { DMDiceRoller } from '@/components/ai-dm/DMDiceRoller';
 import { GMGuidesManager } from '@/components/ai-dm/GMGuidesManager';
@@ -558,6 +560,13 @@ ${oocLines}`;
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
   const { weather } = useWeather();
   const gameState = useDMGameState(trackingCampaignId);
+  const linkedUniverse = useLinkedUniverse({ campaignId: trackingCampaignId });
+  const universeContext = linkedUniverse.universeContext;
+  const combinedGuidesContent = useMemo(
+    () => [enabledContent, universeContext].filter(Boolean).join('\n\n'),
+    [enabledContent, universeContext]
+  );
+
   const worldStatePrompt = useMemo(() => {
     let prompt = buildMemoryAnchorsPrompt(gameState.gameState);
     if (loadWeatherEnabled()) {
@@ -606,7 +615,8 @@ ${oocLines}`;
   const oocDmChat = useOocDmChat({
     characterContext: empyreanCharacterContext,
     campaignSummary: null,
-    customGuidesContent: enabledContent,
+    customGuidesContent: combinedGuidesContent,
+
     campaignType: 'empyrean',
     selectedModel,
     storageKeySuffix: '-empyrean',
@@ -635,7 +645,7 @@ ${oocLines}`;
     newGame,
   } = useAIDM({
     characterContext: empyreanCharacterContext,
-    customGuidesContent: enabledContent,
+    customGuidesContent: combinedGuidesContent,
     dmPersonaPrompt,
     responseModePrompt: resolveResponseModePrompt(responseMode),
     selectedModel,
@@ -2188,6 +2198,8 @@ ${oocLines}`;
         onClose={() => setCharacterSheetOpen(false)}
         characterName={characterName}
         activeCampaignId={activeCampaignId}
+        linkedUniverse={linkedUniverse}
+
         onCampaignSaves={() => setShowSaves(true)}
         onGuides={() => setShowGuides(true)}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
