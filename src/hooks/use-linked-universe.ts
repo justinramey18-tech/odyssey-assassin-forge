@@ -577,6 +577,9 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     activeCrossover,
     activeCrossoverId,
     pendingCrossoverPrompt,
+    pendingCrossoversForMe,
+    unseenEvents,
+    markSeen,
     isSignedIn: !!user,
   };
 
