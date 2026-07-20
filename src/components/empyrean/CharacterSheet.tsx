@@ -43,6 +43,7 @@ interface CharacterSheetProps {
   onOpenAbilityTrees?: () => void;
   onOpenEmpyreanCooldowns?: () => void;
   onOpenSignetManagement?: () => void;
+  activeCampaignId?: string | null;
 }
 
 const TABS: Array<{ id: CharacterSheetTab; label: string; icon: React.ComponentType<{ className?: string }>; color: string; accent: string }> = [
@@ -80,6 +81,7 @@ export function CharacterSheet({
   onOpenAbilityTrees,
   onOpenEmpyreanCooldowns,
   onOpenSignetManagement,
+  activeCampaignId,
 }: CharacterSheetProps) {
   const [activeTab, setActiveTab] = useState<CharacterSheetTab>(initialTab);
 
