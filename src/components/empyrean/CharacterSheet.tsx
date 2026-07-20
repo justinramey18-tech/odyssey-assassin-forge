@@ -418,7 +418,9 @@ function SettingsTab({
   onCloseSheet,
   activeCampaignId,
   characterName,
+  linkedUniverse,
 }: SettingsTabProps) {
+
   const [confirmNewCampaign, setConfirmNewCampaign] = useState(false);
 
   const closeAndRun = useCallback((fn: () => void) => {
