@@ -199,19 +199,23 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
   );
 
   const saveMyDigest = useCallback(async (digest: string) => {
-    if (!ownMember) { toast.error('No linked member row'); return false; }
-    const { error } = await supabase
-      .from('universe_members')
-      .update({ story_digest: digest, digest_updated_at: new Date().toISOString() })
-      .eq('id', ownMember.id);
-    if (error) {
+    const cid = campaignRef.current;
+    if (!cid) { toast.error('Save your campaign first'); return false; }
+    if (digest.length > 5000) { toast.error('Digest must be 5000 characters or fewer'); return false; }
+    try {
+      const res = await invoke('saveDigest', { campaignId: cid, digest });
+      if (res.error || res.data?.error) {
+        toast.error(res.data?.error || 'Failed to save digest');
+        return false;
+      }
+      toast.success('Story digest saved');
+      await refresh();
+      return true;
+    } catch {
       toast.error('Failed to save digest');
       return false;
     }
-    toast.success('Story digest saved');
-    await refresh();
-    return true;
-  }, [ownMember, refresh]);
+  }, [invoke, refresh]);
 
   const universeContext = useMemo(() => {
     if (!state.universe) return null;
