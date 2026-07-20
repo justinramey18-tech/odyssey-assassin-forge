@@ -54,6 +54,7 @@ interface DMToolsDrawerProps {
   isUnbonded?: boolean;
   onAuthorizeThreshing?: () => void;
   threshingAuthorized?: boolean;
+  linkedUniverseSection?: React.ReactNode;
 }
 
 export function DMToolsDrawer({
@@ -92,6 +93,7 @@ export function DMToolsDrawer({
   isUnbonded,
   onAuthorizeThreshing,
   threshingAuthorized,
+  linkedUniverseSection,
 }: DMToolsDrawerProps) {
   const [showRetakeConfirm, setShowRetakeConfirm] = useState(false);
 
@@ -189,6 +191,10 @@ export function DMToolsDrawer({
               badgeColor="bg-amber-600"
               onClick={() => closeAndRun(onGuides)}
             />
+          )}
+
+          {linkedUniverseSection && (
+            <div className="px-2 py-2">{linkedUniverseSection}</div>
           )}
 
           {/* Empyrean Prompts */}
