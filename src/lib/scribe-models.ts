@@ -33,6 +33,9 @@ export const SCRIBE_MODELS: ScribeModel[] = [
   { id: 'perplexity/sonar', label: 'Sonar (own key)', provider: 'perplexity', description: 'Fast search-grounded AI (own key)' },
   { id: 'perplexity/sonar-pro', label: 'Sonar Pro (own key)', provider: 'perplexity', description: 'Best search-grounded quality (own key)' },
   { id: 'perplexity/sonar-reasoning', label: 'Sonar Reasoning (own key)', provider: 'perplexity', description: 'Chain-of-thought reasoning (own key)' },
+  { id: 'xai-direct/grok-4', label: 'Grok 4 (own key)', provider: 'xai-direct', description: 'xAI flagship (own key)' },
+  { id: 'xai-direct/grok-3', label: 'Grok 3 (own key)', provider: 'xai-direct', description: 'Strong reasoning (own key)' },
+  { id: 'xai-direct/grok-3-mini', label: 'Grok 3 Mini (own key)', provider: 'xai-direct', description: 'Fast & cheap (own key)' },
 ];
 
 export const DEFAULT_SCRIBE_MODEL = 'google/gemini-3-pro-preview';
