@@ -60,6 +60,8 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
     pendingCrossoversForMe,
     unseenEvents,
     markSeen,
+    myVisibility,
+    setVisibility,
   } = hook;
 
   // Clear unseen badge when the section mounts / campaign switches
