@@ -665,6 +665,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          current_day: number
           id: string
           is_active: boolean
           link_code: string
@@ -674,6 +675,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
+          current_day?: number
           id?: string
           is_active?: boolean
           link_code: string
@@ -683,6 +685,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          current_day?: number
           id?: string
           is_active?: boolean
           link_code?: string
@@ -1887,6 +1890,7 @@ export type Database = {
           id: string
           importance: number
           is_canon: boolean
+          occurred_on_day: number
           universe_id: string
         }
         Insert: {
@@ -1897,6 +1901,7 @@ export type Database = {
           id?: string
           importance?: number
           is_canon?: boolean
+          occurred_on_day?: number
           universe_id: string
         }
         Update: {
@@ -1907,6 +1912,7 @@ export type Database = {
           id?: string
           importance?: number
           is_canon?: boolean
+          occurred_on_day?: number
           universe_id?: string
         }
         Relationships: [
@@ -1935,6 +1941,7 @@ export type Database = {
           id: string
           joined_at: string
           region: string | null
+          story_day: number
           story_digest: string | null
           universe_id: string
           user_id: string
@@ -1948,6 +1955,7 @@ export type Database = {
           id?: string
           joined_at?: string
           region?: string | null
+          story_day?: number
           story_digest?: string | null
           universe_id: string
           user_id: string
@@ -1961,6 +1969,7 @@ export type Database = {
           id?: string
           joined_at?: string
           region?: string | null
+          story_day?: number
           story_digest?: string | null
           universe_id?: string
           user_id?: string
