@@ -209,6 +209,33 @@ Deno.serve(async (req) => {
       return json({ universe, members: members || [], events: events || [] });
     }
 
+    if (action === 'saveDigest') {
+      const { campaignId, digest } = body;
+      if (!campaignId) return json({ error: 'campaignId required' }, 400);
+      if (typeof digest !== 'string') return json({ error: 'digest must be a string' }, 400);
+      if (digest.length > 5000) return json({ error: 'Digest must be 5000 characters or fewer' }, 400);
+      if (!(await verifyCampaignOwnership(campaignId))) {
+        return json({ error: 'You do not own this campaign' }, 403);
+      }
+
+      const { data: membership } = await supabase
+        .from('universe_members')
+        .select('id')
+        .eq('campaign_id', campaignId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!membership) return json({ error: 'Campaign is not linked to a universe' }, 404);
+
+      const { error: updateErr } = await supabase
+        .from('universe_members')
+        .update({ story_digest: digest, digest_updated_at: new Date().toISOString() })
+        .eq('id', membership.id);
+
+      if (updateErr) return json({ error: updateErr.message }, 500);
+      return json({ success: true });
+    }
+
     return json({ error: 'Unknown action' }, 400);
   } catch (err) {
     return json({ error: (err as Error).message }, 500);
