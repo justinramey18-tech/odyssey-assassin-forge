@@ -94,9 +94,14 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
   const [savingDigest, setSavingDigest] = useState(false);
   const [crossoverDraftFor, setCrossoverDraftFor] = useState<string | null>(null);
   const [crossoverPremise, setCrossoverPremise] = useState('');
+  const [regionDraft, setRegionDraft] = useState('');
+  const [savingRegion, setSavingRegion] = useState(false);
   useEffect(() => {
     setDigestDraft(ownMember?.storyDigest ?? '');
   }, [ownMember?.id, ownMember?.storyDigest]);
+  useEffect(() => {
+    setRegionDraft(ownMember?.region ?? '');
+  }, [ownMember?.id, ownMember?.region]);
 
   const otherMembers = useMemo(
     () => members.filter(m => m.campaignId !== campaignId),
