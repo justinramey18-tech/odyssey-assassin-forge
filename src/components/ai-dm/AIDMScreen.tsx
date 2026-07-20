@@ -543,6 +543,15 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     selectedModel,
   });
 
+  // Auto-update Linked Universe story digest whenever the campaign summary changes
+  useEffect(() => {
+    if (campaignSummary && campaignSummary.trim()) {
+      linkedUniverse.generateDigestFromSummary(campaignSummary, characterName || 'Adventurer');
+    }
+  }, [campaignSummary, characterName, linkedUniverse]);
+
+
+
   // Keep game state in sync with activeCampaignId changes
   useEffect(() => {
     if (activeCampaignId !== gameStateCampaignId) {
