@@ -615,7 +615,8 @@ ${oocLines}`;
   const oocDmChat = useOocDmChat({
     characterContext: empyreanCharacterContext,
     campaignSummary: null,
-    customGuidesContent: enabledContent,
+    customGuidesContent: combinedGuidesContent,
+
     campaignType: 'empyrean',
     selectedModel,
     storageKeySuffix: '-empyrean',
