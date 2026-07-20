@@ -243,6 +243,34 @@ Deno.serve(async (req) => {
       return json({ success: true });
     }
 
+    if (action === 'setVisibility') {
+      const { campaignId, visibility } = body;
+      if (!campaignId) return json({ error: 'campaignId required' }, 400);
+      if (!['full', 'headline', 'hidden'].includes(visibility)) {
+        return json({ error: 'visibility must be full, headline, or hidden' }, 400);
+      }
+      if (!(await verifyCampaignOwnership(campaignId))) {
+        return json({ error: 'You do not own this campaign' }, 403);
+      }
+
+      const { data: membership } = await supabase
+        .from('universe_members')
+        .select('id')
+        .eq('campaign_id', campaignId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!membership) return json({ error: 'Campaign is not linked to a universe' }, 404);
+
+      const { error: updateErr } = await supabase
+        .from('universe_members')
+        .update({ visibility })
+        .eq('id', membership.id);
+
+      if (updateErr) return json({ error: updateErr.message }, 500);
+      return json({ success: true });
+    }
+
     if (action === 'generateDigest') {
       const { campaignId, campaignSummary, characterName } = body;
       if (!campaignId) return json({ error: 'campaignId required' }, 400);
