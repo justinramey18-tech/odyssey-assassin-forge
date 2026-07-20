@@ -152,6 +152,51 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     };
   }, [campaignId, user, refresh]);
 
+  // Unseen-event tracking (per-campaign lastSeen timestamp)
+  const lastSeenKey = campaignId ? `lu-lastseen-${campaignId}` : null;
+  const [lastSeenAt, setLastSeenAt] = useState<number>(() => {
+    if (!lastSeenKey) return 0;
+    try {
+      const raw = localStorage.getItem(lastSeenKey);
+      return raw ? parseInt(raw, 10) || 0 : 0;
+    } catch { return 0; }
+  });
+  useEffect(() => {
+    if (!lastSeenKey) { setLastSeenAt(0); return; }
+    try {
+      const raw = localStorage.getItem(lastSeenKey);
+      setLastSeenAt(raw ? parseInt(raw, 10) || 0 : 0);
+    } catch { setLastSeenAt(0); }
+  }, [lastSeenKey]);
+
+  const markSeen = useCallback(() => {
+    if (!lastSeenKey) return;
+    const now = Date.now();
+    try { localStorage.setItem(lastSeenKey, String(now)); } catch {}
+    setLastSeenAt(now);
+  }, [lastSeenKey]);
+
+  const myMemberIdRef = useRef<string | null>(null);
+  myMemberIdRef.current = state.myMemberId;
+
+  const pendingCrossoversForMe = useMemo(
+    () => state.crossovers.filter(c => c.direction === 'incoming' && c.status === 'pending').length,
+    [state.crossovers]
+  );
+
+  const unseenEvents = useMemo(() => {
+    if (!lastSeenAt) return 0;
+    const myId = state.myMemberId;
+    return state.events.filter(e => {
+      const t = e.createdAt ? new Date(e.createdAt).getTime() : 0;
+      if (t <= lastSeenAt) return false;
+      // universe_events don't expose created_by in current status shape; treat createdByName === own character as self-authored
+      const ownName = state.members.find(m => m.id === myId)?.characterName;
+      if (ownName && e.createdByName && e.createdByName === ownName) return false;
+      return true;
+    }).length;
+  }, [state.events, state.members, state.myMemberId, lastSeenAt]);
+
   // Realtime subscription scoped to the current universe.
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const subscribedUniverseIdRef = useRef<string | null>(null);
@@ -159,11 +204,16 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
 
+  // Toast throttle for world-events (max one per 10s), plus dedupe for crossover toasts
+  const lastEventToastAtRef = useRef<number>(0);
+  const toastedCrossoverIdsRef = useRef<Set<string>>(new Set());
+  const membersRef = useRef(state.members);
+  membersRef.current = state.members;
+
   useEffect(() => {
     const universeId = state.universe?.id ?? null;
     if (subscribedUniverseIdRef.current === universeId && channelRef.current) return;
 
-    // Tear down previous channel
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
@@ -179,12 +229,44 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
       }, REALTIME_DEBOUNCE_MS);
     };
 
+    const handleCrossoverChange = (payload: any) => {
+      const row = payload?.new;
+      if (row && payload.eventType === 'INSERT' && row.status === 'pending' && row.to_member === myMemberIdRef.current) {
+        if (!toastedCrossoverIdsRef.current.has(row.id)) {
+          toastedCrossoverIdsRef.current.add(row.id);
+          const fromName = membersRef.current.find(m => m.id === row.from_member)?.characterName || 'Another rider';
+          const premise = typeof row.scene_premise === 'string' && row.scene_premise.trim()
+            ? `: ${row.scene_premise.trim().slice(0, 120)}`
+            : '';
+          toast(`${fromName} wants a crossover${premise}`);
+        }
+      }
+      scheduleRefresh();
+    };
+
+    const handleEventInsert = (payload: any) => {
+      const row = payload?.new;
+      if (row && row.importance >= 3) {
+        // Skip if authored by me (created_by is universe_members.id)
+        const isMine = row.created_by && row.created_by === myMemberIdRef.current;
+        if (!isMine) {
+          const now = Date.now();
+          if (now - lastEventToastAtRef.current >= 10_000) {
+            lastEventToastAtRef.current = now;
+            const text = typeof row.event_text === 'string' ? row.event_text.slice(0, 160) : 'A new world event occurred';
+            toast(`World event: ${text}`, { duration: 5000 });
+          }
+        }
+      }
+      scheduleRefresh();
+    };
+
     const filter = `universe_id=eq.${universeId}`;
     const channel = supabase
       .channel(`universe:${universeId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'universe_members', filter }, scheduleRefresh)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'universe_events', filter }, scheduleRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'crossover_requests', filter }, scheduleRefresh)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'universe_events', filter }, handleEventInsert)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'crossover_requests', filter }, handleCrossoverChange)
       .subscribe();
 
     channelRef.current = channel;
@@ -495,6 +577,9 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     activeCrossover,
     activeCrossoverId,
     pendingCrossoverPrompt,
+    pendingCrossoversForMe,
+    unseenEvents,
+    markSeen,
     isSignedIn: !!user,
   };
 
