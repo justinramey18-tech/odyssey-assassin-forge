@@ -550,6 +550,22 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     }
   }, [campaignSummary, characterName, linkedUniverse]);
 
+  // Auto-create + restore a persistent campaign so linking is always available
+  useAutoCampaign({
+    mode: 'solo',
+    isSignedIn: campaignSessions.isSignedIn,
+    activeCampaignId,
+    setActiveCampaignId,
+    messages,
+    campaignSummary,
+    characterName,
+    sessions: campaignSessions.sessions,
+    sessionsLoading: campaignSessions.isLoading,
+    saveSession: campaignSessions.saveSession,
+    loadCampaign,
+    memoryAnchors: gameState.memory_anchors,
+  });
+
 
 
   // Keep game state in sync with activeCampaignId changes
