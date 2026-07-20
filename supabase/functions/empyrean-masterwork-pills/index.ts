@@ -189,7 +189,7 @@ serve(async (req) => {
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
+    if (route === 'gateway' && !LOVABLE_API_KEY) {
       return new Response(
         JSON.stringify({ error: "LOVABLE_API_KEY not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -211,8 +211,6 @@ serve(async (req) => {
 - Dragon: ${dragon_name || '(unnamed)'}
 - Signet: ${signet_type || '(unknown signet)'}`;
 
-    // No truncation — the client already bounds this to the last 8 messages.
-    // Send the full narrative so the newest events are never lost.
     const narrativeParts = recent_narrative.split('\n\n').filter(Boolean);
     const latestBeat = narrativeParts.length > 0 ? narrativeParts[narrativeParts.length - 1] : recent_narrative;
 
@@ -234,66 +232,98 @@ ${latestBeat}`;
       ? `${activeSystemPrompt}\n\n${categoryBlock}\n\n${summaryBlock}\n\n${characterBlock}\n\n${narrativeBlock}`
       : `${activeSystemPrompt}\n\n${categoryBlock}\n\n${characterBlock}\n\n${narrativeBlock}`;
 
-    const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: resolvedModel,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: "Generate the 4 masterwork pills now via the tool." },
-          ],
-          tools: [PILL_TOOL],
-          tool_choice: { type: "function", function: { name: "generate_masterwork_pills" } },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("[masterwork] Gateway error:", response.status, errText);
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limited. Try again in a moment." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Add credits in Workspace settings." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      return new Response(
-        JSON.stringify({ error: "AI gateway error", detail: errText }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall || toolCall.function?.name !== "generate_masterwork_pills") {
-      console.error("[masterwork] No tool call in response:", JSON.stringify(data).slice(0, 500));
-      return new Response(
-        JSON.stringify({ error: "AI did not produce valid pills" }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    let parsed: { pills?: any[] };
+    // Dispatch to the appropriate provider. Returns parsed tool arguments { pills: [...] }.
+    let parsed: { pills?: any[] } = {};
     try {
-      parsed = JSON.parse(toolCall.function.arguments);
-    } catch {
-      return new Response(
-        JSON.stringify({ error: "AI returned malformed JSON" }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      if (route === 'anthropic') {
+        const anthropicResp = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "x-api-key": String(user_api_key).trim(),
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: resolvedModel,
+            max_tokens: 2048,
+            system: systemPrompt,
+            messages: [{ role: "user", content: "Generate the 4 masterwork pills now via the tool." }],
+            tools: [{
+              name: PILL_TOOL.function.name,
+              description: PILL_TOOL.function.description,
+              input_schema: PILL_TOOL.function.parameters,
+            }],
+            tool_choice: { type: "tool", name: PILL_TOOL.function.name },
+          }),
+        });
+        if (!anthropicResp.ok) {
+          const t = await anthropicResp.text();
+          console.error("[masterwork] Anthropic error", anthropicResp.status, t);
+          return new Response(JSON.stringify({ error: anthropicResp.status === 401 ? "Invalid Anthropic API key." : "Anthropic API error", detail: t }), { status: anthropicResp.status === 429 ? 429 : 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const aData = await anthropicResp.json();
+        const toolUse = aData.content?.find((b: any) => b.type === "tool_use");
+        if (!toolUse) {
+          return new Response(JSON.stringify({ error: "Claude did not return tool call" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        parsed = toolUse.input || {};
+      } else {
+        // OpenAI-compatible endpoints: Lovable gateway, OpenAI direct, xAI
+        const endpoint =
+          route === 'openai-direct' ? "https://api.openai.com/v1/chat/completions"
+          : route === 'xai-direct' ? "https://api.x.ai/v1/chat/completions"
+          : "https://ai.gateway.lovable.dev/v1/chat/completions";
+        const authKey =
+          route === 'openai-direct' ? String(user_openai_key).trim()
+          : route === 'xai-direct' ? String(user_xai_key).trim()
+          : LOVABLE_API_KEY;
+
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${authKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: resolvedModel,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: "Generate the 4 masterwork pills now via the tool." },
+            ],
+            tools: [PILL_TOOL],
+            tool_choice: { type: "function", function: { name: "generate_masterwork_pills" } },
+          }),
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          console.error(`[masterwork] ${route} error:`, response.status, errText);
+          if (response.status === 429) {
+            return new Response(JSON.stringify({ error: "Rate limited. Try again in a moment." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+          if (response.status === 402) {
+            return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+          if (response.status === 401) {
+            return new Response(JSON.stringify({ error: `Invalid ${route} API key.` }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+          return new Response(JSON.stringify({ error: "AI provider error", detail: errText }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
+        const data = await response.json();
+        const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+        if (!toolCall || toolCall.function?.name !== "generate_masterwork_pills") {
+          console.error("[masterwork] No tool call in response:", JSON.stringify(data).slice(0, 500));
+          return new Response(JSON.stringify({ error: "AI did not produce valid pills" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        try { parsed = JSON.parse(toolCall.function.arguments); }
+        catch { return new Response(JSON.stringify({ error: "AI returned malformed JSON" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }); }
+      }
+    } catch (dispatchErr) {
+      console.error("[masterwork] Dispatch failure:", dispatchErr);
+      return new Response(JSON.stringify({ error: "Provider call failed", detail: String(dispatchErr) }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
 
     const rawPills = Array.isArray(parsed.pills) ? parsed.pills : [];
     const cleanPills = rawPills
