@@ -69,6 +69,7 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
   const [confirmUnlink, setConfirmUnlink] = useState(false);
 
   const [digestOpen, setDigestOpen] = useState(false);
+  const [rumorOpen, setRumorOpen] = useState(false);
   const [digestDraft, setDigestDraft] = useState('');
   const [savingDigest, setSavingDigest] = useState(false);
   useEffect(() => {
