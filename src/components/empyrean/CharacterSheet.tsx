@@ -455,7 +455,7 @@ function SettingsTab({
           />
         )}
         <div className="pt-2">
-          <LinkedUniverseSection campaignId={activeCampaignId} characterName={characterName} />
+          <LinkedUniverseSection campaignId={activeCampaignId} characterName={characterName} controller={linkedUniverse} />
         </div>
       </SettingsSection>
 
