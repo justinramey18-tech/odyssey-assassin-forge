@@ -657,7 +657,9 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
                 {completedCrossovers.length > 0 && (
                   <div className="space-y-1.5">
                     <div className="text-[10px] uppercase tracking-widest text-white/50">Shared Memories</div>
-                    {completedCrossovers.map(cx => (
+                    {completedCrossovers.map(cx => {
+                      const otherMemberId = cx.mySide === 'a' ? cx.toMember : cx.fromMember;
+                      return (
                       <div key={cx.id} className="rounded-md bg-black/30 border border-slate-700/50 p-2.5 space-y-2">
                         <div className="text-[11px] text-amber-200/90 font-semibold">
                           With {cx.otherCharacterName}
@@ -677,8 +679,16 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
                             </p>
                           </div>
                         </div>
+                        <RelationshipEditor
+                          memberId={otherMemberId}
+                          characterName={cx.otherCharacterName}
+                          current={relationshipByMember.get(otherMemberId)}
+                          onSave={(rel, note) => setRelationship(otherMemberId, rel, note)}
+                          compact
+                        />
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
