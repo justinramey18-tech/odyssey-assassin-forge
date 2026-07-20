@@ -282,6 +282,44 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
           <Copy className="w-4 h-4 text-amber-300/80" />
         </button>
 
+        {relationshipPromptFor && (() => {
+          const target = members.find(m => m.id === relationshipPromptFor);
+          if (!target) return null;
+          return (
+            <div className="rounded-md border border-rose-400/40 bg-rose-500/10 p-2.5 space-y-2">
+              <div className="flex items-start gap-2">
+                <Heart className="w-4 h-4 text-rose-300 mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-[12px] text-rose-100 font-medium">
+                    How does <span className="font-semibold">{target.characterName}</span> stand with your character now?
+                  </p>
+                  <p className="text-[10px] text-rose-100/70 leading-snug mt-0.5">
+                    Your DM will remember this next time your paths cross.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setRelationshipPromptFor(null)}
+                  className="text-rose-200/70 hover:text-rose-100 min-h-[24px] px-1"
+                  aria-label="Dismiss"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <RelationshipEditor
+                memberId={target.id}
+                characterName={target.characterName}
+                current={relationshipByMember.get(target.id)}
+                onSave={async (rel, note) => {
+                  const ok = await setRelationship(target.id, rel, note);
+                  if (ok) setRelationshipPromptFor(null);
+                  return ok;
+                }}
+              />
+            </div>
+          );
+        })()}
+
+
         {/* Story Visibility — controls what other DMs receive about you */}
         <div className="rounded-md border border-slate-700/60 bg-black/25 p-2.5 space-y-2">
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-white/60">
