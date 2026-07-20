@@ -673,9 +673,19 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     }
   }, [invoke, refresh]);
 
-  const saveCrossoverNarration = useCallback(async (crossoverId: string, side: 'a' | 'b', narration: string) => {
+  const saveCrossoverNarration = useCallback(async (
+    crossoverId: string,
+    side: 'a' | 'b',
+    narration: string,
+    relationUpdate?: { relation: RelationKind; note?: string | null } | null,
+  ) => {
     try {
-      const res = await invoke('saveCrossoverNarration', { crossoverId, side, narration });
+      const payload: Record<string, unknown> = { crossoverId, side, narration };
+      if (relationUpdate && relationUpdate.relation) {
+        payload.relation = relationUpdate.relation;
+        payload.note = relationUpdate.note ?? null;
+      }
+      const res = await invoke('saveCrossoverNarration', payload);
       if (res.error || res.data?.error) return false;
       await refresh();
       return true;
