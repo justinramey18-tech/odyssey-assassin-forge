@@ -151,7 +151,25 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
     setVisibility,
     myRegion,
     setRegion,
+    setRelationship,
+    relationshipByMember,
   } = hook;
+
+  // One-time prompt after a crossover completes: nudge player to set relationship
+  const promptedCrossoverRef = useRef<Set<string>>(new Set());
+  const [relationshipPromptFor, setRelationshipPromptFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (!crossovers || crossovers.length === 0) return;
+    for (const cx of crossovers) {
+      if (cx.status !== 'completed') continue;
+      if (promptedCrossoverRef.current.has(cx.id)) continue;
+      promptedCrossoverRef.current.add(cx.id);
+      const otherMemberId = cx.mySide === 'a' ? cx.toMember : cx.fromMember;
+      if (relationshipByMember.get(otherMemberId)) continue;
+      setRelationshipPromptFor(otherMemberId);
+      break;
+    }
+  }, [crossovers, relationshipByMember]);
 
   // Clear unseen badge when the section mounts / campaign switches
   useEffect(() => {
