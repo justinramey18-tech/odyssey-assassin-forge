@@ -400,6 +400,67 @@ export type Database = {
         }
         Relationships: []
       }
+      crossover_requests: {
+        Row: {
+          created_at: string
+          from_member: string
+          id: string
+          narration_a: string | null
+          narration_b: string | null
+          resolved_at: string | null
+          scene_premise: string | null
+          status: string
+          to_member: string
+          universe_id: string
+        }
+        Insert: {
+          created_at?: string
+          from_member: string
+          id?: string
+          narration_a?: string | null
+          narration_b?: string | null
+          resolved_at?: string | null
+          scene_premise?: string | null
+          status?: string
+          to_member: string
+          universe_id: string
+        }
+        Update: {
+          created_at?: string
+          from_member?: string
+          id?: string
+          narration_a?: string | null
+          narration_b?: string | null
+          resolved_at?: string | null
+          scene_premise?: string | null
+          status?: string
+          to_member?: string
+          universe_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crossover_requests_from_member_fkey"
+            columns: ["from_member"]
+            isOneToOne: false
+            referencedRelation: "universe_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crossover_requests_to_member_fkey"
+            columns: ["to_member"]
+            isOneToOne: false
+            referencedRelation: "universe_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crossover_requests_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "linked_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dm_game_state: {
         Row: {
           campaign_id: string | null

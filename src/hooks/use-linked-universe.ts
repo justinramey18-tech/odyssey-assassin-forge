@@ -22,10 +22,29 @@ export interface UniverseEvent {
   createdByName: string | null;
 }
 
+export interface Crossover {
+  id: string;
+  universeId: string;
+  fromMember: string;
+  toMember: string;
+  scenePremise: string | null;
+  status: 'pending' | 'accepted' | 'declined' | 'completed';
+  narrationA: string | null;
+  narrationB: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+  direction: 'outgoing' | 'incoming';
+  mySide: 'a' | 'b';
+  otherCharacterName: string;
+  otherStoryDigest: string | null;
+}
+
 export interface LinkedUniverseState {
   universe: { id: string; name: string; linkCode: string } | null;
   members: UniverseMember[];
   events: UniverseEvent[];
+  crossovers: Crossover[];
+  myMemberId: string | null;
   isLoading: boolean;
 }
 
@@ -33,6 +52,8 @@ const DEFAULT_STATE: LinkedUniverseState = {
   universe: null,
   members: [],
   events: [],
+  crossovers: [],
+  myMemberId: null,
   isLoading: false,
 };
 
@@ -62,16 +83,21 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     }
     setState(prev => ({ ...prev, isLoading: true }));
     try {
-      const res = await invoke('status', { campaignId: cid });
-      if (res.error || res.data?.error) {
+      const [statusRes, cxRes] = await Promise.all([
+        invoke('status', { campaignId: cid }),
+        invoke('listCrossovers', { campaignId: cid }),
+      ]);
+      if (statusRes.error || statusRes.data?.error) {
         setState({ ...DEFAULT_STATE, isLoading: false });
         return;
       }
-      const { universe, members, events } = res.data || {};
+      const { universe, members, events } = statusRes.data || {};
       if (!universe) {
         setState({ ...DEFAULT_STATE, isLoading: false });
         return;
       }
+      const crossovers = (cxRes.data?.crossovers || []) as Crossover[];
+      const myMemberId = (cxRes.data?.myMemberId as string) || null;
       setState({
         universe: {
           id: universe.id,
@@ -95,6 +121,8 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
           createdAt: e.created_at ?? null,
           createdByName: e.created_by_name ?? null,
         })),
+        crossovers,
+        myMemberId,
         isLoading: false,
       });
     } catch {
@@ -313,6 +341,88 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     return lines.join('\n');
   }, [state.universe, state.members, state.events, campaignId]);
 
+  const requestCrossover = useCallback(async (toMemberId: string, scenePremise: string) => {
+    const cid = campaignRef.current;
+    if (!cid) { toast.error('Save your campaign first'); return false; }
+    try {
+      const res = await invoke('requestCrossover', {
+        fromCampaignId: cid,
+        toMemberId,
+        scenePremise: scenePremise.trim(),
+      });
+      if (res.error || res.data?.error) {
+        toast.error(res.data?.error || 'Failed to request crossover');
+        return false;
+      }
+      toast.success('Crossover requested');
+      await refresh();
+      return true;
+    } catch {
+      toast.error('Failed to request crossover');
+      return false;
+    }
+  }, [invoke, refresh]);
+
+  const respondCrossover = useCallback(async (crossoverId: string, accept: boolean) => {
+    try {
+      const res = await invoke('respondCrossover', { crossoverId, accept });
+      if (res.error || res.data?.error) {
+        toast.error(res.data?.error || 'Failed to respond');
+        return false;
+      }
+      toast.success(accept ? 'Crossover accepted' : 'Crossover declined');
+      await refresh();
+      return true;
+    } catch {
+      toast.error('Failed to respond');
+      return false;
+    }
+  }, [invoke, refresh]);
+
+  const saveCrossoverNarration = useCallback(async (crossoverId: string, side: 'a' | 'b', narration: string) => {
+    try {
+      const res = await invoke('saveCrossoverNarration', { crossoverId, side, narration });
+      if (res.error || res.data?.error) return false;
+      await refresh();
+      return true;
+    } catch {
+      return false;
+    }
+  }, [invoke, refresh]);
+
+  const buildCrossoverPrompt = useCallback((cx: Crossover): string => {
+    const digest = cx.otherStoryDigest?.trim() || `(no digest available — improvise a brief in-character appearance for ${cx.otherCharacterName})`;
+    const premise = cx.scenePremise?.trim();
+    const lines = [
+      '=== CROSSOVER SCENE ===',
+      `Your player is about to share a scene with ${cx.otherCharacterName}, a rider from a linked story. Here is who they are:`,
+      '',
+      digest,
+      '',
+    ];
+    if (premise) {
+      lines.push(`SCENE PREMISE: ${premise}`);
+      lines.push('');
+    }
+    lines.push('Narrate a brief encounter between your player and this character. Keep the other character IN CHARACTER based on their digest, but do NOT make major life decisions for them — leave room for their own player. Aim for a memorable but self-contained moment (a conversation, a chance meeting, a brief alliance or clash).');
+    return lines.join('\n');
+  }, []);
+
+  const [activeCrossoverId, setActiveCrossoverId] = useState<string | null>(null);
+  const activeCrossover = useMemo(
+    () => state.crossovers.find(c => c.id === activeCrossoverId) ?? null,
+    [state.crossovers, activeCrossoverId]
+  );
+  const pendingCrossoverPrompt = useMemo(
+    () => activeCrossover ? buildCrossoverPrompt(activeCrossover) : null,
+    [activeCrossover, buildCrossoverPrompt]
+  );
+
+  const activateCrossover = useCallback((crossoverId: string) => {
+    setActiveCrossoverId(crossoverId);
+  }, []);
+  const clearActiveCrossover = useCallback(() => setActiveCrossoverId(null), []);
+
   const controller = {
     ...state,
     createUniverse,
@@ -324,6 +434,15 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     generateDigestFromSummary,
     checkConflict,
     universeContext,
+    requestCrossover,
+    respondCrossover,
+    saveCrossoverNarration,
+    buildCrossoverPrompt,
+    activateCrossover,
+    clearActiveCrossover,
+    activeCrossover,
+    activeCrossoverId,
+    pendingCrossoverPrompt,
     isSignedIn: !!user,
   };
 

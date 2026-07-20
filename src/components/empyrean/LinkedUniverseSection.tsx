@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Sparkles, Copy, Users, LogOut, Plus, LogIn, ChevronDown, ChevronUp, Save, ScrollText, MapPin, User as UserIcon, Skull, Link2, Radio } from 'lucide-react';
+import { Sparkles, Copy, Users, LogOut, Plus, LogIn, ChevronDown, ChevronUp, Save, ScrollText, MapPin, User as UserIcon, Skull, Link2, Radio, Play, Check, X, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -45,6 +45,7 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
     universe,
     members,
     events,
+    crossovers,
     isLoading,
     createUniverse,
     joinUniverse,
@@ -52,6 +53,10 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
     isSignedIn,
     ownMember,
     saveMyDigest,
+    requestCrossover,
+    respondCrossover,
+    activateCrossover,
+    activeCrossoverId,
   } = hook;
 
   const rumorFeed = useMemo(
@@ -70,11 +75,36 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
 
   const [digestOpen, setDigestOpen] = useState(false);
   const [rumorOpen, setRumorOpen] = useState(false);
+  const [crossoversOpen, setCrossoversOpen] = useState(false);
   const [digestDraft, setDigestDraft] = useState('');
   const [savingDigest, setSavingDigest] = useState(false);
+  const [crossoverDraftFor, setCrossoverDraftFor] = useState<string | null>(null);
+  const [crossoverPremise, setCrossoverPremise] = useState('');
   useEffect(() => {
     setDigestDraft(ownMember?.storyDigest ?? '');
   }, [ownMember?.id, ownMember?.storyDigest]);
+
+  const otherMembers = useMemo(
+    () => members.filter(m => m.campaignId !== campaignId),
+    [members, campaignId]
+  );
+  const incomingPending = useMemo(
+    () => crossovers.filter(c => c.direction === 'incoming' && c.status === 'pending'),
+    [crossovers]
+  );
+  const outgoingPending = useMemo(
+    () => crossovers.filter(c => c.direction === 'outgoing' && c.status === 'pending'),
+    [crossovers]
+  );
+  const acceptedCrossovers = useMemo(
+    () => crossovers.filter(c => c.status === 'accepted'),
+    [crossovers]
+  );
+  const completedCrossovers = useMemo(
+    () => crossovers.filter(c => c.status === 'completed').slice(0, 5),
+    [crossovers]
+  );
+  const crossoverBadge = incomingPending.length + acceptedCrossovers.length;
 
   const disabled = !isSignedIn || !campaignId;
 
@@ -228,6 +258,205 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
             </div>
           )}
         </div>
+
+        {/* Crossovers — opt-in shared scenes */}
+        {otherMembers.length > 0 && (
+          <div className="rounded-md border border-slate-700/60 bg-black/25">
+            <button
+              onClick={() => setCrossoversOpen(v => !v)}
+              className="w-full min-h-[44px] flex items-center justify-between px-3 py-2 text-left"
+            >
+              <span className="flex items-center gap-1.5 text-xs uppercase tracking-widest text-white/70">
+                <Link2 className="w-3.5 h-3.5 text-amber-300/80" />
+                Crossovers
+                {crossoverBadge > 0 && (
+                  <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/30 text-amber-100 border border-amber-400/40 normal-case tracking-normal">
+                    {crossoverBadge}
+                  </span>
+                )}
+              </span>
+              {crossoversOpen ? <ChevronUp className="w-4 h-4 text-white/60" /> : <ChevronDown className="w-4 h-4 text-white/60" />}
+            </button>
+            {crossoversOpen && (
+              <div className="px-3 pb-3 space-y-3">
+                {/* Incoming pending — accept/decline */}
+                {incomingPending.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="text-[10px] uppercase tracking-widest text-amber-300/80">Invitations</div>
+                    {incomingPending.map(cx => (
+                      <div key={cx.id} className="rounded-md bg-black/40 border border-amber-400/25 p-2.5 space-y-2">
+                        <div className="text-[12px] text-white/85">
+                          <span className="font-semibold text-amber-200">{cx.otherCharacterName}</span> wants a scene with you.
+                        </div>
+                        {cx.scenePremise && (
+                          <p className="text-[11px] text-white/70 italic leading-snug">"{cx.scenePremise}"</p>
+                        )}
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            className="flex-1 min-h-[44px] bg-emerald-600/80 hover:bg-emerald-600 text-white"
+                            onClick={() => respondCrossover(cx.id, true)}
+                          >
+                            <Check className="w-3.5 h-3.5 mr-1" /> Accept
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 min-h-[44px]"
+                            onClick={() => respondCrossover(cx.id, false)}
+                          >
+                            <X className="w-3.5 h-3.5 mr-1" /> Decline
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Accepted — Play this scene */}
+                {acceptedCrossovers.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="text-[10px] uppercase tracking-widest text-emerald-300/80">Ready to Play</div>
+                    {acceptedCrossovers.map(cx => (
+                      <div key={cx.id} className="rounded-md bg-emerald-900/15 border border-emerald-500/30 p-2.5 space-y-2">
+                        <div className="text-[12px] text-white/90">
+                          Scene with <span className="font-semibold text-emerald-200">{cx.otherCharacterName}</span>
+                        </div>
+                        {cx.scenePremise && (
+                          <p className="text-[11px] text-white/70 italic leading-snug">"{cx.scenePremise}"</p>
+                        )}
+                        <Button
+                          size="sm"
+                          className="w-full min-h-[44px] bg-amber-500/80 hover:bg-amber-500 text-black"
+                          disabled={activeCrossoverId === cx.id}
+                          onClick={() => {
+                            activateCrossover(cx.id);
+                            toast.success('Send your next DM message to play the scene');
+                          }}
+                        >
+                          <Play className="w-3.5 h-3.5 mr-1" />
+                          {activeCrossoverId === cx.id ? 'Armed — send your next message' : 'Play this scene'}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Outgoing pending — waiting */}
+                {outgoingPending.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="text-[10px] uppercase tracking-widest text-white/50">Awaiting response</div>
+                    {outgoingPending.map(cx => (
+                      <div key={cx.id} className="rounded-md bg-black/25 border border-slate-700/50 p-2.5">
+                        <div className="text-[12px] text-white/80">
+                          Waiting on <span className="font-semibold">{cx.otherCharacterName}</span>
+                        </div>
+                        {cx.scenePremise && (
+                          <p className="text-[11px] text-white/60 italic leading-snug mt-0.5">"{cx.scenePremise}"</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Request a new crossover */}
+                <div className="space-y-1.5">
+                  <div className="text-[10px] uppercase tracking-widest text-white/50">Request a Crossover</div>
+                  {otherMembers.map(m => {
+                    const isDrafting = crossoverDraftFor === m.id;
+                    return (
+                      <div key={m.id} className="rounded-md bg-black/25 border border-slate-700/50 p-2.5 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[12px] text-white/85 truncate">{m.characterName}</span>
+                          {!isDrafting ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="min-h-[36px] px-3 border-amber-400/30 text-amber-200 hover:bg-amber-500/10"
+                              onClick={() => {
+                                setCrossoverDraftFor(m.id);
+                                setCrossoverPremise('');
+                              }}
+                            >
+                              <Link2 className="w-3.5 h-3.5 mr-1" />
+                              Request
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="min-h-[36px] px-2 text-white/60"
+                              onClick={() => setCrossoverDraftFor(null)}
+                            >
+                              Cancel
+                            </Button>
+                          )}
+                        </div>
+                        {isDrafting && (
+                          <div className="space-y-2">
+                            <Textarea
+                              value={crossoverPremise}
+                              onChange={(e) => setCrossoverPremise(e.target.value)}
+                              placeholder="Scene premise — e.g. Meet at the flight field before dawn"
+                              className="min-h-[64px] bg-black/40 border-slate-700 text-sm"
+                              maxLength={500}
+                            />
+                            <Button
+                              size="sm"
+                              className="w-full min-h-[44px] bg-amber-500/80 hover:bg-amber-500 text-black"
+                              disabled={!crossoverPremise.trim()}
+                              onClick={async () => {
+                                const ok = await requestCrossover(m.id, crossoverPremise);
+                                if (ok) {
+                                  setCrossoverDraftFor(null);
+                                  setCrossoverPremise('');
+                                }
+                              }}
+                            >
+                              <Send className="w-3.5 h-3.5 mr-1" />
+                              Send Invitation
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Completed — read-only mementos */}
+                {completedCrossovers.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="text-[10px] uppercase tracking-widest text-white/50">Shared Memories</div>
+                    {completedCrossovers.map(cx => (
+                      <div key={cx.id} className="rounded-md bg-black/30 border border-slate-700/50 p-2.5 space-y-2">
+                        <div className="text-[11px] text-amber-200/90 font-semibold">
+                          With {cx.otherCharacterName}
+                          {cx.scenePremise && <span className="text-white/60 font-normal italic"> — "{cx.scenePremise}"</span>}
+                        </div>
+                        <div className="grid grid-cols-1 gap-2">
+                          <div className="rounded bg-black/40 p-2">
+                            <div className="text-[9px] uppercase tracking-widest text-white/50 mb-1">Your Side</div>
+                            <p className="text-[11px] text-white/80 whitespace-pre-wrap leading-snug">
+                              {(cx.mySide === 'a' ? cx.narrationA : cx.narrationB) || <span className="italic text-white/40">Not saved</span>}
+                            </p>
+                          </div>
+                          <div className="rounded bg-black/40 p-2">
+                            <div className="text-[9px] uppercase tracking-widest text-white/50 mb-1">{cx.otherCharacterName}'s Side</div>
+                            <p className="text-[11px] text-white/80 whitespace-pre-wrap leading-snug">
+                              {(cx.mySide === 'a' ? cx.narrationB : cx.narrationA) || <span className="italic text-white/40">Not saved yet</span>}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+
 
 
         {ownMember && (
