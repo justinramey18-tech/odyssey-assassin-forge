@@ -28,6 +28,7 @@ import rehypeRaw from 'rehype-raw';
 import { CharacterContext } from '@/components/oracle/types';
 import { useAIDM } from '@/hooks/use-ai-dm';
 import { useCampaignSessions, CampaignSession } from '@/hooks/use-campaign-sessions';
+import { useAutoCampaign } from '@/hooks/use-auto-campaign';
 import { CampaignDropdown } from '@/components/ai-dm/CampaignDropdown';
 import { CampaignSessionsManager } from '@/components/ai-dm/CampaignSessionsManager';
 import { DMToolsDrawer } from '@/components/ai-dm/DMToolsDrawer';
@@ -891,6 +892,22 @@ ${oocLines}`;
   ) => {
     return saveCampaignSession(name, msgs, summary, existingId);
   }, [saveCampaignSession]);
+
+  // Auto-create + restore a persistent campaign so linking is always available
+  useAutoCampaign({
+    mode: 'empyrean',
+    isSignedIn,
+    activeCampaignId,
+    setActiveCampaignId,
+    messages,
+    campaignSummary,
+    characterName,
+    sessions: campaignSessions,
+    sessionsLoading,
+    saveSession: saveCampaignSession,
+    loadCampaign,
+    memoryAnchors: gameState.gameState.memory_anchors,
+  });
 
   // Message action states
   const [activeActionId, setActiveActionId] = useState<string | null>(null);

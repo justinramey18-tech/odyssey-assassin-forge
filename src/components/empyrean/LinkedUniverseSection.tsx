@@ -239,6 +239,9 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
   const crossoverBadge = incomingPending.length;
 
   const disabled = !isSignedIn || !campaignId;
+  const gateMessage = !isSignedIn
+    ? 'Sign in to link your campaign to a shared universe.'
+    : 'Preparing your campaign…';
 
   const copy = (text: string) => {
     navigator.clipboard.writeText(text).then(
@@ -255,7 +258,7 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
           <span className="text-sm font-medium text-white/85">Linked Universe</span>
         </div>
         <p className="text-xs text-muted-foreground">
-          Sign in and save your campaign to link universes.
+          {gateMessage}
         </p>
       </div>
     );
