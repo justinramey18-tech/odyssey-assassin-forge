@@ -44,6 +44,7 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
   const {
     universe,
     members,
+    events,
     isLoading,
     createUniverse,
     joinUniverse,
@@ -52,6 +53,15 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
     ownMember,
     saveMyDigest,
   } = hook;
+
+  const rumorFeed = useMemo(
+    () => [...events].sort((a, b) => {
+      const at = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bt - at;
+    }).slice(0, 25),
+    [events]
+  );
 
   const [mode, setMode] = useState<'idle' | 'create' | 'join'>('idle');
   const [name, setName] = useState('Shared Universe');
