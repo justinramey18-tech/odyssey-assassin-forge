@@ -198,7 +198,7 @@ ${latestBeat}`;
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: resolvedModel,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: "Generate the 4 masterwork pills now via the tool." },
