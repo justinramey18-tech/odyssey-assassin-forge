@@ -236,6 +236,74 @@ Deno.serve(async (req) => {
       return json({ success: true });
     }
 
+    if (action === 'generateDigest') {
+      const { campaignId, campaignSummary, characterName } = body;
+      if (!campaignId) return json({ error: 'campaignId required' }, 400);
+      if (!(await verifyCampaignOwnership(campaignId))) {
+        return json({ error: 'You do not own this campaign' }, 403);
+      }
+
+      const { data: membership } = await supabase
+        .from('universe_members')
+        .select('id')
+        .eq('campaign_id', campaignId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!membership) return json({ skipped: true });
+
+      const summary = typeof campaignSummary === 'string' ? campaignSummary.slice(0, 6000) : '';
+      if (!summary.trim()) return json({ skipped: true });
+
+      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+      if (!LOVABLE_API_KEY) return json({ error: 'LOVABLE_API_KEY not configured' }, 500);
+
+      const systemPrompt = `You compress a tabletop RPG campaign into a SHORT shared-world digest that OTHER players' game masters will read. Output at most 120 words in exactly this structure, no extra text:
+CHARACTER: {name, role, defining traits/powers}
+LOCATION: {where they currently are}
+STATUS: {alive/injured/etc, current condition}
+RECENT: {1-2 sentences on their most recent significant events}
+HOOKS: {1-2 concrete things another player's story could latch onto — items they carry, people they seek, debts, rumors about them}
+Be concrete and specific. Use proper nouns. This is read by other people's AI game masters to weave a shared world.`;
+
+      const userMsg = `Character name: ${characterName || 'Unknown'}\n\nCAMPAIGN SUMMARY:\n${summary}`;
+
+      const aiRes = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-3-flash-preview',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMsg },
+          ],
+          max_tokens: 400,
+        }),
+      });
+
+      if (!aiRes.ok) {
+        const txt = await aiRes.text();
+        console.error('generateDigest AI error', aiRes.status, txt);
+        return json({ error: 'AI gateway error' }, aiRes.status === 429 || aiRes.status === 402 ? aiRes.status : 500);
+      }
+
+      const aiData = await aiRes.json();
+      let digest = (aiData.choices?.[0]?.message?.content || '').trim();
+      if (!digest) return json({ error: 'Empty digest' }, 500);
+      if (digest.length > 5000) digest = digest.slice(0, 5000);
+
+      const { error: updateErr } = await supabase
+        .from('universe_members')
+        .update({ story_digest: digest, digest_updated_at: new Date().toISOString() })
+        .eq('id', membership.id);
+
+      if (updateErr) return json({ error: updateErr.message }, 500);
+      return json({ success: true, digest });
+    }
+
     return json({ error: 'Unknown action' }, 400);
   } catch (err) {
     return json({ error: (err as Error).message }, 500);
