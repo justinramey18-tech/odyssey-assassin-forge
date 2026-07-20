@@ -11,6 +11,7 @@ export interface UniverseMember {
   storyDigest: string | null;
   digestUpdatedAt: string | null;
   visibility: string;
+  region: string | null;
 }
 
 export interface UniverseEvent {
