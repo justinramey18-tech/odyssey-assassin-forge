@@ -11,6 +11,7 @@ export interface UniverseMember {
   storyDigest: string | null;
   digestUpdatedAt: string | null;
   visibility: string;
+  region: string | null;
 }
 
 export interface UniverseEvent {
@@ -113,6 +114,7 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
           storyDigest: m.story_digest ?? null,
           digestUpdatedAt: m.digest_updated_at ?? null,
           visibility: m.visibility ?? 'full',
+          region: m.region ?? null,
         })),
         events: (events || []).map((e: any) => ({
           id: e.id,
@@ -461,16 +463,70 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     return v === 'headline' || v === 'hidden' ? v : 'full';
   }, [ownMember?.visibility]);
 
+  const myRegion = useMemo<string | null>(() => ownMember?.region ?? null, [ownMember?.region]);
+
+  const setRegion = useCallback(async (value: string | null) => {
+    const cid = campaignRef.current;
+    if (!cid) { toast.error('Save your campaign first'); return false; }
+    const cleaned = value === null ? null : value.trim().slice(0, 64) || null;
+    try {
+      const res = await invoke('setRegion', { campaignId: cid, region: cleaned });
+      if (res.error || res.data?.error) {
+        toast.error(res.data?.error || 'Failed to update region');
+        return false;
+      }
+      toast.success(cleaned ? `Region set: ${cleaned}` : 'Region cleared (global)');
+      await refresh();
+      return true;
+    } catch {
+      toast.error('Failed to update region');
+      return false;
+    }
+  }, [invoke, refresh]);
+
+  const MAX_FULL_DIGESTS = 6;
+
   const universeContext = useMemo(() => {
     if (!state.universe) return null;
-    const others = state.members.filter(
+    const callerRegion = ownMember?.region?.trim() || null;
+    const visibleOthers = state.members.filter(
       m => m.campaignId !== campaignId && m.visibility !== 'hidden' && m.storyDigest && m.storyDigest.trim()
     );
-    if (others.length === 0) return null;
+    if (visibleOthers.length === 0 && state.events.length === 0) return null;
+
+    // Region scoping: if caller has a region, same-region members keep their tier,
+    // other-region members are demoted to 'headline' regardless of their visibility.
+    const scoped = visibleOthers.map(m => {
+      if (!callerRegion) return { m, tier: (m.visibility === 'headline' ? 'headline' : 'full') as 'full' | 'headline' };
+      const sameRegion = (m.region?.trim() || null) === callerRegion;
+      const tier: 'full' | 'headline' = sameRegion
+        ? (m.visibility === 'headline' ? 'headline' : 'full')
+        : 'headline';
+      return { m, tier };
+    });
+
+    // Cap total FULL digests. Prefer most recently updated ones.
+    const fullEntries = scoped.filter(s => s.tier === 'full')
+      .sort((a, b) => {
+        const at = a.m.digestUpdatedAt ? new Date(a.m.digestUpdatedAt).getTime() : 0;
+        const bt = b.m.digestUpdatedAt ? new Date(b.m.digestUpdatedAt).getTime() : 0;
+        return bt - at;
+      });
+    const keepFull = new Set(fullEntries.slice(0, MAX_FULL_DIGESTS).map(s => s.m.id));
+    const demotedByCap = fullEntries.length - keepFull.size;
+    const finalScoped = scoped.map(s =>
+      s.tier === 'full' && !keepFull.has(s.m.id) ? { ...s, tier: 'headline' as const } : s
+    );
 
     const lines: string[] = [];
     lines.push(`=== LINKED UNIVERSE: "${state.universe.name}" ===`);
     lines.push(`Your player's story is linked to other riders' stories in this shared world. These events are happening in parallel. You may reference these characters as NPCs, have your player hear rumors about them, or cross paths naturally. You may NOT kill, injure, or make major story decisions for linked characters — they belong to their own players.`);
+    if (callerRegion) {
+      lines.push(`Your player is currently in region: ${callerRegion}. Riders in the same region are shown in full detail; riders elsewhere are only summarized.`);
+    }
+    if (demotedByCap > 0) {
+      lines.push(`(The world is larger than what is shown here — ${demotedByCap} additional rider(s) exist but are summarized only.)`);
+    }
     lines.push('');
 
     const importanceLabel = (n: number) => n >= 3 ? 'World-changing' : n === 2 ? 'Notable' : 'Minor';
@@ -488,15 +544,14 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
       lines.push('');
     }
 
-    for (const m of others) {
-      const tier = m.visibility === 'headline' ? 'headline' : 'full';
+    for (const { m, tier } of finalScoped) {
+      const regionTag = m.region?.trim() ? ` [${m.region.trim()}]` : '';
       if (tier === 'headline') {
-        // Only the first line (typically the CHARACTER: line) — no RECENT/HOOKS
         const firstLine = m.storyDigest!.split('\n').map(s => s.trim()).find(s => s.length > 0) || '';
-        lines.push(`• ${m.characterName} is also in this world: ${firstLine}`);
+        lines.push(`• ${m.characterName}${regionTag} is also in this world: ${firstLine}`);
         lines.push('');
       } else {
-        lines.push(`--- LINKED RIDER: ${m.characterName} (played by another player) ---`);
+        lines.push(`--- LINKED RIDER: ${m.characterName}${regionTag} (played by another player) ---`);
         lines.push(m.storyDigest!.trim());
         lines.push('');
       }
@@ -510,7 +565,7 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     lines.push('4. If details conflict, favor the SHARED CANON list.');
 
     return lines.join('\n');
-  }, [state.universe, state.members, state.events, campaignId]);
+  }, [state.universe, state.members, state.events, campaignId, ownMember?.region]);
 
   const requestCrossover = useCallback(async (toMemberId: string, scenePremise: string) => {
     const cid = campaignRef.current;
@@ -619,6 +674,8 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     markSeen,
     myVisibility,
     setVisibility,
+    myRegion,
+    setRegion,
     isSignedIn: !!user,
   };
 
