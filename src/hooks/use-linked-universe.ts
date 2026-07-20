@@ -204,6 +204,21 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     [state.members, campaignId]
   );
 
+  const checkConflict = useCallback(async (proposedText: string): Promise<{ conflict: boolean; reason?: string }> => {
+    const uid = universeIdRef.current;
+    if (!uid || !proposedText || !proposedText.trim()) return { conflict: false };
+    try {
+      const res = await invoke('flagConflict', { universeId: uid, proposedText });
+      if (res.error || res.data?.error) return { conflict: false };
+      return {
+        conflict: !!res.data?.conflict,
+        reason: typeof res.data?.reason === 'string' ? res.data.reason : undefined,
+      };
+    } catch {
+      return { conflict: false };
+    }
+  }, [invoke]);
+
   const saveMyDigest = useCallback(async (digest: string) => {
     const cid = campaignRef.current;
     if (!cid) { toast.error('Save your campaign first'); return false; }
@@ -216,12 +231,18 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
       }
       toast.success('Story digest saved');
       await refresh();
+      // Non-blocking canon conflict check — warn only, save already succeeded
+      checkConflict(digest).then(({ conflict, reason }) => {
+        if (conflict) {
+          toast.warning(`Heads up: this may conflict with established world canon${reason ? ` — ${reason}` : ''}`);
+        }
+      }).catch(() => {});
       return true;
     } catch {
       toast.error('Failed to save digest');
       return false;
     }
-  }, [invoke, refresh]);
+  }, [invoke, refresh, checkConflict]);
 
   const lastAutoDigestAtRef = useRef<number>(0);
   const universeIdRef = useRef<string | null>(null);
