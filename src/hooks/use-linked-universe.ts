@@ -550,15 +550,41 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     return map;
   }, [state.relationships]);
 
+  const setStoryDay = useCallback(async (storyDay: number) => {
+    const cid = campaignRef.current;
+    if (!cid) { toast.error('Save your campaign first'); return false; }
+    const clean = Math.max(0, Math.min(100000, Math.floor(Number(storyDay) || 0)));
+    try {
+      const res = await invoke('setStoryDay', { campaignId: cid, storyDay: clean });
+      if (res.error || res.data?.error) {
+        toast.error(res.data?.error || 'Failed to update in-fiction day');
+        return false;
+      }
+      toast.success(`In-fiction day set: Day ${clean}`);
+      await refresh();
+      return true;
+    } catch {
+      toast.error('Failed to update in-fiction day');
+      return false;
+    }
+  }, [invoke, refresh]);
+
+  const myStoryDay = useMemo<number>(() => ownMember?.storyDay ?? 0, [ownMember?.storyDay]);
+  const universeCurrentDay = useMemo<number>(() => state.universe?.currentDay ?? 0, [state.universe?.currentDay]);
+
   const MAX_FULL_DIGESTS = 6;
+  const FUTURE_GRACE_DAYS = 1;
 
   const universeContext = useMemo(() => {
     if (!state.universe) return null;
+    const callerStoryDay = ownMember?.storyDay ?? 0;
     const callerRegion = ownMember?.region?.trim() || null;
     const visibleOthers = state.members.filter(
       m => m.campaignId !== campaignId && m.visibility !== 'hidden' && m.storyDigest && m.storyDigest.trim()
     );
-    if (visibleOthers.length === 0 && state.events.length === 0) return null;
+    // Filter events by caller's in-fiction position (future events are withheld)
+    const timeVisibleEvents = state.events.filter(e => (e.occurredOnDay || 0) <= callerStoryDay + FUTURE_GRACE_DAYS);
+    if (visibleOthers.length === 0 && timeVisibleEvents.length === 0) return null;
 
     // Region scoping: if caller has a region, same-region members keep their tier,
     // other-region members are demoted to 'headline' regardless of their visibility.
