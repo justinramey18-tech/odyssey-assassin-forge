@@ -147,8 +147,33 @@ serve(async (req) => {
       character_flaws,
       campaign_summary,
       model,
+      user_api_key,       // Anthropic
+      user_openai_key,    // OpenAI direct
+      user_xai_key,       // xAI direct
     } = body ?? {};
-    const resolvedModel = (typeof model === 'string' && ALLOWED_MODELS.has(model)) ? model : DEFAULT_MODEL;
+
+    // Resolve the routing target from the requested model.
+    const requestedModel = typeof model === 'string' ? model : '';
+    let route: 'gateway' | 'openai-direct' | 'xai-direct' | 'anthropic' = 'gateway';
+    let resolvedModel: string = DEFAULT_MODEL;
+
+    if (LOVABLE_GATEWAY_MODELS.has(requestedModel)) {
+      route = 'gateway';
+      resolvedModel = requestedModel;
+    } else if (OPENAI_DIRECT_MODELS[requestedModel] && typeof user_openai_key === 'string' && user_openai_key.trim()) {
+      route = 'openai-direct';
+      resolvedModel = OPENAI_DIRECT_MODELS[requestedModel];
+    } else if (XAI_MODELS[requestedModel] && typeof user_xai_key === 'string' && user_xai_key.trim()) {
+      route = 'xai-direct';
+      resolvedModel = XAI_MODELS[requestedModel];
+    } else if (ANTHROPIC_MODELS[requestedModel] && typeof user_api_key === 'string' && user_api_key.trim()) {
+      route = 'anthropic';
+      resolvedModel = ANTHROPIC_MODELS[requestedModel];
+    } else {
+      // Unknown / perplexity / missing key → fall back to gateway default
+      route = 'gateway';
+      resolvedModel = DEFAULT_MODEL;
+    }
 
     if (category !== 'dragon' && category !== 'situation' && category !== 'story') {
       return new Response(
