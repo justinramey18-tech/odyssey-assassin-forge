@@ -516,6 +516,35 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     }
   }, [invoke, refresh]);
 
+  const setRelationship = useCallback(async (toMemberId: string, relation: RelationKind, note?: string | null) => {
+    const cid = campaignRef.current;
+    if (!cid) { toast.error('Save your campaign first'); return false; }
+    try {
+      const res = await invoke('setRelationship', {
+        fromCampaignId: cid,
+        toMemberId,
+        relation,
+        note: note ?? null,
+      });
+      if (res.error || res.data?.error) {
+        toast.error(res.data?.error || 'Failed to update relationship');
+        return false;
+      }
+      toast.success(`Relationship set: ${RELATION_LABELS[relation]}`);
+      await refresh();
+      return true;
+    } catch {
+      toast.error('Failed to update relationship');
+      return false;
+    }
+  }, [invoke, refresh]);
+
+  const relationshipByMember = useMemo(() => {
+    const map = new Map<string, UniverseRelationship>();
+    for (const r of state.relationships) map.set(r.memberB, r);
+    return map;
+  }, [state.relationships]);
+
   const MAX_FULL_DIGESTS = 6;
 
   const universeContext = useMemo(() => {
