@@ -650,6 +650,24 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     });
   }, [messages, isLoading, linkedUniverse]);
 
+  // Live crossover beat relay: auto-push newest assistant narration to shared row
+  const prevAssistantCountForBeatRef = useRef<number>(0);
+  useEffect(() => {
+    const assistants = messages.filter(m => m.role === 'assistant' && m.content?.trim());
+    const count = assistants.length;
+    if (prevAssistantCountForBeatRef.current === 0 && count > 0) {
+      prevAssistantCountForBeatRef.current = count;
+      return;
+    }
+    if (count > prevAssistantCountForBeatRef.current) {
+      prevAssistantCountForBeatRef.current = count;
+      const latest = assistants[assistants.length - 1]?.content;
+      if (latest) {
+        void linkedUniverse.pushLiveBeat(latest);
+      }
+    }
+  }, [messages, linkedUniverse]);
+
   const handleSend = useCallback(() => {
     const text = soloDMInputRef.current?.getText()?.trim();
     if (!text || isLoading) return;
