@@ -1914,7 +1914,7 @@ ${oocLines}`;
                             <span className="text-[9px] italic text-amber-400/50">NPC</span>
                           </div>
                         )}
-                        <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
+                        <div className="text-xs prose prose-invert prose-xs max-w-none break-words overflow-wrap-anywhere">
                           <ReactMarkdown
                             rehypePlugins={[rehypeRaw]}
                             components={{
@@ -2188,6 +2188,7 @@ ${oocLines}`;
         onClose={() => setCharacterSheetOpen(false)}
         characterName={characterName}
         onCampaignSaves={() => setShowSaves(true)}
+        onGuides={() => setShowGuides(true)}
         diceOddsMode={diceOddsMode}
         onDiceOddsModeChange={(mode) => {
           setDiceOddsMode(mode);
