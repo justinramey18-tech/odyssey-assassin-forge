@@ -461,6 +461,7 @@ TIME rules — "dayAdvance": Estimate how many in-fiction DAYS passed during the
       // Safe JSON parse — strip code fences, fall back to raw as digest
       let digest = '';
       let events: Array<{ text: string; type: string; importance: number }> = [];
+      let dayAdvance = 0;
       try {
         const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
         const parsed = JSON.parse(cleaned);
@@ -474,6 +475,8 @@ TIME rules — "dayAdvance": Estimate how many in-fiction DAYS passed during the
               importance: Math.max(1, Math.min(3, parseInt(e.importance, 10) || 1)),
             }));
         }
+        const d = parseInt(String(parsed.dayAdvance ?? 0), 10);
+        if (Number.isFinite(d) && d > 0) dayAdvance = Math.min(d, 365);
       } catch {
         digest = raw;
         events = [];
@@ -482,12 +485,36 @@ TIME rules — "dayAdvance": Estimate how many in-fiction DAYS passed during the
       if (!digest) digest = raw;
       if (digest.length > 5000) digest = digest.slice(0, 5000);
 
+      // Advance in-fiction clock for this member (monotonic — never rewind)
+      const prevStoryDay = Number(membership.story_day ?? 0) || 0;
+      const newStoryDay = prevStoryDay + dayAdvance;
+
       const { error: updateErr } = await supabase
         .from('universe_members')
-        .update({ story_digest: digest, digest_updated_at: new Date().toISOString() })
+        .update({
+          story_digest: digest,
+          digest_updated_at: new Date().toISOString(),
+          story_day: newStoryDay,
+        })
         .eq('id', membership.id);
 
       if (updateErr) return json({ error: updateErr.message }, 500);
+
+      // Bump universe current_day if this rider is now furthest ahead
+      if (dayAdvance > 0) {
+        const { data: uniRow } = await supabase
+          .from('linked_universes')
+          .select('current_day')
+          .eq('id', membership.universe_id)
+          .maybeSingle();
+        const cur = Number(uniRow?.current_day ?? 0) || 0;
+        if (newStoryDay > cur) {
+          await supabase
+            .from('linked_universes')
+            .update({ current_day: newStoryDay })
+            .eq('id', membership.universe_id);
+        }
+      }
 
       // Event extraction — only importance 2 & 3, cap at 3, dedupe against last 20
       let eventsAdded = 0;
