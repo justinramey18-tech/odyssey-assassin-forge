@@ -398,6 +398,15 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
                       No story shared yet
                     </p>
                   )}
+                  {!isMe && (
+                    <RelationshipEditor
+                      memberId={m.id}
+                      characterName={m.characterName}
+                      current={relationshipByMember.get(m.id)}
+                      onSave={(rel, note) => setRelationship(m.id, rel, note)}
+                      compact
+                    />
+                  )}
                 </div>
               );
             })}
