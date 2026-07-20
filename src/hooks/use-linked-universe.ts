@@ -114,6 +114,7 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
           storyDigest: m.story_digest ?? null,
           digestUpdatedAt: m.digest_updated_at ?? null,
           visibility: m.visibility ?? 'full',
+          region: m.region ?? null,
         })),
         events: (events || []).map((e: any) => ({
           id: e.id,
