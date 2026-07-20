@@ -523,6 +523,9 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     [gmGuides.enabledContent, linkedUniverse.universeContext]
   );
 
+  // Auto-update Linked Universe story digest whenever the campaign summary changes
+
+
   const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, voiceNPC, addMediaMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, editMessage, deleteMessage, regenerateMessage, lastUsage, sessionUsage } = useAIDM({
     characterContext,
     customGuidesContent: combinedGuidesContent,
@@ -539,6 +542,15 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     onCampaignSwitch: handleCampaignSwitch,
     selectedModel,
   });
+
+  // Auto-update Linked Universe story digest whenever the campaign summary changes
+  useEffect(() => {
+    if (campaignSummary && campaignSummary.trim()) {
+      linkedUniverse.generateDigestFromSummary(campaignSummary, characterName || 'Adventurer');
+    }
+  }, [campaignSummary, characterName, linkedUniverse]);
+
+
 
   // Keep game state in sync with activeCampaignId changes
   useEffect(() => {

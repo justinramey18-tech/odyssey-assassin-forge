@@ -166,6 +166,9 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
                   className="min-h-[180px] bg-black/40 border-slate-700 text-sm"
                   maxLength={5000}
                 />
+                <p className="text-[10px] text-white/50 italic leading-snug">
+                  Auto-updates as you play. Edit anytime to override until the next auto-update.
+                </p>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[10px] text-white/40">
                     {digestDraft.length}/5000 · Other players' DMs will see this

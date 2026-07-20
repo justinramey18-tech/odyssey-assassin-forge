@@ -217,6 +217,33 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     }
   }, [invoke, refresh]);
 
+  const lastAutoDigestAtRef = useRef<number>(0);
+  const universeIdRef = useRef<string | null>(null);
+  universeIdRef.current = state.universe?.id ?? null;
+
+  const generateDigestFromSummary = useCallback(async (campaignSummary: string, characterName: string) => {
+    const cid = campaignRef.current;
+    if (!cid) return;
+    if (!universeIdRef.current) return; // not linked, silent no-op
+    if (!campaignSummary || !campaignSummary.trim()) return;
+    const now = Date.now();
+    if (now - lastAutoDigestAtRef.current < 60_000) return; // debounce 60s
+    lastAutoDigestAtRef.current = now;
+    try {
+      const res = await invoke('generateDigest', {
+        campaignId: cid,
+        campaignSummary,
+        characterName: characterName || 'Adventurer',
+      });
+      if (res.error || res.data?.error) return;
+      if (res.data?.success) {
+        refresh();
+      }
+    } catch {
+      // silent
+    }
+  }, [invoke, refresh]);
+
   const universeContext = useMemo(() => {
     if (!state.universe) return null;
     const others = state.members.filter(
@@ -264,6 +291,7 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     refresh,
     ownMember,
     saveMyDigest,
+    generateDigestFromSummary,
     universeContext,
     isSignedIn: !!user,
   };
