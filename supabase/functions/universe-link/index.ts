@@ -415,17 +415,20 @@ Deno.serve(async (req) => {
       const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
       if (!LOVABLE_API_KEY) return json({ error: 'LOVABLE_API_KEY not configured' }, 500);
 
-      const systemPrompt = `You compress a tabletop RPG campaign into a SHORT shared-world digest that OTHER players' game masters will read, AND extract world-changing events for a shared canon ledger.
+      const systemPrompt = `You compress a tabletop RPG campaign into a SHORT shared-world digest that OTHER players' game masters will read, AND extract world-changing events for a shared canon ledger, AND estimate in-fiction time passage.
 
 Output ONLY valid JSON in this exact shape, no markdown fences, no extra text:
 {
   "digest": "CHARACTER: {name, role, defining traits/powers}\\nLOCATION: {where they currently are}\\nSTATUS: {alive/injured/etc, current condition}\\nRECENT: {1-2 sentences on their most recent significant events}\\nHOOKS: {1-2 concrete things another player's story could latch onto — items they carry, people they seek, debts, rumors about them}",
-  "events": [ { "text": "concise past-tense sentence with proper nouns", "type": "story|location|npc|death|crossover", "importance": 1-3 } ]
+  "events": [ { "text": "concise past-tense sentence with proper nouns", "type": "story|location|npc|death|crossover", "importance": 1-3 } ],
+  "dayAdvance": 0
 }
 
 DIGEST rules: at most 120 words. Be concrete and specific. Use proper nouns. This is read by other people's AI game masters to weave a shared world.
 
-EVENTS rules: ONLY include things that would be visible or consequential to OTHER people in this shared world — world-changing occurrences (importance 3) or notable public events (importance 2). Do NOT include private/minor character moments. Most turns produce ZERO events; an empty array is correct and expected. Never invent events not grounded in the story.`;
+EVENTS rules: ONLY include things that would be visible or consequential to OTHER people in this shared world — world-changing occurrences (importance 3) or notable public events (importance 2). Do NOT include private/minor character moments. Most turns produce ZERO events; an empty array is correct and expected. Never invent events not grounded in the story.
+
+TIME rules — "dayAdvance": Estimate how many in-fiction DAYS passed during these recent events. A single scene is usually 0. A night's rest is 1. A journey or explicit time-skip may be several. Be conservative; output an integer dayAdvance. If you cannot tell, use 0.`;
 
       const userMsg = `Character name: ${characterName || 'Unknown'}\n\nCAMPAIGN SUMMARY:\n${summary}`;
 
