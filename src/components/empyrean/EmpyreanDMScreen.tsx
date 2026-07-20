@@ -2198,6 +2198,8 @@ ${oocLines}`;
         onClose={() => setCharacterSheetOpen(false)}
         characterName={characterName}
         activeCampaignId={activeCampaignId}
+        linkedUniverse={linkedUniverse}
+
         onCampaignSaves={() => setShowSaves(true)}
         onGuides={() => setShowGuides(true)}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
