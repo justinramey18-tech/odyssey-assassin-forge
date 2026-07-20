@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
 import { DM_CHAT_THEMES, type DMChatThemeId } from '@/lib/dm-chat-themes';
 import { DICE_ODDS_CONFIGS, type DiceOddsMode } from '@/lib/diceOdds';
+import { LinkedUniverseSection } from '@/components/empyrean/LinkedUniverseSection';
 export type CharacterSheetTab = 'character' | 'settings';
 
 interface CharacterSheetProps {
