@@ -561,6 +561,7 @@ TIME rules — "dayAdvance": Estimate how many in-fiction DAYS passed during the
               event_type: ev.type,
               importance: ev.importance,
               is_canon: true,
+              occurred_on_day: newStoryDay,
             }));
             const { error: insErr } = await supabase.from('universe_events').insert(rows);
             if (!insErr) eventsAdded = rows.length;
