@@ -201,6 +201,14 @@ const PERPLEXITY_MODELS: Record<string, string> = {
   'perplexity/sonar-reasoning': 'sonar-reasoning',
 };
 
+// Models routed directly to xAI (Grok) API (user's own key)
+const XAI_MODELS: Record<string, string> = {
+  'xai-direct/grok-4': 'grok-4',
+  'xai-direct/grok-3': 'grok-3',
+  'xai-direct/grok-3-mini': 'grok-3-mini',
+  'xai-direct/grok-2-latest': 'grok-2-latest',
+};
+
 const DEFAULT_MODEL = 'google/gemini-3-pro-preview';
 
 // ── Context Builder ────────────────────────────────────────────────────────────
