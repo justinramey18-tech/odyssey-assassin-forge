@@ -1410,6 +1410,11 @@ ${oocLines}`;
         latest = decrementAllNarrativeCooldowns();
       }
       setNarrativeCooldowns(latest);
+      // Live crossover beat relay: fire-and-forget push of newest narration
+      const latestAssistant = [...messages].reverse().find(m => m.role === 'assistant' && m.content?.trim());
+      if (latestAssistant?.content) {
+        void linkedUniverse.pushLiveBeat(latestAssistant.content);
+      }
     }
   }, [messages]);
 
