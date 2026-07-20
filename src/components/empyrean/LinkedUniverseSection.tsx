@@ -114,7 +114,7 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
     () => crossovers.filter(c => c.status === 'completed').slice(0, 5),
     [crossovers]
   );
-  const crossoverBadge = incomingPending.length + acceptedCrossovers.length;
+  const crossoverBadge = incomingPending.length;
 
   const disabled = !isSignedIn || !campaignId;
 
