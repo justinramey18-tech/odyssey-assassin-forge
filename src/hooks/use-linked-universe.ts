@@ -40,11 +40,33 @@ export interface Crossover {
   otherStoryDigest: string | null;
 }
 
+export type RelationKind = 'ally' | 'friend' | 'rival' | 'enemy' | 'owes-you' | 'you-owe-them' | 'acquaintance';
+
+export const RELATION_LABELS: Record<RelationKind, string> = {
+  ally: 'Ally',
+  friend: 'Friend',
+  rival: 'Rival',
+  enemy: 'Enemy',
+  'owes-you': 'Owes you a debt',
+  'you-owe-them': 'You owe them',
+  acquaintance: 'Acquaintance',
+};
+
+export interface UniverseRelationship {
+  id: string;
+  memberA: string;
+  memberB: string;
+  relation: RelationKind;
+  note: string | null;
+  updatedAt: string | null;
+}
+
 export interface LinkedUniverseState {
   universe: { id: string; name: string; linkCode: string } | null;
   members: UniverseMember[];
   events: UniverseEvent[];
   crossovers: Crossover[];
+  relationships: UniverseRelationship[];
   myMemberId: string | null;
   isLoading: boolean;
 }
