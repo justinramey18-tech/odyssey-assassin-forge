@@ -394,6 +394,71 @@ EVENTS rules: ONLY include things that would be visible or consequential to OTHE
       return json({ success: true, digest, eventsAdded });
     }
 
+    if (action === 'flagConflict') {
+      const { universeId, proposedText } = body;
+      if (!universeId || typeof proposedText !== 'string' || !proposedText.trim()) {
+        return json({ conflict: false });
+      }
+
+      // Verify caller is a member of this universe (cheap auth check)
+      const { data: myMember } = await supabase
+        .from('universe_members')
+        .select('id')
+        .eq('universe_id', universeId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!myMember) return json({ conflict: false });
+
+      const { data: canon } = await supabase
+        .from('universe_events')
+        .select('event_text, importance')
+        .eq('universe_id', universeId)
+        .eq('is_canon', true)
+        .order('importance', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(25);
+
+      const canonList = (canon || [])
+        .map((c: any, i: number) => `${i + 1}. [imp ${c.importance}] ${c.event_text}`)
+        .join('\n');
+      if (!canonList) return json({ conflict: false });
+
+      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+      if (!LOVABLE_API_KEY) return json({ conflict: false });
+
+      const sys = `You check whether a PROPOSED story text contradicts established SHARED CANON facts. Reply ONLY with valid JSON: {"conflict": boolean, "reason": "one short sentence or empty"}. A conflict means the proposed text directly reverses or contradicts a canon fact (e.g. treating a destroyed place as intact, a dead NPC as alive). Building on or adding nuance is NOT a conflict. If unsure, return false.`;
+      const usr = `SHARED CANON:\n${canonList}\n\nPROPOSED TEXT:\n${proposedText.slice(0, 4000)}`;
+
+      try {
+        const aiRes = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-3-flash-preview',
+            messages: [
+              { role: 'system', content: sys },
+              { role: 'user', content: usr },
+            ],
+            max_tokens: 150,
+          }),
+        });
+        if (!aiRes.ok) return json({ conflict: false });
+        const d = await aiRes.json();
+        const raw = (d.choices?.[0]?.message?.content || '').trim();
+        const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+        const parsed = JSON.parse(cleaned);
+        return json({
+          conflict: !!parsed.conflict,
+          reason: typeof parsed.reason === 'string' ? parsed.reason.slice(0, 200) : undefined,
+        });
+      } catch {
+        return json({ conflict: false });
+      }
+    }
+
     return json({ error: 'Unknown action' }, 400);
   } catch (err) {
     return json({ error: (err as Error).message }, 500);
