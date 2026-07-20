@@ -153,6 +153,9 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
     setRegion,
     setRelationship,
     relationshipByMember,
+    myStoryDay,
+    universeCurrentDay,
+    setStoryDay,
   } = hook;
 
   // One-time prompt after a crossover completes: nudge player to set relationship
