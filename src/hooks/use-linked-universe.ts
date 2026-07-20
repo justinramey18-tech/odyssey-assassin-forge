@@ -57,7 +57,8 @@ const DEFAULT_STATE: LinkedUniverseState = {
   isLoading: false,
 };
 
-const POLL_INTERVAL_MS = 5 * 60 * 1000;
+const POLL_INTERVAL_MS = 15 * 60 * 1000;
+const REALTIME_DEBOUNCE_MS = 3000;
 
 export function useLinkedUniverse({ campaignId }: { campaignId: string | null }) {
   const { user } = useAuth();
