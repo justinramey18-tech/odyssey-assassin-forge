@@ -4,6 +4,7 @@ import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
@@ -19,6 +20,7 @@ interface CharacterSheetProps {
   // Settings tab props
   onCampaignSaves: () => void;
   onGuides?: () => void;
+  guidesCount?: number;
   diceOddsMode: DiceOddsMode;
   onDiceOddsModeChange: (mode: DiceOddsMode) => void;
   autoSyncEnabled: boolean;
@@ -55,6 +57,7 @@ export function CharacterSheet({
   characterName,
   onCampaignSaves,
   onGuides,
+  guidesCount,
   diceOddsMode,
   onDiceOddsModeChange,
   autoSyncEnabled,
@@ -150,6 +153,7 @@ export function CharacterSheet({
               <SettingsTab
                 onCampaignSaves={onCampaignSaves}
                 onGuides={onGuides}
+                guidesCount={guidesCount}
                 diceOddsMode={diceOddsMode}
                 onDiceOddsModeChange={onDiceOddsModeChange}
                 autoSyncEnabled={autoSyncEnabled}
@@ -355,6 +359,7 @@ function TalkTabPlaceholder() {
 interface SettingsTabProps {
   onCampaignSaves: () => void;
   onGuides?: () => void;
+  guidesCount?: number;
   diceOddsMode: DiceOddsMode;
   onDiceOddsModeChange: (mode: DiceOddsMode) => void;
   autoSyncEnabled: boolean;
@@ -377,6 +382,7 @@ interface SettingsTabProps {
 function SettingsTab({
   onCampaignSaves,
   onGuides,
+  guidesCount,
   diceOddsMode,
   onDiceOddsModeChange,
   autoSyncEnabled,
@@ -419,6 +425,13 @@ function SettingsTab({
             description="Custom rules and lore for your DM"
             onClick={() => closeAndRun(onGuides)}
             chevron
+            badge={
+              typeof guidesCount === 'number' && guidesCount > 0 ? (
+                <Badge variant="outline" className="text-[10px] h-5 border-amber-400/30 text-amber-300 bg-amber-400/10">
+                  {guidesCount}
+                </Badge>
+              ) : null
+            }
           />
         )}
       </SettingsSection>
@@ -604,7 +617,7 @@ function SettingsSection({ title, children }: { title: string; children: React.R
   );
 }
 
-function SettingsRow({ icon, label, description, onClick, chevron }: { icon: React.ReactNode; label: string; description?: string; onClick: () => void; chevron?: boolean }) {
+function SettingsRow({ icon, label, description, onClick, chevron, badge }: { icon: React.ReactNode; label: string; description?: string; onClick: () => void; chevron?: boolean; badge?: React.ReactNode }) {
   return (
     <button
       onClick={onClick}
@@ -616,6 +629,7 @@ function SettingsRow({ icon, label, description, onClick, chevron }: { icon: Rea
         <p className="text-sm font-cinzel text-foreground">{label}</p>
         {description && <p className="text-[11px] text-muted-foreground">{description}</p>}
       </div>
+      {badge && <span className="shrink-0">{badge}</span>}
       {chevron && <span className="text-muted-foreground/60 text-lg leading-none">›</span>}
     </button>
   );
