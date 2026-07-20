@@ -193,13 +193,13 @@ Deno.serve(async (req) => {
 
       const { data: members } = await supabase
         .from('universe_members')
-        .select('id, campaign_id, user_id, character_name, story_digest, digest_updated_at, visibility, region')
+        .select('id, campaign_id, user_id, character_name, story_digest, digest_updated_at, visibility, region, story_day')
         .eq('universe_id', universeId);
 
 
       const { data: events } = await supabase
         .from('universe_events')
-        .select('id, event_text, event_type, importance, created_at, created_by_member, is_canon')
+        .select('id, event_text, event_type, importance, created_at, created_by_member, is_canon, occurred_on_day')
         .eq('universe_id', universeId)
         .eq('is_canon', true)
         .order('created_at', { ascending: false })
@@ -314,6 +314,48 @@ Deno.serve(async (req) => {
       return json({ success: true, region });
     }
 
+    if (action === 'setStoryDay') {
+      const { campaignId } = body;
+      let storyDay = parseInt(String(body.storyDay ?? 0), 10);
+      if (!Number.isFinite(storyDay)) storyDay = 0;
+      if (storyDay < 0) storyDay = 0;
+      if (storyDay > 100000) storyDay = 100000;
+      if (!campaignId) return json({ error: 'campaignId required' }, 400);
+      if (!(await verifyCampaignOwnership(campaignId))) {
+        return json({ error: 'You do not own this campaign' }, 403);
+      }
+
+      const { data: membership } = await supabase
+        .from('universe_members')
+        .select('id, universe_id')
+        .eq('campaign_id', campaignId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!membership) return json({ error: 'Campaign is not linked to a universe' }, 404);
+
+      const { error: mErr } = await supabase
+        .from('universe_members')
+        .update({ story_day: storyDay })
+        .eq('id', membership.id);
+      if (mErr) return json({ error: mErr.message }, 500);
+
+      // Bump universe clock if this rider is furthest ahead
+      const { data: uni } = await supabase
+        .from('linked_universes')
+        .select('current_day')
+        .eq('id', membership.universe_id)
+        .maybeSingle();
+      const cur = uni?.current_day ?? 0;
+      if (storyDay > cur) {
+        await supabase
+          .from('linked_universes')
+          .update({ current_day: storyDay })
+          .eq('id', membership.universe_id);
+      }
+      return json({ success: true, storyDay });
+    }
+
+
     if (action === 'setRelationship') {
       const { fromCampaignId, toMemberId, relation, note } = body;
       if (!fromCampaignId || !toMemberId) return json({ error: 'fromCampaignId and toMemberId required' }, 400);
@@ -360,7 +402,7 @@ Deno.serve(async (req) => {
 
       const { data: membership } = await supabase
         .from('universe_members')
-        .select('id, universe_id')
+        .select('id, universe_id, story_day')
         .eq('campaign_id', campaignId)
         .eq('user_id', user.id)
         .maybeSingle();
@@ -373,17 +415,20 @@ Deno.serve(async (req) => {
       const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
       if (!LOVABLE_API_KEY) return json({ error: 'LOVABLE_API_KEY not configured' }, 500);
 
-      const systemPrompt = `You compress a tabletop RPG campaign into a SHORT shared-world digest that OTHER players' game masters will read, AND extract world-changing events for a shared canon ledger.
+      const systemPrompt = `You compress a tabletop RPG campaign into a SHORT shared-world digest that OTHER players' game masters will read, AND extract world-changing events for a shared canon ledger, AND estimate in-fiction time passage.
 
 Output ONLY valid JSON in this exact shape, no markdown fences, no extra text:
 {
   "digest": "CHARACTER: {name, role, defining traits/powers}\\nLOCATION: {where they currently are}\\nSTATUS: {alive/injured/etc, current condition}\\nRECENT: {1-2 sentences on their most recent significant events}\\nHOOKS: {1-2 concrete things another player's story could latch onto — items they carry, people they seek, debts, rumors about them}",
-  "events": [ { "text": "concise past-tense sentence with proper nouns", "type": "story|location|npc|death|crossover", "importance": 1-3 } ]
+  "events": [ { "text": "concise past-tense sentence with proper nouns", "type": "story|location|npc|death|crossover", "importance": 1-3 } ],
+  "dayAdvance": 0
 }
 
 DIGEST rules: at most 120 words. Be concrete and specific. Use proper nouns. This is read by other people's AI game masters to weave a shared world.
 
-EVENTS rules: ONLY include things that would be visible or consequential to OTHER people in this shared world — world-changing occurrences (importance 3) or notable public events (importance 2). Do NOT include private/minor character moments. Most turns produce ZERO events; an empty array is correct and expected. Never invent events not grounded in the story.`;
+EVENTS rules: ONLY include things that would be visible or consequential to OTHER people in this shared world — world-changing occurrences (importance 3) or notable public events (importance 2). Do NOT include private/minor character moments. Most turns produce ZERO events; an empty array is correct and expected. Never invent events not grounded in the story.
+
+TIME rules — "dayAdvance": Estimate how many in-fiction DAYS passed during these recent events. A single scene is usually 0. A night's rest is 1. A journey or explicit time-skip may be several. Be conservative; output an integer dayAdvance. If you cannot tell, use 0.`;
 
       const userMsg = `Character name: ${characterName || 'Unknown'}\n\nCAMPAIGN SUMMARY:\n${summary}`;
 
@@ -416,6 +461,7 @@ EVENTS rules: ONLY include things that would be visible or consequential to OTHE
       // Safe JSON parse — strip code fences, fall back to raw as digest
       let digest = '';
       let events: Array<{ text: string; type: string; importance: number }> = [];
+      let dayAdvance = 0;
       try {
         const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
         const parsed = JSON.parse(cleaned);
@@ -429,6 +475,8 @@ EVENTS rules: ONLY include things that would be visible or consequential to OTHE
               importance: Math.max(1, Math.min(3, parseInt(e.importance, 10) || 1)),
             }));
         }
+        const d = parseInt(String(parsed.dayAdvance ?? 0), 10);
+        if (Number.isFinite(d) && d > 0) dayAdvance = Math.min(d, 365);
       } catch {
         digest = raw;
         events = [];
@@ -437,12 +485,36 @@ EVENTS rules: ONLY include things that would be visible or consequential to OTHE
       if (!digest) digest = raw;
       if (digest.length > 5000) digest = digest.slice(0, 5000);
 
+      // Advance in-fiction clock for this member (monotonic — never rewind)
+      const prevStoryDay = Number(membership.story_day ?? 0) || 0;
+      const newStoryDay = prevStoryDay + dayAdvance;
+
       const { error: updateErr } = await supabase
         .from('universe_members')
-        .update({ story_digest: digest, digest_updated_at: new Date().toISOString() })
+        .update({
+          story_digest: digest,
+          digest_updated_at: new Date().toISOString(),
+          story_day: newStoryDay,
+        })
         .eq('id', membership.id);
 
       if (updateErr) return json({ error: updateErr.message }, 500);
+
+      // Bump universe current_day if this rider is now furthest ahead
+      if (dayAdvance > 0) {
+        const { data: uniRow } = await supabase
+          .from('linked_universes')
+          .select('current_day')
+          .eq('id', membership.universe_id)
+          .maybeSingle();
+        const cur = Number(uniRow?.current_day ?? 0) || 0;
+        if (newStoryDay > cur) {
+          await supabase
+            .from('linked_universes')
+            .update({ current_day: newStoryDay })
+            .eq('id', membership.universe_id);
+        }
+      }
 
       // Event extraction — only importance 2 & 3, cap at 3, dedupe against last 20
       let eventsAdded = 0;
@@ -489,6 +561,7 @@ EVENTS rules: ONLY include things that would be visible or consequential to OTHE
               event_type: ev.type,
               importance: ev.importance,
               is_canon: true,
+              occurred_on_day: newStoryDay,
             }));
             const { error: insErr } = await supabase.from('universe_events').insert(rows);
             if (!insErr) eventsAdded = rows.length;
@@ -499,7 +572,7 @@ EVENTS rules: ONLY include things that would be visible or consequential to OTHE
         console.error('event extraction failed (non-blocking)', e);
       }
 
-      return json({ success: true, digest, eventsAdded });
+      return json({ success: true, digest, eventsAdded, dayAdvance, storyDay: newStoryDay });
     }
 
     if (action === 'flagConflict') {

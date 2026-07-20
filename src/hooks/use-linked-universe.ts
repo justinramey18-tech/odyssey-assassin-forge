@@ -12,6 +12,7 @@ export interface UniverseMember {
   digestUpdatedAt: string | null;
   visibility: string;
   region: string | null;
+  storyDay: number;
 }
 
 export interface UniverseEvent {
@@ -21,6 +22,7 @@ export interface UniverseEvent {
   importance: number;
   createdAt: string | null;
   createdByName: string | null;
+  occurredOnDay: number;
 }
 
 export interface Crossover {
@@ -62,7 +64,7 @@ export interface UniverseRelationship {
 }
 
 export interface LinkedUniverseState {
-  universe: { id: string; name: string; linkCode: string } | null;
+  universe: { id: string; name: string; linkCode: string; currentDay: number } | null;
   members: UniverseMember[];
   events: UniverseEvent[];
   crossovers: Crossover[];
@@ -136,6 +138,7 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
           id: universe.id,
           name: universe.name,
           linkCode: universe.link_code,
+          currentDay: Number(universe.current_day ?? 0) || 0,
         },
         members: (members || []).map((m: any) => ({
           id: m.id,
@@ -146,6 +149,7 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
           digestUpdatedAt: m.digest_updated_at ?? null,
           visibility: m.visibility ?? 'full',
           region: m.region ?? null,
+          storyDay: Number(m.story_day ?? 0) || 0,
         })),
         events: (events || []).map((e: any) => ({
           id: e.id,
@@ -154,6 +158,7 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
           importance: e.importance,
           createdAt: e.created_at ?? null,
           createdByName: e.created_by_name ?? null,
+          occurredOnDay: Number(e.occurred_on_day ?? 0) || 0,
         })),
         crossovers,
         relationships,
@@ -545,15 +550,41 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     return map;
   }, [state.relationships]);
 
+  const setStoryDay = useCallback(async (storyDay: number) => {
+    const cid = campaignRef.current;
+    if (!cid) { toast.error('Save your campaign first'); return false; }
+    const clean = Math.max(0, Math.min(100000, Math.floor(Number(storyDay) || 0)));
+    try {
+      const res = await invoke('setStoryDay', { campaignId: cid, storyDay: clean });
+      if (res.error || res.data?.error) {
+        toast.error(res.data?.error || 'Failed to update in-fiction day');
+        return false;
+      }
+      toast.success(`In-fiction day set: Day ${clean}`);
+      await refresh();
+      return true;
+    } catch {
+      toast.error('Failed to update in-fiction day');
+      return false;
+    }
+  }, [invoke, refresh]);
+
+  const myStoryDay = useMemo<number>(() => ownMember?.storyDay ?? 0, [ownMember?.storyDay]);
+  const universeCurrentDay = useMemo<number>(() => state.universe?.currentDay ?? 0, [state.universe?.currentDay]);
+
   const MAX_FULL_DIGESTS = 6;
+  const FUTURE_GRACE_DAYS = 1;
 
   const universeContext = useMemo(() => {
     if (!state.universe) return null;
+    const callerStoryDay = ownMember?.storyDay ?? 0;
     const callerRegion = ownMember?.region?.trim() || null;
     const visibleOthers = state.members.filter(
       m => m.campaignId !== campaignId && m.visibility !== 'hidden' && m.storyDigest && m.storyDigest.trim()
     );
-    if (visibleOthers.length === 0 && state.events.length === 0) return null;
+    // Filter events by caller's in-fiction position (future events are withheld)
+    const timeVisibleEvents = state.events.filter(e => (e.occurredOnDay || 0) <= callerStoryDay + FUTURE_GRACE_DAYS);
+    if (visibleOthers.length === 0 && timeVisibleEvents.length === 0) return null;
 
     // Region scoping: if caller has a region, same-region members keep their tier,
     // other-region members are demoted to 'headline' regardless of their visibility.
@@ -582,6 +613,7 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     const lines: string[] = [];
     lines.push(`=== LINKED UNIVERSE: "${state.universe.name}" ===`);
     lines.push(`Your player's story is linked to other riders' stories in this shared world. These events are happening in parallel. You may reference these characters as NPCs, have your player hear rumors about them, or cross paths naturally. You may NOT kill, injure, or make major story decisions for linked characters — they belong to their own players.`);
+    lines.push(`Your story is at in-fiction Day ${callerStoryDay}. The wider world has reached Day ${state.universe.currentDay ?? 0}. Some riders are further ahead in time; do NOT narrate events from their future as if your player already experienced them.`);
     if (callerRegion) {
       lines.push(`Your player is currently in region: ${callerRegion}. Riders in the same region are shown in full detail; riders elsewhere are only summarized.`);
     }
@@ -591,33 +623,42 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     lines.push('');
 
     const importanceLabel = (n: number) => n >= 3 ? 'World-changing' : n === 2 ? 'Notable' : 'Minor';
-    const capped = [...state.events]
+    const timingLabel = (day: number) => {
+      const diff = callerStoryDay - day;
+      if (diff >= 7) return 'some time ago';
+      if (diff >= 2) return 'recently';
+      if (diff >= -1) return 'recent';
+      return 'just ahead';
+    };
+    const capped = [...timeVisibleEvents]
       .sort((a, b) => b.importance - a.importance)
       .slice(0, 10);
     if (capped.length > 0) {
-      lines.push('--- SHARED CANON (established facts, treat as true) ---');
+      lines.push('--- SHARED CANON (established facts within your timeline, treat as true) ---');
       for (const ev of capped) {
-        lines.push(`• [${importanceLabel(ev.importance)}] ${ev.eventText}`);
+        const dayTag = ev.occurredOnDay ? ` (Day ${ev.occurredOnDay} · ${timingLabel(ev.occurredOnDay)})` : '';
+        lines.push(`• [${importanceLabel(ev.importance)}]${dayTag} ${ev.eventText}`);
       }
       lines.push('');
       lines.push('--- CANON CONSISTENCY (binding) ---');
-      lines.push('The SHARED CANON events above are established facts in this world. When you narrate, you MUST NOT contradict them. If the player attempts something that would contradict canon (e.g. visiting a place that canon says was destroyed, or interacting with someone canon says is dead), acknowledge the established fact in the fiction rather than ignoring it. You may build on canon, add nuance, or reveal new details, but you may not reverse an established world-changing event unless the fiction explicitly earns it.');
+      lines.push('The SHARED CANON events above are established facts your player has reached in the timeline. When you narrate, you MUST NOT contradict them. If the player attempts something that would contradict canon (e.g. visiting a place that canon says was destroyed, or interacting with someone canon says is dead), acknowledge the established fact in the fiction rather than ignoring it. You may build on canon, add nuance, or reveal new details, but you may not reverse an established world-changing event unless the fiction explicitly earns it. Events from other riders that occur AFTER your player\'s current day are hidden from you — do NOT invent or reference them.');
       lines.push('');
     }
 
     for (const { m, tier } of finalScoped) {
       const regionTag = m.region?.trim() ? ` [${m.region.trim()}]` : '';
+      const dayTag = m.storyDay ? ` (at Day ${m.storyDay})` : '';
       const rel = relationshipByMember.get(m.id);
       const historyLine = rel
         ? `YOUR HISTORY WITH THEM: ${RELATION_LABELS[rel.relation]}${rel.note ? ` — ${rel.note}` : ''}`
         : null;
       if (tier === 'headline') {
         const firstLine = m.storyDigest!.split('\n').map(s => s.trim()).find(s => s.length > 0) || '';
-        lines.push(`• ${m.characterName}${regionTag} is also in this world: ${firstLine}`);
+        lines.push(`• ${m.characterName}${regionTag}${dayTag} is also in this world: ${firstLine}`);
         if (historyLine) lines.push(`  ${historyLine}`);
         lines.push('');
       } else {
-        lines.push(`--- LINKED RIDER: ${m.characterName}${regionTag} (played by another player) ---`);
+        lines.push(`--- LINKED RIDER: ${m.characterName}${regionTag}${dayTag} (played by another player) ---`);
         lines.push(m.storyDigest!.trim());
         if (historyLine) lines.push(historyLine);
         lines.push('');
@@ -631,9 +672,10 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     lines.push('3. Any world-changing events you narrate should stay consistent with the SHARED CANON list above.');
     lines.push('4. If details conflict, favor the SHARED CANON list.');
     lines.push('5. When YOUR HISTORY WITH THEM is provided, weave that prior bond or grudge into how they behave toward the player — reference past dealings naturally.');
+    lines.push('6. Respect the in-fiction timeline: never narrate an event from another rider\'s future as if your player has experienced it.');
 
     return lines.join('\n');
-  }, [state.universe, state.members, state.events, campaignId, ownMember?.region, relationshipByMember]);
+  }, [state.universe, state.members, state.events, campaignId, ownMember?.region, ownMember?.storyDay, relationshipByMember]);
 
   const requestCrossover = useCallback(async (toMemberId: string, scenePremise: string) => {
     const cid = campaignRef.current;
@@ -756,6 +798,9 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     setRegion,
     setRelationship,
     relationshipByMember,
+    myStoryDay,
+    universeCurrentDay,
+    setStoryDay,
     isSignedIn: !!user,
   };
 

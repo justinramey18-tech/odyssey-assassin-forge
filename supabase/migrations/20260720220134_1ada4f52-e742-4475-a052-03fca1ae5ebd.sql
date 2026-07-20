@@ -1,0 +1,4 @@
+
+ALTER TABLE public.universe_members ADD COLUMN IF NOT EXISTS story_day INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.universe_events ADD COLUMN IF NOT EXISTS occurred_on_day INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.linked_universes ADD COLUMN IF NOT EXISTS current_day INTEGER NOT NULL DEFAULT 0;

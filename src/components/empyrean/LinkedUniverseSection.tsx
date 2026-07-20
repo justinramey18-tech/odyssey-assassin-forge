@@ -153,6 +153,9 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
     setRegion,
     setRelationship,
     relationshipByMember,
+    myStoryDay,
+    universeCurrentDay,
+    setStoryDay,
   } = hook;
 
   // One-time prompt after a crossover completes: nudge player to set relationship
@@ -201,6 +204,11 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
   const [crossoverPremise, setCrossoverPremise] = useState('');
   const [regionDraft, setRegionDraft] = useState('');
   const [savingRegion, setSavingRegion] = useState(false);
+  const [dayDraft, setDayDraft] = useState<string>('');
+  const [savingDay, setSavingDay] = useState(false);
+  useEffect(() => {
+    setDayDraft(String(myStoryDay ?? 0));
+  }, [myStoryDay, ownMember?.id]);
   useEffect(() => {
     setDigestDraft(ownMember?.storyDigest ?? '');
   }, [ownMember?.id, ownMember?.storyDigest]);
@@ -390,6 +398,9 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
                     <span className="px-1.5 py-0.5 rounded bg-black/40 border border-slate-700/60 text-white/70">
                       {vis}
                     </span>
+                    <span className="px-1.5 py-0.5 rounded bg-black/40 border border-amber-400/30 text-amber-200/90" title="This rider's current in-fiction day">
+                      Day {m.storyDay ?? 0}
+                    </span>
                   </div>
                   {isMe && (
                     <div className="flex items-center gap-1.5 pt-0.5">
@@ -429,6 +440,37 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
                           Clear
                         </Button>
                       )}
+                    </div>
+                  )}
+                  {isMe && (
+                    <div className="flex items-center gap-1.5 pt-0.5">
+                      <span className="text-[10px] text-white/60 shrink-0">
+                        In-fiction day:
+                      </span>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        value={dayDraft}
+                        onChange={(e) => setDayDraft(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                        className="h-9 w-20 bg-black/40 border-slate-700 text-xs"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="min-h-[36px] px-2 text-[11px] border-amber-400/30 text-amber-200 hover:bg-amber-500/10"
+                        disabled={savingDay || dayDraft === '' || parseInt(dayDraft, 10) === (m.storyDay ?? 0)}
+                        onClick={async () => {
+                          setSavingDay(true);
+                          await setStoryDay(parseInt(dayDraft, 10) || 0);
+                          setSavingDay(false);
+                        }}
+                      >
+                        Set
+                      </Button>
+                      <span className="text-[10px] text-white/40 shrink-0">
+                        World: Day {universeCurrentDay ?? 0}
+                      </span>
                     </div>
                   )}
                   {!m.storyDigest && (
@@ -504,6 +546,11 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
                               {isMajor && (
                                 <span className="text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-200 border border-amber-400/30">
                                   Major
+                                </span>
+                              )}
+                              {ev.occurredOnDay > 0 && (
+                                <span className="text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-black/50 text-amber-200/90 border border-amber-400/25">
+                                  Day {ev.occurredOnDay}
                                 </span>
                               )}
                               <span className="text-[10px] text-white/45">{timeAgo(ev.createdAt)}</span>
