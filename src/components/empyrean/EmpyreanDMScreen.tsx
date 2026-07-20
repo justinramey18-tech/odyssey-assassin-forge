@@ -564,8 +564,8 @@ ${oocLines}`;
   const linkedUniverse = useLinkedUniverse({ campaignId: trackingCampaignId });
   const universeContext = linkedUniverse.universeContext;
   const combinedGuidesContent = useMemo(
-    () => [enabledContent, universeContext, linkedUniverse.pendingCrossoverPrompt].filter(Boolean).join('\n\n'),
-    [enabledContent, universeContext, linkedUniverse.pendingCrossoverPrompt]
+    () => [enabledContent, universeContext, linkedUniverse.pendingCrossoverPrompt, linkedUniverse.liveBeatContext].filter(Boolean).join('\n\n'),
+    [enabledContent, universeContext, linkedUniverse.pendingCrossoverPrompt, linkedUniverse.liveBeatContext]
   );
 
   const worldStatePrompt = useMemo(() => {
@@ -1410,6 +1410,11 @@ ${oocLines}`;
         latest = decrementAllNarrativeCooldowns();
       }
       setNarrativeCooldowns(latest);
+      // Live crossover beat relay: fire-and-forget push of newest narration
+      const latestAssistant = [...messages].reverse().find(m => m.role === 'assistant' && m.content?.trim());
+      if (latestAssistant?.content) {
+        void linkedUniverse.pushLiveBeat(latestAssistant.content);
+      }
     }
   }, [messages]);
 

@@ -520,8 +520,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   // Linked Universe — uses gameStateCampaignId (synced from activeCampaignId) to avoid ordering cycle with useAIDM
   const linkedUniverse = useLinkedUniverse({ campaignId: gameStateCampaignId });
   const combinedGuidesContent = useMemo(
-    () => [gmGuides.enabledContent, linkedUniverse.universeContext, linkedUniverse.pendingCrossoverPrompt].filter(Boolean).join('\n\n'),
-    [gmGuides.enabledContent, linkedUniverse.universeContext, linkedUniverse.pendingCrossoverPrompt]
+    () => [gmGuides.enabledContent, linkedUniverse.universeContext, linkedUniverse.pendingCrossoverPrompt, linkedUniverse.liveBeatContext].filter(Boolean).join('\n\n'),
+    [gmGuides.enabledContent, linkedUniverse.universeContext, linkedUniverse.pendingCrossoverPrompt, linkedUniverse.liveBeatContext]
   );
 
   // Auto-update Linked Universe story digest whenever the campaign summary changes
@@ -649,6 +649,24 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       linkedUniverse.clearActiveCrossover();
     });
   }, [messages, isLoading, linkedUniverse]);
+
+  // Live crossover beat relay: auto-push newest assistant narration to shared row
+  const prevAssistantCountForBeatRef = useRef<number>(0);
+  useEffect(() => {
+    const assistants = messages.filter(m => m.role === 'assistant' && m.content?.trim());
+    const count = assistants.length;
+    if (prevAssistantCountForBeatRef.current === 0 && count > 0) {
+      prevAssistantCountForBeatRef.current = count;
+      return;
+    }
+    if (count > prevAssistantCountForBeatRef.current) {
+      prevAssistantCountForBeatRef.current = count;
+      const latest = assistants[assistants.length - 1]?.content;
+      if (latest) {
+        void linkedUniverse.pushLiveBeat(latest);
+      }
+    }
+  }, [messages, linkedUniverse]);
 
   const handleSend = useCallback(() => {
     const text = soloDMInputRef.current?.getText()?.trim();

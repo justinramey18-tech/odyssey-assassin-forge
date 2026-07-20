@@ -40,6 +40,10 @@ export interface Crossover {
   mySide: 'a' | 'b';
   otherCharacterName: string;
   otherStoryDigest: string | null;
+  liveBeatA?: string | null;
+  liveBeatAAt?: string | null;
+  liveBeatB?: string | null;
+  liveBeatBAt?: string | null;
 }
 
 export type RelationKind = 'ally' | 'friend' | 'rival' | 'enemy' | 'owes-you' | 'you-owe-them' | 'acquaintance';
@@ -764,6 +768,61 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     [activeCrossover, buildCrossoverPrompt]
   );
 
+  // Auto-detect an accepted crossover involving this rider (for live beat relay)
+  const acceptedCrossover = useMemo(
+    () => state.crossovers.find(c => c.status === 'accepted') ?? null,
+    [state.crossovers]
+  );
+
+  const lastBeatPushAtRef = useRef<number>(0);
+  const pushLiveBeat = useCallback(async (narration: string) => {
+    const cx = acceptedCrossover;
+    if (!cx || cx.status !== 'accepted') return;
+    const text = (narration || '').trim();
+    if (!text) return;
+    const cid = campaignRef.current;
+    if (!cid) return;
+    const now = Date.now();
+    if (now - lastBeatPushAtRef.current < 4000) return;
+    lastBeatPushAtRef.current = now;
+    try {
+      await invoke('pushBeat', { crossoverId: cx.id, campaignId: cid, narration: text.slice(0, 2000) });
+    } catch {
+      // fire-and-forget
+    }
+  }, [acceptedCrossover, invoke]);
+
+  const liveBeatContext = useMemo<string | null>(() => {
+    const cx = acceptedCrossover;
+    if (!cx) return null;
+    const mySide = cx.mySide;
+    const myBeat = mySide === 'a' ? cx.liveBeatA : cx.liveBeatB;
+    const myBeatAt = mySide === 'a' ? cx.liveBeatAAt : cx.liveBeatBAt;
+    const otherBeat = mySide === 'a' ? cx.liveBeatB : cx.liveBeatA;
+    const otherBeatAt = mySide === 'a' ? cx.liveBeatBAt : cx.liveBeatAAt;
+    const otherText = (otherBeat || '').trim();
+    if (!otherText) return null;
+
+    const myT = myBeatAt ? new Date(myBeatAt).getTime() : 0;
+    const otherT = otherBeatAt ? new Date(otherBeatAt).getTime() : 0;
+    // Other is canon if I have no beat yet, or their beat is earlier than mine
+    const otherIsCanon = !myT || (otherT > 0 && otherT < myT);
+
+    const lines: string[] = [];
+    lines.push('=== LIVE CROSSOVER — SHARED SCENE IN PROGRESS ===');
+    lines.push(`You are sharing this exact moment with ${cx.otherCharacterName}, played by another player. Here is what just happened in THEIR narration of this shared scene:`);
+    lines.push('---');
+    lines.push(otherText);
+    lines.push('---');
+    if (otherIsCanon) {
+      lines.push('This was narrated FIRST and is now ESTABLISHED CANON for this shared moment. You MUST narrate your own player\'s perspective of these SAME events consistently. Do NOT contradict, undo, or re-narrate the shared beat differently. Show what your player experiences and does within the events above — reactions, choices, dialogue — but the shared physical events themselves are fixed.');
+    } else {
+      lines.push('Your player already established this shared beat. Treat the above as the other rider\'s reaction to events you set in motion. Keep consistent; do not overwrite their character\'s choices.');
+    }
+    lines.push('--- END LIVE CROSSOVER ---');
+    return lines.join('\n');
+  }, [acceptedCrossover]);
+
   const activateCrossover = useCallback((crossoverId: string) => {
     setActiveCrossoverId(crossoverId);
   }, []);
@@ -789,6 +848,8 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     activeCrossover,
     activeCrossoverId,
     pendingCrossoverPrompt,
+    liveBeatContext,
+    pushLiveBeat,
     pendingCrossoversForMe,
     unseenEvents,
     markSeen,
