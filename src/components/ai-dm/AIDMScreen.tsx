@@ -520,8 +520,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   // Linked Universe — uses gameStateCampaignId (synced from activeCampaignId) to avoid ordering cycle with useAIDM
   const linkedUniverse = useLinkedUniverse({ campaignId: gameStateCampaignId });
   const combinedGuidesContent = useMemo(
-    () => [gmGuides.enabledContent, linkedUniverse.universeContext, linkedUniverse.pendingCrossoverPrompt].filter(Boolean).join('\n\n'),
-    [gmGuides.enabledContent, linkedUniverse.universeContext, linkedUniverse.pendingCrossoverPrompt]
+    () => [gmGuides.enabledContent, linkedUniverse.universeContext, linkedUniverse.pendingCrossoverPrompt, linkedUniverse.liveBeatContext].filter(Boolean).join('\n\n'),
+    [gmGuides.enabledContent, linkedUniverse.universeContext, linkedUniverse.pendingCrossoverPrompt, linkedUniverse.liveBeatContext]
   );
 
   // Auto-update Linked Universe story digest whenever the campaign summary changes
