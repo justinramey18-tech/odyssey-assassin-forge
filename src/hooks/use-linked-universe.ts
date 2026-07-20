@@ -798,6 +798,9 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
     setRegion,
     setRelationship,
     relationshipByMember,
+    myStoryDay,
+    universeCurrentDay,
+    setStoryDay,
     isSignedIn: !!user,
   };
 
