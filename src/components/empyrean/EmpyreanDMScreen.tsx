@@ -33,6 +33,8 @@ import { CampaignSessionsManager } from '@/components/ai-dm/CampaignSessionsMana
 import { DMToolsDrawer } from '@/components/ai-dm/DMToolsDrawer';
 import { DMBottomNav, DMNavTab } from '@/components/ai-dm/DMBottomNav';
 import { CharacterSheet } from '@/components/empyrean/CharacterSheet';
+import { useLinkedUniverse } from '@/hooks/use-linked-universe';
+
 import { EmpyreanDirectorScreen } from '@/components/empyrean/EmpyreanDirectorScreen';
 import { DMDiceRoller } from '@/components/ai-dm/DMDiceRoller';
 import { GMGuidesManager } from '@/components/ai-dm/GMGuidesManager';
