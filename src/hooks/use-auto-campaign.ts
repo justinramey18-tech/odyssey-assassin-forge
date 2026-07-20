@@ -70,16 +70,24 @@ export function useAutoCampaign(opts: Options) {
   const hasAutoCreatedRef = useRef(false);
   const hasRestoredRef = useRef(false);
   const inFlightRef = useRef(false);
+  const prevIdRef = useRef<string | null>(null);
 
-  // 1) Persist activeCampaignId to localStorage whenever it changes
+  // 1) Mirror activeCampaignId to localStorage. When it transitions from a
+  //    real id back to null (newGame/clearMessages), clear the stored id and
+  //    reset guards so a fresh campaign can be auto-created + restored later.
   useEffect(() => {
     try {
       if (activeCampaignId) {
         localStorage.setItem(storageKey, activeCampaignId);
+      } else if (prevIdRef.current) {
+        localStorage.removeItem(storageKey);
+        hasAutoCreatedRef.current = false;
+        hasRestoredRef.current = true; // don't re-restore the just-cleared id
       }
     } catch {
       /* ignore quota */
     }
+    prevIdRef.current = activeCampaignId;
   }, [activeCampaignId, storageKey]);
 
   // 2) Restore the last active campaign for this signed-in user, once sessions are loaded
