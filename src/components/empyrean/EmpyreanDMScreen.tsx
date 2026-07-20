@@ -28,6 +28,7 @@ import rehypeRaw from 'rehype-raw';
 import { CharacterContext } from '@/components/oracle/types';
 import { useAIDM } from '@/hooks/use-ai-dm';
 import { useCampaignSessions, CampaignSession } from '@/hooks/use-campaign-sessions';
+import { useAutoCampaign } from '@/hooks/use-auto-campaign';
 import { CampaignDropdown } from '@/components/ai-dm/CampaignDropdown';
 import { CampaignSessionsManager } from '@/components/ai-dm/CampaignSessionsManager';
 import { DMToolsDrawer } from '@/components/ai-dm/DMToolsDrawer';
