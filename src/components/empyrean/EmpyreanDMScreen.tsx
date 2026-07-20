@@ -645,7 +645,7 @@ ${oocLines}`;
     newGame,
   } = useAIDM({
     characterContext: empyreanCharacterContext,
-    customGuidesContent: enabledContent,
+    customGuidesContent: combinedGuidesContent,
     dmPersonaPrompt,
     responseModePrompt: resolveResponseModePrompt(responseMode),
     selectedModel,
