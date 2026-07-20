@@ -163,7 +163,7 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
                   value={digestDraft}
                   onChange={(e) => setDigestDraft(e.target.value)}
                   placeholder={DIGEST_PLACEHOLDER}
-                  className="min-h-[140px] bg-black/40 border-slate-700 text-sm"
+                  className="min-h-[180px] bg-black/40 border-slate-700 text-sm"
                   maxLength={5000}
                 />
                 <div className="flex items-center justify-between gap-2">
