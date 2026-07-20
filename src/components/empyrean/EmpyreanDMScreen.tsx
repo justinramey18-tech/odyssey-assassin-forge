@@ -892,6 +892,22 @@ ${oocLines}`;
     return saveCampaignSession(name, msgs, summary, existingId);
   }, [saveCampaignSession]);
 
+  // Auto-create + restore a persistent campaign so linking is always available
+  useAutoCampaign({
+    mode: 'empyrean',
+    isSignedIn,
+    activeCampaignId,
+    setActiveCampaignId,
+    messages,
+    campaignSummary,
+    characterName,
+    sessions: campaignSessions,
+    sessionsLoading,
+    saveSession: saveCampaignSession,
+    loadCampaign,
+    memoryAnchors: gameState.gameState.memory_anchors,
+  });
+
   // Message action states
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
