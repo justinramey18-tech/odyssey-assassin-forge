@@ -402,7 +402,7 @@ Deno.serve(async (req) => {
 
       const { data: membership } = await supabase
         .from('universe_members')
-        .select('id, universe_id')
+        .select('id, universe_id, story_day')
         .eq('campaign_id', campaignId)
         .eq('user_id', user.id)
         .maybeSingle();
