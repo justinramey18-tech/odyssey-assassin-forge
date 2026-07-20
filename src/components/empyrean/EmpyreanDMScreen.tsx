@@ -563,8 +563,8 @@ ${oocLines}`;
   const linkedUniverse = useLinkedUniverse({ campaignId: trackingCampaignId });
   const universeContext = linkedUniverse.universeContext;
   const combinedGuidesContent = useMemo(
-    () => [enabledContent, universeContext].filter(Boolean).join('\n\n'),
-    [enabledContent, universeContext]
+    () => [enabledContent, universeContext, linkedUniverse.pendingCrossoverPrompt].filter(Boolean).join('\n\n'),
+    [enabledContent, universeContext, linkedUniverse.pendingCrossoverPrompt]
   );
 
   const worldStatePrompt = useMemo(() => {
