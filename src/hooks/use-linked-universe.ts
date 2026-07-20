@@ -76,6 +76,7 @@ const DEFAULT_STATE: LinkedUniverseState = {
   members: [],
   events: [],
   crossovers: [],
+  relationships: [],
   myMemberId: null,
   isLoading: false,
 };
