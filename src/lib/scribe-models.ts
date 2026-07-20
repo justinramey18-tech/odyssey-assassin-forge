@@ -80,8 +80,8 @@ export function getScribeModelLabel(modelId: string): string {
 /** Returns which edge function to call based on the model provider. */
 export function getEdgeFunctionForModel(modelId: string): 'scribe-ai' | 'narrative-forge' {
   const model = SCRIBE_MODELS.find(m => m.id === modelId);
-  // anthropic and openai-direct both use scribe-ai (which handles direct API calls)
-  return (model?.provider === 'anthropic' || model?.provider === 'openai-direct' || model?.provider === 'perplexity') ? 'scribe-ai' : 'narrative-forge';
+  // anthropic, openai-direct, perplexity, xai-direct all use scribe-ai (direct API calls)
+  return (model?.provider === 'anthropic' || model?.provider === 'openai-direct' || model?.provider === 'perplexity' || model?.provider === 'xai-direct') ? 'scribe-ai' : 'narrative-forge';
 }
 
 export function isPerplexityModel(modelId: string): boolean {
@@ -94,4 +94,8 @@ export function isAnthropicModel(modelId: string): boolean {
 
 export function isOpenAIDirectModel(modelId: string): boolean {
   return modelId.startsWith('openai-direct/');
+}
+
+export function isXAIDirectModel(modelId: string): boolean {
+  return modelId.startsWith('xai-direct/');
 }
