@@ -444,7 +444,11 @@ function SettingsTab({
             }
           />
         )}
+        <div className="pt-2">
+          <LinkedUniverseSection campaignId={activeCampaignId} characterName={characterName} />
+        </div>
       </SettingsSection>
+
 
       {/* ─── Gameplay ────────────────────── */}
       <SettingsSection title="Gameplay">
