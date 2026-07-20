@@ -45,7 +45,9 @@ interface CharacterSheetProps {
   onOpenEmpyreanCooldowns?: () => void;
   onOpenSignetManagement?: () => void;
   activeCampaignId?: string | null;
+  linkedUniverse?: import('@/hooks/use-linked-universe').LinkedUniverseController;
 }
+
 
 const TABS: Array<{ id: CharacterSheetTab; label: string; icon: React.ComponentType<{ className?: string }>; color: string; accent: string }> = [
   { id: 'character', label: 'Character',      icon: User,          color: 'text-sky-300',    accent: 'border-sky-400/50 bg-sky-500/10' },
