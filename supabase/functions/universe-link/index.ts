@@ -193,13 +193,13 @@ Deno.serve(async (req) => {
 
       const { data: members } = await supabase
         .from('universe_members')
-        .select('id, campaign_id, user_id, character_name, story_digest, digest_updated_at, visibility, region')
+        .select('id, campaign_id, user_id, character_name, story_digest, digest_updated_at, visibility, region, story_day')
         .eq('universe_id', universeId);
 
 
       const { data: events } = await supabase
         .from('universe_events')
-        .select('id, event_text, event_type, importance, created_at, created_by_member, is_canon')
+        .select('id, event_text, event_type, importance, created_at, created_by_member, is_canon, occurred_on_day')
         .eq('universe_id', universeId)
         .eq('is_canon', true)
         .order('created_at', { ascending: false })
