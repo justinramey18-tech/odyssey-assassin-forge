@@ -138,6 +138,7 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
           id: universe.id,
           name: universe.name,
           linkCode: universe.link_code,
+          currentDay: Number(universe.current_day ?? 0) || 0,
         },
         members: (members || []).map((m: any) => ({
           id: m.id,
@@ -148,6 +149,7 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
           digestUpdatedAt: m.digest_updated_at ?? null,
           visibility: m.visibility ?? 'full',
           region: m.region ?? null,
+          storyDay: Number(m.story_day ?? 0) || 0,
         })),
         events: (events || []).map((e: any) => ({
           id: e.id,
@@ -156,6 +158,7 @@ export function useLinkedUniverse({ campaignId }: { campaignId: string | null })
           importance: e.importance,
           createdAt: e.created_at ?? null,
           createdByName: e.created_by_name ?? null,
+          occurredOnDay: Number(e.occurred_on_day ?? 0) || 0,
         })),
         crossovers,
         relationships,
