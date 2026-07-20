@@ -442,6 +442,37 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
                       )}
                     </div>
                   )}
+                  {isMe && (
+                    <div className="flex items-center gap-1.5 pt-0.5">
+                      <span className="text-[10px] text-white/60 shrink-0">
+                        In-fiction day:
+                      </span>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        value={dayDraft}
+                        onChange={(e) => setDayDraft(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                        className="h-9 w-20 bg-black/40 border-slate-700 text-xs"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="min-h-[36px] px-2 text-[11px] border-amber-400/30 text-amber-200 hover:bg-amber-500/10"
+                        disabled={savingDay || dayDraft === '' || parseInt(dayDraft, 10) === (m.storyDay ?? 0)}
+                        onClick={async () => {
+                          setSavingDay(true);
+                          await setStoryDay(parseInt(dayDraft, 10) || 0);
+                          setSavingDay(false);
+                        }}
+                      >
+                        Set
+                      </Button>
+                      <span className="text-[10px] text-white/40 shrink-0">
+                        World: Day {universeCurrentDay ?? 0}
+                      </span>
+                    </div>
+                  )}
                   {!m.storyDigest && (
                     <p className="text-[11px] text-muted-foreground italic">
                       No story shared yet
