@@ -170,6 +170,41 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
           <Copy className="w-4 h-4 text-amber-300/80" />
         </button>
 
+        {/* Story Visibility — controls what other DMs receive about you */}
+        <div className="rounded-md border border-slate-700/60 bg-black/25 p-2.5 space-y-2">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-white/60">
+            <UserIcon className="w-3 h-3" />
+            Story Visibility
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {(['full', 'headline', 'hidden'] as const).map(v => {
+              const active = myVisibility === v;
+              const label = v === 'full' ? 'Full' : v === 'headline' ? 'Headline' : 'Hidden';
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => { if (!active) setVisibility(v); }}
+                  className={`min-h-[44px] rounded-md px-2 py-1.5 text-xs font-medium border transition ${
+                    active
+                      ? 'bg-amber-500/25 border-amber-400/60 text-amber-100'
+                      : 'bg-black/30 border-slate-700/60 text-white/70 hover:bg-black/50'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-muted-foreground leading-snug">
+            {myVisibility === 'full' && 'Other DMs see your whole digest.'}
+            {myVisibility === 'headline' && 'Other DMs only know you exist.'}
+            {myVisibility === 'hidden' && 'You stay invisible to other stories.'}
+          </p>
+        </div>
+
+
+
         <div>
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-white/50 mb-1.5">
             <Users className="w-3 h-3" />
