@@ -193,8 +193,9 @@ Deno.serve(async (req) => {
 
       const { data: members } = await supabase
         .from('universe_members')
-        .select('id, character_name, story_digest, digest_updated_at, visibility')
+        .select('id, campaign_id, user_id, character_name, story_digest, digest_updated_at, visibility')
         .eq('universe_id', universeId);
+
 
       const { data: events } = await supabase
         .from('universe_events')
