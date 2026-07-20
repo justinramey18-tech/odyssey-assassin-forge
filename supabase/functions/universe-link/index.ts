@@ -829,8 +829,55 @@ TIME rules — "dayAdvance": Estimate how many in-fiction DAYS passed during the
       return json({ success: true, completed: !!bothPresent });
     }
 
+    if (action === 'pushBeat') {
+      const { crossoverId, campaignId, narration } = body;
+      if (!crossoverId || !campaignId || typeof narration !== 'string') {
+        return json({ error: 'crossoverId, campaignId, narration required' }, 400);
+      }
+      if (!(await verifyCampaignOwnership(campaignId))) {
+        return json({ error: 'You do not own this campaign' }, 403);
+      }
+
+      const { data: cx } = await supabase
+        .from('crossover_requests')
+        .select('id, status, from_member, to_member')
+        .eq('id', crossoverId)
+        .maybeSingle();
+      if (!cx) return json({ skipped: true, reason: 'not_found' });
+      if (cx.status !== 'accepted') return json({ skipped: true, reason: 'not_active' });
+
+      const me = await memberFromCampaign(campaignId);
+      if (!me) return json({ skipped: true, reason: 'not_member' });
+
+      let side: 'a' | 'b' | null = null;
+      if (me.id === cx.from_member) side = 'a';
+      else if (me.id === cx.to_member) side = 'b';
+      if (!side) return json({ skipped: true, reason: 'not_participant' });
+
+      // Strip HTML comments and span tags, then keep the trailing ~2000 chars
+      const cleaned = narration
+        .replace(/<!--[\s\S]*?-->/g, '')
+        .replace(/<\/?span[^>]*>/gi, '')
+        .trim();
+      const trimmed = cleaned.length > 2000 ? cleaned.slice(-2000) : cleaned;
+      const nowIso = new Date().toISOString();
+
+      const patch: Record<string, unknown> = side === 'a'
+        ? { live_beat_a: trimmed, live_beat_a_at: nowIso }
+        : { live_beat_b: trimmed, live_beat_b_at: nowIso };
+
+      const { error: upErr } = await supabase
+        .from('crossover_requests')
+        .update(patch)
+        .eq('id', crossoverId);
+      if (upErr) return json({ error: upErr.message }, 500);
+
+      return json({ success: true, side });
+    }
+
     return json({ error: 'Unknown action' }, 400);
   } catch (err) {
     return json({ error: (err as Error).message }, 500);
   }
 });
+
