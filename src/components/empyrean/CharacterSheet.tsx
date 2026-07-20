@@ -391,7 +391,9 @@ interface SettingsTabProps {
   onCloseSheet: () => void;
   activeCampaignId: string | null;
   characterName: string;
+  linkedUniverse?: import('@/hooks/use-linked-universe').LinkedUniverseController;
 }
+
 
 function SettingsTab({
   onCampaignSaves,
