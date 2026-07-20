@@ -271,6 +271,36 @@ Deno.serve(async (req) => {
       return json({ success: true });
     }
 
+    if (action === 'setRegion') {
+      const { campaignId } = body;
+      let region: string | null = body.region ?? null;
+      if (!campaignId) return json({ error: 'campaignId required' }, 400);
+      if (region !== null) {
+        if (typeof region !== 'string') return json({ error: 'region must be a string or null' }, 400);
+        region = region.trim().slice(0, 64);
+        if (!region) region = null;
+      }
+      if (!(await verifyCampaignOwnership(campaignId))) {
+        return json({ error: 'You do not own this campaign' }, 403);
+      }
+
+      const { data: membership } = await supabase
+        .from('universe_members')
+        .select('id')
+        .eq('campaign_id', campaignId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!membership) return json({ error: 'Campaign is not linked to a universe' }, 404);
+
+      const { error: updateErr } = await supabase
+        .from('universe_members')
+        .update({ region })
+        .eq('id', membership.id);
+
+      if (updateErr) return json({ error: updateErr.message }, 500);
+      return json({ success: true, region });
+
     if (action === 'generateDigest') {
       const { campaignId, campaignSummary, characterName } = body;
       if (!campaignId) return json({ error: 'campaignId required' }, 400);
