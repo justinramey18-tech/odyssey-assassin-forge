@@ -245,7 +245,7 @@ Deno.serve(async (req) => {
 
       const { data: membership } = await supabase
         .from('universe_members')
-        .select('id')
+        .select('id, universe_id')
         .eq('campaign_id', campaignId)
         .eq('user_id', user.id)
         .maybeSingle();
@@ -258,13 +258,17 @@ Deno.serve(async (req) => {
       const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
       if (!LOVABLE_API_KEY) return json({ error: 'LOVABLE_API_KEY not configured' }, 500);
 
-      const systemPrompt = `You compress a tabletop RPG campaign into a SHORT shared-world digest that OTHER players' game masters will read. Output at most 120 words in exactly this structure, no extra text:
-CHARACTER: {name, role, defining traits/powers}
-LOCATION: {where they currently are}
-STATUS: {alive/injured/etc, current condition}
-RECENT: {1-2 sentences on their most recent significant events}
-HOOKS: {1-2 concrete things another player's story could latch onto — items they carry, people they seek, debts, rumors about them}
-Be concrete and specific. Use proper nouns. This is read by other people's AI game masters to weave a shared world.`;
+      const systemPrompt = `You compress a tabletop RPG campaign into a SHORT shared-world digest that OTHER players' game masters will read, AND extract world-changing events for a shared canon ledger.
+
+Output ONLY valid JSON in this exact shape, no markdown fences, no extra text:
+{
+  "digest": "CHARACTER: {name, role, defining traits/powers}\\nLOCATION: {where they currently are}\\nSTATUS: {alive/injured/etc, current condition}\\nRECENT: {1-2 sentences on their most recent significant events}\\nHOOKS: {1-2 concrete things another player's story could latch onto — items they carry, people they seek, debts, rumors about them}",
+  "events": [ { "text": "concise past-tense sentence with proper nouns", "type": "story|location|npc|death|crossover", "importance": 1-3 } ]
+}
+
+DIGEST rules: at most 120 words. Be concrete and specific. Use proper nouns. This is read by other people's AI game masters to weave a shared world.
+
+EVENTS rules: ONLY include things that would be visible or consequential to OTHER people in this shared world — world-changing occurrences (importance 3) or notable public events (importance 2). Do NOT include private/minor character moments. Most turns produce ZERO events; an empty array is correct and expected. Never invent events not grounded in the story.`;
 
       const userMsg = `Character name: ${characterName || 'Unknown'}\n\nCAMPAIGN SUMMARY:\n${summary}`;
 
@@ -280,7 +284,7 @@ Be concrete and specific. Use proper nouns. This is read by other people's AI ga
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userMsg },
           ],
-          max_tokens: 400,
+          max_tokens: 700,
         }),
       });
 
@@ -291,8 +295,31 @@ Be concrete and specific. Use proper nouns. This is read by other people's AI ga
       }
 
       const aiData = await aiRes.json();
-      let digest = (aiData.choices?.[0]?.message?.content || '').trim();
-      if (!digest) return json({ error: 'Empty digest' }, 500);
+      const raw = (aiData.choices?.[0]?.message?.content || '').trim();
+      if (!raw) return json({ error: 'Empty response' }, 500);
+
+      // Safe JSON parse — strip code fences, fall back to raw as digest
+      let digest = '';
+      let events: Array<{ text: string; type: string; importance: number }> = [];
+      try {
+        const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+        const parsed = JSON.parse(cleaned);
+        digest = typeof parsed.digest === 'string' ? parsed.digest.trim() : '';
+        if (Array.isArray(parsed.events)) {
+          events = parsed.events
+            .filter((e: any) => e && typeof e.text === 'string' && e.text.trim())
+            .map((e: any) => ({
+              text: String(e.text).trim().slice(0, 500),
+              type: ['story', 'location', 'npc', 'death', 'crossover'].includes(e.type) ? e.type : 'story',
+              importance: Math.max(1, Math.min(3, parseInt(e.importance, 10) || 1)),
+            }));
+        }
+      } catch {
+        digest = raw;
+        events = [];
+      }
+
+      if (!digest) digest = raw;
       if (digest.length > 5000) digest = digest.slice(0, 5000);
 
       const { error: updateErr } = await supabase
@@ -301,7 +328,63 @@ Be concrete and specific. Use proper nouns. This is read by other people's AI ga
         .eq('id', membership.id);
 
       if (updateErr) return json({ error: updateErr.message }, 500);
-      return json({ success: true, digest });
+
+      // Event extraction — only importance 2 & 3, cap at 3, dedupe against last 20
+      let eventsAdded = 0;
+      try {
+        const filtered = events
+          .filter(e => e.importance >= 2)
+          .sort((a, b) => b.importance - a.importance)
+          .slice(0, 3);
+
+        if (filtered.length > 0) {
+          const { data: recent } = await supabase
+            .from('universe_events')
+            .select('event_text')
+            .eq('universe_id', membership.universe_id)
+            .order('created_at', { ascending: false })
+            .limit(20);
+
+          const normalize = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+          const wordOverlap = (a: string, b: string) => {
+            const aw = new Set(a.split(' ').filter(w => w.length > 3));
+            const bw = new Set(b.split(' ').filter(w => w.length > 3));
+            if (aw.size === 0 || bw.size === 0) return 0;
+            let shared = 0;
+            aw.forEach(w => { if (bw.has(w)) shared++; });
+            return shared / Math.min(aw.size, bw.size);
+          };
+          const existingNorms = (recent || []).map((r: any) => normalize(r.event_text || ''));
+
+          const toInsert = filtered.filter(ev => {
+            const n = normalize(ev.text);
+            for (const ex of existingNorms) {
+              if (!ex) continue;
+              if (ex.includes(n) || n.includes(ex)) return false;
+              if (wordOverlap(n, ex) > 0.8) return false;
+            }
+            return true;
+          });
+
+          if (toInsert.length > 0) {
+            const rows = toInsert.map(ev => ({
+              universe_id: membership.universe_id,
+              created_by_member: membership.id,
+              event_text: ev.text,
+              event_type: ev.type,
+              importance: ev.importance,
+              is_canon: true,
+            }));
+            const { error: insErr } = await supabase.from('universe_events').insert(rows);
+            if (!insErr) eventsAdded = rows.length;
+            else console.error('universe_events insert error', insErr);
+          }
+        }
+      } catch (e) {
+        console.error('event extraction failed (non-blocking)', e);
+      }
+
+      return json({ success: true, digest, eventsAdded });
     }
 
     return json({ error: 'Unknown action' }, 400);
