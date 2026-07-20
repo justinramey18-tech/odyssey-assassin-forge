@@ -815,6 +815,54 @@ serve(async (req) => {
       }
     }
 
+    const xaiModelId = XAI_MODELS[requestedModel];
+    if (xaiModelId) {
+      // ── xAI (Grok) direct path — OpenAI-compatible SSE ──
+      const xaiKey = (typeof user_xai_key === 'string' && user_xai_key.trim()) ? user_xai_key.trim() : null;
+      if (!xaiKey) {
+        return new Response(JSON.stringify({ error: "No xAI API key provided. Add your key in Settings → API Keys." }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const xaiResponse = await fetch("https://api.x.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${xaiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: xaiModelId,
+          max_tokens: maxTokens || 16000,
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...trimmedMessages,
+          ],
+          stream: true,
+        }),
+      });
+      if (!xaiResponse.ok) {
+        const errText = await xaiResponse.text();
+        console.error("xAI API error:", xaiResponse.status, errText);
+        if (xaiResponse.status === 429) {
+          return new Response(JSON.stringify({ error: "xAI rate limit exceeded. Please wait and try again." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (xaiResponse.status === 401) {
+          return new Response(JSON.stringify({ error: "Invalid xAI API key. Check your key in Settings → API Keys." }), {
+            status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        return new Response(JSON.stringify({ error: "xAI API error" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(xaiResponse.body, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
+    }
+
+
     // ── Lovable AI gateway path ──
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
