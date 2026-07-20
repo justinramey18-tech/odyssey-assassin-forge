@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 import { useAIDM } from '@/hooks/use-ai-dm';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import { useCampaignSessions, CampaignSession } from '@/hooks/use-campaign-sessions';
+import { useAutoCampaign } from '@/hooks/use-auto-campaign';
 import { CharacterContext, Message } from '@/components/oracle/types';
 import { useToast } from '@/hooks/use-toast';
 import { DMQuickActions } from './DMQuickActions';
