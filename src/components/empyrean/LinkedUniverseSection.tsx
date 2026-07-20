@@ -62,6 +62,8 @@ export function LinkedUniverseSection({ campaignId, characterName, controller }:
     markSeen,
     myVisibility,
     setVisibility,
+    myRegion,
+    setRegion,
   } = hook;
 
   // Clear unseen badge when the section mounts / campaign switches
