@@ -784,6 +784,15 @@ ${oocLines}`;
     },
   });
 
+  // Auto-update Linked Universe story digest whenever the campaign summary changes
+  useEffect(() => {
+    if (campaignSummary && campaignSummary.trim()) {
+      linkedUniverse.generateDigestFromSummary(campaignSummary, characterName || 'Rider');
+    }
+  }, [campaignSummary, characterName, linkedUniverse]);
+
+
+
   const npcSceneSessionConfig = useMemo(() => ({
     active: true,
     mode: 'shared' as const,
