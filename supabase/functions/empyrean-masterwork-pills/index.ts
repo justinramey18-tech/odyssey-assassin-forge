@@ -6,6 +6,19 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const DEFAULT_MODEL = 'google/gemini-3-pro-preview';
+const ALLOWED_MODELS = new Set([
+  'google/gemini-3-pro-preview',
+  'google/gemini-2.5-pro',
+  'google/gemini-2.5-flash',
+  'google/gemini-2.5-flash-lite',
+  'google/gemini-3-flash-preview',
+  'openai/gpt-5',
+  'openai/gpt-5-mini',
+  'openai/gpt-5-nano',
+  'openai/gpt-5.2',
+]);
+
 const PILL_TOOL = {
   type: "function" as const,
   function: {
@@ -113,7 +126,9 @@ serve(async (req) => {
       character_bonds,
       character_flaws,
       campaign_summary,
+      model,
     } = body ?? {};
+    const resolvedModel = (typeof model === 'string' && ALLOWED_MODELS.has(model)) ? model : DEFAULT_MODEL;
 
     if (category !== 'dragon' && category !== 'situation' && category !== 'story') {
       return new Response(
@@ -183,7 +198,7 @@ ${latestBeat}`;
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: resolvedModel,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: "Generate the 4 masterwork pills now via the tool." },
