@@ -564,8 +564,8 @@ ${oocLines}`;
   const linkedUniverse = useLinkedUniverse({ campaignId: trackingCampaignId });
   const universeContext = linkedUniverse.universeContext;
   const combinedGuidesContent = useMemo(
-    () => [enabledContent, universeContext, linkedUniverse.pendingCrossoverPrompt].filter(Boolean).join('\n\n'),
-    [enabledContent, universeContext, linkedUniverse.pendingCrossoverPrompt]
+    () => [enabledContent, universeContext, linkedUniverse.pendingCrossoverPrompt, linkedUniverse.liveBeatContext].filter(Boolean).join('\n\n'),
+    [enabledContent, universeContext, linkedUniverse.pendingCrossoverPrompt, linkedUniverse.liveBeatContext]
   );
 
   const worldStatePrompt = useMemo(() => {
