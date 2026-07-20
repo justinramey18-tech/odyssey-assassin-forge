@@ -154,6 +154,7 @@ interface DMRequest {
   recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>;
   recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>;
   user_perplexity_key?: string;
+  user_xai_key?: string;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -198,6 +199,14 @@ const PERPLEXITY_MODELS: Record<string, string> = {
   'perplexity/sonar': 'sonar',
   'perplexity/sonar-pro': 'sonar-pro',
   'perplexity/sonar-reasoning': 'sonar-reasoning',
+};
+
+// Models routed directly to xAI (Grok) API (user's own key)
+const XAI_MODELS: Record<string, string> = {
+  'xai-direct/grok-4': 'grok-4',
+  'xai-direct/grok-3': 'grok-3',
+  'xai-direct/grok-3-mini': 'grok-3-mini',
+  'xai-direct/grok-2-latest': 'grok-2-latest',
 };
 
 const DEFAULT_MODEL = 'google/gemini-3-pro-preview';
@@ -683,7 +692,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, maxTokens, recentDragonChat, recentDragonNetwork } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, maxTokens, recentDragonChat, recentDragonNetwork } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages, then cap by total character count
     let trimmedMessages = messages.length > MAX_MESSAGES
@@ -805,6 +814,54 @@ serve(async (req) => {
         });
       }
     }
+
+    const xaiModelId = XAI_MODELS[requestedModel];
+    if (xaiModelId) {
+      // ── xAI (Grok) direct path — OpenAI-compatible SSE ──
+      const xaiKey = (typeof user_xai_key === 'string' && user_xai_key.trim()) ? user_xai_key.trim() : null;
+      if (!xaiKey) {
+        return new Response(JSON.stringify({ error: "No xAI API key provided. Add your key in Settings → API Keys." }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const xaiResponse = await fetch("https://api.x.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${xaiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: xaiModelId,
+          max_tokens: maxTokens || 16000,
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...trimmedMessages,
+          ],
+          stream: true,
+        }),
+      });
+      if (!xaiResponse.ok) {
+        const errText = await xaiResponse.text();
+        console.error("xAI API error:", xaiResponse.status, errText);
+        if (xaiResponse.status === 429) {
+          return new Response(JSON.stringify({ error: "xAI rate limit exceeded. Please wait and try again." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (xaiResponse.status === 401) {
+          return new Response(JSON.stringify({ error: "Invalid xAI API key. Check your key in Settings → API Keys." }), {
+            status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        return new Response(JSON.stringify({ error: "xAI API error" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(xaiResponse.body, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
+    }
+
 
     // ── Lovable AI gateway path ──
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");

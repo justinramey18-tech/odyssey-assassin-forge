@@ -1521,6 +1521,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         user_api_key: loadApiKey('anthropic') || undefined,
         user_openai_key: loadApiKey('openai') || undefined,
         user_perplexity_key: loadApiKey('perplexity') || undefined,
+        user_xai_key: loadApiKey('xai') || undefined,
         ...(() => {
           const cs = loadCombatSettings();
           const feats: string[] = [];

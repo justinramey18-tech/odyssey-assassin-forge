@@ -11,7 +11,7 @@ const GPT_EVERYWHERE_MODEL_ID = 'openai-direct/gpt-5';
 export interface ScribeModel {
   id: string;
   label: string;
-  provider: 'lovable' | 'anthropic' | 'openai-direct' | 'perplexity';
+  provider: 'lovable' | 'anthropic' | 'openai-direct' | 'perplexity' | 'xai-direct';
   description: string;
 }
 
@@ -33,6 +33,9 @@ export const SCRIBE_MODELS: ScribeModel[] = [
   { id: 'perplexity/sonar', label: 'Sonar (own key)', provider: 'perplexity', description: 'Fast search-grounded AI (own key)' },
   { id: 'perplexity/sonar-pro', label: 'Sonar Pro (own key)', provider: 'perplexity', description: 'Best search-grounded quality (own key)' },
   { id: 'perplexity/sonar-reasoning', label: 'Sonar Reasoning (own key)', provider: 'perplexity', description: 'Chain-of-thought reasoning (own key)' },
+  { id: 'xai-direct/grok-4', label: 'Grok 4 (own key)', provider: 'xai-direct', description: 'xAI flagship (own key)' },
+  { id: 'xai-direct/grok-3', label: 'Grok 3 (own key)', provider: 'xai-direct', description: 'Strong reasoning (own key)' },
+  { id: 'xai-direct/grok-3-mini', label: 'Grok 3 Mini (own key)', provider: 'xai-direct', description: 'Fast & cheap (own key)' },
 ];
 
 export const DEFAULT_SCRIBE_MODEL = 'google/gemini-3-pro-preview';
@@ -77,8 +80,8 @@ export function getScribeModelLabel(modelId: string): string {
 /** Returns which edge function to call based on the model provider. */
 export function getEdgeFunctionForModel(modelId: string): 'scribe-ai' | 'narrative-forge' {
   const model = SCRIBE_MODELS.find(m => m.id === modelId);
-  // anthropic and openai-direct both use scribe-ai (which handles direct API calls)
-  return (model?.provider === 'anthropic' || model?.provider === 'openai-direct' || model?.provider === 'perplexity') ? 'scribe-ai' : 'narrative-forge';
+  // anthropic, openai-direct, perplexity, xai-direct all use scribe-ai (direct API calls)
+  return (model?.provider === 'anthropic' || model?.provider === 'openai-direct' || model?.provider === 'perplexity' || model?.provider === 'xai-direct') ? 'scribe-ai' : 'narrative-forge';
 }
 
 export function isPerplexityModel(modelId: string): boolean {
@@ -91,4 +94,8 @@ export function isAnthropicModel(modelId: string): boolean {
 
 export function isOpenAIDirectModel(modelId: string): boolean {
   return modelId.startsWith('openai-direct/');
+}
+
+export function isXAIDirectModel(modelId: string): boolean {
+  return modelId.startsWith('xai-direct/');
 }
