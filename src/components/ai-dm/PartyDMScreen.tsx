@@ -1151,6 +1151,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     // user has Auto-Mood enabled and Spotify is connected.
     if (!spotify.autoMoodEnabled) return;
     if (!spotify.connected) return;
+    // "Save credits" toggle — skip background situation detection.
+    if (isSupportingLocalOnlyEnabled()) return;
 
     const msgs = partyDm.messages;
     if (msgs.length === 0) return;
