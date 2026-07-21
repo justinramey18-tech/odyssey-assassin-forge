@@ -8,6 +8,7 @@ import {
   loadApiKey, saveApiKey, clearApiKey, hasApiKey, maskKey,
   isClaudeEverywhereEnabled, setClaudeEverywhere,
   isGPTEverywhereEnabled, setGPTEverywhere,
+  isSupportingLocalOnlyEnabled, setSupportingLocalOnly,
 } from '@/lib/api-keys';
 
 function ApiKeyInput({ provider, label, placeholder }: { provider: 'anthropic' | 'elevenlabs' | 'openai' | 'speechify' | 'perplexity' | 'xai'; label: string; placeholder: string }) {
