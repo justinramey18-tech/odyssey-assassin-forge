@@ -8,6 +8,7 @@ import { getCachedWeather, buildWeatherPrompt, loadWeatherEnabled } from '@/lib/
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
 import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle, Theater, Megaphone, Minus, Plus, Sparkles, Swords, HelpCircle } from 'lucide-react';
 import { formatForReadingMode, type FormattedReading } from '@/lib/reading-mode-formatter';
+import { isSupportingLocalOnlyEnabled } from '@/lib/api-keys';
 const EmpyreanCampaignSetup = lazy(() => import('@/components/empyrean/EmpyreanCampaignSetup').then(m => ({ default: m.EmpyreanCampaignSetup })));
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
 const DeathSaveScreen = lazy(() => import('@/components/empyrean/DeathSaveScreen'));
