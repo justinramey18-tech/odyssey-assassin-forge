@@ -1,48 +1,56 @@
-## Goal
-Make it physically impossible for two devices to start the AI narration for the same party + round at the same time. Today the "only host narrates" rule lives on each device; if two devices both believe they're the host (or the host double-taps), the AI can be called twice for one round and produce conflicting story beats. The database will now be the single source of truth for "this round is being narrated."
+## The bug in plain terms
 
-## How it will work (plain language)
+When a player leaves the Empyrean DM screen (goes home, opens another tab, etc.) and comes back, the linked universe looks unlinked even though the database link is intact. The reason: the "active campaign id" lives only in the DM screen's memory. When the screen closes, that memory is wiped. When they return, the DM screen starts up not knowing which campaign it is, so the Linked Universe feature has nothing to look up and shows unlinked.
 
-1. Add a small new bookkeeping table in the database whose only job is to hold a **one-and-only-one claim ticket per (party, round)**.
-2. When someone's app tries to start narration, it first tries to drop a ticket into that table for the current round. The database itself refuses to accept a second ticket for the same round — that refusal is the lock.
-3. If the ticket lands, that device is the narrator, calls the AI, saves the response, then clears the ticket (or marks it complete). If the ticket is refused, the device silently backs off — no duplicate AI call, no duplicate story.
-4. A safety timer: if a ticket sits unfinished for too long (e.g., the narrator crashed or lost signal), it's considered stale and another device is allowed to reclaim it. This prevents a wedged round.
+There is already a helper (`useAutoCampaign`) that tries to save/restore this id in the browser, but the restore isn't reliable enough in practice, and there are edge cases where the id gets cleared when it shouldn't. We will tighten this so returning to the screen always reconnects to the same campaign automatically.
 
-## What changes
+## What we'll change
 
-### Database (new table)
-`party_round_locks`
-- `party_id` + `round_id` together form the **primary key** — this is what makes duplicates physically impossible.
-- `holder_user_id` — who claimed it.
-- `status` — `in_progress` or `completed`.
-- `started_at`, `completed_at`, `expires_at` — used by the safety timer.
-- RLS: only party members can read; only the claim holder (or service role) can update/delete their own row.
-- Grants: `authenticated` + `service_role`, standard pattern.
+Files touched:
+- `src/hooks/use-auto-campaign.ts` — make persistence/restore bulletproof
+- `src/components/empyrean/EmpyreanDMScreen.tsx` — no logic changes, just verify wiring
+- `src/components/ai-dm/AIDMScreen.tsx` — no logic changes, just verify wiring
 
-### App-side narration flow (`src/hooks/use-party-dm.ts`, `generateResponse`)
-Before calling the AI:
-- Try to insert the claim row for the current round.
-- If insert succeeds → proceed with narration as today.
-- If insert fails because a row already exists AND that row is fresh (not past `expires_at`) → abort silently, let the real holder do it.
-- If the existing row is stale (past `expires_at`) → take it over by updating it to the current user with a new expiry, then proceed.
+### 1. Make the saved id survive unmount and reloads
 
-After the AI returns (success or failure):
-- Mark the row `completed` (or delete it) so the next round starts clean.
-- On error, also release so a retry is possible.
+In `use-auto-campaign.ts`:
 
-### Existing in-memory host-only guard
-Keep it as a fast local check (avoids pointless DB round-trips), but the DB claim is now the authoritative gate. The local flag becomes a courtesy, not a safety mechanism.
+- Rename the storage keys to the exact keys the user asked for:
+  - Empyrean: `empyrean-active-campaign-id`
+  - Solo: `solo-active-campaign-id`
+  - Read the old keys once as a fallback and copy them over so existing users don't lose their link.
+- Only write to storage when the id is a real value. Never clear the stored id just because the component is unmounting or the id momentarily flips to null. The "clear on transition to null" branch in the current mirror effect is removed — clearing will only happen in the two intentional cases below.
+- The stored id is cleared only when:
+  a. The restore step confirms the saved id no longer belongs to any campaign this user owns (stale id cleanup), or
+  b. A different campaign id is written (natural overwrite when the user loads or creates another campaign).
+- New Game / clearMessages will still start a fresh campaign the next time the player sends a message, and the auto-create step will then overwrite the stored id with the new one.
 
-## What this fixes
-- Two devices both thinking they're host → only one wins the claim; the other backs off.
-- Rapid double-tap on "Generate" → second tap sees the fresh claim and does nothing.
-- Crashed/disconnected narrator → the safety timer allows someone else to recover the round instead of it being frozen forever.
+### 2. Restore the campaign the moment the screen reopens
 
-## What this does not change
-- Player prompt submission, ready-up, dedupe logic, UI, and toasts stay exactly as they are.
-- No change to the AI edge function itself — the lock lives entirely around the call site in the party hook.
+Still in `use-auto-campaign.ts`:
 
-## Rollout
-1. One migration: create `party_round_locks` with primary key, RLS, grants, and an index on `expires_at`.
-2. One code change in `use-party-dm.ts`'s `generateResponse` to claim → run → release, with the stale-takeover branch.
-3. Manual verification: fire two "Generate" clicks back-to-back from two tabs; confirm exactly one AI response is produced and the other tab logs a quiet "already narrating" skip.
+- On mount, as soon as the user is signed in and saved sessions have loaded, read the stored id.
+- If the id matches a saved session, load that session using the existing load path so messages, summary, memory anchors, and guides all come back — exactly what happens when the player taps a saved campaign in the list.
+- If there is already an in‑progress conversation locally with no id yet, just re-attach the id (don't clobber messages).
+- The restore is guarded so it only fires once per mount, but the guard is per-mount, so returning to the screen always gets a fresh chance to restore.
+
+### 3. Universe reconnects on its own
+
+The Linked Universe hook already refetches whenever its `campaignId` input changes. Because the DM screen already mirrors `activeCampaignId` into `trackingCampaignId` via an effect, as soon as the restore in step 2 sets the id, the universe hook re-runs and the existing link shows up. No changes needed here beyond confirming the mirror effect still runs — it does.
+
+### 4. Nothing else may clear the link on exit
+
+Audit and confirm that closing the Empyrean or AI DM screen does not:
+- call `leaveUniverse`
+- clear the stored campaign id
+- reset universe-related state in a way that requires re-linking
+
+Any such cleanup found on unmount/onClose paths is removed. Unlinking will only happen when the user explicitly taps Unlink.
+
+## How we'll verify
+
+1. Sign in, open an Empyrean campaign, link a universe.
+2. Go home, come back to the same campaign → universe still shows linked with the same riders, no relink prompt.
+3. Fully close the app and reopen → still linked.
+4. Only tapping Unlink removes the link.
+5. Repeat the same steps in classic Solo (AIDMScreen) to confirm the same behavior.
