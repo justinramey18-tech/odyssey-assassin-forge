@@ -734,6 +734,8 @@ ${oocLines}`;
 
       // Non-blocking AI situation detection
       (async () => {
+        // "Save credits" toggle — skip background situation detection.
+        if (isSupportingLocalOnlyEnabled()) return;
         try {
           const { data: { session } } = await supabase.auth.getSession();
           const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
