@@ -1,6 +1,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { getAuthToken } from '@/lib/auth-token';
 import { toast } from 'sonner';
+import { isSupportingLocalOnlyEnabled } from '@/lib/api-keys';
 import type { MemoryAnchor } from '@/hooks/use-dm-game-state';
 import type { CharacterContext } from '@/components/oracle/types';
 
