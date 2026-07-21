@@ -33,9 +33,30 @@ interface Options {
 }
 
 const STORAGE_KEYS: Record<AutoCampaignMode, string> = {
+  empyrean: 'empyrean-active-campaign-id',
+  solo: 'solo-active-campaign-id',
+};
+
+// Legacy keys — read once as fallback so existing users don't lose their link.
+const LEGACY_STORAGE_KEYS: Record<AutoCampaignMode, string> = {
   empyrean: 'empyrean-active-campaign',
   solo: 'solo-active-campaign',
 };
+
+function readStoredId(mode: AutoCampaignMode): string | null {
+  try {
+    const current = localStorage.getItem(STORAGE_KEYS[mode]);
+    if (current) return current;
+    const legacy = localStorage.getItem(LEGACY_STORAGE_KEYS[mode]);
+    if (legacy) {
+      // Migrate forward
+      try { localStorage.setItem(STORAGE_KEYS[mode], legacy); } catch { /* ignore */ }
+      try { localStorage.removeItem(LEGACY_STORAGE_KEYS[mode]); } catch { /* ignore */ }
+      return legacy;
+    }
+  } catch { /* ignore */ }
+  return null;
+}
 
 function autoName(characterName?: string): string {
   const who = (characterName || 'Adventurer').trim() || 'Adventurer';
