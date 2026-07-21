@@ -757,6 +757,8 @@ ${oocLines}`;
       // Cinematic slideshow: AI tags the narrative, then parse into slides
       if (cinematicModeEnabled && EMPYREAN_FEATURE_FLAGS.showCinematicSlideshow) {
         (async () => {
+          // "Save credits" toggle — skip cinematic tagging.
+          if (isSupportingLocalOnlyEnabled()) return;
           try {
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
