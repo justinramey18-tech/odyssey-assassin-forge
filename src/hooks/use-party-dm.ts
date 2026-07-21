@@ -3753,6 +3753,8 @@ Rules:
       .join('\n');
 
     if (!dialogueText.trim()) return null;
+    // "Save credits" toggle — skip dialogue-mode narrative bridge.
+    if (isSupportingLocalOnlyEnabled()) return null;
 
     try {
       const authToken = await getAuthToken();
