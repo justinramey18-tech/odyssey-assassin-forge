@@ -38,7 +38,7 @@ import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 import { getScopedItem } from '@/lib/scoped-storage';
-import { loadApiKey } from '@/lib/api-keys';
+import { loadApiKey, isSupportingLocalOnlyEnabled } from '@/lib/api-keys';
 
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { CampaignDropdown } from './CampaignDropdown';
