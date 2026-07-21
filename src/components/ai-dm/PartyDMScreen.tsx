@@ -1204,6 +1204,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   // Cinematic slideshow trigger: detect new assistant DM messages
   useEffect(() => {
     if (!cinematicModeEnabled || !EMPYREAN_FEATURE_FLAGS.showCinematicSlideshow) return;
+    // "Save credits" toggle — skip cinematic tagging.
+    if (isSupportingLocalOnlyEnabled()) return;
     const msgs = partyDm.messages;
     if (msgs.length === 0) return;
     const lastMsg = msgs[msgs.length - 1];
