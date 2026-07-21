@@ -38,7 +38,7 @@ import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 import { getScopedItem } from '@/lib/scoped-storage';
-import { loadApiKey } from '@/lib/api-keys';
+import { loadApiKey, isSupportingLocalOnlyEnabled } from '@/lib/api-keys';
 
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { CampaignDropdown } from './CampaignDropdown';
@@ -1151,6 +1151,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     // user has Auto-Mood enabled and Spotify is connected.
     if (!spotify.autoMoodEnabled) return;
     if (!spotify.connected) return;
+    // "Save credits" toggle — skip background situation detection.
+    if (isSupportingLocalOnlyEnabled()) return;
 
     const msgs = partyDm.messages;
     if (msgs.length === 0) return;
@@ -1202,6 +1204,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   // Cinematic slideshow trigger: detect new assistant DM messages
   useEffect(() => {
     if (!cinematicModeEnabled || !EMPYREAN_FEATURE_FLAGS.showCinematicSlideshow) return;
+    // "Save credits" toggle — skip cinematic tagging.
+    if (isSupportingLocalOnlyEnabled()) return;
     const msgs = partyDm.messages;
     if (msgs.length === 0) return;
     const lastMsg = msgs[msgs.length - 1];

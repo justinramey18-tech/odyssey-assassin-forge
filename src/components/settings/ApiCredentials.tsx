@@ -8,6 +8,7 @@ import {
   loadApiKey, saveApiKey, clearApiKey, hasApiKey, maskKey,
   isClaudeEverywhereEnabled, setClaudeEverywhere,
   isGPTEverywhereEnabled, setGPTEverywhere,
+  isSupportingLocalOnlyEnabled, setSupportingLocalOnly,
 } from '@/lib/api-keys';
 
 function ApiKeyInput({ provider, label, placeholder }: { provider: 'anthropic' | 'elevenlabs' | 'openai' | 'speechify' | 'perplexity' | 'xai'; label: string; placeholder: string }) {
@@ -165,6 +166,38 @@ function GPTEverywhereToggle() {
   );
 }
 
+function SupportingLocalOnlyToggle() {
+  const [enabled, setEnabled] = useState(() => isSupportingLocalOnlyEnabled());
+
+  useEffect(() => {
+    const handler = () => setEnabled(isSupportingLocalOnlyEnabled());
+    window.addEventListener('supporting-local-only-changed', handler);
+    return () => window.removeEventListener('supporting-local-only-changed', handler);
+  }, []);
+
+  return (
+    <div className="flex items-start gap-3 p-3 rounded-lg border border-amber-500/20 bg-amber-500/5">
+      <Switch
+        checked={enabled}
+        onCheckedChange={(checked) => {
+          setEnabled(checked);
+          setSupportingLocalOnly(checked);
+          toast.success(checked
+            ? 'Background features will skip Lovable to save credits'
+            : 'Background features re-enabled');
+        }}
+        className="mt-0.5"
+      />
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-foreground">Save credits: skip background features</p>
+        <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">
+          Turns off background helpers that route through Lovable and burn credits — story summaries, memory extraction, auto-mood detection, cinematic tagging, and context-aware sound effects. Your main DM responses still use whichever model you've selected.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function ApiCredentials() {
   return (
     <div className="space-y-3">
@@ -178,6 +211,7 @@ export function ApiCredentials() {
       <ApiKeyInput provider="speechify" label="Speechify API Key" placeholder="spfy_..." />
       <ApiKeyInput provider="perplexity" label="Perplexity API Key" placeholder="pplx-..." />
       <ApiKeyInput provider="xai" label="xAI (Grok) API Key" placeholder="xai-..." />
+      <SupportingLocalOnlyToggle />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { getCachedWeather, buildWeatherPrompt, loadWeatherEnabled } from '@/lib/
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
 import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle, Theater, Megaphone, Minus, Plus, Sparkles, Swords, HelpCircle } from 'lucide-react';
 import { formatForReadingMode, type FormattedReading } from '@/lib/reading-mode-formatter';
+import { isSupportingLocalOnlyEnabled } from '@/lib/api-keys';
 const EmpyreanCampaignSetup = lazy(() => import('@/components/empyrean/EmpyreanCampaignSetup').then(m => ({ default: m.EmpyreanCampaignSetup })));
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
 const DeathSaveScreen = lazy(() => import('@/components/empyrean/DeathSaveScreen'));
@@ -733,6 +734,8 @@ ${oocLines}`;
 
       // Non-blocking AI situation detection
       (async () => {
+        // "Save credits" toggle — skip background situation detection.
+        if (isSupportingLocalOnlyEnabled()) return;
         try {
           const { data: { session } } = await supabase.auth.getSession();
           const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -754,6 +757,8 @@ ${oocLines}`;
       // Cinematic slideshow: AI tags the narrative, then parse into slides
       if (cinematicModeEnabled && EMPYREAN_FEATURE_FLAGS.showCinematicSlideshow) {
         (async () => {
+          // "Save credits" toggle — skip cinematic tagging.
+          if (isSupportingLocalOnlyEnabled()) return;
           try {
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;

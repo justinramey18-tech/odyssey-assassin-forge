@@ -1,6 +1,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { getAuthToken } from '@/lib/auth-token';
 import { toast } from 'sonner';
+import { isSupportingLocalOnlyEnabled } from '@/lib/api-keys';
 import type { MemoryAnchor } from '@/hooks/use-dm-game-state';
 import type { CharacterContext } from '@/components/oracle/types';
 
@@ -52,6 +53,9 @@ export function usePartyMemoryExtraction({
 
   const extractFromMessage = useCallback(async (content: string) => {
     if (!content || content.trim().length < 50) return;
+    // "Save credits" toggle — skip background memory extraction.
+    if (isSupportingLocalOnlyEnabled()) return;
+
 
     try {
       const authToken = await getAuthToken();
