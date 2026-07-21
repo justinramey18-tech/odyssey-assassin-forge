@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { loadApiKey } from '@/lib/api-keys';
+import { loadApiKey, isSupportingLocalOnlyEnabled } from '@/lib/api-keys';
 import {
   stripMarkdownForTTS, splitTextForStitching,
   loadSelectedVoiceId, loadNarrationSpeed, loadVoiceSettings,
