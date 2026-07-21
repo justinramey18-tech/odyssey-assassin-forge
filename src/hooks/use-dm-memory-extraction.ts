@@ -51,6 +51,9 @@ export function useDmMemoryExtraction({ addMemoryAnchor }: UseDmMemoryExtraction
   ): Promise<void> => {
     // Skip very short messages — not enough content to extract from
     if (!assistantMessage || assistantMessage.trim().length < 50) return;
+    // "Save credits" toggle — skip background memory extraction.
+    if (isSupportingLocalOnlyEnabled()) return;
+
 
     setIsExtracting(true);
     try {
