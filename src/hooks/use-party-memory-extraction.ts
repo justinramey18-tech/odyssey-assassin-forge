@@ -53,6 +53,9 @@ export function usePartyMemoryExtraction({
 
   const extractFromMessage = useCallback(async (content: string) => {
     if (!content || content.trim().length < 50) return;
+    // "Save credits" toggle — skip background memory extraction.
+    if (isSupportingLocalOnlyEnabled()) return;
+
 
     try {
       const authToken = await getAuthToken();
