@@ -1175,6 +1175,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (!partyId || !isCreator || !sessionConfig) return;
     const assistantCount = allMessages.filter(m => m.role === 'assistant' && m.content).length;
     if (assistantCount === 0 || assistantCount % SUMMARY_INTERVAL !== 0) return;
+    // "Save credits" toggle — skip background summaries.
+    if (isSupportingLocalOnlyEnabled()) return;
+
 
     setIsSummarizing(true);
     try {
