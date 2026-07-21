@@ -10,7 +10,7 @@ import {
   saveCampaignSummary,
   clearCampaignSummary,
 } from '@/lib/campaign-summary-storage';
-import { loadApiKey } from '@/lib/api-keys';
+import { loadApiKey, isSupportingLocalOnlyEnabled } from '@/lib/api-keys';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
 import { getAlignmentZone, type AlignmentScore } from '@/lib/alignmentSpectrum';
