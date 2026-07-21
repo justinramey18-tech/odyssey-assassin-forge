@@ -114,6 +114,8 @@ interface UseAIDMOptions {
   sessionStorageKey?: string;
   /** Override the key used for campaign summary storage (default: 'dnd-ai-dm-campaign-summary') */
   summarizeStorageKey?: string;
+  /** localStorage key holding the persisted active campaign id (used to hydrate synchronously on mount so linked-universe reconnects immediately) */
+  activeCampaignIdKey?: string;
 }
 
 interface VersionedSession {
@@ -192,7 +194,7 @@ function saveSession(messages: Message[], storageKey: string): void {
   }
 }
 
-export function useAIDM({ characterContext, customGuidesContent, worldStatePrompt, dmPersonaPrompt, responseModePrompt, onMessageComplete, onQuestExtracted, activeGuideIds, onCampaignSwitch, selectedModel, sessionStorageKey, summarizeStorageKey }: UseAIDMOptions) {
+export function useAIDM({ characterContext, customGuidesContent, worldStatePrompt, dmPersonaPrompt, responseModePrompt, onMessageComplete, onQuestExtracted, activeGuideIds, onCampaignSwitch, selectedModel, sessionStorageKey, summarizeStorageKey, activeCampaignIdKey }: UseAIDMOptions) {
   const STORAGE_KEY = sessionStorageKey ?? DEFAULT_STORAGE_KEY;
   const SUMMARY_KEY = summarizeStorageKey ?? DEFAULT_SUMMARY_KEY;
   // Store onMessageComplete in a ref so sendMessage always calls the latest version
@@ -205,7 +207,12 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
   const [isLoading, setIsLoading] = useState(false);
   const [campaignSummary, setCampaignSummary] = useState<string | null>(() => loadCampaignSummary(SUMMARY_KEY));
   const [isSummarizing, setIsSummarizing] = useState(false);
-  const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
+  // Hydrate the active campaign id synchronously from localStorage so downstream
+  // hooks (e.g. useLinkedUniverse) reconnect on the very first render after remount,
+  // rather than briefly seeing null and appearing unlinked.
+  const [activeCampaignId, setActiveCampaignId] = useState<string | null>(() => {
+    try { return activeCampaignIdKey ? (localStorage.getItem(activeCampaignIdKey) || null) : null; } catch { return null; }
+  });
   const [lastUsage, setLastUsage] = useState<{ input_tokens: number; output_tokens: number } | null>(null);
   const [sessionUsage, setSessionUsage] = useState<{ input_tokens: number; output_tokens: number; requests: number }>({ input_tokens: 0, output_tokens: 0, requests: 0 });
   const abortControllerRef = useRef<AbortController | null>(null);
