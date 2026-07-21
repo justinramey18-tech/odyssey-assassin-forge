@@ -114,3 +114,29 @@ export function getEverywhereKey(): { provider: 'anthropic' | 'openai'; key: str
   }
   return null;
 }
+
+// ── Local-Only Supporting Features ──────────────────────────────────────────
+// When enabled, background "supporting" AI features (memory extraction, story
+// summaries, situation/mood detection, cinematic tagging, context SFX) are
+// skipped whenever they would otherwise hit the Lovable AI Gateway. This lets
+// players who bring their own API keys avoid burning Lovable credits on
+// background chores that don't currently accept user-supplied keys.
+
+const SUPPORTING_LOCAL_ONLY_KEY = 'dnd-supporting-local-only';
+
+export function isSupportingLocalOnlyEnabled(): boolean {
+  try {
+    return localStorage.getItem(SUPPORTING_LOCAL_ONLY_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function setSupportingLocalOnly(enabled: boolean): void {
+  try {
+    localStorage.setItem(SUPPORTING_LOCAL_ONLY_KEY, enabled ? 'true' : 'false');
+    window.dispatchEvent(new CustomEvent('supporting-local-only-changed', { detail: { enabled } }));
+  } catch {
+    // ignore
+  }
+}
