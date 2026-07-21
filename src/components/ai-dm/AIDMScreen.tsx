@@ -542,6 +542,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     activeGuideIds: gmGuides.activeGuideIds,
     onCampaignSwitch: handleCampaignSwitch,
     selectedModel,
+    activeCampaignIdKey: 'solo-active-campaign-id',
   });
 
   // Auto-update Linked Universe story digest whenever the campaign summary changes
@@ -569,9 +570,11 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
 
 
 
-  // Keep game state in sync with activeCampaignId changes
+  // Keep game state in sync with activeCampaignId changes.
+  // Never overwrite a good id with a transient null — explicit New Game / campaign
+  // switches reset game state through their own paths.
   useEffect(() => {
-    if (activeCampaignId !== gameStateCampaignId) {
+    if (activeCampaignId && activeCampaignId !== gameStateCampaignId) {
       setGameStateCampaignId(activeCampaignId);
     }
   }, [activeCampaignId, gameStateCampaignId]);

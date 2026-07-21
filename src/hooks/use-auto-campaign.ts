@@ -102,36 +102,41 @@ export function useAutoCampaign(opts: Options) {
     try { localStorage.setItem(storageKey, activeCampaignId); } catch { /* ignore quota */ }
   }, [activeCampaignId, storageKey]);
 
-  // 2) Restore the last active campaign for this signed-in user, once sessions are loaded.
-  //    Guard is per-mount, so re-opening the DM screen always gets a fresh chance to restore.
+  // 2) Restore the last active campaign for this signed-in user.
+  //    Retries across renders until it either (a) succeeds, or (b) can confidently
+  //    confirm the stored id is stale (sessions finished loading, non-empty, no match).
   useEffect(() => {
     if (!isSignedIn) return;
     if (activeCampaignId) return;
-    if (sessionsLoading) return;
     if (hasRestoredRef.current) return;
 
     const storedId = readStoredId(mode);
     if (!storedId) {
-      hasRestoredRef.current = true;
+      // No id to restore; only mark done once sessions have loaded so a late
+      // localStorage write (e.g. auto-create) doesn't get skipped.
+      if (!sessionsLoading) hasRestoredRef.current = true;
       return;
     }
 
     const match = sessions.find(s => s.id === storedId);
-    if (!match) {
-      // stale — id no longer belongs to any of this user's campaigns
-      try { localStorage.removeItem(storageKey); } catch { /* ignore */ }
+    if (match) {
+      if (messages.length === 0) {
+        loadCampaign(match.messages, match.campaign_summary, match.id, (match as any).gm_guide_ids);
+      } else {
+        // Play already in progress — re-attach the id so autosaves and the
+        // linked-universe hook target the correct campaign.
+        setActiveCampaignId(match.id);
+      }
       hasRestoredRef.current = true;
       return;
     }
 
-    // Only auto-restore full state if there's no in-progress conversation locally.
-    if (messages.length === 0) {
-      loadCampaign(match.messages, match.campaign_summary, match.id, (match as any).gm_guide_ids);
-    } else {
-      // There's already play in progress — just re-attach the id so autosaves and
-      // the linked-universe hook target the right campaign.
-      setActiveCampaignId(match.id);
-    }
+    // No match yet. If sessions are still loading OR haven't arrived, don't
+    // burn the guard — try again on the next render.
+    if (sessionsLoading || sessions.length === 0) return;
+
+    // Truly stale — sessions loaded, non-empty, and stored id absent.
+    try { localStorage.removeItem(storageKey); } catch { /* ignore */ }
     hasRestoredRef.current = true;
   }, [isSignedIn, activeCampaignId, sessionsLoading, sessions, storageKey, mode, messages.length, loadCampaign, setActiveCampaignId]);
 

@@ -653,6 +653,7 @@ ${oocLines}`;
     worldStatePrompt,
     sessionStorageKey: EMPYREAN_SESSION_KEY,
     summarizeStorageKey: EMPYREAN_SUMMARY_KEY,
+    activeCampaignIdKey: 'empyrean-active-campaign-id',
     onMessageComplete: (content: string) => {
       if (autoSync.autoSyncEnabled) {
         autoSync.extractAndApply(content, empyreanCharacterContext);
@@ -814,9 +815,11 @@ ${oocLines}`;
     return () => { drawerContext?.registerOracleQuestCallback?.(null); };
   }, [gameState.setQuestFlag]);
 
-  // Sync tracking campaign id with active campaign id from useAIDM
+  // Sync tracking campaign id with active campaign id from useAIDM.
+  // Never clear a good id on a transient null — explicit New Game / campaign switches
+  // reset tracking through their own code paths.
   useEffect(() => {
-    setTrackingCampaignId(activeCampaignId);
+    if (activeCampaignId) setTrackingCampaignId(activeCampaignId);
   }, [activeCampaignId]);
 
   // Auto-enter reading mode when generation STARTS (non-cinematic) so user sees shimmer bars instead of raw text
