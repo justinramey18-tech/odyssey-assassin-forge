@@ -91,39 +91,26 @@ export function useAutoCampaign(opts: Options) {
   const hasAutoCreatedRef = useRef(false);
   const hasRestoredRef = useRef(false);
   const inFlightRef = useRef(false);
-  const prevIdRef = useRef<string | null>(null);
 
-  // 1) Mirror activeCampaignId to localStorage. When it transitions from a
-  //    real id back to null (newGame/clearMessages), clear the stored id and
-  //    reset guards so a fresh campaign can be auto-created + restored later.
+  // 1) Mirror activeCampaignId to localStorage ONLY when we have a real id.
+  //    Never clear on transition to null — that path fires on unmount / clearMessages
+  //    and would wipe the id the user expects to reconnect to. The stored id is only
+  //    overwritten by a different real id, or removed by the stale-id branch in step 2
+  //    when it no longer belongs to any of the user's campaigns.
   useEffect(() => {
-    try {
-      if (activeCampaignId) {
-        localStorage.setItem(storageKey, activeCampaignId);
-      } else if (prevIdRef.current) {
-        localStorage.removeItem(storageKey);
-        hasAutoCreatedRef.current = false;
-        hasRestoredRef.current = true; // don't re-restore the just-cleared id
-      }
-    } catch {
-      /* ignore quota */
-    }
-    prevIdRef.current = activeCampaignId;
+    if (!activeCampaignId) return;
+    try { localStorage.setItem(storageKey, activeCampaignId); } catch { /* ignore quota */ }
   }, [activeCampaignId, storageKey]);
 
-  // 2) Restore the last active campaign for this signed-in user, once sessions are loaded
+  // 2) Restore the last active campaign for this signed-in user, once sessions are loaded.
+  //    Guard is per-mount, so re-opening the DM screen always gets a fresh chance to restore.
   useEffect(() => {
     if (!isSignedIn) return;
     if (activeCampaignId) return;
     if (sessionsLoading) return;
     if (hasRestoredRef.current) return;
 
-    let storedId: string | null = null;
-    try {
-      storedId = localStorage.getItem(storageKey);
-    } catch {
-      storedId = null;
-    }
+    const storedId = readStoredId(mode);
     if (!storedId) {
       hasRestoredRef.current = true;
       return;
@@ -131,21 +118,22 @@ export function useAutoCampaign(opts: Options) {
 
     const match = sessions.find(s => s.id === storedId);
     if (!match) {
-      // stale — clear it so we don't keep looking
+      // stale — id no longer belongs to any of this user's campaigns
       try { localStorage.removeItem(storageKey); } catch { /* ignore */ }
       hasRestoredRef.current = true;
       return;
     }
 
-    // Only auto-restore if there's no in-progress conversation locally (avoid clobbering).
+    // Only auto-restore full state if there's no in-progress conversation locally.
     if (messages.length === 0) {
       loadCampaign(match.messages, match.campaign_summary, match.id, (match as any).gm_guide_ids);
     } else {
-      // There's already play in progress — just re-attach the id so autosaves target it.
+      // There's already play in progress — just re-attach the id so autosaves and
+      // the linked-universe hook target the right campaign.
       setActiveCampaignId(match.id);
     }
     hasRestoredRef.current = true;
-  }, [isSignedIn, activeCampaignId, sessionsLoading, sessions, storageKey, messages.length, loadCampaign, setActiveCampaignId]);
+  }, [isSignedIn, activeCampaignId, sessionsLoading, sessions, storageKey, mode, messages.length, loadCampaign, setActiveCampaignId]);
 
   // 3) Auto-create a campaign row on first play so linking is always available
   useEffect(() => {
