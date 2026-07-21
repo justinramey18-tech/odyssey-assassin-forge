@@ -1639,6 +1639,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   // Generate split summary for a team
   const generateSplitSummary = useCallback(async (teamMessages: PartyDmMessage[], previousSummary: string | null): Promise<string | null> => {
+    // "Save credits" toggle — skip split-team summaries.
+    if (isSupportingLocalOnlyEnabled()) return previousSummary;
     try {
       const authToken = await getAuthToken();
       const response = await fetch(SUMMARIZE_URL, {
