@@ -10,7 +10,7 @@ import {
   saveCampaignSummary,
   clearCampaignSummary,
 } from '@/lib/campaign-summary-storage';
-import { loadApiKey, isSupportingLocalOnlyEnabled } from '@/lib/api-keys';
+import { loadApiKey, isFeatureSkipped } from '@/lib/api-keys';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
 import { getAlignmentZone, type AlignmentScore } from '@/lib/alignmentSpectrum';
@@ -260,7 +260,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     const assistantCount = allMessages.filter(m => m.role === 'assistant' && m.content).length;
     if (assistantCount === 0 || assistantCount % SUMMARY_INTERVAL !== 0) return;
     // "Save credits" toggle — skip background summaries when user is bringing their own keys.
-    if (isSupportingLocalOnlyEnabled()) return;
+    if (isFeatureSkipped('summaries')) return;
 
     setIsSummarizing(true);
     try {

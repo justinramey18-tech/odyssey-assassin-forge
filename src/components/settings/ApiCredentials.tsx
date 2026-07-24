@@ -9,6 +9,7 @@ import {
   isClaudeEverywhereEnabled, setClaudeEverywhere,
   isGPTEverywhereEnabled, setGPTEverywhere,
   isSupportingLocalOnlyEnabled, setSupportingLocalOnly,
+  isFeatureSkipEnabled, setFeatureSkipEnabled, type SkippableFeature,
 } from '@/lib/api-keys';
 
 function ApiKeyInput({ provider, label, placeholder }: { provider: 'anthropic' | 'elevenlabs' | 'openai' | 'speechify' | 'perplexity' | 'xai'; label: string; placeholder: string }) {
@@ -198,6 +199,62 @@ function SupportingLocalOnlyToggle() {
   );
 }
 
+const FEATURE_LABELS: { key: SkippableFeature; label: string; description: string }[] = [
+  { key: 'memory',    label: 'Memory extraction',      description: 'Auto-remembers NPCs, locations, and world facts as scenes unfold.' },
+  { key: 'summaries', label: 'Story summaries',        description: 'Compresses long chat history into recap notes for the AI DM.' },
+  { key: 'situation', label: 'Auto-mood detection',    description: 'Detects the current scene type and switches Spotify playlists.' },
+  { key: 'cinematic', label: 'Cinematic tagging',      description: 'Parses narration into slides for the cinematic slideshow.' },
+  { key: 'sfx',       label: 'Context-aware SFX',      description: 'Generates scene-specific sound effects (falls back to static SFX when off).' },
+];
+
+function PerFeatureSkipToggles() {
+  const [, forceRender] = useState(0);
+  const masterOn = isSupportingLocalOnlyEnabled();
+
+  useEffect(() => {
+    const handler = () => forceRender((n) => n + 1);
+    window.addEventListener('feature-skip-changed', handler);
+    window.addEventListener('supporting-local-only-changed', handler);
+    return () => {
+      window.removeEventListener('feature-skip-changed', handler);
+      window.removeEventListener('supporting-local-only-changed', handler);
+    };
+  }, []);
+
+  return (
+    <div className="space-y-2 p-3 rounded-lg border border-border/50 bg-muted/10">
+      <div>
+        <p className="text-xs font-medium text-foreground">Skip individual background features</p>
+        <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">
+          Turn off just the helpers you don't want burning Lovable credits. {masterOn && <span className="text-amber-400">Master toggle above already skips everything.</span>}
+        </p>
+      </div>
+      <div className="space-y-2 pt-1">
+        {FEATURE_LABELS.map(({ key, label, description }) => {
+          const skipped = isFeatureSkipEnabled(key);
+          return (
+            <div key={key} className="flex items-start gap-3">
+              <Switch
+                checked={skipped}
+                disabled={masterOn}
+                onCheckedChange={(checked) => {
+                  setFeatureSkipEnabled(key, checked);
+                  toast.success(checked ? `${label} will be skipped` : `${label} re-enabled`);
+                }}
+                className="mt-0.5"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-foreground">{label}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">{description}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function ApiCredentials() {
   return (
     <div className="space-y-3">
@@ -212,6 +269,7 @@ export function ApiCredentials() {
       <ApiKeyInput provider="perplexity" label="Perplexity API Key" placeholder="pplx-..." />
       <ApiKeyInput provider="xai" label="xAI (Grok) API Key" placeholder="xai-..." />
       <SupportingLocalOnlyToggle />
+      <PerFeatureSkipToggles />
     </div>
   );
 }

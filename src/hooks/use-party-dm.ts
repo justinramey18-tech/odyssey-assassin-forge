@@ -10,7 +10,7 @@ import { sendReadyUpNotification } from '@/lib/party-notifications';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { loadSelectedModel } from '@/lib/dm-models';
-import { loadApiKey, isSupportingLocalOnlyEnabled } from '@/lib/api-keys';
+import { loadApiKey, isFeatureSkipped } from '@/lib/api-keys';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
@@ -1176,7 +1176,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const assistantCount = allMessages.filter(m => m.role === 'assistant' && m.content).length;
     if (assistantCount === 0 || assistantCount % SUMMARY_INTERVAL !== 0) return;
     // "Save credits" toggle — skip background summaries.
-    if (isSupportingLocalOnlyEnabled()) return;
+    if (isFeatureSkipped('summaries')) return;
 
 
     setIsSummarizing(true);
@@ -1640,7 +1640,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   // Generate split summary for a team
   const generateSplitSummary = useCallback(async (teamMessages: PartyDmMessage[], previousSummary: string | null): Promise<string | null> => {
     // "Save credits" toggle — skip split-team summaries.
-    if (isSupportingLocalOnlyEnabled()) return previousSummary;
+    if (isFeatureSkipped('summaries')) return previousSummary;
     try {
       const authToken = await getAuthToken();
       const response = await fetch(SUMMARIZE_URL, {
@@ -3754,7 +3754,7 @@ Rules:
 
     if (!dialogueText.trim()) return null;
     // "Save credits" toggle — skip dialogue-mode narrative bridge.
-    if (isSupportingLocalOnlyEnabled()) return null;
+    if (isFeatureSkipped('summaries')) return null;
 
     try {
       const authToken = await getAuthToken();

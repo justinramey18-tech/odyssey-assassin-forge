@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { loadApiKey, isSupportingLocalOnlyEnabled } from '@/lib/api-keys';
+import { loadApiKey, isFeatureSkipped } from '@/lib/api-keys';
 import {
   stripMarkdownForTTS, splitTextForStitching,
   loadSelectedVoiceId, loadNarrationSpeed, loadVoiceSettings,
@@ -193,7 +193,7 @@ function buildSfxPromise(provider: string, narrativeText: string, signal: AbortS
 
   if (mode === 'context') {
     // "Save credits" toggle — skip Lovable-powered context prompt; use static SFX instead.
-    if (isSupportingLocalOnlyEnabled()) {
+    if (isFeatureSkipped('sfx')) {
       return fetchSfxAudio(apiKey, loadSfxStyle(), signal).catch(() => null);
     }
     return fetchContextAwareSfx(apiKey, narrativeText, signal).catch(err => {
