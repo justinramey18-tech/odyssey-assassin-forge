@@ -140,3 +140,41 @@ export function setSupportingLocalOnly(enabled: boolean): void {
     // ignore
   }
 }
+
+// ── Per-Feature Skip Toggles ────────────────────────────────────────────────
+// Individual overrides so users can pick which background helpers to skip.
+// The master "supporting local only" toggle above still forces-skip everything
+// when on; these per-feature toggles let users skip selectively when it's off.
+
+export type SkippableFeature = 'memory' | 'summaries' | 'situation' | 'cinematic' | 'sfx';
+
+const FEATURE_SKIP_KEYS: Record<SkippableFeature, string> = {
+  memory:    'dnd-skip-feature-memory',
+  summaries: 'dnd-skip-feature-summaries',
+  situation: 'dnd-skip-feature-situation',
+  cinematic: 'dnd-skip-feature-cinematic',
+  sfx:       'dnd-skip-feature-sfx',
+};
+
+export function isFeatureSkipEnabled(feature: SkippableFeature): boolean {
+  try {
+    return localStorage.getItem(FEATURE_SKIP_KEYS[feature]) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function setFeatureSkipEnabled(feature: SkippableFeature, enabled: boolean): void {
+  try {
+    localStorage.setItem(FEATURE_SKIP_KEYS[feature], enabled ? 'true' : 'false');
+    window.dispatchEvent(new CustomEvent('feature-skip-changed', { detail: { feature, enabled } }));
+  } catch {
+    // ignore
+  }
+}
+
+/** True if the given background feature should be skipped (master OR per-feature). */
+export function isFeatureSkipped(feature: SkippableFeature): boolean {
+  return isSupportingLocalOnlyEnabled() || isFeatureSkipEnabled(feature);
+}
+
