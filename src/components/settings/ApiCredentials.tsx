@@ -9,6 +9,7 @@ import {
   isClaudeEverywhereEnabled, setClaudeEverywhere,
   isGPTEverywhereEnabled, setGPTEverywhere,
   isSupportingLocalOnlyEnabled, setSupportingLocalOnly,
+  isFeatureSkipEnabled, setFeatureSkipEnabled, type SkippableFeature,
 } from '@/lib/api-keys';
 
 function ApiKeyInput({ provider, label, placeholder }: { provider: 'anthropic' | 'elevenlabs' | 'openai' | 'speechify' | 'perplexity' | 'xai'; label: string; placeholder: string }) {
