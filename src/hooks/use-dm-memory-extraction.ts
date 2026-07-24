@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { getAuthToken } from '@/lib/auth-token';
-import { isSupportingLocalOnlyEnabled } from '@/lib/api-keys';
+import { isFeatureSkipped } from '@/lib/api-keys';
 import type { MemoryAnchor } from '@/hooks/use-dm-game-state';
 import type { CharacterContext } from '@/components/oracle/types';
 
@@ -52,7 +52,7 @@ export function useDmMemoryExtraction({ addMemoryAnchor }: UseDmMemoryExtraction
     // Skip very short messages — not enough content to extract from
     if (!assistantMessage || assistantMessage.trim().length < 50) return;
     // "Save credits" toggle — skip background memory extraction.
-    if (isSupportingLocalOnlyEnabled()) return;
+    if (isFeatureSkipped('memory')) return;
 
 
     setIsExtracting(true);
