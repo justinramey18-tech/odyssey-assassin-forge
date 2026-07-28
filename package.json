@@ -13,6 +13,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/ios": "^8.4.2",
     "@fontsource/cinzel": "^5.2.8",
     "@fontsource/inter": "^5.2.8",
     "@hookform/resolvers": "^3.10.0",
@@ -77,6 +80,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.2",
     "@eslint/js": "^9.32.0",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/jest-dom": "^6.6.0",
