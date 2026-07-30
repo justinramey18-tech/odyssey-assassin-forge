@@ -740,6 +740,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       setShowStoneDrawer(true);
       return;
     }
+    if (tab === 'afk') {
+      setShowGuides(true);
+      return;
+    }
     if (tab === 'actions') {
       setQuickActionsOpen(true);
       return;
@@ -1224,6 +1228,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           disabled={isLoading}
           showGeralt={isMomo}
           showWildShape={isMomoMoonDruid}
+          afkLabel="GUIDES"
+          afkIcon={BookOpen}
+          afkColor="text-amber-400"
+          afkActiveBg="bg-amber-500/10"
           isWildShapeActive={wildShape?.state.isTransformed}
           diceContent={showDiceContent ? (
             <DMDiceRoller
