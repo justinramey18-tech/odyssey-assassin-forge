@@ -58,13 +58,22 @@ function persist(map: Record<string, ConflictBadge>) {
 
 export function saveConflictBadge(
   guideId: string,
-  conflicts: Array<{ description: string }>,
+  conflicts: Array<Partial<ConflictDetail>>,
 ): Record<string, ConflictBadge> {
   const map = loadConflictBadges();
   if (conflicts && conflicts.length > 0) {
     map[guideId] = {
       count: conflicts.length,
       descriptions: conflicts.slice(0, 3).map(c => String(c?.description ?? '')),
+      details: conflicts.slice(0, 6).map(c => ({
+        description: String(c?.description ?? ''),
+        severity: c?.severity ? String(c.severity) : undefined,
+        guideNames: Array.isArray(c?.guideNames) ? c.guideNames.map(String) : undefined,
+        otherGuideName: c?.otherGuideName ? String(c.otherGuideName) : undefined,
+        targetExcerpt: c?.targetExcerpt ? String(c.targetExcerpt) : undefined,
+        otherExcerpt: c?.otherExcerpt ? String(c.otherExcerpt) : undefined,
+        suggestion: c?.suggestion ? String(c.suggestion) : undefined,
+      })),
       checkedAt: Date.now(),
     };
   } else {
