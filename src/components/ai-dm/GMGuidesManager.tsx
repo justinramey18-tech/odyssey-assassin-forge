@@ -1,11 +1,20 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Plus, Edit2, Trash2, BookOpen, Check, X, ScrollText, Loader2 } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, BookOpen, Check, X, ScrollText, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { GMGuide, MAX_GUIDE_CHARS, MAX_TOTAL_CHARS } from '@/lib/gm-guides-storage';
 import { AIGuideCreator } from './AIGuideCreator';
 import { GuideQualityCheck } from './GuideQualityCheck';
+import {
+  isAutoCheckEnabled,
+  loadConflictBadges,
+  saveConflictBadge,
+  clearConflictBadge,
+  runQuickScan,
+  type ConflictBadge,
+} from '@/lib/guide-auto-check';
+
 
 interface GMGuidesManagerProps {
   onBack: () => void;
@@ -44,6 +53,40 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const campaignSummaryChars = campaignSummary?.length ?? 0;
   const wasFullSummarizingRef = useRef(false);
+
+  // --- Auto conflict check on save ---
+  const [badges, setBadges] = useState<Record<string, ConflictBadge>>(() => loadConflictBadges());
+  const [checkingIds, setCheckingIds] = useState<string[]>([]);
+  const [pendingAutoCheck, setPendingAutoCheck] = useState<{ name: string; content: string } | null>(null);
+  const guidesRef = useRef(guides);
+  guidesRef.current = guides;
+
+  const runAutoCheckFor = useCallback(async (guide: { id: string; name: string; content: string }) => {
+    if (!isAutoCheckEnabled()) return;
+    const others = guidesRef.current
+      .filter(g => g.enabled && g.id !== guide.id)
+      .map(g => ({ id: g.id, name: g.name, content: g.content }));
+    if (others.length === 0) return;
+    setCheckingIds(prev => (prev.includes(guide.id) ? prev : [...prev, guide.id]));
+    try {
+      const conflicts = await runQuickScan(guide, others);
+      setBadges(saveConflictBadge(guide.id, conflicts));
+    } catch {
+      /* silent */
+    } finally {
+      setCheckingIds(prev => prev.filter(id => id !== guide.id));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!pendingAutoCheck) return;
+    const match = guides.find(g => g.name === pendingAutoCheck.name && g.content === pendingAutoCheck.content);
+    if (match) {
+      setPendingAutoCheck(null);
+      void runAutoCheckFor({ id: match.id, name: match.name, content: match.content });
+    }
+  }, [guides, pendingAutoCheck, runAutoCheckFor]);
+
 
   // Auto-open summary editor after full summarization completes
   useEffect(() => {
@@ -87,13 +130,18 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
       if (onAdd(editorName, editorContent)) {
         setIsNew(false);
         setEditingGuide(null);
+        if (isAutoCheckEnabled()) setPendingAutoCheck({ name: editorName, content: editorContent });
       }
     } else if (editingGuide) {
-      if (onUpdate(editingGuide.id, { name: editorName.trim() || 'Untitled Guide', content: editorContent })) {
+      const savedName = editorName.trim() || 'Untitled Guide';
+      if (onUpdate(editingGuide.id, { name: savedName, content: editorContent })) {
+        const id = editingGuide.id;
         setEditingGuide(null);
+        void runAutoCheckFor({ id, name: savedName, content: editorContent });
       }
     }
-  }, [editingSummary, isNew, editingGuide, editorName, editorContent, onAdd, onUpdate, onCampaignSummaryChange]);
+  }, [editingSummary, isNew, editingGuide, editorName, editorContent, onAdd, onUpdate, onCampaignSummaryChange, runAutoCheckFor]);
+
 
   const handleCancel = useCallback(() => {
     setEditingGuide(null);
@@ -294,7 +342,7 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
                       </button>
                       {deleteConfirmId === guide.id ? (
                         <div className="flex items-center gap-1">
-                          <button onClick={() => { onDelete(guide.id); setDeleteConfirmId(null); }} className="px-2 py-0.5 rounded bg-red-900/40 text-red-400 text-[10px] hover:bg-red-900/60 transition-colors" style={{ touchAction: 'manipulation' }}>
+                          <button onClick={() => { onDelete(guide.id); setBadges(clearConflictBadge(guide.id)); setDeleteConfirmId(null); }} className="px-2 py-0.5 rounded bg-red-900/40 text-red-400 text-[10px] hover:bg-red-900/60 transition-colors" style={{ touchAction: 'manipulation' }}>
                             Delete
                           </button>
                           <button onClick={() => setDeleteConfirmId(null)} className="px-2 py-0.5 rounded bg-white/5 text-white/40 text-[10px] hover:bg-white/10 transition-colors" style={{ touchAction: 'manipulation' }}>
@@ -308,7 +356,24 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
                       )}
                     </div>
                   </div>
+                  {checkingIds.includes(guide.id) ? (
+                    <div className="flex items-center gap-1.5 mt-1 text-[10px] text-white/40">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Checking for conflicts…
+                    </div>
+                  ) : badges[guide.id] && badges[guide.id].count > 0 ? (
+                    <div className="mt-1">
+                      <div className="flex items-center gap-1.5 text-[10px] text-amber-300">
+                        <AlertTriangle className="w-3 h-3" />
+                        {badges[guide.id].count} conflict{badges[guide.id].count > 1 ? 's' : ''} with other guides
+                      </div>
+                      {badges[guide.id].descriptions[0] && (
+                        <p className="text-[10px] text-white/40 line-clamp-1">{badges[guide.id].descriptions[0]}</p>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
+
                 ))
               )}
             </motion.div>
