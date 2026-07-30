@@ -130,13 +130,18 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
       if (onAdd(editorName, editorContent)) {
         setIsNew(false);
         setEditingGuide(null);
+        if (isAutoCheckEnabled()) setPendingAutoCheck({ name: editorName, content: editorContent });
       }
     } else if (editingGuide) {
-      if (onUpdate(editingGuide.id, { name: editorName.trim() || 'Untitled Guide', content: editorContent })) {
+      const savedName = editorName.trim() || 'Untitled Guide';
+      if (onUpdate(editingGuide.id, { name: savedName, content: editorContent })) {
+        const id = editingGuide.id;
         setEditingGuide(null);
+        void runAutoCheckFor({ id, name: savedName, content: editorContent });
       }
     }
-  }, [editingSummary, isNew, editingGuide, editorName, editorContent, onAdd, onUpdate, onCampaignSummaryChange]);
+  }, [editingSummary, isNew, editingGuide, editorName, editorContent, onAdd, onUpdate, onCampaignSummaryChange, runAutoCheckFor]);
+
 
   const handleCancel = useCallback(() => {
     setEditingGuide(null);
