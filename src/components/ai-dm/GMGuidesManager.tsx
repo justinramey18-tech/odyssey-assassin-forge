@@ -354,6 +354,16 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-white/30 font-mono">{guide.content.length.toLocaleString()} chars</span>
                     <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => void runAutoCheckFor({ id: guide.id, name: guide.name, content: guide.content }, { force: true })}
+                        disabled={checkingIds.includes(guide.id)}
+                        title="Re-run conflict scan"
+                        aria-label="Re-run conflict scan"
+                        className="p-1.5 rounded hover:bg-white/10 transition-colors disabled:opacity-40"
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        <RefreshCw className={cn('w-3.5 h-3.5 text-amber-300/60', checkingIds.includes(guide.id) && 'animate-spin')} />
+                      </button>
                       <button onClick={() => openEditEditor(guide)} className="p-1.5 rounded hover:bg-white/10 transition-colors" style={{ touchAction: 'manipulation' }}>
                         <Edit2 className="w-3.5 h-3.5 text-white/50" />
                       </button>
