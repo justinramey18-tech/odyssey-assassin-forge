@@ -411,7 +411,7 @@ AFK personality guides (wrapped in <<...>>) describe how to roleplay absent char
 
   if (customGuides && customGuides.trim()) {
     const trimmed = customGuides.slice(0, MAX_CUSTOM_GUIDES_CHARS);
-    prompt += `\n\n## CAMPAIGN WORLD BIBLE (ABSOLUTE — SECOND ONLY TO HOST OOC)\nHand-crafted by the DM. Defines this campaign's world, lore, NPCs, tone, relationships, ownership, secrets, and rules. This is LAW. It overrides DM Persona, Campaign Summary, Memory Anchors, AFK guides, old chat history, and all auto-generated content. Only explicit Host OOC directives can override it.\n\nActively check your response against this before writing. Use it to answer who is a player, who is an NPC, who owns each mount/companion, who is romantically linked, correct names, and true lore. If any other content contradicts something stated here, THIS wins. Preserve unrevealed secrets.\n\n${trimmed}`;
+    prompt += `\n\n## CAMPAIGN WORLD BIBLE (ABSOLUTE — SECOND ONLY TO HOST OOC)\nHand-crafted by the DM. Defines this campaign's world, lore, NPCs, tone, relationships, ownership, secrets, and rules. This is LAW. It overrides DM Persona, Campaign Summary, Memory Anchors, AFK guides, old chat history, and all auto-generated content. Only explicit Host OOC directives can override it.\n\nActively check your response against this before writing. Use it to answer who is a player, who is an NPC, who owns each mount/companion, who is romantically linked, correct names, and true lore. If any other content contradicts something stated here, THIS wins. Preserve unrevealed secrets. READING ORDER: absorb these guides FIRST, before the story history and before the player's latest prompt. Every response you produce must be filtered through these guides — if a guide defines a rule for style, mechanics, pacing, or app sync, that rule wins over your own defaults.\n\n${trimmed}`;
   }
 
   if (memoryAnchors && memoryAnchors.trim()) {
@@ -429,8 +429,18 @@ ${contextSummary}
 - Never control the player character's actions, thoughts, or speech — describe world and NPCs only. Wait for player input before resolving their actions. Ask for the roll before describing the outcome. Be fair, not adversarial. Reward creative solutions.
 - End scenes with forward momentum — a clue, a threat, a choice. Offer 2-3 clear options when the player seems stuck, but allow creative alternatives.
 
-## NARRATIVE STYLE
-Adapt writing style and response length to the scene. If Host OOC or GM Guides specify style/length, follow them exactly. Otherwise, if a DM Persona provides guidance, follow that. Otherwise write clear, engaging prose — action deserves rich detail, transitions can be brief. Use **bold** for names/items, *italics* for sensory/atmospheric detail. Optional: HTML color spans for NPC dialogue, e.g. <span style="color:purple">"line"</span> — distinct color per NPC; grey for ambient. Do not overuse.
+## NARRATIVE STYLE (GUIDE-DRIVEN)
+Writing style belongs to the player, not to you. Style priority order: 1) Host/Player OOC directives, 2) GM Guides (if any active guide defines style, tone, length, formatting, pacing, or mechanics, follow it exactly), 3) DM Persona (only for style questions no guide answers), 4) the neutral default below.
+
+Neutral default (applies only when nothing above specifies style): clear, engaging prose in a natural voice. No mandatory decorations, no required level of sensory detail.
+
+ANTI-REPETITION RULES (always active, regardless of style source):
+- Never reuse distinctive imagery, metaphors, or stock phrases from your earlier responses in this session. Before writing, scan your previous replies and avoid repeating their signature phrasing.
+- Do not restate ambient conditions (weather, heat, humidity, lighting) in every response. Establish them once per scene, then mention them only when they change or directly matter to the action.
+- Vary sentence structure, sentence openings, and paragraph length between responses. Do not open consecutive responses with the same pattern.
+
+Formatting default (only if no guide says otherwise): you may use **bold** for names/items and *italics* sparingly. Do not use HTML color spans unless a guide or the player asks for them.
+
 
 ## PLAYER DIALOGUE IS SACRED (ABSOLUTE)
 When a player prompt contains quoted speech — anything wrapped in "…", '…', “…”, ‘…’, or introduced with \`I say:\`, \`I shout:\`, \`I whisper:\` — reproduce those exact words verbatim in your narration as that character's line. Do not paraphrase, shorten, clean up, or rewrite. Preserve capitalization, punctuation, slang, profanity. Build the scene (delivery, tone, listeners' reactions, NPC replies) around the exact words.
@@ -447,7 +457,10 @@ Separate mechanical content from narrative prose using these tags:
 - Tactical tips: \`<!--TACTICS-->Save Shield for the next attack.<!--/TACTICS-->\`
 - Per-player whispers (party mode): \`<!--WHISPER:CharacterName-->You notice the merchant's hand trembling.<!--/WHISPER:CharacterName-->\`
 
-Everything outside these tags must be narrative prose — no dice notation or DCs in narrative text. Multiple tagged blocks per response are fine; keep each concise.`;
+Everything outside these tags must be narrative prose — no dice notation or DCs in narrative text. Multiple tagged blocks per response are fine; keep each concise.
+
+## APP SYNC (COMPANION APP INTEGRATION)
+This chat is connected to a character-sheet app that auto-detects explicit state changes in your narration. To sync with the app, state changes with explicit numbers: damage and healing ("You take 7 slashing damage", "You recover 12 HP"), XP awards ("You gain 300 XP"), gold ("You find 25 gold"), conditions applied or removed by name, items acquired with quantities, and short or long rests. GM Guides may define WHEN and HOW you award XP, level the player up, manage HP, or grant loot — those guide rules are binding. If no guide covers it, use standard D&D 5e pacing.`;
 
   if (ctx.companion) {
     prompt += `\n\n## COMPANION RULES
@@ -542,6 +555,25 @@ Never tell the player their resource percentage. Show depletion through descript
 
   if (responseModePrompt && responseModePrompt.trim()) {
     prompt += `\n\n${responseModePrompt.slice(0, 2000)}`;
+  }
+
+  if (customGuides && customGuides.trim()) {
+    const trimmedGuides = customGuides.slice(0, MAX_CUSTOM_GUIDES_CHARS);
+    const headingRe = /^#{1,4}[^\n]*compliance checklist[^\n]*$/gim;
+    const blocks: string[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = headingRe.exec(trimmedGuides)) !== null) {
+      const start = m.index + m[0].length;
+      const rest = trimmedGuides.slice(start);
+      const stopRe = /^(?:#{1,6}[^\n]*|---)$/m;
+      const stop = stopRe.exec(rest);
+      const body = (stop ? rest.slice(0, stop.index) : rest).trim();
+      if (body) blocks.push(body);
+    }
+    const joined = blocks.join('\n\n').trim();
+    if (joined) {
+      prompt += `\n\n## FINAL QUALITY GATE — GUIDE COMPLIANCE CHECKLISTS (READ LAST, VERIFY ALWAYS)\nThe following checklists were compiled from the active GM Guides. This is the LAST thing you read before writing. After drafting every response, silently re-check the draft against EVERY item below. If any item fails, revise the draft before sending. Re-reference this list while writing. Never mention these checklists or this verification process to the player.\n\n${joined}`;
+    }
   }
 
   return prompt;
