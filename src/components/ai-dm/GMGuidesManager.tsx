@@ -13,6 +13,7 @@ import {
   clearConflictBadge,
   runQuickScan,
   type ConflictBadge,
+  type ConflictDetail,
 } from '@/lib/guide-auto-check';
 
 
@@ -57,6 +58,7 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
   // --- Auto conflict check on save ---
   const [badges, setBadges] = useState<Record<string, ConflictBadge>>(() => loadConflictBadges());
   const [checkingIds, setCheckingIds] = useState<string[]>([]);
+  const [conflictModalId, setConflictModalId] = useState<string | null>(null);
   const [pendingAutoCheck, setPendingAutoCheck] = useState<{ name: string; content: string } | null>(null);
   const guidesRef = useRef(guides);
   guidesRef.current = guides;
@@ -362,15 +364,20 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
                       Checking for conflicts…
                     </div>
                   ) : badges[guide.id] && badges[guide.id].count > 0 ? (
-                    <div className="mt-1">
+                    <button
+                      onClick={() => setConflictModalId(guide.id)}
+                      className="mt-1 w-full text-left rounded px-1 py-0.5 hover:bg-amber-500/10 transition-colors"
+                      style={{ touchAction: 'manipulation' }}
+                    >
                       <div className="flex items-center gap-1.5 text-[10px] text-amber-300">
                         <AlertTriangle className="w-3 h-3" />
                         {badges[guide.id].count} conflict{badges[guide.id].count > 1 ? 's' : ''} with other guides
+                        <span className="text-amber-400/60 underline">view</span>
                       </div>
                       {badges[guide.id].descriptions[0] && (
                         <p className="text-[10px] text-white/40 line-clamp-1">{badges[guide.id].descriptions[0]}</p>
                       )}
-                    </div>
+                    </button>
                   ) : null}
                 </div>
 
@@ -380,6 +387,104 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
           )}
         </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {conflictModalId && badges[conflictModalId] && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-3"
+            onClick={() => setConflictModalId(null)}
+          >
+            <motion.div
+              initial={{ y: 24, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 24, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-xl border border-amber-500/30 bg-[#14100c] p-4 space-y-3"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h3 className="font-cinzel text-sm text-amber-200 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4" />
+                    Guide conflicts
+                  </h3>
+                  <p className="text-[10px] text-white/40 mt-0.5">
+                    {guides.find(g => g.id === conflictModalId)?.name}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setConflictModalId(null)}
+                  className="p-1.5 rounded hover:bg-white/10 transition-colors"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <X className="w-4 h-4 text-white/50" />
+                </button>
+              </div>
+
+              {(badges[conflictModalId].details?.length
+                ? badges[conflictModalId].details!
+                : badges[conflictModalId].descriptions.map(d => ({ description: d } as ConflictDetail))
+              ).map((detail, i) => (
+                <div key={i} className="rounded-lg border border-white/10 bg-white/[0.03] p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300">
+                      {detail.severity || 'conflict'}
+                    </span>
+                    {detail.otherGuideName && (
+                      <span className="text-[10px] text-white/40 truncate">vs {detail.otherGuideName}</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-white/70 leading-relaxed">{detail.description}</p>
+
+                  {detail.targetExcerpt && (
+                    <div className="rounded border-l-2 border-amber-500/50 bg-amber-500/5 px-2 py-1.5">
+                      <p className="text-[9px] uppercase tracking-wider text-amber-400/70 mb-0.5">This guide says</p>
+                      <p className="text-[11px] text-white/60 italic">“{detail.targetExcerpt}”</p>
+                    </div>
+                  )}
+                  {detail.otherExcerpt && (
+                    <div className="rounded border-l-2 border-sky-500/50 bg-sky-500/5 px-2 py-1.5">
+                      <p className="text-[9px] uppercase tracking-wider text-sky-400/70 mb-0.5">
+                        {detail.otherGuideName || 'Other guide'} says
+                      </p>
+                      <p className="text-[11px] text-white/60 italic">“{detail.otherExcerpt}”</p>
+                    </div>
+                  )}
+                  {detail.suggestion && (
+                    <div className="rounded border-l-2 border-emerald-500/50 bg-emerald-500/5 px-2 py-1.5">
+                      <p className="text-[9px] uppercase tracking-wider text-emerald-400/70 mb-0.5">Suggested resolution</p>
+                      <p className="text-[11px] text-emerald-100/70">{detail.suggestion}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <button
+                  onClick={() => { setBadges(clearConflictBadge(conflictModalId)); setConflictModalId(null); }}
+                  className="text-[10px] text-white/40 hover:text-white/70 transition-colors"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  Dismiss warning
+                </button>
+                <button
+                  onClick={() => {
+                    const g = guides.find(gg => gg.id === conflictModalId);
+                    setConflictModalId(null);
+                    if (g) openEditEditor(g);
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-amber-600/80 hover:bg-amber-600 text-[11px] text-white transition-colors"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  Edit this guide
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
