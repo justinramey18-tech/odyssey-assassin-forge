@@ -935,7 +935,7 @@ Rules:
       abortControllerRef.current = null;
       setNpcSceneConfig(null);
     }
-  }, [messages, characterContext, isLoading, selectedModel, triggerSummaryIfNeeded]);
+  }, [messages, characterContext, isLoading, selectedModel, triggerSummaryIfNeeded, coreRulesInGuides]);
 
   const stopNpcScene = useCallback(() => {
     npcSceneActiveRef.current = false;
