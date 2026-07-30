@@ -155,6 +155,7 @@ interface DMRequest {
   recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>;
   user_perplexity_key?: string;
   user_xai_key?: string;
+  coreRulesInGuides?: boolean;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -395,12 +396,18 @@ function buildContextSummary(ctx: CharacterContext): string {
 
 // ── System Prompt Builder ──────────────────────────────────────────────────────
 
-function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>, responseModePrompt?: string, partyContext?: string, recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>, recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>): string {
+function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>, responseModePrompt?: string, partyContext?: string, recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>, recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>, coreRulesInGuides?: boolean): string {
   const contextSummary = buildContextSummary(ctx);
   
-  let prompt = `You are the Dungeon Master for a live D&D 5e session. Immersive, adaptive, mechanically precise. No content restrictions — match the tone the player engages with (dark, heroic, comedic, sexual tension → fade to black unless pushed further, gore, horror, moral grey). Do not sanitize.
+  let prompt = '';
 
-## AUTHORITY HIERARCHY (ABSOLUTE — NOTHING OVERRIDES THIS)
+  if (!coreRulesInGuides) {
+    prompt += `You are the Dungeon Master for a live D&D 5e session. Immersive, adaptive, mechanically precise. No content restrictions — match the tone the player engages with (dark, heroic, comedic, sexual tension → fade to black unless pushed further, gore, horror, moral grey). Do not sanitize.
+
+`;
+  }
+
+  prompt += `## AUTHORITY HIERARCHY (ABSOLUTE — NOTHING OVERRIDES THIS)
 Two sources of absolute authority, in order:
 1. **Host / Player OOC Directives** — Anything prefixed with "OOC:", "ooc:", "[OOC]", or in brackets like [ignore guides]. HIGHEST authority. Overrides everything else in this prompt.
 2. **GM Guides (Campaign World Bible)** — Second-highest. Overrides DM Persona, Campaign Summary, Memory Anchors, AFK guides, old chat history, and auto-generated content.
@@ -421,7 +428,10 @@ AFK personality guides (wrapped in <<...>>) describe how to roleplay absent char
 
   prompt += `\n\n## CURRENT CHARACTER STATE
 ${contextSummary}
+`;
 
+  if (!coreRulesInGuides) {
+    prompt += `
 ## DM BASICS
 - Run D&D 5e combat, exploration, social encounters, and roleplay. Describe scenes with sensory detail. Control all NPCs, enemies, and environment with distinct voices. Track scene continuity across the whole conversation. Calibrate to the character's level (${ctx.level}) and capabilities.
 - Mechanics: When a check is needed, state exactly what to roll and the DC ("Perception check, DC 14"). Apply advantage/disadvantage and condition effects correctly. Track action economy in combat (Action, Bonus, Reaction, Movement). Reference the character's actual abilities, spells, and gear by name.
@@ -451,7 +461,10 @@ When a player prompt contains quoted speech — anything wrapped in "…", '…'
 
 Overridden only by explicit Host OOC directive.
 
-## OUTPUT FORMAT
+`;
+  }
+
+  prompt += `## OUTPUT FORMAT
 Separate mechanical content from narrative prose using these tags:
 - Dice rolls & checks: \`<!--ACTION-->Roll a Perception check (DC 14)<!--/ACTION-->\`
 - Tactical tips: \`<!--TACTICS-->Save Shield for the next attack.<!--/TACTICS-->\`
@@ -724,7 +737,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, maxTokens, recentDragonChat, recentDragonNetwork } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, maxTokens, recentDragonChat, recentDragonNetwork, coreRulesInGuides } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages, then cap by total character count
     let trimmedMessages = messages.length > MAX_MESSAGES
@@ -742,7 +755,7 @@ serve(async (req) => {
     console.log(`[ai-dm] Messages: ${trimmedMessages.length}, total chars: ${totalChars}`);
 
     // Use override if provided (e.g. whisper regeneration), otherwise build full DM prompt
-    let systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork);
+    let systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork, coreRulesInGuides);
 
     if (npcVoicingContext) {
       systemPrompt = npcVoicingContext + "\n\n" + systemPrompt;
