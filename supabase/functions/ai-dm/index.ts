@@ -428,7 +428,10 @@ AFK personality guides (wrapped in <<...>>) describe how to roleplay absent char
 
   prompt += `\n\n## CURRENT CHARACTER STATE
 ${contextSummary}
+`;
 
+  if (!coreRulesInGuides) {
+    prompt += `
 ## DM BASICS
 - Run D&D 5e combat, exploration, social encounters, and roleplay. Describe scenes with sensory detail. Control all NPCs, enemies, and environment with distinct voices. Track scene continuity across the whole conversation. Calibrate to the character's level (${ctx.level}) and capabilities.
 - Mechanics: When a check is needed, state exactly what to roll and the DC ("Perception check, DC 14"). Apply advantage/disadvantage and condition effects correctly. Track action economy in combat (Action, Bonus, Reaction, Movement). Reference the character's actual abilities, spells, and gear by name.
@@ -458,7 +461,10 @@ When a player prompt contains quoted speech — anything wrapped in "…", '…'
 
 Overridden only by explicit Host OOC directive.
 
-## OUTPUT FORMAT
+`;
+  }
+
+  prompt += `## OUTPUT FORMAT
 Separate mechanical content from narrative prose using these tags:
 - Dice rolls & checks: \`<!--ACTION-->Roll a Perception check (DC 14)<!--/ACTION-->\`
 - Tactical tips: \`<!--TACTICS-->Save Shield for the next attack.<!--/TACTICS-->\`
