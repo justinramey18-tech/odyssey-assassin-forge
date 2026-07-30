@@ -86,13 +86,14 @@ const activeIndicatorColors: Record<DMNavTab, string> = {
   character: 'bg-sky-500',
 };
 
-export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive, oracleLabel, oracleColor, oracleActiveBg, afkLabel, afkColor, afkActiveBg, hideDice, hideAfk, hidePrompts, hideActions, hideSettings, showCharacterSheet, onCharacterSheet, notchLabelOverride, notchIconOverride }: DMBottomNavProps) {
+export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive, oracleLabel, oracleColor, oracleActiveBg, afkLabel, afkColor, afkActiveBg, afkIcon, hideDice, hideAfk, hidePrompts, hideActions, hideSettings, showCharacterSheet, onCharacterSheet, notchLabelOverride, notchIconOverride }: DMBottomNavProps) {
   const afkOrWildShape = showWildShape ? WILDSHAPE_TAB : AFK_TAB;
   const afkTab = {
     ...afkOrWildShape,
     label: (!showWildShape && afkLabel) ? afkLabel : afkOrWildShape.label,
     color: (!showWildShape && afkColor) ? afkColor : afkOrWildShape.color,
     activeBg: (!showWildShape && afkActiveBg) ? afkActiveBg : afkOrWildShape.activeBg,
+    icon: (!showWildShape && afkIcon) ? afkIcon : afkOrWildShape.icon,
   };
   const oracleTab = {
     ...ORACLE_TAB,
