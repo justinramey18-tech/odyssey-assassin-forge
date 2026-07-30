@@ -116,6 +116,8 @@ interface UseAIDMOptions {
   summarizeStorageKey?: string;
   /** localStorage key holding the persisted active campaign id (used to hydrate synchronously on mount so linked-universe reconnects immediately) */
   activeCampaignIdKey?: string;
+  /** When true, tells the ai-dm edge function that core game-running rules are delivered via GM guides, so it should omit its built-in copies. Solo DM sets this once the default Core Rulebook guide is seeded. */
+  coreRulesInGuides?: boolean;
 }
 
 interface VersionedSession {
@@ -194,7 +196,7 @@ function saveSession(messages: Message[], storageKey: string): void {
   }
 }
 
-export function useAIDM({ characterContext, customGuidesContent, worldStatePrompt, dmPersonaPrompt, responseModePrompt, onMessageComplete, onQuestExtracted, activeGuideIds, onCampaignSwitch, selectedModel, sessionStorageKey, summarizeStorageKey, activeCampaignIdKey }: UseAIDMOptions) {
+export function useAIDM({ characterContext, customGuidesContent, worldStatePrompt, dmPersonaPrompt, responseModePrompt, onMessageComplete, onQuestExtracted, activeGuideIds, onCampaignSwitch, selectedModel, sessionStorageKey, summarizeStorageKey, activeCampaignIdKey, coreRulesInGuides }: UseAIDMOptions) {
   const STORAGE_KEY = sessionStorageKey ?? DEFAULT_STORAGE_KEY;
   const SUMMARY_KEY = summarizeStorageKey ?? DEFAULT_SUMMARY_KEY;
   // Store onMessageComplete in a ref so sendMessage always calls the latest version
@@ -346,6 +348,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           user_openai_key: loadApiKey('openai') || undefined,
           user_perplexity_key: loadApiKey('perplexity') || undefined,
           user_xai_key: loadApiKey('xai') || undefined,
+          coreRulesInGuides: coreRulesInGuides || undefined,
           ...(() => {
             const cs = loadCombatSettings();
             const feats: string[] = [];
@@ -534,7 +537,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
       setIsLoading(false);
       abortControllerRef.current = null;
     }
-  }, [messages, characterContext, customGuidesContent, campaignSummary, worldStatePrompt, dmPersonaPrompt, responseModePrompt, isLoading, triggerSummaryIfNeeded]);
+  }, [messages, characterContext, customGuidesContent, campaignSummary, worldStatePrompt, dmPersonaPrompt, responseModePrompt, isLoading, triggerSummaryIfNeeded, coreRulesInGuides]);
 
   const voiceNPC = useCallback(async (npcNames: string | string[], playerMessage: string) => {
     if (!playerMessage.trim() || isLoading) return;
@@ -593,6 +596,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           user_openai_key: loadApiKey('openai') || undefined,
           user_perplexity_key: loadApiKey('perplexity') || undefined,
           user_xai_key: loadApiKey('xai') || undefined,
+          coreRulesInGuides: coreRulesInGuides || undefined,
           npcVoicingContext: npcVoicingPrompt,
           maxTokens: names.length === 1 ? 150 : names.length > 1 ? 500 : undefined,
           ...(() => {
@@ -739,7 +743,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
       setIsLoading(false);
       abortControllerRef.current = null;
     }
-  }, [messages, characterContext, customGuidesContent, campaignSummary, worldStatePrompt, dmPersonaPrompt, responseModePrompt, isLoading]);
+  }, [messages, characterContext, customGuidesContent, campaignSummary, worldStatePrompt, dmPersonaPrompt, responseModePrompt, isLoading, coreRulesInGuides]);
 
   const startNpcScene = useCallback(async (npcs: string[], scenePrompt: string, maxMessages: number = 12) => {
     if (isLoading) return;
@@ -848,6 +852,7 @@ Rules:
             systemPromptOverride: npcSystemPrompt,
             model: selectedModel || undefined,
             maxTokens: 200,
+            coreRulesInGuides: coreRulesInGuides || undefined,
           }),
           signal: abortControllerRef.current!.signal,
         });
@@ -930,7 +935,7 @@ Rules:
       abortControllerRef.current = null;
       setNpcSceneConfig(null);
     }
-  }, [messages, characterContext, isLoading, selectedModel, triggerSummaryIfNeeded]);
+  }, [messages, characterContext, isLoading, selectedModel, triggerSummaryIfNeeded, coreRulesInGuides]);
 
   const stopNpcScene = useCallback(() => {
     npcSceneActiveRef.current = false;
