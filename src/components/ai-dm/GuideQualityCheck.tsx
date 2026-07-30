@@ -7,6 +7,8 @@ import { loadApiKey, isClaudeEverywhereEnabled } from '@/lib/api-keys';
 import { getAuthToken } from '@/lib/auth-token';
 import { useToast } from '@/hooks/use-toast';
 import { GMGuide } from '@/lib/gm-guides-storage';
+import { Switch } from '@/components/ui/switch';
+import { isAutoCheckEnabled, setAutoCheckEnabled } from '@/lib/guide-auto-check';
 
 interface GuideQualityCheckProps {
   guides: GMGuide[];
