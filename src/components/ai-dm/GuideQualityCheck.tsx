@@ -550,6 +550,20 @@ export function GuideQualityCheck({ guides, onUpdate }: GuideQualityCheckProps) 
                 ))}
               </div>
 
+              {/* Auto-check on save */}
+              <div className="flex items-start justify-between gap-3 rounded-lg bg-white/5 border border-white/10 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-[11px] text-white/70">Auto-check on save</p>
+                  <p className="text-[10px] text-white/40">Runs a quick conflict scan after each guide save (uses one AI call per save)</p>
+                </div>
+                <Switch
+                  checked={autoCheck}
+                  onCheckedChange={(v) => { setAutoCheck(v); setAutoCheckEnabled(v); }}
+                  className="data-[state=checked]:bg-emerald-600 scale-75 shrink-0"
+                />
+              </div>
+
+
               <p className="text-[11px] text-white/40">
                 {enabledGuides.length} enabled guide{enabledGuides.length === 1 ? '' : 's'} will be scanned.
               </p>
