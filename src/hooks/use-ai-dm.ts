@@ -852,6 +852,7 @@ Rules:
             systemPromptOverride: npcSystemPrompt,
             model: selectedModel || undefined,
             maxTokens: 200,
+            coreRulesInGuides: coreRulesInGuides || undefined,
           }),
           signal: abortControllerRef.current!.signal,
         });
