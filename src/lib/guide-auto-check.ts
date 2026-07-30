@@ -3,7 +3,22 @@ import { getAuthToken } from '@/lib/auth-token';
 const ENABLED_KEY = 'guide-auto-check-enabled';
 const BADGES_KEY = 'guide-conflict-badges';
 
-export type ConflictBadge = { count: number; descriptions: string[]; checkedAt: number };
+export type ConflictDetail = {
+  description: string;
+  severity?: string;
+  guideNames?: string[];
+  otherGuideName?: string;
+  targetExcerpt?: string;
+  otherExcerpt?: string;
+  suggestion?: string;
+};
+
+export type ConflictBadge = {
+  count: number;
+  descriptions: string[];
+  details?: ConflictDetail[];
+  checkedAt: number;
+};
 
 export function isAutoCheckEnabled(): boolean {
   try {
