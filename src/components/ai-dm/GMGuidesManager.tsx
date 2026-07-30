@@ -31,6 +31,8 @@ interface GMGuidesManagerProps {
   chatMessages?: Array<{ role: string; content: string }>;
   onFullSummarize?: () => Promise<void>;
   isFullSummarizing?: boolean;
+  defaultGuideMissing?: boolean;
+  onRestoreDefault?: () => void;
 }
 
 function CharCounter({ current, max, className }: { current: number; max: number; className?: string }) {
