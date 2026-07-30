@@ -7,12 +7,14 @@ const corsHeaders = {
 };
 
 interface QualityCheckRequest {
-  action: 'audit' | 'rewrite';
+  action: 'audit' | 'rewrite' | 'scan' | 'fix' | 'quick_scan';
   guides?: Array<{ id: string; name: string; content: string }>;
   targetGuide?: { id: string; name: string; content: string };
-  otherGuides?: Array<{ name: string; content: string }>;
+  otherGuides?: Array<{ id?: string; name: string; content: string }>;
   contradictions?: string[];
   customInstructions?: string;
+  scanModes?: { contradictions?: boolean; redundancy?: boolean; clarity?: boolean; checklists?: boolean };
+  issue?: { type: string; description: string };
   model?: string;
   user_api_key?: string;
 }
