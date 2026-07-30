@@ -362,15 +362,20 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
                       Checking for conflicts…
                     </div>
                   ) : badges[guide.id] && badges[guide.id].count > 0 ? (
-                    <div className="mt-1">
+                    <button
+                      onClick={() => setConflictModalId(guide.id)}
+                      className="mt-1 w-full text-left rounded px-1 py-0.5 hover:bg-amber-500/10 transition-colors"
+                      style={{ touchAction: 'manipulation' }}
+                    >
                       <div className="flex items-center gap-1.5 text-[10px] text-amber-300">
                         <AlertTriangle className="w-3 h-3" />
                         {badges[guide.id].count} conflict{badges[guide.id].count > 1 ? 's' : ''} with other guides
+                        <span className="text-amber-400/60 underline">view</span>
                       </div>
                       {badges[guide.id].descriptions[0] && (
                         <p className="text-[10px] text-white/40 line-clamp-1">{badges[guide.id].descriptions[0]}</p>
                       )}
-                    </div>
+                    </button>
                   ) : null}
                 </div>
 
