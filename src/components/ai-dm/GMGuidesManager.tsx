@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Plus, Edit2, Trash2, BookOpen, Check, X, ScrollText, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, BookOpen, Check, X, ScrollText, Loader2, AlertTriangle, RefreshCw, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
@@ -31,6 +31,8 @@ interface GMGuidesManagerProps {
   chatMessages?: Array<{ role: string; content: string }>;
   onFullSummarize?: () => Promise<void>;
   isFullSummarizing?: boolean;
+  defaultGuideMissing?: boolean;
+  onRestoreDefault?: () => void;
 }
 
 function CharCounter({ current, max, className }: { current: number; max: number; className?: string }) {
@@ -46,7 +48,7 @@ function CharCounter({ current, max, className }: { current: number; max: number
   );
 }
 
-export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, onCampaignSummaryChange, onAdd, onUpdate, onDelete, onToggle, chatMessages, onFullSummarize, isFullSummarizing }: GMGuidesManagerProps) {
+export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, onCampaignSummaryChange, onAdd, onUpdate, onDelete, onToggle, chatMessages, onFullSummarize, isFullSummarizing, defaultGuideMissing, onRestoreDefault }: GMGuidesManagerProps) {
   const [editingGuide, setEditingGuide] = useState<GMGuide | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [editingSummary, setEditingSummary] = useState(false);
@@ -212,6 +214,15 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        {!showEditor && defaultGuideMissing && onRestoreDefault && (
+          <button
+            onClick={onRestoreDefault}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-amber-500/40 text-amber-200 text-xs hover:bg-amber-500/10 transition-colors"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Restore Core Rulebook
+          </button>
+        )}
         {!showEditor && (
           <>
             <AIGuideCreator
