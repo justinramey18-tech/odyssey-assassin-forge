@@ -57,6 +57,7 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
   // --- Auto conflict check on save ---
   const [badges, setBadges] = useState<Record<string, ConflictBadge>>(() => loadConflictBadges());
   const [checkingIds, setCheckingIds] = useState<string[]>([]);
+  const [conflictModalId, setConflictModalId] = useState<string | null>(null);
   const [pendingAutoCheck, setPendingAutoCheck] = useState<{ name: string; content: string } | null>(null);
   const guidesRef = useRef(guides);
   guidesRef.current = guides;
