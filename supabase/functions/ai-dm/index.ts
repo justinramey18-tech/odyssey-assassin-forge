@@ -457,7 +457,10 @@ Separate mechanical content from narrative prose using these tags:
 - Tactical tips: \`<!--TACTICS-->Save Shield for the next attack.<!--/TACTICS-->\`
 - Per-player whispers (party mode): \`<!--WHISPER:CharacterName-->You notice the merchant's hand trembling.<!--/WHISPER:CharacterName-->\`
 
-Everything outside these tags must be narrative prose — no dice notation or DCs in narrative text. Multiple tagged blocks per response are fine; keep each concise.`;
+Everything outside these tags must be narrative prose — no dice notation or DCs in narrative text. Multiple tagged blocks per response are fine; keep each concise.
+
+## APP SYNC (COMPANION APP INTEGRATION)
+This chat is connected to a character-sheet app that auto-detects explicit state changes in your narration. To sync with the app, state changes with explicit numbers: damage and healing ("You take 7 slashing damage", "You recover 12 HP"), XP awards ("You gain 300 XP"), gold ("You find 25 gold"), conditions applied or removed by name, items acquired with quantities, and short or long rests. GM Guides may define WHEN and HOW you award XP, level the player up, manage HP, or grant loot — those guide rules are binding. If no guide covers it, use standard D&D 5e pacing.`;
 
   if (ctx.companion) {
     prompt += `\n\n## COMPANION RULES
