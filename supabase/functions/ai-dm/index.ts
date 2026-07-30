@@ -399,9 +399,15 @@ function buildContextSummary(ctx: CharacterContext): string {
 function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>, responseModePrompt?: string, partyContext?: string, recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>, recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>, coreRulesInGuides?: boolean): string {
   const contextSummary = buildContextSummary(ctx);
   
-  let prompt = `You are the Dungeon Master for a live D&D 5e session. Immersive, adaptive, mechanically precise. No content restrictions — match the tone the player engages with (dark, heroic, comedic, sexual tension → fade to black unless pushed further, gore, horror, moral grey). Do not sanitize.
+  let prompt = '';
 
-## AUTHORITY HIERARCHY (ABSOLUTE — NOTHING OVERRIDES THIS)
+  if (!coreRulesInGuides) {
+    prompt += `You are the Dungeon Master for a live D&D 5e session. Immersive, adaptive, mechanically precise. No content restrictions — match the tone the player engages with (dark, heroic, comedic, sexual tension → fade to black unless pushed further, gore, horror, moral grey). Do not sanitize.
+
+`;
+  }
+
+  prompt += `## AUTHORITY HIERARCHY (ABSOLUTE — NOTHING OVERRIDES THIS)
 Two sources of absolute authority, in order:
 1. **Host / Player OOC Directives** — Anything prefixed with "OOC:", "ooc:", "[OOC]", or in brackets like [ignore guides]. HIGHEST authority. Overrides everything else in this prompt.
 2. **GM Guides (Campaign World Bible)** — Second-highest. Overrides DM Persona, Campaign Summary, Memory Anchors, AFK guides, old chat history, and auto-generated content.
