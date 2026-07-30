@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Plus, Edit2, Trash2, BookOpen, Check, X, ScrollText, Loader2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, BookOpen, Check, X, ScrollText, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { GMGuide, MAX_GUIDE_CHARS, MAX_TOTAL_CHARS } from '@/lib/gm-guides-storage';
@@ -63,18 +64,32 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
   const guidesRef = useRef(guides);
   guidesRef.current = guides;
 
-  const runAutoCheckFor = useCallback(async (guide: { id: string; name: string; content: string }) => {
-    if (!isAutoCheckEnabled()) return;
+  const runAutoCheckFor = useCallback(async (
+    guide: { id: string; name: string; content: string },
+    opts?: { force?: boolean },
+  ) => {
+    const force = opts?.force === true;
+    if (!force && !isAutoCheckEnabled()) return;
     const others = guidesRef.current
       .filter(g => g.enabled && g.id !== guide.id)
       .map(g => ({ id: g.id, name: g.name, content: g.content }));
-    if (others.length === 0) return;
+    if (others.length === 0) {
+      if (force) toast.info('Enable at least one other guide to compare against');
+      return;
+    }
     setCheckingIds(prev => (prev.includes(guide.id) ? prev : [...prev, guide.id]));
     try {
       const conflicts = await runQuickScan(guide, others);
       setBadges(saveConflictBadge(guide.id, conflicts));
+      if (force) {
+        if (conflicts.length > 0) {
+          toast.warning(`${conflicts.length} conflict${conflicts.length > 1 ? 's' : ''} found`);
+        } else {
+          toast.success('No conflicts found');
+        }
+      }
     } catch {
-      /* silent */
+      if (force) toast.error('Conflict scan failed');
     } finally {
       setCheckingIds(prev => prev.filter(id => id !== guide.id));
     }
@@ -339,6 +354,16 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-white/30 font-mono">{guide.content.length.toLocaleString()} chars</span>
                     <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => void runAutoCheckFor({ id: guide.id, name: guide.name, content: guide.content }, { force: true })}
+                        disabled={checkingIds.includes(guide.id)}
+                        title="Re-run conflict scan"
+                        aria-label="Re-run conflict scan"
+                        className="p-1.5 rounded hover:bg-white/10 transition-colors disabled:opacity-40"
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        <RefreshCw className={cn('w-3.5 h-3.5 text-amber-300/60', checkingIds.includes(guide.id) && 'animate-spin')} />
+                      </button>
                       <button onClick={() => openEditEditor(guide)} className="p-1.5 rounded hover:bg-white/10 transition-colors" style={{ touchAction: 'manipulation' }}>
                         <Edit2 className="w-3.5 h-3.5 text-white/50" />
                       </button>
