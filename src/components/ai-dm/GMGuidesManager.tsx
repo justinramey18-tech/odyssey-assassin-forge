@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { GMGuide, MAX_GUIDE_CHARS, MAX_TOTAL_CHARS } from '@/lib/gm-guides-storage';
 import { AIGuideCreator } from './AIGuideCreator';
+import { GuideQualityCheck } from './GuideQualityCheck';
 
 interface GMGuidesManagerProps {
   onBack: () => void;
@@ -147,12 +148,15 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {!showEditor && (
-          <AIGuideCreator
-            guides={guides}
-            campaignSummary={campaignSummary}
-            chatMessages={chatMessages}
-            onAdd={onAdd}
-          />
+          <>
+            <AIGuideCreator
+              guides={guides}
+              campaignSummary={campaignSummary}
+              chatMessages={chatMessages}
+              onAdd={onAdd}
+            />
+            <GuideQualityCheck guides={guides} onUpdate={onUpdate} />
+          </>
         )}
         <AnimatePresence mode="wait">
           {showEditor ? (
