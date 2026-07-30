@@ -63,18 +63,32 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
   const guidesRef = useRef(guides);
   guidesRef.current = guides;
 
-  const runAutoCheckFor = useCallback(async (guide: { id: string; name: string; content: string }) => {
-    if (!isAutoCheckEnabled()) return;
+  const runAutoCheckFor = useCallback(async (
+    guide: { id: string; name: string; content: string },
+    opts?: { force?: boolean },
+  ) => {
+    const force = opts?.force === true;
+    if (!force && !isAutoCheckEnabled()) return;
     const others = guidesRef.current
       .filter(g => g.enabled && g.id !== guide.id)
       .map(g => ({ id: g.id, name: g.name, content: g.content }));
-    if (others.length === 0) return;
+    if (others.length === 0) {
+      if (force) toast.info('Enable at least one other guide to compare against');
+      return;
+    }
     setCheckingIds(prev => (prev.includes(guide.id) ? prev : [...prev, guide.id]));
     try {
       const conflicts = await runQuickScan(guide, others);
       setBadges(saveConflictBadge(guide.id, conflicts));
+      if (force) {
+        if (conflicts.length > 0) {
+          toast.warning(`${conflicts.length} conflict${conflicts.length > 1 ? 's' : ''} found`);
+        } else {
+          toast.success('No conflicts found');
+        }
+      }
     } catch {
-      /* silent */
+      if (force) toast.error('Conflict scan failed');
     } finally {
       setCheckingIds(prev => prev.filter(id => id !== guide.id));
     }
