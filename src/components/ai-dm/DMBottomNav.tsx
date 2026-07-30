@@ -39,6 +39,8 @@ interface DMBottomNavProps {
   afkColor?: string;
   /** Override the AFK tab active bg class */
   afkActiveBg?: string;
+  /** Override the AFK tab icon (e.g. BookOpen for the solo Guides tab). Ignored if showWildShape is true. */
+  afkIcon?: React.ComponentType<{ className?: string }>;
   /** Hide the DICE tab entirely from the nav (Empyrean solo mode — dice is surfaced via whisper tray instead). */
   hideDice?: boolean;
   /** Hide the AFK tab entirely from the nav (Empyrean solo mode). Ignored if showWildShape is true. */
