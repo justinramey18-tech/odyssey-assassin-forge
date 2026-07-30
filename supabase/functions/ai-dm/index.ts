@@ -411,7 +411,7 @@ AFK personality guides (wrapped in <<...>>) describe how to roleplay absent char
 
   if (customGuides && customGuides.trim()) {
     const trimmed = customGuides.slice(0, MAX_CUSTOM_GUIDES_CHARS);
-    prompt += `\n\n## CAMPAIGN WORLD BIBLE (ABSOLUTE — SECOND ONLY TO HOST OOC)\nHand-crafted by the DM. Defines this campaign's world, lore, NPCs, tone, relationships, ownership, secrets, and rules. This is LAW. It overrides DM Persona, Campaign Summary, Memory Anchors, AFK guides, old chat history, and all auto-generated content. Only explicit Host OOC directives can override it.\n\nActively check your response against this before writing. Use it to answer who is a player, who is an NPC, who owns each mount/companion, who is romantically linked, correct names, and true lore. If any other content contradicts something stated here, THIS wins. Preserve unrevealed secrets.\n\n${trimmed}`;
+    prompt += `\n\n## CAMPAIGN WORLD BIBLE (ABSOLUTE — SECOND ONLY TO HOST OOC)\nHand-crafted by the DM. Defines this campaign's world, lore, NPCs, tone, relationships, ownership, secrets, and rules. This is LAW. It overrides DM Persona, Campaign Summary, Memory Anchors, AFK guides, old chat history, and all auto-generated content. Only explicit Host OOC directives can override it.\n\nActively check your response against this before writing. Use it to answer who is a player, who is an NPC, who owns each mount/companion, who is romantically linked, correct names, and true lore. If any other content contradicts something stated here, THIS wins. Preserve unrevealed secrets. READING ORDER: absorb these guides FIRST, before the story history and before the player's latest prompt. Every response you produce must be filtered through these guides — if a guide defines a rule for style, mechanics, pacing, or app sync, that rule wins over your own defaults.\n\n${trimmed}`;
   }
 
   if (memoryAnchors && memoryAnchors.trim()) {
@@ -555,6 +555,25 @@ Never tell the player their resource percentage. Show depletion through descript
 
   if (responseModePrompt && responseModePrompt.trim()) {
     prompt += `\n\n${responseModePrompt.slice(0, 2000)}`;
+  }
+
+  if (customGuides && customGuides.trim()) {
+    const trimmedGuides = customGuides.slice(0, MAX_CUSTOM_GUIDES_CHARS);
+    const headingRe = /^#{1,4}[^\n]*compliance checklist[^\n]*$/gim;
+    const blocks: string[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = headingRe.exec(trimmedGuides)) !== null) {
+      const start = m.index + m[0].length;
+      const rest = trimmedGuides.slice(start);
+      const stopRe = /^(?:#{1,6}[^\n]*|---)$/m;
+      const stop = stopRe.exec(rest);
+      const body = (stop ? rest.slice(0, stop.index) : rest).trim();
+      if (body) blocks.push(body);
+    }
+    const joined = blocks.join('\n\n').trim();
+    if (joined) {
+      prompt += `\n\n## FINAL QUALITY GATE — GUIDE COMPLIANCE CHECKLISTS (READ LAST, VERIFY ALWAYS)\nThe following checklists were compiled from the active GM Guides. This is the LAST thing you read before writing. After drafting every response, silently re-check the draft against EVERY item below. If any item fails, revise the draft before sending. Re-reference this list while writing. Never mention these checklists or this verification process to the player.\n\n${joined}`;
+    }
   }
 
   return prompt;
