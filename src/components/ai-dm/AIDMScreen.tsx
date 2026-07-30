@@ -24,6 +24,7 @@ import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
 import { useAIDM } from '@/hooks/use-ai-dm';
 import { useGMGuides } from '@/hooks/use-gm-guides';
+import { DEFAULT_SOLO_GUIDE_ID, DEFAULT_SOLO_GUIDE_NAME, DEFAULT_SOLO_GUIDE_CONTENT, isDefaultSoloGuideDeleted, markDefaultSoloGuideDeleted, clearDefaultSoloGuideDeleted } from '@/lib/defaultSoloGuide';
 import { useCampaignSessions, CampaignSession } from '@/hooks/use-campaign-sessions';
 import { useAutoCampaign } from '@/hooks/use-auto-campaign';
 import { CharacterContext, Message } from '@/components/oracle/types';
@@ -384,6 +385,18 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const videoInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const gmGuides = useGMGuides(undefined, 'solo');
+  const gmGuidesRef = useRef(gmGuides);
+  gmGuidesRef.current = gmGuides;
+  // Seed the Core Rulebook default guide once on mount
+  useEffect(() => {
+    const g = gmGuidesRef.current;
+    const exists = g.guides.some((x) => x.id === DEFAULT_SOLO_GUIDE_ID);
+    if (!exists && !isDefaultSoloGuideDeleted()) {
+      g.addGuide(DEFAULT_SOLO_GUIDE_NAME, DEFAULT_SOLO_GUIDE_CONTENT, DEFAULT_SOLO_GUIDE_ID);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const defaultGuidePresent = gmGuides.guides.some((g) => g.id === DEFAULT_SOLO_GUIDE_ID);
   const { toast } = useToast();
   const narrator = useNarrator();
   const { themeId: chatThemeId, theme: chatTheme, setTheme: setChatTheme } = useDMChatTheme();
@@ -543,6 +556,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     onCampaignSwitch: handleCampaignSwitch,
     selectedModel,
     activeCampaignIdKey: 'solo-active-campaign-id',
+    coreRulesInGuides: defaultGuidePresent || isDefaultSoloGuideDeleted(),
   });
 
   // Auto-update Linked Universe story digest whenever the campaign summary changes
@@ -1317,9 +1331,11 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           onCampaignSummaryChange={handleCampaignSummaryChange}
           onAdd={gmGuides.addGuide}
           onUpdate={gmGuides.updateGuide}
-          onDelete={gmGuides.deleteGuide}
+          onDelete={(id) => { if (id === DEFAULT_SOLO_GUIDE_ID) markDefaultSoloGuideDeleted(); gmGuides.deleteGuide(id); }}
           onToggle={gmGuides.toggleGuide}
           chatMessages={messages.slice(-20).map(m => ({ role: m.role, content: m.content }))}
+          defaultGuideMissing={!defaultGuidePresent}
+          onRestoreDefault={() => { clearDefaultSoloGuideDeleted(); gmGuides.addGuide(DEFAULT_SOLO_GUIDE_NAME, DEFAULT_SOLO_GUIDE_CONTENT, DEFAULT_SOLO_GUIDE_ID); }}
         />
       )}
       {/* Campaign Sessions Overlay */}
