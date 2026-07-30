@@ -116,6 +116,8 @@ interface UseAIDMOptions {
   summarizeStorageKey?: string;
   /** localStorage key holding the persisted active campaign id (used to hydrate synchronously on mount so linked-universe reconnects immediately) */
   activeCampaignIdKey?: string;
+  /** When true, tells the ai-dm edge function that core game-running rules are delivered via GM guides, so it should omit its built-in copies. Solo DM sets this once the default Core Rulebook guide is seeded. */
+  coreRulesInGuides?: boolean;
 }
 
 interface VersionedSession {
