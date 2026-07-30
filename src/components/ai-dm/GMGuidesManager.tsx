@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { GMGuide, MAX_GUIDE_CHARS, MAX_TOTAL_CHARS } from '@/lib/gm-guides-storage';
 import { AIGuideCreator } from './AIGuideCreator';
+import { GuideQualityCheck } from './GuideQualityCheck';
 
 interface GMGuidesManagerProps {
   onBack: () => void;
