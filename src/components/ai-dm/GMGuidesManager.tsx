@@ -342,7 +342,7 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
                       </button>
                       {deleteConfirmId === guide.id ? (
                         <div className="flex items-center gap-1">
-                          <button onClick={() => { onDelete(guide.id); setDeleteConfirmId(null); }} className="px-2 py-0.5 rounded bg-red-900/40 text-red-400 text-[10px] hover:bg-red-900/60 transition-colors" style={{ touchAction: 'manipulation' }}>
+                          <button onClick={() => { onDelete(guide.id); setBadges(clearConflictBadge(guide.id)); setDeleteConfirmId(null); }} className="px-2 py-0.5 rounded bg-red-900/40 text-red-400 text-[10px] hover:bg-red-900/60 transition-colors" style={{ touchAction: 'manipulation' }}>
                             Delete
                           </button>
                           <button onClick={() => setDeleteConfirmId(null)} className="px-2 py-0.5 rounded bg-white/5 text-white/40 text-[10px] hover:bg-white/10 transition-colors" style={{ touchAction: 'manipulation' }}>
