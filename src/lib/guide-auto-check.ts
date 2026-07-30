@@ -93,7 +93,7 @@ export function clearConflictBadge(guideId: string): Record<string, ConflictBadg
 export async function runQuickScan(
   target: { id: string; name: string; content: string },
   others: Array<{ id: string; name: string; content: string }>,
-): Promise<Array<{ description: string; guideIds?: string[]; guideNames?: string[]; severity?: string }>> {
+): Promise<ConflictDetail[]> {
   try {
     const token = await getAuthToken();
     const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/guide-quality-check`, {
