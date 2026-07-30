@@ -356,7 +356,24 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
                       )}
                     </div>
                   </div>
+                  {checkingIds.includes(guide.id) ? (
+                    <div className="flex items-center gap-1.5 mt-1 text-[10px] text-white/40">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Checking for conflicts…
+                    </div>
+                  ) : badges[guide.id] && badges[guide.id].count > 0 ? (
+                    <div className="mt-1">
+                      <div className="flex items-center gap-1.5 text-[10px] text-amber-300">
+                        <AlertTriangle className="w-3 h-3" />
+                        {badges[guide.id].count} conflict{badges[guide.id].count > 1 ? 's' : ''} with other guides
+                      </div>
+                      {badges[guide.id].descriptions[0] && (
+                        <p className="text-[10px] text-white/40 line-clamp-1">{badges[guide.id].descriptions[0]}</p>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
+
                 ))
               )}
             </motion.div>
