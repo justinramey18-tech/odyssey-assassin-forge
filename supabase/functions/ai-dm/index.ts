@@ -155,6 +155,7 @@ interface DMRequest {
   recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>;
   user_perplexity_key?: string;
   user_xai_key?: string;
+  coreRulesInGuides?: boolean;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
