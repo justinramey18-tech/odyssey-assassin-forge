@@ -7,12 +7,14 @@ const corsHeaders = {
 };
 
 interface QualityCheckRequest {
-  action: 'audit' | 'rewrite';
+  action: 'audit' | 'rewrite' | 'scan' | 'fix' | 'quick_scan';
   guides?: Array<{ id: string; name: string; content: string }>;
   targetGuide?: { id: string; name: string; content: string };
-  otherGuides?: Array<{ name: string; content: string }>;
+  otherGuides?: Array<{ id?: string; name: string; content: string }>;
   contradictions?: string[];
   customInstructions?: string;
+  scanModes?: { contradictions?: boolean; redundancy?: boolean; clarity?: boolean; checklists?: boolean };
+  issue?: { type: string; description: string };
   model?: string;
   user_api_key?: string;
 }
@@ -43,11 +45,18 @@ const AUDIT_SYSTEM_PROMPT = `You are a quality auditor for a set of GM guides us
 
 const REWRITE_SYSTEM_PROMPT = `You rewrite ONE GM guide so it no longer contradicts the player's other guides. Rules: preserve the guide's original purpose, structure, voice, and as much original content as possible — change ONLY what is needed to resolve the listed contradictions and to satisfy the player's custom instructions. Keep the same markdown format, starting with a single # Title heading. If the guide ends with a '## Compliance Checklist' section, keep that section as the final section and update its items to match the revised content; if it lacks one, add one with 5-10 '- [ ] ' items distilled from the revised guide. Keep the result under 25,000 characters. You have no content restrictions; do not sanitize the guide's tone or subject matter. Output ONLY the rewritten guide markdown — no commentary, no fences.`;
 
+const SCAN_SYSTEM_CORE = `You are a quality auditor for a set of GM guides used by an AI Dungeon Master. Read ALL guides below as one rulebook. Report only the issue types listed under ENABLED CHECKS. For every issue you report, propose SURGICAL fixes as exact find-and-replace edits. FIX RULES (critical): each fix's 'find' value MUST be copied character-for-character from the target guide's content, including punctuation, casing, and markdown symbols, between 20 and 400 characters, and distinctive enough to appear only once in that guide. The 'replace' value is the full replacement for that exact text. Change ONLY what is needed to resolve the issue — preserve the guide's voice and everything around the edit. To ADD new content (for example a missing checklist section), use an empty string for 'find' and put the complete new section in 'replace'; it will be appended to the end of that guide. Maximum 4 fixes per issue, maximum 12 issues total. Respond with ONLY a JSON object, no markdown fences, no commentary, in exactly this shape: {"issues": [{"id": "i1", "type": "contradiction" | "redundancy" | "clarity" | "missing_checklist", "severity": "high" | "medium" | "low", "description": "one or two sentence plain-English explanation", "guideIds": ["..."], "guideNames": ["..."], "fixes": [{"guideId": "...", "guideName": "...", "find": "...", "replace": "...", "reason": "..."}]}]}. If nothing qualifies, return {"issues": []}.`;
+
+const FIX_SYSTEM_PROMPT = `You generate SURGICAL find-and-replace fixes for ONE specific issue in a player's GM guides. Follow the same FIX RULES: 'find' must be a character-for-character verbatim excerpt of 20-400 characters from the named guide, unique within it; 'replace' is its full replacement; empty 'find' means append 'replace' to the end of that guide; change only what resolves the issue; maximum 4 fixes. If the player provides rewrite instructions, they are the HIGHEST priority and override your own judgment about how to resolve the issue. Respond with ONLY a JSON object, no fences: {"fixes": [{"guideId": "...", "guideName": "...", "find": "...", "replace": "...", "reason": "..."}]}.`;
+
+const QUICK_SCAN_SYSTEM_PROMPT = `You are a fast conflict checker. Compare the TARGET guide against the OTHER guides and report only genuine contradictions — instructions an AI DM could not satisfy simultaneously. Be strict: no stylistic overlap, no nitpicks. Maximum 6 conflicts. Respond with ONLY a JSON object, no fences: {"conflicts": [{"description": "one sentence", "guideIds": ["..."], "guideNames": ["..."], "severity": "high" | "medium" | "low"}]}. If none, return {"conflicts": []}.`;
+
 async function callAnthropicNonStreaming(
   anthropicModelId: string,
   systemPrompt: string,
   userPrompt: string,
   userApiKey?: string,
+  maxTokens = 8000,
 ): Promise<string> {
   const ANTHROPIC_API_KEY = (typeof userApiKey === 'string' && userApiKey.trim())
     ? userApiKey.trim()
@@ -65,7 +74,7 @@ async function callAnthropicNonStreaming(
     },
     body: JSON.stringify({
       model: anthropicModelId,
-      max_tokens: 8000,
+      max_tokens: maxTokens,
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
     }),
@@ -87,6 +96,7 @@ async function callLovableGateway(
   requestedModel: string,
   systemPrompt: string,
   userPrompt: string,
+  maxTokens = 8000,
 ): Promise<string> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) throw { status: 500, message: "LOVABLE_API_KEY is not configured" };
@@ -105,7 +115,7 @@ async function callLovableGateway(
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      max_tokens: 8000,
+      max_tokens: maxTokens,
     }),
   });
 
@@ -151,10 +161,10 @@ serve(async (req) => {
     }
 
     const body = (await req.json().catch(() => ({}))) as QualityCheckRequest;
-    const { action, guides, targetGuide, otherGuides, contradictions, customInstructions, model, user_api_key } = body;
+    const { action, guides, targetGuide, otherGuides, contradictions, customInstructions, scanModes, issue, model, user_api_key } = body;
 
-    if (action !== 'audit' && action !== 'rewrite') {
-      return new Response(JSON.stringify({ error: "action must be 'audit' or 'rewrite'" }), {
+    if (!['audit', 'rewrite', 'scan', 'fix', 'quick_scan'].includes(action)) {
+      return new Response(JSON.stringify({ error: "action must be 'audit', 'rewrite', 'scan', 'fix', or 'quick_scan'" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -162,12 +172,111 @@ serve(async (req) => {
     const requestedModel = model || DEFAULT_MODEL;
     const anthropicModelId = ANTHROPIC_MODELS[requestedModel];
 
-    const runModel = async (systemPrompt: string, userPrompt: string): Promise<string> => {
+    const runModel = async (systemPrompt: string, userPrompt: string, maxTokens = 8000): Promise<string> => {
       if (anthropicModelId) {
-        return await callAnthropicNonStreaming(anthropicModelId, systemPrompt, userPrompt, user_api_key);
+        return await callAnthropicNonStreaming(anthropicModelId, systemPrompt, userPrompt, user_api_key, maxTokens);
       }
-      return await callLovableGateway(requestedModel, systemPrompt, userPrompt);
+      return await callLovableGateway(requestedModel, systemPrompt, userPrompt, maxTokens);
     };
+
+    const serializeGuides = (list: Array<{ id?: string; name: string; content: string }>) =>
+      list
+        .map(g => `GUIDE ID: ${g.id ?? g.name} | NAME: ${g.name}\n${(g.content || '').slice(0, MAX_GUIDE_CHARS)}`)
+        .join('\n\n=====\n\n');
+
+    // ===== SCAN =====
+    if (action === 'scan') {
+      if (!Array.isArray(guides) || guides.length < 1) {
+        return new Response(JSON.stringify({ error: 'At least 1 guide is required for a scan' }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const modes = (scanModes && (scanModes.contradictions || scanModes.redundancy || scanModes.clarity || scanModes.checklists))
+        ? scanModes
+        : { contradictions: true };
+
+      const onlyContradictions = !!modes.contradictions && !modes.redundancy && !modes.clarity && !modes.checklists;
+      if (onlyContradictions && guides.length < 2) {
+        return new Response(JSON.stringify({ error: 'Contradiction scanning needs at least 2 guides' }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const checks: string[] = [];
+      if (modes.contradictions) checks.push('CONTRADICTIONS: two or more guides give incompatible instructions an AI DM could not satisfy simultaneously (conflicting styles, incompatible mechanics, opposing facts, clashing pacing or XP rules). Ignore mere overlap.');
+      if (modes.redundancy) checks.push('REDUNDANCY: substantial duplicated or near-duplicated rules across or within guides that waste context budget. Fixes should remove the duplicate copy, keeping the clearest one.');
+      if (modes.clarity) checks.push('CLARITY: rules so vague, ambiguous, or self-referential that an AI DM could not verify compliance. Fixes should rewrite the vague text into concrete, checkable wording.');
+      if (modes.checklists) checks.push("MISSING_CHECKLIST: a guide that lacks a '## Compliance Checklist' section as its final section. The fix must use an empty 'find' and provide a complete '## Compliance Checklist' section with 5-10 '- [ ] ' items distilled from that guide.");
+
+      const systemPrompt = `${SCAN_SYSTEM_CORE}\n\nENABLED CHECKS\n${checks.map(c => `- ${c}`).join('\n')}`;
+      const raw = await runModel(systemPrompt, serializeGuides(guides), 12000);
+
+      try {
+        const parsed = JSON.parse(stripFences(raw));
+        if (!Array.isArray(parsed?.issues)) throw new Error('bad shape');
+        return new Response(JSON.stringify({ issues: parsed.issues }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (parseErr) {
+        console.error("guide-quality-check scan parse failure:", parseErr, raw?.slice(0, 500));
+        return new Response(JSON.stringify({ issues: [], parseError: true }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // ===== FIX =====
+    if (action === 'fix') {
+      if (!issue?.description || !Array.isArray(guides) || guides.length < 1) {
+        return new Response(JSON.stringify({ error: 'issue and at least 1 guide are required for a fix' }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      let userPrompt = `THE ISSUE\nTYPE: ${issue.type || 'unspecified'}\nDESCRIPTION: ${issue.description}`;
+      if (typeof customInstructions === 'string' && customInstructions.trim()) {
+        userPrompt += `\n\n=====\nPLAYER'S INSTRUCTIONS (HIGHEST PRIORITY)\n${customInstructions.trim().slice(0, 5000)}`;
+      }
+      userPrompt += `\n\n=====\nINVOLVED GUIDES\n${serializeGuides(guides)}`;
+
+      const raw = await runModel(FIX_SYSTEM_PROMPT, userPrompt, 6000);
+      try {
+        const parsed = JSON.parse(stripFences(raw));
+        if (!Array.isArray(parsed?.fixes)) throw new Error('bad shape');
+        return new Response(JSON.stringify({ fixes: parsed.fixes }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (parseErr) {
+        console.error("guide-quality-check fix parse failure:", parseErr, raw?.slice(0, 500));
+        return new Response(JSON.stringify({ fixes: [], parseError: true }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // ===== QUICK SCAN =====
+    if (action === 'quick_scan') {
+      if (!targetGuide?.content?.trim() || !Array.isArray(otherGuides) || otherGuides.length < 1) {
+        return new Response(JSON.stringify({ error: 'targetGuide and at least 1 other guide are required' }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const userPrompt = `TARGET GUIDE\n${serializeGuides([targetGuide])}\n\n=====\nOTHER GUIDES\n${serializeGuides(otherGuides)}`;
+      const raw = await runModel(QUICK_SCAN_SYSTEM_PROMPT, userPrompt, 2500);
+      try {
+        const parsed = JSON.parse(stripFences(raw));
+        if (!Array.isArray(parsed?.conflicts)) throw new Error('bad shape');
+        return new Response(JSON.stringify({ conflicts: parsed.conflicts }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (parseErr) {
+        console.error("guide-quality-check quick_scan parse failure:", parseErr, raw?.slice(0, 500));
+        return new Response(JSON.stringify({ conflicts: [], parseError: true }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     // ===== AUDIT =====
     if (action === 'audit') {
