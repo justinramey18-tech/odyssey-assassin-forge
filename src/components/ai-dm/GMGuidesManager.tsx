@@ -1,11 +1,20 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Plus, Edit2, Trash2, BookOpen, Check, X, ScrollText, Loader2 } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, BookOpen, Check, X, ScrollText, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { GMGuide, MAX_GUIDE_CHARS, MAX_TOTAL_CHARS } from '@/lib/gm-guides-storage';
 import { AIGuideCreator } from './AIGuideCreator';
 import { GuideQualityCheck } from './GuideQualityCheck';
+import {
+  isAutoCheckEnabled,
+  loadConflictBadges,
+  saveConflictBadge,
+  clearConflictBadge,
+  runQuickScan,
+  type ConflictBadge,
+} from '@/lib/guide-auto-check';
+
 
 interface GMGuidesManagerProps {
   onBack: () => void;
