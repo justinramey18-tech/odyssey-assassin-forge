@@ -95,6 +95,7 @@ export function GuideQualityCheck({ guides, onUpdate }: GuideQualityCheckProps) 
   const [hint, setHint] = useState<string | null>(null);
 
   const [modes, setModes] = useState<ScanModes>(DEFAULT_MODES);
+  const [autoCheck, setAutoCheck] = useState<boolean>(() => isAutoCheckEnabled());
   const [adjustOpen, setAdjustOpen] = useState<Record<string, boolean>>({});
   const [adjustText, setAdjustText] = useState<Record<string, string>>({});
   const [regenerating, setRegenerating] = useState<string | null>(null);
