@@ -348,6 +348,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           user_openai_key: loadApiKey('openai') || undefined,
           user_perplexity_key: loadApiKey('perplexity') || undefined,
           user_xai_key: loadApiKey('xai') || undefined,
+          coreRulesInGuides: coreRulesInGuides || undefined,
           ...(() => {
             const cs = loadCombatSettings();
             const feats: string[] = [];
