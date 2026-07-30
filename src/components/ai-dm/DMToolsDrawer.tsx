@@ -183,15 +183,14 @@ export function DMToolsDrawer({
           />
 
           {/* GM Guides */}
-          {EMPYREAN_FEATURE_FLAGS.showCampaignPack && (
-            <ToolRow
-              icon={<BookOpen className="w-4 h-4" />}
-              label="GM Guides"
-              badge={guidesCount > 0 ? guidesCount : undefined}
-              badgeColor="bg-amber-600"
-              onClick={() => closeAndRun(onGuides)}
-            />
-          )}
+          <ToolRow
+            icon={<BookOpen className="w-4 h-4" />}
+            label="GM Guides"
+            badge={guidesCount > 0 ? guidesCount : undefined}
+            badgeColor="bg-amber-600"
+            onClick={() => closeAndRun(onGuides)}
+          />
+
 
           {linkedUniverseSection && (
             <div className="px-2 py-2">{linkedUniverseSection}</div>
