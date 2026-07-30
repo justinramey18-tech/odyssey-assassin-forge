@@ -55,3 +55,5 @@ project_id = "sqvcszzbkyzidigsdqgk"
     verify_jwt = false
   [functions.set-recovery-code]
     verify_jwt = true
+  [functions.guide-quality-check]
+    verify_jwt = false
