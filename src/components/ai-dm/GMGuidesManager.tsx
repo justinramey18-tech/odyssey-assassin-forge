@@ -54,6 +54,40 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
   const campaignSummaryChars = campaignSummary?.length ?? 0;
   const wasFullSummarizingRef = useRef(false);
 
+  // --- Auto conflict check on save ---
+  const [badges, setBadges] = useState<Record<string, ConflictBadge>>(() => loadConflictBadges());
+  const [checkingIds, setCheckingIds] = useState<string[]>([]);
+  const [pendingAutoCheck, setPendingAutoCheck] = useState<{ name: string; content: string } | null>(null);
+  const guidesRef = useRef(guides);
+  guidesRef.current = guides;
+
+  const runAutoCheckFor = useCallback(async (guide: { id: string; name: string; content: string }) => {
+    if (!isAutoCheckEnabled()) return;
+    const others = guidesRef.current
+      .filter(g => g.enabled && g.id !== guide.id)
+      .map(g => ({ id: g.id, name: g.name, content: g.content }));
+    if (others.length === 0) return;
+    setCheckingIds(prev => (prev.includes(guide.id) ? prev : [...prev, guide.id]));
+    try {
+      const conflicts = await runQuickScan(guide, others);
+      setBadges(saveConflictBadge(guide.id, conflicts));
+    } catch {
+      /* silent */
+    } finally {
+      setCheckingIds(prev => prev.filter(id => id !== guide.id));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!pendingAutoCheck) return;
+    const match = guides.find(g => g.name === pendingAutoCheck.name && g.content === pendingAutoCheck.content);
+    if (match) {
+      setPendingAutoCheck(null);
+      void runAutoCheckFor({ id: match.id, name: match.name, content: match.content });
+    }
+  }, [guides, pendingAutoCheck, runAutoCheckFor]);
+
+
   // Auto-open summary editor after full summarization completes
   useEffect(() => {
     if (isFullSummarizing) {
