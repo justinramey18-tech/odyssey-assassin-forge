@@ -147,12 +147,15 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {!showEditor && (
-          <AIGuideCreator
-            guides={guides}
-            campaignSummary={campaignSummary}
-            chatMessages={chatMessages}
-            onAdd={onAdd}
-          />
+          <>
+            <AIGuideCreator
+              guides={guides}
+              campaignSummary={campaignSummary}
+              chatMessages={chatMessages}
+              onAdd={onAdd}
+            />
+            <GuideQualityCheck guides={guides} onUpdate={onUpdate} />
+          </>
         )}
         <AnimatePresence mode="wait">
           {showEditor ? (
