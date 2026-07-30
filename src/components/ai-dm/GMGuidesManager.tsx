@@ -13,6 +13,7 @@ import {
   clearConflictBadge,
   runQuickScan,
   type ConflictBadge,
+  type ConflictDetail,
 } from '@/lib/guide-auto-check';
 
 
