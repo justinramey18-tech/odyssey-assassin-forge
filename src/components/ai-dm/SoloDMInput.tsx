@@ -21,6 +21,8 @@ interface SoloDMInputProps {
   inputClassName?: string;
   sendActiveClassName?: string;
   placeholder?: string;
+  onInputChange?: (text: string) => void;
+  locked?: boolean;
 }
 
 export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(function SoloDMInput(
