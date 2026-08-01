@@ -129,7 +129,7 @@ export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(
         placeholder={placeholder || "What do you do? (@NPC to talk to an NPC)"}
         rows={1}
         className={cn("flex-1 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none resize-none min-h-[42px] max-h-[200px]", inputClassName)}
-        disabled={isLoading}
+        disabled={isLoading || locked}
       />
       {isLoading ? (
         <button
