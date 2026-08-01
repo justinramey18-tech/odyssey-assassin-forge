@@ -26,7 +26,7 @@ interface SoloDMInputProps {
 }
 
 export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(function SoloDMInput(
-  { onSend, onCancel, onPaste, isLoading, npcNames, inputClassName, sendActiveClassName, placeholder },
+  { onSend, onCancel, onPaste, isLoading, npcNames, inputClassName, sendActiveClassName, placeholder, onInputChange, locked },
   ref
 ) {
   const [input, setInput, clearInput] = useDraftPersist('odyssey-solo-dm-draft');
