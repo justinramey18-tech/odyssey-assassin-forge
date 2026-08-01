@@ -1223,6 +1223,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
               npcNames={npcNames}
               inputClassName={cn(chatTheme.inputBg, chatTheme.inputBorder, "border focus:border-amber-500/40")}
               sendActiveClassName={chatTheme.sendBtnActive}
+              onInputChange={setLiveInputText}
+              locked={socialToolbarLocked}
             />
           <div className="flex items-center gap-1 justify-center">
             {userId && (
