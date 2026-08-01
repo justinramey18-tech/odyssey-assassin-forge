@@ -649,6 +649,38 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const scrollRef = useRef<HTMLDivElement>(null);
   const npcNames = useNPCAutocomplete(messages);
 
+  const [liveInputText, setLiveInputText] = useState('');
+  const pendingSocialNpcRef = useRef<{ npcName: string; message: string } | null>(null);
+  const [socialToolbarLocked, setSocialToolbarLocked] = useState(false);
+
+  const socialParse = useMemo(() => parseNpcTags(liveInputText, npcNames), [liveInputText, npcNames]);
+  const socialToolbarVisible = liveInputText.trim().startsWith('@');
+  const socialToolbarNpcName = socialParse ? socialParse.npcNames[0] : null;
+  const socialToolbarReady = !!socialParse && socialParse.npcNames.length === 1;
+
+  const handleSocialSkillTap = useCallback(() => {
+    if (socialParse && socialParse.npcNames.length === 1) {
+      pendingSocialNpcRef.current = { npcName: socialParse.npcNames[0], message: socialParse.message };
+      setSocialToolbarLocked(true);
+    }
+  }, [socialParse]);
+
+  const handleSocialResolved = useCallback((result: SocialCheckResult) => {
+    const pending = pendingSocialNpcRef.current;
+    pendingSocialNpcRef.current = null;
+    setSocialToolbarLocked(false);
+    if (!pending) return;
+    voiceNPC(pending.npcName, pending.message, {
+      skill: result.skill,
+      opposingSkillLabel: result.opposingSkillLabel,
+      playerTotal: result.playerRoll.total,
+      npcTotal: result.npcRoll.total,
+      outcome: result.outcome,
+    });
+    soloDMInputRef.current?.setText('');
+    setLiveInputText('');
+  }, [voiceNPC]);
+
   const handleLoadCampaign = useCallback((session: CampaignSession) => {
     loadCampaign(session.messages, session.campaign_summary, session.id, session.gm_guide_ids);
     // Restore memory anchors from the saved campaign
