@@ -89,8 +89,8 @@ export function resolveSocialCheck(ctx: CharacterContext, npcName: string, skill
 
   const fmt = (r: SocialRollResult) => `[${r.die}] ${r.modifier >= 0 ? '+' + r.modifier : r.modifier} = **${r.total}**`;
   const rollBlockText =
-    '\uD83C\uDFB2 **${config.label} (You)**: ${fmt(playerRoll)}\n' +
-    '\uD83C\uDFB2 **${config.opposingLabel} (${npcName}, opposing)**: ${fmt(npcRoll)}';
+    `\uD83C\uDFB2 **${config.label} (You)**: ${fmt(playerRoll)}\n` +
+    `\uD83C\uDFB2 **${config.opposingLabel} (${npcName}, opposing)**: ${fmt(npcRoll)}`;
 
   return {
     skill: skillId,
