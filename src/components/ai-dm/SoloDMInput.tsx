@@ -21,10 +21,12 @@ interface SoloDMInputProps {
   inputClassName?: string;
   sendActiveClassName?: string;
   placeholder?: string;
+  onInputChange?: (text: string) => void;
+  locked?: boolean;
 }
 
 export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(function SoloDMInput(
-  { onSend, onCancel, onPaste, isLoading, npcNames, inputClassName, sendActiveClassName, placeholder },
+  { onSend, onCancel, onPaste, isLoading, npcNames, inputClassName, sendActiveClassName, placeholder, onInputChange, locked },
   ref
 ) {
   const [input, setInput, clearInput] = useDraftPersist('odyssey-solo-dm-draft');
@@ -87,11 +89,12 @@ export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
+    onInputChange?.(e.target.value);
     const ta = e.target;
     ta.style.height = 'auto';
     ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
     setCursorPos(ta.selectionStart ?? 0);
-  }, [setInput]);
+  }, [setInput, onInputChange]);
 
   const handleSubmit = useCallback(() => {
     if (!input.trim()) return;
@@ -126,7 +129,7 @@ export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(
         placeholder={placeholder || "What do you do? (@NPC to talk to an NPC)"}
         rows={1}
         className={cn("flex-1 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none resize-none min-h-[42px] max-h-[200px]", inputClassName)}
-        disabled={isLoading}
+        disabled={isLoading || locked}
       />
       {isLoading ? (
         <button
