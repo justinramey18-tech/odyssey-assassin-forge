@@ -539,7 +539,17 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     }
   }, [messages, characterContext, customGuidesContent, campaignSummary, worldStatePrompt, dmPersonaPrompt, responseModePrompt, isLoading, triggerSummaryIfNeeded, coreRulesInGuides]);
 
-  const voiceNPC = useCallback(async (npcNames: string | string[], playerMessage: string) => {
+  const voiceNPC = useCallback(async (
+    npcNames: string | string[],
+    playerMessage: string,
+    socialCheck?: {
+      skill: 'persuasion' | 'intimidation' | 'insight' | 'deception';
+      opposingSkillLabel: string;
+      playerTotal: number;
+      npcTotal: number;
+      outcome: 'success' | 'failure' | 'tie';
+    }
+  ) => {
     if (!playerMessage.trim() || isLoading) return;
 
     const names = Array.isArray(npcNames) ? npcNames : [npcNames];
