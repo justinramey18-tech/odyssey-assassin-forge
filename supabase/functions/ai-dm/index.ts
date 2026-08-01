@@ -758,7 +758,7 @@ serve(async (req) => {
     let systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork, coreRulesInGuides);
 
     if (npcVoicingContext) {
-      systemPrompt = npcVoicingContext + "\n\n" + systemPrompt;
+      systemPrompt = systemPrompt + "\n\n" + npcVoicingContext;
     }
 
     // Determine which provider to use

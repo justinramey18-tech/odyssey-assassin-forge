@@ -373,6 +373,41 @@ const NOOP = () => {};
 const NOOP_TWO_ARG = () => {};
 const NOOP_RETURN_ZERO = () => 0;
 
+function parseNpcTags(text: string, knownNames: string[]): { npcNames: string[]; message: string } | null {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('@')) return null;
+
+  const sortedNames = [...knownNames].sort((a, b) => b.length - a.length);
+  let remaining = trimmed;
+  const tagged: string[] = [];
+
+  while (remaining.startsWith('@')) {
+    const afterAt = remaining.slice(1);
+    const found = sortedNames.find((name) => {
+      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp('^' + escaped + '(\\s|$)', 'i');
+      return re.test(afterAt);
+    });
+    if (!found) break;
+    tagged.push(found);
+    remaining = afterAt.slice(found.length).trimStart();
+  }
+
+  if (tagged.length > 0) {
+    const message = remaining.trim();
+    if (!message) return null;
+    return { npcNames: tagged, message };
+  }
+
+  const fallback = trimmed.match(/^@(\S+)\s+([\s\S]+)$/);
+  if (fallback) {
+    return { npcNames: [fallback[1]], message: fallback[2].trim() };
+  }
+
+  return null;
+}
+
+
 export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks, dmPersonaPrompt, dmPersonaName, onRetakePersonalityTest, wildShape, isMomoMoonDruid }: AIDMScreenProps) {
   const isMomo = useMemo(() => isMomoEasterEgg(characterName), [characterName]);
   const geraltCharacterId = useMemo(() => characterName?.toLowerCase().trim() || 'unknown', [characterName]);
@@ -685,23 +720,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     }
   }, [messages, linkedUniverse]);
 
-  const handleSend = useCallback(() => {
-    const text = soloDMInputRef.current?.getText()?.trim();
-    if (!text || isLoading) return;
-    const multiNpcMatch = text.match(/^((?:@\S+\s+)+)(.+)$/s);
-    if (multiNpcMatch && voiceNPC) {
-      const npcNames = [...multiNpcMatch[1].matchAll(/@(\S+)/g)].map(m => m[1]);
-      const message = multiNpcMatch[2];
-      if (npcNames.length > 0 && message.trim()) {
-        voiceNPC(npcNames.length === 1 ? npcNames[0] : npcNames, message);
-      } else {
-        sendMessage(text);
-      }
-    } else {
-      sendMessage(text);
-    }
-    soloDMInputRef.current?.setText('');
-  }, [isLoading, sendMessage, voiceNPC]);
 
   const handleQuickAction = useCallback((prompt: string) => {
     sendMessage(prompt);
@@ -1148,9 +1166,9 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
             <SoloDMInput
               ref={soloDMInputRef}
               onSend={(text) => {
-                const npcMatch = text.match(/^@(\w[\w\s]*?\w)\s+([\s\S]+)$/);
-                if (npcMatch) {
-                  voiceNPC(npcMatch[1].trim(), npcMatch[2].trim());
+                const parsed = parseNpcTags(text, npcNames);
+                if (parsed) {
+                  voiceNPC(parsed.npcNames.length === 1 ? parsed.npcNames[0] : parsed.npcNames, parsed.message);
                 } else {
                   sendMessage(text);
                 }
