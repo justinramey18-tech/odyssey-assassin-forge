@@ -89,11 +89,12 @@ export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
+    onInputChange?.(e.target.value);
     const ta = e.target;
     ta.style.height = 'auto';
     ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
     setCursorPos(ta.selectionStart ?? 0);
-  }, [setInput]);
+  }, [setInput, onInputChange]);
 
   const handleSubmit = useCallback(() => {
     if (!input.trim()) return;
