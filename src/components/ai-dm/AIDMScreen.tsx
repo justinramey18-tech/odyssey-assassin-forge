@@ -5,6 +5,8 @@ import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { useResponseMode } from '@/hooks/use-response-mode';
 import { useNPCAutocomplete } from '@/hooks/use-npc-autocomplete';
 import { SoloDMInput, type SoloDMInputHandle } from './SoloDMInput';
+import { NpcSocialCheckToolbar } from './NpcSocialCheckToolbar';
+import type { SocialCheckResult } from '@/lib/npcSocialChecks';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-models';
