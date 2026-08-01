@@ -614,7 +614,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           user_xai_key: loadApiKey('xai') || undefined,
           coreRulesInGuides: coreRulesInGuides || undefined,
           npcVoicingContext: npcVoicingPrompt,
-          maxTokens: names.length === 1 ? 150 : names.length > 1 ? 500 : undefined,
+          maxTokens: names.length === 1 ? (socialCheck ? 200 : 150) : names.length > 1 ? 500 : undefined,
           ...(() => {
             const cs = loadCombatSettings();
             const feats: string[] = [];
