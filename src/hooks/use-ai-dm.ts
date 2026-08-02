@@ -548,6 +548,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
       playerTotal: number;
       npcTotal: number;
       outcome: 'success' | 'failure' | 'tie';
+      rollBlockText?: string;
     }
   ) => {
     if (!playerMessage.trim() || isLoading) return;
@@ -555,10 +556,14 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     const names = Array.isArray(npcNames) ? npcNames : [npcNames];
     const nameLabel = names.join(' & ');
 
+    const rollLine = socialCheck
+      ? `\n\n${socialCheck.rollBlockText ? socialCheck.rollBlockText + '\n' : ''}➡️ **${socialCheck.skill.charAt(0).toUpperCase() + socialCheck.skill.slice(1)} — ${socialCheck.outcome === 'success' ? 'SUCCESS' : socialCheck.outcome === 'failure' ? 'FAILURE' : 'TIE'}** (you ${socialCheck.playerTotal} vs ${names[0]} ${socialCheck.npcTotal})`
+      : '';
+
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: `(to ${nameLabel}) "${playerMessage.trim()}"`,
+      content: `(to ${nameLabel}) "${playerMessage.trim()}"${rollLine}`,
       timestamp: new Date(),
     };
 
