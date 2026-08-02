@@ -1,8 +1,8 @@
 import type { CharacterContext } from '@/components/oracle/types';
 import { getProficiencyBonus } from '@/lib/magic/calculations';
 import { getScopedItem } from '@/lib/scoped-storage';
-import { rollWeightedDie, loadDiceOddsMode } from '@/lib/diceOdds';
-import { rollDie } from '@/lib/diceRoller';
+import { rollWeightedDie, loadDiceOddsMode, type DiceOddsMode } from '@/lib/diceOdds';
+
 
 export type SocialSkillId = 'persuasion' | 'intimidation' | 'insight' | 'deception';
 
@@ -37,10 +37,25 @@ export interface SocialCheckResult {
   rollBlockText: string;
 }
 
+// The NPC's opposing roll mirrors the player's Dice Odds setting:
+// heroic player -> cursed NPC, cursed player -> heroic NPC, fair/dramatic/chaotic stay matched.
+const OPPOSING_ODDS_MODE: Record<DiceOddsMode, DiceOddsMode> = {
+  fair: 'fair',
+  heroic: 'cursed',
+  dramatic: 'dramatic',
+  chaotic: 'chaotic',
+  cursed: 'heroic',
+};
+
 export function getPlayerSocialModifier(ctx: CharacterContext, skillId: SocialSkillId): number {
   const config = SOCIAL_SKILLS.find((s) => s.id === skillId);
   if (!config || !ctx.abilityScores) return 0;
-  const baseMod = (ctx.abilityScores as any)[config.abilityFullName]?.modifier ?? 0;
+  const scoreEntry = (ctx.abilityScores as any)[config.abilityFullName];
+  let baseMod = scoreEntry?.modifier;
+  if (typeof baseMod !== 'number') {
+    const rawScore = scoreEntry?.final ?? scoreEntry?.base;
+    baseMod = typeof rawScore === 'number' ? Math.floor((rawScore - 10) / 2) : 0;
+  }
   const profBonus = getProficiencyBonus(ctx.level || 1);
 
   let proficientSkills = new Set<string>();
@@ -66,26 +81,36 @@ export function getPlayerSocialModifier(ctx: CharacterContext, skillId: SocialSk
 const NPC_MOD_BASE = 4;
 const NPC_MOD_LEVEL_DIVISOR = 2;
 
-export function rollPlayerSocialCheck(ctx: CharacterContext, skillId: SocialSkillId): SocialRollResult {
-  const oddsMode = loadDiceOddsMode();
+export function rollPlayerSocialCheck(
+  ctx: CharacterContext,
+  skillId: SocialSkillId,
+  oddsMode: DiceOddsMode = loadDiceOddsMode()
+): SocialRollResult {
   const die = rollWeightedDie(20, oddsMode);
   const modifier = getPlayerSocialModifier(ctx, skillId);
   return { die, modifier, total: die + modifier };
 }
 
-export function rollNpcOpposingCheck(ctx: CharacterContext): SocialRollResult {
-  const die = rollDie(20);
+export function rollNpcOpposingCheck(
+  ctx: CharacterContext,
+  playerOddsMode: DiceOddsMode = loadDiceOddsMode()
+): SocialRollResult {
+  const die = rollWeightedDie(20, OPPOSING_ODDS_MODE[playerOddsMode] ?? 'fair');
+  // Centered bonus: ranges from -half to +half instead of always positive.
   const range = NPC_MOD_BASE + Math.floor((ctx.level || 1) / NPC_MOD_LEVEL_DIVISOR);
-  const modifier = Math.floor(Math.random() * (range + 1));
+  const half = Math.floor(range / 2);
+  const modifier = Math.floor(Math.random() * (range + 1)) - half;
   return { die, modifier, total: die + modifier };
 }
 
 export function resolveSocialCheck(ctx: CharacterContext, npcName: string, skillId: SocialSkillId): SocialCheckResult {
   const config = SOCIAL_SKILLS.find((s) => s.id === skillId)!;
-  const playerRoll = rollPlayerSocialCheck(ctx, skillId);
-  const npcRoll = rollNpcOpposingCheck(ctx);
+  const oddsMode = loadDiceOddsMode();
+  const playerRoll = rollPlayerSocialCheck(ctx, skillId, oddsMode);
+  const npcRoll = rollNpcOpposingCheck(ctx, oddsMode);
   const outcome: 'success' | 'failure' | 'tie' =
     playerRoll.total > npcRoll.total ? 'success' : playerRoll.total < npcRoll.total ? 'failure' : 'tie';
+
 
   const fmt = (r: SocialRollResult) => `[${r.die}] ${r.modifier >= 0 ? '+' + r.modifier : r.modifier} = **${r.total}**`;
   const rollBlockText =
