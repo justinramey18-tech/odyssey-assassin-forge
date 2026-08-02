@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
 import { useWeather } from '@/hooks/use-weather';
 import { getCachedWeather, buildWeatherPrompt, loadWeatherEnabled } from '@/lib/weather';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
@@ -99,7 +99,7 @@ interface DMMessageBubbleProps {
   whisperTrayEnabled?: boolean;
 }
 
-function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, ttsSelectMode, ttsSelected, onTtsToggle, theme, whisperTrayEnabled = true }: DMMessageBubbleProps) {
+const DMMessageBubble = memo(function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, ttsSelectMode, ttsSelected, onTtsToggle, theme, whisperTrayEnabled = true }: DMMessageBubbleProps) {
   const isUser = message.role === 'user';
   const videoMatch = message.content.match(VIDEO_REGEX);
   const imageMatch = !videoMatch ? message.content.match(IMAGE_REGEX) : null;
@@ -368,7 +368,7 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, t
       )}
     </motion.div>
   );
-}
+});
 
 // Stable no-op fallbacks (defined outside component to avoid re-creation)
 const NOOP = () => {};
@@ -442,6 +442,14 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const { weather } = useWeather();
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
+
+  const handleTtsToggle = useCallback((id: string) => {
+    setTtsSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
 
   // Bottom nav state
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
@@ -650,6 +658,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const npcNames = useNPCAutocomplete(messages);
 
   const [liveInputText, setLiveInputText] = useState('');
+  const liveInputDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSocialNpcRef = useRef<{ npcName: string; message: string } | null>(null);
   const [socialToolbarLocked, setSocialToolbarLocked] = useState(false);
 
@@ -657,6 +666,17 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const socialToolbarVisible = liveInputText.trim().startsWith('@');
   const socialToolbarNpcName = socialParse ? socialParse.npcNames[0] : null;
   const socialToolbarReady = !!socialParse && socialParse.npcNames.length === 1;
+
+  const handleLiveInputChange = useCallback((text: string) => {
+    if (liveInputDebounceRef.current) clearTimeout(liveInputDebounceRef.current);
+    liveInputDebounceRef.current = setTimeout(() => setLiveInputText(text), 120);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (liveInputDebounceRef.current) clearTimeout(liveInputDebounceRef.current);
+    };
+  }, []);
 
   const handleSocialSkillTap = useCallback(() => {
     if (socialParse && socialParse.npcNames.length === 1) {
@@ -669,6 +689,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     const pending = pendingSocialNpcRef.current;
     pendingSocialNpcRef.current = null;
     setSocialToolbarLocked(false);
+    if (liveInputDebounceRef.current) clearTimeout(liveInputDebounceRef.current);
     if (!pending) return;
     voiceNPC(pending.npcName, pending.message, {
       skill: result.skill,
@@ -1026,11 +1047,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
                       isLoading={isLoading}
                       ttsSelectMode={ttsSelectMode}
                       ttsSelected={ttsSelectedIds.has(message.id)}
-                      onTtsToggle={(id) => setTtsSelectedIds(prev => {
-                        const next = new Set(prev);
-                        if (next.has(id)) next.delete(id); else next.add(id);
-                        return next;
-                      })}
+                      onTtsToggle={handleTtsToggle}
                       theme={chatTheme}
                       whisperTrayEnabled={whisperTrayEnabled}
                     />
@@ -1224,7 +1241,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
               npcNames={npcNames}
               inputClassName={cn(chatTheme.inputBg, chatTheme.inputBorder, "border focus:border-amber-500/40")}
               sendActiveClassName={chatTheme.sendBtnActive}
-              onInputChange={setLiveInputText}
+              onInputChange={handleLiveInputChange}
               locked={socialToolbarLocked}
             />
           <div className="flex items-center gap-1 justify-center">
