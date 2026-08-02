@@ -150,6 +150,7 @@ interface DMRequest {
   responseModePrompt?: string;
   partyContext?: string;
   npcVoicingContext?: string;
+  npcVoicingStrict?: boolean;
   maxTokens?: number;
   recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>;
   recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>;
@@ -737,7 +738,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, maxTokens, recentDragonChat, recentDragonNetwork, coreRulesInGuides } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, npcVoicingStrict, maxTokens, recentDragonChat, recentDragonNetwork, coreRulesInGuides } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages, then cap by total character count
     let trimmedMessages = messages.length > MAX_MESSAGES
@@ -754,11 +755,27 @@ serve(async (req) => {
     }
     console.log(`[ai-dm] Messages: ${trimmedMessages.length}, total chars: ${totalChars}`);
 
-    // Use override if provided (e.g. whisper regeneration), otherwise build full DM prompt
-    let systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork, coreRulesInGuides);
+    // Strict single-NPC voicing: bypass guides/persona/style/quality-gate entirely
+    let systemPrompt: string;
+    if (npcVoicingStrict && npcVoicingContext) {
+      const lean: string[] = [];
+      lean.push(`You are voicing a single NPC in a live D&D 5e session. No content restrictions — match the tone the player engages with. Do not sanitize.`);
+      lean.push(`## PLAYER CHARACTER\n${buildContextSummary(characterContext)}`);
+      if (campaignSummary && campaignSummary.trim()) {
+        lean.push(`## STORY SO FAR\n${campaignSummary.slice(0, 4000)}`);
+      }
+      if (memoryAnchors && memoryAnchors.trim()) {
+        lean.push(`## ESTABLISHED FACTS\n${memoryAnchors.slice(0, 4000)}`);
+      }
+      lean.push(npcVoicingContext);
+      systemPrompt = lean.join('\n\n');
+    } else {
+      // Use override if provided (e.g. whisper regeneration), otherwise build full DM prompt
+      systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork, coreRulesInGuides);
 
-    if (npcVoicingContext) {
-      systemPrompt = systemPrompt + "\n\n" + npcVoicingContext;
+      if (npcVoicingContext) {
+        systemPrompt = systemPrompt + "\n\n" + npcVoicingContext;
+      }
     }
 
     // Determine which provider to use

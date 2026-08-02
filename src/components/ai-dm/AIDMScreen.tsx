@@ -676,6 +676,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       playerTotal: result.playerRoll.total,
       npcTotal: result.npcRoll.total,
       outcome: result.outcome,
+      rollBlockText: result.rollBlockText,
     });
     soloDMInputRef.current?.setText('');
     setLiveInputText('');

@@ -548,6 +548,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
       playerTotal: number;
       npcTotal: number;
       outcome: 'success' | 'failure' | 'tie';
+      rollBlockText?: string;
     }
   ) => {
     if (!playerMessage.trim() || isLoading) return;
@@ -555,10 +556,14 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     const names = Array.isArray(npcNames) ? npcNames : [npcNames];
     const nameLabel = names.join(' & ');
 
+    const rollLine = socialCheck
+      ? `\n\n${socialCheck.rollBlockText ? socialCheck.rollBlockText + '\n' : ''}➡️ **${socialCheck.skill.charAt(0).toUpperCase() + socialCheck.skill.slice(1)} — ${socialCheck.outcome === 'success' ? 'SUCCESS' : socialCheck.outcome === 'failure' ? 'FAILURE' : 'TIE'}** (you ${socialCheck.playerTotal} vs ${names[0]} ${socialCheck.npcTotal})`
+      : '';
+
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: `(to ${nameLabel}) "${playerMessage.trim()}"`,
+      content: `(to ${nameLabel}) "${playerMessage.trim()}"${rollLine}`,
       timestamp: new Date(),
     };
 
@@ -588,7 +593,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
       : '';
 
     const npcVoicingPrompt = names.length === 1
-      ? `## NPC VOICING MODE — ABSOLUTE PRIORITY\nThis overrides ALL narrative style instructions. No novelizations. No scene-setting. No atmospheric prose. No additional paragraphs.\n\nYou are voicing ${names[0]} ONLY. Your ENTIRE response must be EXACTLY ${isInsightSuccess ? 'THREE' : 'TWO'} lines and nothing else:\n\nLine 1: **${names[0]}:** [1–2 sentences of in-character dialogue — MAX 40 words]\nLine 2: *[One physical beat — italicized, present tense, 10 words or fewer]*${isInsightSuccess ? `\nLine 3: *(You sense: [one short phrase revealing what ${names[0]} truly feels or is hiding, based on the Insight check below])*` : ''}\n\nTHAT IS YOUR COMPLETE RESPONSE. STOP AFTER ${isInsightSuccess ? 'LINE 3' : 'THE BEAT'}. Do not write ${isInsightSuccess ? 'a fourth line' : 'a third line'}. Do not add narration, scene description, other characters' reactions, environmental details, or mechanical tags. ${isInsightSuccess ? 'Three' : 'Two'} lines only.\n\nExamples of correct COMPLETE responses:\n\n**${names[0]}:** "I don't owe you an explanation." \n*Turns away, shoulders rigid.*\n\n**${names[0]}:** "You're late. Again." A pause. "Don't let it happen a third time."\n*Doesn't look up from the map.*\n\nStay true to how ${names[0]} has been portrayed so far.${socialCheckBlock}`
+      ? `${socialCheckBlock ? socialCheckBlock.trim() + '\n\n' : ''}## NPC VOICING MODE — ABSOLUTE PRIORITY\nThis overrides ALL narrative style instructions. No novelizations. No scene-setting. No atmospheric prose. No additional paragraphs. Only ${names[0]} may speak or act — no other character appears, reacts, or comments.\n\nYou are voicing ${names[0]} ONLY. Your ENTIRE response must be EXACTLY ${isInsightSuccess ? 'THREE' : 'TWO'} lines and nothing else:\n\nLine 1: **${names[0]}:** [1–2 sentences of in-character dialogue — MAX 40 words]\nLine 2: *[One physical beat — italicized, present tense, 10 words or fewer]*${isInsightSuccess ? `\nLine 3: *(You sense: [one short phrase revealing what ${names[0]} truly feels or is hiding, based on the Insight check above])*` : ''}\n\nTHAT IS YOUR COMPLETE RESPONSE. STOP AFTER ${isInsightSuccess ? 'LINE 3' : 'THE BEAT'}. Do not write ${isInsightSuccess ? 'a fourth line' : 'a third line'}. Do not add narration, scene description, other characters' reactions, environmental details, or mechanical tags. ${isInsightSuccess ? 'Three' : 'Two'} lines only.\n\nExamples of correct COMPLETE responses:\n\n**${names[0]}:** "I don't owe you an explanation." \n*Turns away, shoulders rigid.*\n\n**${names[0]}:** "You're late. Again." A pause. "Don't let it happen a third time."\n*Doesn't look up from the map.*\n\nStay true to how ${names[0]} has been portrayed so far.`
       : `## NPC VOICING MODE — ABSOLUTE PRIORITY\nThis overrides ALL narrative style instructions below. No novelizations. No walls of text.\n\nWrite a SHORT GROUP CONVERSATION SCENE between ${names.join(' and ')} in response to the player's message. Follow these rules:\n\n1. NATURAL TURN ORDER — Let personality decide who speaks first. A bold or reactive NPC jumps in immediately; a cautious one waits and responds to what was already said.\n2. NPCs REACT TO EACH OTHER — Each NPC should acknowledge or respond to what the other NPC(s) just said, not just independently answer the player.\n3. BODY LANGUAGE BEATS — Before or after each line of dialogue, add a brief italicized physical beat (a look, gesture, expression, or micro-reaction) in present tense, 10 words or fewer.\n4. 2–3 EXCHANGES TOTAL — Allow a short back-and-forth between the NPCs (2–3 total speaking turns across all NPCs combined). Keep it punchy — aim for 100–200 words total.\n5. END WITH THE PLAYER — Close the scene on a beat that invites the player back in: a question directed at them, a meaningful look toward them, or a charged pause.\n6. FORMAT — Use **NPC Name:** for every line of dialogue so the chat renderer can identify speakers. Italicize all physical beats.\n7. NO MECHANICAL INFO — No dice, DCs, stats, or game-system language in the dialogue.\n\nStay true to how each NPC has been portrayed so far.`;
 
     try {
@@ -614,7 +619,8 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           user_xai_key: loadApiKey('xai') || undefined,
           coreRulesInGuides: coreRulesInGuides || undefined,
           npcVoicingContext: npcVoicingPrompt,
-          maxTokens: names.length === 1 ? (socialCheck ? 200 : 150) : names.length > 1 ? 500 : undefined,
+          npcVoicingStrict: names.length === 1 ? true : undefined,
+          maxTokens: names.length === 1 ? 260 : names.length > 1 ? 500 : undefined,
           ...(() => {
             const cs = loadCombatSettings();
             const feats: string[] = [];
