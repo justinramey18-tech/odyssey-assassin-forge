@@ -2937,6 +2937,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                     onAddXP={handleAddXP}
                     prestigeData={prestigeData}
                     nextPrestigeXPRequired={nextPrestigeXPRequired}
+                    onManualLevelUp={handleManualLevelUp}
                   />
                 </div>
 
@@ -2952,19 +2953,21 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                 </div>
 
                 {/* Manual Level Up Button */}
-                {character.level < 20 && !requiresOrganicLevelUp && (
+                {character.level < 20 && (isMilestoneProgression || !requiresOrganicLevelUp) && (
                   <button
                     onClick={handleManualLevelUp}
                     className="w-full py-3 px-4 rounded-lg border-2 border-dashed border-primary/30 hover:border-primary/50 bg-primary/5 hover:bg-primary/10 transition-all flex items-center justify-center gap-2 group"
                   >
                     <ChevronUp className="w-5 h-5 text-primary group-hover:animate-bounce" />
-                    <span className="font-display text-sm text-primary">Trigger Level Up</span>
+                    <span className="font-display text-sm text-primary">
+                      {isMilestoneProgression ? 'Advance a Level' : 'Trigger Level Up'}
+                    </span>
                     <ChevronUp className="w-5 h-5 text-primary group-hover:animate-bounce" />
                   </button>
                 )}
                 
                 {/* Honest Mode indicator for organic level up */}
-                {character.level < 20 && requiresOrganicLevelUp && (
+                {character.level < 20 && requiresOrganicLevelUp && !isMilestoneProgression && (
                   <div className="w-full py-3 px-4 rounded-lg border-2 border-dashed border-muted/40 bg-muted/5 flex items-center justify-center gap-2 opacity-60">
                     <Lock className="w-4 h-4 text-muted-foreground" />
                     <span className="font-display text-sm text-muted-foreground">Organic Leveling Mode</span>
@@ -2975,11 +2978,14 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                 <div className="mt-6 p-4 rounded-lg bg-muted/20 border border-muted/30">
                   <p className="text-xs text-muted-foreground text-center font-body">
                     💡 Go to the <strong>Abilities</strong> tab to spend your {availableAbilityPoints} available ability points.
-                    {requiresOrganicLevelUp 
-                      ? ' In Honest Mode, levels are gained organically through XP.'
-                      : ' Add XP to level up, or use the button above for milestone progression.'}
+                    {isMilestoneProgression
+                      ? ' Milestone mode: XP is hidden — use the button above when the story earns a level.'
+                      : requiresOrganicLevelUp 
+                        ? ' In Honest Mode, levels are gained organically through XP.'
+                        : ' Add XP to level up, or use the button above for milestone progression.'}
                   </p>
                 </div>
+
               </div>
             </BackgroundWrapper>
           )}
