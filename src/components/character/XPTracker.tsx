@@ -82,13 +82,14 @@ export function XPTracker({
   const isMaxLevel = currentLevel >= 20;
   const isMilestoneMode = multiplier === 0;
 
-  const progress = getLevelProgress(currentLevel, currentXP, multiplier);
-  const xpToNext = getXPToNextLevel(currentLevel, currentXP, multiplier);
-  const currentLevelXP = getXPForLevel(currentLevel, multiplier);
-  const nextLevelXP = getXPForLevel(currentLevel + 1, multiplier);
-  // Guard against negative values if currentXP < currentLevelXP (data integrity issue)
-  const xpInCurrentLevel = Math.max(0, currentXP - currentLevelXP);
-  const xpNeededForLevel = nextLevelXP - currentLevelXP;
+  // Single source of truth — same numbers the AI DM is briefed with
+  const xp = useXPSnapshot(currentLevel, currentXP);
+  const progress = xp.progressPct;
+  const xpToNext = xp.xpRemaining;
+  const currentLevelXP = xp.levelFloor;
+  const nextLevelXP = xp.nextLevelXP;
+  const xpInCurrentLevel = xp.xpIntoLevel;
+  const xpNeededForLevel = xp.xpLevelSpan;
 
   const getModeIcon = () => {
     switch (mode) {
