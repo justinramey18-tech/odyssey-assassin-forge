@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
-import { Zap, Snail, Gauge } from 'lucide-react';
+import { Zap, Snail, Gauge, Flag, Hash } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 
-export type XPProgressionMode = 'slow' | 'natural' | 'fast';
+export type XPProgressionMode = 'slow' | 'natural' | 'fast' | 'milestone';
 
 interface XPProgressionConfig {
   mode: XPProgressionMode;
@@ -37,21 +37,31 @@ const XP_PROGRESSION_MODES: Record<XPProgressionMode, XPProgressionConfig> = {
     description: 'Halved XP requirements for faster leveling',
     icon: <Zap className="w-4 h-4" />,
   },
+  milestone: {
+    mode: 'milestone',
+    multiplier: 0,
+    label: 'Milestone',
+    description: 'No XP numbers — advance a level when the story earns it',
+    icon: <Flag className="w-4 h-4" />,
+  },
 };
 
 const STORAGE_KEY = 'odyssey-xp-progression';
 
+const VALID_MODES: XPProgressionMode[] = ['slow', 'natural', 'fast', 'milestone'];
+
 export function loadXPProgressionMode(): XPProgressionMode {
   try {
     const stored = getScopedItem(STORAGE_KEY);
-    if (stored && (stored === 'slow' || stored === 'natural' || stored === 'fast')) {
-      return stored;
+    if (stored && VALID_MODES.includes(stored as XPProgressionMode)) {
+      return stored as XPProgressionMode;
     }
   } catch (e) {
     console.error('Failed to load XP progression mode:', e);
   }
   return 'natural';
 }
+
 
 export function saveXPProgressionMode(mode: XPProgressionMode): void {
   try {
