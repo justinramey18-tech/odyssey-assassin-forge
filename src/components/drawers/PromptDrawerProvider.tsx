@@ -33,6 +33,7 @@ import { Enemy } from '@/lib/combat/targetTypes';
 import { ActionEconomy } from '@/lib/combat/combatTypes';
 import { useGameMode, shouldShowInfinityStones } from '@/hooks/use-game-mode';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
+import { useCombatStats } from '@/hooks/use-combat-stats';
 import { useCooldowns } from '@/hooks/use-cooldowns';
 import { useConditions, UseConditionsReturn } from '@/hooks/use-conditions';
 import { Personality, CharacterContext } from '@/components/oracle/types';
@@ -258,6 +259,20 @@ export function PromptDrawerProvider({
   // Calculate equipment stats for real-time display
   const defaultEquipment: CharacterEquipment = { slots: {} as any, inventory: [] };
   const equipmentStats = useEquipmentStats(equipment || defaultEquipment);
+  
+  // Ability modifiers for combat stats (AC, initiative, proficiency bonus)
+  const abilityModifiers = useMemo(() => {
+    if (!getScoreBreakdown) return undefined;
+    return {
+      strength: getScoreBreakdown('strength').modifier,
+      dexterity: getScoreBreakdown('dexterity').modifier,
+      constitution: getScoreBreakdown('constitution').modifier,
+      intelligence: getScoreBreakdown('intelligence').modifier,
+      wisdom: getScoreBreakdown('wisdom').modifier,
+      charisma: getScoreBreakdown('charisma').modifier,
+    };
+  }, [getScoreBreakdown]);
+  const combatStats = useCombatStats({ character, equipmentStats, abilityModifiers });
   
   // Cooldown system
   const cooldownSystem = useCooldowns({
@@ -564,6 +579,16 @@ export function PromptDrawerProvider({
       }
     } catch {}
 
+    // Read proficiencies/expertise from scoped storage (managed by DiceRollerScreen)
+    let proficientSkills: string[] = [];
+    let proficientSaves: string[] = [];
+    let expertiseSkills: string[] = [];
+    try {
+      proficientSkills = JSON.parse(getScopedItem('odyssey-proficient-skills') || '[]');
+      proficientSaves = JSON.parse(getScopedItem('odyssey-proficient-saves') || '[]');
+      expertiseSkills = JSON.parse(getScopedItem('odyssey-expertise-skills') || '[]');
+    } catch {}
+
     // Geralt companion context (momo only)
     let companionContext: CharacterContext['companion'] = undefined;
     if (isMomoEasterEgg(character.name)) {
@@ -617,6 +642,17 @@ export function PromptDrawerProvider({
       prestigeLevel, prestigeAbilities, activeConditions, activeBuffs,
       spellcasting: spellcastingContext, loot: lootContext, combat: combatContextData,
       abilityScores: abilityScoresContext,
+      defenses: {
+        armorClass: combatStats.ac,
+        tempHP: tempHP ?? 0,
+        initiativeBonus: combatStats.initiativeBonus,
+      },
+      proficiencies: {
+        bonus: combatStats.proficiencyBonus,
+        skills: proficientSkills,
+        saves: proficientSaves,
+        expertise: expertiseSkills,
+      },
       companion: companionContext,
       wildShape: wildShape ? {
         isTransformed: wildShape.state.isTransformed,
@@ -629,9 +665,10 @@ export function PromptDrawerProvider({
         maxUses: wildShape.state.maxUses,
       } : undefined,
     };
-  }, [character, currentHP, maxHP, currentXP, xpProgressionMode, xpMultiplier, abilityCustomization.state, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
+  }, [character, currentHP, maxHP, tempHP, currentXP, xpProgressionMode, xpMultiplier, abilityCustomization.state, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
       prestigeLevel, prestigeAbilities, spellcasting, lootItems, totalLootValue, combatContext, conditionsSystem.debuffs, conditionsSystem.buffs,
       getScoreBreakdown, identityGender, identityRace, identityBackstory, identityRelationships,
+      combatStats.ac, combatStats.initiativeBonus, combatStats.proficiencyBonus,
       wildShape?.state.isTransformed, wildShape?.state.currentForm, wildShape?.state.formHP, wildShape?.state.formMaxHP, wildShape?.state.usesRemaining, wildShape?.state.maxUses]);
 
   const [oracleQuestCallback, setOracleQuestCallback] = useState<((quests: Array<{ key: string; status: 'active' | 'completed' | 'failed'; notes?: string }>) => void) | null>(null);

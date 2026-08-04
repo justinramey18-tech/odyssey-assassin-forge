@@ -232,6 +232,33 @@ export function SoloCharacterSheet({
               </div>
             </Section>
 
+            {(typeof ctx.defenses?.armorClass === 'number' || (ctx.defenses?.tempHP ?? 0) > 0) && (
+              <Section title="Defenses" icon={Shield}>
+                <div className="grid grid-cols-3 gap-2">
+                  {typeof ctx.defenses?.armorClass === 'number' && (
+                    <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                      <p className="text-[10px] uppercase tracking-wider text-white/40">Armor Class</p>
+                      <p className="text-xl font-display font-bold text-foreground">{ctx.defenses.armorClass}</p>
+                    </div>
+                  )}
+                  {(ctx.defenses?.tempHP ?? 0) > 0 && (
+                    <div className="rounded-lg border border-cyan-400/25 bg-cyan-400/[0.06] p-3">
+                      <p className="text-[10px] uppercase tracking-wider text-white/40">Temp HP</p>
+                      <p className="text-xl font-display font-bold text-cyan-300">{ctx.defenses?.tempHP}</p>
+                    </div>
+                  )}
+                  {typeof ctx.defenses?.initiativeBonus === 'number' && (
+                    <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                      <p className="text-[10px] uppercase tracking-wider text-white/40">Initiative</p>
+                      <p className="text-xl font-display font-bold text-foreground">
+                        {ctx.defenses.initiativeBonus >= 0 ? '+' : ''}{ctx.defenses.initiativeBonus}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </Section>
+            )}
+
             <Section
               title="Purse & Standing"
               icon={Shield}
@@ -292,6 +319,38 @@ export function SoloCharacterSheet({
                 </div>
               )}
             </Section>
+
+            {ctx.wildShape?.isTransformed && (
+              <Section title="Wild Shape" icon={Sparkles}>
+                <p className="text-sm text-foreground">{ctx.wildShape.formName ?? 'Transformed'}</p>
+                <p className="text-xs text-white/50 mt-1">
+                  {ctx.wildShape.formHP}/{ctx.wildShape.formMaxHP} HP
+                  {typeof ctx.wildShape.formAC === 'number' ? ` · AC ${ctx.wildShape.formAC}` : ''}
+                  {ctx.wildShape.formCR ? ` · CR ${ctx.wildShape.formCR}` : ''}
+                </p>
+                <p className="text-[10px] text-white/40 mt-1">
+                  {ctx.wildShape.usesRemaining}/{ctx.wildShape.maxUses} uses remaining
+                </p>
+              </Section>
+            )}
+
+            {ctx.companion && (
+              <Section title={ctx.companion.name} icon={Heart}>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-lg font-display font-bold text-foreground">
+                    {ctx.companion.currentHP}/{ctx.companion.maxHP}
+                  </span>
+                  <span className="text-[10px] uppercase tracking-wider text-white/40">{ctx.companion.mood}</span>
+                </div>
+                {ctx.companion.conditions.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {ctx.companion.conditions.map(c => (
+                      <Badge key={c} variant="outline" className="text-[10px] capitalize">{c}</Badge>
+                    ))}
+                  </div>
+                )}
+              </Section>
+            )}
 
             <Section title="Rest" icon={Moon}>
               <div className="flex gap-2">
@@ -369,9 +428,50 @@ export function SoloCharacterSheet({
               )}
             </Section>
 
+            {ctx.proficiencies && (ctx.proficiencies.skills.length > 0 || ctx.proficiencies.saves.length > 0) && (
+              <Section title="Proficiencies" icon={Activity}>
+                {typeof ctx.proficiencies.bonus === 'number' && (
+                  <p className="text-[10px] uppercase tracking-wider text-white/40 mb-2">
+                    Proficiency bonus +{ctx.proficiencies.bonus}
+                  </p>
+                )}
+                {ctx.proficiencies.saves.length > 0 && (
+                  <div className="mb-2">
+                    <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Saving throws</p>
+                    <div className="flex flex-wrap gap-1">
+                      {ctx.proficiencies.saves.map(s => (
+                        <Badge key={s} variant="outline" className="text-[10px] uppercase">{s}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {ctx.proficiencies.skills.length > 0 && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Skills</p>
+                    <div className="flex flex-wrap gap-1">
+                      {ctx.proficiencies.skills.map(s => (
+                        <Badge
+                          key={s}
+                          variant="outline"
+                          className={cn('text-[10px] capitalize', ctx.proficiencies?.expertise.includes(s) && 'border-amber-400/60 text-amber-300')}
+                        >
+                          {s.replace(/_/g, ' ')}{ctx.proficiencies?.expertise.includes(s) ? ' ★' : ''}
+                        </Badge>
+                      ))}
+                    </div>
+                    {ctx.proficiencies.expertise.length > 0 && (
+                      <p className="text-[10px] text-amber-300/70 mt-1.5">★ expertise — proficiency bonus doubled</p>
+                    )}
+                  </div>
+                )}
+              </Section>
+            )}
+
             {ctx.multiclassBreakdown && Object.keys(ctx.multiclassBreakdown).length > 0 && (
               <Section title="Classes" icon={BookOpen}>
                 <div className="flex flex-wrap gap-1.5">
+                  {ctx.deity && <Badge variant="outline" className="text-[10px]">Deity: {ctx.deity}</Badge>}
+                  {ctx.domain && <Badge variant="outline" className="text-[10px]">Domain: {ctx.domain}</Badge>}
                   {Object.entries(ctx.multiclassBreakdown).map(([cls, lvl]) => (
                     <Badge key={cls} variant="outline" className="text-[10px] capitalize">{cls} {lvl}</Badge>
                   ))}

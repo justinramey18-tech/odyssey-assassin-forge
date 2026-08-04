@@ -90,6 +90,19 @@ export interface CharacterContext {
   };
   prestigeLevel: number;
   prestigeAbilities: string[];
+  // Defenses (AC, temp HP, initiative) for the DM and the solo sheet
+  defenses?: {
+    armorClass: number;
+    tempHP: number;
+    initiativeBonus: number;
+  };
+  // Proficiencies (skills, saves, expertise) for the DM and the solo sheet
+  proficiencies?: {
+    bonus: number;
+    skills: string[];
+    saves: string[];
+    expertise: string[];
+  };
   // Ability Scores
   abilityScores?: {
     strength: { base: number; modifier: number; final: number };
