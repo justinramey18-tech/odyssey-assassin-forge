@@ -5,6 +5,7 @@ export const SCOPED_KEYS = [
   // Shop & Inventory
   'odyssey-shop',
   'odyssey-loot',
+  'odyssey-pending-dm-items',
   'odyssey-misc-items',
   'odyssey-consumables-inventory',
   // Character stats & HP

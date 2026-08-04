@@ -197,6 +197,11 @@ export function XPTracker({
             <span>Lv {currentLevel}</span>
             <span>{xpToNext.toLocaleString()} XP to next</span>
           </div>
+          {currentXP < currentLevelXP && (
+            <p className="text-[10px] text-amber-400/80 mt-1">
+              Your level was set manually, so earned XP fills this bar only after it reaches {currentLevelXP.toLocaleString()} XP.
+            </p>
+          )}
         </div>
       )}
 

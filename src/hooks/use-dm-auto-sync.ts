@@ -55,7 +55,9 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
   const callbacksRef = useRef(callbacks);
   useEffect(() => { callbacksRef.current = callbacks; });
   const [autoSyncEnabled, setAutoSyncEnabled] = useState<boolean>(() => {
-    return localStorage.getItem(STORAGE_KEY) === 'true';
+    // Default ON: only an explicit opt-out disables automatic character updates.
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored === null ? true : stored === 'true';
   });
   const [isExtracting, setIsExtracting] = useState(false);
   const [lastExtraction, setLastExtraction] = useState<ExtractionResult | null>(null);

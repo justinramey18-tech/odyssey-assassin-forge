@@ -174,6 +174,10 @@ interface PromptDrawerProviderProps {
     getCurrentHP: () => number;
     getCurrentGold: () => number;
   };
+  /** Manual level advance used by the solo DM character sheet */
+  onManualLevelUp?: () => void;
+  /** Accept an item awarded by the AI DM into the loot inventory */
+  onAcceptDmItem?: (name: string, quantity: number) => void;
 }
 
 export function PromptDrawerProvider({
@@ -184,6 +188,8 @@ export function PromptDrawerProvider({
   currentXP = 0,
   xpPreset = 'standard',
   onAddXP = () => {},
+  onManualLevelUp,
+  onAcceptDmItem,
   equipment,
   currentHP,
   maxHP,
@@ -740,7 +746,7 @@ export function PromptDrawerProvider({
             userId={userId}
             onSendHeal={onSendHeal}
             channelDivinity={channelDivinityInfo}
-            
+            hideAbilitiesAndItems={aiDMOpen}
           />
 
           {/* AI Dungeon Master Full-Screen Overlay (Solo only) */}
@@ -755,6 +761,9 @@ export function PromptDrawerProvider({
               dmPersonaName={personalityGate.profile?.dmPersonaName}
               onRetakePersonalityTest={personalityGate.retakeTest}
               wildShape={wildShape}
+              currentXP={currentXP}
+              onManualLevelUp={onManualLevelUp}
+              onAcceptItem={onAcceptDmItem}
               isMomoMoonDruid={isMomoEasterEgg(character.name) && character.primaryClass === 'druid' && subclass?.toLowerCase().includes('moon')}
             />
           )}

@@ -52,6 +52,7 @@ export interface SaveData {
   prestigeTree?: PrestigeTreeProgress;
   shopGold?: number;
   loot?: LootState;
+  pendingDmItems?: { id: string; name: string; quantity: number; addedAt: string }[];
   miscItems?: MiscItem[];
   proficiencies?: {
     skills: string[];
