@@ -188,7 +188,7 @@ const Index = () => {
   
   // XP System State
   const [currentXP, setCurrentXP] = useState(0);
-  const [xpPreset, setXPPreset] = useState<XPPreset>('standard');
+  const [xpPreset, setXPPreset] = useState<XPPreset>(() => progressionModeToPreset(loadXPProgressionMode()));
   
   // Inspiration State (D&D 5e)
   const [hasInspiration, setHasInspiration] = useState(() => {
