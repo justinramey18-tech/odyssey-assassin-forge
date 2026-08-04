@@ -208,6 +208,10 @@ CRITICAL ACCURACY RULES:
 - companion_hp_changes is ONLY for the companion. NEVER put player damage in companion fields or vice versa.
 - Damage amounts are always POSITIVE numbers. The "type" field indicates damage vs healing.
 - Only extract XP if a specific amount is stated (e.g. "gain 50 XP").
+- CONSUMABLES: put an item in items_consumed only when this message says the player USED IT UP — drank, quaffed, read, ate, burned, applied, shattered, threw. "Ramey drinks the Potion of Healing" is a consumption. "Ramey draws a potion from his satchel", "you still have one scroll left", and "you could drink a potion" are NOT.
+- Never put the same item in both items_acquired and items_consumed for one message.
+- If the DM narrates finding and immediately drinking a potion, that is one acquisition and one consumption; record both.
+- Use the item's full name as written in the narration. Do not abbreviate and do not translate it into a generic type.
 - Only extract gold if a specific amount is stated (e.g. "find 10 gold").
 - Only extract items if specifically named as acquired or consumed.
 - Only extract conditions if explicitly applied or removed (e.g., "you are now poisoned").
