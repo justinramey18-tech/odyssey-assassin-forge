@@ -18,6 +18,7 @@ interface CharacterContext {
     tempHP?: number;
     initiativeBonus?: number;
   };
+  gold?: number;
   proficiencies?: {
     bonus?: number;
     skills: string[];
@@ -115,6 +116,7 @@ interface CharacterContext {
       verbal: boolean;
       somatic: boolean;
       material?: string;
+      castable?: boolean;
     }>;
   };
   loot?: {
@@ -348,12 +350,17 @@ function buildContextSummary(ctx: CharacterContext): string {
     const pretty = (id: string) => id.replace(/_/g, ' ');
     const bonusTxt = typeof prof.bonus === 'number' ? ` (proficiency bonus +${prof.bonus})` : '';
     lines.push(`PROFICIENCIES${bonusTxt}:`);
-    if (prof.skills.length > 0) lines.push(`   Skills: ${prof.skills.map(pretty).join(', ')}`);
+    const plainSkills = prof.skills.filter(s => !prof.expertise.includes(s));
+    if (plainSkills.length > 0) lines.push(`   Skills (proficient): ${plainSkills.map(pretty).join(', ')}`);
     if (prof.expertise.length > 0) lines.push(`   EXPERTISE (proficiency bonus is DOUBLED on these): ${prof.expertise.map(pretty).join(', ')}`);
     if (prof.saves.length > 0) lines.push(`   Saving throws: ${prof.saves.map(s => s.toUpperCase()).join(', ')}`);
     lines.push(`   The character is NOT proficient in anything not listed here. Take this into account when setting DCs and when describing how confidently the character attempts something.`);
   }
   
+  if (typeof ctx.gold === 'number') {
+    lines.push(`GOLD: ${ctx.gold} gp — this is the character's ACTUAL purse. Do not invent a different amount. If something costs more than this, the character cannot afford it and you should say so rather than letting the purchase happen.`);
+  }
+
   if (ctx.prestigeLevel > 0) {
     lines.push(`PRESTIGE: Level ${ctx.prestigeLevel}`);
   }
@@ -424,7 +431,9 @@ function buildContextSummary(ctx: CharacterContext): string {
   
   if (ctx.spellcasting && ctx.spellcasting.path) {
     const spell = ctx.spellcasting;
-    lines.push(`\n🔮 SPELLCASTING (${spell.path}):`);
+    const classLabel = ctx.characterClass ? `, character class: ${ctx.characterClass}` : '';
+    lines.push(`\n🔮 SPELLCASTING (magic path: ${spell.path}${classLabel}):`);
+    lines.push(`   NOTE: the magic path and the character class are configured separately in the app and may not match. The SPELL SLOT TABLE BELOW IS AUTHORITATIVE — it reflects what the character can actually cast. If the path name implies a different slot progression, ignore the implication and use the slots as listed.`);
     lines.push(`   Attack Bonus: +${spell.spellAttackBonus} | Save DC: ${spell.spellSaveDC}`);
     const slotStatus = spell.slots.filter(s => s.max > 0).map(s => `${s.level === 1 ? '1st' : s.level === 2 ? '2nd' : s.level === 3 ? '3rd' : s.level + 'th'}: ${s.current}/${s.max}`).join(', ');
     if (slotStatus) lines.push(`   Spell Slots: ${slotStatus}`);
@@ -452,7 +461,10 @@ function buildContextSummary(ctx: CharacterContext): string {
         if (hb.somatic) comps.push('S');
         if (hb.material) comps.push(`M (${hb.material})`);
         if (comps.length > 0) bits.push(`Components: ${comps.join(', ')}`);
-        lines.push(`   • ${hb.name} — ${bits.join(' | ')}`);
+        const castNote = hb.castable === false
+          ? ` — KNOWN BUT NOT YET CASTABLE: the character has no level ${hb.level} slot. Do not let them cast it.`
+          : '';
+        lines.push(`   • ${hb.name} — ${bits.join(' | ')}${castNote}`);
         lines.push(`     Effect: ${hb.description}`);
         if (hb.higherLevels) lines.push(`     At higher levels: ${hb.higherLevels}`);
       }
