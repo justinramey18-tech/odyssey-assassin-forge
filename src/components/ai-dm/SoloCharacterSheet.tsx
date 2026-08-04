@@ -368,7 +368,16 @@ export function SoloCharacterSheet({
             )}
 
             {ctx.prestigeLevel > 0 && (
-              <Section title="Prestige" icon={Sparkles}>
+              <Section
+                title="Prestige"
+                icon={Sparkles}
+                action={
+                  <button onClick={() => { onClose(); navigateToTab('legacy'); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
+                    Legacy tab <ExternalLink className="w-3 h-3" />
+                  </button>
+                }
+              >
+
                 <p className="text-xs text-white/60">Prestige Level {ctx.prestigeLevel}</p>
                 {ctx.prestigeAbilities?.length > 0 && (
                   <p className="text-[11px] text-white/40 mt-1">{ctx.prestigeAbilities.join(', ')}</p>
