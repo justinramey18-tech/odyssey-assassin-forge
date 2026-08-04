@@ -19,6 +19,10 @@ interface CharacterContext {
     currentXP?: number;
     xpForNextLevel?: number;
     xpRemaining?: number;
+    xpLevelFloor?: number;
+    xpIntoLevel?: number;
+    xpLevelSpan?: number;
+    pace?: string;
   };
   characterClass?: string;
   multiclassBreakdown?: Record<string, number>;
@@ -151,11 +155,12 @@ function buildContextSummary(ctx: CharacterContext): string {
     if (ctx.progression.mode === 'milestone') {
       lines.push(`PROGRESSION: Milestone tracking — XP numbers are OFF.`);
     } else if (typeof ctx.progression.currentXP === 'number') {
-      const next = ctx.progression.xpForNextLevel;
+      const p = ctx.progression;
+      const next = p.xpForNextLevel;
       lines.push(
         next && next > 0
-          ? `PROGRESSION: ${ctx.progression.currentXP} XP total; Level ${ctx.level + 1} at ${next} XP (${ctx.progression.xpRemaining} to go).`
-          : `PROGRESSION: ${ctx.progression.currentXP} XP total (max level).`
+          ? `PROGRESSION: ${p.currentXP} lifetime XP${p.pace ? ` (${p.pace} — scaled table, not stock 5e)` : ''}; Level ${ctx.level} began at ${p.xpLevelFloor ?? 0} XP; Level ${ctx.level + 1} at ${next} XP (${p.xpRemaining} to go; sheet shows ${p.xpIntoLevel ?? 0}/${p.xpLevelSpan ?? '?'}).`
+          : `PROGRESSION: ${p.currentXP} XP total (max level).`
       );
     }
   }

@@ -43,6 +43,10 @@ export interface CharacterContext {
     currentXP?: number;
     xpForNextLevel?: number;
     xpRemaining?: number;
+    xpLevelFloor?: number;
+    xpIntoLevel?: number;
+    xpLevelSpan?: number;
+    pace?: string;
   };
   /** Primary class identity (e.g. 'rogue', 'wizard') */
   characterClass?: string;

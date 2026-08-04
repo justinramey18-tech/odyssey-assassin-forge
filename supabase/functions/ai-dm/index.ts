@@ -18,6 +18,10 @@ interface CharacterContext {
     currentXP?: number;
     xpForNextLevel?: number;
     xpRemaining?: number;
+    xpLevelFloor?: number;
+    xpIntoLevel?: number;
+    xpLevelSpan?: number;
+    pace?: string;
   };
   characterClass?: string;
   multiclassBreakdown?: Record<string, number>;
@@ -226,16 +230,24 @@ function buildContextSummary(ctx: CharacterContext): string {
   
   lines.push(`CHARACTER: ${ctx.name}, Level ${ctx.level}`);
   if (ctx.progression) {
-    if (ctx.progression.mode === 'milestone') {
+    const p = ctx.progression;
+    if (p.mode === 'milestone') {
       lines.push(`PROGRESSION: Milestone tracking — XP numbers are OFF. Never mention XP totals or award XP amounts.`);
-    } else if (typeof ctx.progression.currentXP === 'number') {
-      const next = ctx.progression.xpForNextLevel;
-      const remaining = ctx.progression.xpRemaining;
-      lines.push(
-        next && next > 0
-          ? `PROGRESSION: XP tracking — ${ctx.progression.currentXP} XP total. Level ${ctx.level + 1} requires ${next} XP (${remaining} XP still needed).`
-          : `PROGRESSION: XP tracking — ${ctx.progression.currentXP} XP total. Max level reached.`
-      );
+    } else if (typeof p.currentXP === 'number') {
+      const next = p.xpForNextLevel;
+      if (next && next > 0) {
+        const bar = (typeof p.xpIntoLevel === 'number' && typeof p.xpLevelSpan === 'number')
+          ? ` The character sheet displays this as ${p.xpIntoLevel} / ${p.xpLevelSpan} XP toward Level ${ctx.level + 1} (progress within the current level).`
+          : '';
+        lines.push(
+          `PROGRESSION: XP tracking${p.pace ? ` at ${p.pace} pace — this campaign uses a SCALED XP table, not the stock D&D 5e one` : ''}. ` +
+          `Lifetime total: ${p.currentXP} XP. Level ${ctx.level} began at ${p.xpLevelFloor ?? 0} XP. ` +
+          `Level ${ctx.level + 1} unlocks at ${next} lifetime XP — ${p.xpRemaining} XP still needed.${bar} ` +
+          `These are the ONLY valid numbers; do not use any XP table from memory.`
+        );
+      } else {
+        lines.push(`PROGRESSION: XP tracking — ${p.currentXP} XP total. Max level reached.`);
+      }
     }
   }
   if (ctx.characterClass) {
@@ -496,7 +508,8 @@ Everything outside these tags must be narrative prose — no dice notation or DC
 This chat is connected to a character-sheet app that auto-detects explicit state changes in your narration. To sync with the app, state changes with explicit numbers: damage and healing ("You take 7 slashing damage", "You recover 12 HP"), XP awards ("You gain 300 XP"), gold ("You find 25 gold"), conditions applied or removed by name, items acquired with quantities, and short or long rests. GM Guides may define WHEN and HOW you award XP, level the player up, manage HP, or grant loot — those guide rules are binding. If no guide covers it, use standard D&D 5e pacing.
 
 ## LEVEL-UP MATH (NON-NEGOTIABLE)
-The PROGRESSION line in CHARACTER STATE holds the player's real XP total and the exact XP required for the next level. Use those numbers — never estimate.
+The PROGRESSION line in CHARACTER STATE holds the player's real lifetime XP total and the exact XP required for the next level. Those numbers come from the player's app and may use a scaled XP table — they will NOT match the stock D&D 5e table. Copy them exactly; never recall, estimate, or recompute thresholds from memory.
+- When you report progression, quote the PROGRESSION line's numbers verbatim (lifetime total, next-level requirement, XP still needed). If your recollection of 5e disagrees, the PROGRESSION line wins.
 - XP tracking: award XP freely, then add the award to the current total. Announce a level-up ONLY if that new total reaches or exceeds the stated next-level requirement. Otherwise say how much XP remains to the next level and do NOT mention leveling up, new HP, new slots, or ability score improvements.
 - Milestone tracking: never state XP numbers or award XP. Level-ups happen only at story milestones or when a GM Guide says so.
 - Never invent a different XP table than the one in the PROGRESSION line.`;
