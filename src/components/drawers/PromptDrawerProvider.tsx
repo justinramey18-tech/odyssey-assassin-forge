@@ -279,6 +279,21 @@ export function PromptDrawerProvider({
     setAiDMOpen(false);
   }, []);
 
+  // Any overlay can ask the app to jump to a main tab by dispatching
+  // 'odyssey-navigate-tab' (see navigateToTab in SoloCharacterSheet.tsx).
+  // Index.tsx handles the actual tab switch, but the full-screen DM overlays
+  // live in this provider and would otherwise stay mounted on top of the new tab.
+  useEffect(() => {
+    const handleNavigateTab = () => {
+      closeAllDrawers();
+      setPartyDMOpen(false);
+      setPartyDMBuilderAutoOpen(false);
+    };
+    window.addEventListener('odyssey-navigate-tab', handleNavigateTab);
+    return () => window.removeEventListener('odyssey-navigate-tab', handleNavigateTab);
+  }, [closeAllDrawers]);
+
+
   // Edge swipe detection
   useEffect(() => {
     if (!enabled) return;
