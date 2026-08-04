@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { characterPrompts, CharacterPrompt, DEADPOOL_PROMPT_IDS, PROMPT_HINTS } from '@/lib/characterPrompts';
 import { groupBySubcategory, isMasterworkStone } from '@/lib/masterworkGrouping';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
+import { rollCheck, checkRollSuffix } from '@/lib/promptAutoRoll';
 import { useFavoritePrompts } from '@/hooks/use-favorite-prompts';
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 import { AlignmentBadge } from '@/components/alignment/AlignmentBadge';
@@ -87,9 +88,14 @@ export function InfinityStoneDMDrawer({ open, onOpenChange, characterName, onUse
       .replace(/\[Character Name\]/g, characterName || 'The Character')
       .replace(/\[Name\]/g, characterName || 'The Character');
     logPromptUsage(prompt.id);
-    onUsePrompt(applyTimePrefix(processed));
+    // Every RP beat is an attempt: one weighted d20 under the current odds mode
+    // decides how well it goes, and the DM narrates at that tier.
+    const roll = rollCheck();
+    onUsePrompt(applyTimePrefix(processed) + checkRollSuffix(roll));
     onOpenChange(false);
-    toast.success(`${prompt.icon} ${prompt.title}`, { description: 'Added to input' });
+    toast.success(`${prompt.icon} ${prompt.title}`, {
+      description: `d20: ${roll.d20} — ${roll.outcome}`,
+    });
   }, [characterName, logPromptUsage, onUsePrompt, onOpenChange]);
 
   const pickRandom = useCallback(() => {
