@@ -56,7 +56,30 @@ export interface CharacterContext {
   subclass?: string;
   deity?: string;
   domain?: string;
-  abilities: Array<{ name: string; tier: number; tree: string }>;
+  abilities: Array<{
+    name: string;
+    tier: number;
+    tree: string;
+    /** active or passive */
+    type?: string;
+    /** action, bonus_action, reaction, passive, etc. */
+    actionType?: string;
+    /** at_will, per_short_rest, per_long_rest, etc. */
+    usageType?: string;
+    /** Rules text for the tier the character currently has. The model has never
+     *  seen these abilities, so without this it is guessing. */
+    effect?: string;
+    /** Dice for the current tier, e.g. "2d6" */
+    dice?: string;
+    /** Cooldown in minutes, 0 or undefined means none */
+    cooldownMinutes?: number;
+    /** Which weapon the ability uses, for homebrew abilities */
+    attackType?: string;
+    /** True for player-created abilities */
+    isHomebrew?: boolean;
+    /** True for built-in abilities the player has modified */
+    isCustomized?: boolean;
+  }>;
   equippedAbilities: string[];
   equipment: Array<{ slot: string; name: string; rarity: string }>;
   activeSetBonuses: string[];
