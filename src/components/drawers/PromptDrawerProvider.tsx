@@ -20,7 +20,8 @@ import { PersonalityTestWizard } from '@/components/ai-dm/PersonalityTestWizard'
 import { PersonalityResultsScreen } from '@/components/ai-dm/PersonalityResultsScreen';
 import { usePersonalityGate } from '@/hooks/use-personality-gate';
 import { Character } from '@/lib/types';
-import { XPPreset } from '@/lib/xpSystem';
+import { XPPreset, getXPForLevel } from '@/lib/xpSystem';
+import { useXPProgression } from '@/hooks/use-xp-progression';
 import { CharacterEquipment } from '@/lib/inventory/types';
 import { InventoryItem as ConsumableItem } from '@/lib/consumables/types';
 import { LootItem } from '@/lib/loot/types';
