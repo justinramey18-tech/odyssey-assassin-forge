@@ -526,6 +526,10 @@ export function PromptDrawerProvider({
       };
     }
 
+    // The DM already has getCurrentGold for applying changes, but has never been
+    // told the balance. Reuse the same accessor so there is one source of truth.
+    const goldAmount = autoSyncCallbacks?.getCurrentGold?.();
+
     const lootContext: CharacterContext['loot'] = lootItems.length > 0 ? {
       items: lootItems.map(item => ({ name: item.name, category: item.category, rarity: item.rarity, goldValue: item.goldValue, hasDiceMechanics: item.hasDiceMechanics })),
       totalValue: totalLootValue,
