@@ -260,6 +260,20 @@ export function PromptDrawerProvider({
   const defaultEquipment: CharacterEquipment = { slots: {} as any, inventory: [] };
   const equipmentStats = useEquipmentStats(equipment || defaultEquipment);
   
+  // Ability modifiers for combat stats (AC, initiative, proficiency bonus)
+  const abilityModifiers = useMemo(() => {
+    if (!getScoreBreakdown) return undefined;
+    return {
+      strength: getScoreBreakdown('strength').modifier,
+      dexterity: getScoreBreakdown('dexterity').modifier,
+      constitution: getScoreBreakdown('constitution').modifier,
+      intelligence: getScoreBreakdown('intelligence').modifier,
+      wisdom: getScoreBreakdown('wisdom').modifier,
+      charisma: getScoreBreakdown('charisma').modifier,
+    };
+  }, [getScoreBreakdown]);
+  const combatStats = useCombatStats({ character, equipmentStats, abilityModifiers });
+  
   // Cooldown system
   const cooldownSystem = useCooldowns({
     characterAbilities: character.abilities,
