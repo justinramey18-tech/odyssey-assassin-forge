@@ -544,7 +544,16 @@ export function SoloCharacterSheet({
               )}
             </Section>
 
-            <Section title="Loot" icon={Coins}>
+            <Section
+              title="Loot"
+              icon={Coins}
+              action={
+                <button onClick={() => { onClose(); navigateToTab('loot'); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
+                  Inventory tab <ExternalLink className="w-3 h-3" />
+                </button>
+              }
+            >
+
               {!ctx.loot || ctx.loot.items.length === 0 ? (
                 <p className="text-xs text-white/40 text-center py-2">No loot recovered yet.</p>
               ) : (
