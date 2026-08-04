@@ -72,6 +72,26 @@ interface CharacterContext {
     preparedSpells: string[];
     slots: Array<{ level: number; current: number; max: number }>;
     pactSlots?: { current: number; max: number; level: number };
+    homebrewSpells?: Array<{
+      name: string;
+      level: number;
+      school: string;
+      castingTime: string;
+      range: string;
+      duration: string;
+      concentration: boolean;
+      ritual: boolean;
+      description: string;
+      higherLevels?: string;
+      attackType?: string;
+      saveStat?: string;
+      damageType?: string;
+      damageFormula?: string;
+      healingFormula?: string;
+      verbal: boolean;
+      somatic: boolean;
+      material?: string;
+    }>;
   };
   loot?: {
     items: Array<{
@@ -359,6 +379,31 @@ function buildContextSummary(ctx: CharacterContext): string {
     lines.push(`   Total Slots Remaining: ${spell.totalSlotsRemaining}`);
     if (spell.concentratingOn) lines.push(`   ⚡ CONCENTRATING ON: ${spell.concentratingOn}`);
     if (spell.preparedSpells.length > 0) lines.push(`   Prepared Spells: ${spell.preparedSpells.join(', ')}`);
+
+    if (spell.homebrewSpells && spell.homebrewSpells.length > 0) {
+      lines.push(`   HOMEBREW SPELL DEFINITIONS — AUTHORITATIVE. These spells were created by this player inside the app. They are NOT in any published D&D book and you have never seen them before. The stats below are the complete and correct rules for them. Run them exactly as written. Never say you do not recognise one of these spells, never call one "flavour" or a joke, and never ask the player to supply its level, school, damage or effect — it is all here.`);
+      for (const hb of spell.homebrewSpells) {
+        const bits: string[] = [];
+        bits.push(hb.level === 0 ? 'Cantrip' : `Level ${hb.level}`);
+        bits.push(hb.school);
+        bits.push(`Casting time: ${String(hb.castingTime).replace(/_/g, ' ')}`);
+        bits.push(`Range: ${hb.range}`);
+        bits.push(`Duration: ${hb.duration}${hb.concentration ? ' (concentration)' : ''}`);
+        if (hb.ritual) bits.push('Ritual');
+        if (hb.attackType) bits.push(`Resolution: ${hb.attackType}`);
+        if (hb.saveStat) bits.push(`Save: ${hb.saveStat} vs DC ${spell.spellSaveDC}`);
+        if (hb.damageFormula) bits.push(`Damage: ${hb.damageFormula}${hb.damageType ? ` ${hb.damageType}` : ''}`);
+        if (hb.healingFormula) bits.push(`Healing: ${hb.healingFormula}`);
+        const comps: string[] = [];
+        if (hb.verbal) comps.push('V');
+        if (hb.somatic) comps.push('S');
+        if (hb.material) comps.push(`M (${hb.material})`);
+        if (comps.length > 0) bits.push(`Components: ${comps.join(', ')}`);
+        lines.push(`   • ${hb.name} — ${bits.join(' | ')}`);
+        lines.push(`     Effect: ${hb.description}`);
+        if (hb.higherLevels) lines.push(`     At higher levels: ${hb.higherLevels}`);
+      }
+    }
   }
 
   if (ctx.loot && ctx.loot.items.length > 0) {
