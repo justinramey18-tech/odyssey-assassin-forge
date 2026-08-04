@@ -103,6 +103,8 @@ export interface CharacterContext {
     saves: string[];
     expertise: string[];
   };
+  /** Current gold. Without this the DM can award and deduct coin but never knows the balance. */
+  gold?: number;
   // Ability Scores
   abilityScores?: {
     strength: { base: number; modifier: number; final: number };
@@ -156,6 +158,8 @@ export interface CharacterContext {
       verbal: boolean;
       somatic: boolean;
       material?: string;
+      /** False when the character has no slot high enough to cast it yet */
+      castable?: boolean;
     }>;
   };
   // Loot inventory context

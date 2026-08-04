@@ -457,9 +457,11 @@ export function PromptDrawerProvider({
       });
     }
 
-    const consumablesList = consumables.map(c => ({
-      name: c.consumable.name, quantity: c.quantity, type: c.consumable.type,
-    }));
+    const consumablesList = consumables
+      .filter(c => c.quantity > 0)
+      .map(c => ({
+        name: c.consumable.name, quantity: c.quantity, type: c.consumable.type,
+      }));
 
     const activeCooldowns: Array<{ name: string; remainingSeconds: number }> = [];
     const readyCooldowns: string[] = [];
@@ -479,6 +481,11 @@ export function PromptDrawerProvider({
       // Homebrew spells exist only in this player's app, so the DM cannot look them
       // up. Ship the full stat block for every custom spell the character knows or
       // has prepared, deduplicated, capped so the prompt stays a sane size.
+      // Highest spell slot level the character actually has, used to flag spells
+      // that are known but not yet castable.
+      const highestSlotLevel = Object.entries(state.spellSlots)
+        .filter(([, s]) => s.max > 0)
+        .reduce((hi, [lvl]) => Math.max(hi, parseInt(lvl, 10)), 0);
       const customSpellIds = Array.from(new Set([...state.preparedSpells, ...state.knownSpells]));
       const homebrewSpells = customSpellIds
         .map(id => getSpellById(id))
@@ -503,6 +510,7 @@ export function PromptDrawerProvider({
           verbal: s.components?.verbal ?? false,
           somatic: s.components?.somatic ?? false,
           material: s.components?.material,
+          castable: s.level === 0 || s.level <= highestSlotLevel,
         }));
 
       spellcastingContext = {
@@ -517,6 +525,10 @@ export function PromptDrawerProvider({
         homebrewSpells: homebrewSpells.length > 0 ? homebrewSpells : undefined,
       };
     }
+
+    // The DM already has getCurrentGold for applying changes, but has never been
+    // told the balance. Reuse the same accessor so there is one source of truth.
+    const goldAmount = autoSyncCallbacks?.getCurrentGold?.();
 
     const lootContext: CharacterContext['loot'] = lootItems.length > 0 ? {
       items: lootItems.map(item => ({ name: item.name, category: item.category, rarity: item.rarity, goldValue: item.goldValue, hasDiceMechanics: item.hasDiceMechanics })),
@@ -653,6 +665,7 @@ export function PromptDrawerProvider({
         saves: proficientSaves,
         expertise: expertiseSkills,
       },
+      gold: typeof goldAmount === 'number' && Number.isFinite(goldAmount) ? goldAmount : undefined,
       companion: companionContext,
       wildShape: wildShape ? {
         isTransformed: wildShape.state.isTransformed,
@@ -665,7 +678,7 @@ export function PromptDrawerProvider({
         maxUses: wildShape.state.maxUses,
       } : undefined,
     };
-  }, [character, currentHP, maxHP, tempHP, currentXP, xpProgressionMode, xpMultiplier, abilityCustomization.state, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
+  }, [character, currentHP, maxHP, tempHP, currentXP, xpProgressionMode, xpMultiplier, abilityCustomization.state, autoSyncCallbacks, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
       prestigeLevel, prestigeAbilities, spellcasting, lootItems, totalLootValue, combatContext, conditionsSystem.debuffs, conditionsSystem.buffs,
       getScoreBreakdown, identityGender, identityRace, identityBackstory, identityRelationships,
       combatStats.ac, combatStats.initiativeBonus, combatStats.proficiencyBonus,
