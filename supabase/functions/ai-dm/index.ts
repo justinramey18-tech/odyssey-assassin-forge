@@ -357,6 +357,10 @@ function buildContextSummary(ctx: CharacterContext): string {
     lines.push(`   The character is NOT proficient in anything not listed here. Take this into account when setting DCs and when describing how confidently the character attempts something.`);
   }
   
+  if (typeof ctx.gold === 'number') {
+    lines.push(`GOLD: ${ctx.gold} gp — this is the character's ACTUAL purse. Do not invent a different amount. If something costs more than this, the character cannot afford it and you should say so rather than letting the purchase happen.`);
+  }
+
   if (ctx.prestigeLevel > 0) {
     lines.push(`PRESTIGE: Level ${ctx.prestigeLevel}`);
   }
