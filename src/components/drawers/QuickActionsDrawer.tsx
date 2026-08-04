@@ -1519,6 +1519,7 @@ export function QuickActionsDrawer({
                 </div>
               </CollapsibleContent>
             </Collapsible>
+            )}
 
             {/* ── MAGIC (Prepared Spells) ── */}
             <Collapsible className="group">
