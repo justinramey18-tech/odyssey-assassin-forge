@@ -17,6 +17,7 @@ import {
   XP_PRESETS,
   XPPreset,
 } from '@/lib/xpSystem';
+import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
 import { AggregatedStats } from '@/hooks/use-equipment-stats';
 import { AbilityScoresPanel } from '@/components/character/AbilityScoresPanel';
 import { 
