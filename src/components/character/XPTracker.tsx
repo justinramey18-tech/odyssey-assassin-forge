@@ -188,7 +188,7 @@ export function XPTracker({
       ) : (
         <div className="relative">
           <div className="flex items-center justify-between text-xs mb-1">
-            <span className="text-muted-foreground font-body">Experience</span>
+            <span className="text-muted-foreground font-body">Level {currentLevel} progress</span>
             <span className="font-display font-semibold">
               <span className="text-primary">{xpInCurrentLevel.toLocaleString()}</span>
               <span className="text-muted-foreground"> / {xpNeededForLevel.toLocaleString()}</span>
@@ -196,7 +196,7 @@ export function XPTracker({
           </div>
           <Progress value={progress} className="h-3" />
           <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5">
-            <span>Lv {currentLevel}</span>
+            <span>Lifetime {currentXP.toLocaleString()} / {nextLevelXP.toLocaleString()}</span>
             <span>{xpToNext.toLocaleString()} XP to next</span>
           </div>
           {currentXP < currentLevelXP && (

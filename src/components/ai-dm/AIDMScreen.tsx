@@ -951,6 +951,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           maxHP={characterContext.maxHP}
           xpInLevel={xpSnapshot.xpIntoLevel}
           xpNeeded={xpSnapshot.xpLevelSpan}
+          totalXP={xpSnapshot.totalXP}
+          nextLevelXP={xpSnapshot.nextLevelXP}
           isMilestone={xpSnapshot.mode === 'milestone'}
           pendingItemCount={pendingItemCount}
           onOpen={() => setShowCharacterSheet(true)}
