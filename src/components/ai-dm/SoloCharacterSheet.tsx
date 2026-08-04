@@ -220,7 +220,16 @@ export function SoloCharacterSheet({
               </div>
             </Section>
 
-            <Section title="Purse & Standing" icon={Shield}>
+            <Section
+              title="Purse & Standing"
+              icon={Shield}
+              action={
+                <button onClick={() => { onClose(); navigateToTab('shop'); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
+                  Inventory tab <ExternalLink className="w-3 h-3" />
+                </button>
+              }
+            >
+
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                   <p className="text-[10px] uppercase tracking-wider text-white/40 flex items-center gap-1">
@@ -359,7 +368,16 @@ export function SoloCharacterSheet({
             )}
 
             {ctx.prestigeLevel > 0 && (
-              <Section title="Prestige" icon={Sparkles}>
+              <Section
+                title="Prestige"
+                icon={Sparkles}
+                action={
+                  <button onClick={() => { onClose(); navigateToTab('legacy'); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
+                    Legacy tab <ExternalLink className="w-3 h-3" />
+                  </button>
+                }
+              >
+
                 <p className="text-xs text-white/60">Prestige Level {ctx.prestigeLevel}</p>
                 {ctx.prestigeAbilities?.length > 0 && (
                   <p className="text-[11px] text-white/40 mt-1">{ctx.prestigeAbilities.join(', ')}</p>
@@ -526,7 +544,16 @@ export function SoloCharacterSheet({
               )}
             </Section>
 
-            <Section title="Loot" icon={Coins}>
+            <Section
+              title="Loot"
+              icon={Coins}
+              action={
+                <button onClick={() => { onClose(); navigateToTab('loot'); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
+                  Inventory tab <ExternalLink className="w-3 h-3" />
+                </button>
+              }
+            >
+
               {!ctx.loot || ctx.loot.items.length === 0 ? (
                 <p className="text-xs text-white/40 text-center py-2">No loot recovered yet.</p>
               ) : (
