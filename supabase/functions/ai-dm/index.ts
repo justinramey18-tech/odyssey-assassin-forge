@@ -32,7 +32,20 @@ interface CharacterContext {
   race?: string;
   backstory?: string;
   relationships?: Array<{ name: string; disposition: string; notes?: string }>;
-  abilities: Array<{ name: string; tier: number; tree: string }>;
+  abilities: Array<{
+    name: string;
+    tier: number;
+    tree: string;
+    type?: string;
+    actionType?: string;
+    usageType?: string;
+    effect?: string;
+    dice?: string;
+    cooldownMinutes?: number;
+    attackType?: string;
+    isHomebrew?: boolean;
+    isCustomized?: boolean;
+  }>;
   equippedAbilities: string[];
   equipment: Array<{ slot: string; name: string; rarity: string }>;
   activeSetBonuses: string[];
@@ -320,12 +333,22 @@ function buildContextSummary(ctx: CharacterContext): string {
     lines.push(`ABILITY SCORES: STR ${scores.strength.final}(${scores.strength.modifier >= 0 ? '+' : ''}${scores.strength.modifier}) DEX ${scores.dexterity.final}(${scores.dexterity.modifier >= 0 ? '+' : ''}${scores.dexterity.modifier}) CON ${scores.constitution.final}(${scores.constitution.modifier >= 0 ? '+' : ''}${scores.constitution.modifier}) INT ${scores.intelligence.final}(${scores.intelligence.modifier >= 0 ? '+' : ''}${scores.intelligence.modifier}) WIS ${scores.wisdom.final}(${scores.wisdom.modifier >= 0 ? '+' : ''}${scores.wisdom.modifier}) CHA ${scores.charisma.final}(${scores.charisma.modifier >= 0 ? '+' : ''}${scores.charisma.modifier})`);
   }
   
-  if (ctx.abilities.length > 0) {
-    const abilityList = ctx.abilities
-      .filter(a => a.tier > 0)
-      .map(a => `${a.name} (Tier ${a.tier}, ${a.tree})`)
-      .join(', ');
-    if (abilityList) lines.push(`UNLOCKED ABILITIES: ${abilityList}`);
+  const unlockedAbilities = (ctx.abilities || []).filter(a => a.tier > 0);
+  if (unlockedAbilities.length > 0) {
+    lines.push(`UNLOCKED ABILITIES — AUTHORITATIVE. These are this app's own abilities, not standard D&D 5e features, and some were created or rewritten by the player. The effect text below is the complete and correct rule for each ability at the tier the character currently has. Use it exactly as written. Never substitute a similarly named 5e feature, never invent a different effect, and never ask the player what one of their abilities does.`);
+    for (const a of unlockedAbilities) {
+      const meta: string[] = [`Tier ${a.tier}`, a.tree];
+      if (a.type) meta.push(a.type);
+      if (a.actionType) meta.push(String(a.actionType).replace(/_/g, ' '));
+      if (a.usageType) meta.push(String(a.usageType).replace(/_/g, ' '));
+      if (a.dice) meta.push(`Dice: ${a.dice}`);
+      if (a.attackType && a.attackType !== 'none') meta.push(`Uses weapon: ${String(a.attackType).replace(/_/g, ' ')}`);
+      if (typeof a.cooldownMinutes === 'number' && a.cooldownMinutes > 0) meta.push(`Cooldown: ${a.cooldownMinutes} min`);
+      if (a.isHomebrew) meta.push('PLAYER-CREATED');
+      else if (a.isCustomized) meta.push('player-modified');
+      lines.push(`   • ${a.name} (${meta.join(', ')})`);
+      if (a.effect) lines.push(`     Effect: ${a.effect}`);
+    }
   }
   
   if (ctx.equippedAbilities.length > 0) {
