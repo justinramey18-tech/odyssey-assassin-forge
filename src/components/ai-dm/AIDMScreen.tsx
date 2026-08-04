@@ -48,7 +48,8 @@ import { useLinkedUniverse } from '@/hooks/use-linked-universe';
 import { LinkedUniverseSection } from '@/components/empyrean/LinkedUniverseSection';
 
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
-import { SoloCharacterSheet } from '@/components/ai-dm/SoloCharacterSheet';
+import { SoloCharacterSheet, type SheetTab } from '@/components/ai-dm/SoloCharacterSheet';
+import { getSheetReturn, clearSheetReturn } from '@/lib/sheetReturn';
 import { CharacterSheetStrip } from '@/components/ai-dm/CharacterSheetStrip';
 import { addPendingDmItems, loadPendingDmItems, PENDING_DM_ITEMS_EVENT } from '@/lib/pendingDmItems';
 import { useXPProgression } from '@/hooks/use-xp-progression';
@@ -424,6 +425,17 @@ function parseNpcTags(text: string, knownNames: string[]): { npcNames: string[];
 
 export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks, dmPersonaPrompt, dmPersonaName, onRetakePersonalityTest, wildShape, isMomoMoonDruid, currentXP = 0, onManualLevelUp, onAcceptItem }: AIDMScreenProps) {
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
+  const [restoreSheetTab, setRestoreSheetTab] = useState<SheetTab | undefined>(undefined);
+
+  // If the player left the sheet for an app tab and tapped "Back to character sheet",
+  // this screen has just been remounted. Reopen the sheet on the tab they left.
+  useEffect(() => {
+    const pendingReturn = getSheetReturn();
+    if (!pendingReturn) return;
+    setRestoreSheetTab(pendingReturn.sheetTab as SheetTab);
+    setShowCharacterSheet(true);
+    clearSheetReturn();
+  }, []);
   const [pendingItemCount, setPendingItemCount] = useState(() => loadPendingDmItems().length);
   const { multiplier: xpMultiplier } = useXPProgression();
   // Single source of truth for XP totals (shared with the AI DM briefing)
@@ -1537,7 +1549,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
 
       <SoloCharacterSheet
         open={showCharacterSheet}
-        onClose={() => setShowCharacterSheet(false)}
+        initialTab={restoreSheetTab}
+        onClose={() => { setShowCharacterSheet(false); setRestoreSheetTab(undefined); }}
         ctx={characterContext}
         currentXP={currentXP}
         gold={autoSyncCallbacks?.getCurrentGold?.() ?? 0}
