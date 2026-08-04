@@ -237,7 +237,7 @@ CHARACTER: "${characterContext?.name || "Adventurer"}" is Level ${characterConte
           status: result.status || 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const extracted = result.toolArguments || { hp_changes: [], xp_gained: null, gold_changes: [], conditions_added: [], conditions_removed: [], items_acquired: [], rest_occurred: null, map_entities: [], map_entities_removed: [], companion_hp_changes: [], companion_conditions_added: [], companion_conditions_removed: [], hp_absolute: null, companion_hp_absolute: null };
+      const extracted = result.toolArguments || { hp_changes: [], xp_gained: null, gold_changes: [], conditions_added: [], conditions_removed: [], items_acquired: [], items_consumed: [], rest_occurred: null, map_entities: [], map_entities_removed: [], companion_hp_changes: [], companion_conditions_added: [], companion_conditions_removed: [], hp_absolute: null, companion_hp_absolute: null };
       return new Response(JSON.stringify(extracted), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
