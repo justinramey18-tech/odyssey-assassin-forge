@@ -308,6 +308,21 @@ const Index = () => {
     tabFilter: appMode.isTabVisible,
   });
 
+  // Navigate to a main app tab from overlays (e.g. the solo DM character sheet)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const tab = (e as CustomEvent<string>).detail;
+      if (!tab) return;
+      const mapping = getTabToCategoryMapping(tab as any);
+      categoryNav.setMainCategory(mapping.category);
+      categoryNav.navigateToSubTab(mapping.subTab, mapping.category);
+      setShowHomeScreen(false);
+      setShowWizard(false);
+    };
+    window.addEventListener('odyssey-navigate-tab', handler);
+    return () => window.removeEventListener('odyssey-navigate-tab', handler);
+  }, [categoryNav]);
+
   // Deep-link: navigate to tab from ?tab= query param
   useEffect(() => {
     if (pendingTab) {
@@ -2593,6 +2608,21 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         partyId={isPartyMode ? partySync.party.partyId : null}
         isPartyCreator={isPartyMode ? partySync.party.isCreator : false}
         autoSyncCallbacks={autoSyncCallbacks}
+        onManualLevelUp={handleManualLevelUp}
+        onAcceptDmItem={(name, quantity) => {
+          const now = new Date().toISOString();
+          const items = Array.from({ length: Math.max(1, quantity) }, () => ({
+            id: crypto.randomUUID(),
+            name,
+            category: 'miscellaneous' as const,
+            rarity: 'common' as const,
+            goldValue: 0,
+            description: 'Awarded by the AI Dungeon Master.',
+            acquiredAt: now,
+            hasDiceMechanics: false,
+          }));
+          loot.addLootItems(items);
+        }}
         onOpenPartyChat={() => setOpenPartyChatRequested(true)}
       >
         {isPartyMode && (
