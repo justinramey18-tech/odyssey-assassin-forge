@@ -1539,6 +1539,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
             setAchievements(cloudData.achievements);
             setCurrentXP(cloudData.xp.currentXP);
             setXPPreset(cloudData.xp.xpPreset as XPPreset);
+            saveXPProgressionMode(presetToProgressionMode(cloudData.xp.xpPreset as XPPreset));
+
 
             // Prestige
             if (cloudData.prestige) {
