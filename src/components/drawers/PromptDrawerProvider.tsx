@@ -366,6 +366,9 @@ export function PromptDrawerProvider({
     return () => window.removeEventListener('dm-quick-action-remove', handleQuickActionRemove);
   }, [spellcasting]);
 
+  // XP progression pace (multiplier-aware thresholds for the AI DM briefing)
+  const { mode: xpProgressionMode, multiplier: xpMultiplier } = useXPProgression();
+
   // Build full character context for AI DM (same logic as OracleDrawer)
   const aiDMCharacterContext = useMemo<CharacterContext>(() => {
     const hp = currentHP ?? character.level * 8 + 10;
