@@ -461,7 +461,10 @@ function buildContextSummary(ctx: CharacterContext): string {
         if (hb.somatic) comps.push('S');
         if (hb.material) comps.push(`M (${hb.material})`);
         if (comps.length > 0) bits.push(`Components: ${comps.join(', ')}`);
-        lines.push(`   • ${hb.name} — ${bits.join(' | ')}`);
+        const castNote = hb.castable === false
+          ? ` — KNOWN BUT NOT YET CASTABLE: the character has no level ${hb.level} slot. Do not let them cast it.`
+          : '';
+        lines.push(`   • ${hb.name} — ${bits.join(' | ')}${castNote}`);
         lines.push(`     Effect: ${hb.description}`);
         if (hb.higherLevels) lines.push(`     At higher levels: ${hb.higherLevels}`);
       }
