@@ -1828,6 +1828,7 @@ export function QuickActionsDrawer({
                 </div>
               </CollapsibleContent>
             </Collapsible>
+            )}
 
             {/* ── HOMEBREW (Aggregated) ── */}
             {homebrewData.totalCount > 0 && (
