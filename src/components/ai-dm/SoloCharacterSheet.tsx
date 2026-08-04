@@ -232,6 +232,33 @@ export function SoloCharacterSheet({
               </div>
             </Section>
 
+            {(typeof ctx.defenses?.armorClass === 'number' || (ctx.defenses?.tempHP ?? 0) > 0) && (
+              <Section title="Defenses" icon={Shield}>
+                <div className="grid grid-cols-3 gap-2">
+                  {typeof ctx.defenses?.armorClass === 'number' && (
+                    <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                      <p className="text-[10px] uppercase tracking-wider text-white/40">Armor Class</p>
+                      <p className="text-xl font-display font-bold text-foreground">{ctx.defenses.armorClass}</p>
+                    </div>
+                  )}
+                  {(ctx.defenses?.tempHP ?? 0) > 0 && (
+                    <div className="rounded-lg border border-cyan-400/25 bg-cyan-400/[0.06] p-3">
+                      <p className="text-[10px] uppercase tracking-wider text-white/40">Temp HP</p>
+                      <p className="text-xl font-display font-bold text-cyan-300">{ctx.defenses?.tempHP}</p>
+                    </div>
+                  )}
+                  {typeof ctx.defenses?.initiativeBonus === 'number' && (
+                    <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                      <p className="text-[10px] uppercase tracking-wider text-white/40">Initiative</p>
+                      <p className="text-xl font-display font-bold text-foreground">
+                        {ctx.defenses.initiativeBonus >= 0 ? '+' : ''}{ctx.defenses.initiativeBonus}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </Section>
+            )}
+
             <Section
               title="Purse & Standing"
               icon={Shield}
