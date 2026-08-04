@@ -457,9 +457,11 @@ export function PromptDrawerProvider({
       });
     }
 
-    const consumablesList = consumables.map(c => ({
-      name: c.consumable.name, quantity: c.quantity, type: c.consumable.type,
-    }));
+    const consumablesList = consumables
+      .filter(c => c.quantity > 0)
+      .map(c => ({
+        name: c.consumable.name, quantity: c.quantity, type: c.consumable.type,
+      }));
 
     const activeCooldowns: Array<{ name: string; remainingSeconds: number }> = [];
     const readyCooldowns: string[] = [];
