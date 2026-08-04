@@ -18,6 +18,8 @@ import { AIDMScreen } from '@/components/ai-dm';
 import { StandalonePartyDMScreen } from '@/components/ai-dm/StandalonePartyDMScreen';
 import { PersonalityTestWizard } from '@/components/ai-dm/PersonalityTestWizard';
 import { PersonalityResultsScreen } from '@/components/ai-dm/PersonalityResultsScreen';
+import { ReturnToSheetButton } from '@/components/ai-dm/ReturnToSheetButton';
+import { clearSheetReturn } from '@/lib/sheetReturn';
 import { usePersonalityGate } from '@/hooks/use-personality-gate';
 import { Character } from '@/lib/types';
 import { XPPreset, getXPForLevel } from '@/lib/xpSystem';
@@ -595,6 +597,9 @@ export function PromptDrawerProvider({
       setQuickActionsOpen(true);
     }, []),
     openAIDMScreen: useCallback(() => {
+      // Opening the DM deliberately should land on the chat, not silently
+      // reopen a character sheet the player walked away from earlier.
+      clearSheetReturn();
       closeAllDrawers(); setAiDMOpen(true);
     }, [closeAllDrawers]),
     openPartyDMScreen: useCallback(() => { closeAllDrawers(); setPartyDMOpen(true); }, [closeAllDrawers]),
@@ -803,6 +808,15 @@ export function PromptDrawerProvider({
               isMomoMoonDruid={isMomoEasterEgg(character.name) && character.primaryClass === 'druid' && subclass?.toLowerCase().includes('moon')}
             />
           )}
+
+          {/* One-tap return to the DM character sheet after jumping to an app tab.
+              Renders nothing unless a return is pending. */}
+          <ReturnToSheetButton
+            hidden={aiDMOpen || partyDMOpen}
+            onReturn={() => { closeAllDrawers(); setAiDMOpen(true); }}
+          />
+
+
 
           {/* Personality Test Wizard */}
           {personalityGate.showWizard && userId && (
