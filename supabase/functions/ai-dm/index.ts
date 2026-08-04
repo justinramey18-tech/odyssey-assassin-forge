@@ -230,16 +230,24 @@ function buildContextSummary(ctx: CharacterContext): string {
   
   lines.push(`CHARACTER: ${ctx.name}, Level ${ctx.level}`);
   if (ctx.progression) {
-    if (ctx.progression.mode === 'milestone') {
+    const p = ctx.progression;
+    if (p.mode === 'milestone') {
       lines.push(`PROGRESSION: Milestone tracking — XP numbers are OFF. Never mention XP totals or award XP amounts.`);
-    } else if (typeof ctx.progression.currentXP === 'number') {
-      const next = ctx.progression.xpForNextLevel;
-      const remaining = ctx.progression.xpRemaining;
-      lines.push(
-        next && next > 0
-          ? `PROGRESSION: XP tracking — ${ctx.progression.currentXP} XP total. Level ${ctx.level + 1} requires ${next} XP (${remaining} XP still needed).`
-          : `PROGRESSION: XP tracking — ${ctx.progression.currentXP} XP total. Max level reached.`
-      );
+    } else if (typeof p.currentXP === 'number') {
+      const next = p.xpForNextLevel;
+      if (next && next > 0) {
+        const bar = (typeof p.xpIntoLevel === 'number' && typeof p.xpLevelSpan === 'number')
+          ? ` The character sheet displays this as ${p.xpIntoLevel} / ${p.xpLevelSpan} XP toward Level ${ctx.level + 1} (progress within the current level).`
+          : '';
+        lines.push(
+          `PROGRESSION: XP tracking${p.pace ? ` at ${p.pace} pace — this campaign uses a SCALED XP table, not the stock D&D 5e one` : ''}. ` +
+          `Lifetime total: ${p.currentXP} XP. Level ${ctx.level} began at ${p.xpLevelFloor ?? 0} XP. ` +
+          `Level ${ctx.level + 1} unlocks at ${next} lifetime XP — ${p.xpRemaining} XP still needed.${bar} ` +
+          `These are the ONLY valid numbers; do not use any XP table from memory.`
+        );
+      } else {
+        lines.push(`PROGRESSION: XP tracking — ${p.currentXP} XP total. Max level reached.`);
+      }
     }
   }
   if (ctx.characterClass) {
