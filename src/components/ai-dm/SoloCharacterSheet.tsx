@@ -220,7 +220,16 @@ export function SoloCharacterSheet({
               </div>
             </Section>
 
-            <Section title="Purse & Standing" icon={Shield}>
+            <Section
+              title="Purse & Standing"
+              icon={Shield}
+              action={
+                <button onClick={() => { onClose(); navigateToTab('shop'); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
+                  Inventory tab <ExternalLink className="w-3 h-3" />
+                </button>
+              }
+            >
+
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                   <p className="text-[10px] uppercase tracking-wider text-white/40 flex items-center gap-1">
