@@ -13,6 +13,12 @@ interface CharacterContext {
   level: number;
   currentHP: number;
   maxHP: number;
+  progression?: {
+    mode: 'xp' | 'milestone';
+    currentXP?: number;
+    xpForNextLevel?: number;
+    xpRemaining?: number;
+  };
   characterClass?: string;
   multiclassBreakdown?: Record<string, number>;
   subclass?: string;
@@ -219,6 +225,19 @@ function buildContextSummary(ctx: CharacterContext): string {
   const lines: string[] = [];
   
   lines.push(`CHARACTER: ${ctx.name}, Level ${ctx.level}`);
+  if (ctx.progression) {
+    if (ctx.progression.mode === 'milestone') {
+      lines.push(`PROGRESSION: Milestone tracking — XP numbers are OFF. Never mention XP totals or award XP amounts.`);
+    } else if (typeof ctx.progression.currentXP === 'number') {
+      const next = ctx.progression.xpForNextLevel;
+      const remaining = ctx.progression.xpRemaining;
+      lines.push(
+        next && next > 0
+          ? `PROGRESSION: XP tracking — ${ctx.progression.currentXP} XP total. Level ${ctx.level + 1} requires ${next} XP (${remaining} XP still needed).`
+          : `PROGRESSION: XP tracking — ${ctx.progression.currentXP} XP total. Max level reached.`
+      );
+    }
+  }
   if (ctx.characterClass) {
     if (ctx.multiclassBreakdown && Object.keys(ctx.multiclassBreakdown).length > 1) {
       const breakdown = Object.entries(ctx.multiclassBreakdown)
@@ -474,7 +493,13 @@ Separate mechanical content from narrative prose using these tags:
 Everything outside these tags must be narrative prose — no dice notation or DCs in narrative text. Multiple tagged blocks per response are fine; keep each concise.
 
 ## APP SYNC (COMPANION APP INTEGRATION)
-This chat is connected to a character-sheet app that auto-detects explicit state changes in your narration. To sync with the app, state changes with explicit numbers: damage and healing ("You take 7 slashing damage", "You recover 12 HP"), XP awards ("You gain 300 XP"), gold ("You find 25 gold"), conditions applied or removed by name, items acquired with quantities, and short or long rests. GM Guides may define WHEN and HOW you award XP, level the player up, manage HP, or grant loot — those guide rules are binding. If no guide covers it, use standard D&D 5e pacing.`;
+This chat is connected to a character-sheet app that auto-detects explicit state changes in your narration. To sync with the app, state changes with explicit numbers: damage and healing ("You take 7 slashing damage", "You recover 12 HP"), XP awards ("You gain 300 XP"), gold ("You find 25 gold"), conditions applied or removed by name, items acquired with quantities, and short or long rests. GM Guides may define WHEN and HOW you award XP, level the player up, manage HP, or grant loot — those guide rules are binding. If no guide covers it, use standard D&D 5e pacing.
+
+## LEVEL-UP MATH (NON-NEGOTIABLE)
+The PROGRESSION line in CHARACTER STATE holds the player's real XP total and the exact XP required for the next level. Use those numbers — never estimate.
+- XP tracking: award XP freely, then add the award to the current total. Announce a level-up ONLY if that new total reaches or exceeds the stated next-level requirement. Otherwise say how much XP remains to the next level and do NOT mention leveling up, new HP, new slots, or ability score improvements.
+- Milestone tracking: never state XP numbers or award XP. Level-ups happen only at story milestones or when a GM Guide says so.
+- Never invent a different XP table than the one in the PROGRESSION line.`;
 
   if (ctx.companion) {
     prompt += `\n\n## COMPANION RULES

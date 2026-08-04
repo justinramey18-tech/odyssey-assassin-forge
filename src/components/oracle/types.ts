@@ -37,6 +37,13 @@ export interface CharacterContext {
   relationships?: Array<{ name: string; disposition: string; notes?: string }>;
   currentHP: number;
   maxHP: number;
+  /** Live XP progression so the DM never guesses level-up thresholds */
+  progression?: {
+    mode: 'xp' | 'milestone';
+    currentXP?: number;
+    xpForNextLevel?: number;
+    xpRemaining?: number;
+  };
   /** Primary class identity (e.g. 'rogue', 'wizard') */
   characterClass?: string;
   /** Multiclass breakdown: e.g. { rogue: 7, warlock: 3 } — only present if multiclassed */

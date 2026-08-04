@@ -20,7 +20,8 @@ import { PersonalityTestWizard } from '@/components/ai-dm/PersonalityTestWizard'
 import { PersonalityResultsScreen } from '@/components/ai-dm/PersonalityResultsScreen';
 import { usePersonalityGate } from '@/hooks/use-personality-gate';
 import { Character } from '@/lib/types';
-import { XPPreset } from '@/lib/xpSystem';
+import { XPPreset, getXPForLevel } from '@/lib/xpSystem';
+import { useXPProgression } from '@/hooks/use-xp-progression';
 import { CharacterEquipment } from '@/lib/inventory/types';
 import { InventoryItem as ConsumableItem } from '@/lib/consumables/types';
 import { LootItem } from '@/lib/loot/types';
@@ -365,6 +366,9 @@ export function PromptDrawerProvider({
     return () => window.removeEventListener('dm-quick-action-remove', handleQuickActionRemove);
   }, [spellcasting]);
 
+  // XP progression pace (multiplier-aware thresholds for the AI DM briefing)
+  const { mode: xpProgressionMode, multiplier: xpMultiplier } = useXPProgression();
+
   // Build full character context for AI DM (same logic as OracleDrawer)
   const aiDMCharacterContext = useMemo<CharacterContext>(() => {
     const hp = currentHP ?? character.level * 8 + 10;
@@ -502,8 +506,19 @@ export function PromptDrawerProvider({
         ? { [characterClass]: character.level, ...character.multiclassLevels }
         : undefined;
 
+    // Progression snapshot so the DM knows real XP thresholds
+    const isMilestone = xpProgressionMode === 'milestone';
+    const nextLevelXP = character.level >= 20 ? 0 : getXPForLevel(character.level + 1, xpMultiplier || 1);
+    const progression: CharacterContext['progression'] = {
+      mode: isMilestone ? 'milestone' : 'xp',
+      currentXP: isMilestone ? undefined : currentXP,
+      xpForNextLevel: isMilestone || character.level >= 20 ? undefined : nextLevelXP,
+      xpRemaining: isMilestone || character.level >= 20 ? undefined : Math.max(0, nextLevelXP - currentXP),
+    };
+
     return {
       name: character.name, level: character.level, currentHP: hp, maxHP: hpMax,
+      progression,
       gender: identityGender || undefined,
       race: identityRace || undefined,
       backstory: identityBackstory || undefined,
@@ -529,7 +544,7 @@ export function PromptDrawerProvider({
         maxUses: wildShape.state.maxUses,
       } : undefined,
     };
-  }, [character, currentHP, maxHP, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
+  }, [character, currentHP, maxHP, currentXP, xpProgressionMode, xpMultiplier, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
       prestigeLevel, prestigeAbilities, spellcasting, lootItems, totalLootValue, combatContext, conditionsSystem.debuffs, conditionsSystem.buffs,
       getScoreBreakdown, identityGender, identityRace, identityBackstory, identityRelationships,
       wildShape?.state.isTransformed, wildShape?.state.currentForm, wildShape?.state.formHP, wildShape?.state.formMaxHP, wildShape?.state.usesRemaining, wildShape?.state.maxUses]);
