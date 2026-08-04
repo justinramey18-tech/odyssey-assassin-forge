@@ -158,6 +158,8 @@ export interface CharacterContext {
       verbal: boolean;
       somatic: boolean;
       material?: string;
+      /** False when the character has no slot high enough to cast it yet */
+      castable?: boolean;
     }>;
   };
   // Loot inventory context
