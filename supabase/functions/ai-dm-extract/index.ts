@@ -69,6 +69,18 @@ const EXTRACT_TOOL = {
             additionalProperties: false,
           },
         },
+        items_consumed: {
+          type: "array",
+          description: "Consumable items the PLAYER used up in this message — potions drunk, scrolls read, rations eaten, torches burned. Only include an item when the narration says it was actually consumed, not when it is merely mentioned, offered, or drawn.",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "Item name as closely as possible to how the player's sheet would spell it, e.g. 'Potion of Healing'" },
+              quantity: { type: "number", description: "How many were used up. Default 1." }
+            },
+            required: ["name", "quantity"]
+          }
+        },
         rest_occurred: {
           type: ["string", "null"],
           enum: ["short", "long", null],
@@ -133,6 +145,7 @@ const EXTRACT_TOOL = {
         "conditions_added",
         "conditions_removed",
         "items_acquired",
+        "items_consumed",
         "rest_occurred",
         "map_entities",
         "map_entities_removed",
@@ -195,6 +208,10 @@ CRITICAL ACCURACY RULES:
 - companion_hp_changes is ONLY for the companion. NEVER put player damage in companion fields or vice versa.
 - Damage amounts are always POSITIVE numbers. The "type" field indicates damage vs healing.
 - Only extract XP if a specific amount is stated (e.g. "gain 50 XP").
+- CONSUMABLES: put an item in items_consumed only when this message says the player USED IT UP — drank, quaffed, read, ate, burned, applied, shattered, threw. "Ramey drinks the Potion of Healing" is a consumption. "Ramey draws a potion from his satchel", "you still have one scroll left", and "you could drink a potion" are NOT.
+- Never put the same item in both items_acquired and items_consumed for one message.
+- If the DM narrates finding and immediately drinking a potion, that is one acquisition and one consumption; record both.
+- Use the item's full name as written in the narration. Do not abbreviate and do not translate it into a generic type.
 - Only extract gold if a specific amount is stated (e.g. "find 10 gold").
 - Only extract items if specifically named as acquired or consumed.
 - Only extract conditions if explicitly applied or removed (e.g., "you are now poisoned").
@@ -220,7 +237,7 @@ CHARACTER: "${characterContext?.name || "Adventurer"}" is Level ${characterConte
           status: result.status || 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const extracted = result.toolArguments || { hp_changes: [], xp_gained: null, gold_changes: [], conditions_added: [], conditions_removed: [], items_acquired: [], rest_occurred: null, map_entities: [], map_entities_removed: [], companion_hp_changes: [], companion_conditions_added: [], companion_conditions_removed: [], hp_absolute: null, companion_hp_absolute: null };
+      const extracted = result.toolArguments || { hp_changes: [], xp_gained: null, gold_changes: [], conditions_added: [], conditions_removed: [], items_acquired: [], items_consumed: [], rest_occurred: null, map_entities: [], map_entities_removed: [], companion_hp_changes: [], companion_conditions_added: [], companion_conditions_removed: [], hp_absolute: null, companion_hp_absolute: null };
       return new Response(JSON.stringify(extracted), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -288,6 +305,7 @@ CHARACTER: "${characterContext?.name || "Adventurer"}" is Level ${characterConte
           conditions_added: [],
           conditions_removed: [],
           items_acquired: [],
+          items_consumed: [],
           rest_occurred: null,
           map_entities: [],
           map_entities_removed: [],
@@ -314,8 +332,9 @@ CHARACTER: "${characterContext?.name || "Adventurer"}" is Level ${characterConte
         gold_changes: [],
         conditions_added: [],
         conditions_removed: [],
-        items_acquired: [],
-        rest_occurred: null,
+          items_acquired: [],
+          items_consumed: [],
+          rest_occurred: null,
         map_entities: [],
         map_entities_removed: [],
         companion_hp_changes: [],
