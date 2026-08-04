@@ -36,7 +36,10 @@ import {
   Gift,
   Snail,
   Gauge,
+  Flag,
+  ChevronUp,
 } from 'lucide-react';
+
 import { cn } from '@/lib/utils';
 
 interface XPTrackerProps {
