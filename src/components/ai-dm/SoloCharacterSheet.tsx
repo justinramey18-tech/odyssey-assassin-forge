@@ -470,6 +470,8 @@ export function SoloCharacterSheet({
             {ctx.multiclassBreakdown && Object.keys(ctx.multiclassBreakdown).length > 0 && (
               <Section title="Classes" icon={BookOpen}>
                 <div className="flex flex-wrap gap-1.5">
+                  {ctx.deity && <Badge variant="outline" className="text-[10px]">Deity: {ctx.deity}</Badge>}
+                  {ctx.domain && <Badge variant="outline" className="text-[10px]">Domain: {ctx.domain}</Badge>}
                   {Object.entries(ctx.multiclassBreakdown).map(([cls, lvl]) => (
                     <Badge key={cls} variant="outline" className="text-[10px] capitalize">{cls} {lvl}</Badge>
                   ))}
