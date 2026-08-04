@@ -431,7 +431,9 @@ function buildContextSummary(ctx: CharacterContext): string {
   
   if (ctx.spellcasting && ctx.spellcasting.path) {
     const spell = ctx.spellcasting;
-    lines.push(`\n🔮 SPELLCASTING (${spell.path}):`);
+    const classLabel = ctx.characterClass ? `, character class: ${ctx.characterClass}` : '';
+    lines.push(`\n🔮 SPELLCASTING (magic path: ${spell.path}${classLabel}):`);
+    lines.push(`   NOTE: the magic path and the character class are configured separately in the app and may not match. The SPELL SLOT TABLE BELOW IS AUTHORITATIVE — it reflects what the character can actually cast. If the path name implies a different slot progression, ignore the implication and use the slots as listed.`);
     lines.push(`   Attack Bonus: +${spell.spellAttackBonus} | Save DC: ${spell.spellSaveDC}`);
     const slotStatus = spell.slots.filter(s => s.max > 0).map(s => `${s.level === 1 ? '1st' : s.level === 2 ? '2nd' : s.level === 3 ? '3rd' : s.level + 'th'}: ${s.current}/${s.max}`).join(', ');
     if (slotStatus) lines.push(`   Spell Slots: ${slotStatus}`);
