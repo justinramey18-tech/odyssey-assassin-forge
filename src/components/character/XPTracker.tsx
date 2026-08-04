@@ -46,7 +46,9 @@ interface XPTrackerProps {
   onAddXP: (amount: number, source: string) => void;
   prestigeData?: PrestigeData;
   nextPrestigeXPRequired?: number;
+  onManualLevelUp?: () => void;
 }
+
 
 const rewardIcons: Record<XPRewardType, React.ReactNode> = {
   combatVictory: <Swords className="w-4 h-4" />,
