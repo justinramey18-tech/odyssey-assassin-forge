@@ -1529,6 +1529,21 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           />
         )}
       </AnimatePresence>
+
+      <SoloCharacterSheet
+        open={showCharacterSheet}
+        onClose={() => setShowCharacterSheet(false)}
+        ctx={characterContext}
+        currentXP={currentXP}
+        gold={autoSyncCallbacks?.getCurrentGold?.() ?? 0}
+        quests={Object.entries(gameState.quest_flags || {}).map(([key, q]) => ({ key, status: q.status, notes: q.notes }))}
+        onAdjustHP={(change, type) => autoSyncCallbacks?.onHPChange?.(change, type)}
+        onAddXP={(amount, source) => autoSyncCallbacks?.onAddXP?.(amount, source)}
+        onManualLevelUp={onManualLevelUp}
+        onConditionChange={(add, remove) => autoSyncCallbacks?.onConditionChange?.(add, remove)}
+        onRest={(type) => autoSyncCallbacks?.onRestOccurred?.(type)}
+        onAcceptItem={onAcceptItem}
+      />
     </div>
   );
 }
