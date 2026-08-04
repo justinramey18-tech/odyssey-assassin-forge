@@ -665,9 +665,10 @@ export function PromptDrawerProvider({
         maxUses: wildShape.state.maxUses,
       } : undefined,
     };
-  }, [character, currentHP, maxHP, currentXP, xpProgressionMode, xpMultiplier, abilityCustomization.state, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
+  }, [character, currentHP, maxHP, tempHP, currentXP, xpProgressionMode, xpMultiplier, abilityCustomization.state, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
       prestigeLevel, prestigeAbilities, spellcasting, lootItems, totalLootValue, combatContext, conditionsSystem.debuffs, conditionsSystem.buffs,
       getScoreBreakdown, identityGender, identityRace, identityBackstory, identityRelationships,
+      combatStats.ac, combatStats.initiativeBonus, combatStats.proficiencyBonus,
       wildShape?.state.isTransformed, wildShape?.state.currentForm, wildShape?.state.formHP, wildShape?.state.formMaxHP, wildShape?.state.usesRemaining, wildShape?.state.maxUses]);
 
   const [oracleQuestCallback, setOracleQuestCallback] = useState<((quests: Array<{ key: string; status: 'active' | 'completed' | 'failed'; notes?: string }>) => void) | null>(null);
