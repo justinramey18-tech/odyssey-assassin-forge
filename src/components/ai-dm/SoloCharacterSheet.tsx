@@ -95,20 +95,19 @@ export function SoloCharacterSheet({
   const isMilestone = multiplier === 0;
   const hpPct = ctx.maxHP > 0 ? Math.max(0, Math.min(100, (ctx.currentHP / ctx.maxHP) * 100)) : 0;
 
+  const xpSnapshot = useXPSnapshot(ctx.level, currentXP);
   const xpInfo = useMemo(() => {
     if (isMilestone) return null;
-    const floor = getXPForLevel(ctx.level, multiplier);
-    const ceil = getXPForLevel(ctx.level + 1, multiplier);
     return {
-      floor,
-      ceil,
-      belowFloor: currentXP < floor,
-      inLevel: Math.max(0, currentXP - floor),
-      needed: Math.max(1, ceil - floor),
-      progress: getLevelProgress(ctx.level, currentXP, multiplier),
-      toNext: getXPToNextLevel(ctx.level, currentXP, multiplier),
+      floor: xpSnapshot.levelFloor,
+      ceil: xpSnapshot.nextLevelXP,
+      belowFloor: xpSnapshot.belowFloor,
+      inLevel: xpSnapshot.xpIntoLevel,
+      needed: xpSnapshot.xpLevelSpan,
+      progress: xpSnapshot.progressPct,
+      toNext: xpSnapshot.xpRemaining,
     };
-  }, [ctx.level, currentXP, multiplier, isMilestone]);
+  }, [xpSnapshot, isMilestone]);
 
   const applyHP = useCallback((type: 'damage' | 'healing') => {
     const amount = parseInt(hpDelta, 10);
