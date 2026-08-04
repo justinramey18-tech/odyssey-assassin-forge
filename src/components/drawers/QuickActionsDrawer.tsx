@@ -70,6 +70,8 @@ interface ChannelDivinityInfo {
 }
 
 interface QuickActionsDrawerProps {
+  /** Hide Abilities + Consumables sections (they live in the solo DM character sheet) */
+  hideAbilitiesAndItems?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   character: Character;
