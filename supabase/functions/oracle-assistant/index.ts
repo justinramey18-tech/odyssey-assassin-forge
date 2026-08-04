@@ -14,6 +14,12 @@ interface CharacterContext {
   level: number;
   currentHP: number;
   maxHP: number;
+  progression?: {
+    mode: 'xp' | 'milestone';
+    currentXP?: number;
+    xpForNextLevel?: number;
+    xpRemaining?: number;
+  };
   characterClass?: string;
   multiclassBreakdown?: Record<string, number>;
   subclass?: string;
