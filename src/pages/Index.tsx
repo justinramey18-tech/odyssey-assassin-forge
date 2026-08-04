@@ -12,6 +12,31 @@ import {
   calculatePendingLevelUps,
   getXPForLevel,
 } from '@/lib/xpSystem';
+import {
+  XPProgressionMode,
+  loadXPProgressionMode,
+  saveXPProgressionMode,
+} from '@/components/settings/XPProgressionWidget';
+
+// Bridge between the Settings progression mode and the internal XP preset
+const progressionModeToPreset = (mode: XPProgressionMode): XPPreset => {
+  switch (mode) {
+    case 'slow': return 'slow';
+    case 'fast': return 'fast';
+    case 'milestone': return 'milestone';
+    default: return 'standard';
+  }
+};
+
+const presetToProgressionMode = (preset: XPPreset): XPProgressionMode => {
+  switch (preset) {
+    case 'slow': return 'slow';
+    case 'fast': return 'fast';
+    case 'milestone': return 'milestone';
+    default: return 'natural';
+  }
+};
+
 import { 
   CharacterWizard, 
   WizardState,
