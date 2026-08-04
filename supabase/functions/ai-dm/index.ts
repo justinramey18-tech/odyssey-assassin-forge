@@ -18,6 +18,7 @@ interface CharacterContext {
     tempHP?: number;
     initiativeBonus?: number;
   };
+  gold?: number;
   proficiencies?: {
     bonus?: number;
     skills: string[];
