@@ -506,8 +506,19 @@ export function PromptDrawerProvider({
         ? { [characterClass]: character.level, ...character.multiclassLevels }
         : undefined;
 
+    // Progression snapshot so the DM knows real XP thresholds
+    const isMilestone = xpProgressionMode === 'milestone';
+    const nextLevelXP = character.level >= 20 ? 0 : getXPForLevel(character.level + 1, xpMultiplier || 1);
+    const progression: CharacterContext['progression'] = {
+      mode: isMilestone ? 'milestone' : 'xp',
+      currentXP: isMilestone ? undefined : currentXP,
+      xpForNextLevel: isMilestone || character.level >= 20 ? undefined : nextLevelXP,
+      xpRemaining: isMilestone || character.level >= 20 ? undefined : Math.max(0, nextLevelXP - currentXP),
+    };
+
     return {
       name: character.name, level: character.level, currentHP: hp, maxHP: hpMax,
+      progression,
       gender: identityGender || undefined,
       race: identityRace || undefined,
       backstory: identityBackstory || undefined,
