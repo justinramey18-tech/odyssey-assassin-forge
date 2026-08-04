@@ -116,6 +116,7 @@ interface CharacterContext {
       verbal: boolean;
       somatic: boolean;
       material?: string;
+      castable?: boolean;
     }>;
   };
   loot?: {
