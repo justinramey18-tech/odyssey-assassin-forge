@@ -10,6 +10,7 @@ import {
 } from '@/lib/xpSystem';
 import { PrestigeData } from '@/lib/prestige';
 import { useXPProgression } from '@/hooks/use-xp-progression';
+import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
