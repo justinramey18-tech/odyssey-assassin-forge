@@ -941,6 +941,20 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       )}
 
       {!isFullscreen && (
+        <CharacterSheetStrip
+          name={characterContext.name || characterName}
+          level={characterContext.level}
+          currentHP={characterContext.currentHP}
+          maxHP={characterContext.maxHP}
+          xpInLevel={Math.max(0, currentXP - getXPForLevel(characterContext.level, xpMultiplier || 1))}
+          xpNeeded={Math.max(1, getXPForLevel(characterContext.level + 1, xpMultiplier || 1) - getXPForLevel(characterContext.level, xpMultiplier || 1))}
+          isMilestone={xpMultiplier === 0}
+          pendingItemCount={pendingItemCount}
+          onOpen={() => setShowCharacterSheet(true)}
+        />
+      )}
+
+      {!isFullscreen && (
       <>
       <button
         onClick={() => setShowContext(prev => !prev)}
