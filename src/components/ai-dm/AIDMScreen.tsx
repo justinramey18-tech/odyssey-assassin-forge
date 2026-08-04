@@ -895,6 +895,14 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     soloDMInputRef.current?.appendText(prompt);
   }, []);
 
+  // Names only. Enough for the prompt improver to spell abilities and spells correctly
+  // without shipping the whole character sheet to another endpoint.
+  const enhanceContext = useMemo(() => ({
+    characterName: characterContext.name || characterName,
+    abilities: characterContext.equippedAbilities,
+    spells: characterContext.spellcasting?.preparedSpells,
+  }), [characterContext.name, characterName, characterContext.equippedAbilities, characterContext.spellcasting?.preparedSpells]);
+
   const hpPercent = characterContext.maxHP > 0
     ? Math.round((characterContext.currentHP / characterContext.maxHP) * 100)
     : 100;
@@ -1306,6 +1314,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
               sendActiveClassName={chatTheme.sendBtnActive}
               onInputChange={handleLiveInputChange}
               locked={socialToolbarLocked}
+              enhanceContext={enhanceContext}
             />
           <div className="flex items-center gap-1 justify-center">
             {userId && (
