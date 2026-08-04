@@ -8,6 +8,9 @@ const RELATIONSHIPS_KEY = 'dnd-character-relationships';
 
 const MAX_RELATIONSHIPS = 10;
 
+// Fired when any instance of this hook writes, so other mounted instances stay in sync.
+const IDENTITY_CHANGED_EVENT = 'odyssey-character-identity-change';
+
 export interface CharacterRelationship {
   id: string;
   name: string;
@@ -57,6 +60,11 @@ export function useCharacterIdentity() {
     try { setScopedItem(RELATIONSHIPS_KEY, JSON.stringify(relationships)); } catch (e) { console.error('[CharacterIdentity] Failed to save relationships:', e); }
   }, [relationships]);
 
+  // Broadcast writes so other mounted instances (e.g. the solo DM character sheet) refresh
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent(IDENTITY_CHANGED_EVENT));
+  }, [gender, race, backstory, relationships]);
+
   // Re-init on character switch
   useEffect(() => {
     const handleCharacterLoaded = () => {
@@ -65,8 +73,22 @@ export function useCharacterIdentity() {
       setBackstory(loadString(BACKSTORY_KEY));
       setRelationships(loadRelationships());
     };
+    const handleIdentityChanged = () => {
+      const nextGender = loadString(GENDER_KEY);
+      const nextRace = loadString(RACE_KEY);
+      const nextBackstory = loadString(BACKSTORY_KEY);
+      const nextRelationships = loadRelationships();
+      setGender(prev => (prev === nextGender ? prev : nextGender));
+      setRace(prev => (prev === nextRace ? prev : nextRace));
+      setBackstory(prev => (prev === nextBackstory ? prev : nextBackstory));
+      setRelationships(prev => (JSON.stringify(prev) === JSON.stringify(nextRelationships) ? prev : nextRelationships));
+    };
     window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
-    return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    window.addEventListener(IDENTITY_CHANGED_EVENT, handleIdentityChanged);
+    return () => {
+      window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+      window.removeEventListener(IDENTITY_CHANGED_EVENT, handleIdentityChanged);
+    };
   }, []);
 
   const addRelationship = useCallback((name: string, disposition: string, notes?: string): boolean => {
