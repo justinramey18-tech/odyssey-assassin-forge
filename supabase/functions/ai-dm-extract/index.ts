@@ -145,6 +145,7 @@ const EXTRACT_TOOL = {
         "conditions_added",
         "conditions_removed",
         "items_acquired",
+        "items_consumed",
         "rest_occurred",
         "map_entities",
         "map_entities_removed",
