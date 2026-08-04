@@ -7,7 +7,7 @@ import {
 import { cn } from '@/lib/utils';
 import { CharacterContext } from '@/components/oracle/types';
 import { useXPProgression } from '@/hooks/use-xp-progression';
-import { getXPForLevel, getLevelProgress, getXPToNextLevel } from '@/lib/xpSystem';
+import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
 import { useCharacterIdentity } from '@/hooks/use-character-identity';
 import {
   PendingDmItem, loadPendingDmItems, removePendingDmItem, PENDING_DM_ITEMS_EVENT,
