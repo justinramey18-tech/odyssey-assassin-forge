@@ -429,6 +429,36 @@ export function PromptDrawerProvider({
     let spellcastingContext: CharacterContext['spellcasting'] = undefined;
     if (spellcasting?.state.path) {
       const { state, spellAttackBonus, spellSaveDC, totalSlotsRemaining } = spellcasting;
+
+      // Homebrew spells exist only in this player's app, so the DM cannot look them
+      // up. Ship the full stat block for every custom spell the character knows or
+      // has prepared, deduplicated, capped so the prompt stays a sane size.
+      const customSpellIds = Array.from(new Set([...state.preparedSpells, ...state.knownSpells]));
+      const homebrewSpells = customSpellIds
+        .map(id => getSpellById(id))
+        .filter((s): s is NonNullable<typeof s> => !!s && (s as { isHomebrew?: boolean }).isHomebrew === true)
+        .slice(0, 12)
+        .map(s => ({
+          name: s.name,
+          level: s.level,
+          school: s.school,
+          castingTime: s.castingTime,
+          range: s.range,
+          duration: s.duration,
+          concentration: s.concentration,
+          ritual: s.ritual,
+          description: s.description,
+          higherLevels: s.higherLevels,
+          attackType: s.attackType,
+          saveStat: s.saveStat,
+          damageType: s.damageType,
+          damageFormula: s.damageFormula,
+          healingFormula: s.healingFormula,
+          verbal: s.components?.verbal ?? false,
+          somatic: s.components?.somatic ?? false,
+          material: s.components?.material,
+        }));
+
       spellcastingContext = {
         path: state.path,
         spellAttackBonus,
@@ -438,6 +468,7 @@ export function PromptDrawerProvider({
         preparedSpells: state.preparedSpells.map(id => getSpellById(id)?.name || id),
         slots: Object.entries(state.spellSlots).filter(([_, s]) => s.max > 0).map(([l, s]) => ({ level: parseInt(l), current: s.current, max: s.max })),
         pactSlots: state.pactSlots ? { current: state.pactSlots.current, max: state.pactSlots.max, level: state.pactSlots.level } : undefined,
+        homebrewSpells: homebrewSpells.length > 0 ? homebrewSpells : undefined,
       };
     }
 
