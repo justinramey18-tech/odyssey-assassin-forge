@@ -9,6 +9,8 @@ interface CharacterSheetStripProps {
   maxHP: number;
   xpInLevel: number;
   xpNeeded: number;
+  totalXP: number;
+  nextLevelXP: number;
   isMilestone: boolean;
   pendingItemCount: number;
   portraitIcon?: React.ComponentType<{ className?: string }>;
@@ -16,7 +18,7 @@ interface CharacterSheetStripProps {
 }
 
 export const CharacterSheetStrip = memo(function CharacterSheetStrip({
-  name, level, currentHP, maxHP, xpInLevel, xpNeeded, isMilestone, pendingItemCount, portraitIcon: Portrait = User, onOpen,
+  name, level, currentHP, maxHP, xpInLevel, xpNeeded, totalXP, nextLevelXP, isMilestone, pendingItemCount, portraitIcon: Portrait = User, onOpen,
 }: CharacterSheetStripProps) {
   const hpPct = maxHP > 0 ? Math.max(0, Math.min(100, (currentHP / maxHP) * 100)) : 0;
   const xpPct = isMilestone || xpNeeded <= 0 ? 0 : Math.max(0, Math.min(100, (xpInLevel / xpNeeded) * 100));
@@ -59,8 +61,17 @@ export const CharacterSheetStrip = memo(function CharacterSheetStrip({
           <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
             <div className="h-full rounded-full bg-amber-500/80 transition-all" style={{ width: `${xpPct}%` }} />
           </div>
-          <span className="text-[10px] font-mono text-white/50 shrink-0 tabular-nums">
-            {isMilestone ? 'Milestone' : `${xpInLevel}/${xpNeeded}`}
+          <span className="text-[10px] font-mono text-white/50 shrink-0 tabular-nums leading-tight text-right">
+            {isMilestone ? 'Milestone' : (
+              <>
+                {xpInLevel.toLocaleString()}/{xpNeeded.toLocaleString()}
+                <span className="block text-[9px] text-white/35">
+                  {nextLevelXP > 0
+                    ? `${totalXP.toLocaleString()}/${nextLevelXP.toLocaleString()} total`
+                    : `${totalXP.toLocaleString()} total`}
+                </span>
+              </>
+            )}
           </span>
         </div>
       </div>
