@@ -14,6 +14,7 @@ export interface ExtractionResult {
   conditions_added: string[];
   conditions_removed: string[];
   items_acquired: { name: string; quantity: number }[];
+  items_consumed?: { name: string; quantity: number }[];
   rest_occurred: 'short' | 'long' | null;
   map_entities: any[];
   map_entities_removed: string[];
@@ -23,6 +24,7 @@ export interface ExtractionResult {
   hp_absolute: number | null;
   companion_hp_absolute: number | null;
 }
+
 
 interface AutoSyncSnapshot {
   hp: number;
@@ -34,6 +36,8 @@ interface AutoSyncSnapshot {
 
 interface AutoSyncCallbacks {
   onHPChange: (change: number, type: 'damage' | 'healing') => void;
+  /** Decrement a consumable by name. Returns false if it was not found or the count was too low. */
+  onUseConsumableByName?: (name: string, quantity?: number) => boolean;
   onAddXP: (amount: number, source: string) => void;
   onGoldChange: (netChange: number) => void;
   onConditionChange: (toAdd: string[], toRemove: string[]) => void;
@@ -49,6 +53,7 @@ interface AutoSyncCallbacks {
   getCurrentMarkers: () => any[];
   getGridSize: () => any;
 }
+
 
 export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
   // Store callbacks in a ref to avoid re-creating extractAndApply on every render
