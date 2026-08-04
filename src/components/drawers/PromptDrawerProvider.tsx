@@ -579,6 +579,16 @@ export function PromptDrawerProvider({
       }
     } catch {}
 
+    // Read proficiencies/expertise from scoped storage (managed by DiceRollerScreen)
+    let proficientSkills: string[] = [];
+    let proficientSaves: string[] = [];
+    let expertiseSkills: string[] = [];
+    try {
+      proficientSkills = JSON.parse(getScopedItem('odyssey-proficient-skills') || '[]');
+      proficientSaves = JSON.parse(getScopedItem('odyssey-proficient-saves') || '[]');
+      expertiseSkills = JSON.parse(getScopedItem('odyssey-expertise-skills') || '[]');
+    } catch {}
+
     // Geralt companion context (momo only)
     let companionContext: CharacterContext['companion'] = undefined;
     if (isMomoEasterEgg(character.name)) {
