@@ -14,6 +14,7 @@ export interface ExtractionResult {
   conditions_added: string[];
   conditions_removed: string[];
   items_acquired: { name: string; quantity: number }[];
+  items_consumed?: { name: string; quantity: number }[];
   rest_occurred: 'short' | 'long' | null;
   map_entities: any[];
   map_entities_removed: string[];
@@ -23,6 +24,7 @@ export interface ExtractionResult {
   hp_absolute: number | null;
   companion_hp_absolute: number | null;
 }
+
 
 interface AutoSyncSnapshot {
   hp: number;
@@ -34,6 +36,8 @@ interface AutoSyncSnapshot {
 
 interface AutoSyncCallbacks {
   onHPChange: (change: number, type: 'damage' | 'healing') => void;
+  /** Decrement a consumable by name. Returns false if it was not found or the count was too low. */
+  onUseConsumableByName?: (name: string, quantity?: number) => boolean;
   onAddXP: (amount: number, source: string) => void;
   onGoldChange: (netChange: number) => void;
   onConditionChange: (toAdd: string[], toRemove: string[]) => void;
@@ -49,6 +53,7 @@ interface AutoSyncCallbacks {
   getCurrentMarkers: () => any[];
   getGridSize: () => any;
 }
+
 
 export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
   // Store callbacks in a ref to avoid re-creating extractAndApply on every render
@@ -146,6 +151,28 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
         const net = goldChange.action === 'gained' ? goldChange.amount : -goldChange.amount;
         cb.onGoldChange(net);
       }
+
+      // Apply consumable use narrated by the DM. Validate the same way HP is,
+      // so a malformed extraction cannot remove an unpredictable number of items.
+      if (cb.onUseConsumableByName && Array.isArray(result.items_consumed)) {
+        const missed: string[] = [];
+        for (const used of result.items_consumed) {
+          const name = typeof used?.name === 'string' ? used.name.trim() : '';
+          if (!name) continue;
+          const rawQty = Number(used?.quantity);
+          const qty = Number.isFinite(rawQty) && rawQty > 0 ? Math.min(10, Math.floor(rawQty)) : 1;
+          const applied = cb.onUseConsumableByName(name, qty);
+          if (!applied) missed.push(name);
+        }
+        if (missed.length > 0) {
+          // The DM narrated using something the inventory does not have. Tell the
+          // player rather than silently ignoring it — the sheet and the story disagree.
+          toast.warning(`Not in your inventory: ${missed.join(', ')}`, {
+            description: 'The DM described using it, but nothing was deducted.',
+          });
+        }
+      }
+
 
       // Apply conditions
       if (result.conditions_added.length > 0 || result.conditions_removed.length > 0) {
