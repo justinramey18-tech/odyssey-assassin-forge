@@ -481,6 +481,11 @@ export function PromptDrawerProvider({
       // Homebrew spells exist only in this player's app, so the DM cannot look them
       // up. Ship the full stat block for every custom spell the character knows or
       // has prepared, deduplicated, capped so the prompt stays a sane size.
+      // Highest spell slot level the character actually has, used to flag spells
+      // that are known but not yet castable.
+      const highestSlotLevel = Object.entries(state.spellSlots)
+        .filter(([, s]) => s.max > 0)
+        .reduce((hi, [lvl]) => Math.max(hi, parseInt(lvl, 10)), 0);
       const customSpellIds = Array.from(new Set([...state.preparedSpells, ...state.knownSpells]));
       const homebrewSpells = customSpellIds
         .map(id => getSpellById(id))
