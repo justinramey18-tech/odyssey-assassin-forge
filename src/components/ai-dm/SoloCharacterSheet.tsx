@@ -428,6 +428,45 @@ export function SoloCharacterSheet({
               )}
             </Section>
 
+            {ctx.proficiencies && (ctx.proficiencies.skills.length > 0 || ctx.proficiencies.saves.length > 0) && (
+              <Section title="Proficiencies" icon={Activity}>
+                {typeof ctx.proficiencies.bonus === 'number' && (
+                  <p className="text-[10px] uppercase tracking-wider text-white/40 mb-2">
+                    Proficiency bonus +{ctx.proficiencies.bonus}
+                  </p>
+                )}
+                {ctx.proficiencies.saves.length > 0 && (
+                  <div className="mb-2">
+                    <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Saving throws</p>
+                    <div className="flex flex-wrap gap-1">
+                      {ctx.proficiencies.saves.map(s => (
+                        <Badge key={s} variant="outline" className="text-[10px] uppercase">{s}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {ctx.proficiencies.skills.length > 0 && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Skills</p>
+                    <div className="flex flex-wrap gap-1">
+                      {ctx.proficiencies.skills.map(s => (
+                        <Badge
+                          key={s}
+                          variant="outline"
+                          className={cn('text-[10px] capitalize', ctx.proficiencies?.expertise.includes(s) && 'border-amber-400/60 text-amber-300')}
+                        >
+                          {s.replace(/_/g, ' ')}{ctx.proficiencies?.expertise.includes(s) ? ' ★' : ''}
+                        </Badge>
+                      ))}
+                    </div>
+                    {ctx.proficiencies.expertise.length > 0 && (
+                      <p className="text-[10px] text-amber-300/70 mt-1.5">★ expertise — proficiency bonus doubled</p>
+                    )}
+                  </div>
+                )}
+              </Section>
+            )}
+
             {ctx.multiclassBreakdown && Object.keys(ctx.multiclassBreakdown).length > 0 && (
               <Section title="Classes" icon={BookOpen}>
                 <div className="flex flex-wrap gap-1.5">
