@@ -12,6 +12,31 @@ import {
   calculatePendingLevelUps,
   getXPForLevel,
 } from '@/lib/xpSystem';
+import {
+  XPProgressionMode,
+  loadXPProgressionMode,
+  saveXPProgressionMode,
+} from '@/components/settings/XPProgressionWidget';
+
+// Bridge between the Settings progression mode and the internal XP preset
+const progressionModeToPreset = (mode: XPProgressionMode): XPPreset => {
+  switch (mode) {
+    case 'slow': return 'slow';
+    case 'fast': return 'fast';
+    case 'milestone': return 'milestone';
+    default: return 'standard';
+  }
+};
+
+const presetToProgressionMode = (preset: XPPreset): XPProgressionMode => {
+  switch (preset) {
+    case 'slow': return 'slow';
+    case 'fast': return 'fast';
+    case 'milestone': return 'milestone';
+    default: return 'natural';
+  }
+};
+
 import { 
   CharacterWizard, 
   WizardState,
@@ -163,7 +188,28 @@ const Index = () => {
   
   // XP System State
   const [currentXP, setCurrentXP] = useState(0);
-  const [xpPreset, setXPPreset] = useState<XPPreset>('standard');
+  const [xpPreset, setXPPreset] = useState<XPPreset>(() => progressionModeToPreset(loadXPProgressionMode()));
+
+  // Keep the internal XP preset in sync with the Settings progression choice
+  useEffect(() => {
+    const handleProgressionChange = (e: Event) => {
+      const mode = (e as CustomEvent<XPProgressionMode>).detail;
+      if (mode) setXPPreset(progressionModeToPreset(mode));
+    };
+    const handleCharacterLoaded = () => {
+      setXPPreset(progressionModeToPreset(loadXPProgressionMode()));
+    };
+    window.addEventListener('odyssey-xp-progression-change', handleProgressionChange);
+    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    return () => {
+      window.removeEventListener('odyssey-xp-progression-change', handleProgressionChange);
+      window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    };
+  }, []);
+
+  const isMilestoneProgression = xpPreset === 'milestone';
+  
+
   
   // Inspiration State (D&D 5e)
   const [hasInspiration, setHasInspiration] = useState(() => {
@@ -1165,6 +1211,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       setCurrentXP(repairedXP);
       
       setXPPreset(saved.xp.xpPreset as XPPreset);
+      saveXPProgressionMode(presetToProgressionMode(saved.xp.xpPreset as XPPreset));
+
       setShowWizard(false);
       console.log('[AutoSave] Loaded character:', saved.character.name, repairedXP !== saved.xp.currentXP ? '(XP repaired)' : '');
     }
@@ -1240,6 +1288,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     // 2. XP system
     setCurrentXP(data.xp.currentXP);
     setXPPreset(data.xp.xpPreset as XPPreset);
+    saveXPProgressionMode(presetToProgressionMode(data.xp.xpPreset as XPPreset));
+
     
     // 3. Prestige data - update localStorage AND state via hook
     if (data.prestige) {
@@ -1489,6 +1539,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
             setAchievements(cloudData.achievements);
             setCurrentXP(cloudData.xp.currentXP);
             setXPPreset(cloudData.xp.xpPreset as XPPreset);
+            saveXPProgressionMode(presetToProgressionMode(cloudData.xp.xpPreset as XPPreset));
+
 
             // Prestige
             if (cloudData.prestige) {
@@ -2885,6 +2937,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                     onAddXP={handleAddXP}
                     prestigeData={prestigeData}
                     nextPrestigeXPRequired={nextPrestigeXPRequired}
+                    onManualLevelUp={handleManualLevelUp}
                   />
                 </div>
 
@@ -2900,19 +2953,21 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                 </div>
 
                 {/* Manual Level Up Button */}
-                {character.level < 20 && !requiresOrganicLevelUp && (
+                {character.level < 20 && (isMilestoneProgression || !requiresOrganicLevelUp) && (
                   <button
                     onClick={handleManualLevelUp}
                     className="w-full py-3 px-4 rounded-lg border-2 border-dashed border-primary/30 hover:border-primary/50 bg-primary/5 hover:bg-primary/10 transition-all flex items-center justify-center gap-2 group"
                   >
                     <ChevronUp className="w-5 h-5 text-primary group-hover:animate-bounce" />
-                    <span className="font-display text-sm text-primary">Trigger Level Up</span>
+                    <span className="font-display text-sm text-primary">
+                      {isMilestoneProgression ? 'Advance a Level' : 'Trigger Level Up'}
+                    </span>
                     <ChevronUp className="w-5 h-5 text-primary group-hover:animate-bounce" />
                   </button>
                 )}
                 
                 {/* Honest Mode indicator for organic level up */}
-                {character.level < 20 && requiresOrganicLevelUp && (
+                {character.level < 20 && requiresOrganicLevelUp && !isMilestoneProgression && (
                   <div className="w-full py-3 px-4 rounded-lg border-2 border-dashed border-muted/40 bg-muted/5 flex items-center justify-center gap-2 opacity-60">
                     <Lock className="w-4 h-4 text-muted-foreground" />
                     <span className="font-display text-sm text-muted-foreground">Organic Leveling Mode</span>
@@ -2923,11 +2978,14 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                 <div className="mt-6 p-4 rounded-lg bg-muted/20 border border-muted/30">
                   <p className="text-xs text-muted-foreground text-center font-body">
                     💡 Go to the <strong>Abilities</strong> tab to spend your {availableAbilityPoints} available ability points.
-                    {requiresOrganicLevelUp 
-                      ? ' In Honest Mode, levels are gained organically through XP.'
-                      : ' Add XP to level up, or use the button above for milestone progression.'}
+                    {isMilestoneProgression
+                      ? ' Milestone mode: XP is hidden — use the button above when the story earns a level.'
+                      : requiresOrganicLevelUp 
+                        ? ' In Honest Mode, levels are gained organically through XP.'
+                        : ' Add XP to level up, or use the button above for milestone progression.'}
                   </p>
                 </div>
+
               </div>
             </BackgroundWrapper>
           )}

@@ -36,7 +36,10 @@ import {
   Gift,
   Snail,
   Gauge,
+  Flag,
+  ChevronUp,
 } from 'lucide-react';
+
 import { cn } from '@/lib/utils';
 
 interface XPTrackerProps {
@@ -46,7 +49,9 @@ interface XPTrackerProps {
   onAddXP: (amount: number, source: string) => void;
   prestigeData?: PrestigeData;
   nextPrestigeXPRequired?: number;
+  onManualLevelUp?: () => void;
 }
+
 
 const rewardIcons: Record<XPRewardType, React.ReactNode> = {
   combatVictory: <Swords className="w-4 h-4" />,
@@ -65,6 +70,7 @@ export function XPTracker({
   onAddXP,
   prestigeData,
   nextPrestigeXPRequired,
+  onManualLevelUp,
 }: XPTrackerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [customAmount, setCustomAmount] = useState('');
@@ -74,6 +80,7 @@ export function XPTracker({
   const { mode, multiplier } = useXPProgression();
 
   const isMaxLevel = currentLevel >= 20;
+  const isMilestoneMode = multiplier === 0;
 
   const progress = getLevelProgress(currentLevel, currentXP, multiplier);
   const xpToNext = getXPToNextLevel(currentLevel, currentXP, multiplier);
@@ -87,6 +94,7 @@ export function XPTracker({
     switch (mode) {
       case 'slow': return <Snail className="w-3 h-3" />;
       case 'fast': return <Zap className="w-3 h-3" />;
+      case 'milestone': return <Flag className="w-3 h-3" />;
       default: return <Gauge className="w-3 h-3" />;
     }
   };
@@ -95,9 +103,49 @@ export function XPTracker({
     switch (mode) {
       case 'slow': return 'Slow';
       case 'fast': return 'Fast Track';
+      case 'milestone': return 'Milestone';
       default: return 'Natural';
     }
   };
+
+  if (isMilestoneMode) {
+    return (
+      <div className="space-y-3" data-tutorial-id="xp-tracker">
+        {isMaxLevel && prestigeData && nextPrestigeXPRequired ? (
+          <PrestigeXPBar
+            currentXP={prestigeData.prestigeXP}
+            requiredXP={nextPrestigeXPRequired}
+            prestigeLevel={prestigeData.prestigeLevel}
+          />
+        ) : (
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground font-body">Milestone progression</span>
+            <span className="font-display text-sm text-primary">Level {currentLevel}</span>
+          </div>
+        )}
+
+        {!isMaxLevel && onManualLevelUp && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onManualLevelUp}
+            className="w-full gap-1.5 min-h-[48px] border-primary/30 hover:border-primary/50 hover:bg-primary/10"
+          >
+            <ChevronUp className="w-4 h-4 text-primary" />
+            <span className="text-xs">Advance a Level</span>
+          </Button>
+        )}
+
+        <div className="flex justify-center">
+          <Badge variant="outline" className="text-[10px] gap-1">
+            <Flag className="w-3 h-3" />
+            Milestone
+          </Badge>
+        </div>
+      </div>
+    );
+  }
+
 
   const handleAddReward = (rewardType: XPRewardType) => {
     const reward = XP_REWARDS[rewardType];
