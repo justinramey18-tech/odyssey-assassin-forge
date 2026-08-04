@@ -642,6 +642,17 @@ export function PromptDrawerProvider({
       prestigeLevel, prestigeAbilities, activeConditions, activeBuffs,
       spellcasting: spellcastingContext, loot: lootContext, combat: combatContextData,
       abilityScores: abilityScoresContext,
+      defenses: {
+        armorClass: combatStats.ac,
+        tempHP: tempHP ?? 0,
+        initiativeBonus: combatStats.initiativeBonus,
+      },
+      proficiencies: {
+        bonus: combatStats.proficiencyBonus,
+        skills: proficientSkills,
+        saves: proficientSaves,
+        expertise: expertiseSkills,
+      },
       companion: companionContext,
       wildShape: wildShape ? {
         isTransformed: wildShape.state.isTransformed,
