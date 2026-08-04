@@ -53,6 +53,7 @@ import { CharacterSheetStrip } from '@/components/ai-dm/CharacterSheetStrip';
 import { addPendingDmItems, loadPendingDmItems, PENDING_DM_ITEMS_EVENT } from '@/lib/pendingDmItems';
 import { useXPProgression } from '@/hooks/use-xp-progression';
 import { getXPForLevel } from '@/lib/xpSystem';
+import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
 
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
@@ -425,6 +426,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
   const [pendingItemCount, setPendingItemCount] = useState(() => loadPendingDmItems().length);
   const { multiplier: xpMultiplier } = useXPProgression();
+  // Single source of truth for XP totals (shared with the AI DM briefing)
+  const xpSnapshot = useXPSnapshot(characterContext.level, currentXP);
   useEffect(() => {
     const refresh = () => setPendingItemCount(loadPendingDmItems().length);
     window.addEventListener(PENDING_DM_ITEMS_EVENT, refresh);
@@ -946,9 +949,9 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           level={characterContext.level}
           currentHP={characterContext.currentHP}
           maxHP={characterContext.maxHP}
-          xpInLevel={Math.max(0, currentXP - getXPForLevel(characterContext.level, xpMultiplier || 1))}
-          xpNeeded={Math.max(1, getXPForLevel(characterContext.level + 1, xpMultiplier || 1) - getXPForLevel(characterContext.level, xpMultiplier || 1))}
-          isMilestone={xpMultiplier === 0}
+          xpInLevel={xpSnapshot.xpIntoLevel}
+          xpNeeded={xpSnapshot.xpLevelSpan}
+          isMilestone={xpSnapshot.mode === 'milestone'}
           pendingItemCount={pendingItemCount}
           onOpen={() => setShowCharacterSheet(true)}
         />

@@ -22,6 +22,7 @@ import { usePersonalityGate } from '@/hooks/use-personality-gate';
 import { Character } from '@/lib/types';
 import { XPPreset, getXPForLevel } from '@/lib/xpSystem';
 import { useXPProgression } from '@/hooks/use-xp-progression';
+import { getXPSnapshot } from '@/lib/xpSystem';
 import { CharacterEquipment } from '@/lib/inventory/types';
 import { InventoryItem as ConsumableItem } from '@/lib/consumables/types';
 import { LootItem } from '@/lib/loot/types';
@@ -506,20 +507,19 @@ export function PromptDrawerProvider({
         ? { [characterClass]: character.level, ...character.multiclassLevels }
         : undefined;
 
-    // Progression snapshot so the DM knows real XP thresholds
-    const isMilestone = xpProgressionMode === 'milestone';
-    const paceMult = xpMultiplier || 1;
-    const nextLevelXP = character.level >= 20 ? 0 : getXPForLevel(character.level + 1, paceMult);
-    const levelFloorXP = getXPForLevel(character.level, paceMult);
+    // Progression snapshot from the shared XP calculator (single source of truth —
+    // identical numbers to the character sheet and the DM header strip)
+    const xpSnap = getXPSnapshot(character.level, currentXP, xpMultiplier);
+    const isMilestone = xpSnap.mode === 'milestone';
     const progression: CharacterContext['progression'] = {
-      mode: isMilestone ? 'milestone' : 'xp',
-      currentXP: isMilestone ? undefined : currentXP,
-      xpForNextLevel: isMilestone || character.level >= 20 ? undefined : nextLevelXP,
-      xpRemaining: isMilestone || character.level >= 20 ? undefined : Math.max(0, nextLevelXP - currentXP),
-      xpLevelFloor: isMilestone ? undefined : levelFloorXP,
-      xpIntoLevel: isMilestone ? undefined : Math.max(0, currentXP - levelFloorXP),
-      xpLevelSpan: isMilestone || character.level >= 20 ? undefined : Math.max(1, nextLevelXP - levelFloorXP),
-      pace: isMilestone ? undefined : `${xpProgressionMode} (${paceMult}x XP table)`,
+      mode: xpSnap.mode,
+      currentXP: isMilestone ? undefined : xpSnap.totalXP,
+      xpForNextLevel: isMilestone || xpSnap.isMaxLevel ? undefined : xpSnap.nextLevelXP,
+      xpRemaining: isMilestone || xpSnap.isMaxLevel ? undefined : xpSnap.xpRemaining,
+      xpLevelFloor: isMilestone ? undefined : xpSnap.levelFloor,
+      xpIntoLevel: isMilestone ? undefined : xpSnap.xpIntoLevel,
+      xpLevelSpan: isMilestone || xpSnap.isMaxLevel ? undefined : xpSnap.xpLevelSpan,
+      pace: isMilestone ? undefined : `${xpProgressionMode} (${xpMultiplier}x XP table)`,
     };
 
     return {

@@ -148,3 +148,63 @@ export function getRandomXPReward(rewardType: XPRewardType): number {
   const reward = XP_REWARDS[rewardType];
   return Math.floor(Math.random() * (reward.max - reward.min + 1)) + reward.min;
 }
+
+// ─────────────────────────────────────────────────────────────
+// SINGLE SOURCE OF TRUTH for XP totals
+// Every surface (character sheet UI, XP tracker, DM strip, and the
+// AI DM briefing) must derive its numbers from getXPSnapshot so the
+// player and the DM can never see different totals.
+// ─────────────────────────────────────────────────────────────
+
+export interface XPSnapshot {
+  /** 'milestone' when the pace multiplier is 0 (no XP numbers at all) */
+  mode: 'xp' | 'milestone';
+  multiplier: number;
+  level: number;
+  isMaxLevel: boolean;
+  /** Lifetime XP total as stored on the character */
+  totalXP: number;
+  /** XP required to have reached the current level */
+  levelFloor: number;
+  /** XP required to reach the next level (0 at max level) */
+  nextLevelXP: number;
+  /** Progress within the current level (the "1700" in 1700/3750) */
+  xpIntoLevel: number;
+  /** Size of the current level band (the "3750" in 1700/3750) */
+  xpLevelSpan: number;
+  /** XP still needed to reach the next level */
+  xpRemaining: number;
+  /** 0-100 progress through the current level */
+  progressPct: number;
+  /** True when the stored total is below the current level's threshold (manual level set) */
+  belowFloor: boolean;
+}
+
+export function getXPSnapshot(level: number, currentXP: number, multiplier: number): XPSnapshot {
+  const safeLevel = Math.max(1, Math.min(20, Math.floor(level || 1)));
+  const total = Math.max(0, Math.floor(currentXP || 0));
+  const isMilestone = multiplier === 0;
+  const isMaxLevel = safeLevel >= 20;
+  const mult = isMilestone ? 1 : multiplier;
+
+  const levelFloor = getXPForLevel(safeLevel, mult);
+  const nextLevelXP = isMaxLevel ? 0 : getXPForLevel(safeLevel + 1, mult);
+  const xpLevelSpan = isMaxLevel ? 0 : Math.max(1, nextLevelXP - levelFloor);
+  const xpIntoLevel = isMaxLevel ? 0 : Math.max(0, Math.min(xpLevelSpan, total - levelFloor));
+  const xpRemaining = isMaxLevel ? 0 : Math.max(0, nextLevelXP - total);
+
+  return {
+    mode: isMilestone ? 'milestone' : 'xp',
+    multiplier,
+    level: safeLevel,
+    isMaxLevel,
+    totalXP: total,
+    levelFloor,
+    nextLevelXP,
+    xpIntoLevel,
+    xpLevelSpan,
+    xpRemaining,
+    progressPct: isMaxLevel || xpLevelSpan <= 0 ? 100 : Math.min(100, Math.max(0, (xpIntoLevel / xpLevelSpan) * 100)),
+    belowFloor: total < levelFloor,
+  };
+}
