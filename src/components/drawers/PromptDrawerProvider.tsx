@@ -665,6 +665,7 @@ export function PromptDrawerProvider({
         saves: proficientSaves,
         expertise: expertiseSkills,
       },
+      gold: typeof goldAmount === 'number' && Number.isFinite(goldAmount) ? goldAmount : undefined,
       companion: companionContext,
       wildShape: wildShape ? {
         isTransformed: wildShape.state.isTransformed,
