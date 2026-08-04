@@ -350,7 +350,8 @@ function buildContextSummary(ctx: CharacterContext): string {
     const pretty = (id: string) => id.replace(/_/g, ' ');
     const bonusTxt = typeof prof.bonus === 'number' ? ` (proficiency bonus +${prof.bonus})` : '';
     lines.push(`PROFICIENCIES${bonusTxt}:`);
-    if (prof.skills.length > 0) lines.push(`   Skills: ${prof.skills.map(pretty).join(', ')}`);
+    const plainSkills = prof.skills.filter(s => !prof.expertise.includes(s));
+    if (plainSkills.length > 0) lines.push(`   Skills (proficient): ${plainSkills.map(pretty).join(', ')}`);
     if (prof.expertise.length > 0) lines.push(`   EXPERTISE (proficiency bonus is DOUBLED on these): ${prof.expertise.map(pretty).join(', ')}`);
     if (prof.saves.length > 0) lines.push(`   Saving throws: ${prof.saves.map(s => s.toUpperCase()).join(', ')}`);
     lines.push(`   The character is NOT proficient in anything not listed here. Take this into account when setting DCs and when describing how confidently the character attempts something.`);
