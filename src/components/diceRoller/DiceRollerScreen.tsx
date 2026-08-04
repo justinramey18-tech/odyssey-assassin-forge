@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Copy, Check, Dices, Sparkles, Swords, Eye, MessageCircle, Wrench, Plus, Minus, Settings2, ChevronUp, ChevronDown, Equal, Wand2, RotateCcw, Play, SlidersHorizontal, Users, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getScopedItem, setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -232,25 +233,36 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
     saveDiceOddsMode(mode);
   }, []);
 
-  // Load saved modifiers on mount
+  // Load saved modifiers on mount.
+  // These keys are character-scoped. Migrate any legacy unscoped values first so
+  // settings made before this fix are not lost.
   useEffect(() => {
     try {
-      const savedMods = localStorage.getItem(MODIFIERS_STORAGE_KEY);
+      [
+        MODIFIERS_STORAGE_KEY,
+        PROFICIENCY_STORAGE_KEY,
+        PROFICIENT_SKILLS_KEY,
+        PROFICIENT_SAVES_KEY,
+        EXPERTISE_SKILLS_KEY,
+        ROLL_MODE_KEY,
+      ].forEach(migrateToScoped);
+
+      const savedMods = getScopedItem(MODIFIERS_STORAGE_KEY);
       if (savedMods) setAbilityModifiers(JSON.parse(savedMods));
-      
-      const savedProf = localStorage.getItem(PROFICIENCY_STORAGE_KEY);
+
+      const savedProf = getScopedItem(PROFICIENCY_STORAGE_KEY);
       if (savedProf) setProficiencyBonus(parseInt(savedProf, 10));
-      
-      const savedSkills = localStorage.getItem(PROFICIENT_SKILLS_KEY);
+
+      const savedSkills = getScopedItem(PROFICIENT_SKILLS_KEY);
       if (savedSkills) setProficientSkills(new Set(JSON.parse(savedSkills)));
-      
-      const savedSaves = localStorage.getItem(PROFICIENT_SAVES_KEY);
+
+      const savedSaves = getScopedItem(PROFICIENT_SAVES_KEY);
       if (savedSaves) setProficientSaves(new Set(JSON.parse(savedSaves)));
-      
-      const savedExpertise = localStorage.getItem(EXPERTISE_SKILLS_KEY);
+
+      const savedExpertise = getScopedItem(EXPERTISE_SKILLS_KEY);
       if (savedExpertise) setExpertiseSkills(new Set(JSON.parse(savedExpertise)));
-      
-      const savedRollMode = localStorage.getItem(ROLL_MODE_KEY);
+
+      const savedRollMode = getScopedItem(ROLL_MODE_KEY);
       if (savedRollMode) setRollMode(savedRollMode as RollMode);
     } catch (e) {
       console.error('Failed to load modifiers:', e);
@@ -259,27 +271,27 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
 
   // Save modifiers when they change
   useEffect(() => {
-    localStorage.setItem(MODIFIERS_STORAGE_KEY, JSON.stringify(abilityModifiers));
+    setScopedItem(MODIFIERS_STORAGE_KEY, JSON.stringify(abilityModifiers));
   }, [abilityModifiers]);
 
   useEffect(() => {
-    localStorage.setItem(PROFICIENCY_STORAGE_KEY, proficiencyBonus.toString());
+    setScopedItem(PROFICIENCY_STORAGE_KEY, proficiencyBonus.toString());
   }, [proficiencyBonus]);
 
   useEffect(() => {
-    localStorage.setItem(PROFICIENT_SKILLS_KEY, JSON.stringify([...proficientSkills]));
+    setScopedItem(PROFICIENT_SKILLS_KEY, JSON.stringify([...proficientSkills]));
   }, [proficientSkills]);
 
   useEffect(() => {
-    localStorage.setItem(PROFICIENT_SAVES_KEY, JSON.stringify([...proficientSaves]));
+    setScopedItem(PROFICIENT_SAVES_KEY, JSON.stringify([...proficientSaves]));
   }, [proficientSaves]);
 
   useEffect(() => {
-    localStorage.setItem(EXPERTISE_SKILLS_KEY, JSON.stringify([...expertiseSkills]));
+    setScopedItem(EXPERTISE_SKILLS_KEY, JSON.stringify([...expertiseSkills]));
   }, [expertiseSkills]);
 
   useEffect(() => {
-    localStorage.setItem(ROLL_MODE_KEY, rollMode);
+    setScopedItem(ROLL_MODE_KEY, rollMode);
   }, [rollMode]);
 
   // Update ability modifier
