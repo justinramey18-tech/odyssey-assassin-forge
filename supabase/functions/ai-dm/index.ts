@@ -225,6 +225,19 @@ function buildContextSummary(ctx: CharacterContext): string {
   const lines: string[] = [];
   
   lines.push(`CHARACTER: ${ctx.name}, Level ${ctx.level}`);
+  if (ctx.progression) {
+    if (ctx.progression.mode === 'milestone') {
+      lines.push(`PROGRESSION: Milestone tracking — XP numbers are OFF. Never mention XP totals or award XP amounts.`);
+    } else if (typeof ctx.progression.currentXP === 'number') {
+      const next = ctx.progression.xpForNextLevel;
+      const remaining = ctx.progression.xpRemaining;
+      lines.push(
+        next && next > 0
+          ? `PROGRESSION: XP tracking — ${ctx.progression.currentXP} XP total. Level ${ctx.level + 1} requires ${next} XP (${remaining} XP still needed).`
+          : `PROGRESSION: XP tracking — ${ctx.progression.currentXP} XP total. Max level reached.`
+      );
+    }
+  }
   if (ctx.characterClass) {
     if (ctx.multiclassBreakdown && Object.keys(ctx.multiclassBreakdown).length > 1) {
       const breakdown = Object.entries(ctx.multiclassBreakdown)
