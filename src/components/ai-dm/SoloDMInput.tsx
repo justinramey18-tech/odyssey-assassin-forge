@@ -1,9 +1,10 @@
 import { useState, useCallback, useRef, useImperativeHandle, forwardRef, memo } from 'react';
-import { Send, Square } from 'lucide-react';
+import { Send, Square, Wand2, RotateCcw, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getAtMentionQuery, filterNPCNames } from '@/hooks/use-npc-autocomplete';
 import { NPCAutocomplete } from './NPCAutocomplete';
 import { useDraftPersist } from '@/hooks/use-draft-persist';
+import { toast } from 'sonner';
 
 export interface SoloDMInputHandle {
   setText: (text: string) => void;
@@ -23,16 +24,21 @@ interface SoloDMInputProps {
   placeholder?: string;
   onInputChange?: (text: string) => void;
   locked?: boolean;
+  /** Optional context passed to the prompt improver so it uses real ability and spell names */
+  enhanceContext?: { characterName?: string; abilities?: string[]; spells?: string[] };
 }
 
 export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(function SoloDMInput(
-  { onSend, onCancel, onPaste, isLoading, npcNames, inputClassName, sendActiveClassName, placeholder, onInputChange, locked },
+  { onSend, onCancel, onPaste, isLoading, npcNames, inputClassName, sendActiveClassName, placeholder, onInputChange, locked, enhanceContext },
   ref
 ) {
   const [input, setInput, clearInput] = useDraftPersist('odyssey-solo-dm-draft');
   const [cursorPos, setCursorPos] = useState(0);
   const [acActiveIndex, setAcActiveIndex] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  // Snapshot of the draft before the last rewrite, so the wand button can double as undo.
+  const [preEnhance, setPreEnhance] = useState<string | null>(null);
 
   const mentionState = getAtMentionQuery(input, cursorPos);
   const acSuggestions = mentionState ? filterNPCNames(npcNames, mentionState.query) : [];
@@ -88,6 +94,7 @@ export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(
   }), [input, setInput]);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setPreEnhance(null);
     setInput(e.target.value);
     onInputChange?.(e.target.value);
     const ta = e.target;
@@ -96,10 +103,65 @@ export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(
     setCursorPos(ta.selectionStart ?? 0);
   }, [setInput, onInputChange]);
 
+  const resize = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (!inputRef.current) return;
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 200) + 'px';
+    });
+  }, []);
+
+  const handleUndoEnhance = useCallback(() => {
+    if (preEnhance === null) return;
+    setInput(preEnhance);
+    setPreEnhance(null);
+    resize();
+  }, [preEnhance, setInput, resize]);
+
+  const handleEnhance = useCallback(async () => {
+    const draft = input.trim();
+    if (!draft || isEnhancing) return;
+    setIsEnhancing(true);
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data, error } = await supabase.functions.invoke('enhance-player-action', {
+        body: {
+          draft,
+          characterName: enhanceContext?.characterName,
+          abilities: enhanceContext?.abilities,
+          spells: enhanceContext?.spells,
+        },
+      });
+      if (error) throw error;
+
+      const enhanced = typeof data?.enhanced === 'string' ? data.enhanced.trim() : '';
+      if (!enhanced) {
+        const reason = data?.reason;
+        toast.error(
+          reason === 'mentions_lost'
+            ? 'Could not rewrite that without losing your @NPC tags — draft left as is'
+            : reason === 'rate_limited'
+              ? 'Prompt improver is rate limited, try again shortly'
+              : 'Could not improve that draft'
+        );
+        return;
+      }
+
+      setPreEnhance(input);
+      setInput(enhanced);
+      resize();
+    } catch {
+      toast.error('Prompt improver unavailable');
+    } finally {
+      setIsEnhancing(false);
+    }
+  }, [input, isEnhancing, enhanceContext, setInput, resize]);
+
   const handleSubmit = useCallback(() => {
     if (!input.trim()) return;
     onSend(input.trim());
     clearInput();
+    setPreEnhance(null);
     if (inputRef.current) inputRef.current.style.height = 'auto';
   }, [input, onSend, clearInput]);
 
@@ -131,6 +193,31 @@ export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(
         className={cn("flex-1 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none resize-none min-h-[42px] max-h-[200px]", inputClassName)}
         disabled={isLoading || locked}
       />
+      {!isLoading && input.trim() && (
+        <button
+          onClick={preEnhance !== null ? handleUndoEnhance : handleEnhance}
+          disabled={isEnhancing || locked}
+          aria-label={preEnhance !== null ? 'Undo rewrite' : 'Improve this action'}
+          title={preEnhance !== null ? 'Undo rewrite' : 'Weave into one action'}
+          className={cn(
+            "p-2.5 rounded-xl border shrink-0 transition-colors",
+            isEnhancing
+              ? "bg-white/5 border-white/10 opacity-60"
+              : preEnhance !== null
+                ? "bg-white/5 border-white/20 hover:bg-white/10"
+                : "bg-violet-900/30 border-violet-500/30 hover:bg-violet-900/50"
+          )}
+          style={{ touchAction: 'manipulation', minHeight: 44, minWidth: 44 }}
+        >
+          {isEnhancing ? (
+            <Loader2 className="w-5 h-5 text-white/60 animate-spin" />
+          ) : preEnhance !== null ? (
+            <RotateCcw className="w-5 h-5 text-white/70" />
+          ) : (
+            <Wand2 className="w-5 h-5 text-violet-300" />
+          )}
+        </button>
+      )}
       {isLoading ? (
         <button
           onClick={onCancel}
