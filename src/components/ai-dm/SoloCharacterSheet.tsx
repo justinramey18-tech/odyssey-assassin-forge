@@ -320,6 +320,38 @@ export function SoloCharacterSheet({
               )}
             </Section>
 
+            {ctx.wildShape?.isTransformed && (
+              <Section title="Wild Shape" icon={Sparkles}>
+                <p className="text-sm text-foreground">{ctx.wildShape.formName ?? 'Transformed'}</p>
+                <p className="text-xs text-white/50 mt-1">
+                  {ctx.wildShape.formHP}/{ctx.wildShape.formMaxHP} HP
+                  {typeof ctx.wildShape.formAC === 'number' ? ` · AC ${ctx.wildShape.formAC}` : ''}
+                  {ctx.wildShape.formCR ? ` · CR ${ctx.wildShape.formCR}` : ''}
+                </p>
+                <p className="text-[10px] text-white/40 mt-1">
+                  {ctx.wildShape.usesRemaining}/{ctx.wildShape.maxUses} uses remaining
+                </p>
+              </Section>
+            )}
+
+            {ctx.companion && (
+              <Section title={ctx.companion.name} icon={Heart}>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-lg font-display font-bold text-foreground">
+                    {ctx.companion.currentHP}/{ctx.companion.maxHP}
+                  </span>
+                  <span className="text-[10px] uppercase tracking-wider text-white/40">{ctx.companion.mood}</span>
+                </div>
+                {ctx.companion.conditions.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {ctx.companion.conditions.map(c => (
+                      <Badge key={c} variant="outline" className="text-[10px] capitalize">{c}</Badge>
+                    ))}
+                  </div>
+                )}
+              </Section>
+            )}
+
             <Section title="Rest" icon={Moon}>
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1 min-h-[48px] gap-1.5" onClick={() => onRest?.('short')}>
