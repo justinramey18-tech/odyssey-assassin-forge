@@ -37,6 +37,8 @@ import { useCooldowns } from '@/hooks/use-cooldowns';
 import { useConditions, UseConditionsReturn } from '@/hooks/use-conditions';
 import { Personality, CharacterContext } from '@/components/oracle/types';
 import { allAbilities } from '@/lib/abilities';
+import { useAbilityCustomization } from '@/hooks/use-ability-customization';
+import { getCustomizedAbilities } from '@/lib/abilityCustomization';
 import { getSpellById } from '@/lib/magic/spells';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { UseWildShapeReturn } from '@/hooks/use-wild-shape';
@@ -387,20 +389,50 @@ export function PromptDrawerProvider({
   // XP progression pace (multiplier-aware thresholds for the AI DM briefing)
   const { mode: xpProgressionMode, multiplier: xpMultiplier } = useXPProgression();
 
+  // Homebrew abilities and player overrides live here, not in the base registry.
+  const abilityCustomization = useAbilityCustomization();
+
   // Build full character context for AI DM (same logic as OracleDrawer)
   const aiDMCharacterContext = useMemo<CharacterContext>(() => {
     const hp = currentHP ?? character.level * 8 + 10;
     const hpMax = maxHP ?? character.level * 8 + 10;
 
+    // Base abilities with player overrides applied, plus player-created homebrew.
+    const resolvedAbilities = getCustomizedAbilities(allAbilities, abilityCustomization.state);
+    const findAbility = (id: string) => resolvedAbilities.find(ab => ab.id === id);
+
     const abilitiesList = character.abilities
       .filter(a => a.currentTier > 0)
       .map(a => {
-        const ability = allAbilities.find(ab => ab.id === a.abilityId);
-        return { name: ability?.name || a.abilityId, tier: a.currentTier, tree: ability?.tree || 'unknown' };
+        const ability = findAbility(a.abilityId) as (ReturnType<typeof findAbility> & {
+          isHomebrew?: boolean;
+          isCustomized?: boolean;
+          customCooldownMinutes?: number;
+          attackType?: string;
+          customDice?: Record<string, { count: number; die: number } | undefined>;
+        }) | undefined;
+
+        const tierEffect = ability?.tierEffects?.find(t => t.tier === a.currentTier);
+        const tierDice = ability?.customDice?.[`tier${a.currentTier}`];
+
+        return {
+          name: ability?.name || a.abilityId,
+          tier: a.currentTier,
+          tree: ability?.tree || 'unknown',
+          type: ability?.type,
+          actionType: ability?.actionType,
+          usageType: ability?.usageType,
+          effect: tierEffect?.description,
+          dice: tierDice ? `${tierDice.count}d${tierDice.die}` : undefined,
+          cooldownMinutes: ability?.customCooldownMinutes,
+          attackType: ability?.attackType,
+          isHomebrew: ability?.isHomebrew === true ? true : undefined,
+          isCustomized: ability?.isCustomized === true ? true : undefined,
+        };
       });
 
     const equippedAbilitiesList = character.equippedAbilities
-      .map(id => allAbilities.find(a => a.id === id)?.name || id)
+      .map(id => findAbility(id)?.name || id)
       .filter(Boolean) as string[];
 
     const equipmentList: Array<{ slot: string; name: string; rarity: string }> = [];
@@ -418,8 +450,7 @@ export function PromptDrawerProvider({
     const readyCooldowns: string[] = [];
     if (cooldownSystem.cooldowns) {
       cooldownSystem.cooldowns.forEach((state, abilityId) => {
-        const ability = allAbilities.find(a => a.id === abilityId);
-        const name = ability?.name || abilityId;
+        const name = findAbility(abilityId)?.name || abilityId;
         const remaining = cooldownSystem.getRemainingTime(abilityId);
         if (remaining > 0) activeCooldowns.push({ name, remainingSeconds: remaining });
         else if (state.lastUsed) readyCooldowns.push(name);
@@ -598,7 +629,7 @@ export function PromptDrawerProvider({
         maxUses: wildShape.state.maxUses,
       } : undefined,
     };
-  }, [character, currentHP, maxHP, currentXP, xpProgressionMode, xpMultiplier, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
+  }, [character, currentHP, maxHP, currentXP, xpProgressionMode, xpMultiplier, abilityCustomization.state, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
       prestigeLevel, prestigeAbilities, spellcasting, lootItems, totalLootValue, combatContext, conditionsSystem.debuffs, conditionsSystem.buffs,
       getScoreBreakdown, identityGender, identityRace, identityBackstory, identityRelationships,
       wildShape?.state.isTransformed, wildShape?.state.currentForm, wildShape?.state.formHP, wildShape?.state.formMaxHP, wildShape?.state.usesRemaining, wildShape?.state.maxUses]);
