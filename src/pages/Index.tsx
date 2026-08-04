@@ -1288,6 +1288,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     // 2. XP system
     setCurrentXP(data.xp.currentXP);
     setXPPreset(data.xp.xpPreset as XPPreset);
+    saveXPProgressionMode(presetToProgressionMode(data.xp.xpPreset as XPPreset));
+
     
     // 3. Prestige data - update localStorage AND state via hook
     if (data.prestige) {
