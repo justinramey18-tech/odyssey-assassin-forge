@@ -48,6 +48,11 @@ import { useLinkedUniverse } from '@/hooks/use-linked-universe';
 import { LinkedUniverseSection } from '@/components/empyrean/LinkedUniverseSection';
 
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
+import { SoloCharacterSheet } from '@/components/ai-dm/SoloCharacterSheet';
+import { CharacterSheetStrip } from '@/components/ai-dm/CharacterSheetStrip';
+import { addPendingDmItems, loadPendingDmItems, PENDING_DM_ITEMS_EVENT } from '@/lib/pendingDmItems';
+import { useXPProgression } from '@/hooks/use-xp-progression';
+import { getXPForLevel } from '@/lib/xpSystem';
 
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
@@ -77,6 +82,12 @@ interface AIDMScreenProps {
     getCurrentHP: () => number;
     getCurrentGold: () => number;
   };
+  /** Total accumulated XP (for the character sheet XP bar) */
+  currentXP?: number;
+  /** Manual level advance (milestone play / catch-up) */
+  onManualLevelUp?: () => void;
+  /** Accept an item the DM awarded into the loot inventory */
+  onAcceptItem?: (name: string, quantity: number) => void;
   /** Wild Shape hook instance (for Momo Moon Druid) */
   wildShape?: UseWildShapeReturn;
   /** Whether this character is a Momo Moon Druid (shows wild shape tab) */
@@ -410,7 +421,19 @@ function parseNpcTags(text: string, knownNames: string[]): { npcNames: string[];
 }
 
 
-export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks, dmPersonaPrompt, dmPersonaName, onRetakePersonalityTest, wildShape, isMomoMoonDruid }: AIDMScreenProps) {
+export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks, dmPersonaPrompt, dmPersonaName, onRetakePersonalityTest, wildShape, isMomoMoonDruid, currentXP = 0, onManualLevelUp, onAcceptItem }: AIDMScreenProps) {
+  const [showCharacterSheet, setShowCharacterSheet] = useState(false);
+  const [pendingItemCount, setPendingItemCount] = useState(() => loadPendingDmItems().length);
+  const { multiplier: xpMultiplier } = useXPProgression();
+  useEffect(() => {
+    const refresh = () => setPendingItemCount(loadPendingDmItems().length);
+    window.addEventListener(PENDING_DM_ITEMS_EVENT, refresh);
+    window.addEventListener('odyssey-character-loaded', refresh);
+    return () => {
+      window.removeEventListener(PENDING_DM_ITEMS_EVENT, refresh);
+      window.removeEventListener('odyssey-character-loaded', refresh);
+    };
+  }, []);
   const isMomo = useMemo(() => isMomoEasterEgg(characterName), [characterName]);
   const geraltCharacterId = useMemo(() => characterName?.toLowerCase().trim() || 'unknown', [characterName]);
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
@@ -514,7 +537,11 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
 
   const handleMessageComplete = useCallback((content: string) => {
     if (autoSync.autoSyncEnabled) {
-      autoSync.extractAndApply(content, characterContext);
+      autoSync.extractAndApply(content, characterContext).then(result => {
+        if (result?.items_acquired?.length) {
+          addPendingDmItems(result.items_acquired);
+        }
+      }).catch(() => {});
     }
     // Always run memory extraction in the background via ref — avoids hook ordering issues
     extractMemoryRef.current?.(content, memoryAnchorsRef.current, characterContext);
