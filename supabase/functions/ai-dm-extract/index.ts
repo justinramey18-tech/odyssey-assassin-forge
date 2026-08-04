@@ -69,6 +69,18 @@ const EXTRACT_TOOL = {
             additionalProperties: false,
           },
         },
+        items_consumed: {
+          type: "array",
+          description: "Consumable items the PLAYER used up in this message — potions drunk, scrolls read, rations eaten, torches burned. Only include an item when the narration says it was actually consumed, not when it is merely mentioned, offered, or drawn.",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "Item name as closely as possible to how the player's sheet would spell it, e.g. 'Potion of Healing'" },
+              quantity: { type: "number", description: "How many were used up. Default 1." }
+            },
+            required: ["name", "quantity"]
+          }
+        },
         rest_occurred: {
           type: ["string", "null"],
           enum: ["short", "long", null],
