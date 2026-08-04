@@ -13,6 +13,17 @@ interface CharacterContext {
   level: number;
   currentHP: number;
   maxHP: number;
+  defenses?: {
+    armorClass?: number;
+    tempHP?: number;
+    initiativeBonus?: number;
+  };
+  proficiencies?: {
+    bonus?: number;
+    skills: string[];
+    saves: string[];
+    expertise: string[];
+  };
   progression?: {
     mode: 'xp' | 'milestone';
     currentXP?: number;
@@ -322,7 +333,26 @@ function buildContextSummary(ctx: CharacterContext): string {
     });
     if (ctx.relationships.length > 8) lines.push(`  (+${ctx.relationships.length - 8} more)`);
   }
-  lines.push(`HP: ${ctx.currentHP}/${ctx.maxHP} (${Math.round((ctx.currentHP / ctx.maxHP) * 100)}%)`);
+  const hpLine = `HP: ${ctx.currentHP}/${ctx.maxHP} (${Math.round((ctx.currentHP / ctx.maxHP) * 100)}%)`;
+  lines.push(ctx.defenses?.tempHP ? `${hpLine} + ${ctx.defenses.tempHP} TEMP HP (temp HP absorbs damage FIRST, before real HP)` : hpLine);
+
+  if (typeof ctx.defenses?.armorClass === 'number') {
+    const initBit = typeof ctx.defenses.initiativeBonus === 'number'
+      ? ` | Initiative: ${ctx.defenses.initiativeBonus >= 0 ? '+' : ''}${ctx.defenses.initiativeBonus}`
+      : '';
+    lines.push(`ARMOR CLASS: ${ctx.defenses.armorClass}${initBit} — an attack roll must MEET OR BEAT this number to hit. Use it. Do not invent an AC.`);
+  }
+
+  const prof = ctx.proficiencies;
+  if (prof && (prof.skills.length > 0 || prof.saves.length > 0 || prof.expertise.length > 0)) {
+    const pretty = (id: string) => id.replace(/_/g, ' ');
+    const bonusTxt = typeof prof.bonus === 'number' ? ` (proficiency bonus +${prof.bonus})` : '';
+    lines.push(`PROFICIENCIES${bonusTxt}:`);
+    if (prof.skills.length > 0) lines.push(`   Skills: ${prof.skills.map(pretty).join(', ')}`);
+    if (prof.expertise.length > 0) lines.push(`   EXPERTISE (proficiency bonus is DOUBLED on these): ${prof.expertise.map(pretty).join(', ')}`);
+    if (prof.saves.length > 0) lines.push(`   Saving throws: ${prof.saves.map(s => s.toUpperCase()).join(', ')}`);
+    lines.push(`   The character is NOT proficient in anything not listed here. Take this into account when setting DCs and when describing how confidently the character attempts something.`);
+  }
   
   if (ctx.prestigeLevel > 0) {
     lines.push(`PRESTIGE: Level ${ctx.prestigeLevel}`);
