@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
+import { rollAttack, rollCheck, attackRollSuffix, checkRollSuffix } from '@/lib/promptAutoRoll';
 import type { CharacterContext } from '@/components/oracle/types';
 
 export type QuickActionRemoveCategory = 'weapon' | 'ability' | 'spell' | 'cantrip' | 'consumable' | 'prestige' | 'homebrew-ability' | 'homebrew-spell';
@@ -32,6 +33,10 @@ interface QuickActionItem {
   prompt: string;
   removeCategory: QuickActionRemoveCategory;
   removeSlot?: string;
+  /** How dice attach at tap time: 'attack' rolls to-hit + damage, 'spell' likewise, 'check' rolls one d20 outcome ladder, 'none' rolls nothing. */
+  rollKind?: 'attack' | 'spell' | 'check' | 'none';
+  /** Damage dice for attack/spell rolls, e.g. '1d8' or '6d8'. Optional — defaults to 1d8. */
+  damageFormula?: string;
 }
 
 function generateWeaponPrompt(name: string, characterName: string): string {
@@ -101,7 +106,13 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
               </div>
               <button
                 onClick={() => {
-                  onUse(item.prompt);
+                  let staged = item.prompt;
+                  if (item.rollKind === 'attack' || item.rollKind === 'spell') {
+                    staged += attackRollSuffix(rollAttack(item.damageFormula), item.rollKind);
+                  } else if (item.rollKind === 'check') {
+                    staged += checkRollSuffix(rollCheck());
+                  }
+                  onUse(staged);
                   toast.success('Prompt added to input');
                 }}
                 className={cn(
@@ -209,6 +220,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         prompt: generateWeaponPrompt(e.name, charName),
         removeCategory: 'weapon' as const,
         removeSlot: e.slot,
+        rollKind: 'attack' as const,
       }));
 
     // Abilities with tier > 0
@@ -225,6 +237,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         detail: `Tier ${a.tier} • ${a.tree}${equippedSet.has(a.name) ? ' • Equipped' : ''}`,
         prompt: generateAbilityPrompt(a.name, a.tier, charName),
         removeCategory: (a.tree === 'Homebrew' || a.tree === 'Custom') ? 'homebrew-ability' as const : 'ability' as const,
+        rollKind: 'check' as const,
       };
       if (a.tree === 'Homebrew' || a.tree === 'Custom') {
         homebrewAbilities.push(item);
@@ -247,6 +260,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         detail: isCantrip ? (isEmpyreanMode() ? 'Minor Signet' : 'Cantrip') : (isEmpyreanMode() ? 'Prepared Signet' : 'Prepared Spell'),
         prompt: generateSpellPrompt(spellName, charName, isCantrip),
         removeCategory: isCantrip ? 'cantrip' as const : 'spell' as const,
+        rollKind: 'spell' as const,
       };
       if (isCantrip) {
         cantrips.push(item);
@@ -264,6 +278,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         detail: `${c.type} • x${c.quantity}`,
         prompt: generateConsumablePrompt(c.name, c.type, charName),
         removeCategory: 'consumable' as const,
+        rollKind: 'none' as const,
       }));
 
     // Prestige abilities
@@ -273,6 +288,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
       detail: 'Legacy Ability',
       prompt: generatePrestigePrompt(name, charName),
       removeCategory: 'prestige' as const,
+      rollKind: 'check' as const,
     }));
 
     // Combine homebrew
