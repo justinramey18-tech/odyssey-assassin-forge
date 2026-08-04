@@ -13,6 +13,8 @@ project_id = "sqvcszzbkyzidigsdqgk"
     verify_jwt = false
   [functions.empyrean-masterwork-pills]
     verify_jwt = false
+  [functions.enhance-player-action]
+    verify_jwt = false
   [functions.character-guide-builder]
     verify_jwt = false
   [functions.party-player-onboarding]
