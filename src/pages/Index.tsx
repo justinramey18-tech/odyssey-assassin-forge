@@ -189,6 +189,27 @@ const Index = () => {
   // XP System State
   const [currentXP, setCurrentXP] = useState(0);
   const [xpPreset, setXPPreset] = useState<XPPreset>(() => progressionModeToPreset(loadXPProgressionMode()));
+
+  // Keep the internal XP preset in sync with the Settings progression choice
+  useEffect(() => {
+    const handleProgressionChange = (e: Event) => {
+      const mode = (e as CustomEvent<XPProgressionMode>).detail;
+      if (mode) setXPPreset(progressionModeToPreset(mode));
+    };
+    const handleCharacterLoaded = () => {
+      setXPPreset(progressionModeToPreset(loadXPProgressionMode()));
+    };
+    window.addEventListener('odyssey-xp-progression-change', handleProgressionChange);
+    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    return () => {
+      window.removeEventListener('odyssey-xp-progression-change', handleProgressionChange);
+      window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    };
+  }, []);
+
+  const isMilestoneProgression = xpPreset === 'milestone';
+  
+
   
   // Inspiration State (D&D 5e)
   const [hasInspiration, setHasInspiration] = useState(() => {
