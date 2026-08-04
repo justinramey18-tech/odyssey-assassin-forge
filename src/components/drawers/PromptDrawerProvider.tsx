@@ -510,6 +510,7 @@ export function PromptDrawerProvider({
           verbal: s.components?.verbal ?? false,
           somatic: s.components?.somatic ?? false,
           material: s.components?.material,
+          castable: s.level === 0 || s.level <= highestSlotLevel,
         }));
 
       spellcastingContext = {
