@@ -678,7 +678,7 @@ export function PromptDrawerProvider({
         maxUses: wildShape.state.maxUses,
       } : undefined,
     };
-  }, [character, currentHP, maxHP, tempHP, currentXP, xpProgressionMode, xpMultiplier, abilityCustomization.state, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
+  }, [character, currentHP, maxHP, tempHP, currentXP, xpProgressionMode, xpMultiplier, abilityCustomization.state, autoSyncCallbacks, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
       prestigeLevel, prestigeAbilities, spellcasting, lootItems, totalLootValue, combatContext, conditionsSystem.debuffs, conditionsSystem.buffs,
       getScoreBreakdown, identityGender, identityRace, identityBackstory, identityRelationships,
       combatStats.ac, combatStats.initiativeBonus, combatStats.proficiencyBonus,
