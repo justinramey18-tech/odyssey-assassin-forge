@@ -108,9 +108,11 @@ export function StatsDrawer({
   // Get HP breakdown for display
   const hpBreakdown = getHPBreakdown(level, constitutionModifier, prestigeLevel);
 
-  const multiplier = XP_PRESETS[xpPreset].multiplier;
-  const xpProgress = getLevelProgress(level, currentXP, multiplier);
-  const xpToNext = getXPToNextLevel(level, currentXP, multiplier);
+  // Single source of truth — live progression pace, same numbers as the sheet and the DM
+  const xpSnapshot = useXPSnapshot(level, currentXP);
+  const multiplier = xpSnapshot.multiplier;
+  const xpProgress = xpSnapshot.progressPct;
+  const xpToNext = xpSnapshot.xpRemaining;
 
   const updateHP = (newCurrent: number, newTemp: number) => {
     const clampedCurrent = Math.max(0, Math.min(newCurrent, maxHP));

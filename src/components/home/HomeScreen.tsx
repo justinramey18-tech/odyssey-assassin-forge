@@ -5,6 +5,7 @@ import { Character, getAbilityPointsForLevel, getTotalPointsSpent } from '@/lib/
 import { CharacterEquipment } from '@/lib/inventory';
 import { Achievement } from '@/lib/achievements';
 import { XPPreset, getXPForLevel, XP_PRESETS } from '@/lib/xpSystem';
+import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
 import { ShopItem } from '@/lib/shop/types';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -313,7 +314,8 @@ export function HomeScreen({
   }, [isWildShape, wildShapeFormCR]);
   const stats = useEquipmentStats(equipment);
   const { weather } = useWeather();
-  const multiplier = XP_PRESETS[xpPreset].multiplier;
+  const xpSnapshot = useXPSnapshot(character.level, currentXP);
+  const multiplier = xpSnapshot.multiplier;
   const [showDrawersMenu, setShowDrawersMenu] = useState(false);
   
   
@@ -406,8 +408,8 @@ export function HomeScreen({
   }
 
   // XP calculations
-  const nextLevelXP = getXPForLevel(character.level + 1, multiplier);
-  const canLevelUp = character.level < 20 && currentXP >= nextLevelXP;
+  const nextLevelXP = xpSnapshot.nextLevelXP;
+  const canLevelUp = !xpSnapshot.isMaxLevel && xpSnapshot.mode === 'xp' && xpSnapshot.xpRemaining === 0;
 
   // Calculate HP values
   const defaultMaxHP = character.level * 8 + 10;
