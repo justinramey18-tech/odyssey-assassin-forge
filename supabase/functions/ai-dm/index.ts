@@ -18,6 +18,10 @@ interface CharacterContext {
     currentXP?: number;
     xpForNextLevel?: number;
     xpRemaining?: number;
+    xpLevelFloor?: number;
+    xpIntoLevel?: number;
+    xpLevelSpan?: number;
+    pace?: string;
   };
   characterClass?: string;
   multiclassBreakdown?: Record<string, number>;
