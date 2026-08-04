@@ -116,15 +116,13 @@ export function useCombatStats(options: UseCombatStatsOptions): CombatStats {
     const acFromGear = equipmentStats?.acFromGear ?? 0;
     const attackFromGear = equipmentStats?.totalAttackBonus ?? 0;
     
-    // For AC: If wearing armor, use gear AC + DEX (up to max). 
-    // For unarmored: 10 + DEX + ability bonuses
-    // Simplified: totalAC from equipment includes base calculations
-    const gearAC = equipmentStats?.totalAC ?? baseAC;
-    
-    // If we have gear AC (from actual armor), use it. Otherwise use 10 + DEX
-    const effectiveBaseAC = acFromGear > 0 ? gearAC : baseAC + Math.max(0, dexModifier);
-    
-    // Final AC = gear/base AC + passive ability bonuses
+    // AC = 10 + armour bonus from gear + DEX + passive ability bonuses.
+    // DEX applies whether or not armour is worn. The previous version switched to a
+    // gear-only value as soon as any armour was equipped, which silently deleted the
+    // DEX modifier and made light armour a downgrade for dexterous characters.
+    const effectiveBaseAC = baseAC + acFromGear + dexModifier;
+
+    // Final AC = base + gear + DEX + passive ability bonuses
     const ac = effectiveBaseAC + passiveBonuses.acBonus;
     
     // Attack bonus = proficiency + DEX (for finesse/ranged) or STR + gear bonus + ability bonuses
