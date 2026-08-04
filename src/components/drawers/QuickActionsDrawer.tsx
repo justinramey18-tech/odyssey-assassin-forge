@@ -941,6 +941,7 @@ export function QuickActionsDrawer({
   onSendHeal,
   channelDivinity,
   onPromptGenerated,
+  hideAbilitiesAndItems = false,
 }: QuickActionsDrawerProps) {
   // Set module-level prompt callback for sub-components
   useEffect(() => {
@@ -1431,6 +1432,7 @@ export function QuickActionsDrawer({
             </Collapsible>
 
             {/* ── ABILITIES (Equipped Loadout) ── */}
+            {!hideAbilitiesAndItems && (
             <Collapsible className="group">
               <CollapsibleTrigger className="w-full">
                 <CategoryHeader icon={Zap} label="Abilities" count={nonHomebrewAbilities.length} color="bg-purple-500/20 text-purple-400" />
@@ -1785,6 +1787,7 @@ export function QuickActionsDrawer({
             </Collapsible>
 
             {/* ── CONSUMABLES ── */}
+            {!hideAbilitiesAndItems && (
             <Collapsible className="group">
               <CollapsibleTrigger className="w-full">
                 <CategoryHeader icon={FlaskConical} label="Consumables" count={consumablesInventory.length} color="bg-rose-500/20 text-rose-400" />
