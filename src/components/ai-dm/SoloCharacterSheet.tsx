@@ -221,17 +221,17 @@ export function SoloCharacterSheet({
               </div>
             </Section>
 
-            <Section title="Defenses & Purse" icon={Shield}>
+            <Section title="Purse & Standing" icon={Shield}>
               <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                  <p className="text-[10px] uppercase tracking-wider text-white/40">Armor Class</p>
-                  <p className="text-xl font-display font-bold text-foreground">{ctx.combat?.armorClass ?? '—'}</p>
-                </div>
                 <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                   <p className="text-[10px] uppercase tracking-wider text-white/40 flex items-center gap-1">
                     <Coins className="w-3 h-3" /> Gold
                   </p>
                   <p className="text-xl font-display font-bold text-amber-300">{gold.toLocaleString()}</p>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-white/40">Level</p>
+                  <p className="text-xl font-display font-bold text-foreground">{ctx.level}</p>
                 </div>
               </div>
             </Section>
