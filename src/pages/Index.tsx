@@ -1211,6 +1211,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       setCurrentXP(repairedXP);
       
       setXPPreset(saved.xp.xpPreset as XPPreset);
+      saveXPProgressionMode(presetToProgressionMode(saved.xp.xpPreset as XPPreset));
+
       setShowWizard(false);
       console.log('[AutoSave] Loaded character:', saved.character.name, repairedXP !== saved.xp.currentXP ? '(XP repaired)' : '');
     }
