@@ -305,6 +305,7 @@ CHARACTER: "${characterContext?.name || "Adventurer"}" is Level ${characterConte
           conditions_added: [],
           conditions_removed: [],
           items_acquired: [],
+          items_consumed: [],
           rest_occurred: null,
           map_entities: [],
           map_entities_removed: [],
