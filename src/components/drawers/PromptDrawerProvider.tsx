@@ -450,8 +450,7 @@ export function PromptDrawerProvider({
     const readyCooldowns: string[] = [];
     if (cooldownSystem.cooldowns) {
       cooldownSystem.cooldowns.forEach((state, abilityId) => {
-        const ability = allAbilities.find(a => a.id === abilityId);
-        const name = ability?.name || abilityId;
+        const name = findAbility(abilityId)?.name || abilityId;
         const remaining = cooldownSystem.getRemainingTime(abilityId);
         if (remaining > 0) activeCooldowns.push({ name, remainingSeconds: remaining });
         else if (state.lastUsed) readyCooldowns.push(name);
@@ -630,7 +629,7 @@ export function PromptDrawerProvider({
         maxUses: wildShape.state.maxUses,
       } : undefined,
     };
-  }, [character, currentHP, maxHP, currentXP, xpProgressionMode, xpMultiplier, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
+  }, [character, currentHP, maxHP, currentXP, xpProgressionMode, xpMultiplier, abilityCustomization.state, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
       prestigeLevel, prestigeAbilities, spellcasting, lootItems, totalLootValue, combatContext, conditionsSystem.debuffs, conditionsSystem.buffs,
       getScoreBreakdown, identityGender, identityRace, identityBackstory, identityRelationships,
       wildShape?.state.isTransformed, wildShape?.state.currentForm, wildShape?.state.formHP, wildShape?.state.formMaxHP, wildShape?.state.usesRemaining, wildShape?.state.maxUses]);
