@@ -669,6 +669,21 @@ const Index = () => {
     getItemCount: getConsumableCount,
     addItem: addConsumableItem 
   } = useConsumables();
+
+  // The AI DM and the character sheet both refer to consumables by NAME, while the
+  // inventory is keyed by id. Resolve exact match first, then a loose contains match
+  // so "healing potion" still finds "Potion of Healing".
+  const useConsumableByName = useCallback((name: string, quantity: number = 1): boolean => {
+    const target = String(name || '').trim().toLowerCase();
+    if (!target) return false;
+    const entry =
+      consumablesInventory.find(i => i.consumable.name.trim().toLowerCase() === target) ??
+      consumablesInventory.find(i => i.consumable.name.trim().toLowerCase().includes(target)) ??
+      consumablesInventory.find(i => target.includes(i.consumable.name.trim().toLowerCase()));
+    if (!entry) return false;
+    return useConsumableItem(entry.consumable.id, quantity);
+  }, [consumablesInventory, useConsumableItem]);
+
   
   const { toast } = useToast();
 
@@ -2179,13 +2194,15 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   // Auto-sync callbacks for AI DM
   const autoSyncCallbacks = useMemo(() => ({
     onHPChange: handleChronicleHP,
+    onUseConsumableByName: useConsumableByName,
     onAddXP: handleAddXP,
     onGoldChange: handleChronicleGold,
     onConditionChange: handleChronicleConditions,
     onRestOccurred: handleChronicleRest,
     getCurrentHP: () => hpState.current,
     getCurrentGold: () => shop.currentGold,
-  }), [handleChronicleHP, handleAddXP, handleChronicleGold, handleChronicleConditions, handleChronicleRest, hpState.current, shop.currentGold]);
+  }), [handleChronicleHP, useConsumableByName, handleAddXP, handleChronicleGold, handleChronicleConditions, handleChronicleRest, hpState.current, shop.currentGold]);
+
 
 
   const handleApplyChronicleChanges = (changes: ApprovedChanges) => {
