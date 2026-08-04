@@ -174,6 +174,7 @@ interface PromptDrawerProviderProps {
   // Auto-sync callbacks for AI DM
   autoSyncCallbacks?: {
     onHPChange: (change: number, type: 'damage' | 'healing') => void;
+    onUseConsumableByName?: (name: string, quantity?: number) => boolean;
     onAddXP: (amount: number, source: string) => void;
     onGoldChange: (netChange: number) => void;
     onConditionChange: (toAdd: string[], toRemove: string[]) => void;
@@ -181,6 +182,7 @@ interface PromptDrawerProviderProps {
     getCurrentHP: () => number;
     getCurrentGold: () => number;
   };
+
   /** Manual level advance used by the solo DM character sheet */
   onManualLevelUp?: () => void;
   /** Accept an item awarded by the AI DM into the loot inventory */

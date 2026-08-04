@@ -77,6 +77,7 @@ interface AIDMScreenProps {
   onRetakePersonalityTest?: () => Promise<void>;
   autoSyncCallbacks?: {
     onHPChange: (change: number, type: 'damage' | 'healing') => void;
+    onUseConsumableByName?: (name: string, quantity?: number) => boolean;
     onAddXP: (amount: number, source: string) => void;
     onGoldChange: (netChange: number) => void;
     onConditionChange: (toAdd: string[], toRemove: string[]) => void;
@@ -84,6 +85,7 @@ interface AIDMScreenProps {
     getCurrentHP: () => number;
     getCurrentGold: () => number;
   };
+
   /** Total accumulated XP (for the character sheet XP bar) */
   currentXP?: number;
   /** Manual level advance (milestone play / catch-up) */
@@ -532,6 +534,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   // Auto-sync hook
   const autoSync = useDmAutoSync({
     onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
+    onUseConsumableByName: autoSyncCallbacks?.onUseConsumableByName,
     onAddXP: autoSyncCallbacks?.onAddXP ?? NOOP_TWO_ARG,
     onGoldChange: autoSyncCallbacks?.onGoldChange ?? NOOP,
     onConditionChange: autoSyncCallbacks?.onConditionChange ?? NOOP_TWO_ARG,
@@ -543,8 +546,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? NOOP_RETURN_ZERO,
     getCurrentGold: autoSyncCallbacks?.getCurrentGold ?? NOOP_RETURN_ZERO,
     getCurrentMarkers: useCallback(() => [], []),
+
     getGridSize: useCallback(() => 25 as any, []),
-  });
+  } as Parameters<typeof useDmAutoSync>[0]);
+
 
   // Refs for memory extraction — lets handleMessageComplete (defined before hooks) access late-initialized values
   const extractMemoryRef = useRef<((msg: string, anchors: any[], ctx: any) => void) | null>(null);
@@ -1554,6 +1559,11 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         ctx={characterContext}
         currentXP={currentXP}
         gold={autoSyncCallbacks?.getCurrentGold?.() ?? 0}
+        onUseConsumableByName={
+          autoSyncCallbacks?.onUseConsumableByName
+            ? (name: string) => { autoSyncCallbacks.onUseConsumableByName!(name, 1); }
+            : undefined
+        }
         quests={Object.entries(gameState.quest_flags || {}).map(([key, q]) => ({ key, status: q.status, notes: q.notes }))}
         onAdjustHP={(change, type) => autoSyncCallbacks?.onHPChange?.(change, type)}
         onAddXP={(amount, source) => autoSyncCallbacks?.onAddXP?.(amount, source)}
@@ -1562,6 +1572,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         onRest={(type) => autoSyncCallbacks?.onRestOccurred?.(type)}
         onAcceptItem={onAcceptItem}
       />
+
     </div>
   );
 }
