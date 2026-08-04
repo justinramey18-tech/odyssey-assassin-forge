@@ -548,7 +548,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     getCurrentMarkers: useCallback(() => [], []),
 
     getGridSize: useCallback(() => 25 as any, []),
-  });
+  } as Parameters<typeof useDmAutoSync>[0]);
+
 
   // Refs for memory extraction — lets handleMessageComplete (defined before hooks) access late-initialized values
   const extractMemoryRef = useRef<((msg: string, anchors: any[], ctx: any) => void) | null>(null);
