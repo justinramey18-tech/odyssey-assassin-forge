@@ -236,8 +236,12 @@ function buildContextSummary(ctx: CharacterContext): string {
     } else if (typeof p.currentXP === 'number') {
       const next = p.xpForNextLevel;
       if (next && next > 0) {
-        const bar = (typeof p.xpIntoLevel === 'number' && typeof p.xpLevelSpan === 'number')
-          ? ` The character sheet displays this as ${p.xpIntoLevel} / ${p.xpLevelSpan} XP toward Level ${ctx.level + 1} (progress within the current level).`
+        const hasBand = typeof p.xpIntoLevel === 'number' && typeof p.xpLevelSpan === 'number' && p.xpLevelSpan > 0;
+        const bandPct = hasBand ? Math.round((p.xpIntoLevel! / p.xpLevelSpan!) * 100) : 0;
+        const bar = hasBand
+          ? ` The character sheet displays this as ${p.xpIntoLevel} / ${p.xpLevelSpan} XP toward Level ${ctx.level + 1}, which is ${bandPct}% through the current level.` +
+            ` PERCENTAGE RULE: if you state a percentage of progress, state ${bandPct}% and nothing else.` +
+            ` Never divide the lifetime total by the next-level requirement — that counts XP already spent reaching earlier levels and reports a number far higher than the player's bar shows.`
           : '';
         lines.push(
           `PROGRESSION: XP tracking${p.pace ? ` at ${p.pace} pace — this campaign uses a SCALED XP table, not the stock D&D 5e one` : ''}. ` +
