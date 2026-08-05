@@ -30,6 +30,7 @@ import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 
 import { CharacterSavesDrawer, CharacterSavesTrigger } from './CharacterSavesDrawer';
 import { FAQDrawer } from './FAQDrawer';
+import { CharacterQuickSwitcher } from '@/components/navigation/CharacterQuickSwitcher';
 
 import { EmpyreanScreen } from '@/components/empyrean/EmpyreanScreen';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
@@ -675,8 +676,15 @@ export function HomeScreen({
             )}
           </div>
           
-          {/* Right: Clock, Help */}
+          {/* Right: Character switcher, Clock, Help */}
           <div className="flex items-center gap-1">
+            <CharacterQuickSwitcher
+              currentCharacterName={character.name}
+              currentCharacterLevel={character.level}
+              onLoadSave={onLoadSave ?? (() => {})}
+              onCloudClick={onCloudSyncClick ?? (() => {})}
+              onBeforeSwitch={onQuickSave}
+            />
             <ClockWidget />
             <button 
                 onClick={() => {
