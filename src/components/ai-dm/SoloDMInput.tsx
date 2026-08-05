@@ -90,7 +90,15 @@ export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(
     },
     getText: () => input,
     focus: () => inputRef.current?.focus(),
-  }), [input, setInput]);
+    submit: () => {
+      const text = input.trim();
+      if (!text) return;
+      onSend(text);
+      clearInput();
+      setPreEnhance(null);
+      if (inputRef.current) inputRef.current.style.height = 'auto';
+    },
+  }), [input, setInput, onSend, clearInput]);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setPreEnhance(null);
