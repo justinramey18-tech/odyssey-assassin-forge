@@ -11,6 +11,8 @@ export interface SoloDMInputHandle {
   appendText: (text: string) => void;
   getText: () => string;
   focus: () => void;
+  /** Sends whatever is currently staged in the composer, if anything. */
+  submit: () => void;
 }
 
 interface SoloDMInputProps {
