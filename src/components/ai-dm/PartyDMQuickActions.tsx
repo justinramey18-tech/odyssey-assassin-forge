@@ -6,7 +6,8 @@ import { toast } from 'sonner';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
-import { rollAttack, rollCheck, attackRollSuffix, checkRollSuffix } from '@/lib/promptAutoRoll';
+import { rollAttack, rollCheck, rollSuffix } from '@/lib/promptAutoRoll';
+import { requestDiceRoll } from '@/lib/diceRollBus';
 import type { CharacterContext } from '@/components/oracle/types';
 
 export type QuickActionRemoveCategory = 'weapon' | 'ability' | 'spell' | 'cantrip' | 'consumable' | 'prestige' | 'homebrew-ability' | 'homebrew-spell';
@@ -106,14 +107,30 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
               </div>
               <button
                 onClick={() => {
-                  let staged = item.prompt;
                   if (item.rollKind === 'attack' || item.rollKind === 'spell') {
-                    staged += attackRollSuffix(rollAttack(item.damageFormula), item.rollKind);
+                    const roll = rollAttack(item.rollKind, item.damageFormula);
+                    requestDiceRoll({
+                      title: item.name,
+                      roll,
+                      onComplete: () => {
+                        onUse(item.prompt + rollSuffix(roll));
+                        toast.success('Prompt added to input');
+                      },
+                    });
                   } else if (item.rollKind === 'check') {
-                    staged += checkRollSuffix(rollCheck());
+                    const roll = rollCheck();
+                    requestDiceRoll({
+                      title: item.name,
+                      roll,
+                      onComplete: () => {
+                        onUse(item.prompt + rollSuffix(roll));
+                        toast.success('Prompt added to input');
+                      },
+                    });
+                  } else {
+                    onUse(item.prompt);
+                    toast.success('Prompt added to input');
                   }
-                  onUse(staged);
-                  toast.success('Prompt added to input');
                 }}
                 className={cn(
                   "shrink-0 p-1.5 rounded-lg transition-colors",

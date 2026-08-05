@@ -19,6 +19,7 @@ import { DMToolsDrawer } from './DMToolsDrawer';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { useSpotify } from '@/hooks/use-spotify';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
+import { DiceRollOverlay } from '@/components/ai-dm/DiceRollOverlay';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
 import { ResponseModeSelector } from './ResponseModeSelector';
@@ -1508,6 +1509,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           onRename={campaignSessions.renameSession}
         />
       )}
+      <DiceRollOverlay />
       {/* Infinity Stone DM Drawer */}
       <InfinityStoneDMDrawer
         open={showStoneDrawer}
