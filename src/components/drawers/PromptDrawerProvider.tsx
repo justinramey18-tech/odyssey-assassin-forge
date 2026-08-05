@@ -331,6 +331,9 @@ export function PromptDrawerProvider({
     try {
       const ok = await onSwitchCharacterSave(target);
       if (!ok) {
+        // The remembered character is gone or unreadable: forget it so the next
+        // open falls back to whoever is active instead of failing again.
+        setBoundSaveId(mode, null);
         toast.error('Could not load this mode\u2019s character', {
           description: 'Opening with the current character instead.',
         });
