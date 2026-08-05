@@ -159,6 +159,23 @@ export function CharacterQuickSwitcher({
 
         <DropdownMenuSeparator />
 
+        <DropdownMenuItem
+          className="flex items-center gap-2 py-2 cursor-pointer text-primary"
+          onClick={async () => {
+            setIsOpen(false);
+            try {
+              await onBeforeSwitch?.();
+            } catch (e) {
+              console.warn('[QuickSwitcher] Pre-switch save failed:', e);
+            }
+            localStorage.removeItem('odyssey-active-cloud-save-id');
+            navigate('/', { state: { newCharacter: true } });
+          }}
+        >
+          <UserPlus className="w-4 h-4" />
+          <span className="text-sm">Create New Hero</span>
+        </DropdownMenuItem>
+
         <DropdownMenuItem 
           className="flex items-center gap-2 py-2 cursor-pointer text-primary"
           onClick={async () => {
@@ -174,6 +191,7 @@ export function CharacterQuickSwitcher({
           <Users className="w-4 h-4" />
           <span className="text-sm">Switch Character</span>
         </DropdownMenuItem>
+
 
         <DropdownMenuItem 
           className="flex items-center gap-2 py-2 cursor-pointer text-muted-foreground"
