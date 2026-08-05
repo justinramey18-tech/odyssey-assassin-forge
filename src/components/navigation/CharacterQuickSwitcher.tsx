@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, User, Cloud, Loader2, LogIn, LogOut, Users } from 'lucide-react';
+import { ChevronDown, User, UserPlus, Cloud, Loader2, LogIn, LogOut, Users } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
