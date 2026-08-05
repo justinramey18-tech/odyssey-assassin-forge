@@ -143,15 +143,11 @@ export function useAutoCloudSync(
     }
     
     try {
+      // Only ever update the save we are explicitly playing. Do NOT fall back to
+      // matching by character name: with multiple characters allowed, a new hero
+      // sharing a name with an existing one would overwrite it.
       const activeSaveId = localStorage.getItem('odyssey-active-cloud-save-id');
-      let targetSaveId: string | undefined = activeSaveId ?? undefined;
-
-      if (!targetSaveId) {
-        const existingSave = cloudSaves.find(s => 
-          s.character_name === data.character?.name || s.save_name === data.character?.name
-        );
-        targetSaveId = existingSave?.id;
-      }
+      const targetSaveId: string | undefined = activeSaveId ?? undefined;
       
       const result = await saveToCloud(
         data,
@@ -171,14 +167,18 @@ export function useAutoCloudSync(
         if (returnedId) {
           const currentActiveId = localStorage.getItem('odyssey-active-cloud-save-id');
           if (!currentActiveId || currentActiveId !== returnedId) {
+            const hadNoActiveId = !currentActiveId;
             localStorage.setItem('odyssey-active-cloud-save-id', returnedId);
             console.log('[AutoSave] Stored active cloud save ID:', returnedId);
-            // Migrate any unscoped data to the new scoped keys so hooks
-            // don't lose track of data that was written before the ID existed
-            for (const key of SCOPED_KEYS) {
-              migrateToScoped(key);
+            // Adopt data written while no save id existed — but only when this is
+            // genuinely the first id this session. Switching characters must never
+            // pull one hero's unscoped leftovers into another hero's keys.
+            if (hadNoActiveId) {
+              for (const key of SCOPED_KEYS) {
+                migrateToScoped(key);
+              }
+              console.log('[AutoSave] Migrated unscoped keys to save ID:', returnedId);
             }
-            console.log('[AutoSave] Migrated unscoped keys to save ID:', returnedId);
           }
         }
 
@@ -192,7 +192,7 @@ export function useAutoCloudSync(
       flushResolveRef.current = null;
       flushPromiseRef.current = null;
     }
-  }, [data, enabled, isAuthenticated, user?.id, cloudSaves, saveToCloud]);
+  }, [data, enabled, isAuthenticated, user?.id, saveToCloud]);
 
   // Manual sync function for external use
   const syncNow = useCallback(async () => {
