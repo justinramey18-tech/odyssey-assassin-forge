@@ -103,6 +103,13 @@ interface PromptDrawerProviderProps {
   enabled?: boolean;
   // Stats drawer props
   currentXP?: number;
+  /** Active cloud save id, for the AI DM per-mode character binding */
+  activeCloudSaveId?: string | null;
+  /** All the player's cloud saves, for the in-DM character picker */
+  cloudSaves?: Array<{ id: string; save_name: string; character_name?: string; character_level?: number; updated_at: string }>;
+  onRefreshCloudSaves?: () => void;
+  /** Switch the active character. Resolves true on success. */
+  onSwitchCharacterSave?: (saveId: string) => Promise<boolean>;
   xpPreset?: XPPreset;
   onAddXP?: (amount: number, source: string) => void;
   // Equipment for set bonus drawer
