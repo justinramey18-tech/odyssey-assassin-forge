@@ -30,6 +30,7 @@ import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 
 import { CharacterSavesDrawer, CharacterSavesTrigger } from './CharacterSavesDrawer';
 import { FAQDrawer } from './FAQDrawer';
+import { CharacterQuickSwitcher } from '@/components/navigation/CharacterQuickSwitcher';
 
 import { EmpyreanScreen } from '@/components/empyrean/EmpyreanScreen';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
