@@ -59,7 +59,10 @@ export const SCOPED_KEYS = [
   'dnd-ai-dm-campaign-summary',
   'dnd-novel-builder-campaign-summary',
   // Play mode & UI
-  'odyssey-play-mode',
+  // NOTE: 'odyssey-play-mode' is deliberately NOT scoped. Solo vs party is a
+  // session-level choice; scoping it meant a character switch reset you to solo
+  // and locked the party host out of their own session.
+
   'dnd-protagonist-cards',
   // Novel/Scribe context
   'novel-ctx-state',
