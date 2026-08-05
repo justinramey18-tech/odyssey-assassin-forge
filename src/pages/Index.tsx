@@ -1756,22 +1756,50 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   // Full wizard completion handler - uses utility for state application
   const handleWizardComplete = useCallback((wizardState: WizardState) => {
     const result = applyWizardState(wizardState, wizardSetters);
-    
-    if (result.success) {
-      console.log('[Wizard] Character created:', result.appliedChanges);
-      // Creation finished — allow the normal restore path again for the rest of the session.
-      isCreatingNewCharacter.current = false;
-      setShowWizard(false);
-      // Force immediate cloud save so newly created characters persist
-      setTimeout(() => {
-        autoSync.syncNow().then(() => {
-          console.log('[Wizard] Immediate cloud save completed');
-        }).catch(() => {});
-      }, 2000);
-    } else {
+
+    if (!result.success) {
       console.error('[Wizard] Creation failed:', result.errors);
+      toast({
+        title: 'Character creation failed',
+        description: result.errors?.[0] ?? 'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
+      return;
     }
-  }, [wizardSetters, autoSync]);
+
+    console.log('[Wizard] Character created:', result.appliedChanges);
+    // Creation finished — allow the normal restore path again for the rest of the session.
+    isCreatingNewCharacter.current = false;
+    setShowWizard(false);
+
+    // Persist once, and tell the player whether it worked. The old version fired a
+    // blind 2-second timer that raced the debounced auto-save and swallowed errors,
+    // so a failed save looked identical to a successful one until the next refresh.
+    let settled = false;
+    const reportFailure = () => {
+      if (settled) return;
+      settled = true;
+      toast({
+        title: 'Character not saved to the cloud',
+        description: 'They exist on this device. Open Manage Saves and save manually before switching characters.',
+        variant: 'destructive',
+      });
+    };
+
+    autoSync.syncNow()
+      .then(() => {
+        settled = true;
+        console.log('[Wizard] Cloud save completed');
+      })
+      .catch((err) => {
+        console.error('[Wizard] Cloud save failed:', err);
+        reportFailure();
+      });
+
+    // Safety net: if syncNow never settles, do not leave the player believing
+    // the character was stored.
+    window.setTimeout(reportFailure, 15000);
+  }, [wizardSetters, autoSync, toast]);
 
   // ── AI Creation Assistant: apply character when navigated back with aiCreatedCharacter state ──
   const hasAppliedAICharacter = useRef(false);
