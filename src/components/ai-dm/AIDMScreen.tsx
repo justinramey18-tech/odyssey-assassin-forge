@@ -703,6 +703,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const [showGuides, setShowGuides] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef(true);
   const npcNames = useNPCAutocomplete(messages);
 
   const [liveInputText, setLiveInputText] = useState('');
