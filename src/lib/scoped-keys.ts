@@ -45,9 +45,12 @@ export const SCOPED_KEYS = [
   'dnd-wild-shape-state',
   'odyssey-wild-shape-backgrounds',
   // Party
-  'odyssey-active-party-id',
+  // NOTE: 'odyssey-active-party-id' is deliberately NOT scoped. Party membership
+  // belongs to the ACCOUNT, not to one character — scoping it meant switching
+  // character silently dropped you out of your own party.
   'odyssey-party-chat-background',
   'odyssey-party-chat-background-settings',
+
   // Narrative & AI
   'narrative-forge-saved-stories',
   'narrative-forge-active-story-id',
