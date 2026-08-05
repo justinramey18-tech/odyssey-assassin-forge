@@ -987,6 +987,7 @@ export function PromptDrawerProvider({
               currentXP={currentXP}
               onManualLevelUp={onManualLevelUp}
               onAcceptItem={onAcceptDmItem}
+              onOpenCharacterPicker={() => setPickerMode('solo')}
               isMomoMoonDruid={isMomoEasterEgg(character.name) && character.primaryClass === 'druid' && subclass?.toLowerCase().includes('moon')}
             />
           )}
