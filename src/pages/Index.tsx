@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getScopedKey, getScopedItem, setScopedItem, removeScopedItem } from '@/lib/scoped-storage';
+import { SCOPED_KEYS } from '@/lib/scoped-keys';
 import { loadTimezone, TIMEZONE_CHANGE_EVENT } from '@/lib/timezone-storage';
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { Character, CharacterAbility, getAbilityPointsForLevel, getTotalPointsSpent, getActiveSlotsByLevel } from '@/lib/types';
@@ -746,7 +747,21 @@ const Index = () => {
     }
 
     if (rosterState.newCharacter) {
-      // "Create New" was picked — show wizard.
+      // "Create New" was picked. The active save id has already been cleared, which
+      // means every scoped hook is now reading the UNSCOPED bucket — and that bucket
+      // still holds the previous character's gear, loot, gold, cooldowns and
+      // proficiencies. Wipe it, or the new hero inherits all of it and the first
+      // cloud save writes it into their record permanently.
+      try {
+        for (const key of SCOPED_KEYS) {
+          localStorage.removeItem(key);
+        }
+      } catch (e) {
+        console.error('[NewCharacter] Failed to clear previous character data:', e);
+      }
+      // Tell every hook that reads scoped storage to re-initialise from the now-empty keys.
+      window.dispatchEvent(new Event('odyssey-character-loaded'));
+
       // Raise this BEFORE showWizard flips, so the cloud auto-restore effect
       // sees it on the same render and does not reload the previous character.
       isCreatingNewCharacter.current = true;
