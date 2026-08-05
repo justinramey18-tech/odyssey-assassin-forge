@@ -773,8 +773,15 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     return id;
   }, [campaignSessions, gameState.memory_anchors]);
 
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const threshold = 120;
+    isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
+  }, []);
+
   useEffect(() => {
-    if (scrollRef.current) {
+    if (scrollRef.current && isNearBottomRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
