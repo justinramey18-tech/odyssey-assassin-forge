@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { BuildProvider } from "@/lib/buildConfig";
 import { checkForUpdate } from "@/lib/auto-update";
 import Index from "./pages/Index";
+import Nat20VideoOverlay from "@/components/shared/Nat20VideoOverlay";
+
 
 const Install = lazy(() => import("./pages/Install"));
 const Auth = lazy(() => import("./pages/Auth"));
