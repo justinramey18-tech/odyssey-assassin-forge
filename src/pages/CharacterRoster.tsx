@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useCloudSave } from '@/hooks/use-cloud-save';
 import { useAppMode } from '@/hooks/use-app-mode';
@@ -113,6 +113,20 @@ export default function CharacterRoster() {
         <p className="text-sm text-muted-foreground mb-4">
           {cloudSaves.length} character{cloudSaves.length !== 1 ? 's' : ''} saved
         </p>
+
+        {/* Create is only reachable from the empty states otherwise, which makes a
+            second character impossible once the player has one. */}
+        <button
+          onClick={() => {
+            localStorage.removeItem('odyssey-active-cloud-save-id');
+            navigate('/', { state: { newCharacter: true }, replace: true });
+          }}
+          className="w-full mb-4 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-primary/40 text-primary font-cinzel font-bold text-sm hover:bg-primary/10 transition-colors"
+          style={{ touchAction: 'manipulation', minHeight: 52 }}
+        >
+          <Plus className="w-4 h-4" />
+          Create New Hero
+        </button>
 
         {/* Show-all toggle */}
         {effectiveMode !== 'fullAccess' && cloudSaves.length > filteredSaves.length && (
