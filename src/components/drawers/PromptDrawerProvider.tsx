@@ -752,10 +752,17 @@ export function PromptDrawerProvider({
       // Opening the DM deliberately should land on the chat, not silently
       // reopen a character sheet the player walked away from earlier.
       clearSheetReturn();
-      closeAllDrawers(); setAiDMOpen(true);
-    }, [closeAllDrawers]),
-    openPartyDMScreen: useCallback(() => { closeAllDrawers(); setPartyDMOpen(true); }, [closeAllDrawers]),
-    openPartyDMCampaignBuilder: useCallback(() => { closeAllDrawers(); setPartyDMOpen(true); setPartyDMBuilderAutoOpen(true); }, [closeAllDrawers]),
+      closeAllDrawers();
+      void openModeWithCharacter('solo', () => setAiDMOpen(true));
+    }, [closeAllDrawers, openModeWithCharacter]),
+    openPartyDMScreen: useCallback(() => {
+      closeAllDrawers();
+      void openModeWithCharacter('party', () => setPartyDMOpen(true));
+    }, [closeAllDrawers, openModeWithCharacter]),
+    openPartyDMCampaignBuilder: useCallback(() => {
+      closeAllDrawers();
+      void openModeWithCharacter('party', () => { setPartyDMOpen(true); setPartyDMBuilderAutoOpen(true); });
+    }, [closeAllDrawers, openModeWithCharacter]),
     closeAllDrawers,
     // Cooldown system exposure
     triggerCooldown: cooldownSystem.triggerCooldown,
