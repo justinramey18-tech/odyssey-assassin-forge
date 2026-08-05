@@ -703,6 +703,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const [showGuides, setShowGuides] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef(true);
   const npcNames = useNPCAutocomplete(messages);
 
   const [liveInputText, setLiveInputText] = useState('');
@@ -772,8 +773,15 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     return id;
   }, [campaignSessions, gameState.memory_anchors]);
 
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const threshold = 120;
+    isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
+  }, []);
+
   useEffect(() => {
-    if (scrollRef.current) {
+    if (scrollRef.current && isNearBottomRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
@@ -1104,6 +1112,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         <div className={cn("flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-200", showWorldState ? "mr-80" : "")}>
           <div
             ref={scrollRef}
+            onScroll={handleScroll}
             className={cn("flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px]", chatTheme.chatBg)}
           >
 
