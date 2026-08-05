@@ -141,6 +141,11 @@ const Index = () => {
   
   // Roster navigation state: saveData/saveId from character selection, newCharacter flag, or AI-created character
   const rosterState = location.state as { saveData?: SaveData; saveId?: string; newCharacter?: boolean; aiCreatedCharacter?: WizardState } | null;
+
+  // Set when the player deliberately chose "Create New Hero". The startup cloud
+  // auto-restore below fires on showWizard becoming true, and would otherwise
+  // reload the most recent save and cancel the creation.
+  const isCreatingNewCharacter = useRef(false);
   
   // Check for reset parameter on mount
   useEffect(() => {
@@ -741,7 +746,10 @@ const Index = () => {
     }
 
     if (rosterState.newCharacter) {
-      // "Create New" was picked — show wizard
+      // "Create New" was picked — show wizard.
+      // Raise this BEFORE showWizard flips, so the cloud auto-restore effect
+      // sees it on the same render and does not reload the previous character.
+      isCreatingNewCharacter.current = true;
       setShowWizard(true);
       setShowHomeScreen(false);
       // Clear route state so refresh doesn't re-trigger
@@ -1545,6 +1553,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   const hasAttemptedCloudRestore = useRef(false);
   useEffect(() => {
     if (hasHydratedFromRoster.current) return; // Roster already handled it
+    // The player asked for a NEW character. Restoring the most recent save here
+    // would silently cancel that and drop them back into their old character.
+    if (isCreatingNewCharacter.current) return;
     if (!showWizard || hasAttemptedCloudRestore.current) return;
     if (authLoading || !isAuthenticated || !user) return;
 
@@ -1733,6 +1744,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     
     if (result.success) {
       console.log('[Wizard] Character created:', result.appliedChanges);
+      // Creation finished — allow the normal restore path again for the rest of the session.
+      isCreatingNewCharacter.current = false;
       setShowWizard(false);
       // Force immediate cloud save so newly created characters persist
       setTimeout(() => {
