@@ -949,6 +949,15 @@ export function PromptDrawerProvider({
             hideAbilitiesAndItems={aiDMOpen}
           />
 
+          {pendingMode && (
+            <div className="fixed inset-0 z-[85] flex flex-col items-center justify-center gap-3 bg-black/80 backdrop-blur-sm">
+              <div className="w-8 h-8 rounded-full border-2 border-amber-400/30 border-t-amber-400 animate-spin" />
+              <p className="text-xs font-cinzel tracking-widest text-amber-200/80 uppercase">
+                Loading {pendingMode} character
+              </p>
+            </div>
+          )}
+
           {/* AI Dungeon Master Full-Screen Overlay (Solo only) */}
           {aiDMOpen && (
             <AIDMScreen
