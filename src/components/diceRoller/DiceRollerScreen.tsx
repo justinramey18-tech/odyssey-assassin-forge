@@ -34,6 +34,7 @@ import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 import { AlignmentBanner } from '@/components/alignment/AlignmentBanner';
 import { AlignmentBadge } from '@/components/alignment/AlignmentBadge';
 import { type AlignmentScore as AlignmentScoreType, getPromptAlignment, isAlignmentMatch, sortByAlignmentProximity } from '@/lib/alignmentSpectrum';
+import { maybePlayCritSound } from '@/lib/critSound';
 
 // Ability score presets
 interface AbilityPreset {
@@ -471,6 +472,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
         }
         
         setCustomResult(parsed);
+        parsed.terms.forEach(t => t.sides === 20 && t.rolls.forEach(r => maybePlayCritSound(r, 20)));
         
         // Also add to current roll for AI prompts
         const customRoll: RollResult = {
@@ -555,6 +557,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
           allRolls: rollCount > 1 ? allRolls : undefined,
           droppedRoll,
         };
+        maybePlayCritSound(finalRawRoll, sides);
         setCurrentRoll(newRoll);
         setRollHistory(prev => [newRoll, ...prev.slice(0, 19)]);
         setIsRolling(false);

@@ -1,6 +1,7 @@
 // Dice Roll Odds System
 // Uses explicit bracket-based probability distributions
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
+import { maybePlayCritSound } from '@/lib/critSound';
 
 export type DiceOddsMode = 'fair' | 'heroic' | 'dramatic' | 'chaotic' | 'cursed';
 
@@ -76,6 +77,12 @@ export const DICE_ODDS_CONFIGS: Record<DiceOddsMode, DiceOddsConfig> = {
 
 // Bracket-based weighted roll for d20
 export function rollWeightedDie(sides: number, mode: DiceOddsMode): number {
+  const value = rollWeightedDieInternal(sides, mode);
+  maybePlayCritSound(value, sides);
+  return value;
+}
+
+function rollWeightedDieInternal(sides: number, mode: DiceOddsMode): number {
   // Fair mode: pure uniform random
   if (mode === 'fair') {
     return Math.floor(Math.random() * sides) + 1;
