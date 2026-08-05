@@ -315,6 +315,29 @@ export function PromptDrawerProvider({
     setAiDMOpen(false);
   }, []);
 
+  // Open a DM mode after making sure its bound character is the active one.
+  const openModeWithCharacter = useCallback(async (mode: DMMode, open: () => void) => {
+    const target = ensureBinding(mode, activeCloudSaveId ?? null);
+    // No binding possible (guest, or no cloud saves): behave exactly as before.
+    if (!target || target === activeCloudSaveId || !onSwitchCharacterSave) {
+      open();
+      return;
+    }
+
+    setPendingMode(mode);
+    try {
+      const ok = await onSwitchCharacterSave(target);
+      if (!ok) {
+        toast.error('Could not load this mode\u2019s character', {
+          description: 'Opening with the current character instead.',
+        });
+      }
+    } finally {
+      setPendingMode(null);
+      open();
+    }
+  }, [activeCloudSaveId, onSwitchCharacterSave]);
+
   // Any overlay can ask the app to jump to a main tab by dispatching
   // 'odyssey-navigate-tab' (see navigateToTab in SoloCharacterSheet.tsx).
   // Index.tsx handles the actual tab switch, but the full-screen DM overlays
