@@ -88,7 +88,7 @@ import { formatForReadingMode, type FormattedReading } from '@/lib/reading-mode-
 import { SoloCharacterSheet, type SheetTab } from '@/components/ai-dm/SoloCharacterSheet';
 import { CharacterSheetStrip } from '@/components/ai-dm/CharacterSheetStrip';
 import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
-import { getPendingItemCount } from '@/lib/pendingDmItems';
+import { loadPendingDmItems } from '@/lib/pendingDmItems';
 
 function stripCinematicTagsFromDisplay(content: string): string {
   return content.replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '');
@@ -945,9 +945,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [showDeathTransition, setShowDeathTransition] = useState(false);
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
   const partyXpSnapshot = useXPSnapshot(characterContext?.level ?? 1, currentXP ?? 0);
-  const [partyPendingItemCount, setPartyPendingItemCount] = useState(() => getPendingItemCount());
+  const [partyPendingItemCount, setPartyPendingItemCount] = useState(() => loadPendingDmItems().length);
   useEffect(() => {
-    if (showCharacterSheet) setPartyPendingItemCount(getPendingItemCount());
+    if (showCharacterSheet) setPartyPendingItemCount(loadPendingDmItems().length);
   }, [showCharacterSheet]);
   const narrator = useNarrator();
   const spotify = useSpotify();
