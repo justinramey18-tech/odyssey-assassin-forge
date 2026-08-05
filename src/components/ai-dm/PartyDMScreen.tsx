@@ -85,6 +85,10 @@ import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 
 import { parseWhispers } from '@/lib/whisper-parser';
 import { formatForReadingMode, type FormattedReading } from '@/lib/reading-mode-formatter';
+import { SoloCharacterSheet, type SheetTab } from '@/components/ai-dm/SoloCharacterSheet';
+import { CharacterSheetStrip } from '@/components/ai-dm/CharacterSheetStrip';
+import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
+import { loadPendingDmItems } from '@/lib/pendingDmItems';
 
 function stripCinematicTagsFromDisplay(content: string): string {
   return content.replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '');
@@ -939,6 +943,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [recapDismissed, setRecapDismissed] = useState(false);
   const [showMemorial, setShowMemorial] = useState(false);
   const [showDeathTransition, setShowDeathTransition] = useState(false);
+  const [showCharacterSheet, setShowCharacterSheet] = useState(false);
+  const partyXpSnapshot = useXPSnapshot(characterContext?.level ?? 1, currentXP ?? 0);
+  const [partyPendingItemCount, setPartyPendingItemCount] = useState(() => loadPendingDmItems().length);
+  useEffect(() => {
+    if (showCharacterSheet) setPartyPendingItemCount(loadPendingDmItems().length);
+  }, [showCharacterSheet]);
   const narrator = useNarrator();
   const spotify = useSpotify();
   const drawerContext = usePromptDrawers();
@@ -1966,6 +1976,25 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           
         </div>
       </header>
+      )}
+
+      {/* Player character strip — tap for the full sheet. Hidden when this user has no character context (e.g. spectating host). */}
+      {!isFullscreen && characterContext && (
+        <div className="px-3 pt-1.5">
+          <CharacterSheetStrip
+            name={characterContext.name || 'Adventurer'}
+            level={characterContext.level}
+            currentHP={characterContext.currentHP}
+            maxHP={characterContext.maxHP}
+            xpInLevel={partyXpSnapshot.xpIntoLevel}
+            xpNeeded={partyXpSnapshot.xpLevelSpan}
+            totalXP={partyXpSnapshot.totalXP}
+            nextLevelXP={partyXpSnapshot.nextLevelXP}
+            isMilestone={partyXpSnapshot.mode === 'milestone'}
+            pendingItemCount={partyPendingItemCount}
+            onOpen={() => setShowCharacterSheet(true)}
+          />
+        </div>
       )}
 
       {/* Row 2: Sub-Header Strip (status only) */}
@@ -4416,6 +4445,23 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           );
         })()}
       </AnimatePresence>
+
+      {characterContext && (
+        <SoloCharacterSheet
+          open={showCharacterSheet}
+          onClose={() => setShowCharacterSheet(false)}
+          ctx={characterContext}
+          currentXP={currentXP ?? 0}
+          gold={characterContext.gold ?? 0}
+          quests={[]}
+          onAdjustHP={(change, type) => onHPChange?.(change, type)}
+          onAddXP={() => {}}
+          onManualLevelUp={onManualLevelUp}
+          onConditionChange={() => {}}
+          onRest={() => {}}
+          onAcceptItem={onAcceptItem}
+        />
+      )}
     </div>
   );
 }
