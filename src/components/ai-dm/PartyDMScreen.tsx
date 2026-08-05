@@ -89,6 +89,7 @@ import { SoloCharacterSheet, type SheetTab } from '@/components/ai-dm/SoloCharac
 import { CharacterSheetStrip } from '@/components/ai-dm/CharacterSheetStrip';
 import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
 import { loadPendingDmItems } from '@/lib/pendingDmItems';
+import { DiceRollOverlay } from '@/components/ai-dm/DiceRollOverlay';
 
 function stripCinematicTagsFromDisplay(content: string): string {
   return content.replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '');
@@ -3889,6 +3890,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         onUsePrompt={handleUsePrompt}
         empyreanDragonName={isEmpyrean && dragonBonds.myDragon?.dragonName ? dragonBonds.myDragon.dragonName : undefined}
       />
+      <DiceRollOverlay />
       {/* Infinity Stone DM Drawer */}
       <InfinityStoneDMDrawer
         open={showStoneDrawer}
