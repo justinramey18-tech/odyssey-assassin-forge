@@ -896,6 +896,16 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     soloDMInputRef.current?.appendText(prompt);
   }, []);
 
+  // A natural 20 closes the dice roller and fires the staged prompt right away,
+  // so the celebration audio plays while the DM is already writing back.
+  const handleDiceRollResult = useCallback((message: string) => {
+    soloDMInputRef.current?.appendText(message);
+    if (/Natural 20!/i.test(message)) {
+      setActiveNavTab(null);
+      window.setTimeout(() => soloDMInputRef.current?.submit(), 450);
+    }
+  }, []);
+
   // Names only. Enough for the prompt improver to spell abilities and spells correctly
   // without shipping the whole character sheet to another endpoint.
   const enhanceContext = useMemo(() => ({
