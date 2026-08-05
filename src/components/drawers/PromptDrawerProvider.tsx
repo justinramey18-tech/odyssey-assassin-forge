@@ -20,6 +20,7 @@ import { PersonalityTestWizard } from '@/components/ai-dm/PersonalityTestWizard'
 import { PersonalityResultsScreen } from '@/components/ai-dm/PersonalityResultsScreen';
 import { ReturnToSheetButton } from '@/components/ai-dm/ReturnToSheetButton';
 import { clearSheetReturn } from '@/lib/sheetReturn';
+import { ensureBinding, getBoundSaveId, type DMMode } from '@/lib/modeCharacterBinding';
 import { usePersonalityGate } from '@/hooks/use-personality-gate';
 import { Character } from '@/lib/types';
 import { XPPreset, getXPForLevel } from '@/lib/xpSystem';
