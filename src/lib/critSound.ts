@@ -18,15 +18,11 @@ export function maybePlayCritSound(rawRoll: number, sides: number = 20): void {
 
   try {
     if (rawRoll === 20) {
-      if (!nat20Audio) {
-        nat20Audio = new Audio(nat20Asset.url);
-        nat20Audio.preload = 'auto';
-        nat20Audio.volume = 0.8;
-      }
-      nat20Audio.currentTime = 0;
-      void nat20Audio.play().catch(() => {});
+      // Natural 20 → full-screen celebration video (it carries its own audio).
+      window.dispatchEvent(new CustomEvent('odyssey-nat20'));
       return;
     }
+
 
     if (!audio) {
       audio = new Audio(critAsset.url);
