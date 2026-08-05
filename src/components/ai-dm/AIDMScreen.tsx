@@ -1415,7 +1415,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           diceContent={showDiceContent ? (
             <DMDiceRoller
               characterContext={characterContext}
-              onRollResult={handleUsePrompt}
+              onRollResult={handleDiceRollResult}
               disabled={isLoading}
             />
           ) : undefined}
