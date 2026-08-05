@@ -60,7 +60,8 @@ export default function CharacterRoster() {
     // Has characters but none in this mode → show empty state (no auto-navigate)
     if (filteredSaves.length === 0) return;
 
-    // Only auto-load when there's exactly one matching character
+    // Only auto-load straight after sign-in, and only with exactly one match.
+    if (!autoLoad) return;
     if (filteredSaves.length !== 1) return;
 
     // Load the first filtered save automatically
@@ -71,10 +72,11 @@ export default function CharacterRoster() {
         navigate('/', { state: { saveData: data, saveId: save.id }, replace: true });
       }
     });
-  }, [initialFetchDone, savesLoading, cloudSaves, filteredSaves, loadFromCloud, navigate, showAll]);
+  }, [initialFetchDone, savesLoading, cloudSaves, filteredSaves, loadFromCloud, navigate, showAll, autoLoad]);
 
   const showEmptyForMode =
-    initialFetchDone && !savesLoading && cloudSaves.length > 0 && filteredSaves.length === 0 && !showAll;
+    autoLoad && initialFetchDone && !savesLoading && cloudSaves.length > 0 && filteredSaves.length === 0 && !showAll;
+
 
   if (showEmptyForMode) {
     const label = effectiveMode === 'empyrean' ? 'Empyrean' : 'D&D';
