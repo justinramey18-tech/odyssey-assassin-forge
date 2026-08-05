@@ -260,6 +260,9 @@ export function PromptDrawerProvider({
   const [partyDMOpen, setPartyDMOpen] = useState(false);
   const [partyDMBuilderAutoOpen, setPartyDMBuilderAutoOpen] = useState(false);
 
+  // Which mode is currently resolving its bound character, if any.
+  const [pendingMode, setPendingMode] = useState<DMMode | null>(null);
+
   // Personality gate for Solo DM
   const personalityGate = usePersonalityGate({ userId });
   const { gender: identityGender, race: identityRace, backstory: identityBackstory, relationships: identityRelationships } = useCharacterIdentity();
