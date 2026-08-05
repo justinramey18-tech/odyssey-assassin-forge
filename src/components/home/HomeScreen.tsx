@@ -676,8 +676,15 @@ export function HomeScreen({
             )}
           </div>
           
-          {/* Right: Clock, Help */}
+          {/* Right: Character switcher, Clock, Help */}
           <div className="flex items-center gap-1">
+            <CharacterQuickSwitcher
+              currentCharacterName={character.name}
+              currentCharacterLevel={character.level}
+              onLoadSave={onLoadSave ?? (() => {})}
+              onCloudClick={onCloudSyncClick ?? (() => {})}
+              onBeforeSwitch={onQuickSave}
+            />
             <ClockWidget />
             <button 
                 onClick={() => {
