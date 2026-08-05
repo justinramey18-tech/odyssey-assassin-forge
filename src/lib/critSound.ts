@@ -1,10 +1,8 @@
 // Plays a celebratory sound whenever a d20 lands above 17 (18, 19, 20),
 // anywhere in the app that rolls dice. A natural 20 gets its own fanfare.
 import critAsset from '@/assets/crit-roll.m4a.asset.json';
-import nat20Asset from '@/assets/nat20-roll.mp3.asset.json';
 
 let audio: HTMLAudioElement | null = null;
-let nat20Audio: HTMLAudioElement | null = null;
 let lastPlayed = 0;
 
 /** Plays the high-roll sound if the raw d20 roll is greater than 17. */
