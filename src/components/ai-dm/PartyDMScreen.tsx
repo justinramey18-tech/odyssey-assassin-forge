@@ -1385,6 +1385,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [showQuests, setShowQuests] = useState(false);
   const [questsCount, setQuestsCount] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Two-tap confirm for changing which character plays this party campaign.
+  const [confirmCharacterSwap, setConfirmCharacterSwap] = useState(false);
+  useEffect(() => {
+    if (!confirmCharacterSwap) return;
+    const t = window.setTimeout(() => setConfirmCharacterSwap(false), 4000);
+    return () => clearTimeout(t);
+  }, [confirmCharacterSwap]);
+
   const chatBackground = usePartyChatBackground();
 
   // Load party quest count — Fix B: guard with currentUserId
@@ -1441,6 +1450,30 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     setMyAfkGuide((me?.character_status?.afkPersonalityGuide as string) || null);
     setMyAfkCascade((me?.character_status?.afkPromptCascade as string[]) || null);
   }, [currentUserId, members]);
+  // party_members.character_name is written once when joining and never updated,
+  // so switching characters would leave the rest of the party seeing the old name
+  // in the member list, the DM briefing and the combat log. Push the change.
+  const lastSyncedCharacterName = useRef<string | null>(null);
+  useEffect(() => {
+    const name = characterContext?.name?.trim();
+    if (!partyId || !currentUserId || !name) return;
+    if (lastSyncedCharacterName.current === name) return;
+    lastSyncedCharacterName.current = name;
+
+    (async () => {
+      try {
+        await supabase
+          .from('party_members')
+          .update({ character_name: name })
+          .eq('party_id', partyId)
+          .eq('user_id', currentUserId);
+        console.log('[PartyDM] Synced character name to party:', name);
+      } catch (e) {
+        console.error('[PartyDM] Failed to sync character name:', e);
+      }
+    })();
+  }, [characterContext?.name, partyId, currentUserId]);
+
   const [localTimerEnabled, setLocalTimerEnabled] = useState(partyDm.sessionConfig?.timerEnabled ?? false);
   const [localTimerDuration, setLocalTimerDuration] = useState(partyDm.sessionConfig?.timerDurationSeconds ?? 120);
 
@@ -1965,21 +1998,30 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           {onOpenCharacterPicker && (
             <button
               onClick={() => {
-                if (partyDm.messages.length > 0) return;
+                // Mid-campaign swaps are allowed but deliberate: first tap arms, second commits.
+                if (partyDm.messages.length > 0 && !confirmCharacterSwap) {
+                  setConfirmCharacterSwap(true);
+                  return;
+                }
+                setConfirmCharacterSwap(false);
                 onOpenCharacterPicker();
               }}
-              disabled={partyDm.messages.length > 0}
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-amber-500/25 hover:bg-white/10 transition-colors max-w-[110px] disabled:opacity-30"
+              className={cn(
+                'flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-colors max-w-[130px]',
+                confirmCharacterSwap
+                  ? 'border-amber-400/70 bg-amber-900/30'
+                  : 'border-amber-500/25 hover:bg-white/10'
+              )}
               style={{ touchAction: 'manipulation', minHeight: 40 }}
               title={
                 partyDm.messages.length > 0
-                  ? 'Character is locked while a session is in progress — the other players already see this name'
+                  ? 'Change which character plays this campaign. The other players will see the new name.'
                   : 'Choose which character plays this campaign'
               }
             >
               <UserCog className="w-4 h-4 text-amber-400/80 shrink-0" />
               <span className="text-[10px] text-amber-200/70 truncate">
-                {characterContext?.name || 'Character'}
+                {confirmCharacterSwap ? 'Tap again to change' : (characterContext?.name || 'Character')}
               </span>
             </button>
           )}
