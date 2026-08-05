@@ -177,17 +177,32 @@ export function useCloudSave(userId: string | undefined) {
           .select()
           .single();
       } else {
-        // Upsert: insert or update if user already has a save (unique_one_save_per_user constraint)
+        // New character → always create a new row. Ensure the save name is
+        // unique within this account (unique index on user_id + save_name).
+        let uniqueName = saveName;
+        for (let attempt = 0; attempt < 25; attempt++) {
+          const candidate = attempt === 0 ? saveName : `${saveName} (${attempt + 1})`;
+          const { data: clash } = await supabase
+            .from('character_saves')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('save_name', candidate)
+            .maybeSingle();
+          if (!clash) { uniqueName = candidate; break; }
+          uniqueName = `${saveName} (${Date.now()})`;
+        }
+
         result = await supabase
           .from('character_saves')
-          .upsert({
+          .insert({
             user_id: userId,
-            save_name: saveName,
+            save_name: uniqueName,
             ...dbData,
-          }, { onConflict: 'user_id' })
+          })
           .select()
           .single();
       }
+
       
       if (result.error) throw result.error;
       
