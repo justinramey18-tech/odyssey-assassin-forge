@@ -4,6 +4,7 @@ import { SaveData } from './use-auto-save';
 import { Json } from '@/integrations/supabase/types';
 import { getScopedKey } from '@/lib/scoped-storage';
 import { SCOPED_KEYS } from '@/lib/scoped-keys';
+import { unbindSaveEverywhere } from '@/lib/modeCharacterBinding';
 
 export interface CloudSavePreview {
   gold?: number;
@@ -316,7 +317,10 @@ export function useCloudSave(userId: string | undefined) {
         console.warn('[CloudSave] Failed to clean up scoped localStorage:', e);
       }
 
-      // Clear active save ID if it matches the deleted save
+      // Forget this character in any DM mode that was remembering it
+      unbindSaveEverywhere(saveId);
+
+
       if (localStorage.getItem('odyssey-active-cloud-save-id') === saveId) {
         localStorage.removeItem('odyssey-active-cloud-save-id');
       }
