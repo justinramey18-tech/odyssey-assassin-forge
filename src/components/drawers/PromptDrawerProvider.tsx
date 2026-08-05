@@ -966,6 +966,9 @@ export function PromptDrawerProvider({
               characterName={character.name}
               onShowChat={onOpenPartyChat ? () => { setPartyDMOpen(false); setPartyDMBuilderAutoOpen(false); onOpenPartyChat(); } : undefined}
               autoSyncCallbacks={autoSyncCallbacks}
+              currentXP={currentXP}
+              onManualLevelUp={onManualLevelUp}
+              onAcceptItem={onAcceptDmItem}
               wildShape={wildShape}
               isMomoMoonDruid={isMomoEasterEgg(character.name) && character.primaryClass === 'druid' && subclass?.toLowerCase().includes('moon')}
               autoOpenCampaignBuilder={partyDMBuilderAutoOpen}
