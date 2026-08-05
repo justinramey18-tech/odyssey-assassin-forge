@@ -20,6 +20,7 @@ import { PersonalityTestWizard } from '@/components/ai-dm/PersonalityTestWizard'
 import { PersonalityResultsScreen } from '@/components/ai-dm/PersonalityResultsScreen';
 import { ReturnToSheetButton } from '@/components/ai-dm/ReturnToSheetButton';
 import { clearSheetReturn } from '@/lib/sheetReturn';
+import { ensureBinding, getBoundSaveId, type DMMode } from '@/lib/modeCharacterBinding';
 import { usePersonalityGate } from '@/hooks/use-personality-gate';
 import { Character } from '@/lib/types';
 import { XPPreset, getXPForLevel } from '@/lib/xpSystem';
@@ -102,6 +103,13 @@ interface PromptDrawerProviderProps {
   enabled?: boolean;
   // Stats drawer props
   currentXP?: number;
+  /** Active cloud save id, for the AI DM per-mode character binding */
+  activeCloudSaveId?: string | null;
+  /** All the player's cloud saves, for the in-DM character picker */
+  cloudSaves?: Array<{ id: string; save_name: string; character_name?: string; character_level?: number; updated_at: string }>;
+  onRefreshCloudSaves?: () => void;
+  /** Switch the active character. Resolves true on success. */
+  onSwitchCharacterSave?: (saveId: string) => Promise<boolean>;
   xpPreset?: XPPreset;
   onAddXP?: (amount: number, source: string) => void;
   // Equipment for set bonus drawer
@@ -199,6 +207,10 @@ export function PromptDrawerProvider({
   onAddXP = () => {},
   onManualLevelUp,
   onAcceptDmItem,
+  activeCloudSaveId,
+  cloudSaves,
+  onRefreshCloudSaves,
+  onSwitchCharacterSave,
   equipment,
   currentHP,
   maxHP,
@@ -247,6 +259,9 @@ export function PromptDrawerProvider({
   const [aiDMOpen, setAiDMOpen] = useState(false);
   const [partyDMOpen, setPartyDMOpen] = useState(false);
   const [partyDMBuilderAutoOpen, setPartyDMBuilderAutoOpen] = useState(false);
+
+  // Which mode is currently resolving its bound character, if any.
+  const [pendingMode, setPendingMode] = useState<DMMode | null>(null);
 
   // Personality gate for Solo DM
   const personalityGate = usePersonalityGate({ userId });
@@ -299,6 +314,29 @@ export function PromptDrawerProvider({
     setQuickActionsOpen(false);
     setAiDMOpen(false);
   }, []);
+
+  // Open a DM mode after making sure its bound character is the active one.
+  const openModeWithCharacter = useCallback(async (mode: DMMode, open: () => void) => {
+    const target = ensureBinding(mode, activeCloudSaveId ?? null);
+    // No binding possible (guest, or no cloud saves): behave exactly as before.
+    if (!target || target === activeCloudSaveId || !onSwitchCharacterSave) {
+      open();
+      return;
+    }
+
+    setPendingMode(mode);
+    try {
+      const ok = await onSwitchCharacterSave(target);
+      if (!ok) {
+        toast.error('Could not load this mode\u2019s character', {
+          description: 'Opening with the current character instead.',
+        });
+      }
+    } finally {
+      setPendingMode(null);
+      open();
+    }
+  }, [activeCloudSaveId, onSwitchCharacterSave]);
 
   // Any overlay can ask the app to jump to a main tab by dispatching
   // 'odyssey-navigate-tab' (see navigateToTab in SoloCharacterSheet.tsx).
@@ -714,10 +752,17 @@ export function PromptDrawerProvider({
       // Opening the DM deliberately should land on the chat, not silently
       // reopen a character sheet the player walked away from earlier.
       clearSheetReturn();
-      closeAllDrawers(); setAiDMOpen(true);
-    }, [closeAllDrawers]),
-    openPartyDMScreen: useCallback(() => { closeAllDrawers(); setPartyDMOpen(true); }, [closeAllDrawers]),
-    openPartyDMCampaignBuilder: useCallback(() => { closeAllDrawers(); setPartyDMOpen(true); setPartyDMBuilderAutoOpen(true); }, [closeAllDrawers]),
+      closeAllDrawers();
+      void openModeWithCharacter('solo', () => setAiDMOpen(true));
+    }, [closeAllDrawers, openModeWithCharacter]),
+    openPartyDMScreen: useCallback(() => {
+      closeAllDrawers();
+      void openModeWithCharacter('party', () => setPartyDMOpen(true));
+    }, [closeAllDrawers, openModeWithCharacter]),
+    openPartyDMCampaignBuilder: useCallback(() => {
+      closeAllDrawers();
+      void openModeWithCharacter('party', () => { setPartyDMOpen(true); setPartyDMBuilderAutoOpen(true); });
+    }, [closeAllDrawers, openModeWithCharacter]),
     closeAllDrawers,
     // Cooldown system exposure
     triggerCooldown: cooldownSystem.triggerCooldown,
@@ -903,6 +948,15 @@ export function PromptDrawerProvider({
             channelDivinity={channelDivinityInfo}
             hideAbilitiesAndItems={aiDMOpen}
           />
+
+          {pendingMode && (
+            <div className="fixed inset-0 z-[85] flex flex-col items-center justify-center gap-3 bg-black/80 backdrop-blur-sm">
+              <div className="w-8 h-8 rounded-full border-2 border-amber-400/30 border-t-amber-400 animate-spin" />
+              <p className="text-xs font-cinzel tracking-widest text-amber-200/80 uppercase">
+                Loading {pendingMode} character
+              </p>
+            </div>
+          )}
 
           {/* AI Dungeon Master Full-Screen Overlay (Solo only) */}
           {aiDMOpen && (
