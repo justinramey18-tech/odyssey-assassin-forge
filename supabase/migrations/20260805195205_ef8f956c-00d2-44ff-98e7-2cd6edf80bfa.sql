@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS public.unique_one_save_per_user;
