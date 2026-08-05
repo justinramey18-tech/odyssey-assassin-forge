@@ -83,7 +83,7 @@ export default function Auth() {
           ? 'Username or password is incorrect.'
           : error.message);
       } else {
-        navigate('/roster');
+        navigate('/roster', { state: { autoLoad: true } });
       }
     } catch {
       setError('Sign in failed. Please check your connection and try again.');
@@ -166,7 +166,7 @@ export default function Auth() {
       toast.error('Please confirm you saved your recovery code.');
       return;
     }
-    navigate('/roster');
+    navigate('/roster', { state: { autoLoad: true } });
   };
 
   if (authLoading) {
