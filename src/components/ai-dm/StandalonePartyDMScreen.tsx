@@ -63,6 +63,12 @@ interface StandalonePartyDMScreenProps {
     getCurrentHP: () => number;
     getCurrentGold: () => number;
   };
+  /** Lifetime XP total, for the party character sheet */
+  currentXP?: number;
+  /** Manual level advance used by the character sheet */
+  onManualLevelUp?: () => void;
+  /** Accept an item awarded by the AI DM into the loot inventory */
+  onAcceptItem?: (name: string, quantity: number) => void;
   wildShape?: UseWildShapeReturn;
   isMomoMoonDruid?: boolean;
   isSoloEmpyrean?: boolean;
@@ -81,6 +87,9 @@ export function StandalonePartyDMScreen({
   characterName,
   onShowChat,
   autoSyncCallbacks,
+  currentXP,
+  onManualLevelUp,
+  onAcceptItem,
   wildShape,
   isMomoMoonDruid,
   isSoloEmpyrean,
@@ -767,6 +776,9 @@ ${truncated}`);
         onAddMemoryAnchor={memoryAnchors.addMemoryAnchor}
         onRemoveMemoryAnchor={memoryAnchors.removeMemoryAnchor}
         characterContext={characterContext}
+        currentXP={currentXP}
+        onManualLevelUp={onManualLevelUp}
+        onAcceptItem={onAcceptItem}
         campaignSessions={campaignSessions.sessions}
         campaignSessionsLoading={campaignSessions.isLoading}
         campaignSessionsSignedIn={campaignSessions.isSignedIn}
