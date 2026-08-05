@@ -19,8 +19,9 @@ import { StandalonePartyDMScreen } from '@/components/ai-dm/StandalonePartyDMScr
 import { PersonalityTestWizard } from '@/components/ai-dm/PersonalityTestWizard';
 import { PersonalityResultsScreen } from '@/components/ai-dm/PersonalityResultsScreen';
 import { ReturnToSheetButton } from '@/components/ai-dm/ReturnToSheetButton';
+import { ModeCharacterPicker } from '@/components/ai-dm/ModeCharacterPicker';
 import { clearSheetReturn } from '@/lib/sheetReturn';
-import { ensureBinding, getBoundSaveId, type DMMode } from '@/lib/modeCharacterBinding';
+import { ensureBinding, getBoundSaveId, setBoundSaveId, type DMMode } from '@/lib/modeCharacterBinding';
 import { usePersonalityGate } from '@/hooks/use-personality-gate';
 import { Character } from '@/lib/types';
 import { XPPreset, getXPForLevel } from '@/lib/xpSystem';
@@ -65,6 +66,7 @@ interface PromptDrawerContextValue {
   openAIDMScreen: () => void;
   openPartyDMScreen: () => void;
   openPartyDMCampaignBuilder: () => void;
+  openModeCharacterPicker: (mode: 'solo' | 'party' | 'empyrean') => void;
   closeAllDrawers: () => void;
   // Cooldown system exposure
   triggerCooldown: (abilityId: string) => void;
@@ -262,6 +264,7 @@ export function PromptDrawerProvider({
 
   // Which mode is currently resolving its bound character, if any.
   const [pendingMode, setPendingMode] = useState<DMMode | null>(null);
+  const [pickerMode, setPickerMode] = useState<DMMode | null>(null);
 
   // Personality gate for Solo DM
   const personalityGate = usePersonalityGate({ userId });
@@ -763,6 +766,7 @@ export function PromptDrawerProvider({
       closeAllDrawers();
       void openModeWithCharacter('party', () => { setPartyDMOpen(true); setPartyDMBuilderAutoOpen(true); });
     }, [closeAllDrawers, openModeWithCharacter]),
+    openModeCharacterPicker: useCallback((mode: DMMode) => setPickerMode(mode), []),
     closeAllDrawers,
     // Cooldown system exposure
     triggerCooldown: cooldownSystem.triggerCooldown,
@@ -957,6 +961,16 @@ export function PromptDrawerProvider({
               </p>
             </div>
           )}
+
+          <ModeCharacterPicker
+            open={pickerMode !== null}
+            onOpenChange={(o) => { if (!o) setPickerMode(null); }}
+            mode={pickerMode ?? 'solo'}
+            activeCloudSaveId={activeCloudSaveId ?? null}
+            saves={cloudSaves ?? []}
+            onRefresh={onRefreshCloudSaves}
+            onSwitch={async (id) => (onSwitchCharacterSave ? onSwitchCharacterSave(id) : false)}
+          />
 
           {/* AI Dungeon Master Full-Screen Overlay (Solo only) */}
           {aiDMOpen && (
