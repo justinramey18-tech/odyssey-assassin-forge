@@ -18,8 +18,7 @@ export function maybePlayCritSound(rawRoll: number, sides: number = 20): void {
 
   try {
     if (rawRoll === 20) {
-      // Natural 20 → silent full-screen celebration video plus both sounds.
-      window.dispatchEvent(new CustomEvent('odyssey-nat20'));
+      // Natural 20 → fanfare plus crit sound.
       if (!nat20Audio) {
         nat20Audio = new Audio(nat20Asset.url);
         nat20Audio.preload = 'auto';
