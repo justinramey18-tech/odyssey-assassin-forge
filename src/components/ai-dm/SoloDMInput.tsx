@@ -81,11 +81,8 @@ export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(
       });
       requestAnimationFrame(() => {
         if (inputRef.current) {
-          inputRef.current.focus();
           inputRef.current.style.height = 'auto';
           inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 200) + 'px';
-          const len = inputRef.current.value.length;
-          inputRef.current.setSelectionRange(len, len);
         }
       });
     },
