@@ -45,9 +45,12 @@ export const SCOPED_KEYS = [
   'dnd-wild-shape-state',
   'odyssey-wild-shape-backgrounds',
   // Party
-  'odyssey-active-party-id',
+  // NOTE: 'odyssey-active-party-id' is deliberately NOT scoped. Party membership
+  // belongs to the ACCOUNT, not to one character — scoping it meant switching
+  // character silently dropped you out of your own party.
   'odyssey-party-chat-background',
   'odyssey-party-chat-background-settings',
+
   // Narrative & AI
   'narrative-forge-saved-stories',
   'narrative-forge-active-story-id',
@@ -56,7 +59,10 @@ export const SCOPED_KEYS = [
   'dnd-ai-dm-campaign-summary',
   'dnd-novel-builder-campaign-summary',
   // Play mode & UI
-  'odyssey-play-mode',
+  // NOTE: 'odyssey-play-mode' is deliberately NOT scoped. Solo vs party is a
+  // session-level choice; scoping it meant a character switch reset you to solo
+  // and locked the party host out of their own session.
+
   'dnd-protagonist-cards',
   // Novel/Scribe context
   'novel-ctx-state',
