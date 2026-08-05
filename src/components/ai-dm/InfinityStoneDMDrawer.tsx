@@ -6,6 +6,7 @@ import { characterPrompts, CharacterPrompt, DEADPOOL_PROMPT_IDS, PROMPT_HINTS } 
 import { groupBySubcategory, isMasterworkStone } from '@/lib/masterworkGrouping';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { rollCheck, rollSuffix } from '@/lib/promptAutoRoll';
+import { requestDiceRoll } from '@/lib/diceRollBus';
 import { useFavoritePrompts } from '@/hooks/use-favorite-prompts';
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 import { AlignmentBadge } from '@/components/alignment/AlignmentBadge';
@@ -88,13 +89,19 @@ export function InfinityStoneDMDrawer({ open, onOpenChange, characterName, onUse
       .replace(/\[Character Name\]/g, characterName || 'The Character')
       .replace(/\[Name\]/g, characterName || 'The Character');
     logPromptUsage(prompt.id);
-    // Every RP beat is an attempt: one weighted d20 under the current odds mode
-    // decides how well it goes, and the DM narrates at that tier.
+    // One weighted d20 decides how this RP beat goes. The overlay shows the roll,
+    // then the prompt (with the outcome baked in) lands in the composer.
     const roll = rollCheck();
-    onUsePrompt(applyTimePrefix(processed) + rollSuffix(roll));
     onOpenChange(false);
-    toast.success(`${prompt.icon} ${prompt.title}`, {
-      description: `d20: ${roll.d20} — ${roll.outcome}`,
+    requestDiceRoll({
+      title: prompt.title,
+      roll,
+      onComplete: () => {
+        onUsePrompt(applyTimePrefix(processed) + rollSuffix(roll));
+        toast.success(`${prompt.icon} ${prompt.title}`, {
+          description: `d20: ${roll.d20} — ${roll.outcome}`,
+        });
+      },
     });
   }, [characterName, logPromptUsage, onUsePrompt, onOpenChange]);
 
