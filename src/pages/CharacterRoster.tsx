@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { RefreshCw, Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useCloudSave } from '@/hooks/use-cloud-save';
@@ -10,11 +10,16 @@ import type { Json } from '@/integrations/supabase/types';
 
 export default function CharacterRoster() {
   const navigate = useNavigate();
+  const location = useLocation();
+  // Only auto-jump into a character right after sign-in. When the player
+  // deliberately opens the roster (Switch Character), always show the list.
+  const autoLoad = Boolean((location.state as { autoLoad?: boolean } | null)?.autoLoad);
   const { user, loading: authLoading } = useAuth();
   const { cloudSaves, fetchSaves, loadFromCloud, loading: savesLoading } = useCloudSave(user?.id);
   const { effectiveMode } = useAppMode();
   const [initialFetchDone, setInitialFetchDone] = useState(false);
   const [showAll, setShowAll] = useState(false);
+
 
   // Redirect to auth if not logged in
   useEffect(() => {
