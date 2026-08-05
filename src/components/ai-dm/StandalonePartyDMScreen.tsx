@@ -69,6 +69,8 @@ interface StandalonePartyDMScreenProps {
   onManualLevelUp?: () => void;
   /** Accept an item awarded by the AI DM into the loot inventory */
   onAcceptItem?: (name: string, quantity: number) => void;
+  /** Open the per-campaign character picker for party mode */
+  onOpenCharacterPicker?: () => void;
   wildShape?: UseWildShapeReturn;
   isMomoMoonDruid?: boolean;
   isSoloEmpyrean?: boolean;
@@ -90,6 +92,7 @@ export function StandalonePartyDMScreen({
   currentXP,
   onManualLevelUp,
   onAcceptItem,
+  onOpenCharacterPicker,
   wildShape,
   isMomoMoonDruid,
   isSoloEmpyrean,
@@ -779,6 +782,7 @@ ${truncated}`);
         currentXP={currentXP}
         onManualLevelUp={onManualLevelUp}
         onAcceptItem={onAcceptItem}
+        onOpenCharacterPicker={onOpenCharacterPicker}
         campaignSessions={campaignSessions.sessions}
         campaignSessionsLoading={campaignSessions.isLoading}
         campaignSessionsSignedIn={campaignSessions.isSignedIn}
