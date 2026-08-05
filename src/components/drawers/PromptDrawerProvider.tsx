@@ -1038,6 +1038,7 @@ export function PromptDrawerProvider({
               currentXP={currentXP}
               onManualLevelUp={onManualLevelUp}
               onAcceptItem={onAcceptDmItem}
+              onOpenCharacterPicker={() => setPickerMode('party')}
               wildShape={wildShape}
               isMomoMoonDruid={isMomoEasterEgg(character.name) && character.primaryClass === 'druid' && subclass?.toLowerCase().includes('moon')}
               autoOpenCampaignBuilder={partyDMBuilderAutoOpen}

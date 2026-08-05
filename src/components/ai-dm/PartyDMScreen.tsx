@@ -19,7 +19,7 @@ import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, ChevronRight, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause, MessageCircle, SmilePlus, Theater, Megaphone, Swords } from 'lucide-react';
+import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, ChevronRight, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause, MessageCircle, SmilePlus, Theater, Megaphone, Swords, UserCog } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer, PreSplitChatViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -128,6 +128,7 @@ interface PartyDMScreenProps {
   currentXP?: number;
   onManualLevelUp?: () => void;
   onAcceptItem?: (name: string, quantity: number) => void;
+  onOpenCharacterPicker?: () => void;
   // Campaign dropdown props (creator-only)
   campaignSessions?: CampaignSession[];
   campaignSessionsLoading?: boolean;
@@ -935,7 +936,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.reactions?.every((r, i) => r.id === next.reactions?.[i]?.id);
 });
 
-export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, swipeHandlers, onRequestCharacterRedo, hasPendingRedoRequest }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, swipeHandlers, onRequestCharacterRedo, hasPendingRedoRequest }: PartyDMScreenProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
@@ -1961,6 +1962,27 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground whitespace-nowrap">{memberCount} players</span>
+          {onOpenCharacterPicker && (
+            <button
+              onClick={() => {
+                if (partyDm.messages.length > 0) return;
+                onOpenCharacterPicker();
+              }}
+              disabled={partyDm.messages.length > 0}
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-amber-500/25 hover:bg-white/10 transition-colors max-w-[110px] disabled:opacity-30"
+              style={{ touchAction: 'manipulation', minHeight: 40 }}
+              title={
+                partyDm.messages.length > 0
+                  ? 'Character is locked while a session is in progress — the other players already see this name'
+                  : 'Choose which character plays this campaign'
+              }
+            >
+              <UserCog className="w-4 h-4 text-amber-400/80 shrink-0" />
+              <span className="text-[10px] text-amber-200/70 truncate">
+                {characterContext?.name || 'Character'}
+              </span>
+            </button>
+          )}
           {partyDm.messages.length > 0 && (
             <button
               onClick={() => {
