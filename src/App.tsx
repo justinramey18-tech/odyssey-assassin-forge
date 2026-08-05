@@ -41,6 +41,7 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <Nat20VideoOverlay />
         <BrowserRouter>
           <Suspense fallback={<div className="min-h-screen bg-background" />}>
             <Routes>
