@@ -21,11 +21,8 @@ export function Nat20VideoOverlay() {
     const el = videoRef.current;
     if (el) {
       el.currentTime = 0;
-      void el.play().catch(() => {
-        // Autoplay with sound may be blocked — fall back to muted playback.
-        el.muted = true;
-        void el.play().catch(() => setVisible(false));
-      });
+      el.muted = true;
+      void el.play().catch(() => setVisible(false));
     }
   }, [visible]);
 
@@ -40,6 +37,7 @@ export function Nat20VideoOverlay() {
         ref={videoRef}
         src={nat20Video.url}
         playsInline
+        muted
         autoPlay
         className="w-full h-full object-contain"
         onEnded={() => setVisible(false)}
