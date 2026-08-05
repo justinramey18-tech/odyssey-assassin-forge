@@ -4,6 +4,7 @@ import { SaveData } from './use-auto-save';
 import { Json } from '@/integrations/supabase/types';
 import { getScopedKey } from '@/lib/scoped-storage';
 import { SCOPED_KEYS } from '@/lib/scoped-keys';
+import { unbindSaveEverywhere } from '@/lib/modeCharacterBinding';
 
 export interface CloudSavePreview {
   gold?: number;
