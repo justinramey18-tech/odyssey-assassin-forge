@@ -718,7 +718,7 @@ const Index = () => {
 
   // Auth & Party system
   const { user, isAuthenticated, loading: authLoading } = useAuth();
-  const { loadFromCloud, saveToCloud, renameSave, deleteCloudSave } = useCloudSave(user?.id);
+  const { loadFromCloud, saveToCloud, renameSave, deleteCloudSave, cloudSaves, fetchSaves } = useCloudSave(user?.id);
 
   // ── Roster gate: redirect unauthenticated users to /roster ──
   useEffect(() => {
@@ -1510,6 +1510,22 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       duration: 2500,
     });
   }, [abilityScores.applyScores, setPrestigeData, toast, partySync, customBackground, activeCloudSaveId, character.name, saveData, saveToCloud, autoSync.pendingFlush]);
+
+  // Switch the active character by cloud save id. Used by the AI DM mode binding
+  // so each DM mode plays its own character. Always routes through
+  // handleLoadCloudSave so the flush-before-swap ordering is preserved.
+  const switchToCharacterSave = useCallback(async (saveId: string): Promise<boolean> => {
+    if (!saveId || saveId === activeCloudSaveId) return true;
+    try {
+      const data = await loadFromCloud(saveId);
+      if (!data) return false;
+      await handleLoadCloudSave(data, saveId);
+      return true;
+    } catch (e) {
+      console.error('[ModeBinding] Failed to switch character:', e);
+      return false;
+    }
+  }, [activeCloudSaveId, loadFromCloud, handleLoadCloudSave]);
 
   // ── Hydrate from roster selection (runs once after handleLoadCloudSave is defined) ──
   const hasHydratedFromRoster = useRef(false);
@@ -2579,6 +2595,10 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         unlockedAbilities={unlockedAbilities}
         enabled={true}
         currentXP={currentXP}
+        activeCloudSaveId={activeCloudSaveId}
+        cloudSaves={cloudSaves}
+        onRefreshCloudSaves={fetchSaves}
+        onSwitchCharacterSave={switchToCharacterSave}
         xpPreset={xpPreset}
         onAddXP={handleAddXP}
         equipment={equipment}
@@ -2795,6 +2815,10 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       unlockedAbilities={unlockedAbilities}
       enabled={true}
       currentXP={currentXP}
+      activeCloudSaveId={activeCloudSaveId}
+      cloudSaves={cloudSaves}
+      onRefreshCloudSaves={fetchSaves}
+      onSwitchCharacterSave={switchToCharacterSave}
       xpPreset={xpPreset}
       onAddXP={handleAddXP}
       equipment={equipment}
