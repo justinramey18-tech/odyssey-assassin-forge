@@ -12,7 +12,7 @@ import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-models';
 import { formatUsage, formatCostShort } from '@/lib/token-usage';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings, Volume2, VolumeX, Bird, Maximize2, Minimize2, PawPrint, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings, Volume2, VolumeX, Bird, Maximize2, Minimize2, PawPrint, MessageCircle, UserCog } from 'lucide-react';
 import { loadState as loadGeraltState, saveState as saveGeraltState } from '@/components/companion/geralt-data';
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import { DMToolsDrawer } from './DMToolsDrawer';
@@ -93,6 +93,8 @@ interface AIDMScreenProps {
   onManualLevelUp?: () => void;
   /** Accept an item the DM awarded into the loot inventory */
   onAcceptItem?: (name: string, quantity: number) => void;
+  /** Open the per-campaign character picker for solo mode */
+  onOpenCharacterPicker?: () => void;
   /** Wild Shape hook instance (for Momo Moon Druid) */
   wildShape?: UseWildShapeReturn;
   /** Whether this character is a Momo Moon Druid (shows wild shape tab) */
@@ -426,7 +428,7 @@ function parseNpcTags(text: string, knownNames: string[]): { npcNames: string[];
 }
 
 
-export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks, dmPersonaPrompt, dmPersonaName, onRetakePersonalityTest, wildShape, isMomoMoonDruid, currentXP = 0, onManualLevelUp, onAcceptItem }: AIDMScreenProps) {
+export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks, dmPersonaPrompt, dmPersonaName, onRetakePersonalityTest, wildShape, isMomoMoonDruid, currentXP = 0, onManualLevelUp, onAcceptItem, onOpenCharacterPicker }: AIDMScreenProps) {
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
   const [restoreSheetTab, setRestoreSheetTab] = useState<SheetTab | undefined>(undefined);
 
@@ -975,6 +977,20 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
             </span>
           )}
           
+          {onOpenCharacterPicker && (
+            <button
+              onClick={onOpenCharacterPicker}
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-amber-500/25 hover:bg-white/10 transition-colors max-w-[120px]"
+              style={{ touchAction: 'manipulation', minHeight: 40 }}
+              title="Choose which character plays this campaign"
+            >
+              <UserCog className="w-4 h-4 text-amber-400/80 shrink-0" />
+              <span className="text-[10px] text-amber-200/70 truncate">
+                {characterContext.name || characterName}
+              </span>
+            </button>
+          )}
+
           <button
             onClick={() => setShowToolsDrawer(true)}
             className="p-2 rounded-lg hover:bg-white/10 transition-colors"
