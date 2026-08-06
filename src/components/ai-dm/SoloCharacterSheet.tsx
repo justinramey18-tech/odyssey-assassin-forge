@@ -12,7 +12,7 @@ import { useCharacterIdentity } from '@/hooks/use-character-identity';
 import {
   PendingDmItem, loadPendingDmItems, removePendingDmItem, PENDING_DM_ITEMS_EVENT,
 } from '@/lib/pendingDmItems';
-import { setSheetReturn } from '@/lib/sheetReturn';
+import { setSheetReturn, type SheetReturnOrigin } from '@/lib/sheetReturn';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -45,12 +45,14 @@ export interface SoloCharacterSheetProps {
   onUseConsumableByName?: (name: string) => void;
   /** Open the sheet on a specific tab, used when restoring after a tab jump */
   initialTab?: SheetTab;
+  /** Which DM screen this sheet is rendered in. Controls where the return button sends the player. */
+  origin?: SheetReturnOrigin;
 }
 
-function navigateToTab(appTab: string, sheetTab: SheetTab) {
-  // Remember which sheet tab we left from so the floating return button
-  // can restore this exact view in one tap.
-  setSheetReturn(sheetTab, appTab);
+function navigateToTab(appTab: string, sheetTab: SheetTab, origin: SheetReturnOrigin = 'solo') {
+  // Remember which sheet tab we left from AND which DM we were in, so the
+  // floating return button restores the right campaign in one tap.
+  setSheetReturn(sheetTab, appTab, origin);
   window.dispatchEvent(new CustomEvent('odyssey-navigate-tab', { detail: appTab }));
 }
 
@@ -78,6 +80,7 @@ export function SoloCharacterSheet({
   open, onClose, ctx, currentXP, gold, quests = [],
   onAdjustHP, onAddXP, onManualLevelUp, onConditionChange, onRest, onAcceptItem, onUseConsumableByName,
   initialTab,
+  origin = 'solo',
 }: SoloCharacterSheetProps) {
   const [tab, setTab] = useState<SheetTab>('vitals');
   const [hpDelta, setHpDelta] = useState('');
@@ -263,7 +266,7 @@ export function SoloCharacterSheet({
               title="Purse & Standing"
               icon={Shield}
               action={
-                <button onClick={() => { onClose(); navigateToTab('shop', tab); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
+                <button onClick={() => { onClose(); navigateToTab('shop', tab, origin); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
                   Inventory tab <ExternalLink className="w-3 h-3" />
                 </button>
               }
@@ -484,7 +487,7 @@ export function SoloCharacterSheet({
                 title="Prestige"
                 icon={Sparkles}
                 action={
-                  <button onClick={() => { onClose(); navigateToTab('legacy', tab); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
+                  <button onClick={() => { onClose(); navigateToTab('legacy', tab, origin); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
                     Legacy tab <ExternalLink className="w-3 h-3" />
                   </button>
                 }
@@ -505,7 +508,7 @@ export function SoloCharacterSheet({
               title="Equipped Loadout"
               icon={Zap}
               action={
-                <button onClick={() => { onClose(); navigateToTab('abilities', tab); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
+                <button onClick={() => { onClose(); navigateToTab('abilities', tab, origin); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
                   Abilities tab <ExternalLink className="w-3 h-3" />
                 </button>
               }
@@ -541,7 +544,7 @@ export function SoloCharacterSheet({
                 title="Magic"
                 icon={Sparkles}
                 action={
-                  <button onClick={() => { onClose(); navigateToTab('arcana', tab); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
+                  <button onClick={() => { onClose(); navigateToTab('arcana', tab, origin); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
                     Arcana tab <ExternalLink className="w-3 h-3" />
                   </button>
                 }
@@ -604,7 +607,7 @@ export function SoloCharacterSheet({
               title="Equipment"
               icon={Shield}
               action={
-                <button onClick={() => { onClose(); navigateToTab('gear', tab); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
+                <button onClick={() => { onClose(); navigateToTab('gear', tab, origin); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
                   Gear tab <ExternalLink className="w-3 h-3" />
                 </button>
               }
@@ -632,7 +635,7 @@ export function SoloCharacterSheet({
               title="Consumables"
               icon={Backpack}
               action={
-                <button onClick={() => { onClose(); navigateToTab('consumables', tab); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
+                <button onClick={() => { onClose(); navigateToTab('consumables', tab, origin); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
                   Items tab <ExternalLink className="w-3 h-3" />
                 </button>
               }
@@ -660,7 +663,7 @@ export function SoloCharacterSheet({
               title="Loot"
               icon={Coins}
               action={
-                <button onClick={() => { onClose(); navigateToTab('loot', tab); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
+                <button onClick={() => { onClose(); navigateToTab('loot', tab, origin); }} className="text-[10px] text-amber-300 flex items-center gap-1 min-h-[44px] px-1" style={{ touchAction: 'manipulation' }}>
                   Inventory tab <ExternalLink className="w-3 h-3" />
                 </button>
               }
