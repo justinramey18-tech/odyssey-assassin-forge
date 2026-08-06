@@ -98,6 +98,7 @@ import {
   createInitialEquipment,
 } from '@/lib/inventory/index';
 import { dmItemToEquipment } from '@/lib/inventory/dmGearIntake';
+import { computeEncumbrance } from '@/lib/inventory/encumbrance';
 
 import { MagicScreen, ClassSpellcastingScreen } from '@/components/magic';
 import { getSpellById } from '@/lib/magic/spells/index';
@@ -516,6 +517,12 @@ const Index = () => {
     abilityModifiers: abilityScores.finalModifiers,
   });
   
+  // Live encumbrance — recomputes the moment gear is equipped, swapped or removed
+  const encumbrance = useMemo(
+    () => computeEncumbrance(aggregatedStats.totalLoad, abilityScores.finalScores.strength),
+    [aggregatedStats.totalLoad, abilityScores.finalScores.strength],
+  );
+
   // Calculate max HP dynamically based on level, constitution, and prestige
   const calculatedMaxHP = useMemo(() => {
     const conMod = scoreToModifier(abilityScores.finalScores.constitution);
@@ -575,7 +582,7 @@ const Index = () => {
   const effectiveTempHP = wildShape.state.isTransformed ? 0 : hpState.temp;
   const effectiveAC = wildShape.state.isTransformed && wildShape.state.currentForm
     ? wildShape.state.currentForm.ac
-    : aggregatedStats.totalAC;
+    : combatStats.ac;
   
   // Spellcasting system for Rogue (Magic Paths - uses ability scores for auto-calculation)
   const spellcasting = useSpellcasting(character.level, character.name, {
@@ -3299,6 +3306,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
               onDeleteLoot={loot.deleteLootItem}
               onSellLoot={loot.sellLootItem}
               onAddGold={shop.addGold}
+              encumbrance={encumbrance}
+              attackBonus={combatStats.attackBonus}
+              armorClass={combatStats.ac}
               
               currentHP={hpState.current}
               maxHP={hpState.max}
