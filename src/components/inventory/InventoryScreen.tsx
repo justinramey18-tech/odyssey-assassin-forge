@@ -14,6 +14,7 @@ import {
   getActiveSetBonuses,
 } from '@/lib/inventory/index';
 import { setImages } from '@/lib/inventory/setImages';
+import { computeEncumbrance, EncumbranceInfo } from '@/lib/inventory/encumbrance';
 import { useGearLock } from '@/hooks/use-gear-lock';
 import { useEquipmentImages } from '@/hooks/use-equipment-images';
 import { useHomebrewGear } from '@/hooks/use-homebrew-gear';
@@ -56,6 +57,12 @@ interface InventoryScreenProps {
   onEquipmentChange?: (equipment: CharacterEquipment) => void;
   achievements?: Achievement[];
   onSellGear?: (item: EquipmentItem) => void;
+  /** Live encumbrance from the character sheet (Strength-aware). */
+  encumbrance?: EncumbranceInfo;
+  /** Live attack bonus including proficiency and ability modifiers. */
+  attackBonus?: number;
+  /** Live armour class including DEX and passive bonuses. */
+  armorClass?: number;
 }
 
 export function InventoryScreen({ 
@@ -65,6 +72,9 @@ export function InventoryScreen({
   onEquipmentChange,
   achievements = achievementCategories,
   onSellGear,
+  encumbrance,
+  attackBonus,
+  armorClass,
 }: InventoryScreenProps) {
   const [internalEquipment, setInternalEquipment] = useState<CharacterEquipment>(createInitialEquipment);
   const [viewMode, setViewMode] = useState<ViewMode>('compact');
