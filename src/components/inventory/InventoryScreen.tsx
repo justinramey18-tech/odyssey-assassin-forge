@@ -20,6 +20,8 @@ import { useHomebrewGear } from '@/hooks/use-homebrew-gear';
 import { achievementCategories, Achievement } from '@/lib/achievements';
 import { toast } from 'sonner';
 import { EquipmentList } from './EquipmentList';
+import { BackpackList, resolveTargetSlot } from './BackpackList';
+
 import { HomebrewGearCreator } from './HomebrewGearCreator';
 import { HomebrewGearAI } from './HomebrewGearAI';
 import { ItemDetailSheet } from './ItemDetailSheet';
@@ -216,7 +218,27 @@ export function InventoryScreen({
     setSelectedSlot(null);
   }, [selectedSlot, equipment.slots]);
 
+  // Equip directly from the backpack list (auto-picks the slot, swaps if occupied)
+  const handleEquipFromBackpack = useCallback((item: EquipmentItem) => {
+    const { slot, replacing } = resolveTargetSlot(item, equipment.slots);
+    setEquipment(prev => ({
+      slots: { ...prev.slots, [slot]: item },
+      inventory: [
+        ...prev.inventory.filter(i => i.id !== item.id),
+        ...(replacing ? [replacing] : []),
+      ],
+    }));
+    toast.success(replacing ? `Swapped ${replacing.name} for ${item.name}` : `${item.name} equipped`);
+  }, [equipment.slots, setEquipment]);
+
+  const handleBackpackItemTap = useCallback((item: EquipmentItem) => {
+    setSelectedSlot(item.slotType);
+    setSelectedItem(item);
+    setShowItemDetail(true);
+  }, []);
+
   const handleEditHomebrew = useCallback((item: EquipmentItem) => {
+
     const homebrewItem = homebrewItems.find(h => h.id === item.id);
     if (homebrewItem) {
       setEditingGear(homebrewItem);
@@ -480,7 +502,17 @@ export function InventoryScreen({
                   onImageUpload={handleEquipmentImageUpload}
                   onImageClear={handleEquipmentImageClear}
                 />
-                
+
+                {/* Backpack — unequipped gear with Equip / Swap */}
+                <BackpackList
+                  equipment={equipment}
+                  inventory={equipmentWithHomebrew.inventory}
+                  onEquipItem={handleEquipFromBackpack}
+                  onItemTap={handleBackpackItemTap}
+                  isItemLocked={isItemLocked}
+                />
+
+
                 {/* Set Bonuses */}
                 <SetBonusPanel equipment={equipment} />
                 
