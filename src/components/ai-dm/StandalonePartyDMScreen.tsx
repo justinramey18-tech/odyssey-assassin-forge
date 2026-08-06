@@ -39,6 +39,7 @@ import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 import { getScopedItem } from '@/lib/scoped-storage';
+import { addPendingDmItems } from '@/lib/pendingDmItems';
 
 // Stable no-op fallbacks (module-level for referential stability)
 const NOOP = () => {};
@@ -569,12 +570,67 @@ export function StandalonePartyDMScreen({
     getGridSize: useCallback(() => 25 as any, []),
   });
 
+  // Run auto-sync on each newly arrived DM message.
+  //
+  // The solo screen fires this from an onMessageComplete callback. Party messages
+  // arrive over Supabase realtime and are shared by everyone, so instead we watch
+  // the list and extract from assistant messages we have not processed yet.
+  //
+  // Two guards matter:
+  //  - only the newest assistant message is processed, never the backlog, or
+  //    loading a campaign would re-apply every XP and gold award in its history
+  //  - each message id is recorded, so a re-render or realtime echo cannot
+  //    double-apply the same award
+  const processedSyncIds = useRef<Set<string>>(new Set());
+  const hasSeededSyncHistory = useRef(false);
+
+  useEffect(() => {
+    const msgs = partyDm.messages;
+    if (!msgs || msgs.length === 0) return;
+
+    // First pass after mount or campaign load: mark everything already on screen
+    // as processed. Those awards were applied when they originally happened.
+    if (!hasSeededSyncHistory.current) {
+      hasSeededSyncHistory.current = true;
+      for (const m of msgs) processedSyncIds.current.add(m.id);
+      return;
+    }
+
+    if (!autoSync.autoSyncEnabled) return;
+    if (partyDm.isGenerating) return; // wait for the message to finish
+
+    const last = msgs[msgs.length - 1];
+    if (!last || last.role !== 'assistant') return;
+    if (!last.content || last.content.trim().length === 0) return;
+    if (processedSyncIds.current.has(last.id)) return;
+
+    processedSyncIds.current.add(last.id);
+
+    autoSync.extractAndApply(last.content, characterContext)
+      .then(result => {
+        if (result?.items_acquired?.length) {
+          addPendingDmItems(result.items_acquired);
+        }
+      })
+      .catch(() => {});
+  }, [
+    partyDm.messages,
+    partyDm.isGenerating,
+    autoSync.autoSyncEnabled,
+    autoSync.extractAndApply,
+    characterContext,
+  ]);
+
 
   // Campaign load handler for dropdown
   const handleLoadCampaign = useCallback((session: import('@/hooks/use-campaign-sessions').CampaignSession) => {
     if (partyDm.messages.length > 0) {
       partyDm.saveCampaign('Party Campaign', partyDm.activeCampaignId || undefined);
     }
+    // A loaded campaign brings its whole history with it. Re-seed so auto-sync
+    // treats all of it as already applied instead of replaying old awards.
+    hasSeededSyncHistory.current = false;
+    processedSyncIds.current.clear();
     partyDm.loadCampaign(session.id, session.messages, session.campaign_summary);
   }, [partyDm.messages.length, partyDm.saveCampaign, partyDm.activeCampaignId, partyDm.loadCampaign]);
 
