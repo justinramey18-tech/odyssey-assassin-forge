@@ -71,7 +71,7 @@ interface StandalonePartyDMScreenProps {
   /** Manual level advance used by the character sheet */
   onManualLevelUp?: () => void;
   /** Accept an item awarded by the AI DM into the loot inventory */
-  onAcceptItem?: (name: string, quantity: number) => void;
+  onAcceptItem?: (name: string, quantity: number, details?: { goldValue?: number; description?: string; rarity?: string; category?: string; effect?: string; dice?: string }) => void;
   /** Open the per-campaign character picker for party mode */
   onOpenCharacterPicker?: () => void;
   wildShape?: UseWildShapeReturn;

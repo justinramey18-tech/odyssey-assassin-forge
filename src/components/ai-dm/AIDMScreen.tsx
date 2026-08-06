@@ -93,7 +93,7 @@ interface AIDMScreenProps {
   /** Manual level advance (milestone play / catch-up) */
   onManualLevelUp?: () => void;
   /** Accept an item the DM awarded into the loot inventory */
-  onAcceptItem?: (name: string, quantity: number) => void;
+  onAcceptItem?: (name: string, quantity: number, details?: { goldValue?: number; description?: string; rarity?: string; category?: string; effect?: string; dice?: string }) => void;
   /** Open the per-campaign character picker for solo mode */
   onOpenCharacterPicker?: () => void;
   /** Wild Shape hook instance (for Momo Moon Druid) */
