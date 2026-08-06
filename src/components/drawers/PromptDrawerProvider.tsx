@@ -578,7 +578,7 @@ export function PromptDrawerProvider({
     const goldAmount = autoSyncCallbacks?.getCurrentGold?.();
 
     const lootContext: CharacterContext['loot'] = lootItems.length > 0 ? {
-      items: lootItems.map(item => ({ name: item.name, category: item.category, rarity: item.rarity, goldValue: item.goldValue, hasDiceMechanics: item.hasDiceMechanics })),
+      items: lootItems.map(item => ({ name: item.name, category: item.category, rarity: item.rarity, goldValue: item.goldValue, hasDiceMechanics: item.hasDiceMechanics, description: item.description, effect: item.mechanics?.effect, dice: item.mechanics?.diceRoll })),
       totalValue: totalLootValue,
       usableCount: lootItems.filter(i => i.category === 'usable').length,
       diceMechanicsCount: lootItems.filter(i => i.hasDiceMechanics).length,

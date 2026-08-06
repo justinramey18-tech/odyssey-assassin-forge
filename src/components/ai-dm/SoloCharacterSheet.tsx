@@ -43,6 +43,8 @@ export interface SoloCharacterSheetProps {
   onRest?: (type: 'short' | 'long') => void;
   onAcceptItem?: (name: string, quantity: number, details?: { goldValue?: number; description?: string; rarity?: string; category?: string; effect?: string; dice?: string }) => void;
   onUseConsumableByName?: (name: string) => void;
+  /** Stage a loot item into the DM composer, e.g. "I use the Ember Lantern." */
+  onUseLootItem?: (name: string) => void;
   /** Open the sheet on a specific tab, used when restoring after a tab jump */
   initialTab?: SheetTab;
   /** Which DM screen this sheet is rendered in. Controls where the return button sends the player. */
@@ -78,7 +80,7 @@ function Section({ title, icon: Icon, children, action }: {
 
 export function SoloCharacterSheet({
   open, onClose, ctx, currentXP, gold, quests = [],
-  onAdjustHP, onAddXP, onManualLevelUp, onConditionChange, onRest, onAcceptItem, onUseConsumableByName,
+  onAdjustHP, onAddXP, onManualLevelUp, onConditionChange, onRest, onAcceptItem, onUseConsumableByName, onUseLootItem,
   initialTab,
   origin = 'solo',
 }: SoloCharacterSheetProps) {
@@ -682,9 +684,27 @@ export function SoloCharacterSheet({
                 <>
                   <div className="space-y-1.5">
                     {ctx.loot.items.map(i => (
-                      <div key={i.name} className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
-                        <span className="text-xs text-foreground truncate">{i.name}</span>
-                        <span className="text-[10px] text-white/40 capitalize shrink-0">{i.rarity} · {i.goldValue}g</span>
+                      <div key={i.name} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-xs text-foreground">{i.name}</span>
+                          <span className="text-[10px] text-white/40 capitalize shrink-0">{i.rarity} · {i.goldValue}g</span>
+                        </div>
+                        {i.description && (
+                          <p className="text-[10px] text-white/50 mt-1 leading-relaxed">{i.description}</p>
+                        )}
+                        {i.effect && (
+                          <p className="text-[10px] text-amber-300/70 mt-1">{i.effect}{i.dice ? ` (${i.dice})` : ''}</p>
+                        )}
+                        {onUseLootItem && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full mt-2 min-h-[44px]"
+                            onClick={() => { onUseLootItem(i.name); onClose(); }}
+                          >
+                            Use
+                          </Button>
+                        )}
                       </div>
                     ))}
                   </div>
