@@ -94,8 +94,11 @@ import { getConcentrationCheckDC } from '@/lib/magic/calculations';
 import { 
   CharacterEquipment, 
   EquipmentItem,
+  EquipmentSlotType,
   createInitialEquipment,
 } from '@/lib/inventory/index';
+import { dmItemToEquipment } from '@/lib/inventory/dmGearIntake';
+
 import { MagicScreen, ClassSpellcastingScreen } from '@/components/magic';
 import { getSpellById } from '@/lib/magic/spells/index';
 import { ShopScreen } from '@/components/shop';
