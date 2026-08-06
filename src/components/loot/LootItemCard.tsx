@@ -19,6 +19,7 @@ import {
   Sparkles,
   DollarSign,
   Users,
+  ChevronRight,
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -32,6 +33,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { LootItem, lootRarityConfig, lootCategoryConfig, LootCategory } from '@/lib/loot/types';
+import { LootItemDetailsSheet } from './LootItemDetailsSheet';
 
 // Icon mapping
 const CATEGORY_ICONS: Record<LootCategory, React.ElementType> = {
