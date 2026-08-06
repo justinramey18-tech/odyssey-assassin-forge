@@ -59,16 +59,43 @@ const EXTRACT_TOOL = {
         },
         items_acquired: {
           type: "array",
+          description: "Items the player RECEIVED in this message. Capture every detail the narration gives; infer sensible values for anything it omits.",
           items: {
             type: "object",
             properties: {
-              name: { type: "string" },
-              quantity: { type: "number" },
+              name: { type: "string", description: "Item name as written in the narration" },
+              quantity: { type: "number", description: "How many. Default 1." },
+              gold_value: {
+                type: "number",
+                description: "Value of ONE unit in GOLD PIECES. Never zero for a real object — if the narration gives no price, estimate from what it is: junk 1-5, ordinary gear 5-50, fine or crafted 50-250, uncommon magic 250-1000, rare magic 1000-5000, very rare 5000-20000, legendary 20000+. Convert any silver or copper figure to gold before answering."
+              },
+              description: {
+                type: "string",
+                description: "One or two sentences describing the item as the narration presents it — what it looks like, what it is for, any history mentioned. Never return the placeholder 'Awarded by the AI Dungeon Master'."
+              },
+              rarity: {
+                type: "string",
+                enum: ["common", "uncommon", "rare", "very_rare", "legendary", "artifact"],
+                description: "Match the narration. Default common for mundane objects."
+              },
+              category: {
+                type: "string",
+                enum: ["weapon", "armor", "trinket", "treasure", "usable", "miscellaneous"],
+                description: "usable = potions, scrolls, anything consumed or activated. treasure = gems, art, coin-like valuables."
+              },
+              effect: {
+                type: "string",
+                description: "What it does mechanically when used or worn, if the narration says. Omit entirely if it is a plain object."
+              },
+              dice: {
+                type: "string",
+                description: "Dice formula if the item rolls, e.g. '2d6' or '1d8+1'. Omit if none."
+              }
             },
-            required: ["name", "quantity"],
-            additionalProperties: false,
-          },
+            required: ["name", "quantity", "gold_value", "description", "rarity", "category"]
+          }
         },
+
         items_consumed: {
           type: "array",
           description: "Consumable items the PLAYER used up in this message — potions drunk, scrolls read, rations eaten, torches burned. Only include an item when the narration says it was actually consumed, not when it is merely mentioned, offered, or drawn.",
@@ -226,6 +253,10 @@ CRITICAL ACCURACY RULES:
 - CONSUMABLES: put an item in items_consumed only when this message says the player USED IT UP — drank, quaffed, read, ate, burned, applied, shattered, threw. "Ramey drinks the Potion of Healing" is a consumption. "Ramey draws a potion from his satchel", "you still have one scroll left", and "you could drink a potion" are NOT.
 - Never put the same item in both items_acquired and items_consumed for one message.
 - If the DM narrates finding and immediately drinking a potion, that is one acquisition and one consumption; record both.
+- ITEM VALUE IS MANDATORY. Every entry in items_acquired must carry a gold_value greater than zero. A player needs to be able to sell what they are given. If the narration states a price, use it. If it states silver or copper, convert to gold. If it states nothing, estimate honestly from what the object is — a rusty spoon is 1, a well-made sword is 40, an enchanted blade is 1500.
+- ITEM DESCRIPTION IS MANDATORY. Write one or two sentences from what the narration actually said. Never output a placeholder, never output the item name again as its own description.
+- Set category to "usable" for anything drunk, read, applied or activated, and fill in effect so the player knows what it does.
+- If a footer line reads "ITEM+: Name x2", still supply gold_value, description, rarity and category by inferring them from the narration above the footer.
 - Use the item's full name as written in the narration. Do not abbreviate and do not translate it into a generic type.
 - Only extract gold if a specific amount is stated (e.g. "find 10 gold").
 - Only extract items if specifically named as acquired or consumed.
