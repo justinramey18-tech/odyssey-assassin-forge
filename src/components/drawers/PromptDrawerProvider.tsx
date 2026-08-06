@@ -184,6 +184,7 @@ interface PromptDrawerProviderProps {
   // Auto-sync callbacks for AI DM
   autoSyncCallbacks?: {
     onHPChange: (change: number, type: 'damage' | 'healing') => void;
+    onHPSet?: (hp: number) => void;
     onUseConsumableByName?: (name: string, quantity?: number) => boolean;
     onAddXP: (amount: number, source: string) => void;
     onGoldChange: (netChange: number) => void;

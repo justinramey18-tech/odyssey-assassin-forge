@@ -537,6 +537,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   // Auto-sync hook
   const autoSync = useDmAutoSync({
     onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
+    onHPSet: autoSyncCallbacks?.onHPSet,
     onUseConsumableByName: autoSyncCallbacks?.onUseConsumableByName,
     onAddXP: autoSyncCallbacks?.onAddXP ?? NOOP_TWO_ARG,
     onGoldChange: autoSyncCallbacks?.onGoldChange ?? NOOP,
