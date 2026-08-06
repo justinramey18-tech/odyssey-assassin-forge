@@ -9,6 +9,12 @@ export interface PendingDmItem {
   id: string;
   name: string;
   quantity: number;
+  goldValue?: number;
+  description?: string;
+  rarity?: string;
+  category?: string;
+  effect?: string;
+  dice?: string;
   acquiredAt: string;
 }
 
