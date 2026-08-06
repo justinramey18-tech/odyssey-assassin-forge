@@ -1612,6 +1612,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
             ? (name: string) => { autoSyncCallbacks.onUseConsumableByName!(name, 1); }
             : undefined
         }
+        onUseLootItem={(name) => soloDMInputRef.current?.appendText(`I use the ${name}.`)}
         quests={Object.entries(gameState.quest_flags || {}).map(([key, q]) => ({ key, status: q.status, notes: q.notes }))}
         onAdjustHP={(change, type) => autoSyncCallbacks?.onHPChange?.(change, type)}
         onAddXP={(amount, source) => autoSyncCallbacks?.onAddXP?.(amount, source)}

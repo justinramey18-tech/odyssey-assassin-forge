@@ -170,6 +170,9 @@ export interface CharacterContext {
       rarity: string;
       goldValue: number;
       hasDiceMechanics: boolean;
+      description?: string;
+      effect?: string;
+      dice?: string;
     }>;
     totalValue: number;
     usableCount: number;

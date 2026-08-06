@@ -4527,6 +4527,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onConditionChange={() => {}}
           onRest={() => {}}
           onAcceptItem={onAcceptItem}
+          onUseLootItem={(name) => playerInputRef.current?.appendText(`I use the ${name}.`)}
         />
       )}
     </div>
