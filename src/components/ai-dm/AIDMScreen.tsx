@@ -78,6 +78,7 @@ interface AIDMScreenProps {
   onRetakePersonalityTest?: () => Promise<void>;
   autoSyncCallbacks?: {
     onHPChange: (change: number, type: 'damage' | 'healing') => void;
+    onHPSet?: (hp: number) => void;
     onUseConsumableByName?: (name: string, quantity?: number) => boolean;
     onAddXP: (amount: number, source: string) => void;
     onGoldChange: (netChange: number) => void;
@@ -537,6 +538,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   // Auto-sync hook
   const autoSync = useDmAutoSync({
     onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
+    onHPSet: autoSyncCallbacks?.onHPSet,
     onUseConsumableByName: autoSyncCallbacks?.onUseConsumableByName,
     onAddXP: autoSyncCallbacks?.onAddXP ?? NOOP_TWO_ARG,
     onGoldChange: autoSyncCallbacks?.onGoldChange ?? NOOP,

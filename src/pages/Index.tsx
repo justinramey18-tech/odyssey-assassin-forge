@@ -2245,6 +2245,21 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     });
   }, [hpState, handleHPChange, toast]);
 
+  // Absolute HP sync — the extractor prefers "26/52 HP" readouts over deltas and
+  // returns them as hp_absolute. Route through handleHPChange so Wild Shape and
+  // temp HP behave exactly as they do for damage and healing.
+  const handleChronicleHPSet = useCallback((hp: number) => {
+    if (!Number.isFinite(hp)) return;
+    const clamped = Math.max(0, Math.min(hpState.max, Math.round(hp)));
+    if (clamped === hpState.current) return;
+    handleHPChange(clamped, hpState.max, hpState.temp);
+    toast({
+      title: "❤️ HP Synced",
+      description: `HP set to ${clamped}/${hpState.max}.`,
+    });
+  }, [hpState, handleHPChange, toast]);
+
+
   const handleChronicleConditions = useCallback((toAdd: string[], toRemove: string[]) => {
     // Conditions are currently display-only, just show toast
     if (toAdd.length > 0 || toRemove.length > 0) {
@@ -2266,6 +2281,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   // Auto-sync callbacks for AI DM
   const autoSyncCallbacks = useMemo(() => ({
     onHPChange: handleChronicleHP,
+    onHPSet: handleChronicleHPSet,
     onUseConsumableByName: useConsumableByName,
     onAddXP: handleAddXP,
     onGoldChange: handleChronicleGold,
@@ -2273,7 +2289,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     onRestOccurred: handleChronicleRest,
     getCurrentHP: () => hpState.current,
     getCurrentGold: () => shop.currentGold,
-  }), [handleChronicleHP, useConsumableByName, handleAddXP, handleChronicleGold, handleChronicleConditions, handleChronicleRest, hpState.current, shop.currentGold]);
+  }), [handleChronicleHP, handleChronicleHPSet, useConsumableByName, handleAddXP, handleChronicleGold, handleChronicleConditions, handleChronicleRest, hpState.current, shop.currentGold]);
 
 
 

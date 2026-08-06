@@ -57,6 +57,8 @@ interface StandalonePartyDMScreenProps {
   onShowChat?: () => void;
   autoSyncCallbacks?: {
     onHPChange: (change: number, type: 'damage' | 'healing') => void;
+    onHPSet?: (hp: number) => void;
+    onUseConsumableByName?: (name: string, quantity?: number) => boolean;
     onAddXP: (amount: number, source: string) => void;
     onGoldChange: (netChange: number) => void;
     onConditionChange: (toAdd: string[], toRemove: string[]) => void;
@@ -559,6 +561,8 @@ export function StandalonePartyDMScreen({
 
   const autoSync = useDmAutoSync({
     onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
+    onHPSet: autoSyncCallbacks?.onHPSet,
+    onUseConsumableByName: autoSyncCallbacks?.onUseConsumableByName,
     onAddXP: autoSyncCallbacks?.onAddXP ?? NOOP_TWO_ARG,
     onGoldChange: autoSyncCallbacks?.onGoldChange ?? NOOP,
     onConditionChange: autoSyncCallbacks?.onConditionChange ?? NOOP_TWO_ARG,
