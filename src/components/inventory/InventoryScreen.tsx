@@ -531,35 +531,50 @@ export function InventoryScreen({
               </ScrollArea>
             </div>
 
-            {/* Bottom Stats Bar */}
+            {/* Bottom Stats Bar — live values, recomputed on every equip / swap / remove */}
             <footer className={cn(
-              "flex items-center justify-around border-t border-border/50 bg-background/80 backdrop-blur-md transition-all duration-300",
+              "border-t border-border/50 bg-background/80 backdrop-blur-md transition-all duration-300",
               isCompact ? "px-3 py-2" : "px-4 py-3"
             )}>
-              <div className="flex items-center gap-1.5">
-                <Shield className={cn("text-blue-400", isCompact ? "w-4 h-4" : "w-5 h-5")} />
-                <div className="text-center">
-                  <p className={cn("font-bold", isCompact ? "text-sm" : "text-lg")}>{stats.totalAC}</p>
-                  <p className={cn("text-muted-foreground uppercase", isCompact ? "text-[8px]" : "text-[10px]")}>AC</p>
+              <div className="flex items-center justify-around">
+                <div className="flex items-center gap-1.5">
+                  <Shield className={cn("text-blue-400", isCompact ? "w-4 h-4" : "w-5 h-5")} />
+                  <div className="text-center">
+                    <p className={cn("font-bold", isCompact ? "text-sm" : "text-lg")}>{armorClass ?? stats.totalAC}</p>
+                    <p className={cn("text-muted-foreground uppercase", isCompact ? "text-[8px]" : "text-[10px]")}>AC</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <Sword className={cn("text-red-400", isCompact ? "w-4 h-4" : "w-5 h-5")} />
+                  <div className="text-center">
+                    <p className={cn("font-bold", isCompact ? "text-sm" : "text-lg")}>
+                      {typeof attackBonus === 'number'
+                        ? `${attackBonus >= 0 ? '+' : ''}${attackBonus}`
+                        : stats.totalDamage}
+                    </p>
+                    <p className={cn("text-muted-foreground uppercase", isCompact ? "text-[8px]" : "text-[10px]")}>Attack</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <Backpack className={cn("text-amber-400", isCompact ? "w-4 h-4" : "w-5 h-5")} />
+                  <div className="text-center">
+                    <p className={cn("font-bold", isCompact ? "text-sm" : "text-lg", load.colorClass)}>
+                      {load.load}<span className="text-muted-foreground font-normal">/{load.capacity}</span>
+                    </p>
+                    <p className={cn("text-muted-foreground uppercase", isCompact ? "text-[8px]" : "text-[10px]")}>Load</p>
+                  </div>
                 </div>
               </div>
-              
-              <div className="flex items-center gap-1.5">
-                <Sword className={cn("text-red-400", isCompact ? "w-4 h-4" : "w-5 h-5")} />
-                <div className="text-center">
-                  <p className={cn("font-bold", isCompact ? "text-sm" : "text-lg")}>{stats.totalDamage}</p>
-                  <p className={cn("text-muted-foreground uppercase", isCompact ? "text-[8px]" : "text-[10px]")}>Attack</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-1.5">
-                <Backpack className={cn("text-amber-400", isCompact ? "w-4 h-4" : "w-5 h-5")} />
-                <div className="text-center">
-                  <p className={cn("font-bold", isCompact ? "text-sm" : "text-lg")}>{stats.totalWeight}</p>
-                  <p className={cn("text-muted-foreground uppercase", isCompact ? "text-[8px]" : "text-[10px]")}>Weight</p>
-                </div>
-              </div>
+
+              {load.level !== 'unencumbered' && (
+                <p className={cn("text-[10px] text-center mt-1 leading-tight", load.colorClass)}>
+                  {load.label} — {load.effect}
+                </p>
+              )}
             </footer>
+
           </motion.div>
         )}
       </AnimatePresence>
