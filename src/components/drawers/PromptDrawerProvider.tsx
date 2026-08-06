@@ -20,7 +20,7 @@ import { PersonalityTestWizard } from '@/components/ai-dm/PersonalityTestWizard'
 import { PersonalityResultsScreen } from '@/components/ai-dm/PersonalityResultsScreen';
 import { ReturnToSheetButton } from '@/components/ai-dm/ReturnToSheetButton';
 import { ModeCharacterPicker } from '@/components/ai-dm/ModeCharacterPicker';
-import { clearSheetReturn } from '@/lib/sheetReturn';
+import { clearSheetReturn, getSheetReturn } from '@/lib/sheetReturn';
 import { ensureBinding, getBoundSaveId, setBoundSaveId, type DMMode } from '@/lib/modeCharacterBinding';
 import { usePersonalityGate } from '@/hooks/use-personality-gate';
 import { Character } from '@/lib/types';
@@ -999,7 +999,18 @@ export function PromptDrawerProvider({
               Renders nothing unless a return is pending. */}
           <ReturnToSheetButton
             hidden={aiDMOpen || partyDMOpen}
-            onReturn={() => { closeAllDrawers(); setAiDMOpen(true); }}
+            onReturn={() => {
+              // Reopen the DM the sheet was actually opened from. Sending a party
+              // player back into the solo screen shows them the wrong campaign.
+              const origin = getSheetReturn()?.origin ?? 'solo';
+              closeAllDrawers();
+              if (origin === 'party') {
+                void openModeWithCharacter('party', () => setPartyDMOpen(true));
+                clearSheetReturn();
+              } else {
+                void openModeWithCharacter('solo', () => setAiDMOpen(true));
+              }
+            }}
           />
 
 
