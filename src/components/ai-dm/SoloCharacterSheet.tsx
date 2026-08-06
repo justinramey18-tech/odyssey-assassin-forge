@@ -43,8 +43,8 @@ export interface SoloCharacterSheetProps {
   onRest?: (type: 'short' | 'long') => void;
   onAcceptItem?: (name: string, quantity: number, details?: { goldValue?: number; description?: string; rarity?: string; category?: string; effect?: string; dice?: string }) => void;
   onUseConsumableByName?: (name: string) => void;
-  /** Stage a loot item into the DM composer, e.g. "I use the Ember Lantern." */
-  onUseLootItem?: (name: string) => void;
+  /** Stage a loot-use sentence into the DM composer, e.g. "I use the Ember Lantern to heal (2d8)." */
+  onUseLootItem?: (text: string) => void;
   /** Open the sheet on a specific tab, used when restoring after a tab jump */
   initialTab?: SheetTab;
   /** Which DM screen this sheet is rendered in. Controls where the return button sends the player. */
