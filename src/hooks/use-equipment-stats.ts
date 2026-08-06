@@ -9,6 +9,10 @@ export interface AggregatedStats {
   acFromGear: number;
   totalAttackBonus: number;
   totalWeight: number;
+  /** Weight of unequipped gear carried in the backpack. */
+  carriedWeight: number;
+  /** Equipped + carried weight. */
+  totalLoad: number;
   damage: string | null;
   // Attribute bonuses
   strength: number;
@@ -28,6 +32,7 @@ export interface AggregatedStats {
 export function useEquipmentStats(equipment: CharacterEquipment): AggregatedStats {
   return useMemo(() => {
     const slots = equipment.slots;
+    const carried = Array.isArray(equipment.inventory) ? equipment.inventory : [];
     const equippedItems = Object.values(slots).filter(Boolean);
     
     let baseAC = 10;
@@ -82,6 +87,11 @@ export function useEquipmentStats(equipment: CharacterEquipment): AggregatedStat
       if (stats.movement) movement += stats.movement;
     });
     
+    const carriedWeight = carried.reduce((sum, item) => {
+      const w = Number(item?.weight);
+      return Number.isFinite(w) && w > 0 ? sum + w : sum;
+    }, 0);
+
     // Get set bonuses
     const setData = getActiveSetBonuses(slots);
     const activeSetBonuses = setData.map(({ setInfo, activePieces }) => ({
@@ -97,6 +107,8 @@ export function useEquipmentStats(equipment: CharacterEquipment): AggregatedStat
       acFromGear,
       totalAttackBonus,
       totalWeight,
+      carriedWeight,
+      totalLoad: totalWeight + carriedWeight,
       damage: primaryDamage,
       strength,
       dexterity,

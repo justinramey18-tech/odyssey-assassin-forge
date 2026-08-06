@@ -15,6 +15,7 @@ import { Achievement } from '@/lib/achievements';
 import { InventoryItem, Consumable } from '@/lib/consumables/types';
 import { MiscItem } from '@/lib/miscItems/types';
 import { LootItem, SoldLootRecord } from '@/lib/loot/types';
+import { EncumbranceInfo } from '@/lib/inventory/encumbrance';
 import { ShopItem, ParsedShopItem, PurchaseRecord } from '@/lib/shop/types';
 import { EquipmentItem as ShopEquipmentItem } from '@/lib/inventory/types';
 import { toast } from 'sonner';
@@ -59,6 +60,9 @@ interface UnifiedInventoryScreenProps {
   onDeleteLoot: (itemId: string) => void;
   onSellLoot: (itemId: string) => { success: boolean; goldReceived: number };
   onAddGold: (amount: number) => void;
+  encumbrance?: EncumbranceInfo;
+  attackBonus?: number;
+  armorClass?: number;
   currentHP?: number;
   maxHP?: number;
   conditions?: Array<{ name: string; duration?: string }>;
@@ -93,6 +97,7 @@ export function UnifiedInventoryScreen({
   onRemoveConsumable, onAdjustConsumableQuantitySet,
   miscItems, onAddMiscItem, onRemoveMiscItem, onAdjustMiscQuantity, onUpdateMiscNotes,
   lootItems, soldHistory, onAddLoot, onDeleteLoot, onSellLoot, onAddGold,
+  encumbrance, attackBonus, armorClass,
   currentHP, maxHP, conditions, activeSetBonus, totalLootValue, onShareLootToParty,
   currentGold, shopItems, purchaseHistory, onPurchase, onRemoveShopItem, onAddShopItem,
   onAdjustGold, onSetGold, onClearShop, onAddGoldFromSale,
@@ -265,6 +270,9 @@ export function UnifiedInventoryScreen({
             onEquipmentChange={onEquipmentChange}
             achievements={achievements}
             onSellGear={handleSellGear}
+            encumbrance={encumbrance}
+            attackBonus={attackBonus}
+            armorClass={armorClass}
           />
         )}
 
