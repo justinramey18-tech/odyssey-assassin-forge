@@ -20,6 +20,8 @@ import { useHomebrewGear } from '@/hooks/use-homebrew-gear';
 import { achievementCategories, Achievement } from '@/lib/achievements';
 import { toast } from 'sonner';
 import { EquipmentList } from './EquipmentList';
+import { BackpackList, resolveTargetSlot } from './BackpackList';
+
 import { HomebrewGearCreator } from './HomebrewGearCreator';
 import { HomebrewGearAI } from './HomebrewGearAI';
 import { ItemDetailSheet } from './ItemDetailSheet';
