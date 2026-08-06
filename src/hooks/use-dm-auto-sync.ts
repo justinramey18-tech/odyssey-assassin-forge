@@ -13,7 +13,16 @@ export interface ExtractionResult {
   gold_changes: { amount: number; action: 'gained' | 'spent'; source: string }[];
   conditions_added: string[];
   conditions_removed: string[];
-  items_acquired: { name: string; quantity: number }[];
+  items_acquired: {
+    name: string;
+    quantity: number;
+    gold_value?: number;
+    description?: string;
+    rarity?: string;
+    category?: string;
+    effect?: string;
+    dice?: string;
+  }[];
   items_consumed?: { name: string; quantity: number }[];
   rest_occurred: 'short' | 'long' | null;
   map_entities: any[];
