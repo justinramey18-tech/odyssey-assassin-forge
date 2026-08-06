@@ -1,3 +1,4 @@
+import type { LootItem } from '@/lib/loot/types';
 import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getScopedKey, getScopedItem, setScopedItem, removeScopedItem } from '@/lib/scoped-storage';
@@ -2718,17 +2719,27 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         isPartyCreator={isPartyMode ? partySync.party.isCreator : false}
         autoSyncCallbacks={autoSyncCallbacks}
         onManualLevelUp={handleManualLevelUp}
-        onAcceptDmItem={(name, quantity) => {
+        onAcceptDmItem={(name, quantity, details) => {
           const now = new Date().toISOString();
+          const rarity = (details?.rarity ?? 'common') as LootItem['rarity'];
+          const category = (details?.category ?? 'miscellaneous') as LootItem['category'];
+          const rawValue = Number(details?.goldValue);
+          const goldValue = Number.isFinite(rawValue) && rawValue > 0 ? Math.round(rawValue) : 1;
+          const description = details?.description?.trim() || 'Awarded by the AI Dungeon Master.';
+          const dice = details?.dice?.trim();
+
           const items = Array.from({ length: Math.max(1, quantity) }, () => ({
             id: crypto.randomUUID(),
             name,
-            category: 'miscellaneous' as const,
-            rarity: 'common' as const,
-            goldValue: 0,
-            description: 'Awarded by the AI Dungeon Master.',
+            category,
+            rarity,
+            goldValue,
+            description,
             acquiredAt: now,
-            hasDiceMechanics: false,
+            hasDiceMechanics: !!dice,
+            mechanics: (details?.effect || dice)
+              ? { effect: details?.effect, diceRoll: dice }
+              : undefined,
           }));
           loot.addLootItems(items);
         }}

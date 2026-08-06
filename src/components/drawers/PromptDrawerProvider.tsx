@@ -197,7 +197,7 @@ interface PromptDrawerProviderProps {
   /** Manual level advance used by the solo DM character sheet */
   onManualLevelUp?: () => void;
   /** Accept an item awarded by the AI DM into the loot inventory */
-  onAcceptDmItem?: (name: string, quantity: number) => void;
+  onAcceptDmItem?: (name: string, quantity: number, details?: { goldValue?: number; description?: string; rarity?: string; category?: string; effect?: string; dice?: string }) => void;
 }
 
 export function PromptDrawerProvider({

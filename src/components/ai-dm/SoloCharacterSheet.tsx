@@ -41,7 +41,7 @@ export interface SoloCharacterSheetProps {
   onManualLevelUp?: () => void;
   onConditionChange?: (toAdd: string[], toRemove: string[]) => void;
   onRest?: (type: 'short' | 'long') => void;
-  onAcceptItem?: (name: string, quantity: number) => void;
+  onAcceptItem?: (name: string, quantity: number, details?: { goldValue?: number; description?: string; rarity?: string; category?: string; effect?: string; dice?: string }) => void;
   onUseConsumableByName?: (name: string) => void;
   /** Open the sheet on a specific tab, used when restoring after a tab jump */
   initialTab?: SheetTab;
@@ -139,7 +139,14 @@ export function SoloCharacterSheet({
   }, [xpDelta, onAddXP]);
 
   const acceptItem = useCallback((item: PendingDmItem) => {
-    onAcceptItem?.(item.name, item.quantity);
+    onAcceptItem?.(item.name, item.quantity, {
+      goldValue: item.goldValue,
+      description: item.description,
+      rarity: item.rarity,
+      category: item.category,
+      effect: item.effect,
+      dice: item.dice,
+    });
     setPending(removePendingDmItem(item.id));
     toast.success(`${item.name} added to your loot`);
   }, [onAcceptItem]);

@@ -9,6 +9,12 @@ export interface PendingDmItem {
   id: string;
   name: string;
   quantity: number;
+  goldValue?: number;
+  description?: string;
+  rarity?: string;
+  category?: string;
+  effect?: string;
+  dice?: string;
   acquiredAt: string;
 }
 
@@ -34,7 +40,19 @@ function persist(items: PendingDmItem[]) {
   window.dispatchEvent(new CustomEvent(PENDING_DM_ITEMS_EVENT, { detail: items }));
 }
 
-export function addPendingDmItems(incoming: Array<{ name: string; quantity?: number }>): PendingDmItem[] {
+export function addPendingDmItems(
+  incoming: Array<{
+    name: string;
+    quantity?: number;
+    gold_value?: number;
+    goldValue?: number;
+    description?: string;
+    rarity?: string;
+    category?: string;
+    effect?: string;
+    dice?: string;
+  }>
+): PendingDmItem[] {
   const clean = (incoming || [])
     .filter(i => i && typeof i.name === 'string' && i.name.trim().length > 0)
     .slice(0, 12)
@@ -42,6 +60,12 @@ export function addPendingDmItems(incoming: Array<{ name: string; quantity?: num
       id: crypto.randomUUID(),
       name: i.name.trim().slice(0, 120),
       quantity: Math.max(1, Math.round(Number(i.quantity) || 1)),
+      goldValue: Number.isFinite(Number(i.goldValue ?? i.gold_value)) ? Number(i.goldValue ?? i.gold_value) : undefined,
+      description: i.description,
+      rarity: i.rarity,
+      category: i.category,
+      effect: i.effect,
+      dice: i.dice,
       acquiredAt: new Date().toISOString(),
     }));
   if (clean.length === 0) return loadPendingDmItems();
