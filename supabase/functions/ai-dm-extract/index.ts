@@ -253,6 +253,10 @@ CRITICAL ACCURACY RULES:
 - CONSUMABLES: put an item in items_consumed only when this message says the player USED IT UP — drank, quaffed, read, ate, burned, applied, shattered, threw. "Ramey drinks the Potion of Healing" is a consumption. "Ramey draws a potion from his satchel", "you still have one scroll left", and "you could drink a potion" are NOT.
 - Never put the same item in both items_acquired and items_consumed for one message.
 - If the DM narrates finding and immediately drinking a potion, that is one acquisition and one consumption; record both.
+- ITEM VALUE IS MANDATORY. Every entry in items_acquired must carry a gold_value greater than zero. A player needs to be able to sell what they are given. If the narration states a price, use it. If it states silver or copper, convert to gold. If it states nothing, estimate honestly from what the object is — a rusty spoon is 1, a well-made sword is 40, an enchanted blade is 1500.
+- ITEM DESCRIPTION IS MANDATORY. Write one or two sentences from what the narration actually said. Never output a placeholder, never output the item name again as its own description.
+- Set category to "usable" for anything drunk, read, applied or activated, and fill in effect so the player knows what it does.
+- If a footer line reads "ITEM+: Name x2", still supply gold_value, description, rarity and category by inferring them from the narration above the footer.
 - Use the item's full name as written in the narration. Do not abbreviate and do not translate it into a generic type.
 - Only extract gold if a specific amount is stated (e.g. "find 10 gold").
 - Only extract items if specifically named as acquired or consumed.
