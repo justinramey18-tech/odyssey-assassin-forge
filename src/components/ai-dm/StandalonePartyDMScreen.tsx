@@ -561,6 +561,8 @@ export function StandalonePartyDMScreen({
 
   const autoSync = useDmAutoSync({
     onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
+    onHPSet: autoSyncCallbacks?.onHPSet,
+    onUseConsumableByName: autoSyncCallbacks?.onUseConsumableByName,
     onAddXP: autoSyncCallbacks?.onAddXP ?? NOOP_TWO_ARG,
     onGoldChange: autoSyncCallbacks?.onGoldChange ?? NOOP,
     onConditionChange: autoSyncCallbacks?.onConditionChange ?? NOOP_TWO_ARG,
