@@ -220,11 +220,35 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
   }, []); // stable — reads from callbacksRef
 
   const undoLastExtraction = useCallback(() => {
-    // For now, undo just clears the last extraction display
-    // Full state undo would require deeper integration
+    const snapshot = snapshotRef.current;
+    const cb = callbacksRef.current;
+    const reverted: string[] = [];
+
+    if (snapshot) {
+      // HP: restore the exact value captured before the sync ran.
+      if (cb.onHPSet && Number.isFinite(snapshot.hp) && cb.getCurrentHP() !== snapshot.hp) {
+        cb.onHPSet(snapshot.hp);
+        reverted.push('HP');
+      }
+
+      // Gold: onGoldChange is relative, so apply the difference back.
+      if (Number.isFinite(snapshot.gold)) {
+        const delta = snapshot.gold - cb.getCurrentGold();
+        if (delta !== 0) {
+          cb.onGoldChange(delta);
+          reverted.push('gold');
+        }
+      }
+    }
+
     setLastExtraction(null);
     snapshotRef.current = null;
-    toast.success('Auto-sync changes dismissed');
+
+    if (reverted.length > 0) {
+      toast.success(`Reverted ${reverted.join(' and ')}. XP, conditions and items are not undone.`);
+    } else {
+      toast.success('Auto-sync changes dismissed');
+    }
   }, []);
 
   return {
