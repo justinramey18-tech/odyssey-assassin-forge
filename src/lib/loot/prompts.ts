@@ -104,6 +104,31 @@ export function generateLootUsePrompt(
 }
 
 /**
+ * Build a short player-action text for the Use button based on available
+ * effect/dice metadata. Falls back to a simple "I use the X." sentence.
+ */
+export function buildLootUseText(item: {
+  name: string;
+  effect?: string;
+  dice?: string;
+  mechanics?: { effect?: string; diceRoll?: string };
+}): string {
+  const effect = item.effect?.trim() || item.mechanics?.effect?.trim();
+  const dice = item.dice?.trim() || item.mechanics?.diceRoll?.trim();
+
+  if (effect && dice) {
+    return `I use the ${item.name} to ${effect} (${dice}).`;
+  }
+  if (effect) {
+    return `I use the ${item.name} to ${effect}.`;
+  }
+  if (dice) {
+    return `I use the ${item.name} (${dice}).`;
+  }
+  return `I use the ${item.name}.`;
+}
+
+/**
  * Generate a prompt for discovering/appraising loot
  */
 export function generateLootDiscoveryPrompt(

@@ -13,6 +13,7 @@ import {
   PendingDmItem, loadPendingDmItems, removePendingDmItem, PENDING_DM_ITEMS_EVENT,
 } from '@/lib/pendingDmItems';
 import { setSheetReturn, type SheetReturnOrigin } from '@/lib/sheetReturn';
+import { buildLootUseText } from '@/lib/loot/prompts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -43,8 +44,8 @@ export interface SoloCharacterSheetProps {
   onRest?: (type: 'short' | 'long') => void;
   onAcceptItem?: (name: string, quantity: number, details?: { goldValue?: number; description?: string; rarity?: string; category?: string; effect?: string; dice?: string }) => void;
   onUseConsumableByName?: (name: string) => void;
-  /** Stage a loot item into the DM composer, e.g. "I use the Ember Lantern." */
-  onUseLootItem?: (name: string) => void;
+  /** Stage a loot-use sentence into the DM composer, e.g. "I use the Ember Lantern to heal (2d8)." */
+  onUseLootItem?: (text: string) => void;
   /** Open the sheet on a specific tab, used when restoring after a tab jump */
   initialTab?: SheetTab;
   /** Which DM screen this sheet is rendered in. Controls where the return button sends the player. */
@@ -700,7 +701,7 @@ export function SoloCharacterSheet({
                             size="sm"
                             variant="outline"
                             className="w-full mt-2 min-h-[44px]"
-                            onClick={() => { onUseLootItem(i.name); onClose(); }}
+                            onClick={() => { onUseLootItem(buildLootUseText(i)); onClose(); }}
                           >
                             Use
                           </Button>
