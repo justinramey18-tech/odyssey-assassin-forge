@@ -39,6 +39,7 @@ import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 import { getScopedItem } from '@/lib/scoped-storage';
+import { addPendingDmItems } from '@/lib/pendingDmItems';
 
 // Stable no-op fallbacks (module-level for referential stability)
 const NOOP = () => {};
