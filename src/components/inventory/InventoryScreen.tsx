@@ -152,6 +152,16 @@ export function InventoryScreen({
 
   const stats = calculateTotalStats(equipment.slots);
 
+  // Live carry load — equipped + backpack, recomputed on every equipment change
+  const load = useMemo(() => {
+    if (encumbrance) return encumbrance;
+    const carried = equipment.inventory.reduce((sum, i) => {
+      const w = Number(i?.weight);
+      return Number.isFinite(w) && w > 0 ? sum + w : sum;
+    }, 0);
+    return computeEncumbrance(stats.totalWeight + carried, 10);
+  }, [encumbrance, equipment.inventory, stats.totalWeight]);
+
   const handleSlotTap = useCallback((slotType: EquipmentSlotType) => {
     const item = equipment.slots[slotType];
     if (item) {
