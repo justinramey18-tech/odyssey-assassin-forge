@@ -127,10 +127,11 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
       const result: ExtractionResult = await response.json();
       setLastExtraction(result);
 
-      // Apply HP — absolute takes priority over deltas
-      if (typeof result.hp_absolute === 'number' && cb.onHPSet) {
-        cb.onHPSet(result.hp_absolute);
-      } else if (result.hp_changes.length > 0) {
+      // Apply HP — absolute takes priority over deltas.
+      // Number.isFinite rather than typeof, because NaN is also a number.
+      if (Number.isFinite(result.hp_absolute as number) && cb.onHPSet) {
+        cb.onHPSet(result.hp_absolute as number);
+      } else if ((result.hp_changes ?? []).length > 0) {
         let netHP = 0;
         for (const hpChange of result.hp_changes) {
           if (typeof hpChange.amount !== 'number' || hpChange.amount <= 0) continue;
@@ -142,14 +143,16 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
       }
 
       // Apply XP
-      if (result.xp_gained && result.xp_gained > 0) {
-        cb.onAddXP(result.xp_gained, 'AI DM Auto-Sync');
+      if (Number.isFinite(result.xp_gained as number) && (result.xp_gained as number) > 0) {
+        cb.onAddXP(Math.floor(result.xp_gained as number), 'AI DM Auto-Sync');
       }
 
-      // Apply gold
-      for (const goldChange of result.gold_changes) {
-        const net = goldChange.action === 'gained' ? goldChange.amount : -goldChange.amount;
-        cb.onGoldChange(net);
+      // Apply gold — validated the same way HP is, otherwise a malformed
+      // extraction turns the character's gold into NaN permanently.
+      for (const goldChange of result.gold_changes ?? []) {
+        const amount = Number(goldChange?.amount);
+        if (!Number.isFinite(amount) || amount <= 0) continue;
+        cb.onGoldChange(goldChange.action === 'gained' ? amount : -amount);
       }
 
       // Apply consumable use narrated by the DM. Validate the same way HP is,
@@ -217,11 +220,35 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
   }, []); // stable — reads from callbacksRef
 
   const undoLastExtraction = useCallback(() => {
-    // For now, undo just clears the last extraction display
-    // Full state undo would require deeper integration
+    const snapshot = snapshotRef.current;
+    const cb = callbacksRef.current;
+    const reverted: string[] = [];
+
+    if (snapshot) {
+      // HP: restore the exact value captured before the sync ran.
+      if (cb.onHPSet && Number.isFinite(snapshot.hp) && cb.getCurrentHP() !== snapshot.hp) {
+        cb.onHPSet(snapshot.hp);
+        reverted.push('HP');
+      }
+
+      // Gold: onGoldChange is relative, so apply the difference back.
+      if (Number.isFinite(snapshot.gold)) {
+        const delta = snapshot.gold - cb.getCurrentGold();
+        if (delta !== 0) {
+          cb.onGoldChange(delta);
+          reverted.push('gold');
+        }
+      }
+    }
+
     setLastExtraction(null);
     snapshotRef.current = null;
-    toast.success('Auto-sync changes dismissed');
+
+    if (reverted.length > 0) {
+      toast.success(`Reverted ${reverted.join(' and ')}. XP, conditions and items are not undone.`);
+    } else {
+      toast.success('Auto-sync changes dismissed');
+    }
   }, []);
 
   return {
