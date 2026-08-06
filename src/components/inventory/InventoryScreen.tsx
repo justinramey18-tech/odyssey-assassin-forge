@@ -502,7 +502,17 @@ export function InventoryScreen({
                   onImageUpload={handleEquipmentImageUpload}
                   onImageClear={handleEquipmentImageClear}
                 />
-                
+
+                {/* Backpack — unequipped gear with Equip / Swap */}
+                <BackpackList
+                  equipment={equipment}
+                  inventory={equipmentWithHomebrew.inventory}
+                  onEquipItem={handleEquipFromBackpack}
+                  onItemTap={handleBackpackItemTap}
+                  isItemLocked={isItemLocked}
+                />
+
+
                 {/* Set Bonuses */}
                 <SetBonusPanel equipment={equipment} />
                 
