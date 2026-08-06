@@ -201,6 +201,21 @@ serve(async (req) => {
     const systemPrompt = `You are a precise D&D 5e game state parser. Given a Dungeon Master's narrative response, extract ONLY mechanical changes with EXACT numbers.
 
 CRITICAL ACCURACY RULES:
+- SYNC FOOTER (HIGHEST PRIORITY): if the message contains a block delimited by ---SYNC--- and ---END SYNC---, that block is AUTHORITATIVE. Extract from it and ignore every number in the narrative prose above it. The prose is flavour; the footer is the ledger. If a value appears in both and they disagree, the footer wins.
+- Footer line mapping, exactly:
+  "HP: -12" or "HP: +8" -> hp_changes with amount 12 type damage, or amount 8 type healing.
+  "HP TOTAL: 40/52" -> hp_absolute 40. When both HP and HP TOTAL appear, set BOTH; the client prefers the absolute value.
+  "XP: +600" -> xp_gained 600. Never a total, only the amount awarded in this message.
+  "GOLD: +5" or "GOLD: -3" -> gold_changes with action gained or spent and a POSITIVE amount. Values are always in gold pieces, already converted.
+  "CONDITION+: poisoned, prone" -> conditions_added.
+  "CONDITION-: prone" -> conditions_removed.
+  "ITEM+: Healing Potion x2" -> items_acquired with name "Healing Potion" and quantity 2. Quantity defaults to 1 when no x is given.
+  "ITEM-: Scroll of Misty Step x1" -> items_consumed, same parsing.
+  "REST: long" or "REST: short" -> rest_occurred.
+  "COMPANION HP: -4" -> companion_hp_changes. "COMPANION HP TOTAL: 12/20" -> companion_hp_absolute.
+- A line that is absent from the footer means NO CHANGE. Do not infer it from the prose. If the footer omits XP, xp_gained is null even if the prose mentions experience.
+- If there is no ---SYNC--- block at all, fall back to the normal narrative extraction rules below.
+- Never treat the footer's own text as narration, dialogue, or an item name.
 - ONLY extract damage/healing when a SPECIFIC NUMBER is explicitly stated (e.g. "takes 8 damage", "heals 5 HP"). Do NOT infer or estimate numbers.
 - If the text says "takes damage" without a number, do NOT extract it.
 - Each damage/healing event should appear EXACTLY ONCE. Do not duplicate.
