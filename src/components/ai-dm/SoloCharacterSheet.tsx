@@ -13,6 +13,7 @@ import {
   PendingDmItem, loadPendingDmItems, removePendingDmItem, PENDING_DM_ITEMS_EVENT,
 } from '@/lib/pendingDmItems';
 import { setSheetReturn, type SheetReturnOrigin } from '@/lib/sheetReturn';
+import { buildLootUseText } from '@/lib/loot/prompts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -700,7 +701,7 @@ export function SoloCharacterSheet({
                             size="sm"
                             variant="outline"
                             className="w-full mt-2 min-h-[44px]"
-                            onClick={() => { onUseLootItem(i.name); onClose(); }}
+                            onClick={() => { onUseLootItem(buildLootUseText(i)); onClose(); }}
                           >
                             Use
                           </Button>
