@@ -2728,6 +2728,41 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           const description = details?.description?.trim() || 'Awarded by the AI Dungeon Master.';
           const dice = details?.dice?.trim();
 
+          // Wearable gear goes to the Gear tab instead of the loot stash
+          const gearCount = Math.max(1, quantity);
+          const gearItems = Array.from({ length: gearCount }, () =>
+            dmItemToEquipment(name, details, character.level)
+          ).filter(Boolean) as EquipmentItem[];
+
+          if (gearItems.length > 0) {
+            let equippedCount = 0;
+            setEquipment(prev => {
+              const slots = { ...prev.slots };
+              const inventory = [...prev.inventory];
+              for (const item of gearItems) {
+                let target: EquipmentSlotType = item.slotType;
+                if (target === 'ring1' && slots.ring1 && !slots.ring2) target = 'ring2';
+                if (!slots[target]) {
+                  slots[target] = { ...item, slotType: target };
+                  equippedCount += 1;
+                } else {
+                  inventory.push(item);
+                }
+              }
+              return { ...prev, slots, inventory };
+            });
+            toast({
+              title: equippedCount > 0 ? 'Gear Equipped!' : 'Gear Received!',
+              description: equippedCount > 0
+                ? `${name} was equipped automatically.`
+                : `${name} added to your Gear inventory.`,
+              className: 'border-amber-500 bg-amber-500/10',
+            });
+            return;
+          }
+
+
+
           const items = Array.from({ length: Math.max(1, quantity) }, () => ({
             id: crypto.randomUUID(),
             name,
