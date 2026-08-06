@@ -4515,6 +4515,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       {characterContext && (
         <SoloCharacterSheet
           open={showCharacterSheet}
+          origin="party"
           onClose={() => setShowCharacterSheet(false)}
           ctx={characterContext}
           currentXP={currentXP ?? 0}
