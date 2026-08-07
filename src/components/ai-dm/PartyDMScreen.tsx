@@ -87,6 +87,7 @@ import { parseWhispers } from '@/lib/whisper-parser';
 import { formatForReadingMode, type FormattedReading } from '@/lib/reading-mode-formatter';
 import { SoloCharacterSheet, type SheetTab } from '@/components/ai-dm/SoloCharacterSheet';
 import { CharacterSheetStrip } from '@/components/ai-dm/CharacterSheetStrip';
+import { PartyMemberSheets } from '@/components/party/PartyMemberSheets';
 import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
 import { loadPendingDmItems } from '@/lib/pendingDmItems';
 import { DiceRollOverlay } from '@/components/ai-dm/DiceRollOverlay';
