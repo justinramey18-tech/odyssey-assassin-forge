@@ -1,10 +1,20 @@
 // Shop Screen - Main shop interface
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Store, Package, History, Trash2, Info, Coins } from 'lucide-react';
+import { Store, Package, History, Trash2, Info, Coins, Search, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  ALL_CATALOG_ITEMS,
+  CATALOG_CATEGORIES,
+  CatalogCategory,
+  CatalogItem,
+  catalogItemToShopItem,
+  getCatalogItemsByCategory,
+  searchCatalog,
+} from '@/lib/shop/catalog';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { GoldBalanceWidget } from './GoldBalanceWidget';
 import { ShopItemCard } from './ShopItemCard';
@@ -29,6 +39,7 @@ interface ShopScreenProps {
   onAdjustGold: (amount: number) => void;
   onSetGold: (amount: number) => void;
   onClearShop: () => void;
+  onPurchaseCatalogItem?: (catalogItem: CatalogItem) => void;
 }
 
 export function ShopScreen({
@@ -41,9 +52,34 @@ export function ShopScreen({
   onAdjustGold,
   onSetGold,
   onClearShop,
+  onPurchaseCatalogItem,
 }: ShopScreenProps) {
-  const [activeView, setActiveView] = useState<'items' | 'history'>('items');
+  const [activeView, setActiveView] = useState<'stock' | 'items' | 'history'>('stock');
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
+  const [catalogCategory, setCatalogCategory] = useState<CatalogCategory | 'all'>('all');
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [affordableOnly, setAffordableOnly] = useState(false);
+
+  const visibleCatalog = useMemo(() => {
+    let list = getCatalogItemsByCategory(catalogCategory);
+    list = searchCatalog(list, catalogSearch);
+    if (affordableOnly) list = list.filter(i => i.costGold <= currentGold);
+    return list;
+  }, [catalogCategory, catalogSearch, affordableOnly, currentGold]);
+
+  const catalogLookup = useMemo(() => {
+    const map = new Map<string, CatalogItem>();
+    ALL_CATALOG_ITEMS.forEach(i => map.set(`catalog-${i.id}`, i));
+    return map;
+  }, []);
+
+  const handleCatalogBuy = (displayId: string) => {
+    const catalogItem = catalogLookup.get(displayId);
+    if (!catalogItem || !onPurchaseCatalogItem) return;
+    setPurchasingId(displayId);
+    onPurchaseCatalogItem(catalogItem);
+    setTimeout(() => setPurchasingId(null), 400);
+  };
 
   const handlePurchase = (itemId: string) => {
     setPurchasingId(itemId);
@@ -83,6 +119,15 @@ export function ShopScreen({
         {/* View Toggle */}
         <div className="flex items-center gap-2 mb-6">
           <Button
+            variant={activeView === 'stock' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveView('stock')}
+            className="font-cinzel"
+          >
+            <Store className="w-4 h-4 mr-2" />
+            Stock ({ALL_CATALOG_ITEMS.length})
+          </Button>
+          <Button
             variant={activeView === 'items' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setActiveView('items')}
@@ -102,7 +147,7 @@ export function ShopScreen({
           </Button>
           
           <div className="flex items-center gap-2 ml-auto">
-            <AddItemDrawer onAddItem={onAddItem} />
+            {activeView !== 'stock' && <AddItemDrawer onAddItem={onAddItem} />}
             
             {shopItems.length > 0 && activeView === 'items' && (
               <Button
@@ -117,6 +162,86 @@ export function ShopScreen({
             )}
           </div>
         </div>
+
+        {activeView === 'stock' && (
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                value={catalogSearch}
+                onChange={(e) => setCatalogSearch(e.target.value)}
+                placeholder="Search the merchant's stock..."
+                className="pl-9"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={catalogCategory === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setCatalogCategory('all')}
+                className="font-cinzel"
+              >
+                All
+              </Button>
+              {CATALOG_CATEGORIES.map(cat => (
+                <Button
+                  key={cat.id}
+                  variant={catalogCategory === cat.id ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setCatalogCategory(cat.id)}
+                  className="font-cinzel"
+                >
+                  {cat.label}
+                </Button>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                variant={affordableOnly ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setAffordableOnly(v => !v)}
+                className="font-cinzel"
+              >
+                <Coins className="w-4 h-4 mr-2" />
+                {affordableOnly ? 'Showing affordable only' : 'Show affordable only'}
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {visibleCatalog.length} item{visibleCatalog.length === 1 ? '' : 's'}
+              </span>
+            </div>
+
+            {visibleCatalog.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="p-4 rounded-full bg-amber-500/10 mb-4">
+                  <Search className="w-12 h-12 text-amber-400/50" />
+                </div>
+                <h3 className="font-cinzel text-lg text-foreground mb-2">
+                  Nothing Matches
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  Try a different search term, or clear the category filter.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {visibleCatalog.map(catalogItem => {
+                  const displayItem = catalogItemToShopItem(catalogItem);
+                  return (
+                    <ShopItemCard
+                      key={displayItem.id}
+                      item={displayItem}
+                      currentGold={currentGold}
+                      onPurchase={handleCatalogBuy}
+                      isPurchasing={purchasingId === displayItem.id}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Items View */}
         {activeView === 'items' && (
@@ -214,8 +339,8 @@ function EmptyShopState() {
         No Items for Sale
       </h3>
       <p className="text-sm text-muted-foreground max-w-sm mb-4">
-        Use Chronicle Sync to parse session logs containing merchant encounters. 
-        Items offered for sale will appear here automatically.
+        Nothing has been offered to you by an NPC yet. Use Chronicle Sync to parse session
+        logs containing merchant encounters, or browse the permanent Stock tab above.
       </p>
       <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border border-muted/50 max-w-md">
         <Info className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
