@@ -25,6 +25,13 @@ interface PartyDMQuickActionsProps {
   characterName: string;
   onUsePrompt: (prompt: string) => void;
   empyreanDragonName?: string;
+  /**
+   * Called when a healing item resolves locally: consume one and apply the HP.
+   * Returns the prompt-ready outcome, or null if the item could not be consumed.
+   */
+  onHealingItemUsed?: (itemName: string, healRoll: HealRollResult) => string | null;
+  /** Optional direct send (used for healing acknowledgements). Falls back to onUsePrompt. */
+  onSendPrompt?: (prompt: string) => void;
 }
 
 interface QuickActionItem {
@@ -34,10 +41,12 @@ interface QuickActionItem {
   prompt: string;
   removeCategory: QuickActionRemoveCategory;
   removeSlot?: string;
-  /** How dice attach at tap time: 'attack' rolls to-hit + damage, 'spell' likewise, 'check' rolls one d20 outcome ladder, 'none' rolls nothing. */
-  rollKind?: 'attack' | 'spell' | 'check' | 'none';
+  /** How dice attach at tap time: 'attack' rolls to-hit + damage, 'spell' likewise, 'check' rolls one d20 outcome ladder, 'heal' rolls healing dice, 'none' rolls nothing. */
+  rollKind?: 'attack' | 'spell' | 'check' | 'heal' | 'none';
   /** Damage dice for attack/spell rolls, e.g. '1d8' or '6d8'. Optional — defaults to 1d8. */
   damageFormula?: string;
+  /** Healing dice for 'heal' items. */
+  healingDice?: HealingDice;
 }
 
 function generateWeaponPrompt(name: string, characterName: string): string {
