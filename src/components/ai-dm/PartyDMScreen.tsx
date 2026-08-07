@@ -2577,6 +2577,19 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               </motion.div>
             )}
           </AnimatePresence>
+          {/* Suggest my next move — above Dad Huddle */}
+          {!isEmpyrean && partyDm.messages.length > 0 && (
+            <div className="mb-2 mx-1">
+              <StoryMasterworkActions
+                disabled={partyDm.isGenerating}
+                onSelect={(prompt) => {
+                  setRecapDismissed(true);
+                  playerInputRef.current?.setText(prompt);
+                }}
+                fetchStoryPills={handleFetchStoryPills}
+              />
+            </div>
+          )}
           {/* Dad Huddle — quick jump to Party Chat */}
           {partyDm.messages.length > 0 && !recapDismissed && onShowChat && (
             <div className="mb-4 mx-1">
@@ -3439,16 +3452,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   setArmedSignetIntensity(intensity);
                   toast(`🔥 Signet armed at intensity ${intensity}/8. It channels when you ready up.`, { icon: '⚡' });
                 }}
-              />
-            )}
-            {!isEmpyrean && partyDm.messages.length > 0 && (
-              <StoryMasterworkActions
-                disabled={partyDm.isGenerating}
-                onSelect={(prompt) => {
-                  setRecapDismissed(true);
-                  playerInputRef.current?.setText(prompt);
-                }}
-                fetchStoryPills={handleFetchStoryPills}
               />
             )}
             <PartyDMInput
