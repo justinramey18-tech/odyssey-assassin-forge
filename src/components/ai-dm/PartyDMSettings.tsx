@@ -162,6 +162,9 @@ export interface PartyDMSettingsProps {
   // Host round controls
   onReclaimTurn?: () => void;
   onRedoLastRound?: () => void;
+  // Music
+  moodPresetFilter?: string[];
+  onMoodPresetSelected?: (presetId: string) => void;
 }
 
 export function PartyDMSettings({
@@ -188,6 +191,7 @@ export function PartyDMSettings({
   chatBackgroundOpacity = 0.28, chatBackgroundBlur = 0,
   onChatBackgroundOpacityChange, onChatBackgroundBlurChange,
   onReclaimTurn, onRedoLastRound,
+  moodPresetFilter, onMoodPresetSelected,
 }: PartyDMSettingsProps) {
   const bgFileInputRef = useRef<HTMLInputElement>(null);
   const originalCreator = isOriginalCreatorProp ?? isCreator;
@@ -611,7 +615,7 @@ export function PartyDMSettings({
 
       {/* Spotify Controls */}
       <SettingsSection title="Ambient Music" icon={<Music className="w-4 h-4 text-emerald-400" />}>
-        <DMSpotifyControls partyId={partyId} isCreator={isCreator} />
+        <DMSpotifyControls partyId={partyId} isCreator={isCreator} presetFilter={moodPresetFilter} onPresetSelected={onMoodPresetSelected} />
       </SettingsSection>
 
       {/* Party Management (creator only) */}
