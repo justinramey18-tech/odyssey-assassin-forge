@@ -239,13 +239,14 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
     const dice = item.healingDice;
     if (!dice || !onHealingItemUsed) return;
     const roll = rollHealing(dice.count, dice.die, dice.bonus);
+    // Close the drawer first so the dice animation is visible.
+    onOpenChange(false);
     requestDiceRoll({
       title: item.name,
       roll,
       onComplete: () => {
         const prompt = onHealingItemUsed(item.name, roll);
         if (!prompt) return;
-        onOpenChange(false);
         if (onSendPrompt) onSendPrompt(prompt);
         else onUsePrompt(prompt);
       },
