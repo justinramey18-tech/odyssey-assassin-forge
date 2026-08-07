@@ -8,8 +8,8 @@ let nat20Audio: HTMLAudioElement | null = null;
 let lastPlayed = 0;
 
 /**
- * Pauses Spotify (if it is currently playing) so the nat-20 fanfare is heard
- * alone, then resumes playback once the fanfare finishes.
+ * Smoothly fades Spotify's volume down so the nat-20 fanfare is heard clearly,
+ * then fades it back up once the fanfare finishes.
  */
 async function duckSpotifyFor(fanfare: HTMLAudioElement): Promise<void> {
   try {
@@ -17,20 +17,34 @@ async function duckSpotifyFor(fanfare: HTMLAudioElement): Promise<void> {
     if (!spotify.isConnected()) return;
     const playback = await spotify.getCurrentPlayback();
     if (!playback?.is_playing) return;
-    await spotify.pause();
 
-    let resumed = false;
-    const resume = () => {
-      if (resumed) return;
-      resumed = true;
-      fanfare.removeEventListener('ended', resume);
-      fanfare.removeEventListener('error', resume);
-      void spotify.play().catch(() => {});
+    const original = Number(playback?.device?.volume_percent);
+    if (!Number.isFinite(original) || original <= 0) return;
+
+    const duckedTarget = Math.max(5, Math.round(original * 0.15));
+
+    const fadeTo = async (from: number, to: number, steps = 5, stepMs = 90) => {
+      for (let i = 1; i <= steps; i++) {
+        const level = Math.round(from + ((to - from) * i) / steps);
+        await spotify.setVolume(Math.max(0, Math.min(100, level))).catch(() => {});
+        if (i < steps) await new Promise(r => setTimeout(r, stepMs));
+      }
     };
-    fanfare.addEventListener('ended', resume);
-    fanfare.addEventListener('error', resume);
+
+    await fadeTo(original, duckedTarget);
+
+    let restored = false;
+    const restore = () => {
+      if (restored) return;
+      restored = true;
+      fanfare.removeEventListener('ended', restore);
+      fanfare.removeEventListener('error', restore);
+      void fadeTo(duckedTarget, original, 6, 120);
+    };
+    fanfare.addEventListener('ended', restore);
+    fanfare.addEventListener('error', restore);
     // Safety net in case the 'ended' event never fires.
-    window.setTimeout(resume, 12000);
+    window.setTimeout(restore, 12000);
   } catch {
     /* spotify unavailable — ignore */
   }
