@@ -14,7 +14,7 @@ import { setIsUnbonded } from '@/lib/dragonBondState';
 import DeathSaveScreen from '@/components/empyrean/DeathSaveScreen';
 import MemorialScreen from '@/components/empyrean/MemorialScreen';
 import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
-import { VerticalHealthBar } from '@/components/home/VerticalHealthBar';
+
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
@@ -2362,17 +2362,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             </motion.button>
           )}
         </AnimatePresence>
-        {/* Vertical HP Bar */}
-        {characterContext && (
-          <VerticalHealthBar
-            currentHP={characterContext.currentHP ?? 0}
-            maxHP={characterContext.maxHP ?? 1}
-            isWildShape={characterContext.wildShape?.isTransformed}
-            onTap={() => drawerContext?.openStatsDrawer()}
-          />
-        )}
         <div ref={scrollRef} className={cn(
-          "flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] pr-6 py-3 sm:p-4 sm:pr-6 space-y-3 sm:space-y-4 overscroll-contain pb-[100px] relative z-[1]",
+          "flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] pr-2 py-3 sm:p-4 sm:pr-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px] relative z-[1]",
           isEmpyrean && dragonBonds.isSetup && dragonBonds.myDragon?.signetType && (() => {
             const bLevel = dragonBonds.myDragon.burnout;
             const bBond = dragonBonds.myDragon.bond ?? 50;
