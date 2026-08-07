@@ -50,6 +50,10 @@ export interface SoloCharacterSheetProps {
   initialTab?: SheetTab;
   /** Which DM screen this sheet is rendered in. Controls where the return button sends the player. */
   origin?: SheetReturnOrigin;
+  /** Party mode only: open the read-only roster of teammates' sheets. */
+  onViewPartySheets?: () => void;
+  /** Number of other players whose sheets can be viewed. */
+  partySheetCount?: number;
 }
 
 function navigateToTab(appTab: string, sheetTab: SheetTab, origin: SheetReturnOrigin = 'solo') {
