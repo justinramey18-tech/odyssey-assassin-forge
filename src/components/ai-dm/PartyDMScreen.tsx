@@ -64,6 +64,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { parseRollHint } from '@/lib/whisperRollHint';
 import { resolveWhisperAutoRoll, performWhisperRoll } from '@/lib/whisperAutoRoll';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
+import { useHealingItemAction } from '@/hooks/use-healing-item';
 import { RoundTimer, TimerSettings } from './RoundTimer';
 import { AfkPersonalityGuide } from './AfkPersonalityGuide';
 import { ScheduledEventsSheet } from './ScheduledEventsSheet';
