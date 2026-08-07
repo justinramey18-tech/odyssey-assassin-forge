@@ -8,10 +8,9 @@ let nat20Audio: HTMLAudioElement | null = null;
 let lastPlayed = 0;
 
 /**
- * Smoothly fades Spotify's volume down so the nat-20 fanfare is heard clearly,
- * then fades it back up once the fanfare finishes. Never starts, resumes, or
- * unmutes Spotify — if nothing is playing, or the music is already muted, or
- * the device doesn't report a volume, this quietly does nothing.
+ * Pauses Spotify so the nat-20 fanfare is heard on its own, then resumes once
+ * the fanfare finishes. If nothing is playing, this quietly does nothing, and
+ * it never starts music that wasn't already playing.
  */
 async function duckSpotifyFor(fanfare: HTMLAudioElement): Promise<void> {
   try {
@@ -22,25 +21,7 @@ async function duckSpotifyFor(fanfare: HTMLAudioElement): Promise<void> {
     // Nothing playing / paused / no active device → leave Spotify untouched.
     if (!playback?.is_playing) return;
 
-    const device = playback?.device;
-    if (device?.supports_volume === false) return;
-
-    const original = Number(device?.volume_percent);
-    // Muted or unknown volume → nothing useful to fade.
-    if (!Number.isFinite(original) || original <= 0) return;
-
-    const duckedTarget = Math.max(5, Math.round(original * 0.15));
-    if (duckedTarget >= original) return;
-
-    const fadeTo = async (from: number, to: number, steps = 5, stepMs = 90) => {
-      for (let i = 1; i <= steps; i++) {
-        const level = Math.round(from + ((to - from) * i) / steps);
-        await spotify.setVolume(Math.max(0, Math.min(100, level))).catch(() => {});
-        if (i < steps) await new Promise(r => setTimeout(r, stepMs));
-      }
-    };
-
-    await fadeTo(original, duckedTarget);
+    await spotify.pause().catch(() => {});
 
     let restored = false;
     const restore = () => {
@@ -49,13 +30,10 @@ async function duckSpotifyFor(fanfare: HTMLAudioElement): Promise<void> {
       fanfare.removeEventListener('ended', restore);
       fanfare.removeEventListener('error', restore);
       void (async () => {
-        // Only restore if the user hasn't since paused or changed the volume
-        // themselves — and never resume playback.
+        // Only resume if the user hasn't started something themselves already.
         const after = await spotify.getCurrentPlayback().catch(() => null);
-        if (!after?.is_playing) return;
-        const now = Number(after?.device?.volume_percent);
-        if (Number.isFinite(now) && Math.abs(now - duckedTarget) > 8) return;
-        await fadeTo(duckedTarget, original, 6, 120);
+        if (after?.is_playing) return;
+        await spotify.play().catch(() => {});
       })();
     };
     fanfare.addEventListener('ended', restore);
@@ -66,6 +44,7 @@ async function duckSpotifyFor(fanfare: HTMLAudioElement): Promise<void> {
     /* spotify unavailable — ignore */
   }
 }
+
 
 
 /** Plays the high-roll sound if the raw d20 roll is greater than 17. */
