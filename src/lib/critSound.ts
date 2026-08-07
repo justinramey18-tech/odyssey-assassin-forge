@@ -8,11 +8,10 @@ let nat20Audio: HTMLAudioElement | null = null;
 let lastPlayed = 0;
 
 /**
- * Pauses Spotify so the nat-20 fanfare is heard on its own, then resumes once
- * the fanfare finishes. If nothing is playing, this quietly does nothing, and
- * it never starts music that wasn't already playing.
+ * Pauses Spotify the moment the nat-20 fanfare fires and leaves it paused.
+ * The player resumes music themselves from the Spotify settings.
  */
-async function duckSpotifyFor(fanfare: HTMLAudioElement): Promise<void> {
+async function duckSpotifyFor(_fanfare: HTMLAudioElement): Promise<void> {
   try {
     const spotify = await import('@/lib/spotify');
     if (!spotify.isConnected()) return;
@@ -22,24 +21,6 @@ async function duckSpotifyFor(fanfare: HTMLAudioElement): Promise<void> {
     if (!playback?.is_playing) return;
 
     await spotify.pause().catch(() => {});
-
-    let restored = false;
-    const restore = () => {
-      if (restored) return;
-      restored = true;
-      fanfare.removeEventListener('ended', restore);
-      fanfare.removeEventListener('error', restore);
-      void (async () => {
-        // Only resume if the user hasn't started something themselves already.
-        const after = await spotify.getCurrentPlayback().catch(() => null);
-        if (after?.is_playing) return;
-        await spotify.play().catch(() => {});
-      })();
-    };
-    fanfare.addEventListener('ended', restore);
-    fanfare.addEventListener('error', restore);
-    // Safety net in case the 'ended' event never fires.
-    window.setTimeout(restore, 12000);
   } catch {
     /* spotify unavailable — ignore */
   }
