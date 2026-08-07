@@ -1,6 +1,6 @@
 // Shop State Management Hook
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { ShopItem, ShopState, PurchaseRecord, ParsedShopItem } from '@/lib/shop/types';
 import { convertShopItemToConsumable, convertShopItemToEquipment, isWearableEquipment } from '@/lib/shop/converters';
 import { Consumable } from '@/lib/consumables/types';
@@ -37,6 +37,15 @@ export function useShop() {
   useEffect(() => {
     setScopedItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
+
+  // Gold already committed by purchases in this render pass but not yet reflected in state.
+  // Without this, two fast taps both validate against the same stale balance.
+  const pendingSpendRef = useRef(0);
+
+  // Whenever the real balance updates, the pending amount has landed. Clear it.
+  useEffect(() => {
+    pendingSpendRef.current = 0;
+  }, [state.currentGold]);
 
   // Re-init when character is switched in-memory
   useEffect(() => {
@@ -156,15 +165,18 @@ export function useShop() {
       return { success: false, error: 'Item not found in shop' };
     }
     
-    if (state.currentGold < item.costGold) {
-      const deficit = item.costGold - state.currentGold;
-      return { 
-        success: false, 
-        error: `Need ${deficit} more gold to purchase this item` 
+    const availableGold = state.currentGold - pendingSpendRef.current;
+
+    if (availableGold < item.costGold) {
+      const deficit = item.costGold - availableGold;
+      return {
+        success: false,
+        error: `Need ${deficit} more gold to purchase this item`
       };
     }
 
-    const remainingGold = state.currentGold - item.costGold;
+    pendingSpendRef.current += item.costGold;
+    const remainingGold = availableGold - item.costGold;
     
     // Convert item based on type
     let convertedItem: Consumable | EquipmentItem | undefined;
@@ -187,7 +199,7 @@ export function useShop() {
     // Update state: deduct gold, remove item, add to history
     setState(prev => ({
       ...prev,
-      currentGold: remainingGold,
+      currentGold: Math.max(0, prev.currentGold - item.costGold),
       items: prev.items.filter(i => i.id !== itemId),
       purchaseHistory: [...prev.purchaseHistory, {
         itemId: item.id,
@@ -212,16 +224,20 @@ export function useShop() {
    * so nothing is removed from the shop. Gold is deducted and history is recorded.
    */
   const purchaseCatalogItem = useCallback((catalogItem: CatalogItem): PurchaseResult => {
-    if (state.currentGold < catalogItem.costGold) {
-      const deficit = catalogItem.costGold - state.currentGold;
+    const availableGold = state.currentGold - pendingSpendRef.current;
+
+    if (availableGold < catalogItem.costGold) {
+      const deficit = catalogItem.costGold - availableGold;
       return {
         success: false,
         error: `Need ${deficit} more gold to purchase this item`,
       };
     }
 
+    pendingSpendRef.current += catalogItem.costGold;
+
     const shopItem = catalogItemToShopItem(catalogItem, true);
-    const remainingGold = state.currentGold - catalogItem.costGold;
+    const remainingGold = availableGold - catalogItem.costGold;
 
     let convertedItem: Consumable | EquipmentItem | undefined;
     let destinationType: 'consumable' | 'equipment' | 'miscellaneous' = 'miscellaneous';
