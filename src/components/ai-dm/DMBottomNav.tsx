@@ -55,6 +55,9 @@ interface DMBottomNavProps {
   showCharacterSheet?: boolean;
   /** Callback fired when the SHEET tab is tapped. Required when showCharacterSheet is true. */
   onCharacterSheet?: () => void;
+  /** Rendered at the top of the expanded drawer, above the tab bar (e.g. character HP/XP strip). */
+  headerContent?: React.ReactNode;
+
   /** Override the notch handle label (default: 'TOOLS'). */
   notchLabelOverride?: string;
   /** Override the notch handle icon emoji (default: '⚔'). */
