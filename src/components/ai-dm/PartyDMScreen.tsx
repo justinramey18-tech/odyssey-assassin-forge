@@ -41,7 +41,7 @@ import { getScopedItem } from '@/lib/scoped-storage';
 import { loadApiKey, isFeatureSkipped } from '@/lib/api-keys';
 
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
-import { CampaignDropdown } from './CampaignDropdown';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -1976,72 +1976,101 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       {/* Row 1: Main Header */}
       {!isFullscreen && (
       <header className="flex items-center justify-between px-3 py-2.5 border-b border-amber-900/30 bg-black/40 backdrop-blur-sm">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           <button onClick={onBack} className="p-2 rounded-lg hover:bg-white/10 transition-colors" style={{ touchAction: 'manipulation' }}>
             <Home className="w-5 h-5 text-white/80" />
           </button>
-          <Crown className="w-6 h-6 text-amber-400" />
-          {isCreator && campaignSessions && onNewGame && onLoadCampaign && onRefreshCampaigns ? (
-            <CampaignDropdown
-              sessions={campaignSessions}
-              activeCampaignId={partyDm.activeCampaignId}
-              isSignedIn={campaignSessionsSignedIn ?? false}
-              isLoading={campaignSessionsLoading ?? false}
-              onNewGame={onNewGame}
-              onLoadCampaign={onLoadCampaign}
-              onRefresh={onRefreshCampaigns}
-            />
-          ) : (
-            <h1 className="text-xs sm:text-sm font-cinzel text-amber-200 tracking-wide whitespace-nowrap">Dungeon Master</h1>
-          )}
+          <Crown className="w-6 h-6 text-amber-400 shrink-0" />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-amber-500/25 hover:bg-white/10 transition-colors min-w-0 max-w-[190px]"
+                style={{ touchAction: 'manipulation', minHeight: 40 }}
+              >
+                <UserCog className="w-4 h-4 text-amber-400/80 shrink-0" />
+                <span className="text-xs font-cinzel text-amber-200 truncate">
+                  {characterContext?.name || 'Character'}
+                </span>
+                <ChevronDown className="w-3.5 h-3.5 text-amber-400/60 shrink-0" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-64 bg-[#1a1a2e] border-amber-900/40 backdrop-blur-md z-[9999]">
+              {onOpenCharacterPicker && (
+                <>
+                  <DropdownMenuItem
+                    onClick={onOpenCharacterPicker}
+                    className="gap-2 text-amber-300 focus:text-amber-200 focus:bg-amber-900/30 text-xs"
+                  >
+                    <UserCog className="w-3.5 h-3.5" />
+                    Change character
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-amber-900/30" />
+                </>
+              )}
+              {partyDm.messages.length > 0 && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    const name = partyDm.activeCampaignId ? undefined : `Party Campaign ${new Date().toLocaleDateString()}`;
+                    partyDm.saveCampaign(name || 'Party Campaign', partyDm.activeCampaignId || undefined);
+                  }}
+                  className="gap-2 text-white/70 focus:text-white/90 focus:bg-amber-900/20 text-xs"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <div className="flex flex-col">
+                    <span>Save campaign</span>
+                    {partyDm.lastAutoSaveTime && (
+                      <span className="text-[10px] text-white/30">Saved {formatAutoSaveTime(partyDm.lastAutoSaveTime)}</span>
+                    )}
+                  </div>
+                </DropdownMenuItem>
+              )}
+              {isCreator && onNewGame && (
+                <DropdownMenuItem
+                  onClick={onNewGame}
+                  className="gap-2 text-amber-300 focus:text-amber-200 focus:bg-amber-900/30 text-xs"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  New campaign
+                </DropdownMenuItem>
+              )}
+              {isCreator && campaignSessions && onLoadCampaign && (
+                <>
+                  <DropdownMenuSeparator className="bg-amber-900/30" />
+                  {campaignSessionsLoading ? (
+                    <div className="flex items-center justify-center py-3">
+                      <Loader2 className="w-4 h-4 text-amber-400/60 animate-spin" />
+                    </div>
+                  ) : campaignSessions.length === 0 ? (
+                    <div className="px-2 py-3 text-center text-xs text-white/30">No saved campaigns</div>
+                  ) : (
+                    <div className="max-h-[240px] overflow-y-auto">
+                      {campaignSessions.map(session => {
+                        const isActive = session.id === partyDm.activeCampaignId;
+                        return (
+                          <DropdownMenuItem
+                            key={session.id}
+                            onClick={() => { if (!isActive) onLoadCampaign(session); }}
+                            className={cn(
+                              'gap-2 focus:bg-amber-900/20 text-xs cursor-pointer',
+                              isActive ? 'text-amber-300' : 'text-white/70 focus:text-white/90'
+                            )}
+                          >
+                            {isActive ? <Check className="w-3.5 h-3.5 text-amber-400 shrink-0" /> : <Save className="w-3.5 h-3.5 text-white/30 shrink-0" />}
+                            <span className="truncate">{session.name}</span>
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground whitespace-nowrap">{memberCount} players</span>
-          {onOpenCharacterPicker && (
-            <button
-              onClick={() => {
-                // Mid-campaign swaps are allowed but deliberate: first tap arms, second commits.
-                if (partyDm.messages.length > 0 && !confirmCharacterSwap) {
-                  setConfirmCharacterSwap(true);
-                  return;
-                }
-                setConfirmCharacterSwap(false);
-                onOpenCharacterPicker();
-              }}
-              className={cn(
-                'flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-colors max-w-[130px]',
-                confirmCharacterSwap
-                  ? 'border-amber-400/70 bg-amber-900/30'
-                  : 'border-amber-500/25 hover:bg-white/10'
-              )}
-              style={{ touchAction: 'manipulation', minHeight: 40 }}
-              title={
-                partyDm.messages.length > 0
-                  ? 'Change which character plays this campaign. The other players will see the new name.'
-                  : 'Choose which character plays this campaign'
-              }
-            >
-              <UserCog className="w-4 h-4 text-amber-400/80 shrink-0" />
-              <span className="text-[10px] text-amber-200/70 truncate">
-                {confirmCharacterSwap ? 'Tap again to change' : (characterContext?.name || 'Character')}
-              </span>
-            </button>
-          )}
-          {partyDm.messages.length > 0 && (
-            <button
-              onClick={() => {
-                const name = partyDm.activeCampaignId ? undefined : `Party Campaign ${new Date().toLocaleDateString()}`;
-                partyDm.saveCampaign(name || 'Party Campaign', partyDm.activeCampaignId || undefined);
-              }}
-              className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-              style={{ touchAction: 'manipulation' }}
-              title={partyDm.lastAutoSaveTime ? `Saved ${formatAutoSaveTime(partyDm.lastAutoSaveTime)}` : 'Save now'}
-            >
-              <Save className="w-4 h-4 text-white/30 hover:text-amber-400/60" />
-            </button>
-          )}
-          
         </div>
+
       </header>
       )}
 
