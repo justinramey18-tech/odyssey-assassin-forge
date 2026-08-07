@@ -115,6 +115,7 @@ import { BASE_CHANNEL_DIVINITY_OPTIONS } from '@/lib/magic/channelDivinity';
 import { getDomainChannelDivinity, getDomainById, ClericDomain } from '@/lib/classes/clericDomains';
 import { Consumable } from '@/lib/consumables/types';
 import { EquipmentItem as ShopEquipmentItem } from '@/lib/inventory/types';
+import { CatalogItem } from '@/lib/shop/catalog';
 import { useCustomBackground } from '@/hooks/use-custom-background';
 import { useWildShapeBackgrounds } from '@/hooks/use-wild-shape-backgrounds';
 import { useActionEconomy } from '@/hooks/use-action-economy';
@@ -2462,6 +2463,55 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     return result;
   }, [shop, addConsumableItem, setEquipment, miscItems, toast]);
 
+  // Handle permanent catalog purchases - deducts gold and routes the item to the character
+  const handleCatalogPurchase = useCallback((catalogItem: CatalogItem) => {
+    const result = shop.purchaseCatalogItem(catalogItem);
+
+    if (!result.success) {
+      toast({
+        title: "Purchase Failed",
+        description: result.error,
+        variant: "destructive",
+      });
+      return result;
+    }
+
+    if (result.destinationType === 'consumable' && result.convertedItem) {
+      addConsumableItem(result.convertedItem as Consumable, 1);
+      toast({
+        title: "Item Purchased!",
+        description: `${catalogItem.name} added to Consumables. Remaining: ${result.remainingGold} GP`,
+        className: "border-yellow-500 bg-yellow-500/10",
+      });
+    } else if (result.destinationType === 'equipment' && result.convertedItem) {
+      setEquipment(prev => ({
+        ...prev,
+        inventory: [...prev.inventory, result.convertedItem as ShopEquipmentItem],
+      }));
+      toast({
+        title: "Item Purchased!",
+        description: `${catalogItem.name} added to your Gear backpack. Remaining: ${result.remainingGold} GP`,
+        className: "border-yellow-500 bg-yellow-500/10",
+      });
+    } else {
+      miscItems.addMiscItem({
+        name: catalogItem.name,
+        category: catalogItem.subcategory,
+        description: catalogItem.description,
+        quantity: 1,
+        goldValue: catalogItem.costGold,
+        notes: catalogItem.usage,
+      });
+      toast({
+        title: "Item Purchased!",
+        description: `${catalogItem.name} added to Misc Items. Remaining: ${result.remainingGold} GP`,
+        className: "border-yellow-500 bg-yellow-500/10",
+      });
+    }
+
+    return result;
+  }, [shop, addConsumableItem, setEquipment, miscItems, toast]);
+
   // Manual level up trigger (for milestone mode or testing)
   const handleManualLevelUp = () => {
     if (character.level >= 20) return;
@@ -3333,6 +3383,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
               onAdjustGold={shop.addGold}
               onSetGold={shop.setGold}
               onClearShop={shop.clearShop}
+              onPurchaseCatalogItem={handleCatalogPurchase}
               onRemoveConsumable={removeConsumableItem}
               onAdjustConsumableQuantitySet={setConsumableQuantity}
               onAddGoldFromSale={shop.addGold}
