@@ -1083,6 +1083,15 @@ ${oocLines}`;
     setNavExpanded(false);
   }, [isLoading]);
 
+  const handleHealingItemUsed = useHealingItemAction({
+    characterName: characterName || characterContext?.name || 'The Rider',
+    maxHP: characterContext?.maxHP ?? 0,
+    getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? (() => characterContext?.currentHP ?? 0),
+    onHPChange: autoSyncCallbacks?.onHPChange,
+    onUseConsumableByName: autoSyncCallbacks?.onUseConsumableByName,
+  });
+
+
   // Decrement active OOC notes after each new main DM assistant response.
   const lastOOCAssistantIdRef = useRef<string | null>(null);
   useEffect(() => {
