@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { firePendingNat20Fanfare } from '@/lib/critSound';
 import { SCOPED_KEYS } from '@/lib/scoped-keys';
 import { useDmPolls } from '@/hooks/use-dm-polls';
 import { useNPCAutocomplete } from '@/hooks/use-npc-autocomplete';
@@ -1602,6 +1603,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
     prevMsgCountRef.current = partyDm.messages.length;
   }, [partyDm.messages.length]);
+
+  const prevNat20GenRef = useRef(false);
+  useEffect(() => {
+    if (!prevNat20GenRef.current && partyDm.isGenerating) firePendingNat20Fanfare();
+    prevNat20GenRef.current = partyDm.isGenerating;
+  }, [partyDm.isGenerating]);
 
   useEffect(() => {
     if (partyDm.isGenerating) {

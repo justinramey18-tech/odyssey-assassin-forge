@@ -26,7 +26,35 @@ async function duckSpotifyFor(_fanfare: HTMLAudioElement): Promise<void> {
   }
 }
 
+/** Set when a nat 20 is rolled; the fanfare waits for the DM to start responding. */
+let nat20Pending = false;
+let pendingSafety = 0;
 
+function playNat20Fanfare(): void {
+  try {
+    if (!nat20Audio) {
+      nat20Audio = new Audio(nat20Asset.url);
+      nat20Audio.preload = 'auto';
+      nat20Audio.volume = 0.8;
+    }
+    nat20Audio.currentTime = 0;
+    void nat20Audio.play().catch(() => {});
+    void duckSpotifyFor(nat20Audio);
+  } catch {
+    /* audio unavailable — ignore */
+  }
+}
+
+/**
+ * Fires the queued natural-20 fanfare. Called when the DM begins generating its
+ * response to the roll, so the music lands with the reveal rather than the roll.
+ */
+export function firePendingNat20Fanfare(): void {
+  if (!nat20Pending) return;
+  nat20Pending = false;
+  if (pendingSafety) { clearTimeout(pendingSafety); pendingSafety = 0; }
+  playNat20Fanfare();
+}
 
 /** Plays the high-roll sound if the raw d20 roll is greater than 17. */
 export function maybePlayCritSound(rawRoll: number, sides: number = 20): void {
@@ -37,19 +65,16 @@ export function maybePlayCritSound(rawRoll: number, sides: number = 20): void {
   if (now - lastPlayed < 400) return;
   lastPlayed = now;
 
-  try {
-    if (rawRoll === 20) {
-      // Natural 20 → fanfare plus crit sound.
-      if (!nat20Audio) {
-        nat20Audio = new Audio(nat20Asset.url);
-        nat20Audio.preload = 'auto';
-        nat20Audio.volume = 0.8;
-      }
-      nat20Audio.currentTime = 0;
-      void nat20Audio.play().catch(() => {});
-      void duckSpotifyFor(nat20Audio);
-    }
+  if (rawRoll === 20) {
+    // Queue the fanfare — it plays once the DM starts responding.
+    nat20Pending = true;
+    if (pendingSafety) clearTimeout(pendingSafety);
+    // If no DM response is triggered, drop the queued fanfare rather than
+    // firing it much later out of context.
+    pendingSafety = window.setTimeout(() => { nat20Pending = false; pendingSafety = 0; }, 90000);
+  }
 
+  try {
     if (!audio) {
       audio = new Audio(critAsset.url);
       audio.preload = 'auto';
@@ -61,4 +86,5 @@ export function maybePlayCritSound(rawRoll: number, sides: number = 20): void {
     /* audio unavailable — ignore */
   }
 }
+
 

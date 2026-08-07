@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense } from 'react';
+import { firePendingNat20Fanfare } from '@/lib/critSound';
 import { supabase } from '@/integrations/supabase/client';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { parseResponseIntoSlides, stripCinematicTags, parseBeatsIntoSlides } from '@/lib/parseSlides';
@@ -828,6 +829,10 @@ ${oocLines}`;
   }, [activeCampaignId]);
 
   // Auto-enter reading mode when generation STARTS (non-cinematic) so user sees shimmer bars instead of raw text
+  useEffect(() => {
+    if (!prevIsLoadingRef.current && isLoading) firePendingNat20Fanfare();
+  }, [isLoading]);
+
   useEffect(() => {
     if (!prevIsLoadingRef.current && isLoading && !cinematicModeEnabled) {
       setReadingMode(true);

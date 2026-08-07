@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
+import { firePendingNat20Fanfare } from '@/lib/critSound';
 import { useWeather } from '@/hooks/use-weather';
 import { getCachedWeather, buildWeatherPrompt, loadWeatherEnabled } from '@/lib/weather';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
@@ -804,6 +805,13 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       }
     }
   }, [linkedUniverse.activeCrossoverId, linkedUniverse.activeCrossover, messages]);
+
+  // Nat-20 fanfare waits for the DM to start responding to the roll
+  const prevNat20LoadingRef = useRef(false);
+  useEffect(() => {
+    if (!prevNat20LoadingRef.current && isLoading) firePendingNat20Fanfare();
+    prevNat20LoadingRef.current = isLoading;
+  }, [isLoading]);
 
   useEffect(() => {
     const capture = crossoverCaptureRef.current;
