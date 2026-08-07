@@ -14,7 +14,7 @@ import { setIsUnbonded } from '@/lib/dragonBondState';
 import DeathSaveScreen from '@/components/empyrean/DeathSaveScreen';
 import MemorialScreen from '@/components/empyrean/MemorialScreen';
 import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
-import { VerticalHealthBar } from '@/components/home/VerticalHealthBar';
+
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
