@@ -31,6 +31,7 @@ import {
   CircleDot,
   Glasses,
   Crown,
+  Check,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -127,8 +128,11 @@ export function ShopItemCard({
 }: ShopItemCardProps) {
   const [showLore, setShowLore] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+  const [justPurchased, setJustPurchased] = useState(false);
   
   const canAfford = currentGold >= item.costGold;
+  // Permanent catalog stock has no expiry. It must stay on the shelf after purchase.
+  const isPermanentStock = !item.expiresAt;
   const deficit = item.costGold - currentGold;
   const rarityConfig = shopRarityConfig[item.rarity] || shopRarityConfig.common;
   const categoryIcon = getCategoryIcon(item);
@@ -136,6 +140,16 @@ export function ShopItemCard({
 
   const handlePurchase = () => {
     if (!canAfford || isPurchasing) return;
+
+    if (isPermanentStock) {
+      // Permanent stock: buy in place, keep the card visible, flash a confirmation
+      onPurchase(item.id);
+      setJustPurchased(true);
+      setTimeout(() => setJustPurchased(false), 1500);
+      return;
+    }
+
+    // One-off AI-detected item: animate the card away, then complete the purchase
     setIsExiting(true);
     setTimeout(() => {
       onPurchase(item.id);
@@ -343,12 +357,19 @@ export function ShopItemCard({
               disabled={!canAfford || isPurchasing}
               className={cn(
                 "w-full font-cinzel",
-                canAfford 
+                justPurchased
+                  ? "bg-emerald-600 hover:bg-emerald-600 text-white"
+                  : canAfford
                   ? "bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-black"
                   : "bg-muted text-muted-foreground",
               )}
             >
-              {isPurchasing ? (
+              {justPurchased ? (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Purchased!
+                </>
+              ) : isPurchasing ? (
                 <span className="animate-pulse">Purchasing...</span>
               ) : canAfford ? (
                 <>
