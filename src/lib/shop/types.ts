@@ -1,6 +1,7 @@
 // Shop System Types - Chronicle-Powered Dynamic Shop
 
 import { ConfidenceLevel } from '@/lib/chronicleSync/types';
+import { EquipmentSlotType, EquipmentStats } from '@/lib/inventory/types';
 
 // Raw shop item from Chronicle AI (before conversion)
 export interface ShopItem {
@@ -26,15 +27,24 @@ export interface ShopItem {
   costGold: number;
   sourceText: string;
   detectedAt: string;
-  expiresAt: string; // ISO timestamp when item expires
+  expiresAt?: string; // Omitted means the item is permanent stock and never expires
   
   // Track what was AI-generated vs extracted
-  aiGenerated: {
+  aiGenerated?: {
     mechanics: boolean;
     description: boolean;
     lore: boolean;
     rarity: boolean;
   };
+
+  // ---- Permanent catalog item overrides (optional, ignored by AI-detected items) ----
+  slotType?: EquipmentSlotType;
+  stats?: EquipmentStats;
+  weight?: number;
+  usage?: string;
+  catalogId?: string;
+  consumableType?: 'potion' | 'poison' | 'scroll';
+  usageType?: 'drink' | 'apply' | 'throw' | 'read' | 'inhale' | 'injury' | 'contact' | 'ingested';
 }
 
 export interface ShopState {

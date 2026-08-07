@@ -12,7 +12,7 @@ import { ShopItem } from './types';
  */
 export function convertShopItemToConsumable(shopItem: ShopItem): Consumable {
   // Determine consumable type from category
-  const consumableType = inferConsumableType(shopItem.category);
+  const consumableType: ConsumableType = shopItem.consumableType || inferConsumableType(shopItem.category);
   
   // Map shop rarity to consumable rarity (consumables use 'very_rare' not 'epic')
   const rarityMap: Record<string, ConsumableRarity> = {
@@ -25,7 +25,7 @@ export function convertShopItemToConsumable(shopItem: ShopItem): Consumable {
   };
   
   // Infer usage type from category/mechanics
-  const usageType = inferUsageType(shopItem, consumableType);
+  const usageType: UsageType = (shopItem.usageType as UsageType) || inferUsageType(shopItem, consumableType);
   
   // Determine appropriate icon based on type
   const icon = inferConsumableIcon(consumableType, shopItem.name);
@@ -115,12 +115,13 @@ function inferSpellLevel(shopItem: ShopItem): number | undefined {
  * Used by the shop to decide equipment vs miscellaneous routing.
  */
 export function isWearableEquipment(shopItem: ShopItem): boolean {
+  if (shopItem.slotType) return true;
   return inferSlotType(shopItem.category, shopItem.name) !== null;
 }
 
 export function convertShopItemToEquipment(shopItem: ShopItem): EquipmentItem {
   // Determine slot type from category + name fallback
-  const slotType = inferSlotType(shopItem.category, shopItem.name) || 'primary_weapon';
+  const slotType = shopItem.slotType || inferSlotType(shopItem.category, shopItem.name) || 'primary_weapon';
   
   // Map shop rarity to equipment rarity
   const rarityMap: Record<string, EquipmentRarity> = {
@@ -136,12 +137,13 @@ export function convertShopItemToEquipment(shopItem: ShopItem): EquipmentItem {
   const stats: EquipmentStats = {};
   if (shopItem.mechanics.damage) stats.damage = shopItem.mechanics.damage;
   if (shopItem.mechanics.ac) stats.ac = shopItem.mechanics.ac;
+  if (shopItem.stats) Object.assign(stats, shopItem.stats);
   
   // Estimate level from cost
   const level = estimateLevelFromCost(shopItem.costGold);
   
   // Infer weight from slot type
-  const weight = inferWeight(slotType);
+  const weight = shopItem.weight ?? inferWeight(slotType);
   
   return {
     id: `shop-${shopItem.id}`,
