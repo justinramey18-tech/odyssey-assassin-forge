@@ -6,6 +6,7 @@ import { convertShopItemToConsumable, convertShopItemToEquipment, isWearableEqui
 import { Consumable } from '@/lib/consumables/types';
 import { EquipmentItem } from '@/lib/inventory/types';
 import { getScopedItem, setScopedItem, removeScopedItem, migrateToScoped } from '@/lib/scoped-storage';
+import { CatalogItem, catalogItemToShopItem } from '@/lib/shop/catalog';
 
 const STORAGE_KEY = 'odyssey-shop';
 
@@ -206,6 +207,54 @@ export function useShop() {
     };
   }, [state]);
 
+  /**
+   * Purchase a permanent catalog item. Unlike purchaseItem, the item is not in state.items,
+   * so nothing is removed from the shop. Gold is deducted and history is recorded.
+   */
+  const purchaseCatalogItem = useCallback((catalogItem: CatalogItem): PurchaseResult => {
+    if (state.currentGold < catalogItem.costGold) {
+      const deficit = catalogItem.costGold - state.currentGold;
+      return {
+        success: false,
+        error: `Need ${deficit} more gold to purchase this item`,
+      };
+    }
+
+    const shopItem = catalogItemToShopItem(catalogItem, true);
+    const remainingGold = state.currentGold - catalogItem.costGold;
+
+    let convertedItem: Consumable | EquipmentItem | undefined;
+    let destinationType: 'consumable' | 'equipment' | 'miscellaneous' = 'miscellaneous';
+
+    if (shopItem.itemType === 'consumable') {
+      convertedItem = convertShopItemToConsumable(shopItem);
+      destinationType = 'consumable';
+    } else if (shopItem.itemType === 'equipment' && isWearableEquipment(shopItem)) {
+      convertedItem = convertShopItemToEquipment(shopItem);
+      destinationType = 'equipment';
+    }
+
+    setState(prev => ({
+      ...prev,
+      currentGold: Math.max(0, prev.currentGold - catalogItem.costGold),
+      purchaseHistory: [...prev.purchaseHistory, {
+        itemId: shopItem.id,
+        itemName: catalogItem.name,
+        cost: catalogItem.costGold,
+        convertedTo: destinationType,
+        purchasedAt: new Date().toISOString(),
+      }],
+    }));
+
+    return {
+      success: true,
+      remainingGold,
+      convertedItem,
+      destinationType,
+      itemName: catalogItem.name,
+    };
+  }, [state.currentGold]);
+
   // Remove item from shop (without purchasing)
   const removeShopItem = useCallback((itemId: string) => {
     setState(prev => ({
@@ -241,6 +290,7 @@ export function useShop() {
     addShopItems,
     getItemById,
     purchaseItem,
+    purchaseCatalogItem,
     removeShopItem,
     clearShop,
     clearHistory,
