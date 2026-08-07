@@ -299,17 +299,23 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
       }
     });
 
-    // Consumables
+    // Consumables — healing items roll their own dice and resolve locally.
     const consumables: QuickActionItem[] = (characterContext.consumables || [])
       .filter(c => c.quantity > 0)
-      .map(c => ({
-        id: `consumable-${c.name}`,
-        name: c.name,
-        detail: `${c.type} • x${c.quantity}`,
-        prompt: generateConsumablePrompt(c.name, c.type, charName),
-        removeCategory: 'consumable' as const,
-        rollKind: 'none' as const,
-      }));
+      .map(c => {
+        const healingDice = getHealingDiceForItem(c.name);
+        return {
+          id: `consumable-${c.name}`,
+          name: c.name,
+          detail: healingDice
+            ? `${c.type} • x${c.quantity} • heals ${healingDice.formula}`
+            : `${c.type} • x${c.quantity}`,
+          prompt: generateConsumablePrompt(c.name, c.type, charName),
+          removeCategory: 'consumable' as const,
+          rollKind: (healingDice ? 'heal' : 'none') as 'heal' | 'none',
+          healingDice: healingDice ?? undefined,
+        };
+      });
 
     // Prestige abilities
     const prestige: QuickActionItem[] = (characterContext.prestigeAbilities || []).map(name => ({
