@@ -1673,12 +1673,14 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
             // Spellcasting, prestige tree, shop, loot, proficiencies, etc.
             if (cloudData.spellcasting) setScopedItem('odyssey-spellcasting', JSON.stringify(cloudData.spellcasting));
             if (cloudData.prestigeTree) setScopedItem('odyssey-prestige-tree', JSON.stringify(cloudData.prestigeTree));
-            if (cloudData.shopGold !== undefined) {
+            if (cloudData.shopGold !== undefined || Array.isArray(cloudData.shopPurchaseHistory)) {
               const shopState = JSON.parse(getScopedItem('odyssey-shop') || '{"currentGold":0,"items":[],"purchaseHistory":[]}');
-              shopState.currentGold = cloudData.shopGold;
+              if (cloudData.shopGold !== undefined) shopState.currentGold = cloudData.shopGold;
+              if (Array.isArray(cloudData.shopPurchaseHistory)) shopState.purchaseHistory = cloudData.shopPurchaseHistory;
               setScopedItem('odyssey-shop', JSON.stringify(shopState));
             }
             if (cloudData.loot) setScopedItem('odyssey-loot', JSON.stringify(cloudData.loot));
+            if (Array.isArray(cloudData.miscItems)) setScopedItem('odyssey-misc-items', JSON.stringify(cloudData.miscItems));
             if (cloudData.proficiencies) {
               setScopedItem('odyssey-proficient-skills', JSON.stringify(cloudData.proficiencies.skills || []));
               setScopedItem('odyssey-proficient-saves', JSON.stringify(cloudData.proficiencies.saves || []));
