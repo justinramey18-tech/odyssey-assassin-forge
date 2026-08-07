@@ -1569,7 +1569,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         characterContext={characterContext}
         characterName={characterName}
         onUsePrompt={handleUsePrompt}
+        onHealingItemUsed={handleHealingItemUsed}
+        onSendPrompt={sendMessage}
       />
+
 
       {/* Campaign Builder Chat */}
       <AnimatePresence>
