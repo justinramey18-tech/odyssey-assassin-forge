@@ -90,9 +90,10 @@ interface SectionProps {
   onUse: (prompt: string) => void;
   onRemove?: (item: QuickActionItem) => void;
   defaultOpen?: boolean;
+  onHeal?: (item: QuickActionItem) => void;
 }
 
-function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = false }: SectionProps) {
+function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = false, onHeal }: SectionProps) {
   const [open, setOpen] = useState(defaultOpen);
 
   if (items.length === 0) return null;
