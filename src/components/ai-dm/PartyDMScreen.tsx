@@ -145,6 +145,8 @@ interface PartyDMScreenProps {
   isMomoMoonDruid?: boolean;
   onShowOocChat?: () => void;
   onHPChange?: (change: number, type: 'damage' | 'healing') => void;
+  /** Decrement a consumable by name. Returns false when it is not in inventory. */
+  onUseConsumableByName?: (name: string, quantity?: number) => boolean;
   swipeHandlers?: SwipeHandlers;
   /** Player redo request (non-host only, when eligible) */
   onRequestCharacterRedo?: () => void;
