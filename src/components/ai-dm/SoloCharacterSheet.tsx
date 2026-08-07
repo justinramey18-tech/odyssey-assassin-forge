@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X, Heart, Activity, Shield, Coins, Zap, Backpack, BookOpen, Sparkles,
-  Plus, Minus, ChevronUp, ExternalLink, Moon, Sun, Trash2, PackageCheck, PackageX, Scroll,
+  Plus, Minus, ChevronUp, ExternalLink, Moon, Sun, Trash2, PackageCheck, PackageX, Scroll, Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CharacterContext } from '@/components/oracle/types';
@@ -50,6 +50,10 @@ export interface SoloCharacterSheetProps {
   initialTab?: SheetTab;
   /** Which DM screen this sheet is rendered in. Controls where the return button sends the player. */
   origin?: SheetReturnOrigin;
+  /** Party mode only: open the read-only roster of teammates' sheets. */
+  onViewPartySheets?: () => void;
+  /** Number of other players whose sheets can be viewed. */
+  partySheetCount?: number;
 }
 
 function navigateToTab(appTab: string, sheetTab: SheetTab, origin: SheetReturnOrigin = 'solo') {
@@ -84,6 +88,7 @@ export function SoloCharacterSheet({
   onAdjustHP, onAddXP, onManualLevelUp, onConditionChange, onRest, onAcceptItem, onUseConsumableByName, onUseLootItem,
   initialTab,
   origin = 'solo',
+  onViewPartySheets, partySheetCount = 0,
 }: SoloCharacterSheetProps) {
   const [tab, setTab] = useState<SheetTab>('vitals');
   const [hpDelta, setHpDelta] = useState('');
@@ -174,14 +179,27 @@ export function SoloCharacterSheet({
             {ctx.subclass ? ` · ${ctx.subclass}` : ''}
           </p>
         </div>
-        <button
-          onClick={onClose}
-          aria-label="Close character sheet"
-          className="p-2 rounded-lg hover:bg-white/10 min-w-[48px] min-h-[48px] flex items-center justify-center"
-          style={{ touchAction: 'manipulation' }}
-        >
-          <X className="w-5 h-5 text-white/80" />
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          {onViewPartySheets && partySheetCount > 0 && (
+            <button
+              onClick={onViewPartySheets}
+              aria-label="View party sheets"
+              className="flex items-center gap-1.5 px-2.5 rounded-lg border border-amber-900/30 bg-black/30 hover:bg-black/50 min-h-[48px]"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <Users className="w-4 h-4 text-amber-300" />
+              <span className="text-[11px] font-cinzel text-foreground/90">Party</span>
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            aria-label="Close character sheet"
+            className="p-2 rounded-lg hover:bg-white/10 min-w-[48px] min-h-[48px] flex items-center justify-center"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <X className="w-5 h-5 text-white/80" />
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
