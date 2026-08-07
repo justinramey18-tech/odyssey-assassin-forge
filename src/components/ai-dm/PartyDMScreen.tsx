@@ -2071,22 +2071,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       {/* Row 2: Sub-Header Strip (status only) */}
       {!isFullscreen && (
       <div className="flex items-center gap-1.5 px-3 py-1.5 bg-black/30 border-b border-amber-900/20">
-        {mode === 'shared' ? (
-          <span className="flex items-center gap-1 text-[11px] text-emerald-300/70 whitespace-nowrap">
-            <Eye className="w-3 h-3 text-emerald-400" />Shared
-          </span>
-        ) : (
-          <span className="flex items-center gap-1 text-[11px] text-purple-300/70 whitespace-nowrap">
-            <EyeOff className="w-3 h-3 text-purple-400" />Private
-          </span>
-        )}
-        <span className="text-[11px] text-white/20">•</span>
-        <span className="text-[11px] text-white/40 whitespace-nowrap">{partyDm.messages.length} msgs</span>
         {partyDm.isSummarizing && (
-          <>
-            <span className="text-[11px] text-white/20">•</span>
-            <span className="text-[11px] text-purple-400 animate-pulse whitespace-nowrap">Summarizing...</span>
-          </>
+          <span className="text-[11px] text-purple-400 animate-pulse whitespace-nowrap">Summarizing...</span>
         )}
         {isMomo && geraltHp && (
           <>
@@ -2163,36 +2149,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           </>
         )}
       </div>
-      )}
-
-      {/* Spotify mood controls for non-Empyrean party campaigns (host only) */}
-      {isCreator && !isEmpyrean && (
-        <div className="mx-2 my-1 rounded-lg border border-amber-900/30 bg-black/30 overflow-hidden">
-          <button
-            onClick={() => setMusicPanelOpen(o => !o)}
-            className="w-full flex items-center justify-between px-3 py-2 text-amber-300/80 hover:text-amber-300 hover:bg-amber-900/20 transition-colors"
-            style={{ touchAction: 'manipulation' }}
-          >
-            <span className="flex items-center gap-2 text-xs font-cinzel">
-              <Music className="w-3.5 h-3.5" />
-              Music & Mood
-            </span>
-            {musicPanelOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-          </button>
-          {musicPanelOpen && (
-            <div className="px-1 pb-2">
-              <DMSpotifyControls
-                partyId={partyId}
-                isCreator={isCreator}
-                presetFilter={PARTY_MOOD_PRESETS}
-                onPresetSelected={(presetId) => {
-                  lastPlayedMoodRef.current = presetId;
-                  partyDm.setActiveMoodPreset(presetId);
-                }}
-              />
-            </div>
-          )}
-        </div>
       )}
 
       {/* New Campaign Name Input */}
@@ -3679,6 +3635,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           ) : undefined}
           settingsContent={activeNavTab === 'settings' ? (
             <PartyDMSettings
+              moodPresetFilter={!isEmpyrean ? PARTY_MOOD_PRESETS : undefined}
+              onMoodPresetSelected={(presetId) => {
+                lastPlayedMoodRef.current = presetId;
+                partyDm.setActiveMoodPreset(presetId);
+              }}
               mode={mode}
               onToggleMode={() => {
                 const newMode = mode === 'shared' ? 'private' : 'shared';
