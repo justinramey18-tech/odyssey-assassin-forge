@@ -828,9 +828,11 @@ ${oocLines}`;
     if (activeCampaignId) setTrackingCampaignId(activeCampaignId);
   }, [activeCampaignId]);
 
-  // Auto-enter reading mode when generation STARTS (non-cinematic) so user sees shimmer bars instead of raw text
+  // Nat-20 fanfare waits until the DM has FINISHED responding to the roll
+  const prevNat20LoadingRef = useRef(false);
   useEffect(() => {
-    if (!prevIsLoadingRef.current && isLoading) firePendingNat20Fanfare();
+    if (prevNat20LoadingRef.current && !isLoading) firePendingNat20Fanfare();
+    prevNat20LoadingRef.current = isLoading;
   }, [isLoading]);
 
   useEffect(() => {
