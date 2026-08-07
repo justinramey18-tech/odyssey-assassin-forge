@@ -224,7 +224,7 @@ function buildPartyDragonActions(charName: string, dragonName: string): QuickAct
   ];
 }
 
-export function PartyDMQuickActions({ open, onOpenChange, characterContext, characterName, onUsePrompt, empyreanDragonName }: PartyDMQuickActionsProps) {
+export function PartyDMQuickActions({ open, onOpenChange, characterContext, characterName, onUsePrompt, empyreanDragonName, onHealingItemUsed, onSendPrompt }: PartyDMQuickActionsProps) {
   const handleRemoveItem = useCallback((item: QuickActionItem) => {
     const detail: QuickActionRemoveEvent = {
       category: item.removeCategory,
@@ -234,6 +234,24 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
     window.dispatchEvent(new CustomEvent('dm-quick-action-remove', { detail }));
     toast.success(`Removed ${item.name}`);
   }, []);
+
+  const handleHeal = useCallback((item: QuickActionItem) => {
+    const dice = item.healingDice;
+    if (!dice || !onHealingItemUsed) return;
+    const roll = rollHealing(dice.count, dice.die, dice.bonus);
+    requestDiceRoll({
+      title: item.name,
+      roll,
+      onComplete: () => {
+        const prompt = onHealingItemUsed(item.name, roll);
+        if (!prompt) return;
+        onOpenChange(false);
+        if (onSendPrompt) onSendPrompt(prompt);
+        else onUsePrompt(prompt);
+      },
+    });
+  }, [onHealingItemUsed, onSendPrompt, onUsePrompt, onOpenChange]);
+
 
   const sections = useMemo(() => {
     if (!characterContext) return { weapons: [], abilities: [], spells: [], cantrips: [], consumables: [], prestige: [], homebrew: [] };
