@@ -1992,7 +1992,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onRefresh={onRefreshCampaigns}
             />
           ) : (
-            <h1 className="text-lg font-cinzel text-amber-200 tracking-wide">Dungeon Master</h1>
+            <h1 className="text-xs sm:text-sm font-cinzel text-amber-200 tracking-wide whitespace-nowrap">Dungeon Master</h1>
           )}
         </div>
         <div className="flex items-center gap-2">
