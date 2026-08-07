@@ -17,6 +17,7 @@ import { MiscItem } from '@/lib/miscItems/types';
 import { LootItem, SoldLootRecord } from '@/lib/loot/types';
 import { EncumbranceInfo } from '@/lib/inventory/encumbrance';
 import { ShopItem, ParsedShopItem, PurchaseRecord } from '@/lib/shop/types';
+import { CatalogItem } from '@/lib/shop/catalog';
 import { EquipmentItem as ShopEquipmentItem } from '@/lib/inventory/types';
 import { toast } from 'sonner';
 import builderBackground from '@/assets/builder-background.jpg';
@@ -84,6 +85,7 @@ interface UnifiedInventoryScreenProps {
   onAdjustGold: (amount: number) => void;
   onSetGold: (amount: number) => void;
   onClearShop: () => void;
+  onPurchaseCatalogItem?: (catalogItem: CatalogItem) => void;
   // Sell callback — adds gold to shop balance
   onAddGoldFromSale: (amount: number) => void;
   // Deep-linking
@@ -100,7 +102,7 @@ export function UnifiedInventoryScreen({
   encumbrance, attackBonus, armorClass,
   currentHP, maxHP, conditions, activeSetBonus, totalLootValue, onShareLootToParty,
   currentGold, shopItems, purchaseHistory, onPurchase, onRemoveShopItem, onAddShopItem,
-  onAdjustGold, onSetGold, onClearShop, onAddGoldFromSale,
+  onAdjustGold, onSetGold, onClearShop, onAddGoldFromSale, onPurchaseCatalogItem,
   activeInternalTab, onInternalTabChange,
 }: UnifiedInventoryScreenProps) {
   const [localTab, setLocalTab] = useState<InventoryInternalTab>(() => {
@@ -347,6 +349,7 @@ export function UnifiedInventoryScreen({
             onAdjustGold={onAdjustGold}
             onSetGold={onSetGold}
             onClearShop={onClearShop}
+            onPurchaseCatalogItem={onPurchaseCatalogItem}
           />
         )}
       </div>
