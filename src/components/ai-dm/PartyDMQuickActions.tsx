@@ -118,7 +118,9 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
               </div>
               <button
                 onClick={() => {
-                  if (item.rollKind === 'attack' || item.rollKind === 'spell') {
+                  if (item.rollKind === 'heal' && item.healingDice && onHeal) {
+                    onHeal(item);
+                  } else if (item.rollKind === 'attack' || item.rollKind === 'spell') {
                     const roll = rollAttack(item.rollKind, item.damageFormula);
                     requestDiceRoll({
                       title: item.name,
