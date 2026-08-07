@@ -88,6 +88,7 @@ export function SoloCharacterSheet({
   onAdjustHP, onAddXP, onManualLevelUp, onConditionChange, onRest, onAcceptItem, onUseConsumableByName, onUseLootItem,
   initialTab,
   origin = 'solo',
+  onViewPartySheets, partySheetCount = 0,
 }: SoloCharacterSheetProps) {
   const [tab, setTab] = useState<SheetTab>('vitals');
   const [hpDelta, setHpDelta] = useState('');
