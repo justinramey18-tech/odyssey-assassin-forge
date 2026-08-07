@@ -2474,6 +2474,8 @@ ${oocLines}`;
         characterContext={characterContext}
         characterName={characterName}
         onUsePrompt={handleAppendPrompt}
+        onHealingItemUsed={handleHealingItemUsed}
+        onSendPrompt={handleUsePrompt}
       />
 
       <EmpyreanAutopilotGuide
