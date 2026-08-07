@@ -126,6 +126,7 @@ interface EmpyreanDMScreenProps {
   initialMessage?: string | null;
   autoSyncCallbacks?: {
     onHPChange: (change: number, type: 'damage' | 'healing') => void;
+    onUseConsumableByName?: (name: string, quantity?: number) => boolean;
     onAddXP: (amount: number, source: string) => void;
     onGoldChange: (netChange: number) => void;
     onConditionChange: (toAdd: string[], toRemove: string[]) => void;
