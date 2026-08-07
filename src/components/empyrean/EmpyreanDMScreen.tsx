@@ -43,6 +43,7 @@ import { DMDiceRoller } from '@/components/ai-dm/DMDiceRoller';
 import { GMGuidesManager } from '@/components/ai-dm/GMGuidesManager';
 import { WorldStatePanel } from '@/components/ai-dm/WorldStatePanel';
 import { PartyDMQuickActions } from '@/components/ai-dm/PartyDMQuickActions';
+import { useHealingItemAction } from '@/hooks/use-healing-item';
 import EmpyreanContextualActions from '@/components/empyrean/EmpyreanContextualActions';
 import DragonBondChat from '@/components/empyrean/DragonBondChat';
 import { useGMGuides } from '@/hooks/use-gm-guides';
