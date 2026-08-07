@@ -63,10 +63,20 @@ export function rollCheck(): CheckRollResult {
   return { kind: 'check', d20, outcome, mode };
 }
 
+/** Healing dice always roll fair — odds brackets are shaped for the d20 only. */
+export function rollHealing(count: number, die: number, bonus: number): HealRollResult {
+  const rolls = Array.from({ length: count }, () => rollFair(die));
+  const total = Math.max(0, rolls.reduce((a, b) => a + b, 0) + bonus);
+  return { kind: 'heal', rolls, die, bonus, total, mode: loadDiceOddsMode() };
+}
+
 const FINAL = 'These dice results are FINAL — narrate around them, do not roll again or override them.';
 
 export function rollSuffix(roll: AnyRollResult): string {
   const modeLabel = DICE_ODDS_CONFIGS[roll.mode].label;
+  if (roll.kind === 'heal') {
+    return `\n\n[DICE] Healing: ${roll.rolls.join(' + ')} (d${roll.die})${roll.bonus ? ` ${roll.bonus > 0 ? '+' : '-'} ${Math.abs(roll.bonus)}` : ''} = ${roll.total}. ${FINAL}`;
+  }
   if (roll.kind === 'check') {
     const edge = roll.d20 === 20 ? ' Make it spectacular.' : roll.d20 === 1 ? ' Make it sting.' : '';
     return `\n\n[DICE — ${modeLabel} mode] d20: ${roll.d20} → ${roll.outcome.toUpperCase()}.${edge} Narrate this attempt strictly at that outcome tier: critical failure = backfires, failure = does not work, mixed success = works partially or at a cost, success = works, critical success = works better than intended. ${FINAL}`;
