@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X, Heart, Activity, Shield, Coins, Zap, Backpack, BookOpen, Sparkles,
-  Plus, Minus, ChevronUp, ExternalLink, Moon, Sun, Trash2, PackageCheck, PackageX, Scroll,
+  Plus, Minus, ChevronUp, ExternalLink, Moon, Sun, Trash2, PackageCheck, PackageX, Scroll, Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CharacterContext } from '@/components/oracle/types';
