@@ -3937,6 +3937,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         characterContext={characterContext}
         characterName={characterContext?.name || 'The Adventurer'}
         onUsePrompt={handleUsePrompt}
+        onHealingItemUsed={handleHealingItemUsed}
         empyreanDragonName={isEmpyrean && dragonBonds.myDragon?.dragonName ? dragonBonds.myDragon.dragonName : undefined}
       />
       <DiceRollOverlay />
