@@ -6,7 +6,8 @@ import { toast } from 'sonner';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
-import { rollAttack, rollCheck, rollSuffix } from '@/lib/promptAutoRoll';
+import { rollAttack, rollCheck, rollHealing, rollSuffix, type HealRollResult } from '@/lib/promptAutoRoll';
+import { getHealingDiceForItem, type HealingDice } from '@/lib/consumables/healing';
 import { requestDiceRoll } from '@/lib/diceRollBus';
 import type { CharacterContext } from '@/components/oracle/types';
 
@@ -25,6 +26,13 @@ interface PartyDMQuickActionsProps {
   characterName: string;
   onUsePrompt: (prompt: string) => void;
   empyreanDragonName?: string;
+  /**
+   * Called when a healing item resolves locally: consume one and apply the HP.
+   * Returns the prompt-ready outcome, or null if the item could not be consumed.
+   */
+  onHealingItemUsed?: (itemName: string, healRoll: HealRollResult) => string | null;
+  /** Optional direct send (used for healing acknowledgements). Falls back to onUsePrompt. */
+  onSendPrompt?: (prompt: string) => void;
 }
 
 interface QuickActionItem {
@@ -34,10 +42,12 @@ interface QuickActionItem {
   prompt: string;
   removeCategory: QuickActionRemoveCategory;
   removeSlot?: string;
-  /** How dice attach at tap time: 'attack' rolls to-hit + damage, 'spell' likewise, 'check' rolls one d20 outcome ladder, 'none' rolls nothing. */
-  rollKind?: 'attack' | 'spell' | 'check' | 'none';
+  /** How dice attach at tap time: 'attack' rolls to-hit + damage, 'spell' likewise, 'check' rolls one d20 outcome ladder, 'heal' rolls healing dice, 'none' rolls nothing. */
+  rollKind?: 'attack' | 'spell' | 'check' | 'heal' | 'none';
   /** Damage dice for attack/spell rolls, e.g. '1d8' or '6d8'. Optional — defaults to 1d8. */
   damageFormula?: string;
+  /** Healing dice for 'heal' items. */
+  healingDice?: HealingDice;
 }
 
 function generateWeaponPrompt(name: string, characterName: string): string {
@@ -80,9 +90,10 @@ interface SectionProps {
   onUse: (prompt: string) => void;
   onRemove?: (item: QuickActionItem) => void;
   defaultOpen?: boolean;
+  onHeal?: (item: QuickActionItem) => void;
 }
 
-function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = false }: SectionProps) {
+function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = false, onHeal }: SectionProps) {
   const [open, setOpen] = useState(defaultOpen);
 
   if (items.length === 0) return null;
@@ -107,7 +118,9 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
               </div>
               <button
                 onClick={() => {
-                  if (item.rollKind === 'attack' || item.rollKind === 'spell') {
+                  if (item.rollKind === 'heal' && item.healingDice && onHeal) {
+                    onHeal(item);
+                  } else if (item.rollKind === 'attack' || item.rollKind === 'spell') {
                     const roll = rollAttack(item.rollKind, item.damageFormula);
                     requestDiceRoll({
                       title: item.name,
@@ -211,7 +224,7 @@ function buildPartyDragonActions(charName: string, dragonName: string): QuickAct
   ];
 }
 
-export function PartyDMQuickActions({ open, onOpenChange, characterContext, characterName, onUsePrompt, empyreanDragonName }: PartyDMQuickActionsProps) {
+export function PartyDMQuickActions({ open, onOpenChange, characterContext, characterName, onUsePrompt, empyreanDragonName, onHealingItemUsed, onSendPrompt }: PartyDMQuickActionsProps) {
   const handleRemoveItem = useCallback((item: QuickActionItem) => {
     const detail: QuickActionRemoveEvent = {
       category: item.removeCategory,
@@ -221,6 +234,24 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
     window.dispatchEvent(new CustomEvent('dm-quick-action-remove', { detail }));
     toast.success(`Removed ${item.name}`);
   }, []);
+
+  const handleHeal = useCallback((item: QuickActionItem) => {
+    const dice = item.healingDice;
+    if (!dice || !onHealingItemUsed) return;
+    const roll = rollHealing(dice.count, dice.die, dice.bonus);
+    requestDiceRoll({
+      title: item.name,
+      roll,
+      onComplete: () => {
+        const prompt = onHealingItemUsed(item.name, roll);
+        if (!prompt) return;
+        onOpenChange(false);
+        if (onSendPrompt) onSendPrompt(prompt);
+        else onUsePrompt(prompt);
+      },
+    });
+  }, [onHealingItemUsed, onSendPrompt, onUsePrompt, onOpenChange]);
+
 
   const sections = useMemo(() => {
     if (!characterContext) return { weapons: [], abilities: [], spells: [], cantrips: [], consumables: [], prestige: [], homebrew: [] };
@@ -286,17 +317,23 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
       }
     });
 
-    // Consumables
+    // Consumables — healing items roll their own dice and resolve locally.
     const consumables: QuickActionItem[] = (characterContext.consumables || [])
       .filter(c => c.quantity > 0)
-      .map(c => ({
-        id: `consumable-${c.name}`,
-        name: c.name,
-        detail: `${c.type} • x${c.quantity}`,
-        prompt: generateConsumablePrompt(c.name, c.type, charName),
-        removeCategory: 'consumable' as const,
-        rollKind: 'none' as const,
-      }));
+      .map(c => {
+        const healingDice = getHealingDiceForItem(c.name);
+        return {
+          id: `consumable-${c.name}`,
+          name: c.name,
+          detail: healingDice
+            ? `${c.type} • x${c.quantity} • heals ${healingDice.formula}`
+            : `${c.type} • x${c.quantity}`,
+          prompt: generateConsumablePrompt(c.name, c.type, charName),
+          removeCategory: 'consumable' as const,
+          rollKind: (healingDice ? 'heal' : 'none') as 'heal' | 'none',
+          healingDice: healingDice ?? undefined,
+        };
+      });
 
     // Prestige abilities
     const prestige: QuickActionItem[] = (characterContext.prestigeAbilities || []).map(name => ({
@@ -389,6 +426,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                 items={sections.consumables}
                 accentClass="text-green-400"
                 onUse={onUsePrompt}
+                onHeal={handleHeal}
                 onRemove={handleRemoveItem}
               />
               <QuickActionSection

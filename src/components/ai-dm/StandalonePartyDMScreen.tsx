@@ -842,6 +842,7 @@ ${truncated}`);
           wildShape={wildShape}
           isMomoMoonDruid={isMomoMoonDruid}
           onHPChange={autoSyncCallbacks?.onHPChange}
+          onUseConsumableByName={autoSyncCallbacks?.onUseConsumableByName}
           swipeHandlers={swipeHandlers}
           onRequestCharacterRedo={(() => {
             const myMember = partyMembers.find(m => m.user_id === userId);

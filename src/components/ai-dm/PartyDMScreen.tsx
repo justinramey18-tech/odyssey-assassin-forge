@@ -64,6 +64,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { parseRollHint } from '@/lib/whisperRollHint';
 import { resolveWhisperAutoRoll, performWhisperRoll } from '@/lib/whisperAutoRoll';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
+import { useHealingItemAction } from '@/hooks/use-healing-item';
 import { RoundTimer, TimerSettings } from './RoundTimer';
 import { AfkPersonalityGuide } from './AfkPersonalityGuide';
 import { ScheduledEventsSheet } from './ScheduledEventsSheet';
@@ -144,6 +145,8 @@ interface PartyDMScreenProps {
   isMomoMoonDruid?: boolean;
   onShowOocChat?: () => void;
   onHPChange?: (change: number, type: 'damage' | 'healing') => void;
+  /** Decrement a consumable by name. Returns false when it is not in inventory. */
+  onUseConsumableByName?: (name: string, quantity?: number) => boolean;
   swipeHandlers?: SwipeHandlers;
   /** Player redo request (non-host only, when eligible) */
   onRequestCharacterRedo?: () => void;
@@ -938,7 +941,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.reactions?.every((r, i) => r.id === next.reactions?.[i]?.id);
 });
 
-export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, swipeHandlers, onRequestCharacterRedo, hasPendingRedoRequest }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, hasPendingRedoRequest }: PartyDMScreenProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
@@ -1904,6 +1907,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const handleUsePrompt = useCallback((prompt: string) => {
     playerInputRef.current?.appendText(prompt);
   }, []);
+
+  const handleHealingItemUsed = useHealingItemAction({
+    characterName: characterContext?.name || 'The Adventurer',
+    maxHP: characterContext?.maxHP ?? 0,
+    getCurrentHP: () => characterContext?.currentHP ?? 0,
+    onHPChange,
+    onUseConsumableByName,
+  });
+
 
   // Geralt widget state (momo easter egg)
   const [showGeraltWidget, setShowGeraltWidget] = useState(false);
@@ -3937,6 +3949,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         characterContext={characterContext}
         characterName={characterContext?.name || 'The Adventurer'}
         onUsePrompt={handleUsePrompt}
+        onHealingItemUsed={handleHealingItemUsed}
         empyreanDragonName={isEmpyrean && dragonBonds.myDragon?.dragonName ? dragonBonds.myDragon.dragonName : undefined}
       />
       <DiceRollOverlay />

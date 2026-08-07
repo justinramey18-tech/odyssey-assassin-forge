@@ -43,6 +43,7 @@ import { DMDiceRoller } from '@/components/ai-dm/DMDiceRoller';
 import { GMGuidesManager } from '@/components/ai-dm/GMGuidesManager';
 import { WorldStatePanel } from '@/components/ai-dm/WorldStatePanel';
 import { PartyDMQuickActions } from '@/components/ai-dm/PartyDMQuickActions';
+import { useHealingItemAction } from '@/hooks/use-healing-item';
 import EmpyreanContextualActions from '@/components/empyrean/EmpyreanContextualActions';
 import DragonBondChat from '@/components/empyrean/DragonBondChat';
 import { useGMGuides } from '@/hooks/use-gm-guides';
@@ -126,6 +127,7 @@ interface EmpyreanDMScreenProps {
   initialMessage?: string | null;
   autoSyncCallbacks?: {
     onHPChange: (change: number, type: 'damage' | 'healing') => void;
+    onUseConsumableByName?: (name: string, quantity?: number) => boolean;
     onAddXP: (amount: number, source: string) => void;
     onGoldChange: (netChange: number) => void;
     onConditionChange: (toAdd: string[], toRemove: string[]) => void;
@@ -1081,6 +1083,15 @@ ${oocLines}`;
     setActiveNavTab(null);
     setNavExpanded(false);
   }, [isLoading]);
+
+  const handleHealingItemUsed = useHealingItemAction({
+    characterName: characterName || characterContext?.name || 'The Rider',
+    maxHP: characterContext?.maxHP ?? 0,
+    getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? (() => characterContext?.currentHP ?? 0),
+    onHPChange: autoSyncCallbacks?.onHPChange,
+    onUseConsumableByName: autoSyncCallbacks?.onUseConsumableByName,
+  });
+
 
   // Decrement active OOC notes after each new main DM assistant response.
   const lastOOCAssistantIdRef = useRef<string | null>(null);
@@ -2463,6 +2474,8 @@ ${oocLines}`;
         characterContext={characterContext}
         characterName={characterName}
         onUsePrompt={handleAppendPrompt}
+        onHealingItemUsed={handleHealingItemUsed}
+        onSendPrompt={handleUsePrompt}
       />
 
       <EmpyreanAutopilotGuide
