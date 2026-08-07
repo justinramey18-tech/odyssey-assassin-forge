@@ -23,6 +23,7 @@ import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { DiceRollOverlay } from '@/components/ai-dm/DiceRollOverlay';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
+import { useHealingItemAction } from '@/hooks/use-healing-item';
 import { ResponseModeSelector } from './ResponseModeSelector';
 import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
