@@ -179,14 +179,27 @@ export function SoloCharacterSheet({
             {ctx.subclass ? ` · ${ctx.subclass}` : ''}
           </p>
         </div>
-        <button
-          onClick={onClose}
-          aria-label="Close character sheet"
-          className="p-2 rounded-lg hover:bg-white/10 min-w-[48px] min-h-[48px] flex items-center justify-center"
-          style={{ touchAction: 'manipulation' }}
-        >
-          <X className="w-5 h-5 text-white/80" />
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          {onViewPartySheets && partySheetCount > 0 && (
+            <button
+              onClick={onViewPartySheets}
+              aria-label="View party sheets"
+              className="flex items-center gap-1.5 px-2.5 rounded-lg border border-amber-900/30 bg-black/30 hover:bg-black/50 min-h-[48px]"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <Users className="w-4 h-4 text-amber-300" />
+              <span className="text-[11px] font-cinzel text-foreground/90">Party</span>
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            aria-label="Close character sheet"
+            className="p-2 rounded-lg hover:bg-white/10 min-w-[48px] min-h-[48px] flex items-center justify-center"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <X className="w-5 h-5 text-white/80" />
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
