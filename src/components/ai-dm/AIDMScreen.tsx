@@ -806,10 +806,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     }
   }, [linkedUniverse.activeCrossoverId, linkedUniverse.activeCrossover, messages]);
 
-  // Nat-20 fanfare waits for the DM to start responding to the roll
+  // Nat-20 fanfare waits until the DM has FINISHED responding to the roll
   const prevNat20LoadingRef = useRef(false);
   useEffect(() => {
-    if (!prevNat20LoadingRef.current && isLoading) firePendingNat20Fanfare();
+    if (prevNat20LoadingRef.current && !isLoading) firePendingNat20Fanfare();
     prevNat20LoadingRef.current = isLoading;
   }, [isLoading]);
 

@@ -1606,7 +1606,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   const prevNat20GenRef = useRef(false);
   useEffect(() => {
-    if (!prevNat20GenRef.current && partyDm.isGenerating) firePendingNat20Fanfare();
+    if (prevNat20GenRef.current && !partyDm.isGenerating) firePendingNat20Fanfare();
     prevNat20GenRef.current = partyDm.isGenerating;
   }, [partyDm.isGenerating]);
 
