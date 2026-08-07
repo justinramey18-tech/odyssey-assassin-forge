@@ -51,6 +51,7 @@ export interface SaveData {
   activeSpells?: ActiveSpellEffect[];
   prestigeTree?: PrestigeTreeProgress;
   shopGold?: number;
+  shopPurchaseHistory?: unknown[];
   loot?: LootState;
   pendingDmItems?: { id: string; name: string; quantity: number; addedAt: string }[];
   miscItems?: MiscItem[];

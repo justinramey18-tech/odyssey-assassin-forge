@@ -1215,6 +1215,10 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       prestigeTree: prestigeTree.progress,
       // Shop gold balance
       shopGold: shop.currentGold,
+      // Shop purchase history
+      shopPurchaseHistory: shop.purchaseHistory,
+      // Miscellaneous items (tools, kits, containers, trinkets)
+      miscItems: miscItems.miscItems,
       // Loot items and sold history
       loot: {
         items: loot.lootItems,
@@ -1247,7 +1251,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     character, equipment, achievements, consumablesInventory, 
     currentXP, xpPreset, prestigeData, abilityScores.baseScores, 
     hpState, deathSaves, spellcasting.state, spellcasting.activeSpells,
-    prestigeTree.progress, shop.currentGold, loot.lootItems, loot.soldHistory, 
+    prestigeTree.progress, shop.currentGold, shop.purchaseHistory, miscItems.miscItems, loot.lootItems, loot.soldHistory, 
     hasInspiration, conditions.conditions, conditions.recentConditions,
     partySync.party.partyId, customBackground.backgroundUrl
   ]);
@@ -1430,18 +1434,25 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       console.log('[CloudSave] Restored prestige tree:', data.prestigeTree.unlockedAbilities?.length, 'abilities');
     }
     
-    // 10. Restore shop gold balance
-    if (data.shopGold !== undefined) {
+    // 10. Restore shop gold balance and purchase history
+    if (data.shopGold !== undefined || Array.isArray(data.shopPurchaseHistory)) {
       const shopState = JSON.parse(getScopedItem('odyssey-shop') || '{"currentGold":0,"items":[],"purchaseHistory":[]}');
-      shopState.currentGold = data.shopGold;
+      if (data.shopGold !== undefined) shopState.currentGold = data.shopGold;
+      if (Array.isArray(data.shopPurchaseHistory)) shopState.purchaseHistory = data.shopPurchaseHistory;
       setScopedItem('odyssey-shop', JSON.stringify(shopState));
-      console.log('[CloudSave] Restored shop gold:', data.shopGold);
+      console.log('[CloudSave] Restored shop gold:', data.shopGold, 'history:', shopState.purchaseHistory?.length);
     }
     
     // 11. Restore loot items and sold history
     if (data.loot) {
       setScopedItem('odyssey-loot', JSON.stringify(data.loot));
       console.log('[CloudSave] Restored loot:', data.loot.items?.length, 'items');
+    }
+
+    // 11b. Restore miscellaneous items
+    if (Array.isArray(data.miscItems)) {
+      setScopedItem('odyssey-misc-items', JSON.stringify(data.miscItems));
+      console.log('[CloudSave] Restored misc items:', data.miscItems.length);
     }
     
     // 12. Restore proficiencies (skills and saves)
@@ -1662,12 +1673,14 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
             // Spellcasting, prestige tree, shop, loot, proficiencies, etc.
             if (cloudData.spellcasting) setScopedItem('odyssey-spellcasting', JSON.stringify(cloudData.spellcasting));
             if (cloudData.prestigeTree) setScopedItem('odyssey-prestige-tree', JSON.stringify(cloudData.prestigeTree));
-            if (cloudData.shopGold !== undefined) {
+            if (cloudData.shopGold !== undefined || Array.isArray(cloudData.shopPurchaseHistory)) {
               const shopState = JSON.parse(getScopedItem('odyssey-shop') || '{"currentGold":0,"items":[],"purchaseHistory":[]}');
-              shopState.currentGold = cloudData.shopGold;
+              if (cloudData.shopGold !== undefined) shopState.currentGold = cloudData.shopGold;
+              if (Array.isArray(cloudData.shopPurchaseHistory)) shopState.purchaseHistory = cloudData.shopPurchaseHistory;
               setScopedItem('odyssey-shop', JSON.stringify(shopState));
             }
             if (cloudData.loot) setScopedItem('odyssey-loot', JSON.stringify(cloudData.loot));
+            if (Array.isArray(cloudData.miscItems)) setScopedItem('odyssey-misc-items', JSON.stringify(cloudData.miscItems));
             if (cloudData.proficiencies) {
               setScopedItem('odyssey-proficient-skills', JSON.stringify(cloudData.proficiencies.skills || []));
               setScopedItem('odyssey-proficient-saves', JSON.stringify(cloudData.proficiencies.saves || []));
