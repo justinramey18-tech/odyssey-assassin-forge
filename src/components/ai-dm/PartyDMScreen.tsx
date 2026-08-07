@@ -4522,6 +4522,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         <SoloCharacterSheet
           open={showCharacterSheet}
           origin="party"
+          onViewPartySheets={() => setShowPartySheets(true)}
+          partySheetCount={members.filter(m => m.user_id !== currentUserId).length}
           onClose={() => setShowCharacterSheet(false)}
           ctx={characterContext}
           currentXP={currentXP ?? 0}
