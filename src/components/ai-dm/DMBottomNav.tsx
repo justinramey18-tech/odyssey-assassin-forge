@@ -89,7 +89,7 @@ const activeIndicatorColors: Record<DMNavTab, string> = {
   character: 'bg-sky-500',
 };
 
-export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive, oracleLabel, oracleColor, oracleActiveBg, afkLabel, afkColor, afkActiveBg, afkIcon, hideDice, hideAfk, hidePrompts, hideActions, hideSettings, showCharacterSheet, onCharacterSheet, notchLabelOverride, notchIconOverride }: DMBottomNavProps) {
+export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive, oracleLabel, oracleColor, oracleActiveBg, afkLabel, afkColor, afkActiveBg, afkIcon, hideDice, hideAfk, hidePrompts, hideActions, hideSettings, showCharacterSheet, onCharacterSheet, headerContent, notchLabelOverride, notchIconOverride }: DMBottomNavProps) {
   const afkOrWildShape = showWildShape ? WILDSHAPE_TAB : AFK_TAB;
   const afkTab = {
     ...afkOrWildShape,
@@ -222,6 +222,7 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
               >
+                {headerContent}
                 {/* Tab bar */}
                 <div className="flex h-14 border-t border-amber-900/20">
                   {tabs.map((tab) => {
