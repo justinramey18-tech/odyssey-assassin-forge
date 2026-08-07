@@ -1905,6 +1905,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     playerInputRef.current?.appendText(prompt);
   }, []);
 
+  const handleHealingItemUsed = useHealingItemAction({
+    characterName: characterContext?.name || 'The Adventurer',
+    maxHP: characterContext?.maxHP ?? 0,
+    getCurrentHP: () => characterContext?.currentHP ?? 0,
+    onHPChange,
+    onUseConsumableByName,
+  });
+
+
   // Geralt widget state (momo easter egg)
   const [showGeraltWidget, setShowGeraltWidget] = useState(false);
   const isMomo = useMemo(() => isMomoEasterEgg(characterContext?.name || ''), [characterContext?.name]);
