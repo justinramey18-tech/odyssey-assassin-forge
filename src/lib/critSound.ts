@@ -9,19 +9,28 @@ let lastPlayed = 0;
 
 /**
  * Smoothly fades Spotify's volume down so the nat-20 fanfare is heard clearly,
- * then fades it back up once the fanfare finishes.
+ * then fades it back up once the fanfare finishes. Never starts, resumes, or
+ * unmutes Spotify — if nothing is playing, or the music is already muted, or
+ * the device doesn't report a volume, this quietly does nothing.
  */
 async function duckSpotifyFor(fanfare: HTMLAudioElement): Promise<void> {
   try {
     const spotify = await import('@/lib/spotify');
     if (!spotify.isConnected()) return;
-    const playback = await spotify.getCurrentPlayback();
+
+    const playback = await spotify.getCurrentPlayback().catch(() => null);
+    // Nothing playing / paused / no active device → leave Spotify untouched.
     if (!playback?.is_playing) return;
 
-    const original = Number(playback?.device?.volume_percent);
+    const device = playback?.device;
+    if (device?.supports_volume === false) return;
+
+    const original = Number(device?.volume_percent);
+    // Muted or unknown volume → nothing useful to fade.
     if (!Number.isFinite(original) || original <= 0) return;
 
     const duckedTarget = Math.max(5, Math.round(original * 0.15));
+    if (duckedTarget >= original) return;
 
     const fadeTo = async (from: number, to: number, steps = 5, stepMs = 90) => {
       for (let i = 1; i <= steps; i++) {
@@ -39,7 +48,15 @@ async function duckSpotifyFor(fanfare: HTMLAudioElement): Promise<void> {
       restored = true;
       fanfare.removeEventListener('ended', restore);
       fanfare.removeEventListener('error', restore);
-      void fadeTo(duckedTarget, original, 6, 120);
+      void (async () => {
+        // Only restore if the user hasn't since paused or changed the volume
+        // themselves — and never resume playback.
+        const after = await spotify.getCurrentPlayback().catch(() => null);
+        if (!after?.is_playing) return;
+        const now = Number(after?.device?.volume_percent);
+        if (Number.isFinite(now) && Math.abs(now - duckedTarget) > 8) return;
+        await fadeTo(duckedTarget, original, 6, 120);
+      })();
     };
     fanfare.addEventListener('ended', restore);
     fanfare.addEventListener('error', restore);
@@ -49,6 +66,7 @@ async function duckSpotifyFor(fanfare: HTMLAudioElement): Promise<void> {
     /* spotify unavailable — ignore */
   }
 }
+
 
 /** Plays the high-roll sound if the raw d20 roll is greater than 17. */
 export function maybePlayCritSound(rawRoll: number, sides: number = 20): void {
