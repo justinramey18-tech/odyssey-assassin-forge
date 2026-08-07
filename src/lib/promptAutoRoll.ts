@@ -20,7 +20,16 @@ export interface CheckRollResult {
   mode: DiceOddsMode;
 }
 
-export type AnyRollResult = AttackRollResult | CheckRollResult;
+export interface HealRollResult {
+  kind: 'heal';
+  rolls: number[];
+  die: number;
+  bonus: number;
+  total: number;
+  mode: DiceOddsMode;
+}
+
+export type AnyRollResult = AttackRollResult | CheckRollResult | HealRollResult;
 
 function rollFair(sides: number): number {
   return Math.floor(Math.random() * sides) + 1;
