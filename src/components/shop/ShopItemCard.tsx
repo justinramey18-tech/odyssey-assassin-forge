@@ -42,7 +42,7 @@ interface ShopItemCardProps {
   item: ShopItem;
   currentGold: number;
   onPurchase: (itemId: string) => void;
-  onExpired: (itemId: string) => void;
+  onExpired?: (itemId: string) => void;
   isPurchasing?: boolean;
 }
 
@@ -143,6 +143,7 @@ export function ShopItemCard({
   };
 
   const handleExpired = useCallback(() => {
+    if (!onExpired) return;
     setIsExiting(true);
     setTimeout(() => {
       onExpired(item.id);
@@ -214,11 +215,13 @@ export function ShopItemCard({
               
               {/* Timer and AI indicator */}
               <div className="flex flex-col items-end gap-1.5">
-                <ItemExpirationTimer 
-                  expiresAt={item.expiresAt} 
-                  onExpired={handleExpired}
-                />
-                {(item.aiGenerated.mechanics || item.aiGenerated.description) && (
+                {item.expiresAt && (
+                  <ItemExpirationTimer
+                    expiresAt={item.expiresAt}
+                    onExpired={handleExpired}
+                  />
+                )}
+                {(item.aiGenerated?.mechanics || item.aiGenerated?.description) && (
                   <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                     <Sparkles className="w-3 h-3 text-violet-400" />
                     <span>AI</span>
@@ -283,6 +286,17 @@ export function ShopItemCard({
               </p>
             </div>
 
+            {item.usage && (
+              <div className="space-y-1">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  How To Use
+                </span>
+                <p className="text-sm text-amber-200/90">
+                  {item.usage}
+                </p>
+              </div>
+            )}
+
             {/* Lore (collapsible) */}
             {item.lore && (
               <div className="space-y-1">
@@ -292,7 +306,7 @@ export function ShopItemCard({
                 >
                   {showLore ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                   <span>Lore</span>
-                  {item.aiGenerated.lore && (
+                  {item.aiGenerated?.lore && (
                     <Sparkles className="w-3 h-3 text-violet-400 ml-1" />
                   )}
                 </button>
