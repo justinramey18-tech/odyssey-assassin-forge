@@ -4,7 +4,7 @@ Today, tapping a healing potion in Quick Actions just writes a flowery "describe
 
 ## What will happen when you tap a healing potion
 
-1. The app rolls the potion's own healing dice (a standard Potion of Healing is 2d4+2; a Greater Healing is 4d4+4) using the same on-screen dice animation you already get for attacks and checks.
+1. The app rolls the potion's own healing dice (a standard Potion of Healing is 2d4+2; a Greater Healing is 4d4+4; Potion of Superior Healing is 8d4+8) using the same on-screen dice animation you already get for attacks and checks.
 2. You see the roll and the total.
 3. Your health goes up immediately by that amount, capped at your maximum. No waiting on the AI, and it can't be missed or doubled.
 4. One potion is removed from your stock. Three becomes two; one becomes none and the potion disappears from Quick Actions. The character sheet's consumables list shows the same new count.
