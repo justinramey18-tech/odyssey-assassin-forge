@@ -916,6 +916,15 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     soloDMInputRef.current?.appendText(prompt);
   }, []);
 
+  const handleHealingItemUsed = useHealingItemAction({
+    characterName: characterName || characterContext?.name || 'The Adventurer',
+    maxHP: characterContext?.maxHP ?? 0,
+    getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? (() => characterContext?.currentHP ?? 0),
+    onHPChange: autoSyncCallbacks?.onHPChange,
+    onUseConsumableByName: autoSyncCallbacks?.onUseConsumableByName,
+  });
+
+
   // A natural 20 closes the dice roller and fires the staged prompt right away,
   // so the celebration audio plays while the DM is already writing back.
   const handleDiceRollResult = useCallback((message: string) => {
