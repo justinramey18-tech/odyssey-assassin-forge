@@ -4548,6 +4548,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onUseLootItem={(text) => playerInputRef.current?.appendText(text)}
         />
       )}
+
+      <PartyMemberSheets
+        open={showPartySheets}
+        onClose={() => setShowPartySheets(false)}
+        members={members}
+        currentUserId={currentUserId}
+      />
     </div>
+
   );
 }
