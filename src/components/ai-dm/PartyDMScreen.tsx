@@ -2045,24 +2045,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       </header>
       )}
 
-      {/* Player character strip — tap for the full sheet. Hidden when this user has no character context (e.g. spectating host). */}
-      {!isFullscreen && characterContext && (
-        <div className="px-3 pt-1.5">
-          <CharacterSheetStrip
-            name={characterContext.name || 'Adventurer'}
-            level={characterContext.level}
-            currentHP={characterContext.currentHP}
-            maxHP={characterContext.maxHP}
-            xpInLevel={partyXpSnapshot.xpIntoLevel}
-            xpNeeded={partyXpSnapshot.xpLevelSpan}
-            totalXP={partyXpSnapshot.totalXP}
-            nextLevelXP={partyXpSnapshot.nextLevelXP}
-            isMilestone={partyXpSnapshot.mode === 'milestone'}
-            pendingItemCount={partyPendingItemCount}
-            onOpen={() => setShowCharacterSheet(true)}
-          />
-        </div>
-      )}
 
 
 
@@ -2580,17 +2562,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             </div>
           )}
         </div>
-        {/* Jump to Bookmark FAB */}
-        {bookmarkedMessageId && (
-          <button
-            onClick={handleJumpToBookmark}
-            className="absolute bottom-14 right-2 z-[5] w-9 h-9 rounded-full flex items-center justify-center bg-amber-900/60 hover:bg-amber-900/80 border border-amber-500/40 transition-all shadow-lg"
-            style={{ touchAction: 'manipulation' }}
-            title="Jump to bookmark"
-          >
-            <BookmarkCheck className="w-4 h-4 text-amber-400" />
-          </button>
-        )}
         {/* Fullscreen toggle - bottom-right of chat area */}
         <button
           onClick={() => {
@@ -3608,6 +3579,23 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       {/* Bottom Navigation Drawer */}
       {!isFullscreen && (
         <DMBottomNav
+          headerContent={characterContext ? (
+            <div className="px-3 pt-2 pb-1">
+              <CharacterSheetStrip
+                name={characterContext.name || 'Adventurer'}
+                level={characterContext.level}
+                currentHP={characterContext.currentHP}
+                maxHP={characterContext.maxHP}
+                xpInLevel={partyXpSnapshot.xpIntoLevel}
+                xpNeeded={partyXpSnapshot.xpLevelSpan}
+                totalXP={partyXpSnapshot.totalXP}
+                nextLevelXP={partyXpSnapshot.nextLevelXP}
+                isMilestone={partyXpSnapshot.mode === 'milestone'}
+                pendingItemCount={partyPendingItemCount}
+                onOpen={() => setShowCharacterSheet(true)}
+              />
+            </div>
+          ) : undefined}
           activeTab={activeNavTab}
           onTabChange={handleNavTabChange}
           isExpanded={navExpanded}

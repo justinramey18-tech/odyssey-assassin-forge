@@ -752,16 +752,6 @@ ${truncated}`);
 
   return (
     <div className={cn(embedded ? "absolute inset-0" : "fixed inset-0 z-[60]")}>
-      {!showCampaignBuilder && (
-        <button
-          onClick={() => setShowDirectorScreen(true)}
-          className="absolute right-2 z-[61] inline-flex items-center justify-center w-9 h-9 rounded-full bg-red-600/85 border border-red-400/40 hover:bg-red-600 active:bg-red-700 transition-colors shadow-lg"
-          aria-label="Talk to the DM"
-          style={{ bottom: '11rem', touchAction: 'manipulation' }}
-        >
-          <span className="text-white text-base font-bold">?</span>
-        </button>
-      )}
       <PartyDirectorScreen
         open={showDirectorScreen}
         onClose={() => setShowDirectorScreen(false)}
