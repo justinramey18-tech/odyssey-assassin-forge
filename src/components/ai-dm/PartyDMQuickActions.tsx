@@ -426,6 +426,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                 items={sections.consumables}
                 accentClass="text-green-400"
                 onUse={onUsePrompt}
+                onHeal={handleHeal}
                 onRemove={handleRemoveItem}
               />
               <QuickActionSection
