@@ -52,6 +52,8 @@ export interface SoloCharacterSheetProps {
   onManualLevelUp?: () => void;
   onConditionChange?: (toAdd: string[], toRemove: string[]) => void;
   onRest?: (type: 'short' | 'long') => void;
+  /** Send the short "I take a rest" line straight to the DM, like a consumable does. */
+  onRestPrompt?: (text: string) => void;
   onAcceptItem?: (name: string, quantity: number, details?: { goldValue?: number; description?: string; rarity?: string; category?: string; effect?: string; dice?: string }) => void;
   onUseConsumableByName?: (name: string) => void;
   /** Stage a loot-use sentence into the DM composer, e.g. "I use the Ember Lantern to heal (2d8)." */
