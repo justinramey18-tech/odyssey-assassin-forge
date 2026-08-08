@@ -15,6 +15,8 @@ import { ResponseModeSelector } from './ResponseModeSelector';
 import type { PushSubscriptionState } from '@/lib/push-subscription';
 import type { DmMode } from '@/hooks/use-party-dm';
 import { QUEST_REWARD_SPLIT_MODES, questRewardSplitLabel, type QuestRewardSplitMode } from '@/lib/questRewardSplit';
+import { NarrationStyleControl } from './NarrationStyleControl';
+import { DEFAULT_NARRATION_STATE, type NarrationIntensity, type NarrationStyleId, type NarrationStyleState } from '@/lib/narrationStyle';
 
 interface ToolRowProps {
   icon: React.ReactNode;
@@ -168,6 +170,9 @@ export interface PartyDMSettingsProps {
   onMoodPresetSelected?: (presetId: string) => void;
   // Quest reward distribution (party-wide, host-controlled)
   questRewardSplitMode?: QuestRewardSplitMode;
+  narrationStyle?: NarrationStyleState;
+  onNarrationStyleChange?: (style: NarrationStyleId) => void;
+  onNarrationIntensityChange?: (intensity: NarrationIntensity) => void;
   onQuestRewardSplitModeChange?: (mode: QuestRewardSplitMode) => void;
 }
 
@@ -197,6 +202,7 @@ export function PartyDMSettings({
   onReclaimTurn, onRedoLastRound,
   moodPresetFilter, onMoodPresetSelected,
   questRewardSplitMode = 'full', onQuestRewardSplitModeChange,
+  narrationStyle = DEFAULT_NARRATION_STATE, onNarrationStyleChange, onNarrationIntensityChange,
 }: PartyDMSettingsProps) {
   const bgFileInputRef = useRef<HTMLInputElement>(null);
   const originalCreator = isOriginalCreatorProp ?? isCreator;
@@ -456,6 +462,17 @@ export function PartyDMSettings({
           />
         </SettingsSection>
       )}
+
+      {/* Narration Style */}
+      <SettingsSection title="Narration Style" icon={<Palette className="w-4 h-4 text-amber-400" />}>
+        <NarrationStyleControl
+          state={narrationStyle}
+          editable={Boolean(isCreator && onNarrationStyleChange && onNarrationIntensityChange)}
+          onStyleChange={(s) => onNarrationStyleChange?.(s)}
+          onIntensityChange={(i) => onNarrationIntensityChange?.(i)}
+          readOnlyNote="The host sets the table's narration tone."
+        />
+      </SettingsSection>
 
       {/* Quest Rewards */}
       <SettingsSection title="Quest Rewards" icon={<ScrollText className="w-4 h-4 text-amber-400" />}>

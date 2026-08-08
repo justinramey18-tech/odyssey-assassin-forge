@@ -91,7 +91,7 @@ export function nextObjective(q: Quest): QuestStage | undefined {
  * Prompt sent to the DM the moment a quest is accepted: start the quest and
  * narrate the opening beat that moves the party toward the next objective.
  */
-export function buildQuestKickoffPrompt(q: Quest, opts?: { party?: boolean }): string {
+export function buildQuestKickoffPrompt(q: Quest, opts?: { party?: boolean; styleLine?: string }): string {
   const who = opts?.party ? 'The party accepts' : 'I accept';
   const title = questTitle(q);
   const next = nextObjective(q);
@@ -109,6 +109,7 @@ export function buildQuestKickoffPrompt(q: Quest, opts?: { party?: boolean }): s
   } else {
     lines.push(`Narrate the scene that starts this quest and give us a clear first move.`);
   }
+  if (opts?.styleLine) lines.push(opts.styleLine);
   return lines.join('\n');
 }
 

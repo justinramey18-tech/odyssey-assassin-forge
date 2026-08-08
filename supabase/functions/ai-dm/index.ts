@@ -213,6 +213,7 @@ interface DMRequest {
   user_perplexity_key?: string;
   user_xai_key?: string;
   coreRulesInGuides?: boolean;
+  narrationStylePrompt?: string;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -547,7 +548,7 @@ function buildContextSummary(ctx: CharacterContext): string {
 
 // ── System Prompt Builder ──────────────────────────────────────────────────────
 
-function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>, responseModePrompt?: string, partyContext?: string, recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>, recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>, coreRulesInGuides?: boolean): string {
+function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>, responseModePrompt?: string, partyContext?: string, recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>, recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>, coreRulesInGuides?: boolean, narrationStylePrompt?: string): string {
   const contextSummary = buildContextSummary(ctx);
   
   let prompt = '';
@@ -591,8 +592,8 @@ ${contextSummary}
 - End scenes with forward momentum — a clue, a threat, a choice. Offer 2-3 clear options when the player seems stuck, but allow creative alternatives.
 
 ## NARRATIVE STYLE (GUIDE-DRIVEN)
-Writing style belongs to the player, not to you. Style priority order: 1) Host/Player OOC directives, 2) GM Guides (if any active guide defines style, tone, length, formatting, pacing, or mechanics, follow it exactly), 3) DM Persona (only for style questions no guide answers), 4) the neutral default below.
-
+Writing style belongs to the player, not to you. Style priority order: 1) Host/Player OOC directives, 2) GM Guides (if any active guide defines style, tone, length, formatting, pacing, or mechanics, follow it exactly), 3) the player-selected NARRATION STYLE below (when one is present), 4) DM Persona (only for style questions nothing above answers), 5) the neutral default below.
+${narrationStylePrompt && narrationStylePrompt.trim() ? `\n${narrationStylePrompt.trim()}\n` : ''}
 Neutral default (applies only when nothing above specifies style): clear, engaging prose in a natural voice. No mandatory decorations, no required level of sensory detail.
 
 ANTI-REPETITION RULES (always active, regardless of style source):
@@ -904,7 +905,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, npcVoicingStrict, maxTokens, recentDragonChat, recentDragonNetwork, coreRulesInGuides } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, npcVoicingStrict, maxTokens, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages, then cap by total character count
     let trimmedMessages = messages.length > MAX_MESSAGES
@@ -933,11 +934,21 @@ serve(async (req) => {
       if (memoryAnchors && memoryAnchors.trim()) {
         lean.push(`## ESTABLISHED FACTS\n${memoryAnchors.slice(0, 4000)}`);
       }
+      if (narrationStylePrompt && narrationStylePrompt.trim()) {
+        lean.push(narrationStylePrompt.trim());
+      }
       lean.push(npcVoicingContext);
       systemPrompt = lean.join('\n\n');
     } else {
       // Use override if provided (e.g. whisper regeneration), otherwise build full DM prompt
-      systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork, coreRulesInGuides);
+      const override = systemPromptOverride?.trim();
+      if (override) {
+        systemPrompt = narrationStylePrompt && narrationStylePrompt.trim()
+          ? `${override}\n\n${narrationStylePrompt.trim()}`
+          : override;
+      } else {
+        systemPrompt = buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt);
+      }
 
       if (npcVoicingContext) {
         systemPrompt = systemPrompt + "\n\n" + npcVoicingContext;

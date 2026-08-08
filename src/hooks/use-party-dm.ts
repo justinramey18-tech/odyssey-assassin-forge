@@ -11,6 +11,8 @@ import { parseWhispers } from '@/lib/whisper-parser';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { loadSelectedModel } from '@/lib/dm-models';
 import { loadApiKey, isFeatureSkipped } from '@/lib/api-keys';
+import { buildNarrationStyleBlock } from '@/lib/narrationStyle';
+import { fetchPartyNarrationStyle } from '@/hooks/use-party-narration-style';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
@@ -92,6 +94,7 @@ function stripOocDirectivesForNarrative(content: string): string {
 }
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
+
 const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-summarize`;
 const SUMMARY_INTERVAL = 5;
 
@@ -1499,6 +1502,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const canonGuardrailsContext = buildCanonGuardrailContext(sanitizedMessages, extraGuides, currentOocDirectives);
     const enhancedPartyContext = [canonGuardrailsContext, partyContext, directorPrivatesContext].filter(Boolean).join('\n\n') || undefined;
 
+    const narrationStyleBlock = buildNarrationStyleBlock(await fetchPartyNarrationStyle(partyId));
+
     const authToken = await getAuthToken();
     const response = await fetch(AI_DM_URL, {
       method: 'POST',
@@ -1525,6 +1530,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         user_openai_key: loadApiKey('openai') || undefined,
         user_perplexity_key: loadApiKey('perplexity') || undefined,
         user_xai_key: loadApiKey('xai') || undefined,
+        narrationStylePrompt: narrationStyleBlock || undefined,
         ...(() => {
           const cs = loadCombatSettings();
           const feats: string[] = [];

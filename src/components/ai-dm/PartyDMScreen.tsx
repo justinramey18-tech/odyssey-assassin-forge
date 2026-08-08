@@ -32,6 +32,8 @@ import { PartyMemoryAnchorsPanel } from './PartyMemoryAnchorsPanel';
 import { PartyQuestsPanel } from './PartyQuestsPanel';
 import { usePartyQuests } from '@/hooks/use-party-quests';
 import { useQuestRewardSplit } from '@/hooks/use-quest-reward-split';
+import { usePartyNarrationStyle } from '@/hooks/use-party-narration-style';
+import { narrationStyleLine } from '@/lib/narrationStyle';
 import { withQuestEvent, WorldStateEntry, buildQuestKickoffPrompt } from '@/lib/quests';
 
 import { DMComposePanel } from './DMComposePanel';
@@ -956,6 +958,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   // Shared party quest board, also shown inside each player's character sheet.
   const sheetQuests = usePartyQuests(partyId, currentUserId);
   const questRewardSplit = useQuestRewardSplit(partyId, currentUserId);
+  const partyNarrationStyle = usePartyNarrationStyle(partyId, currentUserId || '');
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
   const [showDeathSaves, setShowDeathSaves] = useState(false);
@@ -3687,6 +3690,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           ) : undefined}
           settingsContent={activeNavTab === 'settings' ? (
             <PartyDMSettings
+              narrationStyle={partyNarrationStyle.state}
+              onNarrationStyleChange={partyNarrationStyle.setStyle}
+              onNarrationIntensityChange={partyNarrationStyle.setIntensity}
               questRewardSplitMode={questRewardSplit.mode}
               onQuestRewardSplitModeChange={questRewardSplit.setMode}
               moodPresetFilter={!isEmpyrean ? PARTY_MOOD_PRESETS : undefined}
@@ -4543,7 +4549,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             const accepted = withQuestEvent({ ...quest, status: 'active' }, 'accepted', 'Quest accepted by the party — the DM is now tracking it.');
             sheetQuests.upsertQuest(accepted);
             // Kick the quest off immediately: the DM narrates the opening beat toward the next objective.
-            partyDmRef.current?.submitPrompt(buildQuestKickoffPrompt(accepted, { party: true }));
+            partyDmRef.current?.submitPrompt(buildQuestKickoffPrompt(accepted, { party: true, styleLine: narrationStyleLine(partyNarrationStyle.state) }));
           } : undefined}
           onDeclineQuest={isCreator ? (key) => sheetQuests.removeQuest(key) : undefined}
           onScanQuests={isCreator ? onScanQuests : undefined}
