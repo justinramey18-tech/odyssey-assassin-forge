@@ -2234,7 +2234,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     const newCurrentHP = Math.min(hpState.max, hpState.current + healAmount);
     const actualHealed = newCurrentHP - hpState.current;
     
-    setHpState(prev => ({ ...prev, current: newCurrentHP }));
+    setHpState(prev => persistHPState({ ...prev, current: newCurrentHP }, true));
     
     // Reset action economy (combat would have ended for short rest)
     actionEconomy.onShortRest();
