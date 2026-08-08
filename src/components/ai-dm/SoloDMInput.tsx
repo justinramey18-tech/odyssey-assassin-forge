@@ -1,10 +1,12 @@
 import { useState, useCallback, useRef, useImperativeHandle, forwardRef, memo } from 'react';
-import { Send, Square, Wand2, RotateCcw, Loader2 } from 'lucide-react';
+import { Send, Square, Wand2, RotateCcw, Loader2, Mic, MicOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getAtMentionQuery, filterNPCNames } from '@/hooks/use-npc-autocomplete';
 import { NPCAutocomplete } from './NPCAutocomplete';
 import { useDraftPersist } from '@/hooks/use-draft-persist';
+import { useSpeechToText } from '@/hooks/use-speech-to-text';
 import { toast } from 'sonner';
+
 
 export interface SoloDMInputHandle {
   setText: (text: string) => void;
