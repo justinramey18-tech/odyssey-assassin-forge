@@ -5,7 +5,7 @@ import {
   Plus, Minus, ChevronUp, ExternalLink, Moon, Sun, Trash2, PackageCheck, PackageX, Scroll, Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Quest } from '@/lib/quests';
+import { Quest, WorldStateEntry } from '@/lib/quests';
 import { QuestBoard } from './QuestBoard';
 import { CharacterContext } from '@/components/oracle/types';
 import { useXPProgression } from '@/hooks/use-xp-progression';
