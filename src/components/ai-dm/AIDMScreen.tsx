@@ -600,7 +600,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     const violations = findCanonViolations(content, worldStateEntriesRef.current);
     if (violations.length > 0 && !canonCorrectionPendingRef.current) {
       canonCorrectionPendingRef.current = true;
-      toast.warning('That beat breaks established world state', {
+      sonnerToast.warning('That beat breaks established world state', {
         description: violationSummary(violations),
         duration: 12000,
         action: {
