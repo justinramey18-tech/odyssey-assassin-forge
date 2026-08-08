@@ -3107,6 +3107,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         onHPChange={(current, temp) => handleHPChange(current, wildShape.state.isTransformed ? effectiveMaxHP : hpState.max, temp)}
       consumables={consumablesInventory}
       onUseConsumable={useConsumableItem}
+      onAcceptDmItem={handleAcceptDmItem}
+
       prestigeLevel={prestigeData.prestigeLevel}
       prestigeAbilities={prestigeTree.progress.unlockedAbilities}
       spellcasting={combatSpellcasting}
