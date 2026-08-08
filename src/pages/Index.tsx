@@ -2269,11 +2269,12 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     // Long rest fully restores HP and clears temp HP
     const wasFullHP = hpState.current === hpState.max;
     
-    setHpState(prev => ({ 
+    setHpState(prev => persistHPState({ 
       ...prev, 
       current: prev.max,
       temp: 0 // Temp HP doesn't persist through long rest
-    }));
+    }, true));
+
     
     // Reset action economy
     actionEconomy.onLongRest();
