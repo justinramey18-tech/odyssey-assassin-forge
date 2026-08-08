@@ -184,7 +184,7 @@ export function questFromOffer(offer: RawQuestOffer): Quest | null {
     .map((text, i) => ({ id: `${key}-s${i}`, text: String(text ?? '').slice(0, 200), done: false }))
     .filter(s => s.text.length > 0);
 
-  return normalizeQuest(key, {
+  const quest = normalizeQuest(key, {
     status: 'offered',
     title,
     description: offer.description,
@@ -196,6 +196,7 @@ export function questFromOffer(offer: RawQuestOffer): Quest | null {
     stages,
     updated_at: new Date().toISOString(),
   });
+  return withQuestEvent(quest, 'offered', `Quest offered by the DM${stages.length ? ` with ${stages.length} objective${stages.length === 1 ? '' : 's'}` : ''}.`);
 }
 
 /** Mark stages done by fuzzy text match, and apply an explicit status if the DM gave one. */
@@ -204,6 +205,7 @@ export function applyQuestProgress(
   update: { stages_completed?: string[]; status?: string | null; notes?: string | null },
 ): Quest {
   let stages = quest.stages ? quest.stages.map(s => ({ ...s })) : [];
+  const newlyDone: string[] = [];
   for (const raw of update.stages_completed ?? []) {
     const needle = String(raw ?? '').toLowerCase().trim();
     if (!needle) continue;
@@ -211,7 +213,10 @@ export function applyQuestProgress(
       const hay = s.text.toLowerCase();
       return hay === needle || hay.includes(needle) || needle.includes(hay);
     });
-    if (hit) hit.done = true;
+    if (hit && !hit.done) {
+      hit.done = true;
+      newlyDone.push(hit.text);
+    }
   }
 
   let status = quest.status;
@@ -226,14 +231,27 @@ export function applyQuestProgress(
     stages = stages.map(s => ({ ...s, done: true }));
   }
 
-  return {
+  let next: Quest = {
     ...quest,
     stages: stages.length ? stages : quest.stages,
     status,
     notes: update.notes ? String(update.notes).slice(0, 600) : quest.notes,
     updated_at: new Date().toISOString(),
   };
+
+  for (const text of newlyDone) next = withQuestEvent(next, 'stage', `Objective completed: ${text}`);
+  const newNote = update.notes ? String(update.notes).trim() : '';
+  if (newNote && newNote !== (quest.notes ?? '').trim()) next = withQuestEvent(next, 'note', newNote);
+  if (status !== quest.status) {
+    next = withQuestEvent(
+      next,
+      'status',
+      status === 'completed' ? 'Quest completed.' : status === 'failed' ? 'Quest failed.' : `Status changed to ${status}.`,
+    );
+  }
+  return next;
 }
+
 
 /** Serialise back into the stored quest_flags shape. */
 export function toStored(quest: Quest): Record<string, any> {
