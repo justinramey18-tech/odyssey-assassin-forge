@@ -483,7 +483,12 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         rollKind: 'spell' as const,
         spellLevel: typeof full.level === 'number' ? full.level : undefined,
         damageFormula: full.damageFormula,
+        damageType: full.damageType,
+        saveStat: full.saveStat,
+        attackType: full.attackType,
+        rulesText: full.description,
       };
+
       if (full.isHomebrew) {
         homebrewSpells.push(item);
       } else if (isCantrip) {
