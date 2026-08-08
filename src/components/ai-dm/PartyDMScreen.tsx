@@ -31,6 +31,7 @@ import { usePartyChatBackground } from '@/hooks/use-party-chat-background';
 import { PartyMemoryAnchorsPanel } from './PartyMemoryAnchorsPanel';
 import { PartyQuestsPanel } from './PartyQuestsPanel';
 import { usePartyQuests } from '@/hooks/use-party-quests';
+import { useQuestRewardSplit } from '@/hooks/use-quest-reward-split';
 import { withQuestEvent } from '@/lib/quests';
 
 import { DMComposePanel } from './DMComposePanel';
@@ -950,6 +951,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   // Shared party quest board, also shown inside each player's character sheet.
   const sheetQuests = usePartyQuests(partyId, currentUserId);
+  const questRewardSplit = useQuestRewardSplit(partyId, currentUserId);
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
   const [showDeathSaves, setShowDeathSaves] = useState(false);
@@ -3681,6 +3683,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           ) : undefined}
           settingsContent={activeNavTab === 'settings' ? (
             <PartyDMSettings
+              questRewardSplitMode={questRewardSplit.mode}
+              onQuestRewardSplitModeChange={questRewardSplit.setMode}
               moodPresetFilter={!isEmpyrean ? PARTY_MOOD_PRESETS : undefined}
               onMoodPresetSelected={(presetId) => {
                 lastPlayedMoodRef.current = presetId;

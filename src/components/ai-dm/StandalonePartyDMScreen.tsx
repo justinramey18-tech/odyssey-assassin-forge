@@ -7,6 +7,8 @@ import { useWeather } from '@/hooks/use-weather';
 import { getCachedWeather, buildWeatherPrompt, loadWeatherEnabled } from '@/lib/weather';
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { usePartyQuests } from '@/hooks/use-party-quests';
+import { useQuestRewardSplit } from '@/hooks/use-quest-reward-split';
+import { questRewardShare, applyShare } from '@/lib/questRewardSplit';
 import { Quest, RawQuestOffer, questFromOffer, questTitle, applyQuestProgress, withQuestEvent, rewardSummary } from '@/lib/quests';
 import { useCampaignSessions } from '@/hooks/use-campaign-sessions';
 import { supabase } from '@/integrations/supabase/client';
@@ -563,16 +565,23 @@ export function StandalonePartyDMScreen({
 
   // ─── Party quest board ──────────────────────────────────────────────────────
   const partyQuests = usePartyQuests(partyId, userId);
+  const questRewardSplit = useQuestRewardSplit(partyId, userId);
   const partyQuestsRef = useRef<Quest[]>([]);
   useEffect(() => { partyQuestsRef.current = partyQuests.quests; }, [partyQuests.quests]);
 
   /** Rewards land on each player's own sheet; only the host writes the shared board. */
   const payPartyQuestRewards = useCallback((quest: Quest) => {
     if (quest.rewardsPaid) return;
-    const xp = Number(quest.xpReward);
-    if (Number.isFinite(xp) && xp > 0) autoSyncCallbacks?.onAddXP?.(Math.floor(xp), `Quest: ${questTitle(quest)}`);
-    const gp = Number(quest.goldReward);
-    if (Number.isFinite(gp) && gp > 0) autoSyncCallbacks?.onGoldChange?.(Math.floor(gp));
+    const roster = partyMembers.map(m => ({
+      user_id: m.user_id,
+      character_name: m.character_name,
+      level: (m.character_status as { level?: number } | undefined)?.level,
+    }));
+    const share = questRewardShare(questRewardSplit.mode, quest, roster, userId);
+    const xp = applyShare(quest.xpReward, share);
+    if (xp > 0) autoSyncCallbacks?.onAddXP?.(xp, `Quest: ${questTitle(quest)}`);
+    const gp = applyShare(quest.goldReward, share);
+    if (gp > 0) autoSyncCallbacks?.onGoldChange?.(gp);
     const items = (quest.itemRewards ?? []).map(it => ({
       name: it.name,
       quantity: Number.isFinite(Number(it.quantity)) && Number(it.quantity) > 0 ? Math.min(99, Math.floor(Number(it.quantity))) : 1,
@@ -582,8 +591,13 @@ export function StandalonePartyDMScreen({
       category: it.category,
     })).filter(it => it.name);
     if (items.length) addPendingDmItems(items as any);
-    toast.success(`Quest complete: ${questTitle(quest)}`);
-  }, [autoSyncCallbacks]);
+    const shareNote = questRewardSplit.mode === 'full' || share >= 1
+      ? ''
+      : share <= 0
+        ? ' — no reward share for you'
+        : ` — your share: ${xp} XP, ${gp} gp`;
+    toast.success(`Quest complete: ${questTitle(quest)}${shareNote}`);
+  }, [autoSyncCallbacks, partyMembers, questRewardSplit.mode, userId]);
 
   const handlePartyQuestUpdate = useCallback((offers: RawQuestOffer[], progress: any[]) => {
     const current = partyQuestsRef.current;
