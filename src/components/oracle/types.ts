@@ -83,6 +83,9 @@ export interface CharacterContext {
   equippedAbilities: string[];
   equipment: Array<{ slot: string; name: string; rarity: string }>;
   activeSetBonuses: string[];
+  /** Per-item gear contribution breakdown for the Stats tab. UI only — not sent to the model. */
+  gearBonuses?: import('@/components/character/GearBonusBreakdown').GearBonusData;
+
   consumables: Array<{ name: string; quantity: number; type: string; effect?: string }>;
   cooldowns: {
     active: Array<{ name: string; remainingSeconds: number }>;
