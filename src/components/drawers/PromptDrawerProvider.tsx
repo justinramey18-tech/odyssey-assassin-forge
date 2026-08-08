@@ -35,6 +35,8 @@ import { Enemy } from '@/lib/combat/targetTypes';
 import { ActionEconomy } from '@/lib/combat/combatTypes';
 import { useGameMode, shouldShowInfinityStones } from '@/hooks/use-game-mode';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
+import { buildGearBonusData } from '@/components/character/GearBonusBreakdown';
+
 import { useCombatStats } from '@/hooks/use-combat-stats';
 import { useCooldowns } from '@/hooks/use-cooldowns';
 import { useConditions, UseConditionsReturn } from '@/hooks/use-conditions';
