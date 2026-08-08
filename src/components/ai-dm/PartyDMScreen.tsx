@@ -4543,7 +4543,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             const accepted = withQuestEvent({ ...quest, status: 'active' }, 'accepted', 'Quest accepted by the party — the DM is now tracking it.');
             sheetQuests.upsertQuest(accepted);
             // Kick the quest off immediately: the DM narrates the opening beat toward the next objective.
-            partyDmRef.current?.submitPrompt(buildQuestKickoffPrompt(accepted, { party: true }));
+            partyDmRef.current?.submitPrompt(buildQuestKickoffPrompt(accepted, { party: true, styleLine: narrationStyleLine(partyNarrationStyle.state) }));
           } : undefined}
           onDeclineQuest={isCreator ? (key) => sheetQuests.removeQuest(key) : undefined}
           onScanQuests={isCreator ? onScanQuests : undefined}

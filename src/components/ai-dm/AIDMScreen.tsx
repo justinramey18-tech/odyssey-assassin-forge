@@ -739,7 +739,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     upsertQuest(key, { status: 'active', events: accepted.events } as any);
     sonnerToast.success(`Accepted: ${questTitle(quest)}`);
     // Kick the quest off immediately: the DM narrates the opening beat toward the next objective.
-    sendMessage(buildQuestKickoffPrompt(accepted));
+    sendMessage(buildQuestKickoffPrompt(accepted, { styleLine: narrationStyleLine(narrationStyle.state) }));
   }, [upsertQuest]);
 
 
