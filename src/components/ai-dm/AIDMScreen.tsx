@@ -738,8 +738,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     const accepted = withQuestEvent({ ...quest, status: 'active' }, 'accepted', 'Quest accepted — the DM is now tracking it.');
     upsertQuest(key, { status: 'active', events: accepted.events } as any);
     sonnerToast.success(`Accepted: ${questTitle(quest)}`);
-    const goals = (quest.stages ?? []).map(s => s.text).join('; ');
-    sendMessage(`(Quest accepted: "${questTitle(quest)}". ${goals ? `Objectives: ${goals}.` : ''} Track my progress on it from here.)`);
+    // Kick the quest off immediately: the DM narrates the opening beat toward the next objective.
+    sendMessage(buildQuestKickoffPrompt(accepted));
   }, [upsertQuest]);
 
 
