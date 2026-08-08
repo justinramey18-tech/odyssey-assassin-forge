@@ -905,7 +905,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, npcVoicingStrict, maxTokens, recentDragonChat, recentDragonNetwork, coreRulesInGuides } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, npcVoicingStrict, maxTokens, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages, then cap by total character count
     let trimmedMessages = messages.length > MAX_MESSAGES
@@ -934,11 +934,14 @@ serve(async (req) => {
       if (memoryAnchors && memoryAnchors.trim()) {
         lean.push(`## ESTABLISHED FACTS\n${memoryAnchors.slice(0, 4000)}`);
       }
+      if (narrationStylePrompt && narrationStylePrompt.trim()) {
+        lean.push(narrationStylePrompt.trim());
+      }
       lean.push(npcVoicingContext);
       systemPrompt = lean.join('\n\n');
     } else {
       // Use override if provided (e.g. whisper regeneration), otherwise build full DM prompt
-      systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork, coreRulesInGuides);
+      systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt);
 
       if (npcVoicingContext) {
         systemPrompt = systemPrompt + "\n\n" + npcVoicingContext;
