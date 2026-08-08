@@ -456,6 +456,39 @@ export function PartyDMSettings({
         </SettingsSection>
       )}
 
+      {/* Quest Rewards */}
+      <SettingsSection title="Quest Rewards" icon={<ScrollText className="w-4 h-4 text-amber-400" />}>
+        <div className="px-3 py-2.5">
+          <p className="text-[11px] text-muted-foreground mb-2">
+            How quest XP and gold are handed out to the party when a quest is completed.
+          </p>
+          {isCreator && onQuestRewardSplitModeChange ? (
+            <>
+              <Select value={questRewardSplitMode} onValueChange={(v) => onQuestRewardSplitModeChange(v as QuestRewardSplitMode)}>
+                <SelectTrigger className="w-full min-h-[44px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {QUEST_REWARD_SPLIT_MODES.map(m => (
+                    <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground mt-2">
+                {QUEST_REWARD_SPLIT_MODES.find(m => m.id === questRewardSplitMode)?.description}
+              </p>
+            </>
+          ) : (
+            <div className="text-sm text-foreground">
+              {questRewardSplitLabel(questRewardSplitMode)}
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {QUEST_REWARD_SPLIT_MODES.find(m => m.id === questRewardSplitMode)?.description}
+              </p>
+            </div>
+          )}
+        </div>
+      </SettingsSection>
+
       {/* Tools */}
       <SettingsSection title="Tools" icon={<Map className="w-4 h-4 text-emerald-400" />}>
         {onShowMap && (
