@@ -462,6 +462,101 @@ export function PromptDrawerProvider({
     return () => window.removeEventListener('dm-quick-action-remove', handleQuickActionRemove);
   }, [spellcasting]);
 
+  // The character sheet and the DM quick actions let the player cast a spell,
+  // but the spellcasting state lives here. Register a caster so those screens
+  // can spend the right slot (or pact slot) without prop-threading.
+  useEffect(() => {
+    if (!spellcasting) return;
+    return registerSpellCaster(({ name, level }) => {
+      const ids = Array.from(new Set([
+        ...spellcasting.state.preparedSpells,
+        ...spellcasting.state.knownSpells,
+      ]));
+      const wanted = name.trim().toLowerCase();
+      const spellId = ids.find(id => {
+        const s = getSpellById(id);
+        return s?.name.trim().toLowerCase() === wanted || id.toLowerCase() === wanted;
+      });
+      const spell = spellId ? getSpellById(spellId) : undefined;
+
+      const baseLevel = Number.isFinite(spell?.level)
+        ? (spell!.level as number)
+        : Number.isFinite(level) ? (level as number) : NaN;
+
+      if (!Number.isFinite(baseLevel)) {
+        return { ok: false, reason: 'unknown-spell' as const };
+      }
+
+      const slots = spellcasting.state.spellSlots || {};
+      const pact = spellcasting.state.pactSlots;
+
+      const totalRemainingAfter = (spentLevel: number | null, spentPact: boolean) => {
+        let total = 0;
+        for (const [lvl, s] of Object.entries(slots)) {
+          const used = spentLevel !== null && !spentPact && parseInt(lvl, 10) === spentLevel ? 1 : 0;
+          total += Math.max(0, (s?.current ?? 0) - used);
+        }
+        if (pact) total += Math.max(0, pact.current - (spentPact ? 1 : 0));
+        return total;
+      };
+
+      // Cantrips are free.
+      if (baseLevel === 0) {
+        const result = spellcasting.castSpell(
+          spellId || name, spell?.name || name, 0, 0, false,
+          spell?.concentration ?? false, spell?.duration || 'Instantaneous',
+        );
+        return {
+          ok: result.success,
+          isCantrip: true,
+          totalRemaining: totalRemainingAfter(null, false),
+          startedConcentration: result.startedConcentration,
+          brokeConcentration: result.brokeConcentration,
+        };
+      }
+
+      // Cheapest slot that can still carry the spell.
+      const castLevel = Object.keys(slots)
+        .map(Number)
+        .filter(lvl => lvl >= baseLevel && (slots[lvl]?.current ?? 0) > 0)
+        .sort((a, b) => a - b)[0];
+
+      const canUsePact = !!pact && pact.current > 0 && pact.level >= baseLevel;
+
+      if (castLevel === undefined && !canUsePact) {
+        return { ok: false, reason: 'no-slots' as const, totalRemaining: totalRemainingAfter(null, false) };
+      }
+
+      const usePact = castLevel === undefined;
+      const spentLevel = usePact ? pact!.level : castLevel;
+
+      const result = spellcasting.castSpell(
+        spellId || name, spell?.name || name, baseLevel, spentLevel, usePact,
+        spell?.concentration ?? false, spell?.duration || 'Instantaneous',
+      );
+
+      if (!result.success) {
+        return { ok: false, reason: 'no-slots' as const, totalRemaining: totalRemainingAfter(null, false) };
+      }
+
+      const remaining = usePact
+        ? Math.max(0, (pact?.current ?? 1) - 1)
+        : Math.max(0, (slots[spentLevel]?.current ?? 1) - 1);
+
+      return {
+        ok: true,
+        slotLevel: spentLevel,
+        usedPactSlot: usePact,
+        remaining,
+        totalRemaining: totalRemainingAfter(usePact ? null : spentLevel, usePact),
+        isCantrip: false,
+        startedConcentration: result.startedConcentration,
+        brokeConcentration: result.brokeConcentration,
+      };
+    });
+  }, [spellcasting]);
+
+
   // XP progression pace (multiplier-aware thresholds for the AI DM briefing)
   const { mode: xpProgressionMode, multiplier: xpMultiplier } = useXPProgression();
 
