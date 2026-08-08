@@ -10,6 +10,8 @@ import {
   getMagicResources,
   type CastOption,
 } from '@/lib/magic/castBus';
+import { SPELL_REGISTRY } from '@/lib/magic/spells';
+import type { SpellDefinition } from '@/lib/magic/types';
 import {
   resolveCast,
   buildCastReceipt,
@@ -39,7 +41,7 @@ export function CastCard({ spell: rawSpell, onClose, onResolved }: CastCardProps
     if (!rawSpell) return null;
     if (Number.isFinite(rawSpell.level)) return rawSpell;
     const wanted = rawSpell.name.trim().toLowerCase();
-    const match = Object.values(SPELL_REGISTRY).find(s => s.name.trim().toLowerCase() === wanted);
+    const match = (Object.values(SPELL_REGISTRY) as SpellDefinition[]).find(s => s.name.trim().toLowerCase() === wanted);
     if (!match) return rawSpell;
     return {
       ...rawSpell,
