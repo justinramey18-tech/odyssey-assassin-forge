@@ -67,6 +67,9 @@ interface QuestBoardProps {
   canManage?: boolean;
   onAccept?: (key: string) => void;
   onDecline?: (key: string) => void;
+  /** Re-read the DM's latest response and pull any quests out of it. */
+  onScan?: () => void;
+  scanning?: boolean;
 }
 
 function RewardRow({ q }: { q: Quest }) {
