@@ -58,10 +58,15 @@ export function parseHealingFormula(effect: string | null | undefined): HealingD
   return { count, die, bonus, formula };
 }
 
-/** Healing dice for a consumable by name, or null if it is not a healing item. */
-export function getHealingDiceForItem(name: string): HealingDice | null {
-  return parseHealingFormula(lookupEffect(name));
+/**
+ * Healing dice for a consumable by name, or null if it is not a healing item.
+ * `effectOverride` covers DM-awarded items that exist in neither the static
+ * registry nor the shop catalog — their effect text travels with the item.
+ */
+export function getHealingDiceForItem(name: string, effectOverride?: string): HealingDice | null {
+  return parseHealingFormula(lookupEffect(name)) ?? parseHealingFormula(effectOverride);
 }
+
 
 /**
  * Prompt sent to the DM after a healing item resolves locally.
