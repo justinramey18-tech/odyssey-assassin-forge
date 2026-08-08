@@ -1453,17 +1453,19 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     // 6. Restore HP state from saved data (or calculate max if not saved)
     if (data.hpState) {
       // Restore exact HP state from cloud save
-      setHpState(data.hpState);
-      setScopedItem('odyssey-hp-state', JSON.stringify(data.hpState));
-      console.log('[CloudSave] Restored HP:', data.hpState.current, '/', data.hpState.max, 'temp:', data.hpState.temp);
+      const restored = sanitizeHPState(data.hpState);
+      setHpState(restored);
+      setScopedItem('odyssey-hp-state', JSON.stringify(restored));
+      console.log('[CloudSave] Restored HP:', restored.current, '/', restored.max, 'temp:', restored.temp);
     } else if (data.abilityScores) {
       // Fallback: Calculate max HP if HP state wasn't saved (legacy saves)
       const loadedConMod = scoreToModifier(data.abilityScores.constitution);
       const loadedPrestigeLevel = data.prestige?.prestigeLevel ?? 0;
       const newMaxHP = calculateMaxHP(data.character.level, loadedConMod, loadedPrestigeLevel);
-      const newHPState = { current: newMaxHP, max: newMaxHP, temp: 0 };
+      const newHPState = sanitizeHPState({ current: newMaxHP, max: newMaxHP, temp: 0 });
       setHpState(newHPState);
       setScopedItem('odyssey-hp-state', JSON.stringify(newHPState));
+
       console.log('[CloudSave] HP not in save, reset to max:', newMaxHP);
     }
     
