@@ -34,6 +34,7 @@ import { useCampaignSessions, CampaignSession } from '@/hooks/use-campaign-sessi
 import { useAutoCampaign } from '@/hooks/use-auto-campaign';
 import { CharacterContext, Message } from '@/components/oracle/types';
 import { useToast } from '@/hooks/use-toast';
+import { toast as sonnerToast } from 'sonner';
 import { DMQuickActions } from './DMQuickActions';
 import { DMDiceRoller } from './DMDiceRoller';
 import { GMGuidesManager } from './GMGuidesManager';
@@ -51,6 +52,7 @@ import { useLinkedUniverse } from '@/hooks/use-linked-universe';
 import { LinkedUniverseSection } from '@/components/empyrean/LinkedUniverseSection';
 
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
+import { Quest, RawQuestOffer, normalizeQuestMap, questFromOffer, questTitle, applyQuestProgress, toStored } from '@/lib/quests';
 import { SoloCharacterSheet, type SheetTab } from '@/components/ai-dm/SoloCharacterSheet';
 import { getSheetReturn, clearSheetReturn } from '@/lib/sheetReturn';
 import { CharacterSheetStrip } from '@/components/ai-dm/CharacterSheetStrip';
@@ -537,6 +539,11 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     saveGeraltState(charId, { ...gs, conditions });
   }, [isMomo, geraltCharacterId]);
 
+  // Quest board bridge. The auto-sync hook is created before the game state hook,
+  // so both directions go through refs that are filled in further down.
+  const questsRef = useRef<Quest[]>([]);
+  const questUpdateRef = useRef<((offers: RawQuestOffer[], progress: any[]) => void) | null>(null);
+
   // Auto-sync hook
   const autoSync = useDmAutoSync({
     onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
@@ -555,6 +562,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     getCurrentMarkers: useCallback(() => [], []),
 
     getGridSize: useCallback(() => 25 as any, []),
+    getActiveQuests: useCallback(() => questsRef.current, []),
+    onQuestUpdate: useCallback((offers: RawQuestOffer[], progress: any[]) => {
+      questUpdateRef.current?.(offers, progress);
+    }, []),
   } as Parameters<typeof useDmAutoSync>[0]);
 
 
@@ -595,6 +606,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     addMemoryAnchor,
     removeMemoryAnchor,
     setQuestFlag,
+    upsertQuest,
+    removeQuest,
     updateVitals,
     updateGold,
     resetForNewCampaign,
@@ -617,6 +630,82 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     });
     return () => { drawerContext?.registerOracleQuestCallback?.(null); };
   }, [setQuestFlag]);
+
+  // ─── Quest board ────────────────────────────────────────────────────────────
+  const quests = useMemo(() => normalizeQuestMap(gameState.quest_flags), [gameState.quest_flags]);
+  useEffect(() => { questsRef.current = quests; }, [quests]);
+
+  /** Pay out XP, gold and promised items once, the moment a quest is finished. */
+  const payQuestRewards = useCallback((quest: Quest) => {
+    if (quest.rewardsPaid) return;
+    const xp = Number(quest.xpReward);
+    if (Number.isFinite(xp) && xp > 0) {
+      autoSyncCallbacks?.onAddXP?.(Math.floor(xp), `Quest: ${questTitle(quest)}`);
+    }
+    const gp = Number(quest.goldReward);
+    if (Number.isFinite(gp) && gp > 0) {
+      autoSyncCallbacks?.onGoldChange?.(Math.floor(gp));
+    }
+    for (const item of quest.itemRewards ?? []) {
+      const name = String(item?.name ?? '').trim();
+      if (!name) continue;
+      const rawQty = Number(item?.quantity);
+      const qty = Number.isFinite(rawQty) && rawQty > 0 ? Math.min(99, Math.floor(rawQty)) : 1;
+      onAcceptItem?.(name, qty, {
+        goldValue: Number.isFinite(Number(item?.gold_value)) ? Number(item.gold_value) : undefined,
+        description: item?.description,
+        rarity: item?.rarity,
+        category: item?.category,
+      });
+    }
+    const parts = [
+      Number.isFinite(xp) && xp > 0 ? `${Math.floor(xp)} XP` : '',
+      Number.isFinite(gp) && gp > 0 ? `${Math.floor(gp)} gold` : '',
+      (quest.itemRewards ?? []).length ? `${quest.itemRewards!.length} item${quest.itemRewards!.length === 1 ? '' : 's'}` : '',
+    ].filter(Boolean);
+    sonnerToast.success(`Quest complete: ${questTitle(quest)}`, {
+      description: parts.length ? `Rewards: ${parts.join(', ')}` : undefined,
+    });
+  }, [autoSyncCallbacks, onAcceptItem]);
+
+  // Apply what the extractor found: new offers land on the board, progress ticks stages.
+  useEffect(() => {
+    questUpdateRef.current = (offers, progress) => {
+      const current = questsRef.current;
+      for (const offer of offers ?? []) {
+        const quest = questFromOffer(offer);
+        if (!quest) continue;
+        if (current.some(q => q.key === quest.key)) continue; // never re-offer
+        upsertQuest(quest.key, toStored(quest) as any);
+        sonnerToast.info(`New quest offered: ${questTitle(quest)}`, { description: 'Open your character sheet to accept it.' });
+      }
+      for (const update of progress ?? []) {
+        const key = String(update?.key ?? '');
+        const existing = current.find(q => q.key === key);
+        if (!existing || existing.status !== 'active') continue;
+        const next = applyQuestProgress(existing, update);
+        if (next.status === 'completed' && !existing.rewardsPaid) {
+          payQuestRewards(next);
+          next.rewardsPaid = true;
+        }
+        upsertQuest(key, toStored(next) as any);
+      }
+    };
+    return () => { questUpdateRef.current = null; };
+  }, [upsertQuest, payQuestRewards]);
+
+  const handleAcceptQuest = useCallback((key: string) => {
+    const quest = questsRef.current.find(q => q.key === key);
+    if (!quest) return;
+    upsertQuest(key, { status: 'active' });
+    sonnerToast.success(`Accepted: ${questTitle(quest)}`);
+    const goals = (quest.stages ?? []).map(s => s.text).join('; ');
+    sendMessage(`(Quest accepted: "${questTitle(quest)}". ${goals ? `Objectives: ${goals}.` : ''} Track my progress on it from here.)`);
+  }, [upsertQuest]);
+
+  const handleDeclineQuest = useCallback((key: string) => {
+    removeQuest(key);
+  }, [removeQuest]);
 
   // Build world state prompt to inject into AI system prompt
   const worldStatePrompt = useMemo(() => {
@@ -1634,7 +1723,9 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
             : undefined
         }
         onUseLootItem={(text) => soloDMInputRef.current?.appendText(text)}
-        quests={Object.entries(gameState.quest_flags || {}).map(([key, q]) => ({ key, status: q.status, notes: q.notes }))}
+        quests={quests}
+        onAcceptQuest={handleAcceptQuest}
+        onDeclineQuest={handleDeclineQuest}
         onAdjustHP={(change, type) => autoSyncCallbacks?.onHPChange?.(change, type)}
         onAddXP={(amount, source) => autoSyncCallbacks?.onAddXP?.(amount, source)}
         onManualLevelUp={onManualLevelUp}

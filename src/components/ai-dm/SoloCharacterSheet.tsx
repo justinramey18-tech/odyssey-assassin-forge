@@ -5,6 +5,8 @@ import {
   Plus, Minus, ChevronUp, ExternalLink, Moon, Sun, Trash2, PackageCheck, PackageX, Scroll, Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Quest } from '@/lib/quests';
+import { QuestBoard } from './QuestBoard';
 import { CharacterContext } from '@/components/oracle/types';
 import { useXPProgression } from '@/hooks/use-xp-progression';
 import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
@@ -46,7 +48,12 @@ export interface SoloCharacterSheetProps {
   ctx: CharacterContext;
   currentXP: number;
   gold: number;
-  quests?: Array<{ key: string; status: string; notes?: string }>;
+  /** Quest board entries: offers from the DM plus everything already accepted. */
+  quests?: Quest[];
+  /** Accept an offered quest so the DM starts tracking it. */
+  onAcceptQuest?: (key: string) => void;
+  /** Turn down an offered quest and clear it from the board. */
+  onDeclineQuest?: (key: string) => void;
   onAdjustHP?: (change: number, type: 'damage' | 'healing') => void;
   onAddXP?: (amount: number, source: string) => void;
   onManualLevelUp?: () => void;
@@ -96,7 +103,7 @@ function Section({ title, icon: Icon, children, action }: {
 }
 
 export function SoloCharacterSheet({
-  open, onClose, ctx, currentXP, gold, quests = [],
+  open, onClose, ctx, currentXP, gold, quests = [], onAcceptQuest, onDeclineQuest,
   onAdjustHP, onAddXP, onManualLevelUp, onConditionChange, onRest, onRestPrompt, onAcceptItem, onUseConsumableByName, onUseLootItem,
   initialTab,
   origin = 'solo',
@@ -1071,22 +1078,13 @@ export function SoloCharacterSheet({
               </div>
             </Section>
 
-            <Section title="Quests" icon={Scroll}>
-              {quests.length === 0 ? (
-                <p className="text-xs text-white/40 text-center py-2">No quests tracked yet.</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {quests.map(q => (
-                    <div key={q.key} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-foreground truncate">{q.key}</span>
-                        <Badge variant="outline" className="text-[10px] capitalize shrink-0">{q.status}</Badge>
-                      </div>
-                      {q.notes && <p className="text-[10px] text-white/40 mt-1">{q.notes}</p>}
-                    </div>
-                  ))}
-                </div>
-              )}
+            <Section title="Quest Board" icon={Scroll}>
+              <QuestBoard
+                quests={quests}
+                canManage={!!onAcceptQuest || !!onDeclineQuest}
+                onAccept={onAcceptQuest}
+                onDecline={onDeclineQuest}
+              />
             </Section>
 
             <Section title="Identity" icon={BookOpen}>
