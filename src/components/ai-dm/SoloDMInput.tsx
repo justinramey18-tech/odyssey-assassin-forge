@@ -193,6 +193,12 @@ export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(
 
   return (
     <div className="relative flex items-end gap-2">
+      {isListening && interimText && (
+        <div className="absolute -top-5 left-2 right-2 text-xs text-amber-400/50 italic truncate animate-pulse pointer-events-none">
+          {interimText}…
+        </div>
+      )}
+
       {showAc && (
         <NPCAutocomplete
           names={acSuggestions}
