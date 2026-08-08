@@ -578,6 +578,37 @@ export function PromptDrawerProvider({
     });
   }, [spellcasting]);
 
+  // Screens also need to READ what's still spendable (upcast choices, rest
+  // previews) without owning the hook.
+  useEffect(() => {
+    if (!spellcasting) return;
+    return registerMagicResourceInspector(() => ({
+      spellAttackBonus: spellcasting.spellAttackBonus ?? 0,
+      spellSaveDC: spellcasting.spellSaveDC ?? 10,
+      slots: Object.entries(spellcasting.state.spellSlots || {}).map(([lvl, s]) => ({
+        level: parseInt(lvl, 10),
+        current: s?.current ?? 0,
+        max: s?.max ?? 0,
+      })).filter(s => Number.isFinite(s.level)),
+      pactSlots: spellcasting.state.pactSlots
+        ? {
+            level: spellcasting.state.pactSlots.level,
+            current: spellcasting.state.pactSlots.current,
+            max: spellcasting.state.pactSlots.max,
+          }
+        : undefined,
+      concentratingOn: spellcasting.state.concentratingOn
+        ? (getSpellById(spellcasting.state.concentratingOn)?.name || spellcasting.state.concentratingOn)
+        : null,
+      activeEffects: (spellcasting.activeSpells || []).map(e => ({
+        name: e.spellName,
+        concentration: !!e.requiresConcentration,
+      })),
+    }));
+  }, [spellcasting]);
+
+
+
 
   // XP progression pace (multiplier-aware thresholds for the AI DM briefing)
   const { mode: xpProgressionMode, multiplier: xpMultiplier } = useXPProgression();
