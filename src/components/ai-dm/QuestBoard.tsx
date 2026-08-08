@@ -257,7 +257,7 @@ function Chip({ active, label, onClick }: { active: boolean; label: string; onCl
   );
 }
 
-export function QuestBoard({ quests, canManage = true, onAccept, onDecline, onScan, scanning }: QuestBoardProps) {
+export function QuestBoard({ quests, canManage = true, onAccept, onDecline, onScan, scanning, worldState = [] }: QuestBoardProps) {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [crFilter, setCrFilter] = useState<CrFilter>('all');
   const [sortMode, setSortMode] = useState<SortMode>('recent');
@@ -310,11 +310,14 @@ export function QuestBoard({ quests, canManage = true, onAccept, onDecline, onSc
 
   if (quests.length === 0) {
     return (
+      <div className="space-y-4">
+        {worldState.length > 0 && <WorldStateTracker entries={worldState} />}
       <div className="text-center py-6 text-white/30">
         <ScrollText className="w-8 h-8 mx-auto mb-2 opacity-30" />
         <p className="text-xs">No quests yet.</p>
         <p className="text-[10px] mt-1">The DM will offer work as the story unfolds.</p>
         {scanButton && <div className="mt-3 flex justify-center">{scanButton}</div>}
+      </div>
       </div>
     );
   }
@@ -322,6 +325,8 @@ export function QuestBoard({ quests, canManage = true, onAccept, onDecline, onSc
   return (
     <div className="space-y-4">
       {scanButton && <div className="flex justify-end">{scanButton}</div>}
+
+      <WorldStateTracker entries={worldState} />
 
 
       {/* Filter / sort bar */}
