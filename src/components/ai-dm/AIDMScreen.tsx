@@ -25,6 +25,9 @@ import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
 import { useHealingItemAction } from '@/hooks/use-healing-item';
 import { ResponseModeSelector } from './ResponseModeSelector';
+import { NarrationStyleControl } from './NarrationStyleControl';
+import { useNarrationStyle } from '@/hooks/use-narration-style';
+import { narrationStyleLine } from '@/lib/narrationStyle';
 import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
 import { useAIDM } from '@/hooks/use-ai-dm';
@@ -503,6 +506,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
   const [navExpanded, setNavExpanded] = useState(false);
   const { responseMode, setResponseMode } = useResponseMode();
+  const narrationStyle = useNarrationStyle();
   const [showStoneDrawer, setShowStoneDrawer] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -1626,6 +1630,14 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
                 selectedMode={responseMode}
                 onModeChange={(modeId) => setResponseMode(modeId ?? undefined)}
               />
+              <div className="rounded-lg border border-border/60 bg-card/40">
+                <div className="px-3 pt-2.5 text-xs font-cinzel tracking-wide text-amber-400">Narration Style</div>
+                <NarrationStyleControl
+                  state={narrationStyle.state}
+                  onStyleChange={narrationStyle.setStyle}
+                  onIntensityChange={narrationStyle.setIntensity}
+                />
+              </div>
             </div>
           ) : undefined}
           oracleContent={activeNavTab === 'oracle' ? (
