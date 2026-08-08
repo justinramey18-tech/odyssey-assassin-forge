@@ -55,6 +55,7 @@ import { useLinkedUniverse } from '@/hooks/use-linked-universe';
 import { LinkedUniverseSection } from '@/components/empyrean/LinkedUniverseSection';
 
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
+import { findCanonViolations, buildCanonCorrectionPrompt, buildCanonLockBlock, violationSummary } from '@/lib/worldStateGuard';
 import { Quest, RawQuestOffer, normalizeQuestMap, questFromOffer, questTitle, applyQuestProgress, toStored, withQuestEvent, rewardSummary, WORLD_STATE_KEY, WorldStateEntry, normalizeWorldState, mergeWorldState, toStoredWorldState, worldEntryFromQuest, worldStateContextLines, buildQuestKickoffPrompt } from '@/lib/quests';
 import { SoloCharacterSheet, type SheetTab } from '@/components/ai-dm/SoloCharacterSheet';
 import { getSheetReturn, clearSheetReturn } from '@/lib/sheetReturn';
@@ -580,6 +581,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   // Refs for memory extraction — lets handleMessageComplete (defined before hooks) access late-initialized values
   const extractMemoryRef = useRef<((msg: string, anchors: any[], ctx: any) => void) | null>(null);
   const memoryAnchorsRef = useRef<any[]>([]);
+  // Canon guard — established world state plus a way to ask the DM to fix a slip
+  const worldStateEntriesRef = useRef<WorldStateEntry[]>([]);
+  const sendMessageRef = useRef<((text: string) => void) | null>(null);
+  const canonCorrectionPendingRef = useRef(false);
 
   const handleMessageComplete = useCallback((content: string) => {
     if (autoSync.autoSyncEnabled) {
@@ -591,6 +596,21 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     }
     // Always run memory extraction in the background via ref — avoids hook ordering issues
     extractMemoryRef.current?.(content, memoryAnchorsRef.current, characterContext);
+    // Canon guard: does this beat undo something the world has already settled?
+    const violations = findCanonViolations(content, worldStateEntriesRef.current);
+    if (violations.length > 0 && !canonCorrectionPendingRef.current) {
+      canonCorrectionPendingRef.current = true;
+      sonnerToast.warning('That beat breaks established world state', {
+        description: violationSummary(violations),
+        duration: 12000,
+        action: {
+          label: 'Ask the DM to fix it',
+          onClick: () => sendMessageRef.current?.(buildCanonCorrectionPrompt(violations)),
+        },
+      });
+    } else if (violations.length === 0) {
+      canonCorrectionPendingRef.current = false;
+    }
     // Auto-mood: detect narrative mood and switch Spotify preset
     spotify.playMoodForText(content);
   }, [autoSync.autoSyncEnabled, autoSync.extractAndApply, characterContext, spotify.playMoodForText]);
@@ -761,10 +781,9 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       if (block) prompt += '\n\n' + block;
     }
     // Established outcomes are facts. The DM must never contradict them.
-    const wsLines = worldStateContextLines(normalizeWorldState(gameState.quest_flags));
-    if (wsLines.length > 0) {
-      prompt += '\n\nWORLD STATE (established, irreversible — never contradict):\n' + wsLines.map(l => `- ${l}`).join('\n');
-    }
+    const wsEntries = normalizeWorldState(gameState.quest_flags);
+    const canonBlock = buildCanonLockBlock(wsEntries);
+    if (canonBlock) prompt += '\n\n' + canonBlock;
 
     return prompt;
   }, [gameState, weather]);
@@ -797,6 +816,14 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     activeCampaignIdKey: 'solo-active-campaign-id',
     coreRulesInGuides: defaultGuidePresent || isDefaultSoloGuideDeleted(),
   });
+
+  // Canon guard plumbing: fresh world state + a way to send the correction beat.
+  useEffect(() => { sendMessageRef.current = sendMessage; }, [sendMessage]);
+  useEffect(() => {
+    worldStateEntriesRef.current = normalizeWorldState(gameState.quest_flags);
+  }, [gameState.quest_flags]);
+
+
 
   // Auto-update Linked Universe story digest whenever the campaign summary changes
   useEffect(() => {
