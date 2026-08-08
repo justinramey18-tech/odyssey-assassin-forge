@@ -51,6 +51,7 @@ export const SCOPED_KEYS = [
   // character silently dropped you out of your own party.
   'odyssey-party-chat-background',
   'odyssey-party-chat-background-settings',
+  'odyssey-narration-style',
 
   // Narrative & AI
   'narrative-forge-saved-stories',

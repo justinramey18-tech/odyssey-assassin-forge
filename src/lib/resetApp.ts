@@ -101,6 +101,7 @@ const ALL_STORAGE_KEYS = [
   // Party chat background
   'odyssey-party-chat-background',
   'odyssey-party-chat-background-settings',
+  'odyssey-narration-style',
 ] as const;
 
 /**
