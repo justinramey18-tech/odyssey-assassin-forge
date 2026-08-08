@@ -294,6 +294,18 @@ export function PromptDrawerProvider({
     };
   }, [getScoreBreakdown]);
   const combatStats = useCombatStats({ character, equipmentStats, abilityModifiers });
+
+  // Per-item gear contribution breakdown (Stats tab, both the drawer and the in-DM sheet)
+  const gearBonuses = useMemo(
+    () => buildGearBonusData(
+      equipment,
+      equipmentStats,
+      combatStats,
+      getScoreBreakdown ? getScoreBreakdown('strength').total : 10,
+    ),
+    [equipment, equipmentStats, combatStats, getScoreBreakdown]
+  );
+
   
   // Cooldown system
   const cooldownSystem = useCooldowns({
