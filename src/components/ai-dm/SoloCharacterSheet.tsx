@@ -15,7 +15,10 @@ import {
 import { setSheetReturn, type SheetReturnOrigin } from '@/lib/sheetReturn';
 import { buildLootUseText } from '@/lib/loot/prompts';
 import { GearBonusBreakdown } from '@/components/character/GearBonusBreakdown';
-import { castSpellByName, describeSlotSpend } from '@/lib/magic/castBus';
+import type { CastSpellDefinition } from '@/lib/magic/castResolver';
+import { CastCard } from '@/components/magic/CastCard';
+import { RestPreviewSheet } from '@/components/magic/RestPreviewSheet';
+
 
 
 import { Button } from '@/components/ui/button';
