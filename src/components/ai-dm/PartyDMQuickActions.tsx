@@ -293,9 +293,30 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
           ))}
         </div>
       </CollapsibleContent>
+
+      <RollPreviewSheet
+        target={pending ? {
+          name: pending.name,
+          kind: pending.rollKind === 'spell' ? 'spell' : 'attack',
+          spellLevel: pending.spellLevel,
+          damageFormula: pending.damageFormula,
+          damageType: pending.damageType,
+          saveStat: pending.saveStat,
+          attackType: pending.attackType,
+          attackBonus: pending.attackBonus,
+          rulesText: pending.rulesText,
+        } : null}
+        onCancel={() => setPending(null)}
+        onConfirm={(choice) => {
+          const item = pending;
+          setPending(null);
+          if (item) runAttackOrSpell(item, choice);
+        }}
+      />
     </Collapsible>
   );
 }
+
 
 const EXECUTION_FIRE_AUDIO_URL = '/audio/dragon-execution-fire.mp3';
 const DRAGON_ROAR_AUDIO_URL = '/audio/dragon-roar.mp3';
