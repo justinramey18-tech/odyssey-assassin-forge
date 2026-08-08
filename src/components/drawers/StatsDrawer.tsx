@@ -52,6 +52,9 @@ interface StatsDrawerProps {
   prestigeLevel?: number;
   // Equipment stats
   equipmentStats?: AggregatedStats;
+  /** Per-item gear contribution breakdown. */
+  gearBonuses?: GearBonusData;
+
   // Ability Scores
   baseScores?: BaseAbilityScores;
   getScoreBreakdown?: (ability: AbilityName) => AbilityScoreBreakdown;
