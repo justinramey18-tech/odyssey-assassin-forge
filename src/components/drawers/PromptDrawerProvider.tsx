@@ -839,6 +839,8 @@ export function PromptDrawerProvider({
             tempHP={tempHP}
             onHPChange={onHPChange}
             equipmentStats={equipment ? equipmentStats : undefined}
+            gearBonuses={gearBonuses}
+
             constitutionModifier={constitutionModifier}
             prestigeLevel={prestigeLevel}
             baseScores={baseScores}
