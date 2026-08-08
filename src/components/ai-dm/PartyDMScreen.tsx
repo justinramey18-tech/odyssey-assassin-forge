@@ -145,6 +145,8 @@ interface PartyDMScreenProps {
   isMomoMoonDruid?: boolean;
   onShowOocChat?: () => void;
   onHPChange?: (change: number, type: 'damage' | 'healing') => void;
+  /** Applies a short/long rest to this player's own character. */
+  onRestOccurred?: (type: 'short' | 'long') => void;
   /** Decrement a consumable by name. Returns false when it is not in inventory. */
   onUseConsumableByName?: (name: string, quantity?: number) => boolean;
   swipeHandlers?: SwipeHandlers;
@@ -941,7 +943,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.reactions?.every((r, i) => r.id === next.reactions?.[i]?.id);
 });
 
-export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, hasPendingRedoRequest }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, hasPendingRedoRequest }: PartyDMScreenProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
@@ -4525,7 +4527,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onAddXP={() => {}}
           onManualLevelUp={onManualLevelUp}
           onConditionChange={() => {}}
-          onRest={() => {}}
+          onRest={onRestOccurred}
+          onRestPrompt={(text) => partyDmRef.current?.submitPrompt(text)}
           onAcceptItem={onAcceptItem}
           onUseLootItem={(text) => playerInputRef.current?.appendText(text)}
         />
