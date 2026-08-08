@@ -238,7 +238,10 @@ export function StatsDrawer({
       {/* Scrollable content */}
       <ScrollArea className="flex-1">
         <div className="space-y-6 p-4">
+          {gearBonuses && <GearBonusBreakdown data={gearBonuses} />}
+
           {/* Equipment Stats Section */}
+
           {equipmentStats && (
             <div className="space-y-3">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
