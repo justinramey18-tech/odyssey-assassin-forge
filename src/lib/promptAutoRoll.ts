@@ -10,6 +10,12 @@ export interface AttackRollResult {
   damageRolls: number[];
   damageDie: number;
   damageTotal: number;
+  /** Number of damage dice rolled, so the suffix can show the real formula. */
+  damageCount?: number;
+  /** The character's attack/spell attack bonus, already added to the d20. */
+  attackBonus?: number;
+  /** d20 + attackBonus. */
+  attackTotal?: number;
   mode: DiceOddsMode;
 }
 
@@ -54,13 +60,35 @@ export function parseDamageDice(formula: string | undefined): { count: number; d
   return { count: Math.min(20, Math.max(1, parseInt(m[1], 10))), die: Math.max(2, parseInt(m[2], 10)) };
 }
 
-export function rollAttack(kind: 'attack' | 'spell', damageFormula?: string): AttackRollResult {
+/** Flat modifier tacked onto a damage formula, e.g. the "+3" in "1d8+3". */
+export function parseDamageFlat(formula: string | undefined): number {
+  if (!formula) return 0;
+  const m = /^\s*\d{1,2}d\d{1,3}\s*([+-])\s*(\d{1,3})/i.exec(formula);
+  if (!m) return 0;
+  const n = parseInt(m[2], 10);
+  if (!Number.isFinite(n)) return 0;
+  return m[1] === '-' ? -n : n;
+}
+
+export function rollAttack(kind: 'attack' | 'spell', damageFormula?: string, attackBonus?: number): AttackRollResult {
   const mode = loadDiceOddsMode();
   const d20 = rollWeightedDie(20, mode);
   const dice = parseDamageDice(damageFormula) ?? { count: 1, die: 8 };
+  const flat = parseDamageFlat(damageFormula);
   const damageRolls = Array.from({ length: dice.count }, () => rollFair(dice.die));
   if (d20 === 20) for (let i = 0; i < dice.count; i++) damageRolls.push(rollFair(dice.die));
-  return { kind, d20, damageRolls, damageDie: dice.die, damageTotal: damageRolls.reduce((a, b) => a + b, 0), mode };
+  const bonus = Number.isFinite(attackBonus) ? Math.round(attackBonus as number) : undefined;
+  return {
+    kind,
+    d20,
+    damageRolls,
+    damageDie: dice.die,
+    damageCount: damageRolls.length,
+    damageTotal: Math.max(0, damageRolls.reduce((a, b) => a + b, 0) + flat),
+    attackBonus: bonus,
+    attackTotal: bonus === undefined ? undefined : d20 + bonus,
+    mode,
+  };
 }
 
 export function rollCheck(): CheckRollResult {
@@ -111,5 +139,9 @@ export function rollSuffix(roll: AnyRollResult): string {
     : roll.d20 === 1 ? ' NATURAL 1 — critical miss, the damage roll below is IGNORED and the attempt fails badly.'
     : '';
   const hitWord = roll.kind === 'spell' ? 'spell attack / potency roll' : 'attack roll';
-  return `\n\n[DICE — ${modeLabel} mode] To-hit d20: ${roll.d20} (${hitWord}, add the character's bonus from their sheet and compare to the target's AC).${critNote} Damage: ${roll.damageRolls.join(' + ')} (d${roll.damageDie}) = ${roll.damageTotal}, applied only if the attack lands. ${FINAL}`;
+  const hitLine = typeof roll.attackTotal === 'number'
+    ? `To-hit: d20 ${roll.d20} ${(roll.attackBonus ?? 0) >= 0 ? '+' : '-'} ${Math.abs(roll.attackBonus ?? 0)} = ${roll.attackTotal} (${hitWord}, already includes the character's bonus — compare to the target's AC).`
+    : `To-hit d20: ${roll.d20} (${hitWord}, add the character's bonus from their sheet and compare to the target's AC).`;
+  const dmgFormula = `${roll.damageCount ?? roll.damageRolls.length}d${roll.damageDie}`;
+  return `\n\n[DICE — ${modeLabel} mode] ${hitLine}${critNote} Damage: ${roll.damageRolls.join(' + ')} (${dmgFormula}) = ${roll.damageTotal}, applied only if the attack lands. ${FINAL}`;
 }
