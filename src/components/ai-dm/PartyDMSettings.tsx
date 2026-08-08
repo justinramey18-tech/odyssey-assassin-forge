@@ -196,6 +196,7 @@ export function PartyDMSettings({
   onChatBackgroundOpacityChange, onChatBackgroundBlurChange,
   onReclaimTurn, onRedoLastRound,
   moodPresetFilter, onMoodPresetSelected,
+  questRewardSplitMode = 'full', onQuestRewardSplitModeChange,
 }: PartyDMSettingsProps) {
   const bgFileInputRef = useRef<HTMLInputElement>(null);
   const originalCreator = isOriginalCreatorProp ?? isCreator;
