@@ -469,7 +469,7 @@ export function PromptDrawerProvider({
   // can spend the right slot (or pact slot) without prop-threading.
   useEffect(() => {
     if (!spellcasting) return;
-    return registerSpellCaster(({ name, level }) => {
+    return registerSpellCaster(({ name, level, slotLevel: requestedSlot, usePact: requestedPact }) => {
       const ids = Array.from(new Set([
         ...spellcasting.state.preparedSpells,
         ...spellcasting.state.knownSpells,
