@@ -52,7 +52,7 @@ import { useLinkedUniverse } from '@/hooks/use-linked-universe';
 import { LinkedUniverseSection } from '@/components/empyrean/LinkedUniverseSection';
 
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
-import { Quest, RawQuestOffer, normalizeQuestMap, questFromOffer, questTitle, applyQuestProgress, toStored } from '@/lib/quests';
+import { Quest, RawQuestOffer, normalizeQuestMap, questFromOffer, questTitle, applyQuestProgress, toStored, withQuestEvent, rewardSummary } from '@/lib/quests';
 import { SoloCharacterSheet, type SheetTab } from '@/components/ai-dm/SoloCharacterSheet';
 import { getSheetReturn, clearSheetReturn } from '@/lib/sheetReturn';
 import { CharacterSheetStrip } from '@/components/ai-dm/CharacterSheetStrip';
