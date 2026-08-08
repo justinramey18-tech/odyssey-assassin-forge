@@ -31,6 +31,7 @@ import { usePartyChatBackground } from '@/hooks/use-party-chat-background';
 import { PartyMemoryAnchorsPanel } from './PartyMemoryAnchorsPanel';
 import { PartyQuestsPanel } from './PartyQuestsPanel';
 import { usePartyQuests } from '@/hooks/use-party-quests';
+import { useQuestRewardSplit } from '@/hooks/use-quest-reward-split';
 import { withQuestEvent } from '@/lib/quests';
 
 import { DMComposePanel } from './DMComposePanel';
