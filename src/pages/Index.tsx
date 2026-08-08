@@ -529,7 +529,7 @@ const Index = () => {
   // Re-read HP when a different character is loaded so the bars show the right hero
   useEffect(() => {
     const handleCharacterLoaded = () => {
-      setHpState(prev => readStoredHPState(prev));
+      setHpState(readStoredHPState());
     };
     window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
     return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
