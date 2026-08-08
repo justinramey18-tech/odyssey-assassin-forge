@@ -59,18 +59,45 @@ function generateWeaponPrompt(name: string, characterName: string): string {
   );
 }
 
-function generateAbilityPrompt(name: string, tier: number, characterName: string): string {
+function generateAbilityPrompt(
+  name: string,
+  tier: number,
+  characterName: string,
+  detail?: { effect?: string; dice?: string; actionType?: string; isHomebrew?: boolean },
+): string {
+  const bits: string[] = [];
+  if (detail?.effect) bits.push(` Its rules text: ${detail.effect}`);
+  if (detail?.dice) bits.push(` It rolls ${detail.dice}.`);
+  if (detail?.actionType) bits.push(` Used as a ${detail.actionType.replace(/_/g, ' ')}.`);
+  if (detail?.isHomebrew) bits.push(' This is a custom ability — follow the rules text exactly, do not substitute a similar power.');
   return applyTimePrefix(
-    `${characterName} uses ${name} (Tier ${tier}). Describe the activation, visual effects, and immediate impact in vivid detail. Keep it under 80 words.`
+    `${characterName} uses ${name} (Tier ${tier}).${bits.join('')} Describe the activation, visual effects, and immediate impact in vivid detail. Keep it under 80 words.`
   );
 }
 
-function generateSpellPrompt(name: string, characterName: string, isCantrip: boolean): string {
+function generateSpellPrompt(
+  name: string,
+  characterName: string,
+  isCantrip: boolean,
+  detail?: {
+    level?: number; school?: string; description?: string; damageFormula?: string; damageType?: string;
+    healingFormula?: string; saveStat?: string; attackType?: string; isHomebrew?: boolean;
+  },
+): string {
   const type = isCantrip ? 'cantrip' : 'spell';
+  const bits: string[] = [];
+  if (detail?.school) bits.push(` ${detail.school} school${typeof detail.level === 'number' ? `, level ${detail.level}` : ''}.`);
+  if (detail?.description) bits.push(` Its rules text: ${detail.description}`);
+  if (detail?.damageFormula) bits.push(` Damage ${detail.damageFormula}${detail.damageType ? ` ${detail.damageType}` : ''}.`);
+  if (detail?.healingFormula) bits.push(` Healing ${detail.healingFormula}.`);
+  if (detail?.saveStat) bits.push(` Target makes a ${String(detail.saveStat).toUpperCase()} save.`);
+  if (detail?.attackType) bits.push(` Resolved as a ${String(detail.attackType).replace(/_/g, ' ')} attack.`);
+  if (detail?.isHomebrew) bits.push(' This is a custom spell — follow the rules text exactly, do not substitute a similar spell.');
   return applyTimePrefix(
-    `${characterName} casts ${name} (${type}). Describe the somatic/verbal components, the magical manifestation, and its effect. Keep it under 80 words.`
+    `${characterName} casts ${name} (${type}).${bits.join('')} Describe the somatic/verbal components, the magical manifestation, and its effect. Keep it under 80 words.`
   );
 }
+
 
 interface EffectDice {
   count: number;
