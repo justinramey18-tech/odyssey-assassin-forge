@@ -443,7 +443,10 @@ export function SoloCharacterSheet({
               )}
             </Section>
 
+            {ctx.gearBonuses && <GearBonusBreakdown data={ctx.gearBonuses} />}
+
             <Section title="Ability Scores" icon={Sparkles}>
+
               {!scores ? (
                 <p className="text-xs text-white/40 text-center py-2">No ability scores recorded.</p>
               ) : (
