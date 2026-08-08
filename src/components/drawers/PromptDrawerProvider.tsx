@@ -45,6 +45,8 @@ import { allAbilities } from '@/lib/abilities';
 import { useAbilityCustomization } from '@/hooks/use-ability-customization';
 import { getCustomizedAbilities } from '@/lib/abilityCustomization';
 import { getSpellById } from '@/lib/magic/spells';
+import { registerSpellCaster } from '@/lib/magic/castBus';
+
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { AbilityName, BaseAbilityScores, AbilityScoreBreakdown } from '@/lib/abilityScores/types';
