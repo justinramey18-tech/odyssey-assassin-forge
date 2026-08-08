@@ -11,6 +11,8 @@ import { getHealingDiceForItem, type HealingDice } from '@/lib/consumables/heali
 import { requestDiceRoll } from '@/lib/diceRollBus';
 import { castSpellByName, describeSlotSpend, getMagicResources } from '@/lib/magic/castBus';
 import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic/castResolver';
+import { RollPreviewSheet, type RollPreviewChoice } from '@/components/magic/RollPreviewSheet';
+
 
 import type { CharacterContext } from '@/components/oracle/types';
 
@@ -57,8 +59,13 @@ interface QuickActionItem {
   spellLevel?: number;
   /** To-hit bonus added to the d20 for weapon attacks. */
   attackBonus?: number;
-
+  /** Extra facts shown in the pre-roll breakdown. */
+  damageType?: string;
+  saveStat?: string;
+  attackType?: string;
+  rulesText?: string;
 }
+
 
 function generateWeaponPrompt(name: string, characterName: string): string {
   return applyTimePrefix(
@@ -156,6 +163,57 @@ interface SectionProps {
 
 function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = false, onHeal, onCloseDrawer }: SectionProps) {
   const [open, setOpen] = useState(defaultOpen);
+  // The attack/spell about to be rolled, held while the player checks the maths.
+  const [pending, setPending] = useState<QuickActionItem | null>(null);
+
+  const runAttackOrSpell = (item: QuickActionItem, choice: RollPreviewChoice) => {
+    // Casting from quick actions spends the real slot first, so a
+    // spell the character can no longer afford never reaches the DM.
+    let slotNote = '';
+    let spentSlotLevel: number | undefined;
+    if (item.rollKind === 'spell') {
+      const outcome = castSpellByName({
+        name: item.name,
+        level: item.spellLevel,
+        slotLevel: choice.slotLevel,
+        usePact: choice.usePact,
+      });
+      if (!outcome.ok && outcome.reason === 'no-slots') {
+        toast.error(`No spell slot left for ${item.name}.`);
+        return;
+      }
+      if (outcome.ok && !outcome.isCantrip) {
+        spentSlotLevel = typeof outcome.slotLevel === 'number' ? outcome.slotLevel : undefined;
+        slotNote = outcome.usedPactSlot
+          ? ` A pact slot was spent (${outcome.remaining ?? 0} left).`
+          : typeof outcome.slotLevel === 'number'
+            ? ` A level ${outcome.slotLevel} slot was spent (${outcome.remaining ?? 0} left).`
+            : '';
+        const spend = describeSlotSpend(outcome);
+        if (spend) toast.success(`${item.name} cast`, { description: spend });
+      }
+    }
+    // Scale the damage dice for the slot actually spent, so an
+    // upcast Fireball rolls the bigger die pool.
+    let damageFormula = item.damageFormula;
+    if (item.rollKind === 'spell' && typeof item.spellLevel === 'number' && item.spellLevel > 0 && typeof spentSlotLevel === 'number') {
+      const parsed = parseDiceFormula(damageFormula);
+      if (parsed) damageFormula = formatDiceFormula(scaleForUpcast(parsed, item.spellLevel, spentSlotLevel));
+    }
+    const attackBonus = item.rollKind === 'spell'
+      ? getMagicResources()?.spellAttackBonus
+      : item.attackBonus;
+    const roll = rollAttack(item.rollKind === 'spell' ? 'spell' : 'attack', damageFormula, attackBonus);
+    onCloseDrawer?.();
+    requestDiceRoll({
+      title: item.name,
+      roll,
+      onComplete: () => {
+        onUse(item.prompt + rollSuffix(roll) + slotNote);
+        toast.success('Prompt added to input');
+      },
+    });
+  };
 
   if (items.length === 0) return null;
 
@@ -182,49 +240,11 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                   if (item.rollKind === 'heal' && item.healingDice && onHeal) {
                     onHeal(item);
                   } else if (item.rollKind === 'attack' || item.rollKind === 'spell') {
-                    // Casting from quick actions spends the real slot first, so a
-                    // spell the character can no longer afford never reaches the DM.
-                    let slotNote = '';
-                    let spentSlotLevel: number | undefined;
-                    if (item.rollKind === 'spell') {
-                      const outcome = castSpellByName({ name: item.name, level: item.spellLevel });
-                      if (!outcome.ok && outcome.reason === 'no-slots') {
-                        toast.error(`No spell slot left for ${item.name}.`);
-                        return;
-                      }
-                      if (outcome.ok && !outcome.isCantrip) {
-                        spentSlotLevel = typeof outcome.slotLevel === 'number' ? outcome.slotLevel : undefined;
-                        slotNote = outcome.usedPactSlot
-                          ? ` A pact slot was spent (${outcome.remaining ?? 0} left).`
-                          : typeof outcome.slotLevel === 'number'
-                            ? ` A level ${outcome.slotLevel} slot was spent (${outcome.remaining ?? 0} left).`
-                            : '';
-                        const spend = describeSlotSpend(outcome);
-                        if (spend) toast.success(`${item.name} cast`, { description: spend });
-                      }
-                    }
-                    // Scale the damage dice for the slot actually spent, so an
-                    // upcast Fireball rolls the bigger die pool.
-                    let damageFormula = item.damageFormula;
-                    if (item.rollKind === 'spell' && typeof item.spellLevel === 'number' && item.spellLevel > 0 && typeof spentSlotLevel === 'number') {
-                      const parsed = parseDiceFormula(damageFormula);
-                      if (parsed) damageFormula = formatDiceFormula(scaleForUpcast(parsed, item.spellLevel, spentSlotLevel));
-                    }
-                    const attackBonus = item.rollKind === 'spell'
-                      ? getMagicResources()?.spellAttackBonus
-                      : item.attackBonus;
-                    const roll = rollAttack(item.rollKind, damageFormula, attackBonus);
-                    onCloseDrawer?.();
-                    requestDiceRoll({
-                      title: item.name,
-                      roll,
-                      onComplete: () => {
-                        onUse(item.prompt + rollSuffix(roll) + slotNote);
-                        toast.success('Prompt added to input');
-                      },
-                    });
+                    // Show the maths first — the roll only happens on confirm.
+                    setPending(item);
                   } else if (item.rollKind === 'check') {
                     const roll = rollCheck();
+
                     onCloseDrawer?.();
                     requestDiceRoll({
                       title: item.name,
@@ -275,9 +295,30 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
           ))}
         </div>
       </CollapsibleContent>
+
+      <RollPreviewSheet
+        target={pending ? {
+          name: pending.name,
+          kind: pending.rollKind === 'spell' ? 'spell' : 'attack',
+          spellLevel: pending.spellLevel,
+          damageFormula: pending.damageFormula,
+          damageType: pending.damageType,
+          saveStat: pending.saveStat,
+          attackType: pending.attackType,
+          attackBonus: pending.attackBonus,
+          rulesText: pending.rulesText,
+        } : null}
+        onCancel={() => setPending(null)}
+        onConfirm={(choice) => {
+          const item = pending;
+          setPending(null);
+          if (item) runAttackOrSpell(item, choice);
+        }}
+      />
     </Collapsible>
   );
 }
+
 
 const EXECUTION_FIRE_AUDIO_URL = '/audio/dragon-execution-fire.mp3';
 const DRAGON_ROAR_AUDIO_URL = '/audio/dragon-roar.mp3';
@@ -442,7 +483,12 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         rollKind: 'spell' as const,
         spellLevel: typeof full.level === 'number' ? full.level : undefined,
         damageFormula: full.damageFormula,
+        damageType: full.damageType,
+        saveStat: full.saveStat,
+        attackType: full.attackType,
+        rulesText: full.description,
       };
+
       if (full.isHomebrew) {
         homebrewSpells.push(item);
       } else if (isCantrip) {
