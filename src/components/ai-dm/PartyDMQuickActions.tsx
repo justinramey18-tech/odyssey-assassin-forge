@@ -11,6 +11,8 @@ import { getHealingDiceForItem, type HealingDice } from '@/lib/consumables/heali
 import { requestDiceRoll } from '@/lib/diceRollBus';
 import { castSpellByName, describeSlotSpend, getMagicResources } from '@/lib/magic/castBus';
 import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic/castResolver';
+import { RollPreviewSheet, type RollPreviewChoice } from '@/components/magic/RollPreviewSheet';
+
 
 import type { CharacterContext } from '@/components/oracle/types';
 
