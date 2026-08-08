@@ -140,6 +140,30 @@ export interface CharacterContext {
     preparedSpells: string[];
     slots: Array<{ level: number; current: number; max: number }>;
     pactSlots?: { current: number; max: number; level: number };
+    /** Full details for every prepared spell (standard and homebrew). UI-facing; the
+     *  model already receives homebrewSpells separately. */
+    preparedSpellDetails?: Array<{
+      name: string;
+      level: number;
+      school: string;
+      castingTime: string;
+      range: string;
+      duration: string;
+      concentration: boolean;
+      ritual: boolean;
+      description?: string;
+      higherLevels?: string;
+      attackType?: string;
+      saveStat?: string;
+      damageType?: string;
+      damageFormula?: string;
+      healingFormula?: string;
+      verbal?: boolean;
+      somatic?: boolean;
+      material?: string;
+      isHomebrew?: boolean;
+    }>;
+
     /** Full stat blocks for player-created spells. The model has never seen these,
      *  so the name alone is not enough for it to run them. */
     homebrewSpells?: Array<{
