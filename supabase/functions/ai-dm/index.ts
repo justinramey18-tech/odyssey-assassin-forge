@@ -941,7 +941,14 @@ serve(async (req) => {
       systemPrompt = lean.join('\n\n');
     } else {
       // Use override if provided (e.g. whisper regeneration), otherwise build full DM prompt
-      systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt);
+      const override = systemPromptOverride?.trim();
+      if (override) {
+        systemPrompt = narrationStylePrompt && narrationStylePrompt.trim()
+          ? `${override}\n\n${narrationStylePrompt.trim()}`
+          : override;
+      } else {
+        systemPrompt = buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt);
+      }
 
       if (npcVoicingContext) {
         systemPrompt = systemPrompt + "\n\n" + npcVoicingContext;
