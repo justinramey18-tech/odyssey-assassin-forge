@@ -3683,6 +3683,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           ) : undefined}
           settingsContent={activeNavTab === 'settings' ? (
             <PartyDMSettings
+              questRewardSplitMode={questRewardSplit.mode}
+              onQuestRewardSplitModeChange={questRewardSplit.setMode}
               moodPresetFilter={!isEmpyrean ? PARTY_MOOD_PRESETS : undefined}
               onMoodPresetSelected={(presetId) => {
                 lastPlayedMoodRef.current = presetId;
