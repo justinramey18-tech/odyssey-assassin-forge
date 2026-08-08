@@ -15,6 +15,8 @@ import {
 import { setSheetReturn, type SheetReturnOrigin } from '@/lib/sheetReturn';
 import { buildLootUseText } from '@/lib/loot/prompts';
 import { GearBonusBreakdown } from '@/components/character/GearBonusBreakdown';
+import { castSpellByName, describeSlotSpend } from '@/lib/magic/castBus';
+
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -98,6 +100,60 @@ export function SoloCharacterSheet({
   const [pending, setPending] = useState<PendingDmItem[]>([]);
   /** Which ability/spell row is expanded in the Abilities tab. Keys: "ability:<tree>-<name>" / "spell:<name>" */
   const [expandedDetail, setExpandedDetail] = useState<string | null>(null);
+
+  // Casting from the sheet spends a real slot. A spell is castable when the
+  // character still has a slot of its level or higher (or a pact slot big enough).
+  const canCastSpellLevel = useCallback((level: number) => {
+    if (level === 0) return true;
+    const sc = ctx.spellcasting;
+    if (!sc) return false;
+    const hasSlot = (sc.slots || []).some(s => s.level >= level && s.current > 0);
+    const hasPact = !!sc.pactSlots && sc.pactSlots.current > 0 && sc.pactSlots.level >= level;
+    return hasSlot || hasPact;
+  }, [ctx.spellcasting]);
+
+  const handleCastSpell = useCallback((s: { name: string; level?: number; description?: string; damageFormula?: string; damageType?: string; healingFormula?: string; saveStat?: string; attackType?: string; school?: string; isHomebrew?: boolean }) => {
+    const outcome = castSpellByName({ name: s.name, level: s.level });
+
+    if (!outcome.ok) {
+      if (outcome.reason === 'no-slots') {
+        toast.error(`No spell slot left for ${s.name}.`);
+        return;
+      }
+      if (outcome.reason === 'unknown-spell' || outcome.reason === 'no-caster') {
+        toast.error(`${s.name} could not be tracked — cast it from the Arcana tab.`);
+        return;
+      }
+    }
+
+    const spend = describeSlotSpend(outcome);
+    toast.success(`${s.name} cast`, spend ? { description: spend } : undefined);
+
+    // Stage a rules-accurate sentence in the DM composer so the narration
+    // matches what the sheet just spent.
+    if (onUseLootItem) {
+      const bits: string[] = [];
+      if (typeof s.level === 'number') bits.push(s.level === 0 ? 'a cantrip' : `a level ${s.level} spell`);
+      if (s.school) bits.push(`${s.school} school`);
+      const meta = bits.length ? ` (${bits.join(', ')})` : '';
+      const rules = s.description ? ` Its rules text: ${s.description}` : '';
+      const dice = s.damageFormula
+        ? ` It deals ${s.damageFormula}${s.damageType ? ` ${s.damageType}` : ''} damage.`
+        : s.healingFormula ? ` It heals ${s.healingFormula}.` : '';
+      const save = s.saveStat ? ` The target makes a ${String(s.saveStat).toUpperCase()} save.` : '';
+      const custom = s.isHomebrew ? ' This is a custom spell — follow the rules text exactly.' : '';
+      const slotLine = outcome.isCantrip
+        ? ' No spell slot was spent.'
+        : outcome.usedPactSlot
+          ? ` A pact slot was spent (${outcome.remaining ?? 0} left).`
+          : typeof outcome.slotLevel === 'number'
+            ? ` A level ${outcome.slotLevel} slot was spent (${outcome.remaining ?? 0} left).`
+            : '';
+      onUseLootItem(`I cast ${s.name}${meta}.${rules}${dice}${save}${custom}${slotLine}`);
+    }
+  }, [onUseLootItem]);
+
+
 
   const { multiplier } = useXPProgression();
   const identity = useCharacterIdentity();
@@ -620,6 +676,45 @@ export function SoloCharacterSheet({
                   <p>Spell attack {ctx.spellcasting.spellAttackBonus >= 0 ? '+' : ''}{ctx.spellcasting.spellAttackBonus} · Save DC {ctx.spellcasting.spellSaveDC}</p>
                   <p>{ctx.spellcasting.totalSlotsRemaining} slots remaining</p>
                   {ctx.spellcasting.concentratingOn && <p className="text-purple-300">Concentrating on {ctx.spellcasting.concentratingOn}</p>}
+
+                  {/* Remaining uses, level by level */}
+                  {((ctx.spellcasting.slots?.length ?? 0) > 0 || ctx.spellcasting.pactSlots) && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {(ctx.spellcasting.slots || []).filter(sl => sl.max > 0).map(sl => (
+                        <div key={`slot-${sl.level}`} className="flex items-center gap-1">
+                          <span className="text-[10px] text-white/40">Lv {sl.level}</span>
+                          <div className="flex gap-0.5">
+                            {Array.from({ length: sl.max }).map((_, i) => (
+                              <span
+                                key={i}
+                                className={cn(
+                                  'w-2 h-2 rounded-full',
+                                  i < sl.current ? 'bg-indigo-400' : 'bg-white/10 border border-white/15',
+                                )}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                      {ctx.spellcasting.pactSlots && ctx.spellcasting.pactSlots.max > 0 && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-violet-300/70">Pact Lv {ctx.spellcasting.pactSlots.level}</span>
+                          <div className="flex gap-0.5">
+                            {Array.from({ length: ctx.spellcasting.pactSlots.max }).map((_, i) => (
+                              <span
+                                key={i}
+                                className={cn(
+                                  'w-2 h-2 rounded-full',
+                                  i < ctx.spellcasting!.pactSlots!.current ? 'bg-violet-400' : 'bg-white/10 border border-white/15',
+                                )}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {(ctx.spellcasting.preparedSpellDetails?.length ?? 0) > 0 ? (
                     <div className="space-y-1.5 pt-1">
                       {ctx.spellcasting.preparedSpellDetails!.map(s => {
@@ -638,23 +733,40 @@ export function SoloCharacterSheet({
                           [s.verbal ? 'V' : null, s.somatic ? 'S' : null, s.material ? 'M' : null].filter(Boolean).join('/') || null,
                         ].filter(Boolean) as string[];
                         const hasDetail = Boolean(s.description) || lines.length > 0;
+                        const castable = canCastSpellLevel(s.level ?? 0);
                         return (
                           <div key={key} className="rounded-lg border border-white/10 bg-white/[0.03]">
-                            <button
-                              type="button"
-                              disabled={!hasDetail}
-                              onClick={() => setExpandedDetail(isOpen ? null : key)}
-                              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left min-h-[44px]"
-                              style={{ touchAction: 'manipulation' }}
-                            >
-                              <span className="flex items-center gap-1.5 min-w-0">
-                                <span className="text-xs text-foreground truncate">{s.name}</span>
-                                {s.isHomebrew && <Badge variant="outline" className="text-[9px] border-amber-400/50 text-amber-300 shrink-0">Homebrew</Badge>}
-                              </span>
-                              <span className="text-[10px] text-white/40 shrink-0 capitalize">
-                                {s.level === 0 ? 'Cantrip' : `Lv ${s.level}`}{s.school ? ` · ${s.school}` : ''}
-                              </span>
-                            </button>
+                            <div className="flex items-stretch">
+                              <button
+                                type="button"
+                                disabled={!hasDetail}
+                                onClick={() => setExpandedDetail(isOpen ? null : key)}
+                                className="flex-1 min-w-0 flex items-center justify-between gap-2 px-3 py-2 text-left min-h-[44px]"
+                                style={{ touchAction: 'manipulation' }}
+                              >
+                                <span className="flex items-center gap-1.5 min-w-0">
+                                  <span className="text-xs text-foreground truncate">{s.name}</span>
+                                  {s.isHomebrew && <Badge variant="outline" className="text-[9px] border-amber-400/50 text-amber-300 shrink-0">Homebrew</Badge>}
+                                </span>
+                                <span className="text-[10px] text-white/40 shrink-0 capitalize">
+                                  {s.level === 0 ? 'Cantrip' : `Lv ${s.level}`}{s.school ? ` · ${s.school}` : ''}
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!castable}
+                                onClick={() => handleCastSpell(s)}
+                                className={cn(
+                                  'shrink-0 px-3 min-h-[44px] text-[10px] font-semibold uppercase tracking-wide border-l border-white/10',
+                                  castable
+                                    ? 'text-indigo-300 hover:bg-indigo-500/10'
+                                    : 'text-white/25',
+                                )}
+                                style={{ touchAction: 'manipulation' }}
+                              >
+                                {castable ? 'Cast' : 'No slot'}
+                              </button>
+                            </div>
                             {isOpen && hasDetail && (
                               <div className="px-3 pb-2.5 space-y-1">
                                 {lines.length > 0 && (
@@ -669,13 +781,24 @@ export function SoloCharacterSheet({
                       })}
                     </div>
                   ) : ctx.spellcasting.preparedSpells?.length > 0 ? (
-                    <div className="flex flex-wrap gap-1 pt-1">
+                    <div className="space-y-1.5 pt-1">
                       {ctx.spellcasting.preparedSpells.map(s => (
-                        <Badge key={s} variant="outline" className="text-[10px]">{s}</Badge>
+                        <div key={s} className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3">
+                          <span className="text-xs text-foreground truncate py-2">{s}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleCastSpell({ name: s })}
+                            className="shrink-0 px-2 min-h-[44px] text-[10px] font-semibold uppercase tracking-wide text-indigo-300"
+                            style={{ touchAction: 'manipulation' }}
+                          >
+                            Cast
+                          </button>
+                        </div>
                       ))}
                     </div>
                   ) : null}
                 </div>
+
               </Section>
             )}
 

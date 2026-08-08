@@ -9,6 +9,8 @@ import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { rollAttack, rollCheck, rollHealing, rollEffect, rollSuffix, type HealRollResult } from '@/lib/promptAutoRoll';
 import { getHealingDiceForItem, type HealingDice } from '@/lib/consumables/healing';
 import { requestDiceRoll } from '@/lib/diceRollBus';
+import { castSpellByName, describeSlotSpend } from '@/lib/magic/castBus';
+
 import type { CharacterContext } from '@/components/oracle/types';
 
 export type QuickActionRemoveCategory = 'weapon' | 'ability' | 'spell' | 'cantrip' | 'consumable' | 'prestige' | 'homebrew-ability' | 'homebrew-spell';
@@ -50,6 +52,8 @@ interface QuickActionItem {
   healingDice?: HealingDice;
   /** Plain dice for 'effect' items (non-healing consumables that carry dice). */
   effectDice?: EffectDice;
+  /** Base level for spells, so tapping can spend the right slot (0 = cantrip). */
+  spellLevel?: number;
 
 }
 
@@ -173,12 +177,31 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                   if (item.rollKind === 'heal' && item.healingDice && onHeal) {
                     onHeal(item);
                   } else if (item.rollKind === 'attack' || item.rollKind === 'spell') {
+                    // Casting from quick actions spends the real slot first, so a
+                    // spell the character can no longer afford never reaches the DM.
+                    let slotNote = '';
+                    if (item.rollKind === 'spell') {
+                      const outcome = castSpellByName({ name: item.name, level: item.spellLevel });
+                      if (!outcome.ok && outcome.reason === 'no-slots') {
+                        toast.error(`No spell slot left for ${item.name}.`);
+                        return;
+                      }
+                      if (outcome.ok && !outcome.isCantrip) {
+                        slotNote = outcome.usedPactSlot
+                          ? ` A pact slot was spent (${outcome.remaining ?? 0} left).`
+                          : typeof outcome.slotLevel === 'number'
+                            ? ` A level ${outcome.slotLevel} slot was spent (${outcome.remaining ?? 0} left).`
+                            : '';
+                        const spend = describeSlotSpend(outcome);
+                        if (spend) toast.success(`${item.name} cast`, { description: spend });
+                      }
+                    }
                     const roll = rollAttack(item.rollKind, item.damageFormula);
                     requestDiceRoll({
                       title: item.name,
                       roll,
                       onComplete: () => {
-                        onUse(item.prompt + rollSuffix(roll));
+                        onUse(item.prompt + rollSuffix(roll) + slotNote);
                         toast.success('Prompt added to input');
                       },
                     });
@@ -396,6 +419,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         }),
         removeCategory: full.isHomebrew ? 'homebrew-spell' as const : isCantrip ? 'cantrip' as const : 'spell' as const,
         rollKind: 'spell' as const,
+        spellLevel: typeof full.level === 'number' ? full.level : undefined,
       };
       if (full.isHomebrew) {
         homebrewSpells.push(item);
