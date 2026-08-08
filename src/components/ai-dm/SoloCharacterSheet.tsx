@@ -446,14 +446,15 @@ export function SoloCharacterSheet({
 
             <Section title="Rest" icon={Moon}>
               <div className="flex gap-2">
-                <Button variant="outline" className="flex-1 min-h-[48px] gap-1.5" onClick={() => onRest?.('short')}>
+                <Button variant="outline" className="flex-1 min-h-[48px] gap-1.5" onClick={() => setRestPreview('short')} style={{ touchAction: 'manipulation' }}>
                   <Sun className="w-4 h-4" /> Short Rest
                 </Button>
-                <Button variant="outline" className="flex-1 min-h-[48px] gap-1.5" onClick={() => onRest?.('long')}>
+                <Button variant="outline" className="flex-1 min-h-[48px] gap-1.5" onClick={() => setRestPreview('long')} style={{ touchAction: 'manipulation' }}>
                   <Moon className="w-4 h-4" /> Long Rest
                 </Button>
               </div>
             </Section>
+
           </>
         )}
 
