@@ -158,7 +158,10 @@ export function normalizeQuest(key: string, raw: any): Quest {
 
 export function normalizeQuestMap(raw: Record<string, any> | undefined | null): Quest[] {
   if (!raw || typeof raw !== 'object') return [];
-  return Object.entries(raw).map(([key, value]) => normalizeQuest(key, value));
+  return Object.entries(raw)
+    // Reserved buckets (world state log) live in the same map but are not quests.
+    .filter(([key]) => !key.startsWith('__'))
+    .map(([key, value]) => normalizeQuest(key, value));
 }
 
 /** A quest offer as produced by the background extractor. */
@@ -277,4 +280,129 @@ export function questContextLine(q: Quest): string {
     bits.push(`reward: ${q.xpReward ? `${q.xpReward} XP` : ''}${q.xpReward && q.goldReward ? ', ' : ''}${q.goldReward ? `${q.goldReward} gp` : ''}`);
   }
   return bits.join(' | ');
+}
+
+// ─── World state / plot impact ────────────────────────────────────────────────
+// Major, irreversible outcomes of the story ("the Ring was destroyed", "Lord
+// Varn is dead", "the bridge is burned"). Stored inside the same quest_flags
+// map under a reserved key so no migration is needed; normalizeQuestMap skips it.
+
+export const WORLD_STATE_KEY = '__world_state__';
+
+export type WorldImpact = 'minor' | 'major' | 'seismic';
+export type WorldScope = 'world' | 'faction' | 'location' | 'npc' | 'party' | 'item';
+
+export interface WorldStateEntry {
+  id: string;
+  /** ISO timestamp of when it was recorded. */
+  at: string;
+  /** Short headline, e.g. "The One Ring is destroyed". */
+  title: string;
+  /** What it means going forward. */
+  consequence?: string;
+  scope: WorldScope;
+  impact: WorldImpact;
+  /** Quest this outcome came out of, when it came from one. */
+  questKey?: string;
+}
+
+const IMPACTS: WorldImpact[] = ['minor', 'major', 'seismic'];
+const SCOPES: WorldScope[] = ['world', 'faction', 'location', 'npc', 'party', 'item'];
+const MAX_WORLD_ENTRIES = 60;
+
+export const IMPACT_META: Record<WorldImpact, { label: string; className: string }> = {
+  minor: { label: 'Minor', className: 'text-sky-300 border-sky-500/40 bg-sky-500/10' },
+  major: { label: 'Major', className: 'text-amber-300 border-amber-500/40 bg-amber-500/10' },
+  seismic: { label: 'Seismic', className: 'text-fuchsia-300 border-fuchsia-500/40 bg-fuchsia-500/10' },
+};
+
+export const SCOPE_LABEL: Record<WorldScope, string> = {
+  world: 'World',
+  faction: 'Faction',
+  location: 'Location',
+  npc: 'Character',
+  party: 'Party',
+  item: 'Artifact',
+};
+
+function worldIdFrom(title: string): string {
+  return `ws_${questKeyFrom(title) || Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function normalizeWorldEntry(raw: any): WorldStateEntry | null {
+  const title = String(raw?.title ?? '').trim().slice(0, 140);
+  if (!title) return null;
+  return {
+    id: String(raw?.id ?? worldIdFrom(title)),
+    at: raw?.at ? String(raw.at) : new Date().toISOString(),
+    title,
+    consequence: raw?.consequence ? String(raw.consequence).slice(0, 400) : undefined,
+    scope: SCOPES.includes(raw?.scope) ? (raw.scope as WorldScope) : 'world',
+    impact: IMPACTS.includes(raw?.impact) ? (raw.impact as WorldImpact) : 'major',
+    questKey: raw?.questKey ? String(raw.questKey).slice(0, 60) : undefined,
+  };
+}
+
+/** Read the world-state log out of a stored quest_flags map. */
+export function normalizeWorldState(rawMap: Record<string, any> | undefined | null): WorldStateEntry[] {
+  const bucket = rawMap?.[WORLD_STATE_KEY];
+  const list = Array.isArray(bucket?.entries) ? bucket.entries : [];
+  return list
+    .map(normalizeWorldEntry)
+    .filter((e: WorldStateEntry | null): e is WorldStateEntry => !!e)
+    .slice(-MAX_WORLD_ENTRIES);
+}
+
+/** Serialise entries back into the reserved quest_flags bucket. */
+export function toStoredWorldState(entries: WorldStateEntry[]): Record<string, any> {
+  return {
+    status: 'unknown',
+    entries: entries.slice(-MAX_WORLD_ENTRIES),
+    updated_at: new Date().toISOString(),
+  };
+}
+
+/**
+ * Fold new outcomes into the log, skipping anything already recorded.
+ * Returns the merged list plus only the entries that were genuinely new.
+ */
+export function mergeWorldState(
+  existing: WorldStateEntry[],
+  incoming: any[],
+): { entries: WorldStateEntry[]; added: WorldStateEntry[] } {
+  const seen = new Set(existing.map(e => e.title.toLowerCase().trim()));
+  const added: WorldStateEntry[] = [];
+  for (const raw of Array.isArray(incoming) ? incoming.slice(0, 6) : []) {
+    const entry = normalizeWorldEntry(raw);
+    if (!entry) continue;
+    const fingerprint = entry.title.toLowerCase().trim();
+    if (seen.has(fingerprint)) continue;
+    seen.add(fingerprint);
+    added.push(entry);
+  }
+  if (added.length === 0) return { entries: existing, added };
+  return { entries: [...existing, ...added].slice(-MAX_WORLD_ENTRIES), added };
+}
+
+/** The outcome of a finished quest, recorded as a plot impact. */
+export function worldEntryFromQuest(quest: Quest): WorldStateEntry {
+  const done = quest.status === 'completed';
+  return {
+    id: `ws_${quest.key}_${done ? 'done' : 'failed'}`,
+    at: new Date().toISOString(),
+    title: `${done ? 'Completed' : 'Failed'}: ${questTitle(quest)}`,
+    consequence: done
+      ? `The party saw this through${quest.xpReward || quest.goldReward ? ` and was paid ${rewardSummary(quest)}` : ''}.`
+      : 'This job ended badly and will not be paid out.',
+    scope: quest.questType === 'main' ? 'world' : 'party',
+    impact: quest.questType === 'main' ? 'major' : 'minor',
+    questKey: quest.key,
+  };
+}
+
+/** Lines fed to the AI DM so it never contradicts an established outcome. */
+export function worldStateContextLines(entries: WorldStateEntry[]): string[] {
+  return entries
+    .slice(-8)
+    .map(e => `${e.title}${e.consequence ? ` — ${e.consequence}` : ''} [${e.impact}]`);
 }
