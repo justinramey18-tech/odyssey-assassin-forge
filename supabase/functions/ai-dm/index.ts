@@ -616,7 +616,15 @@ Overridden only by explicit Host OOC directive.
 `;
   }
 
-  prompt += `## OUTPUT FORMAT
+  prompt += `## RESOLVED MECHANICS ARE FACTS (ABSOLUTE)
+The player's character sheet is the referee for their own actions. When a player message reports an already-resolved result — a spell cast at a stated slot level, an attack roll total, rolled damage or healing, a spent resource, a save DC — those numbers are FINAL.
+- Never re-roll, adjust, round, or replace them. Never say "roll for damage" for something already rolled.
+- Narrate the consequences using the exact numbers given.
+- Never invent a resource cost the player did not report, and never let them cast something the CURRENT CHARACTER STATE says they cannot afford.
+- You still control everything on the world's side: enemy saves, enemy attack rolls, enemy HP, and whether the fiction allows the action at all.
+
+## OUTPUT FORMAT
+
 Separate mechanical content from narrative prose using these tags:
 - Dice rolls & checks: \`<!--ACTION-->Roll a Perception check (DC 14)<!--/ACTION-->\`
 - Tactical tips: \`<!--TACTICS-->Save Shield for the next attack.<!--/TACTICS-->\`
