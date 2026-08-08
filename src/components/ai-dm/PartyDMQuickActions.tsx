@@ -9,6 +9,8 @@ import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { rollAttack, rollCheck, rollHealing, rollEffect, rollSuffix, type HealRollResult } from '@/lib/promptAutoRoll';
 import { getHealingDiceForItem, type HealingDice } from '@/lib/consumables/healing';
 import { requestDiceRoll } from '@/lib/diceRollBus';
+import { castSpellByName, describeSlotSpend } from '@/lib/magic/castBus';
+
 import type { CharacterContext } from '@/components/oracle/types';
 
 export type QuickActionRemoveCategory = 'weapon' | 'ability' | 'spell' | 'cantrip' | 'consumable' | 'prestige' | 'homebrew-ability' | 'homebrew-spell';
