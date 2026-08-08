@@ -1,31 +1,28 @@
-# Automatic Quest Outcomes and Permanent Impacts
+# Narration Style Controls
 
-Today the DM's story text is already scanned after every reply, and it can tick off objectives, mark a whole quest done, and log irreversible world events. What it can't do is say *how* an objective ended. An objective is either untouched or "done" — there is no way to record that the party tried it and failed, and a failed quest never leaves a permanent mark on the world log.
+Right now the feel of the story is decided entirely by the GM Guides, the DM persona, and whatever tone the DM drifts into. There is no switch that says "play this gritty" or "play this like a horror film", and quest step narration inherits nothing.
 
-This adds outcomes to every objective and makes lasting consequences record themselves.
+This adds a narration style you choose, and makes every DM beat — including each quest objective step — honour it.
 
-## What changes for the player
+## What you get
 
-- Each objective on the quest board now shows a clear result: a green tick for success, a red cross for failure, or a half mark for partly done — with a short line saying what happened.
-- A quest that ends badly is stamped FAILED on the board instead of quietly sitting there, and the reason is written into its timeline.
-- When something can never be taken back (a person killed, a bridge burned, a relic lost, a town saved), it is written to the World State panel automatically — for failures as well as victories, not just completions.
-- A short on-screen message announces each result as it lands: "Objective failed — the caravan was lost" or "Objective complete".
-- Works the same in solo play and in party play, and the party board stays shared, as it is now.
+- A **Narration Style** control with four presets: **Serious**, **Gritty**, **Comedic**, **Horror**, plus **Default** (behaves exactly like today).
+- An intensity setting — Light / Standard / Heavy — so "gritty" can be a shade or a hammer.
+- Solo: the control lives in the DM tools/settings and applies to your campaign only.
+- Party: the host sets it for the table, everyone sees the current style, and it syncs live to all players.
+- The style rides along with every DM request, including the automatic narration beats fired when a quest is accepted and when the next objective step is narrated, so quest prose matches the rest of the session.
+- Style never overrules your GM Guides or an out-of-character directive. Order stays: your OOC directives first, GM Guides second, narration style third, DM persona last.
 
-## How the story text is read
+## Style definitions
 
-The reader that already runs after each DM reply gets a richer objective report:
-
-- for each objective it touches: the objective text, the result (success / failure / partial), and one sentence of detail
-- an optional note that the result is permanent, which sends it straight to the World State panel
-- the existing "whole quest done or lost" signal stays as it is
-
-Old-style reports (a plain list of completed objectives) keep working, so nothing in flight breaks.
+Each preset is a short, concrete writing instruction, not a vibe word — for example Gritty asks for physical consequence, fatigue, dirt and cost; Horror asks for dread built through restraint, sound and wrongness; Comedic asks for timing and character-driven humour without breaking the world. Intensity scales how strongly those instructions are stated.
 
 ## Technical notes
 
-- `supabase/functions/ai-dm-extract/index.ts`: replace `stages_completed` in `quest_progress` with `objective_results` (array of `{ stage, outcome: success|failure|partial, detail, permanent: boolean }`), keep `stages_completed` accepted for backward compatibility, and extend the guidance text so failures are reported rather than omitted.
-- `src/lib/quests.ts`: add `outcome` and `detail` to `QuestStage`; `applyQuestProgress` records outcomes (failure marks the objective resolved-but-failed, not done), writes richer timeline events, and returns the list of results so callers can toast and record impacts. Extend `worldEntryFromQuest` to cover `failed` quests and add a helper that builds a world entry from a permanent objective result.
-- `src/hooks/use-dm-auto-sync.ts`: widen the `quest_progress` type and pass the new fields through.
-- `src/components/ai-dm/QuestBoard.tsx`: per-objective success/failure/partial icons, detail line, and a FAILED state for the quest card.
-- `src/components/ai-dm/AIDMScreen.tsx` and `src/components/ai-dm/StandalonePartyDMScreen.tsx`: apply the new results, fire result toasts, and route permanent impacts into the world-state recorder in both solo and party paths. Reward payout stays tied to completion only — failed quests pay nothing.
+- New `src/lib/narrationStyle.ts`: style ids, labels, intensity levels, and a `buildNarrationStyleBlock()` that renders the prompt text.
+- Solo storage: scoped key `odyssey-narration-style` registered in `scoped-keys.ts`, `resetApp.ts` and `use-auto-save.ts`, with an `odyssey-character-loaded` listener.
+- Party storage: `party_shared_state` row with `state_type: 'narration_style'`, host-writable, read live by all clients in `use-party-dm.ts`.
+- UI: a `SettingsSection` in `PartyDMSettings.tsx` (host-only editing, read-only display for players) and the equivalent block on the solo tools/settings surface. Presets as selectable cards, intensity as a 3-option row, min 48px touch targets.
+- Request plumbing: add `narrationStyle` / `narrationIntensity` to the DM request payload in `use-party-dm.ts` and the solo path, and to the shared `CharacterContext` shape in all three declaration sites.
+- `supabase/functions/ai-dm/index.ts`: emit the style block in the style-priority section — after OOC directives and GM Guides, before the DM persona and the neutral default — and reference it in the NPC-voicing lean prompt so short NPC lines stay in tone. Null-guard so an absent style changes nothing.
+- `src/lib/quests.ts`: `buildQuestKickoffPrompt` and the objective-step follow-up prompt append a one-line style reminder so quest beats do not fall back to neutral narration.
