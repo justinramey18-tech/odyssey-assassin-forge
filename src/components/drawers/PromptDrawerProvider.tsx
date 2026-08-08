@@ -517,20 +517,40 @@ export function PromptDrawerProvider({
         };
       }
 
-      // Cheapest slot that can still carry the spell.
-      const castLevel = Object.keys(slots)
-        .map(Number)
-        .filter(lvl => lvl >= baseLevel && (slots[lvl]?.current ?? 0) > 0)
-        .sort((a, b) => a - b)[0];
-
       const canUsePact = !!pact && pact.current > 0 && pact.level >= baseLevel;
 
-      if (castLevel === undefined && !canUsePact) {
-        return { ok: false, reason: 'no-slots' as const, totalRemaining: totalRemainingAfter(null, false) };
+      // An explicit slot level (upcasting) wins, as long as it's actually available.
+      let castLevel: number | undefined;
+      let usePact = false;
+
+      if (requestedPact && canUsePact) {
+        usePact = true;
+      } else if (Number.isFinite(requestedSlot) && (requestedSlot as number) >= baseLevel) {
+        const wantedLevel = requestedSlot as number;
+        if ((slots[wantedLevel]?.current ?? 0) > 0) {
+          castLevel = wantedLevel;
+        } else if (canUsePact && pact!.level === wantedLevel) {
+          usePact = true;
+        } else {
+          return { ok: false, reason: 'no-slots' as const, totalRemaining: totalRemainingAfter(null, false) };
+        }
+      } else {
+        // Cheapest slot that can still carry the spell.
+        castLevel = Object.keys(slots)
+          .map(Number)
+          .filter(lvl => lvl >= baseLevel && (slots[lvl]?.current ?? 0) > 0)
+          .sort((a, b) => a - b)[0];
+
+        if (castLevel === undefined) {
+          if (!canUsePact) {
+            return { ok: false, reason: 'no-slots' as const, totalRemaining: totalRemainingAfter(null, false) };
+          }
+          usePact = true;
+        }
       }
 
-      const usePact = castLevel === undefined;
-      const spentLevel = usePact ? pact!.level : castLevel;
+      const spentLevel = usePact ? pact!.level : (castLevel as number);
+
 
       const result = spellcasting.castSpell(
         spellId || name, spell?.name || name, baseLevel, spentLevel, usePact,
