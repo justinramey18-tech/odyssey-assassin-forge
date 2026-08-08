@@ -35,6 +35,8 @@ import { Enemy } from '@/lib/combat/targetTypes';
 import { ActionEconomy } from '@/lib/combat/combatTypes';
 import { useGameMode, shouldShowInfinityStones } from '@/hooks/use-game-mode';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
+import { buildGearBonusData } from '@/components/character/GearBonusBreakdown';
+
 import { useCombatStats } from '@/hooks/use-combat-stats';
 import { useCooldowns } from '@/hooks/use-cooldowns';
 import { useConditions, UseConditionsReturn } from '@/hooks/use-conditions';
@@ -294,6 +296,18 @@ export function PromptDrawerProvider({
     };
   }, [getScoreBreakdown]);
   const combatStats = useCombatStats({ character, equipmentStats, abilityModifiers });
+
+  // Per-item gear contribution breakdown (Stats tab, both the drawer and the in-DM sheet)
+  const gearBonuses = useMemo(
+    () => buildGearBonusData(
+      equipment,
+      equipmentStats,
+      combatStats,
+      getScoreBreakdown ? getScoreBreakdown('strength').total : 10,
+    ),
+    [equipment, equipmentStats, combatStats, getScoreBreakdown]
+  );
+
   
   // Cooldown system
   const cooldownSystem = useCooldowns({
@@ -715,6 +729,8 @@ export function PromptDrawerProvider({
         expertise: expertiseSkills,
       },
       gold: typeof goldAmount === 'number' && Number.isFinite(goldAmount) ? goldAmount : undefined,
+      gearBonuses,
+
       companion: companionContext,
       wildShape: wildShape ? {
         isTransformed: wildShape.state.isTransformed,
@@ -730,7 +746,7 @@ export function PromptDrawerProvider({
   }, [character, currentHP, maxHP, tempHP, currentXP, xpProgressionMode, xpMultiplier, abilityCustomization.state, autoSyncCallbacks, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
       prestigeLevel, prestigeAbilities, spellcasting, lootItems, totalLootValue, combatContext, conditionsSystem.debuffs, conditionsSystem.buffs,
       getScoreBreakdown, identityGender, identityRace, identityBackstory, identityRelationships,
-      combatStats.ac, combatStats.initiativeBonus, combatStats.proficiencyBonus,
+      combatStats.ac, combatStats.initiativeBonus, combatStats.proficiencyBonus, gearBonuses,
       wildShape?.state.isTransformed, wildShape?.state.currentForm, wildShape?.state.formHP, wildShape?.state.formMaxHP, wildShape?.state.usesRemaining, wildShape?.state.maxUses]);
 
   const [oracleQuestCallback, setOracleQuestCallback] = useState<((quests: Array<{ key: string; status: 'active' | 'completed' | 'failed'; notes?: string }>) => void) | null>(null);
@@ -825,6 +841,8 @@ export function PromptDrawerProvider({
             tempHP={tempHP}
             onHPChange={onHPChange}
             equipmentStats={equipment ? equipmentStats : undefined}
+            gearBonuses={gearBonuses}
+
             constitutionModifier={constitutionModifier}
             prestigeLevel={prestigeLevel}
             baseScores={baseScores}

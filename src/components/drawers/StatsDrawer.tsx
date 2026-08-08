@@ -19,7 +19,9 @@ import {
 } from '@/lib/xpSystem';
 import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
 import { AggregatedStats } from '@/hooks/use-equipment-stats';
+import { GearBonusBreakdown, type GearBonusData } from '@/components/character/GearBonusBreakdown';
 import { AbilityScoresPanel } from '@/components/character/AbilityScoresPanel';
+
 import { 
   AbilityName, 
   BaseAbilityScores,
@@ -50,6 +52,9 @@ interface StatsDrawerProps {
   prestigeLevel?: number;
   // Equipment stats
   equipmentStats?: AggregatedStats;
+  /** Per-item gear contribution breakdown. */
+  gearBonuses?: GearBonusData;
+
   // Ability Scores
   baseScores?: BaseAbilityScores;
   getScoreBreakdown?: (ability: AbilityName) => AbilityScoreBreakdown;
@@ -76,6 +81,8 @@ export function StatsDrawer({
   tempHP: propTempHP,
   onHPChange,
   equipmentStats,
+  gearBonuses,
+
   constitutionModifier = 0,
   prestigeLevel = 0,
   // Ability Scores
@@ -238,7 +245,10 @@ export function StatsDrawer({
       {/* Scrollable content */}
       <ScrollArea className="flex-1">
         <div className="space-y-6 p-4">
+          {gearBonuses && <GearBonusBreakdown data={gearBonuses} />}
+
           {/* Equipment Stats Section */}
+
           {equipmentStats && (
             <div className="space-y-3">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">

@@ -14,6 +14,8 @@ import {
 } from '@/lib/pendingDmItems';
 import { setSheetReturn, type SheetReturnOrigin } from '@/lib/sheetReturn';
 import { buildLootUseText } from '@/lib/loot/prompts';
+import { GearBonusBreakdown } from '@/components/character/GearBonusBreakdown';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -443,7 +445,10 @@ export function SoloCharacterSheet({
               )}
             </Section>
 
+            {ctx.gearBonuses && <GearBonusBreakdown data={ctx.gearBonuses} />}
+
             <Section title="Ability Scores" icon={Sparkles}>
+
               {!scores ? (
                 <p className="text-xs text-white/40 text-center py-2">No ability scores recorded.</p>
               ) : (
