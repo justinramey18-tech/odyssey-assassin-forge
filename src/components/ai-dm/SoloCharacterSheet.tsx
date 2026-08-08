@@ -562,12 +562,43 @@ export function SoloCharacterSheet({
                 <p className="text-xs text-white/40 text-center py-2">No abilities unlocked.</p>
               ) : (
                 <div className="space-y-1.5">
-                  {ctx.abilities.map(a => (
-                    <div key={`${a.tree}-${a.name}`} className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
-                      <span className="text-xs text-foreground truncate">{a.name}</span>
-                      <span className="text-[10px] text-white/40 shrink-0 capitalize">{a.tree} · Tier {a.tier}</span>
-                    </div>
-                  ))}
+                  {ctx.abilities.map(a => {
+                    const key = `ability:${a.tree}-${a.name}`;
+                    const meta = [
+                      a.actionType ? a.actionType.replace(/_/g, ' ') : null,
+                      a.usageType ? a.usageType.replace(/_/g, ' ') : null,
+                      a.dice || null,
+                      a.cooldownMinutes ? `${a.cooldownMinutes}m cooldown` : null,
+                    ].filter(Boolean) as string[];
+                    const hasDetail = Boolean(a.effect) || meta.length > 0;
+                    const isOpen = expandedDetail === key;
+                    return (
+                      <div key={key} className="rounded-lg border border-white/10 bg-white/[0.03]">
+                        <button
+                          type="button"
+                          disabled={!hasDetail}
+                          onClick={() => setExpandedDetail(isOpen ? null : key)}
+                          className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left min-h-[44px]"
+                          style={{ touchAction: 'manipulation' }}
+                        >
+                          <span className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-xs text-foreground truncate">{a.name}</span>
+                            {a.isHomebrew && <Badge variant="outline" className="text-[9px] border-amber-400/50 text-amber-300 shrink-0">Homebrew</Badge>}
+                            {!a.isHomebrew && a.isCustomized && <Badge variant="outline" className="text-[9px] border-sky-400/50 text-sky-300 shrink-0">Custom</Badge>}
+                          </span>
+                          <span className="text-[10px] text-white/40 shrink-0 capitalize">{a.tree} · Tier {a.tier}</span>
+                        </button>
+                        {isOpen && hasDetail && (
+                          <div className="px-3 pb-2.5 space-y-1">
+                            {meta.length > 0 && (
+                              <p className="text-[10px] uppercase tracking-wide text-white/40 capitalize">{meta.join(' · ')}</p>
+                            )}
+                            {a.effect && <p className="text-[11px] leading-relaxed text-white/70">{a.effect}</p>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </Section>
@@ -586,16 +617,65 @@ export function SoloCharacterSheet({
                   <p>Spell attack {ctx.spellcasting.spellAttackBonus >= 0 ? '+' : ''}{ctx.spellcasting.spellAttackBonus} · Save DC {ctx.spellcasting.spellSaveDC}</p>
                   <p>{ctx.spellcasting.totalSlotsRemaining} slots remaining</p>
                   {ctx.spellcasting.concentratingOn && <p className="text-purple-300">Concentrating on {ctx.spellcasting.concentratingOn}</p>}
-                  {ctx.spellcasting.preparedSpells?.length > 0 && (
+                  {(ctx.spellcasting.preparedSpellDetails?.length ?? 0) > 0 ? (
+                    <div className="space-y-1.5 pt-1">
+                      {ctx.spellcasting.preparedSpellDetails!.map(s => {
+                        const key = `spell:${s.name}`;
+                        const isOpen = expandedDetail === key;
+                        const lines = [
+                          s.castingTime ? `Cast ${String(s.castingTime).replace(/_/g, ' ')}` : null,
+                          s.range ? `Range ${s.range}` : null,
+                          s.duration ? `Duration ${s.duration}` : null,
+                          s.concentration ? 'Concentration' : null,
+                          s.ritual ? 'Ritual' : null,
+                          s.damageFormula ? `${s.damageFormula}${s.damageType ? ` ${s.damageType}` : ''}` : null,
+                          s.healingFormula ? `Heals ${s.healingFormula}` : null,
+                          s.saveStat ? `${String(s.saveStat).toUpperCase()} save` : null,
+                          s.attackType ? `${String(s.attackType).replace(/_/g, ' ')} attack` : null,
+                          [s.verbal ? 'V' : null, s.somatic ? 'S' : null, s.material ? 'M' : null].filter(Boolean).join('/') || null,
+                        ].filter(Boolean) as string[];
+                        const hasDetail = Boolean(s.description) || lines.length > 0;
+                        return (
+                          <div key={key} className="rounded-lg border border-white/10 bg-white/[0.03]">
+                            <button
+                              type="button"
+                              disabled={!hasDetail}
+                              onClick={() => setExpandedDetail(isOpen ? null : key)}
+                              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left min-h-[44px]"
+                              style={{ touchAction: 'manipulation' }}
+                            >
+                              <span className="flex items-center gap-1.5 min-w-0">
+                                <span className="text-xs text-foreground truncate">{s.name}</span>
+                                {s.isHomebrew && <Badge variant="outline" className="text-[9px] border-amber-400/50 text-amber-300 shrink-0">Homebrew</Badge>}
+                              </span>
+                              <span className="text-[10px] text-white/40 shrink-0 capitalize">
+                                {s.level === 0 ? 'Cantrip' : `Lv ${s.level}`}{s.school ? ` · ${s.school}` : ''}
+                              </span>
+                            </button>
+                            {isOpen && hasDetail && (
+                              <div className="px-3 pb-2.5 space-y-1">
+                                {lines.length > 0 && (
+                                  <p className="text-[10px] uppercase tracking-wide text-white/40 capitalize">{lines.join(' · ')}</p>
+                                )}
+                                {s.description && <p className="text-[11px] leading-relaxed text-white/70">{s.description}</p>}
+                                {s.higherLevels && <p className="text-[11px] leading-relaxed text-white/50">At higher levels: {s.higherLevels}</p>}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : ctx.spellcasting.preparedSpells?.length > 0 ? (
                     <div className="flex flex-wrap gap-1 pt-1">
                       {ctx.spellcasting.preparedSpells.map(s => (
                         <Badge key={s} variant="outline" className="text-[10px]">{s}</Badge>
                       ))}
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </Section>
             )}
+
 
             <Section title="Cooldowns" icon={Activity}>
               {ctx.cooldowns.active.length === 0 ? (
