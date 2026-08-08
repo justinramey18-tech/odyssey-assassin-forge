@@ -67,6 +67,9 @@ interface QuestBoardProps {
   canManage?: boolean;
   onAccept?: (key: string) => void;
   onDecline?: (key: string) => void;
+  /** Re-read the DM's latest response and pull any quests out of it. */
+  onScan?: () => void;
+  scanning?: boolean;
 }
 
 function RewardRow({ q }: { q: Quest }) {
@@ -188,7 +191,7 @@ function Chip({ active, label, onClick }: { active: boolean; label: string; onCl
   );
 }
 
-export function QuestBoard({ quests, canManage = true, onAccept, onDecline }: QuestBoardProps) {
+export function QuestBoard({ quests, canManage = true, onAccept, onDecline, onScan, scanning }: QuestBoardProps) {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [crFilter, setCrFilter] = useState<CrFilter>('all');
   const [sortMode, setSortMode] = useState<SortMode>('recent');
@@ -228,18 +231,33 @@ export function QuestBoard({ quests, canManage = true, onAccept, onDecline }: Qu
   const failed = activeOnly ? [] : visible.filter(q => q.status === 'failed');
   const filtersOn = typeFilter !== 'all' || crFilter !== 'all' || sortMode !== 'recent' || activeOnly;
 
+  const scanButton = onScan ? (
+    <button
+      onClick={onScan}
+      disabled={scanning}
+      style={{ touchAction: 'manipulation' }}
+      className="min-h-[40px] px-3 rounded-lg border border-amber-400/30 bg-amber-400/10 text-[11px] text-amber-200 hover:bg-amber-400/20 transition-colors disabled:opacity-50"
+    >
+      {scanning ? 'Reading the DM…' : 'Pull quests from the DM'}
+    </button>
+  ) : null;
+
   if (quests.length === 0) {
     return (
       <div className="text-center py-6 text-white/30">
         <ScrollText className="w-8 h-8 mx-auto mb-2 opacity-30" />
         <p className="text-xs">No quests yet.</p>
         <p className="text-[10px] mt-1">The DM will offer work as the story unfolds.</p>
+        {scanButton && <div className="mt-3 flex justify-center">{scanButton}</div>}
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      {scanButton && <div className="flex justify-end">{scanButton}</div>}
+
+
       {/* Filter / sort bar */}
       <div className="rounded-lg border border-white/10 bg-white/[0.02] px-2.5 py-2">
         <div className="flex items-center gap-2">

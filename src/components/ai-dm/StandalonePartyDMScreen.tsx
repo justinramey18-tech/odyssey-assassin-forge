@@ -691,6 +691,25 @@ export function StandalonePartyDMScreen({
   ]);
 
 
+  /** Manual pull: re-read the DM's latest response and lift any quests out of it. */
+  const handleScanQuests = useCallback(() => {
+    const last = [...partyDm.messages].reverse().find((m: any) => m.role === 'assistant' && m.content?.trim());
+    if (!last) {
+      toast.info('No DM response to read yet.');
+      return;
+    }
+    toast.info("Reading the DM's last response for quests…");
+    autoSync.extractAndApply(last.content, characterContext)
+      .then(result => {
+        if (!result?.quests_offered?.length && !result?.quest_progress?.length) {
+          toast.info('No quests found in that response.', {
+            description: 'Ask the DM to lay out the jobs on offer, then try again.',
+          });
+        }
+      })
+      .catch(() => {});
+  }, [partyDm.messages, characterContext, autoSync.extractAndApply]);
+
   // Campaign load handler for dropdown
   const handleLoadCampaign = useCallback((session: import('@/hooks/use-campaign-sessions').CampaignSession) => {
     if (partyDm.messages.length > 0) {
@@ -885,6 +904,7 @@ ${truncated}`);
         autoSyncEnabled={autoSync.autoSyncEnabled}
         onToggleAutoSync={autoSync.toggleAutoSync}
         isExtracting={autoSync.isExtracting}
+        onScanQuests={handleScanQuests}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
         guides={gmGuides.guides}
         gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '') + dragonContextForDM}
