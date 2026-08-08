@@ -439,8 +439,13 @@ function buildContextSummary(ctx: CharacterContext): string {
     if (slotStatus) lines.push(`   Spell Slots: ${slotStatus}`);
     if (spell.pactSlots && spell.pactSlots.max > 0) lines.push(`   Pact Slots: ${spell.pactSlots.current}/${spell.pactSlots.max} (Level ${spell.pactSlots.level})`);
     lines.push(`   Total Slots Remaining: ${spell.totalSlotsRemaining}`);
-    if (spell.concentratingOn) lines.push(`   ⚡ CONCENTRATING ON: ${spell.concentratingOn}`);
+    if (spell.totalSlotsRemaining === 0) {
+      lines.push(`   ⛔ NO SLOTS LEFT: the character cannot cast any levelled spell right now. Cantrips still work. Do not offer or assume a levelled cast until they rest.`);
+    }
+    if (spell.concentratingOn) lines.push(`   ⚡ CONCENTRATING ON: ${spell.concentratingOn} — a new concentration spell would end it. Only one concentration effect at a time.`);
     if (spell.preparedSpells.length > 0) lines.push(`   Prepared Spells: ${spell.preparedSpells.join(', ')}`);
+    lines.push(`   RECOVERY RULES (strict 5e): spell slots return on a LONG rest only. Pact slots return on a SHORT rest. You may offer the fiction of a rest, but the player's app applies it — never state that their slots are back unless the state above says so.`);
+
 
     if (spell.homebrewSpells && spell.homebrewSpells.length > 0) {
       lines.push(`   HOMEBREW SPELL DEFINITIONS — AUTHORITATIVE. These spells were created by this player inside the app. They are NOT in any published D&D book and you have never seen them before. The stats below are the complete and correct rules for them. Run them exactly as written. Never say you do not recognise one of these spells, never call one "flavour" or a joke, and never ask the player to supply its level, school, damage or effect — it is all here.`);
@@ -597,8 +602,9 @@ ANTI-REPETITION RULES (always active, regardless of style source):
 
 Formatting default (only if no guide says otherwise): you may use **bold** for names/items and *italics* sparingly. Do not use HTML color spans unless a guide or the player asks for them.
 
-
 ## PLAYER DIALOGUE IS SACRED (ABSOLUTE)
+
+
 When a player prompt contains quoted speech — anything wrapped in "…", '…', “…”, ‘…’, or introduced with \`I say:\`, \`I shout:\`, \`I whisper:\` — reproduce those exact words verbatim in your narration as that character's line. Do not paraphrase, shorten, clean up, or rewrite. Preserve capitalization, punctuation, slang, profanity. Build the scene (delivery, tone, listeners' reactions, NPC replies) around the exact words.
 
 - CORRECT: player writes \`"Hand over the key or I'll break it off you."\` → your narration includes that line verbatim.
@@ -610,7 +616,15 @@ Overridden only by explicit Host OOC directive.
 `;
   }
 
-  prompt += `## OUTPUT FORMAT
+  prompt += `## RESOLVED MECHANICS ARE FACTS (ABSOLUTE)
+The player's character sheet is the referee for their own actions. When a player message reports an already-resolved result — a spell cast at a stated slot level, an attack roll total, rolled damage or healing, a spent resource, a save DC — those numbers are FINAL.
+- Never re-roll, adjust, round, or replace them. Never say "roll for damage" for something already rolled.
+- Narrate the consequences using the exact numbers given.
+- Never invent a resource cost the player did not report, and never let them cast something the CURRENT CHARACTER STATE says they cannot afford.
+- You still control everything on the world's side: enemy saves, enemy attack rolls, enemy HP, and whether the fiction allows the action at all.
+
+## OUTPUT FORMAT
+
 Separate mechanical content from narrative prose using these tags:
 - Dice rolls & checks: \`<!--ACTION-->Roll a Perception check (DC 14)<!--/ACTION-->\`
 - Tactical tips: \`<!--TACTICS-->Save Shield for the next attack.<!--/TACTICS-->\`

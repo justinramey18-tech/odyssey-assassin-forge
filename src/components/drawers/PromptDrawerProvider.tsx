@@ -45,7 +45,7 @@ import { allAbilities } from '@/lib/abilities';
 import { useAbilityCustomization } from '@/hooks/use-ability-customization';
 import { getCustomizedAbilities } from '@/lib/abilityCustomization';
 import { getSpellById } from '@/lib/magic/spells';
-import { registerSpellCaster } from '@/lib/magic/castBus';
+import { registerSpellCaster, registerMagicResourceInspector } from '@/lib/magic/castBus';
 
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { UseWildShapeReturn } from '@/hooks/use-wild-shape';
@@ -469,7 +469,7 @@ export function PromptDrawerProvider({
   // can spend the right slot (or pact slot) without prop-threading.
   useEffect(() => {
     if (!spellcasting) return;
-    return registerSpellCaster(({ name, level }) => {
+    return registerSpellCaster(({ name, level, slotLevel: requestedSlot, usePact: requestedPact }) => {
       const ids = Array.from(new Set([
         ...spellcasting.state.preparedSpells,
         ...spellcasting.state.knownSpells,
@@ -517,20 +517,40 @@ export function PromptDrawerProvider({
         };
       }
 
-      // Cheapest slot that can still carry the spell.
-      const castLevel = Object.keys(slots)
-        .map(Number)
-        .filter(lvl => lvl >= baseLevel && (slots[lvl]?.current ?? 0) > 0)
-        .sort((a, b) => a - b)[0];
-
       const canUsePact = !!pact && pact.current > 0 && pact.level >= baseLevel;
 
-      if (castLevel === undefined && !canUsePact) {
-        return { ok: false, reason: 'no-slots' as const, totalRemaining: totalRemainingAfter(null, false) };
+      // An explicit slot level (upcasting) wins, as long as it's actually available.
+      let castLevel: number | undefined;
+      let usePact = false;
+
+      if (requestedPact && canUsePact) {
+        usePact = true;
+      } else if (Number.isFinite(requestedSlot) && (requestedSlot as number) >= baseLevel) {
+        const wantedLevel = requestedSlot as number;
+        if ((slots[wantedLevel]?.current ?? 0) > 0) {
+          castLevel = wantedLevel;
+        } else if (canUsePact && pact!.level === wantedLevel) {
+          usePact = true;
+        } else {
+          return { ok: false, reason: 'no-slots' as const, totalRemaining: totalRemainingAfter(null, false) };
+        }
+      } else {
+        // Cheapest slot that can still carry the spell.
+        castLevel = Object.keys(slots)
+          .map(Number)
+          .filter(lvl => lvl >= baseLevel && (slots[lvl]?.current ?? 0) > 0)
+          .sort((a, b) => a - b)[0];
+
+        if (castLevel === undefined) {
+          if (!canUsePact) {
+            return { ok: false, reason: 'no-slots' as const, totalRemaining: totalRemainingAfter(null, false) };
+          }
+          usePact = true;
+        }
       }
 
-      const usePact = castLevel === undefined;
-      const spentLevel = usePact ? pact!.level : castLevel;
+      const spentLevel = usePact ? pact!.level : (castLevel as number);
+
 
       const result = spellcasting.castSpell(
         spellId || name, spell?.name || name, baseLevel, spentLevel, usePact,
@@ -557,6 +577,37 @@ export function PromptDrawerProvider({
       };
     });
   }, [spellcasting]);
+
+  // Screens also need to READ what's still spendable (upcast choices, rest
+  // previews) without owning the hook.
+  useEffect(() => {
+    if (!spellcasting) return;
+    return registerMagicResourceInspector(() => ({
+      spellAttackBonus: spellcasting.spellAttackBonus ?? 0,
+      spellSaveDC: spellcasting.spellSaveDC ?? 10,
+      slots: Object.entries(spellcasting.state.spellSlots || {}).map(([lvl, s]) => ({
+        level: parseInt(lvl, 10),
+        current: s?.current ?? 0,
+        max: s?.max ?? 0,
+      })).filter(s => Number.isFinite(s.level)),
+      pactSlots: spellcasting.state.pactSlots
+        ? {
+            level: spellcasting.state.pactSlots.level,
+            current: spellcasting.state.pactSlots.current,
+            max: spellcasting.state.pactSlots.max,
+          }
+        : undefined,
+      concentratingOn: spellcasting.state.concentratingOn
+        ? (getSpellById(spellcasting.state.concentratingOn)?.name || spellcasting.state.concentratingOn)
+        : null,
+      activeEffects: (spellcasting.activeSpells || []).map(e => ({
+        name: e.spellName,
+        concentration: !!e.isConcentration,
+      })),
+    }));
+  }, [spellcasting]);
+
+
 
 
   // XP progression pace (multiplier-aware thresholds for the AI DM briefing)
