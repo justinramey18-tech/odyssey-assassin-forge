@@ -508,7 +508,9 @@ export function PromptDrawerProvider({
       .filter(c => c.quantity > 0)
       .map(c => ({
         name: c.consumable.name, quantity: c.quantity, type: c.consumable.type,
+        effect: c.consumable.effect,
       }));
+
 
     const activeCooldowns: Array<{ name: string; remainingSeconds: number }> = [];
     const readyCooldowns: string[] = [];

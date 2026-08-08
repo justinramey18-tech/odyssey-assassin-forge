@@ -98,6 +98,8 @@ import {
   createInitialEquipment,
 } from '@/lib/inventory/index';
 import { dmItemToEquipment } from '@/lib/inventory/dmGearIntake';
+import { dmItemToConsumable } from '@/lib/inventory/dmConsumableIntake';
+
 import { computeEncumbrance } from '@/lib/inventory/encumbrance';
 
 import { MagicScreen, ClassSpellcastingScreen } from '@/components/magic';
@@ -2603,6 +2605,89 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     });
   };
 
+  // Accepting an item awarded by the AI DM: wearable gear -> Gear tab,
+  // potions/poisons/scrolls -> consumables (and quick actions), rest -> loot.
+  const handleAcceptDmItem = useCallback((
+    name: string,
+    quantity: number,
+    details?: { goldValue?: number; description?: string; rarity?: string; category?: string; effect?: string; dice?: string },
+  ) => {
+    const now = new Date().toISOString();
+    const rarity = (details?.rarity ?? 'common') as LootItem['rarity'];
+    const category = (details?.category ?? 'miscellaneous') as LootItem['category'];
+    const rawValue = Number(details?.goldValue);
+    const goldValue = Number.isFinite(rawValue) && rawValue > 0 ? Math.round(rawValue) : 1;
+    const description = details?.description?.trim() || 'Awarded by the AI Dungeon Master.';
+    const dice = details?.dice?.trim();
+    const count = Math.max(1, Math.round(Number(quantity)) || 1);
+
+    // Wearable gear goes to the Gear tab instead of the loot stash
+    const gearItems = Array.from({ length: count }, () =>
+      dmItemToEquipment(name, details, character.level)
+    ).filter(Boolean) as EquipmentItem[];
+
+    if (gearItems.length > 0) {
+      let equippedCount = 0;
+      setEquipment(prev => {
+        const slots = { ...prev.slots };
+        const inventory = [...prev.inventory];
+        for (const item of gearItems) {
+          let target: EquipmentSlotType = item.slotType;
+          if (target === 'ring1' && slots.ring1 && !slots.ring2) target = 'ring2';
+          if (!slots[target]) {
+            slots[target] = { ...item, slotType: target };
+            equippedCount += 1;
+          } else {
+            inventory.push(item);
+          }
+        }
+        return { ...prev, slots, inventory };
+      });
+      toast({
+        title: equippedCount > 0 ? 'Gear Equipped!' : 'Gear Received!',
+        description: equippedCount > 0
+          ? `${name} was equipped automatically.`
+          : `${name} added to your Gear inventory.`,
+        className: 'border-amber-500 bg-amber-500/10',
+      });
+      return;
+    }
+
+    // Potions, poisons and scrolls go to the consumables inventory
+    const consumable = dmItemToConsumable(name, details);
+    if (consumable) {
+      addConsumableItem(consumable, count);
+      toast({
+        title: 'Consumable Added!',
+        description: `${name} is now in your consumables and quick actions.`,
+        className: 'border-emerald-500 bg-emerald-500/10',
+      });
+      return;
+    }
+
+    const items = Array.from({ length: count }, () => ({
+      id: crypto.randomUUID(),
+      name,
+      category,
+      rarity,
+      goldValue,
+      description,
+      acquiredAt: now,
+      hasDiceMechanics: !!dice,
+      mechanics: (details?.effect || dice)
+        ? { effect: details?.effect, diceRoll: dice }
+        : undefined,
+    }));
+    loot.addLootItems(items);
+    toast({
+      title: 'Added to Loot',
+      description: `${name} is in your loot stash.`,
+      className: 'border-amber-500 bg-amber-500/10',
+    });
+  }, [character.level, setEquipment, addConsumableItem, loot, toast]);
+
+
+
   // Manual level change (up or down) from Settings
   const handleLevelChange = useCallback((newLevel: number) => {
     if (newLevel < 1 || newLevel > 20 || newLevel === character.level) return;
@@ -2852,65 +2937,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         isPartyCreator={isPartyMode ? partySync.party.isCreator : false}
         autoSyncCallbacks={autoSyncCallbacks}
         onManualLevelUp={handleManualLevelUp}
-        onAcceptDmItem={(name, quantity, details) => {
-          const now = new Date().toISOString();
-          const rarity = (details?.rarity ?? 'common') as LootItem['rarity'];
-          const category = (details?.category ?? 'miscellaneous') as LootItem['category'];
-          const rawValue = Number(details?.goldValue);
-          const goldValue = Number.isFinite(rawValue) && rawValue > 0 ? Math.round(rawValue) : 1;
-          const description = details?.description?.trim() || 'Awarded by the AI Dungeon Master.';
-          const dice = details?.dice?.trim();
+        onAcceptDmItem={handleAcceptDmItem}
 
-          // Wearable gear goes to the Gear tab instead of the loot stash
-          const gearCount = Math.max(1, quantity);
-          const gearItems = Array.from({ length: gearCount }, () =>
-            dmItemToEquipment(name, details, character.level)
-          ).filter(Boolean) as EquipmentItem[];
-
-          if (gearItems.length > 0) {
-            let equippedCount = 0;
-            setEquipment(prev => {
-              const slots = { ...prev.slots };
-              const inventory = [...prev.inventory];
-              for (const item of gearItems) {
-                let target: EquipmentSlotType = item.slotType;
-                if (target === 'ring1' && slots.ring1 && !slots.ring2) target = 'ring2';
-                if (!slots[target]) {
-                  slots[target] = { ...item, slotType: target };
-                  equippedCount += 1;
-                } else {
-                  inventory.push(item);
-                }
-              }
-              return { ...prev, slots, inventory };
-            });
-            toast({
-              title: equippedCount > 0 ? 'Gear Equipped!' : 'Gear Received!',
-              description: equippedCount > 0
-                ? `${name} was equipped automatically.`
-                : `${name} added to your Gear inventory.`,
-              className: 'border-amber-500 bg-amber-500/10',
-            });
-            return;
-          }
-
-
-
-          const items = Array.from({ length: Math.max(1, quantity) }, () => ({
-            id: crypto.randomUUID(),
-            name,
-            category,
-            rarity,
-            goldValue,
-            description,
-            acquiredAt: now,
-            hasDiceMechanics: !!dice,
-            mechanics: (details?.effect || dice)
-              ? { effect: details?.effect, diceRoll: dice }
-              : undefined,
-          }));
-          loot.addLootItems(items);
-        }}
         onOpenPartyChat={() => setOpenPartyChatRequested(true)}
       >
         {isPartyMode && (
@@ -3079,6 +3107,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         onHPChange={(current, temp) => handleHPChange(current, wildShape.state.isTransformed ? effectiveMaxHP : hpState.max, temp)}
       consumables={consumablesInventory}
       onUseConsumable={useConsumableItem}
+      onAcceptDmItem={handleAcceptDmItem}
+
       prestigeLevel={prestigeData.prestigeLevel}
       prestigeAbilities={prestigeTree.progress.unlockedAbilities}
       spellcasting={combatSpellcasting}

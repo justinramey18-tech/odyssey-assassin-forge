@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
-import { rollAttack, rollCheck, rollHealing, rollSuffix, type HealRollResult } from '@/lib/promptAutoRoll';
+import { rollAttack, rollCheck, rollHealing, rollEffect, rollSuffix, type HealRollResult } from '@/lib/promptAutoRoll';
 import { getHealingDiceForItem, type HealingDice } from '@/lib/consumables/healing';
 import { requestDiceRoll } from '@/lib/diceRollBus';
 import type { CharacterContext } from '@/components/oracle/types';
@@ -42,12 +42,15 @@ interface QuickActionItem {
   prompt: string;
   removeCategory: QuickActionRemoveCategory;
   removeSlot?: string;
-  /** How dice attach at tap time: 'attack' rolls to-hit + damage, 'spell' likewise, 'check' rolls one d20 outcome ladder, 'heal' rolls healing dice, 'none' rolls nothing. */
-  rollKind?: 'attack' | 'spell' | 'check' | 'heal' | 'none';
+  /** How dice attach at tap time: 'attack' rolls to-hit + damage, 'spell' likewise, 'check' rolls one d20 outcome ladder, 'heal' rolls healing dice, 'effect' rolls the item's own dice, 'none' rolls nothing. */
+  rollKind?: 'attack' | 'spell' | 'check' | 'heal' | 'effect' | 'none';
   /** Damage dice for attack/spell rolls, e.g. '1d8' or '6d8'. Optional — defaults to 1d8. */
   damageFormula?: string;
   /** Healing dice for 'heal' items. */
   healingDice?: HealingDice;
+  /** Plain dice for 'effect' items (non-healing consumables that carry dice). */
+  effectDice?: EffectDice;
+
 }
 
 function generateWeaponPrompt(name: string, characterName: string): string {
@@ -69,12 +72,34 @@ function generateSpellPrompt(name: string, characterName: string, isCantrip: boo
   );
 }
 
-function generateConsumablePrompt(name: string, type: string, characterName: string): string {
+interface EffectDice {
+  count: number;
+  die: number;
+  bonus: number;
+  formula: string;
+}
+
+/** Pull a plain dice formula (e.g. "2d6+1") out of a consumable's effect text. */
+function parseEffectDice(effect?: string): EffectDice | null {
+  if (!effect) return null;
+  const m = /(\d{1,2})\s*d\s*(\d{1,3})\s*(?:([+-])\s*(\d{1,3}))?/i.exec(effect);
+  if (!m) return null;
+  const count = Math.min(20, Math.max(1, parseInt(m[1], 10)));
+  const die = Math.max(2, parseInt(m[2], 10));
+  const raw = m[4] ? parseInt(m[4], 10) : 0;
+  const bonus = m[3] === '-' ? -raw : raw;
+  if (!Number.isFinite(count) || !Number.isFinite(die) || !Number.isFinite(bonus)) return null;
+  return { count, die, bonus, formula: `${count}d${die}${bonus > 0 ? `+${bonus}` : bonus < 0 ? `${bonus}` : ''}` };
+}
+
+function generateConsumablePrompt(name: string, type: string, characterName: string, effect?: string): string {
   const verb = type === 'potion' ? 'drinks' : type === 'scroll' ? 'reads' : 'uses';
+  const effectLine = effect?.trim() ? ` Its stated effect: ${effect.trim()}` : '';
   return applyTimePrefix(
-    `${characterName} ${verb} ${name}. Describe the sensory experience and immediate effect. Keep it under 80 words.`
+    `${characterName} ${verb} ${name}.${effectLine} Describe the sensory experience and immediate effect. Keep it under 80 words.`
   );
 }
+
 
 function generatePrestigePrompt(name: string, characterName: string): string {
   return applyTimePrefix(
@@ -140,6 +165,18 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                         toast.success('Prompt added to input');
                       },
                     });
+                  } else if (item.rollKind === 'effect' && item.effectDice) {
+                    const d = item.effectDice;
+                    const roll = rollEffect(item.name, d.count, d.die, d.bonus);
+                    requestDiceRoll({
+                      title: item.name,
+                      roll,
+                      onComplete: () => {
+                        onUse(item.prompt + rollSuffix(roll));
+                        toast.success('Prompt added to input');
+                      },
+                    });
+
                   } else {
                     onUse(item.prompt);
                     toast.success('Prompt added to input');
@@ -322,19 +359,23 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
     const consumables: QuickActionItem[] = (characterContext.consumables || [])
       .filter(c => c.quantity > 0)
       .map(c => {
-        const healingDice = getHealingDiceForItem(c.name);
+        const healingDice = getHealingDiceForItem(c.name, c.effect);
+        const effectDice = healingDice ? null : parseEffectDice(c.effect);
+        const detailBits = [`${c.type} • x${c.quantity}`];
+        if (healingDice) detailBits.push(`heals ${healingDice.formula}`);
+        else if (effectDice) detailBits.push(`rolls ${effectDice.formula}`);
         return {
           id: `consumable-${c.name}`,
           name: c.name,
-          detail: healingDice
-            ? `${c.type} • x${c.quantity} • heals ${healingDice.formula}`
-            : `${c.type} • x${c.quantity}`,
-          prompt: generateConsumablePrompt(c.name, c.type, charName),
+          detail: detailBits.join(' • '),
+          prompt: generateConsumablePrompt(c.name, c.type, charName, c.effect),
           removeCategory: 'consumable' as const,
-          rollKind: (healingDice ? 'heal' : 'none') as 'heal' | 'none',
+          rollKind: (healingDice ? 'heal' : effectDice ? 'effect' : 'none') as 'heal' | 'effect' | 'none',
           healingDice: healingDice ?? undefined,
+          effectDice: effectDice ?? undefined,
         };
       });
+
 
     // Prestige abilities
     const prestige: QuickActionItem[] = (characterContext.prestigeAbilities || []).map(name => ({
