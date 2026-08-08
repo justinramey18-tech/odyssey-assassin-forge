@@ -1,7 +1,64 @@
-import { Check, X, ScrollText, Coins, Sparkles, Package } from 'lucide-react';
+import { useState } from 'react';
+import { Check, X, ScrollText, Coins, Sparkles, Package, History, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Quest, CR_META, questPercent, questTitle } from '@/lib/quests';
+import { Quest, QuestEventType, CR_META, questPercent, questTitle } from '@/lib/quests';
+
+const EVENT_STYLE: Record<QuestEventType, { dot: string; label: string }> = {
+  offered: { dot: 'bg-amber-400/70', label: 'Offered' },
+  accepted: { dot: 'bg-sky-400/70', label: 'Accepted' },
+  stage: { dot: 'bg-emerald-400/70', label: 'Objective' },
+  note: { dot: 'bg-white/40', label: 'Note' },
+  status: { dot: 'bg-violet-400/70', label: 'Status' },
+  rewards: { dot: 'bg-yellow-300/80', label: 'Rewards' },
+};
+
+function formatWhen(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+/** Activity timeline: every stage tick, note, status change and payout, oldest first. */
+function QuestTimeline({ q, defaultOpen = false }: { q: Quest; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const events = q.events ?? [];
+  if (events.length === 0) return null;
+  return (
+    <div className="mt-2.5 border-t border-white/10 pt-2">
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ touchAction: 'manipulation' }}
+        className="w-full min-h-[36px] flex items-center gap-1.5 text-[10px] text-white/50 hover:text-white/80 transition-colors"
+      >
+        <History className="w-3 h-3" />
+        <span className="uppercase tracking-wider">Activity ({events.length})</span>
+        <ChevronDown className={cn('w-3 h-3 ml-auto transition-transform', open && 'rotate-180')} />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.ul
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden mt-1.5 space-y-1.5"
+          >
+            {events.map((e, i) => (
+              <li key={`${e.at}-${i}`} className="flex items-start gap-2">
+                <span className={cn('mt-[5px] w-1.5 h-1.5 rounded-full shrink-0', EVENT_STYLE[e.type]?.dot ?? 'bg-white/40')} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-white/70 leading-snug">{e.text}</p>
+                  <p className="text-[9px] text-white/30">{EVENT_STYLE[e.type]?.label ?? 'Note'} · {formatWhen(e.at)}</p>
+                </div>
+              </li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 
 interface QuestBoardProps {
   quests: Quest[];
