@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Check, X, ScrollText, Coins, Sparkles, Package, History, ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { Check, X, ScrollText, Coins, Sparkles, Package, History, ChevronDown, SlidersHorizontal, Globe2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Quest, QuestCR, QuestEventType, CR_META, questPercent, questTitle } from '@/lib/quests';
+import { Quest, QuestCR, QuestEventType, CR_META, questPercent, questTitle, WorldStateEntry, IMPACT_META, SCOPE_LABEL } from '@/lib/quests';
 
 
 const EVENT_STYLE: Record<QuestEventType, { dot: string; label: string }> = {
@@ -18,6 +18,70 @@ function formatWhen(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+/**
+ * World state / plot impact tracker: the irreversible outcomes of the story so
+ * far, newest first, so the table can see at a glance what has changed for good.
+ */
+function WorldStateTracker({ entries }: { entries: WorldStateEntry[] }) {
+  const [open, setOpen] = useState(true);
+  const ordered = useMemo(() => [...entries].reverse(), [entries]);
+  const seismic = ordered.filter(e => e.impact === 'seismic').length;
+
+  return (
+    <div className="rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/[0.04] overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ touchAction: 'manipulation' }}
+        className="w-full flex items-center gap-2 px-3 min-h-[44px] text-left"
+      >
+        <Globe2 className="w-3.5 h-3.5 text-fuchsia-300" />
+        <span className="text-[11px] font-cinzel text-fuchsia-200 tracking-wide">World State</span>
+        <span className="text-[10px] text-white/35">
+          {ordered.length === 0
+            ? 'nothing changed yet'
+            : `${ordered.length} change${ordered.length === 1 ? '' : 's'}${seismic ? ` · ${seismic} seismic` : ''}`}
+        </span>
+        <ChevronDown className={cn('w-3.5 h-3.5 ml-auto text-white/40 transition-transform', open && 'rotate-180')} />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="px-3 pb-3 space-y-2">
+              {ordered.length === 0 ? (
+                <p className="text-[10px] text-white/35">
+                  Major outcomes — an artefact destroyed, a ruler toppled, a city saved — land here as they happen.
+                </p>
+              ) : ordered.map(e => (
+                <div key={e.id} className="rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2">
+                  <div className="flex items-start gap-2">
+                    <span className={cn('mt-0.5 px-1.5 py-0.5 rounded border text-[9px] uppercase tracking-wider shrink-0', IMPACT_META[e.impact].className)}>
+                      {IMPACT_META[e.impact].label}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] text-white/85 leading-snug break-words">{e.title}</p>
+                      {e.consequence && (
+                        <p className="text-[10px] text-white/50 leading-snug mt-0.5 break-words">{e.consequence}</p>
+                      )}
+                      <p className="text-[9px] text-white/30 mt-1">
+                        {SCOPE_LABEL[e.scope]} · {formatWhen(e.at)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }
 
 /** Activity timeline: every stage tick, note, status change and payout, oldest first. */
@@ -70,6 +134,8 @@ interface QuestBoardProps {
   /** Re-read the DM's latest response and pull any quests out of it. */
   onScan?: () => void;
   scanning?: boolean;
+  /** Irreversible story outcomes recorded so far. */
+  worldState?: WorldStateEntry[];
 }
 
 function RewardRow({ q }: { q: Quest }) {
