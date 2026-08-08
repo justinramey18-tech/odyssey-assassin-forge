@@ -202,6 +202,21 @@ const EXTRACT_TOOL = {
             required: ["key", "title", "description", "quest_type", "challenge_rating", "xp_reward", "gold_reward", "item_rewards", "stages"],
           },
         },
+        world_state_changes: {
+          type: "array",
+          description: "Irreversible changes to the state of the world caused in THIS message: an artefact destroyed, a ruler killed or deposed, a settlement saved or razed, a faction broken, a war started or ended, a pact sworn, a permanent transformation. Maximum 3. Empty array for ordinary scenes.",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "Short headline in past tense, e.g. 'The One Ring is destroyed in Mount Doom'." },
+              consequence: { type: "string", description: "One sentence on what this permanently changes going forward." },
+              scope: { type: "string", enum: ["world", "faction", "location", "npc", "party", "item"], description: "What level of the setting this affects." },
+              impact: { type: "string", enum: ["minor", "major", "seismic"], description: "seismic = reshapes the whole setting. major = reshapes a region, faction or storyline. minor = a lasting but local change." },
+              quest_key: { type: ["string", "null"], description: "Key of the quest this outcome resolves, or null." },
+            },
+            required: ["title", "consequence", "scope", "impact", "quest_key"],
+          },
+        },
         quest_progress: {
           type: "array",
           description: "Progress on quests the player has ALREADY accepted, listed in the ACTIVE QUESTS context. Empty array when nothing advanced.",
@@ -239,6 +254,7 @@ const EXTRACT_TOOL = {
         "companion_hp_absolute",
         "quests_offered",
         "quest_progress",
+        "world_state_changes",
       ],
 
       additionalProperties: false,
@@ -339,6 +355,7 @@ CRITICAL ACCURACY RULES:
 - ABSOLUTE HP EXTRACTION (CRITICAL): If the text shows an absolute HP value like "Geralt: 53/59 HP" or "Momo: 26/38 HP", extract the CURRENT number into hp_absolute (for the player) or companion_hp_absolute (for the companion). ALWAYS prefer extracting absolute values when available — they are more reliable than deltas.
 - QUEST OFFERS: capture EVERY new job this message puts in front of the player. If the message presents a quest board, a job list, a numbered set of objectives, a mission briefing, or a headed "MAIN QUEST" / "SIDE QUESTS" listing, create one entry per listed job, up to 8, even if the presentation is playful, meta, or breaks the fourth wall. Bullet points under a job become its stages. A job headed as main storyline gets quest_type "main"; optional work gets "side". Invent a sensible key, xp_reward and challenge_rating when the message does not state them. Otherwise put an entry in quests_offered only when this message presents a NEW job the player has not yet agreed to — an NPC asks for help, a notice board is read, a bounty is posted, a clear objective is handed over. Do not create a quest for scenery, small talk, or an errand the player already accepted. Never offer a quest whose key already appears in ACTIVE QUESTS. Rewards must be plausible for the stated difficulty; gold_reward may be 0 but xp_reward must be greater than zero.
 - QUEST PROGRESS: mark a stage completed only when the narrative shows it actually happened. Copy the goal text from the ACTIVE QUESTS list. Set status "completed" only when the whole job is done and set "failed" only when it is irreversibly lost; otherwise use null.
+- WORLD STATE: record an entry in world_state_changes only for outcomes that can never be undone and that the DM must honour for the rest of the campaign. A won fight, a healed wound or a bought item is NOT a world state change. Destroying an artefact, killing a named ruler, burning a city, ending a siege, or breaking a curse IS. Never repeat an outcome already recorded.
 - If no changes are found, return empty arrays and null values.
 
 CHARACTER: "${characterContext?.name || "Adventurer"}" is Level ${characterContext?.level || 1}, currently at ${characterContext?.currentHP || "?"}/${characterContext?.maxHP || "?"} HP.${companionInfo}${questInfo}`;

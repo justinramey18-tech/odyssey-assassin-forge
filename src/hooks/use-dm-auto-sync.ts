@@ -35,6 +35,7 @@ export interface ExtractionResult {
   companion_hp_absolute: number | null;
   quests_offered?: RawQuestOffer[];
   quest_progress?: { key: string; stages_completed?: string[]; status?: string | null; notes?: string | null }[];
+  world_state_changes?: { title?: string; consequence?: string; scope?: string; impact?: string; quest_key?: string | null }[];
 }
 
 
@@ -63,6 +64,8 @@ interface AutoSyncCallbacks {
   onQuestUpdate?: (offers: RawQuestOffer[], progress: NonNullable<ExtractionResult['quest_progress']>) => void;
   /** Quests already accepted, so the extractor only advances real objectives. */
   getActiveQuests?: () => Quest[];
+  /** Irreversible story outcomes pulled out of the DM's narration. */
+  onWorldStateUpdate?: (changes: NonNullable<ExtractionResult['world_state_changes']>) => void;
   // snapshot getters
   getCurrentHP: () => number;
   getCurrentGold: () => number;
@@ -237,6 +240,11 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
         if (offers.length > 0 || progress.length > 0) {
           cb.onQuestUpdate(offers, progress);
         }
+      }
+
+      // Record permanent plot outcomes (an artefact destroyed, a ruler killed).
+      if (cb.onWorldStateUpdate && Array.isArray(result.world_state_changes) && result.world_state_changes.length > 0) {
+        cb.onWorldStateUpdate(result.world_state_changes);
       }
 
       return result;

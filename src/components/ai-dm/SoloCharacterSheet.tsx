@@ -5,7 +5,7 @@ import {
   Plus, Minus, ChevronUp, ExternalLink, Moon, Sun, Trash2, PackageCheck, PackageX, Scroll, Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Quest } from '@/lib/quests';
+import { Quest, WorldStateEntry } from '@/lib/quests';
 import { QuestBoard } from './QuestBoard';
 import { CharacterContext } from '@/components/oracle/types';
 import { useXPProgression } from '@/hooks/use-xp-progression';
@@ -57,6 +57,8 @@ export interface SoloCharacterSheetProps {
   /** Re-read the DM's latest response and pull quests out of it. */
   onScanQuests?: () => void;
   scanningQuests?: boolean;
+  /** Irreversible story outcomes shown on the quest board. */
+  worldState?: WorldStateEntry[];
 
   onAdjustHP?: (change: number, type: 'damage' | 'healing') => void;
   onAddXP?: (amount: number, source: string) => void;
@@ -107,7 +109,7 @@ function Section({ title, icon: Icon, children, action }: {
 }
 
 export function SoloCharacterSheet({
-  open, onClose, ctx, currentXP, gold, quests = [], onAcceptQuest, onDeclineQuest, onScanQuests, scanningQuests,
+  open, onClose, ctx, currentXP, gold, quests = [], onAcceptQuest, onDeclineQuest, onScanQuests, scanningQuests, worldState = [],
   onAdjustHP, onAddXP, onManualLevelUp, onConditionChange, onRest, onRestPrompt, onAcceptItem, onUseConsumableByName, onUseLootItem,
   initialTab,
   origin = 'solo',
@@ -1090,6 +1092,7 @@ export function SoloCharacterSheet({
                 onDecline={onDeclineQuest}
                 onScan={onScanQuests}
                 scanning={scanningQuests}
+                worldState={worldState}
               />
             </Section>
 

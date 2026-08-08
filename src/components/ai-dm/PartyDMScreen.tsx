@@ -32,7 +32,7 @@ import { PartyMemoryAnchorsPanel } from './PartyMemoryAnchorsPanel';
 import { PartyQuestsPanel } from './PartyQuestsPanel';
 import { usePartyQuests } from '@/hooks/use-party-quests';
 import { useQuestRewardSplit } from '@/hooks/use-quest-reward-split';
-import { withQuestEvent } from '@/lib/quests';
+import { withQuestEvent, WorldStateEntry } from '@/lib/quests';
 
 import { DMComposePanel } from './DMComposePanel';
 import { DraftReviewPanel } from './DraftReviewPanel';
@@ -108,6 +108,8 @@ interface PartyDMScreenProps {
   onBack: () => void;
   /** Re-read the DM's latest response and pull quests out of it. */
   onScanQuests?: () => void;
+  /** Shared, irreversible story outcomes shown on the quest board. */
+  worldState?: WorldStateEntry[];
   partyId?: string | null;
   partyDm: PartyDmReturn;
   isCreator: boolean;
@@ -949,7 +951,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.reactions?.every((r, i) => r.id === next.reactions?.[i]?.id);
 });
 
-export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, hasPendingRedoRequest, onScanQuests }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, hasPendingRedoRequest, onScanQuests, worldState = [] }: PartyDMScreenProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   // Shared party quest board, also shown inside each player's character sheet.
   const sheetQuests = usePartyQuests(partyId, currentUserId);
@@ -4543,6 +4545,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           } : undefined}
           onDeclineQuest={isCreator ? (key) => sheetQuests.removeQuest(key) : undefined}
           onScanQuests={isCreator ? onScanQuests : undefined}
+          worldState={worldState}
           scanningQuests={isExtracting}
           onAdjustHP={(change, type) => onHPChange?.(change, type)}
           onAddXP={() => {}}

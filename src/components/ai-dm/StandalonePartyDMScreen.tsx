@@ -9,7 +9,7 @@ import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { usePartyQuests } from '@/hooks/use-party-quests';
 import { useQuestRewardSplit } from '@/hooks/use-quest-reward-split';
 import { questRewardShare, applyShare } from '@/lib/questRewardSplit';
-import { Quest, RawQuestOffer, questFromOffer, questTitle, applyQuestProgress, withQuestEvent, rewardSummary } from '@/lib/quests';
+import { Quest, RawQuestOffer, questFromOffer, questTitle, applyQuestProgress, withQuestEvent, rewardSummary, worldEntryFromQuest, worldStateContextLines } from '@/lib/quests';
 import { useCampaignSessions } from '@/hooks/use-campaign-sessions';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -456,11 +456,22 @@ export function StandalonePartyDMScreen({
   }, [dragonBonds.myDragon, dragonBonds.updateMyDragon]);
 
   const { weather } = useWeather();
+  // Shared party quest board + world-state log (declared here so the DM prompt can read it).
+  const partyQuests = usePartyQuests(partyId, userId);
+
   const weatherWorldState = useMemo(() => {
-    if (!loadWeatherEnabled()) return undefined;
-    const block = buildWeatherPrompt(weather || getCachedWeather());
-    return block || undefined;
-  }, [weather]);
+    const parts: string[] = [];
+    if (loadWeatherEnabled()) {
+      const block = buildWeatherPrompt(weather || getCachedWeather());
+      if (block) parts.push(block);
+    }
+    // Established outcomes are facts. The DM must never contradict them.
+    const wsLines = worldStateContextLines(partyQuests.worldState);
+    if (wsLines.length > 0) {
+      parts.push('WORLD STATE (established, irreversible — never contradict):\n' + wsLines.map(l => `- ${l}`).join('\n'));
+    }
+    return parts.length ? parts.join('\n\n') : undefined;
+  }, [weather, partyQuests.worldState]);
 
 
   // Party DM hook — pass isHost as isCreator so co-hosts get host abilities
@@ -564,7 +575,6 @@ export function StandalonePartyDMScreen({
 
 
   // ─── Party quest board ──────────────────────────────────────────────────────
-  const partyQuests = usePartyQuests(partyId, userId);
   const questRewardSplit = useQuestRewardSplit(partyId, userId);
   const partyQuestsRef = useRef<Quest[]>([]);
   useEffect(() => { partyQuestsRef.current = partyQuests.quests; }, [partyQuests.quests]);
@@ -617,9 +627,30 @@ export function StandalonePartyDMScreen({
         next.rewardsPaid = true;
         next = withQuestEvent(next, 'rewards', `Rewards paid out: ${rewardSummary(next)}.`);
       }
+      if (next.status !== existing.status && (next.status === 'completed' || next.status === 'failed') && isHost) {
+        partyQuests.recordWorldState([worldEntryFromQuest(next)]);
+      }
       if (isHost) partyQuests.upsertQuest(next);
     }
   }, [isHost, partyQuests, payPartyQuestRewards]);
+
+  /** Only the host writes the shared world-state log; everyone reads it in realtime. */
+  const handleWorldStateUpdate = useCallback((changes: any[]) => {
+    if (!isHost) return;
+    const incoming = (changes ?? []).map((c: any) => ({
+      title: c?.title,
+      consequence: c?.consequence,
+      scope: c?.scope,
+      impact: c?.impact,
+      questKey: c?.quest_key ?? c?.questKey ?? undefined,
+    }));
+    partyQuests.recordWorldState(incoming).then(added => {
+      if (added.length === 0) return;
+      toast.info(added.length === 1 ? 'The world has changed' : `${added.length} things changed the world`, {
+        description: added.map(e => e.title).join(' · '),
+      });
+    }).catch(() => {});
+  }, [isHost, partyQuests]);
 
 
   const autoSync = useDmAutoSync({
@@ -637,6 +668,7 @@ export function StandalonePartyDMScreen({
     getGridSize: useCallback(() => 25 as any, []),
     getActiveQuests: useCallback(() => partyQuestsRef.current, []),
     onQuestUpdate: handlePartyQuestUpdate,
+    onWorldStateUpdate: handleWorldStateUpdate,
   } as Parameters<typeof useDmAutoSync>[0]);
 
   // Run auto-sync on each newly arrived DM message.
@@ -905,6 +937,7 @@ ${truncated}`);
         onToggleAutoSync={autoSync.toggleAutoSync}
         isExtracting={autoSync.isExtracting}
         onScanQuests={handleScanQuests}
+        worldState={partyQuests.worldState}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
         guides={gmGuides.guides}
         gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '') + dragonContextForDM}
