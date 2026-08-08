@@ -54,6 +54,10 @@ export interface SoloCharacterSheetProps {
   onAcceptQuest?: (key: string) => void;
   /** Turn down an offered quest and clear it from the board. */
   onDeclineQuest?: (key: string) => void;
+  /** Re-read the DM's latest response and pull quests out of it. */
+  onScanQuests?: () => void;
+  scanningQuests?: boolean;
+
   onAdjustHP?: (change: number, type: 'damage' | 'healing') => void;
   onAddXP?: (amount: number, source: string) => void;
   onManualLevelUp?: () => void;
