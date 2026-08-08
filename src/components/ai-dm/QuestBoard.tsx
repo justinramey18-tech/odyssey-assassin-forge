@@ -217,6 +217,7 @@ export function QuestBoard({ quests, canManage = true, onAccept, onDecline }: Qu
                 <ProgressBar pct={questPercent(q)} />
                 <RewardRow q={q} />
                 {q.notes && <p className="text-[10px] text-white/35 mt-1.5 italic">{q.notes}</p>}
+                <QuestTimeline q={q} />
               </div>
             ))}
           </div>
@@ -228,10 +229,13 @@ export function QuestBoard({ quests, canManage = true, onAccept, onDecline }: Qu
           <p className="text-[10px] text-green-400/60 uppercase tracking-wider mb-2">Completed</p>
           <div className="space-y-1">
             {done.map(q => (
-              <div key={q.key} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-green-950/20 border border-green-500/10">
-                <Check className="w-3 h-3 text-green-400/60 shrink-0" />
-                <p className="text-xs text-white/40 line-through flex-1 truncate">{questTitle(q)}</p>
-                {!!q.xpReward && <span className="text-[9px] text-sky-300/60 shrink-0">+{q.xpReward} XP</span>}
+              <div key={q.key} className="px-2.5 py-1.5 rounded-lg bg-green-950/20 border border-green-500/10">
+                <div className="flex items-center gap-2">
+                  <Check className="w-3 h-3 text-green-400/60 shrink-0" />
+                  <p className="text-xs text-white/40 line-through flex-1 truncate">{questTitle(q)}</p>
+                  {!!q.xpReward && <span className="text-[9px] text-sky-300/60 shrink-0">+{q.xpReward} XP</span>}
+                </div>
+                <QuestTimeline q={q} />
               </div>
             ))}
           </div>
@@ -243,14 +247,18 @@ export function QuestBoard({ quests, canManage = true, onAccept, onDecline }: Qu
           <p className="text-[10px] text-red-400/60 uppercase tracking-wider mb-2">Failed</p>
           <div className="space-y-1">
             {failed.map(q => (
-              <div key={q.key} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-red-950/20 border border-red-500/10">
-                <X className="w-3 h-3 text-red-400/60 shrink-0" />
-                <p className="text-xs text-white/40 flex-1 truncate">{questTitle(q)}</p>
+              <div key={q.key} className="px-2.5 py-1.5 rounded-lg bg-red-950/20 border border-red-500/10">
+                <div className="flex items-center gap-2">
+                  <X className="w-3 h-3 text-red-400/60 shrink-0" />
+                  <p className="text-xs text-white/40 flex-1 truncate">{questTitle(q)}</p>
+                </div>
+                <QuestTimeline q={q} />
               </div>
             ))}
           </div>
         </div>
       )}
+
     </div>
   );
 }
