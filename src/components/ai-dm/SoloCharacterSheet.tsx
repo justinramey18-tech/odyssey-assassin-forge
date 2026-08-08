@@ -1108,7 +1108,8 @@ export function SoloCharacterSheet({
       <RestPreviewSheet
         type={restPreview}
         onClose={() => setRestPreview(null)}
-        onConfirm={t => onRest?.(t)}
+        onConfirm={handleConfirmRest}
+        extraLines={restExtraLines}
       />
     </div>
   );
