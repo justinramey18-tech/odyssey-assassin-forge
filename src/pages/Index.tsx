@@ -938,13 +938,13 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         ? Math.min(calculatedMaxHP, hpState.current + hpDiff)
         : Math.min(calculatedMaxHP, hpState.current);
       
-      const newState = { 
+      const newState = persistHPState({ 
         current: newCurrent, 
         max: calculatedMaxHP, 
         temp: hpState.temp 
-      };
+      });
       setHpState(newState);
-      setScopedItem('odyssey-hp-state', JSON.stringify(newState));
+
       
       // Show toast for significant changes, but NOT on initial app load
       if (hasInitialHPSynced.current && hpState.max > 8 && hpDiff !== 0) {
