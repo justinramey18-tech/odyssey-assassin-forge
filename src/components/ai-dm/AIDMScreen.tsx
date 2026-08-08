@@ -710,6 +710,25 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     removeQuest(key);
   }, [removeQuest]);
 
+  /** Manual pull: re-read the DM's latest response and lift any quests out of it. */
+  const handleScanQuests = useCallback(() => {
+    const last = [...messages].reverse().find(m => m.role === 'assistant' && m.content?.trim());
+    if (!last) {
+      sonnerToast.info('No DM response to read yet.');
+      return;
+    }
+    sonnerToast.info('Reading the DM\'s last response for quests…');
+    autoSync.extractAndApply(last.content, characterContext)
+      .then(result => {
+        if (!result?.quests_offered?.length && !result?.quest_progress?.length) {
+          sonnerToast.info('No quests found in that response.', {
+            description: 'Ask the DM to lay out the jobs on offer, then try again.',
+          });
+        }
+      })
+      .catch(() => {});
+  }, [messages, characterContext, autoSync.extractAndApply]);
+
   // Build world state prompt to inject into AI system prompt
   const worldStatePrompt = useMemo(() => {
     let prompt = buildMemoryAnchorsPrompt(gameState);
@@ -1729,6 +1748,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         quests={quests}
         onAcceptQuest={handleAcceptQuest}
         onDeclineQuest={handleDeclineQuest}
+        onScanQuests={handleScanQuests}
+        scanningQuests={autoSync.isExtracting}
         onAdjustHP={(change, type) => autoSyncCallbacks?.onHPChange?.(change, type)}
         onAddXP={(amount, source) => autoSyncCallbacks?.onAddXP?.(amount, source)}
         onManualLevelUp={onManualLevelUp}
