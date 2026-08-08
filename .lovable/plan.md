@@ -30,8 +30,8 @@ Today the Rest section in the in-DM character sheet shows a preview, but only th
 
 ## Technical notes
 
-- New `src/lib/restTracker.ts`: scoped short-rest counter (`odyssey-short-rest-count`) using `getScopedItem`/`setScopedItem` plus `migrateToScoped`, with increment/reset helpers and an `odyssey-character-loaded` re-read. Registered in `scoped-keys.ts` SCOPED_KEYS, `resetApp.ts` ALL_STORAGE_KEYS, and `use-auto-save.ts` SaveData.
-- `SoloCharacterSheet.tsx`: Rest section gains the counter display; on confirm it calls the existing `onRest`, updates the counter, and stages/sends the DM line through a new optional `onRestPrompt` callback (falls back to the existing composer-staging path when absent).
+- New `src/lib/restTracker.ts`: scoped remaining-short-rests value (`odyssey-short-rests-remaining`, default 3, max 3) using `getScopedItem`/`setScopedItem` plus `migrateToScoped`, with spend/refill helpers, `Number.isFinite` guarding on read, and an `odyssey-character-loaded` re-read. Registered in `scoped-keys.ts` SCOPED_KEYS, `resetApp.ts` ALL_STORAGE_KEYS, and `use-auto-save.ts` SaveData.
+- `SoloCharacterSheet.tsx`: Rest section gains the pips/remaining display and disables Short Rest at zero; on confirm it calls the existing `onRest`, spends or refills the count, and stages/sends the DM line through a new optional `onRestPrompt` callback (falls back to the existing composer-staging path when absent).
 - `RestPreviewSheet` already accepts `extraLines`; the sheet will pass health and short-rest resource lines computed from `ctx` (max/current HP, wild shape uses, pact slots).
 - `AIDMScreen.tsx`: keeps `onRest -> autoSyncCallbacks.onRestOccurred` (which runs `handleShortRest`/`handleLongRest` in `Index.tsx`) and adds the send path for the rest line.
 - `PartyDMScreen.tsx`: replaces the `onRest={() => {}}` no-op with the real handler forwarded from `StandalonePartyDMScreen`'s `autoSyncCallbacks.onRestOccurred`, passing `undefined` when unavailable rather than a no-op; rest line goes through the same send path used by consumables.
