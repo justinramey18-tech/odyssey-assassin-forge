@@ -817,6 +817,14 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     coreRulesInGuides: defaultGuidePresent || isDefaultSoloGuideDeleted(),
   });
 
+  // Canon guard plumbing: fresh world state + a way to send the correction beat.
+  useEffect(() => { sendMessageRef.current = sendMessage; }, [sendMessage]);
+  useEffect(() => {
+    worldStateEntriesRef.current = normalizeWorldState(gameState.quest_flags);
+  }, [gameState.quest_flags]);
+
+
+
   // Auto-update Linked Universe story digest whenever the campaign summary changes
   useEffect(() => {
     if (campaignSummary && campaignSummary.trim()) {
