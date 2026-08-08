@@ -161,6 +161,57 @@ interface SectionProps {
 
 function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = false, onHeal, onCloseDrawer }: SectionProps) {
   const [open, setOpen] = useState(defaultOpen);
+  // The attack/spell about to be rolled, held while the player checks the maths.
+  const [pending, setPending] = useState<QuickActionItem | null>(null);
+
+  const runAttackOrSpell = (item: QuickActionItem, choice: RollPreviewChoice) => {
+    // Casting from quick actions spends the real slot first, so a
+    // spell the character can no longer afford never reaches the DM.
+    let slotNote = '';
+    let spentSlotLevel: number | undefined;
+    if (item.rollKind === 'spell') {
+      const outcome = castSpellByName({
+        name: item.name,
+        level: item.spellLevel,
+        slotLevel: choice.slotLevel,
+        usePact: choice.usePact,
+      });
+      if (!outcome.ok && outcome.reason === 'no-slots') {
+        toast.error(`No spell slot left for ${item.name}.`);
+        return;
+      }
+      if (outcome.ok && !outcome.isCantrip) {
+        spentSlotLevel = typeof outcome.slotLevel === 'number' ? outcome.slotLevel : undefined;
+        slotNote = outcome.usedPactSlot
+          ? ` A pact slot was spent (${outcome.remaining ?? 0} left).`
+          : typeof outcome.slotLevel === 'number'
+            ? ` A level ${outcome.slotLevel} slot was spent (${outcome.remaining ?? 0} left).`
+            : '';
+        const spend = describeSlotSpend(outcome);
+        if (spend) toast.success(`${item.name} cast`, { description: spend });
+      }
+    }
+    // Scale the damage dice for the slot actually spent, so an
+    // upcast Fireball rolls the bigger die pool.
+    let damageFormula = item.damageFormula;
+    if (item.rollKind === 'spell' && typeof item.spellLevel === 'number' && item.spellLevel > 0 && typeof spentSlotLevel === 'number') {
+      const parsed = parseDiceFormula(damageFormula);
+      if (parsed) damageFormula = formatDiceFormula(scaleForUpcast(parsed, item.spellLevel, spentSlotLevel));
+    }
+    const attackBonus = item.rollKind === 'spell'
+      ? getMagicResources()?.spellAttackBonus
+      : item.attackBonus;
+    const roll = rollAttack(item.rollKind === 'spell' ? 'spell' : 'attack', damageFormula, attackBonus);
+    onCloseDrawer?.();
+    requestDiceRoll({
+      title: item.name,
+      roll,
+      onComplete: () => {
+        onUse(item.prompt + rollSuffix(roll) + slotNote);
+        toast.success('Prompt added to input');
+      },
+    });
+  };
 
   if (items.length === 0) return null;
 
@@ -187,49 +238,11 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                   if (item.rollKind === 'heal' && item.healingDice && onHeal) {
                     onHeal(item);
                   } else if (item.rollKind === 'attack' || item.rollKind === 'spell') {
-                    // Casting from quick actions spends the real slot first, so a
-                    // spell the character can no longer afford never reaches the DM.
-                    let slotNote = '';
-                    let spentSlotLevel: number | undefined;
-                    if (item.rollKind === 'spell') {
-                      const outcome = castSpellByName({ name: item.name, level: item.spellLevel });
-                      if (!outcome.ok && outcome.reason === 'no-slots') {
-                        toast.error(`No spell slot left for ${item.name}.`);
-                        return;
-                      }
-                      if (outcome.ok && !outcome.isCantrip) {
-                        spentSlotLevel = typeof outcome.slotLevel === 'number' ? outcome.slotLevel : undefined;
-                        slotNote = outcome.usedPactSlot
-                          ? ` A pact slot was spent (${outcome.remaining ?? 0} left).`
-                          : typeof outcome.slotLevel === 'number'
-                            ? ` A level ${outcome.slotLevel} slot was spent (${outcome.remaining ?? 0} left).`
-                            : '';
-                        const spend = describeSlotSpend(outcome);
-                        if (spend) toast.success(`${item.name} cast`, { description: spend });
-                      }
-                    }
-                    // Scale the damage dice for the slot actually spent, so an
-                    // upcast Fireball rolls the bigger die pool.
-                    let damageFormula = item.damageFormula;
-                    if (item.rollKind === 'spell' && typeof item.spellLevel === 'number' && item.spellLevel > 0 && typeof spentSlotLevel === 'number') {
-                      const parsed = parseDiceFormula(damageFormula);
-                      if (parsed) damageFormula = formatDiceFormula(scaleForUpcast(parsed, item.spellLevel, spentSlotLevel));
-                    }
-                    const attackBonus = item.rollKind === 'spell'
-                      ? getMagicResources()?.spellAttackBonus
-                      : item.attackBonus;
-                    const roll = rollAttack(item.rollKind, damageFormula, attackBonus);
-                    onCloseDrawer?.();
-                    requestDiceRoll({
-                      title: item.name,
-                      roll,
-                      onComplete: () => {
-                        onUse(item.prompt + rollSuffix(roll) + slotNote);
-                        toast.success('Prompt added to input');
-                      },
-                    });
+                    // Show the maths first — the roll only happens on confirm.
+                    setPending(item);
                   } else if (item.rollKind === 'check') {
                     const roll = rollCheck();
+
                     onCloseDrawer?.();
                     requestDiceRoll({
                       title: item.name,
