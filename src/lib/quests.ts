@@ -154,8 +154,6 @@ export function normalizeQuest(key: string, raw: any): Quest {
     events: events.length ? events : undefined,
     updated_at: raw?.updated_at ? String(raw.updated_at) : undefined,
   };
-
-  };
 }
 
 export function normalizeQuestMap(raw: Record<string, any> | undefined | null): Quest[] {
