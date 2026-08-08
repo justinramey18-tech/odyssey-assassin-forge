@@ -252,6 +252,15 @@ export function applyQuestProgress(
   return next;
 }
 
+/** Human summary of what a quest pays out, used in the activity timeline. */
+export function rewardSummary(q: Quest): string {
+  const parts: string[] = [];
+  if (q.xpReward) parts.push(`${q.xpReward} XP`);
+  if (q.goldReward) parts.push(`${q.goldReward} gold`);
+  for (const it of q.itemRewards ?? []) parts.push(`${it.name}${(it.quantity ?? 1) > 1 ? ` x${it.quantity}` : ''}`);
+  return parts.length ? parts.join(', ') : 'no material rewards';
+}
+
 
 /** Serialise back into the stored quest_flags shape. */
 export function toStored(quest: Quest): Record<string, any> {
