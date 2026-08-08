@@ -1005,8 +1005,21 @@ export function SoloCharacterSheet({
           </>
         )}
       </div>
+
+      <CastCard
+        spell={castTarget}
+        onClose={() => setCastTarget(null)}
+        onResolved={receipt => onUseLootItem?.(receipt)}
+      />
+
+      <RestPreviewSheet
+        type={restPreview}
+        onClose={() => setRestPreview(null)}
+        onConfirm={t => onRest?.(t)}
+      />
     </div>
   );
 
   return createPortal(body, document.body);
+
 }
