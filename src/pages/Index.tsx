@@ -2893,6 +2893,18 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
             });
             return;
           }
+          // Potions, poisons and scrolls go to the consumables inventory
+          const consumable = dmItemToConsumable(name, details);
+          if (consumable) {
+            addConsumableItem(consumable, Math.max(1, quantity));
+            toast({
+              title: 'Consumable Added!',
+              description: `${name} is now in your consumables and quick actions.`,
+              className: 'border-emerald-500 bg-emerald-500/10',
+            });
+            return;
+          }
+
 
 
 
