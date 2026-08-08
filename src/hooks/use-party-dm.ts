@@ -11,6 +11,8 @@ import { parseWhispers } from '@/lib/whisper-parser';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { loadSelectedModel } from '@/lib/dm-models';
 import { loadApiKey, isFeatureSkipped } from '@/lib/api-keys';
+import { buildNarrationStyleBlock } from '@/lib/narrationStyle';
+import { fetchPartyNarrationStyle } from '@/hooks/use-party-narration-style';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
