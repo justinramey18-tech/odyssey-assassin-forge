@@ -842,6 +842,7 @@ ${truncated}`);
           wildShape={wildShape}
           isMomoMoonDruid={isMomoMoonDruid}
           onHPChange={autoSyncCallbacks?.onHPChange}
+          onRestOccurred={autoSyncCallbacks?.onRestOccurred}
           onUseConsumableByName={autoSyncCallbacks?.onUseConsumableByName}
           swipeHandlers={swipeHandlers}
           onRequestCharacterRedo={(() => {

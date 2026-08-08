@@ -1640,6 +1640,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         onManualLevelUp={onManualLevelUp}
         onConditionChange={(add, remove) => autoSyncCallbacks?.onConditionChange?.(add, remove)}
         onRest={(type) => autoSyncCallbacks?.onRestOccurred?.(type)}
+        onRestPrompt={(text) => sendMessage(text)}
         onAcceptItem={onAcceptItem}
       />
 

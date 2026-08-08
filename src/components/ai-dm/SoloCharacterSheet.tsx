@@ -18,6 +18,9 @@ import { GearBonusBreakdown } from '@/components/character/GearBonusBreakdown';
 import type { CastSpellDefinition } from '@/lib/magic/castResolver';
 import { CastCard } from '@/components/magic/CastCard';
 import { RestPreviewSheet } from '@/components/magic/RestPreviewSheet';
+import {
+  MAX_SHORT_RESTS, SHORT_REST_EVENT, getShortRestsRemaining, spendShortRest, refillShortRests,
+} from '@/lib/restTracker';
 
 
 
@@ -49,6 +52,8 @@ export interface SoloCharacterSheetProps {
   onManualLevelUp?: () => void;
   onConditionChange?: (toAdd: string[], toRemove: string[]) => void;
   onRest?: (type: 'short' | 'long') => void;
+  /** Send the short "I take a rest" line straight to the DM, like a consumable does. */
+  onRestPrompt?: (text: string) => void;
   onAcceptItem?: (name: string, quantity: number, details?: { goldValue?: number; description?: string; rarity?: string; category?: string; effect?: string; dice?: string }) => void;
   onUseConsumableByName?: (name: string) => void;
   /** Stage a loot-use sentence into the DM composer, e.g. "I use the Ember Lantern to heal (2d8)." */
@@ -92,7 +97,7 @@ function Section({ title, icon: Icon, children, action }: {
 
 export function SoloCharacterSheet({
   open, onClose, ctx, currentXP, gold, quests = [],
-  onAdjustHP, onAddXP, onManualLevelUp, onConditionChange, onRest, onAcceptItem, onUseConsumableByName, onUseLootItem,
+  onAdjustHP, onAddXP, onManualLevelUp, onConditionChange, onRest, onRestPrompt, onAcceptItem, onUseConsumableByName, onUseLootItem,
   initialTab,
   origin = 'solo',
   onViewPartySheets, partySheetCount = 0,
@@ -107,6 +112,68 @@ export function SoloCharacterSheet({
   const [castTarget, setCastTarget] = useState<CastSpellDefinition | null>(null);
   /** Which rest the player is previewing before confirming. */
   const [restPreview, setRestPreview] = useState<'short' | 'long' | null>(null);
+  /** Short rests still available before a long rest is required (3 per long rest). */
+  const [shortRestsLeft, setShortRestsLeft] = useState<number>(() => getShortRestsRemaining());
+
+  // Keep the pool in step with character switches and changes made elsewhere.
+  useEffect(() => {
+    const sync = () => setShortRestsLeft(getShortRestsRemaining());
+    sync();
+    window.addEventListener(SHORT_REST_EVENT, sync);
+    window.addEventListener('odyssey-character-loaded', sync);
+    return () => {
+      window.removeEventListener(SHORT_REST_EVENT, sync);
+      window.removeEventListener('odyssey-character-loaded', sync);
+    };
+  }, [open]);
+
+  const restCurrentHP = Number(ctx.currentHP);
+  const restMaxHP = Number(ctx.maxHP);
+  const shortRestHeal = useMemo(() => {
+    if (!Number.isFinite(restCurrentHP) || !Number.isFinite(restMaxHP) || restMaxHP <= 0) return 0;
+    return Math.max(0, Math.min(restMaxHP, restCurrentHP + Math.ceil(restMaxHP * 0.25)) - restCurrentHP);
+  }, [restCurrentHP, restMaxHP]);
+  const longRestHeal = useMemo(() => {
+    if (!Number.isFinite(restCurrentHP) || !Number.isFinite(restMaxHP) || restMaxHP <= 0) return 0;
+    return Math.max(0, restMaxHP - restCurrentHP);
+  }, [restCurrentHP, restMaxHP]);
+
+  /** Health + short-rest resource lines shown on top of the magic recovery preview. */
+  const restExtraLines = useMemo(() => {
+    if (!restPreview) return [];
+    const lines: Array<{ label: string; detail: string }> = [];
+    if (restPreview === 'short') {
+      lines.push({ label: 'Health', detail: shortRestHeal > 0 ? `+${shortRestHeal} HP (a quarter of ${restMaxHP})` : 'Already at full health' });
+      lines.push({ label: 'Refreshed', detail: 'Pact magic, channel divinity, wild shape uses, action economy' });
+      lines.push({ label: 'Short rests', detail: `${shortRestsLeft} → ${Math.max(0, shortRestsLeft - 1)} of ${MAX_SHORT_RESTS} remaining` });
+    } else {
+      lines.push({ label: 'Health', detail: longRestHeal > 0 ? `+${longRestHeal} HP (back to full ${restMaxHP})` : 'Already at full health' });
+      lines.push({ label: 'Temp HP', detail: 'Cleared' });
+      lines.push({ label: 'Death saves', detail: 'Reset' });
+      lines.push({ label: 'Short rests', detail: `Refilled to ${MAX_SHORT_RESTS} of ${MAX_SHORT_RESTS}` });
+    }
+    return lines;
+  }, [restPreview, shortRestHeal, longRestHeal, restMaxHP, shortRestsLeft]);
+
+  const handleConfirmRest = useCallback((type: 'short' | 'long') => {
+    if (type === 'short' && shortRestsLeft <= 0) {
+      toast.error('No short rests left — you need a long rest first.');
+      return;
+    }
+
+    onRest?.(type);
+
+    const left = type === 'short' ? spendShortRest() : refillShortRests();
+    setShortRestsLeft(left);
+
+    const who = ctx.name || 'The adventurer';
+    const line = type === 'short'
+      ? `${who} takes a short rest (1 hour)${shortRestHeal > 0 ? `, recovering ${shortRestHeal} HP` : ''}. ${left} short rest${left === 1 ? '' : 's'} remaining before a long rest is needed.`
+      : `${who} takes a long rest (8 hours)${longRestHeal > 0 ? `, recovering ${longRestHeal} HP to full` : ' at full health'}. Spell slots and all rest resources are restored, and short rests are refilled to ${MAX_SHORT_RESTS}.`;
+
+    if (onRestPrompt) onRestPrompt(line);
+    else onUseLootItem?.(line);
+  }, [shortRestsLeft, onRest, onRestPrompt, onUseLootItem, ctx.name, shortRestHeal, longRestHeal]);
 
   // Casting from the sheet spends a real slot. A spell is castable when the
   // character still has a slot of its level or higher (or a pact slot big enough).
@@ -418,15 +485,41 @@ export function SoloCharacterSheet({
             )}
 
             <Section title="Rest" icon={Moon}>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <span className="text-xs text-white/50">
+                  Short rests remaining: <span className="text-amber-300 font-display">{shortRestsLeft}</span> of {MAX_SHORT_RESTS}
+                </span>
+                <div className="flex gap-1">
+                  {Array.from({ length: MAX_SHORT_RESTS }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        'w-2.5 h-2.5 rounded-full border',
+                        i < shortRestsLeft ? 'bg-amber-400 border-amber-300' : 'bg-white/5 border-white/15',
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
               <div className="flex gap-2">
-                <Button variant="outline" className="flex-1 min-h-[48px] gap-1.5" onClick={() => setRestPreview('short')} style={{ touchAction: 'manipulation' }}>
+                <Button
+                  variant="outline"
+                  className="flex-1 min-h-[48px] gap-1.5"
+                  disabled={shortRestsLeft <= 0}
+                  onClick={() => setRestPreview('short')}
+                  style={{ touchAction: 'manipulation' }}
+                >
                   <Sun className="w-4 h-4" /> Short Rest
                 </Button>
                 <Button variant="outline" className="flex-1 min-h-[48px] gap-1.5" onClick={() => setRestPreview('long')} style={{ touchAction: 'manipulation' }}>
                   <Moon className="w-4 h-4" /> Long Rest
                 </Button>
               </div>
+              {shortRestsLeft <= 0 && (
+                <p className="text-[10px] text-white/40 mt-2">No short rests left — take a long rest to recover them.</p>
+              )}
             </Section>
+
 
           </>
         )}
@@ -1015,7 +1108,8 @@ export function SoloCharacterSheet({
       <RestPreviewSheet
         type={restPreview}
         onClose={() => setRestPreview(null)}
-        onConfirm={t => onRest?.(t)}
+        onConfirm={handleConfirmRest}
+        extraLines={restExtraLines}
       />
     </div>
   );

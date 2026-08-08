@@ -10,6 +10,7 @@ const ALL_STORAGE_KEYS = [
   'odyssey-ability-scores',
   'odyssey-hp-state',
   'odyssey-death-saves',
+  'odyssey-short-rests-remaining',
   
   // Progression systems
   'odyssey-prestige-data',
