@@ -14,6 +14,7 @@ import { TimerSettings } from './RoundTimer';
 import { ResponseModeSelector } from './ResponseModeSelector';
 import type { PushSubscriptionState } from '@/lib/push-subscription';
 import type { DmMode } from '@/hooks/use-party-dm';
+import { QUEST_REWARD_SPLIT_MODES, questRewardSplitLabel, type QuestRewardSplitMode } from '@/lib/questRewardSplit';
 
 interface ToolRowProps {
   icon: React.ReactNode;
