@@ -165,6 +165,18 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                         toast.success('Prompt added to input');
                       },
                     });
+                  } else if (item.rollKind === 'effect' && item.effectDice) {
+                    const d = item.effectDice;
+                    const roll = rollEffect(item.name, d.count, d.die, d.bonus);
+                    requestDiceRoll({
+                      title: item.name,
+                      roll,
+                      onComplete: () => {
+                        onUse(item.prompt + rollSuffix(roll));
+                        toast.success('Prompt added to input');
+                      },
+                    });
+
                   } else {
                     onUse(item.prompt);
                     toast.success('Prompt added to input');
