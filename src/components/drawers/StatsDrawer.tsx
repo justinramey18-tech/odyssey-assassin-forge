@@ -81,6 +81,8 @@ export function StatsDrawer({
   tempHP: propTempHP,
   onHPChange,
   equipmentStats,
+  gearBonuses,
+
   constitutionModifier = 0,
   prestigeLevel = 0,
   // Ability Scores
