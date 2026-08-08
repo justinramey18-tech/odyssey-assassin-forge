@@ -9,7 +9,7 @@ import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { usePartyQuests } from '@/hooks/use-party-quests';
 import { useQuestRewardSplit } from '@/hooks/use-quest-reward-split';
 import { questRewardShare, applyShare } from '@/lib/questRewardSplit';
-import { Quest, RawQuestOffer, questFromOffer, questTitle, applyQuestProgress, withQuestEvent, rewardSummary, worldEntryFromQuest } from '@/lib/quests';
+import { Quest, RawQuestOffer, questFromOffer, questTitle, applyQuestProgress, withQuestEvent, rewardSummary, worldEntryFromQuest, worldStateContextLines } from '@/lib/quests';
 import { useCampaignSessions } from '@/hooks/use-campaign-sessions';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -456,11 +456,22 @@ export function StandalonePartyDMScreen({
   }, [dragonBonds.myDragon, dragonBonds.updateMyDragon]);
 
   const { weather } = useWeather();
+  // Shared party quest board + world-state log (declared here so the DM prompt can read it).
+  const partyQuests = usePartyQuests(partyId, userId);
+
   const weatherWorldState = useMemo(() => {
-    if (!loadWeatherEnabled()) return undefined;
-    const block = buildWeatherPrompt(weather || getCachedWeather());
-    return block || undefined;
-  }, [weather]);
+    const parts: string[] = [];
+    if (loadWeatherEnabled()) {
+      const block = buildWeatherPrompt(weather || getCachedWeather());
+      if (block) parts.push(block);
+    }
+    // Established outcomes are facts. The DM must never contradict them.
+    const wsLines = worldStateContextLines(partyQuests.worldState);
+    if (wsLines.length > 0) {
+      parts.push('WORLD STATE (established, irreversible — never contradict):\n' + wsLines.map(l => `- ${l}`).join('\n'));
+    }
+    return parts.length ? parts.join('\n\n') : undefined;
+  }, [weather, partyQuests.worldState]);
 
 
   // Party DM hook — pass isHost as isCreator so co-hosts get host abilities
@@ -564,7 +575,6 @@ export function StandalonePartyDMScreen({
 
 
   // ─── Party quest board ──────────────────────────────────────────────────────
-  const partyQuests = usePartyQuests(partyId, userId);
   const questRewardSplit = useQuestRewardSplit(partyId, userId);
   const partyQuestsRef = useRef<Quest[]>([]);
   useEffect(() => { partyQuestsRef.current = partyQuests.quests; }, [partyQuests.quests]);
