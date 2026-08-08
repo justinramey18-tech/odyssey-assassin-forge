@@ -98,6 +98,8 @@ import {
   createInitialEquipment,
 } from '@/lib/inventory/index';
 import { dmItemToEquipment } from '@/lib/inventory/dmGearIntake';
+import { dmItemToConsumable } from '@/lib/inventory/dmConsumableIntake';
+
 import { computeEncumbrance } from '@/lib/inventory/encumbrance';
 
 import { MagicScreen, ClassSpellcastingScreen } from '@/components/magic';
