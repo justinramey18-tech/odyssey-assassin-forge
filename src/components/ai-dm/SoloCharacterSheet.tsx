@@ -96,6 +96,9 @@ export function SoloCharacterSheet({
   const [hpDelta, setHpDelta] = useState('');
   const [xpDelta, setXpDelta] = useState('');
   const [pending, setPending] = useState<PendingDmItem[]>([]);
+  /** Which ability/spell row is expanded in the Abilities tab. Keys: "ability:<tree>-<name>" / "spell:<name>" */
+  const [expandedDetail, setExpandedDetail] = useState<string | null>(null);
+
   const { multiplier } = useXPProgression();
   const identity = useCharacterIdentity();
   const [newRelName, setNewRelName] = useState('');
