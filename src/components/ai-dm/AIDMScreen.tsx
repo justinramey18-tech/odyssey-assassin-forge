@@ -52,7 +52,7 @@ import { useLinkedUniverse } from '@/hooks/use-linked-universe';
 import { LinkedUniverseSection } from '@/components/empyrean/LinkedUniverseSection';
 
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
-import { Quest, RawQuestOffer, normalizeQuestMap, questFromOffer, questTitle, applyQuestProgress, toStored, withQuestEvent, rewardSummary, WORLD_STATE_KEY, WorldStateEntry, normalizeWorldState, mergeWorldState, toStoredWorldState, worldEntryFromQuest } from '@/lib/quests';
+import { Quest, RawQuestOffer, normalizeQuestMap, questFromOffer, questTitle, applyQuestProgress, toStored, withQuestEvent, rewardSummary, WORLD_STATE_KEY, WorldStateEntry, normalizeWorldState, mergeWorldState, toStoredWorldState, worldEntryFromQuest, worldStateContextLines } from '@/lib/quests';
 import { SoloCharacterSheet, type SheetTab } from '@/components/ai-dm/SoloCharacterSheet';
 import { getSheetReturn, clearSheetReturn } from '@/lib/sheetReturn';
 import { CharacterSheetStrip } from '@/components/ai-dm/CharacterSheetStrip';
@@ -755,6 +755,11 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     if (loadWeatherEnabled()) {
       const block = buildWeatherPrompt(weather || getCachedWeather());
       if (block) prompt += '\n\n' + block;
+    }
+    // Established outcomes are facts. The DM must never contradict them.
+    const wsLines = worldStateContextLines(normalizeWorldState(gameState.quest_flags));
+    if (wsLines.length > 0) {
+      prompt += '\n\nWORLD STATE (established, irreversible — never contradict):\n' + wsLines.map(l => `- ${l}`).join('\n');
     }
 
     return prompt;
