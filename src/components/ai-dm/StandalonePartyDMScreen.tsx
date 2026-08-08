@@ -9,6 +9,7 @@ import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { usePartyQuests } from '@/hooks/use-party-quests';
 import { useQuestRewardSplit } from '@/hooks/use-quest-reward-split';
 import { questRewardShare, applyShare } from '@/lib/questRewardSplit';
+import { findCanonViolations, buildCanonCorrectionPrompt, buildCanonLockBlock, violationSummary } from '@/lib/worldStateGuard';
 import { Quest, RawQuestOffer, questFromOffer, questTitle, applyQuestProgress, withQuestEvent, rewardSummary, worldEntryFromQuest, worldStateContextLines } from '@/lib/quests';
 import { useCampaignSessions } from '@/hooks/use-campaign-sessions';
 import { supabase } from '@/integrations/supabase/client';
@@ -466,10 +467,8 @@ export function StandalonePartyDMScreen({
       if (block) parts.push(block);
     }
     // Established outcomes are facts. The DM must never contradict them.
-    const wsLines = worldStateContextLines(partyQuests.worldState);
-    if (wsLines.length > 0) {
-      parts.push('WORLD STATE (established, irreversible — never contradict):\n' + wsLines.map(l => `- ${l}`).join('\n'));
-    }
+    const canonBlock = buildCanonLockBlock(partyQuests.worldState);
+    if (canonBlock) parts.push(canonBlock);
     return parts.length ? parts.join('\n\n') : undefined;
   }, [weather, partyQuests.worldState]);
 
@@ -707,6 +706,21 @@ export function StandalonePartyDMScreen({
 
     processedSyncIds.current.add(last.id);
 
+    // Canon guard: flag any beat that reverses an already-settled outcome.
+    const violations = findCanonViolations(last.content, partyQuests.worldState);
+    if (violations.length > 0) {
+      toast.warning('That beat breaks established world state', {
+        description: violationSummary(violations),
+        duration: 12000,
+        action: isHost
+          ? {
+              label: 'Ask the DM to fix it',
+              onClick: () => { partyDm.applyOocCommand(buildCanonCorrectionPrompt(violations)); },
+            }
+          : undefined,
+      });
+    }
+
     autoSync.extractAndApply(last.content, characterContext)
       .then(result => {
         if (result?.items_acquired?.length) {
@@ -720,6 +734,9 @@ export function StandalonePartyDMScreen({
     autoSync.autoSyncEnabled,
     autoSync.extractAndApply,
     characterContext,
+    partyQuests.worldState,
+    isHost,
+    partyDm.applyOocCommand,
   ]);
 
 
