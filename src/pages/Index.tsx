@@ -879,9 +879,9 @@ const Index = () => {
     const newTotal = current + temp;
     const damageTaken = previousTotal - newTotal;
     
-    const newState = { current, max, temp };
+    const newState = persistHPState({ current, max, temp });
     setHpState(newState);
-    setScopedItem('odyssey-hp-state', JSON.stringify(newState));
+
     
     // Reset death saves when regaining HP from 0
     if (current > 0 && deathSaves.successes + deathSaves.failures > 0) {
