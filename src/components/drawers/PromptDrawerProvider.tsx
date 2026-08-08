@@ -45,7 +45,7 @@ import { allAbilities } from '@/lib/abilities';
 import { useAbilityCustomization } from '@/hooks/use-ability-customization';
 import { getCustomizedAbilities } from '@/lib/abilityCustomization';
 import { getSpellById } from '@/lib/magic/spells';
-import { registerSpellCaster } from '@/lib/magic/castBus';
+import { registerSpellCaster, registerMagicResourceInspector } from '@/lib/magic/castBus';
 
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { UseWildShapeReturn } from '@/hooks/use-wild-shape';
@@ -602,7 +602,7 @@ export function PromptDrawerProvider({
         : null,
       activeEffects: (spellcasting.activeSpells || []).map(e => ({
         name: e.spellName,
-        concentration: !!e.requiresConcentration,
+        concentration: !!e.isConcentration,
       })),
     }));
   }, [spellcasting]);
