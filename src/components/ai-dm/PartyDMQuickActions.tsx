@@ -340,47 +340,72 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
     const allAbilities = (characterContext.abilities || []).filter(a => a.tier > 0);
     const equippedSet = new Set(characterContext.equippedAbilities || []);
 
-    // Split homebrew vs standard
+    // Split homebrew vs standard — the reliable signal is the isHomebrew flag,
+    // not the tree name (custom abilities are filed under a normal tree).
     const standardAbilities: QuickActionItem[] = [];
     const homebrewAbilities: QuickActionItem[] = [];
     allAbilities.forEach(a => {
+      const isHomebrew = a.isHomebrew === true;
+      const detailBits = [`Tier ${a.tier}`, a.tree];
+      if (a.dice) detailBits.push(a.dice);
+      if (equippedSet.has(a.name)) detailBits.push('Equipped');
       const item: QuickActionItem = {
         id: `ability-${a.name}`,
         name: a.name,
-        detail: `Tier ${a.tier} • ${a.tree}${equippedSet.has(a.name) ? ' • Equipped' : ''}`,
-        prompt: generateAbilityPrompt(a.name, a.tier, charName),
-        removeCategory: (a.tree === 'Homebrew' || a.tree === 'Custom') ? 'homebrew-ability' as const : 'ability' as const,
+        detail: detailBits.join(' • '),
+        prompt: generateAbilityPrompt(a.name, a.tier, charName, {
+          effect: a.effect, dice: a.dice, actionType: a.actionType, isHomebrew,
+        }),
+        removeCategory: isHomebrew ? 'homebrew-ability' as const : 'ability' as const,
         rollKind: 'check' as const,
       };
-      if (a.tree === 'Homebrew' || a.tree === 'Custom') {
+      if (isHomebrew) {
         homebrewAbilities.push(item);
       } else {
         standardAbilities.push(item);
       }
     });
 
-    // Spells and cantrips from prepared
+    // Spells and cantrips from prepared. Prefer the full detail list when present
+    // so prompts carry real rules text; fall back to bare names.
+    const details = characterContext.spellcasting?.preparedSpellDetails;
     const prepared = characterContext.spellcasting?.preparedSpells || [];
     const spells: QuickActionItem[] = [];
     const cantrips: QuickActionItem[] = [];
     const homebrewSpells: QuickActionItem[] = [];
 
-    prepared.forEach(spellName => {
-      const isCantrip = spellName.toLowerCase().includes('cantrip') || false;
+    const spellEntries = details?.length
+      ? details
+      : prepared.map(name => ({ name, level: name.toLowerCase().includes('cantrip') ? 0 : 1, school: undefined as string | undefined, isHomebrew: undefined as boolean | undefined }));
+
+    spellEntries.forEach(s => {
+      const full = s as NonNullable<typeof details>[number];
+      const isCantrip = full.level === 0;
+      const label = isCantrip
+        ? (isEmpyreanMode() ? 'Minor Signet' : 'Cantrip')
+        : (isEmpyreanMode() ? `Prepared Signet • Lv ${full.level}` : `Level ${full.level}`);
       const item: QuickActionItem = {
-        id: `spell-${spellName}`,
-        name: spellName,
-        detail: isCantrip ? (isEmpyreanMode() ? 'Minor Signet' : 'Cantrip') : (isEmpyreanMode() ? 'Prepared Signet' : 'Prepared Spell'),
-        prompt: generateSpellPrompt(spellName, charName, isCantrip),
-        removeCategory: isCantrip ? 'cantrip' as const : 'spell' as const,
+        id: `spell-${full.name}`,
+        name: full.name,
+        detail: [label, full.school].filter(Boolean).join(' • '),
+        prompt: generateSpellPrompt(full.name, charName, isCantrip, {
+          level: full.level, school: full.school, description: full.description,
+          damageFormula: full.damageFormula, damageType: full.damageType,
+          healingFormula: full.healingFormula, saveStat: full.saveStat,
+          attackType: full.attackType, isHomebrew: full.isHomebrew,
+        }),
+        removeCategory: full.isHomebrew ? 'homebrew-spell' as const : isCantrip ? 'cantrip' as const : 'spell' as const,
         rollKind: 'spell' as const,
       };
-      if (isCantrip) {
+      if (full.isHomebrew) {
+        homebrewSpells.push(item);
+      } else if (isCantrip) {
         cantrips.push(item);
       } else {
         spells.push(item);
       }
     });
+
 
     // Consumables — healing items roll their own dice and resolve locally.
     const consumables: QuickActionItem[] = (characterContext.consumables || [])
