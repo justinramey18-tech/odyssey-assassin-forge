@@ -130,6 +130,14 @@ export function normalizeQuest(key: string, raw: any): Quest {
   const cr = CR_VALUES.includes(raw?.challengeRating) ? (raw.challengeRating as QuestCR) : undefined;
   const type: QuestType | undefined = raw?.questType === 'main' || raw?.questType === 'side' ? raw.questType : undefined;
 
+  const events: QuestEvent[] = Array.isArray(raw?.events)
+    ? raw.events.slice(-MAX_EVENTS).map((e: any) => ({
+        at: e?.at ? String(e.at) : new Date().toISOString(),
+        type: EVENT_TYPES.includes(e?.type) ? (e.type as QuestEventType) : 'note',
+        text: String(e?.text ?? '').slice(0, 240),
+      })).filter((e: QuestEvent) => e.text.length > 0)
+    : [];
+
   return {
     key,
     status,
@@ -143,7 +151,10 @@ export function normalizeQuest(key: string, raw: any): Quest {
     itemRewards: itemRewards.length ? itemRewards : undefined,
     stages: stages.length ? stages : undefined,
     rewardsPaid: Boolean(raw?.rewardsPaid),
+    events: events.length ? events : undefined,
     updated_at: raw?.updated_at ? String(raw.updated_at) : undefined,
+  };
+
   };
 }
 
