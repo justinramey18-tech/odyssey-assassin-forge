@@ -141,6 +141,62 @@ import { useCharacterIdentity } from '@/hooks/use-character-identity';
 // Stable empty object to prevent re-renders from `character.multiclassLevels ?? {}`
 const EMPTY_MULTICLASS_LEVELS: Record<string, never> = {};
 
+export interface HPStateShape { current: number; max: number; temp: number }
+const DEFAULT_HP_STATE: HPStateShape = { current: 8, max: 8, temp: 0 };
+
+/** Guard every HP value coming from storage, the cloud, or a model response. */
+function sanitizeHPState(raw: unknown, fallback: HPStateShape = DEFAULT_HP_STATE): HPStateShape {
+  if (!raw || typeof raw !== 'object') return { ...fallback };
+  const r = raw as Record<string, unknown>;
+  const max = Number(r.max);
+  const current = Number(r.current);
+  const temp = Number(r.temp);
+  const safeMax = Number.isFinite(max) && max > 0 ? Math.round(max) : fallback.max;
+  const safeCurrent = Number.isFinite(current)
+    ? Math.max(0, Math.min(safeMax, Math.round(current)))
+    : Math.max(0, Math.min(safeMax, fallback.current));
+  const safeTemp = Number.isFinite(temp) && temp > 0 ? Math.round(temp) : 0;
+  return { current: safeCurrent, max: safeMax, temp: safeTemp };
+}
+
+function readStoredHPState(fallback: HPStateShape = DEFAULT_HP_STATE): HPStateShape {
+  try {
+    const stored = getScopedItem('odyssey-hp-state');
+    if (!stored) return { ...fallback };
+    return sanitizeHPState(JSON.parse(stored), fallback);
+  } catch {
+    return { ...fallback };
+  }
+}
+
+// Debounced cloud push for HP changes — combat bursts collapse into one upload.
+let hpSyncTimer: ReturnType<typeof setTimeout> | null = null;
+function requestHPCloudSync(immediate = false) {
+  if (hpSyncTimer) {
+    clearTimeout(hpSyncTimer);
+    hpSyncTimer = null;
+  }
+  const fire = () => {
+    hpSyncTimer = null;
+    window.dispatchEvent(new Event('odyssey-force-cloud-sync'));
+  };
+  if (immediate) fire();
+  else hpSyncTimer = setTimeout(fire, 2000);
+}
+
+/** Persist an HP state to scoped storage and schedule/force a cloud save. */
+function persistHPState(state: HPStateShape, immediate = false): HPStateShape {
+  const safe = sanitizeHPState(state, state);
+  try {
+    setScopedItem('odyssey-hp-state', JSON.stringify(safe));
+  } catch (e) {
+    console.error('[HP] Failed to persist HP state:', e);
+  }
+  requestHPCloudSync(immediate || safe.current <= 0);
+  return safe;
+}
+
+
 const Index = () => {
   const location = useLocation();
   const routerNavigate = useNavigate();
@@ -466,20 +522,19 @@ const Index = () => {
   // Shared equipment state for constellation view
   const [equipment, setEquipment] = useState<CharacterEquipment>(() => createInitialEquipment());
   
-  // HP State Management (persisted to localStorage)
+  // HP State Management (persisted to localStorage, guarded against bad values)
   // Note: max HP is now calculated dynamically, but we still store it for persistence
-  const [hpState, setHpState] = useState<{ current: number; max: number; temp: number }>(() => {
-    const stored = getScopedItem('odyssey-hp-state');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        return parsed;
-      } catch {
-        return { current: 8, max: 8, temp: 0 };
-      }
-    }
-    return { current: 8, max: 8, temp: 0 };
-  });
+  const [hpState, setHpState] = useState<HPStateShape>(() => readStoredHPState());
+
+  // Re-read HP when a different character is loaded so the bars show the right hero
+  useEffect(() => {
+    const handleCharacterLoaded = () => {
+      setHpState(readStoredHPState());
+    };
+    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+  }, []);
+
 
   // Death Saves State (persisted to localStorage)
   const [deathSaves, setDeathSaves] = useState<{ successes: number; failures: number }>(() => {
@@ -809,9 +864,9 @@ const Index = () => {
         if (result.reverted && result.overflow > 0) {
           // Overflow damage applies to real character HP
           const newCharHP = Math.max(0, hpState.current - result.overflow);
-          const newState = { current: newCharHP, max: hpState.max, temp: hpState.temp };
+          const newState = persistHPState({ current: newCharHP, max: hpState.max, temp: hpState.temp });
           setHpState(newState);
-          setScopedItem('odyssey-hp-state', JSON.stringify(newState));
+
         }
       } else if (damageTaken < 0) {
         // Healing in beast form
@@ -824,9 +879,9 @@ const Index = () => {
     const newTotal = current + temp;
     const damageTaken = previousTotal - newTotal;
     
-    const newState = { current, max, temp };
+    const newState = persistHPState({ current, max, temp });
     setHpState(newState);
-    setScopedItem('odyssey-hp-state', JSON.stringify(newState));
+
     
     // Reset death saves when regaining HP from 0
     if (current > 0 && deathSaves.successes + deathSaves.failures > 0) {
@@ -883,13 +938,13 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         ? Math.min(calculatedMaxHP, hpState.current + hpDiff)
         : Math.min(calculatedMaxHP, hpState.current);
       
-      const newState = { 
+      const newState = persistHPState({ 
         current: newCurrent, 
         max: calculatedMaxHP, 
         temp: hpState.temp 
-      };
+      });
       setHpState(newState);
-      setScopedItem('odyssey-hp-state', JSON.stringify(newState));
+
       
       // Show toast for significant changes, but NOT on initial app load
       if (hasInitialHPSynced.current && hpState.max > 8 && hpDiff !== 0) {
@@ -1398,17 +1453,19 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     // 6. Restore HP state from saved data (or calculate max if not saved)
     if (data.hpState) {
       // Restore exact HP state from cloud save
-      setHpState(data.hpState);
-      setScopedItem('odyssey-hp-state', JSON.stringify(data.hpState));
-      console.log('[CloudSave] Restored HP:', data.hpState.current, '/', data.hpState.max, 'temp:', data.hpState.temp);
+      const restored = sanitizeHPState(data.hpState);
+      setHpState(restored);
+      setScopedItem('odyssey-hp-state', JSON.stringify(restored));
+      console.log('[CloudSave] Restored HP:', restored.current, '/', restored.max, 'temp:', restored.temp);
     } else if (data.abilityScores) {
       // Fallback: Calculate max HP if HP state wasn't saved (legacy saves)
       const loadedConMod = scoreToModifier(data.abilityScores.constitution);
       const loadedPrestigeLevel = data.prestige?.prestigeLevel ?? 0;
       const newMaxHP = calculateMaxHP(data.character.level, loadedConMod, loadedPrestigeLevel);
-      const newHPState = { current: newMaxHP, max: newMaxHP, temp: 0 };
+      const newHPState = sanitizeHPState({ current: newMaxHP, max: newMaxHP, temp: 0 });
       setHpState(newHPState);
       setScopedItem('odyssey-hp-state', JSON.stringify(newHPState));
+
       console.log('[CloudSave] HP not in save, reset to max:', newMaxHP);
     }
     
@@ -1660,9 +1717,11 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
 
             // HP state
             if (cloudData.hpState) {
-              setHpState(cloudData.hpState);
-              setScopedItem('odyssey-hp-state', JSON.stringify(cloudData.hpState));
+              const restoredHP = sanitizeHPState(cloudData.hpState);
+              setHpState(restoredHP);
+              setScopedItem('odyssey-hp-state', JSON.stringify(restoredHP));
             }
+
 
             // Death saves
             if (cloudData.deathSaves) {
@@ -2175,7 +2234,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     const newCurrentHP = Math.min(hpState.max, hpState.current + healAmount);
     const actualHealed = newCurrentHP - hpState.current;
     
-    setHpState(prev => ({ ...prev, current: newCurrentHP }));
+    setHpState(prev => persistHPState({ ...prev, current: newCurrentHP }, true));
     
     // Reset action economy (combat would have ended for short rest)
     actionEconomy.onShortRest();
@@ -2210,11 +2269,12 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     // Long rest fully restores HP and clears temp HP
     const wasFullHP = hpState.current === hpState.max;
     
-    setHpState(prev => ({ 
+    setHpState(prev => persistHPState({ 
       ...prev, 
       current: prev.max,
       temp: 0 // Temp HP doesn't persist through long rest
-    }));
+    }, true));
+
     
     // Reset action economy
     actionEconomy.onLongRest();
