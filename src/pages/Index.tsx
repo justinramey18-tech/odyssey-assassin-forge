@@ -864,9 +864,9 @@ const Index = () => {
         if (result.reverted && result.overflow > 0) {
           // Overflow damage applies to real character HP
           const newCharHP = Math.max(0, hpState.current - result.overflow);
-          const newState = { current: newCharHP, max: hpState.max, temp: hpState.temp };
+          const newState = persistHPState({ current: newCharHP, max: hpState.max, temp: hpState.temp });
           setHpState(newState);
-          setScopedItem('odyssey-hp-state', JSON.stringify(newState));
+
         }
       } else if (damageTaken < 0) {
         // Healing in beast form
