@@ -82,6 +82,16 @@ export function rollHealing(count: number, die: number, bonus: number): HealRoll
   return { kind: 'heal', rolls, die, bonus, total, mode: loadDiceOddsMode() };
 }
 
+/** A plain item effect roll (e.g. a potion's 2d6 surge). Always fair dice. */
+export function rollEffect(label: string, count: number, die: number, bonus: number): EffectRollResult {
+  const safeCount = Math.min(20, Math.max(1, Math.round(count)));
+  const safeDie = Math.max(2, Math.round(die));
+  const safeBonus = Number.isFinite(bonus) ? Math.round(bonus) : 0;
+  const rolls = Array.from({ length: safeCount }, () => rollFair(safeDie));
+  const total = rolls.reduce((a, b) => a + b, 0) + safeBonus;
+  return { kind: 'effect', label, rolls, die: safeDie, bonus: safeBonus, total, mode: loadDiceOddsMode() };
+}
+
 const FINAL = 'These dice results are FINAL — narrate around them, do not roll again or override them.';
 
 export function rollSuffix(roll: AnyRollResult): string {
@@ -89,7 +99,11 @@ export function rollSuffix(roll: AnyRollResult): string {
   if (roll.kind === 'heal') {
     return `\n\n[DICE] Healing: ${roll.rolls.join(' + ')} (d${roll.die})${roll.bonus ? ` ${roll.bonus > 0 ? '+' : '-'} ${Math.abs(roll.bonus)}` : ''} = ${roll.total}. ${FINAL}`;
   }
+  if (roll.kind === 'effect') {
+    return `\n\n[DICE] ${roll.label}: ${roll.rolls.join(' + ')} (d${roll.die})${roll.bonus ? ` ${roll.bonus > 0 ? '+' : '-'} ${Math.abs(roll.bonus)}` : ''} = ${roll.total}. ${FINAL}`;
+  }
   if (roll.kind === 'check') {
+
     const edge = roll.d20 === 20 ? ' Make it spectacular.' : roll.d20 === 1 ? ' Make it sting.' : '';
     return `\n\n[DICE — ${modeLabel} mode] d20: ${roll.d20} → ${roll.outcome.toUpperCase()}.${edge} Narrate this attempt strictly at that outcome tier: critical failure = backfires, failure = does not work, mixed success = works partially or at a cost, success = works, critical success = works better than intended. ${FINAL}`;
   }
