@@ -57,8 +57,13 @@ interface QuickActionItem {
   spellLevel?: number;
   /** To-hit bonus added to the d20 for weapon attacks. */
   attackBonus?: number;
-
+  /** Extra facts shown in the pre-roll breakdown. */
+  damageType?: string;
+  saveStat?: string;
+  attackType?: string;
+  rulesText?: string;
 }
+
 
 function generateWeaponPrompt(name: string, characterName: string): string {
   return applyTimePrefix(
