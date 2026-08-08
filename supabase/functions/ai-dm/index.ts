@@ -213,6 +213,7 @@ interface DMRequest {
   user_perplexity_key?: string;
   user_xai_key?: string;
   coreRulesInGuides?: boolean;
+  narrationStylePrompt?: string;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
