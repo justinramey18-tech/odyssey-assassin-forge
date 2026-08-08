@@ -165,6 +165,9 @@ export interface PartyDMSettingsProps {
   // Music
   moodPresetFilter?: string[];
   onMoodPresetSelected?: (presetId: string) => void;
+  // Quest reward distribution (party-wide, host-controlled)
+  questRewardSplitMode?: QuestRewardSplitMode;
+  onQuestRewardSplitModeChange?: (mode: QuestRewardSplitMode) => void;
 }
 
 export function PartyDMSettings({
