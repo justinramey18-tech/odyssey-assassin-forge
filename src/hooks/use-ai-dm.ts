@@ -14,6 +14,8 @@ import { loadApiKey, isFeatureSkipped } from '@/lib/api-keys';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
 import { getAlignmentZone, type AlignmentScore } from '@/lib/alignmentSpectrum';
+import { loadNarrationStyle } from '@/hooks/use-narration-style';
+import { buildNarrationStyleBlock } from '@/lib/narrationStyle';
 
 /** Read alignment drift from localStorage (same format as useAlignmentDrift) */
 function loadAlignmentDrift(): { position: AlignmentScore; zone: string } | null {
@@ -349,6 +351,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           user_perplexity_key: loadApiKey('perplexity') || undefined,
           user_xai_key: loadApiKey('xai') || undefined,
           coreRulesInGuides: coreRulesInGuides || undefined,
+          narrationStylePrompt: buildNarrationStyleBlock(loadNarrationStyle()) || undefined,
           ...(() => {
             const cs = loadCombatSettings();
             const feats: string[] = [];
@@ -875,6 +878,7 @@ Rules:
             model: selectedModel || undefined,
             maxTokens: 200,
             coreRulesInGuides: coreRulesInGuides || undefined,
+            narrationStylePrompt: buildNarrationStyleBlock(loadNarrationStyle()) || undefined,
           }),
           signal: abortControllerRef.current!.signal,
         });
