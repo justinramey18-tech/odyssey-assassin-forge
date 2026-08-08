@@ -42,12 +42,15 @@ interface QuickActionItem {
   prompt: string;
   removeCategory: QuickActionRemoveCategory;
   removeSlot?: string;
-  /** How dice attach at tap time: 'attack' rolls to-hit + damage, 'spell' likewise, 'check' rolls one d20 outcome ladder, 'heal' rolls healing dice, 'none' rolls nothing. */
-  rollKind?: 'attack' | 'spell' | 'check' | 'heal' | 'none';
+  /** How dice attach at tap time: 'attack' rolls to-hit + damage, 'spell' likewise, 'check' rolls one d20 outcome ladder, 'heal' rolls healing dice, 'effect' rolls the item's own dice, 'none' rolls nothing. */
+  rollKind?: 'attack' | 'spell' | 'check' | 'heal' | 'effect' | 'none';
   /** Damage dice for attack/spell rolls, e.g. '1d8' or '6d8'. Optional — defaults to 1d8. */
   damageFormula?: string;
   /** Healing dice for 'heal' items. */
   healingDice?: HealingDice;
+  /** Plain dice for 'effect' items (non-healing consumables that carry dice). */
+  effectDice?: EffectDice;
+
 }
 
 function generateWeaponPrompt(name: string, characterName: string): string {
