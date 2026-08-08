@@ -32,7 +32,7 @@ import { PartyMemoryAnchorsPanel } from './PartyMemoryAnchorsPanel';
 import { PartyQuestsPanel } from './PartyQuestsPanel';
 import { usePartyQuests } from '@/hooks/use-party-quests';
 import { useQuestRewardSplit } from '@/hooks/use-quest-reward-split';
-import { withQuestEvent, WorldStateEntry } from '@/lib/quests';
+import { withQuestEvent, WorldStateEntry, buildQuestKickoffPrompt } from '@/lib/quests';
 
 import { DMComposePanel } from './DMComposePanel';
 import { DraftReviewPanel } from './DraftReviewPanel';
