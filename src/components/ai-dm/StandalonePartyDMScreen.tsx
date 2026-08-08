@@ -6,6 +6,8 @@ import { usePartyDm } from '@/hooks/use-party-dm';
 import { useWeather } from '@/hooks/use-weather';
 import { getCachedWeather, buildWeatherPrompt, loadWeatherEnabled } from '@/lib/weather';
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
+import { usePartyQuests } from '@/hooks/use-party-quests';
+import { Quest, RawQuestOffer, questFromOffer, questTitle, applyQuestProgress } from '@/lib/quests';
 import { useCampaignSessions } from '@/hooks/use-campaign-sessions';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -559,6 +561,51 @@ export function StandalonePartyDMScreen({
   }, [partyDm, memoryAnchors, gmGuides]);
 
 
+  // ─── Party quest board ──────────────────────────────────────────────────────
+  const partyQuests = usePartyQuests(partyId, userId);
+  const partyQuestsRef = useRef<Quest[]>([]);
+  useEffect(() => { partyQuestsRef.current = partyQuests.quests; }, [partyQuests.quests]);
+
+  /** Rewards land on each player's own sheet; only the host writes the shared board. */
+  const payPartyQuestRewards = useCallback((quest: Quest) => {
+    if (quest.rewardsPaid) return;
+    const xp = Number(quest.xpReward);
+    if (Number.isFinite(xp) && xp > 0) autoSyncCallbacks?.onAddXP?.(Math.floor(xp), `Quest: ${questTitle(quest)}`);
+    const gp = Number(quest.goldReward);
+    if (Number.isFinite(gp) && gp > 0) autoSyncCallbacks?.onGoldChange?.(Math.floor(gp));
+    const items = (quest.itemRewards ?? []).map(it => ({
+      name: it.name,
+      quantity: Number.isFinite(Number(it.quantity)) && Number(it.quantity) > 0 ? Math.min(99, Math.floor(Number(it.quantity))) : 1,
+      gold_value: it.gold_value,
+      description: it.description,
+      rarity: it.rarity,
+      category: it.category,
+    })).filter(it => it.name);
+    if (items.length) addPendingDmItems(items as any);
+    toast.success(`Quest complete: ${questTitle(quest)}`);
+  }, [autoSyncCallbacks]);
+
+  const handlePartyQuestUpdate = useCallback((offers: RawQuestOffer[], progress: any[]) => {
+    const current = partyQuestsRef.current;
+    for (const offer of offers ?? []) {
+      const quest = questFromOffer(offer);
+      if (!quest) continue;
+      if (current.some(q => q.key === quest.key)) continue;
+      if (isHost) partyQuests.upsertQuest(quest);
+    }
+    for (const update of progress ?? []) {
+      const key = String(update?.key ?? '');
+      const existing = current.find(q => q.key === key);
+      if (!existing || existing.status !== 'active') continue;
+      const next = applyQuestProgress(existing, update);
+      if (next.status === 'completed' && !existing.rewardsPaid) {
+        payPartyQuestRewards(next);
+        next.rewardsPaid = true;
+      }
+      if (isHost) partyQuests.upsertQuest(next);
+    }
+  }, [isHost, partyQuests, payPartyQuestRewards]);
+
   const autoSync = useDmAutoSync({
     onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
     onHPSet: autoSyncCallbacks?.onHPSet,
@@ -572,7 +619,9 @@ export function StandalonePartyDMScreen({
     getCurrentGold: autoSyncCallbacks?.getCurrentGold ?? NOOP_RETURN_ZERO,
     getCurrentMarkers: useCallback(() => [], []),
     getGridSize: useCallback(() => 25 as any, []),
-  });
+    getActiveQuests: useCallback(() => partyQuestsRef.current, []),
+    onQuestUpdate: handlePartyQuestUpdate,
+  } as Parameters<typeof useDmAutoSync>[0]);
 
   // Run auto-sync on each newly arrived DM message.
   //

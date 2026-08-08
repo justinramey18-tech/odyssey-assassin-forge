@@ -164,6 +164,62 @@ const EXTRACT_TOOL = {
           type: ["number", "null"],
           description: "If the DM states the companion's exact current HP (e.g. 'Geralt: 53/59 HP'), extract the CURRENT number (53). null if not stated.",
         },
+        quests_offered: {
+          type: "array",
+          description: "Jobs, bounties, missions, errands or investigations that this message OFFERS to the player but they have not yet agreed to. Maximum 3. Empty array when the message offers nothing new. Never re-offer something already underway.",
+          items: {
+            type: "object",
+            properties: {
+              key: { type: "string", description: "snake_case identifier, e.g. 'clear_the_mill'" },
+              title: { type: "string", description: "Short quest name as a person would say it, e.g. 'Clear the Old Mill'" },
+              description: { type: "string", description: "One or two sentences on what is being asked and by whom." },
+              quest_type: { type: "string", enum: ["main", "side"], description: "main = drives the central storyline. side = optional work." },
+              challenge_rating: { type: "string", enum: ["easy", "moderate", "hard", "deadly"], description: "Difficulty relative to the party's level." },
+              xp_reward: { type: "number", description: "XP paid on completion. Estimate sensibly from difficulty if not stated." },
+              gold_reward: { type: "number", description: "Gold pieces paid on completion. 0 if the job pays no coin." },
+              item_rewards: {
+                type: "array",
+                description: "Items promised on completion. Empty array if none.",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    quantity: { type: "number" },
+                    gold_value: { type: "number", description: "Value of one unit in gold pieces." },
+                    description: { type: "string" },
+                    rarity: { type: "string", enum: ["common", "uncommon", "rare", "very_rare", "legendary", "artifact"] },
+                    category: { type: "string", enum: ["weapon", "armor", "trinket", "treasure", "usable", "miscellaneous"] },
+                  },
+                  required: ["name", "quantity", "gold_value", "description", "rarity", "category"],
+                },
+              },
+              stages: {
+                type: "array",
+                description: "2 to 5 concrete goals that must be done before the quest is complete, in order. Short phrases.",
+                items: { type: "string" },
+              },
+            },
+            required: ["key", "title", "description", "quest_type", "challenge_rating", "xp_reward", "gold_reward", "item_rewards", "stages"],
+          },
+        },
+        quest_progress: {
+          type: "array",
+          description: "Progress on quests the player has ALREADY accepted, listed in the ACTIVE QUESTS context. Empty array when nothing advanced.",
+          items: {
+            type: "object",
+            properties: {
+              key: { type: "string", description: "The existing quest key from the active quest list." },
+              stages_completed: {
+                type: "array",
+                description: "Text of the goals finished in THIS message, copied as closely as possible from the known stage wording.",
+                items: { type: "string" },
+              },
+              status: { type: ["string", "null"], enum: ["active", "completed", "failed", null], description: "Set completed only when the job is definitively finished, failed only when it is definitively lost. null otherwise." },
+              notes: { type: ["string", "null"], description: "Brief update on the situation, or null." },
+            },
+            required: ["key", "stages_completed", "status", "notes"],
+          },
+        },
       },
       required: [
         "hp_changes",
@@ -181,7 +237,10 @@ const EXTRACT_TOOL = {
         "companion_conditions_removed",
         "hp_absolute",
         "companion_hp_absolute",
+        "quests_offered",
+        "quest_progress",
       ],
+
       additionalProperties: false,
     },
   },
@@ -213,7 +272,7 @@ serve(async (req) => {
       });
     }
 
-    const { message, characterContext, user_api_key } = await req.json();
+    const { message, characterContext, user_api_key, activeQuests } = await req.json();
 
     if (!message || typeof message !== "string") {
       return new Response(JSON.stringify({ error: "Missing message" }), {
@@ -224,6 +283,20 @@ serve(async (req) => {
     const companionInfo = characterContext?.companionName
       ? `\n\nCOMPANION INFO (CRITICAL): The player has a companion named "${characterContext.companionName}" currently at ${characterContext.companionHP ?? "?"}/${characterContext.companionMaxHP ?? "?"} HP. Any damage or healing to "${characterContext.companionName}" MUST go in companion_hp_changes, NOT hp_changes. Any damage or healing to "${characterContext.name || "the player"}" MUST go in hp_changes, NOT companion_hp_changes. Never mix them up.`
       : '';
+
+    // Quests the player has already accepted. Only these keys may appear in quest_progress.
+    const questLines: string[] = Array.isArray(activeQuests)
+      ? activeQuests.slice(0, 8).map((q: any) => {
+          const stages = Array.isArray(q?.stages) ? q.stages : [];
+          const open = stages.filter((s: any) => !s?.done).map((s: any) => `"${s?.text}"`).join(', ');
+          const closed = stages.filter((s: any) => s?.done).map((s: any) => `"${s?.text}"`).join(', ');
+          return `- key "${q?.key}" — ${q?.title || q?.key}${open ? ` | remaining goals: ${open}` : ''}${closed ? ` | already done: ${closed}` : ''}`;
+        })
+      : [];
+    const questInfo = questLines.length
+      ? `\n\nACTIVE QUESTS (the only quests eligible for quest_progress; use these exact keys and stage wording):\n${questLines.join('\n')}${activeQuests.length > 8 ? `\n(+${activeQuests.length - 8} more)` : ''}`
+      : `\n\nACTIVE QUESTS: none. quest_progress must be an empty array.`;
+
 
     const systemPrompt = `You are a precise D&D 5e game state parser. Given a Dungeon Master's narrative response, extract ONLY mechanical changes with EXACT numbers.
 
@@ -264,9 +337,11 @@ CRITICAL ACCURACY RULES:
 - For map_entities, extract ONLY creatures/objects NEWLY introduced in THIS message. Include count for groups.
 - For map_entities_removed, include creatures definitively killed, defeated, destroyed, or fled.
 - ABSOLUTE HP EXTRACTION (CRITICAL): If the text shows an absolute HP value like "Geralt: 53/59 HP" or "Momo: 26/38 HP", extract the CURRENT number into hp_absolute (for the player) or companion_hp_absolute (for the companion). ALWAYS prefer extracting absolute values when available — they are more reliable than deltas.
+- QUEST OFFERS: put an entry in quests_offered only when this message presents a NEW job the player has not yet agreed to — an NPC asks for help, a notice board is read, a bounty is posted, a clear objective is handed over. Do not create a quest for scenery, small talk, or an errand the player already accepted. Never offer a quest whose key already appears in ACTIVE QUESTS. Rewards must be plausible for the stated difficulty; gold_reward may be 0 but xp_reward must be greater than zero.
+- QUEST PROGRESS: mark a stage completed only when the narrative shows it actually happened. Copy the goal text from the ACTIVE QUESTS list. Set status "completed" only when the whole job is done and set "failed" only when it is irreversibly lost; otherwise use null.
 - If no changes are found, return empty arrays and null values.
 
-CHARACTER: "${characterContext?.name || "Adventurer"}" is Level ${characterContext?.level || 1}, currently at ${characterContext?.currentHP || "?"}/${characterContext?.maxHP || "?"} HP.${companionInfo}`;
+CHARACTER: "${characterContext?.name || "Adventurer"}" is Level ${characterContext?.level || 1}, currently at ${characterContext?.currentHP || "?"}/${characterContext?.maxHP || "?"} HP.${companionInfo}${questInfo}`;
 
     // Anthropic path with tool calling
     if (user_api_key && typeof user_api_key === 'string' && user_api_key.trim()) {

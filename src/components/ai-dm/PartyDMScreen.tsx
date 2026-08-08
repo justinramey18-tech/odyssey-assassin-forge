@@ -30,6 +30,7 @@ import { PartyDMSettings } from './PartyDMSettings';
 import { usePartyChatBackground } from '@/hooks/use-party-chat-background';
 import { PartyMemoryAnchorsPanel } from './PartyMemoryAnchorsPanel';
 import { PartyQuestsPanel } from './PartyQuestsPanel';
+import { usePartyQuests } from '@/hooks/use-party-quests';
 import { DMComposePanel } from './DMComposePanel';
 import { DraftReviewPanel } from './DraftReviewPanel';
 import { NpcSceneDialog } from './NpcSceneDialog';
@@ -945,6 +946,8 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
 
 export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, hasPendingRedoRequest }: PartyDMScreenProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
+  // Shared party quest board, also shown inside each player's character sheet.
+  const sheetQuests = usePartyQuests(partyId, currentUserId);
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
   const [showDeathSaves, setShowDeathSaves] = useState(false);
@@ -4043,6 +4046,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           userId={currentUserId}
           isCreator={isCreator}
           onBack={() => setShowQuests(false)}
+          onAnnounce={(text) => partyDmRef.current?.submitPrompt(text)}
         />
       )}
       {/* Dragon Rider Setup Sheet */}
@@ -4522,7 +4526,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           ctx={characterContext}
           currentXP={currentXP ?? 0}
           gold={characterContext.gold ?? 0}
-          quests={[]}
+          quests={sheetQuests.quests}
+          onAcceptQuest={isCreator ? (key) => {
+            const quest = sheetQuests.quests.find(q => q.key === key);
+            if (!quest) return;
+            sheetQuests.upsertQuest({ ...quest, status: 'active' });
+            partyDmRef.current?.submitPrompt(`(The party accepts the quest "${quest.title || key}". Track our progress on it from here.)`);
+          } : undefined}
+          onDeclineQuest={isCreator ? (key) => sheetQuests.removeQuest(key) : undefined}
           onAdjustHP={(change, type) => onHPChange?.(change, type)}
           onAddXP={() => {}}
           onManualLevelUp={onManualLevelUp}

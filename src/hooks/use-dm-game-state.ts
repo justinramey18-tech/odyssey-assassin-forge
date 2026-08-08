@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { Quest, normalizeQuestMap, questTitle, questPercent } from '@/lib/quests';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -14,8 +15,12 @@ export interface MemoryAnchor {
   created_at: string;
 }
 
-export interface QuestFlag {
-  status: 'active' | 'completed' | 'failed' | 'unknown';
+/**
+ * A quest as stored. Legacy saves only carry status + notes; the rich board
+ * fields are all optional so nothing written before the quest board breaks.
+ */
+export interface QuestFlag extends Partial<Omit<Quest, 'key' | 'status'>> {
+  status: 'offered' | 'active' | 'completed' | 'failed' | 'unknown';
   notes?: string;
   updated_at: string;
 }
@@ -302,6 +307,35 @@ export function useDMGameState(campaignId: string | null, mode?: 'solo' | 'solo-
     });
   }, [scheduleSave]);
 
+  /** Merge a partial quest patch into the stored quest, creating it when absent. */
+  const upsertQuest = useCallback((key: string, patch: Partial<QuestFlag>) => {
+    setGameState(prev => {
+      const existing = prev.quest_flags[key];
+      const next = {
+        ...prev,
+        quest_flags: {
+          ...prev.quest_flags,
+          [key]: {
+            ...(existing ?? { status: 'offered' as const }),
+            ...patch,
+            updated_at: new Date().toISOString(),
+          } as QuestFlag,
+        },
+      };
+      scheduleSave(next);
+      return next;
+    });
+  }, [scheduleSave]);
+
+  const removeQuest = useCallback((key: string) => {
+    setGameState(prev => {
+      const { [key]: _drop, ...rest } = prev.quest_flags;
+      const next = { ...prev, quest_flags: rest };
+      scheduleSave(next);
+      return next;
+    });
+  }, [scheduleSave]);
+
   const addMemoryAnchor = useCallback((anchor: Omit<MemoryAnchor, 'id' | 'turn' | 'created_at'>) => {
     setGameState(prev => {
       // If a same-category + same-key anchor exists, update it instead
@@ -389,6 +423,8 @@ export function useDMGameState(campaignId: string | null, mode?: 'solo' | 'solo-
     addInventoryItem,
     removeInventoryItem,
     setQuestFlag,
+    upsertQuest,
+    removeQuest,
     addMemoryAnchor,
     removeMemoryAnchor,
     incrementTurn,
@@ -432,17 +468,29 @@ export function buildMemoryAnchorsPrompt(state: DMGameState): string {
     }
   }
 
-  const activeQuests = Object.entries(state.quest_flags).filter(([, q]) => q.status === 'active');
+  const allQuests = normalizeQuestMap(state.quest_flags);
+  const activeQuests = allQuests.filter(q => q.status === 'active');
   if (activeQuests.length > 0) {
     lines.push('\n## ACTIVE QUESTS');
-    for (const [key, q] of activeQuests) {
-      lines.push(`  - **${key}**${q.notes ? `: ${q.notes}` : ''}`);
+    for (const q of activeQuests.slice(0, 8)) {
+      const bits = [`  - **${questTitle(q)}** (${q.questType === 'main' ? 'main' : 'side'}${q.challengeRating ? `, ${q.challengeRating}` : ''}) — ${questPercent(q)}% done`];
+      const open = (q.stages ?? []).filter(s => !s.done).map(s => s.text).slice(0, 5);
+      if (open.length) bits.push(`\n      Remaining: ${open.join('; ')}`);
+      if (q.xpReward || q.goldReward) bits.push(`\n      Reward on completion: ${[q.xpReward ? `${q.xpReward} XP` : '', q.goldReward ? `${q.goldReward} gp` : ''].filter(Boolean).join(', ')}`);
+      if (q.notes) bits.push(`\n      Note: ${q.notes}`);
+      lines.push(bits.join(''));
     }
+    if (activeQuests.length > 8) lines.push(`  (+${activeQuests.length - 8} more)`);
   }
 
-  const completedQuests = Object.entries(state.quest_flags).filter(([, q]) => q.status === 'completed');
+  const offeredQuests = allQuests.filter(q => q.status === 'offered');
+  if (offeredQuests.length > 0) {
+    lines.push(`\n(Offered but not yet accepted: ${offeredQuests.slice(0, 6).map(q => questTitle(q)).join(', ')})`);
+  }
+
+  const completedQuests = allQuests.filter(q => q.status === 'completed');
   if (completedQuests.length > 0) {
-    lines.push(`\n(Completed quests: ${completedQuests.map(([k]) => k).join(', ')})`);
+    lines.push(`\n(Completed quests: ${completedQuests.slice(0, 10).map(q => questTitle(q)).join(', ')})`);
   }
 
   if (state.inventory.length > 0) {

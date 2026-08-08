@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import { CharacterContext } from '@/components/oracle/types';
 import { getAuthToken } from '@/lib/auth-token';
+import { Quest, RawQuestOffer } from '@/lib/quests';
 
 
 const EXTRACT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-extract`;
@@ -32,6 +33,8 @@ export interface ExtractionResult {
   companion_conditions_removed: string[];
   hp_absolute: number | null;
   companion_hp_absolute: number | null;
+  quests_offered?: RawQuestOffer[];
+  quest_progress?: { key: string; stages_completed?: string[]; status?: string | null; notes?: string | null }[];
 }
 
 
@@ -56,6 +59,10 @@ interface AutoSyncCallbacks {
   onCompanionHPSet?: (hp: number) => void;
   onCompanionConditionChange?: (toAdd: string[], toRemove: string[]) => void;
   onHPSet?: (hp: number) => void;
+  /** New quest offers and progress updates pulled out of the DM's narration. */
+  onQuestUpdate?: (offers: RawQuestOffer[], progress: NonNullable<ExtractionResult['quest_progress']>) => void;
+  /** Quests already accepted, so the extractor only advances real objectives. */
+  getActiveQuests?: () => Quest[];
   // snapshot getters
   getCurrentHP: () => number;
   getCurrentGold: () => number;
@@ -119,6 +126,10 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
             companionHP: characterContext.companion?.currentHP,
             companionMaxHP: characterContext.companion?.maxHP,
           },
+          activeQuests: (cb.getActiveQuests?.() ?? [])
+            .filter(q => q.status === 'active')
+            .slice(0, 8)
+            .map(q => ({ key: q.key, title: q.title, stages: q.stages ?? [] })),
         }),
       });
 
@@ -217,6 +228,15 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
           result.companion_conditions_added || [],
           result.companion_conditions_removed || []
         );
+      }
+
+      // Apply quests
+      if (cb.onQuestUpdate) {
+        const offers = Array.isArray(result.quests_offered) ? result.quests_offered : [];
+        const progress = Array.isArray(result.quest_progress) ? result.quest_progress : [];
+        if (offers.length > 0 || progress.length > 0) {
+          cb.onQuestUpdate(offers, progress);
+        }
       }
 
       return result;
