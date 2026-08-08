@@ -21,6 +21,15 @@ export interface QuestItemReward {
   category?: string;
 }
 
+export type QuestEventType = 'offered' | 'accepted' | 'stage' | 'note' | 'status' | 'rewards';
+
+export interface QuestEvent {
+  /** ISO timestamp of when this happened. */
+  at: string;
+  type: QuestEventType;
+  text: string;
+}
+
 export interface Quest {
   key: string;
   status: QuestStatus;
@@ -35,8 +44,22 @@ export interface Quest {
   stages?: QuestStage[];
   /** Set once the completion payout has run, so rewards can never be paid twice. */
   rewardsPaid?: boolean;
+  /** Newest-last activity log: stage ticks, notes, status changes, payouts. */
+  events?: QuestEvent[];
   updated_at?: string;
 }
+
+const EVENT_TYPES: QuestEventType[] = ['offered', 'accepted', 'stage', 'note', 'status', 'rewards'];
+const MAX_EVENTS = 40;
+
+/** Append an entry to a quest's activity timeline (immutably, capped). */
+export function withQuestEvent(quest: Quest, type: QuestEventType, text: string): Quest {
+  const clean = String(text ?? '').trim().slice(0, 240);
+  if (!clean) return quest;
+  const events = [...(quest.events ?? []), { at: new Date().toISOString(), type, text: clean }];
+  return { ...quest, events: events.slice(-MAX_EVENTS) };
+}
+
 
 export const CR_META: Record<QuestCR, { label: string; className: string }> = {
   easy: { label: 'Easy', className: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10' },
