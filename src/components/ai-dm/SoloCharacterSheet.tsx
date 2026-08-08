@@ -100,6 +100,10 @@ export function SoloCharacterSheet({
   const [pending, setPending] = useState<PendingDmItem[]>([]);
   /** Which ability/spell row is expanded in the Abilities tab. Keys: "ability:<tree>-<name>" / "spell:<name>" */
   const [expandedDetail, setExpandedDetail] = useState<string | null>(null);
+  /** The spell the cast card is currently open for. */
+  const [castTarget, setCastTarget] = useState<CastSpellDefinition | null>(null);
+  /** Which rest the player is previewing before confirming. */
+  const [restPreview, setRestPreview] = useState<'short' | 'long' | null>(null);
 
   // Casting from the sheet spends a real slot. A spell is castable when the
   // character still has a slot of its level or higher (or a pact slot big enough).
@@ -112,46 +116,12 @@ export function SoloCharacterSheet({
     return hasSlot || hasPact;
   }, [ctx.spellcasting]);
 
-  const handleCastSpell = useCallback((s: { name: string; level?: number; description?: string; damageFormula?: string; damageType?: string; healingFormula?: string; saveStat?: string; attackType?: string; school?: string; isHomebrew?: boolean }) => {
-    const outcome = castSpellByName({ name: s.name, level: s.level });
+  // Tapping "Cast" opens the cast card — the app rolls and spends the resource
+  // there, then stages a factual receipt for the DM to narrate.
+  const handleCastSpell = useCallback((s: CastSpellDefinition) => {
+    setCastTarget(s);
+  }, []);
 
-    if (!outcome.ok) {
-      if (outcome.reason === 'no-slots') {
-        toast.error(`No spell slot left for ${s.name}.`);
-        return;
-      }
-      if (outcome.reason === 'unknown-spell' || outcome.reason === 'no-caster') {
-        toast.error(`${s.name} could not be tracked — cast it from the Arcana tab.`);
-        return;
-      }
-    }
-
-    const spend = describeSlotSpend(outcome);
-    toast.success(`${s.name} cast`, spend ? { description: spend } : undefined);
-
-    // Stage a rules-accurate sentence in the DM composer so the narration
-    // matches what the sheet just spent.
-    if (onUseLootItem) {
-      const bits: string[] = [];
-      if (typeof s.level === 'number') bits.push(s.level === 0 ? 'a cantrip' : `a level ${s.level} spell`);
-      if (s.school) bits.push(`${s.school} school`);
-      const meta = bits.length ? ` (${bits.join(', ')})` : '';
-      const rules = s.description ? ` Its rules text: ${s.description}` : '';
-      const dice = s.damageFormula
-        ? ` It deals ${s.damageFormula}${s.damageType ? ` ${s.damageType}` : ''} damage.`
-        : s.healingFormula ? ` It heals ${s.healingFormula}.` : '';
-      const save = s.saveStat ? ` The target makes a ${String(s.saveStat).toUpperCase()} save.` : '';
-      const custom = s.isHomebrew ? ' This is a custom spell — follow the rules text exactly.' : '';
-      const slotLine = outcome.isCantrip
-        ? ' No spell slot was spent.'
-        : outcome.usedPactSlot
-          ? ` A pact slot was spent (${outcome.remaining ?? 0} left).`
-          : typeof outcome.slotLevel === 'number'
-            ? ` A level ${outcome.slotLevel} slot was spent (${outcome.remaining ?? 0} left).`
-            : '';
-      onUseLootItem(`I cast ${s.name}${meta}.${rules}${dice}${save}${custom}${slotLine}`);
-    }
-  }, [onUseLootItem]);
 
 
 
