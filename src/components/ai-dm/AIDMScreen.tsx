@@ -52,7 +52,7 @@ import { useLinkedUniverse } from '@/hooks/use-linked-universe';
 import { LinkedUniverseSection } from '@/components/empyrean/LinkedUniverseSection';
 
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
-import { Quest, RawQuestOffer, normalizeQuestMap, questFromOffer, questTitle, applyQuestProgress, toStored, withQuestEvent, rewardSummary, WORLD_STATE_KEY, WorldStateEntry, normalizeWorldState, mergeWorldState, toStoredWorldState, worldEntryFromQuest, worldStateContextLines } from '@/lib/quests';
+import { Quest, RawQuestOffer, normalizeQuestMap, questFromOffer, questTitle, applyQuestProgress, toStored, withQuestEvent, rewardSummary, WORLD_STATE_KEY, WorldStateEntry, normalizeWorldState, mergeWorldState, toStoredWorldState, worldEntryFromQuest, worldStateContextLines, buildQuestKickoffPrompt } from '@/lib/quests';
 import { SoloCharacterSheet, type SheetTab } from '@/components/ai-dm/SoloCharacterSheet';
 import { getSheetReturn, clearSheetReturn } from '@/lib/sheetReturn';
 import { CharacterSheetStrip } from '@/components/ai-dm/CharacterSheetStrip';
@@ -738,8 +738,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     const accepted = withQuestEvent({ ...quest, status: 'active' }, 'accepted', 'Quest accepted — the DM is now tracking it.');
     upsertQuest(key, { status: 'active', events: accepted.events } as any);
     sonnerToast.success(`Accepted: ${questTitle(quest)}`);
-    const goals = (quest.stages ?? []).map(s => s.text).join('; ');
-    sendMessage(`(Quest accepted: "${questTitle(quest)}". ${goals ? `Objectives: ${goals}.` : ''} Track my progress on it from here.)`);
+    // Kick the quest off immediately: the DM narrates the opening beat toward the next objective.
+    sendMessage(buildQuestKickoffPrompt(accepted));
   }, [upsertQuest]);
 
 

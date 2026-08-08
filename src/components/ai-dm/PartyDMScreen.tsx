@@ -32,7 +32,7 @@ import { PartyMemoryAnchorsPanel } from './PartyMemoryAnchorsPanel';
 import { PartyQuestsPanel } from './PartyQuestsPanel';
 import { usePartyQuests } from '@/hooks/use-party-quests';
 import { useQuestRewardSplit } from '@/hooks/use-quest-reward-split';
-import { withQuestEvent, WorldStateEntry } from '@/lib/quests';
+import { withQuestEvent, WorldStateEntry, buildQuestKickoffPrompt } from '@/lib/quests';
 
 import { DMComposePanel } from './DMComposePanel';
 import { DraftReviewPanel } from './DraftReviewPanel';
@@ -4540,8 +4540,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onAcceptQuest={isCreator ? (key) => {
             const quest = sheetQuests.quests.find(q => q.key === key);
             if (!quest) return;
-            sheetQuests.upsertQuest(withQuestEvent({ ...quest, status: 'active' }, 'accepted', 'Quest accepted by the party — the DM is now tracking it.'));
-            partyDmRef.current?.submitPrompt(`(The party accepts the quest "${quest.title || key}". Track our progress on it from here.)`);
+            const accepted = withQuestEvent({ ...quest, status: 'active' }, 'accepted', 'Quest accepted by the party — the DM is now tracking it.');
+            sheetQuests.upsertQuest(accepted);
+            // Kick the quest off immediately: the DM narrates the opening beat toward the next objective.
+            partyDmRef.current?.submitPrompt(buildQuestKickoffPrompt(accepted, { party: true }));
           } : undefined}
           onDeclineQuest={isCreator ? (key) => sheetQuests.removeQuest(key) : undefined}
           onScanQuests={isCreator ? onScanQuests : undefined}
