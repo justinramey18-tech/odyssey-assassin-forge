@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { Check, X, ScrollText, Coins, Sparkles, Package, History, ChevronDown } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Check, X, ScrollText, Coins, Sparkles, Package, History, ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Quest, QuestEventType, CR_META, questPercent, questTitle } from '@/lib/quests';
+import { Quest, QuestCR, QuestEventType, CR_META, questPercent, questTitle } from '@/lib/quests';
+
 
 const EVENT_STYLE: Record<QuestEventType, { dot: string; label: string }> = {
   offered: { dot: 'bg-amber-400/70', label: 'Offered' },
