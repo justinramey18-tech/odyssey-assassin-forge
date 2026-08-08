@@ -11,6 +11,7 @@ export const SCOPED_KEYS = [
   // Character stats & HP
   'odyssey-hp-state',
   'odyssey-death-saves',
+  'odyssey-short-rests-remaining',
   'odyssey-inspiration',
   'odyssey-ability-scores',
   // Progression

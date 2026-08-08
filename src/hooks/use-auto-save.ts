@@ -47,6 +47,7 @@ export interface SaveData {
     successes: number;
     failures: number;
   };
+  shortRestsRemaining?: number;
   spellcasting?: SpellcastingState;
   activeSpells?: ActiveSpellEffect[];
   prestigeTree?: PrestigeTreeProgress;
