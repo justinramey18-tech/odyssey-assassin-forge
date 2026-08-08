@@ -576,6 +576,33 @@ export function PromptDrawerProvider({
           castable: s.level === 0 || s.level <= highestSlotLevel,
         }));
 
+      // Full details for every prepared spell so the sheet and quick actions can
+      // show real rules text instead of a bare name.
+      const preparedSpellDetails = state.preparedSpells
+        .map(id => getSpellById(id))
+        .filter((s): s is NonNullable<typeof s> => !!s)
+        .map(s => ({
+          name: s.name,
+          level: s.level,
+          school: s.school,
+          castingTime: s.castingTime,
+          range: s.range,
+          duration: s.duration,
+          concentration: s.concentration,
+          ritual: s.ritual,
+          description: s.description,
+          higherLevels: s.higherLevels,
+          attackType: s.attackType,
+          saveStat: s.saveStat,
+          damageType: s.damageType,
+          damageFormula: s.damageFormula,
+          healingFormula: s.healingFormula,
+          verbal: s.components?.verbal ?? false,
+          somatic: s.components?.somatic ?? false,
+          material: s.components?.material,
+          isHomebrew: (s as { isHomebrew?: boolean }).isHomebrew === true ? true : undefined,
+        }));
+
       spellcastingContext = {
         path: state.path,
         spellAttackBonus,
@@ -585,8 +612,10 @@ export function PromptDrawerProvider({
         preparedSpells: state.preparedSpells.map(id => getSpellById(id)?.name || id),
         slots: Object.entries(state.spellSlots).filter(([_, s]) => s.max > 0).map(([l, s]) => ({ level: parseInt(l), current: s.current, max: s.max })),
         pactSlots: state.pactSlots ? { current: state.pactSlots.current, max: state.pactSlots.max, level: state.pactSlots.level } : undefined,
+        preparedSpellDetails: preparedSpellDetails.length > 0 ? preparedSpellDetails : undefined,
         homebrewSpells: homebrewSpells.length > 0 ? homebrewSpells : undefined,
       };
+
     }
 
     // The DM already has getCurrentGold for applying changes, but has never been
