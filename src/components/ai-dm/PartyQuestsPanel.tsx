@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePartyQuests } from '@/hooks/use-party-quests';
-import { questTitle } from '@/lib/quests';
+import { questTitle, withQuestEvent } from '@/lib/quests';
 import { QuestBoard } from './QuestBoard';
 
 interface PartyQuestsPanelProps {
