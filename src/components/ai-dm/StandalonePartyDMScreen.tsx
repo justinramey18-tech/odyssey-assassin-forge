@@ -7,7 +7,7 @@ import { useWeather } from '@/hooks/use-weather';
 import { getCachedWeather, buildWeatherPrompt, loadWeatherEnabled } from '@/lib/weather';
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { usePartyQuests } from '@/hooks/use-party-quests';
-import { Quest, RawQuestOffer, questFromOffer, questTitle, applyQuestProgress } from '@/lib/quests';
+import { Quest, RawQuestOffer, questFromOffer, questTitle, applyQuestProgress, withQuestEvent, rewardSummary } from '@/lib/quests';
 import { useCampaignSessions } from '@/hooks/use-campaign-sessions';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
