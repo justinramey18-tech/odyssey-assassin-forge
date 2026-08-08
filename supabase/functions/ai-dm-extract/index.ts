@@ -254,6 +254,7 @@ const EXTRACT_TOOL = {
         "companion_hp_absolute",
         "quests_offered",
         "quest_progress",
+        "world_state_changes",
       ],
 
       additionalProperties: false,
