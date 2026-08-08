@@ -322,19 +322,23 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
     const consumables: QuickActionItem[] = (characterContext.consumables || [])
       .filter(c => c.quantity > 0)
       .map(c => {
-        const healingDice = getHealingDiceForItem(c.name);
+        const healingDice = getHealingDiceForItem(c.name, c.effect);
+        const effectDice = healingDice ? null : parseEffectDice(c.effect);
+        const detailBits = [`${c.type} • x${c.quantity}`];
+        if (healingDice) detailBits.push(`heals ${healingDice.formula}`);
+        else if (effectDice) detailBits.push(`rolls ${effectDice.formula}`);
         return {
           id: `consumable-${c.name}`,
           name: c.name,
-          detail: healingDice
-            ? `${c.type} • x${c.quantity} • heals ${healingDice.formula}`
-            : `${c.type} • x${c.quantity}`,
-          prompt: generateConsumablePrompt(c.name, c.type, charName),
+          detail: detailBits.join(' • '),
+          prompt: generateConsumablePrompt(c.name, c.type, charName, c.effect),
           removeCategory: 'consumable' as const,
-          rollKind: (healingDice ? 'heal' : 'none') as 'heal' | 'none',
+          rollKind: (healingDice ? 'heal' : effectDice ? 'effect' : 'none') as 'heal' | 'effect' | 'none',
           healingDice: healingDice ?? undefined,
+          effectDice: effectDice ?? undefined,
         };
       });
+
 
     // Prestige abilities
     const prestige: QuickActionItem[] = (characterContext.prestigeAbilities || []).map(name => ({
