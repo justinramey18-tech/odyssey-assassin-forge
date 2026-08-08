@@ -21,6 +21,15 @@ export interface QuestItemReward {
   category?: string;
 }
 
+export type QuestEventType = 'offered' | 'accepted' | 'stage' | 'note' | 'status' | 'rewards';
+
+export interface QuestEvent {
+  /** ISO timestamp of when this happened. */
+  at: string;
+  type: QuestEventType;
+  text: string;
+}
+
 export interface Quest {
   key: string;
   status: QuestStatus;
@@ -35,8 +44,22 @@ export interface Quest {
   stages?: QuestStage[];
   /** Set once the completion payout has run, so rewards can never be paid twice. */
   rewardsPaid?: boolean;
+  /** Newest-last activity log: stage ticks, notes, status changes, payouts. */
+  events?: QuestEvent[];
   updated_at?: string;
 }
+
+const EVENT_TYPES: QuestEventType[] = ['offered', 'accepted', 'stage', 'note', 'status', 'rewards'];
+const MAX_EVENTS = 40;
+
+/** Append an entry to a quest's activity timeline (immutably, capped). */
+export function withQuestEvent(quest: Quest, type: QuestEventType, text: string): Quest {
+  const clean = String(text ?? '').trim().slice(0, 240);
+  if (!clean) return quest;
+  const events = [...(quest.events ?? []), { at: new Date().toISOString(), type, text: clean }];
+  return { ...quest, events: events.slice(-MAX_EVENTS) };
+}
+
 
 export const CR_META: Record<QuestCR, { label: string; className: string }> = {
   easy: { label: 'Easy', className: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10' },
@@ -107,6 +130,14 @@ export function normalizeQuest(key: string, raw: any): Quest {
   const cr = CR_VALUES.includes(raw?.challengeRating) ? (raw.challengeRating as QuestCR) : undefined;
   const type: QuestType | undefined = raw?.questType === 'main' || raw?.questType === 'side' ? raw.questType : undefined;
 
+  const events: QuestEvent[] = Array.isArray(raw?.events)
+    ? raw.events.slice(-MAX_EVENTS).map((e: any) => ({
+        at: e?.at ? String(e.at) : new Date().toISOString(),
+        type: EVENT_TYPES.includes(e?.type) ? (e.type as QuestEventType) : 'note',
+        text: String(e?.text ?? '').slice(0, 240),
+      })).filter((e: QuestEvent) => e.text.length > 0)
+    : [];
+
   return {
     key,
     status,
@@ -120,6 +151,7 @@ export function normalizeQuest(key: string, raw: any): Quest {
     itemRewards: itemRewards.length ? itemRewards : undefined,
     stages: stages.length ? stages : undefined,
     rewardsPaid: Boolean(raw?.rewardsPaid),
+    events: events.length ? events : undefined,
     updated_at: raw?.updated_at ? String(raw.updated_at) : undefined,
   };
 }
@@ -152,7 +184,7 @@ export function questFromOffer(offer: RawQuestOffer): Quest | null {
     .map((text, i) => ({ id: `${key}-s${i}`, text: String(text ?? '').slice(0, 200), done: false }))
     .filter(s => s.text.length > 0);
 
-  return normalizeQuest(key, {
+  const quest = normalizeQuest(key, {
     status: 'offered',
     title,
     description: offer.description,
@@ -164,6 +196,7 @@ export function questFromOffer(offer: RawQuestOffer): Quest | null {
     stages,
     updated_at: new Date().toISOString(),
   });
+  return withQuestEvent(quest, 'offered', `Quest offered by the DM${stages.length ? ` with ${stages.length} objective${stages.length === 1 ? '' : 's'}` : ''}.`);
 }
 
 /** Mark stages done by fuzzy text match, and apply an explicit status if the DM gave one. */
@@ -172,6 +205,7 @@ export function applyQuestProgress(
   update: { stages_completed?: string[]; status?: string | null; notes?: string | null },
 ): Quest {
   let stages = quest.stages ? quest.stages.map(s => ({ ...s })) : [];
+  const newlyDone: string[] = [];
   for (const raw of update.stages_completed ?? []) {
     const needle = String(raw ?? '').toLowerCase().trim();
     if (!needle) continue;
@@ -179,7 +213,10 @@ export function applyQuestProgress(
       const hay = s.text.toLowerCase();
       return hay === needle || hay.includes(needle) || needle.includes(hay);
     });
-    if (hit) hit.done = true;
+    if (hit && !hit.done) {
+      hit.done = true;
+      newlyDone.push(hit.text);
+    }
   }
 
   let status = quest.status;
@@ -194,14 +231,36 @@ export function applyQuestProgress(
     stages = stages.map(s => ({ ...s, done: true }));
   }
 
-  return {
+  let next: Quest = {
     ...quest,
     stages: stages.length ? stages : quest.stages,
     status,
     notes: update.notes ? String(update.notes).slice(0, 600) : quest.notes,
     updated_at: new Date().toISOString(),
   };
+
+  for (const text of newlyDone) next = withQuestEvent(next, 'stage', `Objective completed: ${text}`);
+  const newNote = update.notes ? String(update.notes).trim() : '';
+  if (newNote && newNote !== (quest.notes ?? '').trim()) next = withQuestEvent(next, 'note', newNote);
+  if (status !== quest.status) {
+    next = withQuestEvent(
+      next,
+      'status',
+      status === 'completed' ? 'Quest completed.' : status === 'failed' ? 'Quest failed.' : `Status changed to ${status}.`,
+    );
+  }
+  return next;
 }
+
+/** Human summary of what a quest pays out, used in the activity timeline. */
+export function rewardSummary(q: Quest): string {
+  const parts: string[] = [];
+  if (q.xpReward) parts.push(`${q.xpReward} XP`);
+  if (q.goldReward) parts.push(`${q.goldReward} gold`);
+  for (const it of q.itemRewards ?? []) parts.push(`${it.name}${(it.quantity ?? 1) > 1 ? ` x${it.quantity}` : ''}`);
+  return parts.length ? parts.join(', ') : 'no material rewards';
+}
+
 
 /** Serialise back into the stored quest_flags shape. */
 export function toStored(quest: Quest): Record<string, any> {

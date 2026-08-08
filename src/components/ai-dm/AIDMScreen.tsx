@@ -52,7 +52,7 @@ import { useLinkedUniverse } from '@/hooks/use-linked-universe';
 import { LinkedUniverseSection } from '@/components/empyrean/LinkedUniverseSection';
 
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
-import { Quest, RawQuestOffer, normalizeQuestMap, questFromOffer, questTitle, applyQuestProgress, toStored } from '@/lib/quests';
+import { Quest, RawQuestOffer, normalizeQuestMap, questFromOffer, questTitle, applyQuestProgress, toStored, withQuestEvent, rewardSummary } from '@/lib/quests';
 import { SoloCharacterSheet, type SheetTab } from '@/components/ai-dm/SoloCharacterSheet';
 import { getSheetReturn, clearSheetReturn } from '@/lib/sheetReturn';
 import { CharacterSheetStrip } from '@/components/ai-dm/CharacterSheetStrip';
@@ -683,10 +683,11 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         const key = String(update?.key ?? '');
         const existing = current.find(q => q.key === key);
         if (!existing || existing.status !== 'active') continue;
-        const next = applyQuestProgress(existing, update);
+        let next = applyQuestProgress(existing, update);
         if (next.status === 'completed' && !existing.rewardsPaid) {
           payQuestRewards(next);
           next.rewardsPaid = true;
+          next = withQuestEvent(next, 'rewards', `Rewards paid out: ${rewardSummary(next)}.`);
         }
         upsertQuest(key, toStored(next) as any);
       }
@@ -697,11 +698,13 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const handleAcceptQuest = useCallback((key: string) => {
     const quest = questsRef.current.find(q => q.key === key);
     if (!quest) return;
-    upsertQuest(key, { status: 'active' });
+    const accepted = withQuestEvent({ ...quest, status: 'active' }, 'accepted', 'Quest accepted — the DM is now tracking it.');
+    upsertQuest(key, { status: 'active', events: accepted.events } as any);
     sonnerToast.success(`Accepted: ${questTitle(quest)}`);
     const goals = (quest.stages ?? []).map(s => s.text).join('; ');
     sendMessage(`(Quest accepted: "${questTitle(quest)}". ${goals ? `Objectives: ${goals}.` : ''} Track my progress on it from here.)`);
   }, [upsertQuest]);
+
 
   const handleDeclineQuest = useCallback((key: string) => {
     removeQuest(key);

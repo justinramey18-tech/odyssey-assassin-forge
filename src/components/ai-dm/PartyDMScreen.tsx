@@ -31,6 +31,8 @@ import { usePartyChatBackground } from '@/hooks/use-party-chat-background';
 import { PartyMemoryAnchorsPanel } from './PartyMemoryAnchorsPanel';
 import { PartyQuestsPanel } from './PartyQuestsPanel';
 import { usePartyQuests } from '@/hooks/use-party-quests';
+import { withQuestEvent } from '@/lib/quests';
+
 import { DMComposePanel } from './DMComposePanel';
 import { DraftReviewPanel } from './DraftReviewPanel';
 import { NpcSceneDialog } from './NpcSceneDialog';
@@ -4530,7 +4532,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onAcceptQuest={isCreator ? (key) => {
             const quest = sheetQuests.quests.find(q => q.key === key);
             if (!quest) return;
-            sheetQuests.upsertQuest({ ...quest, status: 'active' });
+            sheetQuests.upsertQuest(withQuestEvent({ ...quest, status: 'active' }, 'accepted', 'Quest accepted by the party — the DM is now tracking it.'));
             partyDmRef.current?.submitPrompt(`(The party accepts the quest "${quest.title || key}". Track our progress on it from here.)`);
           } : undefined}
           onDeclineQuest={isCreator ? (key) => sheetQuests.removeQuest(key) : undefined}

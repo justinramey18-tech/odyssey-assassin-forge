@@ -7,7 +7,7 @@ import { useWeather } from '@/hooks/use-weather';
 import { getCachedWeather, buildWeatherPrompt, loadWeatherEnabled } from '@/lib/weather';
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { usePartyQuests } from '@/hooks/use-party-quests';
-import { Quest, RawQuestOffer, questFromOffer, questTitle, applyQuestProgress } from '@/lib/quests';
+import { Quest, RawQuestOffer, questFromOffer, questTitle, applyQuestProgress, withQuestEvent, rewardSummary } from '@/lib/quests';
 import { useCampaignSessions } from '@/hooks/use-campaign-sessions';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -597,14 +597,16 @@ export function StandalonePartyDMScreen({
       const key = String(update?.key ?? '');
       const existing = current.find(q => q.key === key);
       if (!existing || existing.status !== 'active') continue;
-      const next = applyQuestProgress(existing, update);
+      let next = applyQuestProgress(existing, update);
       if (next.status === 'completed' && !existing.rewardsPaid) {
         payPartyQuestRewards(next);
         next.rewardsPaid = true;
+        next = withQuestEvent(next, 'rewards', `Rewards paid out: ${rewardSummary(next)}.`);
       }
       if (isHost) partyQuests.upsertQuest(next);
     }
   }, [isHost, partyQuests, payPartyQuestRewards]);
+
 
   const autoSync = useDmAutoSync({
     onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
