@@ -225,6 +225,28 @@ export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(
         className={cn("flex-1 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none resize-none min-h-[42px] max-h-[200px]", inputClassName)}
         disabled={isLoading || locked}
       />
+      {isSupported && !isLoading && (
+        <button
+          onClick={toggleSpeech}
+          disabled={locked}
+          aria-label={isListening ? 'Stop listening' : 'Voice input'}
+          title={isListening ? 'Stop listening' : 'Voice input'}
+          className={cn(
+            "p-2.5 rounded-xl border shrink-0 transition-all",
+            isListening
+              ? "bg-red-900/50 border-red-500/50 shadow-[0_0_12px_rgba(239,68,68,0.3)] animate-pulse"
+              : "bg-white/5 border-white/10 hover:border-amber-500/30 hover:bg-amber-900/20"
+          )}
+          style={{ touchAction: 'manipulation', minHeight: 44, minWidth: 44 }}
+        >
+          {isListening ? (
+            <MicOff className="w-5 h-5 text-red-400" />
+          ) : (
+            <Mic className="w-5 h-5 text-white/50" />
+          )}
+        </button>
+      )}
+
       {!isLoading && input.trim() && (
         <button
           onClick={preEnhance !== null ? handleUndoEnhance : handleEnhance}
