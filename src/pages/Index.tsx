@@ -1717,9 +1717,11 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
 
             // HP state
             if (cloudData.hpState) {
-              setHpState(cloudData.hpState);
-              setScopedItem('odyssey-hp-state', JSON.stringify(cloudData.hpState));
+              const restoredHP = sanitizeHPState(cloudData.hpState);
+              setHpState(restoredHP);
+              setScopedItem('odyssey-hp-state', JSON.stringify(restoredHP));
             }
+
 
             // Death saves
             if (cloudData.deathSaves) {
