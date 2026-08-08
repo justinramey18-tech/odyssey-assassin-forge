@@ -9,7 +9,8 @@ import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { rollAttack, rollCheck, rollHealing, rollEffect, rollSuffix, type HealRollResult } from '@/lib/promptAutoRoll';
 import { getHealingDiceForItem, type HealingDice } from '@/lib/consumables/healing';
 import { requestDiceRoll } from '@/lib/diceRollBus';
-import { castSpellByName, describeSlotSpend } from '@/lib/magic/castBus';
+import { castSpellByName, describeSlotSpend, getMagicResources } from '@/lib/magic/castBus';
+import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic/castResolver';
 
 import type { CharacterContext } from '@/components/oracle/types';
 
@@ -54,6 +55,8 @@ interface QuickActionItem {
   effectDice?: EffectDice;
   /** Base level for spells, so tapping can spend the right slot (0 = cantrip). */
   spellLevel?: number;
+  /** To-hit bonus added to the d20 for weapon attacks. */
+  attackBonus?: number;
 
 }
 
@@ -147,9 +150,11 @@ interface SectionProps {
   onRemove?: (item: QuickActionItem) => void;
   defaultOpen?: boolean;
   onHeal?: (item: QuickActionItem) => void;
+  /** Closes the drawer so the dice animation is visible. */
+  onCloseDrawer?: () => void;
 }
 
-function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = false, onHeal }: SectionProps) {
+function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = false, onHeal, onCloseDrawer }: SectionProps) {
   const [open, setOpen] = useState(defaultOpen);
 
   if (items.length === 0) return null;
@@ -180,6 +185,7 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                     // Casting from quick actions spends the real slot first, so a
                     // spell the character can no longer afford never reaches the DM.
                     let slotNote = '';
+                    let spentSlotLevel: number | undefined;
                     if (item.rollKind === 'spell') {
                       const outcome = castSpellByName({ name: item.name, level: item.spellLevel });
                       if (!outcome.ok && outcome.reason === 'no-slots') {
@@ -187,6 +193,7 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                         return;
                       }
                       if (outcome.ok && !outcome.isCantrip) {
+                        spentSlotLevel = typeof outcome.slotLevel === 'number' ? outcome.slotLevel : undefined;
                         slotNote = outcome.usedPactSlot
                           ? ` A pact slot was spent (${outcome.remaining ?? 0} left).`
                           : typeof outcome.slotLevel === 'number'
@@ -196,7 +203,18 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                         if (spend) toast.success(`${item.name} cast`, { description: spend });
                       }
                     }
-                    const roll = rollAttack(item.rollKind, item.damageFormula);
+                    // Scale the damage dice for the slot actually spent, so an
+                    // upcast Fireball rolls the bigger die pool.
+                    let damageFormula = item.damageFormula;
+                    if (item.rollKind === 'spell' && typeof item.spellLevel === 'number' && item.spellLevel > 0 && typeof spentSlotLevel === 'number') {
+                      const parsed = parseDiceFormula(damageFormula);
+                      if (parsed) damageFormula = formatDiceFormula(scaleForUpcast(parsed, item.spellLevel, spentSlotLevel));
+                    }
+                    const attackBonus = item.rollKind === 'spell'
+                      ? getMagicResources()?.spellAttackBonus
+                      : item.attackBonus;
+                    const roll = rollAttack(item.rollKind, damageFormula, attackBonus);
+                    onCloseDrawer?.();
                     requestDiceRoll({
                       title: item.name,
                       roll,
@@ -207,6 +225,7 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                     });
                   } else if (item.rollKind === 'check') {
                     const roll = rollCheck();
+                    onCloseDrawer?.();
                     requestDiceRoll({
                       title: item.name,
                       roll,
@@ -218,6 +237,7 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                   } else if (item.rollKind === 'effect' && item.effectDice) {
                     const d = item.effectDice;
                     const roll = rollEffect(item.name, d.count, d.die, d.bonus);
+                    onCloseDrawer?.();
                     requestDiceRoll({
                       title: item.name,
                       roll,
@@ -228,6 +248,7 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                     });
 
                   } else {
+                    onCloseDrawer?.();
                     onUse(item.prompt);
                     toast.success('Prompt added to input');
                   }
@@ -420,6 +441,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         removeCategory: full.isHomebrew ? 'homebrew-spell' as const : isCantrip ? 'cantrip' as const : 'spell' as const,
         rollKind: 'spell' as const,
         spellLevel: typeof full.level === 'number' ? full.level : undefined,
+        damageFormula: full.damageFormula,
       };
       if (full.isHomebrew) {
         homebrewSpells.push(item);
@@ -490,6 +512,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
             <>
               {sections.dragonActions.length > 0 && (
                 <QuickActionSection
+                  onCloseDrawer={() => onOpenChange(false)}
                   title="Dragon Actions"
                   icon={<Flame className="w-4 h-4" />}
                   items={sections.dragonActions}
@@ -506,6 +529,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                 />
               )}
               <QuickActionSection
+                  onCloseDrawer={() => onOpenChange(false)}
                 title="Weapons"
                 icon={<Sword className="w-4 h-4" />}
                 items={sections.weapons}
@@ -515,6 +539,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                 defaultOpen={true}
               />
               <QuickActionSection
+                  onCloseDrawer={() => onOpenChange(false)}
                 title="Abilities"
                 icon={<Sparkles className="w-4 h-4" />}
                 items={sections.abilities}
@@ -523,6 +548,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                 onRemove={handleRemoveItem}
               />
               <QuickActionSection
+                  onCloseDrawer={() => onOpenChange(false)}
                 title={isEmpyreanMode() ? 'Signets' : 'Spells'}
                 icon={<BookOpen className="w-4 h-4" />}
                 items={sections.spells}
@@ -531,6 +557,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                 onRemove={handleRemoveItem}
               />
               <QuickActionSection
+                  onCloseDrawer={() => onOpenChange(false)}
                 title={isEmpyreanMode() ? 'Minor Signets' : 'Cantrips'}
                 icon={<Star className="w-4 h-4" />}
                 items={sections.cantrips}
@@ -539,6 +566,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                 onRemove={handleRemoveItem}
               />
               <QuickActionSection
+                  onCloseDrawer={() => onOpenChange(false)}
                 title="Items"
                 icon={<FlaskConical className="w-4 h-4" />}
                 items={sections.consumables}
@@ -548,6 +576,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                 onRemove={handleRemoveItem}
               />
               <QuickActionSection
+                  onCloseDrawer={() => onOpenChange(false)}
                 title="Legacy"
                 icon={<Star className="w-4 h-4" />}
                 items={sections.prestige}
@@ -557,6 +586,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
               />
               {sections.homebrew.length > 0 && (
                 <QuickActionSection
+                  onCloseDrawer={() => onOpenChange(false)}
                   title="Homebrew"
                   icon={<Flame className="w-4 h-4" />}
                   items={sections.homebrew}
