@@ -68,6 +68,23 @@ export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(
     if (inputRef.current) setCursorPos(inputRef.current.selectionStart ?? 0);
   }, []);
 
+  const autoResizeTextarea = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (!inputRef.current) return;
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 200) + 'px';
+    });
+  }, []);
+
+  const { isListening, isSupported, interimText, toggle: toggleSpeech } = useSpeechToText({
+    onTranscript: useCallback((text: string) => {
+      setPreEnhance(null);
+      setInput(prev => (prev ? prev + ' ' + text : text));
+      autoResizeTextarea();
+    }, [setInput, autoResizeTextarea]),
+  });
+
+
   useImperativeHandle(ref, () => ({
     setText: (text: string) => {
       setInput(text);
