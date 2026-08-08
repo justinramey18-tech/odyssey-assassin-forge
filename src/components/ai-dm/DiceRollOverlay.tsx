@@ -123,7 +123,52 @@ export function DiceRollOverlay() {
     );
   }
 
+  if (roll.kind === 'effect') {
+    return createPortal(
+      <div
+        className="fixed inset-0 z-[75] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+        onClick={finish}
+        role="dialog"
+        aria-label={`Effect roll for ${req.title}`}
+      >
+        <div className="mx-6 w-full max-w-xs rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#150f05] to-[#0a0a0f] p-5 text-center shadow-2xl shadow-black/70">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">{roll.label}</p>
+          <p className="mt-1 text-sm font-cinzel text-amber-200/90 truncate">{req.title}</p>
+
+          <div className="mt-4 flex items-center justify-center gap-2 text-4xl font-display text-amber-300">
+            {roll.rolls.map((v, i) => (
+              <Tumble
+                key={i}
+                target={v}
+                sides={roll.die}
+                duration={DMG_MS}
+                delay={i * 90}
+                onLand={i === roll.rolls.length - 1 ? handleAllLanded : undefined}
+              />
+            ))}
+            {roll.bonus !== 0 && (
+              <span className="text-2xl text-amber-200/70">
+                {roll.bonus > 0 ? '+' : '-'} {Math.abs(roll.bonus)}
+              </span>
+            )}
+          </div>
+          <p className="text-[10px] uppercase tracking-wider text-white/35 mt-1">d{roll.die}</p>
+
+          <div className="mt-3 h-6">
+            {phase === 'done' && (
+              <p className="text-sm font-bold tracking-widest text-amber-300">{roll.total}</p>
+            )}
+          </div>
+
+          <p className="mt-2 text-[10px] text-white/25">tap to skip</p>
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
   const d20Land = isCheck ? handleAllLanded : undefined;
+
 
   const outcomeText = isCheck
     ? roll.outcome.toUpperCase()
