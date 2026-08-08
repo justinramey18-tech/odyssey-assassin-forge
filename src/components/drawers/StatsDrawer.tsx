@@ -19,7 +19,9 @@ import {
 } from '@/lib/xpSystem';
 import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
 import { AggregatedStats } from '@/hooks/use-equipment-stats';
+import { GearBonusBreakdown, type GearBonusData } from '@/components/character/GearBonusBreakdown';
 import { AbilityScoresPanel } from '@/components/character/AbilityScoresPanel';
+
 import { 
   AbilityName, 
   BaseAbilityScores,
