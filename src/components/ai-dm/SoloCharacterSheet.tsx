@@ -112,6 +112,68 @@ export function SoloCharacterSheet({
   const [castTarget, setCastTarget] = useState<CastSpellDefinition | null>(null);
   /** Which rest the player is previewing before confirming. */
   const [restPreview, setRestPreview] = useState<'short' | 'long' | null>(null);
+  /** Short rests still available before a long rest is required (3 per long rest). */
+  const [shortRestsLeft, setShortRestsLeft] = useState<number>(() => getShortRestsRemaining());
+
+  // Keep the pool in step with character switches and changes made elsewhere.
+  useEffect(() => {
+    const sync = () => setShortRestsLeft(getShortRestsRemaining());
+    sync();
+    window.addEventListener(SHORT_REST_EVENT, sync);
+    window.addEventListener('odyssey-character-loaded', sync);
+    return () => {
+      window.removeEventListener(SHORT_REST_EVENT, sync);
+      window.removeEventListener('odyssey-character-loaded', sync);
+    };
+  }, [open]);
+
+  const restCurrentHP = Number(ctx.currentHP);
+  const restMaxHP = Number(ctx.maxHP);
+  const shortRestHeal = useMemo(() => {
+    if (!Number.isFinite(restCurrentHP) || !Number.isFinite(restMaxHP) || restMaxHP <= 0) return 0;
+    return Math.max(0, Math.min(restMaxHP, restCurrentHP + Math.ceil(restMaxHP * 0.25)) - restCurrentHP);
+  }, [restCurrentHP, restMaxHP]);
+  const longRestHeal = useMemo(() => {
+    if (!Number.isFinite(restCurrentHP) || !Number.isFinite(restMaxHP) || restMaxHP <= 0) return 0;
+    return Math.max(0, restMaxHP - restCurrentHP);
+  }, [restCurrentHP, restMaxHP]);
+
+  /** Health + short-rest resource lines shown on top of the magic recovery preview. */
+  const restExtraLines = useMemo(() => {
+    if (!restPreview) return [];
+    const lines: Array<{ label: string; detail: string }> = [];
+    if (restPreview === 'short') {
+      lines.push({ label: 'Health', detail: shortRestHeal > 0 ? `+${shortRestHeal} HP (a quarter of ${restMaxHP})` : 'Already at full health' });
+      lines.push({ label: 'Refreshed', detail: 'Pact magic, channel divinity, wild shape uses, action economy' });
+      lines.push({ label: 'Short rests', detail: `${shortRestsLeft} → ${Math.max(0, shortRestsLeft - 1)} of ${MAX_SHORT_RESTS} remaining` });
+    } else {
+      lines.push({ label: 'Health', detail: longRestHeal > 0 ? `+${longRestHeal} HP (back to full ${restMaxHP})` : 'Already at full health' });
+      lines.push({ label: 'Temp HP', detail: 'Cleared' });
+      lines.push({ label: 'Death saves', detail: 'Reset' });
+      lines.push({ label: 'Short rests', detail: `Refilled to ${MAX_SHORT_RESTS} of ${MAX_SHORT_RESTS}` });
+    }
+    return lines;
+  }, [restPreview, shortRestHeal, longRestHeal, restMaxHP, shortRestsLeft]);
+
+  const handleConfirmRest = useCallback((type: 'short' | 'long') => {
+    if (type === 'short' && shortRestsLeft <= 0) {
+      toast.error('No short rests left — you need a long rest first.');
+      return;
+    }
+
+    onRest?.(type);
+
+    const left = type === 'short' ? spendShortRest() : refillShortRests();
+    setShortRestsLeft(left);
+
+    const who = ctx.name || 'The adventurer';
+    const line = type === 'short'
+      ? `${who} takes a short rest (1 hour)${shortRestHeal > 0 ? `, recovering ${shortRestHeal} HP` : ''}. ${left} short rest${left === 1 ? '' : 's'} remaining before a long rest is needed.`
+      : `${who} takes a long rest (8 hours)${longRestHeal > 0 ? `, recovering ${longRestHeal} HP to full` : ' at full health'}. Spell slots and all rest resources are restored, and short rests are refilled to ${MAX_SHORT_RESTS}.`;
+
+    if (onRestPrompt) onRestPrompt(line);
+    else onUseLootItem?.(line);
+  }, [shortRestsLeft, onRest, onRestPrompt, onUseLootItem, ctx.name, shortRestHeal, longRestHeal]);
 
   // Casting from the sheet spends a real slot. A spell is castable when the
   // character still has a slot of its level or higher (or a pact slot big enough).
