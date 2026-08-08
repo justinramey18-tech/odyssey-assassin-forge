@@ -97,7 +97,7 @@ function Section({ title, icon: Icon, children, action }: {
 
 export function SoloCharacterSheet({
   open, onClose, ctx, currentXP, gold, quests = [],
-  onAdjustHP, onAddXP, onManualLevelUp, onConditionChange, onRest, onAcceptItem, onUseConsumableByName, onUseLootItem,
+  onAdjustHP, onAddXP, onManualLevelUp, onConditionChange, onRest, onRestPrompt, onAcceptItem, onUseConsumableByName, onUseLootItem,
   initialTab,
   origin = 'solo',
   onViewPartySheets, partySheetCount = 0,
