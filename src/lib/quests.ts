@@ -82,6 +82,37 @@ export function questTitle(q: Quest): string {
   return q.key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+/** The first objective that is still outstanding, or undefined when all are done. */
+export function nextObjective(q: Quest): QuestStage | undefined {
+  return (q.stages ?? []).find(s => !s.done);
+}
+
+/**
+ * Prompt sent to the DM the moment a quest is accepted: start the quest and
+ * narrate the opening beat that moves the party toward the next objective.
+ */
+export function buildQuestKickoffPrompt(q: Quest, opts?: { party?: boolean }): string {
+  const who = opts?.party ? 'The party accepts' : 'I accept';
+  const title = questTitle(q);
+  const next = nextObjective(q);
+  const stages = (q.stages ?? []).slice(0, 8);
+  const lines: string[] = [];
+
+  lines.push(`(${who} the quest "${title}". It is now ACTIVE — track our progress on it from here.)`);
+  if (q.description) lines.push(`Brief: ${q.description}`);
+  if (stages.length > 0) {
+    lines.push(`Objectives: ${stages.map((s, i) => `${i + 1}. ${s.text}${s.done ? ' [done]' : ''}`).join(' ')}`);
+  }
+  if (next) {
+    lines.push(`Current objective: ${next.text}`);
+    lines.push(`Narrate the scene that starts this quest and moves us toward that objective — who approaches us or what changes around us, where we go next, and one clear opening for us to act on. Do not resolve the objective for us.`);
+  } else {
+    lines.push(`Narrate the scene that starts this quest and give us a clear first move.`);
+  }
+  return lines.join('\n');
+}
+
+
 export function questPercent(q: Quest): number {
   if (q.status === 'completed') return 100;
   if (q.status === 'failed') return 0;
