@@ -83,7 +83,7 @@ export interface CharacterContext {
   equippedAbilities: string[];
   equipment: Array<{ slot: string; name: string; rarity: string }>;
   activeSetBonuses: string[];
-  consumables: Array<{ name: string; quantity: number; type: string }>;
+  consumables: Array<{ name: string; quantity: number; type: string; effect?: string }>;
   cooldowns: {
     active: Array<{ name: string; remainingSeconds: number }>;
     ready: string[];
