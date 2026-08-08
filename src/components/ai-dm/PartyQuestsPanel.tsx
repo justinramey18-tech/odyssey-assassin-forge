@@ -15,7 +15,7 @@ interface PartyQuestsPanelProps {
 }
 
 export function PartyQuestsPanel({ partyId, userId, isCreator, onBack, onAnnounce }: PartyQuestsPanelProps) {
-  const { quests, loading, upsertQuest, removeQuest } = usePartyQuests(partyId, userId);
+  const { quests, worldState, loading, upsertQuest, removeQuest } = usePartyQuests(partyId, userId);
 
   const activeCount = quests.filter(q => q.status === 'active').length;
   const offeredCount = quests.filter(q => q.status === 'offered').length;
@@ -57,6 +57,7 @@ export function PartyQuestsPanel({ partyId, userId, isCreator, onBack, onAnnounc
             canManage={isCreator}
             onAccept={handleAccept}
             onDecline={handleDecline}
+            worldState={worldState}
           />
         )}
       </div>
