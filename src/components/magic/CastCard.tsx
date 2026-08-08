@@ -59,6 +59,9 @@ export function CastCard({ spell: rawSpell, onClose, onResolved }: CastCardProps
   }, [rawSpell]);
 
   const baseLevel = Number.isFinite(spell?.level) ? Number(spell!.level) : 0;
+  const resources = useMemo(() => getMagicResources(), [spell]);
+
+
 
   const options = useMemo<CastOption[]>(() => (spell ? getCastOptions(baseLevel) : []), [spell, baseLevel]);
 
