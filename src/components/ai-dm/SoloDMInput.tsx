@@ -1,10 +1,12 @@
 import { useState, useCallback, useRef, useImperativeHandle, forwardRef, memo } from 'react';
-import { Send, Square, Wand2, RotateCcw, Loader2 } from 'lucide-react';
+import { Send, Square, Wand2, RotateCcw, Loader2, Mic, MicOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getAtMentionQuery, filterNPCNames } from '@/hooks/use-npc-autocomplete';
 import { NPCAutocomplete } from './NPCAutocomplete';
 import { useDraftPersist } from '@/hooks/use-draft-persist';
+import { useSpeechToText } from '@/hooks/use-speech-to-text';
 import { toast } from 'sonner';
+
 
 export interface SoloDMInputHandle {
   setText: (text: string) => void;
@@ -65,6 +67,23 @@ export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(
   const trackCursor = useCallback(() => {
     if (inputRef.current) setCursorPos(inputRef.current.selectionStart ?? 0);
   }, []);
+
+  const autoResizeTextarea = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (!inputRef.current) return;
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 200) + 'px';
+    });
+  }, []);
+
+  const { isListening, isSupported, interimText, toggle: toggleSpeech } = useSpeechToText({
+    onTranscript: useCallback((text: string) => {
+      setPreEnhance(null);
+      setInput(prev => (prev ? prev + ' ' + text : text));
+      autoResizeTextarea();
+    }, [setInput, autoResizeTextarea]),
+  });
+
 
   useImperativeHandle(ref, () => ({
     setText: (text: string) => {
@@ -174,6 +193,12 @@ export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(
 
   return (
     <div className="relative flex items-end gap-2">
+      {isListening && interimText && (
+        <div className="absolute -top-5 left-2 right-2 text-xs text-amber-400/50 italic truncate animate-pulse pointer-events-none">
+          {interimText}…
+        </div>
+      )}
+
       {showAc && (
         <NPCAutocomplete
           names={acSuggestions}
@@ -200,6 +225,28 @@ export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(
         className={cn("flex-1 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none resize-none min-h-[42px] max-h-[200px]", inputClassName)}
         disabled={isLoading || locked}
       />
+      {isSupported && !isLoading && (
+        <button
+          onClick={toggleSpeech}
+          disabled={locked}
+          aria-label={isListening ? 'Stop listening' : 'Voice input'}
+          title={isListening ? 'Stop listening' : 'Voice input'}
+          className={cn(
+            "p-2.5 rounded-xl border shrink-0 transition-all",
+            isListening
+              ? "bg-red-900/50 border-red-500/50 shadow-[0_0_12px_rgba(239,68,68,0.3)] animate-pulse"
+              : "bg-white/5 border-white/10 hover:border-amber-500/30 hover:bg-amber-900/20"
+          )}
+          style={{ touchAction: 'manipulation', minHeight: 44, minWidth: 44 }}
+        >
+          {isListening ? (
+            <MicOff className="w-5 h-5 text-red-400" />
+          ) : (
+            <Mic className="w-5 h-5 text-white/50" />
+          )}
+        </button>
+      )}
+
       {!isLoading && input.trim() && (
         <button
           onClick={preEnhance !== null ? handleUndoEnhance : handleEnhance}
