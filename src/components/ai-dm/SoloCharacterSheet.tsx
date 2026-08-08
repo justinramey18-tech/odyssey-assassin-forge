@@ -107,7 +107,7 @@ function Section({ title, icon: Icon, children, action }: {
 }
 
 export function SoloCharacterSheet({
-  open, onClose, ctx, currentXP, gold, quests = [], onAcceptQuest, onDeclineQuest,
+  open, onClose, ctx, currentXP, gold, quests = [], onAcceptQuest, onDeclineQuest, onScanQuests, scanningQuests,
   onAdjustHP, onAddXP, onManualLevelUp, onConditionChange, onRest, onRestPrompt, onAcceptItem, onUseConsumableByName, onUseLootItem,
   initialTab,
   origin = 'solo',
@@ -1088,6 +1088,8 @@ export function SoloCharacterSheet({
                 canManage={!!onAcceptQuest || !!onDeclineQuest}
                 onAccept={onAcceptQuest}
                 onDecline={onDeclineQuest}
+                onScan={onScanQuests}
+                scanning={scanningQuests}
               />
             </Section>
 
