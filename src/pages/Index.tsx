@@ -141,6 +141,62 @@ import { useCharacterIdentity } from '@/hooks/use-character-identity';
 // Stable empty object to prevent re-renders from `character.multiclassLevels ?? {}`
 const EMPTY_MULTICLASS_LEVELS: Record<string, never> = {};
 
+export interface HPStateShape { current: number; max: number; temp: number }
+const DEFAULT_HP_STATE: HPStateShape = { current: 8, max: 8, temp: 0 };
+
+/** Guard every HP value coming from storage, the cloud, or a model response. */
+function sanitizeHPState(raw: unknown, fallback: HPStateShape = DEFAULT_HP_STATE): HPStateShape {
+  if (!raw || typeof raw !== 'object') return { ...fallback };
+  const r = raw as Record<string, unknown>;
+  const max = Number(r.max);
+  const current = Number(r.current);
+  const temp = Number(r.temp);
+  const safeMax = Number.isFinite(max) && max > 0 ? Math.round(max) : fallback.max;
+  const safeCurrent = Number.isFinite(current)
+    ? Math.max(0, Math.min(safeMax, Math.round(current)))
+    : Math.max(0, Math.min(safeMax, fallback.current));
+  const safeTemp = Number.isFinite(temp) && temp > 0 ? Math.round(temp) : 0;
+  return { current: safeCurrent, max: safeMax, temp: safeTemp };
+}
+
+function readStoredHPState(fallback: HPStateShape = DEFAULT_HP_STATE): HPStateShape {
+  try {
+    const stored = getScopedItem('odyssey-hp-state');
+    if (!stored) return { ...fallback };
+    return sanitizeHPState(JSON.parse(stored), fallback);
+  } catch {
+    return { ...fallback };
+  }
+}
+
+// Debounced cloud push for HP changes — combat bursts collapse into one upload.
+let hpSyncTimer: ReturnType<typeof setTimeout> | null = null;
+function requestHPCloudSync(immediate = false) {
+  if (hpSyncTimer) {
+    clearTimeout(hpSyncTimer);
+    hpSyncTimer = null;
+  }
+  const fire = () => {
+    hpSyncTimer = null;
+    window.dispatchEvent(new Event('odyssey-force-cloud-sync'));
+  };
+  if (immediate) fire();
+  else hpSyncTimer = setTimeout(fire, 2000);
+}
+
+/** Persist an HP state to scoped storage and schedule/force a cloud save. */
+function persistHPState(state: HPStateShape, immediate = false): HPStateShape {
+  const safe = sanitizeHPState(state, state);
+  try {
+    setScopedItem('odyssey-hp-state', JSON.stringify(safe));
+  } catch (e) {
+    console.error('[HP] Failed to persist HP state:', e);
+  }
+  requestHPCloudSync(immediate || safe.current <= 0);
+  return safe;
+}
+
+
 const Index = () => {
   const location = useLocation();
   const routerNavigate = useNavigate();
