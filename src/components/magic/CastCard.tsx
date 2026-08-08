@@ -32,9 +32,32 @@ export interface CastCardProps {
  * The cast card. The app is the referee: pick the slot, the app rolls, spends
  * the resource, and hands the DM a receipt of what already happened.
  */
-export function CastCard({ spell, onClose, onResolved }: CastCardProps) {
+export function CastCard({ spell: rawSpell, onClose, onResolved }: CastCardProps) {
+  // Rows that only know a spell's name (the plain prepared-spell list) get
+  // filled in from the registry so the cast card still knows its level and dice.
+  const spell = useMemo<CastSpellDefinition | null>(() => {
+    if (!rawSpell) return null;
+    if (Number.isFinite(rawSpell.level)) return rawSpell;
+    const wanted = rawSpell.name.trim().toLowerCase();
+    const match = Object.values(SPELL_REGISTRY).find(s => s.name.trim().toLowerCase() === wanted);
+    if (!match) return rawSpell;
+    return {
+      ...rawSpell,
+      level: match.level,
+      school: rawSpell.school ?? match.school,
+      description: rawSpell.description ?? match.description,
+      attackType: rawSpell.attackType ?? match.attackType,
+      saveStat: rawSpell.saveStat ?? match.saveStat,
+      damageType: rawSpell.damageType ?? match.damageType,
+      damageFormula: rawSpell.damageFormula ?? (match as { damageFormula?: string }).damageFormula,
+      healingFormula: rawSpell.healingFormula ?? (match as { healingFormula?: string }).healingFormula,
+      concentration: rawSpell.concentration ?? match.concentration,
+      duration: rawSpell.duration ?? match.duration,
+    };
+  }, [rawSpell]);
+
   const baseLevel = Number.isFinite(spell?.level) ? Number(spell!.level) : 0;
-  const resources = useMemo(() => getMagicResources(), [spell]);
+
   const options = useMemo<CastOption[]>(() => (spell ? getCastOptions(baseLevel) : []), [spell, baseLevel]);
 
   const [chosen, setChosen] = useState<number>(0);
