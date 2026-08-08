@@ -18,6 +18,9 @@ import { GearBonusBreakdown } from '@/components/character/GearBonusBreakdown';
 import type { CastSpellDefinition } from '@/lib/magic/castResolver';
 import { CastCard } from '@/components/magic/CastCard';
 import { RestPreviewSheet } from '@/components/magic/RestPreviewSheet';
+import {
+  MAX_SHORT_RESTS, SHORT_REST_EVENT, getShortRestsRemaining, spendShortRest, refillShortRests,
+} from '@/lib/restTracker';
 
 
 
