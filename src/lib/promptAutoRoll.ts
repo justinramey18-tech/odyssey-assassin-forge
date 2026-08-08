@@ -29,7 +29,19 @@ export interface HealRollResult {
   mode: DiceOddsMode;
 }
 
-export type AnyRollResult = AttackRollResult | CheckRollResult | HealRollResult;
+/** A plain item/effect dice roll (no d20, no healing semantics). */
+export interface EffectRollResult {
+  kind: 'effect';
+  label: string;
+  rolls: number[];
+  die: number;
+  bonus: number;
+  total: number;
+  mode: DiceOddsMode;
+}
+
+export type AnyRollResult = AttackRollResult | CheckRollResult | HealRollResult | EffectRollResult;
+
 
 function rollFair(sides: number): number {
   return Math.floor(Math.random() * sides) + 1;
