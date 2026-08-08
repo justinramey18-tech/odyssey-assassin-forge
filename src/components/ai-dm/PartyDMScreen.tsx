@@ -31,6 +31,8 @@ import { usePartyChatBackground } from '@/hooks/use-party-chat-background';
 import { PartyMemoryAnchorsPanel } from './PartyMemoryAnchorsPanel';
 import { PartyQuestsPanel } from './PartyQuestsPanel';
 import { usePartyQuests } from '@/hooks/use-party-quests';
+import { withQuestEvent } from '@/lib/quests';
+
 import { DMComposePanel } from './DMComposePanel';
 import { DraftReviewPanel } from './DraftReviewPanel';
 import { NpcSceneDialog } from './NpcSceneDialog';
