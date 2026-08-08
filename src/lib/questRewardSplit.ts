@@ -31,7 +31,8 @@ const safeLevel = (lvl: unknown): number => {
 export function questContributors(quest: Quest, members: SplitMember[]): SplitMember[] {
   const haystack = [
     ...(quest.events ?? []).map(e => e?.text ?? ''),
-    ...(quest.stages ?? []).map((s: any) => `${s?.title ?? ''} ${s?.note ?? ''}`),
+    ...(quest.stages ?? []).map(s => s?.text ?? ''),
+    quest.notes ?? '',
     quest.description ?? '',
   ].join(' ').toLowerCase();
   if (!haystack.trim()) return [];
