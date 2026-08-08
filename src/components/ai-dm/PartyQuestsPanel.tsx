@@ -24,7 +24,7 @@ export function PartyQuestsPanel({ partyId, userId, isCreator, onBack, onAnnounc
   const handleAccept = useCallback((key: string) => {
     const quest = quests.find(q => q.key === key);
     if (!quest) return;
-    upsertQuest({ ...quest, status: 'active' });
+    upsertQuest(withQuestEvent({ ...quest, status: 'active' }, 'accepted', 'Quest accepted by the party — the DM is now tracking it.'));
     toast.success(`Accepted: ${questTitle(quest)}`);
     const goals = (quest.stages ?? []).map(s => s.text).join('; ');
     onAnnounce?.(`(The party accepts the quest "${questTitle(quest)}".${goals ? ` Objectives: ${goals}.` : ''} Track our progress on it from here.)`);
