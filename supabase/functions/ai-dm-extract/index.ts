@@ -166,7 +166,7 @@ const EXTRACT_TOOL = {
         },
         quests_offered: {
           type: "array",
-          description: "Jobs, bounties, missions, errands or investigations that this message OFFERS to the player but they have not yet agreed to. Maximum 3. Empty array when the message offers nothing new. Never re-offer something already underway.",
+          description: "Jobs, bounties, missions, errands or investigations that this message OFFERS to the player but they have not yet agreed to. Maximum 8. Empty array when the message offers nothing new. Never re-offer something already underway.",
           items: {
             type: "object",
             properties: {
@@ -337,7 +337,7 @@ CRITICAL ACCURACY RULES:
 - For map_entities, extract ONLY creatures/objects NEWLY introduced in THIS message. Include count for groups.
 - For map_entities_removed, include creatures definitively killed, defeated, destroyed, or fled.
 - ABSOLUTE HP EXTRACTION (CRITICAL): If the text shows an absolute HP value like "Geralt: 53/59 HP" or "Momo: 26/38 HP", extract the CURRENT number into hp_absolute (for the player) or companion_hp_absolute (for the companion). ALWAYS prefer extracting absolute values when available — they are more reliable than deltas.
-- QUEST OFFERS: put an entry in quests_offered only when this message presents a NEW job the player has not yet agreed to — an NPC asks for help, a notice board is read, a bounty is posted, a clear objective is handed over. Do not create a quest for scenery, small talk, or an errand the player already accepted. Never offer a quest whose key already appears in ACTIVE QUESTS. Rewards must be plausible for the stated difficulty; gold_reward may be 0 but xp_reward must be greater than zero.
+- QUEST OFFERS: capture EVERY new job this message puts in front of the player. If the message presents a quest board, a job list, a numbered set of objectives, a mission briefing, or a headed "MAIN QUEST" / "SIDE QUESTS" listing, create one entry per listed job, up to 8, even if the presentation is playful, meta, or breaks the fourth wall. Bullet points under a job become its stages. A job headed as main storyline gets quest_type "main"; optional work gets "side". Invent a sensible key, xp_reward and challenge_rating when the message does not state them. Otherwise put an entry in quests_offered only when this message presents a NEW job the player has not yet agreed to — an NPC asks for help, a notice board is read, a bounty is posted, a clear objective is handed over. Do not create a quest for scenery, small talk, or an errand the player already accepted. Never offer a quest whose key already appears in ACTIVE QUESTS. Rewards must be plausible for the stated difficulty; gold_reward may be 0 but xp_reward must be greater than zero.
 - QUEST PROGRESS: mark a stage completed only when the narrative shows it actually happened. Copy the goal text from the ACTIVE QUESTS list. Set status "completed" only when the whole job is done and set "failed" only when it is irreversibly lost; otherwise use null.
 - If no changes are found, return empty arrays and null values.
 
