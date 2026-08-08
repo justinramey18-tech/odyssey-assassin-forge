@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { Check, X, ScrollText, Coins, Sparkles, Package, History, ChevronDown } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Check, X, ScrollText, Coins, Sparkles, Package, History, ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Quest, QuestEventType, CR_META, questPercent, questTitle } from '@/lib/quests';
+import { Quest, QuestCR, QuestEventType, CR_META, questPercent, questTitle } from '@/lib/quests';
+
 
 const EVENT_STYLE: Record<QuestEventType, { dot: string; label: string }> = {
   offered: { dot: 'bg-amber-400/70', label: 'Offered' },
@@ -145,11 +146,87 @@ function ProgressBar({ pct }: { pct: number }) {
   );
 }
 
+type TypeFilter = 'all' | 'main' | 'side';
+type CrFilter = 'all' | QuestCR;
+type SortMode = 'recent' | 'type' | 'cr' | 'progress' | 'title';
+
+const CR_RANK: Record<QuestCR, number> = { easy: 1, moderate: 2, hard: 3, deadly: 4 };
+const TYPE_FILTERS: Array<{ id: TypeFilter; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'main', label: 'Main' },
+  { id: 'side', label: 'Side' },
+];
+const CR_FILTERS: Array<{ id: CrFilter; label: string }> = [
+  { id: 'all', label: 'Any CR' },
+  { id: 'easy', label: 'Easy' },
+  { id: 'moderate', label: 'Moderate' },
+  { id: 'hard', label: 'Hard' },
+  { id: 'deadly', label: 'Deadly' },
+];
+const SORTS: Array<{ id: SortMode; label: string }> = [
+  { id: 'recent', label: 'Most recent' },
+  { id: 'type', label: 'Main first' },
+  { id: 'cr', label: 'Hardest first' },
+  { id: 'progress', label: 'Closest to done' },
+  { id: 'title', label: 'Title (A–Z)' },
+];
+
+function Chip({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{ touchAction: 'manipulation' }}
+      className={cn(
+        'min-h-[32px] px-2.5 rounded-full text-[10px] uppercase tracking-wide border transition-colors',
+        active
+          ? 'border-amber-500/50 bg-amber-500/15 text-amber-200'
+          : 'border-white/10 bg-white/[0.03] text-white/50 hover:text-white/80',
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
 export function QuestBoard({ quests, canManage = true, onAccept, onDecline }: QuestBoardProps) {
-  const offered = quests.filter(q => q.status === 'offered');
-  const active = quests.filter(q => q.status === 'active' || q.status === 'unknown');
-  const done = quests.filter(q => q.status === 'completed');
-  const failed = quests.filter(q => q.status === 'failed');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [crFilter, setCrFilter] = useState<CrFilter>('all');
+  const [sortMode, setSortMode] = useState<SortMode>('recent');
+  const [activeOnly, setActiveOnly] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+
+  const visible = useMemo(() => {
+    const matches = quests.filter(q => {
+      if (typeFilter === 'main' && q.questType !== 'main') return false;
+      if (typeFilter === 'side' && q.questType === 'main') return false;
+      if (crFilter !== 'all' && q.challengeRating !== crFilter) return false;
+      return true;
+    });
+    const sorted = [...matches];
+    sorted.sort((a, b) => {
+      switch (sortMode) {
+        case 'type': {
+          const rank = (q: Quest) => (q.questType === 'main' ? 0 : 1);
+          return rank(a) - rank(b) || questTitle(a).localeCompare(questTitle(b));
+        }
+        case 'cr':
+          return (CR_RANK[b.challengeRating as QuestCR] ?? 0) - (CR_RANK[a.challengeRating as QuestCR] ?? 0);
+        case 'progress':
+          return questPercent(b) - questPercent(a);
+        case 'title':
+          return questTitle(a).localeCompare(questTitle(b));
+        default:
+          return String(b.updated_at ?? '').localeCompare(String(a.updated_at ?? ''));
+      }
+    });
+    return sorted;
+  }, [quests, typeFilter, crFilter, sortMode]);
+
+  const offered = activeOnly ? [] : visible.filter(q => q.status === 'offered');
+  const active = visible.filter(q => q.status === 'active' || q.status === 'unknown');
+  const done = activeOnly ? [] : visible.filter(q => q.status === 'completed');
+  const failed = activeOnly ? [] : visible.filter(q => q.status === 'failed');
+  const filtersOn = typeFilter !== 'all' || crFilter !== 'all' || sortMode !== 'recent' || activeOnly;
 
   if (quests.length === 0) {
     return (
@@ -163,6 +240,58 @@ export function QuestBoard({ quests, canManage = true, onAccept, onDecline }: Qu
 
   return (
     <div className="space-y-4">
+      {/* Filter / sort bar */}
+      <div className="rounded-lg border border-white/10 bg-white/[0.02] px-2.5 py-2">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowFilters(o => !o)}
+            style={{ touchAction: 'manipulation' }}
+            className="flex items-center gap-1.5 min-h-[32px] text-[10px] uppercase tracking-wider text-white/60 hover:text-white/90 transition-colors"
+          >
+            <SlidersHorizontal className="w-3 h-3" />
+            Filters{filtersOn ? ' · on' : ''}
+            <ChevronDown className={cn('w-3 h-3 transition-transform', showFilters && 'rotate-180')} />
+          </button>
+          <span className="ml-auto text-[10px] text-white/35">{active.length} active</span>
+          <Chip active={activeOnly} label="Active only" onClick={() => setActiveOnly(v => !v)} />
+        </div>
+        <AnimatePresence initial={false}>
+          {showFilters && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="pt-2 space-y-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {TYPE_FILTERS.map(f => (
+                    <Chip key={f.id} active={typeFilter === f.id} label={f.label} onClick={() => setTypeFilter(f.id)} />
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {CR_FILTERS.map(f => (
+                    <Chip key={f.id} active={crFilter === f.id} label={f.label} onClick={() => setCrFilter(f.id)} />
+                  ))}
+                </div>
+                <select
+                  value={sortMode}
+                  onChange={(e) => setSortMode(e.target.value as SortMode)}
+                  style={{ touchAction: 'manipulation' }}
+                  className="w-full min-h-[40px] rounded-lg bg-white/[0.04] border border-white/10 text-xs text-white/80 px-2"
+                >
+                  {SORTS.map(s => <option key={s.id} value={s.id} className="bg-neutral-900">{s.label}</option>)}
+                </select>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {visible.length === 0 && (
+        <p className="text-[11px] text-white/40 text-center py-4">No quests match these filters.</p>
+      )}
+
       {offered.length > 0 && (
         <div>
           <p className="text-[10px] text-amber-300/70 uppercase tracking-wider mb-2">Offered</p>
@@ -209,7 +338,12 @@ export function QuestBoard({ quests, canManage = true, onAccept, onDecline }: Qu
         <div>
           <p className="text-[10px] text-emerald-300/60 uppercase tracking-wider mb-2">Active</p>
           <div className="space-y-2">
-            {active.map(q => (
+            {active.map(q => activeOnly ? (
+              <div key={q.key} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
+                <QuestHeader q={q} />
+                <ProgressBar pct={questPercent(q)} />
+              </div>
+            ) : (
               <div key={q.key} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5">
                 <QuestHeader q={q} />
                 {q.description && <p className="text-[10px] text-white/50 mt-1 leading-snug">{q.description}</p>}
@@ -219,6 +353,7 @@ export function QuestBoard({ quests, canManage = true, onAccept, onDecline }: Qu
                 {q.notes && <p className="text-[10px] text-white/35 mt-1.5 italic">{q.notes}</p>}
                 <QuestTimeline q={q} />
               </div>
+
             ))}
           </div>
         </div>
