@@ -950,6 +950,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   // Shared party quest board, also shown inside each player's character sheet.
   const sheetQuests = usePartyQuests(partyId, currentUserId);
+  const questRewardSplit = useQuestRewardSplit(partyId, currentUserId);
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
   const [showDeathSaves, setShowDeathSaves] = useState(false);
