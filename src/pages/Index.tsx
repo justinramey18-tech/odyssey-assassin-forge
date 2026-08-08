@@ -522,20 +522,19 @@ const Index = () => {
   // Shared equipment state for constellation view
   const [equipment, setEquipment] = useState<CharacterEquipment>(() => createInitialEquipment());
   
-  // HP State Management (persisted to localStorage)
+  // HP State Management (persisted to localStorage, guarded against bad values)
   // Note: max HP is now calculated dynamically, but we still store it for persistence
-  const [hpState, setHpState] = useState<{ current: number; max: number; temp: number }>(() => {
-    const stored = getScopedItem('odyssey-hp-state');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        return parsed;
-      } catch {
-        return { current: 8, max: 8, temp: 0 };
-      }
-    }
-    return { current: 8, max: 8, temp: 0 };
-  });
+  const [hpState, setHpState] = useState<HPStateShape>(() => readStoredHPState());
+
+  // Re-read HP when a different character is loaded so the bars show the right hero
+  useEffect(() => {
+    const handleCharacterLoaded = () => {
+      setHpState(prev => readStoredHPState(prev));
+    };
+    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+  }, []);
+
 
   // Death Saves State (persisted to localStorage)
   const [deathSaves, setDeathSaves] = useState<{ successes: number; failures: number }>(() => {
