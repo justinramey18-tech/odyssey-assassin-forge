@@ -11,7 +11,15 @@ export interface SpellCastRequest {
   name: string;
   /** Base level, when the caller already knows it (0 = cantrip). */
   level?: number;
+  /**
+   * Explicit slot level to spend (upcasting). When omitted the caster picks the
+   * cheapest slot that can still carry the spell.
+   */
+  slotLevel?: number;
+  /** Spend a pact slot specifically. */
+  usePact?: boolean;
 }
+
 
 export type SpellCastFailure = 'no-caster' | 'unknown-spell' | 'no-slots';
 
