@@ -52,7 +52,7 @@ import { useLinkedUniverse } from '@/hooks/use-linked-universe';
 import { LinkedUniverseSection } from '@/components/empyrean/LinkedUniverseSection';
 
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
-import { Quest, RawQuestOffer, normalizeQuestMap, questFromOffer, questTitle, applyQuestProgress, toStored, withQuestEvent, rewardSummary } from '@/lib/quests';
+import { Quest, RawQuestOffer, normalizeQuestMap, questFromOffer, questTitle, applyQuestProgress, toStored, withQuestEvent, rewardSummary, WORLD_STATE_KEY, WorldStateEntry, normalizeWorldState, mergeWorldState, toStoredWorldState, worldEntryFromQuest } from '@/lib/quests';
 import { SoloCharacterSheet, type SheetTab } from '@/components/ai-dm/SoloCharacterSheet';
 import { getSheetReturn, clearSheetReturn } from '@/lib/sheetReturn';
 import { CharacterSheetStrip } from '@/components/ai-dm/CharacterSheetStrip';
@@ -543,6 +543,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   // so both directions go through refs that are filled in further down.
   const questsRef = useRef<Quest[]>([]);
   const questUpdateRef = useRef<((offers: RawQuestOffer[], progress: any[]) => void) | null>(null);
+  const worldStateUpdateRef = useRef<((changes: any[]) => void) | null>(null);
 
   // Auto-sync hook
   const autoSync = useDmAutoSync({
@@ -565,6 +566,9 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     getActiveQuests: useCallback(() => questsRef.current, []),
     onQuestUpdate: useCallback((offers: RawQuestOffer[], progress: any[]) => {
       questUpdateRef.current?.(offers, progress);
+    }, []),
+    onWorldStateUpdate: useCallback((changes: any[]) => {
+      worldStateUpdateRef.current?.(changes);
     }, []),
   } as Parameters<typeof useDmAutoSync>[0]);
 
@@ -633,6 +637,32 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
 
   // ─── Quest board ────────────────────────────────────────────────────────────
   const quests = useMemo(() => normalizeQuestMap(gameState.quest_flags), [gameState.quest_flags]);
+  const worldState = useMemo(() => normalizeWorldState(gameState.quest_flags), [gameState.quest_flags]);
+  const worldStateRef = useRef<WorldStateEntry[]>([]);
+  useEffect(() => { worldStateRef.current = worldState; }, [worldState]);
+
+  /** Record permanent outcomes on the board's world-state tracker, skipping repeats. */
+  const recordWorldState = useCallback((raw: any[]) => {
+    const incoming = (raw ?? []).map((c: any) => ({
+      title: c?.title,
+      consequence: c?.consequence,
+      scope: c?.scope,
+      impact: c?.impact,
+      questKey: c?.quest_key ?? c?.questKey ?? undefined,
+    }));
+    const { entries, added } = mergeWorldState(worldStateRef.current, incoming);
+    if (added.length === 0) return;
+    worldStateRef.current = entries;
+    upsertQuest(WORLD_STATE_KEY, toStoredWorldState(entries) as any);
+    sonnerToast.info(added.length === 1 ? 'The world has changed' : `${added.length} things changed the world`, {
+      description: added.map(e => e.title).join(' · '),
+    });
+  }, [upsertQuest]);
+
+  useEffect(() => {
+    worldStateUpdateRef.current = recordWorldState;
+    return () => { worldStateUpdateRef.current = null; };
+  }, [recordWorldState]);
   useEffect(() => { questsRef.current = quests; }, [quests]);
 
   /** Pay out XP, gold and promised items once, the moment a quest is finished. */
@@ -689,11 +719,18 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           next.rewardsPaid = true;
           next = withQuestEvent(next, 'rewards', `Rewards paid out: ${rewardSummary(next)}.`);
         }
+        if (next.status !== existing.status && (next.status === 'completed' || next.status === 'failed')) {
+          recordWorldStateRef.current?.([worldEntryFromQuest(next)]);
+        }
         upsertQuest(key, toStored(next) as any);
       }
     };
     return () => { questUpdateRef.current = null; };
   }, [upsertQuest, payQuestRewards]);
+
+  // recordWorldState is defined after this effect, so it is reached through a ref.
+  const recordWorldStateRef = useRef<((changes: any[]) => void) | null>(null);
+  useEffect(() => { recordWorldStateRef.current = recordWorldState; }, [recordWorldState]);
 
   const handleAcceptQuest = useCallback((key: string) => {
     const quest = questsRef.current.find(q => q.key === key);
@@ -1750,6 +1787,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         quests={quests}
         onAcceptQuest={handleAcceptQuest}
         onDeclineQuest={handleDeclineQuest}
+        worldState={worldState}
         onScanQuests={handleScanQuests}
         scanningQuests={autoSync.isExtracting}
         onAdjustHP={(change, type) => autoSyncCallbacks?.onHPChange?.(change, type)}
