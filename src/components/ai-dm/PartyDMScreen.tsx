@@ -106,6 +106,8 @@ type PartyDmReturn = ReturnType<typeof usePartyDm>;
 
 interface PartyDMScreenProps {
   onBack: () => void;
+  /** Re-read the DM's latest response and pull quests out of it. */
+  onScanQuests?: () => void;
   partyId?: string | null;
   partyDm: PartyDmReturn;
   isCreator: boolean;
@@ -4540,6 +4542,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             partyDmRef.current?.submitPrompt(`(The party accepts the quest "${quest.title || key}". Track our progress on it from here.)`);
           } : undefined}
           onDeclineQuest={isCreator ? (key) => sheetQuests.removeQuest(key) : undefined}
+          onScanQuests={isCreator ? onScanQuests : undefined}
+          scanningQuests={isExtracting}
           onAdjustHP={(change, type) => onHPChange?.(change, type)}
           onAddXP={() => {}}
           onManualLevelUp={onManualLevelUp}
