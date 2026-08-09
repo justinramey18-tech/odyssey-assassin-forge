@@ -7,6 +7,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/u
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { rollAttack, rollCheck, rollHealing, rollEffect, rollSuffix, type HealRollResult } from '@/lib/promptAutoRoll';
+import { actionCardFromRoll, encodeActionCard } from '@/lib/roundChatActionCard';
 import { getHealingDiceForItem, type HealingDice } from '@/lib/consumables/healing';
 import { requestDiceRoll } from '@/lib/diceRollBus';
 import { castSpellByName, describeSlotSpend, getMagicResources } from '@/lib/magic/castBus';
@@ -209,7 +210,7 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
       title: item.name,
       roll,
       onComplete: () => {
-        onUse(item.prompt + rollSuffix(roll) + slotNote);
+        onUse(encodeActionCard(actionCardFromRoll(item.name, roll, slotNote), item.prompt + rollSuffix(roll) + slotNote));
         toast.success('Prompt added to input');
       },
     });
@@ -250,7 +251,7 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                       title: item.name,
                       roll,
                       onComplete: () => {
-                        onUse(item.prompt + rollSuffix(roll));
+                        onUse(encodeActionCard(actionCardFromRoll(item.name, roll), item.prompt + rollSuffix(roll)));
                         toast.success('Prompt added to input');
                       },
                     });
@@ -262,7 +263,7 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                       title: item.name,
                       roll,
                       onComplete: () => {
-                        onUse(item.prompt + rollSuffix(roll));
+                        onUse(encodeActionCard(actionCardFromRoll(item.name, roll), item.prompt + rollSuffix(roll)));
                         toast.success('Prompt added to input');
                       },
                     });
@@ -396,8 +397,9 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
       onComplete: () => {
         const prompt = onHealingItemUsed(item.name, roll);
         if (!prompt) return;
-        if (onSendPrompt) onSendPrompt(prompt);
-        else onUsePrompt(prompt);
+        const tagged = encodeActionCard(actionCardFromRoll(item.name, roll), prompt);
+        if (onSendPrompt) onSendPrompt(tagged);
+        else onUsePrompt(tagged);
       },
     });
   }, [onHealingItemUsed, onSendPrompt, onUsePrompt, onOpenChange]);

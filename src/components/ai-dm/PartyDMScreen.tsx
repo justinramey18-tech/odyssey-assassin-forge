@@ -74,6 +74,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { parseRollHint } from '@/lib/whisperRollHint';
 import { resolveWhisperAutoRoll, performWhisperRoll } from '@/lib/whisperAutoRoll';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
+import { stripActionCard } from '@/lib/roundChatActionCard';
 import { useHealingItemAction } from '@/hooks/use-healing-item';
 import { RoundTimer, TimerSettings } from './RoundTimer';
 import { AfkPersonalityGuide } from './AfkPersonalityGuide';
@@ -1767,7 +1768,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       void roundChatRef.current.sendMessage(text, true);
       return;
     }
-    partyDmRef.current?.submitPrompt(text, intensity);
+    partyDmRef.current?.submitPrompt(stripActionCard(text), intensity);
   }, []);
 
 
@@ -2061,7 +2062,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       dispatchPrompt(prompt);
       return;
     }
-    playerInputRef.current?.appendText(prompt);
+    playerInputRef.current?.appendText(stripActionCard(prompt));
   }, [dispatchPrompt]);
 
   const handleHealingItemUsed = useHealingItemAction({
