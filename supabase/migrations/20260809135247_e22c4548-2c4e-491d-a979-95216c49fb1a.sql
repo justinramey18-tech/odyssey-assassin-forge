@@ -1,0 +1,1 @@
+ALTER TABLE public.player_chat_avatars ADD COLUMN IF NOT EXISTS ooc_name text;

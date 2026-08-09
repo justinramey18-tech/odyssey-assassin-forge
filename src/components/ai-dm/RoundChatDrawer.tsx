@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass, ImagePlus } from 'lucide-react';
+import { ChevronDown, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil } from 'lucide-react';
 import { AvatarCropDialog } from './AvatarCropDialog';
 
 import { Textarea } from '@/components/ui/textarea';
@@ -52,6 +52,9 @@ interface RoundChatDrawerProps {
   /** Per-player avatars: { [userId]: { ic, ooc } } */
   avatars?: Record<string, { ic?: string; ooc?: string }>;
   onUploadAvatar?: (kind: 'ic' | 'ooc', file: File) => void | Promise<void>;
+  /** Per-player table-talk (out-of-character) display names: { [userId]: name } */
+  oocNames?: Record<string, string>;
+  onSetOocName?: (name: string) => void | Promise<void>;
 }
 
 /** Small circular face beside a message. Tapping your own opens the picker. */
@@ -135,7 +138,11 @@ export function RoundChatDrawer({
   onDraftUsed,
   avatars,
   onUploadAvatar,
+  oocNames,
+  onSetOocName,
 }: RoundChatDrawerProps) {
+  const [editingOocName, setEditingOocName] = useState(false);
+  const [oocNameDraft, setOocNameDraft] = useState('');
   const [text, setText] = useState('');
   const [inCharacter, setInCharacter] = useState(true);
   const [pickerFor, setPickerFor] = useState<string | null>(null);
@@ -385,6 +392,9 @@ export function RoundChatDrawer({
                   const avatarUrl = m.in_character
                     ? avatars?.[m.user_id]?.ic
                     : avatars?.[m.user_id]?.ooc;
+                  const displayName = m.in_character
+                    ? (m.character_name || 'Player')
+                    : (oocNames?.[m.user_id] || m.character_name || 'Player');
                   return (
                     <div
                       key={m.id}
@@ -395,7 +405,7 @@ export function RoundChatDrawer({
                     >
                     <ChatAvatar
                       url={avatarUrl}
-                      label={m.character_name || 'Player'}
+                      label={displayName}
                       kind={m.in_character ? 'ic' : 'ooc'}
                       editable={isSelf && !!onUploadAvatar}
                       onPick={(file) => setCropTarget({ kind: m.in_character ? 'ic' : 'ooc', file })}
@@ -410,7 +420,7 @@ export function RoundChatDrawer({
 
                       <div className={cn("flex items-center gap-1.5", alignRight && "flex-row-reverse")}>
                         <span className={cn("text-[10px] font-semibold truncate font-cinzel", nameColor)}>
-                          {m.character_name}
+                          {displayName}
                         </span>
                         {!m.in_character && (
                           <span className="text-[8px] px-1 py-[1px] rounded uppercase tracking-wider shrink-0 bg-amber-500/15 text-amber-200/80">
@@ -556,6 +566,32 @@ export function RoundChatDrawer({
                       Table talk
                     </button>
                   </div>
+                  {!inCharacter && onSetOocName && (
+                    editingOocName ? (
+                      <input
+                        autoFocus
+                        value={oocNameDraft}
+                        maxLength={40}
+                        onChange={(e) => setOocNameDraft(e.target.value)}
+                        onBlur={() => { onSetOocName(oocNameDraft); setEditingOocName(false); }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); onSetOocName(oocNameDraft); setEditingOocName(false); }
+                          if (e.key === 'Escape') setEditingOocName(false);
+                        }}
+                        placeholder="Your table name"
+                        className="w-28 shrink-0 px-2 py-1 rounded-md text-[10px] bg-black/40 border border-amber-400/40 text-amber-100 outline-none"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => { setOocNameDraft((currentUserId && oocNames?.[currentUserId]) || ''); setEditingOocName(true); }}
+                        className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-[10px] border border-amber-400/30 bg-amber-900/20 text-amber-200/90"
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        <Pencil className="w-2.5 h-2.5" />
+                        {(currentUserId && oocNames?.[currentUserId]) || 'Name yourself'}
+                      </button>
+                    )
+                  )}
                   <span className="text-[10px] text-white/30">
                     {progress.met
                       ? 'Round is ready for the DM'
