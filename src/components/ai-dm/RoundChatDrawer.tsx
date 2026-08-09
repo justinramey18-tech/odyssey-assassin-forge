@@ -230,33 +230,20 @@ export function RoundChatDrawer({
     return map;
   }, [reactions]);
 
-  const remaining = Math.max(0, progress.target - progress.current);
-  const ruleLabel =
-    style.triggerRule === 'total'
-      ? 'messages'
-      : style.triggerRule === 'distinct'
-        ? 'players'
-        : 'each';
+  const triggerHint = 'Tick the lines you want the DM to answer, then the host taps Send to DM.';
 
-  const triggerHint = (() => {
-    const n = style.messageCount;
-    const s = n === 1 ? '' : 's';
-    if (style.triggerRule === 'distinct') return `The DM replies once ${n} different player${s} ha${n === 1 ? 's' : 've'} spoken.`;
-    if (style.triggerRule === 'perPlayer') return `The DM replies once everyone who spoke has posted ${n} message${s}.`;
-    return `The DM replies after ${n} message${s}.`;
-  })();
-
-  /** Compact status line: queued -> thinking -> ready. */
+  /** Compact status line: picked -> thinking -> ready. */
   const dmStatus: { tone: 'queued' | 'thinking' | 'ready'; label: string } | null = (() => {
     if (isGenerating) return { tone: 'thinking', label: 'The DM is thinking…' };
     if (justFinished) return { tone: 'ready', label: 'The DM has replied — scroll up to read the scene.' };
-    if (progress.met) return { tone: 'queued', label: 'Round is full — the DM is up next.' };
     if (progress.current > 0) {
-      const left = remaining;
       return {
         tone: 'queued',
-        label: `${progress.current} queued · ${left} more ${ruleLabel === 'players' ? (left === 1 ? 'player' : 'players') : left === 1 ? 'message' : 'messages'} until the DM replies`,
+        label: `${progress.current} line${progress.current === 1 ? '' : 's'} ticked${isHost ? ' — tap Send to DM when ready.' : ' — waiting on the host to send.'}`,
       };
+    }
+    if (progress.waiting > 0) {
+      return { tone: 'queued', label: `${progress.waiting} line${progress.waiting === 1 ? '' : 's'} waiting — tick the ones the DM should answer.` };
     }
     return null;
   })();
