@@ -15,6 +15,7 @@ import { SoundEffectsWidget } from './SoundEffectsWidget';
 import { SettingsSection } from './SettingsSection';
 import { SpeechifyVoiceCloner } from './SpeechifyVoiceCloner';
 import { CinematicAudioLibrary } from './CinematicAudioLibrary';
+import { VoiceCastPanel } from './VoiceCastPanel';
 
 function ElevenLabsApiKeyInput() {
   const [keyInput, setKeyInput] = useState('');
@@ -420,6 +421,10 @@ export function ElevenLabsSettingsTab() {
                 the top of a response). Story narration keeps the voice chosen above.
               </p>
               <SpeechifyVoicePicker target="dm" />
+            </SettingsSection>
+
+            <SettingsSection title="Character Voice Cast">
+              <VoiceCastPanel />
             </SettingsSection>
           </>
         )}
