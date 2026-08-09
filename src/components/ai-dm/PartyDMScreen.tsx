@@ -1724,16 +1724,29 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     const pd = partyDmRef.current;
     const roundKey = pd.sessionConfig?.currentRoundId || '';
     if (!roundKey || pd.isGenerating) return;
-    if (chatRoundFiredRef.current === roundKey) return;
-    const bundled = roundChat.buildRoundPrompt();
+    const pending = roundChatRef.current.pendingMessages;
+    // Keyed on the round AND the last line in it, so a round that gathers more
+    // chat while the DM is busy can still fire again afterwards.
+    const fireKey = `${roundKey}:${pending[pending.length - 1]?.id || ''}`;
+    if (chatRoundFiredRef.current === fireKey) return;
+    const bundled = roundChatRef.current.buildRoundPrompt();
     if (!bundled.trim()) return;
-    chatRoundFiredRef.current = roundKey;
+    chatRoundFiredRef.current = fireKey;
     setRoundChatOpen(false);
-    await roundChat.consumePending();
+    await roundChatRef.current.consumePending();
     await pd.submitPrompt(bundled);
     await pd.setReady();
+    // Call the DM directly rather than waiting for the ready row to echo back
+    // through realtime — if that echo is slow or dropped the round never fires.
     pendingChatFireRef.current = roundKey;
-  }, [roundChat]);
+    try {
+      await pd.generateResponse();
+      pendingChatFireRef.current = null;
+    } catch {
+      /* the ready-echo effect below is the fallback */
+    }
+  }, []);
+
 
   /**
    * Single exit for every player-generated line (potions, spells, dice results,
