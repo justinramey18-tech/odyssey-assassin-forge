@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass, ImagePlus } from 'lucide-react';
+import { AvatarCropDialog } from './AvatarCropDialog';
+
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { parseActionCard } from '@/lib/roundChatActionCard';
@@ -144,6 +146,9 @@ export function RoundChatDrawer({
   const prevCountRef = useRef(messages.length);
   const wasGeneratingRef = useRef(isGenerating);
   const [justFinished, setJustFinished] = useState(false);
+  // Picture chosen but not yet cropped — the crop dialog owns it until confirmed.
+  const [cropTarget, setCropTarget] = useState<{ kind: 'ic' | 'ooc'; file: File } | null>(null);
+
 
   // Outside suggestions land in the composer so the player can edit before sending.
   useEffect(() => {
@@ -393,7 +398,7 @@ export function RoundChatDrawer({
                       label={m.character_name || 'Player'}
                       kind={m.in_character ? 'ic' : 'ooc'}
                       editable={isSelf && !!onUploadAvatar}
-                      onPick={(file) => onUploadAvatar?.(m.in_character ? 'ic' : 'ooc', file)}
+                      onPick={(file) => setCropTarget({ kind: m.in_character ? 'ic' : 'ooc', file })}
                     />
                     <div
                       className={cn(
@@ -600,6 +605,19 @@ export function RoundChatDrawer({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AvatarCropDialog
+        open={!!cropTarget}
+        file={cropTarget?.file ?? null}
+        kind={cropTarget?.kind ?? 'ic'}
+        onCancel={() => setCropTarget(null)}
+        onConfirm={async (cropped) => {
+          const kind = cropTarget?.kind ?? 'ic';
+          setCropTarget(null);
+          await onUploadAvatar?.(kind, cropped);
+        }}
+      />
     </div>
   );
 }
+
