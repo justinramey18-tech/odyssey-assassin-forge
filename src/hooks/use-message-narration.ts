@@ -9,7 +9,9 @@ import {
   loadSpeechifyDMVoiceId,
   splitDMResponseParts,
   splitStorySegments,
+  segmentKey,
   voiceForSpeaker,
+  type NarrationSegment,
 } from '@/lib/tts-utils';
 import { toast } from 'sonner';
 
@@ -20,6 +22,7 @@ import { toast } from 'sonner';
  */
 export type NarrationPart = string;
 
+/** Legacy index-based id, kept so old saved clips still resolve. */
 export const segmentPart = (index: number) => `seg-${index}`;
 
 export interface MessageAudioRow {
@@ -183,12 +186,14 @@ export function useMessageNarration(
     const tableRow = audioByMessage[narrationKey(messageId, 'table')];
     if (tableRow) queue.push({ key: narrationKey(messageId, 'table'), url: tableRow.audio_url, speaker: 'DM' });
 
-    const segments = content ? splitStorySegments(splitDMResponseParts(content).story) : [];
+    const segments = content ? splitStorySegments(splitDMResponseParts(content).story, messageId) : [];
     let addedSegments = 0;
     segments.forEach((seg, i) => {
-      const row = audioByMessage[narrationKey(messageId, segmentPart(i))];
+      const part = segmentKey(seg);
+      const row = audioByMessage[narrationKey(messageId, part)]
+        || audioByMessage[narrationKey(messageId, segmentPart(i))];
       if (row) {
-        queue.push({ key: narrationKey(messageId, segmentPart(i)), url: row.audio_url, speaker: seg.speaker });
+        queue.push({ key: narrationKey(messageId, row.part || part), url: row.audio_url, speaker: seg.speaker });
         addedSegments++;
       }
     });
@@ -314,7 +319,7 @@ export function useMessageNarration(
     if (generatingId) return;
 
     const { tableTalk, story } = splitDMResponseParts(content || '');
-    const segments = splitStorySegments(story || content || '');
+    const segments = splitStorySegments(story || content || '', messageId);
     const total = segments.length + (tableTalk.trim() ? 1 : 0);
     if (total === 0) return;
 
@@ -336,9 +341,9 @@ export function useMessageNarration(
       for (let i = 0; i < segments.length; i++) {
         const seg = segments[i];
         setCastProgress({ messageId, done, total, speaker: seg.speaker });
-        const voiceId = (seg.speaker && voiceForSpeaker(seg.speaker)) || narratorVoice;
+        const voiceId = seg.voiceId || (seg.speaker && voiceForSpeaker(seg.speaker)) || narratorVoice;
         const blob = await synthesize(seg.text, voiceId, apiKey);
-        await storeClip(messageId, segmentPart(i), blob, voiceId);
+        await storeClip(messageId, segmentKey(seg), blob, voiceId);
         done++;
         setCastProgress({ messageId, done, total, speaker: segments[i + 1]?.speaker ?? null });
       }
