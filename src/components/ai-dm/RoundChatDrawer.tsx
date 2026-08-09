@@ -291,20 +291,34 @@ export function RoundChatDrawer({
                     <div
                       key={m.id}
                       className={cn(
-                        "rounded-lg px-2.5 py-1.5 border",
-                        isSelf
-                          ? "bg-amber-900/15 border-amber-500/20"
-                          : "bg-white/5 border-white/10",
-                        !m.in_character && "opacity-60",
-                        m.consumed && "opacity-50",
+                        "rounded-lg px-2.5 py-1.5 border border-l-[3px]",
+                        m.in_character
+                          ? isSelf
+                            ? "bg-amber-900/25 border-amber-500/30 border-l-amber-400"
+                            : "bg-amber-950/10 border-amber-500/15 border-l-amber-600/60"
+                          : isSelf
+                            ? "bg-sky-950/25 border-dashed border-sky-400/30 border-l-sky-400/80"
+                            : "bg-slate-500/10 border-dashed border-white/12 border-l-slate-400/60",
+                        m.consumed && "opacity-60",
                       )}
                     >
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-semibold text-amber-200/80 truncate">
+                        <span className={cn(
+                          "text-[10px] font-semibold truncate",
+                          m.in_character ? "text-amber-200/90 font-cinzel" : "text-sky-200/70"
+                        )}>
                           {m.character_name}
                         </span>
-                        {!m.in_character && (
-                          <span className="text-[9px] px-1 rounded bg-white/10 text-white/40 uppercase tracking-wide">OOC</span>
+                        <span className={cn(
+                          "text-[8px] px-1 py-[1px] rounded uppercase tracking-wider shrink-0",
+                          m.in_character
+                            ? "bg-amber-500/20 text-amber-200/90"
+                            : "bg-sky-500/15 text-sky-200/80"
+                        )}>
+                          {m.in_character ? 'In character' : 'Table talk'}
+                        </span>
+                        {isSelf && (
+                          <span className="text-[8px] px-1 py-[1px] rounded bg-white/10 text-white/45 uppercase tracking-wider shrink-0">You</span>
                         )}
                         {m.consumed && (
                           <span className="text-[9px] px-1 rounded bg-emerald-900/30 text-emerald-300/70 uppercase tracking-wide">Sent</span>
@@ -330,9 +344,13 @@ export function RoundChatDrawer({
                           )}
                         </div>
                       </div>
-                      <p className="text-xs text-white/80 leading-snug whitespace-pre-wrap break-words [overflow-wrap:anywhere] mt-0.5">
+                      <p className={cn(
+                        "text-xs leading-snug whitespace-pre-wrap break-words [overflow-wrap:anywhere] mt-0.5",
+                        m.in_character ? "text-white/85" : "text-sky-100/60 italic"
+                      )}>
                         {m.content}
                       </p>
+
 
                       {Object.keys(grouped).length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
