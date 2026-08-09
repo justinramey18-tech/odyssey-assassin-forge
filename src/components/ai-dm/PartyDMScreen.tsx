@@ -648,6 +648,20 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
               </div>
             )}
 
+            {/* Speechify narration (assistant messages) */}
+            {!isEditingMsg && !videoMatch && !imageMatch && !audioMatch && onNarrate && (
+              <MessageNarrationButton
+                hasAudio={!!narrationAudio}
+                isGenerating={!!isNarrating}
+                isPlaying={!!isNarrationPlaying}
+                voicedByName={narrationAudio?.created_by_name}
+                canDelete={isCreator}
+                onGenerate={() => onNarrate(message.id, message.content)}
+                onPlay={() => onPlayNarration?.(message.id)}
+                onDelete={onDeleteNarration ? () => onDeleteNarration(message.id) : undefined}
+              />
+            )}
+
             {/* Reactions (assistant messages) */}
             {reactions && onAddReaction && onRemoveReaction && (
               <MessageReactions messageId={message.id} reactions={reactions} currentUserId={currentUserId} onAddReaction={onAddReaction} onRemoveReaction={onRemoveReaction} />
