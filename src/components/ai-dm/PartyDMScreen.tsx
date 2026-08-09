@@ -1732,8 +1732,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   }, [partyDm.allReady, partyDm.isGenerating, partyDm.sessionConfig?.dmMode, partyDm.sessionConfig?.currentRoundId, isCreator, chatRoundsOn]);
 
   // ── Chat Rounds ──
-  // Host bundles this round's in-character chat lines into one prompt, readies it,
-  // then narration fires once the ready row is visible in state.
+  // Host/co-host bundles the ticked chat lines into one prompt, readies it,
+  // then narration fires. Nothing is sent automatically.
   const chatRoundFiredRef = useRef<string | null>(null);
   const pendingChatFireRef = useRef<string | null>(null);
   const lastChatRoundUserIdsRef = useRef<string[]>([]);
@@ -1742,10 +1742,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     const pd = partyDmRef.current;
     const roundKey = pd.sessionConfig?.currentRoundId || '';
     if (!roundKey || pd.isGenerating) return;
-    const pending = roundChatRef.current.pendingMessages;
-    // Keyed on the round AND the last line in it, so a round that gathers more
-    // chat while the DM is busy can still fire again afterwards.
-    const fireKey = `${roundKey}:${pending[pending.length - 1]?.id || ''}`;
+    const picked = roundChatRef.current.selectedMessages;
+    if (picked.length === 0) {
+      toast.info('Tick the lines you want the DM to answer first');
+      return;
+    }
+    // Keyed on the round AND the last ticked line, so a later batch can fire again.
+    const fireKey = `${roundKey}:${picked[picked.length - 1]?.id || ''}`;
     if (chatRoundFiredRef.current === fireKey) return;
     const bundled = roundChatRef.current.buildRoundPrompt();
     if (!bundled.trim()) return;
@@ -1792,23 +1795,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
 
 
-  // Prerequisites met (host's trigger rule + message count) → bundle the round
-  // chat and call the DM. Re-checked whenever new lines land, the round rolls
-  // over, or a generation finishes, so a met round never sits waiting.
-  useEffect(() => {
-    if (!chatRoundsOn || !isCreator) return;
-    if (!roundChat.progress.met) return;
-    if (partyDm.isGenerating) return;
-    void fireChatRound();
-  }, [
-    chatRoundsOn,
-    isCreator,
-    roundChat.progress.met,
-    roundChat.pendingMessages.length,
-    partyDm.isGenerating,
-    partyDm.sessionConfig?.currentRoundId,
-    fireChatRound,
-  ]);
+  // No automatic firing: the host (or a co-host) decides when the ticked lines
+  // go to the DM via "Send to DM".
 
 
   useEffect(() => {
@@ -2845,6 +2833,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onSend={(content, ic) => roundChat.sendMessage(content, ic)}
           onToggleReaction={(id, emoji) => roundChat.toggleReaction(id, emoji, members.find(m => m.user_id === currentUserId)?.character_name || 'Player')}
           onDeleteMessage={roundChat.deleteMessage}
+          onToggleSelected={roundChat.toggleSelected}
+          onSelectAll={roundChat.selectAllPending}
+          onClearSelection={roundChat.clearSelection}
           onSendToDMNow={fireChatRound}
           draft={roundChatDraft}
           onDraftUsed={() => setRoundChatDraft(null)}

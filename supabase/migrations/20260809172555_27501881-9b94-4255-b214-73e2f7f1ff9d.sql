@@ -1,0 +1,1 @@
+ALTER TABLE public.party_round_chat ADD COLUMN IF NOT EXISTS selected boolean NOT NULL DEFAULT false;

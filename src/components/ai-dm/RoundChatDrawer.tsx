@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil } from 'lucide-react';
+import { ChevronDown, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check } from 'lucide-react';
 import { AvatarCropDialog } from './AvatarCropDialog';
 
 import { Textarea } from '@/components/ui/textarea';
@@ -38,13 +38,16 @@ interface RoundChatDrawerProps {
   currentUserId?: string;
   characterName: string;
   style: RoundStyle;
-  progress: { current: number; target: number; met: boolean; banterExcluded?: boolean };
+  progress: { current: number; waiting: number; met: boolean };
   sending: boolean;
   isGenerating: boolean;
   isHost: boolean;
   onSend: (content: string, inCharacter: boolean) => void | Promise<void>;
   onToggleReaction: (messageId: string, emoji: string) => void;
   onDeleteMessage: (messageId: string) => void;
+  onToggleSelected: (messageId: string) => void;
+  onSelectAll: () => void;
+  onClearSelection: () => void;
   onSendToDMNow: () => void;
   /** Text pushed in from outside (e.g. "suggest my action") to prefill the composer. */
   draft?: string | null;
@@ -133,6 +136,9 @@ export function RoundChatDrawer({
   onSend,
   onToggleReaction,
   onDeleteMessage,
+  onToggleSelected,
+  onSelectAll,
+  onClearSelection,
   onSendToDMNow,
   draft,
   onDraftUsed,
@@ -227,33 +233,20 @@ export function RoundChatDrawer({
     return map;
   }, [reactions]);
 
-  const remaining = Math.max(0, progress.target - progress.current);
-  const ruleLabel =
-    style.triggerRule === 'total'
-      ? 'messages'
-      : style.triggerRule === 'distinct'
-        ? 'players'
-        : 'each';
+  const triggerHint = 'Tick the lines you want the DM to answer, then the host taps Send to DM.';
 
-  const triggerHint = (() => {
-    const n = style.messageCount;
-    const s = n === 1 ? '' : 's';
-    if (style.triggerRule === 'distinct') return `The DM replies once ${n} different player${s} ha${n === 1 ? 's' : 've'} spoken.`;
-    if (style.triggerRule === 'perPlayer') return `The DM replies once everyone who spoke has posted ${n} message${s}.`;
-    return `The DM replies after ${n} message${s}.`;
-  })();
-
-  /** Compact status line: queued -> thinking -> ready. */
+  /** Compact status line: picked -> thinking -> ready. */
   const dmStatus: { tone: 'queued' | 'thinking' | 'ready'; label: string } | null = (() => {
     if (isGenerating) return { tone: 'thinking', label: 'The DM is thinking…' };
     if (justFinished) return { tone: 'ready', label: 'The DM has replied — scroll up to read the scene.' };
-    if (progress.met) return { tone: 'queued', label: 'Round is full — the DM is up next.' };
     if (progress.current > 0) {
-      const left = remaining;
       return {
         tone: 'queued',
-        label: `${progress.current} queued · ${left} more ${ruleLabel === 'players' ? (left === 1 ? 'player' : 'players') : left === 1 ? 'message' : 'messages'} until the DM replies`,
+        label: `${progress.current} line${progress.current === 1 ? '' : 's'} ticked${isHost ? ' — tap Send to DM when ready.' : ' — waiting on the host to send.'}`,
       };
+    }
+    if (progress.waiting > 0) {
+      return { tone: 'queued', label: `${progress.waiting} line${progress.waiting === 1 ? '' : 's'} waiting — tick the ones the DM should answer.` };
     }
     return null;
   })();
@@ -298,8 +291,7 @@ export function RoundChatDrawer({
                   ? "text-emerald-300 border-emerald-400/30 bg-emerald-500/10"
                   : "text-white/50 border-white/15 bg-white/5"
               )}>
-                {progress.current}/{progress.target} {ruleLabel}
-                {progress.banterExcluded ? ' (IC)' : ''}
+                {progress.current} ticked{progress.waiting > progress.current ? ` · ${progress.waiting - progress.current} waiting` : ''}
               </span>
             </span>
             <span className="block text-[10px] text-white/40 truncate mt-0.5">
@@ -395,6 +387,7 @@ export function RoundChatDrawer({
                   const displayName = m.in_character
                     ? (m.character_name || 'Player')
                     : (oocNames?.[m.user_id] || m.character_name || 'Player');
+                  const selectable = !m.consumed && (style.mode === 'live' || m.in_character);
                   return (
                     <div
                       key={m.id}
@@ -403,6 +396,25 @@ export function RoundChatDrawer({
                         alignRight ? "justify-end flex-row-reverse" : "justify-start",
                       )}
                     >
+                    {selectable ? (
+                      <button
+                        onClick={() => onToggleSelected(m.id)}
+                        role="checkbox"
+                        aria-checked={!!m.selected}
+                        aria-label={m.selected ? 'Remove from the DM hand-off' : 'Send this line to the DM'}
+                        style={{ touchAction: 'manipulation' }}
+                        className={cn(
+                          "mt-1 shrink-0 w-5 h-5 rounded-[6px] border flex items-center justify-center transition-colors",
+                          m.selected
+                            ? "bg-emerald-500/25 border-emerald-400/60 text-emerald-200"
+                            : "bg-white/5 border-white/20 text-transparent",
+                        )}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <span className="mt-1 shrink-0 w-5 h-5" />
+                    )}
                     <ChatAvatar
                       url={avatarUrl}
                       label={displayName}
@@ -602,23 +614,30 @@ export function RoundChatDrawer({
                       </button>
                     )
                   )}
-                  <span className="text-[10px] text-white/30">
-                    {progress.met
-                      ? 'Round is ready for the DM'
-                      : progress.banterExcluded
-                        ? `${remaining} more in-character to trigger the DM (table talk doesn't count)`
-                        : `${remaining} more to trigger the DM`}
+                  {progress.waiting > 0 && (
+                    <button
+                      onClick={progress.current > 0 ? onClearSelection : onSelectAll}
+                      className="shrink-0 px-2 py-1 rounded-md text-[10px] border border-white/15 bg-white/5 text-white/60"
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      {progress.current > 0 ? 'Clear ticks' : 'Tick all'}
+                    </button>
+                  )}
+                  <span className="text-[10px] text-white/30 truncate">
+                    {progress.current > 0
+                      ? `${progress.current} ticked for the DM`
+                      : 'Tick lines to send'}
                   </span>
 
                   {isHost && (
                     <button
                       onClick={onSendToDMNow}
-                      disabled={isGenerating}
+                      disabled={isGenerating || progress.current === 0}
                       className="ml-auto flex items-center gap-1 px-2 py-1 rounded-md text-[10px] border border-emerald-500/30 bg-emerald-900/25 text-emerald-300 hover:bg-emerald-900/45 transition-colors disabled:opacity-40"
                       style={{ touchAction: 'manipulation' }}
                     >
                       <Zap className="w-3 h-3" />
-                      Send to DM now
+                      Send {progress.current > 0 ? `${progress.current} ` : ''}to DM
                     </button>
                   )}
                 </div>

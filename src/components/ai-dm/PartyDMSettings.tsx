@@ -15,7 +15,7 @@ import { ResponseModeSelector } from './ResponseModeSelector';
 import type { PushSubscriptionState } from '@/lib/push-subscription';
 import type { DmMode } from '@/hooks/use-party-dm';
 import { QUEST_REWARD_SPLIT_MODES, questRewardSplitLabel, type QuestRewardSplitMode } from '@/lib/questRewardSplit';
-import type { RoundStyle, RoundTriggerRule, BanterLevel } from '@/hooks/use-round-chat';
+import type { RoundStyle, BanterLevel } from '@/hooks/use-round-chat';
 import { NarrationStyleControl } from './NarrationStyleControl';
 import { DEFAULT_NARRATION_STATE, type NarrationIntensity, type NarrationStyleId, type NarrationStyleState } from '@/lib/narrationStyle';
 
@@ -522,68 +522,20 @@ export function PartyDMSettings({
                             </SelectContent>
                           </Select>
                         </div>
-                        <div>
-                          <p className="text-[11px] text-muted-foreground mb-1.5">
-                            Which messages count toward the round?
-                          </p>
-                          <Select
-                            value={roundStyle.countBanter ? 'all' : 'ic'}
-                            onValueChange={(v) => onRoundStyleChange({ countBanter: v === 'all' })}
-                          >
-                            <SelectTrigger className="w-full min-h-[44px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All messages count</SelectItem>
-                              <SelectItem value="ic">Only in-character messages count</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
                       </>
                     )}
-                    <div>
-                      <p className="text-[11px] text-muted-foreground mb-1.5">When does the DM respond?</p>
-                      <Select
-                        value={roundStyle.triggerRule}
-                        onValueChange={(v) => onRoundStyleChange({ triggerRule: v as RoundTriggerRule })}
-                      >
-                        <SelectTrigger className="w-full min-h-[44px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="total">After this many messages in total</SelectItem>
-                          <SelectItem value="perPlayer">After this many from each player who spoke</SelectItem>
-                          <SelectItem value="distinct">After this many different players speak</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <p className="text-[11px] text-muted-foreground mb-1.5">
-                        Messages before the DM responds: <span className="text-foreground">{roundStyle.messageCount}</span>
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
-                          <button
-                            key={n}
-                            onClick={() => onRoundStyleChange({ messageCount: n })}
-                            style={{ touchAction: 'manipulation' }}
-                            className={cn(
-                              "min-w-[40px] min-h-[40px] rounded-lg border text-sm transition-colors",
-                              roundStyle.messageCount === n
-                                ? "bg-amber-900/40 border-amber-500/40 text-amber-200"
-                                : "bg-white/5 border-white/10 text-muted-foreground"
-                            )}
-                          >
-                            {n}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Players tick the chat lines they want answered; you decide when to send them to the DM.
+                    </p>
                   </>
                 )}
               </>
             ) : (
               <div className="text-sm text-foreground">
                 {roundStyle.mode === 'live'
-                  ? `Live DM — table talk reaches the DM, and it replies every ${roundStyle.messageCount} message${roundStyle.messageCount === 1 ? '' : 's'}.`
+                  ? 'Live DM — tick the lines (banter included) and the host sends them to the DM.'
                   : roundStyle.mode === 'chat'
-                    ? `Chat Rounds — the DM replies every ${roundStyle.messageCount} message${roundStyle.messageCount === 1 ? '' : 's'}.`
+                    ? 'Chat Rounds — tick the lines and the host sends them to the DM.'
                     : 'Ready-up queue (classic)'}
               </div>
             )}
