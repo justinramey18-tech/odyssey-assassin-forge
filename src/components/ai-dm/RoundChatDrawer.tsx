@@ -392,6 +392,8 @@ export function RoundChatDrawer({
                         </div>
                       )}
                     </div>
+                    </div>
+
                   );
                 })}
               </div>
