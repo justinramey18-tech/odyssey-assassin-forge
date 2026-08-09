@@ -1756,13 +1756,18 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     setRoundChatOpen(false);
     const participants = roundChatRef.current.selectedParticipants;
     const coveredUserIds = participants.map(p => p.userId);
+    // Captured before the ticks are cleared — the backend applies the table
+    // rules and the chaos tone from this.
+    const liveTable = roundChatRef.current.liveTableContext;
     lastChatRoundUserIdsRef.current = coveredUserIds;
     await roundChatRef.current.consumePending();
     // The ticked chat IS the prompt — no ready-up row, no second tap.
     await pd.generateResponse({
       coveredUserIds,
       directPrompt: { text: bundled, participants },
+      liveTable,
     });
+
   }, []);
 
 

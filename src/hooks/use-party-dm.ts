@@ -1442,7 +1442,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     responseModePrompt?: string,
     dmPersonaPrompt?: string,
     currentOocDirectives?: string[],
+    liveTable?: { mode: 'chat' | 'live'; chaosLevel: number; hasTableTalk: boolean; hasInCharacter: boolean },
   ): Promise<string> => {
+
     // Ensure strictly alternating roles before sending to AI
     const sanitizedMessages = mergeConsecutiveRoles(apiMessages);
 
@@ -1537,6 +1539,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         user_perplexity_key: loadApiKey('perplexity') || undefined,
         user_xai_key: loadApiKey('xai') || undefined,
         narrationStylePrompt: narrationStyleBlock || undefined,
+        liveTable: liveTable || undefined,
+
         ...(() => {
           const cs = loadCombatSettings();
           const feats: string[] = [];
@@ -1805,8 +1809,17 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       text: string;
       participants: Array<{ userId: string; characterName: string; text: string }>;
     };
+    /** Chat Rounds / Live DM: table rules + chaos tone applied backend-side. */
+    liveTable?: {
+      mode: 'chat' | 'live';
+      chaosLevel: number;
+      hasTableTalk: boolean;
+      hasInCharacter: boolean;
+    };
   }) => {
     const directPrompt = options?.directPrompt;
+    const liveTable = options?.liveTable;
+
     const coveredUserIds = options?.coveredUserIds
       ?? (directPrompt ? directPrompt.participants.map(p => p.userId) : undefined);
     if (!partyId || !user || !sessionConfig || isGenerating) return;
@@ -2278,7 +2291,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           responseModePrompt,
         ].filter(Boolean).join('\n\n');
 
-        const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, partyContextStr, undefined, empyreanPersonaPrompt, currentRoundOocDirectives);
+        const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, partyContextStr, undefined, empyreanPersonaPrompt, currentRoundOocDirectives, liveTable);
 
         if (assistantContent?.trim()) {
           if (isApprovalMode) {

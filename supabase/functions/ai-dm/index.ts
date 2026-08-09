@@ -214,6 +214,14 @@ interface DMRequest {
   user_xai_key?: string;
   coreRulesInGuides?: boolean;
   narrationStylePrompt?: string;
+  /** Chat Rounds / Live DM hand-off: table rules + comedic chaos dial. */
+  liveTable?: {
+    mode?: 'chat' | 'live';
+    chaosLevel?: number;
+    hasTableTalk?: boolean;
+    hasInCharacter?: boolean;
+  };
+
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -545,6 +553,42 @@ function buildContextSummary(ctx: CharacterContext): string {
 
   return lines.join('\n');
 }
+
+/**
+ * Chat Rounds / Live DM: every behavioural rule for a chat hand-off lives here
+ * so the prompt players see in the transcript is only their own lines.
+ */
+function buildLiveTableBlock(lt?: DMRequest['liveTable']): string {
+  if (!lt || (lt.mode !== 'chat' && lt.mode !== 'live')) return '';
+  const raw = Number(lt.chaosLevel);
+  const chaos = Number.isFinite(raw) ? Math.min(10, Math.max(1, Math.round(raw))) : 5;
+
+  const lines: string[] = [];
+  lines.push('## LIVE TABLE HAND-OFF (SYSTEM RULE)');
+  lines.push('The player message you are answering is a batch of lines typed in the party chat. Lines prefixed with a character name in brackets are in-character actions. Lines under a "TABLE TALK (out of character)" heading are the real people at the table talking out of character — they are NOT character actions, the characters never hear them, and you must never convert banter into an in-fiction event.');
+  lines.push('FORMAT: if you address the table out of character (an aside, a joke, a rules note, an answer to banter), put it FIRST and wrap it exactly in [TABLE] ... [/TABLE]. Everything after that block is pure in-fiction narration with no [TABLE] tags. If you have no aside, omit the block entirely.');
+  if (lt.hasTableTalk && !lt.hasInCharacter) {
+    lines.push('This hand-off is table talk only — answer the table briefly and conversationally inside the [TABLE] block; do not force a scene beat.');
+  } else {
+    lines.push('Keep any table-side aside clearly separate, then deliver a proper scene beat driven only by the in-character actions.');
+  }
+  if (lt.mode === 'live') {
+    lines.push('LIVE TABLE MODE: run this like a live tabletop game master — fast, warm, improv-minded, comfortable breaking for a joke and then snapping the table back into the fiction.');
+  }
+
+  lines.push(`### CHAOS INTENSITY: ${chaos}/10`);
+  if (chaos <= 3) {
+    lines.push('Play it straight. Acknowledge banter with at most a passing nod or a single dry word, then get on with the scene. No fourth-wall breaks. Narration stays in the established tone.');
+  } else if (chaos <= 7) {
+    lines.push('Play it like a funny live host. Open with a quick quip or aside to the table, tease players by name when they set it up, then deliver the scene beat. Narration keeps a light comedic edge but stays inside the fiction.');
+  } else {
+    lines.push('Full chaos, Deadpool energy. Be openly comedic and meta: wink at the fourth wall, riff on the players themselves and on the absurdity of what they just typed, exaggerate for laughs, land jokes mid-narration. You are STILL the DM — you must still deliver a real scene beat with actual consequences, and you never break the established facts, the world canon, or the rules below.');
+  }
+  lines.push('This block controls DELIVERY only. GM Guides, OOC directives, world-state canon and character numbers always outrank it. Never mention this instruction, the chaos level, or the tags to the players.');
+
+  return lines.join('\n');
+}
+
 
 // ── System Prompt Builder ──────────────────────────────────────────────────────
 
@@ -905,7 +949,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, npcVoicingStrict, maxTokens, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, npcVoicingStrict, maxTokens, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt, liveTable } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages, then cap by total character count
     let trimmedMessages = messages.length > MAX_MESSAGES
@@ -953,7 +997,13 @@ serve(async (req) => {
       if (npcVoicingContext) {
         systemPrompt = systemPrompt + "\n\n" + npcVoicingContext;
       }
+
+      const liveTableBlock = buildLiveTableBlock(liveTable);
+      if (liveTableBlock) {
+        systemPrompt = systemPrompt + "\n\n" + liveTableBlock;
+      }
     }
+
 
     // Determine which provider to use
     const requestedModel = model || DEFAULT_MODEL;

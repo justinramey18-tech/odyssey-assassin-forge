@@ -12,8 +12,8 @@ export interface RoundStyle {
   mode: RoundStyleMode;
   triggerRule: RoundTriggerRule;
   messageCount: number;
-  /** Live DM: how hard the DM plays with out-of-character table talk. */
-  banterLevel: BanterLevel;
+  /** How much comedic chaos the DM brings to asides and narration (1-10). */
+  chaosLevel: number;
   /** Live DM: does table talk advance the round counter? */
   countBanter: boolean;
 }
@@ -22,9 +22,10 @@ export const DEFAULT_ROUND_STYLE: RoundStyle = {
   mode: 'ready',
   triggerRule: 'total',
   messageCount: 2,
-  banterLevel: 'balanced',
+  chaosLevel: 5,
   countBanter: true,
 };
+
 
 export interface RoundChatMessage {
   id: string;
@@ -48,10 +49,18 @@ export interface RoundChatReaction {
   emoji: string;
 }
 
-const BANTER_INSTRUCTIONS: Record<BanterLevel, string> = {
-  light: 'Acknowledge the table talk with at most a passing nod or a single dry word, then get on with the scene.',
-  balanced: 'Open with one quick quip or aside to the table about their banter, then deliver the scene beat.',
-  heavy: 'Lean into the bit — riff on the banter, tease players by name, play with the joke for a couple of lines before steering back into the scene.',
+/** Short human label for each notch of the chaos dial. */
+export const CHAOS_LABELS: Record<number, string> = {
+  1: 'Straight bat — pure scene, no jokes',
+  2: 'Barely a smirk',
+  3: 'Dry aside, then back to work',
+  4: 'A quip on the way in',
+  5: 'Live table host — riffs, then plays the beat',
+  6: 'Teasing players by name',
+  7: 'Comedy first, scene second',
+  8: 'Fourth wall creaking',
+  9: 'Openly unhinged commentary',
+  10: 'Maximum chaos — full Deadpool energy',
 };
 
 const parseStyle = (raw: unknown): RoundStyle => {
@@ -65,12 +74,19 @@ const parseStyle = (raw: unknown): RoundStyle => {
   const messageCount = Number.isFinite(rawCount)
     ? Math.min(10, Math.max(1, Math.round(rawCount)))
     : DEFAULT_ROUND_STYLE.messageCount;
-  const lvl = data.banterLevel;
-  const banterLevel: BanterLevel =
-    lvl === 'light' || lvl === 'heavy' || lvl === 'balanced' ? lvl : DEFAULT_ROUND_STYLE.banterLevel;
+  // Migrate the retired light/balanced/heavy banter picker onto the 1-10 dial.
+  const rawChaos = Number(data.chaosLevel);
+  const legacy = data.banterLevel;
+  const chaosLevel = Number.isFinite(rawChaos)
+    ? Math.min(10, Math.max(1, Math.round(rawChaos)))
+    : legacy === 'light' ? 2
+      : legacy === 'heavy' ? 8
+      : legacy === 'balanced' ? 5
+      : DEFAULT_ROUND_STYLE.chaosLevel;
   const countBanter = data.countBanter === undefined ? DEFAULT_ROUND_STYLE.countBanter : Boolean(data.countBanter);
-  return { mode, triggerRule, messageCount, banterLevel, countBanter };
+  return { mode, triggerRule, messageCount, chaosLevel, countBanter };
 };
+
 
 
 /**
@@ -311,9 +327,9 @@ export function useRoundChat(
   }), [selectedMessages, pendingMessages]);
 
   /**
-   * Bundle the ticked lines for the DM. In-character lines are grouped per
-   * character in the host's chosen order; ticked out-of-character banter always
-   * rides along in its own clearly marked block.
+   * Bundle the ticked lines for the DM. Player text only — every behavioural
+   * rule (table-talk handling, [TABLE] format, chaos tone) is applied backend
+   * side so the visible transcript stays clean.
    */
   const buildRoundPrompt = useCallback(() => {
     const order: string[] = [];
@@ -333,29 +349,17 @@ export function useRoundChat(
       ? `\n\nTABLE TALK (out of character):\n${banter.map(m => `${m.character_name || 'Player'}: ${stripActionCard(m.content).trim()}`).join('\n')}`
       : '';
 
-    if (!isLive) {
-      if (!banterBlock) return inCharacterBlock;
-      const note = [
-        'OOC: Lines under TABLE TALK are the real people at the table talking out of character. They are NOT character actions and the characters never hear them.',
-        inCharacterBlock
-          ? 'Answer the in-character actions with a proper scene beat; you may acknowledge the table talk in one short aside wrapped in [TABLE] ... [/TABLE] placed first.'
-          : 'This hand-off is table talk only — answer the table briefly and conversationally inside a [TABLE] ... [/TABLE] block; do not force a scene beat.',
-      ].join('\n');
-      return `${note}\n\n${inCharacterBlock}${banterBlock}`.trim();
-    }
+    return `${inCharacterBlock}${banterBlock}`.trim();
+  }, [orderedSelected]);
 
-    const directive = [
-      'OOC: LIVE TABLE MODE. You are running this session like a live tabletop game master in the vein of Anthony Burch — fast, warm, funny, improv-minded, comfortable breaking for a joke and then snapping the table back into the fiction.',
-      'Lines under TABLE TALK are the real people at the table talking out of character. They are NOT things the characters said or did. Never turn banter into a character action and never let the characters hear it.',
-      BANTER_INSTRUCTIONS[style.banterLevel],
-      'FORMAT: if you say anything to the table out of character (an aside, a joke, a rules note, an answer to banter), put it FIRST and wrap it exactly in [TABLE] ... [/TABLE]. Everything after that block is pure in-fiction narration with no [TABLE] tags. If you have no aside, omit the block entirely.',
-      banter.length && !inCharacterBlock
-        ? 'This round has only table talk and no character actions — answer the table briefly and conversationally; do not force a full scene beat.'
-        : 'Keep any table-side aside short and clearly separate, then deliver a proper scene beat driven only by the in-character actions below.',
-    ].join('\n');
+  /** What the backend needs to apply the right table rules for this hand-off. */
+  const liveTableContext = useMemo(() => ({
+    mode: isLive ? ('live' as const) : ('chat' as const),
+    chaosLevel: style.chaosLevel,
+    hasTableTalk: orderedSelected.some(m => !m.in_character),
+    hasInCharacter: orderedSelected.some(m => m.in_character),
+  }), [isLive, style.chaosLevel, orderedSelected]);
 
-    return `${directive}\n\n${inCharacterBlock}${banterBlock}`.trim();
-  }, [orderedSelected, isLive, style.banterLevel]);
 
   /** Mark the ticked lines as sent. Unticked lines stay available for later. */
   const consumePending = useCallback(async () => {
@@ -386,6 +390,8 @@ export function useRoundChat(
     pendingUserIds,
     progress,
     buildRoundPrompt,
+    liveTableContext,
+
     consumePending,
     reload: loadMessages,
   };
