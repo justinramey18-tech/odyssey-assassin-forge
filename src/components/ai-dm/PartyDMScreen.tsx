@@ -3593,27 +3593,29 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 }}
               />
             )}
-            <PartyDMInput
-              ref={playerInputRef}
-              onSubmit={handleSubmit}
-              onReady={partyDm.setReady}
-              onReadyAutopilot={handleReadyAutopilot}
-              hasAfkGuide={!!myAfkGuide}
-              onPaste={handlePaste}
-              hasPrompt={!!partyDm.myPrompt}
-              currentUserId={currentUserId}
-              isUploadingPhoto={isUploadingPhoto}
-              isUploadingVideo={isUploadingVideo}
-              isUploadingAudio={isUploadingAudio}
-              onTakePhoto={() => photoCameraRef.current?.click()}
-              onRecordVideo={() => videoCameraRef.current?.click()}
-              onPickPhoto={() => { sessionStorage.setItem('pending-file-picker', 'photo'); photoInputRef.current?.click(); }}
-              onPickVideo={() => { sessionStorage.setItem('pending-file-picker', 'video'); videoInputRef.current?.click(); }}
-              onPickAudio={() => setShowAudioRecorder(true)}
-              onPickAudioFile={() => { sessionStorage.setItem('pending-file-picker', 'audio'); audioFileInputRef.current?.click(); }}
-              onCreatePoll={() => setShowPollCreator(true)}
-              npcNames={partyNPCNames}
-            />
+            {!chatRoundsOn && (
+              <PartyDMInput
+                ref={playerInputRef}
+                onSubmit={handleSubmit}
+                onReady={partyDm.setReady}
+                onReadyAutopilot={handleReadyAutopilot}
+                hasAfkGuide={!!myAfkGuide}
+                onPaste={handlePaste}
+                hasPrompt={!!partyDm.myPrompt}
+                currentUserId={currentUserId}
+                isUploadingPhoto={isUploadingPhoto}
+                isUploadingVideo={isUploadingVideo}
+                isUploadingAudio={isUploadingAudio}
+                onTakePhoto={() => photoCameraRef.current?.click()}
+                onRecordVideo={() => videoCameraRef.current?.click()}
+                onPickPhoto={() => { sessionStorage.setItem('pending-file-picker', 'photo'); photoInputRef.current?.click(); }}
+                onPickVideo={() => { sessionStorage.setItem('pending-file-picker', 'video'); videoInputRef.current?.click(); }}
+                onPickAudio={() => setShowAudioRecorder(true)}
+                onPickAudioFile={() => { sessionStorage.setItem('pending-file-picker', 'audio'); audioFileInputRef.current?.click(); }}
+                onCreatePoll={() => setShowPollCreator(true)}
+                npcNames={partyNPCNames}
+              />
+            )}
           </>
         ) : !isReady ? (
           <div className="space-y-2 max-w-2xl mx-auto">
