@@ -131,6 +131,8 @@ export function RoundChatDrawer({
   onSendToDMNow,
   draft,
   onDraftUsed,
+  avatars,
+  onUploadAvatar,
 }: RoundChatDrawerProps) {
   const [text, setText] = useState('');
   const [inCharacter, setInCharacter] = useState(true);
