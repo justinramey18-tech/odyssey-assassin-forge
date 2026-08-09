@@ -52,6 +52,9 @@ interface RoundChatDrawerProps {
   /** Per-player avatars: { [userId]: { ic, ooc } } */
   avatars?: Record<string, { ic?: string; ooc?: string }>;
   onUploadAvatar?: (kind: 'ic' | 'ooc', file: File) => void | Promise<void>;
+  /** Per-player table-talk (out-of-character) display names: { [userId]: name } */
+  oocNames?: Record<string, string>;
+  onSetOocName?: (name: string) => void | Promise<void>;
 }
 
 /** Small circular face beside a message. Tapping your own opens the picker. */
@@ -135,7 +138,11 @@ export function RoundChatDrawer({
   onDraftUsed,
   avatars,
   onUploadAvatar,
+  oocNames,
+  onSetOocName,
 }: RoundChatDrawerProps) {
+  const [editingOocName, setEditingOocName] = useState(false);
+  const [oocNameDraft, setOocNameDraft] = useState('');
   const [text, setText] = useState('');
   const [inCharacter, setInCharacter] = useState(true);
   const [pickerFor, setPickerFor] = useState<string | null>(null);
@@ -385,6 +392,9 @@ export function RoundChatDrawer({
                   const avatarUrl = m.in_character
                     ? avatars?.[m.user_id]?.ic
                     : avatars?.[m.user_id]?.ooc;
+                  const displayName = m.in_character
+                    ? (m.character_name || 'Player')
+                    : (oocNames?.[m.user_id] || m.character_name || 'Player');
                   return (
                     <div
                       key={m.id}
@@ -395,7 +405,7 @@ export function RoundChatDrawer({
                     >
                     <ChatAvatar
                       url={avatarUrl}
-                      label={m.character_name || 'Player'}
+                      label={displayName}
                       kind={m.in_character ? 'ic' : 'ooc'}
                       editable={isSelf && !!onUploadAvatar}
                       onPick={(file) => setCropTarget({ kind: m.in_character ? 'ic' : 'ooc', file })}
@@ -410,7 +420,7 @@ export function RoundChatDrawer({
 
                       <div className={cn("flex items-center gap-1.5", alignRight && "flex-row-reverse")}>
                         <span className={cn("text-[10px] font-semibold truncate font-cinzel", nameColor)}>
-                          {m.character_name}
+                          {displayName}
                         </span>
                         {!m.in_character && (
                           <span className="text-[8px] px-1 py-[1px] rounded uppercase tracking-wider shrink-0 bg-amber-500/15 text-amber-200/80">
