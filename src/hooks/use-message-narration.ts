@@ -306,7 +306,10 @@ export function useMessageNarration(
     try {
       const hasClip = (part: string) => !!audioMapRef.current[narrationKey(messageId, part)];
 
-      if (doTable && !hasClip('table')) {
+      if (doTable && hasClip('table')) {
+        done++;
+        setCastProgress({ messageId, done, total, speaker: segments[0]?.speaker ?? null });
+      } else if (doTable) {
         const dmVoice = loadSpeechifyDMVoiceId();
         const blob = await synthesize(tableTalk, dmVoice, apiKey);
         await storeClip(messageId, 'table', blob, dmVoice);
