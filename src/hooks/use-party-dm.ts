@@ -2001,7 +2001,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
     abortRef.current = new AbortController();
     try {
-      if (isSplitActive && splitState) {
+      if (isSplitActive && splitState && !directPrompt) {
         let allConsumedCascades: { userId: string; remainingCascade: string[] }[] = [];
         // === SPLIT MODE: Generate two sequential responses from READY prompts ===
         const alphaPrompts = readyPrompts.filter(p =>
