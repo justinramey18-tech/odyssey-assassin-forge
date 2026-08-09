@@ -25,8 +25,10 @@ interface Props {
 
 /** One-line, symbol-led summary of a quick action shown in the round chat. */
 export function QuickActionLine({ card, actorName, nameClass, alignRight, className }: Props) {
+  const [open, setOpen] = useState(false);
   const meta = KIND_META[card.kind] ?? KIND_META.effect;
   const Icon = meta.icon;
+
   const nat20 = card.d20 === 20;
   const nat1 = card.d20 === 1;
 
