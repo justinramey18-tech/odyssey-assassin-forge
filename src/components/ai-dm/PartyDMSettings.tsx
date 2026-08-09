@@ -15,7 +15,7 @@ import { ResponseModeSelector } from './ResponseModeSelector';
 import type { PushSubscriptionState } from '@/lib/push-subscription';
 import type { DmMode } from '@/hooks/use-party-dm';
 import { QUEST_REWARD_SPLIT_MODES, questRewardSplitLabel, type QuestRewardSplitMode } from '@/lib/questRewardSplit';
-import type { RoundStyle, RoundTriggerRule } from '@/hooks/use-round-chat';
+import type { RoundStyle, RoundTriggerRule, BanterLevel } from '@/hooks/use-round-chat';
 import { NarrationStyleControl } from './NarrationStyleControl';
 import { DEFAULT_NARRATION_STATE, type NarrationIntensity, type NarrationStyleId, type NarrationStyleState } from '@/lib/narrationStyle';
 
