@@ -1805,8 +1805,17 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       text: string;
       participants: Array<{ userId: string; characterName: string; text: string }>;
     };
+    /** Chat Rounds / Live DM: table rules + chaos tone applied backend-side. */
+    liveTable?: {
+      mode: 'chat' | 'live';
+      chaosLevel: number;
+      hasTableTalk: boolean;
+      hasInCharacter: boolean;
+    };
   }) => {
     const directPrompt = options?.directPrompt;
+    const liveTable = options?.liveTable;
+
     const coveredUserIds = options?.coveredUserIds
       ?? (directPrompt ? directPrompt.participants.map(p => p.userId) : undefined);
     if (!partyId || !user || !sessionConfig || isGenerating) return;
