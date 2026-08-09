@@ -172,10 +172,11 @@ export function RoundChatDrawer({
             transition={{ duration: 0.25, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="px-2 pb-2">
+            <div className="px-2 pb-2 relative">
               {/* Feed — roughly half the DM chat window */}
               <div
                 ref={scrollRef}
+                onScroll={handleScroll}
                 className="overflow-y-auto scrollbar-hide space-y-1.5 pr-0.5"
                 style={{ maxHeight: '38vh' }}
               >
