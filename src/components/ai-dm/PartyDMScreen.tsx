@@ -1782,7 +1782,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     if (armedSignetIntensity != null) {
       finalPrompt = `${text}\n\n[SIGNET CHANNELED — intensity ${armedSignetIntensity}/8. Narrate signet power proportional to this intensity: 1 = faint flicker, 8 = catastrophic overload.]`;
     }
-    partyDmRef.current.submitPrompt(finalPrompt, armedSignetIntensity ?? undefined);
+    dispatchPrompt(finalPrompt, armedSignetIntensity ?? undefined);
     setArmedSignetIntensity(null);
   }, [armedSignetIntensity]);
 
@@ -1924,7 +1924,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       savingThrowProficiencies: (myMember as any)?.saving_throw_proficiencies ?? [],
     };
     const result = performWhisperRoll({ hint, actionPhrase: auto.actionPhrase, characterContext });
-    partyDmRef.current.submitPrompt(result.chatMessage);
+    dispatchPrompt(result.chatMessage);
   }, [members, currentUserId]);
 
   const handleWhisperOpenRoller = useCallback((whisperContent: string) => {
@@ -3604,7 +3604,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 signetType={dragonBonds.myDragon?.signetType || ''}
                 onAction={(prompt) => {
                   setRecapDismissed(true);
-                  partyDmRef.current.submitPrompt(prompt);
+                  dispatchPrompt(prompt);
                 }}
                 disabled={partyDm.isGenerating}
                 isUnbonded={!dragonBonds.isSetup || !dragonBonds.myDragon?.dragonName}
@@ -4194,7 +4194,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           userId={currentUserId}
           isCreator={isCreator}
           onBack={() => setShowQuests(false)}
-          onAnnounce={(text) => partyDmRef.current?.submitPrompt(text)}
+          onAnnounce={(text) => dispatchPrompt(text)}
         />
       )}
       {/* Dragon Rider Setup Sheet */}
@@ -4230,7 +4230,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               } as any;
             })()}
             onRollResult={(text: string) => {
-              partyDmRef.current.submitPrompt(text);
+              dispatchPrompt(text);
               setDiceRollerOpen(false);
             }}
           />
@@ -4681,7 +4681,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             const accepted = withQuestEvent({ ...quest, status: 'active' }, 'accepted', 'Quest accepted by the party — the DM is now tracking it.');
             sheetQuests.upsertQuest(accepted);
             // Kick the quest off immediately: the DM narrates the opening beat toward the next objective.
-            partyDmRef.current?.submitPrompt(buildQuestKickoffPrompt(accepted, { party: true, styleLine: narrationStyleLine(partyNarrationStyle.state) }));
+            dispatchPrompt(buildQuestKickoffPrompt(accepted, { party: true, styleLine: narrationStyleLine(partyNarrationStyle.state) }));
           } : undefined}
           onDeclineQuest={isCreator ? (key) => sheetQuests.removeQuest(key) : undefined}
           onScanQuests={isCreator ? onScanQuests : undefined}
@@ -4692,7 +4692,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onManualLevelUp={onManualLevelUp}
           onConditionChange={() => {}}
           onRest={onRestOccurred}
-          onRestPrompt={(text) => partyDmRef.current?.submitPrompt(text)}
+          onRestPrompt={(text) => dispatchPrompt(text)}
           onAcceptItem={onAcceptItem}
           onUseLootItem={(text) => playerInputRef.current?.appendText(text)}
         />
