@@ -1742,7 +1742,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     const pd = partyDmRef.current;
     const roundKey = pd.sessionConfig?.currentRoundId || '';
     if (!roundKey || pd.isGenerating) return;
-    const picked = roundChatRef.current.selectedMessages;
+    const picked = roundChatRef.current.orderedSelected;
     if (picked.length === 0) {
       toast.info('Tick the lines you want the DM to answer first');
       return;
@@ -1754,21 +1754,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     if (!bundled.trim()) return;
     chatRoundFiredRef.current = fireKey;
     setRoundChatOpen(false);
-    const coveredUserIds = roundChatRef.current.pendingUserIds;
+    const participants = roundChatRef.current.selectedParticipants;
+    const coveredUserIds = participants.map(p => p.userId);
     lastChatRoundUserIdsRef.current = coveredUserIds;
     await roundChatRef.current.consumePending();
-    await pd.submitPrompt(bundled);
-    await pd.setReady();
-    // Call the DM directly rather than waiting for the ready row to echo back
-    // through realtime — if that echo is slow or dropped the round never fires.
-    pendingChatFireRef.current = roundKey;
-    try {
-      await pd.generateResponse({ coveredUserIds });
-      pendingChatFireRef.current = null;
-    } catch {
-      /* the ready-echo effect below is the fallback */
-    }
+    // The ticked chat IS the prompt — no ready-up row, no second tap.
+    await pd.generateResponse({
+      coveredUserIds,
+      directPrompt: { text: bundled, participants },
+    });
   }, []);
+
 
 
   /**
@@ -1795,19 +1791,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
 
 
-  // No automatic firing: the host (or a co-host) decides when the ticked lines
-  // go to the DM via "Send to DM".
+  // No automatic firing, and no ready-up detour: "Send to DM" hands the ticked
+  // lines straight to the DM in one call.
 
-
-  useEffect(() => {
-    if (!chatRoundsOn || !isCreator) return;
-    const roundKey = partyDm.sessionConfig?.currentRoundId || '';
-    if (!roundKey || pendingChatFireRef.current !== roundKey) return;
-    if (partyDm.isGenerating) return;
-    if (!partyDm.myPrompt?.is_ready) return;
-    pendingChatFireRef.current = null;
-    partyDmRef.current.generateResponse({ coveredUserIds: lastChatRoundUserIdsRef.current });
-  }, [chatRoundsOn, isCreator, partyDm.myPrompt?.is_ready, partyDm.isGenerating, partyDm.sessionConfig?.currentRoundId]);
 
 
   const handleSubmit = useCallback((text: string) => {
@@ -2837,6 +2823,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onSelectAll={roundChat.selectAllPending}
           onClearSelection={roundChat.clearSelection}
           onSendToDMNow={fireChatRound}
+          orderedSelected={roundChat.orderedSelected}
+          onReorderSelected={roundChat.setSelectedOrder}
+
           draft={roundChatDraft}
           onDraftUsed={() => setRoundChatDraft(null)}
           avatars={chatAvatars.avatars}
