@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { parseActionCard } from '@/lib/roundChatActionCard';
+import { QuickActionCard } from './QuickActionCard';
 import type { RoundChatMessage, RoundChatReaction, RoundStyle } from '@/hooks/use-round-chat';
 
 const EMOJI_SET = ['🤣','😅','🤪','🙄','😬','😏','🤮','🥵','🥶','🤯','🧐','😎','😱','😭','🤬','😈','❤️','💯','👏','🙌','🤝','🖕','🫦','🗣','🍑','🍆'];
@@ -282,6 +284,7 @@ export function RoundChatDrawer({
                   </div>
                 ) : messages.map(m => {
                   const isSelf = m.user_id === currentUserId;
+                  const { card, body } = parseActionCard(m.content);
                   const msgReactions = reactionsByMessage.get(m.id) || [];
                   const grouped = msgReactions.reduce<Record<string, RoundChatReaction[]>>((acc, r) => {
                     (acc[r.emoji] ||= []).push(r);
@@ -345,12 +348,21 @@ export function RoundChatDrawer({
                           )}
                         </div>
                       </div>
-                      <p className={cn(
-                        "text-xs leading-snug whitespace-pre-wrap break-words [overflow-wrap:anywhere] mt-0.5",
-                        m.in_character ? "text-white/90 text-right" : "text-amber-200/80 italic text-left"
-                      )}>
-                        {m.content}
-                      </p>
+                      {card ? (
+                        <QuickActionCard
+                          card={card}
+                          actorName={m.character_name || 'Player'}
+                          isSelf={isSelf}
+                          className="mt-1"
+                        />
+                      ) : (
+                        <p className={cn(
+                          "text-xs leading-snug whitespace-pre-wrap break-words [overflow-wrap:anywhere] mt-0.5",
+                          m.in_character ? "text-white/90 text-right" : "text-amber-200/80 italic text-left"
+                        )}>
+                          {body}
+                        </p>
+                      )}
 
 
 

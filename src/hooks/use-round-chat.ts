@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { stripActionCard } from '@/lib/roundChatActionCard';
 import { supabase } from '@/integrations/supabase/client';
 
 const STYLE_STATE_TYPE = 'round_style';
@@ -262,7 +263,7 @@ export function useRoundChat(
       if (!m.in_character) continue;
       const key = m.character_name || 'Player';
       if (!grouped.has(key)) { grouped.set(key, []); order.push(key); }
-      grouped.get(key)!.push(m.content.trim());
+      grouped.get(key)!.push(stripActionCard(m.content).trim());
     }
     const inCharacterBlock = order
       .map(name => `[${name}]: ${grouped.get(name)!.join(' ')}`)
@@ -272,7 +273,7 @@ export function useRoundChat(
 
     const banter = pendingMessages.filter(m => !m.in_character);
     const banterBlock = banter.length
-      ? `\n\nTABLE TALK (out of character):\n${banter.map(m => `${m.character_name || 'Player'}: ${m.content.trim()}`).join('\n')}`
+      ? `\n\nTABLE TALK (out of character):\n${banter.map(m => `${m.character_name || 'Player'}: ${stripActionCard(m.content).trim()}`).join('\n')}`
       : '';
 
     const directive = [
