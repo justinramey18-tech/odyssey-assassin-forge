@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Swords, Wand2, HeartPulse, Dices, FlaskConical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ActionCard } from '@/lib/roundChatActionCard';
+
 
 const KIND_META: Record<ActionCard['kind'], { verb: string; icon: React.ElementType; accent: string }> = {
   attack: { verb: 'attacks with', icon: Swords, accent: 'text-rose-300' },
