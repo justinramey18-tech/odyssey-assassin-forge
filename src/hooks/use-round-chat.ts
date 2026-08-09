@@ -4,18 +4,25 @@ import { supabase } from '@/integrations/supabase/client';
 const STYLE_STATE_TYPE = 'round_style';
 
 export type RoundTriggerRule = 'total' | 'perPlayer' | 'distinct';
-export type RoundStyleMode = 'ready' | 'chat';
+export type RoundStyleMode = 'ready' | 'chat' | 'live';
+export type BanterLevel = 'light' | 'balanced' | 'heavy';
 
 export interface RoundStyle {
   mode: RoundStyleMode;
   triggerRule: RoundTriggerRule;
   messageCount: number;
+  /** Live DM: how hard the DM plays with out-of-character table talk. */
+  banterLevel: BanterLevel;
+  /** Live DM: does table talk advance the round counter? */
+  countBanter: boolean;
 }
 
 export const DEFAULT_ROUND_STYLE: RoundStyle = {
   mode: 'ready',
   triggerRule: 'total',
   messageCount: 2,
+  banterLevel: 'balanced',
+  countBanter: true,
 };
 
 export interface RoundChatMessage {
@@ -38,9 +45,16 @@ export interface RoundChatReaction {
   emoji: string;
 }
 
+const BANTER_INSTRUCTIONS: Record<BanterLevel, string> = {
+  light: 'Acknowledge the table talk with at most a passing nod or a single dry word, then get on with the scene.',
+  balanced: 'Open with one quick quip or aside to the table about their banter, then deliver the scene beat.',
+  heavy: 'Lean into the bit — riff on the banter, tease players by name, play with the joke for a couple of lines before steering back into the scene.',
+};
+
 const parseStyle = (raw: unknown): RoundStyle => {
   const data = (raw || {}) as Record<string, unknown>;
-  const mode: RoundStyleMode = data.mode === 'chat' ? 'chat' : 'ready';
+  const mode: RoundStyleMode =
+    data.mode === 'chat' || data.mode === 'live' ? data.mode : 'ready';
   const rule = data.triggerRule;
   const triggerRule: RoundTriggerRule =
     rule === 'perPlayer' || rule === 'distinct' ? rule : 'total';
@@ -48,8 +62,13 @@ const parseStyle = (raw: unknown): RoundStyle => {
   const messageCount = Number.isFinite(rawCount)
     ? Math.min(10, Math.max(1, Math.round(rawCount)))
     : DEFAULT_ROUND_STYLE.messageCount;
-  return { mode, triggerRule, messageCount };
+  const lvl = data.banterLevel;
+  const banterLevel: BanterLevel =
+    lvl === 'light' || lvl === 'heavy' || lvl === 'balanced' ? lvl : DEFAULT_ROUND_STYLE.banterLevel;
+  const countBanter = data.countBanter === undefined ? DEFAULT_ROUND_STYLE.countBanter : Boolean(data.countBanter);
+  return { mode, triggerRule, messageCount, banterLevel, countBanter };
 };
+
 
 /**
  * Chat Rounds: a live mini party-chat feed that drives the AI DM.
@@ -195,44 +214,78 @@ export function useRoundChat(
     }
   }, [partyId, userId, reactions]);
 
-  /** In-character, not-yet-sent lines for the current round. */
+  const isLive = style.mode === 'live';
+
+  /** Every not-yet-sent line for the round that the DM will receive. */
   const pendingMessages = useMemo(
-    () => messages.filter(m => m.round_id === roundId && m.in_character && !m.consumed),
-    [messages, roundId],
+    () => messages.filter(m => (
+      m.round_id === roundId && !m.consumed && (isLive || m.in_character)
+    )),
+    [messages, roundId, isLive],
+  );
+
+  /** The subset that advances the round counter. */
+  const countedMessages = useMemo(
+    () => (isLive && !style.countBanter ? pendingMessages.filter(m => m.in_character) : pendingMessages),
+    [pendingMessages, isLive, style.countBanter],
   );
 
   /** How far along the round is, given the host's trigger rule. */
   const progress = useMemo(() => {
     const n = style.messageCount;
+    const banterExcluded = isLive && !style.countBanter;
     if (style.triggerRule === 'total') {
-      return { current: pendingMessages.length, target: n, met: pendingMessages.length >= n };
+      return { current: countedMessages.length, target: n, met: countedMessages.length >= n, banterExcluded };
     }
     const byUser = new Map<string, number>();
-    for (const m of pendingMessages) byUser.set(m.user_id, (byUser.get(m.user_id) || 0) + 1);
+    for (const m of countedMessages) byUser.set(m.user_id, (byUser.get(m.user_id) || 0) + 1);
     if (style.triggerRule === 'distinct') {
       const distinct = byUser.size;
-      return { current: distinct, target: n, met: distinct >= n };
+      return { current: distinct, target: n, met: distinct >= n, banterExcluded };
     }
     // perPlayer: every player who has posted must reach n, and at least one has
     const counts = Array.from(byUser.values());
     const satisfied = counts.length > 0 && counts.every(c => c >= n);
     const lowest = counts.length > 0 ? Math.min(...counts) : 0;
-    return { current: lowest, target: n, met: satisfied };
-  }, [pendingMessages, style]);
+    return { current: lowest, target: n, met: satisfied, banterExcluded };
+  }, [countedMessages, style, isLive]);
 
-  /** Bundle the round's in-character lines, grouped per character in order. */
+  /**
+   * Bundle the round for the DM. In-character lines are grouped per character;
+   * in Live DM mode the table's out-of-character banter rides along in its own
+   * clearly marked block, behind a persona directive.
+   */
   const buildRoundPrompt = useCallback(() => {
     const order: string[] = [];
     const grouped = new Map<string, string[]>();
     for (const m of pendingMessages) {
+      if (!m.in_character) continue;
       const key = m.character_name || 'Player';
       if (!grouped.has(key)) { grouped.set(key, []); order.push(key); }
       grouped.get(key)!.push(m.content.trim());
     }
-    return order
+    const inCharacterBlock = order
       .map(name => `[${name}]: ${grouped.get(name)!.join(' ')}`)
       .join('\n');
-  }, [pendingMessages]);
+
+    if (!isLive) return inCharacterBlock;
+
+    const banter = pendingMessages.filter(m => !m.in_character);
+    const banterBlock = banter.length
+      ? `\n\nTABLE TALK (out of character):\n${banter.map(m => `${m.character_name || 'Player'}: ${m.content.trim()}`).join('\n')}`
+      : '';
+
+    const directive = [
+      'OOC: LIVE TABLE MODE. You are running this session like a live tabletop game master in the vein of Anthony Burch — fast, warm, funny, improv-minded, comfortable breaking for a joke and then snapping the table back into the fiction.',
+      'Lines under TABLE TALK are the real people at the table talking out of character. They are NOT things the characters said or did. Never turn banter into a character action and never let the characters hear it.',
+      BANTER_INSTRUCTIONS[style.banterLevel],
+      banter.length && !inCharacterBlock
+        ? 'This round has only table talk and no character actions — answer the table briefly and conversationally; do not force a full scene beat.'
+        : 'Keep any table-side aside short and clearly separate, then deliver a proper scene beat driven only by the in-character actions below.',
+    ].join('\n');
+
+    return `${directive}\n\n${inCharacterBlock}${banterBlock}`.trim();
+  }, [pendingMessages, isLive, style.banterLevel]);
 
   /** Mark this round's lines as sent so they don't count toward the next round. */
   const consumePending = useCallback(async () => {
