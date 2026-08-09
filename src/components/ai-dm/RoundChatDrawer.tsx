@@ -38,13 +38,16 @@ interface RoundChatDrawerProps {
   currentUserId?: string;
   characterName: string;
   style: RoundStyle;
-  progress: { current: number; target: number; met: boolean; banterExcluded?: boolean };
+  progress: { current: number; waiting: number; met: boolean };
   sending: boolean;
   isGenerating: boolean;
   isHost: boolean;
   onSend: (content: string, inCharacter: boolean) => void | Promise<void>;
   onToggleReaction: (messageId: string, emoji: string) => void;
   onDeleteMessage: (messageId: string) => void;
+  onToggleSelected: (messageId: string) => void;
+  onSelectAll: () => void;
+  onClearSelection: () => void;
   onSendToDMNow: () => void;
   /** Text pushed in from outside (e.g. "suggest my action") to prefill the composer. */
   draft?: string | null;
