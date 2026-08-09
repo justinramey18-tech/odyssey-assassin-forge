@@ -23,6 +23,9 @@ interface RoundChatDrawerProps {
   onToggleReaction: (messageId: string, emoji: string) => void;
   onDeleteMessage: (messageId: string) => void;
   onSendToDMNow: () => void;
+  /** Text pushed in from outside (e.g. "suggest my action") to prefill the composer. */
+  draft?: string | null;
+  onDraftUsed?: () => void;
 }
 
 export function RoundChatDrawer({
@@ -41,6 +44,8 @@ export function RoundChatDrawer({
   onToggleReaction,
   onDeleteMessage,
   onSendToDMNow,
+  draft,
+  onDraftUsed,
 }: RoundChatDrawerProps) {
   const [text, setText] = useState('');
   const [inCharacter, setInCharacter] = useState(true);
@@ -52,6 +57,14 @@ export function RoundChatDrawer({
   const prevCountRef = useRef(messages.length);
   const wasGeneratingRef = useRef(isGenerating);
   const [justFinished, setJustFinished] = useState(false);
+
+  // Outside suggestions land in the composer so the player can edit before sending.
+  useEffect(() => {
+    if (!draft) return;
+    setText(prev => (prev.trim() ? `${prev.trim()} ${draft}` : draft));
+    setInCharacter(true);
+    onDraftUsed?.();
+  }, [draft]);
 
   const scrollToLatest = (behavior: ScrollBehavior = 'smooth') => {
     const el = scrollRef.current;

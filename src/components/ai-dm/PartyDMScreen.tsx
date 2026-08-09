@@ -995,6 +995,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   );
   const chatRoundsOn = roundChat.style.mode === 'chat' || roundChat.style.mode === 'live';
   const [roundChatOpen, setRoundChatOpen] = useState(false);
+  const [roundChatDraft, setRoundChatDraft] = useState<string | null>(null);
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
   const [showDeathSaves, setShowDeathSaves] = useState(false);
@@ -1734,6 +1735,30 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     pendingChatFireRef.current = roundKey;
   }, [roundChat]);
 
+  /**
+   * Single exit for every player-generated line (potions, spells, dice results,
+   * suggested actions, quest kickoffs, roleplay prompts, quick actions...).
+   * In Chat Rounds / Live DM the round chat is the only way to reach the DM,
+   * so those lines post there as in-character messages instead of the hidden
+   * ready-up prompt row.
+   */
+  const chatRoundsOnRef = useRef(chatRoundsOn);
+  chatRoundsOnRef.current = chatRoundsOn;
+  const roundChatRef = useRef(roundChat);
+  roundChatRef.current = roundChat;
+
+  const dispatchPrompt = useCallback((text: string, intensity?: number) => {
+    if (!text || !text.trim()) return;
+    if (chatRoundsOnRef.current) {
+      setRoundChatOpen(true);
+      void roundChatRef.current.sendMessage(text, true);
+      return;
+    }
+    partyDmRef.current?.submitPrompt(text, intensity);
+  }, []);
+
+
+
   useEffect(() => {
     if (!chatRoundsOn || !isCreator) return;
     if (!roundChat.progress.met) return;
@@ -1758,7 +1783,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     if (armedSignetIntensity != null) {
       finalPrompt = `${text}\n\n[SIGNET CHANNELED — intensity ${armedSignetIntensity}/8. Narrate signet power proportional to this intensity: 1 = faint flicker, 8 = catastrophic overload.]`;
     }
-    partyDmRef.current.submitPrompt(finalPrompt, armedSignetIntensity ?? undefined);
+    dispatchPrompt(finalPrompt, armedSignetIntensity ?? undefined);
     setArmedSignetIntensity(null);
   }, [armedSignetIntensity]);
 
@@ -1766,8 +1791,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     if (!myAfkGuide) return;
     setRecapDismissed(true);
     const autopilotPrompt = `<<${myAfkGuide}>>`;
-    partyDmRef.current.submitPrompt(autopilotPrompt);
-    setTimeout(() => partyDmRef.current.setReady(), 100);
+    if (chatRoundsOnRef.current) {
+      dispatchPrompt(autopilotPrompt);
+    } else {
+      partyDmRef.current.submitPrompt(autopilotPrompt);
+      setTimeout(() => partyDmRef.current.setReady(), 100);
+    }
   }, [myAfkGuide]);
 
   // Empyrean masterwork pills generator (Party mode)
@@ -1900,7 +1929,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       savingThrowProficiencies: (myMember as any)?.saving_throw_proficiencies ?? [],
     };
     const result = performWhisperRoll({ hint, actionPhrase: auto.actionPhrase, characterContext });
-    partyDmRef.current.submitPrompt(result.chatMessage);
+    dispatchPrompt(result.chatMessage);
   }, [members, currentUserId]);
 
   const handleWhisperOpenRoller = useCallback((whisperContent: string) => {
@@ -1994,12 +2023,21 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   }, []);
 
   const handleDiceRoll = useCallback((message: string) => {
+    if (chatRoundsOnRef.current) {
+      dispatchPrompt(message);
+      return;
+    }
     playerInputRef.current?.appendText(message);
-  }, []);
+  }, [dispatchPrompt]);
 
   const handleUsePrompt = useCallback((prompt: string) => {
+    // The classic composer is hidden in Chat Rounds / Live DM — post to the room instead.
+    if (chatRoundsOnRef.current) {
+      dispatchPrompt(prompt);
+      return;
+    }
     playerInputRef.current?.appendText(prompt);
-  }, []);
+  }, [dispatchPrompt]);
 
   const handleHealingItemUsed = useHealingItemAction({
     characterName: characterContext?.name || 'The Adventurer',
@@ -2702,6 +2740,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 disabled={partyDm.isGenerating}
                 onSelect={(prompt) => {
                   setRecapDismissed(true);
+                  if (chatRoundsOnRef.current) {
+                    setRoundChatDraft(prompt);
+                    setRoundChatOpen(true);
+                    return;
+                  }
                   playerInputRef.current?.setText(prompt);
                 }}
                 fetchStoryPills={handleFetchStoryPills}
@@ -2758,6 +2801,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onToggleReaction={(id, emoji) => roundChat.toggleReaction(id, emoji, members.find(m => m.user_id === currentUserId)?.character_name || 'Player')}
           onDeleteMessage={roundChat.deleteMessage}
           onSendToDMNow={fireChatRound}
+          draft={roundChatDraft}
+          onDraftUsed={() => setRoundChatDraft(null)}
         />
       )}
 
@@ -3580,7 +3625,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 signetType={dragonBonds.myDragon?.signetType || ''}
                 onAction={(prompt) => {
                   setRecapDismissed(true);
-                  partyDmRef.current.submitPrompt(prompt);
+                  dispatchPrompt(prompt);
                 }}
                 disabled={partyDm.isGenerating}
                 isUnbonded={!dragonBonds.isSetup || !dragonBonds.myDragon?.dragonName}
@@ -4170,7 +4215,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           userId={currentUserId}
           isCreator={isCreator}
           onBack={() => setShowQuests(false)}
-          onAnnounce={(text) => partyDmRef.current?.submitPrompt(text)}
+          onAnnounce={(text) => dispatchPrompt(text)}
         />
       )}
       {/* Dragon Rider Setup Sheet */}
@@ -4206,7 +4251,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               } as any;
             })()}
             onRollResult={(text: string) => {
-              partyDmRef.current.submitPrompt(text);
+              dispatchPrompt(text);
               setDiceRollerOpen(false);
             }}
           />
@@ -4657,7 +4702,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             const accepted = withQuestEvent({ ...quest, status: 'active' }, 'accepted', 'Quest accepted by the party — the DM is now tracking it.');
             sheetQuests.upsertQuest(accepted);
             // Kick the quest off immediately: the DM narrates the opening beat toward the next objective.
-            partyDmRef.current?.submitPrompt(buildQuestKickoffPrompt(accepted, { party: true, styleLine: narrationStyleLine(partyNarrationStyle.state) }));
+            dispatchPrompt(buildQuestKickoffPrompt(accepted, { party: true, styleLine: narrationStyleLine(partyNarrationStyle.state) }));
           } : undefined}
           onDeclineQuest={isCreator ? (key) => sheetQuests.removeQuest(key) : undefined}
           onScanQuests={isCreator ? onScanQuests : undefined}
@@ -4668,9 +4713,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onManualLevelUp={onManualLevelUp}
           onConditionChange={() => {}}
           onRest={onRestOccurred}
-          onRestPrompt={(text) => partyDmRef.current?.submitPrompt(text)}
+          onRestPrompt={(text) => dispatchPrompt(text)}
           onAcceptItem={onAcceptItem}
-          onUseLootItem={(text) => playerInputRef.current?.appendText(text)}
+          onUseLootItem={(text) => {
+            if (chatRoundsOnRef.current) { dispatchPrompt(text); return; }
+            playerInputRef.current?.appendText(text);
+          }}
         />
       )}
 
