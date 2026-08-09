@@ -1539,6 +1539,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         user_perplexity_key: loadApiKey('perplexity') || undefined,
         user_xai_key: loadApiKey('xai') || undefined,
         narrationStylePrompt: narrationStyleBlock || undefined,
+        liveTable: liveTable || undefined,
+
         ...(() => {
           const cs = loadCombatSettings();
           const feats: string[] = [];
