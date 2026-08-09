@@ -62,7 +62,7 @@ import rehypeRaw from 'rehype-raw';
 import { toast } from 'sonner';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { useNarrator } from '@/hooks/use-narrator';
-import { useMessageNarration, narrationKey, type MessageAudioRow, type NarrationPart } from '@/hooks/use-message-narration';
+import { useMessageNarration, narrationKey, type CastProgress, type MessageAudioRow, type NarrationPart } from '@/hooks/use-message-narration';
 import { MessageNarrationBar } from './MessageNarrationBar';
 import { useSpotify } from '@/hooks/use-spotify';
 import { subscribeToPush, unsubscribeFromPush, getPushSubscriptionState, type PushSubscriptionState } from '@/lib/push-subscription';
@@ -433,7 +433,7 @@ function MessageReactions({ messageId, reactions, currentUserId, onAddReaction, 
   );
 }
 
-const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction, onWhisperAutoRoll, onWhisperOpenRoller, narrationAudio, narrationTableAudio, narrationGeneratingPart, narrationPlayingPart, onNarrate, onPlayNarration, onPlayAllNarration, onDeleteNarration }: {
+const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction, onWhisperAutoRoll, onWhisperOpenRoller, narrationMap, narrationGeneratingPart, narrationPlayingPart, narrationCastProgress, narrationSpeakingName, onNarrate, onNarrateCast, onPlayNarration, onPlayAllNarration, onDeleteNarration, onDeleteAllNarration }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -458,14 +458,17 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   onRemoveReaction?: (messageId: string, emoji: string) => void;
   onWhisperAutoRoll?: (whisperContent: string) => void;
   onWhisperOpenRoller?: (whisperContent: string) => void;
-  narrationAudio?: MessageAudioRow;
-  narrationTableAudio?: MessageAudioRow;
+  narrationMap?: Record<string, MessageAudioRow>;
   narrationGeneratingPart?: NarrationPart | null;
   narrationPlayingPart?: NarrationPart | null;
+  narrationCastProgress?: CastProgress | null;
+  narrationSpeakingName?: string | null;
   onNarrate?: (messageId: string, content: string, part: NarrationPart) => void;
+  onNarrateCast?: (messageId: string, content: string) => void;
   onPlayNarration?: (messageId: string, part: NarrationPart) => void;
-  onPlayAllNarration?: (messageId: string) => void;
+  onPlayAllNarration?: (messageId: string, content?: string) => void;
   onDeleteNarration?: (messageId: string, part: NarrationPart) => void;
+  onDeleteAllNarration?: (messageId: string) => void;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
@@ -668,15 +671,18 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
               <MessageNarrationBar
                 messageId={message.id}
                 content={message.content || ''}
-                storyAudio={narrationAudio}
-                tableAudio={narrationTableAudio}
+                narrationMap={narrationMap || {}}
                 generatingPart={narrationGeneratingPart}
                 playingPart={narrationPlayingPart}
+                castProgress={narrationCastProgress}
+                speakingName={narrationSpeakingName}
                 canDelete={isCreator}
                 onNarrate={onNarrate}
+                onNarrateCast={(id, text) => onNarrateCast?.(id, text)}
                 onPlay={(id, part) => onPlayNarration?.(id, part)}
-                onPlayAll={(id) => onPlayAllNarration?.(id)}
+                onPlayAll={(id, text) => onPlayAllNarration?.(id, text)}
                 onDelete={onDeleteNarration}
+                onDeleteAll={onDeleteAllNarration}
               />
             )}
 
@@ -981,10 +987,11 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.showTeamTag === next.showTeamTag
     && prev.currentUserId === next.currentUserId
     && prev.isBookmarked === next.isBookmarked
-    && prev.narrationAudio?.audio_url === next.narrationAudio?.audio_url
-    && prev.narrationTableAudio?.audio_url === next.narrationTableAudio?.audio_url
+    && prev.narrationMap === next.narrationMap
     && prev.narrationGeneratingPart === next.narrationGeneratingPart
     && prev.narrationPlayingPart === next.narrationPlayingPart
+    && prev.narrationCastProgress === next.narrationCastProgress
+    && prev.narrationSpeakingName === next.narrationSpeakingName
     && (prev.reactions?.length ?? 0) === (next.reactions?.length ?? 0)
     && prev.reactions?.every((r, i) => r.id === next.reactions?.[i]?.id);
 });
@@ -2592,22 +2599,25 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     onRemoveReaction={removeReaction}
                     onWhisperAutoRoll={isEmpyrean ? handleWhisperAutoRoll : undefined}
                     onWhisperOpenRoller={isEmpyrean ? handleWhisperOpenRoller : undefined}
-                    narrationAudio={messageNarration.audioByMessage[narrationKey(msg.id, 'story')]}
-                    narrationTableAudio={messageNarration.audioByMessage[narrationKey(msg.id, 'table')]}
+                    narrationMap={messageNarration.audioByMessage}
                     narrationGeneratingPart={
-                      messageNarration.generatingId === narrationKey(msg.id, 'table') ? 'table'
-                        : messageNarration.generatingId === narrationKey(msg.id, 'story') ? 'story'
+                      messageNarration.generatingId?.startsWith(`${msg.id}:`)
+                        ? messageNarration.generatingId.slice(msg.id.length + 1)
                         : null
                     }
                     narrationPlayingPart={
-                      messageNarration.playingId === narrationKey(msg.id, 'table') ? 'table'
-                        : messageNarration.playingId === narrationKey(msg.id, 'story') ? 'story'
+                      messageNarration.playingId?.startsWith(`${msg.id}:`)
+                        ? messageNarration.playingId.slice(msg.id.length + 1)
                         : null
                     }
+                    narrationCastProgress={messageNarration.castProgress?.messageId === msg.id ? messageNarration.castProgress : null}
+                    narrationSpeakingName={messageNarration.playingId?.startsWith(`${msg.id}:`) ? messageNarration.speakingName : null}
                     onNarrate={messageNarration.generate}
+                    onNarrateCast={messageNarration.generateCast}
                     onPlayNarration={messageNarration.play}
                     onPlayAllNarration={messageNarration.playAll}
                     onDeleteNarration={isCreator ? messageNarration.remove : undefined}
+                    onDeleteAllNarration={isCreator ? messageNarration.removeAll : undefined}
                   />
                 </React.Fragment>
                 );

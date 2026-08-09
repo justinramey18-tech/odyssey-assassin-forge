@@ -1500,7 +1500,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     })();
 
     const canonGuardrailsContext = buildCanonGuardrailContext(sanitizedMessages, extraGuides, currentOocDirectives);
-    const enhancedPartyContext = [canonGuardrailsContext, partyContext, directorPrivatesContext].filter(Boolean).join('\n\n') || undefined;
+    const voiceTagDirective = [
+      'SPEAKER TAGS FOR NARRATION (formatting only):',
+      'Wrap every line of spoken dialogue in [VOICE:Name] ... [/VOICE], where Name is the exact speaker (an NPC, a player character, or the narrator persona speaking aloud).',
+      'Example: [VOICE:Kaelen]"You should not have come here."[/VOICE]',
+      'Only spoken words go inside the tags — narration, action, and description stay outside them. Never tag a block of prose, never nest tags, and never mention the tags to the players.',
+    ].join('\n');
+    const enhancedPartyContext = [canonGuardrailsContext, voiceTagDirective, partyContext, directorPrivatesContext].filter(Boolean).join('\n\n') || undefined;
 
     const narrationStyleBlock = buildNarrationStyleBlock(await fetchPartyNarrationStyle(partyId));
 
