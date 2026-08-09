@@ -293,6 +293,17 @@ export function RoundChatDrawer({
                 })}
               </div>
 
+              {!pinned && messages.length > 0 && (
+                <button
+                  onClick={() => scrollToLatest('smooth')}
+                  style={{ touchAction: 'manipulation' }}
+                  className="absolute left-1/2 -translate-x-1/2 bottom-[86px] z-10 flex items-center gap-1 px-2.5 py-1 rounded-full border border-amber-500/30 bg-black/80 text-amber-200 text-[10px] shadow-lg"
+                >
+                  <ChevronDown className="w-3 h-3" />
+                  {unseen > 0 ? `${unseen} new message${unseen === 1 ? '' : 's'}` : 'Jump to latest'}
+                </button>
+              )}
+
               {/* Composer */}
               <div className="mt-2 space-y-1.5">
                 <div className="flex items-center gap-2">
