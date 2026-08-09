@@ -59,6 +59,8 @@ import rehypeRaw from 'rehype-raw';
 import { toast } from 'sonner';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { useNarrator } from '@/hooks/use-narrator';
+import { useMessageNarration, type MessageAudioRow } from '@/hooks/use-message-narration';
+import { MessageNarrationButton } from './MessageNarrationButton';
 import { useSpotify } from '@/hooks/use-spotify';
 import { subscribeToPush, unsubscribeFromPush, getPushSubscriptionState, type PushSubscriptionState } from '@/lib/push-subscription';
 import { useAuth } from '@/hooks/use-auth';
@@ -426,7 +428,7 @@ function MessageReactions({ messageId, reactions, currentUserId, onAddReaction, 
   );
 }
 
-const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction, onWhisperAutoRoll, onWhisperOpenRoller }: {
+const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction, onWhisperAutoRoll, onWhisperOpenRoller, narrationAudio, isNarrating, isNarrationPlaying, onNarrate, onPlayNarration, onDeleteNarration }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -451,6 +453,12 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   onRemoveReaction?: (messageId: string, emoji: string) => void;
   onWhisperAutoRoll?: (whisperContent: string) => void;
   onWhisperOpenRoller?: (whisperContent: string) => void;
+  narrationAudio?: MessageAudioRow;
+  isNarrating?: boolean;
+  isNarrationPlaying?: boolean;
+  onNarrate?: (messageId: string, content: string) => void;
+  onPlayNarration?: (messageId: string) => void;
+  onDeleteNarration?: (messageId: string) => void;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
@@ -1002,6 +1010,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [formattedReading, setFormattedReading] = useState<FormattedReading | null>(null);
   const [isFormattingReading, setIsFormattingReading] = useState(false);
   const dmPolls = useDmPolls(partyId || null);
+  const messageNarration = useMessageNarration(partyId || undefined, currentUserId, members.find(m => m.user_id === currentUserId)?.character_name);
   const partyNPCNames = useNPCAutocomplete(partyDm.messages as any);
   const isEmpyrean = partyDm.sessionConfig?.campaignType === 'empyrean';
   const dragonBonds = usePartyDragonBonds(isEmpyrean ? (partyId || null) : null, currentUserId || null, members);
@@ -2456,6 +2465,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     onRemoveReaction={removeReaction}
                     onWhisperAutoRoll={isEmpyrean ? handleWhisperAutoRoll : undefined}
                     onWhisperOpenRoller={isEmpyrean ? handleWhisperOpenRoller : undefined}
+                    narrationAudio={messageNarration.audioByMessage[msg.id]}
+                    isNarrating={messageNarration.generatingId === msg.id}
+                    isNarrationPlaying={messageNarration.playingId === msg.id}
+                    onNarrate={messageNarration.generate}
+                    onPlayNarration={messageNarration.play}
+                    onDeleteNarration={isCreator ? messageNarration.remove : undefined}
                   />
                 </React.Fragment>
                 );
