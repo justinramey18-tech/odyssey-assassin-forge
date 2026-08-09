@@ -1194,6 +1194,7 @@ export type Database = {
           created_by_name: string | null
           id: string
           message_id: string
+          part: string
           party_id: string
           provider: string
           voice_id: string | null
@@ -1205,6 +1206,7 @@ export type Database = {
           created_by_name?: string | null
           id?: string
           message_id: string
+          part?: string
           party_id: string
           provider?: string
           voice_id?: string | null
@@ -1216,6 +1218,7 @@ export type Database = {
           created_by_name?: string | null
           id?: string
           message_id?: string
+          part?: string
           party_id?: string
           provider?: string
           voice_id?: string | null
@@ -1224,7 +1227,7 @@ export type Database = {
           {
             foreignKeyName: "party_message_audio_message_id_fkey"
             columns: ["message_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "party_dm_messages"
             referencedColumns: ["id"]
           },
