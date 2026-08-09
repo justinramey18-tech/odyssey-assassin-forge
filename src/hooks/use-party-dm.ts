@@ -2225,9 +2225,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         const { guidesSection: afkGuidesSection, promptSection: afkPromptSection, consumedCascades: normalConsumed, afkEntries: normalAfkEntries } = suppressAfkGuides
           ? { guidesSection: '', promptSection: '', consumedCascades: [], afkEntries: [] as Array<{ userId: string; characterName: string; content: string }> }
           : buildAfkGuidesContext(readyPrompts, isTurnBased && sessionConfig.turnUserId ? [sessionConfig.turnUserId] : undefined, coveredUserIds);
-        const rawCombined = readyPrompts
-          .map(formatPromptLineForAI)
-          .join('\n') + afkPromptSection;
+        const rawCombined = (directPrompt
+          ? directPrompt.text.trim()
+          : readyPrompts.map(formatPromptLineForAI).join('\n')) + afkPromptSection;
+
 
         const combined = rawCombined;
 
