@@ -342,7 +342,12 @@ export function splitDMResponseParts(text: string): { tableTalk: string; story: 
     };
   }
 
+  // Fallback: heading-style sections, e.g. "## TABLE TALK" ... "## IN CHARACTER".
+  const headingSplit = splitByHeadings(raw);
+  if (headingSplit) return headingSplit;
+
   // Fallback: a leading "OOC:" / "Table talk:" line block before the story.
+
   const lines = raw.split('\n');
   const aside: string[] = [];
   let i = 0;
