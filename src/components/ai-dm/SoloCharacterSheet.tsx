@@ -1025,6 +1025,10 @@ export function SoloCharacterSheet({
           </>
         )}
 
+        {tab === 'voices' && (
+          <VoicesTab suggestedNames={voiceSuggestions} />
+        )}
+
         {tab === 'story' && (
           <>
             <Section title="Backstory" icon={BookOpen}>
