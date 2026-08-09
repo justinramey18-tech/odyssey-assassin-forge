@@ -48,10 +48,18 @@ export interface RoundChatReaction {
   emoji: string;
 }
 
-const BANTER_INSTRUCTIONS: Record<BanterLevel, string> = {
-  light: 'Acknowledge the table talk with at most a passing nod or a single dry word, then get on with the scene.',
-  balanced: 'Open with one quick quip or aside to the table about their banter, then deliver the scene beat.',
-  heavy: 'Lean into the bit — riff on the banter, tease players by name, play with the joke for a couple of lines before steering back into the scene.',
+/** Short human label for each notch of the chaos dial. */
+export const CHAOS_LABELS: Record<number, string> = {
+  1: 'Straight bat — pure scene, no jokes',
+  2: 'Barely a smirk',
+  3: 'Dry aside, then back to work',
+  4: 'A quip on the way in',
+  5: 'Live table host — riffs, then plays the beat',
+  6: 'Teasing players by name',
+  7: 'Comedy first, scene second',
+  8: 'Fourth wall creaking',
+  9: 'Openly unhinged commentary',
+  10: 'Maximum chaos — full Deadpool energy',
 };
 
 const parseStyle = (raw: unknown): RoundStyle => {
@@ -65,12 +73,19 @@ const parseStyle = (raw: unknown): RoundStyle => {
   const messageCount = Number.isFinite(rawCount)
     ? Math.min(10, Math.max(1, Math.round(rawCount)))
     : DEFAULT_ROUND_STYLE.messageCount;
-  const lvl = data.banterLevel;
-  const banterLevel: BanterLevel =
-    lvl === 'light' || lvl === 'heavy' || lvl === 'balanced' ? lvl : DEFAULT_ROUND_STYLE.banterLevel;
+  // Migrate the retired light/balanced/heavy banter picker onto the 1-10 dial.
+  const rawChaos = Number(data.chaosLevel);
+  const legacy = data.banterLevel;
+  const chaosLevel = Number.isFinite(rawChaos)
+    ? Math.min(10, Math.max(1, Math.round(rawChaos)))
+    : legacy === 'light' ? 2
+      : legacy === 'heavy' ? 8
+      : legacy === 'balanced' ? 5
+      : DEFAULT_ROUND_STYLE.chaosLevel;
   const countBanter = data.countBanter === undefined ? DEFAULT_ROUND_STYLE.countBanter : Boolean(data.countBanter);
-  return { mode, triggerRule, messageCount, banterLevel, countBanter };
+  return { mode, triggerRule, messageCount, chaosLevel, countBanter };
 };
+
 
 
 /**
