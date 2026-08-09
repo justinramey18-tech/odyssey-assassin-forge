@@ -1795,13 +1795,37 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     return data as PartyDmMessage | null;
   }, [user]);
 
-  const generateResponse = useCallback(async (options?: { coveredUserIds?: string[] }) => {
-    const coveredUserIds = options?.coveredUserIds;
+  const generateResponse = useCallback(async (options?: {
+    coveredUserIds?: string[];
+    /**
+     * Chat Rounds / Live DM: the ticked chat lines ARE the round prompt.
+     * When present we bypass the ready-up prompt table entirely.
+     */
+    directPrompt?: {
+      text: string;
+      participants: Array<{ userId: string; characterName: string; text: string }>;
+    };
+  }) => {
+    const directPrompt = options?.directPrompt;
+    const coveredUserIds = options?.coveredUserIds
+      ?? (directPrompt ? directPrompt.participants.map(p => p.userId) : undefined);
     if (!partyId || !user || !sessionConfig || isGenerating) return;
 
 
     const isTurnBased = (sessionConfig.dmMode || 'ai') === 'turnBased';
-    const rawReadyPrompts = isTurnBased
+    const rawReadyPrompts = directPrompt
+      ? directPrompt.participants.map((p, i) => ({
+          id: `direct-${i}`,
+          party_id: partyId,
+          user_id: p.userId,
+          character_name: p.characterName || 'Player',
+          prompt: p.text,
+          is_ready: true,
+          round_id: sessionConfig.currentRoundId,
+          created_at: new Date().toISOString(),
+          team: null,
+        }) as unknown as PartyDmPrompt)
+      : isTurnBased
       ? currentPrompts.filter(p => p.is_ready && memberUserIds.has(p.user_id) && p.user_id === sessionConfig.turnUserId)
       : currentPrompts.filter(p => p.is_ready && memberUserIds.has(p.user_id));
     // Dedupe per user: prefer non-blank prompts over blank "(no action)", then newest.
@@ -1815,10 +1839,11 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       else if (existingBlank === currentBlank && new Date(p.created_at as any) > new Date(existing.created_at as any)) byUser.set(p.user_id, p);
     }
     const readyPrompts = Array.from(byUser.values());
-    if (readyPrompts.length === 0) {
+    if (readyPrompts.length === 0 && !(directPrompt && directPrompt.text.trim())) {
       toast.error('No ready prompts to generate from');
       return;
     }
+
 
     // ── OOC Override Detection ──
     // Check if any ready prompt (especially the host's) contains an OOC directive
