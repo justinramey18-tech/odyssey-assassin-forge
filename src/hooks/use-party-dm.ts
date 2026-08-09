@@ -2199,7 +2199,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         // === NORMAL MODE ===
         const { guidesSection: afkGuidesSection, promptSection: afkPromptSection, consumedCascades: normalConsumed, afkEntries: normalAfkEntries } = suppressAfkGuides
           ? { guidesSection: '', promptSection: '', consumedCascades: [], afkEntries: [] as Array<{ userId: string; characterName: string; content: string }> }
-          : buildAfkGuidesContext(readyPrompts, isTurnBased && sessionConfig.turnUserId ? [sessionConfig.turnUserId] : undefined);
+          : buildAfkGuidesContext(readyPrompts, isTurnBased && sessionConfig.turnUserId ? [sessionConfig.turnUserId] : undefined, coveredUserIds);
         const rawCombined = readyPrompts
           .map(formatPromptLineForAI)
           .join('\n') + afkPromptSection;
