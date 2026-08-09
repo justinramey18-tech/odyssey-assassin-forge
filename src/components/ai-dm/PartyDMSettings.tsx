@@ -207,6 +207,7 @@ export function PartyDMSettings({
   moodPresetFilter, onMoodPresetSelected,
   questRewardSplitMode = 'full', onQuestRewardSplitModeChange,
   narrationStyle = DEFAULT_NARRATION_STATE, onNarrationStyleChange, onNarrationIntensityChange,
+  roundStyle, onRoundStyleChange,
 }: PartyDMSettingsProps) {
   const bgFileInputRef = useRef<HTMLInputElement>(null);
   const originalCreator = isOriginalCreatorProp ?? isCreator;
