@@ -533,7 +533,7 @@ export function RoundChatDrawer({
 
               {/* Composer */}
               <div className="mt-2 space-y-1.5">
-                {(() => { return null; })()}
+                
                 <div className="flex items-center gap-2">
 
                   <div
