@@ -326,6 +326,31 @@ export function hasSpeechifyDMVoice(): boolean {
 // ── Table talk vs story split ───────────────────────────────────────────────
 const TABLE_TALK_BLOCK = /\[TABLE(?:\s*TALK)?\]([\s\S]*?)\[\/TABLE(?:\s*TALK)?\]/i;
 
+/** Matches a standalone heading line like "## TABLE TALK", "**Table Talk**", "TABLE TALK:". */
+const TABLE_HEADING = /^\s*(?:#{1,6}\s*)?(?:\*\*|__)?\s*(?:table\s*talk|dm\s*aside|ooc)\s*(?:\*\*|__)?\s*:?\s*$/i;
+const STORY_HEADING = /^\s*(?:#{1,6}\s*)?(?:\*\*|__)?\s*(?:in\s*character|story|narration|scene|ic)\s*(?:\*\*|__)?\s*:?\s*$/i;
+
+/** Splits on "TABLE TALK" / "IN CHARACTER" style section headings. */
+function splitByHeadings(raw: string): { tableTalk: string; story: string } | null {
+  const lines = raw.split('\n');
+  const tableStart = lines.findIndex((l) => TABLE_HEADING.test(l));
+  if (tableStart === -1) return null;
+  let storyStart = -1;
+  for (let i = tableStart + 1; i < lines.length; i++) {
+    if (STORY_HEADING.test(lines[i])) { storyStart = i; break; }
+  }
+  const tableTalk = lines
+    .slice(tableStart + 1, storyStart === -1 ? lines.length : storyStart)
+    .join('\n')
+    .trim();
+  if (!tableTalk) return null;
+  const before = lines.slice(0, tableStart).join('\n').trim();
+  const after = storyStart === -1 ? '' : lines.slice(storyStart + 1).join('\n').trim();
+  const story = [before, after].filter(Boolean).join('\n\n').trim();
+  return { tableTalk, story };
+}
+
+
 /**
  * Splits a DM response into the out-of-character aside to the table and the
  * in-fiction story narration. The AI is asked to wrap its aside in
@@ -342,7 +367,12 @@ export function splitDMResponseParts(text: string): { tableTalk: string; story: 
     };
   }
 
+  // Fallback: heading-style sections, e.g. "## TABLE TALK" ... "## IN CHARACTER".
+  const headingSplit = splitByHeadings(raw);
+  if (headingSplit) return headingSplit;
+
   // Fallback: a leading "OOC:" / "Table talk:" line block before the story.
+
   const lines = raw.split('\n');
   const aside: string[] = [];
   let i = 0;
