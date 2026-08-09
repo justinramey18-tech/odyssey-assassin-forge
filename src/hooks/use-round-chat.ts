@@ -390,6 +390,8 @@ export function useRoundChat(
     pendingUserIds,
     progress,
     buildRoundPrompt,
+    liveTableContext,
+
     consumePending,
     reload: loadMessages,
   };
