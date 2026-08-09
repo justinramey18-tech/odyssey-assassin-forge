@@ -46,14 +46,58 @@ export function RoundChatDrawer({
   const [inCharacter, setInCharacter] = useState(true);
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const pinnedRef = useRef(true);
+  const [pinned, setPinned] = useState(true);
+  const [unseen, setUnseen] = useState(0);
+  const prevCountRef = useRef(messages.length);
+  const wasGeneratingRef = useRef(isGenerating);
 
+  const scrollToLatest = (behavior: ScrollBehavior = 'smooth') => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+    pinnedRef.current = true;
+    setPinned(true);
+    setUnseen(0);
+  };
+
+  /** Track whether the reader is parked at the bottom of the feed. */
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+    pinnedRef.current = atBottom;
+    setPinned(atBottom);
+    if (atBottom) setUnseen(0);
+  };
+
+  // New lines: follow only if the reader hasn't scrolled up; otherwise badge them.
   useEffect(() => {
-    if (open && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const added = messages.length - prevCountRef.current;
+    prevCountRef.current = messages.length;
+    if (!open || added <= 0) return;
+    if (pinnedRef.current) {
+      requestAnimationFrame(() => scrollToLatest(messages.length <= 1 ? 'auto' : 'smooth'));
+    } else {
+      setUnseen(n => n + added);
     }
-  }, [open, messages.length]);
+  }, [messages.length, open]);
+
+  // Opening the drawer always lands on the newest line.
+  useEffect(() => {
+    if (open) requestAnimationFrame(() => scrollToLatest('auto'));
+  }, [open]);
+
+  // When the DM finishes expanding its response, bring the round feed back into view.
+  useEffect(() => {
+    if (wasGeneratingRef.current && !isGenerating) {
+      requestAnimationFrame(() => scrollToLatest('smooth'));
+    }
+    wasGeneratingRef.current = isGenerating;
+  }, [isGenerating]);
 
   const lastLine = messages.length > 0 ? messages[messages.length - 1] : null;
+
 
   const reactionsByMessage = useMemo(() => {
     const map = new Map<string, RoundChatReaction[]>();
@@ -85,7 +129,11 @@ export function RoundChatDrawer({
     const trimmed = text.trim();
     if (!trimmed || sending) return;
     setText('');
+    // Posting your own line always brings you back to the bottom.
+    pinnedRef.current = true;
+    setPinned(true);
     await onSend(trimmed, inCharacter);
+    requestAnimationFrame(() => scrollToLatest('smooth'));
   };
 
   return (
@@ -128,10 +176,11 @@ export function RoundChatDrawer({
             transition={{ duration: 0.25, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="px-2 pb-2">
+            <div className="px-2 pb-2 relative">
               {/* Feed — roughly half the DM chat window */}
               <div
                 ref={scrollRef}
+                onScroll={handleScroll}
                 className="overflow-y-auto scrollbar-hide space-y-1.5 pr-0.5"
                 style={{ maxHeight: '38vh' }}
               >
@@ -247,6 +296,17 @@ export function RoundChatDrawer({
                   );
                 })}
               </div>
+
+              {!pinned && messages.length > 0 && (
+                <button
+                  onClick={() => scrollToLatest('smooth')}
+                  style={{ touchAction: 'manipulation' }}
+                  className="absolute left-1/2 -translate-x-1/2 bottom-[86px] z-10 flex items-center gap-1 px-2.5 py-1 rounded-full border border-amber-500/30 bg-black/80 text-amber-200 text-[10px] shadow-lg"
+                >
+                  <ChevronDown className="w-3 h-3" />
+                  {unseen > 0 ? `${unseen} new message${unseen === 1 ? '' : 's'}` : 'Jump to latest'}
+                </button>
+              )}
 
               {/* Composer */}
               <div className="mt-2 space-y-1.5">
