@@ -293,3 +293,77 @@ export function setCachedSpeechifyVoices(voices: CachedSpeechifyVoice[]): void {
     // ignore
   }
 }
+
+// ── DM (table-talk) voice ───────────────────────────────────────────────────
+// The DM's out-of-character aside can be voiced with a different Speechify
+// voice than the story narration.
+const SPEECHIFY_DM_VOICE_KEY = 'dnd-speechify-dm-voice-id';
+
+export function loadSpeechifyDMVoiceId(): string {
+  try {
+    return localStorage.getItem(SPEECHIFY_DM_VOICE_KEY) || loadSpeechifyVoiceId();
+  } catch {
+    return loadSpeechifyVoiceId();
+  }
+}
+
+export function saveSpeechifyDMVoiceId(voiceId: string): void {
+  try {
+    localStorage.setItem(SPEECHIFY_DM_VOICE_KEY, voiceId);
+  } catch {
+    // ignore
+  }
+}
+
+export function hasSpeechifyDMVoice(): boolean {
+  try {
+    return !!localStorage.getItem(SPEECHIFY_DM_VOICE_KEY);
+  } catch {
+    return false;
+  }
+}
+
+// ── Table talk vs story split ───────────────────────────────────────────────
+const TABLE_TALK_BLOCK = /\[TABLE(?:\s*TALK)?\]([\s\S]*?)\[\/TABLE(?:\s*TALK)?\]/i;
+
+/**
+ * Splits a DM response into the out-of-character aside to the table and the
+ * in-fiction story narration. The AI is asked to wrap its aside in
+ * [TABLE]...[/TABLE]; a couple of plain-text fallbacks are handled too.
+ */
+export function splitDMResponseParts(text: string): { tableTalk: string; story: string } {
+  const raw = text || '';
+
+  const tagged = raw.match(TABLE_TALK_BLOCK);
+  if (tagged) {
+    return {
+      tableTalk: (tagged[1] || '').trim(),
+      story: raw.replace(TABLE_TALK_BLOCK, '').trim(),
+    };
+  }
+
+  // Fallback: a leading "OOC:" / "Table talk:" line block before the story.
+  const lines = raw.split('\n');
+  const aside: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!line.trim()) { if (aside.length) break; i++; continue; }
+    if (/^\s*(?:\*\*)?(?:OOC|Table\s*talk|DM\s*aside)\s*:?(?:\*\*)?\s*/i.test(line)) {
+      aside.push(line.replace(/^\s*(?:\*\*)?(?:OOC|Table\s*talk|DM\s*aside)\s*:?(?:\*\*)?\s*/i, '').trim());
+      i++;
+      continue;
+    }
+    break;
+  }
+  if (aside.length) {
+    return { tableTalk: aside.join(' ').trim(), story: lines.slice(i).join('\n').trim() };
+  }
+
+  return { tableTalk: '', story: raw.trim() };
+}
+
+/** Removes the [TABLE] markers while keeping the words, for on-screen display. */
+export function stripTableTalkTags(text: string): string {
+  return (text || '').replace(/\[\/?TABLE(?:\s*TALK)?\]/gi, '');
+}
