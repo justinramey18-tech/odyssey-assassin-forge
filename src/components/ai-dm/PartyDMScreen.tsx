@@ -971,6 +971,9 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.showTeamTag === next.showTeamTag
     && prev.currentUserId === next.currentUserId
     && prev.isBookmarked === next.isBookmarked
+    && prev.narrationAudio?.audio_url === next.narrationAudio?.audio_url
+    && prev.isNarrating === next.isNarrating
+    && prev.isNarrationPlaying === next.isNarrationPlaying
     && (prev.reactions?.length ?? 0) === (next.reactions?.length ?? 0)
     && prev.reactions?.every((r, i) => r.id === next.reactions?.[i]?.id);
 });
