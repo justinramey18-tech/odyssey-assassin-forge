@@ -397,3 +397,89 @@ export function splitDMResponseParts(text: string): { tableTalk: string; story: 
 export function stripTableTalkTags(text: string): string {
   return (text || '').replace(/\[\/?TABLE(?:\s*TALK)?\]/gi, '');
 }
+
+// ── Character voice cast ────────────────────────────────────────────────────
+
+const VOICE_CAST_KEY = 'dnd-speechify-voice-cast';
+
+export interface VoiceCastEntry {
+  /** Character / NPC name as written in DM responses. */
+  name: string;
+  /** Speechify voice id used for that speaker. */
+  voiceId: string;
+}
+
+export function loadVoiceCast(): VoiceCastEntry[] {
+  try {
+    const raw = localStorage.getItem(VOICE_CAST_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((e: any) => e && typeof e.name === 'string' && typeof e.voiceId === 'string' && e.name.trim() && e.voiceId.trim())
+      .map((e: any) => ({ name: String(e.name).trim(), voiceId: String(e.voiceId).trim() }));
+  } catch {
+    return [];
+  }
+}
+
+export function saveVoiceCast(cast: VoiceCastEntry[]): void {
+  try {
+    localStorage.setItem(VOICE_CAST_KEY, JSON.stringify(cast));
+  } catch { /* ignore */ }
+}
+
+/** Looks up a cast voice by speaker name (case/spacing tolerant). */
+export function voiceForSpeaker(name: string): string | null {
+  const needle = (name || '').trim().toLowerCase();
+  if (!needle) return null;
+  const cast = loadVoiceCast();
+  const exact = cast.find((e) => e.name.trim().toLowerCase() === needle);
+  if (exact) return exact.voiceId;
+  const partial = cast.find((e) => {
+    const n = e.name.trim().toLowerCase();
+    return n.length > 2 && (needle.includes(n) || n.includes(needle));
+  });
+  return partial ? partial.voiceId : null;
+}
+
+// ── Speaker-tagged story segments ───────────────────────────────────────────
+
+const VOICE_BLOCK = /\[VOICE:\s*([^\]]{1,40}?)\s*\]([\s\S]*?)(?:\[\/VOICE\]|(?=\[VOICE:)|$)/gi;
+
+export interface NarrationSegment {
+  /** null = narrator (untagged prose). */
+  speaker: string | null;
+  text: string;
+}
+
+/** Removes [VOICE:...] markers while keeping the words, for on-screen display. */
+export function stripVoiceTags(text: string): string {
+  return (text || '').replace(/\[VOICE:[^\]]{0,40}\]/gi, '').replace(/\[\/VOICE\]/gi, '');
+}
+
+/**
+ * Breaks story prose into ordered segments: narrator prose and speaker-tagged
+ * dialogue, in the order they appear. Falls back to a single narrator segment
+ * when the DM did not tag anything.
+ */
+export function splitStorySegments(story: string): NarrationSegment[] {
+  const raw = (story || '').trim();
+  if (!raw) return [];
+  const segments: NarrationSegment[] = [];
+  let cursor = 0;
+  VOICE_BLOCK.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = VOICE_BLOCK.exec(raw)) !== null) {
+    const before = raw.slice(cursor, match.index).trim();
+    if (before) segments.push({ speaker: null, text: before });
+    const speaker = (match[1] || '').trim();
+    const line = (match[2] || '').trim();
+    if (line) segments.push({ speaker: speaker || null, text: line });
+    cursor = match.index + match[0].length;
+  }
+  const tail = raw.slice(cursor).trim();
+  if (tail) segments.push({ speaker: null, text: tail });
+  if (segments.length === 0) return [{ speaker: null, text: raw }];
+  return segments;
+}
