@@ -1470,6 +1470,7 @@ export type Database = {
           in_character: boolean
           party_id: string
           round_id: string
+          selected: boolean
           user_id: string
         }
         Insert: {
@@ -1481,6 +1482,7 @@ export type Database = {
           in_character?: boolean
           party_id: string
           round_id: string
+          selected?: boolean
           user_id: string
         }
         Update: {
@@ -1492,6 +1494,7 @@ export type Database = {
           in_character?: boolean
           party_id?: string
           round_id?: string
+          selected?: boolean
           user_id?: string
         }
         Relationships: [
