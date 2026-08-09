@@ -72,6 +72,15 @@ export function RoundChatDrawer({
         ? 'players'
         : 'each';
 
+  const triggerHint = (() => {
+    const n = style.messageCount;
+    const s = n === 1 ? '' : 's';
+    if (style.triggerRule === 'distinct') return `The DM replies once ${n} different player${s} ha${n === 1 ? 's' : 've'} spoken.`;
+    if (style.triggerRule === 'perPlayer') return `The DM replies once everyone who spoke has posted ${n} message${s}.`;
+    return `The DM replies after ${n} message${s}.`;
+  })();
+
+
   const handleSend = async () => {
     const trimmed = text.trim();
     if (!trimmed || sending) return;
