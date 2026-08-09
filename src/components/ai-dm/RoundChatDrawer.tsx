@@ -144,6 +144,9 @@ export function RoundChatDrawer({
   const prevCountRef = useRef(messages.length);
   const wasGeneratingRef = useRef(isGenerating);
   const [justFinished, setJustFinished] = useState(false);
+  // Picture chosen but not yet cropped — the crop dialog owns it until confirmed.
+  const [cropTarget, setCropTarget] = useState<{ kind: 'ic' | 'ooc'; file: File } | null>(null);
+
 
   // Outside suggestions land in the composer so the player can edit before sending.
   useEffect(() => {
