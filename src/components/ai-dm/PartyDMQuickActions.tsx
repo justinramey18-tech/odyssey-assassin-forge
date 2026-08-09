@@ -397,8 +397,9 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
       onComplete: () => {
         const prompt = onHealingItemUsed(item.name, roll);
         if (!prompt) return;
-        if (onSendPrompt) onSendPrompt(prompt);
-        else onUsePrompt(prompt);
+        const tagged = encodeActionCard(actionCardFromRoll(item.name, roll), prompt);
+        if (onSendPrompt) onSendPrompt(tagged);
+        else onUsePrompt(tagged);
       },
     });
   }, [onHealingItemUsed, onSendPrompt, onUsePrompt, onOpenChange]);
