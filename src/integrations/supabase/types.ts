@@ -1727,6 +1727,30 @@ export type Database = {
         }
         Relationships: []
       }
+      player_chat_avatars: {
+        Row: {
+          created_at: string
+          ic_url: string | null
+          ooc_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          ic_url?: string | null
+          ooc_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          ic_url?: string | null
+          ooc_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
