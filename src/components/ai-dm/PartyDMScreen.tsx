@@ -993,7 +993,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     members.find(m => m.user_id === currentUserId)?.character_name || characterContext?.name || 'Player',
     partyDm.sessionConfig?.currentRoundId,
   );
-  const chatRoundsOn = roundChat.style.mode === 'chat';
+  const chatRoundsOn = roundChat.style.mode === 'chat' || roundChat.style.mode === 'live';
   const [roundChatOpen, setRoundChatOpen] = useState(false);
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
