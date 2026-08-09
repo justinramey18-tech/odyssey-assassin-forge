@@ -552,7 +552,11 @@ export function RoundChatDrawer({
                       )}
                       style={{ touchAction: 'manipulation' }}
                     >
-                      In character
+                      {(() => {
+                        const ic = (characterName || '').trim();
+                        const ooc = ((currentUserId && oocNames?.[currentUserId]) || '').trim();
+                        return ic && ooc && ic.toLowerCase() !== ooc.toLowerCase() ? ic : 'In character';
+                      })()}
                     </button>
                     <button
                       onClick={() => setInCharacter(false)}
