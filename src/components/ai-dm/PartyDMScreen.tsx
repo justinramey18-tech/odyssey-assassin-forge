@@ -2740,8 +2740,29 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         </button>
       </div>
 
+      {/* Chat Rounds: mini party chat that drives the DM */}
+      {partyDm.isActive && chatRoundsOn && (
+        <RoundChatDrawer
+          open={roundChatOpen}
+          onOpenChange={setRoundChatOpen}
+          messages={roundChat.messages}
+          reactions={roundChat.reactions}
+          currentUserId={currentUserId}
+          characterName={members.find(m => m.user_id === currentUserId)?.character_name || 'Player'}
+          style={roundChat.style}
+          progress={roundChat.progress}
+          sending={roundChat.sending}
+          isGenerating={partyDm.isGenerating}
+          isHost={isCreator}
+          onSend={(content, ic) => roundChat.sendMessage(content, ic)}
+          onToggleReaction={(id, emoji) => roundChat.toggleReaction(id, emoji, members.find(m => m.user_id === currentUserId)?.character_name || 'Player')}
+          onDeleteMessage={roundChat.deleteMessage}
+          onSendToDMNow={fireChatRound}
+        />
+      )}
+
       {/* Prompt Queue Status */}
-      {partyDm.isActive && (
+      {partyDm.isActive && !chatRoundsOn && (
         <div className="border-t border-amber-900/20 bg-black/30 overflow-hidden">
           {/* Round Timer */}
           <RoundTimer
