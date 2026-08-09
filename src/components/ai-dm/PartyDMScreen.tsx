@@ -1736,6 +1736,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   // then narration fires once the ready row is visible in state.
   const chatRoundFiredRef = useRef<string | null>(null);
   const pendingChatFireRef = useRef<string | null>(null);
+  const lastChatRoundUserIdsRef = useRef<string[]>([]);
 
   const fireChatRound = useCallback(async () => {
     const pd = partyDmRef.current;
