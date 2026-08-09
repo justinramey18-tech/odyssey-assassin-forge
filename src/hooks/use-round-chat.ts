@@ -35,6 +35,8 @@ export interface RoundChatMessage {
   in_character: boolean;
   round_id: string;
   consumed: boolean;
+  /** Ticked by a player to be included in the next hand-off to the DM. */
+  selected: boolean;
   created_at: string;
 }
 
