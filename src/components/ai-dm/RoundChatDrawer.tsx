@@ -38,7 +38,7 @@ interface RoundChatDrawerProps {
   currentUserId?: string;
   characterName: string;
   style: RoundStyle;
-  progress: { current: number; waiting: number; met: boolean };
+  progress: { current: number; waiting: number; speakers?: number; met: boolean };
   sending: boolean;
   isGenerating: boolean;
   isHost: boolean;
@@ -49,6 +49,11 @@ interface RoundChatDrawerProps {
   onSelectAll: () => void;
   onClearSelection: () => void;
   onSendToDMNow: () => void;
+  /** Ticked lines in the order they will be handed to the DM. */
+  orderedSelected?: RoundChatMessage[];
+  /** Replace the hand-off order with an explicit list of message ids. */
+  onReorderSelected?: (ids: string[]) => void;
+
   /** Text pushed in from outside (e.g. "suggest my action") to prefill the composer. */
   draft?: string | null;
   onDraftUsed?: () => void;
