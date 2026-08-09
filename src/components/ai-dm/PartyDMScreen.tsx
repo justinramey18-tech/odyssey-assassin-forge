@@ -2751,19 +2751,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               />
             </div>
           )}
-          {/* Dad Huddle — quick jump to Party Chat */}
-          {partyDm.messages.length > 0 && !recapDismissed && onShowChat && (
-            <div className="mb-4 mx-1">
-              <button
-                onClick={() => onShowChat?.()}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-950/30 border border-amber-500/15 hover:border-amber-500/30 transition-all"
-              >
-                <MessageSquare className="w-3.5 h-3.5 text-amber-300/80" />
-                <span className="text-xs font-cinzel text-amber-300/80 flex-1 text-left">Dad Huddle — Consult with Other Players</span>
-                <ChevronRight className="w-3.5 h-3.5 text-amber-400/50" />
-              </button>
-            </div>
-          )}
         </div>
         {/* Fullscreen toggle - bottom-right of chat area */}
         <button
