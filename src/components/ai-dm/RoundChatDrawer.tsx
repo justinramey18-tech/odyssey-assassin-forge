@@ -569,7 +569,11 @@ export function RoundChatDrawer({
                       )}
                       style={{ touchAction: 'manipulation' }}
                     >
-                      Table talk
+                      {(() => {
+                        const ic = (characterName || '').trim();
+                        const ooc = ((currentUserId && oocNames?.[currentUserId]) || '').trim();
+                        return ic && ooc && ic.toLowerCase() !== ooc.toLowerCase() ? ooc : 'Table talk';
+                      })()}
                     </button>
                   </div>
                   {!inCharacter && onSetOocName && (
