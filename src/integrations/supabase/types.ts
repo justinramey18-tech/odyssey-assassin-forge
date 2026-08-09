@@ -1457,6 +1457,95 @@ export type Database = {
         }
         Relationships: []
       }
+      party_round_chat: {
+        Row: {
+          character_name: string
+          consumed: boolean
+          content: string
+          created_at: string
+          id: string
+          in_character: boolean
+          party_id: string
+          round_id: string
+          user_id: string
+        }
+        Insert: {
+          character_name?: string
+          consumed?: boolean
+          content: string
+          created_at?: string
+          id?: string
+          in_character?: boolean
+          party_id: string
+          round_id: string
+          user_id: string
+        }
+        Update: {
+          character_name?: string
+          consumed?: boolean
+          content?: string
+          created_at?: string
+          id?: string
+          in_character?: boolean
+          party_id?: string
+          round_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_round_chat_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      party_round_chat_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          message_id: string
+          party_id: string
+          sender_name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          message_id: string
+          party_id: string
+          sender_name?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          message_id?: string
+          party_id?: string
+          sender_name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_round_chat_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "party_round_chat"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "party_round_chat_reactions_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       party_round_locks: {
         Row: {
           completed_at: string | null

@@ -15,6 +15,7 @@ import { ResponseModeSelector } from './ResponseModeSelector';
 import type { PushSubscriptionState } from '@/lib/push-subscription';
 import type { DmMode } from '@/hooks/use-party-dm';
 import { QUEST_REWARD_SPLIT_MODES, questRewardSplitLabel, type QuestRewardSplitMode } from '@/lib/questRewardSplit';
+import type { RoundStyle, RoundTriggerRule } from '@/hooks/use-round-chat';
 import { NarrationStyleControl } from './NarrationStyleControl';
 import { DEFAULT_NARRATION_STATE, type NarrationIntensity, type NarrationStyleId, type NarrationStyleState } from '@/lib/narrationStyle';
 
@@ -174,6 +175,9 @@ export interface PartyDMSettingsProps {
   onNarrationStyleChange?: (style: NarrationStyleId) => void;
   onNarrationIntensityChange?: (intensity: NarrationIntensity) => void;
   onQuestRewardSplitModeChange?: (mode: QuestRewardSplitMode) => void;
+  // Round style (party-wide, host-controlled)
+  roundStyle?: RoundStyle;
+  onRoundStyleChange?: (patch: Partial<RoundStyle>) => void;
 }
 
 export function PartyDMSettings({
@@ -203,6 +207,7 @@ export function PartyDMSettings({
   moodPresetFilter, onMoodPresetSelected,
   questRewardSplitMode = 'full', onQuestRewardSplitModeChange,
   narrationStyle = DEFAULT_NARRATION_STATE, onNarrationStyleChange, onNarrationIntensityChange,
+  roundStyle, onRoundStyleChange,
 }: PartyDMSettingsProps) {
   const bgFileInputRef = useRef<HTMLInputElement>(null);
   const originalCreator = isOriginalCreatorProp ?? isCreator;
@@ -473,6 +478,81 @@ export function PartyDMSettings({
           readOnlyNote="The host sets the table's narration tone."
         />
       </SettingsSection>
+
+      {/* Round Style */}
+      {roundStyle && (
+        <SettingsSection title="Round Style" icon={<MessageSquare className="w-4 h-4 text-amber-400" />}>
+          <div className="px-3 py-2.5 space-y-3">
+            <p className="text-[11px] text-muted-foreground">
+              How a round reaches the DM: the classic ready-up queue, or a live party chat that
+              sends itself once enough in-character messages land.
+            </p>
+            {isCreator && onRoundStyleChange ? (
+              <>
+                <Select
+                  value={roundStyle.mode}
+                  onValueChange={(v) => onRoundStyleChange({ mode: v as RoundStyle['mode'] })}
+                >
+                  <SelectTrigger className="w-full min-h-[44px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ready">Ready-up queue (classic)</SelectItem>
+                    <SelectItem value="chat">Chat Rounds (live party chat)</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {roundStyle.mode === 'chat' && (
+                  <>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground mb-1.5">When does the DM respond?</p>
+                      <Select
+                        value={roundStyle.triggerRule}
+                        onValueChange={(v) => onRoundStyleChange({ triggerRule: v as RoundTriggerRule })}
+                      >
+                        <SelectTrigger className="w-full min-h-[44px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="total">After this many messages in total</SelectItem>
+                          <SelectItem value="perPlayer">After this many from each player who spoke</SelectItem>
+                          <SelectItem value="distinct">After this many different players speak</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground mb-1.5">
+                        Messages before the DM responds: <span className="text-foreground">{roundStyle.messageCount}</span>
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                          <button
+                            key={n}
+                            onClick={() => onRoundStyleChange({ messageCount: n })}
+                            style={{ touchAction: 'manipulation' }}
+                            className={cn(
+                              "min-w-[40px] min-h-[40px] rounded-lg border text-sm transition-colors",
+                              roundStyle.messageCount === n
+                                ? "bg-amber-900/40 border-amber-500/40 text-amber-200"
+                                : "bg-white/5 border-white/10 text-muted-foreground"
+                            )}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </>
+            ) : (
+              <div className="text-sm text-foreground">
+                {roundStyle.mode === 'chat'
+                  ? `Chat Rounds — the DM replies every ${roundStyle.messageCount} message${roundStyle.messageCount === 1 ? '' : 's'}.`
+                  : 'Ready-up queue (classic)'}
+              </div>
+            )}
+          </div>
+        </SettingsSection>
+      )}
+
+
 
       {/* Quest Rewards */}
       <SettingsSection title="Quest Rewards" icon={<ScrollText className="w-4 h-4 text-amber-400" />}>
