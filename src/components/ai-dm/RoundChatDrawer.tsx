@@ -408,18 +408,38 @@ export function RoundChatDrawer({
               {/* Composer */}
               <div className="mt-2 space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setInCharacter(prev => !prev)}
-                    className={cn(
-                      "px-2 py-1 rounded-md text-[10px] border transition-colors",
-                      inCharacter
-                        ? "bg-amber-900/30 border-amber-500/30 text-amber-200"
-                        : "bg-white/5 border-white/10 text-white/45"
-                    )}
-                    style={{ touchAction: 'manipulation' }}
+                  <div
+                    role="group"
+                    aria-label="Post as"
+                    className="flex items-center rounded-lg border border-white/10 bg-black/30 p-0.5 shrink-0"
                   >
-                    {inCharacter ? 'In character' : 'Table talk (OOC)'}
-                  </button>
+                    <button
+                      onClick={() => setInCharacter(true)}
+                      aria-pressed={inCharacter}
+                      className={cn(
+                        "px-2 py-1 rounded-md text-[10px] font-medium transition-colors",
+                        inCharacter
+                          ? "bg-amber-500/25 text-amber-100 border border-amber-400/40"
+                          : "text-white/40 border border-transparent"
+                      )}
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      In character
+                    </button>
+                    <button
+                      onClick={() => setInCharacter(false)}
+                      aria-pressed={!inCharacter}
+                      className={cn(
+                        "px-2 py-1 rounded-md text-[10px] font-medium transition-colors",
+                        !inCharacter
+                          ? "bg-sky-500/20 text-sky-100 border border-dashed border-sky-400/50"
+                          : "text-white/40 border border-transparent"
+                      )}
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      Table talk
+                    </button>
+                  </div>
                   <span className="text-[10px] text-white/30">
                     {progress.met
                       ? 'Round is ready for the DM'
@@ -427,6 +447,7 @@ export function RoundChatDrawer({
                         ? `${remaining} more in-character to trigger the DM (table talk doesn't count)`
                         : `${remaining} more to trigger the DM`}
                   </span>
+
                   {isHost && (
                     <button
                       onClick={onSendToDMNow}
