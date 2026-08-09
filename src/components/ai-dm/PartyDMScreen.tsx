@@ -33,6 +33,8 @@ import { PartyQuestsPanel } from './PartyQuestsPanel';
 import { usePartyQuests } from '@/hooks/use-party-quests';
 import { useQuestRewardSplit } from '@/hooks/use-quest-reward-split';
 import { usePartyNarrationStyle } from '@/hooks/use-party-narration-style';
+import { useRoundChat } from '@/hooks/use-round-chat';
+import { RoundChatDrawer } from './RoundChatDrawer';
 import { narrationStyleLine } from '@/lib/narrationStyle';
 import { withQuestEvent, WorldStateEntry, buildQuestKickoffPrompt } from '@/lib/quests';
 
