@@ -72,6 +72,15 @@ export function RoundChatDrawer({
         ? 'players'
         : 'each';
 
+  const triggerHint = (() => {
+    const n = style.messageCount;
+    const s = n === 1 ? '' : 's';
+    if (style.triggerRule === 'distinct') return `The DM replies once ${n} different player${s} ha${n === 1 ? 's' : 've'} spoken.`;
+    if (style.triggerRule === 'perPlayer') return `The DM replies once everyone who spoke has posted ${n} message${s}.`;
+    return `The DM replies after ${n} message${s}.`;
+  })();
+
+
   const handleSend = async () => {
     const trimmed = text.trim();
     if (!trimmed || sending) return;
@@ -127,9 +136,22 @@ export function RoundChatDrawer({
                 style={{ maxHeight: '38vh' }}
               >
                 {messages.length === 0 ? (
-                  <p className="text-[11px] text-white/30 text-center py-4">
-                    No round chat yet — say something in character to start the round.
-                  </p>
+                  <div className="py-4 px-3 text-center space-y-2">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
+                      <MessageSquare className="w-3 h-3 text-amber-300/80" />
+                      <span className="text-[11px] text-amber-200/90">
+                        {style.mode === 'live' ? 'Live table is open' : 'The round starts here'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-white/50 leading-relaxed max-w-[34ch] mx-auto">
+                      {style.mode === 'live'
+                        ? 'Type below to play your character, or flip the toggle to Table talk and just chat — the DM hears both, riffs on the banter, then plays the scene.'
+                        : 'Type below to say or do something as your character. Table talk stays between players; only in-character lines reach the DM.'}
+                    </p>
+                    <p className="text-[10px] text-white/35 max-w-[34ch] mx-auto">
+                      {triggerHint}
+                    </p>
+                  </div>
                 ) : messages.map(m => {
                   const isSelf = m.user_id === currentUserId;
                   const msgReactions = reactionsByMessage.get(m.id) || [];
