@@ -1752,6 +1752,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     chatRoundFiredRef.current = fireKey;
     setRoundChatOpen(false);
     const coveredUserIds = roundChatRef.current.pendingUserIds;
+    lastChatRoundUserIdsRef.current = coveredUserIds;
     await roundChatRef.current.consumePending();
     await pd.submitPrompt(bundled);
     await pd.setReady();
