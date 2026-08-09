@@ -1816,7 +1816,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     if (partyDm.isGenerating) return;
     if (!partyDm.myPrompt?.is_ready) return;
     pendingChatFireRef.current = null;
-    partyDmRef.current.generateResponse();
+    partyDmRef.current.generateResponse({ coveredUserIds: lastChatRoundUserIdsRef.current });
   }, [chatRoundsOn, isCreator, partyDm.myPrompt?.is_ready, partyDm.isGenerating, partyDm.sessionConfig?.currentRoundId]);
 
 
