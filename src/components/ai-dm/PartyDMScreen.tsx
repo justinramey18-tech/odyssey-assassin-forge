@@ -1732,8 +1732,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   }, [partyDm.allReady, partyDm.isGenerating, partyDm.sessionConfig?.dmMode, partyDm.sessionConfig?.currentRoundId, isCreator, chatRoundsOn]);
 
   // ── Chat Rounds ──
-  // Host bundles this round's in-character chat lines into one prompt, readies it,
-  // then narration fires once the ready row is visible in state.
+  // Host/co-host bundles the ticked chat lines into one prompt, readies it,
+  // then narration fires. Nothing is sent automatically.
   const chatRoundFiredRef = useRef<string | null>(null);
   const pendingChatFireRef = useRef<string | null>(null);
   const lastChatRoundUserIdsRef = useRef<string[]>([]);
@@ -1742,10 +1742,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     const pd = partyDmRef.current;
     const roundKey = pd.sessionConfig?.currentRoundId || '';
     if (!roundKey || pd.isGenerating) return;
-    const pending = roundChatRef.current.pendingMessages;
-    // Keyed on the round AND the last line in it, so a round that gathers more
-    // chat while the DM is busy can still fire again afterwards.
-    const fireKey = `${roundKey}:${pending[pending.length - 1]?.id || ''}`;
+    const picked = roundChatRef.current.selectedMessages;
+    if (picked.length === 0) {
+      toast.info('Tick the lines you want the DM to answer first');
+      return;
+    }
+    // Keyed on the round AND the last ticked line, so a later batch can fire again.
+    const fireKey = `${roundKey}:${picked[picked.length - 1]?.id || ''}`;
     if (chatRoundFiredRef.current === fireKey) return;
     const bundled = roundChatRef.current.buildRoundPrompt();
     if (!bundled.trim()) return;
