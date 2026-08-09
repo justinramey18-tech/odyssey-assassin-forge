@@ -591,23 +591,30 @@ export function RoundChatDrawer({
                       </button>
                     )
                   )}
-                  <span className="text-[10px] text-white/30">
-                    {progress.met
-                      ? 'Round is ready for the DM'
-                      : progress.banterExcluded
-                        ? `${remaining} more in-character to trigger the DM (table talk doesn't count)`
-                        : `${remaining} more to trigger the DM`}
+                  {progress.waiting > 0 && (
+                    <button
+                      onClick={progress.current > 0 ? onClearSelection : onSelectAll}
+                      className="shrink-0 px-2 py-1 rounded-md text-[10px] border border-white/15 bg-white/5 text-white/60"
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      {progress.current > 0 ? 'Clear ticks' : 'Tick all'}
+                    </button>
+                  )}
+                  <span className="text-[10px] text-white/30 truncate">
+                    {progress.current > 0
+                      ? `${progress.current} ticked for the DM`
+                      : 'Tick lines to send'}
                   </span>
 
                   {isHost && (
                     <button
                       onClick={onSendToDMNow}
-                      disabled={isGenerating}
+                      disabled={isGenerating || progress.current === 0}
                       className="ml-auto flex items-center gap-1 px-2 py-1 rounded-md text-[10px] border border-emerald-500/30 bg-emerald-900/25 text-emerald-300 hover:bg-emerald-900/45 transition-colors disabled:opacity-40"
                       style={{ touchAction: 'manipulation' }}
                     >
                       <Zap className="w-3 h-3" />
-                      Send to DM now
+                      Send {progress.current > 0 ? `${progress.current} ` : ''}to DM
                     </button>
                   )}
                 </div>
