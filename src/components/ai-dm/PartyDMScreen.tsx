@@ -4735,6 +4735,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
       {characterContext && (
         <SoloCharacterSheet
+          npcSuggestions={partyNPCNames}
           open={showCharacterSheet}
           origin="party"
           onViewPartySheets={() => setShowPartySheets(true)}
