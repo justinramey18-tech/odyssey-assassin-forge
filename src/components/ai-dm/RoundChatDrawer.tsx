@@ -395,7 +395,9 @@ export function RoundChatDrawer({
                   const displayName = m.in_character
                     ? (m.character_name || 'Player')
                     : (oocNames?.[m.user_id] || m.character_name || 'Player');
-                  const selectable = !m.consumed && (style.mode === 'live' || m.in_character);
+                  // Whatever is ticked goes — table talk included, clearly labelled.
+                  const selectable = !m.consumed;
+
                   return (
                     <div
                       key={m.id}
