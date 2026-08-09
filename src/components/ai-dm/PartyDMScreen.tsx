@@ -1742,7 +1742,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     const pd = partyDmRef.current;
     const roundKey = pd.sessionConfig?.currentRoundId || '';
     if (!roundKey || pd.isGenerating) return;
-    const picked = roundChatRef.current.selectedMessages;
+    const picked = roundChatRef.current.orderedSelected;
     if (picked.length === 0) {
       toast.info('Tick the lines you want the DM to answer first');
       return;
@@ -1754,21 +1754,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     if (!bundled.trim()) return;
     chatRoundFiredRef.current = fireKey;
     setRoundChatOpen(false);
-    const coveredUserIds = roundChatRef.current.pendingUserIds;
+    const participants = roundChatRef.current.selectedParticipants;
+    const coveredUserIds = participants.map(p => p.userId);
     lastChatRoundUserIdsRef.current = coveredUserIds;
     await roundChatRef.current.consumePending();
-    await pd.submitPrompt(bundled);
-    await pd.setReady();
-    // Call the DM directly rather than waiting for the ready row to echo back
-    // through realtime — if that echo is slow or dropped the round never fires.
-    pendingChatFireRef.current = roundKey;
-    try {
-      await pd.generateResponse({ coveredUserIds });
-      pendingChatFireRef.current = null;
-    } catch {
-      /* the ready-echo effect below is the fallback */
-    }
+    // The ticked chat IS the prompt — no ready-up row, no second tap.
+    await pd.generateResponse({
+      coveredUserIds,
+      directPrompt: { text: bundled, participants },
+    });
   }, []);
+
 
 
   /**
