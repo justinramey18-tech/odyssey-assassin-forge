@@ -81,6 +81,8 @@ export function useMessageNarration(
   const [speakingName, setSpeakingName] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const queueRef = useRef<Array<{ key: string; url: string; speaker?: string | null }>>([]);
+  const audioMapRef = useRef<Record<string, MessageAudioRow>>({});
+  audioMapRef.current = audioByMessage;
 
   const hasSpeechifyKey = !!loadApiKey('speechify');
 
@@ -302,7 +304,9 @@ export function useMessageNarration(
 
     let done = 0;
     try {
-      if (doTable) {
+      const hasClip = (part: string) => !!audioMapRef.current[narrationKey(messageId, part)];
+
+      if (doTable && !hasClip('table')) {
         const dmVoice = loadSpeechifyDMVoiceId();
         const blob = await synthesize(tableTalk, dmVoice, apiKey);
         await storeClip(messageId, 'table', blob, dmVoice);
@@ -314,6 +318,11 @@ export function useMessageNarration(
       for (let i = 0; i < segments.length; i++) {
         const seg = segments[i];
         setCastProgress({ messageId, done, total, speaker: seg.speaker });
+        if (hasClip(segmentKey(seg))) {
+          done++;
+          setCastProgress({ messageId, done, total, speaker: segments[i + 1]?.speaker ?? null });
+          continue;
+        }
         const voiceId = seg.voiceId || (seg.speaker && voiceForSpeaker(seg.speaker)) || narratorVoice;
         const blob = await synthesize(seg.text, voiceId, apiKey);
         await storeClip(messageId, segmentKey(seg), blob, voiceId);
