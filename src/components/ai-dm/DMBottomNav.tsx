@@ -205,7 +205,7 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
             )} />
             {!isExpanded && (
               <span className="text-[11px] font-mono text-amber-400/60 mt-1 tracking-widest select-none font-semibold">
-                {notchIconOverride ?? '⚔'} {notchLabelOverride ?? 'ACTIONS/SETTINGS'}
+                {notchIconOverride ?? '⚔'} {notchLabelOverride ?? 'CHARACTER SHEET'}
               </span>
             )}
           </div>
