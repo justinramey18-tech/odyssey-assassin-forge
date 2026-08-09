@@ -1791,19 +1791,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
 
 
-  // No automatic firing: the host (or a co-host) decides when the ticked lines
-  // go to the DM via "Send to DM".
+  // No automatic firing, and no ready-up detour: "Send to DM" hands the ticked
+  // lines straight to the DM in one call.
 
-
-  useEffect(() => {
-    if (!chatRoundsOn || !isCreator) return;
-    const roundKey = partyDm.sessionConfig?.currentRoundId || '';
-    if (!roundKey || pendingChatFireRef.current !== roundKey) return;
-    if (partyDm.isGenerating) return;
-    if (!partyDm.myPrompt?.is_ready) return;
-    pendingChatFireRef.current = null;
-    partyDmRef.current.generateResponse({ coveredUserIds: lastChatRoundUserIdsRef.current });
-  }, [chatRoundsOn, isCreator, partyDm.myPrompt?.is_ready, partyDm.isGenerating, partyDm.sessionConfig?.currentRoundId]);
 
 
   const handleSubmit = useCallback((text: string) => {
