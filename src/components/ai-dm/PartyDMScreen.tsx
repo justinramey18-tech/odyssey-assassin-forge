@@ -2819,6 +2819,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           draft={roundChatDraft}
           onDraftUsed={() => setRoundChatDraft(null)}
           avatars={chatAvatars.avatars}
+          oocNames={chatAvatars.oocNames}
+          onSetOocName={async (name) => {
+            try {
+              await chatAvatars.setOocName(name);
+              toast.success(name.trim() ? `Table talk name set to ${name.trim()}` : 'Table talk name cleared');
+            } catch {
+              toast.error('Could not save your table talk name');
+            }
+          }}
           onUploadAvatar={async (kind, file) => {
             try {
               await chatAvatars.uploadAvatar(kind, file);
