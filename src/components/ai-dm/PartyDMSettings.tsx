@@ -174,6 +174,9 @@ export interface PartyDMSettingsProps {
   onNarrationStyleChange?: (style: NarrationStyleId) => void;
   onNarrationIntensityChange?: (intensity: NarrationIntensity) => void;
   onQuestRewardSplitModeChange?: (mode: QuestRewardSplitMode) => void;
+  // Round style (party-wide, host-controlled)
+  roundStyle?: RoundStyle;
+  onRoundStyleChange?: (patch: Partial<RoundStyle>) => void;
 }
 
 export function PartyDMSettings({
