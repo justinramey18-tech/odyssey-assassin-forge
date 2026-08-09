@@ -244,7 +244,9 @@ export function RoundChatDrawer({
                   <span className="text-[10px] text-white/30">
                     {progress.met
                       ? 'Round is ready for the DM'
-                      : `${remaining} more to trigger the DM`}
+                      : progress.banterExcluded
+                        ? `${remaining} more in-character to trigger the DM (table talk doesn't count)`
+                        : `${remaining} more to trigger the DM`}
                   </span>
                   {isHost && (
                     <button
