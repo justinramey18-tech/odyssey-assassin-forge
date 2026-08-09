@@ -1734,6 +1734,30 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     pendingChatFireRef.current = roundKey;
   }, [roundChat]);
 
+  /**
+   * Single exit for every player-generated line (potions, spells, dice results,
+   * suggested actions, quest kickoffs, roleplay prompts, quick actions...).
+   * In Chat Rounds / Live DM the round chat is the only way to reach the DM,
+   * so those lines post there as in-character messages instead of the hidden
+   * ready-up prompt row.
+   */
+  const chatRoundsOnRef = useRef(chatRoundsOn);
+  chatRoundsOnRef.current = chatRoundsOn;
+  const roundChatRef = useRef(roundChat);
+  roundChatRef.current = roundChat;
+
+  const dispatchPrompt = useCallback((text: string, intensity?: number) => {
+    if (!text || !text.trim()) return;
+    if (chatRoundsOnRef.current) {
+      setRoundChatOpen(true);
+      void roundChatRef.current.sendMessage(text, true);
+      return;
+    }
+    partyDmRef.current?.submitPrompt(text, intensity);
+  }, []);
+
+
+
   useEffect(() => {
     if (!chatRoundsOn || !isCreator) return;
     if (!roundChat.progress.met) return;
