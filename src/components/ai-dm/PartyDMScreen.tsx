@@ -1750,6 +1750,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     if (!bundled.trim()) return;
     chatRoundFiredRef.current = fireKey;
     setRoundChatOpen(false);
+    const coveredUserIds = roundChatRef.current.pendingUserIds;
     await roundChatRef.current.consumePending();
     await pd.submitPrompt(bundled);
     await pd.setReady();
@@ -1757,7 +1758,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     // through realtime — if that echo is slow or dropped the round never fires.
     pendingChatFireRef.current = roundKey;
     try {
-      await pd.generateResponse();
+      await pd.generateResponse({ coveredUserIds });
       pendingChatFireRef.current = null;
     } catch {
       /* the ready-echo effect below is the fallback */

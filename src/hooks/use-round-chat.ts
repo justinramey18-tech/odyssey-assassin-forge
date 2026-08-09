@@ -317,6 +317,7 @@ export function useRoundChat(
     deleteMessage,
     toggleReaction,
     pendingMessages,
+    pendingUserIds,
     progress,
     buildRoundPrompt,
     consumePending,
