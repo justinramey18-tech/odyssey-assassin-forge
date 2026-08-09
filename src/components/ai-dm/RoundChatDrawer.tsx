@@ -387,6 +387,7 @@ export function RoundChatDrawer({
                   const displayName = m.in_character
                     ? (m.character_name || 'Player')
                     : (oocNames?.[m.user_id] || m.character_name || 'Player');
+                  const selectable = !m.consumed && (style.mode === 'live' || m.in_character);
                   return (
                     <div
                       key={m.id}
@@ -395,6 +396,25 @@ export function RoundChatDrawer({
                         alignRight ? "justify-end flex-row-reverse" : "justify-start",
                       )}
                     >
+                    {selectable ? (
+                      <button
+                        onClick={() => onToggleSelected(m.id)}
+                        role="checkbox"
+                        aria-checked={!!m.selected}
+                        aria-label={m.selected ? 'Remove from the DM hand-off' : 'Send this line to the DM'}
+                        style={{ touchAction: 'manipulation' }}
+                        className={cn(
+                          "mt-1 shrink-0 w-5 h-5 rounded-[6px] border flex items-center justify-center transition-colors",
+                          m.selected
+                            ? "bg-emerald-500/25 border-emerald-400/60 text-emerald-200"
+                            : "bg-white/5 border-white/20 text-transparent",
+                        )}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <span className="mt-1 shrink-0 w-5 h-5" />
+                    )}
                     <ChatAvatar
                       url={avatarUrl}
                       label={displayName}
