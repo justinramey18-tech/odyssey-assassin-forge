@@ -129,7 +129,11 @@ export function RoundChatDrawer({
     const trimmed = text.trim();
     if (!trimmed || sending) return;
     setText('');
+    // Posting your own line always brings you back to the bottom.
+    pinnedRef.current = true;
+    setPinned(true);
     await onSend(trimmed, inCharacter);
+    requestAnimationFrame(() => scrollToLatest('smooth'));
   };
 
   return (
