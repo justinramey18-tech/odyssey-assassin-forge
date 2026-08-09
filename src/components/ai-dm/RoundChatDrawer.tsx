@@ -603,6 +603,19 @@ export function RoundChatDrawer({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AvatarCropDialog
+        open={!!cropTarget}
+        file={cropTarget?.file ?? null}
+        kind={cropTarget?.kind ?? 'ic'}
+        onCancel={() => setCropTarget(null)}
+        onConfirm={async (cropped) => {
+          const kind = cropTarget?.kind ?? 'ic';
+          setCropTarget(null);
+          await onUploadAvatar?.(kind, cropped);
+        }}
+      />
     </div>
   );
 }
+
