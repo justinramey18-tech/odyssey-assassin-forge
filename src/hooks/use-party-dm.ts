@@ -1442,7 +1442,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     responseModePrompt?: string,
     dmPersonaPrompt?: string,
     currentOocDirectives?: string[],
+    liveTable?: { mode: 'chat' | 'live'; chaosLevel: number; hasTableTalk: boolean; hasInCharacter: boolean },
   ): Promise<string> => {
+
     // Ensure strictly alternating roles before sending to AI
     const sanitizedMessages = mergeConsecutiveRoles(apiMessages);
 
