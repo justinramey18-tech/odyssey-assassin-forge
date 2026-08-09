@@ -393,9 +393,12 @@ export function splitDMResponseParts(text: string): { tableTalk: string; story: 
   return { tableTalk: '', story: raw.trim() };
 }
 
-/** Removes the [TABLE] markers while keeping the words, for on-screen display. */
+/** Removes the [TABLE] and [VOICE:...] markers while keeping the words, for display. */
 export function stripTableTalkTags(text: string): string {
-  return (text || '').replace(/\[\/?TABLE(?:\s*TALK)?\]/gi, '');
+  return (text || '')
+    .replace(/\[\/?TABLE(?:\s*TALK)?\]/gi, '')
+    .replace(/\[VOICE:[^\]]{0,40}\]/gi, '')
+    .replace(/\[\/VOICE\]/gi, '');
 }
 
 // ── Character voice cast ────────────────────────────────────────────────────
