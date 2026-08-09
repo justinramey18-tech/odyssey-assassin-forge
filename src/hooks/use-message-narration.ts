@@ -281,55 +281,28 @@ export function useMessageNarration(
     }));
   }, [partyId, currentUserId, currentUserName]);
 
-  const generate = useCallback(async (messageId: string, rawText: string, part: NarrationPart = 'story') => {
-    if (!partyId) return;
-    const apiKey = loadApiKey('speechify');
-    if (!apiKey) {
-      toast.error('No Speechify API key', { description: 'Add one in Settings → API Keys.' });
-      return;
-    }
-    if (generatingId) return;
-
-    const key = narrationKey(messageId, part);
-    setGeneratingId(key);
-    try {
-      const voiceId = part === 'table' ? loadSpeechifyDMVoiceId() : loadSpeechifyVoiceId();
-      const blob = await synthesize(rawText, voiceId, apiKey);
-      await storeClip(messageId, part, blob, voiceId);
-      toast.success(part === 'table' ? 'DM aside saved for the party' : 'Narration saved for the party');
-    } catch (error) {
-      console.error('[MessageNarration] generate failed:', error);
-      toast.error(error instanceof Error ? error.message : 'Narration failed');
-    } finally {
-      setGeneratingId(null);
-    }
-  }, [partyId, generatingId, synthesize, storeClip]);
-
   /**
-   * Full cast pass: the DM aside in the DM voice, then every story segment in
-   * the voice assigned to its speaker (falling back to the narrator voice).
+   * Runs a full cast pass: the DM aside in the DM voice, then every story
+   * segment in the voice assigned to its speaker (or hand-picked for it),
+   * falling back to the narrator voice.
    */
-  const generateCast = useCallback(async (messageId: string, content: string) => {
-    if (!partyId) return;
-    const apiKey = loadApiKey('speechify');
-    if (!apiKey) {
-      toast.error('No Speechify API key', { description: 'Add one in Settings → API Keys.' });
-      return;
-    }
-    if (generatingId) return;
-
+  const castRun = useCallback(async (
+    messageId: string,
+    content: string,
+    apiKey: string,
+    opts?: { skipTable?: boolean },
+  ) => {
     const { tableTalk, story } = splitDMResponseParts(content || '');
     const segments = splitStorySegments(story || content || '', messageId);
-    const total = segments.length + (tableTalk.trim() ? 1 : 0);
+    const doTable = !opts?.skipTable && !!tableTalk.trim();
+    const total = segments.length + (doTable ? 1 : 0);
     if (total === 0) return;
 
-    const castKey = narrationKey(messageId, 'cast');
-    setGeneratingId(castKey);
-    setCastProgress({ messageId, done: 0, total, speaker: tableTalk.trim() ? 'DM' : segments[0]?.speaker ?? null });
+    setCastProgress({ messageId, done: 0, total, speaker: doTable ? 'DM' : segments[0]?.speaker ?? null });
 
     let done = 0;
     try {
-      if (tableTalk.trim()) {
+      if (doTable) {
         const dmVoice = loadSpeechifyDMVoiceId();
         const blob = await synthesize(tableTalk, dmVoice, apiKey);
         await storeClip(messageId, 'table', blob, dmVoice);
@@ -347,15 +320,75 @@ export function useMessageNarration(
         done++;
         setCastProgress({ messageId, done, total, speaker: segments[i + 1]?.speaker ?? null });
       }
-      toast.success(`Narration cast ready (${done} clip${done === 1 ? '' : 's'})`);
+      toast.success(`Narration ready (${done} clip${done === 1 ? '' : 's'})`);
+    } finally {
+      setCastProgress(null);
+    }
+  }, [synthesize, storeClip]);
+
+  const generate = useCallback(async (messageId: string, rawText: string, part: NarrationPart = 'story') => {
+    if (!partyId) return;
+    const apiKey = loadApiKey('speechify');
+    if (!apiKey) {
+      toast.error('No Speechify API key', { description: 'Add one in Settings → API Keys.' });
+      return;
+    }
+    if (generatingId) return;
+
+    // "Narrate story" splits itself into character voices whenever the passage
+    // has assigned speakers or hand-picked voices.
+    if (part === 'story') {
+      const segments: NarrationSegment[] = splitStorySegments(rawText, messageId);
+      const needsCast = segments.some((s) => s.voiceId || (s.speaker && voiceForSpeaker(s.speaker)));
+      if (needsCast) {
+        setGeneratingId(narrationKey(messageId, 'cast'));
+        try {
+          await castRun(messageId, rawText, apiKey, { skipTable: true });
+        } catch (error) {
+          console.error('[MessageNarration] story cast failed:', error);
+          toast.error(error instanceof Error ? error.message : 'Narration failed');
+        } finally {
+          setGeneratingId(null);
+        }
+        return;
+      }
+    }
+
+    const key = narrationKey(messageId, part);
+    setGeneratingId(key);
+    try {
+      const voiceId = part === 'table' ? loadSpeechifyDMVoiceId() : loadSpeechifyVoiceId();
+      const blob = await synthesize(rawText, voiceId, apiKey);
+      await storeClip(messageId, part, blob, voiceId);
+      toast.success(part === 'table' ? 'DM aside saved for the party' : 'Narration saved for the party');
+    } catch (error) {
+      console.error('[MessageNarration] generate failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Narration failed');
+    } finally {
+      setGeneratingId(null);
+    }
+  }, [partyId, generatingId, synthesize, storeClip, castRun]);
+
+  const generateCast = useCallback(async (messageId: string, content: string) => {
+    if (!partyId) return;
+    const apiKey = loadApiKey('speechify');
+    if (!apiKey) {
+      toast.error('No Speechify API key', { description: 'Add one in Settings → API Keys.' });
+      return;
+    }
+    if (generatingId) return;
+
+    setGeneratingId(narrationKey(messageId, 'cast'));
+    try {
+      await castRun(messageId, content, apiKey);
     } catch (error) {
       console.error('[MessageNarration] cast failed:', error);
       toast.error(error instanceof Error ? error.message : 'Narration failed');
     } finally {
       setGeneratingId(null);
-      setCastProgress(null);
     }
-  }, [partyId, generatingId, synthesize, storeClip]);
+  }, [partyId, generatingId, castRun]);
+
 
   const remove = useCallback(async (messageId: string, part: NarrationPart = 'story') => {
     if (!partyId) return;
