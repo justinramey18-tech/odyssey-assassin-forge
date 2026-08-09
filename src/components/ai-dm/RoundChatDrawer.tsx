@@ -377,15 +377,32 @@ export function RoundChatDrawer({
                   }, {});
                   const nameColor = m.in_character ? playerColor(m.user_id) : 'text-amber-300/80';
                   const alignRight = m.in_character && isSelf;
+                  const avatarUrl = m.in_character
+                    ? avatars?.[m.user_id]?.ic
+                    : avatars?.[m.user_id]?.ooc;
                   return (
-                    <div key={m.id} className={cn("flex", alignRight ? "justify-end" : "justify-start")}>
+                    <div
+                      key={m.id}
+                      className={cn(
+                        "flex items-start gap-1.5",
+                        alignRight ? "justify-end flex-row-reverse" : "justify-start",
+                      )}
+                    >
+                    <ChatAvatar
+                      url={avatarUrl}
+                      label={m.character_name || 'Player'}
+                      kind={m.in_character ? 'ic' : 'ooc'}
+                      editable={isSelf && !!onUploadAvatar}
+                      onPick={(file) => onUploadAvatar?.(m.in_character ? 'ic' : 'ooc', file)}
+                    />
                     <div
                       className={cn(
-                        "max-w-[85%] min-w-0",
+                        "max-w-[80%] min-w-0",
                         alignRight ? "text-right" : "text-left",
                         m.consumed && "opacity-60",
                       )}
                     >
+
                       <div className={cn("flex items-center gap-1.5", alignRight && "flex-row-reverse")}>
                         <span className={cn("text-[10px] font-semibold truncate font-cinzel", nameColor)}>
                           {m.character_name}
