@@ -131,6 +131,22 @@ export function RoundChatDrawer({
     return `The DM replies after ${n} message${s}.`;
   })();
 
+  /** Compact status line: queued -> thinking -> ready. */
+  const dmStatus: { tone: 'queued' | 'thinking' | 'ready'; label: string } | null = (() => {
+    if (isGenerating) return { tone: 'thinking', label: 'The DM is thinking…' };
+    if (justFinished) return { tone: 'ready', label: 'The DM has replied — scroll up to read the scene.' };
+    if (progress.met) return { tone: 'queued', label: 'Round is full — the DM is up next.' };
+    if (progress.current > 0) {
+      const left = remaining;
+      return {
+        tone: 'queued',
+        label: `${progress.current} queued · ${left} more ${ruleLabel === 'players' ? (left === 1 ? 'player' : 'players') : left === 1 ? 'message' : 'messages'} until the DM replies`,
+      };
+    }
+    return null;
+  })();
+
+
 
   const handleSend = async () => {
     const trimmed = text.trim();
