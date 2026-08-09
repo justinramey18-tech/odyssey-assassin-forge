@@ -1676,12 +1676,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   // Helper: build AFK guide context for absent members
   // Returns guidesSection, promptSection, and consumedCascades (members whose first cascade prompt was used)
-  const buildAfkGuidesContext = useCallback((readyPrompts: PartyDmPrompt[], teamMemberIds?: string[]) => {
+  const buildAfkGuidesContext = useCallback((readyPrompts: PartyDmPrompt[], teamMemberIds?: string[], coveredUserIds?: string[]) => {
     const relevantMembers = teamMemberIds
       ? partyMembers.filter(m => teamMemberIds.includes(m.user_id))
       : partyMembers;
+    const covered = new Set(coveredUserIds || []);
     const absentMembers = relevantMembers.filter(
-      m => !readyPrompts.some(p => p.user_id === m.user_id)
+      m => !covered.has(m.user_id) && !readyPrompts.some(p => p.user_id === m.user_id)
     );
     const afkLines: string[] = [];
     const afkPromptLines: string[] = [];
@@ -1794,8 +1795,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     return data as PartyDmMessage | null;
   }, [user]);
 
-  const generateResponse = useCallback(async () => {
+  const generateResponse = useCallback(async (options?: { coveredUserIds?: string[] }) => {
+    const coveredUserIds = options?.coveredUserIds;
     if (!partyId || !user || !sessionConfig || isGenerating) return;
+
 
     const isTurnBased = (sessionConfig.dmMode || 'ai') === 'turnBased';
     const rawReadyPrompts = isTurnBased
@@ -1992,7 +1995,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         if (alphaPrompts.length > 0) {
           const { guidesSection: alphaAfkGuides, promptSection: alphaAfkPrompts, consumedCascades: alphaConsumed, afkEntries: alphaAfkEntries } = suppressAfkGuides
             ? { guidesSection: '', promptSection: '', consumedCascades: [], afkEntries: [] as Array<{ userId: string; characterName: string; content: string }> }
-            : buildAfkGuidesContext(alphaPrompts, splitState.alphaMembers);
+            : buildAfkGuidesContext(alphaPrompts, splitState.alphaMembers, coveredUserIds);
           allConsumedCascades = [...allConsumedCascades, ...alphaConsumed];
           const alphaRawCombined = alphaPrompts
             .map(formatPromptLineForAI)
@@ -2063,7 +2066,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         if (betaPrompts.length > 0) {
           const { guidesSection: betaAfkGuides, promptSection: betaAfkPrompts, consumedCascades: betaConsumed, afkEntries: betaAfkEntries } = suppressAfkGuides
             ? { guidesSection: '', promptSection: '', consumedCascades: [], afkEntries: [] as Array<{ userId: string; characterName: string; content: string }> }
-            : buildAfkGuidesContext(betaPrompts, splitState.betaMembers);
+            : buildAfkGuidesContext(betaPrompts, splitState.betaMembers, coveredUserIds);
           allConsumedCascades = [...allConsumedCascades, ...betaConsumed];
           const betaRawCombined = betaPrompts
             .map(formatPromptLineForAI)
@@ -2196,7 +2199,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         // === NORMAL MODE ===
         const { guidesSection: afkGuidesSection, promptSection: afkPromptSection, consumedCascades: normalConsumed, afkEntries: normalAfkEntries } = suppressAfkGuides
           ? { guidesSection: '', promptSection: '', consumedCascades: [], afkEntries: [] as Array<{ userId: string; characterName: string; content: string }> }
-          : buildAfkGuidesContext(readyPrompts, isTurnBased && sessionConfig.turnUserId ? [sessionConfig.turnUserId] : undefined);
+          : buildAfkGuidesContext(readyPrompts, isTurnBased && sessionConfig.turnUserId ? [sessionConfig.turnUserId] : undefined, coveredUserIds);
         const rawCombined = readyPrompts
           .map(formatPromptLineForAI)
           .join('\n') + afkPromptSection;

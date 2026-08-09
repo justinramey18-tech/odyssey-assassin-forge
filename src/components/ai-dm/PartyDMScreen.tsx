@@ -1736,6 +1736,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   // then narration fires once the ready row is visible in state.
   const chatRoundFiredRef = useRef<string | null>(null);
   const pendingChatFireRef = useRef<string | null>(null);
+  const lastChatRoundUserIdsRef = useRef<string[]>([]);
 
   const fireChatRound = useCallback(async () => {
     const pd = partyDmRef.current;
@@ -1750,6 +1751,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     if (!bundled.trim()) return;
     chatRoundFiredRef.current = fireKey;
     setRoundChatOpen(false);
+    const coveredUserIds = roundChatRef.current.pendingUserIds;
+    lastChatRoundUserIdsRef.current = coveredUserIds;
     await roundChatRef.current.consumePending();
     await pd.submitPrompt(bundled);
     await pd.setReady();
@@ -1757,7 +1760,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     // through realtime — if that echo is slow or dropped the round never fires.
     pendingChatFireRef.current = roundKey;
     try {
-      await pd.generateResponse();
+      await pd.generateResponse({ coveredUserIds });
       pendingChatFireRef.current = null;
     } catch {
       /* the ready-echo effect below is the fallback */
@@ -1815,7 +1818,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     if (partyDm.isGenerating) return;
     if (!partyDm.myPrompt?.is_ready) return;
     pendingChatFireRef.current = null;
-    partyDmRef.current.generateResponse();
+    partyDmRef.current.generateResponse({ coveredUserIds: lastChatRoundUserIdsRef.current });
   }, [chatRoundsOn, isCreator, partyDm.myPrompt?.is_ready, partyDm.isGenerating, partyDm.sessionConfig?.currentRoundId]);
 
 
@@ -3824,7 +3827,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               )}
               {isCreator && (partyDm.sessionConfig?.dmMode || 'ai') !== 'human' && (
                 <Button
-                  onClick={partyDm.generateResponse}
+                  onClick={() => partyDm.generateResponse()}
                   disabled={partyDm.isGenerating || partyDm.currentPrompts.length === 0}
                   className="gap-1.5 bg-amber-900/40 border border-amber-500/30 hover:bg-amber-900/60 text-amber-300"
                   size="sm"
@@ -3841,7 +3844,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         {isCreator && !partyDm.isGenerating && hasSubmitted && !isReady && partyDm.currentPrompts.length > 0 && (partyDm.sessionConfig?.dmMode || 'ai') !== 'human' && (
           <div className="mt-2 flex justify-end max-w-2xl mx-auto">
             <Button
-              onClick={partyDm.generateResponse}
+              onClick={() => partyDm.generateResponse()}
               variant="outline"
               size="sm"
               className="gap-1.5 text-amber-300 border-amber-500/30"
