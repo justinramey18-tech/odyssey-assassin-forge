@@ -13,6 +13,7 @@ const LEGACY_STATE_TYPE = 'chat_avatars';
  */
 export function useChatAvatars(partyId: string | null, userId: string | undefined) {
   const [avatars, setAvatars] = useState<Record<string, ChatAvatars>>({});
+  const [oocNames, setOocNames] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
 
   const load = useCallback(async () => {
@@ -34,14 +35,17 @@ export function useChatAvatars(partyId: string | null, userId: string | undefine
     }
 
     const { data } = await (supabase.from('player_chat_avatars') as any)
-      .select('user_id, ic_url, ooc_url');
-    for (const row of (data || []) as Array<{ user_id: string; ic_url: string | null; ooc_url: string | null }>) {
+      .select('user_id, ic_url, ooc_url, ooc_name');
+    const names: Record<string, string> = {};
+    for (const row of (data || []) as Array<{ user_id: string; ic_url: string | null; ooc_url: string | null; ooc_name: string | null }>) {
       next[row.user_id] = {
         ic: row.ic_url || next[row.user_id]?.ic,
         ooc: row.ooc_url || next[row.user_id]?.ooc,
       };
+      if (row.ooc_name) names[row.user_id] = row.ooc_name;
     }
     setAvatars(next);
+    setOocNames(names);
 
     // One-time upgrade: copy this player's legacy pictures into the durable table.
     if (userId && next[userId] && !(data || []).some((r: any) => r.user_id === userId)) {
@@ -92,5 +96,19 @@ export function useChatAvatars(partyId: string | null, userId: string | undefine
     }
   }, [userId]);
 
-  return { avatars, uploadAvatar, uploading };
+  const setOocName = useCallback(async (name: string) => {
+    if (!userId) return;
+    const trimmed = name.trim().slice(0, 40);
+    setOocNames(prev => {
+      const next = { ...prev };
+      if (trimmed) next[userId] = trimmed; else delete next[userId];
+      return next;
+    });
+    await (supabase.from('player_chat_avatars') as any).upsert({
+      user_id: userId,
+      ooc_name: trimmed || null,
+    }, { onConflict: 'user_id' });
+  }, [userId]);
+
+  return { avatars, oocNames, setOocName, uploadAvatar, uploading };
 }
