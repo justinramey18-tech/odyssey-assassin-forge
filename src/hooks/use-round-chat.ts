@@ -219,19 +219,40 @@ export function useRoundChat(
 
   const isLive = style.mode === 'live';
 
-  /** Lines that are still eligible to be ticked and handed to the DM. */
+  /**
+   * Lines that are still eligible to be ticked and handed to the DM.
+   * Table talk is tickable in every chat mode — whatever is ticked goes.
+   */
   const pendingMessages = useMemo(
-    () => messages.filter(m => (
-      !m.consumed && (isLive || m.in_character)
-    )),
-    [messages, isLive],
+    () => messages.filter(m => !m.consumed),
+    [messages],
   );
+
+  /** Host-chosen send order (message ids). Anything not listed keeps chat order. */
+  const [orderOverride, setOrderOverride] = useState<string[]>([]);
 
   /** Only ticked lines go to the DM. Nothing is sent automatically. */
   const selectedMessages = useMemo(
     () => pendingMessages.filter(m => m.selected),
     [pendingMessages],
   );
+
+  /** Ticked lines in the order the host wants the DM to read them. */
+  const orderedSelected = useMemo(() => {
+    if (orderOverride.length === 0) return selectedMessages;
+    const rank = new Map(orderOverride.map((id, i) => [id, i]));
+    return [...selectedMessages].sort((a, b) => {
+      const ra = rank.has(a.id) ? rank.get(a.id)! : Number.MAX_SAFE_INTEGER;
+      const rb = rank.has(b.id) ? rank.get(b.id)! : Number.MAX_SAFE_INTEGER;
+      if (ra !== rb) return ra - rb;
+      return a.created_at.localeCompare(b.created_at);
+    });
+  }, [selectedMessages, orderOverride]);
+
+  /** Replace the send order with an explicit list of ticked message ids. */
+  const setSelectedOrder = useCallback((ids: string[]) => {
+    setOrderOverride(ids);
+  }, []);
 
   /** Tick / untick a line. Anyone at the table may do this. */
   const toggleSelected = useCallback(async (messageId: string) => {
@@ -264,22 +285,40 @@ export function useRoundChat(
     [selectedMessages],
   );
 
+  /**
+   * Per-player view of the ticked bundle, used for the transcript rows and so
+   * the DM knows exactly who acted this round.
+   */
+  const selectedParticipants = useMemo(() => {
+    const map = new Map<string, { userId: string; characterName: string; text: string }>();
+    for (const m of orderedSelected) {
+      const line = stripActionCard(m.content).trim();
+      if (!line) continue;
+      const entry = map.get(m.user_id);
+      const piece = m.in_character ? line : `(table talk) ${line}`;
+      if (entry) entry.text = `${entry.text} ${piece}`.trim();
+      else map.set(m.user_id, { userId: m.user_id, characterName: m.character_name || 'Player', text: piece });
+    }
+    return Array.from(map.values());
+  }, [orderedSelected]);
+
   /** How many lines are ticked and ready to be handed over. */
   const progress = useMemo(() => ({
     current: selectedMessages.length,
     waiting: pendingMessages.length,
+    speakers: new Set(selectedMessages.map(m => m.user_id)).size,
     met: selectedMessages.length > 0,
   }), [selectedMessages, pendingMessages]);
 
   /**
    * Bundle the ticked lines for the DM. In-character lines are grouped per
-   * character; in Live DM mode ticked out-of-character banter rides along in
-   * its own clearly marked block, behind a persona directive.
+   * character in the host's chosen order; ticked out-of-character banter always
+   * rides along in its own clearly marked block.
    */
   const buildRoundPrompt = useCallback(() => {
     const order: string[] = [];
     const grouped = new Map<string, string[]>();
-    for (const m of selectedMessages) {
+    for (const m of orderedSelected) {
       if (!m.in_character) continue;
       const key = m.character_name || 'Player';
       if (!grouped.has(key)) { grouped.set(key, []); order.push(key); }
@@ -289,12 +328,21 @@ export function useRoundChat(
       .map(name => `[${name}]: ${grouped.get(name)!.join(' ')}`)
       .join('\n');
 
-    if (!isLive) return inCharacterBlock;
-
-    const banter = selectedMessages.filter(m => !m.in_character);
+    const banter = orderedSelected.filter(m => !m.in_character);
     const banterBlock = banter.length
       ? `\n\nTABLE TALK (out of character):\n${banter.map(m => `${m.character_name || 'Player'}: ${stripActionCard(m.content).trim()}`).join('\n')}`
       : '';
+
+    if (!isLive) {
+      if (!banterBlock) return inCharacterBlock;
+      const note = [
+        'OOC: Lines under TABLE TALK are the real people at the table talking out of character. They are NOT character actions and the characters never hear them.',
+        inCharacterBlock
+          ? 'Answer the in-character actions with a proper scene beat; you may acknowledge the table talk in one short aside wrapped in [TABLE] ... [/TABLE] placed first.'
+          : 'This hand-off is table talk only — answer the table briefly and conversationally inside a [TABLE] ... [/TABLE] block; do not force a scene beat.',
+      ].join('\n');
+      return `${note}\n\n${inCharacterBlock}${banterBlock}`.trim();
+    }
 
     const directive = [
       'OOC: LIVE TABLE MODE. You are running this session like a live tabletop game master in the vein of Anthony Burch — fast, warm, funny, improv-minded, comfortable breaking for a joke and then snapping the table back into the fiction.',
@@ -307,13 +355,14 @@ export function useRoundChat(
     ].join('\n');
 
     return `${directive}\n\n${inCharacterBlock}${banterBlock}`.trim();
-  }, [selectedMessages, isLive, style.banterLevel]);
+  }, [orderedSelected, isLive, style.banterLevel]);
 
   /** Mark the ticked lines as sent. Unticked lines stay available for later. */
   const consumePending = useCallback(async () => {
     if (!partyId || selectedMessages.length === 0) return;
     const ids = selectedMessages.map(m => m.id);
     setMessages(prev => prev.map(m => (ids.includes(m.id) ? { ...m, consumed: true, selected: false } : m)));
+    setOrderOverride([]);
     await (supabase.from('party_round_chat') as any).update({ consumed: true, selected: false }).in('id', ids);
   }, [partyId, selectedMessages]);
 
@@ -328,6 +377,9 @@ export function useRoundChat(
     toggleReaction,
     pendingMessages,
     selectedMessages,
+    orderedSelected,
+    setSelectedOrder,
+    selectedParticipants,
     toggleSelected,
     selectAllPending,
     clearSelection,
@@ -338,3 +390,4 @@ export function useRoundChat(
     reload: loadMessages,
   };
 }
+
