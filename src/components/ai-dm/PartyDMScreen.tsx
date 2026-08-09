@@ -458,11 +458,13 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   onWhisperAutoRoll?: (whisperContent: string) => void;
   onWhisperOpenRoller?: (whisperContent: string) => void;
   narrationAudio?: MessageAudioRow;
-  isNarrating?: boolean;
-  isNarrationPlaying?: boolean;
-  onNarrate?: (messageId: string, content: string) => void;
-  onPlayNarration?: (messageId: string) => void;
-  onDeleteNarration?: (messageId: string) => void;
+  narrationTableAudio?: MessageAudioRow;
+  narrationGeneratingPart?: NarrationPart | null;
+  narrationPlayingPart?: NarrationPart | null;
+  onNarrate?: (messageId: string, content: string, part: NarrationPart) => void;
+  onPlayNarration?: (messageId: string, part: NarrationPart) => void;
+  onPlayAllNarration?: (messageId: string) => void;
+  onDeleteNarration?: (messageId: string, part: NarrationPart) => void;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
