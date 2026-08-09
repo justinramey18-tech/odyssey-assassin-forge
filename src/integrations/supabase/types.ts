@@ -1186,6 +1186,57 @@ export type Database = {
           },
         ]
       }
+      party_message_audio: {
+        Row: {
+          audio_url: string
+          created_at: string
+          created_by: string
+          created_by_name: string | null
+          id: string
+          message_id: string
+          party_id: string
+          provider: string
+          voice_id: string | null
+        }
+        Insert: {
+          audio_url: string
+          created_at?: string
+          created_by: string
+          created_by_name?: string | null
+          id?: string
+          message_id: string
+          party_id: string
+          provider?: string
+          voice_id?: string | null
+        }
+        Update: {
+          audio_url?: string
+          created_at?: string
+          created_by?: string
+          created_by_name?: string | null
+          id?: string
+          message_id?: string
+          party_id?: string
+          provider?: string
+          voice_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_message_audio_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: true
+            referencedRelation: "party_dm_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "party_message_audio_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       party_message_reactions: {
         Row: {
           created_at: string
