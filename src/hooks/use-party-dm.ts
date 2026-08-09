@@ -1995,7 +1995,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         if (alphaPrompts.length > 0) {
           const { guidesSection: alphaAfkGuides, promptSection: alphaAfkPrompts, consumedCascades: alphaConsumed, afkEntries: alphaAfkEntries } = suppressAfkGuides
             ? { guidesSection: '', promptSection: '', consumedCascades: [], afkEntries: [] as Array<{ userId: string; characterName: string; content: string }> }
-            : buildAfkGuidesContext(alphaPrompts, splitState.alphaMembers);
+            : buildAfkGuidesContext(alphaPrompts, splitState.alphaMembers, coveredUserIds);
           allConsumedCascades = [...allConsumedCascades, ...alphaConsumed];
           const alphaRawCombined = alphaPrompts
             .map(formatPromptLineForAI)
@@ -2066,7 +2066,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         if (betaPrompts.length > 0) {
           const { guidesSection: betaAfkGuides, promptSection: betaAfkPrompts, consumedCascades: betaConsumed, afkEntries: betaAfkEntries } = suppressAfkGuides
             ? { guidesSection: '', promptSection: '', consumedCascades: [], afkEntries: [] as Array<{ userId: string; characterName: string; content: string }> }
-            : buildAfkGuidesContext(betaPrompts, splitState.betaMembers);
+            : buildAfkGuidesContext(betaPrompts, splitState.betaMembers, coveredUserIds);
           allConsumedCascades = [...allConsumedCascades, ...betaConsumed];
           const betaRawCombined = betaPrompts
             .map(formatPromptLineForAI)
