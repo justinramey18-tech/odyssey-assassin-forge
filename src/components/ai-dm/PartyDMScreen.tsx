@@ -2845,6 +2845,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onSend={(content, ic) => roundChat.sendMessage(content, ic)}
           onToggleReaction={(id, emoji) => roundChat.toggleReaction(id, emoji, members.find(m => m.user_id === currentUserId)?.character_name || 'Player')}
           onDeleteMessage={roundChat.deleteMessage}
+          onToggleSelected={roundChat.toggleSelected}
+          onSelectAll={roundChat.selectAllPending}
+          onClearSelection={roundChat.clearSelection}
           onSendToDMNow={fireChatRound}
           draft={roundChatDraft}
           onDraftUsed={() => setRoundChatDraft(null)}
