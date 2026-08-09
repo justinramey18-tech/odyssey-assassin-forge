@@ -9,7 +9,9 @@ import {
   loadSpeechifyDMVoiceId,
   splitDMResponseParts,
   splitStorySegments,
+  segmentKey,
   voiceForSpeaker,
+  type NarrationSegment,
 } from '@/lib/tts-utils';
 import { toast } from 'sonner';
 
@@ -20,6 +22,7 @@ import { toast } from 'sonner';
  */
 export type NarrationPart = string;
 
+/** Legacy index-based id, kept so old saved clips still resolve. */
 export const segmentPart = (index: number) => `seg-${index}`;
 
 export interface MessageAudioRow {
@@ -78,6 +81,8 @@ export function useMessageNarration(
   const [speakingName, setSpeakingName] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const queueRef = useRef<Array<{ key: string; url: string; speaker?: string | null }>>([]);
+  const audioMapRef = useRef<Record<string, MessageAudioRow>>({});
+  audioMapRef.current = audioByMessage;
 
   const hasSpeechifyKey = !!loadApiKey('speechify');
 
@@ -183,12 +188,14 @@ export function useMessageNarration(
     const tableRow = audioByMessage[narrationKey(messageId, 'table')];
     if (tableRow) queue.push({ key: narrationKey(messageId, 'table'), url: tableRow.audio_url, speaker: 'DM' });
 
-    const segments = content ? splitStorySegments(splitDMResponseParts(content).story) : [];
+    const segments = content ? splitStorySegments(splitDMResponseParts(content).story, messageId) : [];
     let addedSegments = 0;
     segments.forEach((seg, i) => {
-      const row = audioByMessage[narrationKey(messageId, segmentPart(i))];
+      const part = segmentKey(seg);
+      const row = audioByMessage[narrationKey(messageId, part)]
+        || audioByMessage[narrationKey(messageId, segmentPart(i))];
       if (row) {
-        queue.push({ key: narrationKey(messageId, segmentPart(i)), url: row.audio_url, speaker: seg.speaker });
+        queue.push({ key: narrationKey(messageId, row.part || part), url: row.audio_url, speaker: seg.speaker });
         addedSegments++;
       }
     });
@@ -276,6 +283,61 @@ export function useMessageNarration(
     }));
   }, [partyId, currentUserId, currentUserName]);
 
+  /**
+   * Runs a full cast pass: the DM aside in the DM voice, then every story
+   * segment in the voice assigned to its speaker (or hand-picked for it),
+   * falling back to the narrator voice.
+   */
+  const castRun = useCallback(async (
+    messageId: string,
+    content: string,
+    apiKey: string,
+    opts?: { skipTable?: boolean },
+  ) => {
+    const { tableTalk, story } = splitDMResponseParts(content || '');
+    const segments = splitStorySegments(story || content || '', messageId);
+    const doTable = !opts?.skipTable && !!tableTalk.trim();
+    const total = segments.length + (doTable ? 1 : 0);
+    if (total === 0) return;
+
+    setCastProgress({ messageId, done: 0, total, speaker: doTable ? 'DM' : segments[0]?.speaker ?? null });
+
+    let done = 0;
+    try {
+      const hasClip = (part: string) => !!audioMapRef.current[narrationKey(messageId, part)];
+
+      if (doTable && hasClip('table')) {
+        done++;
+        setCastProgress({ messageId, done, total, speaker: segments[0]?.speaker ?? null });
+      } else if (doTable) {
+        const dmVoice = loadSpeechifyDMVoiceId();
+        const blob = await synthesize(tableTalk, dmVoice, apiKey);
+        await storeClip(messageId, 'table', blob, dmVoice);
+        done++;
+        setCastProgress({ messageId, done, total, speaker: segments[0]?.speaker ?? null });
+      }
+
+      const narratorVoice = loadSpeechifyVoiceId();
+      for (let i = 0; i < segments.length; i++) {
+        const seg = segments[i];
+        setCastProgress({ messageId, done, total, speaker: seg.speaker });
+        if (hasClip(segmentKey(seg))) {
+          done++;
+          setCastProgress({ messageId, done, total, speaker: segments[i + 1]?.speaker ?? null });
+          continue;
+        }
+        const voiceId = seg.voiceId || (seg.speaker && voiceForSpeaker(seg.speaker)) || narratorVoice;
+        const blob = await synthesize(seg.text, voiceId, apiKey);
+        await storeClip(messageId, segmentKey(seg), blob, voiceId);
+        done++;
+        setCastProgress({ messageId, done, total, speaker: segments[i + 1]?.speaker ?? null });
+      }
+      toast.success(`Narration ready (${done} clip${done === 1 ? '' : 's'})`);
+    } finally {
+      setCastProgress(null);
+    }
+  }, [synthesize, storeClip]);
+
   const generate = useCallback(async (messageId: string, rawText: string, part: NarrationPart = 'story') => {
     if (!partyId) return;
     const apiKey = loadApiKey('speechify');
@@ -284,6 +346,25 @@ export function useMessageNarration(
       return;
     }
     if (generatingId) return;
+
+    // "Narrate story" splits itself into character voices whenever the passage
+    // has assigned speakers or hand-picked voices.
+    if (part === 'story') {
+      const segments: NarrationSegment[] = splitStorySegments(rawText, messageId);
+      const needsCast = segments.some((s) => s.voiceId || (s.speaker && voiceForSpeaker(s.speaker)));
+      if (needsCast) {
+        setGeneratingId(narrationKey(messageId, 'cast'));
+        try {
+          await castRun(messageId, rawText, apiKey, { skipTable: true });
+        } catch (error) {
+          console.error('[MessageNarration] story cast failed:', error);
+          toast.error(error instanceof Error ? error.message : 'Narration failed');
+        } finally {
+          setGeneratingId(null);
+        }
+        return;
+      }
+    }
 
     const key = narrationKey(messageId, part);
     setGeneratingId(key);
@@ -298,12 +379,8 @@ export function useMessageNarration(
     } finally {
       setGeneratingId(null);
     }
-  }, [partyId, generatingId, synthesize, storeClip]);
+  }, [partyId, generatingId, synthesize, storeClip, castRun]);
 
-  /**
-   * Full cast pass: the DM aside in the DM voice, then every story segment in
-   * the voice assigned to its speaker (falling back to the narrator voice).
-   */
   const generateCast = useCallback(async (messageId: string, content: string) => {
     if (!partyId) return;
     const apiKey = loadApiKey('speechify');
@@ -313,44 +390,17 @@ export function useMessageNarration(
     }
     if (generatingId) return;
 
-    const { tableTalk, story } = splitDMResponseParts(content || '');
-    const segments = splitStorySegments(story || content || '');
-    const total = segments.length + (tableTalk.trim() ? 1 : 0);
-    if (total === 0) return;
-
-    const castKey = narrationKey(messageId, 'cast');
-    setGeneratingId(castKey);
-    setCastProgress({ messageId, done: 0, total, speaker: tableTalk.trim() ? 'DM' : segments[0]?.speaker ?? null });
-
-    let done = 0;
+    setGeneratingId(narrationKey(messageId, 'cast'));
     try {
-      if (tableTalk.trim()) {
-        const dmVoice = loadSpeechifyDMVoiceId();
-        const blob = await synthesize(tableTalk, dmVoice, apiKey);
-        await storeClip(messageId, 'table', blob, dmVoice);
-        done++;
-        setCastProgress({ messageId, done, total, speaker: segments[0]?.speaker ?? null });
-      }
-
-      const narratorVoice = loadSpeechifyVoiceId();
-      for (let i = 0; i < segments.length; i++) {
-        const seg = segments[i];
-        setCastProgress({ messageId, done, total, speaker: seg.speaker });
-        const voiceId = (seg.speaker && voiceForSpeaker(seg.speaker)) || narratorVoice;
-        const blob = await synthesize(seg.text, voiceId, apiKey);
-        await storeClip(messageId, segmentPart(i), blob, voiceId);
-        done++;
-        setCastProgress({ messageId, done, total, speaker: segments[i + 1]?.speaker ?? null });
-      }
-      toast.success(`Narration cast ready (${done} clip${done === 1 ? '' : 's'})`);
+      await castRun(messageId, content, apiKey);
     } catch (error) {
       console.error('[MessageNarration] cast failed:', error);
       toast.error(error instanceof Error ? error.message : 'Narration failed');
     } finally {
       setGeneratingId(null);
-      setCastProgress(null);
     }
-  }, [partyId, generatingId, synthesize, storeClip]);
+  }, [partyId, generatingId, castRun]);
+
 
   const remove = useCallback(async (messageId: string, part: NarrationPart = 'story') => {
     if (!partyId) return;
