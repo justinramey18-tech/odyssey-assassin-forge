@@ -4,7 +4,7 @@ import { ChevronDown, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCir
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { parseActionCard } from '@/lib/roundChatActionCard';
-import { QuickActionCard } from './QuickActionCard';
+import { QuickActionLine } from './QuickActionCard';
 import type { RoundChatMessage, RoundChatReaction, RoundStyle } from '@/hooks/use-round-chat';
 
 const EMOJI_SET = ['🤣','😅','🤪','🙄','😬','😏','🤮','🥵','🥶','🤯','🧐','😎','😱','😭','🤬','😈','❤️','💯','👏','🙌','🤝','🖕','🫦','🗣','🍑','🍆'];
