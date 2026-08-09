@@ -566,6 +566,32 @@ export function RoundChatDrawer({
                       Table talk
                     </button>
                   </div>
+                  {!inCharacter && onSetOocName && (
+                    editingOocName ? (
+                      <input
+                        autoFocus
+                        value={oocNameDraft}
+                        maxLength={40}
+                        onChange={(e) => setOocNameDraft(e.target.value)}
+                        onBlur={() => { onSetOocName(oocNameDraft); setEditingOocName(false); }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); onSetOocName(oocNameDraft); setEditingOocName(false); }
+                          if (e.key === 'Escape') setEditingOocName(false);
+                        }}
+                        placeholder="Your table name"
+                        className="w-28 shrink-0 px-2 py-1 rounded-md text-[10px] bg-black/40 border border-amber-400/40 text-amber-100 outline-none"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => { setOocNameDraft((currentUserId && oocNames?.[currentUserId]) || ''); setEditingOocName(true); }}
+                        className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-[10px] border border-amber-400/30 bg-amber-900/20 text-amber-200/90"
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        <Pencil className="w-2.5 h-2.5" />
+                        {(currentUserId && oocNames?.[currentUserId]) || 'Name yourself'}
+                      </button>
+                    )
+                  )}
                   <span className="text-[10px] text-white/30">
                     {progress.met
                       ? 'Round is ready for the DM'
