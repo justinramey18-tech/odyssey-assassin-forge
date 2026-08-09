@@ -997,7 +997,13 @@ serve(async (req) => {
       if (npcVoicingContext) {
         systemPrompt = systemPrompt + "\n\n" + npcVoicingContext;
       }
+
+      const liveTableBlock = buildLiveTableBlock(liveTable);
+      if (liveTableBlock) {
+        systemPrompt = systemPrompt + "\n\n" + liveTableBlock;
+      }
     }
+
 
     // Determine which provider to use
     const requestedModel = model || DEFAULT_MODEL;
