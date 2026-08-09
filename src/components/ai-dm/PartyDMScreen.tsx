@@ -984,6 +984,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const sheetQuests = usePartyQuests(partyId, currentUserId);
   const questRewardSplit = useQuestRewardSplit(partyId, currentUserId);
   const partyNarrationStyle = usePartyNarrationStyle(partyId, currentUserId || '');
+  // Chat Rounds: mini party-chat feed that drives the DM instead of ready-up.
+  const roundChat = useRoundChat(
+    partyId || null,
+    currentUserId,
+    members.find(m => m.user_id === currentUserId)?.character_name || characterContext?.name || 'Player',
+    partyDm.sessionConfig?.currentRoundId,
+  );
+  const chatRoundsOn = roundChat.style.mode === 'chat';
+  const [roundChatOpen, setRoundChatOpen] = useState(false);
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
   const [showDeathSaves, setShowDeathSaves] = useState(false);
