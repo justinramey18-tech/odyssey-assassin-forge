@@ -12,8 +12,8 @@ export interface RoundStyle {
   mode: RoundStyleMode;
   triggerRule: RoundTriggerRule;
   messageCount: number;
-  /** Live DM: how hard the DM plays with out-of-character table talk. */
-  banterLevel: BanterLevel;
+  /** How much comedic chaos the DM brings to asides and narration (1-10). */
+  chaosLevel: number;
   /** Live DM: does table talk advance the round counter? */
   countBanter: boolean;
 }
@@ -22,9 +22,10 @@ export const DEFAULT_ROUND_STYLE: RoundStyle = {
   mode: 'ready',
   triggerRule: 'total',
   messageCount: 2,
-  banterLevel: 'balanced',
+  chaosLevel: 5,
   countBanter: true,
 };
+
 
 export interface RoundChatMessage {
   id: string;
