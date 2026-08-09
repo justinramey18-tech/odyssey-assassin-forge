@@ -88,12 +88,15 @@ export function RoundChatDrawer({
         style={{ touchAction: 'manipulation' }}
       >
         <MessageSquare className="w-3 h-3 text-amber-400/60 shrink-0" />
-        <span className="text-[10px] text-white/50 uppercase tracking-wider font-semibold shrink-0">Round Chat</span>
+        <span className="text-[10px] text-white/50 uppercase tracking-wider font-semibold shrink-0">
+          {style.mode === 'live' ? 'Live DM' : 'Round Chat'}
+        </span>
         <span className={cn(
           "text-[10px] shrink-0",
           progress.met ? "text-emerald-400" : "text-white/35"
         )}>
           {progress.current}/{progress.target} {ruleLabel}
+          {progress.banterExcluded ? ' (in-character)' : ''}
         </span>
         {!open && lastLine && (
           <span className="text-[10px] text-white/30 truncate ml-1">
