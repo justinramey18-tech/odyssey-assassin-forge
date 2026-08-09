@@ -32,13 +32,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
-export type SheetTab = 'vitals' | 'stats' | 'abilities' | 'items' | 'story';
+export type SheetTab = 'vitals' | 'stats' | 'abilities' | 'items' | 'voices' | 'story';
 
 const TABS: Array<{ id: SheetTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: 'vitals', label: 'Vitals', icon: Heart },
   { id: 'stats', label: 'Stats', icon: Activity },
   { id: 'abilities', label: 'Abilities', icon: Zap },
   { id: 'items', label: 'Items', icon: Backpack },
+  { id: 'voices', label: 'Voices', icon: Mic2 },
   { id: 'story', label: 'Story', icon: BookOpen },
 ];
 
