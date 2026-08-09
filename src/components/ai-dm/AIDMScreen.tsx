@@ -1816,6 +1816,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       </AnimatePresence>
 
       <SoloCharacterSheet
+        npcSuggestions={npcNames}
         open={showCharacterSheet}
         initialTab={restoreSheetTab}
         onClose={() => { setShowCharacterSheet(false); setRestoreSheetTab(undefined); }}

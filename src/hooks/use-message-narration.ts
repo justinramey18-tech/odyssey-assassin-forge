@@ -14,6 +14,7 @@ import {
   type NarrationSegment,
 } from '@/lib/tts-utils';
 import { toast } from 'sonner';
+import { duckMusicForNarration, restoreMusicAfterNarration } from '@/lib/narrationDucking';
 
 /**
  * Which clip of a DM response this audio belongs to.
@@ -143,9 +144,10 @@ export function useMessageNarration(
     }
     setPlayingId(null);
     setSpeakingName(null);
+    void restoreMusicAfterNarration();
   }, []);
 
-  useEffect(() => () => { if (audioRef.current) audioRef.current.pause(); }, []);
+  useEffect(() => () => { if (audioRef.current) audioRef.current.pause(); void restoreMusicAfterNarration(); }, []);
 
   /** Plays the queue head, then advances. */
   const runQueue = useCallback(() => {
@@ -154,8 +156,10 @@ export function useMessageNarration(
       audioRef.current = null;
       setPlayingId(null);
       setSpeakingName(null);
+      void restoreMusicAfterNarration();
       return;
     }
+    void duckMusicForNarration();
     const audio = new Audio(next.url);
     audio.playbackRate = loadNarrationSpeed();
     audio.onended = () => runQueue();
@@ -165,11 +169,12 @@ export function useMessageNarration(
       audioRef.current = null;
       setPlayingId(null);
       setSpeakingName(null);
+      void restoreMusicAfterNarration();
     };
     audioRef.current = audio;
     setPlayingId(next.key);
     setSpeakingName(next.speaker ?? null);
-    audio.play().catch(() => { queueRef.current = []; setPlayingId(null); setSpeakingName(null); });
+    audio.play().catch(() => { queueRef.current = []; setPlayingId(null); setSpeakingName(null); void restoreMusicAfterNarration(); });
   }, []);
 
   const play = useCallback((messageId: string, part: NarrationPart = 'story') => {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  X, Heart, Activity, Shield, Coins, Zap, Backpack, BookOpen, Sparkles,
+  X, Heart, Activity, Shield, Coins, Zap, Backpack, BookOpen, Sparkles, Mic2,
   Plus, Minus, ChevronUp, ExternalLink, Moon, Sun, Trash2, PackageCheck, PackageX, Scroll, Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ import {
 import { setSheetReturn, type SheetReturnOrigin } from '@/lib/sheetReturn';
 import { buildLootUseText } from '@/lib/loot/prompts';
 import { GearBonusBreakdown } from '@/components/character/GearBonusBreakdown';
+import { VoicesTab } from '@/components/character/VoicesTab';
 import type { CastSpellDefinition } from '@/lib/magic/castResolver';
 import { CastCard } from '@/components/magic/CastCard';
 import { RestPreviewSheet } from '@/components/magic/RestPreviewSheet';
@@ -32,13 +33,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
-export type SheetTab = 'vitals' | 'stats' | 'abilities' | 'items' | 'story';
+export type SheetTab = 'vitals' | 'stats' | 'abilities' | 'items' | 'voices' | 'story';
 
 const TABS: Array<{ id: SheetTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: 'vitals', label: 'Vitals', icon: Heart },
   { id: 'stats', label: 'Stats', icon: Activity },
   { id: 'abilities', label: 'Abilities', icon: Zap },
   { id: 'items', label: 'Items', icon: Backpack },
+  { id: 'voices', label: 'Voices', icon: Mic2 },
   { id: 'story', label: 'Story', icon: BookOpen },
 ];
 
@@ -79,6 +81,8 @@ export interface SoloCharacterSheetProps {
   onViewPartySheets?: () => void;
   /** Number of other players whose sheets can be viewed. */
   partySheetCount?: number;
+  /** NPC names spotted in the story, offered as one-tap voice-cast entries. */
+  npcSuggestions?: string[];
 }
 
 function navigateToTab(appTab: string, sheetTab: SheetTab, origin: SheetReturnOrigin = 'solo') {
@@ -114,6 +118,7 @@ export function SoloCharacterSheet({
   initialTab,
   origin = 'solo',
   onViewPartySheets, partySheetCount = 0,
+  npcSuggestions = [],
 }: SoloCharacterSheetProps) {
   const [tab, setTab] = useState<SheetTab>('vitals');
   const [hpDelta, setHpDelta] = useState('');
@@ -210,6 +215,16 @@ export function SoloCharacterSheet({
 
   const { multiplier } = useXPProgression();
   const identity = useCharacterIdentity();
+
+  /** Names the voice cast can be filled from: the hero, the party, companions, and story NPCs. */
+  const voiceSuggestions = useMemo(() => {
+    const names: string[] = [];
+    if (ctx?.name) names.push(ctx.name);
+    for (const m of ctx?.partyMembers ?? []) if (m?.name) names.push(m.name);
+    if (ctx?.companion?.name) names.push(ctx.companion.name);
+    for (const n of npcSuggestions) if (n) names.push(n);
+    return names;
+  }, [ctx?.name, ctx?.partyMembers, ctx?.companion?.name, npcSuggestions]);
   const [newRelName, setNewRelName] = useState('');
   const [newRelDisp, setNewRelDisp] = useState('');
 
@@ -1023,6 +1038,10 @@ export function SoloCharacterSheet({
               )}
             </Section>
           </>
+        )}
+
+        {tab === 'voices' && (
+          <VoicesTab suggestedNames={voiceSuggestions} />
         )}
 
         {tab === 'story' && (
