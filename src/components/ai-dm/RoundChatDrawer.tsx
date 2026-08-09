@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Send, Smile, Trash2, MessageSquare, Zap } from 'lucide-react';
+import { ChevronDown, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import type { RoundChatMessage, RoundChatReaction, RoundStyle } from '@/hooks/use-round-chat';
@@ -185,29 +185,29 @@ export function RoundChatDrawer({
           >
             <div className="px-2 pb-2 relative">
               {/* Compact DM status banner */}
-              {status && (
+              {dmStatus && (
                 <div
                   className={cn(
                     "mb-1.5 flex items-center gap-1.5 rounded-md border px-2 py-1",
-                    status.tone === 'thinking' && "bg-amber-500/10 border-amber-500/25",
-                    status.tone === 'ready' && "bg-emerald-500/10 border-emerald-500/25",
-                    status.tone === 'queued' && "bg-white/5 border-white/10",
+                    dmStatus.tone === 'thinking' && "bg-amber-500/10 border-amber-500/25",
+                    dmStatus.tone === 'ready' && "bg-emerald-500/10 border-emerald-500/25",
+                    dmStatus.tone === 'queued' && "bg-white/5 border-white/10",
                   )}
                 >
-                  {status.tone === 'thinking' ? (
+                  {dmStatus.tone === 'thinking' ? (
                     <Loader2 className="w-3 h-3 text-amber-300 animate-spin shrink-0" />
-                  ) : status.tone === 'ready' ? (
+                  ) : dmStatus.tone === 'ready' ? (
                     <CheckCircle2 className="w-3 h-3 text-emerald-300 shrink-0" />
                   ) : (
                     <Hourglass className="w-3 h-3 text-white/40 shrink-0" />
                   )}
                   <span className={cn(
                     "text-[10px] truncate",
-                    status.tone === 'thinking' ? "text-amber-100/90"
-                      : status.tone === 'ready' ? "text-emerald-100/90"
+                    dmStatus.tone === 'thinking' ? "text-amber-100/90"
+                      : dmStatus.tone === 'ready' ? "text-emerald-100/90"
                       : "text-white/50",
                   )}>
-                    {status.label}
+                    {dmStatus.label}
                   </span>
                 </div>
               )}
