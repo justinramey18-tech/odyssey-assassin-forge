@@ -3841,7 +3841,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         {isCreator && !partyDm.isGenerating && hasSubmitted && !isReady && partyDm.currentPrompts.length > 0 && (partyDm.sessionConfig?.dmMode || 'ai') !== 'human' && (
           <div className="mt-2 flex justify-end max-w-2xl mx-auto">
             <Button
-              onClick={partyDm.generateResponse}
+              onClick={() => partyDm.generateResponse()}
               variant="outline"
               size="sm"
               className="gap-1.5 text-amber-300 border-amber-500/30"
