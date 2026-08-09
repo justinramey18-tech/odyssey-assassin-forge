@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
 import { loadApiKey, saveApiKey, clearApiKey, hasApiKey, maskKey } from '@/lib/api-keys';
-import { loadNarrationSpeed, saveNarrationSpeed, loadTTSProvider, saveTTSProvider, loadSpeechifyVoiceId, saveSpeechifyVoiceId, getCachedSpeechifyVoices, setCachedSpeechifyVoices, type TTSProvider, type CachedSpeechifyVoice } from '@/lib/tts-utils';
+import { loadNarrationSpeed, saveNarrationSpeed, loadTTSProvider, saveTTSProvider, loadSpeechifyVoiceId, saveSpeechifyVoiceId, loadSpeechifyDMVoiceId, saveSpeechifyDMVoiceId, getCachedSpeechifyVoices, setCachedSpeechifyVoices, type TTSProvider, type CachedSpeechifyVoice } from '@/lib/tts-utils';
 import { loadApiKey as loadKey } from '@/lib/api-keys';
 import { supabase } from '@/integrations/supabase/client';
 import { RefreshCw } from 'lucide-react';
@@ -177,8 +177,9 @@ function TTSProviderSelector({ onProviderChange }: { onProviderChange?: (p: TTSP
   );
 }
 
-function SpeechifyVoicePicker({ onRefreshRequest }: { onRefreshRequest?: number }) {
-  const [selected, setSelected] = useState(() => loadSpeechifyVoiceId());
+function SpeechifyVoicePicker({ onRefreshRequest, target = 'story' }: { onRefreshRequest?: number; target?: 'story' | 'dm' }) {
+  const isDM = target === 'dm';
+  const [selected, setSelected] = useState(() => (isDM ? loadSpeechifyDMVoiceId() : loadSpeechifyVoiceId()));
   const [fetchedVoices, setFetchedVoices] = useState<CachedSpeechifyVoice[]>(() => getCachedSpeechifyVoices() ?? []);
   const [fetching, setFetching] = useState(false);
 
@@ -191,9 +192,9 @@ function SpeechifyVoicePicker({ onRefreshRequest }: { onRefreshRequest?: number 
 
   const handleSelect = useCallback((id: string) => {
     setSelected(id);
-    saveSpeechifyVoiceId(id);
-    toast.success('Speechify voice updated');
-  }, []);
+    if (isDM) saveSpeechifyDMVoiceId(id); else saveSpeechifyVoiceId(id);
+    toast.success(isDM ? 'DM table-talk voice updated' : 'Speechify voice updated');
+  }, [isDM]);
 
   const handleFetchVoices = useCallback(async () => {
     const key = loadKey('speechify');
@@ -411,6 +412,14 @@ export function ElevenLabsSettingsTab() {
           <>
             <SettingsSection title="Speechify Voice" defaultOpen>
               <SpeechifyVoicePickerWithCloner />
+            </SettingsSection>
+
+            <SettingsSection title="DM Table-Talk Voice">
+              <p className="text-[11px] text-muted-foreground leading-relaxed mb-3">
+                The voice used for the DM speaking to the table (the out-of-character aside at
+                the top of a response). Story narration keeps the voice chosen above.
+              </p>
+              <SpeechifyVoicePicker target="dm" />
             </SettingsSection>
           </>
         )}

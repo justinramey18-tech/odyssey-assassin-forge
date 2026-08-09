@@ -62,8 +62,8 @@ import rehypeRaw from 'rehype-raw';
 import { toast } from 'sonner';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { useNarrator } from '@/hooks/use-narrator';
-import { useMessageNarration, type MessageAudioRow } from '@/hooks/use-message-narration';
-import { MessageNarrationButton } from './MessageNarrationButton';
+import { useMessageNarration, narrationKey, type MessageAudioRow, type NarrationPart } from '@/hooks/use-message-narration';
+import { MessageNarrationBar } from './MessageNarrationBar';
 import { useSpotify } from '@/hooks/use-spotify';
 import { subscribeToPush, unsubscribeFromPush, getPushSubscriptionState, type PushSubscriptionState } from '@/lib/push-subscription';
 import { useAuth } from '@/hooks/use-auth';
@@ -105,9 +105,10 @@ import { PartyMemberSheets } from '@/components/party/PartyMemberSheets';
 import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
 import { loadPendingDmItems } from '@/lib/pendingDmItems';
 import { DiceRollOverlay } from '@/components/ai-dm/DiceRollOverlay';
+import { stripTableTalkTags } from '@/lib/tts-utils';
 
 function stripCinematicTagsFromDisplay(content: string): string {
-  return content.replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '');
+  return stripTableTalkTags(content.replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, ''));
 }
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
@@ -432,7 +433,7 @@ function MessageReactions({ messageId, reactions, currentUserId, onAddReaction, 
   );
 }
 
-const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction, onWhisperAutoRoll, onWhisperOpenRoller, narrationAudio, isNarrating, isNarrationPlaying, onNarrate, onPlayNarration, onDeleteNarration }: {
+const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction, onWhisperAutoRoll, onWhisperOpenRoller, narrationAudio, narrationTableAudio, narrationGeneratingPart, narrationPlayingPart, onNarrate, onPlayNarration, onPlayAllNarration, onDeleteNarration }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -458,11 +459,13 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   onWhisperAutoRoll?: (whisperContent: string) => void;
   onWhisperOpenRoller?: (whisperContent: string) => void;
   narrationAudio?: MessageAudioRow;
-  isNarrating?: boolean;
-  isNarrationPlaying?: boolean;
-  onNarrate?: (messageId: string, content: string) => void;
-  onPlayNarration?: (messageId: string) => void;
-  onDeleteNarration?: (messageId: string) => void;
+  narrationTableAudio?: MessageAudioRow;
+  narrationGeneratingPart?: NarrationPart | null;
+  narrationPlayingPart?: NarrationPart | null;
+  onNarrate?: (messageId: string, content: string, part: NarrationPart) => void;
+  onPlayNarration?: (messageId: string, part: NarrationPart) => void;
+  onPlayAllNarration?: (messageId: string) => void;
+  onDeleteNarration?: (messageId: string, part: NarrationPart) => void;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
@@ -662,15 +665,18 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
 
             {/* Speechify narration (assistant messages) */}
             {!isEditingMsg && !videoMatch && !imageMatch && !audioMatch && onNarrate && (
-              <MessageNarrationButton
-                hasAudio={!!narrationAudio}
-                isGenerating={!!isNarrating}
-                isPlaying={!!isNarrationPlaying}
-                voicedByName={narrationAudio?.created_by_name}
+              <MessageNarrationBar
+                messageId={message.id}
+                content={message.content || ''}
+                storyAudio={narrationAudio}
+                tableAudio={narrationTableAudio}
+                generatingPart={narrationGeneratingPart}
+                playingPart={narrationPlayingPart}
                 canDelete={isCreator}
-                onGenerate={() => onNarrate(message.id, message.content)}
-                onPlay={() => onPlayNarration?.(message.id)}
-                onDelete={onDeleteNarration ? () => onDeleteNarration(message.id) : undefined}
+                onNarrate={onNarrate}
+                onPlay={(id, part) => onPlayNarration?.(id, part)}
+                onPlayAll={(id) => onPlayAllNarration?.(id)}
+                onDelete={onDeleteNarration}
               />
             )}
 
@@ -976,8 +982,9 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.currentUserId === next.currentUserId
     && prev.isBookmarked === next.isBookmarked
     && prev.narrationAudio?.audio_url === next.narrationAudio?.audio_url
-    && prev.isNarrating === next.isNarrating
-    && prev.isNarrationPlaying === next.isNarrationPlaying
+    && prev.narrationTableAudio?.audio_url === next.narrationTableAudio?.audio_url
+    && prev.narrationGeneratingPart === next.narrationGeneratingPart
+    && prev.narrationPlayingPart === next.narrationPlayingPart
     && (prev.reactions?.length ?? 0) === (next.reactions?.length ?? 0)
     && prev.reactions?.every((r, i) => r.id === next.reactions?.[i]?.id);
 });
@@ -2585,11 +2592,21 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     onRemoveReaction={removeReaction}
                     onWhisperAutoRoll={isEmpyrean ? handleWhisperAutoRoll : undefined}
                     onWhisperOpenRoller={isEmpyrean ? handleWhisperOpenRoller : undefined}
-                    narrationAudio={messageNarration.audioByMessage[msg.id]}
-                    isNarrating={messageNarration.generatingId === msg.id}
-                    isNarrationPlaying={messageNarration.playingId === msg.id}
+                    narrationAudio={messageNarration.audioByMessage[narrationKey(msg.id, 'story')]}
+                    narrationTableAudio={messageNarration.audioByMessage[narrationKey(msg.id, 'table')]}
+                    narrationGeneratingPart={
+                      messageNarration.generatingId === narrationKey(msg.id, 'table') ? 'table'
+                        : messageNarration.generatingId === narrationKey(msg.id, 'story') ? 'story'
+                        : null
+                    }
+                    narrationPlayingPart={
+                      messageNarration.playingId === narrationKey(msg.id, 'table') ? 'table'
+                        : messageNarration.playingId === narrationKey(msg.id, 'story') ? 'story'
+                        : null
+                    }
                     onNarrate={messageNarration.generate}
                     onPlayNarration={messageNarration.play}
+                    onPlayAllNarration={messageNarration.playAll}
                     onDeleteNarration={isCreator ? messageNarration.remove : undefined}
                   />
                 </React.Fragment>
