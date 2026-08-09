@@ -2823,6 +2823,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onSelectAll={roundChat.selectAllPending}
           onClearSelection={roundChat.clearSelection}
           onSendToDMNow={fireChatRound}
+          orderedSelected={roundChat.orderedSelected}
+          onReorderSelected={roundChat.setSelectedOrder}
+
           draft={roundChatDraft}
           onDraftUsed={() => setRoundChatDraft(null)}
           avatars={chatAvatars.avatars}
