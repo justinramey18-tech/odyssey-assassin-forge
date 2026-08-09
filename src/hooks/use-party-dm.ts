@@ -1795,8 +1795,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     return data as PartyDmMessage | null;
   }, [user]);
 
-  const generateResponse = useCallback(async () => {
+  const generateResponse = useCallback(async (options?: { coveredUserIds?: string[] }) => {
+    const coveredUserIds = options?.coveredUserIds;
     if (!partyId || !user || !sessionConfig || isGenerating) return;
+
 
     const isTurnBased = (sessionConfig.dmMode || 'ai') === 'turnBased';
     const rawReadyPrompts = isTurnBased
