@@ -6,25 +6,34 @@ import {
   splitTextForStitching,
   loadNarrationSpeed,
   loadSpeechifyVoiceId,
+  loadSpeechifyDMVoiceId,
 } from '@/lib/tts-utils';
 import { toast } from 'sonner';
 
+/** Which half of a DM response a clip belongs to. */
+export type NarrationPart = 'story' | 'table';
+
 export interface MessageAudioRow {
   message_id: string;
+  part: NarrationPart;
   audio_url: string;
   voice_id: string | null;
   created_by: string;
   created_by_name: string | null;
 }
 
+export const narrationKey = (messageId: string, part: NarrationPart = 'story') => `${messageId}:${part}`;
+
 interface UseMessageNarrationReturn {
+  /** Keyed by `${messageId}:${part}`. */
   audioByMessage: Record<string, MessageAudioRow>;
   generatingId: string | null;
   playingId: string | null;
-  generate: (messageId: string, text: string) => Promise<void>;
-  play: (messageId: string) => void;
+  generate: (messageId: string, text: string, part?: NarrationPart) => Promise<void>;
+  play: (messageId: string, part?: NarrationPart) => void;
+  playAll: (messageId: string) => void;
   stop: () => void;
-  remove: (messageId: string) => Promise<void>;
+  remove: (messageId: string, part?: NarrationPart) => Promise<void>;
   hasSpeechifyKey: boolean;
 }
 
@@ -32,6 +41,7 @@ interface UseMessageNarrationReturn {
  * Per-message narration for party DM messages.
  * Generated audio is uploaded to the shared party bucket and recorded in
  * party_message_audio so every player gets a play button on the same message.
+ * Each message can hold two clips: the DM's table-talk aside and the story.
  */
 export function useMessageNarration(
   partyId?: string,
@@ -42,6 +52,7 @@ export function useMessageNarration(
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const queueRef = useRef<Array<{ key: string; url: string }>>([]);
 
   const hasSpeechifyKey = !!loadApiKey('speechify');
 
@@ -52,11 +63,13 @@ export function useMessageNarration(
 
     (async () => {
       const { data } = await (supabase.from('party_message_audio') as any)
-        .select('message_id, audio_url, voice_id, created_by, created_by_name')
+        .select('message_id, part, audio_url, voice_id, created_by, created_by_name')
         .eq('party_id', partyId);
       if (cancelled || !data) return;
       const map: Record<string, MessageAudioRow> = {};
-      for (const row of data as MessageAudioRow[]) map[row.message_id] = row;
+      for (const row of data as MessageAudioRow[]) {
+        map[narrationKey(row.message_id, (row.part as NarrationPart) || 'story')] = row;
+      }
       setAudioByMessage(map);
     })();
 
@@ -71,14 +84,17 @@ export function useMessageNarration(
             if (!old?.message_id) return;
             setAudioByMessage((prev) => {
               const next = { ...prev };
-              delete next[old.message_id as string];
+              delete next[narrationKey(old.message_id as string, (old.part as NarrationPart) || 'story')];
               return next;
             });
             return;
           }
           const row = payload.new as MessageAudioRow;
           if (!row?.message_id) return;
-          setAudioByMessage((prev) => ({ ...prev, [row.message_id]: row }));
+          setAudioByMessage((prev) => ({
+            ...prev,
+            [narrationKey(row.message_id, (row.part as NarrationPart) || 'story')]: row,
+          }));
         },
       )
       .subscribe();
@@ -90,6 +106,7 @@ export function useMessageNarration(
   }, [partyId]);
 
   const stop = useCallback(() => {
+    queueRef.current = [];
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
@@ -99,24 +116,53 @@ export function useMessageNarration(
 
   useEffect(() => () => { if (audioRef.current) audioRef.current.pause(); }, []);
 
-  const play = useCallback((messageId: string) => {
-    const row = audioByMessage[messageId];
-    if (!row) return;
-    if (playingId === messageId) {
-      stop();
+  /** Plays the queue head, then advances. */
+  const runQueue = useCallback(() => {
+    const next = queueRef.current.shift();
+    if (!next) {
+      audioRef.current = null;
+      setPlayingId(null);
       return;
     }
-    stop();
-    const audio = new Audio(row.audio_url);
+    const audio = new Audio(next.url);
     audio.playbackRate = loadNarrationSpeed();
-    audio.onended = () => { audioRef.current = null; setPlayingId(null); };
-    audio.onerror = () => { toast.error('Could not play narration'); audioRef.current = null; setPlayingId(null); };
+    audio.onended = () => runQueue();
+    audio.onerror = () => {
+      toast.error('Could not play narration');
+      queueRef.current = [];
+      audioRef.current = null;
+      setPlayingId(null);
+    };
     audioRef.current = audio;
-    setPlayingId(messageId);
-    audio.play().catch(() => { setPlayingId(null); });
-  }, [audioByMessage, playingId, stop]);
+    setPlayingId(next.key);
+    audio.play().catch(() => { queueRef.current = []; setPlayingId(null); });
+  }, []);
 
-  const generate = useCallback(async (messageId: string, rawText: string) => {
+  const play = useCallback((messageId: string, part: NarrationPart = 'story') => {
+    const key = narrationKey(messageId, part);
+    const row = audioByMessage[key];
+    if (!row) return;
+    if (playingId === key) { stop(); return; }
+    stop();
+    queueRef.current = [{ key, url: row.audio_url }];
+    runQueue();
+  }, [audioByMessage, playingId, stop, runQueue]);
+
+  /** DM aside first, then the story narration. */
+  const playAll = useCallback((messageId: string) => {
+    const tableRow = audioByMessage[narrationKey(messageId, 'table')];
+    const storyRow = audioByMessage[narrationKey(messageId, 'story')];
+    const queue: Array<{ key: string; url: string }> = [];
+    if (tableRow) queue.push({ key: narrationKey(messageId, 'table'), url: tableRow.audio_url });
+    if (storyRow) queue.push({ key: narrationKey(messageId, 'story'), url: storyRow.audio_url });
+    if (queue.length === 0) return;
+    if (playingId && playingId.startsWith(`${messageId}:`)) { stop(); return; }
+    stop();
+    queueRef.current = queue;
+    runQueue();
+  }, [audioByMessage, playingId, stop, runQueue]);
+
+  const generate = useCallback(async (messageId: string, rawText: string, part: NarrationPart = 'story') => {
     if (!partyId) return;
     const apiKey = loadApiKey('speechify');
     if (!apiKey) {
@@ -125,12 +171,13 @@ export function useMessageNarration(
     }
     if (generatingId) return;
 
-    setGeneratingId(messageId);
+    const key = narrationKey(messageId, part);
+    setGeneratingId(key);
     try {
       const clean = stripMarkdownForTTS(rawText);
       if (!clean.trim()) throw new Error('Nothing to narrate in this message.');
       const chunks = splitTextForStitching(clean, 5000);
-      const voiceId = loadSpeechifyVoiceId();
+      const voiceId = part === 'table' ? loadSpeechifyDMVoiceId() : loadSpeechifyVoiceId();
       const blobs: Blob[] = [];
 
       for (const chunk of chunks) {
@@ -154,18 +201,19 @@ export function useMessageNarration(
       }
 
       const finalBlob = new Blob(blobs, { type: 'audio/mpeg' });
-      const path = `${partyId}/narration/${messageId}.mp3`;
+      const path = `${partyId}/narration/${messageId}${part === 'table' ? '-table' : ''}.mp3`;
       const { error: uploadError } = await supabase.storage
         .from('party-chat-audio')
         .upload(path, finalBlob, { contentType: 'audio/mpeg', upsert: true });
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage.from('party-chat-audio').getPublicUrl(path);
-      const audioUrl = urlData.publicUrl;
+      const audioUrl = `${urlData.publicUrl}?v=${Date.now()}`;
 
       const row = {
         party_id: partyId,
         message_id: messageId,
+        part,
         audio_url: audioUrl,
         voice_id: voiceId,
         provider: 'speechify',
@@ -173,20 +221,21 @@ export function useMessageNarration(
         created_by_name: currentUserName || null,
       };
       const { error: insertError } = await (supabase.from('party_message_audio') as any)
-        .upsert(row, { onConflict: 'message_id' });
+        .upsert(row, { onConflict: 'message_id,part' });
       if (insertError) throw insertError;
 
       setAudioByMessage((prev) => ({
         ...prev,
-        [messageId]: {
+        [key]: {
           message_id: messageId,
+          part,
           audio_url: audioUrl,
           voice_id: voiceId,
           created_by: currentUserId || '',
           created_by_name: currentUserName || null,
         },
       }));
-      toast.success('Narration saved for the party');
+      toast.success(part === 'table' ? 'DM aside saved for the party' : 'Narration saved for the party');
     } catch (error) {
       console.error('[MessageNarration] generate failed:', error);
       toast.error(error instanceof Error ? error.message : 'Narration failed');
@@ -195,24 +244,28 @@ export function useMessageNarration(
     }
   }, [partyId, currentUserId, currentUserName, generatingId]);
 
-  const remove = useCallback(async (messageId: string) => {
+  const remove = useCallback(async (messageId: string, part: NarrationPart = 'story') => {
     if (!partyId) return;
-    if (playingId === messageId) stop();
+    const key = narrationKey(messageId, part);
+    if (playingId === key) stop();
     const { error } = await (supabase.from('party_message_audio') as any)
       .delete()
       .eq('party_id', partyId)
-      .eq('message_id', messageId);
+      .eq('message_id', messageId)
+      .eq('part', part);
     if (error) {
       toast.error('Could not remove narration');
       return;
     }
-    await supabase.storage.from('party-chat-audio').remove([`${partyId}/narration/${messageId}.mp3`]);
+    await supabase.storage
+      .from('party-chat-audio')
+      .remove([`${partyId}/narration/${messageId}${part === 'table' ? '-table' : ''}.mp3`]);
     setAudioByMessage((prev) => {
       const next = { ...prev };
-      delete next[messageId];
+      delete next[key];
       return next;
     });
   }, [partyId, playingId, stop]);
 
-  return { audioByMessage, generatingId, playingId, generate, play, stop, remove, hasSpeechifyKey };
+  return { audioByMessage, generatingId, playingId, generate, play, playAll, stop, remove, hasSpeechifyKey };
 }
