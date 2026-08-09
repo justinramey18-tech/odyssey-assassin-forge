@@ -1795,23 +1795,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
 
 
-  // Prerequisites met (host's trigger rule + message count) → bundle the round
-  // chat and call the DM. Re-checked whenever new lines land, the round rolls
-  // over, or a generation finishes, so a met round never sits waiting.
-  useEffect(() => {
-    if (!chatRoundsOn || !isCreator) return;
-    if (!roundChat.progress.met) return;
-    if (partyDm.isGenerating) return;
-    void fireChatRound();
-  }, [
-    chatRoundsOn,
-    isCreator,
-    roundChat.progress.met,
-    roundChat.pendingMessages.length,
-    partyDm.isGenerating,
-    partyDm.sessionConfig?.currentRoundId,
-    fireChatRound,
-  ]);
+  // No automatic firing: the host (or a co-host) decides when the ticked lines
+  // go to the DM via "Send to DM".
 
 
   useEffect(() => {
