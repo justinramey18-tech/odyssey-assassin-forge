@@ -15,7 +15,7 @@ interface RoundChatDrawerProps {
   currentUserId?: string;
   characterName: string;
   style: RoundStyle;
-  progress: { current: number; target: number; met: boolean };
+  progress: { current: number; target: number; met: boolean; banterExcluded?: boolean };
   sending: boolean;
   isGenerating: boolean;
   isHost: boolean;
