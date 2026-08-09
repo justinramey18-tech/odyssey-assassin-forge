@@ -51,6 +51,7 @@ export function RoundChatDrawer({
   const [unseen, setUnseen] = useState(0);
   const prevCountRef = useRef(messages.length);
   const wasGeneratingRef = useRef(isGenerating);
+  const [justFinished, setJustFinished] = useState(false);
 
   const scrollToLatest = (behavior: ScrollBehavior = 'smooth') => {
     const el = scrollRef.current;
