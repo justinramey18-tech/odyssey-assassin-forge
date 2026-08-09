@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass } from 'lucide-react';
+import { ChevronDown, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass, ImagePlus } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { parseActionCard } from '@/lib/roundChatActionCard';
@@ -47,7 +47,71 @@ interface RoundChatDrawerProps {
   /** Text pushed in from outside (e.g. "suggest my action") to prefill the composer. */
   draft?: string | null;
   onDraftUsed?: () => void;
+  /** Per-player avatars: { [userId]: { ic, ooc } } */
+  avatars?: Record<string, { ic?: string; ooc?: string }>;
+  onUploadAvatar?: (kind: 'ic' | 'ooc', file: File) => void | Promise<void>;
 }
+
+/** Small circular face beside a message. Tapping your own opens the picker. */
+function ChatAvatar({
+  url,
+  label,
+  kind,
+  editable,
+  onPick,
+}: {
+  url?: string;
+  label: string;
+  kind: 'ic' | 'ooc';
+  editable: boolean;
+  onPick?: (file: File) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const initials = (label || '?').trim().charAt(0).toUpperCase();
+  return (
+    <div className="shrink-0 relative">
+      <button
+        type="button"
+        onClick={() => editable && inputRef.current?.click()}
+        disabled={!editable}
+        aria-label={editable ? `Change your ${kind === 'ic' ? 'character' : 'player'} picture` : label}
+        style={{ touchAction: 'manipulation' }}
+        className={cn(
+          "w-7 h-7 rounded-full overflow-hidden border flex items-center justify-center text-[10px] font-semibold",
+          kind === 'ic'
+            ? "border-emerald-400/40 bg-emerald-900/30 text-emerald-200"
+            : "border-amber-400/40 border-dashed bg-amber-900/20 text-amber-200",
+          editable && "hover:brightness-125"
+        )}
+      >
+        {url ? (
+          <img src={url} alt={label} className="w-full h-full object-cover" loading="lazy" />
+        ) : (
+          initials
+        )}
+      </button>
+      {editable && (
+        <>
+          <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-black/80 border border-white/20 flex items-center justify-center">
+            <ImagePlus className="w-2 h-2 text-white/70" />
+          </span>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onPick?.(f);
+              if (inputRef.current) inputRef.current.value = '';
+            }}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
 
 export function RoundChatDrawer({
   open,
@@ -67,6 +131,8 @@ export function RoundChatDrawer({
   onSendToDMNow,
   draft,
   onDraftUsed,
+  avatars,
+  onUploadAvatar,
 }: RoundChatDrawerProps) {
   const [text, setText] = useState('');
   const [inCharacter, setInCharacter] = useState(true);
@@ -311,15 +377,32 @@ export function RoundChatDrawer({
                   }, {});
                   const nameColor = m.in_character ? playerColor(m.user_id) : 'text-amber-300/80';
                   const alignRight = m.in_character && isSelf;
+                  const avatarUrl = m.in_character
+                    ? avatars?.[m.user_id]?.ic
+                    : avatars?.[m.user_id]?.ooc;
                   return (
-                    <div key={m.id} className={cn("flex", alignRight ? "justify-end" : "justify-start")}>
+                    <div
+                      key={m.id}
+                      className={cn(
+                        "flex items-start gap-1.5",
+                        alignRight ? "justify-end flex-row-reverse" : "justify-start",
+                      )}
+                    >
+                    <ChatAvatar
+                      url={avatarUrl}
+                      label={m.character_name || 'Player'}
+                      kind={m.in_character ? 'ic' : 'ooc'}
+                      editable={isSelf && !!onUploadAvatar}
+                      onPick={(file) => onUploadAvatar?.(m.in_character ? 'ic' : 'ooc', file)}
+                    />
                     <div
                       className={cn(
-                        "max-w-[85%] min-w-0",
+                        "max-w-[80%] min-w-0",
                         alignRight ? "text-right" : "text-left",
                         m.consumed && "opacity-60",
                       )}
                     >
+
                       <div className={cn("flex items-center gap-1.5", alignRight && "flex-row-reverse")}>
                         <span className={cn("text-[10px] font-semibold truncate font-cinzel", nameColor)}>
                           {m.character_name}

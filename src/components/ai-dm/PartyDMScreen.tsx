@@ -34,6 +34,7 @@ import { usePartyQuests } from '@/hooks/use-party-quests';
 import { useQuestRewardSplit } from '@/hooks/use-quest-reward-split';
 import { usePartyNarrationStyle } from '@/hooks/use-party-narration-style';
 import { useRoundChat } from '@/hooks/use-round-chat';
+import { useChatAvatars } from '@/hooks/use-chat-avatars';
 import { RoundChatDrawer } from './RoundChatDrawer';
 import { narrationStyleLine } from '@/lib/narrationStyle';
 import { withQuestEvent, WorldStateEntry, buildQuestKickoffPrompt } from '@/lib/quests';
@@ -994,6 +995,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     members.find(m => m.user_id === currentUserId)?.character_name || characterContext?.name || 'Player',
     partyDm.sessionConfig?.currentRoundId,
   );
+  const chatAvatars = useChatAvatars(partyId || null, currentUserId);
   const chatRoundsOn = roundChat.style.mode === 'chat' || roundChat.style.mode === 'live';
   const [roundChatOpen, setRoundChatOpen] = useState(false);
   const [roundChatDraft, setRoundChatDraft] = useState<string | null>(null);
@@ -2816,6 +2818,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onSendToDMNow={fireChatRound}
           draft={roundChatDraft}
           onDraftUsed={() => setRoundChatDraft(null)}
+          avatars={chatAvatars.avatars}
+          onUploadAvatar={async (kind, file) => {
+            try {
+              await chatAvatars.uploadAvatar(kind, file);
+              toast.success(kind === 'ic' ? 'Character picture updated' : 'Player picture updated');
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : 'Upload failed');
+            }
+          }}
         />
       )}
 
