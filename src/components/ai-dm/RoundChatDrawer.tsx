@@ -290,44 +290,33 @@ export function RoundChatDrawer({
                     (acc[r.emoji] ||= []).push(r);
                     return acc;
                   }, {});
+                  const nameColor = m.in_character ? playerColor(m.user_id) : 'text-amber-300/80';
+                  const alignRight = m.in_character && isSelf;
                   return (
-                    <div key={m.id} className={cn("flex", m.in_character ? "justify-end" : "justify-start")}>
+                    <div key={m.id} className={cn("flex", alignRight ? "justify-end" : "justify-start")}>
                     <div
                       className={cn(
-                        "max-w-[80%] min-w-0",
-                        m.in_character
-                          ? cn(
-                              "rounded-2xl rounded-br-sm px-2.5 py-1.5 border text-right",
-                              isSelf
-                                ? "bg-emerald-800/35 border-emerald-400/40"
-                                : "bg-emerald-950/30 border-emerald-500/20"
-                            )
-                          : "text-left",
+                        "max-w-[85%] min-w-0",
+                        alignRight ? "text-right" : "text-left",
                         m.consumed && "opacity-60",
                       )}
                     >
-                      <div className={cn("flex items-center gap-1.5", m.in_character && "flex-row-reverse")}>
-                        <span className={cn(
-                          "text-[10px] font-semibold truncate",
-                          m.in_character ? "text-emerald-200/90 font-cinzel" : "text-amber-300/80"
-                        )}>
+                      <div className={cn("flex items-center gap-1.5", alignRight && "flex-row-reverse")}>
+                        <span className={cn("text-[10px] font-semibold truncate font-cinzel", nameColor)}>
                           {m.character_name}
                         </span>
-                        <span className={cn(
-                          "text-[8px] px-1 py-[1px] rounded uppercase tracking-wider shrink-0",
-                          m.in_character
-                            ? "bg-emerald-500/20 text-emerald-200/90"
-                            : "bg-amber-500/15 text-amber-200/80"
-                        )}>
-                          {m.in_character ? 'In character' : 'Table talk'}
-                        </span>
+                        {!m.in_character && (
+                          <span className="text-[8px] px-1 py-[1px] rounded uppercase tracking-wider shrink-0 bg-amber-500/15 text-amber-200/80">
+                            Table talk
+                          </span>
+                        )}
                         {isSelf && (
                           <span className="text-[8px] px-1 py-[1px] rounded bg-white/10 text-white/45 uppercase tracking-wider shrink-0">You</span>
                         )}
                         {m.consumed && (
                           <span className="text-[9px] px-1 rounded bg-emerald-900/30 text-emerald-300/70 uppercase tracking-wide">Sent</span>
                         )}
-                        <div className={cn("flex items-center gap-1", m.in_character ? "mr-auto" : "ml-auto")}>
+                        <div className={cn("flex items-center gap-1", alignRight ? "mr-auto" : "ml-auto")}>
                           <button
                             onClick={() => setPickerFor(pickerFor === m.id ? null : m.id)}
                             className="p-0.5 text-white/25 hover:text-amber-300 transition-colors"
@@ -349,16 +338,20 @@ export function RoundChatDrawer({
                         </div>
                       </div>
                       {card ? (
-                        <QuickActionCard
+                        <QuickActionLine
                           card={card}
                           actorName={m.character_name || 'Player'}
+                          nameClass={nameColor}
                           isSelf={isSelf}
-                          className="mt-1"
+                          alignRight={alignRight}
+                          className="mt-0.5"
                         />
                       ) : (
                         <p className={cn(
                           "text-xs leading-snug whitespace-pre-wrap break-words [overflow-wrap:anywhere] mt-0.5",
-                          m.in_character ? "text-white/90 text-right" : "text-amber-200/80 italic text-left"
+                          m.in_character
+                            ? cn("text-white/90", alignRight ? "text-right" : "text-left")
+                            : "text-amber-200/80 italic text-left"
                         )}>
                           {body}
                         </p>
