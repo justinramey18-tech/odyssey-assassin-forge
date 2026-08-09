@@ -396,7 +396,7 @@ export function RoundChatDrawer({
                       label={m.character_name || 'Player'}
                       kind={m.in_character ? 'ic' : 'ooc'}
                       editable={isSelf && !!onUploadAvatar}
-                      onPick={(file) => onUploadAvatar?.(m.in_character ? 'ic' : 'ooc', file)}
+                      onPick={(file) => setCropTarget({ kind: m.in_character ? 'ic' : 'ooc', file })}
                     />
                     <div
                       className={cn(
