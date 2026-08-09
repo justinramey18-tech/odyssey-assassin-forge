@@ -994,6 +994,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     members.find(m => m.user_id === currentUserId)?.character_name || characterContext?.name || 'Player',
     partyDm.sessionConfig?.currentRoundId,
   );
+  const chatAvatars = useChatAvatars(partyId || null, currentUserId);
   const chatRoundsOn = roundChat.style.mode === 'chat' || roundChat.style.mode === 'live';
   const [roundChatOpen, setRoundChatOpen] = useState(false);
   const [roundChatDraft, setRoundChatDraft] = useState<string | null>(null);
