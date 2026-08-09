@@ -2818,6 +2818,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onSendToDMNow={fireChatRound}
           draft={roundChatDraft}
           onDraftUsed={() => setRoundChatDraft(null)}
+          avatars={chatAvatars.avatars}
+          onUploadAvatar={async (kind, file) => {
+            try {
+              await chatAvatars.uploadAvatar(kind, file);
+              toast.success(kind === 'ic' ? 'Character picture updated' : 'Player picture updated');
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : 'Upload failed');
+            }
+          }}
         />
       )}
 
