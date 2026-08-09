@@ -533,7 +533,9 @@ export function RoundChatDrawer({
 
               {/* Composer */}
               <div className="mt-2 space-y-1.5">
+                
                 <div className="flex items-center gap-2">
+
                   <div
                     role="group"
                     aria-label="Post as"
@@ -550,7 +552,11 @@ export function RoundChatDrawer({
                       )}
                       style={{ touchAction: 'manipulation' }}
                     >
-                      In character
+                      {(() => {
+                        const ic = (characterName || '').trim();
+                        const ooc = ((currentUserId && oocNames?.[currentUserId]) || '').trim();
+                        return ic && ooc && ic.toLowerCase() !== ooc.toLowerCase() ? ic : 'In character';
+                      })()}
                     </button>
                     <button
                       onClick={() => setInCharacter(false)}
@@ -563,7 +569,11 @@ export function RoundChatDrawer({
                       )}
                       style={{ touchAction: 'manipulation' }}
                     >
-                      Table talk
+                      {(() => {
+                        const ic = (characterName || '').trim();
+                        const ooc = ((currentUserId && oocNames?.[currentUserId]) || '').trim();
+                        return ic && ooc && ic.toLowerCase() !== ooc.toLowerCase() ? ooc : 'Table talk';
+                      })()}
                     </button>
                   </div>
                   {!inCharacter && onSetOocName && (
