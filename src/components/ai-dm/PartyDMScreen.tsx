@@ -1790,8 +1790,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     if (!myAfkGuide) return;
     setRecapDismissed(true);
     const autopilotPrompt = `<<${myAfkGuide}>>`;
-    partyDmRef.current.submitPrompt(autopilotPrompt);
-    setTimeout(() => partyDmRef.current.setReady(), 100);
+    if (chatRoundsOnRef.current) {
+      dispatchPrompt(autopilotPrompt);
+    } else {
+      partyDmRef.current.submitPrompt(autopilotPrompt);
+      setTimeout(() => partyDmRef.current.setReady(), 100);
+    }
   }, [myAfkGuide]);
 
   // Empyrean masterwork pills generator (Party mode)
