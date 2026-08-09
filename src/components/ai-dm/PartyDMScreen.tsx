@@ -995,6 +995,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   );
   const chatRoundsOn = roundChat.style.mode === 'chat' || roundChat.style.mode === 'live';
   const [roundChatOpen, setRoundChatOpen] = useState(false);
+  const [roundChatDraft, setRoundChatDraft] = useState<string | null>(null);
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
   const [showDeathSaves, setShowDeathSaves] = useState(false);
@@ -2022,8 +2023,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   }, []);
 
   const handleDiceRoll = useCallback((message: string) => {
+    if (chatRoundsOnRef.current) {
+      dispatchPrompt(message);
+      return;
+    }
     playerInputRef.current?.appendText(message);
-  }, []);
+  }, [dispatchPrompt]);
 
   const handleUsePrompt = useCallback((prompt: string) => {
     // The classic composer is hidden in Chat Rounds / Live DM — post to the room instead.
@@ -2735,6 +2740,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 disabled={partyDm.isGenerating}
                 onSelect={(prompt) => {
                   setRecapDismissed(true);
+                  if (chatRoundsOnRef.current) {
+                    setRoundChatDraft(prompt);
+                    setRoundChatOpen(true);
+                    return;
+                  }
                   playerInputRef.current?.setText(prompt);
                 }}
                 fetchStoryPills={handleFetchStoryPills}
@@ -2791,6 +2801,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onToggleReaction={(id, emoji) => roundChat.toggleReaction(id, emoji, members.find(m => m.user_id === currentUserId)?.character_name || 'Player')}
           onDeleteMessage={roundChat.deleteMessage}
           onSendToDMNow={fireChatRound}
+          draft={roundChatDraft}
+          onDraftUsed={() => setRoundChatDraft(null)}
         />
       )}
 
@@ -4703,7 +4715,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onRest={onRestOccurred}
           onRestPrompt={(text) => dispatchPrompt(text)}
           onAcceptItem={onAcceptItem}
-          onUseLootItem={(text) => playerInputRef.current?.appendText(text)}
+          onUseLootItem={(text) => {
+            if (chatRoundsOnRef.current) { dispatchPrompt(text); return; }
+            playerInputRef.current?.appendText(text);
+          }}
         />
       )}
 
