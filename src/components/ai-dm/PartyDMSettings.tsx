@@ -484,8 +484,9 @@ export function PartyDMSettings({
         <SettingsSection title="Round Style" icon={<MessageSquare className="w-4 h-4 text-amber-400" />}>
           <div className="px-3 py-2.5 space-y-3">
             <p className="text-[11px] text-muted-foreground">
-              How a round reaches the DM: the classic ready-up queue, or a live party chat that
-              sends itself once enough in-character messages land.
+              How a round reaches the DM: the classic ready-up queue, a live party chat that sends
+              itself once enough in-character messages land, or Live DM — which sends the table's
+              out-of-character banter along too.
             </p>
             {isCreator && onRoundStyleChange ? (
               <>
@@ -497,11 +498,47 @@ export function PartyDMSettings({
                   <SelectContent>
                     <SelectItem value="ready">Ready-up queue (classic)</SelectItem>
                     <SelectItem value="chat">Chat Rounds (live party chat)</SelectItem>
+                    <SelectItem value="live">Live DM (banter included)</SelectItem>
                   </SelectContent>
                 </Select>
 
-                {roundStyle.mode === 'chat' && (
+                {(roundStyle.mode === 'chat' || roundStyle.mode === 'live') && (
                   <>
+                    {roundStyle.mode === 'live' && (
+                      <>
+                        <div>
+                          <p className="text-[11px] text-muted-foreground mb-1.5">
+                            How much does the DM play with the banter?
+                          </p>
+                          <Select
+                            value={roundStyle.banterLevel}
+                            onValueChange={(v) => onRoundStyleChange({ banterLevel: v as BanterLevel })}
+                          >
+                            <SelectTrigger className="w-full min-h-[44px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="light">Light — a passing nod at most</SelectItem>
+                              <SelectItem value="balanced">Balanced — a quick quip, then the scene</SelectItem>
+                              <SelectItem value="heavy">Heavy — leans into the bit, teases by name</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <p className="text-[11px] text-muted-foreground mb-1.5">
+                            Which messages count toward the round?
+                          </p>
+                          <Select
+                            value={roundStyle.countBanter ? 'all' : 'ic'}
+                            onValueChange={(v) => onRoundStyleChange({ countBanter: v === 'all' })}
+                          >
+                            <SelectTrigger className="w-full min-h-[44px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All messages count</SelectItem>
+                              <SelectItem value="ic">Only in-character messages count</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </>
+                    )}
                     <div>
                       <p className="text-[11px] text-muted-foreground mb-1.5">When does the DM respond?</p>
                       <Select
@@ -543,9 +580,11 @@ export function PartyDMSettings({
               </>
             ) : (
               <div className="text-sm text-foreground">
-                {roundStyle.mode === 'chat'
-                  ? `Chat Rounds — the DM replies every ${roundStyle.messageCount} message${roundStyle.messageCount === 1 ? '' : 's'}.`
-                  : 'Ready-up queue (classic)'}
+                {roundStyle.mode === 'live'
+                  ? `Live DM — table talk reaches the DM, and it replies every ${roundStyle.messageCount} message${roundStyle.messageCount === 1 ? '' : 's'}.`
+                  : roundStyle.mode === 'chat'
+                    ? `Chat Rounds — the DM replies every ${roundStyle.messageCount} message${roundStyle.messageCount === 1 ? '' : 's'}.`
+                    : 'Ready-up queue (classic)'}
               </div>
             )}
           </div>
