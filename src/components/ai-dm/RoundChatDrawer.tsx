@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Send, Smile, Trash2, MessageSquare, Zap } from 'lucide-react';
+import { ChevronDown, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import type { RoundChatMessage, RoundChatReaction, RoundStyle } from '@/hooks/use-round-chat';
@@ -51,6 +51,7 @@ export function RoundChatDrawer({
   const [unseen, setUnseen] = useState(0);
   const prevCountRef = useRef(messages.length);
   const wasGeneratingRef = useRef(isGenerating);
+  const [justFinished, setJustFinished] = useState(false);
 
   const scrollToLatest = (behavior: ScrollBehavior = 'smooth') => {
     const el = scrollRef.current;
@@ -92,9 +93,15 @@ export function RoundChatDrawer({
   useEffect(() => {
     if (wasGeneratingRef.current && !isGenerating) {
       requestAnimationFrame(() => scrollToLatest('smooth'));
+      setJustFinished(true);
+      const t = setTimeout(() => setJustFinished(false), 6000);
+      wasGeneratingRef.current = isGenerating;
+      return () => clearTimeout(t);
     }
+    if (isGenerating) setJustFinished(false);
     wasGeneratingRef.current = isGenerating;
   }, [isGenerating]);
+
 
   const lastLine = messages.length > 0 ? messages[messages.length - 1] : null;
 
@@ -123,6 +130,22 @@ export function RoundChatDrawer({
     if (style.triggerRule === 'perPlayer') return `The DM replies once everyone who spoke has posted ${n} message${s}.`;
     return `The DM replies after ${n} message${s}.`;
   })();
+
+  /** Compact status line: queued -> thinking -> ready. */
+  const dmStatus: { tone: 'queued' | 'thinking' | 'ready'; label: string } | null = (() => {
+    if (isGenerating) return { tone: 'thinking', label: 'The DM is thinking…' };
+    if (justFinished) return { tone: 'ready', label: 'The DM has replied — scroll up to read the scene.' };
+    if (progress.met) return { tone: 'queued', label: 'Round is full — the DM is up next.' };
+    if (progress.current > 0) {
+      const left = remaining;
+      return {
+        tone: 'queued',
+        label: `${progress.current} queued · ${left} more ${ruleLabel === 'players' ? (left === 1 ? 'player' : 'players') : left === 1 ? 'message' : 'messages'} until the DM replies`,
+      };
+    }
+    return null;
+  })();
+
 
 
   const handleSend = async () => {
@@ -177,6 +200,34 @@ export function RoundChatDrawer({
             className="overflow-hidden"
           >
             <div className="px-2 pb-2 relative">
+              {/* Compact DM status banner */}
+              {dmStatus && (
+                <div
+                  className={cn(
+                    "mb-1.5 flex items-center gap-1.5 rounded-md border px-2 py-1",
+                    dmStatus.tone === 'thinking' && "bg-amber-500/10 border-amber-500/25",
+                    dmStatus.tone === 'ready' && "bg-emerald-500/10 border-emerald-500/25",
+                    dmStatus.tone === 'queued' && "bg-white/5 border-white/10",
+                  )}
+                >
+                  {dmStatus.tone === 'thinking' ? (
+                    <Loader2 className="w-3 h-3 text-amber-300 animate-spin shrink-0" />
+                  ) : dmStatus.tone === 'ready' ? (
+                    <CheckCircle2 className="w-3 h-3 text-emerald-300 shrink-0" />
+                  ) : (
+                    <Hourglass className="w-3 h-3 text-white/40 shrink-0" />
+                  )}
+                  <span className={cn(
+                    "text-[10px] truncate",
+                    dmStatus.tone === 'thinking' ? "text-amber-100/90"
+                      : dmStatus.tone === 'ready' ? "text-emerald-100/90"
+                      : "text-white/50",
+                  )}>
+                    {dmStatus.label}
+                  </span>
+                </div>
+              )}
+
               {/* Feed — roughly half the DM chat window */}
               <div
                 ref={scrollRef}
