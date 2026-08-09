@@ -1676,12 +1676,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   // Helper: build AFK guide context for absent members
   // Returns guidesSection, promptSection, and consumedCascades (members whose first cascade prompt was used)
-  const buildAfkGuidesContext = useCallback((readyPrompts: PartyDmPrompt[], teamMemberIds?: string[]) => {
+  const buildAfkGuidesContext = useCallback((readyPrompts: PartyDmPrompt[], teamMemberIds?: string[], coveredUserIds?: string[]) => {
     const relevantMembers = teamMemberIds
       ? partyMembers.filter(m => teamMemberIds.includes(m.user_id))
       : partyMembers;
+    const covered = new Set(coveredUserIds || []);
     const absentMembers = relevantMembers.filter(
-      m => !readyPrompts.some(p => p.user_id === m.user_id)
+      m => !covered.has(m.user_id) && !readyPrompts.some(p => p.user_id === m.user_id)
     );
     const afkLines: string[] = [];
     const afkPromptLines: string[] = [];
