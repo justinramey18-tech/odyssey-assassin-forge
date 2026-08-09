@@ -217,12 +217,22 @@ export function useRoundChat(
 
   const isLive = style.mode === 'live';
 
-  /** Every not-yet-sent line for the round that the DM will receive. */
+  /**
+   * Every not-yet-sent line the DM will receive. Deliberately NOT filtered by
+   * round_id: a message posted a moment either side of a round rollover would
+   * otherwise be stranded and never reach the DM.
+   */
   const pendingMessages = useMemo(
     () => messages.filter(m => (
-      m.round_id === roundId && !m.consumed && (isLive || m.in_character)
+      !m.consumed && (isLive || m.in_character)
     )),
-    [messages, roundId, isLive],
+    [messages, isLive],
+  );
+
+  /** Players whose lines are in this bundle — they must not be treated as absent. */
+  const pendingUserIds = useMemo(
+    () => Array.from(new Set(pendingMessages.map(m => m.user_id))),
+    [pendingMessages],
   );
 
   /** The subset that advances the round counter. */
