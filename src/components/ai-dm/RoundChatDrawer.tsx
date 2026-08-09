@@ -184,6 +184,34 @@ export function RoundChatDrawer({
             className="overflow-hidden"
           >
             <div className="px-2 pb-2 relative">
+              {/* Compact DM status banner */}
+              {status && (
+                <div
+                  className={cn(
+                    "mb-1.5 flex items-center gap-1.5 rounded-md border px-2 py-1",
+                    status.tone === 'thinking' && "bg-amber-500/10 border-amber-500/25",
+                    status.tone === 'ready' && "bg-emerald-500/10 border-emerald-500/25",
+                    status.tone === 'queued' && "bg-white/5 border-white/10",
+                  )}
+                >
+                  {status.tone === 'thinking' ? (
+                    <Loader2 className="w-3 h-3 text-amber-300 animate-spin shrink-0" />
+                  ) : status.tone === 'ready' ? (
+                    <CheckCircle2 className="w-3 h-3 text-emerald-300 shrink-0" />
+                  ) : (
+                    <Hourglass className="w-3 h-3 text-white/40 shrink-0" />
+                  )}
+                  <span className={cn(
+                    "text-[10px] truncate",
+                    status.tone === 'thinking' ? "text-amber-100/90"
+                      : status.tone === 'ready' ? "text-emerald-100/90"
+                      : "text-white/50",
+                  )}>
+                    {status.label}
+                  </span>
+                </div>
+              )}
+
               {/* Feed — roughly half the DM chat window */}
               <div
                 ref={scrollRef}
