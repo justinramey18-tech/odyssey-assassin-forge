@@ -3798,6 +3798,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onNarrationStyleChange={partyNarrationStyle.setStyle}
               onNarrationIntensityChange={partyNarrationStyle.setIntensity}
               questRewardSplitMode={questRewardSplit.mode}
+              roundStyle={roundChat.style}
+              onRoundStyleChange={roundChat.updateStyle}
               onQuestRewardSplitModeChange={questRewardSplit.setMode}
               moodPresetFilter={!isEmpyrean ? PARTY_MOOD_PRESETS : undefined}
               onMoodPresetSelected={(presetId) => {
