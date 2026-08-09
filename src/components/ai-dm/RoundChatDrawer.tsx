@@ -92,9 +92,15 @@ export function RoundChatDrawer({
   useEffect(() => {
     if (wasGeneratingRef.current && !isGenerating) {
       requestAnimationFrame(() => scrollToLatest('smooth'));
+      setJustFinished(true);
+      const t = setTimeout(() => setJustFinished(false), 6000);
+      wasGeneratingRef.current = isGenerating;
+      return () => clearTimeout(t);
     }
+    if (isGenerating) setJustFinished(false);
     wasGeneratingRef.current = isGenerating;
   }, [isGenerating]);
+
 
   const lastLine = messages.length > 0 ? messages[messages.length - 1] : null;
 
