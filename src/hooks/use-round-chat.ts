@@ -4,18 +4,25 @@ import { supabase } from '@/integrations/supabase/client';
 const STYLE_STATE_TYPE = 'round_style';
 
 export type RoundTriggerRule = 'total' | 'perPlayer' | 'distinct';
-export type RoundStyleMode = 'ready' | 'chat';
+export type RoundStyleMode = 'ready' | 'chat' | 'live';
+export type BanterLevel = 'light' | 'balanced' | 'heavy';
 
 export interface RoundStyle {
   mode: RoundStyleMode;
   triggerRule: RoundTriggerRule;
   messageCount: number;
+  /** Live DM: how hard the DM plays with out-of-character table talk. */
+  banterLevel: BanterLevel;
+  /** Live DM: does table talk advance the round counter? */
+  countBanter: boolean;
 }
 
 export const DEFAULT_ROUND_STYLE: RoundStyle = {
   mode: 'ready',
   triggerRule: 'total',
   messageCount: 2,
+  banterLevel: 'balanced',
+  countBanter: true,
 };
 
 export interface RoundChatMessage {
@@ -38,9 +45,16 @@ export interface RoundChatReaction {
   emoji: string;
 }
 
+const BANTER_INSTRUCTIONS: Record<BanterLevel, string> = {
+  light: 'Acknowledge the table talk with at most a passing nod or a single dry word, then get on with the scene.',
+  balanced: 'Open with one quick quip or aside to the table about their banter, then deliver the scene beat.',
+  heavy: 'Lean into the bit — riff on the banter, tease players by name, play with the joke for a couple of lines before steering back into the scene.',
+};
+
 const parseStyle = (raw: unknown): RoundStyle => {
   const data = (raw || {}) as Record<string, unknown>;
-  const mode: RoundStyleMode = data.mode === 'chat' ? 'chat' : 'ready';
+  const mode: RoundStyleMode =
+    data.mode === 'chat' || data.mode === 'live' ? data.mode : 'ready';
   const rule = data.triggerRule;
   const triggerRule: RoundTriggerRule =
     rule === 'perPlayer' || rule === 'distinct' ? rule : 'total';
@@ -48,8 +62,13 @@ const parseStyle = (raw: unknown): RoundStyle => {
   const messageCount = Number.isFinite(rawCount)
     ? Math.min(10, Math.max(1, Math.round(rawCount)))
     : DEFAULT_ROUND_STYLE.messageCount;
-  return { mode, triggerRule, messageCount };
+  const lvl = data.banterLevel;
+  const banterLevel: BanterLevel =
+    lvl === 'light' || lvl === 'heavy' || lvl === 'balanced' ? lvl : DEFAULT_ROUND_STYLE.banterLevel;
+  const countBanter = data.countBanter === undefined ? DEFAULT_ROUND_STYLE.countBanter : Boolean(data.countBanter);
+  return { mode, triggerRule, messageCount, banterLevel, countBanter };
 };
+
 
 /**
  * Chat Rounds: a live mini party-chat feed that drives the AI DM.
