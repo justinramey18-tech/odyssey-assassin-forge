@@ -1731,6 +1731,7 @@ export type Database = {
         Row: {
           created_at: string
           ic_url: string | null
+          ooc_name: string | null
           ooc_url: string | null
           updated_at: string
           user_id: string
@@ -1738,6 +1739,7 @@ export type Database = {
         Insert: {
           created_at?: string
           ic_url?: string | null
+          ooc_name?: string | null
           ooc_url?: string | null
           updated_at?: string
           user_id: string
@@ -1745,6 +1747,7 @@ export type Database = {
         Update: {
           created_at?: string
           ic_url?: string | null
+          ooc_name?: string | null
           ooc_url?: string | null
           updated_at?: string
           user_id?: string
