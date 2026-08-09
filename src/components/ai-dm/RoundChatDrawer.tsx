@@ -9,6 +9,25 @@ import type { RoundChatMessage, RoundChatReaction, RoundStyle } from '@/hooks/us
 
 const EMOJI_SET = ['🤣','😅','🤪','🙄','😬','😏','🤮','🥵','🥶','🤯','🧐','😎','😱','😭','🤬','😈','❤️','💯','👏','🙌','🤝','🖕','🫦','🗣','🍑','🍆'];
 
+/** Stable per-player name colours so everyone sees the same person in the same hue. */
+const PLAYER_COLORS = [
+  'text-emerald-300',
+  'text-sky-300',
+  'text-violet-300',
+  'text-rose-300',
+  'text-lime-300',
+  'text-cyan-300',
+  'text-fuchsia-300',
+  'text-orange-300',
+];
+
+function playerColor(userId?: string | null): string {
+  if (!userId) return 'text-white/80';
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) hash = (hash * 31 + userId.charCodeAt(i)) >>> 0;
+  return PLAYER_COLORS[hash % PLAYER_COLORS.length];
+}
+
 interface RoundChatDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
