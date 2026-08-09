@@ -219,11 +219,7 @@ export function useRoundChat(
 
   const isLive = style.mode === 'live';
 
-  /**
-   * Every not-yet-sent line the DM will receive. Deliberately NOT filtered by
-   * round_id: a message posted a moment either side of a round rollover would
-   * otherwise be stranded and never reach the DM.
-   */
+  /** Lines that are still eligible to be ticked and handed to the DM. */
   const pendingMessages = useMemo(
     () => messages.filter(m => (
       !m.consumed && (isLive || m.in_character)
@@ -231,47 +227,59 @@ export function useRoundChat(
     [messages, isLive],
   );
 
-  /** Players whose lines are in this bundle — they must not be treated as absent. */
-  const pendingUserIds = useMemo(
-    () => Array.from(new Set(pendingMessages.map(m => m.user_id))),
+  /** Only ticked lines go to the DM. Nothing is sent automatically. */
+  const selectedMessages = useMemo(
+    () => pendingMessages.filter(m => m.selected),
     [pendingMessages],
   );
 
-  /** The subset that advances the round counter. */
-  const countedMessages = useMemo(
-    () => (isLive && !style.countBanter ? pendingMessages.filter(m => m.in_character) : pendingMessages),
-    [pendingMessages, isLive, style.countBanter],
+  /** Tick / untick a line. Anyone at the table may do this. */
+  const toggleSelected = useCallback(async (messageId: string) => {
+    const msg = messages.find(m => m.id === messageId);
+    if (!msg || msg.consumed) return;
+    const next = !msg.selected;
+    setMessages(prev => prev.map(m => (m.id === messageId ? { ...m, selected: next } : m)));
+    await (supabase.from('party_round_chat') as any).update({ selected: next }).eq('id', messageId);
+  }, [messages]);
+
+  /** Tick every line that is still waiting. */
+  const selectAllPending = useCallback(async () => {
+    const ids = pendingMessages.filter(m => !m.selected).map(m => m.id);
+    if (ids.length === 0) return;
+    setMessages(prev => prev.map(m => (ids.includes(m.id) ? { ...m, selected: true } : m)));
+    await (supabase.from('party_round_chat') as any).update({ selected: true }).in('id', ids);
+  }, [pendingMessages]);
+
+  /** Untick everything currently ticked. */
+  const clearSelection = useCallback(async () => {
+    const ids = selectedMessages.map(m => m.id);
+    if (ids.length === 0) return;
+    setMessages(prev => prev.map(m => (ids.includes(m.id) ? { ...m, selected: false } : m)));
+    await (supabase.from('party_round_chat') as any).update({ selected: false }).in('id', ids);
+  }, [selectedMessages]);
+
+  /** Players whose lines are in this bundle — they must not be treated as absent. */
+  const pendingUserIds = useMemo(
+    () => Array.from(new Set(selectedMessages.map(m => m.user_id))),
+    [selectedMessages],
   );
 
-  /** How far along the round is, given the host's trigger rule. */
-  const progress = useMemo(() => {
-    const n = style.messageCount;
-    const banterExcluded = isLive && !style.countBanter;
-    if (style.triggerRule === 'total') {
-      return { current: countedMessages.length, target: n, met: countedMessages.length >= n, banterExcluded };
-    }
-    const byUser = new Map<string, number>();
-    for (const m of countedMessages) byUser.set(m.user_id, (byUser.get(m.user_id) || 0) + 1);
-    if (style.triggerRule === 'distinct') {
-      const distinct = byUser.size;
-      return { current: distinct, target: n, met: distinct >= n, banterExcluded };
-    }
-    // perPlayer: every player who has posted must reach n, and at least one has
-    const counts = Array.from(byUser.values());
-    const satisfied = counts.length > 0 && counts.every(c => c >= n);
-    const lowest = counts.length > 0 ? Math.min(...counts) : 0;
-    return { current: lowest, target: n, met: satisfied, banterExcluded };
-  }, [countedMessages, style, isLive]);
+  /** How many lines are ticked and ready to be handed over. */
+  const progress = useMemo(() => ({
+    current: selectedMessages.length,
+    waiting: pendingMessages.length,
+    met: selectedMessages.length > 0,
+  }), [selectedMessages, pendingMessages]);
 
   /**
-   * Bundle the round for the DM. In-character lines are grouped per character;
-   * in Live DM mode the table's out-of-character banter rides along in its own
-   * clearly marked block, behind a persona directive.
+   * Bundle the ticked lines for the DM. In-character lines are grouped per
+   * character; in Live DM mode ticked out-of-character banter rides along in
+   * its own clearly marked block, behind a persona directive.
    */
   const buildRoundPrompt = useCallback(() => {
     const order: string[] = [];
     const grouped = new Map<string, string[]>();
-    for (const m of pendingMessages) {
+    for (const m of selectedMessages) {
       if (!m.in_character) continue;
       const key = m.character_name || 'Player';
       if (!grouped.has(key)) { grouped.set(key, []); order.push(key); }
@@ -283,7 +291,7 @@ export function useRoundChat(
 
     if (!isLive) return inCharacterBlock;
 
-    const banter = pendingMessages.filter(m => !m.in_character);
+    const banter = selectedMessages.filter(m => !m.in_character);
     const banterBlock = banter.length
       ? `\n\nTABLE TALK (out of character):\n${banter.map(m => `${m.character_name || 'Player'}: ${stripActionCard(m.content).trim()}`).join('\n')}`
       : '';
@@ -299,15 +307,15 @@ export function useRoundChat(
     ].join('\n');
 
     return `${directive}\n\n${inCharacterBlock}${banterBlock}`.trim();
-  }, [pendingMessages, isLive, style.banterLevel]);
+  }, [selectedMessages, isLive, style.banterLevel]);
 
-  /** Mark this round's lines as sent so they don't count toward the next round. */
+  /** Mark the ticked lines as sent. Unticked lines stay available for later. */
   const consumePending = useCallback(async () => {
-    if (!partyId || pendingMessages.length === 0) return;
-    const ids = pendingMessages.map(m => m.id);
-    setMessages(prev => prev.map(m => (ids.includes(m.id) ? { ...m, consumed: true } : m)));
-    await (supabase.from('party_round_chat') as any).update({ consumed: true }).in('id', ids);
-  }, [partyId, pendingMessages]);
+    if (!partyId || selectedMessages.length === 0) return;
+    const ids = selectedMessages.map(m => m.id);
+    setMessages(prev => prev.map(m => (ids.includes(m.id) ? { ...m, consumed: true, selected: false } : m)));
+    await (supabase.from('party_round_chat') as any).update({ consumed: true, selected: false }).in('id', ids);
+  }, [partyId, selectedMessages]);
 
   return {
     style,
