@@ -504,26 +504,29 @@ export function PartyDMSettings({
 
                 {(roundStyle.mode === 'chat' || roundStyle.mode === 'live') && (
                   <>
-                    {roundStyle.mode === 'live' && (
-                      <>
-                        <div>
-                          <p className="text-[11px] text-muted-foreground mb-1.5">
-                            How much does the DM play with the banter?
-                          </p>
-                          <Select
-                            value={roundStyle.banterLevel}
-                            onValueChange={(v) => onRoundStyleChange({ banterLevel: v as BanterLevel })}
-                          >
-                            <SelectTrigger className="w-full min-h-[44px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="light">Light — a passing nod at most</SelectItem>
-                              <SelectItem value="balanced">Balanced — a quick quip, then the scene</SelectItem>
-                              <SelectItem value="heavy">Heavy — leans into the bit, teases by name</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </>
-                    )}
+                    <div className="space-y-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-mono uppercase tracking-wider text-red-400">
+                          Chaos Intensity
+                        </span>
+                        <span className="text-sm font-bold text-red-300">{roundStyle.chaosLevel}/10</span>
+                      </div>
+                      <Slider
+                        value={[roundStyle.chaosLevel]}
+                        onValueChange={([v]) => onRoundStyleChange({ chaosLevel: v })}
+                        min={1}
+                        max={10}
+                        step={1}
+                        className="[&_[role=slider]]:bg-red-500 [&_[role=slider]]:border-red-400"
+                      />
+                      <p className="text-[11px] text-red-300/80 text-center font-medium">
+                        {CHAOS_LABELS[roundStyle.chaosLevel] || ''}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground text-center">
+                        How much comedic, fourth-wall energy the DM brings to asides and narration. Your guides and world facts always win.
+                      </p>
+                    </div>
+
                     <p className="text-[11px] text-muted-foreground">
                       Players tick the chat lines they want answered; you decide when to send them to the DM.
                     </p>
