@@ -280,6 +280,7 @@ export function useRoundChat(
       'OOC: LIVE TABLE MODE. You are running this session like a live tabletop game master in the vein of Anthony Burch — fast, warm, funny, improv-minded, comfortable breaking for a joke and then snapping the table back into the fiction.',
       'Lines under TABLE TALK are the real people at the table talking out of character. They are NOT things the characters said or did. Never turn banter into a character action and never let the characters hear it.',
       BANTER_INSTRUCTIONS[style.banterLevel],
+      'FORMAT: if you say anything to the table out of character (an aside, a joke, a rules note, an answer to banter), put it FIRST and wrap it exactly in [TABLE] ... [/TABLE]. Everything after that block is pure in-fiction narration with no [TABLE] tags. If you have no aside, omit the block entirely.',
       banter.length && !inCharacterBlock
         ? 'This round has only table talk and no character actions — answer the table briefly and conversationally; do not force a full scene beat.'
         : 'Keep any table-side aside short and clearly separate, then deliver a proper scene beat driven only by the in-character actions below.',
