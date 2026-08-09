@@ -3824,7 +3824,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               )}
               {isCreator && (partyDm.sessionConfig?.dmMode || 'ai') !== 'human' && (
                 <Button
-                  onClick={partyDm.generateResponse}
+                  onClick={() => partyDm.generateResponse()}
                   disabled={partyDm.isGenerating || partyDm.currentPrompts.length === 0}
                   className="gap-1.5 bg-amber-900/40 border border-amber-500/30 hover:bg-amber-900/60 text-amber-300"
                   size="sm"
