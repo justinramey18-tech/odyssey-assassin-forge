@@ -173,34 +173,49 @@ export function RoundChatDrawer({
   };
 
   return (
-    <div className="border-t border-amber-900/20 bg-black/30 overflow-hidden">
-      {/* Collapsed strip */}
+    <div className="border-t border-amber-900/30 bg-gradient-to-b from-amber-950/25 to-black/40 overflow-hidden">
+      {/* Expansion trigger — large, ornamented header */}
       <button
         onClick={() => onOpenChange(!open)}
-        className="w-full flex items-center gap-1.5 px-3 py-1.5 hover:bg-white/5 transition-colors text-left"
-        style={{ touchAction: 'manipulation' }}
+        aria-expanded={open}
+        className="w-full relative px-3 pt-2 pb-3 text-left transition-colors hover:bg-amber-500/[0.06] active:bg-amber-500/10"
+        style={{ touchAction: 'manipulation', minHeight: 64 }}
       >
-        <MessageSquare className="w-3 h-3 text-amber-400/60 shrink-0" />
-        <span className="text-[10px] text-white/50 uppercase tracking-wider font-semibold shrink-0">
-          {style.mode === 'live' ? 'Live DM' : 'Round Chat'}
-        </span>
-        <span className={cn(
-          "text-[10px] shrink-0",
-          progress.met ? "text-emerald-400" : "text-white/35"
-        )}>
-          {progress.current}/{progress.target} {ruleLabel}
-          {progress.banterExcluded ? ' (in-character)' : ''}
-        </span>
-        {!open && lastLine && (
-          <span className="text-[10px] text-white/30 truncate ml-1">
-            {lastLine.character_name}: {lastLine.content}
+        {/* grab handle */}
+        <div className="mx-auto mb-2 h-1.5 w-14 rounded-full bg-amber-400/35" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
+        <div className="flex items-center gap-2">
+          <span className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/25">
+            <MessageSquare className="w-4 h-4 text-amber-300/80" />
           </span>
-        )}
-        <ChevronDown className={cn(
-          "w-3.5 h-3.5 text-white/30 shrink-0 ml-auto transition-transform duration-200",
-          open && "rotate-180",
-        )} />
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-2">
+              <span className="font-cinzel text-[13px] tracking-wide text-amber-200/90">
+                {style.mode === 'live' ? 'Live DM Table' : 'Round Chat'}
+              </span>
+              <span className={cn(
+                "text-[10px] px-1.5 py-0.5 rounded-full border shrink-0",
+                progress.met
+                  ? "text-emerald-300 border-emerald-400/30 bg-emerald-500/10"
+                  : "text-white/50 border-white/15 bg-white/5"
+              )}>
+                {progress.current}/{progress.target} {ruleLabel}
+                {progress.banterExcluded ? ' (IC)' : ''}
+              </span>
+            </span>
+            <span className="block text-[10px] text-white/40 truncate mt-0.5">
+              {!open && lastLine
+                ? `${lastLine.character_name}: ${lastLine.content}`
+                : open ? 'Tap to collapse the table' : 'Tap to open the table chat'}
+            </span>
+          </span>
+          <ChevronDown className={cn(
+            "w-5 h-5 text-amber-300/60 shrink-0 transition-transform duration-200",
+            open && "rotate-180",
+          )} />
+        </div>
       </button>
+
 
       <AnimatePresence>
         {open && (
