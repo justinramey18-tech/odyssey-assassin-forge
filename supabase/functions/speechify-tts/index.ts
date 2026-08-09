@@ -51,11 +51,23 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Speechify TTS error:", response.status, errorText);
+      let detail = "";
+      try {
+        detail = JSON.parse(errorText)?.error?.message || "";
+      } catch { /* not JSON */ }
+
+      const friendly = response.status === 402
+        ? `Speechify says your account is out of credits${detail ? ` (${detail})` : ""}. Top up or upgrade at speechify.com, then try again.`
+        : response.status === 401 || response.status === 403
+          ? "Speechify rejected your API key. Check the key in Settings → API Keys."
+          : `Speechify error ${response.status}${detail ? `: ${detail}` : ""}`;
+
       return new Response(
-        JSON.stringify({ error: `Speechify API error: ${response.status}` }),
+        JSON.stringify({ error: friendly }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
 
     // Stream audio binary directly back to client
     return new Response(response.body, {
