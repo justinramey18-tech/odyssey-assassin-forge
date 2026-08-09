@@ -145,6 +145,9 @@ export function RoundChatDrawer({
   onSelectAll,
   onClearSelection,
   onSendToDMNow,
+  orderedSelected,
+  onReorderSelected,
+
   draft,
   onDraftUsed,
   avatars,
