@@ -454,6 +454,10 @@ export interface NarrationSegment {
   /** null = narrator (untagged prose). */
   speaker: string | null;
   text: string;
+  /** Forced voice (manual highlight override). Wins over the cast lookup. */
+  voiceId?: string | null;
+  /** True when the player hand-picked this passage's voice. */
+  manual?: boolean;
 }
 
 /** Removes [VOICE:...] markers while keeping the words, for on-screen display. */
@@ -461,28 +465,204 @@ export function stripVoiceTags(text: string): string {
   return (text || '').replace(/\[VOICE:[^\]]{0,40}\]/gi, '').replace(/\[\/VOICE\]/gi, '');
 }
 
+/** Stable id for a segment, derived from its words so clips survive re-splits. */
+export function segmentKey(seg: NarrationSegment): string {
+  const basis = `${seg.speaker || ''}|${seg.voiceId || ''}|${(seg.text || '').replace(/\s+/g, ' ').trim()}`;
+  let h = 5381;
+  for (let i = 0; i < basis.length; i++) h = ((h * 33) ^ basis.charCodeAt(i)) >>> 0;
+  return `seg-${h.toString(36)}`;
+}
+
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Builds a whitespace/markdown-tolerant matcher for a plain-text passage. */
+function tolerantMatcher(plain: string): RegExp | null {
+  const words = (plain || '').match(/[A-Za-z0-9']+/g);
+  if (!words || words.length === 0) return null;
+  const body = words.map(escapeRe).join('[^A-Za-z0-9]{0,8}');
+  return new RegExp(`[^A-Za-z0-9]{0,8}${body}[^A-Za-z0-9]{0,3}`, 'i');
+}
+
+const QUOTED = /[“"]([^”"]{2,})[”"]/g;
+
+function mergeNarrator(list: NarrationSegment[]): NarrationSegment[] {
+  const out: NarrationSegment[] = [];
+  for (const seg of list) {
+    const prev = out[out.length - 1];
+    if (prev && !prev.speaker && !prev.manual && !seg.speaker && !seg.manual) {
+      prev.text = `${prev.text}\n\n${seg.text}`;
+    } else {
+      out.push({ ...seg });
+    }
+  }
+  return out;
+}
+
 /**
- * Breaks story prose into ordered segments: narrator prose and speaker-tagged
- * dialogue, in the order they appear. Falls back to a single narrator segment
- * when the DM did not tag anything.
+ * Detects speakers without [VOICE:] tags: paragraphs that name a cast member
+ * (bold or plain) and contain quoted speech get that speaker on the quoted
+ * lines, while the surrounding prose stays with the narrator.
  */
-export function splitStorySegments(story: string): NarrationSegment[] {
+function autoDetectSegments(raw: string): NarrationSegment[] {
+  const cast = loadVoiceCast();
+  if (cast.length === 0) return [{ speaker: null, text: raw }];
+
+  const out: NarrationSegment[] = [];
+  for (const para of raw.split(/\n{2,}/)) {
+    const p = para.trim();
+    if (!p) continue;
+
+    const outsideQuotes = p.replace(new RegExp(QUOTED.source, 'g'), ' ');
+    let speaker: string | null = null;
+
+    const bold = p.match(/\*\*([^*]{2,40})\*\*/);
+    if (bold && voiceForSpeaker(bold[1])) speaker = bold[1].trim();
+
+    if (!speaker) {
+      let bestIndex = Infinity;
+      for (const entry of cast) {
+        const m = outsideQuotes.match(new RegExp(`\\b${escapeRe(entry.name)}\\b`, 'i'));
+        if (m && m.index !== undefined && m.index < bestIndex) {
+          bestIndex = m.index;
+          speaker = entry.name;
+        }
+      }
+    }
+
+    if (!speaker) { out.push({ speaker: null, text: p }); continue; }
+
+    const re = new RegExp(QUOTED.source, 'g');
+    const pieces: NarrationSegment[] = [];
+    let cursor = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(p)) !== null) {
+      const before = p.slice(cursor, m.index).trim();
+      if (before) pieces.push({ speaker: null, text: before });
+      pieces.push({ speaker, text: m[0] });
+      cursor = m.index + m[0].length;
+    }
+    const tail = p.slice(cursor).trim();
+    if (tail) pieces.push({ speaker: null, text: tail });
+    out.push(...(pieces.length ? pieces : [{ speaker: null, text: p }]));
+  }
+
+  return out.length ? out : [{ speaker: null, text: raw }];
+}
+
+// ── Manual highlight overrides ──────────────────────────────────────────────
+
+const OVERRIDES_KEY = 'dnd-narration-voice-overrides';
+
+export interface NarrationOverride {
+  /** Plain text of the highlighted passage. */
+  text: string;
+  /** Speechify voice id chosen for it. */
+  voiceId: string;
+  /** Friendly label shown in the UI (character name or "Narrator"). */
+  label?: string;
+}
+
+type OverrideMap = Record<string, NarrationOverride[]>;
+
+function readOverrideMap(): OverrideMap {
+  try {
+    const raw = localStorage.getItem(OVERRIDES_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed as OverrideMap : {};
+  } catch { return {}; }
+}
+
+function writeOverrideMap(map: OverrideMap): void {
+  try { localStorage.setItem(OVERRIDES_KEY, JSON.stringify(map)); } catch { /* ignore */ }
+}
+
+export function loadNarrationOverrides(messageId: string): NarrationOverride[] {
+  const list = readOverrideMap()[messageId];
+  return Array.isArray(list) ? list : [];
+}
+
+export function addNarrationOverride(messageId: string, override: NarrationOverride): void {
+  const map = readOverrideMap();
+  const existing = (map[messageId] || []).filter((o) => o.text !== override.text);
+  map[messageId] = [...existing, override];
+  writeOverrideMap(map);
+}
+
+export function removeNarrationOverride(messageId: string, text: string): void {
+  const map = readOverrideMap();
+  map[messageId] = (map[messageId] || []).filter((o) => o.text !== text);
+  if (map[messageId].length === 0) delete map[messageId];
+  writeOverrideMap(map);
+}
+
+export function clearNarrationOverrides(messageId: string): void {
+  const map = readOverrideMap();
+  delete map[messageId];
+  writeOverrideMap(map);
+}
+
+/** Carves hand-picked passages out of the auto segments; manual wins. */
+function applyOverrides(segments: NarrationSegment[], overrides: NarrationOverride[]): NarrationSegment[] {
+  let working = segments;
+  for (const ov of overrides) {
+    const matcher = tolerantMatcher(ov.text);
+    if (!matcher) continue;
+    const next: NarrationSegment[] = [];
+    let placed = false;
+    for (const seg of working) {
+      if (placed || seg.manual) { next.push(seg); continue; }
+      const m = seg.text.match(matcher);
+      if (!m || m.index === undefined) { next.push(seg); continue; }
+      const before = seg.text.slice(0, m.index).trim();
+      const after = seg.text.slice(m.index + m[0].length).trim();
+      if (before) next.push({ speaker: seg.speaker, text: before });
+      next.push({ speaker: ov.label || seg.speaker || null, text: m[0].trim(), voiceId: ov.voiceId, manual: true });
+      if (after) next.push({ speaker: seg.speaker, text: after });
+      placed = true;
+    }
+    working = next;
+  }
+  return working;
+}
+
+/**
+ * Breaks story prose into ordered segments: narrator prose, speaker-tagged
+ * dialogue ([VOICE:] tags first, auto-detected bold-name dialogue otherwise),
+ * and any hand-picked passages for this message.
+ */
+export function splitStorySegments(story: string, messageId?: string): NarrationSegment[] {
   const raw = (story || '').trim();
   if (!raw) return [];
-  const segments: NarrationSegment[] = [];
+
+  const tagged: NarrationSegment[] = [];
   let cursor = 0;
   VOICE_BLOCK.lastIndex = 0;
   let match: RegExpExecArray | null;
   while ((match = VOICE_BLOCK.exec(raw)) !== null) {
     const before = raw.slice(cursor, match.index).trim();
-    if (before) segments.push({ speaker: null, text: before });
+    if (before) tagged.push({ speaker: null, text: before });
     const speaker = (match[1] || '').trim();
     const line = (match[2] || '').trim();
-    if (line) segments.push({ speaker: speaker || null, text: line });
+    if (line) tagged.push({ speaker: speaker || null, text: line });
     cursor = match.index + match[0].length;
   }
   const tail = raw.slice(cursor).trim();
-  if (tail) segments.push({ speaker: null, text: tail });
-  if (segments.length === 0) return [{ speaker: null, text: raw }];
-  return segments;
+  if (tail) tagged.push({ speaker: null, text: tail });
+
+  const hasTags = tagged.some((s) => !!s.speaker);
+  let base: NarrationSegment[];
+  if (hasTags) {
+    // Tags win, but untagged prose still gets auto-detection.
+    base = tagged.flatMap((s) => (s.speaker ? [s] : autoDetectSegments(s.text)));
+  } else {
+    base = autoDetectSegments(raw);
+  }
+
+  const overrides = messageId ? loadNarrationOverrides(messageId) : [];
+  const withOverrides = overrides.length ? applyOverrides(base, overrides) : base;
+  const merged = mergeNarrator(withOverrides);
+  return merged.length ? merged : [{ speaker: null, text: raw }];
 }
+
