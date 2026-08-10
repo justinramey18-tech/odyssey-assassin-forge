@@ -158,6 +158,7 @@ export function MessageNarrationBar({
   const assignVoice = (voiceId: string, label: string) => {
     addNarrationOverride(messageId, { text: pendingText, voiceId, label });
     setPickerOpen(false);
+    setPickerAnchor(null);
     setPendingText('');
     setOverrideVersion((v) => v + 1);
     toast.success(`Passage assigned to ${label}`, { description: 'Tap Narrate story to voice it.' });
@@ -338,7 +339,7 @@ export function MessageNarrationBar({
               </button>
             )}
             <button
-              onClick={() => { setPickerOpen(false); setPendingText(''); }}
+              onClick={() => { setPickerOpen(false); setPickerAnchor(null); setPendingText(''); }}
               style={{ touchAction: 'manipulation' }}
               className="px-2.5 py-1.5 rounded-full text-[11px] border border-border/40 text-muted-foreground"
             >
