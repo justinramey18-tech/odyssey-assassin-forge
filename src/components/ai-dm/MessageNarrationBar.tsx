@@ -254,6 +254,17 @@ export function MessageNarrationBar({
             >
               DM voice
             </button>
+            {onRecordSegment && (
+              <button
+                onClick={() => setRecorderOpen(true)}
+                style={{ touchAction: 'manipulation' }}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] border border-rose-500/30 bg-rose-900/20 text-rose-200/85"
+                title="Record this passage in your own voice"
+              >
+                <Mic className="w-3 h-3" />
+                Record my voice
+              </button>
+            )}
             <button
               onClick={() => { setPickerOpen(false); setPendingText(''); }}
               style={{ touchAction: 'manipulation' }}
@@ -264,6 +275,26 @@ export function MessageNarrationBar({
           </div>
         </div>
       )}
+
+      {onRecordSegment && (
+        <PartyDMAudioRecorder
+          open={recorderOpen}
+          onOpenChange={setRecorderOpen}
+          isUploading={savingRecording}
+          onSubmit={async (file) => {
+            setSavingRecording(true);
+            try {
+              await onRecordSegment(messageId, content, pendingText, file);
+              setPickerOpen(false);
+              setPendingText('');
+              setOverrideVersion((v) => v + 1);
+            } finally {
+              setSavingRecording(false);
+            }
+          }}
+        />
+      )}
+
     </div>
   );
 }
