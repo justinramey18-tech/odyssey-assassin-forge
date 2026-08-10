@@ -348,67 +348,20 @@ export function usePartySync(): UsePartySyncReturn {
   const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // On mount, check if user is already in a party
-  // Respects the 'odyssey-active-party-id' localStorage flag set during character switching.
-  // If the flag exists, only reconnect to that specific party (or none if flag is empty/removed).
-  // If no flag exists (fresh page load, not a character switch), auto-detect from DB.
-  useEffect(() => {
-    if (!user) return;
+  // Resolve which party this user belongs to.
+  // Respects the one-shot 'odyssey-active-party-id' marker set during character switching,
+  // but NEVER dead-ends on it: if that party is gone/disbanded we fall back to a live
+  // membership lookup so a mid-campaign join always resolves.
+  const resolveParty = useCallback(async (): Promise<boolean> => {
+    if (!user) return false;
 
-    const checkExisting = async () => {
-      // Check if a character switch set a specific party expectation
-      // Uses getScopedItem because handleLoadCloudSave writes with setScopedItem
-      const activePartyId = getScopedItem('odyssey-active-party-id');
-      const hasPartyFlag = activePartyId !== null;
-      
-      // Clean up the flag — it's a one-shot signal from the character switch
-      if (hasPartyFlag) {
-        removeScopedItem('odyssey-active-party-id');
-      }
+    const activePartyId = getScopedItem('odyssey-active-party-id');
+    if (activePartyId !== null) {
+      // One-shot signal — consume it
+      removeScopedItem('odyssey-active-party-id');
+    }
 
-      // If the flag was set but empty/null, the loaded character has no party — skip reconnect
-      if (hasPartyFlag && !activePartyId) {
-        console.log('[PartySync] Active party flag was cleared — no party for this character');
-        return;
-      }
-
-      // Determine which party to look for
-      let targetPartyId: string | null = activePartyId;
-
-      if (!targetPartyId) {
-        // No flag set (fresh load) — check active character's cloud save for their partyId
-        const activeSaveId = localStorage.getItem('odyssey-active-cloud-save-id');
-        if (activeSaveId) {
-          const { data: saveData } = await supabase
-            .from('character_saves')
-            .select('extended_data')
-            .eq('id', activeSaveId)
-            .eq('user_id', user.id)
-            .maybeSingle();
-
-          if (saveData) {
-            const extData = saveData.extended_data as Record<string, unknown> | null;
-            targetPartyId = (extData?.partyId as string) || null;
-          }
-        }
-
-        // Always fall back to DB membership query if cloud save had no partyId
-        if (!targetPartyId) {
-          const { data: membership } = await supabase
-            .from('party_members')
-            .select('party_id, parties!inner(is_active)')
-            .eq('user_id', user.id)
-            .eq('parties.is_active', true)
-            .limit(1) as { data: Array<{ party_id: string }> | null };
-
-          if (membership && membership.length > 0) {
-            targetPartyId = membership[0].party_id;
-          }
-        }
-      }
-
-      if (!targetPartyId) return;
-
+    const tryLoad = async (targetPartyId: string): Promise<boolean> => {
       const { data: partyData } = await supabase
         .from('parties')
         .select('*')
@@ -416,24 +369,80 @@ export function usePartySync(): UsePartySyncReturn {
         .eq('is_active', true)
         .maybeSingle() as { data: { id: string; link_code: string; created_by: string; is_active: boolean } | null };
 
-      if (partyData) {
-        const { data: members } = await supabase
-          .from('party_members')
-          .select('*')
-          .eq('party_id', targetPartyId) as { data: PartyMember[] | null };
+      if (!partyData) return false;
 
-        setParty({
-          partyId: targetPartyId,
-          linkCode: partyData.link_code,
-          isCreator: partyData.created_by === user.id,
-          members: members || [],
-          isLoading: false,
+      const { data: members } = await supabase
+        .from('party_members')
+        .select('*')
+        .eq('party_id', targetPartyId) as { data: PartyMember[] | null };
+
+      setParty({
+        partyId: targetPartyId,
+        linkCode: partyData.link_code,
+        isCreator: partyData.created_by === user.id,
+        members: members || [],
+        isLoading: false,
+      });
+      return true;
+    };
+
+    const candidates: string[] = [];
+    if (activePartyId) candidates.push(activePartyId);
+
+    // Active character's cloud save
+    const activeSaveId = localStorage.getItem('odyssey-active-cloud-save-id');
+    if (activeSaveId) {
+      const { data: saveData } = await supabase
+        .from('character_saves')
+        .select('extended_data')
+        .eq('id', activeSaveId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      const extData = (saveData?.extended_data ?? null) as Record<string, unknown> | null;
+      const savedPartyId = (extData?.partyId as string) || null;
+      if (savedPartyId && !candidates.includes(savedPartyId)) candidates.push(savedPartyId);
+    }
+
+    for (const candidate of candidates) {
+      if (await tryLoad(candidate)) return true;
+    }
+
+    // Last resort: live membership lookup (covers stale/disbanded markers and fresh joins)
+    const { data: membership } = await supabase
+      .from('party_members')
+      .select('party_id, parties!inner(is_active)')
+      .eq('user_id', user.id)
+      .eq('parties.is_active', true)
+      .order('joined_at', { ascending: false })
+      .limit(1) as { data: Array<{ party_id: string }> | null };
+
+    if (membership && membership.length > 0) {
+      const found = membership[0].party_id;
+      if (!candidates.includes(found) && await tryLoad(found)) return true;
+      if (candidates.includes(found)) return false;
+    }
+
+    console.log('[PartySync] No active party found for this user');
+    setParty(prev => (prev.partyId ? prev : { ...prev, isLoading: false }));
+    return false;
+  }, [user]);
+
+  // Resolve on mount / auth change, and again when the app regains focus if unresolved
+  useEffect(() => {
+    if (!user) return;
+    resolveParty();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        setParty(prev => {
+          if (!prev.partyId) resolveParty();
+          return prev;
         });
       }
     };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [user, resolveParty]);
 
-    checkExisting();
-  }, [user]);
 
   // Load existing data when joining a party
   useEffect(() => {
