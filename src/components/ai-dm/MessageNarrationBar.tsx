@@ -69,6 +69,9 @@ export function MessageNarrationBar({
   onDelete,
   onDeleteAll,
   onRecordSegment,
+  offlineReady,
+  onDownloadOffline,
+
 }: MessageNarrationBarProps) {
   // Bumped whenever a manual voice override changes, to re-split the story.
   const [overrideVersion, setOverrideVersion] = useState(0);
