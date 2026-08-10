@@ -16,6 +16,8 @@ interface PartyDMAudioRecorderProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (file: File) => Promise<void>;
   isUploading?: boolean;
+  /** Highlighted passage to read aloud, shown on-screen while recording. */
+  scriptText?: string;
 }
 
 type RecorderState = 'idle' | 'recording' | 'recorded';
@@ -41,7 +43,7 @@ function formatElapsed(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-export function PartyDMAudioRecorder({ open, onOpenChange, onSubmit, isUploading = false }: PartyDMAudioRecorderProps) {
+export function PartyDMAudioRecorder({ open, onOpenChange, onSubmit, isUploading = false, scriptText }: PartyDMAudioRecorderProps) {
   const [recorderState, setRecorderState] = useState<RecorderState>('idle');
   const [elapsed, setElapsed] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
