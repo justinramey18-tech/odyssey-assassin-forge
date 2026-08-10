@@ -97,13 +97,21 @@ export function PartyDMAudioRecorder({ open, onOpenChange, onSubmit, isUploading
     }
   }, [open, previewUrl, recordedBlob, recorderState, resetRecorder]);
 
+  // Mount-only cleanup. This MUST NOT depend on previewUrl: re-running it
+  // mid-session tears down the live microphone stream of a recording that
+  // just started, which produced empty (0-byte) takes.
+  const previewUrlRef = useRef<string | null>(null);
+  previewUrlRef.current = previewUrl;
+
   useEffect(() => {
     return () => {
       clearTimer();
       stopStream();
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
     };
-  }, [clearTimer, previewUrl, stopStream]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   const startRecording = useCallback(async () => {
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
