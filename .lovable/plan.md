@@ -13,9 +13,10 @@ Checked against the live data: the new player's membership in the current party 
 
 ## The fix
 
-1. **Verify the player's membership** in the database for this party — confirms whether this is a "never resolved" problem or a stale marker problem, and which of the fixes below is doing the real work.
+1. **Never trust a dead party marker.** If the remembered party turns out to be gone or disbanded, the marker is thrown away and the app immediately asks the database which active party this person is actually a member of, and uses that.
 
-2. **Make the party lookup self-healing.** Instead of one attempt at startup, the lookup re-runs whenever the player has no party resolved: it clears the stale marker, asks the database directly "which active party is this user a member of", and adopts the answer. It also re-runs when the player signs in or comes back to the app, so a mid-campaign join is picked up without closing and reopening the app.
+2. **Make the party lookup self-healing.** Instead of one attempt at startup, the lookup can re-run: when the player signs in, when they return to the app, and on demand. So a mid-campaign join is picked up without reinstalling or clearing anything.
+
 
 3. **Write the party onto the joining player's character.** When someone joins with a code, the party is recorded on their saved character right away, so future launches resolve instantly instead of relying on a fallback lookup.
 
