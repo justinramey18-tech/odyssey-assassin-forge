@@ -237,6 +237,7 @@ export interface UsePartySyncReturn {
   leaveParty: () => Promise<void>;
   disconnectLocally: () => void;
   reconnectToParty: (partyId: string) => Promise<boolean>;
+  resolveParty: () => Promise<boolean>;
   disbandParty: () => Promise<void>;
   broadcastStatus: (status: PartyMember['character_status']) => void;
   sendHealAction: (targetUserId: string, actionData: PartyAction['action_data']) => Promise<void>;
@@ -1756,6 +1757,7 @@ export function usePartySync(): UsePartySyncReturn {
     leaveParty,
     disconnectLocally,
     reconnectToParty,
+    resolveParty,
     disbandParty,
     broadcastStatus,
     sendHealAction,
