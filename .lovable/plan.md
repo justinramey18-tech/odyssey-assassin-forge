@@ -2,13 +2,14 @@
 
 A player who joins mid-campaign taps into the party and sits on "Loading session..." forever. The screen shows that spinner whenever the app hasn't figured out which party the player belongs to — and today there is nothing that retries, times out, or gives the player a way out. This plan makes that screen resolve itself, and gives an escape hatch when it can't.
 
-## What is happening now (confirmed by reading the code)
+## What is happening now
+
+Checked against the live data: the new player's membership in the current party exists and the party is active, and their saved character already records the correct party. So the join worked — the block is on their device.
 
 - The party screen shows the "Loading session..." spinner whenever either the signed-in user or the party isn't known yet. There is no retry and no timeout, so if the party never resolves the spinner is permanent.
-- The party is worked out once, on app start. If that one attempt comes back empty — for example the player's saved character has no party recorded on it yet, or a leftover "which party am I in" marker is stale from before they joined — the app stops looking and never tries again for the rest of the session.
-- Joining a party writes the membership, but the freshly joined player's saved character does not necessarily carry the party on it, which is exactly the case that lands in the dead end above.
+- The app works out which party you're in exactly once, at startup. If a leftover "which party am I in" marker from the old, disbanded party is still on their phone, the app looks up that dead party, finds nothing, and then simply stops — it never falls back to asking "which active party is this person actually in", and it never tries again. That matches the symptom exactly: correct data on the server, endless spinner on that one device.
+- The same dead end also catches anyone whose saved character doesn't yet carry the new party.
 
-I have not confirmed which of those two paths this specific player hit, so the first step of the work is a quick check against the live data (does the membership row exist, is the party still marked active) before the fixes land.
 
 ## The fix
 
