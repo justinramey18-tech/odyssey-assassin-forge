@@ -144,12 +144,14 @@ export function MessageNarrationBar({
     setPickerOpen(true);
   };
 
-  const openPickerWith = (text: string) => {
+  const openPickerWith = (text: string, anchor?: { top: number; left: number }) => {
     setPendingText(text);
+    setPickerAnchor(anchor ?? null);
     setPickerOpen(true);
     setSelection(null);
     if (typeof window !== 'undefined') window.getSelection()?.removeAllRanges();
   };
+
 
   const assignVoice = (voiceId: string, label: string) => {
     addNarrationOverride(messageId, { text: pendingText, voiceId, label });
