@@ -574,7 +574,90 @@ export function useMessageNarration(
     });
   }, [partyId, playingId, stop]);
 
+  const recordSegment = useCallback(async (
+    messageId: string,
+    content: string,
+    passage: string,
+    blob: Blob,
+    label?: string,
+  ) => {
+    if (!partyId) return;
+    const text = (passage || '').trim();
+    if (!text) {
+      toast.error('Highlight a passage first');
+      return;
+    }
+
+    try {
+      // 1. Carve the passage out as its own segment, marked as a mic recording.
+      addNarrationOverride(messageId, {
+        text,
+        voiceId: SELF_RECORDED_VOICE_ID,
+        label: label || currentUserName || 'My voice',
+      });
+
+      // 2. Find the segment key everyone's client will compute for it.
+      const { story } = splitDMResponseParts(content || '');
+      const segments = splitStorySegments(story || content || '', messageId);
+      const target = segments.find((s) => isSelfRecordedVoice(s.voiceId) && s.text.trim() === text)
+        || segments.find((s) => isSelfRecordedVoice(s.voiceId) && text.includes(s.text.trim()));
+      if (!target) {
+        toast.error('Could not match that passage', { description: 'Try selecting a full sentence.' });
+        return;
+      }
+      const part = segmentKey(target);
+
+      // 3. Upload the clip and register it for the whole party.
+      const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('mpeg') ? 'mp3' : 'webm';
+      const path = `${partyId}/narration/${messageId}-${part}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('party-chat-audio')
+        .upload(path, blob, { contentType: blob.type || 'audio/webm', upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from('party-chat-audio').getPublicUrl(path);
+      const audioUrl = `${urlData.publicUrl}?v=${Date.now()}`;
+
+      const row = {
+        party_id: partyId,
+        message_id: messageId,
+        part,
+        audio_url: audioUrl,
+        voice_id: SELF_RECORDED_VOICE_ID,
+        provider: 'self',
+        created_by: currentUserId,
+        created_by_name: currentUserName || null,
+      };
+      const { error: insertError } = await (supabase.from('party_message_audio') as any)
+        .upsert(row, { onConflict: 'message_id,part' });
+      if (insertError) throw insertError;
+
+      setAudioByMessage((prev) => ({
+        ...prev,
+        [narrationKey(messageId, part)]: {
+          message_id: messageId,
+          part,
+          audio_url: audioUrl,
+          voice_id: SELF_RECORDED_VOICE_ID,
+          created_by: currentUserId || '',
+          created_by_name: currentUserName || null,
+        },
+      }));
+
+      // 4. Share the passage split so every player hears it in Play all.
+      await publishOverrides(messageId);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('odyssey-narration-overrides'));
+      }
+      toast.success('Recording saved for that passage');
+    } catch (error) {
+      console.error('[MessageNarration] recording failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Could not save recording');
+    }
+  }, [partyId, currentUserId, currentUserName, publishOverrides]);
+
   return {
+
     audioByMessage,
     generatingId,
     playingId,
