@@ -144,6 +144,8 @@ export function RoundChatDrawer({
   onSend,
   onToggleReaction,
   onDeleteMessage,
+  onEditMessage,
+
   onToggleSelected,
   onSelectAll,
   onClearSelection,
