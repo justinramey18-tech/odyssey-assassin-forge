@@ -128,6 +128,26 @@ export function SoloCharacterSheet({
   const [expandedDetail, setExpandedDetail] = useState<string | null>(null);
   /** The spell the cast card is currently open for. */
   const [castTarget, setCastTarget] = useState<CastSpellDefinition | null>(null);
+  /** Which bag row is awaiting discard confirmation ("kind:name"). */
+  const [discardTarget, setDiscardTarget] = useState<string | null>(null);
+
+  /** Everything carried in the bag: consumables plus recovered loot. */
+  const bagItems = useMemo(() => {
+    const rows: Array<{ kind: 'consumable' | 'loot'; name: string; quantity: number; detail: string }> = [];
+    for (const c of ctx.consumables ?? []) {
+      rows.push({ kind: 'consumable', name: c.name, quantity: c.quantity ?? 1, detail: c.type || 'consumable' });
+    }
+    for (const i of ctx.loot?.items ?? []) {
+      rows.push({
+        kind: 'loot',
+        name: i.name,
+        quantity: 1,
+        detail: [i.rarity, i.goldValue ? `${i.goldValue}g` : ''].filter(Boolean).join(' · ') || 'loot',
+      });
+    }
+    return rows;
+  }, [ctx.consumables, ctx.loot]);
+
   /** Which rest the player is previewing before confirming. */
   const [restPreview, setRestPreview] = useState<'short' | 'long' | null>(null);
   /** Short rests still available before a long rest is required (3 per long rest). */
