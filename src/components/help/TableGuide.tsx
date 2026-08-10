@@ -109,7 +109,7 @@ export function TableGuide({ open, onClose, isParty = false }: TableGuideProps) 
       const section = HELP_SECTIONS.find((s) => s.id === topic.section);
       topic.entries.forEach((e, i) => {
         if (!allow(e.partyOnly)) return;
-        if (!has(e.q, e.a)) return;
+        if (!has(e.q, e.a, e.note, ...(e.steps || []))) return;
         out.push({
           key: `t-${topic.id}-${i}`,
           crumb: `${section?.title ?? ''} · ${topic.title}`,
@@ -121,7 +121,7 @@ export function TableGuide({ open, onClose, isParty = false }: TableGuideProps) 
     }
     const fixSection = HELP_SECTIONS.find((s) => s.id === 'fixes');
     fixes.forEach((f, i) => {
-      if (!has(f.symptom, f.cause, f.fix)) return;
+      if (!has(f.symptom, f.cause, f.fix, f.confirm)) return;
       out.push({
         key: `f-${i}`,
         crumb: fixSection?.title ?? '',
@@ -131,7 +131,7 @@ export function TableGuide({ open, onClose, isParty = false }: TableGuideProps) 
     });
     const termSection = HELP_SECTIONS.find((s) => s.id === 'terms');
     glossary.forEach((g, i) => {
-      if (!has(g.term, g.meaning)) return;
+      if (!has(g.term, g.meaning, g.example)) return;
       out.push({
         key: `g-${i}`,
         crumb: termSection?.title ?? '',
@@ -320,6 +320,9 @@ export function TableGuide({ open, onClose, isParty = false }: TableGuideProps) 
               <div key={f.symptom} className="rounded-xl border border-white/10 bg-black/30 p-3 space-y-1.5">
                 <div className="text-[11px] font-semibold text-rose-200/90 leading-snug">{f.symptom}</div>
                 <div className="text-[11px] text-white/50 leading-relaxed">Why: {f.cause}</div>
+                {f.confirm && (
+                  <div className="text-[11px] text-white/40 leading-relaxed">Check: {f.confirm}</div>
+                )}
                 <div className="flex items-start gap-2">
                   <CheckSquare className="w-3.5 h-3.5 text-emerald-400/70 shrink-0 mt-0.5" />
                   <div className="text-[11px] text-white/75 leading-relaxed">{f.fix}</div>
@@ -329,12 +332,16 @@ export function TableGuide({ open, onClose, isParty = false }: TableGuideProps) 
           ) : view.id === 'terms' ? (
             <div className="rounded-xl border border-white/10 bg-black/30 divide-y divide-white/5">
               {glossary.map((g) => (
-                <div key={g.term} className="px-3 py-2.5">
+                <div key={g.term} className="px-3 py-2.5 space-y-0.5">
                   <div className="text-[11px] font-semibold text-amber-200/90">{g.term}</div>
                   <div className="text-[11px] text-white/65 leading-relaxed">{g.meaning}</div>
+                  {g.example && (
+                    <div className="text-[10px] text-white/35 leading-relaxed italic">{g.example}</div>
+                  )}
                 </div>
               ))}
             </div>
+
           ) : (
             topics
               .filter((t) => t.section === view.id)
@@ -385,9 +392,31 @@ export function TableGuide({ open, onClose, isParty = false }: TableGuideProps) 
                 {isOpen && (
                   <div className="px-3 pb-3 -mt-1 space-y-2">
                     <div className="text-[11px] text-white/70 leading-relaxed">{entry.a}</div>
+                    {entry.steps && entry.steps.length > 0 && (
+                      <ol className="space-y-1.5 pt-0.5">
+                        {entry.steps.map((s, i) => (
+                          <li key={i} className="flex gap-2">
+                            <span className="shrink-0 min-w-[18px] w-[18px] h-[18px] rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-200/90 text-[9px] font-bold flex items-center justify-center mt-0.5">
+                              {i + 1}
+                            </span>
+                            <span className="min-w-0 flex-1 text-[11px] text-white/65 leading-relaxed">{s}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                    {entry.note && (
+                      <div className="flex items-start gap-2 rounded-lg border border-amber-400/20 bg-amber-500/[0.05] px-2.5 py-2">
+                        <Lightbulb className="w-3.5 h-3.5 text-amber-400/70 shrink-0 mt-0.5" />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[9px] uppercase tracking-wider text-amber-300/60">Good to know</div>
+                          <div className="text-[11px] text-white/65 leading-relaxed">{entry.note}</div>
+                        </div>
+                      </div>
+                    )}
                     {entry.where && <WhereChip where={entry.where} />}
                   </div>
                 )}
+
               </div>
             );
           })
