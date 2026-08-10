@@ -71,6 +71,8 @@ export function MessageNarrationBar({
   const [pendingText, setPendingText] = useState('');
   const [recorderOpen, setRecorderOpen] = useState(false);
   const [savingRecording, setSavingRecording] = useState(false);
+  // Floating "Voice selection" chip anchored under the highlighted passage.
+  const [selection, setSelection] = useState<{ text: string; top: number; left: number } | null>(null);
 
   // Another player's recording can change how this message splits.
   useEffect(() => {
@@ -79,6 +81,33 @@ export function MessageNarrationBar({
     return () => window.removeEventListener('odyssey-narration-overrides', onSync);
   }, []);
 
+  // Watch text selection; only react when the highlighted words belong to THIS message.
+  useEffect(() => {
+    const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
+    const haystack = norm(content || '');
+
+    const check = () => {
+      const sel = typeof window !== 'undefined' ? window.getSelection() : null;
+      const text = sel?.toString().trim() || '';
+      if (!sel || sel.rangeCount === 0 || text.length < 3 || !haystack.includes(norm(text))) {
+        setSelection(null);
+        return;
+      }
+      const rect = sel.getRangeAt(0).getBoundingClientRect();
+      if (!rect || (rect.width === 0 && rect.height === 0)) {
+        setSelection(null);
+        return;
+      }
+      setSelection({ text, top: rect.bottom + 6, left: Math.max(8, Math.min(rect.left, window.innerWidth - 150)) });
+    };
+
+    document.addEventListener('selectionchange', check);
+    window.addEventListener('scroll', check, true);
+    return () => {
+      document.removeEventListener('selectionchange', check);
+      window.removeEventListener('scroll', check, true);
+    };
+  }, [content]);
 
   const { tableTalk, story } = useMemo(() => splitDMResponseParts(content || ''), [content]);
   const segments = useMemo(
@@ -115,6 +144,13 @@ export function MessageNarrationBar({
     setPickerOpen(true);
   };
 
+  const openPickerWith = (text: string) => {
+    setPendingText(text);
+    setPickerOpen(true);
+    setSelection(null);
+    if (typeof window !== 'undefined') window.getSelection()?.removeAllRanges();
+  };
+
   const assignVoice = (voiceId: string, label: string) => {
     addNarrationOverride(messageId, { text: pendingText, voiceId, label });
     setPickerOpen(false);
@@ -123,8 +159,26 @@ export function MessageNarrationBar({
     toast.success(`Passage assigned to ${label}`, { description: 'Tap Narrate story to voice it.' });
   };
 
+
   return (
     <div className="mt-1.5 space-y-1.5">
+      {selection && !pickerOpen && (
+        <div
+          className="fixed z-[70]"
+          style={{ top: selection.top, left: selection.left }}
+        >
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => openPickerWith(selection.text)}
+            style={{ touchAction: 'manipulation' }}
+            className="flex items-center gap-1 px-3 py-2 rounded-full text-[11px] shadow-lg border border-sky-500/40 bg-sky-950/95 text-sky-100 hover:bg-sky-900 transition-colors"
+          >
+            <Highlighter className="w-3 h-3" />
+            Voice selection
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-1.5">
         {hasTableTalk && (
           <MessageNarrationButton
