@@ -162,6 +162,23 @@ export function MessageNarrationBar({
 
   return (
     <div className="mt-1.5 space-y-1.5">
+      {selection && !pickerOpen && (
+        <div
+          className="fixed z-[70]"
+          style={{ top: selection.top, left: selection.left }}
+        >
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => openPickerWith(selection.text)}
+            style={{ touchAction: 'manipulation' }}
+            className="flex items-center gap-1 px-3 py-2 rounded-full text-[11px] shadow-lg border border-sky-500/40 bg-sky-950/95 text-sky-100 hover:bg-sky-900 transition-colors"
+          >
+            <Highlighter className="w-3 h-3" />
+            Voice selection
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-1.5">
         {hasTableTalk && (
           <MessageNarrationButton
