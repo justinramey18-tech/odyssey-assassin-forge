@@ -291,7 +291,6 @@ export function useMessageNarration(
     audio.onended = null;
     audio.onerror = null;
     audio.pause();
-    audio.src = next.url;
     audio.playbackRate = loadNarrationSpeed();
     audio.onended = () => runQueue();
     audio.onerror = () => {
@@ -306,16 +305,26 @@ export function useMessageNarration(
     audioRef.current = audio;
     setPlayingId(next.key);
     setSpeakingName(next.speaker ?? null);
-    void beginNarrationFocus().finally(() => {
-      audio.play().catch(() => {
-        queueRef.current = [];
-        setPlayingId(null);
-        setSpeakingName(null);
-        void restoreMusicAfterNarration();
-        void endNarrationFocus();
+    const seq = ++playSeqRef.current;
+    // Prefer the downloaded copy on this device — playback then survives a weak
+    // or missing connection. Falls back to streaming when nothing is stored.
+    void resolvePlaybackUrl(next.url).then((src) => {
+      if (seq !== playSeqRef.current) return;
+      audio.src = src;
+      void beginNarrationFocus().finally(() => {
+        audio.play().catch(() => {
+          queueRef.current = [];
+          setPlayingId(null);
+          setSpeakingName(null);
+          void restoreMusicAfterNarration();
+          void endNarrationFocus();
+        });
       });
+      // Keep it for next time (no-op when already stored).
+      if (src === next.url) void cacheClip(next.url).then((ok) => { if (ok) bumpOffline(); });
     });
   }, []);
+
 
 
   const play = useCallback((messageId: string, part: NarrationPart = 'story') => {
