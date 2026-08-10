@@ -86,6 +86,23 @@ interface UseMessageNarrationReturn {
    */
   recordSegment: (messageId: string, content: string, passage: string, blob: Blob, label?: string) => Promise<void>;
   hasSpeechifyKey: boolean;
+  /** How many saved clips are stored on this device for offline play. */
+  offlineCount: number;
+  /** Total saved clips in the campaign. */
+  totalClips: number;
+  /** Bytes used by downloaded clips. */
+  offlineBytes: number;
+  /** True while a bulk download is running, with progress. */
+  offlineSaving: boolean;
+  offlineProgress: { done: number; total: number } | null;
+  /** Downloads every saved clip in the campaign to this device. */
+  downloadAllOffline: () => Promise<void>;
+  /** Downloads just the clips belonging to one DM message. */
+  downloadMessageOffline: (messageId: string) => Promise<void>;
+  /** Which message ids are fully downloaded on this device. */
+  offlineMessageIds: string[];
+  /** Removes every downloaded clip from this device. */
+  clearOffline: () => Promise<void>;
 }
 
 
@@ -105,9 +122,28 @@ export function useMessageNarration(
   const [castProgress, setCastProgress] = useState<CastProgress | null>(null);
   const [speakingName, setSpeakingName] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playSeqRef = useRef(0);
   const queueRef = useRef<Array<{ key: string; url: string; speaker?: string | null }>>([]);
   const audioMapRef = useRef<Record<string, MessageAudioRow>>({});
   audioMapRef.current = audioByMessage;
+
+  // ── Offline (downloaded) clips ──
+  const [cachedKeys, setCachedKeys] = useState<Set<string>>(new Set());
+  const [offlineBytes, setOfflineBytes] = useState(0);
+  const [offlineSaving, setOfflineSaving] = useState(false);
+  const [offlineProgress, setOfflineProgress] = useState<{ done: number; total: number } | null>(null);
+
+  const refreshOffline = useCallback(async () => {
+    const keys = await listCachedClips();
+    setCachedKeys(new Set(keys));
+    setOfflineBytes(await offlineCacheSize());
+  }, []);
+
+  useEffect(() => { void refreshOffline(); }, [refreshOffline]);
+
+  /** Cheap re-read after a background cache write. */
+  const bumpOffline = useCallback(() => { void refreshOffline(); }, [refreshOffline]);
+
 
   const hasSpeechifyKey = !!loadApiKey('speechify');
 
