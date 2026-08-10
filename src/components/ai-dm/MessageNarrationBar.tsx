@@ -63,11 +63,22 @@ export function MessageNarrationBar({
   onPlayAll,
   onDelete,
   onDeleteAll,
+  onRecordSegment,
 }: MessageNarrationBarProps) {
   // Bumped whenever a manual voice override changes, to re-split the story.
   const [overrideVersion, setOverrideVersion] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pendingText, setPendingText] = useState('');
+  const [recorderOpen, setRecorderOpen] = useState(false);
+  const [savingRecording, setSavingRecording] = useState(false);
+
+  // Another player's recording can change how this message splits.
+  useEffect(() => {
+    const onSync = () => setOverrideVersion((v) => v + 1);
+    window.addEventListener('odyssey-narration-overrides', onSync);
+    return () => window.removeEventListener('odyssey-narration-overrides', onSync);
+  }, []);
+
 
   const { tableTalk, story } = useMemo(() => splitDMResponseParts(content || ''), [content]);
   const segments = useMemo(
