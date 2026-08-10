@@ -73,6 +73,8 @@ export function MessageNarrationBar({
   const [savingRecording, setSavingRecording] = useState(false);
   // Floating "Voice selection" chip anchored under the highlighted passage.
   const [selection, setSelection] = useState<{ text: string; top: number; left: number } | null>(null);
+  const [pickerAnchor, setPickerAnchor] = useState<{ top: number; left: number } | null>(null);
+
 
   // Another player's recording can change how this message splits.
   useEffect(() => {
@@ -144,16 +146,19 @@ export function MessageNarrationBar({
     setPickerOpen(true);
   };
 
-  const openPickerWith = (text: string) => {
+  const openPickerWith = (text: string, anchor?: { top: number; left: number }) => {
     setPendingText(text);
+    setPickerAnchor(anchor ?? null);
     setPickerOpen(true);
     setSelection(null);
     if (typeof window !== 'undefined') window.getSelection()?.removeAllRanges();
   };
 
+
   const assignVoice = (voiceId: string, label: string) => {
     addNarrationOverride(messageId, { text: pendingText, voiceId, label });
     setPickerOpen(false);
+    setPickerAnchor(null);
     setPendingText('');
     setOverrideVersion((v) => v + 1);
     toast.success(`Passage assigned to ${label}`, { description: 'Tap Narrate story to voice it.' });
@@ -169,7 +174,7 @@ export function MessageNarrationBar({
         >
           <button
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => openPickerWith(selection.text)}
+            onClick={() => openPickerWith(selection.text, { top: selection.top, left: selection.left })}
             style={{ touchAction: 'manipulation' }}
             className="flex items-center gap-1 px-3 py-2 rounded-full text-[11px] shadow-lg border border-sky-500/40 bg-sky-950/95 text-sky-100 hover:bg-sky-900 transition-colors"
           >
@@ -286,8 +291,17 @@ export function MessageNarrationBar({
       )}
 
       {pickerOpen && (
-        <div className="rounded-lg border border-sky-500/25 bg-sky-950/25 p-2 space-y-1.5">
+        <div
+          className={cn(
+            'rounded-lg border border-sky-500/25 p-2 space-y-1.5',
+            pickerAnchor
+              ? 'fixed z-[70] w-[min(320px,calc(100vw-16px))] max-h-[50vh] overflow-y-auto bg-sky-950/95 shadow-xl'
+              : 'bg-sky-950/25',
+          )}
+          style={pickerAnchor ? { top: pickerAnchor.top, left: pickerAnchor.left } : undefined}
+        >
           <p className="text-[10px] text-sky-200/70 line-clamp-2">"{pendingText}"</p>
+
           <div className="flex flex-wrap gap-1.5">
             {cast.map((entry) => (
               <button
@@ -325,7 +339,7 @@ export function MessageNarrationBar({
               </button>
             )}
             <button
-              onClick={() => { setPickerOpen(false); setPendingText(''); }}
+              onClick={() => { setPickerOpen(false); setPickerAnchor(null); setPendingText(''); }}
               style={{ touchAction: 'manipulation' }}
               className="px-2.5 py-1.5 rounded-full text-[11px] border border-border/40 text-muted-foreground"
             >
