@@ -472,6 +472,19 @@ export function RoundChatDrawer({
                           >
                             <Smile className="w-3.5 h-3.5" />
                           </button>
+                          {isSelf && !m.consumed && !card && onEditMessage && (
+                            <button
+                              onClick={() => {
+                                setEditingMessageId(editingMessageId === m.id ? null : m.id);
+                                setEditDraft(m.content);
+                              }}
+                              className="p-0.5 text-white/25 hover:text-emerald-300 transition-colors"
+                              style={{ touchAction: 'manipulation' }}
+                              aria-label="Edit message"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           {isSelf && !m.consumed && (
                             <button
                               onClick={() => onDeleteMessage(m.id)}
@@ -493,6 +506,39 @@ export function RoundChatDrawer({
                           alignRight={alignRight}
                           className="mt-0.5"
                         />
+                      ) : editingMessageId === m.id ? (
+                        <div className="mt-1 space-y-1.5 text-left">
+                          <textarea
+                            value={editDraft}
+                            onChange={(e) => setEditDraft(e.target.value)}
+                            rows={3}
+                            autoFocus
+                            className="w-full rounded-md bg-black/40 border border-emerald-500/40 px-2 py-1.5 text-xs text-white/90 outline-none focus:border-emerald-400/70 resize-y"
+                          />
+                          <div className="flex items-center gap-2 justify-end">
+                            <button
+                              onClick={() => { setEditingMessageId(null); setEditDraft(''); }}
+                              className="px-2.5 py-1 rounded-md text-[11px] bg-white/5 text-white/60 hover:text-white/90 min-h-[32px]"
+                              style={{ touchAction: 'manipulation' }}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={async () => {
+                                const next = editDraft.trim();
+                                if (!next || next === m.content) { setEditingMessageId(null); return; }
+                                await onEditMessage?.(m.id, next);
+                                setEditingMessageId(null);
+                                setEditDraft('');
+                              }}
+                              disabled={!editDraft.trim()}
+                              className="px-2.5 py-1 rounded-md text-[11px] bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 disabled:opacity-40 min-h-[32px]"
+                              style={{ touchAction: 'manipulation' }}
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </div>
                       ) : (
                         <p className={cn(
                           "text-xs leading-snug whitespace-pre-wrap break-words [overflow-wrap:anywhere] mt-0.5",
@@ -503,6 +549,7 @@ export function RoundChatDrawer({
                           {body}
                         </p>
                       )}
+
 
 
 
