@@ -689,6 +689,9 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                 onDelete={onDeleteNarration}
                 onDeleteAll={onDeleteAllNarration}
                 onRecordSegment={onRecordNarrationSegment}
+                offlineReady={narrationOfflineReady}
+                onDownloadOffline={onDownloadNarrationOffline}
+
               />
             )}
 
