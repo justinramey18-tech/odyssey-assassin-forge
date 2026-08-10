@@ -356,10 +356,19 @@ export function usePartySync(): UsePartySyncReturn {
     if (!user) return false;
 
     const activePartyId = getScopedItem('odyssey-active-party-id');
-    if (activePartyId !== null) {
+    const hadMarker = activePartyId !== null;
+    if (hadMarker) {
       // One-shot signal — consume it
       removeScopedItem('odyssey-active-party-id');
     }
+
+    // Marker present but empty means the loaded character deliberately has no party
+    if (hadMarker && !activePartyId) {
+      console.log('[PartySync] Active party marker cleared — no party for this character');
+      setParty(prev => ({ ...prev, isLoading: false }));
+      return false;
+    }
+
 
     const tryLoad = async (targetPartyId: string): Promise<boolean> => {
       const { data: partyData } = await supabase
