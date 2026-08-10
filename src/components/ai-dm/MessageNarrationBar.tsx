@@ -173,7 +173,7 @@ export function MessageNarrationBar({
         >
           <button
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => openPickerWith(selection.text)}
+            onClick={() => openPickerWith(selection.text, { top: selection.top, left: selection.left })}
             style={{ touchAction: 'manipulation' }}
             className="flex items-center gap-1 px-3 py-2 rounded-full text-[11px] shadow-lg border border-sky-500/40 bg-sky-950/95 text-sky-100 hover:bg-sky-900 transition-colors"
           >
