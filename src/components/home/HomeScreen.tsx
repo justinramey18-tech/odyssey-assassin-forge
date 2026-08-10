@@ -25,6 +25,8 @@ import {
   AlertDialogHeader, AlertDialogTitle
 } from '@/components/ui/alert-dialog';
 import { InstallBanner } from './InstallBanner';
+import { AppUpdateButton } from './AppUpdateButton';
+
 import { ClockWidget } from './ClockWidget';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 
