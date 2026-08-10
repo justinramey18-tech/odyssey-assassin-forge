@@ -71,8 +71,14 @@ interface UseMessageNarrationReturn {
   remove: (messageId: string, part?: NarrationPart) => Promise<void>;
   /** Deletes every clip saved for a message. */
   removeAll: (messageId: string) => Promise<void>;
+  /**
+   * Saves a mic recording for a highlighted passage of a DM message.
+   * The passage becomes its own segment, so Play all uses the recording there.
+   */
+  recordSegment: (messageId: string, content: string, passage: string, blob: Blob, label?: string) => Promise<void>;
   hasSpeechifyKey: boolean;
 }
+
 
 /**
  * Per-message narration for party DM messages.
