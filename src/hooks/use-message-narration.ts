@@ -145,9 +145,14 @@ export function useMessageNarration(
     setPlayingId(null);
     setSpeakingName(null);
     void restoreMusicAfterNarration();
+    void endNarrationFocus();
   }, []);
 
-  useEffect(() => () => { if (audioRef.current) audioRef.current.pause(); void restoreMusicAfterNarration(); }, []);
+  useEffect(() => () => {
+    if (audioRef.current) audioRef.current.pause();
+    void restoreMusicAfterNarration();
+    void endNarrationFocus();
+  }, []);
 
   /** Plays the queue head, then advances. */
   const runQueue = useCallback(() => {
@@ -157,10 +162,17 @@ export function useMessageNarration(
       setPlayingId(null);
       setSpeakingName(null);
       void restoreMusicAfterNarration();
+      void endNarrationFocus();
       return;
     }
     void duckMusicForNarration();
-    const audio = new Audio(next.url);
+    // One shared, mix-friendly player for every clip so the phone doesn't grab
+    // the speaker afresh on each segment and stop the music.
+    const audio = getNarrationAudio();
+    audio.onended = null;
+    audio.onerror = null;
+    audio.pause();
+    audio.src = next.url;
     audio.playbackRate = loadNarrationSpeed();
     audio.onended = () => runQueue();
     audio.onerror = () => {
@@ -170,12 +182,22 @@ export function useMessageNarration(
       setPlayingId(null);
       setSpeakingName(null);
       void restoreMusicAfterNarration();
+      void endNarrationFocus();
     };
     audioRef.current = audio;
     setPlayingId(next.key);
     setSpeakingName(next.speaker ?? null);
-    audio.play().catch(() => { queueRef.current = []; setPlayingId(null); setSpeakingName(null); void restoreMusicAfterNarration(); });
+    void beginNarrationFocus().finally(() => {
+      audio.play().catch(() => {
+        queueRef.current = [];
+        setPlayingId(null);
+        setSpeakingName(null);
+        void restoreMusicAfterNarration();
+        void endNarrationFocus();
+      });
+    });
   }, []);
+
 
   const play = useCallback((messageId: string, part: NarrationPart = 'story') => {
     const key = narrationKey(messageId, part);
