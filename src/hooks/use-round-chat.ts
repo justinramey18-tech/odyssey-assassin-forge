@@ -216,6 +216,15 @@ export function useRoundChat(
     setMessages(prev => prev.filter(m => m.id !== messageId));
   }, []);
 
+  /** Edit the text of a line you already sent (only before it goes to the DM). */
+  const editMessage = useCallback(async (messageId: string, content: string) => {
+    const text = content.trim();
+    if (!text) return;
+    setMessages(prev => prev.map(m => (m.id === messageId ? { ...m, content: text } : m)));
+    await (supabase.from('party_round_chat') as any).update({ content: text }).eq('id', messageId);
+  }, []);
+
+
   const toggleReaction = useCallback(async (messageId: string, emoji: string, senderName: string) => {
     if (!partyId || !userId) return;
     const existing = reactions.find(r => r.message_id === messageId && r.user_id === userId && r.emoji === emoji);
@@ -378,6 +387,8 @@ export function useRoundChat(
     sending,
     sendMessage,
     deleteMessage,
+    editMessage,
+
     toggleReaction,
     pendingMessages,
     selectedMessages,
