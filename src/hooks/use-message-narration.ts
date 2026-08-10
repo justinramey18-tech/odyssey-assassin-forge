@@ -23,6 +23,15 @@ import {
 import { toast } from 'sonner';
 import { duckMusicForNarration, restoreMusicAfterNarration } from '@/lib/narrationDucking';
 import { beginNarrationFocus, endNarrationFocus, getNarrationAudio } from '@/lib/audioFocus';
+import {
+  cacheClip,
+  clearOfflineClips,
+  clipKey,
+  listCachedClips,
+  offlineCacheSize,
+  resolvePlaybackUrl,
+} from '@/lib/narrationOfflineCache';
+
 
 
 /**
