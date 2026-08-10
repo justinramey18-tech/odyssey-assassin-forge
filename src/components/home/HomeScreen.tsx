@@ -25,6 +25,8 @@ import {
   AlertDialogHeader, AlertDialogTitle
 } from '@/components/ui/alert-dialog';
 import { InstallBanner } from './InstallBanner';
+import { AppUpdateButton } from './AppUpdateButton';
+
 import { ClockWidget } from './ClockWidget';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 
@@ -826,44 +828,15 @@ export function HomeScreen({
 
               {/* BOTTOM: Rest + Menus */}
               <div className="flex flex-col gap-3 pb-[2px]">
-                {/* Rest buttons */}
+                {/* App update */}
                 {showFeature('home.restButtons') && (
                   <div className="px-4 py-2">
                     <div className="flex gap-3 max-w-md mx-auto justify-center">
-                      <button
-                        className={cn(transparentButtonBase, "py-3 px-6 flex flex-col items-center gap-1 text-white")}
-                        onClick={() => handleQuickAction('shortRest')}
-                        style={{ touchAction: 'manipulation' }}
-                      >
-                        <Coffee className="w-5 h-5 text-amber-400" />
-                        <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Short Rest</span>
-                      </button>
-                      <button
-                        className={cn(
-                          transparentButtonBase,
-                          "py-3 px-6 flex flex-col items-center gap-1 text-white relative overflow-hidden"
-                        )}
-                        onTouchStart={handleLongRestStart}
-                        onTouchEnd={handleLongRestEnd}
-                        onTouchCancel={handleLongRestEnd}
-                        onMouseDown={handleLongRestStart}
-                        onMouseUp={handleLongRestEnd}
-                        onMouseLeave={handleLongRestEnd}
-                        style={{ touchAction: 'manipulation' }}
-                        aria-label="Hold for Long Rest"
-                      >
-                        <div
-                          className="absolute inset-0 bg-blue-500/30 transition-all"
-                          style={{ width: `${longRestProgress}%` }}
-                        />
-                        <Moon className="w-5 h-5 text-blue-400 relative z-10" />
-                        <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] relative z-10">
-                          {longRestProgress > 0 ? 'Hold...' : 'Long Rest'}
-                        </span>
-                      </button>
+                      <AppUpdateButton className={transparentButtonBase} />
                     </div>
                   </div>
                 )}
+
 
                 {/* Menus bar */}
                 <motion.div
@@ -1106,40 +1079,11 @@ export function HomeScreen({
               {showFeature('home.restButtons') && (
                 <div className="px-4 py-2">
                   <div className="flex gap-3 max-w-md mx-auto justify-center">
-                    <button
-                      className={cn(transparentButtonBase, "py-3 px-6 flex flex-col items-center gap-1 text-white")}
-                      onClick={() => handleQuickAction('shortRest')}
-                      style={{ touchAction: 'manipulation' }}
-                    >
-                      <Coffee className="w-5 h-5 text-amber-400" />
-                      <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Short Rest</span>
-                    </button>
-                    <button
-                      className={cn(
-                        transparentButtonBase,
-                        "py-3 px-6 flex flex-col items-center gap-1 text-white relative overflow-hidden"
-                      )}
-                      onTouchStart={handleLongRestStart}
-                      onTouchEnd={handleLongRestEnd}
-                      onTouchCancel={handleLongRestEnd}
-                      onMouseDown={handleLongRestStart}
-                      onMouseUp={handleLongRestEnd}
-                      onMouseLeave={handleLongRestEnd}
-                      style={{ touchAction: 'manipulation' }}
-                      aria-label="Hold for Long Rest"
-                    >
-                      <div
-                        className="absolute inset-0 bg-blue-500/30 transition-all"
-                        style={{ width: `${longRestProgress}%` }}
-                      />
-                      <Moon className="w-5 h-5 text-blue-400 relative z-10" />
-                      <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] relative z-10">
-                        {longRestProgress > 0 ? 'Hold...' : 'Long Rest'}
-                      </span>
-                    </button>
+                    <AppUpdateButton className={transparentButtonBase} />
                   </div>
                 </div>
               )}
+
             </div>
           )}
         </div>
