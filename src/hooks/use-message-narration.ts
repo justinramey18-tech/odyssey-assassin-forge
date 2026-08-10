@@ -15,6 +15,8 @@ import {
 } from '@/lib/tts-utils';
 import { toast } from 'sonner';
 import { duckMusicForNarration, restoreMusicAfterNarration } from '@/lib/narrationDucking';
+import { beginNarrationFocus, endNarrationFocus, getNarrationAudio } from '@/lib/audioFocus';
+
 
 /**
  * Which clip of a DM response this audio belongs to.
