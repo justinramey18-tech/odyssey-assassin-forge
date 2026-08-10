@@ -27,16 +27,19 @@ export function saveNarrationMusicVolume(value: number): void {
 let previousVolume: number | null = null;
 let ducking = false;
 let pausedForNarration = false;
+let wasPlayingBeforeNarration = false;
 
 /** Drops Spotify to the chosen narration volume — or pauses it entirely at 0%. */
 export async function duckMusicForNarration(): Promise<void> {
   if (ducking) return;
   ducking = true;
+  wasPlayingBeforeNarration = false;
   try {
     const spotify = await import('@/lib/spotify');
     if (!spotify.isConnected()) { ducking = false; return; }
     const playback = await spotify.getCurrentPlayback().catch(() => null);
     if (!playback?.is_playing) { ducking = false; return; }
+    wasPlayingBeforeNarration = true;
     const target = loadNarrationMusicVolume();
     if (target <= 0) {
       pausedForNarration = true;
@@ -57,9 +60,11 @@ export async function restoreMusicAfterNarration(): Promise<void> {
   ducking = false;
   const restoreTo = previousVolume;
   const wasPaused = pausedForNarration;
+  const wasPlaying = wasPlayingBeforeNarration;
   previousVolume = null;
   pausedForNarration = false;
-  if (!wasPaused && restoreTo == null) return;
+  wasPlayingBeforeNarration = false;
+  if (!wasPlaying) return;
   try {
     const spotify = await import('@/lib/spotify');
     if (!spotify.isConnected()) return;
@@ -68,8 +73,17 @@ export async function restoreMusicAfterNarration(): Promise<void> {
       return;
     }
     if (restoreTo != null) await spotify.setVolume(restoreTo).catch(() => {});
+    // On phones the OS often pauses Spotify when narration audio grabs the
+    // speaker, even though we only asked it to turn down. If the music stopped
+    // on its own during narration, start it again.
+    const playback = await spotify.getCurrentPlayback().catch(() => null);
+    if (playback && !playback.is_playing) {
+      await spotify.play().catch(() => {});
+      if (restoreTo != null) await spotify.setVolume(restoreTo).catch(() => {});
+    }
   } catch {
     // ignore
   }
 }
+
 
