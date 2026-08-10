@@ -2,19 +2,21 @@
 
 A player who joins mid-campaign taps into the party and sits on "Loading session..." forever. The screen shows that spinner whenever the app hasn't figured out which party the player belongs to — and today there is nothing that retries, times out, or gives the player a way out. This plan makes that screen resolve itself, and gives an escape hatch when it can't.
 
-## What is happening now (confirmed by reading the code)
+## What is happening now
+
+Checked against the live data: the new player's membership in the current party exists and the party is active, and their saved character already records the correct party. So the join worked — the block is on their device.
 
 - The party screen shows the "Loading session..." spinner whenever either the signed-in user or the party isn't known yet. There is no retry and no timeout, so if the party never resolves the spinner is permanent.
-- The party is worked out once, on app start. If that one attempt comes back empty — for example the player's saved character has no party recorded on it yet, or a leftover "which party am I in" marker is stale from before they joined — the app stops looking and never tries again for the rest of the session.
-- Joining a party writes the membership, but the freshly joined player's saved character does not necessarily carry the party on it, which is exactly the case that lands in the dead end above.
+- The app works out which party you're in exactly once, at startup. If a leftover "which party am I in" marker from the old, disbanded party is still on their phone, the app looks up that dead party, finds nothing, and then simply stops — it never falls back to asking "which active party is this person actually in", and it never tries again. That matches the symptom exactly: correct data on the server, endless spinner on that one device.
+- The same dead end also catches anyone whose saved character doesn't yet carry the new party.
 
-I have not confirmed which of those two paths this specific player hit, so the first step of the work is a quick check against the live data (does the membership row exist, is the party still marked active) before the fixes land.
 
 ## The fix
 
-1. **Verify the player's membership** in the database for this party — confirms whether this is a "never resolved" problem or a stale marker problem, and which of the fixes below is doing the real work.
+1. **Never trust a dead party marker.** If the remembered party turns out to be gone or disbanded, the marker is thrown away and the app immediately asks the database which active party this person is actually a member of, and uses that.
 
-2. **Make the party lookup self-healing.** Instead of one attempt at startup, the lookup re-runs whenever the player has no party resolved: it clears the stale marker, asks the database directly "which active party is this user a member of", and adopts the answer. It also re-runs when the player signs in or comes back to the app, so a mid-campaign join is picked up without closing and reopening the app.
+2. **Make the party lookup self-healing.** Instead of one attempt at startup, the lookup can re-run: when the player signs in, when they return to the app, and on demand. So a mid-campaign join is picked up without reinstalling or clearing anything.
+
 
 3. **Write the party onto the joining player's character.** When someone joins with a code, the party is recorded on their saved character right away, so future launches resolve instantly instead of relying on a fallback lookup.
 
