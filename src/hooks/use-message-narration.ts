@@ -733,6 +733,57 @@ export function useMessageNarration(
     }
   }, [partyId, currentUserId, currentUserName, publishOverrides]);
 
+  // ── Downloading clips for offline play ──
+
+  const allRows = Object.values(audioByMessage);
+
+  const downloadRows = useCallback(async (rows: MessageAudioRow[]) => {
+    const pending = rows.filter((r) => r.audio_url);
+    if (pending.length === 0) return;
+    setOfflineSaving(true);
+    setOfflineProgress({ done: 0, total: pending.length });
+    let failed = 0;
+    for (let i = 0; i < pending.length; i++) {
+      const ok = await cacheClip(pending[i].audio_url);
+      if (!ok) failed++;
+      setOfflineProgress({ done: i + 1, total: pending.length });
+    }
+    await refreshOffline();
+    setOfflineSaving(false);
+    setOfflineProgress(null);
+    if (failed === 0) toast.success(`Saved ${pending.length} narration${pending.length === 1 ? '' : 's'} for offline play`);
+    else if (failed < pending.length) toast.warning(`Saved ${pending.length - failed} of ${pending.length} — ${failed} need a better connection`);
+    else toast.error('Could not download narrations — check your connection');
+  }, [refreshOffline]);
+
+  const downloadAllOffline = useCallback(async () => {
+    await downloadRows(Object.values(audioMapRef.current));
+  }, [downloadRows]);
+
+  const downloadMessageOffline = useCallback(async (messageId: string) => {
+    await downloadRows(Object.values(audioMapRef.current).filter((r) => r.message_id === messageId));
+  }, [downloadRows]);
+
+  const clearOffline = useCallback(async () => {
+    await clearOfflineClips();
+    await refreshOffline();
+    toast.success('Downloaded narrations removed from this device');
+  }, [refreshOffline]);
+
+  const offlineCount = allRows.filter((r) => cachedKeys.has(clipKey(r.audio_url))).length;
+  const offlineMessageIds = Array.from(
+    new Set(
+      Object.values(
+        allRows.reduce<Record<string, MessageAudioRow[]>>((acc, r) => {
+          (acc[r.message_id] ||= []).push(r);
+          return acc;
+        }, {}),
+      )
+        .filter((rows) => rows.every((r) => cachedKeys.has(clipKey(r.audio_url))))
+        .map((rows) => rows[0].message_id),
+    ),
+  );
+
   return {
 
     audioByMessage,
@@ -749,6 +800,16 @@ export function useMessageNarration(
     removeAll,
     recordSegment,
     hasSpeechifyKey,
+    offlineCount,
+    totalClips: allRows.length,
+    offlineBytes,
+    offlineSaving,
+    offlineProgress,
+    downloadAllOffline,
+    downloadMessageOffline,
+    offlineMessageIds,
+    clearOffline,
 
   };
+
 }
