@@ -1041,8 +1041,31 @@ export function usePartySync(): UsePartySyncReturn {
         isLoading: false,
       });
 
+      // Persist the party onto the active character save immediately so future
+      // launches resolve straight away (and stale markers can't strand the player)
+      try {
+        const activeSaveId = localStorage.getItem('odyssey-active-cloud-save-id');
+        if (activeSaveId) {
+          const { data: saveRow } = await supabase
+            .from('character_saves')
+            .select('extended_data')
+            .eq('id', activeSaveId)
+            .eq('user_id', user.id)
+            .maybeSingle();
+          const ext = ((saveRow?.extended_data ?? {}) as Record<string, unknown>);
+          await supabase
+            .from('character_saves')
+            .update({ extended_data: { ...ext, partyId: partyData.id } as any })
+            .eq('id', activeSaveId)
+            .eq('user_id', user.id);
+        }
+      } catch (e) {
+        console.warn('[PartySync] Could not persist partyId to character save', e);
+      }
+
       // Force immediate cloud sync so partyId is persisted right away
       window.dispatchEvent(new CustomEvent('odyssey-force-cloud-sync'));
+
 
       toast.success('Joined party!');
       return true;
