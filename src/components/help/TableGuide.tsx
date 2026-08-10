@@ -109,7 +109,7 @@ export function TableGuide({ open, onClose, isParty = false }: TableGuideProps) 
       const section = HELP_SECTIONS.find((s) => s.id === topic.section);
       topic.entries.forEach((e, i) => {
         if (!allow(e.partyOnly)) return;
-        if (!has(e.q, e.a)) return;
+        if (!has(e.q, e.a, e.note, ...(e.steps || []))) return;
         out.push({
           key: `t-${topic.id}-${i}`,
           crumb: `${section?.title ?? ''} · ${topic.title}`,
@@ -121,7 +121,7 @@ export function TableGuide({ open, onClose, isParty = false }: TableGuideProps) 
     }
     const fixSection = HELP_SECTIONS.find((s) => s.id === 'fixes');
     fixes.forEach((f, i) => {
-      if (!has(f.symptom, f.cause, f.fix)) return;
+      if (!has(f.symptom, f.cause, f.fix, f.confirm)) return;
       out.push({
         key: `f-${i}`,
         crumb: fixSection?.title ?? '',
@@ -131,7 +131,7 @@ export function TableGuide({ open, onClose, isParty = false }: TableGuideProps) 
     });
     const termSection = HELP_SECTIONS.find((s) => s.id === 'terms');
     glossary.forEach((g, i) => {
-      if (!has(g.term, g.meaning)) return;
+      if (!has(g.term, g.meaning, g.example)) return;
       out.push({
         key: `g-${i}`,
         crumb: termSection?.title ?? '',
@@ -396,7 +396,7 @@ export function TableGuide({ open, onClose, isParty = false }: TableGuideProps) 
                       <ol className="space-y-1.5 pt-0.5">
                         {entry.steps.map((s, i) => (
                           <li key={i} className="flex gap-2">
-                            <span className="shrink-0 w-4.5 h-4.5 min-w-[18px] h-[18px] rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-200/90 text-[9px] font-bold flex items-center justify-center mt-0.5">
+                            <span className="shrink-0 min-w-[18px] w-[18px] h-[18px] rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-200/90 text-[9px] font-bold flex items-center justify-center mt-0.5">
                               {i + 1}
                             </span>
                             <span className="min-w-0 flex-1 text-[11px] text-white/65 leading-relaxed">{s}</span>
