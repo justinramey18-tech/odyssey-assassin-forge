@@ -387,6 +387,8 @@ export function useRoundChat(
     sending,
     sendMessage,
     deleteMessage,
+    editMessage,
+
     toggleReaction,
     pendingMessages,
     selectedMessages,
