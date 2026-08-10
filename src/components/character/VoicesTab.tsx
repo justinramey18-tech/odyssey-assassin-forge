@@ -304,14 +304,15 @@ export function VoicesTab({ suggestedNames = [] }: VoicesTabProps) {
             <span className="text-[11px] text-white/60 flex items-center gap-1.5">
               <Volume2 className="w-3.5 h-3.5" /> Music volume while narrating
             </span>
-            <span className="text-[11px] text-amber-300 font-mono">{musicVolume}%</span>
+            <span className="text-[11px] text-amber-300 font-mono">{musicVolume === 0 ? 'Pause' : `${musicVolume}%`}</span>
           </div>
           <Slider
             value={[musicVolume]} min={0} max={100} step={5}
             onValueChange={([v]) => setMusicVolume(v)}
-            onValueCommit={([v]) => { saveNarrationMusicVolume(v); toast.success(`Music drops to ${v}% during narration`); }}
+            onValueCommit={([v]) => { saveNarrationMusicVolume(v); toast.success(v === 0 ? 'Music pauses during narration' : `Music drops to ${v}% during narration`); }}
           />
-          <p className="text-[10px] text-white/35 mt-1.5">Spotify dips to this level while a clip plays, then returns to normal.</p>
+          <p className="text-[10px] text-white/35 mt-1.5">Spotify dips to this level while a clip plays, then returns to normal. Set to 0% to pause the music instead and resume it afterwards.</p>
+
         </div>
       </Panel>
 
