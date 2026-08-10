@@ -142,13 +142,28 @@ export function PartyDMAudioRecorder({ open, onOpenChange, onSubmit, isUploading
         }
       };
 
-      recorder.onstop = () => {
-        clearTimer();
-        stopStream();
-
+      const finalize = (attempt = 0) => {
         if (ignoreNextStopRef.current) {
           ignoreNextStopRef.current = false;
           chunksRef.current = [];
+          stopStream();
+          return;
+        }
+
+        const total = chunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
+
+        // Some browsers (notably iOS Safari) flush the final chunk slightly
+        // after 'stop' fires — give it a few chances before failing.
+        if (total === 0 && attempt < 6) {
+          setTimeout(() => finalize(attempt + 1), 150);
+          return;
+        }
+
+        stopStream();
+
+        if (total === 0) {
+          setRecorderState('idle');
+          toast.error('Recording failed — please try again');
           return;
         }
 
@@ -156,28 +171,36 @@ export function PartyDMAudioRecorder({ open, onOpenChange, onSubmit, isUploading
           type: recorder.mimeType || mimeTypeRef.current || 'audio/webm',
         });
 
-        if (nextBlob.size === 0) {
-          setRecorderState('idle');
-          toast.error('Recording failed — please try again');
-          return;
-        }
-
         const url = URL.createObjectURL(nextBlob);
         setRecordedBlob(nextBlob);
         setPreviewUrl(url);
         setRecorderState('recorded');
       };
 
-      recorder.start(250);
+      recorder.onstop = () => {
+        clearTimer();
+        finalize();
+      };
+
+      recorder.onerror = () => {
+        clearTimer();
+        stopStream();
+        setRecorderState('idle');
+        toast.error('Recording failed — please try again');
+      };
+
+      recorder.start();
       timerRef.current = setInterval(() => {
         setElapsed((current) => {
           const next = current + 1;
           if (next >= 60 && recorder.state === 'recording') {
+            try { recorder.requestData(); } catch { /* not supported */ }
             recorder.stop();
           }
           return next;
         });
       }, 1000);
+
     } catch {
       toast.error('Microphone access denied');
     }
