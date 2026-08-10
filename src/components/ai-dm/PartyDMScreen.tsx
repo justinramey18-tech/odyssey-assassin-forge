@@ -20,7 +20,7 @@ import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, ChevronRight, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause, MessageCircle, SmilePlus, Theater, Megaphone, Swords, UserCog } from 'lucide-react';
+import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, ChevronRight, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause, MessageCircle, SmilePlus, Theater, Megaphone, Swords, UserCog, HelpCircle } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer, PreSplitChatViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -100,6 +100,8 @@ import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { formatForReadingMode, type FormattedReading } from '@/lib/reading-mode-formatter';
 import { SoloCharacterSheet, type SheetTab } from '@/components/ai-dm/SoloCharacterSheet';
+import { TableGuide } from '@/components/help/TableGuide';
+
 import { CharacterSheetStrip } from '@/components/ai-dm/CharacterSheetStrip';
 import { PartyMemberSheets } from '@/components/party/PartyMemberSheets';
 import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
@@ -1023,6 +1025,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [showMemorial, setShowMemorial] = useState(false);
   const [showDeathTransition, setShowDeathTransition] = useState(false);
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
+  const [showTableGuide, setShowTableGuide] = useState(false);
+
   const [showPartySheets, setShowPartySheets] = useState(false);
   const partyXpSnapshot = useXPSnapshot(characterContext?.level ?? 1, currentXP ?? 0);
   const [partyPendingItemCount, setPartyPendingItemCount] = useState(() => loadPendingDmItems().length);
@@ -2242,7 +2246,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+          <button
+            onClick={() => setShowTableGuide(true)}
+            aria-label="Open the table guide"
+            title="How to play"
+            className="shrink-0 flex items-center justify-center w-9 h-9 rounded-lg border border-amber-500/25 bg-amber-500/5 hover:bg-amber-500/15 active:bg-amber-500/20 transition-colors"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <HelpCircle className="w-[18px] h-[18px] text-amber-300/90" />
+          </button>
         </div>
+
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground whitespace-nowrap">{memberCount} players</span>
         </div>
@@ -4737,6 +4751,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           );
         })()}
       </AnimatePresence>
+
+      <TableGuide
+        open={showTableGuide}
+        onClose={() => setShowTableGuide(false)}
+        isParty
+      />
+
+
 
       {characterContext && (
         <SoloCharacterSheet
