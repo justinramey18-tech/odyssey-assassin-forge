@@ -219,7 +219,17 @@ export function PartyDMAudioRecorder({ open, onOpenChange, onSubmit, isUploading
         </SheetHeader>
 
         <div className="space-y-4 px-4 pb-4">
+          {scriptText?.trim() && (
+            <div className="rounded-2xl border border-sky-500/30 bg-sky-950/25 p-3">
+              <p className="mb-1.5 font-cinzel text-[10px] uppercase tracking-wider text-sky-300/70">Your line</p>
+              <p className="max-h-40 overflow-y-auto text-base leading-relaxed text-foreground">
+                {scriptText}
+              </p>
+            </div>
+          )}
+
           <div className="rounded-2xl border border-border bg-card p-4 text-center">
+
             <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full border border-border bg-secondary">
               {recorderState === 'recording' ? (
                 <div className="flex h-5 w-5 rounded-full bg-destructive animate-pulse" />

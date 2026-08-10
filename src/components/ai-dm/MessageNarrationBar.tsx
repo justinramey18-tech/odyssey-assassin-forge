@@ -286,6 +286,8 @@ export function MessageNarrationBar({
           open={recorderOpen}
           onOpenChange={setRecorderOpen}
           isUploading={savingRecording}
+          scriptText={pendingText}
+
           onSubmit={async (file) => {
             setSavingRecording(true);
             try {
