@@ -2242,7 +2242,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+          <button
+            onClick={() => setShowTableGuide(true)}
+            aria-label="Open the table guide"
+            title="How to play"
+            className="shrink-0 flex items-center justify-center w-9 h-9 rounded-lg border border-amber-500/25 bg-amber-500/5 hover:bg-amber-500/15 active:bg-amber-500/20 transition-colors"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <HelpCircle className="w-[18px] h-[18px] text-amber-300/90" />
+          </button>
         </div>
+
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground whitespace-nowrap">{memberCount} players</span>
         </div>
