@@ -1023,6 +1023,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [showMemorial, setShowMemorial] = useState(false);
   const [showDeathTransition, setShowDeathTransition] = useState(false);
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
+  const [showTableGuide, setShowTableGuide] = useState(false);
+
   const [showPartySheets, setShowPartySheets] = useState(false);
   const partyXpSnapshot = useXPSnapshot(characterContext?.level ?? 1, currentXP ?? 0);
   const [partyPendingItemCount, setPartyPendingItemCount] = useState(() => loadPendingDmItems().length);
