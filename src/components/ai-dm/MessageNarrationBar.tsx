@@ -37,7 +37,10 @@ interface MessageNarrationBarProps {
   onPlayAll: (messageId: string, content: string) => void;
   onDelete?: (messageId: string, part: NarrationPart) => void;
   onDeleteAll?: (messageId: string) => void;
+  /** Saves a mic recording for the highlighted passage. */
+  onRecordSegment?: (messageId: string, content: string, passage: string, blob: Blob) => Promise<void>;
 }
+
 
 /**
  * Speechify controls under a DM response: the DM's table-talk aside, the story
