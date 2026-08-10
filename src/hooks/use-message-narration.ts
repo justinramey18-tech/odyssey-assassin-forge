@@ -670,6 +670,8 @@ export function useMessageNarration(
     stop,
     remove,
     removeAll,
+    recordSegment,
     hasSpeechifyKey,
+
   };
 }
