@@ -268,6 +268,25 @@ export function MessageNarrationBar({
           </button>
         )}
 
+        {/* Keep this message's audio on the device so it plays with no signal */}
+        {onDownloadOffline && (!!tableAudio || !!storyAudio || segmentClips > 0) && (
+          <button
+            onClick={() => !offlineReady && onDownloadOffline(messageId)}
+            style={{ touchAction: 'manipulation' }}
+            className={cn(
+              'flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] transition-colors border',
+              offlineReady
+                ? 'border-emerald-500/30 bg-emerald-900/15 text-emerald-300/80'
+                : 'border-border/40 bg-muted/10 text-muted-foreground hover:text-foreground',
+            )}
+            title={offlineReady ? 'Saved on this device — plays without internet' : 'Save this narration to the device for offline play'}
+          >
+            {offlineReady ? <Check className="w-3 h-3" /> : <Download className="w-3 h-3" />}
+            {offlineReady ? 'Offline' : 'Save offline'}
+          </button>
+        )}
+
+
         {canDelete && onDeleteAll && segmentClips > 0 && !isCasting && (
           <button
             onClick={() => onDeleteAll(messageId)}
