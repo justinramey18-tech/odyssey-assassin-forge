@@ -4,6 +4,8 @@ import { SCOPED_KEYS } from '@/lib/scoped-keys';
 import { useDmPolls } from '@/hooks/use-dm-polls';
 import { useNPCAutocomplete } from '@/hooks/use-npc-autocomplete';
 import { PartyDMInput, type PartyDMInputHandle } from './PartyDMInput';
+import { PartySessionRecovery } from './PartySessionRecovery';
+
 import { PartyDMAudioRecorder } from './PartyDMAudioRecorder';
 import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import empyreanSpeaksImg from '@/assets/empyrean-speaks.jpg';
