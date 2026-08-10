@@ -207,10 +207,13 @@ export function PartyDMAudioRecorder({ open, onOpenChange, onSubmit, isUploading
   }, [clearTimer, previewUrl, stopStream]);
 
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current?.state === 'recording') {
-      mediaRecorderRef.current.stop();
+    const recorder = mediaRecorderRef.current;
+    if (recorder?.state === 'recording') {
+      try { recorder.requestData(); } catch { /* not supported */ }
+      recorder.stop();
     }
   }, []);
+
 
   const handleSend = useCallback(async () => {
     if (!recordedBlob) return;
