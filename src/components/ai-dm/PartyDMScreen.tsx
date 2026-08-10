@@ -4752,6 +4752,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         })()}
       </AnimatePresence>
 
+      <TableGuide
+        open={showTableGuide}
+        onClose={() => setShowTableGuide(false)}
+        isParty
+      />
+
+
+
       {characterContext && (
         <SoloCharacterSheet
           npcSuggestions={partyNPCNames}
