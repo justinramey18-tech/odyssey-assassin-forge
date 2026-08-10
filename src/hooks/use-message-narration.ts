@@ -188,17 +188,38 @@ export function useMessageNarration(
     if (!partyId) return;
     let cancelled = false;
 
-    (async () => {
-      const { data } = await (supabase.from('party_message_audio') as any)
-        .select('message_id, part, audio_url, voice_id, created_by, created_by_name')
-        .eq('party_id', partyId);
-      if (cancelled || !data) return;
+    /** Pulls every saved clip for the party (paged — campaigns can hold thousands). */
+    const loadAll = async () => {
+      const pageSize = 1000;
+      let from = 0;
       const map: Record<string, MessageAudioRow> = {};
-      for (const row of data as MessageAudioRow[]) {
-        map[narrationKey(row.message_id, row.part || 'story')] = row;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await (supabase.from('party_message_audio') as any)
+          .select('message_id, part, audio_url, voice_id, created_by, created_by_name')
+          .eq('party_id', partyId)
+          .order('created_at', { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (error || !data || data.length === 0) break;
+        for (const row of data as MessageAudioRow[]) {
+          map[narrationKey(row.message_id, row.part || 'story')] = row;
+        }
+        if (data.length < pageSize) break;
+        from += pageSize;
       }
-      setAudioByMessage(map);
-    })();
+      if (cancelled) return;
+      // Merge so realtime rows that arrived during the fetch aren't dropped
+      setAudioByMessage((prev) => ({ ...map, ...prev }));
+    };
+
+    void loadAll();
+
+    // Late joiners / backgrounded devices re-sync when they come back to the screen
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void loadAll();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
 
     const channel = supabase
       .channel(`party-message-audio-${partyId}`)
@@ -228,8 +249,10 @@ export function useMessageNarration(
 
     return () => {
       cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
       supabase.removeChannel(channel);
     };
+
   }, [partyId]);
 
   const stop = useCallback(() => {
