@@ -320,6 +320,9 @@ export function TableGuide({ open, onClose, isParty = false }: TableGuideProps) 
               <div key={f.symptom} className="rounded-xl border border-white/10 bg-black/30 p-3 space-y-1.5">
                 <div className="text-[11px] font-semibold text-rose-200/90 leading-snug">{f.symptom}</div>
                 <div className="text-[11px] text-white/50 leading-relaxed">Why: {f.cause}</div>
+                {f.confirm && (
+                  <div className="text-[11px] text-white/40 leading-relaxed">Check: {f.confirm}</div>
+                )}
                 <div className="flex items-start gap-2">
                   <CheckSquare className="w-3.5 h-3.5 text-emerald-400/70 shrink-0 mt-0.5" />
                   <div className="text-[11px] text-white/75 leading-relaxed">{f.fix}</div>
@@ -329,12 +332,16 @@ export function TableGuide({ open, onClose, isParty = false }: TableGuideProps) 
           ) : view.id === 'terms' ? (
             <div className="rounded-xl border border-white/10 bg-black/30 divide-y divide-white/5">
               {glossary.map((g) => (
-                <div key={g.term} className="px-3 py-2.5">
+                <div key={g.term} className="px-3 py-2.5 space-y-0.5">
                   <div className="text-[11px] font-semibold text-amber-200/90">{g.term}</div>
                   <div className="text-[11px] text-white/65 leading-relaxed">{g.meaning}</div>
+                  {g.example && (
+                    <div className="text-[10px] text-white/35 leading-relaxed italic">{g.example}</div>
+                  )}
                 </div>
               ))}
             </div>
+
           ) : (
             topics
               .filter((t) => t.section === view.id)
