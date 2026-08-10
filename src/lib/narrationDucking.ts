@@ -26,8 +26,9 @@ export function saveNarrationMusicVolume(value: number): void {
 
 let previousVolume: number | null = null;
 let ducking = false;
+let pausedForNarration = false;
 
-/** Drops Spotify to the chosen narration volume. Safe to call repeatedly. */
+/** Drops Spotify to the chosen narration volume — or pauses it entirely at 0%. */
 export async function duckMusicForNarration(): Promise<void> {
   if (ducking) return;
   ducking = true;
@@ -36,9 +37,15 @@ export async function duckMusicForNarration(): Promise<void> {
     if (!spotify.isConnected()) { ducking = false; return; }
     const playback = await spotify.getCurrentPlayback().catch(() => null);
     if (!playback?.is_playing) { ducking = false; return; }
+    const target = loadNarrationMusicVolume();
+    if (target <= 0) {
+      pausedForNarration = true;
+      await spotify.pause().catch(() => { pausedForNarration = false; });
+      return;
+    }
     const current = (playback as any)?.device?.volume_percent;
     previousVolume = Number.isFinite(current) ? Number(current) : null;
-    await spotify.setVolume(loadNarrationMusicVolume()).catch(() => {});
+    await spotify.setVolume(target).catch(() => {});
   } catch {
     ducking = false;
   }
@@ -49,13 +56,20 @@ export async function restoreMusicAfterNarration(): Promise<void> {
   if (!ducking) return;
   ducking = false;
   const restoreTo = previousVolume;
+  const wasPaused = pausedForNarration;
   previousVolume = null;
-  if (restoreTo == null) return;
+  pausedForNarration = false;
+  if (!wasPaused && restoreTo == null) return;
   try {
     const spotify = await import('@/lib/spotify');
     if (!spotify.isConnected()) return;
-    await spotify.setVolume(restoreTo).catch(() => {});
+    if (wasPaused) {
+      await spotify.play().catch(() => {});
+      return;
+    }
+    if (restoreTo != null) await spotify.setVolume(restoreTo).catch(() => {});
   } catch {
     // ignore
   }
 }
+
