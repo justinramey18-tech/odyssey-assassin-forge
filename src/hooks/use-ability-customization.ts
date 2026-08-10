@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import {
   AbilityCustomizationState,
@@ -9,12 +9,14 @@ import {
 import { generateHomebrewId } from '@/lib/abilityCustomization/utils';
 
 const STORAGE_KEY = 'odyssey-ability-customization';
+const CHANGE_EVENT = 'odyssey-ability-customization-changed';
 
 /**
  * Hook for managing per-character ability customizations
  * Provides CRUD operations for overrides and homebrew abilities
  */
 export function useAbilityCustomization() {
+  const instanceId = useRef(Math.random().toString(36).slice(2));
   const [state, setState] = useState<AbilityCustomizationState>(() => {
     try {
       const saved = getScopedItem(STORAGE_KEY);
@@ -27,26 +29,44 @@ export function useAbilityCustomization() {
     return DEFAULT_CUSTOMIZATION_STATE;
   });
 
-  // Persist to localStorage
+  // Persist to localStorage and tell every other mounted instance to re-read,
+  // so a homebrew ability created in Settings is instantly known to the DM
+  // context / quick actions (otherwise they show the raw homebrew_<id>).
+  const isFirstPersist = useRef(true);
   useEffect(() => {
     try {
       setScopedItem(STORAGE_KEY, JSON.stringify(state));
+      if (isFirstPersist.current) {
+        isFirstPersist.current = false;
+        return;
+      }
+      window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: { source: instanceId.current } }));
     } catch (e) {
       console.error('[AbilityCustomization] Failed to save:', e);
     }
   }, [state]);
 
-  // Re-init when character is switched in-memory
+  // Re-init when character is switched in-memory, or when another instance edits
   useEffect(() => {
-    const handleCharacterLoaded = () => {
+    const reload = () => {
       try {
         const saved = getScopedItem(STORAGE_KEY);
         setState(saved ? { ...DEFAULT_CUSTOMIZATION_STATE, ...JSON.parse(saved) } : DEFAULT_CUSTOMIZATION_STATE);
       } catch { setState(DEFAULT_CUSTOMIZATION_STATE); }
     };
-    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
-    return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    const handleChanged = (e: Event) => {
+      const src = (e as CustomEvent<{ source?: string }>).detail?.source;
+      if (src === instanceId.current) return;
+      reload();
+    };
+    window.addEventListener('odyssey-character-loaded', reload);
+    window.addEventListener(CHANGE_EVENT, handleChanged as EventListener);
+    return () => {
+      window.removeEventListener('odyssey-character-loaded', reload);
+      window.removeEventListener(CHANGE_EVENT, handleChanged as EventListener);
+    };
   }, []);
+
 
   // ═══════════════════════════════════════════════════════════════
   // OVERRIDE OPERATIONS
