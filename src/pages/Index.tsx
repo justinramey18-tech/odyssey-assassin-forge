@@ -1,3 +1,4 @@
+import { BAG_DISCARD_EVENT } from '@/lib/bagDiscard';
 import type { LootItem } from '@/lib/loot/types';
 import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { supabase } from '@/integrations/supabase/client';
