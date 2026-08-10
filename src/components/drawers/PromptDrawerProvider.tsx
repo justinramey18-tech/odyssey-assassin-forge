@@ -640,7 +640,7 @@ export function PromptDrawerProvider({
         const tierDice = ability?.customDice?.[`tier${a.currentTier}`];
 
         return {
-          name: ability?.name || a.abilityId,
+          name: ability?.name || (a.abilityId.startsWith('homebrew_') ? 'Custom Ability' : a.abilityId),
           tier: a.currentTier,
           tree: ability?.tree || 'unknown',
           type: ability?.type,
