@@ -100,6 +100,8 @@ import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { formatForReadingMode, type FormattedReading } from '@/lib/reading-mode-formatter';
 import { SoloCharacterSheet, type SheetTab } from '@/components/ai-dm/SoloCharacterSheet';
+import { TableGuide } from '@/components/help/TableGuide';
+
 import { CharacterSheetStrip } from '@/components/ai-dm/CharacterSheetStrip';
 import { PartyMemberSheets } from '@/components/party/PartyMemberSheets';
 import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
