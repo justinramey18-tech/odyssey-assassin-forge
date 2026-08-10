@@ -215,7 +215,12 @@ export function MessageNarrationBar({
 
       {overrides.length > 0 && (
         <div className="flex items-center gap-1.5 text-[10px] text-sky-300/70">
-          <span>{overrides.length} hand-picked voice{overrides.length === 1 ? '' : 's'}</span>
+          <span>
+            {overrides.length} hand-picked voice{overrides.length === 1 ? '' : 's'}
+            {overrides.some((o) => isSelfRecordedVoice(o.voiceId))
+              && ` · ${overrides.filter((o) => isSelfRecordedVoice(o.voiceId)).length} recorded`}
+          </span>
+
           <button
             onClick={() => { clearNarrationOverrides(messageId); setOverrideVersion((v) => v + 1); }}
             style={{ touchAction: 'manipulation' }}
