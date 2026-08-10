@@ -249,8 +249,10 @@ export function useMessageNarration(
 
     return () => {
       cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
       supabase.removeChannel(channel);
     };
+
   }, [partyId]);
 
   const stop = useCallback(() => {
