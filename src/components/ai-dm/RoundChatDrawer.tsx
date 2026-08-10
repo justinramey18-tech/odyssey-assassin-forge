@@ -45,6 +45,9 @@ interface RoundChatDrawerProps {
   onSend: (content: string, inCharacter: boolean) => void | Promise<void>;
   onToggleReaction: (messageId: string, emoji: string) => void;
   onDeleteMessage: (messageId: string) => void;
+  /** Edit the text of a line the player already posted. */
+  onEditMessage?: (messageId: string, content: string) => void | Promise<void>;
+
   onToggleSelected: (messageId: string) => void;
   onSelectAll: () => void;
   onClearSelection: () => void;
