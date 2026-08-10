@@ -102,7 +102,88 @@ export function useMessageNarration(
 
   const hasSpeechifyKey = !!loadApiKey('speechify');
 
+  // ── Party-shared highlight overrides (so recorded passages split the same
+  //    way on every device, and everyone hears the recording in Play all) ──
+  const applySharedOverrides = useCallback((rows: Array<{ state_data: any }>) => {
+    let changed = false;
+    for (const row of rows) {
+      const messages = row?.state_data?.messages;
+      if (!messages || typeof messages !== 'object') continue;
+      for (const [messageId, list] of Object.entries(messages)) {
+        if (!Array.isArray(list)) continue;
+        if (mergeNarrationOverrides(messageId, list as NarrationOverride[])) changed = true;
+      }
+    }
+    if (changed && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('odyssey-narration-overrides'));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!partyId) return;
+    let cancelled = false;
+
+    (async () => {
+      const { data } = await (supabase.from('party_shared_state') as any)
+        .select('state_data')
+        .eq('party_id', partyId)
+        .eq('state_type', 'narration_overrides');
+      if (cancelled || !data) return;
+      applySharedOverrides(data);
+    })();
+
+    const channel = supabase
+      .channel(`party-narration-overrides-${partyId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'party_shared_state', filter: `party_id=eq.${partyId}` },
+        (payload) => {
+          const row = payload.new as { state_type?: string; state_data?: any };
+          if (!row || row.state_type !== 'narration_overrides') return;
+          applySharedOverrides([row as { state_data: any }]);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [partyId, applySharedOverrides]);
+
+  /** Publishes this device's overrides for a message to the rest of the party. */
+  const publishOverrides = useCallback(async (messageId: string) => {
+    if (!partyId || !currentUserId) return;
+    try {
+      const { data: existing } = await (supabase.from('party_shared_state') as any)
+        .select('id, state_data')
+        .eq('party_id', partyId)
+        .eq('user_id', currentUserId)
+        .eq('state_type', 'narration_overrides')
+        .maybeSingle();
+
+      const messages = { ...(existing?.state_data?.messages || {}) };
+      messages[messageId] = loadNarrationOverrides(messageId);
+
+      if (existing?.id) {
+        await (supabase.from('party_shared_state') as any)
+          .update({ state_data: { messages } })
+          .eq('id', existing.id);
+      } else {
+        await (supabase.from('party_shared_state') as any).insert({
+          party_id: partyId,
+          user_id: currentUserId,
+          state_type: 'narration_overrides',
+          state_data: { messages },
+        });
+      }
+    } catch (error) {
+      console.warn('[MessageNarration] could not share passage voices:', error);
+    }
+  }, [partyId, currentUserId]);
+
   // ── Load + live-sync saved narrations ──
+
   useEffect(() => {
     if (!partyId) return;
     let cancelled = false;
