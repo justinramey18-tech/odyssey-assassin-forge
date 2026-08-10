@@ -1,5 +1,5 @@
-import { Highlighter, ListMusic, Loader2, Pause, Users, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Highlighter, ListMusic, Loader2, Mic, Pause, Users, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
   splitDMResponseParts,
@@ -12,10 +12,13 @@ import {
   addNarrationOverride,
   clearNarrationOverrides,
   voiceForSpeaker,
+  isSelfRecordedVoice,
 } from '@/lib/tts-utils';
 import { MessageNarrationButton } from './MessageNarrationButton';
+import { PartyDMAudioRecorder } from './PartyDMAudioRecorder';
 import { narrationKey, type CastProgress, type MessageAudioRow, type NarrationPart } from '@/hooks/use-message-narration';
 import { cn } from '@/lib/utils';
+
 
 interface MessageNarrationBarProps {
   messageId: string;
@@ -34,7 +37,10 @@ interface MessageNarrationBarProps {
   onPlayAll: (messageId: string, content: string) => void;
   onDelete?: (messageId: string, part: NarrationPart) => void;
   onDeleteAll?: (messageId: string) => void;
+  /** Saves a mic recording for the highlighted passage. */
+  onRecordSegment?: (messageId: string, content: string, passage: string, blob: Blob) => Promise<void>;
 }
+
 
 /**
  * Speechify controls under a DM response: the DM's table-talk aside, the story
@@ -57,11 +63,22 @@ export function MessageNarrationBar({
   onPlayAll,
   onDelete,
   onDeleteAll,
+  onRecordSegment,
 }: MessageNarrationBarProps) {
   // Bumped whenever a manual voice override changes, to re-split the story.
   const [overrideVersion, setOverrideVersion] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pendingText, setPendingText] = useState('');
+  const [recorderOpen, setRecorderOpen] = useState(false);
+  const [savingRecording, setSavingRecording] = useState(false);
+
+  // Another player's recording can change how this message splits.
+  useEffect(() => {
+    const onSync = () => setOverrideVersion((v) => v + 1);
+    window.addEventListener('odyssey-narration-overrides', onSync);
+    return () => window.removeEventListener('odyssey-narration-overrides', onSync);
+  }, []);
+
 
   const { tableTalk, story } = useMemo(() => splitDMResponseParts(content || ''), [content]);
   const segments = useMemo(
@@ -198,7 +215,12 @@ export function MessageNarrationBar({
 
       {overrides.length > 0 && (
         <div className="flex items-center gap-1.5 text-[10px] text-sky-300/70">
-          <span>{overrides.length} hand-picked voice{overrides.length === 1 ? '' : 's'}</span>
+          <span>
+            {overrides.length} hand-picked voice{overrides.length === 1 ? '' : 's'}
+            {overrides.some((o) => isSelfRecordedVoice(o.voiceId))
+              && ` · ${overrides.filter((o) => isSelfRecordedVoice(o.voiceId)).length} recorded`}
+          </span>
+
           <button
             onClick={() => { clearNarrationOverrides(messageId); setOverrideVersion((v) => v + 1); }}
             style={{ touchAction: 'manipulation' }}
@@ -237,6 +259,17 @@ export function MessageNarrationBar({
             >
               DM voice
             </button>
+            {onRecordSegment && (
+              <button
+                onClick={() => setRecorderOpen(true)}
+                style={{ touchAction: 'manipulation' }}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] border border-rose-500/30 bg-rose-900/20 text-rose-200/85"
+                title="Record this passage in your own voice"
+              >
+                <Mic className="w-3 h-3" />
+                Record my voice
+              </button>
+            )}
             <button
               onClick={() => { setPickerOpen(false); setPendingText(''); }}
               style={{ touchAction: 'manipulation' }}
@@ -247,6 +280,26 @@ export function MessageNarrationBar({
           </div>
         </div>
       )}
+
+      {onRecordSegment && (
+        <PartyDMAudioRecorder
+          open={recorderOpen}
+          onOpenChange={setRecorderOpen}
+          isUploading={savingRecording}
+          onSubmit={async (file) => {
+            setSavingRecording(true);
+            try {
+              await onRecordSegment(messageId, content, pendingText, file);
+              setPickerOpen(false);
+              setPendingText('');
+              setOverrideVersion((v) => v + 1);
+            } finally {
+              setSavingRecording(false);
+            }
+          }}
+        />
+      )}
+
     </div>
   );
 }

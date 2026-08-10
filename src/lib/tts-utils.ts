@@ -603,6 +603,42 @@ export function clearNarrationOverrides(messageId: string): void {
   writeOverrideMap(map);
 }
 
+/**
+ * Sentinel "voice" for a passage the player recorded with their own mic.
+ * Never sent to Speechify — the saved clip is used as-is.
+ */
+export const SELF_RECORDED_VOICE_ID = 'self-recorded';
+
+export const isSelfRecordedVoice = (voiceId?: string | null): boolean =>
+  voiceId === SELF_RECORDED_VOICE_ID;
+
+/** Replaces every stored override for a message (used when syncing from the party). */
+export function setNarrationOverrides(messageId: string, list: NarrationOverride[]): void {
+  const map = readOverrideMap();
+  if (list.length === 0) delete map[messageId];
+  else map[messageId] = list;
+  writeOverrideMap(map);
+}
+
+/** Merges party-shared overrides in without dropping this device's own picks. */
+export function mergeNarrationOverrides(messageId: string, incoming: NarrationOverride[]): boolean {
+  if (incoming.length === 0) return false;
+  const existing = loadNarrationOverrides(messageId);
+  const merged = [...existing];
+  let changed = false;
+  for (const ov of incoming) {
+    const idx = merged.findIndex((o) => o.text === ov.text);
+    if (idx === -1) { merged.push(ov); changed = true; }
+    else if (merged[idx].voiceId !== ov.voiceId || merged[idx].label !== ov.label) {
+      merged[idx] = ov;
+      changed = true;
+    }
+  }
+  if (changed) setNarrationOverrides(messageId, merged);
+  return changed;
+}
+
+
 /** Carves hand-picked passages out of the auto segments; manual wins. */
 function applyOverrides(segments: NarrationSegment[], overrides: NarrationOverride[]): NarrationSegment[] {
   let working = segments;

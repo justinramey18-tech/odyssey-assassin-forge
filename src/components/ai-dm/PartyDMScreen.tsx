@@ -433,7 +433,7 @@ function MessageReactions({ messageId, reactions, currentUserId, onAddReaction, 
   );
 }
 
-const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction, onWhisperAutoRoll, onWhisperOpenRoller, narrationMap, narrationGeneratingPart, narrationPlayingPart, narrationCastProgress, narrationSpeakingName, onNarrate, onNarrateCast, onPlayNarration, onPlayAllNarration, onDeleteNarration, onDeleteAllNarration }: {
+const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction, onWhisperAutoRoll, onWhisperOpenRoller, narrationMap, narrationGeneratingPart, narrationPlayingPart, narrationCastProgress, narrationSpeakingName, onNarrate, onNarrateCast, onPlayNarration, onPlayAllNarration, onDeleteNarration, onDeleteAllNarration, onRecordNarrationSegment }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -469,6 +469,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   onPlayAllNarration?: (messageId: string, content?: string) => void;
   onDeleteNarration?: (messageId: string, part: NarrationPart) => void;
   onDeleteAllNarration?: (messageId: string) => void;
+  onRecordNarrationSegment?: (messageId: string, content: string, passage: string, blob: Blob) => Promise<void>;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
@@ -683,6 +684,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                 onPlayAll={(id, text) => onPlayAllNarration?.(id, text)}
                 onDelete={onDeleteNarration}
                 onDeleteAll={onDeleteAllNarration}
+                onRecordSegment={onRecordNarrationSegment}
               />
             )}
 
@@ -2600,6 +2602,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     onPlayAllNarration={messageNarration.playAll}
                     onDeleteNarration={isCreator ? messageNarration.remove : undefined}
                     onDeleteAllNarration={isCreator ? messageNarration.removeAll : undefined}
+                    onRecordNarrationSegment={messageNarration.recordSegment}
                   />
                 </React.Fragment>
                 );

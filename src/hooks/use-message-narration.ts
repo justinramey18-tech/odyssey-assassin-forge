@@ -11,8 +11,15 @@ import {
   splitStorySegments,
   segmentKey,
   voiceForSpeaker,
+  addNarrationOverride,
+  loadNarrationOverrides,
+  mergeNarrationOverrides,
+  isSelfRecordedVoice,
+  SELF_RECORDED_VOICE_ID,
   type NarrationSegment,
+  type NarrationOverride,
 } from '@/lib/tts-utils';
+
 import { toast } from 'sonner';
 import { duckMusicForNarration, restoreMusicAfterNarration } from '@/lib/narrationDucking';
 import { beginNarrationFocus, endNarrationFocus, getNarrationAudio } from '@/lib/audioFocus';
@@ -64,8 +71,14 @@ interface UseMessageNarrationReturn {
   remove: (messageId: string, part?: NarrationPart) => Promise<void>;
   /** Deletes every clip saved for a message. */
   removeAll: (messageId: string) => Promise<void>;
+  /**
+   * Saves a mic recording for a highlighted passage of a DM message.
+   * The passage becomes its own segment, so Play all uses the recording there.
+   */
+  recordSegment: (messageId: string, content: string, passage: string, blob: Blob, label?: string) => Promise<void>;
   hasSpeechifyKey: boolean;
 }
+
 
 /**
  * Per-message narration for party DM messages.
@@ -89,7 +102,88 @@ export function useMessageNarration(
 
   const hasSpeechifyKey = !!loadApiKey('speechify');
 
+  // ── Party-shared highlight overrides (so recorded passages split the same
+  //    way on every device, and everyone hears the recording in Play all) ──
+  const applySharedOverrides = useCallback((rows: Array<{ state_data: any }>) => {
+    let changed = false;
+    for (const row of rows) {
+      const messages = row?.state_data?.messages;
+      if (!messages || typeof messages !== 'object') continue;
+      for (const [messageId, list] of Object.entries(messages)) {
+        if (!Array.isArray(list)) continue;
+        if (mergeNarrationOverrides(messageId, list as NarrationOverride[])) changed = true;
+      }
+    }
+    if (changed && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('odyssey-narration-overrides'));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!partyId) return;
+    let cancelled = false;
+
+    (async () => {
+      const { data } = await (supabase.from('party_shared_state') as any)
+        .select('state_data')
+        .eq('party_id', partyId)
+        .eq('state_type', 'narration_overrides');
+      if (cancelled || !data) return;
+      applySharedOverrides(data);
+    })();
+
+    const channel = supabase
+      .channel(`party-narration-overrides-${partyId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'party_shared_state', filter: `party_id=eq.${partyId}` },
+        (payload) => {
+          const row = payload.new as { state_type?: string; state_data?: any };
+          if (!row || row.state_type !== 'narration_overrides') return;
+          applySharedOverrides([row as { state_data: any }]);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [partyId, applySharedOverrides]);
+
+  /** Publishes this device's overrides for a message to the rest of the party. */
+  const publishOverrides = useCallback(async (messageId: string) => {
+    if (!partyId || !currentUserId) return;
+    try {
+      const { data: existing } = await (supabase.from('party_shared_state') as any)
+        .select('id, state_data')
+        .eq('party_id', partyId)
+        .eq('user_id', currentUserId)
+        .eq('state_type', 'narration_overrides')
+        .maybeSingle();
+
+      const messages = { ...(existing?.state_data?.messages || {}) };
+      messages[messageId] = loadNarrationOverrides(messageId);
+
+      if (existing?.id) {
+        await (supabase.from('party_shared_state') as any)
+          .update({ state_data: { messages } })
+          .eq('id', existing.id);
+      } else {
+        await (supabase.from('party_shared_state') as any).insert({
+          party_id: partyId,
+          user_id: currentUserId,
+          state_type: 'narration_overrides',
+          state_data: { messages },
+        });
+      }
+    } catch (error) {
+      console.warn('[MessageNarration] could not share passage voices:', error);
+    }
+  }, [partyId, currentUserId]);
+
   // ── Load + live-sync saved narrations ──
+
   useEffect(() => {
     if (!partyId) return;
     let cancelled = false;
@@ -350,11 +444,13 @@ export function useMessageNarration(
       for (let i = 0; i < segments.length; i++) {
         const seg = segments[i];
         setCastProgress({ messageId, done, total, speaker: seg.speaker });
-        if (hasClip(segmentKey(seg))) {
+        // Passages a player recorded themselves are never sent to Speechify.
+        if (hasClip(segmentKey(seg)) || isSelfRecordedVoice(seg.voiceId)) {
           done++;
           setCastProgress({ messageId, done, total, speaker: segments[i + 1]?.speaker ?? null });
           continue;
         }
+
         const voiceId = seg.voiceId || (seg.speaker && voiceForSpeaker(seg.speaker)) || narratorVoice;
         const blob = await synthesize(seg.text, voiceId, apiKey);
         await storeClip(messageId, segmentKey(seg), blob, voiceId);
@@ -478,7 +574,90 @@ export function useMessageNarration(
     });
   }, [partyId, playingId, stop]);
 
+  const recordSegment = useCallback(async (
+    messageId: string,
+    content: string,
+    passage: string,
+    blob: Blob,
+    label?: string,
+  ) => {
+    if (!partyId) return;
+    const text = (passage || '').trim();
+    if (!text) {
+      toast.error('Highlight a passage first');
+      return;
+    }
+
+    try {
+      // 1. Carve the passage out as its own segment, marked as a mic recording.
+      addNarrationOverride(messageId, {
+        text,
+        voiceId: SELF_RECORDED_VOICE_ID,
+        label: label || currentUserName || 'My voice',
+      });
+
+      // 2. Find the segment key everyone's client will compute for it.
+      const { story } = splitDMResponseParts(content || '');
+      const segments = splitStorySegments(story || content || '', messageId);
+      const target = segments.find((s) => isSelfRecordedVoice(s.voiceId) && s.text.trim() === text)
+        || segments.find((s) => isSelfRecordedVoice(s.voiceId) && text.includes(s.text.trim()));
+      if (!target) {
+        toast.error('Could not match that passage', { description: 'Try selecting a full sentence.' });
+        return;
+      }
+      const part = segmentKey(target);
+
+      // 3. Upload the clip and register it for the whole party.
+      const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('mpeg') ? 'mp3' : 'webm';
+      const path = `${partyId}/narration/${messageId}-${part}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('party-chat-audio')
+        .upload(path, blob, { contentType: blob.type || 'audio/webm', upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from('party-chat-audio').getPublicUrl(path);
+      const audioUrl = `${urlData.publicUrl}?v=${Date.now()}`;
+
+      const row = {
+        party_id: partyId,
+        message_id: messageId,
+        part,
+        audio_url: audioUrl,
+        voice_id: SELF_RECORDED_VOICE_ID,
+        provider: 'self',
+        created_by: currentUserId,
+        created_by_name: currentUserName || null,
+      };
+      const { error: insertError } = await (supabase.from('party_message_audio') as any)
+        .upsert(row, { onConflict: 'message_id,part' });
+      if (insertError) throw insertError;
+
+      setAudioByMessage((prev) => ({
+        ...prev,
+        [narrationKey(messageId, part)]: {
+          message_id: messageId,
+          part,
+          audio_url: audioUrl,
+          voice_id: SELF_RECORDED_VOICE_ID,
+          created_by: currentUserId || '',
+          created_by_name: currentUserName || null,
+        },
+      }));
+
+      // 4. Share the passage split so every player hears it in Play all.
+      await publishOverrides(messageId);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('odyssey-narration-overrides'));
+      }
+      toast.success('Recording saved for that passage');
+    } catch (error) {
+      console.error('[MessageNarration] recording failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Could not save recording');
+    }
+  }, [partyId, currentUserId, currentUserName, publishOverrides]);
+
   return {
+
     audioByMessage,
     generatingId,
     playingId,
@@ -491,6 +670,8 @@ export function useMessageNarration(
     stop,
     remove,
     removeAll,
+    recordSegment,
     hasSpeechifyKey,
+
   };
 }
