@@ -11,8 +11,15 @@ import {
   splitStorySegments,
   segmentKey,
   voiceForSpeaker,
+  addNarrationOverride,
+  loadNarrationOverrides,
+  mergeNarrationOverrides,
+  isSelfRecordedVoice,
+  SELF_RECORDED_VOICE_ID,
   type NarrationSegment,
+  type NarrationOverride,
 } from '@/lib/tts-utils';
+
 import { toast } from 'sonner';
 import { duckMusicForNarration, restoreMusicAfterNarration } from '@/lib/narrationDucking';
 import { beginNarrationFocus, endNarrationFocus, getNarrationAudio } from '@/lib/audioFocus';
