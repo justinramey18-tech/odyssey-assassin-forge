@@ -73,6 +73,8 @@ export function MessageNarrationBar({
   const [savingRecording, setSavingRecording] = useState(false);
   // Floating "Voice selection" chip anchored under the highlighted passage.
   const [selection, setSelection] = useState<{ text: string; top: number; left: number } | null>(null);
+  const [pickerAnchor, setPickerAnchor] = useState<{ top: number; left: number } | null>(null);
+
 
   // Another player's recording can change how this message splits.
   useEffect(() => {
