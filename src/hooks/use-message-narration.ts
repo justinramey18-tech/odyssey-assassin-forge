@@ -444,11 +444,13 @@ export function useMessageNarration(
       for (let i = 0; i < segments.length; i++) {
         const seg = segments[i];
         setCastProgress({ messageId, done, total, speaker: seg.speaker });
-        if (hasClip(segmentKey(seg))) {
+        // Passages a player recorded themselves are never sent to Speechify.
+        if (hasClip(segmentKey(seg)) || isSelfRecordedVoice(seg.voiceId)) {
           done++;
           setCastProgress({ messageId, done, total, speaker: segments[i + 1]?.speaker ?? null });
           continue;
         }
+
         const voiceId = seg.voiceId || (seg.speaker && voiceForSpeaker(seg.speaker)) || narratorVoice;
         const blob = await synthesize(seg.text, voiceId, apiKey);
         await storeClip(messageId, segmentKey(seg), blob, voiceId);
