@@ -197,7 +197,9 @@ export function PartyDMSettings({
   autoSyncEnabled, onToggleAutoSync, isExtracting, selectedModel, onModelChange,
   pushState, onTogglePush,
   dmMode = 'ai', onDmModeChange,
+  offlineNarration,
   onShowMap, onShowSaves, onShowGuides, onShowChat, onShowDevAssistant, onShowCharacterGuideBuilder, onShowAfkGuide,
+
   guidesCount = 0, guides = [], myAfkGuide, myAfkCascadeCount = 0,
   isSplitActive, memberCount, onShowSplitInitiator, onShowNpcScene, onShowRegroupDialog, onShowSplitSummaries, onShowPreSplitChat, onShowOocChat,
   onNewCampaign, onEndSession,
