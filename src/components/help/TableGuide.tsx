@@ -392,9 +392,31 @@ export function TableGuide({ open, onClose, isParty = false }: TableGuideProps) 
                 {isOpen && (
                   <div className="px-3 pb-3 -mt-1 space-y-2">
                     <div className="text-[11px] text-white/70 leading-relaxed">{entry.a}</div>
+                    {entry.steps && entry.steps.length > 0 && (
+                      <ol className="space-y-1.5 pt-0.5">
+                        {entry.steps.map((s, i) => (
+                          <li key={i} className="flex gap-2">
+                            <span className="shrink-0 w-4.5 h-4.5 min-w-[18px] h-[18px] rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-200/90 text-[9px] font-bold flex items-center justify-center mt-0.5">
+                              {i + 1}
+                            </span>
+                            <span className="min-w-0 flex-1 text-[11px] text-white/65 leading-relaxed">{s}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                    {entry.note && (
+                      <div className="flex items-start gap-2 rounded-lg border border-amber-400/20 bg-amber-500/[0.05] px-2.5 py-2">
+                        <Lightbulb className="w-3.5 h-3.5 text-amber-400/70 shrink-0 mt-0.5" />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[9px] uppercase tracking-wider text-amber-300/60">Good to know</div>
+                          <div className="text-[11px] text-white/65 leading-relaxed">{entry.note}</div>
+                        </div>
+                      </div>
+                    )}
                     {entry.where && <WhereChip where={entry.where} />}
                   </div>
                 )}
+
               </div>
             );
           })
