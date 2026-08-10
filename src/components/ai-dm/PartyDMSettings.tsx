@@ -96,6 +96,16 @@ export interface PartyDMSettingsProps {
   dmMode?: DmMode;
   onDmModeChange?: (mode: DmMode) => void;
   // Tools
+  /** Offline narration downloads (saved DM audio kept on this device). */
+  offlineNarration?: {
+    count: number;
+    total: number;
+    bytes: number;
+    saving: boolean;
+    progress: { done: number; total: number } | null;
+    onSaveAll: () => void | Promise<void>;
+    onClear: () => void | Promise<void>;
+  };
   onShowMap?: () => void;
   onShowSaves?: () => void;
   onShowGuides?: () => void;
@@ -187,7 +197,9 @@ export function PartyDMSettings({
   autoSyncEnabled, onToggleAutoSync, isExtracting, selectedModel, onModelChange,
   pushState, onTogglePush,
   dmMode = 'ai', onDmModeChange,
+  offlineNarration,
   onShowMap, onShowSaves, onShowGuides, onShowChat, onShowDevAssistant, onShowCharacterGuideBuilder, onShowAfkGuide,
+
   guidesCount = 0, guides = [], myAfkGuide, myAfkCascadeCount = 0,
   isSplitActive, memberCount, onShowSplitInitiator, onShowNpcScene, onShowRegroupDialog, onShowSplitSummaries, onShowPreSplitChat, onShowOocChat,
   onNewCampaign, onEndSession,
@@ -598,6 +610,29 @@ export function PartyDMSettings({
           onClick={exportingStory ? undefined : handleDownloadStory}
           disabled={exportingStory}
         />
+        {offlineNarration && offlineNarration.total > 0 && (
+          <>
+            <ToolRow
+              icon={<Download className="w-4 h-4 text-sky-400" />}
+              label={
+                offlineNarration.saving
+                  ? `Saving ${offlineNarration.progress?.done ?? 0}/${offlineNarration.progress?.total ?? 0}…`
+                  : 'Save Narrations Offline'
+              }
+              description={`${offlineNarration.count} of ${offlineNarration.total} clips on this device${offlineNarration.bytes > 0 ? ` · ${(offlineNarration.bytes / 1048576).toFixed(1)} MB` : ''} — plays with no signal`}
+              onClick={offlineNarration.saving ? undefined : () => void offlineNarration.onSaveAll()}
+              disabled={offlineNarration.saving}
+            />
+            {offlineNarration.count > 0 && !offlineNarration.saving && (
+              <ToolRow
+                icon={<Trash2 className="w-4 h-4" />}
+                label="Remove Offline Narrations"
+                description="Frees up space on this device (clips stay in the campaign)"
+                onClick={() => void offlineNarration.onClear()}
+              />
+            )}
+          </>
+        )}
         {onShowGuides && (
           <ToolRow icon={<BookOpen className="w-4 h-4" />} label="GM Guides" description="Custom rules and lore" badge={guidesCount} onClick={onShowGuides} />
         )}

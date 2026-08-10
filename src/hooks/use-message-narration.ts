@@ -23,6 +23,15 @@ import {
 import { toast } from 'sonner';
 import { duckMusicForNarration, restoreMusicAfterNarration } from '@/lib/narrationDucking';
 import { beginNarrationFocus, endNarrationFocus, getNarrationAudio } from '@/lib/audioFocus';
+import {
+  cacheClip,
+  clearOfflineClips,
+  clipKey,
+  listCachedClips,
+  offlineCacheSize,
+  resolvePlaybackUrl,
+} from '@/lib/narrationOfflineCache';
+
 
 
 /**
@@ -77,6 +86,23 @@ interface UseMessageNarrationReturn {
    */
   recordSegment: (messageId: string, content: string, passage: string, blob: Blob, label?: string) => Promise<void>;
   hasSpeechifyKey: boolean;
+  /** How many saved clips are stored on this device for offline play. */
+  offlineCount: number;
+  /** Total saved clips in the campaign. */
+  totalClips: number;
+  /** Bytes used by downloaded clips. */
+  offlineBytes: number;
+  /** True while a bulk download is running, with progress. */
+  offlineSaving: boolean;
+  offlineProgress: { done: number; total: number } | null;
+  /** Downloads every saved clip in the campaign to this device. */
+  downloadAllOffline: () => Promise<void>;
+  /** Downloads just the clips belonging to one DM message. */
+  downloadMessageOffline: (messageId: string) => Promise<void>;
+  /** Which message ids are fully downloaded on this device. */
+  offlineMessageIds: string[];
+  /** Removes every downloaded clip from this device. */
+  clearOffline: () => Promise<void>;
 }
 
 
@@ -96,9 +122,28 @@ export function useMessageNarration(
   const [castProgress, setCastProgress] = useState<CastProgress | null>(null);
   const [speakingName, setSpeakingName] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playSeqRef = useRef(0);
   const queueRef = useRef<Array<{ key: string; url: string; speaker?: string | null }>>([]);
   const audioMapRef = useRef<Record<string, MessageAudioRow>>({});
   audioMapRef.current = audioByMessage;
+
+  // ── Offline (downloaded) clips ──
+  const [cachedKeys, setCachedKeys] = useState<Set<string>>(new Set());
+  const [offlineBytes, setOfflineBytes] = useState(0);
+  const [offlineSaving, setOfflineSaving] = useState(false);
+  const [offlineProgress, setOfflineProgress] = useState<{ done: number; total: number } | null>(null);
+
+  const refreshOffline = useCallback(async () => {
+    const keys = await listCachedClips();
+    setCachedKeys(new Set(keys));
+    setOfflineBytes(await offlineCacheSize());
+  }, []);
+
+  useEffect(() => { void refreshOffline(); }, [refreshOffline]);
+
+  /** Cheap re-read after a background cache write. */
+  const bumpOffline = useCallback(() => { void refreshOffline(); }, [refreshOffline]);
+
 
   const hasSpeechifyKey = !!loadApiKey('speechify');
 
@@ -291,7 +336,6 @@ export function useMessageNarration(
     audio.onended = null;
     audio.onerror = null;
     audio.pause();
-    audio.src = next.url;
     audio.playbackRate = loadNarrationSpeed();
     audio.onended = () => runQueue();
     audio.onerror = () => {
@@ -306,16 +350,26 @@ export function useMessageNarration(
     audioRef.current = audio;
     setPlayingId(next.key);
     setSpeakingName(next.speaker ?? null);
-    void beginNarrationFocus().finally(() => {
-      audio.play().catch(() => {
-        queueRef.current = [];
-        setPlayingId(null);
-        setSpeakingName(null);
-        void restoreMusicAfterNarration();
-        void endNarrationFocus();
+    const seq = ++playSeqRef.current;
+    // Prefer the downloaded copy on this device — playback then survives a weak
+    // or missing connection. Falls back to streaming when nothing is stored.
+    void resolvePlaybackUrl(next.url).then((src) => {
+      if (seq !== playSeqRef.current) return;
+      audio.src = src;
+      void beginNarrationFocus().finally(() => {
+        audio.play().catch(() => {
+          queueRef.current = [];
+          setPlayingId(null);
+          setSpeakingName(null);
+          void restoreMusicAfterNarration();
+          void endNarrationFocus();
+        });
       });
+      // Keep it for next time (no-op when already stored).
+      if (src === next.url) void cacheClip(next.url).then((ok) => { if (ok) bumpOffline(); });
     });
   }, []);
+
 
 
   const play = useCallback((messageId: string, part: NarrationPart = 'story') => {
@@ -679,6 +733,57 @@ export function useMessageNarration(
     }
   }, [partyId, currentUserId, currentUserName, publishOverrides]);
 
+  // ── Downloading clips for offline play ──
+
+  const allRows = Object.values(audioByMessage);
+
+  const downloadRows = useCallback(async (rows: MessageAudioRow[]) => {
+    const pending = rows.filter((r) => r.audio_url);
+    if (pending.length === 0) return;
+    setOfflineSaving(true);
+    setOfflineProgress({ done: 0, total: pending.length });
+    let failed = 0;
+    for (let i = 0; i < pending.length; i++) {
+      const ok = await cacheClip(pending[i].audio_url);
+      if (!ok) failed++;
+      setOfflineProgress({ done: i + 1, total: pending.length });
+    }
+    await refreshOffline();
+    setOfflineSaving(false);
+    setOfflineProgress(null);
+    if (failed === 0) toast.success(`Saved ${pending.length} narration${pending.length === 1 ? '' : 's'} for offline play`);
+    else if (failed < pending.length) toast.warning(`Saved ${pending.length - failed} of ${pending.length} — ${failed} need a better connection`);
+    else toast.error('Could not download narrations — check your connection');
+  }, [refreshOffline]);
+
+  const downloadAllOffline = useCallback(async () => {
+    await downloadRows(Object.values(audioMapRef.current));
+  }, [downloadRows]);
+
+  const downloadMessageOffline = useCallback(async (messageId: string) => {
+    await downloadRows(Object.values(audioMapRef.current).filter((r) => r.message_id === messageId));
+  }, [downloadRows]);
+
+  const clearOffline = useCallback(async () => {
+    await clearOfflineClips();
+    await refreshOffline();
+    toast.success('Downloaded narrations removed from this device');
+  }, [refreshOffline]);
+
+  const offlineCount = allRows.filter((r) => cachedKeys.has(clipKey(r.audio_url))).length;
+  const offlineMessageIds = Array.from(
+    new Set(
+      Object.values(
+        allRows.reduce<Record<string, MessageAudioRow[]>>((acc, r) => {
+          (acc[r.message_id] ||= []).push(r);
+          return acc;
+        }, {}),
+      )
+        .filter((rows) => rows.every((r) => cachedKeys.has(clipKey(r.audio_url))))
+        .map((rows) => rows[0].message_id),
+    ),
+  );
+
   return {
 
     audioByMessage,
@@ -695,6 +800,16 @@ export function useMessageNarration(
     removeAll,
     recordSegment,
     hasSpeechifyKey,
+    offlineCount,
+    totalClips: allRows.length,
+    offlineBytes,
+    offlineSaving,
+    offlineProgress,
+    downloadAllOffline,
+    downloadMessageOffline,
+    offlineMessageIds,
+    clearOffline,
 
   };
+
 }
