@@ -937,7 +937,62 @@ export function SoloCharacterSheet({
               </Section>
             )}
 
+            <Section title={`Bag (${bagItems.length})`} icon={Backpack}>
+              {bagItems.length === 0 ? (
+                <p className="text-xs text-white/40 text-center py-2">Your bag is empty.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {bagItems.map(item => {
+                    const key = `${item.kind}:${item.name}`;
+                    const confirming = discardTarget === key;
+                    return (
+                      <div key={key} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-xs text-foreground truncate">
+                              {item.name}{item.quantity > 1 ? ` ×${item.quantity}` : ''}
+                            </p>
+                            <p className="text-[10px] text-white/40 capitalize">{item.detail}</p>
+                          </div>
+                          {!confirming && (
+                            <button
+                              onClick={() => setDiscardTarget(key)}
+                              aria-label={`Discard ${item.name}`}
+                              className="shrink-0 p-2 rounded-lg text-white/50 hover:text-red-300 hover:bg-white/10"
+                              style={{ touchAction: 'manipulation', minHeight: 44, minWidth: 44 }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                        {confirming && (
+                          <div className="flex gap-2 mt-2">
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="flex-1 min-h-[44px]"
+                              onClick={() => {
+                                discardBagItem({ kind: item.kind, name: item.name });
+                                setDiscardTarget(null);
+                                toast.success(`${item.name} discarded`);
+                              }}
+                            >
+                              Discard
+                            </Button>
+                            <Button size="sm" variant="ghost" className="flex-1 min-h-[44px]" onClick={() => setDiscardTarget(null)}>
+                              Cancel
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Section>
+
             <Section
+
               title="Equipment"
               icon={Shield}
               action={
