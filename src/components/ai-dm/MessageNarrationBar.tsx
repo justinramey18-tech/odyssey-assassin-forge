@@ -290,8 +290,17 @@ export function MessageNarrationBar({
       )}
 
       {pickerOpen && (
-        <div className="rounded-lg border border-sky-500/25 bg-sky-950/25 p-2 space-y-1.5">
+        <div
+          className={cn(
+            'rounded-lg border border-sky-500/25 p-2 space-y-1.5',
+            pickerAnchor
+              ? 'fixed z-[70] w-[min(320px,calc(100vw-16px))] max-h-[50vh] overflow-y-auto bg-sky-950/95 shadow-xl'
+              : 'bg-sky-950/25',
+          )}
+          style={pickerAnchor ? { top: pickerAnchor.top, left: pickerAnchor.left } : undefined}
+        >
           <p className="text-[10px] text-sky-200/70 line-clamp-2">"{pendingText}"</p>
+
           <div className="flex flex-wrap gap-1.5">
             {cast.map((entry) => (
               <button
