@@ -1,5 +1,5 @@
-import { Highlighter, ListMusic, Loader2, Pause, Users, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Highlighter, ListMusic, Loader2, Mic, Pause, Users, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
   splitDMResponseParts,
@@ -12,10 +12,13 @@ import {
   addNarrationOverride,
   clearNarrationOverrides,
   voiceForSpeaker,
+  isSelfRecordedVoice,
 } from '@/lib/tts-utils';
 import { MessageNarrationButton } from './MessageNarrationButton';
+import { PartyDMAudioRecorder } from './PartyDMAudioRecorder';
 import { narrationKey, type CastProgress, type MessageAudioRow, type NarrationPart } from '@/hooks/use-message-narration';
 import { cn } from '@/lib/utils';
+
 
 interface MessageNarrationBarProps {
   messageId: string;
