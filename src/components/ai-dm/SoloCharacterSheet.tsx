@@ -16,6 +16,8 @@ import {
 } from '@/lib/pendingDmItems';
 import { setSheetReturn, type SheetReturnOrigin } from '@/lib/sheetReturn';
 import { buildLootUseText } from '@/lib/loot/prompts';
+import { discardBagItem } from '@/lib/bagDiscard';
+
 import { GearBonusBreakdown } from '@/components/character/GearBonusBreakdown';
 import { VoicesTab } from '@/components/character/VoicesTab';
 import type { CastSpellDefinition } from '@/lib/magic/castResolver';
