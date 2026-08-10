@@ -1,3 +1,4 @@
+import { BAG_DISCARD_EVENT } from '@/lib/bagDiscard';
 import type { LootItem } from '@/lib/loot/types';
 import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -758,6 +759,25 @@ const Index = () => {
     if (!entry) return false;
     return useConsumableItem(entry.consumable.id, quantity);
   }, [consumablesInventory, useConsumableItem]);
+
+  // Bag discards coming from the DM character sheet.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<import('@/lib/bagDiscard').BagDiscardDetail>).detail;
+      const name = String(detail?.name || '').trim().toLowerCase();
+      if (!name) return;
+      if (detail.kind === 'consumable') {
+        const entry = consumablesInventory.find(i => i.consumable.name.trim().toLowerCase() === name);
+        if (entry) removeConsumableItem(entry.consumable.id);
+      } else {
+        const item = loot.lootItems.find(i => i.name.trim().toLowerCase() === name);
+        if (item) loot.deleteLootItem(item.id);
+      }
+    };
+    window.addEventListener(BAG_DISCARD_EVENT, handler);
+    return () => window.removeEventListener(BAG_DISCARD_EVENT, handler);
+  }, [consumablesInventory, removeConsumableItem, loot]);
+
 
   
   const { toast } = useToast();
