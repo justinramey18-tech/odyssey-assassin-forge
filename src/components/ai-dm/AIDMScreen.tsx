@@ -1549,14 +1549,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         <div className="flex flex-col gap-2 max-w-2xl mx-auto">
             <SoloDMInput
               ref={soloDMInputRef}
-              onSend={(text) => {
-                const parsed = parseNpcTags(text, npcNames);
-                if (parsed) {
-                  voiceNPC(parsed.npcNames.length === 1 ? parsed.npcNames[0] : parsed.npcNames, parsed.message);
-                } else {
-                  sendMessage(text);
-                }
-              }}
+              onSend={handleComposerSend}
+
               onCancel={cancelRequest}
               onPaste={handlePaste}
               isLoading={isLoading}
