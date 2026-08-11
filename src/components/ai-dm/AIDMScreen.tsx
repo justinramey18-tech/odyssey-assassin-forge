@@ -900,6 +900,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
 
   const [liveInputText, setLiveInputText] = useState('');
   const liveInputDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastLiveTextRef = useRef('');
   const pendingSocialNpcRef = useRef<{ npcName: string; message: string } | null>(null);
   const [socialToolbarLocked, setSocialToolbarLocked] = useState(false);
 
@@ -908,10 +909,28 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const socialToolbarNpcName = socialParse ? socialParse.npcNames[0] : null;
   const socialToolbarReady = !!socialParse && socialParse.npcNames.length === 1;
 
+  // Only the @NPC social toolbar depends on live draft text. Re-rendering this
+  // whole screen on every keystroke made typing crawl, so skip the update
+  // entirely for ordinary (non-@) typing.
   const handleLiveInputChange = useCallback((text: string) => {
+    const wasRelevant = lastLiveTextRef.current.trim().startsWith('@');
+    const isRelevant = text.trim().startsWith('@');
+    lastLiveTextRef.current = text;
+    if (!wasRelevant && !isRelevant) return;
     if (liveInputDebounceRef.current) clearTimeout(liveInputDebounceRef.current);
-    liveInputDebounceRef.current = setTimeout(() => setLiveInputText(text), 120);
+    liveInputDebounceRef.current = setTimeout(() => setLiveInputText(lastLiveTextRef.current), 250);
   }, []);
+
+  const handleComposerSend = useCallback((text: string) => {
+    const parsed = parseNpcTags(text, npcNames);
+    if (parsed) {
+      voiceNPC(parsed.npcNames.length === 1 ? parsed.npcNames[0] : parsed.npcNames, parsed.message);
+    } else {
+      sendMessage(text);
+    }
+  }, [npcNames, voiceNPC, sendMessage]);
+
+
 
   useEffect(() => {
     return () => {
@@ -1540,14 +1559,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         <div className="flex flex-col gap-2 max-w-2xl mx-auto">
             <SoloDMInput
               ref={soloDMInputRef}
-              onSend={(text) => {
-                const parsed = parseNpcTags(text, npcNames);
-                if (parsed) {
-                  voiceNPC(parsed.npcNames.length === 1 ? parsed.npcNames[0] : parsed.npcNames, parsed.message);
-                } else {
-                  sendMessage(text);
-                }
-              }}
+              onSend={handleComposerSend}
+
               onCancel={cancelRequest}
               onPaste={handlePaste}
               isLoading={isLoading}

@@ -35,11 +35,17 @@ export function useDraftPersist(storageKey: string): [string, SetDraft, () => vo
     return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); };
   }, [value, storageKey]);
 
+  // Keep the latest value in a ref so the unload listener is attached once
+  // instead of being torn down and re-added on every keystroke.
+  const valueRef = useRef(value);
+  valueRef.current = value;
+
   // Flush on unmount / page unload
   useEffect(() => {
     const flush = () => {
       try {
-        if (value) setScopedItem(storageKey, value);
+        const v = valueRef.current;
+        if (v) setScopedItem(storageKey, v);
         else removeScopedItem(storageKey);
       } catch {}
     };
@@ -48,7 +54,7 @@ export function useDraftPersist(storageKey: string): [string, SetDraft, () => vo
       window.removeEventListener('beforeunload', flush);
       flush();
     };
-  }, [value, storageKey]);
+  }, [storageKey]);
 
   const clear = useCallback(() => {
     setValue('');
