@@ -1,4 +1,5 @@
 import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { SocialCheckResult } from '@/lib/npcSocialChecks';
 import { parseNpcTags } from '@/lib/parseNpcTags';
@@ -52,6 +53,9 @@ export const SoloDMComposer = memo(forwardRef<SoloDMInputHandle, SoloDMComposerP
     [draftSnapshot, npcNames]
   );
   const toolbarVisible = draftSnapshot.trim().startsWith('@');
+  const toolbarTarget = typeof document === 'undefined'
+    ? null
+    : document.getElementById('solo-dm-social-toolbar');
 
   const handleSkillTap = useCallback(() => {
     if (!socialParse || socialParse.npcNames.length !== 1) return;
@@ -74,15 +78,18 @@ export const SoloDMComposer = memo(forwardRef<SoloDMInputHandle, SoloDMComposerP
 
   return (
     <>
-      <NpcSocialCheckToolbar
-        visible={toolbarVisible}
-        npcName={socialParse?.npcNames[0] ?? null}
-        ready={socialParse?.npcNames.length === 1}
-        characterContext={characterContext}
-        disabled={isLoading}
-        onSkillTap={handleSkillTap}
-        onResolved={handleResolved}
-      />
+      {toolbarTarget && createPortal(
+        <NpcSocialCheckToolbar
+          visible={toolbarVisible}
+          npcName={socialParse?.npcNames[0] ?? null}
+          ready={socialParse?.npcNames.length === 1}
+          characterContext={characterContext}
+          disabled={isLoading}
+          onSkillTap={handleSkillTap}
+          onResolved={handleResolved}
+        />,
+        toolbarTarget
+      )}
       <SoloDMInput
         ref={inputRef}
         onSend={onSend}

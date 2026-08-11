@@ -23,5 +23,10 @@ export function parseNpcTags(text: string, knownNames: string[]): ParsedNpcTags 
   }
 
   const message = remaining.trim();
-  return tagged.length > 0 && message ? { npcNames: tagged, message } : null;
+  if (tagged.length > 0 && message) return { npcNames: tagged, message };
+
+  const fallback = trimmed.match(/^@(\S+)\s+([\s\S]+)$/);
+  return fallback
+    ? { npcNames: [fallback[1]], message: fallback[2].trim() }
+    : null;
 }

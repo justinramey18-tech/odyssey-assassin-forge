@@ -5,9 +5,9 @@ import { getCachedWeather, buildWeatherPrompt, loadWeatherEnabled } from '@/lib/
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { useResponseMode } from '@/hooks/use-response-mode';
 import { useNPCAutocomplete } from '@/hooks/use-npc-autocomplete';
-import { SoloDMInput, type SoloDMInputHandle } from './SoloDMInput';
-import { NpcSocialCheckToolbar } from './NpcSocialCheckToolbar';
-import type { SocialCheckResult } from '@/lib/npcSocialChecks';
+import { type SoloDMInputHandle } from './SoloDMInput';
+import { SoloDMComposer } from './SoloDMComposer';
+import { parseNpcTags } from '@/lib/parseNpcTags';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-models';
@@ -401,41 +401,6 @@ const DMMessageBubble = memo(function DMMessageBubble({ message, onEdit, onDelet
 const NOOP = () => {};
 const NOOP_TWO_ARG = () => {};
 const NOOP_RETURN_ZERO = () => 0;
-
-function parseNpcTags(text: string, knownNames: string[]): { npcNames: string[]; message: string } | null {
-  const trimmed = text.trim();
-  if (!trimmed.startsWith('@')) return null;
-
-  const sortedNames = [...knownNames].sort((a, b) => b.length - a.length);
-  let remaining = trimmed;
-  const tagged: string[] = [];
-
-  while (remaining.startsWith('@')) {
-    const afterAt = remaining.slice(1);
-    const found = sortedNames.find((name) => {
-      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const re = new RegExp('^' + escaped + '(\\s|$)', 'i');
-      return re.test(afterAt);
-    });
-    if (!found) break;
-    tagged.push(found);
-    remaining = afterAt.slice(found.length).trimStart();
-  }
-
-  if (tagged.length > 0) {
-    const message = remaining.trim();
-    if (!message) return null;
-    return { npcNames: tagged, message };
-  }
-
-  const fallback = trimmed.match(/^@(\S+)\s+([\s\S]+)$/);
-  if (fallback) {
-    return { npcNames: [fallback[1]], message: fallback[2].trim() };
-  }
-
-  return null;
-}
-
 
 export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks, dmPersonaPrompt, dmPersonaName, onRetakePersonalityTest, wildShape, isMomoMoonDruid, currentXP = 0, onManualLevelUp, onAcceptItem, onOpenCharacterPicker }: AIDMScreenProps) {
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
@@ -898,29 +863,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
 
   const npcNames = useNPCAutocomplete(messages);
 
-  const [liveInputText, setLiveInputText] = useState('');
-  const liveInputDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastLiveTextRef = useRef('');
-  const pendingSocialNpcRef = useRef<{ npcName: string; message: string } | null>(null);
-  const [socialToolbarLocked, setSocialToolbarLocked] = useState(false);
-
-  const socialParse = useMemo(() => parseNpcTags(liveInputText, npcNames), [liveInputText, npcNames]);
-  const socialToolbarVisible = liveInputText.trim().startsWith('@');
-  const socialToolbarNpcName = socialParse ? socialParse.npcNames[0] : null;
-  const socialToolbarReady = !!socialParse && socialParse.npcNames.length === 1;
-
-  // Only the @NPC social toolbar depends on live draft text. Re-rendering this
-  // whole screen on every keystroke made typing crawl, so skip the update
-  // entirely for ordinary (non-@) typing.
-  const handleLiveInputChange = useCallback((text: string) => {
-    const wasRelevant = lastLiveTextRef.current.trim().startsWith('@');
-    const isRelevant = text.trim().startsWith('@');
-    lastLiveTextRef.current = text;
-    if (!wasRelevant && !isRelevant) return;
-    if (liveInputDebounceRef.current) clearTimeout(liveInputDebounceRef.current);
-    liveInputDebounceRef.current = setTimeout(() => setLiveInputText(lastLiveTextRef.current), 250);
-  }, []);
-
   const handleComposerSend = useCallback((text: string) => {
     const parsed = parseNpcTags(text, npcNames);
     if (parsed) {
@@ -932,26 +874,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
 
 
 
-  useEffect(() => {
-    return () => {
-      if (liveInputDebounceRef.current) clearTimeout(liveInputDebounceRef.current);
-    };
-  }, []);
-
-  const handleSocialSkillTap = useCallback(() => {
-    if (socialParse && socialParse.npcNames.length === 1) {
-      pendingSocialNpcRef.current = { npcName: socialParse.npcNames[0], message: socialParse.message };
-      setSocialToolbarLocked(true);
-    }
-  }, [socialParse]);
-
-  const handleSocialResolved = useCallback((result: SocialCheckResult) => {
-    const pending = pendingSocialNpcRef.current;
-    pendingSocialNpcRef.current = null;
-    setSocialToolbarLocked(false);
-    if (liveInputDebounceRef.current) clearTimeout(liveInputDebounceRef.current);
-    if (!pending) return;
-    voiceNPC(pending.npcName, pending.message, {
+  const handleSocialSend = useCallback((npcName: string, message: string, result: import('@/lib/npcSocialChecks').SocialCheckResult) => {
+    voiceNPC(npcName, message, {
       skill: result.skill,
       opposingSkillLabel: result.opposingSkillLabel,
       playerTotal: result.playerRoll.total,
@@ -959,8 +883,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       outcome: result.outcome,
       rollBlockText: result.rollBlockText,
     });
-    soloDMInputRef.current?.setText('');
-    setLiveInputText('');
   }, [voiceNPC]);
 
   const handleLoadCampaign = useCallback((session: CampaignSession) => {
@@ -1338,15 +1260,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       </>
       )}
 
-      <NpcSocialCheckToolbar
-        visible={socialToolbarVisible}
-        npcName={socialToolbarNpcName}
-        ready={socialToolbarReady}
-        characterContext={characterContext}
-        disabled={isLoading}
-        onSkillTap={handleSocialSkillTap}
-        onResolved={handleSocialResolved}
-      />
+      <div id="solo-dm-social-toolbar" />
 
       {/* Messages + World State Panel side-by-side */}
       <div className="flex-1 min-h-0 relative flex overflow-hidden">
@@ -1557,18 +1471,17 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           }}
         />
         <div className="flex flex-col gap-2 max-w-2xl mx-auto">
-            <SoloDMInput
+            <SoloDMComposer
               ref={soloDMInputRef}
               onSend={handleComposerSend}
-
+              onSocialSend={handleSocialSend}
               onCancel={cancelRequest}
               onPaste={handlePaste}
               isLoading={isLoading}
               npcNames={npcNames}
               inputClassName={cn(chatTheme.inputBg, chatTheme.inputBorder, "border focus:border-amber-500/40")}
               sendActiveClassName={chatTheme.sendBtnActive}
-              onInputChange={handleLiveInputChange}
-              locked={socialToolbarLocked}
+              characterContext={characterContext}
               enhanceContext={enhanceContext}
             />
           <div className="flex items-center gap-1 justify-center">
