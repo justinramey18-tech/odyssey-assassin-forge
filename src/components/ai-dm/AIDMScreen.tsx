@@ -921,6 +921,16 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     liveInputDebounceRef.current = setTimeout(() => setLiveInputText(lastLiveTextRef.current), 250);
   }, []);
 
+  const handleComposerSend = useCallback((text: string) => {
+    const parsed = parseNpcTags(text, npcNames);
+    if (parsed) {
+      voiceNPC(parsed.npcNames.length === 1 ? parsed.npcNames[0] : parsed.npcNames, parsed.message);
+    } else {
+      sendMessage(text);
+    }
+  }, [npcNames, voiceNPC, sendMessage]);
+
+
 
   useEffect(() => {
     return () => {
