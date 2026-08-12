@@ -246,6 +246,15 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-white/80 truncate">{item.name}</p>
                 <p className="text-[10px] text-white/35 truncate">{item.detail}</p>
+                {item.actionCost && item.actionCost !== 'free' && (
+                  <span className={cn(
+                    'inline-block mt-1 text-[9px] px-1.5 py-0.5 rounded border font-mono',
+                    COST_META[item.actionCost].className,
+                    spentCosts && spentCosts[item.actionCost === 'bonus' ? 'bonus' : item.actionCost === 'reaction' ? 'reaction' : 'action'] && 'opacity-40 line-through'
+                  )}>
+                    {COST_META[item.actionCost].short}
+                  </span>
+                )}
               </div>
               <button
                 onClick={() => {
