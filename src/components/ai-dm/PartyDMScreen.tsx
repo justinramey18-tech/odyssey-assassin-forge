@@ -4103,6 +4103,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               }}
               onReclaimTurn={partyDm.reclaimTurn}
               onRedoLastRound={partyDm.redoLastRound}
+              combatMode={combatModeOn}
+              onToggleCombatMode={(enabled) => {
+                partyDm.updateSessionConfig(
+                  enabled
+                    ? { combatMode: true, combatRound: 1, combatTurnOrder: [], combatTurnUserId: null }
+                    : { combatMode: false, combatTurnOrder: [], combatTurnUserId: null }
+                );
+              }}
             />
           ) : undefined}
           oracleContent={activeNavTab === 'oracle' && characterContext ? (() => {
