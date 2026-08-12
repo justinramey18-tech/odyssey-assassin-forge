@@ -169,6 +169,8 @@ interface SectionProps {
   onHeal?: (item: QuickActionItem) => void;
   /** Closes the drawer so the dice animation is visible. */
   onCloseDrawer?: () => void;
+  spentCosts?: { action: boolean; bonus: boolean; reaction: boolean };
+  onActionSpent?: (cost: ActionCost, name: string) => void;
 }
 
 function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = false, onHeal, onCloseDrawer }: SectionProps) {
