@@ -445,6 +445,22 @@ export function PartyDMSettings({
         )}
       </SettingsSection>
 
+      {/* Combat Mode (host only) - swaps the bottom drawer for a combat bar for every player */}
+      {isCreator && onToggleCombatMode && (
+        <SettingsSection title="Combat Mode" icon={<Sword className="w-4 h-4 text-red-400" />}>
+          <ToggleRow
+            icon={<Sword className="w-4 h-4 text-red-400" />}
+            label="Combat mode"
+            description="Replaces the bottom tools drawer with a combat bar for everyone in the party. Shows HP, action economy and quick access to dice, actions and spells."
+            checked={Boolean(combatMode)}
+            onCheckedChange={onToggleCombatMode}
+          />
+          <p className="text-[10px] text-muted-foreground px-3 pb-2">
+            Host only. Applies to every player in the session instantly.
+          </p>
+        </SettingsSection>
+      )}
+
       {/* Round Controls (host only) — recover from mis-taps / mistaken deletes */}
       {isCreator && (onRedoLastRound || (onReclaimTurn && dmMode === 'turnBased')) && (
         <SettingsSection title="Round Controls" icon={<RotateCcw className="w-4 h-4 text-amber-400" />}>
