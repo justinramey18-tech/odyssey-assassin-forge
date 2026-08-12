@@ -191,6 +191,13 @@ export interface DmSessionConfig {
   npcScenePrompt?: string;        // scene-setting prompt
   npcSceneMaxMessages?: number;   // message cap (default 12)
   npcSceneMessageCount?: number;  // messages generated so far
+
+  // Combat mode (host toggle). Broadcast to every player by the existing
+  // party_shared_state realtime subscription - no new table, no migration.
+  combatMode?: boolean;
+  combatRound?: number;
+  combatTurnOrder?: string[];
+  combatTurnUserId?: string | null;
 }
 
 export interface PartyDragonConfig {
