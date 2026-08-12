@@ -486,7 +486,9 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
       const item: QuickActionItem = {
         id: `spell-${full.name}`,
         name: full.name,
-        detail: [label, full.school].filter(Boolean).join(' • '),
+        detail: isUnresolved
+          ? 'Custom spell • details unavailable — reopen your spellbook to reload'
+          : [label, full.school].filter(Boolean).join(' • '),
         prompt: generateSpellPrompt(full.name, charName, isCantrip, {
           level: full.level, school: full.school, description: full.description,
           damageFormula: full.damageFormula, damageType: full.damageType,
