@@ -3,6 +3,7 @@
 // Separate from MagicPath system used by Rogues
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { getScopedItem, setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
 import { DnDClass, ClassLevelMap, CLASS_REGISTRY, FULL_CASTER_CLASSES } from '@/lib/classes';
 import { SpellSlotsByLevel } from '@/lib/magic/fullCasterSlots';
 import { PactSlots as PactSlotsConfig } from '@/lib/magic/pactMagicSlots';
@@ -76,6 +77,7 @@ export type TrackedSpellSlots = Record<number, TrackedSpellSlot>;
 
 const CLASS_SPELLCASTING_KEY = 'odyssey-class-spellcasting';
 const CLASS_ACTIVE_SPELLS_KEY = 'odyssey-class-active-spells';
+const ACTIVE_SAVE_ID_KEY = 'odyssey-active-cloud-save-id';
 
 // ============================================
 // HELPERS
@@ -198,7 +200,8 @@ function getDefaultClassSpellcastingState(): ClassSpellcastingState {
 
 function loadClassSpellcastingState(): ClassSpellcastingState {
   try {
-    const stored = localStorage.getItem(CLASS_SPELLCASTING_KEY);
+    migrateToScoped(CLASS_SPELLCASTING_KEY);
+    const stored = getScopedItem(CLASS_SPELLCASTING_KEY);
     if (stored) {
       return { ...getDefaultClassSpellcastingState(), ...JSON.parse(stored) };
     }
@@ -210,7 +213,7 @@ function loadClassSpellcastingState(): ClassSpellcastingState {
 
 function saveClassSpellcastingState(state: ClassSpellcastingState): void {
   try {
-    localStorage.setItem(CLASS_SPELLCASTING_KEY, JSON.stringify(state));
+    setScopedItem(CLASS_SPELLCASTING_KEY, JSON.stringify(state));
   } catch (e) {
     console.error('[ClassSpellcasting] Failed to save state:', e);
   }
@@ -218,7 +221,8 @@ function saveClassSpellcastingState(state: ClassSpellcastingState): void {
 
 function loadClassActiveSpells(): ActiveSpellEffect[] {
   try {
-    const stored = localStorage.getItem(CLASS_ACTIVE_SPELLS_KEY);
+    migrateToScoped(CLASS_ACTIVE_SPELLS_KEY);
+    const stored = getScopedItem(CLASS_ACTIVE_SPELLS_KEY);
     if (stored) {
       return filterActiveSpells(JSON.parse(stored), Date.now());
     }
@@ -230,7 +234,7 @@ function loadClassActiveSpells(): ActiveSpellEffect[] {
 
 function saveClassActiveSpells(effects: ActiveSpellEffect[]): void {
   try {
-    localStorage.setItem(CLASS_ACTIVE_SPELLS_KEY, JSON.stringify(effects));
+    setScopedItem(CLASS_ACTIVE_SPELLS_KEY, JSON.stringify(effects));
   } catch (e) {
     console.error('[ClassSpellcasting] Failed to save active spells:', e);
   }
@@ -362,6 +366,12 @@ export function useClassSpellcasting(
   const { toast } = useToast();
   const expirationCheckRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Which character the in-memory state was loaded for. Used to stop a stale
+  // state from being written into the incoming character's storage during a switch.
+  const loadedSaveIdRef = useRef<string | null>(
+    typeof window !== 'undefined' ? localStorage.getItem(ACTIVE_SAVE_ID_KEY) : null
+  );
+
   // Get class config
   const classConfig = CLASS_REGISTRY[primaryClass];
   const spellcastingAbility = classConfig?.spellcasting?.ability ?? 'INT';
@@ -383,14 +393,29 @@ export function useClassSpellcasting(
     [primaryClass, primaryLevel, multiclassLevels]
   );
 
-  // Persist state
+  // Persist state only if the active character has not changed under us.
   useEffect(() => {
+    const activeId = localStorage.getItem(ACTIVE_SAVE_ID_KEY);
+    if (activeId !== loadedSaveIdRef.current) return;
     saveClassSpellcastingState(state);
   }, [state]);
 
   useEffect(() => {
+    const activeId = localStorage.getItem(ACTIVE_SAVE_ID_KEY);
+    if (activeId !== loadedSaveIdRef.current) return;
     saveClassActiveSpells(activeSpells);
   }, [activeSpells]);
+
+  // Re-init from the newly active character's scoped storage on switch.
+  useEffect(() => {
+    const handleCharacterLoaded = () => {
+      loadedSaveIdRef.current = localStorage.getItem(ACTIVE_SAVE_ID_KEY);
+      setState(loadClassSpellcastingState());
+      setActiveSpells(loadClassActiveSpells());
+    };
+    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+  }, []);
 
   // Check for expired spells
   useEffect(() => {
