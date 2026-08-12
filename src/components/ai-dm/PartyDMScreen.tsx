@@ -1460,6 +1460,19 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   // Bottom nav state
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
   const [navExpanded, setNavExpanded] = useState(false);
+
+  // Combat mode state
+  const combatModeOn = partyDm.sessionConfig?.combatMode === true;
+
+  const combatTurn = usePartyCombatTurn({
+    config: partyDm.sessionConfig,
+    onUpdateConfig: (patch) => partyDm.updateSessionConfig(patch),
+    members,
+    currentUserId,
+    isHost: isCreator,
+    enabled: combatModeOn,
+  });
+
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [showStoneDrawer, setShowStoneDrawer] = useState(false);
 
