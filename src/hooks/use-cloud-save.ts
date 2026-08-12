@@ -282,6 +282,31 @@ export function useCloudSave(userId: string | undefined) {
           }
         }
       }
+
+      // Merge the global homebrew spell library. Merge by id, never overwrite:
+      // this library is shared by every character, so replacing it wholesale
+      // would erase spells authored on a different character. On an id clash the
+      // copy already on this device wins, so local edits are never lost.
+      const incomingLibrary = extendedData.homebrewSpellLibrary as string | undefined;
+      if (typeof incomingLibrary === 'string' && incomingLibrary.length > 0) {
+        try {
+          const incoming = JSON.parse(incomingLibrary) as { homebrewSpells?: Array<{ id: string }> };
+          const rawExisting = localStorage.getItem(HOMEBREW_SPELL_LIBRARY_KEY);
+          const existing = rawExisting
+            ? JSON.parse(rawExisting) as { homebrewSpells?: Array<{ id: string }> }
+            : { homebrewSpells: [] };
+
+          const byId = new Map<string, { id: string }>();
+          (incoming.homebrewSpells || []).forEach(s => { if (s && s.id) byId.set(s.id, s); });
+          (existing.homebrewSpells || []).forEach(s => { if (s && s.id) byId.set(s.id, s); });
+
+          const merged = { ...existing, homebrewSpells: Array.from(byId.values()) };
+          localStorage.setItem(HOMEBREW_SPELL_LIBRARY_KEY, JSON.stringify(merged));
+          console.log('[CloudSave] Merged homebrew spell library:', merged.homebrewSpells.length, 'spells');
+        } catch (e) {
+          console.warn('[CloudSave] Failed to merge homebrew spell library:', e);
+        }
+      }
       
       // Convert database format to SaveData format
       const saveData: SaveData = {
