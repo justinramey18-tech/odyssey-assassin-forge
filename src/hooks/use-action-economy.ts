@@ -1,69 +1,27 @@
-import { useState, useCallback, useEffect } from 'react';
+// Thin React binding over the singleton in lib/combat/economyStore.
+//
+// COMPATIBILITY CONTRACT: every member of UseActionEconomyReturn that existed
+// before this rewrite still exists, with the same name, signature and meaning.
+// Index.tsx and PromptDrawerProvider need no changes. New members are additive.
+//
+// The behavioural change is that two components calling this hook now share one
+// state instead of two independent copies of it.
+
+import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { ActionEconomy, TurnAction } from '@/lib/combat/combatTypes';
-import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
+import * as store from '@/lib/combat/economyStore';
+import type { ActionCost } from '@/lib/combat/economyStore';
 
-const STORAGE_KEY = 'odyssey-action-economy';
-const TURN_ACTIONS_KEY = 'odyssey-turn-actions';
-
-// Default action economy state
-const DEFAULT_ECONOMY: ActionEconomy = {
-  actionUsed: false,
-  bonusActionUsed: false,
-  reactionUsed: false,
-  movementUsed: 0,
-  maxMovement: 30,
-};
-
-// Load from localStorage (character-scoped)
-function loadEconomy(): ActionEconomy {
-  try {
-    const stored = getScopedItem(STORAGE_KEY);
-    if (stored) {
-      return { ...DEFAULT_ECONOMY, ...JSON.parse(stored) };
-    }
-  } catch (e) {
-    console.error('[ActionEconomy] Failed to load:', e);
-  }
-  return DEFAULT_ECONOMY;
-}
-
-function loadTurnActions(): TurnAction[] {
-  try {
-    const stored = getScopedItem(TURN_ACTIONS_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (e) {
-    console.error('[ActionEconomy] Failed to load turn actions:', e);
-  }
-  return [];
-}
-
-// Save to localStorage (character-scoped)
-function saveEconomy(economy: ActionEconomy): void {
-  try {
-    setScopedItem(STORAGE_KEY, JSON.stringify(economy));
-  } catch (e) {
-    console.error('[ActionEconomy] Failed to save:', e);
-  }
-}
-
-function saveTurnActions(actions: TurnAction[]): void {
-  try {
-    setScopedItem(TURN_ACTIONS_KEY, JSON.stringify(actions));
-  } catch (e) {
-    console.error('[ActionEconomy] Failed to save turn actions:', e);
-  }
-}
+export type { ActionCost };
 
 export interface UseActionEconomyReturn {
   // State
   economy: ActionEconomy;
   turnActions: TurnAction[];
-  
+
   // Setters
   setEconomy: (economy: ActionEconomy) => void;
-  
+
   // Convenience toggles
   useAction: () => void;
   useBonus: () => void;
@@ -71,149 +29,70 @@ export interface UseActionEconomyReturn {
   restoreAction: () => void;
   restoreBonus: () => void;
   restoreReaction: () => void;
-  
+
   // Movement
   updateMovement: (used: number) => void;
   setMaxMovement: (max: number) => void;
-  
+
   // Turn actions
   addTurnAction: (action: TurnAction) => void;
   removeTurnAction: (index: number) => void;
-  
+
   // Reset (for new turn or rest)
   resetTurn: () => void;
-  
-  // Rest handlers (to be called from Index.tsx)
+
+  // Rest handlers (called from Index.tsx)
   onShortRest: () => void;
   onLongRest: () => void;
+
+  // --- Added in Volume 3 ---
+  /** Start of turn: restores action, bonus action, movement AND reaction. */
+  beginTurn: () => void;
+  /** End of turn: restores action, bonus action and movement. Keeps the reaction spent. */
+  endTurn: () => void;
+  /** Spend one slot. Returns false when it was already spent - warn, do not block. */
+  spend: (cost: ActionCost, description?: string) => boolean;
+  /** Whether a given slot is currently spent. 'free' is always false. */
+  isUsed: (cost: ActionCost) => boolean;
+  /** True when nothing has been spent yet this turn. */
+  isTurnUntouched: boolean;
 }
 
 export function useActionEconomy(): UseActionEconomyReturn {
-  const [economy, setEconomyState] = useState<ActionEconomy>(loadEconomy);
-  const [turnActions, setTurnActionsState] = useState<TurnAction[]>(loadTurnActions);
+  const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
 
-  // Re-init when character is switched
-  useEffect(() => {
-    const handleCharacterLoaded = () => {
-      setEconomyState(loadEconomy());
-      setTurnActionsState(loadTurnActions());
-    };
-    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
-    return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
-  }, []);
+  const economy = snapshot.economy;
+  // The store holds this readonly; the public type is mutable, so hand out a copy.
+  const turnActions = useMemo(() => [...snapshot.turnActions], [snapshot.turnActions]);
 
-  // Persist economy changes
-  useEffect(() => {
-    saveEconomy(economy);
-  }, [economy]);
+  const setEconomy = useCallback((next: ActionEconomy) => store.setEconomy(next), []);
 
-  // Persist turn actions changes
-  useEffect(() => {
-    saveTurnActions(turnActions);
-  }, [turnActions]);
+  const useAction = useCallback(() => store.setUsed('action', true), []);
+  const useBonus = useCallback(() => store.setUsed('bonus', true), []);
+  const useReaction = useCallback(() => store.setUsed('reaction', true), []);
+  const restoreAction = useCallback(() => store.setUsed('action', false), []);
+  const restoreBonus = useCallback(() => store.setUsed('bonus', false), []);
+  const restoreReaction = useCallback(() => store.setUsed('reaction', false), []);
 
-  // Wrapper to update and persist
-  const setEconomy = useCallback((newEconomy: ActionEconomy) => {
-    setEconomyState(newEconomy);
-  }, []);
+  const updateMovement = useCallback((used: number) => store.updateMovement(used), []);
+  const setMaxMovement = useCallback((max: number) => store.setMaxMovement(max), []);
 
-  // Convenience toggles
-  const useAction = useCallback(() => {
-    setEconomyState(prev => ({ ...prev, actionUsed: true }));
-  }, []);
+  const addTurnAction = useCallback((action: TurnAction) => store.addTurnAction(action), []);
+  const removeTurnAction = useCallback((index: number) => store.removeTurnAction(index), []);
 
-  const useBonus = useCallback(() => {
-    setEconomyState(prev => ({ ...prev, bonusActionUsed: true }));
-  }, []);
+  const resetTurn = useCallback(() => store.resetTurn(), []);
+  const beginTurn = useCallback(() => store.beginTurn(), []);
+  const endTurn = useCallback(() => store.endTurn(), []);
 
-  const useReaction = useCallback(() => {
-    setEconomyState(prev => ({ ...prev, reactionUsed: true }));
-  }, []);
+  const spend = useCallback((cost: ActionCost, description?: string) => store.spend(cost, description), []);
+  const isUsed = useCallback((cost: ActionCost) => store.isUsed(cost), []);
 
-  const restoreAction = useCallback(() => {
-    setEconomyState(prev => ({ ...prev, actionUsed: false }));
-  }, []);
+  // A rest ends combat, so the whole turn resets including the reaction.
+  const onShortRest = useCallback(() => store.beginTurn(), []);
+  const onLongRest = useCallback(() => store.beginTurn(), []);
 
-  const restoreBonus = useCallback(() => {
-    setEconomyState(prev => ({ ...prev, bonusActionUsed: false }));
-  }, []);
-
-  const restoreReaction = useCallback(() => {
-    setEconomyState(prev => ({ ...prev, reactionUsed: false }));
-  }, []);
-
-  // Movement
-  const updateMovement = useCallback((used: number) => {
-    setEconomyState(prev => ({ 
-      ...prev, 
-      movementUsed: Math.max(0, Math.min(used, prev.maxMovement)) 
-    }));
-  }, []);
-
-  const setMaxMovement = useCallback((max: number) => {
-    setEconomyState(prev => ({ ...prev, maxMovement: max }));
-  }, []);
-
-  // Turn actions
-  const addTurnAction = useCallback((action: TurnAction) => {
-    setTurnActionsState(prev => {
-      // Replace same type action
-      const filtered = prev.filter(a => a.type !== action.type);
-      return [...filtered, action];
-    });
-    
-    // Also update economy based on action type
-    if (action.type === 'action') {
-      setEconomyState(prev => ({ ...prev, actionUsed: true }));
-    } else if (action.type === 'bonus') {
-      setEconomyState(prev => ({ ...prev, bonusActionUsed: true }));
-    } else if (action.type === 'reaction') {
-      setEconomyState(prev => ({ ...prev, reactionUsed: true }));
-    }
-  }, []);
-
-  const removeTurnAction = useCallback((index: number) => {
-    setTurnActionsState(prev => {
-      const action = prev[index];
-      const newActions = prev.filter((_, i) => i !== index);
-      
-      // Restore economy for removed action
-      if (action) {
-        if (action.type === 'action') {
-          setEconomyState(p => ({ ...p, actionUsed: false }));
-        } else if (action.type === 'bonus') {
-          setEconomyState(p => ({ ...p, bonusActionUsed: false }));
-        } else if (action.type === 'reaction') {
-          setEconomyState(p => ({ ...p, reactionUsed: false }));
-        }
-      }
-      
-      return newActions;
-    });
-  }, []);
-
-  // Reset turn (new round)
-  const resetTurn = useCallback(() => {
-    setEconomyState({
-      actionUsed: false,
-      bonusActionUsed: false,
-      reactionUsed: false,
-      movementUsed: 0,
-      maxMovement: economy.maxMovement,
-    });
-    setTurnActionsState([]);
-  }, [economy.maxMovement]);
-
-  // Rest handlers - fully reset action economy
-  const onShortRest = useCallback(() => {
-    // Short rest resets action economy (combat would have ended)
-    resetTurn();
-  }, [resetTurn]);
-
-  const onLongRest = useCallback(() => {
-    // Long rest resets action economy
-    resetTurn();
-  }, [resetTurn]);
+  const isTurnUntouched =
+    !economy.actionUsed && !economy.bonusActionUsed && !economy.reactionUsed && economy.movementUsed === 0;
 
   return {
     economy,
@@ -232,5 +111,10 @@ export function useActionEconomy(): UseActionEconomyReturn {
     resetTurn,
     onShortRest,
     onLongRest,
+    beginTurn,
+    endTurn,
+    spend,
+    isUsed,
+    isTurnUntouched,
   };
 }
