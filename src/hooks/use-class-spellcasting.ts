@@ -200,7 +200,8 @@ function getDefaultClassSpellcastingState(): ClassSpellcastingState {
 
 function loadClassSpellcastingState(): ClassSpellcastingState {
   try {
-    const stored = localStorage.getItem(CLASS_SPELLCASTING_KEY);
+    migrateToScoped(CLASS_SPELLCASTING_KEY);
+    const stored = getScopedItem(CLASS_SPELLCASTING_KEY);
     if (stored) {
       return { ...getDefaultClassSpellcastingState(), ...JSON.parse(stored) };
     }
@@ -212,7 +213,7 @@ function loadClassSpellcastingState(): ClassSpellcastingState {
 
 function saveClassSpellcastingState(state: ClassSpellcastingState): void {
   try {
-    localStorage.setItem(CLASS_SPELLCASTING_KEY, JSON.stringify(state));
+    setScopedItem(CLASS_SPELLCASTING_KEY, JSON.stringify(state));
   } catch (e) {
     console.error('[ClassSpellcasting] Failed to save state:', e);
   }
@@ -220,7 +221,8 @@ function saveClassSpellcastingState(state: ClassSpellcastingState): void {
 
 function loadClassActiveSpells(): ActiveSpellEffect[] {
   try {
-    const stored = localStorage.getItem(CLASS_ACTIVE_SPELLS_KEY);
+    migrateToScoped(CLASS_ACTIVE_SPELLS_KEY);
+    const stored = getScopedItem(CLASS_ACTIVE_SPELLS_KEY);
     if (stored) {
       return filterActiveSpells(JSON.parse(stored), Date.now());
     }
@@ -232,7 +234,7 @@ function loadClassActiveSpells(): ActiveSpellEffect[] {
 
 function saveClassActiveSpells(effects: ActiveSpellEffect[]): void {
   try {
-    localStorage.setItem(CLASS_ACTIVE_SPELLS_KEY, JSON.stringify(effects));
+    setScopedItem(CLASS_ACTIVE_SPELLS_KEY, JSON.stringify(effects));
   } catch (e) {
     console.error('[ClassSpellcasting] Failed to save active spells:', e);
   }
