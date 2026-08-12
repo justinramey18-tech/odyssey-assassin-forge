@@ -190,7 +190,11 @@ export interface PartyDMSettingsProps {
   // Round style (party-wide, host-controlled)
   roundStyle?: RoundStyle;
   onRoundStyleChange?: (patch: Partial<RoundStyle>) => void;
+  /** Host-only combat mode toggle. */
+  combatMode?: boolean;
+  onToggleCombatMode?: (enabled: boolean) => void;
 }
+
 
 export function PartyDMSettings({
   mode, onToggleMode, isCreator, isOriginalCreator: isOriginalCreatorProp, partyId,
