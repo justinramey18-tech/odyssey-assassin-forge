@@ -406,6 +406,17 @@ export function useClassSpellcasting(
     saveClassActiveSpells(activeSpells);
   }, [activeSpells]);
 
+  // Re-init from the newly active character's scoped storage on switch.
+  useEffect(() => {
+    const handleCharacterLoaded = () => {
+      loadedSaveIdRef.current = localStorage.getItem(ACTIVE_SAVE_ID_KEY);
+      setState(loadClassSpellcastingState());
+      setActiveSpells(loadClassActiveSpells());
+    };
+    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+  }, []);
+
   // Check for expired spells
   useEffect(() => {
     const checkExpired = () => {
