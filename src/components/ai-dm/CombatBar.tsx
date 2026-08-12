@@ -561,7 +561,7 @@ export function CombatBar({
 
           />
 
-          {isHost && renderSettings && (
+          {renderSettings && (
 
             <button
 
