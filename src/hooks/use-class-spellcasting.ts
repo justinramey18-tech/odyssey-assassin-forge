@@ -366,6 +366,12 @@ export function useClassSpellcasting(
   const { toast } = useToast();
   const expirationCheckRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Which character the in-memory state was loaded for. Used to stop a stale
+  // state from being written into the incoming character's storage during a switch.
+  const loadedSaveIdRef = useRef<string | null>(
+    typeof window !== 'undefined' ? localStorage.getItem(ACTIVE_SAVE_ID_KEY) : null
+  );
+
   // Get class config
   const classConfig = CLASS_REGISTRY[primaryClass];
   const spellcastingAbility = classConfig?.spellcasting?.ability ?? 'INT';
@@ -387,12 +393,16 @@ export function useClassSpellcasting(
     [primaryClass, primaryLevel, multiclassLevels]
   );
 
-  // Persist state
+  // Persist state only if the active character has not changed under us.
   useEffect(() => {
+    const activeId = localStorage.getItem(ACTIVE_SAVE_ID_KEY);
+    if (activeId !== loadedSaveIdRef.current) return;
     saveClassSpellcastingState(state);
   }, [state]);
 
   useEffect(() => {
+    const activeId = localStorage.getItem(ACTIVE_SAVE_ID_KEY);
+    if (activeId !== loadedSaveIdRef.current) return;
     saveClassActiveSpells(activeSpells);
   }, [activeSpells]);
 
