@@ -6,6 +6,10 @@ import { getScopedKey } from '@/lib/scoped-storage';
 import { SCOPED_KEYS } from '@/lib/scoped-keys';
 import { unbindSaveEverywhere } from '@/lib/modeCharacterBinding';
 
+// The homebrew spell library is global (shared by every character), so it is
+// captured and merged separately from the per-character SCOPED_KEYS mechanism.
+const HOMEBREW_SPELL_LIBRARY_KEY = 'odyssey-spell-customization';
+
 export interface CloudSavePreview {
   gold?: number;
   spellsKnown?: number;
