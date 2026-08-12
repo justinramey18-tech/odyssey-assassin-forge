@@ -77,6 +77,7 @@ export type TrackedSpellSlots = Record<number, TrackedSpellSlot>;
 
 const CLASS_SPELLCASTING_KEY = 'odyssey-class-spellcasting';
 const CLASS_ACTIVE_SPELLS_KEY = 'odyssey-class-active-spells';
+const ACTIVE_SAVE_ID_KEY = 'odyssey-active-cloud-save-id';
 
 // ============================================
 // HELPERS
