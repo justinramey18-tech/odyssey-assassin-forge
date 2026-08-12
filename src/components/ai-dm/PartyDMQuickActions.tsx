@@ -461,9 +461,20 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
     const cantrips: QuickActionItem[] = [];
     const homebrewSpells: QuickActionItem[] = [];
 
-    const spellEntries = details?.length
-      ? details
-      : prepared.map(name => ({ name, level: name.toLowerCase().includes('cantrip') ? 0 : 1, school: undefined as string | undefined, isHomebrew: undefined as boolean | undefined }));
+    // Start from the full detail entries when they exist, then add any prepared
+    // spell that has no detail entry so it can never silently vanish from the list.
+    const detailNames = new Set((details || []).map(d => d.name));
+    const orphanEntries = prepared
+      .filter(name => !detailNames.has(name))
+      .map(name => ({
+        name,
+        level: name.toLowerCase().includes('cantrip') ? 0 : 1,
+        school: undefined as string | undefined,
+        isHomebrew: name.startsWith('homebrew_spell_') ? true : undefined,
+        description: undefined as string | undefined,
+        __unresolved: true as const,
+      }));
+    const spellEntries = [...(details || []), ...orphanEntries];
 
     spellEntries.forEach(s => {
       const full = s as NonNullable<typeof details>[number];
