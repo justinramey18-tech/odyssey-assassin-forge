@@ -4206,6 +4206,26 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         />
       )}
 
+      {/* Combat Bar (combat mode only) */}
+      {!isFullscreen && combatModeOn && (
+        <CombatBar
+          characterContext={characterContext}
+          characterName={characterContext?.name || 'The Adventurer'}
+          onDiceRoll={handleDiceRoll}
+          onUsePrompt={handleUsePrompt}
+          onHealingItemUsed={handleHealingItemUsed}
+          empyreanDragonName={isEmpyrean && dragonBonds.myDragon?.dragonName ? dragonBonds.myDragon.dragonName : undefined}
+          isGenerating={partyDm.isGenerating}
+          isHost={isCreator}
+          turn={combatTurn}
+          onOpenCharacterSheet={() => setShowCharacterSheet(true)}
+          isTransformed={wildShape?.state.isTransformed}
+          wildShapeSpeed={wildShape?.state.currentForm?.speed}
+          renderSettings={undefined}
+        />
+      )}
+
+
 
 
       {/* Geralt Gameplay Widget (momo only) */}
