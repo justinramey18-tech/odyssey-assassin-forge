@@ -3881,7 +3881,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       )}
 
       {/* Bottom Navigation Drawer */}
-      {!isFullscreen && (
+      {!isFullscreen && !combatModeOn && (
         <DMBottomNav
           headerContent={characterContext ? (
             <div className="px-3 pt-2 pb-1">
