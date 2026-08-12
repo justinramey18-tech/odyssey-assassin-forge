@@ -173,7 +173,7 @@ interface SectionProps {
   onActionSpent?: (cost: ActionCost, name: string) => void;
 }
 
-function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = false, onHeal, onCloseDrawer }: SectionProps) {
+function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = false, onHeal, onCloseDrawer, spentCosts, onActionSpent }: SectionProps) {
   const [open, setOpen] = useState(defaultOpen);
   // The attack/spell about to be rolled, held while the player checks the maths.
   const [pending, setPending] = useState<QuickActionItem | null>(null);
