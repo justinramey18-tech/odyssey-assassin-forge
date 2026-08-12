@@ -3,6 +3,7 @@
 // Separate from MagicPath system used by Rogues
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { getScopedItem, setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
 import { DnDClass, ClassLevelMap, CLASS_REGISTRY, FULL_CASTER_CLASSES } from '@/lib/classes';
 import { SpellSlotsByLevel } from '@/lib/magic/fullCasterSlots';
 import { PactSlots as PactSlotsConfig } from '@/lib/magic/pactMagicSlots';
