@@ -226,6 +226,7 @@ export function PartyDMSettings({
   questRewardSplitMode = 'full', onQuestRewardSplitModeChange,
   narrationStyle = DEFAULT_NARRATION_STATE, onNarrationStyleChange, onNarrationIntensityChange,
   roundStyle, onRoundStyleChange,
+  combatMode, onToggleCombatMode,
 }: PartyDMSettingsProps) {
   const bgFileInputRef = useRef<HTMLInputElement>(null);
   const originalCreator = isOriginalCreatorProp ?? isCreator;
