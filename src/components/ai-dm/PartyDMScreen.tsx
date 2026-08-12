@@ -53,6 +53,8 @@ import { getScopedItem } from '@/lib/scoped-storage';
 import { loadApiKey, isFeatureSkipped } from '@/lib/api-keys';
 
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
+import { CombatBar } from './CombatBar';
+import { usePartyCombatTurn } from '@/hooks/use-party-combat-turn';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
