@@ -461,9 +461,20 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
     const cantrips: QuickActionItem[] = [];
     const homebrewSpells: QuickActionItem[] = [];
 
-    const spellEntries = details?.length
-      ? details
-      : prepared.map(name => ({ name, level: name.toLowerCase().includes('cantrip') ? 0 : 1, school: undefined as string | undefined, isHomebrew: undefined as boolean | undefined }));
+    // Start from the full detail entries when they exist, then add any prepared
+    // spell that has no detail entry so it can never silently vanish from the list.
+    const detailNames = new Set((details || []).map(d => d.name));
+    const orphanEntries = prepared
+      .filter(name => !detailNames.has(name))
+      .map(name => ({
+        name,
+        level: name.toLowerCase().includes('cantrip') ? 0 : 1,
+        school: undefined as string | undefined,
+        isHomebrew: name.startsWith('homebrew_spell_') ? true : undefined,
+        description: undefined as string | undefined,
+        __unresolved: true as const,
+      }));
+    const spellEntries = [...(details || []), ...orphanEntries];
 
     spellEntries.forEach(s => {
       const full = s as NonNullable<typeof details>[number];
@@ -471,10 +482,13 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
       const label = isCantrip
         ? (isEmpyreanMode() ? 'Minor Signet' : 'Cantrip')
         : (isEmpyreanMode() ? `Prepared Signet • Lv ${full.level}` : `Level ${full.level}`);
+      const isUnresolved = (s as { __unresolved?: boolean }).__unresolved === true;
       const item: QuickActionItem = {
         id: `spell-${full.name}`,
         name: full.name,
-        detail: [label, full.school].filter(Boolean).join(' • '),
+        detail: isUnresolved
+          ? 'Custom spell • details unavailable — reopen your spellbook to reload'
+          : [label, full.school].filter(Boolean).join(' • '),
         prompt: generateSpellPrompt(full.name, charName, isCantrip, {
           level: full.level, school: full.school, description: full.description,
           damageFormula: full.damageFormula, damageType: full.damageType,
