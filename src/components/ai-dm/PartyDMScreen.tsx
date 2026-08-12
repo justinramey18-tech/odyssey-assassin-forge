@@ -2167,6 +2167,195 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   }
 
 
+  const renderPartySettings = () => (
+            <PartyDMSettings
+              offlineNarration={{
+                count: messageNarration.offlineCount,
+                total: messageNarration.totalClips,
+                bytes: messageNarration.offlineBytes,
+                saving: messageNarration.offlineSaving,
+                progress: messageNarration.offlineProgress,
+                onSaveAll: messageNarration.downloadAllOffline,
+                onClear: messageNarration.clearOffline,
+              }}
+              narrationStyle={partyNarrationStyle.state}
+              onNarrationStyleChange={partyNarrationStyle.setStyle}
+              onNarrationIntensityChange={partyNarrationStyle.setIntensity}
+              questRewardSplitMode={questRewardSplit.mode}
+              roundStyle={roundChat.style}
+              onRoundStyleChange={roundChat.updateStyle}
+              onQuestRewardSplitModeChange={questRewardSplit.setMode}
+              moodPresetFilter={!isEmpyrean ? PARTY_MOOD_PRESETS : undefined}
+              onMoodPresetSelected={(presetId) => {
+                lastPlayedMoodRef.current = presetId;
+                partyDm.setActiveMoodPreset(presetId);
+              }}
+              mode={mode}
+              onToggleMode={() => {
+                const newMode = mode === 'shared' ? 'private' : 'shared';
+                if (partyDm.sessionConfig) {
+                  const updated = { ...partyDm.sessionConfig, mode: newMode as 'shared' | 'private' };
+                  (supabase.from('party_shared_state') as any)
+                    .update({ state_data: updated })
+                    .eq('party_id', partyId)
+                    .eq('state_type', 'dm_session')
+                    .then(() => {});
+                  // Also persist on parties.private_mode so the RLS SELECT policy
+                  // on party_dm_messages enforces per-player visibility.
+                  (supabase.from('parties') as any)
+                    .update({ private_mode: newMode === 'private' })
+                    .eq('id', partyId)
+                    .then(() => {});
+                }
+              }}
+              isCreator={isCreator}
+              isOriginalCreator={originalCreator}
+              partyId={partyId}
+              autoSyncEnabled={autoSyncEnabled}
+              onToggleAutoSync={onToggleAutoSync}
+              selectedModel={selectedDmModel}
+              onModelChange={(id) => { setSelectedDmModel(id); saveSelectedModel(id); }}
+              isExtracting={isExtracting}
+              pushState={pushState}
+              onTogglePush={handleTogglePush}
+              
+              onShowSaves={onShowSaves}
+              onShowGuides={onShowGuides}
+              onShowCharacterGuideBuilder={onShowCharacterGuideBuilder}
+              onShowChat={onShowChat}
+              onShowAfkGuide={() => setShowAfkGuide(true)}
+              onShowDevAssistant={() => setDevAssistantOpen(true)}
+              guidesCount={guidesCount}
+              guides={guides}
+              myAfkGuide={myAfkGuide}
+              myAfkCascadeCount={myAfkCascade?.length ?? 0}
+              isSplitActive={partyDm.isSplitActive}
+              memberCount={memberCount}
+              onShowSplitInitiator={() => setShowSplitInitiator(true)}
+              onShowNpcScene={() => setShowNpcScene(true)}
+              onShowOocChat={onShowOocChat}
+              onRequestCharacterRedo={onRequestCharacterRedo}
+              hasPendingRedoRequest={hasPendingRedoRequest}
+              chatBackground={chatBackground.background}
+              onChatBackgroundUpload={chatBackground.handleImageUpload}
+              onChatBackgroundClear={chatBackground.clearBackground}
+              chatBackgroundOpacity={chatBackground.settings.opacity}
+              chatBackgroundBlur={chatBackground.settings.blur}
+              onChatBackgroundOpacityChange={chatBackground.setOpacity}
+              onChatBackgroundBlurChange={chatBackground.setBlur}
+              onShowRegroupDialog={() => setShowRegroupDialog(true)}
+              onShowSplitSummaries={() => setShowSplitSummaries(true)}
+              onShowPreSplitChat={() => setShowPreSplitChat(true)}
+              onNewCampaign={() => {
+                setShowNewCampaignInput(true);
+                setNewCampaignName('');
+              }}
+              onEndSession={partyDm.endSession}
+              timerEnabled={localTimerEnabled}
+              timerDurationSeconds={localTimerDuration}
+              onTimerEnabledChange={(enabled) => {
+                setLocalTimerEnabled(enabled);
+                if (partyDm.sessionConfig) {
+                  const updated = { ...partyDm.sessionConfig, timerEnabled: enabled };
+                  (supabase.from('party_shared_state') as any)
+                    .update({ state_data: updated })
+                    .eq('party_id', partyId)
+                    .eq('state_type', 'dm_session')
+                    .then(() => {});
+                }
+              }}
+              onTimerDurationChange={(seconds) => {
+                setLocalTimerDuration(seconds);
+                if (partyDm.sessionConfig) {
+                  const updated = { ...partyDm.sessionConfig, timerDurationSeconds: seconds };
+                  (supabase.from('party_shared_state') as any)
+                    .update({ state_data: updated })
+                    .eq('party_id', partyId)
+                    .eq('state_type', 'dm_session')
+                    .then(() => {});
+                }
+              }}
+              onShowScheduledEvents={() => setShowScheduledEvents(true)}
+              dmMode={partyDm.sessionConfig?.dmMode || 'ai'}
+              onDmModeChange={async (newMode) => {
+                const wasDialogue = partyDm.sessionConfig?.dmMode === 'dialogue';
+                partyDm.updateSessionConfig({ dmMode: newMode });
+
+                if (newMode === 'dialogue') {
+                  sendTelegramNotification({
+                    type: 'custom',
+                    partyId,
+                    title: '💬 Dialogue Mode Activated',
+                    body: 'The DM has enabled dialogue mode. Speak freely in character — no ready-up needed. Use "Call the DM" when you want AI narration.',
+                    mode: 'party',
+                  });
+                }
+
+                if (wasDialogue && newMode !== 'dialogue') {
+                  sendTelegramNotification({
+                    type: 'custom',
+                    partyId,
+                    title: '🎭 Dialogue Mode Ended',
+                    body: 'The DM has switched back to ' + (newMode === 'ai' ? 'AI DM' : newMode === 'human' ? 'Human DM' : 'AI + Approval') + ' mode. Ready-up is required again.',
+                    mode: 'party',
+                  });
+
+                  try {
+                    const recap = await partyDm.generateDialogueRecap();
+                    if (recap) {
+                      await (supabase.from('party_dm_messages') as any).insert({
+                        party_id: partyId,
+                        role: 'assistant',
+                        content: `**Dialogue Recap**\n\n${recap}\n\n---\n*The DM resumes narration.*`,
+                        sender_user_id: null,
+                        sender_name: 'DM',
+                      });
+                    }
+                  } catch (err) {
+                    console.warn('Dialogue recap failed:', err);
+                  }
+                }
+              }}
+              members={members}
+              coHostIds={coHostIds}
+              currentUserId={currentUserId}
+              onPromoteCoHost={onPromoteCoHost}
+              onDemoteCoHost={onDemoteCoHost}
+              whisperTrayEnabled={whisperTrayEnabled}
+              onWhisperTrayEnabledChange={setWhisperTrayEnabled}
+              cinematicModeEnabled={cinematicModeEnabled}
+              onCinematicModeEnabledChange={setCinematicMode}
+              onShowMemoryAnchors={onAddMemoryAnchor ? () => setShowMemoryAnchors(true) : undefined}
+              memoryAnchorsCount={memoryAnchors?.length ?? 0}
+              onShowQuests={partyId ? () => setShowQuests(true) : undefined}
+              questsCount={questsCount}
+              responseMode={partyDm.sessionConfig?.responseMode}
+              onResponseModeChange={(modeId) => {
+                partyDm.updateSessionConfig({ responseMode: modeId ?? undefined });
+              }}
+              dialogueAutoIntervene={partyDm.sessionConfig?.dialogueAutoIntervene ?? false}
+              onDialogueAutoInterveneChange={(enabled) => partyDm.updateSessionConfig({ dialogueAutoIntervene: enabled })}
+              hasBookmark={!!bookmarkedMessageId}
+              onClearBookmark={() => {
+                if (bookmarkKey) {
+                  localStorage.removeItem(bookmarkKey);
+                  setBookmarkedMessageId(null);
+                  toast.success('Bookmark cleared');
+                }
+              }}
+              onReclaimTurn={partyDm.reclaimTurn}
+              onRedoLastRound={partyDm.redoLastRound}
+              combatMode={combatModeOn}
+              onToggleCombatMode={(enabled) => {
+                partyDm.updateSessionConfig(
+                  enabled
+                    ? { combatMode: true, combatRound: 1, combatTurnOrder: [], combatTurnUserId: null }
+                    : { combatMode: false, combatTurnOrder: [], combatTurnUserId: null }
+                );
+              }}
+            />
+  );
+
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
       {/* Header */}
@@ -3926,194 +4115,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               disabled={partyDm.isGenerating}
             />
           ) : undefined}
-          settingsContent={activeNavTab === 'settings' ? (
-            <PartyDMSettings
-              offlineNarration={{
-                count: messageNarration.offlineCount,
-                total: messageNarration.totalClips,
-                bytes: messageNarration.offlineBytes,
-                saving: messageNarration.offlineSaving,
-                progress: messageNarration.offlineProgress,
-                onSaveAll: messageNarration.downloadAllOffline,
-                onClear: messageNarration.clearOffline,
-              }}
-              narrationStyle={partyNarrationStyle.state}
-              onNarrationStyleChange={partyNarrationStyle.setStyle}
-              onNarrationIntensityChange={partyNarrationStyle.setIntensity}
-              questRewardSplitMode={questRewardSplit.mode}
-              roundStyle={roundChat.style}
-              onRoundStyleChange={roundChat.updateStyle}
-              onQuestRewardSplitModeChange={questRewardSplit.setMode}
-              moodPresetFilter={!isEmpyrean ? PARTY_MOOD_PRESETS : undefined}
-              onMoodPresetSelected={(presetId) => {
-                lastPlayedMoodRef.current = presetId;
-                partyDm.setActiveMoodPreset(presetId);
-              }}
-              mode={mode}
-              onToggleMode={() => {
-                const newMode = mode === 'shared' ? 'private' : 'shared';
-                if (partyDm.sessionConfig) {
-                  const updated = { ...partyDm.sessionConfig, mode: newMode as 'shared' | 'private' };
-                  (supabase.from('party_shared_state') as any)
-                    .update({ state_data: updated })
-                    .eq('party_id', partyId)
-                    .eq('state_type', 'dm_session')
-                    .then(() => {});
-                  // Also persist on parties.private_mode so the RLS SELECT policy
-                  // on party_dm_messages enforces per-player visibility.
-                  (supabase.from('parties') as any)
-                    .update({ private_mode: newMode === 'private' })
-                    .eq('id', partyId)
-                    .then(() => {});
-                }
-              }}
-              isCreator={isCreator}
-              isOriginalCreator={originalCreator}
-              partyId={partyId}
-              autoSyncEnabled={autoSyncEnabled}
-              onToggleAutoSync={onToggleAutoSync}
-              selectedModel={selectedDmModel}
-              onModelChange={(id) => { setSelectedDmModel(id); saveSelectedModel(id); }}
-              isExtracting={isExtracting}
-              pushState={pushState}
-              onTogglePush={handleTogglePush}
-              
-              onShowSaves={onShowSaves}
-              onShowGuides={onShowGuides}
-              onShowCharacterGuideBuilder={onShowCharacterGuideBuilder}
-              onShowChat={onShowChat}
-              onShowAfkGuide={() => setShowAfkGuide(true)}
-              onShowDevAssistant={() => setDevAssistantOpen(true)}
-              guidesCount={guidesCount}
-              guides={guides}
-              myAfkGuide={myAfkGuide}
-              myAfkCascadeCount={myAfkCascade?.length ?? 0}
-              isSplitActive={partyDm.isSplitActive}
-              memberCount={memberCount}
-              onShowSplitInitiator={() => setShowSplitInitiator(true)}
-              onShowNpcScene={() => setShowNpcScene(true)}
-              onShowOocChat={onShowOocChat}
-              onRequestCharacterRedo={onRequestCharacterRedo}
-              hasPendingRedoRequest={hasPendingRedoRequest}
-              chatBackground={chatBackground.background}
-              onChatBackgroundUpload={chatBackground.handleImageUpload}
-              onChatBackgroundClear={chatBackground.clearBackground}
-              chatBackgroundOpacity={chatBackground.settings.opacity}
-              chatBackgroundBlur={chatBackground.settings.blur}
-              onChatBackgroundOpacityChange={chatBackground.setOpacity}
-              onChatBackgroundBlurChange={chatBackground.setBlur}
-              onShowRegroupDialog={() => setShowRegroupDialog(true)}
-              onShowSplitSummaries={() => setShowSplitSummaries(true)}
-              onShowPreSplitChat={() => setShowPreSplitChat(true)}
-              onNewCampaign={() => {
-                setShowNewCampaignInput(true);
-                setNewCampaignName('');
-              }}
-              onEndSession={partyDm.endSession}
-              timerEnabled={localTimerEnabled}
-              timerDurationSeconds={localTimerDuration}
-              onTimerEnabledChange={(enabled) => {
-                setLocalTimerEnabled(enabled);
-                if (partyDm.sessionConfig) {
-                  const updated = { ...partyDm.sessionConfig, timerEnabled: enabled };
-                  (supabase.from('party_shared_state') as any)
-                    .update({ state_data: updated })
-                    .eq('party_id', partyId)
-                    .eq('state_type', 'dm_session')
-                    .then(() => {});
-                }
-              }}
-              onTimerDurationChange={(seconds) => {
-                setLocalTimerDuration(seconds);
-                if (partyDm.sessionConfig) {
-                  const updated = { ...partyDm.sessionConfig, timerDurationSeconds: seconds };
-                  (supabase.from('party_shared_state') as any)
-                    .update({ state_data: updated })
-                    .eq('party_id', partyId)
-                    .eq('state_type', 'dm_session')
-                    .then(() => {});
-                }
-              }}
-              onShowScheduledEvents={() => setShowScheduledEvents(true)}
-              dmMode={partyDm.sessionConfig?.dmMode || 'ai'}
-              onDmModeChange={async (newMode) => {
-                const wasDialogue = partyDm.sessionConfig?.dmMode === 'dialogue';
-                partyDm.updateSessionConfig({ dmMode: newMode });
-
-                if (newMode === 'dialogue') {
-                  sendTelegramNotification({
-                    type: 'custom',
-                    partyId,
-                    title: '💬 Dialogue Mode Activated',
-                    body: 'The DM has enabled dialogue mode. Speak freely in character — no ready-up needed. Use "Call the DM" when you want AI narration.',
-                    mode: 'party',
-                  });
-                }
-
-                if (wasDialogue && newMode !== 'dialogue') {
-                  sendTelegramNotification({
-                    type: 'custom',
-                    partyId,
-                    title: '🎭 Dialogue Mode Ended',
-                    body: 'The DM has switched back to ' + (newMode === 'ai' ? 'AI DM' : newMode === 'human' ? 'Human DM' : 'AI + Approval') + ' mode. Ready-up is required again.',
-                    mode: 'party',
-                  });
-
-                  try {
-                    const recap = await partyDm.generateDialogueRecap();
-                    if (recap) {
-                      await (supabase.from('party_dm_messages') as any).insert({
-                        party_id: partyId,
-                        role: 'assistant',
-                        content: `**Dialogue Recap**\n\n${recap}\n\n---\n*The DM resumes narration.*`,
-                        sender_user_id: null,
-                        sender_name: 'DM',
-                      });
-                    }
-                  } catch (err) {
-                    console.warn('Dialogue recap failed:', err);
-                  }
-                }
-              }}
-              members={members}
-              coHostIds={coHostIds}
-              currentUserId={currentUserId}
-              onPromoteCoHost={onPromoteCoHost}
-              onDemoteCoHost={onDemoteCoHost}
-              whisperTrayEnabled={whisperTrayEnabled}
-              onWhisperTrayEnabledChange={setWhisperTrayEnabled}
-              cinematicModeEnabled={cinematicModeEnabled}
-              onCinematicModeEnabledChange={setCinematicMode}
-              onShowMemoryAnchors={onAddMemoryAnchor ? () => setShowMemoryAnchors(true) : undefined}
-              memoryAnchorsCount={memoryAnchors?.length ?? 0}
-              onShowQuests={partyId ? () => setShowQuests(true) : undefined}
-              questsCount={questsCount}
-              responseMode={partyDm.sessionConfig?.responseMode}
-              onResponseModeChange={(modeId) => {
-                partyDm.updateSessionConfig({ responseMode: modeId ?? undefined });
-              }}
-              dialogueAutoIntervene={partyDm.sessionConfig?.dialogueAutoIntervene ?? false}
-              onDialogueAutoInterveneChange={(enabled) => partyDm.updateSessionConfig({ dialogueAutoIntervene: enabled })}
-              hasBookmark={!!bookmarkedMessageId}
-              onClearBookmark={() => {
-                if (bookmarkKey) {
-                  localStorage.removeItem(bookmarkKey);
-                  setBookmarkedMessageId(null);
-                  toast.success('Bookmark cleared');
-                }
-              }}
-              onReclaimTurn={partyDm.reclaimTurn}
-              onRedoLastRound={partyDm.redoLastRound}
-              combatMode={combatModeOn}
-              onToggleCombatMode={(enabled) => {
-                partyDm.updateSessionConfig(
-                  enabled
-                    ? { combatMode: true, combatRound: 1, combatTurnOrder: [], combatTurnUserId: null }
-                    : { combatMode: false, combatTurnOrder: [], combatTurnUserId: null }
-                );
-              }}
-            />
-          ) : undefined}
+          settingsContent={activeNavTab === 'settings' ? renderPartySettings() : undefined}
           oracleContent={activeNavTab === 'oracle' && characterContext ? (() => {
             const bmIdx = bookmarkedMessageId
               ? partyDm.messages.findIndex(m => m.id === bookmarkedMessageId)
