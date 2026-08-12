@@ -4224,7 +4224,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onOpenCharacterSheet={() => setShowCharacterSheet(true)}
           isTransformed={wildShape?.state.isTransformed}
           wildShapeSpeed={wildShape?.state.currentForm?.speed}
-          renderSettings={undefined}
+          renderSettings={renderPartySettings}
         />
       )}
 
