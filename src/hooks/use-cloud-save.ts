@@ -149,6 +149,14 @@ export function useCloudSave(userId: string | undefined) {
       }
       extendedData.scopedLocalStorage = scopedLocalStorage;
 
+      // Capture the global homebrew spell library alongside the scoped keys.
+      try {
+        const homebrewLibrary = localStorage.getItem(HOMEBREW_SPELL_LIBRARY_KEY);
+        if (homebrewLibrary) extendedData.homebrewSpellLibrary = homebrewLibrary;
+      } catch {
+        // ignore read errors
+      }
+
       // Tag with current app mode if not already set (preserves user overrides)
       const existingType = extendedData.campaignType as string | undefined;
       if (!existingType) {
