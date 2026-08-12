@@ -40,6 +40,12 @@ interface PartyDMQuickActionsProps {
   onHealingItemUsed?: (itemName: string, healRoll: HealRollResult) => string | null;
   /** Optional direct send (used for healing acknowledgements). Falls back to onUsePrompt. */
   onSendPrompt?: (prompt: string) => void;
+  /** Show only combat items ('combat') or only magic items ('magic'). Undefined shows everything. */
+  sectionFilter?: 'combat' | 'magic';
+  /** Which economy slots are already spent, so used items can be dimmed. */
+  spentCosts?: { action: boolean; bonus: boolean; reaction: boolean };
+  /** Fired when an item is tapped, so the caller can spend the slot. */
+  onActionSpent?: (cost: ActionCost, name: string) => void;
 }
 
 interface QuickActionItem {
