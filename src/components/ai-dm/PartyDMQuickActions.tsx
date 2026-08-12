@@ -430,6 +430,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         removeCategory: 'weapon' as const,
         removeSlot: e.slot,
         rollKind: 'attack' as const,
+        actionCost: resolveActionCost({ kind: 'weapon', equipmentSlot: e.slot }),
       }));
 
     // Abilities with tier > 0
@@ -454,6 +455,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         }),
         removeCategory: isHomebrew ? 'homebrew-ability' as const : 'ability' as const,
         rollKind: 'check' as const,
+        actionCost: resolveActionCost({ kind: isHomebrew ? 'homebrew-ability' : 'ability', actionType: a.actionType }),
       };
       if (isHomebrew) {
         homebrewAbilities.push(item);
@@ -512,6 +514,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         saveStat: full.saveStat,
         attackType: full.attackType,
         rulesText: full.description,
+        actionCost: resolveActionCost({ kind: full.isHomebrew ? 'homebrew-spell' : isCantrip ? 'cantrip' : 'spell', castingTime: (full as any).castingTime }),
       };
 
       if (full.isHomebrew) {
@@ -542,6 +545,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
           rollKind: (healingDice ? 'heal' : effectDice ? 'effect' : 'none') as 'heal' | 'effect' | 'none',
           healingDice: healingDice ?? undefined,
           effectDice: effectDice ?? undefined,
+          actionCost: resolveActionCost({ kind: 'consumable' }),
         };
       });
 
@@ -554,6 +558,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
       prompt: generatePrestigePrompt(name, charName),
       removeCategory: 'prestige' as const,
       rollKind: 'check' as const,
+      actionCost: resolveActionCost({ kind: 'prestige' }),
     }));
 
     // Combine homebrew
