@@ -482,6 +482,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
       const label = isCantrip
         ? (isEmpyreanMode() ? 'Minor Signet' : 'Cantrip')
         : (isEmpyreanMode() ? `Prepared Signet • Lv ${full.level}` : `Level ${full.level}`);
+      const isUnresolved = (s as { __unresolved?: boolean }).__unresolved === true;
       const item: QuickActionItem = {
         id: `spell-${full.name}`,
         name: full.name,
