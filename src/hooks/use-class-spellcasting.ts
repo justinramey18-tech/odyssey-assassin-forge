@@ -471,10 +471,14 @@ export function useClassSpellcasting(
   }, [isPreparedCaster, state.knownSpells]);
 
 
-  // Cleanup: remove orphan spell IDs (deleted/renamed spells) from preparedSpells
+  // Cleanup: remove orphan spell IDs (deleted/renamed spells) from preparedSpells.
+  // Homebrew IDs are never treated as orphans: the custom spell registry is
+  // populated by a separate effect that may not have run yet, so a missing
+  // lookup here means "not loaded yet", not "deleted".
   useEffect(() => {
     setState(prev => {
       const cleaned = prev.preparedSpells.filter(id => {
+        if (typeof id === 'string' && id.startsWith('homebrew_spell_')) return true;
         const spell = getSpellById(id);
         return spell !== null && spell !== undefined;
       });

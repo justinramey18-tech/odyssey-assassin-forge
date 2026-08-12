@@ -120,7 +120,10 @@ function saveState(state: SpellcastingState): void {
  */
 function isSpellCompatibleWithPath(spellId: string, path: MagicPath): boolean {
   const spell = getSpellById(spellId);
-  if (!spell) return false;
+  // A homebrew spell that is not in the registry yet is still the player's
+  // spell. Returning false here would let selectPath() erase it permanently.
+  if (!spell) return spellId.startsWith('homebrew_spell_');
+  
   
   // Check path restrictions on the spell
   if (spell.pathRestrictions && !spell.pathRestrictions.includes(path)) {
