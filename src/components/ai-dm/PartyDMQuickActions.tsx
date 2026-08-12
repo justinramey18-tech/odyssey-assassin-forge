@@ -72,6 +72,8 @@ interface QuickActionItem {
   saveStat?: string;
   attackType?: string;
   rulesText?: string;
+  /** What tapping this costs on your turn. */
+  actionCost?: ActionCost;
 }
 
 
