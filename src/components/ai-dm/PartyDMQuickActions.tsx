@@ -13,6 +13,7 @@ import { requestDiceRoll } from '@/lib/diceRollBus';
 import { castSpellByName, describeSlotSpend, getMagicResources } from '@/lib/magic/castBus';
 import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic/castResolver';
 import { RollPreviewSheet, type RollPreviewChoice } from '@/components/magic/RollPreviewSheet';
+import { COST_META, resolveActionCost, type ActionCost } from '@/lib/combat/actionCost';
 
 
 import type { CharacterContext } from '@/components/oracle/types';
@@ -39,6 +40,12 @@ interface PartyDMQuickActionsProps {
   onHealingItemUsed?: (itemName: string, healRoll: HealRollResult) => string | null;
   /** Optional direct send (used for healing acknowledgements). Falls back to onUsePrompt. */
   onSendPrompt?: (prompt: string) => void;
+  /** Show only combat items ('combat') or only magic items ('magic'). Undefined shows everything. */
+  sectionFilter?: 'combat' | 'magic';
+  /** Which economy slots are already spent, so used items can be dimmed. */
+  spentCosts?: { action: boolean; bonus: boolean; reaction: boolean };
+  /** Fired when an item is tapped, so the caller can spend the slot. */
+  onActionSpent?: (cost: ActionCost, name: string) => void;
 }
 
 interface QuickActionItem {
@@ -65,6 +72,8 @@ interface QuickActionItem {
   saveStat?: string;
   attackType?: string;
   rulesText?: string;
+  /** What tapping this costs on your turn. */
+  actionCost?: ActionCost;
 }
 
 
@@ -160,9 +169,11 @@ interface SectionProps {
   onHeal?: (item: QuickActionItem) => void;
   /** Closes the drawer so the dice animation is visible. */
   onCloseDrawer?: () => void;
+  spentCosts?: { action: boolean; bonus: boolean; reaction: boolean };
+  onActionSpent?: (cost: ActionCost, name: string) => void;
 }
 
-function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = false, onHeal, onCloseDrawer }: SectionProps) {
+function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = false, onHeal, onCloseDrawer, spentCosts, onActionSpent }: SectionProps) {
   const [open, setOpen] = useState(defaultOpen);
   // The attack/spell about to be rolled, held while the player checks the maths.
   const [pending, setPending] = useState<QuickActionItem | null>(null);
@@ -235,9 +246,19 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-white/80 truncate">{item.name}</p>
                 <p className="text-[10px] text-white/35 truncate">{item.detail}</p>
+                {item.actionCost && item.actionCost !== 'free' && (
+                  <span className={cn(
+                    'inline-block mt-1 text-[9px] px-1.5 py-0.5 rounded border font-mono',
+                    COST_META[item.actionCost].className,
+                    spentCosts && spentCosts[item.actionCost === 'bonus' ? 'bonus' : item.actionCost === 'reaction' ? 'reaction' : 'action'] && 'opacity-40 line-through'
+                  )}>
+                    {COST_META[item.actionCost].short}
+                  </span>
+                )}
               </div>
               <button
                 onClick={() => {
+                  if (item.actionCost && onActionSpent) onActionSpent(item.actionCost, item.name);
                   if (item.rollKind === 'heal' && item.healingDice && onHeal) {
                     onHeal(item);
                   } else if (item.rollKind === 'attack' || item.rollKind === 'spell') {
@@ -374,7 +395,7 @@ function buildPartyDragonActions(charName: string, dragonName: string): QuickAct
   ];
 }
 
-export function PartyDMQuickActions({ open, onOpenChange, characterContext, characterName, onUsePrompt, empyreanDragonName, onHealingItemUsed, onSendPrompt }: PartyDMQuickActionsProps) {
+export function PartyDMQuickActions({ open, onOpenChange, characterContext, characterName, onUsePrompt, empyreanDragonName, onHealingItemUsed, onSendPrompt, sectionFilter, spentCosts, onActionSpent }: PartyDMQuickActionsProps) {
   const handleRemoveItem = useCallback((item: QuickActionItem) => {
     const detail: QuickActionRemoveEvent = {
       category: item.removeCategory,
@@ -421,6 +442,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         removeCategory: 'weapon' as const,
         removeSlot: e.slot,
         rollKind: 'attack' as const,
+        actionCost: resolveActionCost({ kind: 'weapon', equipmentSlot: e.slot }),
       }));
 
     // Abilities with tier > 0
@@ -445,6 +467,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         }),
         removeCategory: isHomebrew ? 'homebrew-ability' as const : 'ability' as const,
         rollKind: 'check' as const,
+        actionCost: resolveActionCost({ kind: isHomebrew ? 'homebrew-ability' : 'ability', actionType: a.actionType }),
       };
       if (isHomebrew) {
         homebrewAbilities.push(item);
@@ -503,6 +526,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         saveStat: full.saveStat,
         attackType: full.attackType,
         rulesText: full.description,
+        actionCost: resolveActionCost({ kind: full.isHomebrew ? 'homebrew-spell' : isCantrip ? 'cantrip' : 'spell', castingTime: (full as any).castingTime }),
       };
 
       if (full.isHomebrew) {
@@ -533,6 +557,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
           rollKind: (healingDice ? 'heal' : effectDice ? 'effect' : 'none') as 'heal' | 'effect' | 'none',
           healingDice: healingDice ?? undefined,
           effectDice: effectDice ?? undefined,
+          actionCost: resolveActionCost({ kind: 'consumable' }),
         };
       });
 
@@ -545,6 +570,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
       prompt: generatePrestigePrompt(name, charName),
       removeCategory: 'prestige' as const,
       rollKind: 'check' as const,
+      actionCost: resolveActionCost({ kind: 'prestige' }),
     }));
 
     // Combine homebrew
@@ -572,7 +598,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
             <p className="text-center text-sm text-white/30 py-8">No actions available. Equip weapons, prepare spells, or unlock abilities.</p>
           ) : (
             <>
-              {sections.dragonActions.length > 0 && (
+              {sectionFilter !== 'magic' && sections.dragonActions.length > 0 && (
                 <QuickActionSection
                   onCloseDrawer={() => onOpenChange(false)}
                   title="Dragon Actions"
@@ -588,65 +614,91 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                     onUsePrompt(prompt);
                   }}
                   defaultOpen={true}
+                  spentCosts={spentCosts}
+                  onActionSpent={onActionSpent}
                 />
               )}
-              <QuickActionSection
-                  onCloseDrawer={() => onOpenChange(false)}
-                title="Weapons"
-                icon={<Sword className="w-4 h-4" />}
-                items={sections.weapons}
-                accentClass="text-red-400"
-                onUse={onUsePrompt}
-                onRemove={handleRemoveItem}
-                defaultOpen={true}
-              />
-              <QuickActionSection
-                  onCloseDrawer={() => onOpenChange(false)}
-                title="Abilities"
-                icon={<Sparkles className="w-4 h-4" />}
-                items={sections.abilities}
-                accentClass="text-blue-400"
-                onUse={onUsePrompt}
-                onRemove={handleRemoveItem}
-              />
-              <QuickActionSection
-                  onCloseDrawer={() => onOpenChange(false)}
-                title={isEmpyreanMode() ? 'Signets' : 'Spells'}
-                icon={<BookOpen className="w-4 h-4" />}
-                items={sections.spells}
-                accentClass="text-purple-400"
-                onUse={onUsePrompt}
-                onRemove={handleRemoveItem}
-              />
-              <QuickActionSection
-                  onCloseDrawer={() => onOpenChange(false)}
-                title={isEmpyreanMode() ? 'Minor Signets' : 'Cantrips'}
-                icon={<Star className="w-4 h-4" />}
-                items={sections.cantrips}
-                accentClass="text-cyan-400"
-                onUse={onUsePrompt}
-                onRemove={handleRemoveItem}
-              />
-              <QuickActionSection
-                  onCloseDrawer={() => onOpenChange(false)}
-                title="Items"
-                icon={<FlaskConical className="w-4 h-4" />}
-                items={sections.consumables}
-                accentClass="text-green-400"
-                onUse={onUsePrompt}
-                onHeal={handleHeal}
-                onRemove={handleRemoveItem}
-              />
-              <QuickActionSection
-                  onCloseDrawer={() => onOpenChange(false)}
-                title="Legacy"
-                icon={<Star className="w-4 h-4" />}
-                items={sections.prestige}
-                accentClass="text-amber-400"
-                onUse={onUsePrompt}
-                onRemove={handleRemoveItem}
-              />
-              {sections.homebrew.length > 0 && (
+              {sectionFilter !== 'magic' && (
+                <QuickActionSection
+                    onCloseDrawer={() => onOpenChange(false)}
+                  title="Weapons"
+                  icon={<Sword className="w-4 h-4" />}
+                  items={sections.weapons}
+                  accentClass="text-red-400"
+                  onUse={onUsePrompt}
+                  onRemove={handleRemoveItem}
+                  defaultOpen={true}
+                  spentCosts={spentCosts}
+                  onActionSpent={onActionSpent}
+                />
+              )}
+              {sectionFilter !== 'magic' && (
+                <QuickActionSection
+                    onCloseDrawer={() => onOpenChange(false)}
+                  title="Abilities"
+                  icon={<Sparkles className="w-4 h-4" />}
+                  items={sections.abilities}
+                  accentClass="text-blue-400"
+                  onUse={onUsePrompt}
+                  onRemove={handleRemoveItem}
+                  spentCosts={spentCosts}
+                  onActionSpent={onActionSpent}
+                />
+              )}
+              {sectionFilter !== 'combat' && (
+                <QuickActionSection
+                    onCloseDrawer={() => onOpenChange(false)}
+                  title={isEmpyreanMode() ? 'Signets' : 'Spells'}
+                  icon={<BookOpen className="w-4 h-4" />}
+                  items={sections.spells}
+                  accentClass="text-purple-400"
+                  onUse={onUsePrompt}
+                  onRemove={handleRemoveItem}
+                  spentCosts={spentCosts}
+                  onActionSpent={onActionSpent}
+                />
+              )}
+              {sectionFilter !== 'combat' && (
+                <QuickActionSection
+                    onCloseDrawer={() => onOpenChange(false)}
+                  title={isEmpyreanMode() ? 'Minor Signets' : 'Cantrips'}
+                  icon={<Star className="w-4 h-4" />}
+                  items={sections.cantrips}
+                  accentClass="text-cyan-400"
+                  onUse={onUsePrompt}
+                  onRemove={handleRemoveItem}
+                  spentCosts={spentCosts}
+                  onActionSpent={onActionSpent}
+                />
+              )}
+              {sectionFilter !== 'magic' && (
+                <QuickActionSection
+                    onCloseDrawer={() => onOpenChange(false)}
+                  title="Items"
+                  icon={<FlaskConical className="w-4 h-4" />}
+                  items={sections.consumables}
+                  accentClass="text-green-400"
+                  onUse={onUsePrompt}
+                  onHeal={handleHeal}
+                  onRemove={handleRemoveItem}
+                  spentCosts={spentCosts}
+                  onActionSpent={onActionSpent}
+                />
+              )}
+              {sectionFilter !== 'magic' && (
+                <QuickActionSection
+                    onCloseDrawer={() => onOpenChange(false)}
+                  title="Legacy"
+                  icon={<Star className="w-4 h-4" />}
+                  items={sections.prestige}
+                  accentClass="text-amber-400"
+                  onUse={onUsePrompt}
+                  onRemove={handleRemoveItem}
+                  spentCosts={spentCosts}
+                  onActionSpent={onActionSpent}
+                />
+              )}
+              {sectionFilter !== 'magic' && sections.homebrew.length > 0 && (
                 <QuickActionSection
                   onCloseDrawer={() => onOpenChange(false)}
                   title="Homebrew"
@@ -655,6 +707,8 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   accentClass="text-orange-400"
                   onUse={onUsePrompt}
                   onRemove={handleRemoveItem}
+                  spentCosts={spentCosts}
+                  onActionSpent={onActionSpent}
                 />
               )}
             </>
