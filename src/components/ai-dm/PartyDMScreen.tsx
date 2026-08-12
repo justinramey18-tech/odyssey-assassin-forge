@@ -53,6 +53,8 @@ import { getScopedItem } from '@/lib/scoped-storage';
 import { loadApiKey, isFeatureSkipped } from '@/lib/api-keys';
 
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
+import { CombatBar } from './CombatBar';
+import { usePartyCombatTurn } from '@/hooks/use-party-combat-turn';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -1458,6 +1460,19 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   // Bottom nav state
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
   const [navExpanded, setNavExpanded] = useState(false);
+
+  // Combat mode state
+  const combatModeOn = partyDm.sessionConfig?.combatMode === true;
+
+  const combatTurn = usePartyCombatTurn({
+    config: partyDm.sessionConfig,
+    onUpdateConfig: (patch) => partyDm.updateSessionConfig(patch),
+    members,
+    currentUserId,
+    isHost: isCreator,
+    enabled: combatModeOn,
+  });
+
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [showStoneDrawer, setShowStoneDrawer] = useState(false);
 
@@ -2522,7 +2537,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           )}
         </AnimatePresence>
         <div ref={scrollRef} className={cn(
-          "flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] pr-2 py-3 sm:p-4 sm:pr-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px] relative z-[1]",
+          "flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] pr-2 py-3 sm:p-4 sm:pr-4 space-y-3 sm:space-y-4 overscroll-contain relative z-[1]",
+          combatModeOn ? 'pb-[260px]' : 'pb-[100px]',
           isEmpyrean && dragonBonds.isSetup && dragonBonds.myDragon?.signetType && (() => {
             const bLevel = dragonBonds.myDragon.burnout;
             const bBond = dragonBonds.myDragon.bond ?? 50;
@@ -3866,7 +3882,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       )}
 
       {/* Bottom Navigation Drawer */}
-      {!isFullscreen && (
+      {!isFullscreen && !combatModeOn && (
         <DMBottomNav
           headerContent={characterContext ? (
             <div className="px-3 pt-2 pb-1">
@@ -4088,6 +4104,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               }}
               onReclaimTurn={partyDm.reclaimTurn}
               onRedoLastRound={partyDm.redoLastRound}
+              combatMode={combatModeOn}
+              onToggleCombatMode={(enabled) => {
+                partyDm.updateSessionConfig(
+                  enabled
+                    ? { combatMode: true, combatRound: 1, combatTurnOrder: [], combatTurnUserId: null }
+                    : { combatMode: false, combatTurnOrder: [], combatTurnUserId: null }
+                );
+              }}
             />
           ) : undefined}
           oracleContent={activeNavTab === 'oracle' && characterContext ? (() => {
@@ -4182,6 +4206,26 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           ) : undefined}
         />
       )}
+
+      {/* Combat Bar (combat mode only) */}
+      {!isFullscreen && combatModeOn && (
+        <CombatBar
+          characterContext={characterContext}
+          characterName={characterContext?.name || 'The Adventurer'}
+          onDiceRoll={handleDiceRoll}
+          onUsePrompt={handleUsePrompt}
+          onHealingItemUsed={handleHealingItemUsed}
+          empyreanDragonName={isEmpyrean && dragonBonds.myDragon?.dragonName ? dragonBonds.myDragon.dragonName : undefined}
+          isGenerating={partyDm.isGenerating}
+          isHost={isCreator}
+          turn={combatTurn}
+          onOpenCharacterSheet={() => setShowCharacterSheet(true)}
+          isTransformed={wildShape?.state.isTransformed}
+          wildShapeSpeed={wildShape?.state.currentForm?.speed}
+          renderSettings={undefined}
+        />
+      )}
+
 
 
 
