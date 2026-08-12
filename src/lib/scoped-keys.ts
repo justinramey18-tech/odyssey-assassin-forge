@@ -31,6 +31,10 @@ export const SCOPED_KEYS = [
   // Magic
   'odyssey-spellcasting',
   'odyssey-active-spells',
+  // Class-based casters (druid, wizard, cleric, sorcerer, bard, warlock).
+  // These are scoped per character, same as the rogue path keys above.
+  'odyssey-class-spellcasting',
+  'odyssey-class-active-spells',
   // Custom images
   'odyssey-equipment-custom-images',
   'odyssey-ability-custom-images',
