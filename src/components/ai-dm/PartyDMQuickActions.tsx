@@ -13,6 +13,7 @@ import { requestDiceRoll } from '@/lib/diceRollBus';
 import { castSpellByName, describeSlotSpend, getMagicResources } from '@/lib/magic/castBus';
 import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic/castResolver';
 import { RollPreviewSheet, type RollPreviewChoice } from '@/components/magic/RollPreviewSheet';
+import { COST_META, resolveActionCost, type ActionCost } from '@/lib/combat/actionCost';
 
 
 import type { CharacterContext } from '@/components/oracle/types';
