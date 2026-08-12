@@ -6,6 +6,10 @@ import { getScopedKey } from '@/lib/scoped-storage';
 import { SCOPED_KEYS } from '@/lib/scoped-keys';
 import { unbindSaveEverywhere } from '@/lib/modeCharacterBinding';
 
+// The homebrew spell library is global (shared by every character), so it is
+// captured and merged separately from the per-character SCOPED_KEYS mechanism.
+const HOMEBREW_SPELL_LIBRARY_KEY = 'odyssey-spell-customization';
+
 export interface CloudSavePreview {
   gold?: number;
   spellsKnown?: number;
@@ -145,6 +149,14 @@ export function useCloudSave(userId: string | undefined) {
       }
       extendedData.scopedLocalStorage = scopedLocalStorage;
 
+      // Capture the global homebrew spell library alongside the scoped keys.
+      try {
+        const homebrewLibrary = localStorage.getItem(HOMEBREW_SPELL_LIBRARY_KEY);
+        if (homebrewLibrary) extendedData.homebrewSpellLibrary = homebrewLibrary;
+      } catch {
+        // ignore read errors
+      }
+
       // Tag with current app mode if not already set (preserves user overrides)
       const existingType = extendedData.campaignType as string | undefined;
       if (!existingType) {
@@ -268,6 +280,31 @@ export function useCloudSave(userId: string | undefined) {
               console.warn(`[CloudSave] Failed to restore scoped key: ${baseKey}`);
             }
           }
+        }
+      }
+
+      // Merge the global homebrew spell library. Merge by id, never overwrite:
+      // this library is shared by every character, so replacing it wholesale
+      // would erase spells authored on a different character. On an id clash the
+      // copy already on this device wins, so local edits are never lost.
+      const incomingLibrary = extendedData.homebrewSpellLibrary as string | undefined;
+      if (typeof incomingLibrary === 'string' && incomingLibrary.length > 0) {
+        try {
+          const incoming = JSON.parse(incomingLibrary) as { homebrewSpells?: Array<{ id: string }> };
+          const rawExisting = localStorage.getItem(HOMEBREW_SPELL_LIBRARY_KEY);
+          const existing = rawExisting
+            ? JSON.parse(rawExisting) as { homebrewSpells?: Array<{ id: string }> }
+            : { homebrewSpells: [] };
+
+          const byId = new Map<string, { id: string }>();
+          (incoming.homebrewSpells || []).forEach(s => { if (s && s.id) byId.set(s.id, s); });
+          (existing.homebrewSpells || []).forEach(s => { if (s && s.id) byId.set(s.id, s); });
+
+          const merged = { ...existing, homebrewSpells: Array.from(byId.values()) };
+          localStorage.setItem(HOMEBREW_SPELL_LIBRARY_KEY, JSON.stringify(merged));
+          console.log('[CloudSave] Merged homebrew spell library:', merged.homebrewSpells.length, 'spells');
+        } catch (e) {
+          console.warn('[CloudSave] Failed to merge homebrew spell library:', e);
         }
       }
       
