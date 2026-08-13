@@ -39,10 +39,11 @@ interface MessageNarrationBarProps {
   onDeleteAll?: (messageId: string) => void;
   /** Saves a mic recording for the highlighted passage. */
   onRecordSegment?: (messageId: string, content: string, passage: string, blob: Blob) => Promise<void>;
-  /** True when every clip for this message is already stored on the device. */
-  offlineReady?: boolean;
-  /** Downloads this message's clips for offline playback. */
-  onDownloadOffline?: (messageId: string) => void;
+  /** Packages this message's clips into one audio file on the device. */
+  onDownloadFile?: (messageId: string, content: string) => void;
+  /** True while this message's file is being prepared. */
+  isDownloading?: boolean;
+  downloadProgress?: { done: number; total: number } | null;
 
 }
 
