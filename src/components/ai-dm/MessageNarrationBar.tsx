@@ -268,23 +268,25 @@ export function MessageNarrationBar({
           </button>
         )}
 
-        {/* Keep this message's audio on the device so it plays with no signal */}
-        {onDownloadOffline && (!!tableAudio || !!storyAudio || segmentClips > 0) && (
+        {/* Save the finished narration to the phone as one audio file */}
+        {onDownloadFile && playAllReady && (
           <button
-            onClick={() => !offlineReady && onDownloadOffline(messageId)}
+            onClick={() => !isDownloading && onDownloadFile(messageId, content)}
+            disabled={isDownloading}
             style={{ touchAction: 'manipulation' }}
             className={cn(
               'flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] transition-colors border',
-              offlineReady
-                ? 'border-emerald-500/30 bg-emerald-900/15 text-emerald-300/80'
-                : 'border-border/40 bg-muted/10 text-muted-foreground hover:text-foreground',
+              'border-border/40 bg-muted/10 text-muted-foreground hover:text-foreground disabled:opacity-60',
             )}
-            title={offlineReady ? 'Saved on this device — plays without internet' : 'Save this narration to the device for offline play'}
+            title="Download this narration as an audio file"
           >
-            {offlineReady ? <Check className="w-3 h-3" /> : <Download className="w-3 h-3" />}
-            {offlineReady ? 'Offline' : 'Save offline'}
+            {isDownloading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+            {isDownloading
+              ? `Preparing ${downloadProgress?.done ?? 0}/${downloadProgress?.total ?? 0}…`
+              : 'Download'}
           </button>
         )}
+
 
 
         {canDelete && onDeleteAll && segmentClips > 0 && !isCasting && (
