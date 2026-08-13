@@ -132,6 +132,8 @@ export function useMessageNarration(
   const [offlineBytes, setOfflineBytes] = useState(0);
   const [offlineSaving, setOfflineSaving] = useState(false);
   const [offlineProgress, setOfflineProgress] = useState<{ done: number; total: number } | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<{ done: number; total: number } | null>(null);
 
   const refreshOffline = useCallback(async () => {
     const keys = await listCachedClips();
