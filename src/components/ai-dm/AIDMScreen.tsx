@@ -990,7 +990,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     if (scrollRef.current && isNearBottomRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages.length, messages[messages.length - 1]?.content]);
 
   // Auto-save crossover narration when the DM responds after a "Play this scene" activation
   const crossoverCaptureRef = useRef<{ id: string; side: 'a' | 'b'; lastMsgIdBefore: string | null } | null>(null);
