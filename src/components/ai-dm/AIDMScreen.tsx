@@ -395,6 +395,79 @@ const DMMessageBubble = memo(function DMMessageBubble({ message, onEdit, onDelet
       )}
     </motion.div>
   );
+}, (prev, next) => (
+  prev.message.id === next.message.id &&
+  prev.message.content === next.message.content &&
+  prev.message.senderName === next.message.senderName &&
+  prev.message.whispers === next.message.whispers &&
+  prev.isLoading === next.isLoading &&
+  prev.ttsSelectMode === next.ttsSelectMode &&
+  prev.ttsSelected === next.ttsSelected &&
+  prev.theme === next.theme &&
+  prev.whisperTrayEnabled === next.whisperTrayEnabled &&
+  prev.onEdit === next.onEdit &&
+  prev.onDelete === next.onDelete &&
+  prev.onRegenerate === next.onRegenerate &&
+  prev.onTtsToggle === next.onTtsToggle
+));
+
+interface DMMessageListProps {
+  messages: Message[];
+  onEdit?: (id: string, content: string) => void;
+  onDelete?: (id: string) => void;
+  onRegenerate?: (id: string) => void;
+  isLoading?: boolean;
+  ttsSelectMode?: boolean;
+  ttsSelectedIds: Set<string>;
+  onTtsToggle?: (id: string) => void;
+  theme?: DMChatTheme;
+  whisperTrayEnabled?: boolean;
+}
+
+const WINDOW_THRESHOLD = 60;
+const WINDOW_SIZE = 40;
+
+/**
+ * Memoized transcript. Typing in the composer never reaches this tree, and long
+ * histories only render their most recent slice until the player asks for more.
+ */
+const DMMessageList = memo(function DMMessageList({
+  messages, onEdit, onDelete, onRegenerate, isLoading, ttsSelectMode, ttsSelectedIds, onTtsToggle, theme, whisperTrayEnabled,
+}: DMMessageListProps) {
+  const [showAll, setShowAll] = useState(false);
+  const windowed = !showAll && messages.length > WINDOW_THRESHOLD;
+  const visible = windowed ? messages.slice(-WINDOW_SIZE) : messages;
+
+  return (
+    <>
+      {windowed && (
+        <button
+          onClick={() => setShowAll(true)}
+          style={{ touchAction: 'manipulation' }}
+          className="w-full py-2 mb-1 rounded-lg text-xs font-cinzel text-amber-300/80 bg-white/5 border border-amber-900/30 hover:bg-white/10"
+        >
+          Load earlier messages ({messages.length - WINDOW_SIZE})
+        </button>
+      )}
+      <AnimatePresence initial={false}>
+        {visible.map((message) => (
+          <DMMessageBubble
+            key={message.id}
+            message={message}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onRegenerate={onRegenerate}
+            isLoading={isLoading}
+            ttsSelectMode={ttsSelectMode}
+            ttsSelected={ttsSelectedIds.has(message.id)}
+            onTtsToggle={onTtsToggle}
+            theme={theme}
+            whisperTrayEnabled={whisperTrayEnabled}
+          />
+        ))}
+      </AnimatePresence>
+    </>
+  );
 });
 
 // Stable no-op fallbacks (defined outside component to avoid re-creation)
@@ -917,7 +990,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     if (scrollRef.current && isNearBottomRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages.length, messages[messages.length - 1]?.content]);
 
   // Auto-save crossover narration when the DM responds after a "Play this scene" activation
   const crossoverCaptureRef = useRef<{ id: string; side: 'a' | 'b'; lastMsgIdBefore: string | null } | null>(null);
@@ -1282,23 +1355,19 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
               </div>
             ) : (
               <>
-                <AnimatePresence initial={false}>
-                  {messages.map((message) => (
-                    <DMMessageBubble
-                      key={message.id}
-                      message={message}
-                      onEdit={editMessage}
-                      onDelete={deleteMessage}
-                      onRegenerate={regenerateMessage}
-                      isLoading={isLoading}
-                      ttsSelectMode={ttsSelectMode}
-                      ttsSelected={ttsSelectedIds.has(message.id)}
-                      onTtsToggle={handleTtsToggle}
-                      theme={chatTheme}
-                      whisperTrayEnabled={whisperTrayEnabled}
-                    />
-                  ))}
-                </AnimatePresence>
+                <DMMessageList
+                  messages={messages}
+                  onEdit={editMessage}
+                  onDelete={deleteMessage}
+                  onRegenerate={regenerateMessage}
+                  isLoading={isLoading}
+                  ttsSelectMode={ttsSelectMode}
+                  ttsSelectedIds={ttsSelectedIds}
+                  onTtsToggle={handleTtsToggle}
+                  theme={chatTheme}
+                  whisperTrayEnabled={whisperTrayEnabled}
+                />
+
                 {isLoading && messages[messages.length - 1]?.role === 'user' && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
                     <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shrink-0", chatTheme.dmAvatar)}>
