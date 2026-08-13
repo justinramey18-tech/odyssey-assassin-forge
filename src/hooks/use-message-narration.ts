@@ -100,6 +100,11 @@ interface UseMessageNarrationReturn {
   downloadAllOffline: () => Promise<void>;
   /** Downloads just the clips belonging to one DM message. */
   downloadMessageOffline: (messageId: string) => Promise<void>;
+  /** Joins a message's clips into one MP3 and saves it to the device. */
+  downloadMessageFile: (messageId: string, content?: string) => Promise<void>;
+  /** Message currently being packaged for download, with clip progress. */
+  downloadingMessageId: string | null;
+  downloadProgress: { done: number; total: number } | null;
   /** Which message ids are fully downloaded on this device. */
   offlineMessageIds: string[];
   /** Removes every downloaded clip from this device. */
