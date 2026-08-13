@@ -439,7 +439,7 @@ function MessageReactions({ messageId, reactions, currentUserId, onAddReaction, 
   );
 }
 
-const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction, onWhisperAutoRoll, onWhisperOpenRoller, narrationMap, narrationGeneratingPart, narrationPlayingPart, narrationCastProgress, narrationSpeakingName, onNarrate, onNarrateCast, onPlayNarration, onPlayAllNarration, onDeleteNarration, onDeleteAllNarration, onRecordNarrationSegment, narrationOfflineReady, onDownloadNarrationOffline }: {
+const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction, onWhisperAutoRoll, onWhisperOpenRoller, narrationMap, narrationGeneratingPart, narrationPlayingPart, narrationCastProgress, narrationSpeakingName, onNarrate, onNarrateCast, onPlayNarration, onPlayAllNarration, onDeleteNarration, onDeleteAllNarration, onRecordNarrationSegment, narrationDownloading, narrationDownloadProgress, onDownloadNarrationFile }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -469,8 +469,9 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   narrationPlayingPart?: NarrationPart | null;
   narrationCastProgress?: CastProgress | null;
   narrationSpeakingName?: string | null;
-  narrationOfflineReady?: boolean;
-  onDownloadNarrationOffline?: (messageId: string) => void;
+  narrationDownloading?: boolean;
+  narrationDownloadProgress?: { done: number; total: number } | null;
+  onDownloadNarrationFile?: (messageId: string, content: string) => void;
   onNarrate?: (messageId: string, content: string, part: NarrationPart) => void;
   onNarrateCast?: (messageId: string, content: string) => void;
   onPlayNarration?: (messageId: string, part: NarrationPart) => void;
@@ -693,8 +694,9 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                 onDelete={onDeleteNarration}
                 onDeleteAll={onDeleteAllNarration}
                 onRecordSegment={onRecordNarrationSegment}
-                offlineReady={narrationOfflineReady}
-                onDownloadOffline={onDownloadNarrationOffline}
+                onDownloadFile={onDownloadNarrationFile}
+                isDownloading={narrationDownloading}
+                downloadProgress={narrationDownloadProgress}
 
               />
             )}
@@ -1005,7 +1007,8 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.narrationPlayingPart === next.narrationPlayingPart
     && prev.narrationCastProgress === next.narrationCastProgress
     && prev.narrationSpeakingName === next.narrationSpeakingName
-    && prev.narrationOfflineReady === next.narrationOfflineReady
+    && prev.narrationDownloading === next.narrationDownloading
+    && prev.narrationDownloadProgress === next.narrationDownloadProgress
     && (prev.reactions?.length ?? 0) === (next.reactions?.length ?? 0)
     && prev.reactions?.every((r, i) => r.id === next.reactions?.[i]?.id);
 });
@@ -2824,8 +2827,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     onDeleteNarration={isCreator ? messageNarration.remove : undefined}
                     onDeleteAllNarration={isCreator ? messageNarration.removeAll : undefined}
                     onRecordNarrationSegment={messageNarration.recordSegment}
-                    narrationOfflineReady={messageNarration.offlineMessageIds.includes(msg.id)}
-                    onDownloadNarrationOffline={messageNarration.downloadMessageOffline}
+                    narrationDownloading={messageNarration.downloadingMessageId === msg.id}
+                    narrationDownloadProgress={messageNarration.downloadingMessageId === msg.id ? messageNarration.downloadProgress : null}
+                    onDownloadNarrationFile={messageNarration.downloadMessageFile}
                   />
                 </React.Fragment>
                 );

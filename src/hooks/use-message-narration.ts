@@ -31,6 +31,7 @@ import {
   offlineCacheSize,
   resolvePlaybackUrl,
 } from '@/lib/narrationOfflineCache';
+import { buildMessageAudioBlob, narrationFileName, saveAudioFile } from '@/lib/narrationDownload';
 
 
 
@@ -99,6 +100,11 @@ interface UseMessageNarrationReturn {
   downloadAllOffline: () => Promise<void>;
   /** Downloads just the clips belonging to one DM message. */
   downloadMessageOffline: (messageId: string) => Promise<void>;
+  /** Joins a message's clips into one MP3 and saves it to the device. */
+  downloadMessageFile: (messageId: string, content?: string) => Promise<void>;
+  /** Message currently being packaged for download, with clip progress. */
+  downloadingMessageId: string | null;
+  downloadProgress: { done: number; total: number } | null;
   /** Which message ids are fully downloaded on this device. */
   offlineMessageIds: string[];
   /** Removes every downloaded clip from this device. */
@@ -132,6 +138,8 @@ export function useMessageNarration(
   const [offlineBytes, setOfflineBytes] = useState(0);
   const [offlineSaving, setOfflineSaving] = useState(false);
   const [offlineProgress, setOfflineProgress] = useState<{ done: number; total: number } | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<{ done: number; total: number } | null>(null);
 
   const refreshOffline = useCallback(async () => {
     const keys = await listCachedClips();
@@ -382,18 +390,19 @@ export function useMessageNarration(
     runQueue();
   }, [audioByMessage, playingId, stop, runQueue]);
 
-  /** DM aside first, then the story — segment by segment when cast clips exist. */
-  const playAll = useCallback((messageId: string, content?: string) => {
+  /** The ordered clip list for a message: DM aside, then story segments. */
+  const buildOrderedClips = useCallback((messageId: string, content?: string) => {
     const queue: Array<{ key: string; url: string; speaker?: string | null }> = [];
-    const tableRow = audioByMessage[narrationKey(messageId, 'table')];
+    const map = audioMapRef.current;
+    const tableRow = map[narrationKey(messageId, 'table')];
     if (tableRow) queue.push({ key: narrationKey(messageId, 'table'), url: tableRow.audio_url, speaker: 'DM' });
 
     const segments = content ? splitStorySegments(splitDMResponseParts(content).story, messageId) : [];
     let addedSegments = 0;
     segments.forEach((seg, i) => {
       const part = segmentKey(seg);
-      const row = audioByMessage[narrationKey(messageId, part)]
-        || audioByMessage[narrationKey(messageId, segmentPart(i))];
+      const row = map[narrationKey(messageId, part)]
+        || map[narrationKey(messageId, segmentPart(i))];
       if (row) {
         queue.push({ key: narrationKey(messageId, row.part || part), url: row.audio_url, speaker: seg.speaker });
         addedSegments++;
@@ -401,16 +410,42 @@ export function useMessageNarration(
     });
 
     if (addedSegments === 0) {
-      const storyRow = audioByMessage[narrationKey(messageId, 'story')];
+      const storyRow = map[narrationKey(messageId, 'story')];
       if (storyRow) queue.push({ key: narrationKey(messageId, 'story'), url: storyRow.audio_url, speaker: null });
     }
+    return queue;
+  }, []);
 
+  /** DM aside first, then the story — segment by segment when cast clips exist. */
+  const playAll = useCallback((messageId: string, content?: string) => {
+    const queue = buildOrderedClips(messageId, content);
     if (queue.length === 0) return;
     if (playingId && playingId.startsWith(`${messageId}:`)) { stop(); return; }
     stop();
     queueRef.current = queue;
     runQueue();
-  }, [audioByMessage, playingId, stop, runQueue]);
+  }, [buildOrderedClips, playingId, stop, runQueue]);
+
+  /** Joins every clip for a message into one MP3 and saves it to the device. */
+  const downloadMessageFile = useCallback(async (messageId: string, content?: string) => {
+    const clips = buildOrderedClips(messageId, content);
+    if (clips.length === 0) { toast.error('Nothing to download yet'); return; }
+    setDownloadingId(messageId);
+    setDownloadProgress({ done: 0, total: clips.length });
+    try {
+      const blob = await buildMessageAudioBlob(clips, (done, total) => setDownloadProgress({ done, total }));
+      await saveAudioFile(blob, narrationFileName(messageId));
+      await refreshOffline();
+      toast.success('Narration saved to your device');
+    } catch (error) {
+      console.error('[MessageNarration] download failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Could not download this narration');
+    } finally {
+      setDownloadingId(null);
+      setDownloadProgress(null);
+    }
+  }, [buildOrderedClips, refreshOffline]);
+
 
   // ── Synthesis helpers ──
 
@@ -807,6 +842,9 @@ export function useMessageNarration(
     offlineProgress,
     downloadAllOffline,
     downloadMessageOffline,
+    downloadMessageFile,
+    downloadingMessageId: downloadingId,
+    downloadProgress,
     offlineMessageIds,
     clearOffline,
 
