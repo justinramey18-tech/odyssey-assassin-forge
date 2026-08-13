@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useImperativeHandle, forwardRef, memo } from 'react';
+import { useState, useMemo, useCallback, useRef, useImperativeHandle, forwardRef, memo } from 'react';
 import { Send, Square, Wand2, RotateCcw, Loader2, Mic, MicOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getAtMentionQuery, filterNPCNames } from '@/hooks/use-npc-autocomplete';
