@@ -1355,23 +1355,19 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
               </div>
             ) : (
               <>
-                <AnimatePresence initial={false}>
-                  {messages.map((message) => (
-                    <DMMessageBubble
-                      key={message.id}
-                      message={message}
-                      onEdit={editMessage}
-                      onDelete={deleteMessage}
-                      onRegenerate={regenerateMessage}
-                      isLoading={isLoading}
-                      ttsSelectMode={ttsSelectMode}
-                      ttsSelected={ttsSelectedIds.has(message.id)}
-                      onTtsToggle={handleTtsToggle}
-                      theme={chatTheme}
-                      whisperTrayEnabled={whisperTrayEnabled}
-                    />
-                  ))}
-                </AnimatePresence>
+                <DMMessageList
+                  messages={messages}
+                  onEdit={editMessage}
+                  onDelete={deleteMessage}
+                  onRegenerate={regenerateMessage}
+                  isLoading={isLoading}
+                  ttsSelectMode={ttsSelectMode}
+                  ttsSelectedIds={ttsSelectedIds}
+                  onTtsToggle={handleTtsToggle}
+                  theme={chatTheme}
+                  whisperTrayEnabled={whisperTrayEnabled}
+                />
+
                 {isLoading && messages[messages.length - 1]?.role === 'user' && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
                     <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shrink-0", chatTheme.dmAvatar)}>
