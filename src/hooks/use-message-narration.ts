@@ -842,6 +842,9 @@ export function useMessageNarration(
     offlineProgress,
     downloadAllOffline,
     downloadMessageOffline,
+    downloadMessageFile,
+    downloadingMessageId: downloadingId,
+    downloadProgress,
     offlineMessageIds,
     clearOffline,
 
