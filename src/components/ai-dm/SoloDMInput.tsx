@@ -44,8 +44,13 @@ export const SoloDMInput = memo(forwardRef<SoloDMInputHandle, SoloDMInputProps>(
   // Snapshot of the draft before the last rewrite, so the wand button can double as undo.
   const [preEnhance, setPreEnhance] = useState<string | null>(null);
 
-  const mentionState = getAtMentionQuery(input, cursorPos);
-  const acSuggestions = mentionState ? filterNPCNames(npcNames, mentionState.query) : [];
+  const mentionState = useMemo(() => getAtMentionQuery(input, cursorPos), [input, cursorPos]);
+  const mentionQuery = mentionState?.query ?? null;
+  // Keyed on the mention query only, so ordinary typing never re-filters the roster.
+  const acSuggestions = useMemo(
+    () => (mentionQuery === null ? [] : filterNPCNames(npcNames, mentionQuery).slice(0, 8)),
+    [mentionQuery, npcNames]
+  );
   const showAc = acSuggestions.length > 0;
 
   const selectNPC = useCallback((name: string) => {
