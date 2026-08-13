@@ -1,4 +1,4 @@
-import { Check, Download, Highlighter, ListMusic, Loader2, Mic, Pause, Users, X } from 'lucide-react';
+import { Download, Highlighter, ListMusic, Loader2, Mic, Pause, Users, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
