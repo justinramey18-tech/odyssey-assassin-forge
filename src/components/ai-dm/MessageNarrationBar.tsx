@@ -70,8 +70,9 @@ export function MessageNarrationBar({
   onDelete,
   onDeleteAll,
   onRecordSegment,
-  offlineReady,
-  onDownloadOffline,
+  onDownloadFile,
+  isDownloading,
+  downloadProgress,
 
 }: MessageNarrationBarProps) {
   // Bumped whenever a manual voice override changes, to re-split the story.
