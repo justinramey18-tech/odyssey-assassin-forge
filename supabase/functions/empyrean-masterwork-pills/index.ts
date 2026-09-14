@@ -146,6 +146,8 @@ serve(async (req) => {
       character_bonds,
       character_flaws,
       campaign_summary,
+      story_flavor_label,
+      story_flavor_guidance,
       model,
       user_api_key,       // Anthropic
       user_openai_key,    // OpenAI direct
