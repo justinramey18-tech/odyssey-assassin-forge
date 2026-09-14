@@ -573,6 +573,7 @@ export function RoundChatDrawer({
                                 : "bg-sky-500/[0.08] border-sky-400/25 border-dashed",
                               m.selected && "ring-1 ring-emerald-400/60",
                               m.consumed && "opacity-55",
+                              imageUrl && "p-1",
                             )}
                           >
                             {avatarUrl ? (
