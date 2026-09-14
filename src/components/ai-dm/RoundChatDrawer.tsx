@@ -368,7 +368,7 @@ export function RoundChatDrawer({
                   ? "text-emerald-300 border-emerald-400/30 bg-emerald-500/10"
                   : "text-white/50 border-white/15 bg-white/5"
               )}>
-                {progress.current} ticked{progress.waiting > progress.current ? ` · ${progress.waiting - progress.current} waiting` : ''}
+                {progress.current} ticked
               </span>
             </span>
             <span className="block text-[10px] text-white/40 truncate mt-0.5">
