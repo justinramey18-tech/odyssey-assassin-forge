@@ -934,10 +934,47 @@ export function RoundChatDrawer({
                         handleSend();
                       }
                     }}
+                    onPaste={(e) => {
+                      const items = e.clipboardData?.items;
+                      if (!items) return;
+                      for (const item of Array.from(items)) {
+                        if (item.type.startsWith('image/')) {
+                          const file = item.getAsFile();
+                          if (file) { e.preventDefault(); sendImage(file); }
+                          return;
+                        }
+                      }
+                    }}
                     placeholder={inCharacter ? `Speak as ${characterName || 'your character'}...` : 'Table talk — not sent to the DM'}
                     className="min-h-[38px] max-h-[140px] font-body text-[15px] py-2 resize-none bg-white/5 border-amber-900/30"
                     rows={1}
                   />
+                  {onUploadImage && (
+                    <>
+                      <input
+                        ref={imageInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = '';
+                          if (file) sendImage(file);
+                        }}
+                      />
+                      <button
+                        onClick={() => imageInputRef.current?.click()}
+                        disabled={uploadingImage || sending}
+                        aria-label="Share a picture"
+                        style={{ touchAction: 'manipulation' }}
+                        className="shrink-0 w-11 h-11 flex items-center justify-center rounded-lg border border-amber-500/25 bg-amber-500/5 text-amber-300/70 active:bg-amber-500/15 disabled:opacity-40"
+                      >
+                        {uploadingImage
+                          ? <Loader2 className="w-5 h-5 animate-spin" />
+                          : <ImagePlus className="w-5 h-5" />}
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={handleSend}
                     disabled={!text.trim() || sending}
