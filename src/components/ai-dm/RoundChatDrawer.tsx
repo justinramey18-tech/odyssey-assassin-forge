@@ -589,10 +589,18 @@ export function RoundChatDrawer({
                             )}
 
                             <p
-                              className="relative font-body text-[15px] leading-[1.45] text-white whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
-                              style={avatarUrl
-                                ? { textShadow: '0 1px 4px rgba(0,0,0,0.95), 0 0 14px rgba(0,0,0,0.8)' }
-                                : undefined}
+                              className="relative font-body text-[15px] font-medium leading-[1.5] text-white whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+                              style={avatarUrl ? {
+                                textShadow: [
+                                  '0 0 1px rgba(0,0,0,1)',
+                                  '0 0 2px rgba(0,0,0,1)',
+                                  '0 0 3px rgba(0,0,0,1)',
+                                  '0 1px 2px rgba(0,0,0,1)',
+                                  '0 0 8px rgba(0,0,0,0.95)',
+                                  '0 0 16px rgba(0,0,0,0.9)',
+                                  '0 0 28px rgba(0,0,0,0.75)',
+                                ].join(', '),
+                              } : undefined}
                             >
                               {body}
                             </p>
