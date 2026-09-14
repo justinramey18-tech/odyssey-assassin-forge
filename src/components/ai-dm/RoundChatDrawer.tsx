@@ -327,6 +327,17 @@ export function RoundChatDrawer({
     requestAnimationFrame(() => scrollToLatest('smooth'));
   };
 
+  const sendImage = useCallback(async (file: File) => {
+    if (!onUploadImage || uploadingImage) return;
+    setUploadingImage(true);
+    try {
+      const url = await onUploadImage(file);
+      if (url) await onSend(`[image:${url}]`, inCharacter);
+    } finally {
+      setUploadingImage(false);
+    }
+  }, [onUploadImage, uploadingImage, onSend, inCharacter]);
+
   return (
     <div className={cn(
       "relative border-t border-amber-900/30 bg-gradient-to-b from-amber-950/25 to-black/40 overflow-hidden",
