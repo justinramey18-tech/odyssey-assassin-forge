@@ -336,16 +336,6 @@ export function RoundChatDrawer({
         </div>
       </button>
 
-      {open && (
-        <button
-          onClick={(e) => { e.stopPropagation(); setFullScreen(v => !v); }}
-          aria-label={fullScreen ? 'Exit full screen' : 'Open chat full screen'}
-          style={{ touchAction: 'manipulation' }}
-          className="absolute right-9 top-3 z-20 w-9 h-9 flex items-center justify-center rounded-lg border border-amber-500/25 bg-black/40 text-amber-300/80 active:bg-amber-500/15"
-        >
-          {fullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-        </button>
-      )}
 
 
       <AnimatePresence>
