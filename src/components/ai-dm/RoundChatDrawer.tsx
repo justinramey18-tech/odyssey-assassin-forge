@@ -185,6 +185,14 @@ export function RoundChatDrawer({
     else setFullScreen(false);
   }, [open]);
 
+  // Hide the floating "Back to character sheet" shortcut while the round chat
+  // is expanded, so it doesn't sit on top of the composer.
+  useEffect(() => {
+    if (open) document.body.classList.add('round-chat-expanded');
+    else document.body.classList.remove('round-chat-expanded');
+    return () => document.body.classList.remove('round-chat-expanded');
+  }, [open]);
+
 
   // Outside suggestions land in the composer so the player can edit before sending.
   useEffect(() => {
