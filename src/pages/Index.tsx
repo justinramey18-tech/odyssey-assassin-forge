@@ -5,6 +5,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { getScopedKey, getScopedItem, setScopedItem, removeScopedItem } from '@/lib/scoped-storage';
 import { SCOPED_KEYS } from '@/lib/scoped-keys';
 import { loadTimezone, TIMEZONE_CHANGE_EVENT } from '@/lib/timezone-storage';
+import {
+  isCosmicChefMode,
+  THISTLEPIG_GEAR_VERSION,
+  THISTLEPIG_GEAR_VERSION_KEY,
+  THISTLEPIG_CONSUMABLES,
+} from '@/lib/thistlepig';
+import { buildThistlepigEquipment } from '@/lib/thistlepig-unlock';
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { Character, CharacterAbility, getAbilityPointsForLevel, getTotalPointsSpent, getActiveSlotsByLevel } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
