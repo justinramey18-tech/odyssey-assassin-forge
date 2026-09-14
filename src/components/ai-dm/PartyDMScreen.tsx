@@ -1921,7 +1921,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   );
 
   // Story-mode masterwork pills (non-Empyrean party campaigns)
-  const handleFetchStoryPills = useCallback(async () => {
+  const handleFetchStoryPills = useCallback(async (flavorId?: string) => {
     // Include the recent back-and-forth (DM + this player + other players), not just DM replies,
     // so suggestions respond to what the player themselves was actually just doing.
     // Build the recent narrative newest-last, but NEVER front-truncate the joined
