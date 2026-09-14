@@ -185,6 +185,7 @@ export function RoundChatDrawer({
   onDraftUsed,
   avatars,
   onUploadAvatar,
+  onUploadImage,
   oocNames,
   onSetOocName,
 }: RoundChatDrawerProps) {
