@@ -15,6 +15,7 @@ import { getSpellById } from '@/lib/magic/spells';
 import { CombatLogEntry } from '@/hooks/use-combat-log';
 import { Enemy } from '@/lib/combat/targetTypes';
 import { ActionEconomy } from '@/lib/combat/combatTypes';
+import { isCosmicChefMode, COSMIC_CHEF_LABEL } from '@/lib/thistlepig';
 import { OraclePanel } from './OraclePanel';
 
 interface CombatContextInput {
@@ -262,7 +263,9 @@ export function OracleDrawer({
         conditions: m.character_status.conditions,
       }));
 
-    const characterClass = character.primaryClass || 'rogue';
+    const characterClass = isCosmicChefMode()
+      ? COSMIC_CHEF_LABEL
+      : (character.primaryClass || 'rogue');
     const multiclassBreakdown: Record<string, number> | undefined =
       character.multiclassLevels && Object.keys(character.multiclassLevels).length > 0
         ? { [characterClass]: character.level, ...character.multiclassLevels }

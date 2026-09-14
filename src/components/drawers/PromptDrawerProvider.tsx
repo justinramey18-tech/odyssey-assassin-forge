@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, createContext, useContext, ReactNode,
 import { getScopedItem } from '@/lib/scoped-storage';
 import { useCharacterIdentity } from '@/hooks/use-character-identity';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
+import { isCosmicChefMode, COSMIC_CHEF_LABEL } from '@/lib/thistlepig';
 import { loadState as loadGeraltState, ATTACKS as GERALT_ATTACKS } from '@/components/companion/geralt-data';
 import { Gem, Lock } from 'lucide-react';
 import { toast } from 'sonner';
@@ -857,7 +858,9 @@ export function PromptDrawerProvider({
     }
 
     // Build class identity
-    const characterClass = character.primaryClass || 'rogue';
+    const characterClass = isCosmicChefMode()
+      ? COSMIC_CHEF_LABEL
+      : (character.primaryClass || 'rogue');
     const multiclassBreakdown: Record<string, number> | undefined =
       character.multiclassLevels && Object.keys(character.multiclassLevels).length > 0
         ? { [characterClass]: character.level, ...character.multiclassLevels }
