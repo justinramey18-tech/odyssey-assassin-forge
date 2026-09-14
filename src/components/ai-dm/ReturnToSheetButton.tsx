@@ -12,10 +12,19 @@ interface ReturnToSheetButtonProps {
 
 export function ReturnToSheetButton({ onReturn, hidden = false }: ReturnToSheetButtonProps) {
   const [pending, setPending] = useState<SheetReturn | null>(() => getSheetReturn());
+  const [roundChatExpanded, setRoundChatExpanded] = useState(false);
 
   useEffect(() => subscribeSheetReturn(() => setPending(getSheetReturn())), []);
 
-  if (hidden || !pending) return null;
+  useEffect(() => {
+    const update = () => setRoundChatExpanded(document.body.classList.contains('round-chat-expanded'));
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  if (hidden || !pending || roundChatExpanded) return null;
 
   return createPortal(
     <div
