@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X } from 'lucide-react';
@@ -89,6 +89,8 @@ interface RoundChatDrawerProps {
   /** Per-player avatars: { [userId]: { ic, ooc } } */
   avatars?: Record<string, { ic?: string; ooc?: string }>;
   onUploadAvatar?: (kind: 'ic' | 'ooc', file: File) => void | Promise<void>;
+  /** Uploads a picture and resolves to its public URL, or null if it failed. */
+  onUploadImage?: (file: File) => Promise<string | null>;
   /** Per-player table-talk (out-of-character) display names: { [userId]: name } */
   oocNames?: Record<string, string>;
   onSetOocName?: (name: string) => void | Promise<void>;
@@ -183,6 +185,7 @@ export function RoundChatDrawer({
   onDraftUsed,
   avatars,
   onUploadAvatar,
+  onUploadImage,
   oocNames,
   onSetOocName,
 }: RoundChatDrawerProps) {
@@ -197,6 +200,8 @@ export function RoundChatDrawer({
   const [fullScreen, setFullScreen] = useState(false);
   const [actionsFor, setActionsFor] = useState<string | null>(null);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
   const [pinned, setPinned] = useState(true);
@@ -321,6 +326,17 @@ export function RoundChatDrawer({
     await onSend(trimmed, inCharacter);
     requestAnimationFrame(() => scrollToLatest('smooth'));
   };
+
+  const sendImage = useCallback(async (file: File) => {
+    if (!onUploadImage || uploadingImage) return;
+    setUploadingImage(true);
+    try {
+      const url = await onUploadImage(file);
+      if (url) await onSend(`[image:${url}]`, inCharacter);
+    } finally {
+      setUploadingImage(false);
+    }
+  }, [onUploadImage, uploadingImage, onSend, inCharacter]);
 
   return (
     <div className={cn(
@@ -918,10 +934,47 @@ export function RoundChatDrawer({
                         handleSend();
                       }
                     }}
+                    onPaste={(e) => {
+                      const items = e.clipboardData?.items;
+                      if (!items) return;
+                      for (const item of Array.from(items)) {
+                        if (item.type.startsWith('image/')) {
+                          const file = item.getAsFile();
+                          if (file) { e.preventDefault(); sendImage(file); }
+                          return;
+                        }
+                      }
+                    }}
                     placeholder={inCharacter ? `Speak as ${characterName || 'your character'}...` : 'Table talk — not sent to the DM'}
                     className="min-h-[38px] max-h-[140px] font-body text-[15px] py-2 resize-none bg-white/5 border-amber-900/30"
                     rows={1}
                   />
+                  {onUploadImage && (
+                    <>
+                      <input
+                        ref={imageInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = '';
+                          if (file) sendImage(file);
+                        }}
+                      />
+                      <button
+                        onClick={() => imageInputRef.current?.click()}
+                        disabled={uploadingImage || sending}
+                        aria-label="Share a picture"
+                        style={{ touchAction: 'manipulation' }}
+                        className="shrink-0 w-11 h-11 flex items-center justify-center rounded-lg border border-amber-500/25 bg-amber-500/5 text-amber-300/70 active:bg-amber-500/15 disabled:opacity-40"
+                      >
+                        {uploadingImage
+                          ? <Loader2 className="w-5 h-5 animate-spin" />
+                          : <ImagePlus className="w-5 h-5" />}
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={handleSend}
                     disabled={!text.trim() || sending}
