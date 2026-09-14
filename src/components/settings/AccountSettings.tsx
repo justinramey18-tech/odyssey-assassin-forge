@@ -190,33 +190,74 @@ export function AccountSettings({ userEmail }: AccountSettingsProps) {
         <div className="px-3 pb-3 space-y-4">
           <Separator />
 
-          {/* Change Email */}
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <Mail className="w-3 h-3" />
-              Change Email
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              Current: <span className="text-foreground">{userEmail}</span>
-            </p>
-            <Input
-              type="email"
-              placeholder="New email address"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleChangeEmail()}
-              className="h-8 text-sm"
-            />
-            <Button
-              size="sm"
-              className="w-full gap-1.5"
-              onClick={handleChangeEmail}
-              disabled={emailLoading || !newEmail}
-            >
-              {emailLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Mail className="w-3 h-3" />}
-              Update Email
-            </Button>
-          </div>
+          {isSyntheticUser ? (
+            /* Change Username */
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <User className="w-3 h-3" />
+                Change Username
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Current: <span className="text-foreground">{currentUsername}</span>
+              </p>
+              <Input
+                type="text"
+                placeholder="New username (3-24 chars)"
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                autoComplete="username"
+                className="h-8 text-sm"
+              />
+              <Input
+                type="password"
+                placeholder="Current password"
+                value={usernamePassword}
+                onChange={(e) => setUsernamePassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleChangeUsername()}
+                autoComplete="current-password"
+                className="h-8 text-sm"
+              />
+              <Button
+                size="sm"
+                className="w-full gap-1.5"
+                style={{ touchAction: 'manipulation' }}
+                onClick={handleChangeUsername}
+                disabled={usernameLoading || !newUsername || !usernamePassword}
+              >
+                {usernameLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <User className="w-3 h-3" />}
+                Update Username
+              </Button>
+            </div>
+          ) : (
+            /* Change Email */
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Mail className="w-3 h-3" />
+                Change Email
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Current: <span className="text-foreground">{userEmail}</span>
+              </p>
+              <Input
+                type="email"
+                placeholder="New email address"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleChangeEmail()}
+                className="h-8 text-sm"
+              />
+              <Button
+                size="sm"
+                className="w-full gap-1.5"
+                style={{ touchAction: 'manipulation' }}
+                onClick={handleChangeEmail}
+                disabled={emailLoading || !newEmail}
+              >
+                {emailLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Mail className="w-3 h-3" />}
+                Update Email
+              </Button>
+            </div>
+          )}
 
           <Separator />
 
