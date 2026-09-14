@@ -48,11 +48,14 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills }: 
       <button
         onClick={generate}
         disabled={disabled}
-        className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 text-amber-300/80 hover:text-amber-300 text-xs transition-colors disabled:opacity-40"
+        className="w-full flex items-start gap-2 text-left py-2.5 px-3 rounded-lg border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 text-amber-300/80 hover:text-amber-300 text-xs leading-snug transition-colors disabled:opacity-40"
         style={{ touchAction: 'manipulation' }}
       >
-        <Sparkles className="w-3.5 h-3.5" />
-        Suggest my next move
+        <Sparkles className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+        <span>
+          Are you a pothead? Too high to roleplay? Not high enough? No worries! Tap me and ill generate you some moves to choose from!{' '}
+          <span className="font-bold text-amber-300">CLICK HERE!!!</span>
+        </span>
       </button>
 
       {open && createPortal(
