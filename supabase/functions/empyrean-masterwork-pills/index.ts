@@ -230,8 +230,31 @@ ${latestBeat}`;
     const summaryBlock = (isStoryMode && campaign_summary)
       ? `## CAMPAIGN BACKGROUND (distant context only — do NOT base suggestions primarily on this; it is older than the recent narrative below)\n${String(campaign_summary).slice(0, 900)}`
       : '';
+    const flavorBlock = (isStoryMode && story_flavor_label)
+      ? `## TONE FOR THIS SET — NON-NEGOTIABLE
+
+Every one of the 4 suggestions must be a ${story_flavor_label} move.
+${story_flavor_guidance ? String(story_flavor_guidance).slice(0, 600) : ''}
+
+Order the 4 by INTENSITY, mildest first:
+- Pill 1 is the gentlest, most restrained expression of ${story_flavor_label} that still counts.
+- Pill 4 is the boldest, most committed expression of it.
+- Pills 2 and 3 sit between them, escalating evenly.
+
+All four must stay ${story_flavor_label}. Do NOT drift toward a different alignment as intensity rises — a bolder Chaotic Good move is MORE chaotic and MORE good, never crueller or more lawful.
+
+Set each pill's "label" field to its intensity step, exactly:
+- Pill 1 label: "Barely"
+- Pill 2 label: "Mild"
+- Pill 3 label: "Bold"
+- Pill 4 label: "Full send"
+
+This tone instruction OVERRIDES the general rule about varying the flavour of the 4 suggestions. Here they deliberately share one flavour and vary only in intensity.`
+      : '';
     const systemPrompt = isStoryMode
-      ? `${activeSystemPrompt}\n\n${categoryBlock}\n\n${summaryBlock}\n\n${characterBlock}\n\n${narrativeBlock}`
+      ? [activeSystemPrompt, categoryBlock, summaryBlock, characterBlock, narrativeBlock, flavorBlock]
+          .filter(Boolean)
+          .join('\n\n')
       : `${activeSystemPrompt}\n\n${categoryBlock}\n\n${characterBlock}\n\n${narrativeBlock}`;
 
     // Dispatch to the appropriate provider. Returns parsed tool arguments { pills: [...] }.
