@@ -129,6 +129,8 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
   const touchStartY = useRef(0);
   const touchStartTime = useRef(0);
 
+  if (roundChatExpanded) return null;
+
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
     touchStartTime.current = Date.now();
