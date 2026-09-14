@@ -1,6 +1,7 @@
 // Class Level Badge Component
 // Displays class icon, name, and level in a compact badge format
 import { isEmpyreanMode, EMPYREAN_CLASS_LABELS } from '@/lib/empyreanLabels';
+import { isCosmicChefMode, COSMIC_CHEF_LABEL } from '@/lib/thistlepig';
 
 import { cn } from '@/lib/utils';
 import { DnDClass, ClassLevelMap, CLASS_REGISTRY, calculateTotalLevel } from '@/lib/classes';
@@ -43,6 +44,7 @@ export function ClassLevelBadge({
   className,
 }: ClassLevelBadgeProps) {
   const classConfig = CLASS_REGISTRY[primaryClass];
+  const cosmicChef = isCosmicChefMode();
   const Icon = getIconByName(classConfig.iconName);
   const styles = sizeStyles[size];
   
@@ -95,7 +97,11 @@ export function ClassLevelBadge({
       >
         <Icon className={styles.icon} />
         <span className={cn('font-semibold', styles.text)}>
-          {isEmpyreanMode() ? (EMPYREAN_CLASS_LABELS[primaryClass] ?? classConfig.name) : classConfig.name}
+          {cosmicChef
+            ? COSMIC_CHEF_LABEL
+            : isEmpyreanMode()
+              ? (EMPYREAN_CLASS_LABELS[primaryClass] ?? classConfig.name)
+              : classConfig.name}
         </span>
         <span className="opacity-70">
           Lvl {totalLevel}
@@ -124,7 +130,7 @@ export function ClassLevelBadge({
             }}
           >
             <ClsIcon className={size === 'sm' ? 'w-2.5 h-2.5' : 'w-3 h-3'} />
-            <span className="font-semibold">{isEmpyreanMode() ? (EMPYREAN_CLASS_LABELS[cls.id] ?? cls.name) : cls.name}</span>
+            <span className="font-semibold">{cosmicChef && cls.id === primaryClass ? COSMIC_CHEF_LABEL : isEmpyreanMode() ? (EMPYREAN_CLASS_LABELS[cls.id] ?? cls.name) : cls.name}</span>
             <span className="opacity-70">{cls.level}</span>
           </Badge>
         );

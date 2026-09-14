@@ -1,6 +1,13 @@
 export type EasterEggBadge = { label: string; color: string };
 
-export function getThistleBadges(_name: string): readonly EasterEggBadge[] {
+export function getThistleBadges(name: string): readonly EasterEggBadge[] {
+  const n = (name || '').toLowerCase().trim();
+  if (n.includes('thistlepig') || n.includes('thistle')) {
+    return [
+      { label: 'Cosmic Chef', color: 'purple' },
+      { label: 'Seasoned', color: 'amber' },
+    ];
+  }
   return [];
 }
 
