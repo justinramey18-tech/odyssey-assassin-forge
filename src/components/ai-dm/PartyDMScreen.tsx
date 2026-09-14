@@ -3118,6 +3118,23 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               toast.error(err instanceof Error ? err.message : 'Upload failed');
             }
           }}
+          onUploadImage={async (file) => {
+            if (file.size > 10 * 1024 * 1024) {
+              toast.error('Image too large (max 10MB)');
+              return null;
+            }
+            try {
+              const ext = file.type.includes('gif') ? 'gif' : file.type.split('/')[1] || 'png';
+              const path = `round-chat/${partyId || 'general'}/${crypto.randomUUID()}.${ext}`;
+              const { error } = await supabase.storage.from('party-chat-images').upload(path, file);
+              if (error) throw error;
+              const { data: urlData } = supabase.storage.from('party-chat-images').getPublicUrl(path);
+              return urlData.publicUrl;
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : 'Upload failed');
+              return null;
+            }
+          }}
         />
       )}
 
