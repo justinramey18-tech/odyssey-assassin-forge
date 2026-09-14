@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { stripActionCard } from '@/lib/roundChatActionCard';
+import { parseReply } from '@/lib/chatReply';
 import { supabase } from '@/integrations/supabase/client';
 
 const STYLE_STATE_TYPE = 'round_style';
@@ -391,6 +392,16 @@ export function useRoundChat(
     met: selectedMessages.length > 0,
   }), [selectedMessages, pendingMessages]);
 
+  /** Ticked line as the DM should read it: token removed, reply target named. */
+  const lineForDM = useCallback((m: RoundChatMessage): string => {
+    const { replyToId, body } = parseReply(m.content);
+    const text = stripActionCard(body).trim();
+    if (!replyToId) return text;
+    const target = messages.find(mm => mm.id === replyToId);
+    const name = target?.character_name;
+    return name ? `(replying to ${name}) ${text}` : text;
+  }, [messages]);
+
   /**
    * Bundle the ticked lines for the DM. Player text only — every behavioural
    * rule (table-talk handling, [TABLE] format, chaos tone) is applied backend
@@ -403,7 +414,7 @@ export function useRoundChat(
       if (!m.in_character) continue;
       const key = m.character_name || 'Player';
       if (!grouped.has(key)) { grouped.set(key, []); order.push(key); }
-      grouped.get(key)!.push(stripActionCard(m.content).trim());
+      grouped.get(key)!.push(lineForDM(m));
     }
     const inCharacterBlock = order
       .map(name => `[${name}]: ${grouped.get(name)!.join(' ')}`)
@@ -411,11 +422,11 @@ export function useRoundChat(
 
     const banter = orderedSelected.filter(m => !m.in_character);
     const banterBlock = banter.length
-      ? `\n\nTABLE TALK (out of character):\n${banter.map(m => `${m.character_name || 'Player'}: ${stripActionCard(m.content).trim()}`).join('\n')}`
+      ? `\n\nTABLE TALK (out of character):\n${banter.map(m => `${m.character_name || 'Player'}: ${lineForDM(m)}`).join('\n')}`
       : '';
 
     return `${inCharacterBlock}${banterBlock}`.trim();
-  }, [orderedSelected]);
+  }, [orderedSelected, lineForDM]);
 
   /** What the backend needs to apply the right table rules for this hand-off. */
   const liveTableContext = useMemo(() => ({
