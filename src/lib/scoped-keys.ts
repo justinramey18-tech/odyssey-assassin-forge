@@ -101,4 +101,9 @@ export const SCOPED_KEYS = [
   'odyssey-dm-response-mode',
   // Empyrean unbonded status
   'empyrean-unbonded-status',
+  // Cosmic Chef specialty character flag (Thistlepig).
+  // Must be scoped: it is written before a cloud save ID exists, and without
+  // being listed here it is never migrated onto the scoped key and never
+  // captured into the cloud save.
+  'odyssey-cosmic-chef',
 ] as const;
