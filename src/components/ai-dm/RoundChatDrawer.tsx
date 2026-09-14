@@ -576,7 +576,7 @@ export function RoundChatDrawer({
                               imageUrl && "p-1",
                             )}
                           >
-                            {avatarUrl ? (
+                            {avatarUrl && !imageUrl ? (
                               /* Full clarity: no blur, no scrim. Legibility is carried
                                  entirely by the text shadow stack on the paragraph below.
                                  IC and table talk resolve to different avatar slots, so the
@@ -588,14 +588,14 @@ export function RoundChatDrawer({
                                 className="absolute inset-0 -z-10 bg-cover bg-top"
                                 style={{ backgroundImage: `url(${avatarUrl})` }}
                               />
-                            ) : (
+                            ) : !imageUrl ? (
                               /* No uploaded picture: fall back to the speaker's own colour so
                                  they are still distinguishable from everyone else. */
                               <span
                                 aria-hidden="true"
                                 className={cn("absolute inset-0 -z-10 opacity-20", playerTint(m.user_id))}
                               />
-                            )}
+                            ) : null}
 
                             <p
                               className="relative font-body text-[15px] font-medium leading-[1.5] text-white whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
