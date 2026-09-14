@@ -94,6 +94,13 @@ interface RoundChatDrawerProps {
   /** Per-player table-talk (out-of-character) display names: { [userId]: name } */
   oocNames?: Record<string, string>;
   onSetOocName?: (name: string) => void | Promise<void>;
+
+  /** userId -> ISO timestamp of the newest message that player has seen. */
+  readReceipts?: Record<string, string>;
+  /** Everyone in the party, for naming who has read a message. */
+  partyMembers?: Array<{ user_id: string; character_name: string }>;
+  /** Record that this player has seen everything up to this ISO timestamp. */
+  onMarkRead?: (iso: string) => void;
 }
 
 /** Small circular face beside a message. Tapping your own opens the picker. */
@@ -188,6 +195,10 @@ export function RoundChatDrawer({
   onUploadImage,
   oocNames,
   onSetOocName,
+
+  readReceipts,
+  partyMembers,
+  onMarkRead,
 }: RoundChatDrawerProps) {
   const [editingOocName, setEditingOocName] = useState(false);
   const [oocNameDraft, setOocNameDraft] = useState('');
@@ -282,6 +293,14 @@ export function RoundChatDrawer({
     if (isGenerating) setJustFinished(false);
     wasGeneratingRef.current = isGenerating;
   }, [isGenerating]);
+
+  // You have seen a message once it is on screen at the bottom of an open chat.
+  useEffect(() => {
+    if (!open || !pinned || !onMarkRead) return;
+    if (messages.length === 0) return;
+    const newest = messages[messages.length - 1];
+    if (newest?.created_at) onMarkRead(newest.created_at);
+  }, [open, pinned, messages, onMarkRead]);
 
 
   const lastLine = messages.length > 0 ? messages[messages.length - 1] : null;
@@ -487,6 +506,15 @@ export function RoundChatDrawer({
 
                   const selectable = !m.consumed;
                   const showActions = actionsFor === m.id;
+                  const readerNames = showActions
+                    ? (partyMembers || [])
+                        .filter(pm => pm.user_id !== m.user_id)
+                        .filter(pm => {
+                          const seenAt = readReceipts?.[pm.user_id];
+                          return !!seenAt && seenAt >= m.created_at;
+                        })
+                        .map(pm => pm.character_name)
+                    : [];
 
                   return (
                     <div
@@ -702,6 +730,15 @@ export function RoundChatDrawer({
                                 </button>
                               )}
                             </>
+                          )}
+                          {showActions && (partyMembers?.length || 0) > 0 && (
+                            <span className="font-body text-[10px] text-white/35 truncate min-w-0">
+                              {readerNames.length === 0
+                                ? 'Not seen yet'
+                                : readerNames.length === (partyMembers!.length - 1)
+                                  ? 'Seen by everyone'
+                                  : `Seen by ${readerNames.join(', ')}`}
+                            </span>
                           )}
                         </div>
 
