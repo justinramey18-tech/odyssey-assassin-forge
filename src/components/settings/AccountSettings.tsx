@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Mail, Lock, Loader2, ChevronDown, ChevronUp, Eye, EyeOff, KeyRound, Copy, Check, ShieldAlert } from 'lucide-react';
+import { Mail, Lock, Loader2, ChevronDown, ChevronUp, Eye, EyeOff, KeyRound, Copy, Check, ShieldAlert, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
