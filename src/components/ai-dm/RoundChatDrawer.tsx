@@ -196,6 +196,7 @@ export function RoundChatDrawer({
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [fullScreen, setFullScreen] = useState(false);
   const [actionsFor, setActionsFor] = useState<string | null>(null);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
   const [pinned, setPinned] = useState(true);
