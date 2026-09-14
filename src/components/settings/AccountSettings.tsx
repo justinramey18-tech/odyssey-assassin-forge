@@ -38,6 +38,39 @@ export function AccountSettings({ userEmail }: AccountSettingsProps) {
   const [codeCopied, setCodeCopied] = useState(false);
 
   const isSyntheticUser = userEmail.toLowerCase().endsWith('@odyssey.local');
+  const currentUsername = isSyntheticUser ? userEmail.split('@')[0] : '';
+
+  // Username change state (username-based accounts only)
+  const [newUsername, setNewUsername] = useState('');
+  const [usernamePassword, setUsernamePassword] = useState('');
+  const [usernameLoading, setUsernameLoading] = useState(false);
+
+  const handleChangeUsername = useCallback(async () => {
+    const result = usernameSchema.safeParse(newUsername);
+    if (!result.success) {
+      toast.error(result.error.errors[0].message);
+      return;
+    }
+    if (!usernamePassword) {
+      toast.error('Please enter your current password');
+      return;
+    }
+    setUsernameLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('change-username', {
+        body: { username: newUsername.trim().toLowerCase(), currentPassword: usernamePassword },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Username changed to ${data.username}. Use it next time you sign in.`);
+      setNewUsername('');
+      setUsernamePassword('');
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not change username.');
+    } finally {
+      setUsernameLoading(false);
+    }
+  }, [newUsername, usernamePassword]);
 
   const handleGenerateRecoveryCode = useCallback(async () => {
     setCodeLoading(true);
