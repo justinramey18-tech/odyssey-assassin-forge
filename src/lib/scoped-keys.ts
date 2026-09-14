@@ -106,4 +106,5 @@ export const SCOPED_KEYS = [
   // being listed here it is never migrated onto the scoped key and never
   // captured into the cloud save.
   'odyssey-cosmic-chef',
+  'odyssey-cosmic-chef-gear-version',
 ] as const;
