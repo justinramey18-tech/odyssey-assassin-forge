@@ -14,7 +14,7 @@ interface ActionItem {
 interface StoryMasterworkActionsProps {
   disabled?: boolean;
   onSelect: (prompt: string) => void;
-  fetchStoryPills: () => Promise<ActionItem[]>;
+  fetchStoryPills: (flavorId?: string) => Promise<ActionItem[]>;
 }
 
 export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills }: StoryMasterworkActionsProps) {
