@@ -308,9 +308,6 @@ export function RoundChatDrawer({
         label: `${progress.current} line${progress.current === 1 ? '' : 's'} ticked${isHost ? ' — tap Send to DM when ready.' : ' — waiting on the host to send.'}`,
       };
     }
-    if (progress.waiting > 0) {
-      return { tone: 'queued', label: `${progress.waiting} line${progress.waiting === 1 ? '' : 's'} waiting — tick the ones the DM should answer.` };
-    }
     return null;
   })();
 
@@ -371,7 +368,7 @@ export function RoundChatDrawer({
                   ? "text-emerald-300 border-emerald-400/30 bg-emerald-500/10"
                   : "text-white/50 border-white/15 bg-white/5"
               )}>
-                {progress.current} ticked{progress.waiting > progress.current ? ` · ${progress.waiting - progress.current} waiting` : ''}
+                {progress.current} ticked
               </span>
             </span>
             <span className="block text-[10px] text-white/40 truncate mt-0.5">
@@ -839,7 +836,7 @@ export function RoundChatDrawer({
                       </button>
                     )
                   )}
-                  {progress.waiting > 0 && (
+                  {messages.length > 0 && (
                     <button
                       onClick={progress.current > 0 ? onClearSelection : onSelectAll}
                       className="shrink-0 px-2 py-1 rounded-md text-[10px] border border-white/15 bg-white/5 text-white/60"
