@@ -1978,6 +1978,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         character_backstory: backstory,
         character_personality: personality,
         character_alignment: alignment,
+        // The alignment the player picked for THIS set of suggestions. Distinct from
+        // character_alignment, which is where the character has actually drifted —
+        // the player may deliberately ask for moves outside their usual register.
+        story_flavor_label: flavorId ? getRpFlavor(flavorId)?.label : undefined,
+        story_flavor_guidance: flavorId ? getRpFlavor(flavorId)?.guidance : undefined,
         character_bonds: bonds,
         character_flaws: flaws,
         model: (partyDm.sessionConfig as any)?.model || undefined,
