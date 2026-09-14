@@ -568,23 +568,17 @@ export function RoundChatDrawer({
                             )}
                           >
                             {avatarUrl ? (
-                              <>
-                                {/* The speaker's picture. IC and table talk resolve to
-                                    different avatar slots, so the texture itself says which
-                                    mode the message was sent in. bg-top keeps faces in frame
-                                    instead of centring on a portrait's chest. */}
-                                <span
-                                  aria-hidden="true"
-                                  className="absolute inset-0 -z-10 bg-cover bg-top opacity-[0.55] blur-[1px] scale-125 saturate-150 contrast-125"
-                                  style={{ backgroundImage: `url(${avatarUrl})` }}
-                                />
-                                {/* Scrim. Light enough to let the picture read, heavy enough
-                                    that 15px text stays legible on a phone. */}
-                                <span
-                                  aria-hidden="true"
-                                  className="absolute inset-0 -z-10 bg-black/35"
-                                />
-                              </>
+                              /* Full clarity: no blur, no scrim. Legibility is carried
+                                 entirely by the text shadow stack on the paragraph below.
+                                 IC and table talk resolve to different avatar slots, so the
+                                 picture itself says which mode the message was sent in.
+                                 bg-top keeps faces in frame rather than centring on a
+                                 portrait's chest. */
+                              <span
+                                aria-hidden="true"
+                                className="absolute inset-0 -z-10 bg-cover bg-top"
+                                style={{ backgroundImage: `url(${avatarUrl})` }}
+                              />
                             ) : (
                               /* No uploaded picture: fall back to the speaker's own colour so
                                  they are still distinguishable from everyone else. */
