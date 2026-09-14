@@ -836,7 +836,7 @@ export function RoundChatDrawer({
                       </button>
                     )
                   )}
-                  {progress.waiting > 0 && (
+                  {messages.length > 0 && (
                     <button
                       onClick={progress.current > 0 ? onClearSelection : onSelectAll}
                       className="shrink-0 px-2 py-1 rounded-md text-[10px] border border-white/15 bg-white/5 text-white/60"
