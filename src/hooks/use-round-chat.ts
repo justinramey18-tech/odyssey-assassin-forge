@@ -3,6 +3,7 @@ import { stripActionCard } from '@/lib/roundChatActionCard';
 import { supabase } from '@/integrations/supabase/client';
 
 const STYLE_STATE_TYPE = 'round_style';
+const READ_STATE_TYPE = 'round_chat_read';
 
 export type RoundTriggerRule = 'total' | 'perPlayer' | 'distinct';
 export type RoundStyleMode = 'ready' | 'chat' | 'live';
@@ -104,6 +105,8 @@ export function useRoundChat(
   const [messages, setMessages] = useState<RoundChatMessage[]>([]);
   const [reactions, setReactions] = useState<RoundChatReaction[]>([]);
   const [sending, setSending] = useState(false);
+  /** userId -> ISO timestamp of the newest message that player has seen. */
+  const [readReceipts, setReadReceipts] = useState<Record<string, string>>({});
   const roundIdRef = useRef<string | undefined>(roundId);
   useEffect(() => { roundIdRef.current = roundId; }, [roundId]);
 
@@ -126,6 +129,23 @@ export function useRoundChat(
 
   useEffect(() => { loadStyle(); }, [loadStyle]);
 
+  const loadReadReceipts = useCallback(async () => {
+    if (!partyId) return;
+    const { data } = await (supabase.from('party_shared_state') as any)
+      .select('user_id, state_data')
+      .eq('party_id', partyId)
+      .eq('state_type', READ_STATE_TYPE);
+    const rows = (data || []) as Array<{ user_id: string; state_data: any }>;
+    const next: Record<string, string> = {};
+    for (const r of rows) {
+      const ts = r?.state_data?.lastReadAt;
+      if (typeof ts === 'string') next[r.user_id] = ts;
+    }
+    setReadReceipts(next);
+  }, [partyId]);
+
+  useEffect(() => { loadReadReceipts(); }, [loadReadReceipts]);
+
   const updateStyle = useCallback(async (patch: Partial<RoundStyle>) => {
     if (!partyId || !userId) return;
     const next = parseStyle({ ...style, ...patch });
@@ -137,6 +157,26 @@ export function useRoundChat(
       state_data: next as unknown as Record<string, unknown>,
     }, { onConflict: 'party_id,user_id,state_type' });
   }, [partyId, userId, ownerUserId, style]);
+
+  /**
+   * Record that this player has seen everything up to `iso`. Writes only when it
+   * moves the marker forward, so idle scrolling cannot cause a write storm.
+   */
+  const markRead = useCallback(async (iso: string) => {
+    if (!partyId || !userId || !iso) return;
+    const current = readReceipts[userId];
+    if (current && current >= iso) return;
+
+    // Optimistic, so the local UI updates without waiting on the round trip.
+    setReadReceipts(prev => ({ ...prev, [userId]: iso }));
+
+    await (supabase.from('party_shared_state') as any).upsert({
+      party_id: partyId,
+      user_id: userId,
+      state_type: READ_STATE_TYPE,
+      state_data: { lastReadAt: iso },
+    }, { onConflict: 'party_id,user_id,state_type' });
+  }, [partyId, userId, readReceipts]);
 
   // ── Messages ──
   const loadMessages = useCallback(async () => {
@@ -192,7 +232,14 @@ export function useRoundChat(
         filter: `party_id=eq.${partyId}`,
       }, (payload: any) => {
         const row = payload.new as any;
-        if (row?.state_type === STYLE_STATE_TYPE) setStyle(parseStyle(row.state_data));
+        if (row?.state_type === STYLE_STATE_TYPE) {
+          setStyle(parseStyle(row.state_data));
+        } else if (row?.state_type === READ_STATE_TYPE) {
+          const ts = row?.state_data?.lastReadAt;
+          if (typeof ts === 'string' && row.user_id) {
+            setReadReceipts(prev => (prev[row.user_id] === ts ? prev : { ...prev, [row.user_id]: ts }));
+          }
+        }
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -414,6 +461,9 @@ export function useRoundChat(
 
     consumePending,
     reload: loadMessages,
+
+    readReceipts,
+    markRead,
   };
 }
 
