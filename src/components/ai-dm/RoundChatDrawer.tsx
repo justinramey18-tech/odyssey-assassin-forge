@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronUp, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check } from 'lucide-react';
+import { ChevronDown, ChevronUp, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X } from 'lucide-react';
 import { AvatarCropDialog } from './AvatarCropDialog';
 
 import { Textarea } from '@/components/ui/textarea';
@@ -49,6 +50,10 @@ function playerTint(userId: string): string {
   for (let i = 0; i < userId.length; i++) hash = (hash * 31 + userId.charCodeAt(i)) >>> 0;
   return PLAYER_TINTS[hash % PLAYER_TINTS.length];
 }
+
+/** Matches a message whose entire body is a shared image. Same convention the
+ *  main party DM stream uses - see IMAGE_REGEX in AIDMScreen.tsx. */
+const CHAT_IMAGE_REGEX = /^\s*\[image:(https?:\/\/[^\]]+)\]\s*$/;
 
 
 interface RoundChatDrawerProps {
@@ -191,6 +196,7 @@ export function RoundChatDrawer({
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [fullScreen, setFullScreen] = useState(false);
   const [actionsFor, setActionsFor] = useState<string | null>(null);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
   const [pinned, setPinned] = useState(true);
@@ -439,6 +445,8 @@ export function RoundChatDrawer({
                 ) : messages.map((m, idx) => {
                   const isSelf = m.user_id === currentUserId;
                   const { card, body } = parseActionCard(m.content);
+                  const imageMatch = body.match(CHAT_IMAGE_REGEX);
+                  const imageUrl = imageMatch ? imageMatch[1] : null;
                   const msgReactions = reactionsByMessage.get(m.id) || [];
                   const grouped = msgReactions.reduce<Record<string, RoundChatReaction[]>>((acc, r) => {
                     (acc[r.emoji] ||= []).push(r);
@@ -565,9 +573,10 @@ export function RoundChatDrawer({
                                 : "bg-sky-500/[0.08] border-sky-400/25 border-dashed",
                               m.selected && "ring-1 ring-emerald-400/60",
                               m.consumed && "opacity-55",
+                              imageUrl && "p-1",
                             )}
                           >
-                            {avatarUrl ? (
+                            {avatarUrl && !imageUrl ? (
                               /* Full clarity: no blur, no scrim. Legibility is carried
                                  entirely by the text shadow stack on the paragraph below.
                                  IC and table talk resolve to different avatar slots, so the
@@ -579,31 +588,41 @@ export function RoundChatDrawer({
                                 className="absolute inset-0 -z-10 bg-cover bg-top"
                                 style={{ backgroundImage: `url(${avatarUrl})` }}
                               />
-                            ) : (
+                            ) : !imageUrl ? (
                               /* No uploaded picture: fall back to the speaker's own colour so
                                  they are still distinguishable from everyone else. */
                               <span
                                 aria-hidden="true"
                                 className={cn("absolute inset-0 -z-10 opacity-20", playerTint(m.user_id))}
                               />
-                            )}
+                            ) : null}
 
-                            <p
-                              className="relative font-body text-[15px] font-medium leading-[1.5] text-white whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
-                              style={avatarUrl ? {
-                                textShadow: [
-                                  '0 0 1px rgba(0,0,0,1)',
-                                  '0 0 2px rgba(0,0,0,1)',
-                                  '0 0 3px rgba(0,0,0,1)',
-                                  '0 1px 2px rgba(0,0,0,1)',
-                                  '0 0 8px rgba(0,0,0,0.95)',
-                                  '0 0 16px rgba(0,0,0,0.9)',
-                                  '0 0 28px rgba(0,0,0,0.75)',
-                                ].join(', '),
-                              } : undefined}
-                            >
-                              {body}
-                            </p>
+                            {imageUrl ? (
+                              <img
+                                src={imageUrl}
+                                alt="Shared image"
+                                loading="lazy"
+                                onClick={(e) => { e.stopPropagation(); setViewingImage(imageUrl); }}
+                                className="relative block rounded-xl max-h-[260px] w-auto max-w-full object-contain cursor-zoom-in"
+                              />
+                            ) : (
+                              <p
+                                className="relative font-body text-[15px] font-medium leading-[1.5] text-white whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+                                style={avatarUrl && !imageUrl ? {
+                                  textShadow: [
+                                    '0 0 1px rgba(0,0,0,1)',
+                                    '0 0 2px rgba(0,0,0,1)',
+                                    '0 0 3px rgba(0,0,0,1)',
+                                    '0 1px 2px rgba(0,0,0,1)',
+                                    '0 0 8px rgba(0,0,0,0.95)',
+                                    '0 0 16px rgba(0,0,0,0.9)',
+                                    '0 0 28px rgba(0,0,0,0.75)',
+                                  ].join(', '),
+                                } : undefined}
+                              >
+                                {body}
+                              </p>
+                            )}
 
                           </button>
                         )}
@@ -930,6 +949,29 @@ export function RoundChatDrawer({
           await onUploadAvatar?.(kind, cropped);
         }}
       />
+
+      {viewingImage && createPortal(
+        <div
+          className="fixed inset-0 z-[90] bg-black/95 flex items-center justify-center p-4"
+          onClick={() => setViewingImage(null)}
+          style={{ touchAction: 'manipulation' }}
+        >
+          <img
+            src={viewingImage}
+            alt="Shared image"
+            className="max-w-full max-h-full object-contain rounded-lg"
+          />
+          <button
+            onClick={() => setViewingImage(null)}
+            aria-label="Close image"
+            className="absolute top-4 right-4 w-11 h-11 flex items-center justify-center rounded-full bg-black/70 border border-white/20 text-white/80"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
