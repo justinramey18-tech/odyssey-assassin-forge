@@ -89,6 +89,8 @@ interface RoundChatDrawerProps {
   /** Per-player avatars: { [userId]: { ic, ooc } } */
   avatars?: Record<string, { ic?: string; ooc?: string }>;
   onUploadAvatar?: (kind: 'ic' | 'ooc', file: File) => void | Promise<void>;
+  /** Uploads a picture and resolves to its public URL, or null if it failed. */
+  onUploadImage?: (file: File) => Promise<string | null>;
   /** Per-player table-talk (out-of-character) display names: { [userId]: name } */
   oocNames?: Record<string, string>;
   onSetOocName?: (name: string) => void | Promise<void>;
