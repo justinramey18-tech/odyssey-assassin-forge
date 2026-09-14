@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Dices, Gem, ListChecks, Bird, Ghost, Settings, Eye, X, PawPrint, ScrollText } from 'lucide-react';
