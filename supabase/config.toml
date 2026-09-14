@@ -61,3 +61,5 @@ project_id = "sqvcszzbkyzidigsdqgk"
     verify_jwt = false
   [functions.party-sync-identity]
     verify_jwt = true
+  [functions.change-username]
+    verify_jwt = true

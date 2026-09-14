@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Mail, Lock, Loader2, ChevronDown, ChevronUp, Eye, EyeOff, KeyRound, Copy, Check, ShieldAlert } from 'lucide-react';
+import { Mail, Lock, Loader2, ChevronDown, ChevronUp, Eye, EyeOff, KeyRound, Copy, Check, ShieldAlert, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,12 @@ import { generateRecoveryCode } from '@/lib/recovery-code';
 
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
+const usernameSchema = z
+  .string()
+  .trim()
+  .min(3, 'Username must be at least 3 characters')
+  .max(24, 'Username must be at most 24 characters')
+  .regex(/^[a-zA-Z0-9_-]+$/, 'Letters, numbers, underscore or hyphen only');
 
 interface AccountSettingsProps {
   userEmail: string;
@@ -38,6 +44,39 @@ export function AccountSettings({ userEmail }: AccountSettingsProps) {
   const [codeCopied, setCodeCopied] = useState(false);
 
   const isSyntheticUser = userEmail.toLowerCase().endsWith('@odyssey.local');
+  const currentUsername = isSyntheticUser ? userEmail.split('@')[0] : '';
+
+  // Username change state (username-based accounts only)
+  const [newUsername, setNewUsername] = useState('');
+  const [usernamePassword, setUsernamePassword] = useState('');
+  const [usernameLoading, setUsernameLoading] = useState(false);
+
+  const handleChangeUsername = useCallback(async () => {
+    const result = usernameSchema.safeParse(newUsername);
+    if (!result.success) {
+      toast.error(result.error.errors[0].message);
+      return;
+    }
+    if (!usernamePassword) {
+      toast.error('Please enter your current password');
+      return;
+    }
+    setUsernameLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('change-username', {
+        body: { username: newUsername.trim().toLowerCase(), currentPassword: usernamePassword },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Username changed to ${data.username}. Use it next time you sign in.`);
+      setNewUsername('');
+      setUsernamePassword('');
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not change username.');
+    } finally {
+      setUsernameLoading(false);
+    }
+  }, [newUsername, usernamePassword]);
 
   const handleGenerateRecoveryCode = useCallback(async () => {
     setCodeLoading(true);
@@ -151,33 +190,74 @@ export function AccountSettings({ userEmail }: AccountSettingsProps) {
         <div className="px-3 pb-3 space-y-4">
           <Separator />
 
-          {/* Change Email */}
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <Mail className="w-3 h-3" />
-              Change Email
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              Current: <span className="text-foreground">{userEmail}</span>
-            </p>
-            <Input
-              type="email"
-              placeholder="New email address"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleChangeEmail()}
-              className="h-8 text-sm"
-            />
-            <Button
-              size="sm"
-              className="w-full gap-1.5"
-              onClick={handleChangeEmail}
-              disabled={emailLoading || !newEmail}
-            >
-              {emailLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Mail className="w-3 h-3" />}
-              Update Email
-            </Button>
-          </div>
+          {isSyntheticUser ? (
+            /* Change Username */
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <User className="w-3 h-3" />
+                Change Username
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Current: <span className="text-foreground">{currentUsername}</span>
+              </p>
+              <Input
+                type="text"
+                placeholder="New username (3-24 chars)"
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                autoComplete="username"
+                className="h-8 text-sm"
+              />
+              <Input
+                type="password"
+                placeholder="Current password"
+                value={usernamePassword}
+                onChange={(e) => setUsernamePassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleChangeUsername()}
+                autoComplete="current-password"
+                className="h-8 text-sm"
+              />
+              <Button
+                size="sm"
+                className="w-full gap-1.5"
+                style={{ touchAction: 'manipulation' }}
+                onClick={handleChangeUsername}
+                disabled={usernameLoading || !newUsername || !usernamePassword}
+              >
+                {usernameLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <User className="w-3 h-3" />}
+                Update Username
+              </Button>
+            </div>
+          ) : (
+            /* Change Email */
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Mail className="w-3 h-3" />
+                Change Email
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Current: <span className="text-foreground">{userEmail}</span>
+              </p>
+              <Input
+                type="email"
+                placeholder="New email address"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleChangeEmail()}
+                className="h-8 text-sm"
+              />
+              <Button
+                size="sm"
+                className="w-full gap-1.5"
+                style={{ touchAction: 'manipulation' }}
+                onClick={handleChangeEmail}
+                disabled={emailLoading || !newEmail}
+              >
+                {emailLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Mail className="w-3 h-3" />}
+                Update Email
+              </Button>
+            </div>
+          )}
 
           <Separator />
 
