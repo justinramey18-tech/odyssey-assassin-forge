@@ -597,22 +597,32 @@ export function RoundChatDrawer({
                               />
                             ) : null}
 
-                            <p
-                              className="relative font-body text-[15px] font-medium leading-[1.5] text-white whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
-                              style={avatarUrl ? {
-                                textShadow: [
-                                  '0 0 1px rgba(0,0,0,1)',
-                                  '0 0 2px rgba(0,0,0,1)',
-                                  '0 0 3px rgba(0,0,0,1)',
-                                  '0 1px 2px rgba(0,0,0,1)',
-                                  '0 0 8px rgba(0,0,0,0.95)',
-                                  '0 0 16px rgba(0,0,0,0.9)',
-                                  '0 0 28px rgba(0,0,0,0.75)',
-                                ].join(', '),
-                              } : undefined}
-                            >
-                              {body}
-                            </p>
+                            {imageUrl ? (
+                              <img
+                                src={imageUrl}
+                                alt="Shared image"
+                                loading="lazy"
+                                onClick={(e) => { e.stopPropagation(); setViewingImage(imageUrl); }}
+                                className="relative block rounded-xl max-h-[260px] w-auto max-w-full object-contain cursor-zoom-in"
+                              />
+                            ) : (
+                              <p
+                                className="relative font-body text-[15px] font-medium leading-[1.5] text-white whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+                                style={avatarUrl && !imageUrl ? {
+                                  textShadow: [
+                                    '0 0 1px rgba(0,0,0,1)',
+                                    '0 0 2px rgba(0,0,0,1)',
+                                    '0 0 3px rgba(0,0,0,1)',
+                                    '0 1px 2px rgba(0,0,0,1)',
+                                    '0 0 8px rgba(0,0,0,0.95)',
+                                    '0 0 16px rgba(0,0,0,0.9)',
+                                    '0 0 28px rgba(0,0,0,0.75)',
+                                  ].join(', '),
+                                } : undefined}
+                              >
+                                {body}
+                              </p>
+                            )}
 
                           </button>
                         )}
