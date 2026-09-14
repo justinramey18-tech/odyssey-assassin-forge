@@ -445,6 +445,8 @@ export function RoundChatDrawer({
                 ) : messages.map((m, idx) => {
                   const isSelf = m.user_id === currentUserId;
                   const { card, body } = parseActionCard(m.content);
+                  const imageMatch = body.match(CHAT_IMAGE_REGEX);
+                  const imageUrl = imageMatch ? imageMatch[1] : null;
                   const msgReactions = reactionsByMessage.get(m.id) || [];
                   const grouped = msgReactions.reduce<Record<string, RoundChatReaction[]>>((acc, r) => {
                     (acc[r.emoji] ||= []).push(r);
