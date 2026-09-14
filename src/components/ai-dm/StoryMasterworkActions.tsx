@@ -49,11 +49,17 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills }: 
       <button
         onClick={generate}
         disabled={disabled}
-        className="w-full flex items-start gap-2 text-left py-2.5 px-3 rounded-lg border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 text-amber-300/80 hover:text-amber-300 text-xs leading-snug transition-colors disabled:opacity-40"
+        className="relative isolate w-full flex items-start gap-2 text-left py-2.5 px-3 rounded-lg border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 text-amber-100 hover:text-amber-50 text-xs leading-snug transition-colors disabled:opacity-40 overflow-hidden"
         style={{ touchAction: 'manipulation' }}
       >
-        <Sparkles className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-        <span>
+        <div
+          className="absolute inset-0 -z-10 bg-cover bg-center opacity-40"
+          style={{ backgroundImage: `url(${offeringJointAsset.url})` }}
+          aria-hidden="true"
+        />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/70 via-black/50 to-black/70" aria-hidden="true" />
+        <Sparkles className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-300" />
+        <span className="relative">
           Are you a pothead? Too high to roleplay? Not high enough? No worries! Tap me and ill generate you some moves to choose from!{' '}
           <span className="font-bold text-amber-300">CLICK HERE!!!</span>
         </span>
