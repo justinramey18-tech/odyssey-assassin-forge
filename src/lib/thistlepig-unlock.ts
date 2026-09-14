@@ -8,6 +8,8 @@ import {
   THISTLEPIG_BACKSTORY,
   THISTLEPIG_CONSUMABLES,
   THISTLEPIG_GEAR,
+  THISTLEPIG_GEAR_VERSION,
+  THISTLEPIG_GEAR_VERSION_KEY,
   THISTLEPIG_GENDER,
   THISTLEPIG_LEVEL,
   THISTLEPIG_NAME,
@@ -28,8 +30,11 @@ import {
   saveHomebrewGear,
   type HomebrewGearItem,
 } from '@/lib/inventory/homebrewGear';
-import { createInitialEquipment } from '@/lib/inventory';
-import type { EquipmentItem } from '@/lib/inventory/types';
+import type {
+  CharacterEquipment,
+  EquipmentItem,
+  EquipmentSlotType,
+} from '@/lib/inventory/types';
 import type { WizardState } from '@/components/wizard/types';
 
 const ABILITY_KEY = 'odyssey-ability-customization';
@@ -57,19 +62,43 @@ function writeAbilities(): void {
   setScopedItem(ABILITY_KEY, JSON.stringify(state));
 }
 
-/** Writes his gear into the homebrew gear store and returns a filled equipment object. */
-function writeGear() {
-  const equipment = createInitialEquipment();
+/** Every slot, explicitly empty. NOT createInitialEquipment(), which pre-fills
+ *  each slot with sample demo gear and buries real gear in the bag. */
+function emptySlots(): Record<EquipmentSlotType, EquipmentItem | null> {
+  return {
+    head: null,
+    chest: null,
+    arms: null,
+    waist: null,
+    legs: null,
+    cloak: null,
+    primary_weapon: null,
+    secondary_weapon: null,
+    ranged_weapon: null,
+    amulet: null,
+    ring1: null,
+    ring2: null,
+  };
+}
+
+/**
+ * Builds Thistlepig's equipment from THISTLEPIG_GEAR and saves the items into
+ * the homebrew gear library. First item to claim a slot wins; anything later
+ * sharing that slot goes to the bag. Exported so the re-gear migration can reuse it.
+ */
+export function buildThistlepigEquipment(): CharacterEquipment {
+  const slots = emptySlots();
+  const inventory: EquipmentItem[] = [];
   const created: HomebrewGearItem[] = [];
 
   for (const form of THISTLEPIG_GEAR) {
     const item = formToEquipmentItem(form);
     created.push(item);
-    const slot = item.slotType;
-    if (slot && !equipment.slots[slot]) {
-      equipment.slots[slot] = item;
+    const slot = item.slotType as EquipmentSlotType;
+    if (slot && slots[slot] === null) {
+      slots[slot] = item;
     } else {
-      equipment.inventory.push(item);
+      inventory.push(item);
     }
   }
 
@@ -79,7 +108,7 @@ function writeGear() {
     console.error('[Thistlepig] Could not save homebrew gear:', e);
   }
 
-  return equipment;
+  return { slots, inventory };
 }
 
 /** Drops his three consumables into the bag. */
@@ -155,12 +184,13 @@ export function unlockThistlepig(): WizardState {
   writeAbilities();
   writeConsumables();
   writeAlignment();
-  const equipment = writeGear();
+  const equipment = buildThistlepigEquipment();
 
   setScopedItem('dnd-character-gender', THISTLEPIG_GENDER);
   setScopedItem('dnd-character-race', THISTLEPIG_RACE);
   setScopedItem('dnd-character-backstory', THISTLEPIG_BACKSTORY.slice(0, 2000));
   setScopedItem(COSMIC_CHEF_MODE_KEY, 'true');
+  setScopedItem(THISTLEPIG_GEAR_VERSION_KEY, String(THISTLEPIG_GEAR_VERSION));
 
   console.log('[Thistlepig] Cosmic Chef unlocked.');
 
