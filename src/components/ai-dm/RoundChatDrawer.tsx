@@ -305,7 +305,7 @@ export function RoundChatDrawer({
         {/* grab handle */}
         <div className="mx-auto mb-2 h-1.5 w-14 rounded-full bg-amber-400/35" />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
-        <div className="flex items-center gap-2 pr-9">
+        <div className="flex items-center gap-2">
           <span className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/25">
             <MessageSquare className="w-4 h-4 text-amber-300/80" />
           </span>
