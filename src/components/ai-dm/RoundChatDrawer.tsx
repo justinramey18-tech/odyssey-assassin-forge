@@ -949,6 +949,29 @@ export function RoundChatDrawer({
           await onUploadAvatar?.(kind, cropped);
         }}
       />
+
+      {viewingImage && createPortal(
+        <div
+          className="fixed inset-0 z-[90] bg-black/95 flex items-center justify-center p-4"
+          onClick={() => setViewingImage(null)}
+          style={{ touchAction: 'manipulation' }}
+        >
+          <img
+            src={viewingImage}
+            alt="Shared image"
+            className="max-w-full max-h-full object-contain rounded-lg"
+          />
+          <button
+            onClick={() => setViewingImage(null)}
+            aria-label="Close image"
+            className="absolute top-4 right-4 w-11 h-11 flex items-center justify-center rounded-full bg-black/70 border border-white/20 text-white/80"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
