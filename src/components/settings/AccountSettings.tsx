@@ -12,6 +12,12 @@ import { generateRecoveryCode } from '@/lib/recovery-code';
 
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
+const usernameSchema = z
+  .string()
+  .trim()
+  .min(3, 'Username must be at least 3 characters')
+  .max(24, 'Username must be at most 24 characters')
+  .regex(/^[a-zA-Z0-9_-]+$/, 'Letters, numbers, underscore or hyphen only');
 
 interface AccountSettingsProps {
   userEmail: string;
