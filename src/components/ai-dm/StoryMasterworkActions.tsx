@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Sparkles, X, RotateCcw, Check, Loader2 } from 'lucide-react';
+import { Sparkles, X, RotateCcw, Check, Loader2, ChevronLeft } from 'lucide-react';
 import offeringJointAsset from '@/assets/offering-joint.jpg.asset.json';
+import { RP_FLAVORS, getRpFlavor, type RpFlavor } from '@/lib/rpFlavors';
 
 interface ActionItem {
   id: string;
