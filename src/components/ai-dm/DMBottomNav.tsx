@@ -90,6 +90,16 @@ const activeIndicatorColors: Record<DMNavTab, string> = {
 };
 
 export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive, oracleLabel, oracleColor, oracleActiveBg, afkLabel, afkColor, afkActiveBg, afkIcon, hideDice, hideAfk, hidePrompts, hideActions, hideSettings, showCharacterSheet, onCharacterSheet, headerContent, notchLabelOverride, notchIconOverride }: DMBottomNavProps) {
+  const [roundChatExpanded, setRoundChatExpanded] = useState(false);
+
+  useEffect(() => {
+    const update = () => setRoundChatExpanded(document.body.classList.contains('round-chat-expanded'));
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
   const afkOrWildShape = showWildShape ? WILDSHAPE_TAB : AFK_TAB;
   const afkTab = {
     ...afkOrWildShape,
