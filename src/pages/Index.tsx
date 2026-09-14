@@ -7,6 +7,7 @@ import { SCOPED_KEYS } from '@/lib/scoped-keys';
 import { loadTimezone, TIMEZONE_CHANGE_EVENT } from '@/lib/timezone-storage';
 import {
   isCosmicChefMode,
+  COSMIC_CHEF_LABEL,
   THISTLEPIG_GEAR_VERSION,
   THISTLEPIG_GEAR_VERSION_KEY,
   THISTLEPIG_CONSUMABLES,
@@ -1229,7 +1230,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       ac: effectiveAC,
       conditions: conditions.conditions.map(c => c.name),
       level: character.level,
-      className: character.primaryClass,
+      // Thistlepig rides the rogue chassis for engine compatibility but must never
+      // be announced to the party or the DM as a Rogue.
+      className: isCosmicChefMode() ? COSMIC_CHEF_LABEL : character.primaryClass,
       quickActions: quickActionsSummary,
       profileImage: profileImageThumb,
       timezone: userTimezone,
@@ -1248,6 +1251,11 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         .filter(([, item]) => item !== null)
         .map(([slot, item]) => ({ slot, name: item!.name })),
       multiclassLevels: character.multiclassLevels ?? undefined,
+      // Capped so four players' backstories cannot bloat the realtime payload or
+      // crowd out the rest of the DM prompt.
+      backstory: characterIdentity.backstory
+        ? characterIdentity.backstory.slice(0, 1000)
+        : undefined,
       // Spell slots for party synergy awareness
       spellSlots: !isRogueClass ? Object.fromEntries(
         Object.entries(classSpellcasting.state.spellSlots)
@@ -1255,7 +1263,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           .map(([lvl, s]) => [lvl, { current: (s as any).current, max: (s as any).max }])
       ) : undefined,
     });
-  }, [partySync, effectiveCurrentHP, effectiveMaxHP, effectiveTempHP, effectiveAC, conditions.conditions, character.level, character.primaryClass, quickActionsSummary, profileImageThumb, userTimezone, characterIdentity.race, characterIdentity.gender, abilityScores.finalScores, equipment.slots, character.multiclassLevels, isRogueClass, classSpellcasting.state.spellSlots]);
+  }, [partySync, effectiveCurrentHP, effectiveMaxHP, effectiveTempHP, effectiveAC, conditions.conditions, character.level, character.primaryClass, quickActionsSummary, profileImageThumb, userTimezone, characterIdentity.race, characterIdentity.gender, characterIdentity.backstory, abilityScores.finalScores, equipment.slots, character.multiclassLevels, isRogueClass, classSpellcasting.state.spellSlots]);
 
   // Legacy spentPoints for compatibility
   const spentPoints = getTotalPointsSpent(character.abilities);

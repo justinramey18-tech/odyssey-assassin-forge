@@ -72,6 +72,8 @@ export interface PartyMember {
     abilityScores?: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
     equippedGear?: Array<{ slot: string; name: string }>;
     multiclassLevels?: Record<string, number>;
+    /** Short character backstory, shared so the DM can write everyone in character. */
+    backstory?: string;
   };
   joined_at: string;
   updated_at: string;
