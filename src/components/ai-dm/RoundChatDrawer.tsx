@@ -308,9 +308,6 @@ export function RoundChatDrawer({
         label: `${progress.current} line${progress.current === 1 ? '' : 's'} ticked${isHost ? ' — tap Send to DM when ready.' : ' — waiting on the host to send.'}`,
       };
     }
-    if (progress.waiting > 0) {
-      return { tone: 'queued', label: `${progress.waiting} line${progress.waiting === 1 ? '' : 's'} waiting — tick the ones the DM should answer.` };
-    }
     return null;
   })();
 
