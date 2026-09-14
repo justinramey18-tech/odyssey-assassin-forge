@@ -461,6 +461,29 @@ export function StandalonePartyDMScreen({
   // Shared party quest board + world-state log (declared here so the DM prompt can read it).
   const partyQuests = usePartyQuests(partyId, userId);
 
+  // Backfill identity fields for party members whose client has not reopened
+  // since these fields were added to the broadcast. Reads their latest cloud
+  // save server-side and merges backstory, race and the Cosmic Chef label into
+  // party_members, so the DM prompt is complete without waiting on anyone.
+  const identityBackfillRan = useRef(false);
+  useEffect(() => {
+    if (identityBackfillRan.current) return;
+    if (!partyId || !isHost) return;
+    identityBackfillRan.current = true;
+
+    supabase.functions
+      .invoke('party-sync-identity', { body: { partyId } })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('[PartyIdentitySync] failed:', error);
+          return;
+        }
+        console.log('[PartyIdentitySync]', data);
+      })
+      .catch(err => console.error('[PartyIdentitySync] threw:', err));
+  }, [partyId, isHost]);
+
+
   const weatherWorldState = useMemo(() => {
     const parts: string[] = [];
     if (loadWeatherEnabled()) {
