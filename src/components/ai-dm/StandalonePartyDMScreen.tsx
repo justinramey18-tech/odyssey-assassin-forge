@@ -45,6 +45,7 @@ import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 import { getScopedItem } from '@/lib/scoped-storage';
 import { addPendingDmItems } from '@/lib/pendingDmItems';
+import { buildQuestScanText } from '@/lib/questScanSource';
 
 // Stable no-op fallbacks (module-level for referential stability)
 const NOOP = () => {};

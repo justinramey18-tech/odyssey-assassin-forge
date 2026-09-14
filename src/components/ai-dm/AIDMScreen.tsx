@@ -70,6 +70,7 @@ import rehypeRaw from 'rehype-raw';
 import { useNarrator } from '@/hooks/use-narrator';
 import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
+import { buildQuestScanText } from '@/lib/questScanSource';
 import type { DMChatTheme } from '@/lib/dm-chat-themes';
 
 
