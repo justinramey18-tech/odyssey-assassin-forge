@@ -7,6 +7,7 @@ import { AvatarCropDialog } from './AvatarCropDialog';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { parseActionCard } from '@/lib/roundChatActionCard';
+import { parseReply, quotePreview } from '@/lib/chatReply';
 import { QuickActionLine } from './QuickActionCard';
 import type { RoundChatMessage, RoundChatReaction, RoundStyle } from '@/hooks/use-round-chat';
 
@@ -222,6 +223,16 @@ export function RoundChatDrawer({
   const [justFinished, setJustFinished] = useState(false);
   // Picture chosen but not yet cropped — the crop dialog owns it until confirmed.
   const [cropTarget, setCropTarget] = useState<{ kind: 'ic' | 'ooc'; file: File } | null>(null);
+
+  const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const jumpToMessage = useCallback((id: string) => {
+    const el = messageRefs.current[id];
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('ring-1', 'ring-amber-400/70');
+    setTimeout(() => el.classList.remove('ring-1', 'ring-amber-400/70'), 1200);
+  }, []);
 
   useEffect(() => {
     if (open) setFullScreen(true);
@@ -477,7 +488,11 @@ export function RoundChatDrawer({
                 ) : messages.map((m, idx) => {
                   const isSelf = m.user_id === currentUserId;
                   const { card, body } = parseActionCard(m.content);
-                  const imageMatch = body.match(CHAT_IMAGE_REGEX);
+                  const parsedReply = parseReply(body);
+                  const quoted = parsedReply.replyToId
+                    ? messages.find(mm => mm.id === parsedReply.replyToId)
+                    : null;
+                  const imageMatch = parsedReply.body.match(CHAT_IMAGE_REGEX);
                   const imageUrl = imageMatch ? imageMatch[1] : null;
                   const msgReactions = reactionsByMessage.get(m.id) || [];
                   const grouped = msgReactions.reduce<Record<string, RoundChatReaction[]>>((acc, r) => {
@@ -519,6 +534,7 @@ export function RoundChatDrawer({
                   return (
                     <div
                       key={m.id}
+                      ref={(el) => { messageRefs.current[m.id] = el; }}
                       className={cn(
                         "flex items-end gap-2",
                         stacked ? "mt-0.5" : "mt-3 first:mt-0",
@@ -638,6 +654,22 @@ export function RoundChatDrawer({
                               />
                             ) : null}
 
+                            {parsedReply.replyToId && (
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => { e.stopPropagation(); jumpToMessage(parsedReply.replyToId!); }}
+                                className="relative block mb-1.5 pl-2 border-l-2 border-amber-400/60 text-left cursor-pointer"
+                              >
+                                <span className="block font-body text-[11px] font-semibold text-amber-300/90 truncate">
+                                  {quoted?.character_name || 'Deleted message'}
+                                </span>
+                                <span className="block font-body text-[11px] text-white/50 truncate">
+                                  {quoted ? quotePreview(quoted.content) : 'This message is no longer here'}
+                                </span>
+                              </span>
+                            )}
+
                             {imageUrl ? (
                               <img
                                 src={imageUrl}
@@ -661,7 +693,7 @@ export function RoundChatDrawer({
                                   ].join(', '),
                                 } : undefined}
                               >
-                                {body}
+                                {parsedReply.body}
                               </p>
                             )}
 
