@@ -3037,8 +3037,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         </button>
       </div>
 
-      {/* Chat Rounds: mini party chat that drives the DM */}
-      {partyDm.isActive && chatRoundsOn && (
+      {/* Chat Rounds: mini party chat that drives the DM.
+          Shown whenever the table is in chat/live mode — it must not vanish just
+          because the session config hasn't loaded or the host hasn't started yet. */}
+      {chatRoundsOn && (
         <RoundChatDrawer
           open={roundChatOpen}
           onOpenChange={setRoundChatOpen}

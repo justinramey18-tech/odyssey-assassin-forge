@@ -110,13 +110,19 @@ export function useRoundChat(
   // ── Style ──
   const loadStyle = useCallback(async () => {
     if (!partyId) return;
+    // More than one member may have written a settings row. Never fail on that:
+    // prefer the host's row, otherwise the most recently saved one.
     const { data } = await (supabase.from('party_shared_state') as any)
-      .select('state_data')
+      .select('user_id, state_data, updated_at')
       .eq('party_id', partyId)
       .eq('state_type', STYLE_STATE_TYPE)
-      .maybeSingle();
-    if (data?.state_data) setStyle(parseStyle(data.state_data));
-  }, [partyId]);
+      .order('updated_at', { ascending: false })
+      .limit(10);
+    const rows = (data || []) as Array<{ user_id: string; state_data: unknown }>;
+    if (rows.length === 0) return;
+    const preferred = (ownerUserId && rows.find(r => r.user_id === ownerUserId)) || rows[0];
+    if (preferred?.state_data) setStyle(parseStyle(preferred.state_data));
+  }, [partyId, ownerUserId]);
 
   useEffect(() => { loadStyle(); }, [loadStyle]);
 
@@ -194,6 +200,9 @@ export function useRoundChat(
 
   const sendMessage = useCallback(async (content: string, inCharacter: boolean) => {
     const text = content.trim();
+    // Before the host starts the session there is no round yet — keep the table
+    // usable by tagging early lines with a local round id.
+    if (!roundIdRef.current) roundIdRef.current = crypto.randomUUID();
     const round = roundIdRef.current;
     if (!partyId || !userId || !text || !round) return;
     setSending(true);
