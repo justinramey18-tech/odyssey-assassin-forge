@@ -54,18 +54,23 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills }: 
         <button
           onClick={generate}
           disabled={disabled}
-          className="relative isolate w-full flex flex-col items-center gap-2 text-center py-8 px-5 rounded-lg border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 text-amber-100 hover:text-amber-50 text-xs leading-snug transition-colors disabled:opacity-40 overflow-hidden"
+          className="relative isolate w-full flex flex-col justify-between items-center text-center min-h-[220px] py-5 px-4 rounded-lg border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 text-amber-100 hover:text-amber-50 text-xs leading-snug transition-colors disabled:opacity-40 overflow-hidden"
           style={{ touchAction: 'manipulation' }}
         >
           <div
-            className="absolute inset-0 -z-10 bg-cover bg-center opacity-60"
+            className="absolute inset-0 -z-10 bg-cover bg-center"
             style={{ backgroundImage: `url(${offeringJointAsset.url})` }}
             aria-hidden="true"
           />
-          <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/70 via-black/50 to-black/70" aria-hidden="true" />
-          <Sparkles className="w-5 h-5 shrink-0 text-amber-300" />
+          <div className="absolute inset-0 -z-10 bg-gradient-to-b from-black/80 via-black/20 to-black/80" aria-hidden="true" />
+          <div className="flex items-start gap-2 justify-center w-full">
+            <Sparkles className="w-4 h-4 shrink-0 mt-0.5 text-amber-300" />
+            <span className="relative max-w-[260px]">
+              Are you a pothead? Too high to roleplay? Not high enough?
+            </span>
+          </div>
           <span className="relative max-w-[260px]">
-            Are you a pothead? Too high to roleplay? Not high enough? No worries! Tap me and ill generate you some moves to choose from!{' '}
+            No worries! Tap me and ill generate you some moves to choose from!{' '}
             <span className="font-bold text-amber-300">CLICK HERE!!!</span>
           </span>
         </button>
