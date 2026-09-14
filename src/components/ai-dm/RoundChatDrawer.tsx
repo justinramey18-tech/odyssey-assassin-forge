@@ -51,6 +51,10 @@ function playerTint(userId: string): string {
   return PLAYER_TINTS[hash % PLAYER_TINTS.length];
 }
 
+/** Matches a message whose entire body is a shared image. Same convention the
+ *  main party DM stream uses - see IMAGE_REGEX in AIDMScreen.tsx. */
+const CHAT_IMAGE_REGEX = /^\s*\[image:(https?:\/\/[^\]]+)\]\s*$/;
+
 
 interface RoundChatDrawerProps {
   open: boolean;
