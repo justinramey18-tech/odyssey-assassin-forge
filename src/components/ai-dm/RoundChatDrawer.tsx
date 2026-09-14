@@ -30,6 +30,27 @@ function playerColor(userId?: string | null): string {
   return PLAYER_COLORS[hash % PLAYER_COLORS.length];
 }
 
+/** Background counterparts to PLAYER_COLORS, for players with no uploaded avatar. */
+const PLAYER_TINTS = [
+  'bg-emerald-400',
+  'bg-sky-400',
+  'bg-violet-400',
+  'bg-rose-400',
+  'bg-lime-400',
+  'bg-cyan-400',
+  'bg-fuchsia-400',
+  'bg-orange-400',
+];
+
+/** Background counterpart to playerColor, for players with no uploaded avatar. */
+function playerTint(userId: string): string {
+  if (!userId) return 'bg-white/10';
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) hash = (hash * 31 + userId.charCodeAt(i)) >>> 0;
+  return PLAYER_TINTS[hash % PLAYER_TINTS.length];
+}
+
+
 interface RoundChatDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -546,30 +567,42 @@ export function RoundChatDrawer({
                               m.consumed && "opacity-55",
                             )}
                           >
-                            {avatarUrl && (
+                            {avatarUrl ? (
                               <>
-                                {/* The speaker's picture, pushed well back. IC and table talk
-                                    resolve to different avatars, so the texture itself tells
-                                    you which mode the message was sent in. */}
+                                {/* The speaker's picture. IC and table talk resolve to
+                                    different avatar slots, so the texture itself says which
+                                    mode the message was sent in. bg-top keeps faces in frame
+                                    instead of centring on a portrait's chest. */}
                                 <span
                                   aria-hidden="true"
-                                  className="absolute inset-0 -z-10 bg-cover bg-center opacity-[0.30] blur-[3px] scale-110 saturate-75"
+                                  className="absolute inset-0 -z-10 bg-cover bg-top opacity-[0.55] blur-[2px] scale-125 saturate-150 contrast-125"
                                   style={{ backgroundImage: `url(${avatarUrl})` }}
                                 />
-                                {/* Scrim. Without this, 15px text over an arbitrary photo is
-                                    unreadable on a phone. */}
+                                {/* Scrim. Light enough to let the picture read, heavy enough
+                                    that 15px text stays legible on a phone. */}
                                 <span
                                   aria-hidden="true"
-                                  className="absolute inset-0 -z-10 bg-black/55"
+                                  className="absolute inset-0 -z-10 bg-black/35"
                                 />
                               </>
+                            ) : (
+                              /* No uploaded picture: fall back to the speaker's own colour so
+                                 they are still distinguishable from everyone else. */
+                              <span
+                                aria-hidden="true"
+                                className={cn("absolute inset-0 -z-10 opacity-20", playerTint(m.user_id))}
+                              />
                             )}
+
                             <p
-                              className="relative font-body text-[15px] leading-[1.45] text-white/95 whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
-                              style={avatarUrl ? { textShadow: '0 1px 3px rgba(0,0,0,0.85)' } : undefined}
+                              className="relative font-body text-[15px] leading-[1.45] text-white whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+                              style={avatarUrl
+                                ? { textShadow: '0 1px 4px rgba(0,0,0,0.95), 0 0 14px rgba(0,0,0,0.8)' }
+                                : undefined}
                             >
                               {body}
                             </p>
+
                           </button>
                         )}
 
