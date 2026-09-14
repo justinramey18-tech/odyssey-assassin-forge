@@ -3141,6 +3141,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               return null;
             }
           }}
+
+          readReceipts={roundChat.readReceipts}
+          partyMembers={members.map(m => ({
+            user_id: m.user_id,
+            character_name: m.character_name || 'Player',
+          }))}
+          onMarkRead={roundChat.markRead}
         />
       )}
 
