@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronUp, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check } from 'lucide-react';
+import { ChevronDown, ChevronUp, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, Maximize2, Minimize2 } from 'lucide-react';
 import { AvatarCropDialog } from './AvatarCropDialog';
 
 import { Textarea } from '@/components/ui/textarea';
@@ -168,6 +168,7 @@ export function RoundChatDrawer({
   const [text, setText] = useState('');
   const [inCharacter, setInCharacter] = useState(true);
   const [pickerFor, setPickerFor] = useState<string | null>(null);
+  const [fullScreen, setFullScreen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
   const [pinned, setPinned] = useState(true);
@@ -177,6 +178,10 @@ export function RoundChatDrawer({
   const [justFinished, setJustFinished] = useState(false);
   // Picture chosen but not yet cropped — the crop dialog owns it until confirmed.
   const [cropTarget, setCropTarget] = useState<{ kind: 'ic' | 'ooc'; file: File } | null>(null);
+
+  useEffect(() => {
+    if (!open) setFullScreen(false);
+  }, [open]);
 
 
   // Outside suggestions land in the composer so the player can edit before sending.
@@ -281,18 +286,24 @@ export function RoundChatDrawer({
   };
 
   return (
-    <div className="border-t border-amber-900/30 bg-gradient-to-b from-amber-950/25 to-black/40 overflow-hidden">
+    <div className={cn(
+      "relative border-t border-amber-900/30 bg-gradient-to-b from-amber-950/25 to-black/40 overflow-hidden",
+      fullScreen && "fixed inset-0 z-50 flex flex-col border-t-0 bg-[#0b0b10]",
+    )}>
       {/* Expansion trigger — large, ornamented header */}
       <button
         onClick={() => onOpenChange(!open)}
         aria-expanded={open}
-        className="w-full relative px-3 pt-2 pb-3 text-left transition-colors hover:bg-amber-500/[0.06] active:bg-amber-500/10"
+        className={cn(
+          "w-full relative px-3 pt-2 pb-3 text-left transition-colors hover:bg-amber-500/[0.06] active:bg-amber-500/10",
+          fullScreen && "shrink-0"
+        )}
         style={{ touchAction: 'manipulation', minHeight: 64 }}
       >
         {/* grab handle */}
         <div className="mx-auto mb-2 h-1.5 w-14 rounded-full bg-amber-400/35" />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pr-9">
           <span className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/25">
             <MessageSquare className="w-4 h-4 text-amber-300/80" />
           </span>
@@ -323,18 +334,32 @@ export function RoundChatDrawer({
         </div>
       </button>
 
+      {open && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setFullScreen(v => !v); }}
+          aria-label={fullScreen ? 'Exit full screen' : 'Open chat full screen'}
+          style={{ touchAction: 'manipulation' }}
+          className="absolute right-9 top-3 z-20 w-9 h-9 flex items-center justify-center rounded-lg border border-amber-500/25 bg-black/40 text-amber-300/80 active:bg-amber-500/15"
+        >
+          {fullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+        </button>
+      )}
+
 
       <AnimatePresence>
         {open && (
           <motion.div
             key="round-chat-drawer"
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
+            animate={{ height: fullScreen ? '100%' : 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: 'easeInOut' }}
-            className="overflow-hidden"
+            className={cn("overflow-hidden", fullScreen && "flex-1 min-h-0 flex flex-col")}
           >
-            <div className="px-2 pb-2 relative">
+            <div className={cn(
+              "px-2 pb-2 relative",
+              fullScreen && "flex-1 min-h-0 flex flex-col",
+            )}>
               {/* Compact DM status banner */}
               {dmStatus && (
                 <div
@@ -367,8 +392,11 @@ export function RoundChatDrawer({
               <div
                 ref={scrollRef}
                 onScroll={handleScroll}
-                className="overflow-y-auto scrollbar-hide space-y-1.5 pr-0.5"
-                style={{ maxHeight: '38vh' }}
+                className={cn(
+                  "overflow-y-auto scrollbar-hide space-y-1.5 pr-0.5",
+                  fullScreen && "flex-1 min-h-0",
+                )}
+                style={fullScreen ? undefined : { maxHeight: '38vh' }}
               >
                 {messages.length === 0 ? (
                   <div className="py-4 px-3 text-center space-y-2">
@@ -601,7 +629,10 @@ export function RoundChatDrawer({
                 <button
                   onClick={() => scrollToLatest('smooth')}
                   style={{ touchAction: 'manipulation' }}
-                  className="absolute left-1/2 -translate-x-1/2 bottom-[86px] z-10 flex items-center gap-1 px-2.5 py-1 rounded-full border border-amber-500/30 bg-black/80 text-amber-200 text-[10px] shadow-lg"
+                  className={cn(
+                    "absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 px-2.5 py-1 rounded-full border border-amber-500/30 bg-black/80 text-amber-200 text-[10px] shadow-lg",
+                    fullScreen ? "bottom-[110px]" : "bottom-[86px]",
+                  )}
                 >
                   <ChevronDown className="w-3 h-3" />
                   {unseen > 0 ? `${unseen} new message${unseen === 1 ? '' : 's'}` : 'Jump to latest'}
@@ -609,7 +640,10 @@ export function RoundChatDrawer({
               )}
 
               {/* Composer */}
-              <div className="mt-2 space-y-1.5">
+              <div
+                className={cn("mt-2 space-y-1.5", fullScreen && "shrink-0")}
+                style={fullScreen ? { paddingBottom: 'env(safe-area-inset-bottom, 0px)' } : undefined}
+              >
                 
                 <div className="flex items-center gap-2">
 
@@ -808,4 +842,3 @@ export function RoundChatDrawer({
     </div>
   );
 }
-
