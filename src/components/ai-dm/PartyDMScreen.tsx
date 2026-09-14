@@ -1771,13 +1771,36 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const lastChatRoundUserIdsRef = useRef<string[]>([]);
 
   const fireChatRound = useCallback(async () => {
-    const pd = partyDmRef.current;
-    const roundKey = pd.sessionConfig?.currentRoundId || '';
-    if (!roundKey || pd.isGenerating) return;
+    let pd = partyDmRef.current;
+    if (pd.isGenerating) {
+      toast.info('The DM is still writing — this batch will go next.');
+      return;
+    }
     const picked = roundChatRef.current.orderedSelected;
     if (picked.length === 0) {
       toast.info('Tick the lines you want the DM to answer first');
       return;
+    }
+
+    // The table can be used before the host formally starts the session.
+    // Rather than failing silently, start it now and wait for it to land.
+    let roundKey = pd.sessionConfig?.currentRoundId || '';
+    if (!roundKey) {
+      try {
+        await pd.startSession('shared');
+      } catch {
+        toast.error('Could not start the session — try again.');
+        return;
+      }
+      for (let i = 0; i < 40 && !roundKey; i++) {
+        await new Promise(r => setTimeout(r, 100));
+        pd = partyDmRef.current;
+        roundKey = pd.sessionConfig?.currentRoundId || '';
+      }
+      if (!roundKey) {
+        toast.error('The session did not start. Please try Send to DM again.');
+        return;
+      }
     }
     // Keyed on the round AND the last ticked line, so a later batch can fire again.
     const fireKey = `${roundKey}:${picked[picked.length - 1]?.id || ''}`;
