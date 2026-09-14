@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronUp, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, Maximize2, Minimize2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check } from 'lucide-react';
 import { AvatarCropDialog } from './AvatarCropDialog';
 
 import { Textarea } from '@/components/ui/textarea';
@@ -181,7 +181,8 @@ export function RoundChatDrawer({
   const [cropTarget, setCropTarget] = useState<{ kind: 'ic' | 'ooc'; file: File } | null>(null);
 
   useEffect(() => {
-    if (!open) setFullScreen(false);
+    if (open) setFullScreen(true);
+    else setFullScreen(false);
   }, [open]);
 
 
@@ -304,7 +305,7 @@ export function RoundChatDrawer({
         {/* grab handle */}
         <div className="mx-auto mb-2 h-1.5 w-14 rounded-full bg-amber-400/35" />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
-        <div className="flex items-center gap-2 pr-9">
+        <div className="flex items-center gap-2">
           <span className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/25">
             <MessageSquare className="w-4 h-4 text-amber-300/80" />
           </span>
@@ -335,16 +336,6 @@ export function RoundChatDrawer({
         </div>
       </button>
 
-      {open && (
-        <button
-          onClick={(e) => { e.stopPropagation(); setFullScreen(v => !v); }}
-          aria-label={fullScreen ? 'Exit full screen' : 'Open chat full screen'}
-          style={{ touchAction: 'manipulation' }}
-          className="absolute right-9 top-3 z-20 w-9 h-9 flex items-center justify-center rounded-lg border border-amber-500/25 bg-black/40 text-amber-300/80 active:bg-amber-500/15"
-        >
-          {fullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-        </button>
-      )}
 
 
       <AnimatePresence>
