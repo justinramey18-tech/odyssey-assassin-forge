@@ -181,7 +181,8 @@ export function RoundChatDrawer({
   const [cropTarget, setCropTarget] = useState<{ kind: 'ic' | 'ooc'; file: File } | null>(null);
 
   useEffect(() => {
-    if (!open) setFullScreen(false);
+    if (open) setFullScreen(true);
+    else setFullScreen(false);
   }, [open]);
 
 
