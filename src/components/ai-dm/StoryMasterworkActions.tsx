@@ -66,7 +66,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills }: 
           aria-hidden="true"
         />
         <button
-          onClick={generate}
+          onClick={() => { setOpen(true); setFlavorId(null); }}
           disabled={disabled}
           className="relative isolate w-full flex flex-col justify-between items-center text-center min-h-[220px] py-5 px-4 rounded-lg border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 text-amber-100 hover:text-amber-50 text-xs leading-snug transition-colors disabled:opacity-40 overflow-hidden"
           style={{ touchAction: 'manipulation' }}
