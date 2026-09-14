@@ -160,6 +160,11 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
   const activeContent = showDiceContent ? diceContent : showSettingsContent ? settingsContent : showOracleContent ? oracleContent : showWildShapeContent ? wildshapeContent : null;
   const activeContentTab = showDiceContent ? tabs.find(t => t.id === 'dice') : showSettingsContent ? tabs.find(t => t.id === 'settings') : showOracleContent ? tabs.find(t => t.id === 'oracle') : showWildShapeContent ? tabs.find(t => t.id === 'wildshape') : null;
 
+  // Hide the bottom nav while the round chat is expanded so it cannot sit on top
+  // of the chat composer. This MUST stay below every hook call - putting it above
+  // the useCallbacks changes the hook count between renders and crashes React.
+  if (roundChatExpanded) return null;
+
   return (
     <>
       {/* Full-screen content overlay */}
