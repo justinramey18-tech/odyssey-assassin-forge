@@ -26,6 +26,7 @@ import {
   formToEquipmentItem,
   loadHomebrewGear,
   saveHomebrewGear,
+  type HomebrewGearItem,
 } from '@/lib/inventory/homebrewGear';
 import { createInitialEquipment } from '@/lib/inventory';
 import type { EquipmentItem } from '@/lib/inventory/types';

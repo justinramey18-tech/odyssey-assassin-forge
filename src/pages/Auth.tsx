@@ -9,6 +9,8 @@ import { Loader2, User, Lock, KeyRound, Copy, Check, ShieldAlert } from 'lucide-
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import homeBackground from '@/assets/home-background.jpg';
 import { generateRecoveryCode } from '@/lib/recovery-code';
+import { isThistlepigUsername } from '@/lib/thistlepig';
+import { unlockThistlepig } from '@/lib/thistlepig-unlock';
 import { toast } from 'sonner';
 
 const usernameSchema = z
@@ -45,6 +47,9 @@ export default function Auth() {
   const [recoveryCode, setRecoveryCode] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Set when a brand new account is registered under the Thistlepig username.
+  const [thistlepigUnlocked, setThistlepigUnlocked] = useState(false);
 
   const switchView = (v: AuthView) => {
     setView(v);
@@ -141,6 +146,10 @@ export default function Auth() {
         console.error('[Auth] set-recovery-code failed', rcErr);
         toast.error('Could not save recovery code. You can generate one later from Account Settings.');
       }
+      if (isThistlepigUsername(lower)) {
+        setThistlepigUnlocked(true);
+      }
+
       setRecoveryCode(code);
       setUsername(''); setPassword(''); setConfirmPassword('');
       setView('recovery-shown');
@@ -166,6 +175,18 @@ export default function Auth() {
       toast.error('Please confirm you saved your recovery code.');
       return;
     }
+
+    if (thistlepigUnlocked) {
+      try {
+        const wizardState = unlockThistlepig();
+        navigate('/', { state: { aiCreatedCharacter: wizardState } });
+        return;
+      } catch (e) {
+        console.error('[Thistlepig] Unlock failed, falling back to roster:', e);
+        toast.error('Could not build your character. Starting fresh instead.');
+      }
+    }
+
     navigate('/roster', { state: { autoLoad: true } });
   };
 
