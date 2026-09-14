@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronUp, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft } from 'lucide-react';
 import { AvatarCropDialog } from './AvatarCropDialog';
 
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { parseActionCard } from '@/lib/roundChatActionCard';
-import { parseReply, quotePreview } from '@/lib/chatReply';
+import { parseReply, quotePreview, formatReply } from '@/lib/chatReply';
 import { QuickActionLine } from './QuickActionCard';
 import type { RoundChatMessage, RoundChatReaction, RoundStyle } from '@/hooks/use-round-chat';
 
@@ -55,6 +55,9 @@ function playerTint(userId: string): string {
 /** Matches a message whose entire body is a shared image. Same convention the
  *  main party DM stream uses - see IMAGE_REGEX in AIDMScreen.tsx. */
 const CHAT_IMAGE_REGEX = /^\s*\[image:(https?:\/\/[^\]]+)\]\s*$/;
+
+const SWIPE_TRIGGER = 56;   // px of travel needed to arm the reply
+const SWIPE_MAX = 80;       // px the bubble can be dragged
 
 
 interface RoundChatDrawerProps {
@@ -224,6 +227,11 @@ export function RoundChatDrawer({
   // Picture chosen but not yet cropped — the crop dialog owns it until confirmed.
   const [cropTarget, setCropTarget] = useState<{ kind: 'ic' | 'ooc'; file: File } | null>(null);
 
+  const [replyTo, setReplyTo] = useState<RoundChatMessage | null>(null);
+  const [swipeId, setSwipeId] = useState<string | null>(null);
+  const [swipeX, setSwipeX] = useState(0);
+  const swipeStart = useRef<{ x: number; y: number; locked: boolean } | null>(null);
+
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const jumpToMessage = useCallback((id: string) => {
@@ -234,9 +242,43 @@ export function RoundChatDrawer({
     setTimeout(() => el.classList.remove('ring-1', 'ring-amber-400/70'), 1200);
   }, []);
 
+  const onRowTouchStart = useCallback((id: string) => (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    swipeStart.current = { x: t.clientX, y: t.clientY, locked: false };
+    setSwipeId(id);
+    setSwipeX(0);
+  }, []);
+
+  const onRowTouchMove = useCallback((e: React.TouchEvent) => {
+    const start = swipeStart.current;
+    if (!start) return;
+    const t = e.touches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+
+    // Only treat it as a swipe once it is clearly horizontal, so ordinary
+    // vertical scrolling is never hijacked.
+    if (!start.locked) {
+      if (Math.abs(dy) > Math.abs(dx)) { swipeStart.current = null; setSwipeId(null); setSwipeX(0); return; }
+      if (Math.abs(dx) < 12) return;
+      start.locked = true;
+    }
+    setSwipeX(dx > 0 ? Math.min(dx, SWIPE_MAX) : 0);
+  }, []);
+
+  const onRowTouchEnd = useCallback((m: RoundChatMessage) => () => {
+    if (swipeX >= SWIPE_TRIGGER) {
+      setReplyTo(m);
+      try { navigator.vibrate?.(12); } catch { /* not supported, fine */ }
+    }
+    swipeStart.current = null;
+    setSwipeId(null);
+    setSwipeX(0);
+  }, [swipeX]);
+
   useEffect(() => {
     if (open) setFullScreen(true);
-    else setFullScreen(false);
+    else { setFullScreen(false); setReplyTo(null); }
   }, [open]);
 
   // Hide the floating "Back to character sheet" shortcut while the round chat
@@ -350,7 +392,8 @@ export function RoundChatDrawer({
     // Posting your own line always brings you back to the bottom.
     pinnedRef.current = true;
     setPinned(true);
-    await onSend(trimmed, inCharacter);
+    await onSend(formatReply(replyTo?.id ?? null, trimmed), inCharacter);
+    setReplyTo(null);
     requestAnimationFrame(() => scrollToLatest('smooth'));
   };
 
@@ -535,12 +578,30 @@ export function RoundChatDrawer({
                     <div
                       key={m.id}
                       ref={(el) => { messageRefs.current[m.id] = el; }}
+                      onTouchStart={onRowTouchStart(m.id)}
+                      onTouchMove={onRowTouchMove}
+                      onTouchEnd={onRowTouchEnd(m)}
+                      onTouchCancel={() => { swipeStart.current = null; setSwipeId(null); setSwipeX(0); }}
                       className={cn(
-                        "flex items-end gap-2",
+                        "relative flex items-end gap-2",
                         stacked ? "mt-0.5" : "mt-3 first:mt-0",
                         alignRight ? "flex-row-reverse" : "flex-row",
                       )}
+                      style={{
+                        touchAction: 'pan-y',
+                        transform: swipeId === m.id && swipeX > 0 ? `translateX(${swipeX}px)` : undefined,
+                        transition: swipeId === m.id ? 'none' : 'transform 160ms ease-out',
+                      }}
                     >
+                      {swipeId === m.id && swipeX > 8 && (
+                        <span
+                          aria-hidden="true"
+                          className="absolute left-[-34px] top-1/2 -translate-y-1/2 flex items-center justify-center w-7 h-7 rounded-full bg-amber-500/20 text-amber-300"
+                          style={{ opacity: Math.min(swipeX / SWIPE_TRIGGER, 1) }}
+                        >
+                          <CornerUpLeft className="w-4 h-4" />
+                        </span>
+                      )}
                       {stacked ? (
                         <span className="shrink-0 w-8" />
                       ) : (
@@ -987,6 +1048,28 @@ export function RoundChatDrawer({
                         );
                       })}
                     </div>
+                  </div>
+                )}
+
+                {replyTo && (
+                  <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-amber-500/25 bg-amber-500/5">
+                    <Reply className="w-3.5 h-3.5 shrink-0 text-amber-300/70" />
+                    <div className="min-w-0 flex-1 border-l-2 border-amber-400/60 pl-2">
+                      <p className="font-body text-[11px] font-semibold text-amber-300/90 truncate">
+                        Replying to {replyTo.character_name || 'Player'}
+                      </p>
+                      <p className="font-body text-[11px] text-white/50 truncate">
+                        {quotePreview(replyTo.content)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setReplyTo(null)}
+                      aria-label="Cancel reply"
+                      style={{ touchAction: 'manipulation' }}
+                      className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-white/50 active:bg-white/10"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
                 )}
 
