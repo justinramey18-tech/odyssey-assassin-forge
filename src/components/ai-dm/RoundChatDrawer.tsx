@@ -169,6 +169,7 @@ export function RoundChatDrawer({
   const [inCharacter, setInCharacter] = useState(true);
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [fullScreen, setFullScreen] = useState(false);
+  const [actionsFor, setActionsFor] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
   const [pinned, setPinned] = useState(true);
@@ -393,7 +394,7 @@ export function RoundChatDrawer({
                 ref={scrollRef}
                 onScroll={handleScroll}
                 className={cn(
-                  "overflow-y-auto scrollbar-hide space-y-1.5 pr-0.5",
+                  "overflow-y-auto scrollbar-hide space-y-0 pr-0.5",
                   fullScreen && "flex-1 min-h-0",
                 )}
                 style={fullScreen ? undefined : { maxHeight: '38vh' }}
@@ -415,7 +416,7 @@ export function RoundChatDrawer({
                       {triggerHint}
                     </p>
                   </div>
-                ) : messages.map(m => {
+                ) : messages.map((m, idx) => {
                   const isSelf = m.user_id === currentUserId;
                   const { card, body } = parseActionCard(m.content);
                   const msgReactions = reactionsByMessage.get(m.id) || [];
@@ -423,204 +424,239 @@ export function RoundChatDrawer({
                     (acc[r.emoji] ||= []).push(r);
                     return acc;
                   }, {});
-                  const nameColor = m.in_character ? playerColor(m.user_id) : 'text-amber-300/80';
-                  const alignRight = m.in_character && isSelf;
+                  const nameColor = m.in_character ? playerColor(m.user_id) : 'text-sky-300/90';
+                  const alignRight = isSelf;
                   const avatarUrl = m.in_character
                     ? avatars?.[m.user_id]?.ic
                     : avatars?.[m.user_id]?.ooc;
-                  const displayName = m.in_character
-                    ? (m.character_name || 'Player')
-                    : (oocNames?.[m.user_id] || m.character_name || 'Player');
-                  // Whatever is ticked goes — table talk included, clearly labelled.
+
+                  // Alter-ego line: who is speaking, and who is playing them.
+                  const icName = (m.character_name || 'Player').trim();
+                  const oocName = ((oocNames?.[m.user_id]) || '').trim();
+                  const primaryName = m.in_character ? icName : (oocName || icName);
+                  const secondaryName = m.in_character
+                    ? (oocName && oocName.toLowerCase() !== icName.toLowerCase() ? oocName : '')
+                    : (icName && icName.toLowerCase() !== (oocName || '').toLowerCase() ? icName : '');
+
+                  // Collapse the header on consecutive lines from the same speaker.
+                  const prev = idx > 0 ? messages[idx - 1] : null;
+                  const stacked = !!prev
+                    && prev.user_id === m.user_id
+                    && prev.in_character === m.in_character;
+
                   const selectable = !m.consumed;
+                  const showActions = actionsFor === m.id;
 
                   return (
                     <div
                       key={m.id}
                       className={cn(
-                        "flex items-start gap-1.5",
-                        alignRight ? "justify-end flex-row-reverse" : "justify-start",
+                        "flex items-end gap-2",
+                        stacked ? "mt-0.5" : "mt-3 first:mt-0",
+                        alignRight ? "flex-row-reverse" : "flex-row",
                       )}
                     >
-                    {selectable ? (
-                      <button
-                        onClick={() => onToggleSelected(m.id)}
-                        role="checkbox"
-                        aria-checked={!!m.selected}
-                        aria-label={m.selected ? 'Remove from the DM hand-off' : 'Send this line to the DM'}
-                        style={{ touchAction: 'manipulation' }}
-                        className={cn(
-                          "mt-1 shrink-0 w-5 h-5 rounded-[6px] border flex items-center justify-center transition-colors",
-                          m.selected
-                            ? "bg-emerald-500/25 border-emerald-400/60 text-emerald-200"
-                            : "bg-white/5 border-white/20 text-transparent",
-                        )}
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
-                    ) : (
-                      <span className="mt-1 shrink-0 w-5 h-5" />
-                    )}
-                    <ChatAvatar
-                      url={avatarUrl}
-                      label={displayName}
-                      kind={m.in_character ? 'ic' : 'ooc'}
-                      editable={isSelf && !!onUploadAvatar}
-                      onPick={(file) => setCropTarget({ kind: m.in_character ? 'ic' : 'ooc', file })}
-                    />
-                    <div
-                      className={cn(
-                        "max-w-[80%] min-w-0",
-                        alignRight ? "text-right" : "text-left",
-                        m.consumed && "opacity-60",
-                      )}
-                    >
-
-                      <div className={cn("flex items-center gap-1.5", alignRight && "flex-row-reverse")}>
-                        <span className={cn("text-[10px] font-semibold truncate font-cinzel", nameColor)}>
-                          {displayName}
-                        </span>
-                        {!m.in_character && (
-                          <span className="text-[8px] px-1 py-[1px] rounded uppercase tracking-wider shrink-0 bg-amber-500/15 text-amber-200/80">
-                            Table talk
-                          </span>
-                        )}
-                        {isSelf && (
-                          <span className="text-[8px] px-1 py-[1px] rounded bg-white/10 text-white/45 uppercase tracking-wider shrink-0">You</span>
-                        )}
-                        {m.consumed && (
-                          <span className="text-[9px] px-1 rounded bg-emerald-900/30 text-emerald-300/70 uppercase tracking-wide">Sent</span>
-                        )}
-                        <div className={cn("flex items-center gap-1", alignRight ? "mr-auto" : "ml-auto")}>
-                          <button
-                            onClick={() => setPickerFor(pickerFor === m.id ? null : m.id)}
-                            className="p-0.5 text-white/25 hover:text-amber-300 transition-colors"
-                            style={{ touchAction: 'manipulation' }}
-                            aria-label="Add reaction"
-                          >
-                            <Smile className="w-3.5 h-3.5" />
-                          </button>
-                          {isSelf && !m.consumed && !card && onEditMessage && (
-                            <button
-                              onClick={() => {
-                                setEditingMessageId(editingMessageId === m.id ? null : m.id);
-                                setEditDraft(m.content);
-                              }}
-                              className="p-0.5 text-white/25 hover:text-emerald-300 transition-colors"
-                              style={{ touchAction: 'manipulation' }}
-                              aria-label="Edit message"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          {isSelf && !m.consumed && (
-                            <button
-                              onClick={() => onDeleteMessage(m.id)}
-                              className="p-0.5 text-white/25 hover:text-red-400 transition-colors"
-                              style={{ touchAction: 'manipulation' }}
-                              aria-label="Delete message"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      {card ? (
-                        <QuickActionLine
-                          card={card}
-                          actorName={m.character_name || 'Player'}
-                          nameClass={nameColor}
-                          isSelf={isSelf}
-                          alignRight={alignRight}
-                          className="mt-0.5"
-                        />
-                      ) : editingMessageId === m.id ? (
-                        <div className="mt-1 space-y-1.5 text-left">
-                          <textarea
-                            value={editDraft}
-                            onChange={(e) => setEditDraft(e.target.value)}
-                            rows={3}
-                            autoFocus
-                            className="w-full rounded-md bg-black/40 border border-emerald-500/40 px-2 py-1.5 text-xs text-white/90 outline-none focus:border-emerald-400/70 resize-y"
-                          />
-                          <div className="flex items-center gap-2 justify-end">
-                            <button
-                              onClick={() => { setEditingMessageId(null); setEditDraft(''); }}
-                              className="px-2.5 py-1 rounded-md text-[11px] bg-white/5 text-white/60 hover:text-white/90 min-h-[32px]"
-                              style={{ touchAction: 'manipulation' }}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={async () => {
-                                const next = editDraft.trim();
-                                if (!next || next === m.content) { setEditingMessageId(null); return; }
-                                await onEditMessage?.(m.id, next);
-                                setEditingMessageId(null);
-                                setEditDraft('');
-                              }}
-                              disabled={!editDraft.trim()}
-                              className="px-2.5 py-1 rounded-md text-[11px] bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 disabled:opacity-40 min-h-[32px]"
-                              style={{ touchAction: 'manipulation' }}
-                            >
-                              Save
-                            </button>
-                          </div>
-                        </div>
+                      {stacked ? (
+                        <span className="shrink-0 w-8" />
                       ) : (
-                        <p className={cn(
-                          "text-xs leading-snug whitespace-pre-wrap break-words [overflow-wrap:anywhere] mt-0.5",
-                          m.in_character
-                            ? cn("text-white/90", alignRight ? "text-right" : "text-left")
-                            : "text-amber-200/80 italic text-left"
-                        )}>
-                          {body}
-                        </p>
+                        <ChatAvatar
+                          url={avatarUrl}
+                          label={primaryName}
+                          kind={m.in_character ? 'ic' : 'ooc'}
+                          editable={isSelf && !!onUploadAvatar}
+                          onPick={(file) => setCropTarget({ kind: m.in_character ? 'ic' : 'ooc', file })}
+                        />
                       )}
 
+                      <div className={cn("min-w-0 max-w-[78%]", alignRight ? "items-end" : "items-start", "flex flex-col")}>
+                        {!stacked && (
+                          <div className={cn(
+                            "flex items-baseline gap-1.5 mb-1 px-1",
+                            alignRight && "flex-row-reverse",
+                          )}>
+                            <span className={cn("font-body text-[13px] font-semibold truncate", nameColor)}>
+                              {primaryName}
+                            </span>
+                            {secondaryName && (
+                              <span className="font-body text-[11px] text-white/35 truncate">
+                                {secondaryName}
+                              </span>
+                            )}
+                            {!m.in_character && (
+                              <span className="font-body text-[10px] px-1.5 py-[1px] rounded-full shrink-0 bg-sky-500/15 text-sky-200/80 border border-sky-400/25">
+                                table
+                              </span>
+                            )}
+                          </div>
+                        )}
 
-
-
-                      {Object.keys(grouped).length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {Object.entries(grouped).map(([emoji, list]) => {
-                            const mine = list.some(r => r.user_id === currentUserId);
-                            return (
+                        {card ? (
+                          <QuickActionLine
+                            card={card}
+                            actorName={icName}
+                            nameClass={nameColor}
+                            isSelf={isSelf}
+                            alignRight={alignRight}
+                          />
+                        ) : editingMessageId === m.id ? (
+                          <div className="w-full space-y-1.5 text-left">
+                            <textarea
+                              value={editDraft}
+                              onChange={(e) => setEditDraft(e.target.value)}
+                              rows={3}
+                              autoFocus
+                              className="w-full font-body rounded-xl bg-black/40 border border-emerald-500/40 px-3 py-2 text-[15px] text-white/90 outline-none focus:border-emerald-400/70 resize-y"
+                            />
+                            <div className="flex items-center gap-2 justify-end">
                               <button
-                                key={emoji}
-                                onClick={() => onToggleReaction(m.id, emoji)}
-                                className={cn(
-                                  "px-1.5 py-0.5 rounded-full text-[11px] border transition-colors",
-                                  mine
-                                    ? "bg-amber-900/40 border-amber-500/40 text-amber-200"
-                                    : "bg-white/5 border-white/10 text-white/60"
-                                )}
+                                onClick={() => { setEditingMessageId(null); setEditDraft(''); }}
+                                className="font-body px-3 py-1.5 rounded-lg text-[13px] bg-white/5 text-white/60 min-h-[36px]"
                                 style={{ touchAction: 'manipulation' }}
                               >
-                                {emoji} {list.length}
+                                Cancel
                               </button>
-                            );
-                          })}
-                        </div>
-                      )}
+                              <button
+                                onClick={async () => {
+                                  const next = editDraft.trim();
+                                  if (!next || next === m.content) { setEditingMessageId(null); return; }
+                                  await onEditMessage?.(m.id, next);
+                                  setEditingMessageId(null);
+                                  setEditDraft('');
+                                }}
+                                disabled={!editDraft.trim()}
+                                className="font-body px-3 py-1.5 rounded-lg text-[13px] bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 disabled:opacity-40 min-h-[36px]"
+                                style={{ touchAction: 'manipulation' }}
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setActionsFor(showActions ? null : m.id)}
+                            style={{ touchAction: 'manipulation' }}
+                            className={cn(
+                              "text-left rounded-2xl border px-3 py-2 transition-colors",
+                              alignRight ? "rounded-br-md" : "rounded-bl-md",
+                              m.in_character
+                                ? (isSelf
+                                    ? "bg-amber-500/15 border-amber-400/25"
+                                    : "bg-white/[0.07] border-white/10")
+                                : "bg-sky-500/[0.08] border-sky-400/25 border-dashed",
+                              m.selected && "ring-1 ring-emerald-400/60",
+                              m.consumed && "opacity-55",
+                            )}
+                          >
+                            <p className="font-body text-[15px] leading-[1.45] text-white/90 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                              {body}
+                            </p>
+                          </button>
+                        )}
 
-                      {pickerFor === m.id && (
-                        <div className="mt-1.5 grid grid-cols-9 gap-1 p-1.5 rounded-lg bg-black/50 border border-white/10">
-                          {EMOJI_SET.map(e => (
+                        <div className={cn(
+                          "flex items-center gap-1.5 mt-1 px-1",
+                          alignRight && "flex-row-reverse",
+                        )}>
+                          {selectable ? (
                             <button
-                              key={e}
-                              onClick={() => { onToggleReaction(m.id, e); setPickerFor(null); }}
-                              className="text-base leading-none py-1 rounded hover:bg-white/10"
+                              onClick={() => onToggleSelected(m.id)}
+                              role="checkbox"
+                              aria-checked={!!m.selected}
+                              aria-label={m.selected ? 'Remove from the DM hand-off' : 'Send this line to the DM'}
                               style={{ touchAction: 'manipulation' }}
+                              className={cn(
+                                "font-body shrink-0 flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] transition-colors",
+                                m.selected
+                                  ? "bg-emerald-500/20 border-emerald-400/50 text-emerald-200"
+                                  : "bg-white/[0.03] border-white/10 text-white/30",
+                              )}
                             >
-                              {e}
+                              <Check className="w-3 h-3" />
+                              {m.selected ? 'ticked' : 'tick'}
                             </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    </div>
+                          ) : (
+                            <span className="font-body shrink-0 flex items-center gap-1 text-[10px] text-emerald-300/50">
+                              <Check className="w-3 h-3" /> sent
+                            </span>
+                          )}
 
+                          {showActions && (
+                            <>
+                              <button
+                                onClick={() => setPickerFor(pickerFor === m.id ? null : m.id)}
+                                className="p-1 text-white/40 active:text-amber-300"
+                                style={{ touchAction: 'manipulation' }}
+                                aria-label="Add reaction"
+                              >
+                                <Smile className="w-4 h-4" />
+                              </button>
+                              {isSelf && !m.consumed && !card && onEditMessage && (
+                                <button
+                                  onClick={() => {
+                                    setEditingMessageId(editingMessageId === m.id ? null : m.id);
+                                    setEditDraft(m.content);
+                                    setActionsFor(null);
+                                  }}
+                                  className="p-1 text-white/40 active:text-emerald-300"
+                                  style={{ touchAction: 'manipulation' }}
+                                  aria-label="Edit message"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+                              )}
+                              {isSelf && !m.consumed && (
+                                <button
+                                  onClick={() => onDeleteMessage(m.id)}
+                                  className="p-1 text-white/40 active:text-red-400"
+                                  style={{ touchAction: 'manipulation' }}
+                                  aria-label="Delete message"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
+
+                        {Object.keys(grouped).length > 0 && (
+                          <div className={cn("flex flex-wrap gap-1 mt-1", alignRight && "justify-end")}>
+                            {Object.entries(grouped).map(([emoji, list]) => {
+                              const mine = list.some(r => r.user_id === currentUserId);
+                              return (
+                                <button
+                                  key={emoji}
+                                  onClick={() => onToggleReaction(m.id, emoji)}
+                                  className={cn(
+                                    "font-body px-2 py-0.5 rounded-full text-[12px] border transition-colors",
+                                    mine
+                                      ? "bg-amber-900/40 border-amber-500/40 text-amber-200"
+                                      : "bg-white/5 border-white/10 text-white/60"
+                                  )}
+                                  style={{ touchAction: 'manipulation' }}
+                                >
+                                  {emoji} {list.length}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {pickerFor === m.id && (
+                          <div className="mt-1.5 grid grid-cols-9 gap-1 p-1.5 rounded-xl bg-black/60 border border-white/10">
+                            {EMOJI_SET.map(e => (
+                              <button
+                                key={e}
+                                onClick={() => { onToggleReaction(m.id, e); setPickerFor(null); }}
+                                className="text-base leading-none py-1.5 rounded active:bg-white/10"
+                                style={{ touchAction: 'manipulation' }}
+                              >
+                                {e}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   );
                 })}
               </div>
@@ -809,7 +845,7 @@ export function RoundChatDrawer({
                       }
                     }}
                     placeholder={inCharacter ? `Speak as ${characterName || 'your character'}...` : 'Table talk — not sent to the DM'}
-                    className="min-h-[38px] max-h-[140px] text-xs py-2 resize-none bg-white/5 border-amber-900/30"
+                    className="min-h-[38px] max-h-[140px] font-body text-[15px] py-2 resize-none bg-white/5 border-amber-900/30"
                     rows={1}
                   />
                   <button
