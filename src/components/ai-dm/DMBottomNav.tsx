@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Dices, Gem, ListChecks, Bird, Ghost, Settings, Eye, X, PawPrint, ScrollText } from 'lucide-react';
@@ -90,6 +90,16 @@ const activeIndicatorColors: Record<DMNavTab, string> = {
 };
 
 export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive, oracleLabel, oracleColor, oracleActiveBg, afkLabel, afkColor, afkActiveBg, afkIcon, hideDice, hideAfk, hidePrompts, hideActions, hideSettings, showCharacterSheet, onCharacterSheet, headerContent, notchLabelOverride, notchIconOverride }: DMBottomNavProps) {
+  const [roundChatExpanded, setRoundChatExpanded] = useState(false);
+
+  useEffect(() => {
+    const update = () => setRoundChatExpanded(document.body.classList.contains('round-chat-expanded'));
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
   const afkOrWildShape = showWildShape ? WILDSHAPE_TAB : AFK_TAB;
   const afkTab = {
     ...afkOrWildShape,
@@ -118,6 +128,8 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
   ];
   const touchStartY = useRef(0);
   const touchStartTime = useRef(0);
+
+  if (roundChatExpanded) return null;
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
