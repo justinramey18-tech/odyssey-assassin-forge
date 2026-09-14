@@ -1944,7 +1944,67 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       console.error('[AICreation] Failed:', result.errors);
     }
   }, [rosterState, wizardSetters, autoSync]);
-  
+
+  // ── Cosmic Chef: one-shot re-gear when the stored loadout version is stale ──
+  const hasRegearedCosmicChef = useRef(false);
+  useEffect(() => {
+    if (hasRegearedCosmicChef.current) return;
+    if (!isCosmicChefMode()) return;
+
+    let stored = 0;
+    try {
+      stored = parseInt(getScopedItem(THISTLEPIG_GEAR_VERSION_KEY) || '0', 10) || 0;
+    } catch {
+      stored = 0;
+    }
+    if (stored >= THISTLEPIG_GEAR_VERSION) return;
+
+    hasRegearedCosmicChef.current = true;
+
+    try {
+      // Rebuild the loadout from the current gear list.
+      setEquipment(buildThistlepigEquipment());
+
+      // Refresh his consumables, replacing any previous Thistlepig entries.
+      const CONSUMABLE_KEY = 'odyssey-consumables-inventory';
+      let existing: any[] = [];
+      try {
+        const raw = getScopedItem(CONSUMABLE_KEY);
+        existing = raw ? JSON.parse(raw) : [];
+      } catch {
+        existing = [];
+      }
+      const kept = existing.filter(
+        (e: any) => !String(e?.consumableId || '').startsWith('homebrew_consumable_thistlepig_')
+      );
+      const rebuilt = THISTLEPIG_CONSUMABLES.map((c, i) => {
+        const id = 'homebrew_consumable_thistlepig_' + i;
+        return {
+          consumableId: id,
+          quantity: 1,
+          customConsumable: {
+            id,
+            name: c.name,
+            type: c.type,
+            rarity: c.rarity,
+            effect: c.effect,
+            duration: c.duration,
+            description: c.description,
+            icon: c.icon,
+            isHomebrew: true,
+          },
+        };
+      });
+      setScopedItem(CONSUMABLE_KEY, JSON.stringify([...kept, ...rebuilt]));
+
+      setScopedItem(THISTLEPIG_GEAR_VERSION_KEY, String(THISTLEPIG_GEAR_VERSION));
+      window.dispatchEvent(new Event('odyssey-character-loaded'));
+      console.log('[Thistlepig] Re-geared to version', THISTLEPIG_GEAR_VERSION);
+    } catch (e) {
+      console.error('[Thistlepig] Re-gear failed:', e);
+    }
+  }, [setEquipment]);
+
   // Quick start handler - uses utility for simplified state application
   const handleQuickStart = useCallback((wizardState: WizardState) => {
     const result = applyQuickStart(wizardState, {
