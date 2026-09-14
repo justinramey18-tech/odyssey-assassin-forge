@@ -59,7 +59,7 @@ function writeAbilities(): void {
 /** Writes his gear into the homebrew gear store and returns a filled equipment object. */
 function writeGear() {
   const equipment = createInitialEquipment();
-  const created: EquipmentItem[] = [];
+  const created: HomebrewGearItem[] = [];
 
   for (const form of THISTLEPIG_GEAR) {
     const item = formToEquipmentItem(form);
