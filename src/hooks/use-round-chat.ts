@@ -200,6 +200,9 @@ export function useRoundChat(
 
   const sendMessage = useCallback(async (content: string, inCharacter: boolean) => {
     const text = content.trim();
+    // Before the host starts the session there is no round yet — keep the table
+    // usable by tagging early lines with a local round id.
+    if (!roundIdRef.current) roundIdRef.current = crypto.randomUUID();
     const round = roundIdRef.current;
     if (!partyId || !userId || !text || !round) return;
     setSending(true);
