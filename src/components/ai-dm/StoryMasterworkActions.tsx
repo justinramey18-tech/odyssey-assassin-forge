@@ -22,6 +22,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills }: 
   const [loading, setLoading] = useState(false);
   const [pills, setPills] = useState<ActionItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [flavorId, setFlavorId] = useState<string | null>(null);
 
   const generate = useCallback(async () => {
     setOpen(true);
