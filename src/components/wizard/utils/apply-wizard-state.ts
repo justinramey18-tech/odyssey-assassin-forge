@@ -115,14 +115,26 @@ export function mergeAbilities(
     return existingAbilities;
   }
 
-  return existingAbilities.map(existing => {
+  const merged = existingAbilities.map(existing => {
     const starter = starterAbilities.find(sa => sa.abilityId === existing.abilityId);
     if (starter && starter.currentTier > existing.currentTier) {
       return { ...existing, currentTier: starter.currentTier };
     }
     return existing;
   });
+
+  // Append any starter ability the base catalog does not contain - for example
+  // homebrew abilities, whose IDs never appear in allAbilities. Without this the
+  // grant is silently dropped and the character is created with no such ability.
+  for (const starter of starterAbilities) {
+    if (!merged.some(m => m.abilityId === starter.abilityId)) {
+      merged.push({ abilityId: starter.abilityId, currentTier: starter.currentTier });
+    }
+  }
+
+  return merged;
 }
+
 
 /**
  * Saves game mode settings to localStorage
@@ -156,7 +168,7 @@ export function applyWizardState(
   const appliedChanges: string[] = [];
 
   try {
-    // 1. Character basics (name, level, class, abilities)
+    // 1. Character basics (name, level, class, abilities, loadout)
     setters.setCharacter(prev => ({
       ...prev,
       name: wizardState.name,
@@ -164,7 +176,12 @@ export function applyWizardState(
       primaryClass: wizardState.primaryClass,
       portraitIcon: wizardState.portraitIcon || prev.portraitIcon,
       abilities: mergeAbilities(prev.abilities, wizardState.starterAbilities),
+      equippedAbilities:
+        wizardState.equippedAbilities && wizardState.equippedAbilities.length > 0
+          ? wizardState.equippedAbilities
+          : prev.equippedAbilities,
     }));
+
     appliedChanges.push(`Character: ${wizardState.name}, Level ${wizardState.level} ${wizardState.primaryClass.charAt(0).toUpperCase() + wizardState.primaryClass.slice(1)}`);
 
     // 2. XP for level

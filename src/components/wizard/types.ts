@@ -137,7 +137,14 @@ export interface WizardState {
   // Step 7: Equipment
   equipment: CharacterEquipment;
   selectedPresetId: string | null;
+
+  // Step 8: Loadout (optional)
+  // When present and non-empty, these ability IDs are placed directly into the
+  // character's equipped loadout slots. Existing creation flows omit this and
+  // are unaffected.
+  equippedAbilities?: string[];
 }
+
 
 // Quick start defaults for fast character creation
 export const QUICK_START_DEFAULTS: Partial<WizardState> = {

@@ -242,7 +242,19 @@ describe('mergeAbilities', () => {
     expect(result.find(a => a.abilityId === 'ability-1')?.currentTier).toBe(3);
     expect(result.find(a => a.abilityId === 'ability-2')?.currentTier).toBe(1);
   });
+
+  it('appends starter abilities that are not in the base list', () => {
+    const starterAbilities: CharacterAbility[] = [
+      { abilityId: 'homebrew_test_ability', currentTier: 2 },
+    ];
+    const result = mergeAbilities(existingAbilities, starterAbilities);
+
+    expect(result).toHaveLength(existingAbilities.length + 1);
+    const added = result.find(a => a.abilityId === 'homebrew_test_ability');
+    expect(added?.currentTier).toBe(2);
+  });
 });
+
 
 describe('validateWizardStateForApplication', () => {
   it('returns valid for a correctly configured state', () => {
