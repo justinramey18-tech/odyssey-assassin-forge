@@ -1771,19 +1771,45 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const lastChatRoundUserIdsRef = useRef<string[]>([]);
 
   const fireChatRound = useCallback(async () => {
-    const pd = partyDmRef.current;
-    const roundKey = pd.sessionConfig?.currentRoundId || '';
-    if (!roundKey || pd.isGenerating) return;
+    let pd = partyDmRef.current;
+    if (pd.isGenerating) {
+      toast.info('The DM is still writing — this batch will go next.');
+      return;
+    }
     const picked = roundChatRef.current.orderedSelected;
     if (picked.length === 0) {
       toast.info('Tick the lines you want the DM to answer first');
       return;
     }
+
+    // The table can be used before the host formally starts the session.
+    // Rather than failing silently, start it now and wait for it to land.
+    let roundKey = pd.sessionConfig?.currentRoundId || '';
+    if (!roundKey) {
+      try {
+        await pd.startSession('shared');
+      } catch {
+        toast.error('Could not start the session — try again.');
+        return;
+      }
+      for (let i = 0; i < 40 && !roundKey; i++) {
+        await new Promise(r => setTimeout(r, 100));
+        pd = partyDmRef.current;
+        roundKey = pd.sessionConfig?.currentRoundId || '';
+      }
+      if (!roundKey) {
+        toast.error('The session did not start. Please try Send to DM again.');
+        return;
+      }
+    }
     // Keyed on the round AND the last ticked line, so a later batch can fire again.
     const fireKey = `${roundKey}:${picked[picked.length - 1]?.id || ''}`;
     if (chatRoundFiredRef.current === fireKey) return;
     const bundled = roundChatRef.current.buildRoundPrompt();
-    if (!bundled.trim()) return;
+    if (!bundled.trim()) {
+      toast.info('Those lines are empty — write something before sending.');
+      return;
+    }
     chatRoundFiredRef.current = fireKey;
     setRoundChatOpen(false);
     const participants = roundChatRef.current.selectedParticipants;
@@ -1792,14 +1818,21 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     // rules and the chaos tone from this.
     const liveTable = roundChatRef.current.liveTableContext;
     lastChatRoundUserIdsRef.current = coveredUserIds;
-    await roundChatRef.current.consumePending();
     // The ticked chat IS the prompt — no ready-up row, no second tap.
-    await pd.generateResponse({
-      coveredUserIds,
-      directPrompt: { text: bundled, participants },
-      liveTable,
-    });
-
+    // Lines are only marked as sent once the DM has actually taken them, so a
+    // failed hand-off leaves them ticked and re-sendable instead of vanishing.
+    try {
+      await pd.generateResponse({
+        coveredUserIds,
+        directPrompt: { text: bundled, participants },
+        liveTable,
+      });
+      await roundChatRef.current.consumePending();
+    } catch (err) {
+      chatRoundFiredRef.current = null;
+      console.error('[chat-round] send to DM failed:', err);
+      toast.error('The DM could not be reached — your lines are still there. Try again.');
+    }
   }, []);
 
 
