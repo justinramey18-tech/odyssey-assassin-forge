@@ -45,6 +45,7 @@ import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 import { getScopedItem } from '@/lib/scoped-storage';
 import { addPendingDmItems } from '@/lib/pendingDmItems';
+import { buildQuestScanText } from '@/lib/questScanSource';
 
 // Stable no-op fallbacks (module-level for referential stability)
 const NOOP = () => {};
@@ -742,13 +743,20 @@ export function StandalonePartyDMScreen({
 
   /** Manual pull: re-read the DM's latest response and lift any quests out of it. */
   const handleScanQuests = useCallback(() => {
-    const last = [...partyDm.messages].reverse().find((m: any) => m.role === 'assistant' && m.content?.trim());
-    if (!last) {
+    // Whispers are stripped off content by parseWhispers and kept on
+    // message.whispers, so the scan has to read both or it misses anything
+    // the DM dropped into the whisper tray. In party mode the whispers on a
+    // message are already filtered to this player, which is what we want.
+    const last = [...partyDm.messages].reverse().find(
+      (m: any) => m.role === 'assistant' && (m.content?.trim() || m.whispers?.length)
+    );
+    const scanText = buildQuestScanText(last);
+    if (!last || !scanText.trim()) {
       toast.info('No DM response to read yet.');
       return;
     }
-    toast.info("Reading the DM's last response for quests…");
-    autoSync.extractAndApply(last.content, characterContext)
+    toast.info("Reading the DM's last response and whispers for quests…");
+    autoSync.extractAndApply(scanText, characterContext)
       .then(result => {
         if (!result?.quests_offered?.length && !result?.quest_progress?.length) {
           toast.info('No quests found in that response.', {
