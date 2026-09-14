@@ -845,7 +845,7 @@ export function RoundChatDrawer({
                       }
                     }}
                     placeholder={inCharacter ? `Speak as ${characterName || 'your character'}...` : 'Table talk — not sent to the DM'}
-                    className="min-h-[38px] max-h-[140px] text-xs py-2 resize-none bg-white/5 border-amber-900/30"
+                    className="min-h-[38px] max-h-[140px] font-body text-[15px] py-2 resize-none bg-white/5 border-amber-900/30"
                     rows={1}
                   />
                   <button
