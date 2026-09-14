@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { firePendingNat20Fanfare } from '@/lib/critSound';
 import { SCOPED_KEYS } from '@/lib/scoped-keys';
+import { getRpFlavor } from '@/lib/rpFlavors';
 import { useDmPolls } from '@/hooks/use-dm-polls';
 import { useNPCAutocomplete } from '@/hooks/use-npc-autocomplete';
 import { PartyDMInput, type PartyDMInputHandle } from './PartyDMInput';
@@ -1920,7 +1921,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   );
 
   // Story-mode masterwork pills (non-Empyrean party campaigns)
-  const handleFetchStoryPills = useCallback(async () => {
+  const handleFetchStoryPills = useCallback(async (flavorId?: string) => {
     // Include the recent back-and-forth (DM + this player + other players), not just DM replies,
     // so suggestions respond to what the player themselves was actually just doing.
     // Build the recent narrative newest-last, but NEVER front-truncate the joined
@@ -1977,6 +1978,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         character_backstory: backstory,
         character_personality: personality,
         character_alignment: alignment,
+        // The alignment the player picked for THIS set of suggestions. Distinct from
+        // character_alignment, which is where the character has actually drifted —
+        // the player may deliberately ask for moves outside their usual register.
+        story_flavor_label: flavorId ? getRpFlavor(flavorId)?.label : undefined,
+        story_flavor_guidance: flavorId ? getRpFlavor(flavorId)?.guidance : undefined,
         character_bonds: bonds,
         character_flaws: flaws,
         model: (partyDm.sessionConfig as any)?.model || undefined,
