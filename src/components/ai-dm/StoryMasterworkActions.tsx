@@ -24,13 +24,13 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills }: 
   const [error, setError] = useState<string | null>(null);
   const [flavorId, setFlavorId] = useState<string | null>(null);
 
-  const generate = useCallback(async () => {
-    setOpen(true);
+  const generate = useCallback(async (id: string) => {
+    setFlavorId(id);
     setLoading(true);
     setError(null);
     setPills([]);
     try {
-      const result = await fetchStoryPills();
+      const result = await fetchStoryPills(id);
       setPills(result);
     } catch (e: any) {
       setError(e?.message || 'Could not generate suggestions.');
@@ -39,7 +39,19 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills }: 
     }
   }, [fetchStoryPills]);
 
-  const close = useCallback(() => setOpen(false), []);
+  /** Back to the alignment grid without closing the panel. */
+  const backToPicker = useCallback(() => {
+    setFlavorId(null);
+    setPills([]);
+    setError(null);
+  }, []);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    setFlavorId(null);
+    setPills([]);
+    setError(null);
+  }, []);
 
   const choose = useCallback((prompt: string) => {
     onSelect(prompt);
