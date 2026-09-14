@@ -20,6 +20,63 @@ import { getAlignmentZone, type AlignmentScore } from '@/lib/alignmentSpectrum';
 import { buildEmpyreanDMPersona } from '@/lib/empyreanDMPersona';
 import { getBondDescriptor } from '@/lib/dragonBondState';
 
+/** D&D ability modifier for a raw score. */
+function abilityMod(score: number): string {
+  const mod = Math.floor((Number(score) - 10) / 2);
+  return mod >= 0 ? `+${mod}` : `${mod}`;
+}
+
+/**
+ * The detail lines for one party member, built from the status every client
+ * already broadcasts. Without this the DM only receives name, level, class and
+ * HP for everyone but the local player, and fills the gaps by inventing them.
+ */
+function formatPartyMemberDetail(status: Record<string, unknown>): string[] {
+  const lines: string[] = [];
+
+  const scores = status.abilityScores as
+    | { str: number; dex: number; con: number; int: number; wis: number; cha: number }
+    | undefined;
+  if (scores) {
+    lines.push(
+      `  Abilities: STR ${scores.str} (${abilityMod(scores.str)}), DEX ${scores.dex} (${abilityMod(scores.dex)}), ` +
+      `CON ${scores.con} (${abilityMod(scores.con)}), INT ${scores.int} (${abilityMod(scores.int)}), ` +
+      `WIS ${scores.wis} (${abilityMod(scores.wis)}), CHA ${scores.cha} (${abilityMod(scores.cha)})`
+    );
+  }
+
+  const gear = status.equippedGear as Array<{ slot: string; name: string }> | undefined;
+  if (Array.isArray(gear) && gear.length) {
+    lines.push(`  Equipped: ${gear.map(g => `${g.name} (${g.slot})`).join(', ')}`);
+  }
+
+  const conditions = status.conditions as string[] | undefined;
+  if (Array.isArray(conditions) && conditions.length) {
+    lines.push(`  Conditions: ${conditions.join(', ')}`);
+  }
+
+  const slots = status.spellSlots as Record<string, { current: number; max: number }> | undefined;
+  if (slots && Object.keys(slots).length) {
+    const text = Object.entries(slots)
+      .sort((a, b) => Number(a[0]) - Number(b[0]))
+      .map(([lvl, s]) => `L${lvl} ${s.current}/${s.max}`)
+      .join(', ');
+    lines.push(`  Spell slots: ${text}`);
+  }
+
+  const multi = status.multiclassLevels as Record<string, number> | undefined;
+  if (multi && Object.keys(multi).length) {
+    lines.push(`  Multiclass: ${Object.entries(multi).map(([c, l]) => `${c} ${l}`).join(', ')}`);
+  }
+
+  const backstory = typeof status.backstory === 'string' ? status.backstory.trim() : '';
+  if (backstory) {
+    lines.push(`  Who they are: ${backstory.slice(0, 600)}`);
+  }
+
+  return lines;
+}
+
 function loadAlignmentDrift(): { position: AlignmentScore; zone: string } | null {
   try {
     const activeId = localStorage.getItem('odyssey-active-cloud-save-id');
@@ -1635,14 +1692,17 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const isEmpyrean = sessionConfig?.campaignType === 'empyrean';
     const partyMembersSummary = relevantMembers.map(m => {
       const s = m.character_status as Record<string, unknown>;
-      let line = `- ${m.character_name} (Level ${s.level || '?'} ${s.className || 'Adventurer'}, ${s.currentHP || '?'}/${s.maxHP || '?'} HP)`;
+      const race = s.race ? `, ${s.race}` : '';
+      const ac = s.ac ? `, AC ${s.ac}` : '';
+      let line = `- ${m.character_name} — Level ${s.level || '?'} ${s.className || 'Adventurer'}${race}, ${s.currentHP || '?'}/${s.maxHP || '?'} HP${ac}`;
       if (isEmpyrean && partyDragonConfigs) {
         const dc = partyDragonConfigs.find(d => d.userId === m.user_id);
         if (dc) {
           line += ` | Dragon: ${dc.config.dragonName}, Signet: ${dc.config.signetType || 'unknown'}, Bond: ${getBondDescriptor(dc.config.bond)}, Burnout: ${dc.config.burnout}/8`;
         }
       }
-      return line;
+      const detail = formatPartyMemberDetail(s);
+      return detail.length ? `${line}\n${detail.join('\n')}` : line;
     }).join('\n');
     return partyMembersSummary;
   }, [partyMembers, sessionConfig?.campaignType, partyDragonConfigs]);
@@ -2018,14 +2078,17 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
     const freshPartyMembersSummary = partyMembers.map(m => {
       const s = m.character_status as Record<string, unknown>;
-      let line = `- ${m.character_name} (Level ${s.level || '?'} ${s.className || 'Adventurer'}, ${s.currentHP || '?'}/${s.maxHP || '?'} HP)`;
+      const race = s.race ? `, ${s.race}` : '';
+      const ac = s.ac ? `, AC ${s.ac}` : '';
+      let line = `- ${m.character_name} — Level ${s.level || '?'} ${s.className || 'Adventurer'}${race}, ${s.currentHP || '?'}/${s.maxHP || '?'} HP${ac}`;
       if (sessionConfig?.campaignType === 'empyrean' && freshDragonConfigs) {
         const dc = freshDragonConfigs.find((d: any) => d.userId === m.user_id);
         if (dc) {
           line += ` | Dragon: ${dc.config.dragonName}, Signet: ${dc.config.signetType || 'unknown'}, Bond: ${getBondDescriptor(dc.config.bond)}, Burnout: ${dc.config.burnout}/8`;
         }
       }
-      return line;
+      const detail = formatPartyMemberDetail(s);
+      return detail.length ? `${line}\n${detail.join('\n')}` : line;
     }).join('\n');
 
     abortRef.current = new AbortController();
@@ -2301,7 +2364,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           : '';
         const dragonBondsSection = freshDragonBondsSection;
         const partyContextStr = [
-          `## PARTY MEMBERS\n${campaignIntro}This is a multiplayer session. Multiple players are acting simultaneously each round.\n${freshPartyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
+          `## PARTY MEMBERS\n${campaignIntro}This is a multiplayer session. Multiple players are acting simultaneously each round.\n${freshPartyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.\nThis roster is the ONLY data you have on the other players' sheets. If a player asks what you can see about a character, report exactly what is listed above and say plainly that anything else — gold, XP totals, inventory beyond equipped gear, class features — is not visible to you. Never invent ability scores, equipment or numbers for a character to fill a gap.`,
           dragonBondsSection,
           afkGuidesSection,
           responseModePrompt,
