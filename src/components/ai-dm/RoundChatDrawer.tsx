@@ -575,7 +575,7 @@ export function RoundChatDrawer({
                                     instead of centring on a portrait's chest. */}
                                 <span
                                   aria-hidden="true"
-                                  className="absolute inset-0 -z-10 bg-cover bg-top opacity-[0.55] blur-[2px] scale-125 saturate-150 contrast-125"
+                                  className="absolute inset-0 -z-10 bg-cover bg-top opacity-[0.55] blur-[1px] scale-125 saturate-150 contrast-125"
                                   style={{ backgroundImage: `url(${avatarUrl})` }}
                                 />
                                 {/* Scrim. Light enough to let the picture read, heavy enough
