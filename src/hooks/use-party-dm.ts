@@ -1829,7 +1829,16 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
     const coveredUserIds = options?.coveredUserIds
       ?? (directPrompt ? directPrompt.participants.map(p => p.userId) : undefined);
-    if (!partyId || !user || !sessionConfig || isGenerating) return;
+    if (!partyId || !user || !sessionConfig || isGenerating) {
+      // A hand-off from the table chat must never fail silently — the caller
+      // keeps the ticked lines when this throws.
+      if (directPrompt) {
+        throw new Error(
+          isGenerating ? 'The DM is already writing.' : 'The session is not ready yet.'
+        );
+      }
+      return;
+    }
 
 
     const isTurnBased = (sessionConfig.dmMode || 'ai') === 'turnBased';
