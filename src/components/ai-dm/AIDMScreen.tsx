@@ -918,13 +918,19 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const isNearBottomRef = useRef(true);
   /** Manual pull: re-read the DM's latest response and lift any quests out of it. */
   const handleScanQuests = useCallback(() => {
-    const last = [...messages].reverse().find(m => m.role === 'assistant' && m.content?.trim());
-    if (!last) {
+    // Whispers are stripped off content by parseWhispers and kept on
+    // message.whispers, so the scan has to read both or it misses anything
+    // the DM dropped into the whisper tray.
+    const last = [...messages].reverse().find(
+      m => m.role === 'assistant' && (m.content?.trim() || m.whispers?.length)
+    );
+    const scanText = buildQuestScanText(last);
+    if (!last || !scanText.trim()) {
       sonnerToast.info('No DM response to read yet.');
       return;
     }
-    sonnerToast.info('Reading the DM\'s last response for quests…');
-    autoSync.extractAndApply(last.content, characterContext)
+    sonnerToast.info('Reading the DM\'s last response and whispers for quests…');
+    autoSync.extractAndApply(scanText, characterContext)
       .then(result => {
         if (!result?.quests_offered?.length && !result?.quest_progress?.length) {
           sonnerToast.info('No quests found in that response.', {
