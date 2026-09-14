@@ -394,7 +394,7 @@ export function RoundChatDrawer({
                 ref={scrollRef}
                 onScroll={handleScroll}
                 className={cn(
-                  "overflow-y-auto scrollbar-hide space-y-1.5 pr-0.5",
+                  "overflow-y-auto scrollbar-hide space-y-0 pr-0.5",
                   fullScreen && "flex-1 min-h-0",
                 )}
                 style={fullScreen ? undefined : { maxHeight: '38vh' }}
