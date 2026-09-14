@@ -535,7 +535,7 @@ export function RoundChatDrawer({
                             onClick={() => setActionsFor(showActions ? null : m.id)}
                             style={{ touchAction: 'manipulation' }}
                             className={cn(
-                              "text-left rounded-2xl border px-3 py-2 transition-colors",
+                              "relative isolate overflow-hidden text-left rounded-2xl border px-3 py-2 transition-colors",
                               alignRight ? "rounded-br-md" : "rounded-bl-md",
                               m.in_character
                                 ? (isSelf
@@ -546,7 +546,28 @@ export function RoundChatDrawer({
                               m.consumed && "opacity-55",
                             )}
                           >
-                            <p className="font-body text-[15px] leading-[1.45] text-white/90 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                            {avatarUrl && (
+                              <>
+                                {/* The speaker's picture, pushed well back. IC and table talk
+                                    resolve to different avatars, so the texture itself tells
+                                    you which mode the message was sent in. */}
+                                <span
+                                  aria-hidden="true"
+                                  className="absolute inset-0 -z-10 bg-cover bg-center opacity-[0.30] blur-[3px] scale-110 saturate-75"
+                                  style={{ backgroundImage: `url(${avatarUrl})` }}
+                                />
+                                {/* Scrim. Without this, 15px text over an arbitrary photo is
+                                    unreadable on a phone. */}
+                                <span
+                                  aria-hidden="true"
+                                  className="absolute inset-0 -z-10 bg-black/55"
+                                />
+                              </>
+                            )}
+                            <p
+                              className="relative font-body text-[15px] leading-[1.45] text-white/95 whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+                              style={avatarUrl ? { textShadow: '0 1px 3px rgba(0,0,0,0.85)' } : undefined}
+                            >
                               {body}
                             </p>
                           </button>
