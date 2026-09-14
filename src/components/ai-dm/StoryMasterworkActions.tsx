@@ -95,12 +95,24 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills }: 
           <div className="flex items-center justify-between px-4 py-3 border-b border-amber-900/30 bg-[#0d0d12]">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-amber-400" />
-              <span className="text-sm font-cinzel text-amber-300">Suggested Moves</span>
+              <span className="text-sm font-cinzel text-amber-300">
+                {flavorId ? (getRpFlavor(flavorId)?.label || 'Suggested Moves') : 'What kind of move?'}
+              </span>
             </div>
             <div className="flex items-center gap-2">
-              {!loading && (
+              {flavorId && !loading && (
                 <button
-                  onClick={generate}
+                  onClick={backToPicker}
+                  className="flex items-center gap-1 text-[11px] text-amber-300/60 hover:text-amber-300 px-2 py-1 rounded"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  Back
+                </button>
+              )}
+              {!loading && flavorId && (
+                <button
+                  onClick={() => generate(flavorId)}
                   className="flex items-center gap-1 text-[11px] text-amber-300/60 hover:text-amber-300 px-2 py-1 rounded"
                   style={{ touchAction: 'manipulation' }}
                   title="Regenerate"
