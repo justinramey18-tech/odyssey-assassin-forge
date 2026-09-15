@@ -682,7 +682,7 @@ export function RoundChatDrawer({
                             onClick={() => setActionsFor(showActions ? null : m.id)}
                             style={{ touchAction: 'manipulation' }}
                             className={cn(
-                              "relative isolate overflow-hidden text-left rounded-2xl border px-3 py-2 transition-colors",
+                              "relative isolate overflow-hidden text-left rounded-2xl border px-3 py-2 transition-colors max-w-full min-w-0",
                               alignRight ? "rounded-br-md" : "rounded-bl-md",
                               m.in_character
                                 ? (isSelf
@@ -720,7 +720,7 @@ export function RoundChatDrawer({
                                 role="button"
                                 tabIndex={0}
                                 onClick={(e) => { e.stopPropagation(); jumpToMessage(parsedReply.replyToId!); }}
-                                className="relative block mb-1.5 pl-2 border-l-2 border-amber-400/60 text-left cursor-pointer"
+                                className="relative block w-full min-w-0 max-w-full mb-1.5 pl-2 border-l-2 border-amber-400/60 text-left cursor-pointer overflow-hidden"
                               >
                                 <span className="block font-body text-[11px] font-semibold text-amber-300/90 truncate">
                                   {quoted?.character_name || 'Deleted message'}
