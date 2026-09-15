@@ -132,7 +132,7 @@ function ChatAvatar({
         aria-label={editable ? `Change your ${kind === 'ic' ? 'character' : 'player'} picture` : label}
         style={{ touchAction: 'manipulation' }}
         className={cn(
-          "w-7 h-7 rounded-full overflow-hidden border flex items-center justify-center text-[10px] font-semibold",
+          "w-10 h-10 rounded-full overflow-hidden border flex items-center justify-center text-[13px] font-semibold",
           kind === 'ic'
             ? "border-emerald-400/40 bg-emerald-900/30 text-emerald-200"
             : "border-amber-400/40 border-dashed bg-amber-900/20 text-amber-200",
@@ -603,7 +603,7 @@ export function RoundChatDrawer({
                         </span>
                       )}
                       {stacked ? (
-                        <span className="shrink-0 w-8" />
+                        <span className="shrink-0 w-10" />
                       ) : (
                         <ChatAvatar
                           url={avatarUrl}
@@ -617,14 +617,14 @@ export function RoundChatDrawer({
                       <div className={cn("min-w-0 max-w-[78%]", alignRight ? "items-end" : "items-start", "flex flex-col")}>
                         {!stacked && (
                           <div className={cn(
-                            "flex items-baseline gap-1.5 mb-1 px-1",
+                            "flex items-baseline gap-1.5 mb-0.5 px-1",
                             alignRight && "flex-row-reverse",
                           )}>
-                            <span className={cn("font-body text-[13px] font-semibold truncate", nameColor)}>
+                            <span className={cn("font-body text-[12px] font-semibold truncate", nameColor)}>
                               {primaryName}
                             </span>
                             {secondaryName && (
-                              <span className="font-body text-[11px] text-white/35 truncate">
+                              <span className="font-body text-[10px] text-white/35 truncate">
                                 {secondaryName}
                               </span>
                             )}
@@ -682,7 +682,7 @@ export function RoundChatDrawer({
                             onClick={() => setActionsFor(showActions ? null : m.id)}
                             style={{ touchAction: 'manipulation' }}
                             className={cn(
-                              "relative isolate overflow-hidden text-left rounded-2xl border px-3 py-2 transition-colors max-w-full min-w-0",
+                              "relative isolate overflow-hidden text-left rounded-2xl border px-2.5 py-1.5 transition-colors max-w-full min-w-0",
                               alignRight ? "rounded-br-md" : "rounded-bl-md",
                               m.in_character
                                 ? (isSelf
@@ -741,7 +741,7 @@ export function RoundChatDrawer({
                               />
                             ) : (
                               <p
-                                className="relative font-body text-[15px] font-medium leading-[1.5] text-white whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+                                className="relative font-body text-[13.5px] font-medium leading-[1.32] text-white whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
                                 style={avatarUrl && !imageUrl ? {
                                   textShadow: [
                                     '0 0 1px rgba(0,0,0,1)',
