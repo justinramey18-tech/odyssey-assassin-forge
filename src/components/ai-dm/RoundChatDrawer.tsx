@@ -583,8 +583,8 @@ export function RoundChatDrawer({
                       onTouchEnd={onRowTouchEnd(m)}
                       onTouchCancel={() => { swipeStart.current = null; setSwipeId(null); setSwipeX(0); }}
                       className={cn(
-                        "relative flex items-end gap-2",
-                        stacked ? "mt-0.5" : "mt-3 first:mt-0",
+                        "relative flex items-end gap-1.5",
+                        stacked ? "mt-[3px]" : "mt-2 first:mt-0",
                         alignRight ? "flex-row-reverse" : "flex-row",
                       )}
                       style={{
