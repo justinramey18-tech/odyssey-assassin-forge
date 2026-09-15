@@ -761,79 +761,16 @@ export function RoundChatDrawer({
                           </button>
                         )}
 
-                        <div className={cn(
-                          "flex items-center gap-1.5 mt-1 px-1",
-                          alignRight && "flex-row-reverse",
-                        )}>
-                          {selectable ? (
-                            <button
-                              onClick={() => onToggleSelected(m.id)}
-                              role="checkbox"
-                              aria-checked={!!m.selected}
-                              aria-label={m.selected ? 'Remove from the DM hand-off' : 'Send this line to the DM'}
-                              style={{ touchAction: 'manipulation' }}
-                              className={cn(
-                                "font-body shrink-0 flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] transition-colors",
-                                m.selected
-                                  ? "bg-emerald-500/20 border-emerald-400/50 text-emerald-200"
-                                  : "bg-white/[0.03] border-white/10 text-white/30",
-                              )}
-                            >
-                              <Check className="w-3 h-3" />
-                              {m.selected ? 'ticked' : 'tick'}
-                            </button>
-                          ) : (
-                            <span className="font-body shrink-0 flex items-center gap-1 text-[10px] text-emerald-300/50">
-                              <Check className="w-3 h-3" /> sent
-                            </span>
-                          )}
-
-                          {showActions && (
-                            <>
-                              <button
-                                onClick={() => setPickerFor(pickerFor === m.id ? null : m.id)}
-                                className="p-1 text-white/40 active:text-amber-300"
-                                style={{ touchAction: 'manipulation' }}
-                                aria-label="Add reaction"
-                              >
-                                <Smile className="w-4 h-4" />
-                              </button>
-                              {isSelf && !m.consumed && !card && onEditMessage && (
-                                <button
-                                  onClick={() => {
-                                    setEditingMessageId(editingMessageId === m.id ? null : m.id);
-                                    setEditDraft(m.content);
-                                    setActionsFor(null);
-                                  }}
-                                  className="p-1 text-white/40 active:text-emerald-300"
-                                  style={{ touchAction: 'manipulation' }}
-                                  aria-label="Edit message"
-                                >
-                                  <Pencil className="w-4 h-4" />
-                                </button>
-                              )}
-                              {isSelf && !m.consumed && (
-                                <button
-                                  onClick={() => onDeleteMessage(m.id)}
-                                  className="p-1 text-white/40 active:text-red-400"
-                                  style={{ touchAction: 'manipulation' }}
-                                  aria-label="Delete message"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              )}
-                            </>
-                          )}
-                          {showActions && (partyMembers?.length || 0) > 0 && (
-                            <span className="font-body text-[10px] text-white/35 truncate min-w-0">
-                              {readerNames.length === 0
-                                ? 'Not seen yet'
-                                : readerNames.length === (partyMembers!.length - 1)
-                                  ? 'Seen by everyone'
-                                  : `Seen by ${readerNames.join(', ')}`}
-                            </span>
-                          )}
-                        </div>
+                        {(showActions || m.selected) && (
+                          <div className={cn(
+                            "flex items-center gap-1.5 mt-1 px-1",
+                            alignRight && "flex-row-reverse",
+                          )}>
+                            {selectable ? (
+...
+                            )}
+                          </div>
+                        )}
 
                         {Object.keys(grouped).length > 0 && (
                           <div className={cn("flex flex-wrap gap-1 mt-1", alignRight && "justify-end")}>
