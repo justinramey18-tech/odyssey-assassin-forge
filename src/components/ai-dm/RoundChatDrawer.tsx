@@ -25,7 +25,7 @@ const PLAYER_COLORS = [
   'text-orange-300',
 ];
 
-function playerColor(userId?: string | null): string {
+export function playerColor(userId?: string | null): string {
   if (!userId) return 'text-white/80';
   let hash = 0;
   for (let i = 0; i < userId.length; i++) hash = (hash * 31 + userId.charCodeAt(i)) >>> 0;
