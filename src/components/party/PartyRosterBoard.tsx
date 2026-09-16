@@ -104,10 +104,10 @@ export function PartyRosterBoard({
                       onClick={onOpenPartyDM}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-sky-500/30 bg-sky-950/20 hover:bg-sky-900/30 active:scale-[0.97] transition-all"
                       style={{ touchAction: 'manipulation' }}
-                      aria-label="Open Party DM"
+                      aria-label="Play"
                     >
                       <Users className="w-4 h-4 text-sky-400" />
-                      <span className="text-[10px] font-cinzel uppercase tracking-wider text-sky-300">Party DM</span>
+                      <span className="text-[10px] font-cinzel uppercase tracking-wider text-sky-300">Play</span>
                     </button>
                     {(className || level) && (
                       <span className="font-body text-[9px] text-white/25 truncate max-w-full text-center">
