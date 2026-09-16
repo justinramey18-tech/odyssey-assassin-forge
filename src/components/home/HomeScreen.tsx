@@ -344,6 +344,9 @@ export function HomeScreen({
   const [geraltHpPct, setGeraltHpPct] = useState<number | undefined>(undefined);
   // Persist last-read message count per party in localStorage
   const partyIdForChat = partySync?.party?.partyId;
+  // Same avatar source the Live DM Table uses, so the roster pictures match the
+  // pictures on each player's chat messages.
+  const rosterAvatars = useChatAvatars(partyIdForChat ?? null, userId);
   const lastSeenKey = partyIdForChat ? `odyssey_chat_lastSeen_${partyIdForChat}` : null;
   const lastSeenMessageCount = useRef(0);
   useEffect(() => {
