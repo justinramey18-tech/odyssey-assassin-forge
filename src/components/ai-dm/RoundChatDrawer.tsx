@@ -953,28 +953,10 @@ export function RoundChatDrawer({
                   </div>
                 )}
 
-                {isHost && (
-                  <button
-                    onClick={onSendToDMNow}
-                    disabled={isGenerating || progress.current === 0}
-                    style={{ touchAction: 'manipulation' }}
-                    className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-emerald-500/30 bg-emerald-900/25 text-emerald-300 text-[12px] font-cinzel transition-colors active:bg-emerald-900/45 disabled:opacity-35"
-                  >
-                    {isGenerating
-                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      : <Zap className="w-3.5 h-3.5" />}
-                    {isGenerating
-                      ? 'DM is writing…'
-                      : progress.current > 0
-                        ? `Send to DM · ${progress.current}`
-                        : 'Send to DM'}
-                  </button>
-                )}
-
                 {/* Who is speaking. The pictures are the same ones used for this
                     player's bubbles, so the tile you pick matches what appears in
                     the chat. Tapping the already-selected tile renames it. */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-stretch gap-2">
                   {([
                     {
                       key: 'ic' as const,
