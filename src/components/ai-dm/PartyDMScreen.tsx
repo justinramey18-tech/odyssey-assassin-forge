@@ -39,6 +39,7 @@ import { usePartyNarrationStyle } from '@/hooks/use-party-narration-style';
 import { useRoundChat } from '@/hooks/use-round-chat';
 import { useChatAvatars } from '@/hooks/use-chat-avatars';
 import { RoundChatDrawer } from './RoundChatDrawer';
+import { DMHandoffBar } from './DMHandoffBar';
 import { narrationStyleLine } from '@/lib/narrationStyle';
 import { withQuestEvent, WorldStateEntry, buildQuestKickoffPrompt } from '@/lib/quests';
 
@@ -3079,7 +3080,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       {/* Chat Rounds: mini party chat that drives the DM.
           Shown whenever the table is in chat/live mode — it must not vanish just
           because the session config hasn't loaded or the host hasn't started yet. */}
-      {chatRoundsOn && (
+      {chatRoundsOn && (<>
+        <DMHandoffBar
+          isHost={isCreator}
+          isGenerating={partyDm.isGenerating}
+          tickedCount={roundChat.progress.current}
+          orderedSelected={roundChat.orderedSelected}
+          onReorderSelected={roundChat.setSelectedOrder}
+          onSendToDMNow={fireChatRound}
+          oocNames={chatAvatars.oocNames}
+        />
         <RoundChatDrawer
           open={roundChatOpen}
           onOpenChange={setRoundChatOpen}
@@ -3148,7 +3158,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             character_name: m.character_name || 'Player',
           }))}
           onMarkRead={roundChat.markRead}
-        />
+        /></>
       )}
 
       {/* Prompt Queue Status */}
