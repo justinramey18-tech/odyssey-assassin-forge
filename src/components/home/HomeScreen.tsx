@@ -13,7 +13,7 @@ import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { SaveData } from '@/hooks/use-auto-save';
 import { 
   Settings, Coffee, Moon, TrendingUp,
-  MessageCircle, Gem, Zap, PanelLeft, HelpCircle, BookOpen,
+  MessageCircle, Gem, Zap, HelpCircle, BookOpen,
   Swords, Wand2, ListChecks, ChevronUp, Users, User, Film,
   Crown, ScrollText,
 } from 'lucide-react';
@@ -40,7 +40,7 @@ import { loadEmpyreanDMConfig } from '@/lib/empyreanDMPersona';
 import { GeraltCompanionScreen } from '@/components/companion';
 // New redesigned components
 import { CharacterNamePlaque } from './CharacterNamePlaque';
-import { DynamicHealthBar } from './DynamicHealthBar';
+
 import { WildShapeOverlay } from './WildShapeOverlay';
 
 
@@ -60,7 +60,7 @@ import WeatherOverlay from './WeatherOverlay';
 import { useWeather } from '@/hooks/use-weather';
 import { PrestigeData } from '@/lib/prestige';
 import { ChroniclerHomeView } from './ChroniclerHomeView';
-import { AlignmentDriftIndicator } from '@/components/alignment/AlignmentDriftIndicator';
+
 import { EmpyreanDualHPBars } from '@/components/empyrean/EmpyreanDualHPBars';
 import { EmpyreanDMContainer } from '@/components/empyrean/EmpyreanDMContainer';
 import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
@@ -716,9 +716,6 @@ export function HomeScreen({
           dragonName={loadEmpyreanDMConfig()?.dragonName}
           onOpenSettings={onOpenSettings}
         />
-        {appMode !== 'empyrean' && (
-          <AlignmentDriftIndicator className="px-4 py-1" />
-        )}
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-auto flex flex-col">
@@ -843,31 +840,27 @@ export function HomeScreen({
                 )}
 
 
-                {/* Menus bar */}
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.9, ease: [0.16, 1, 0.3, 1] }}
-                  className="px-4"
-                >
-                  <button
-                    onClick={() => { triggerHaptic('light'); setShowDrawersMenu(true); }}
-                    className={cn(
-                      "w-full flex items-center justify-center gap-2 py-2.5 rounded-lg",
-                      "border border-cyan-500/30 bg-cyan-950/15 backdrop-blur-sm",
-                      "hover:bg-cyan-900/25 hover:border-cyan-400/50",
-                      "active:scale-[0.98] transition-all duration-200"
-                    )}
-                    style={{ touchAction: 'manipulation' }}
-                  >
-                    <PanelLeft className="w-4 h-4 text-cyan-400" />
-                    <span className="text-xs font-cinzel uppercase tracking-wider text-cyan-300">Menus</span>
-                  </button>
-                </motion.div>
               </div>
             </>
           ) : (
-            <div className="flex flex-col gap-4 pb-[2px] mt-auto">
+            <>
+              {/* Party roster — top of home screen */}
+              {playMode === 'party' && partySync?.party?.partyId && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <PartyRosterBoard
+                    members={partySync.party.members}
+                    avatars={rosterAvatars.avatars}
+                    oocNames={rosterAvatars.oocNames}
+                    currentUserId={userId}
+                  />
+                </motion.div>
+              )}
+
+              <div className="flex flex-col gap-4 pb-[2px] mt-auto">
 
               {/* Wild Shape Details Overlay */}
               {showFeature('home.wildShape') && isWildShape && wildShapeFormName && onDismissWildShape && (
@@ -1046,55 +1039,8 @@ export function HomeScreen({
                 </motion.div>
               )}
 
-              {/* Menus Bar */}
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.9, ease: [0.16, 1, 0.3, 1] }}
-                className="px-4"
-              >
-                <button
-                  onClick={() => { triggerHaptic('light'); setShowDrawersMenu(true); }}
-                  className={cn(
-                    "w-full flex items-center justify-center gap-2 py-2.5 rounded-lg",
-                    "border border-cyan-500/30 bg-cyan-950/15 backdrop-blur-sm",
-                    "hover:bg-cyan-900/25 hover:border-cyan-400/50",
-                    "active:scale-[0.98] transition-all duration-200"
-                  )}
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <PanelLeft className="w-4 h-4 text-cyan-400" />
-                  <span className="text-xs font-cinzel uppercase tracking-wider text-cyan-300">Menus</span>
-                </button>
-              </motion.div>
 
-              {/* Who is playing whom */}
-              {playMode === 'party' && partySync?.party?.partyId && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.95, ease: [0.16, 1, 0.3, 1] }}
-                >
-                  <PartyRosterBoard
-                    members={partySync.party.members}
-                    avatars={rosterAvatars.avatars}
-                    oocNames={rosterAvatars.oocNames}
-                    currentUserId={userId}
-                  />
-                </motion.div>
-              )}
 
-              {/* Dynamic Health Bar */}
-              {showFeature('home.healthBar') && (
-                <DynamicHealthBar
-                  currentHP={currentHP}
-                  maxHP={maxHP}
-                  tempHP={tempHP}
-                  onTap={() => drawerContext?.openStatsDrawer()}
-                  isWildShape={isWildShape}
-                  wildShapeFormName={wildShapeFormName}
-                />
-              )}
 
               {/* Quick Actions */}
               {showFeature('home.restButtons') && (
@@ -1102,8 +1048,9 @@ export function HomeScreen({
                   <div className="flex gap-3 max-w-md mx-auto justify-center">
                     <AppUpdateButton className={transparentButtonBase} />
                   </div>
-                </div>
-              )}
+              </div>
+            </>
+          )}
 
             </div>
           )}
