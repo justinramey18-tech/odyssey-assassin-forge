@@ -1048,11 +1048,11 @@ export function HomeScreen({
                   <div className="flex gap-3 max-w-md mx-auto justify-center">
                     <AppUpdateButton className={transparentButtonBase} />
                   </div>
+                </div>
+              )}
+
               </div>
             </>
-          )}
-
-            </div>
           )}
         </div>
 
