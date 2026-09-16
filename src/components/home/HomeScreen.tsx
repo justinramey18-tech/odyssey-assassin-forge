@@ -856,6 +856,7 @@ export function HomeScreen({
                     avatars={rosterAvatars.avatars}
                     oocNames={rosterAvatars.oocNames}
                     currentUserId={userId}
+                    onOpenPartyDM={() => { triggerHaptic('light'); drawerContext?.openPartyDMScreen(); }}
                   />
                 </motion.div>
               )}
