@@ -900,106 +900,6 @@ export function RoundChatDrawer({
                 style={fullScreen ? { paddingBottom: 'env(safe-area-inset-bottom, 0px)' } : undefined}
               >
                 
-                <div className="flex items-center gap-2">
-
-                  <div
-                    role="group"
-                    aria-label="Post as"
-                    className="flex items-center rounded-lg border border-white/10 bg-black/30 p-0.5 shrink-0"
-                  >
-                    <button
-                      onClick={() => setInCharacter(true)}
-                      aria-pressed={inCharacter}
-                      className={cn(
-                        "px-2 py-1 rounded-md text-[10px] font-medium transition-colors",
-                        inCharacter
-                          ? "bg-amber-500/25 text-amber-100 border border-amber-400/40"
-                          : "text-white/40 border border-transparent"
-                      )}
-                      style={{ touchAction: 'manipulation' }}
-                    >
-                      {(() => {
-                        const ic = (characterName || '').trim();
-                        const ooc = ((currentUserId && oocNames?.[currentUserId]) || '').trim();
-                        return ic && ooc && ic.toLowerCase() !== ooc.toLowerCase() ? ic : 'In character';
-                      })()}
-                    </button>
-                    <button
-                      onClick={() => setInCharacter(false)}
-                      aria-pressed={!inCharacter}
-                      className={cn(
-                        "px-2 py-1 rounded-md text-[10px] font-medium transition-colors",
-                        !inCharacter
-                          ? "bg-sky-500/20 text-sky-100 border border-dashed border-sky-400/50"
-                          : "text-white/40 border border-transparent"
-                      )}
-                      style={{ touchAction: 'manipulation' }}
-                    >
-                      {(() => {
-                        const ic = (characterName || '').trim();
-                        const ooc = ((currentUserId && oocNames?.[currentUserId]) || '').trim();
-                        return ic && ooc && ic.toLowerCase() !== ooc.toLowerCase() ? ooc : 'Table talk';
-                      })()}
-                    </button>
-                  </div>
-                  {!inCharacter && onSetOocName && (
-                    editingOocName ? (
-                      <input
-                        autoFocus
-                        value={oocNameDraft}
-                        maxLength={40}
-                        onChange={(e) => setOocNameDraft(e.target.value)}
-                        onBlur={() => { onSetOocName(oocNameDraft); setEditingOocName(false); }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') { e.preventDefault(); onSetOocName(oocNameDraft); setEditingOocName(false); }
-                          if (e.key === 'Escape') setEditingOocName(false);
-                        }}
-                        placeholder="Your table name"
-                        className="w-28 shrink-0 px-2 py-1 rounded-md text-[10px] bg-black/40 border border-amber-400/40 text-amber-100 outline-none"
-                      />
-                    ) : (
-                      <button
-                        onClick={() => { setOocNameDraft((currentUserId && oocNames?.[currentUserId]) || ''); setEditingOocName(true); }}
-                        className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-[10px] border border-amber-400/30 bg-amber-900/20 text-amber-200/90"
-                        style={{ touchAction: 'manipulation' }}
-                      >
-                        <Pencil className="w-2.5 h-2.5" />
-                        {(currentUserId && oocNames?.[currentUserId]) || 'Name yourself'}
-                      </button>
-                    )
-                  )}
-                  {messages.length > 0 && (
-                    <button
-                      onClick={progress.current > 0 ? onClearSelection : onSelectAll}
-                      className="shrink-0 px-2 py-1 rounded-md text-[10px] border border-white/15 bg-white/5 text-white/60"
-                      style={{ touchAction: 'manipulation' }}
-                    >
-                      {progress.current > 0 ? 'Clear ticks' : 'Tick all'}
-                    </button>
-                  )}
-                  <span className="text-[10px] text-white/30 truncate">
-                    {progress.current > 0
-                      ? `${progress.current} ticked for the DM`
-                      : 'Tick lines to send'}
-                  </span>
-
-                  {isHost && (
-                    <button
-                      onClick={onSendToDMNow}
-                      disabled={isGenerating || progress.current === 0}
-                      className="ml-auto flex items-center gap-1 px-2 py-1 rounded-md text-[10px] border border-emerald-500/30 bg-emerald-900/25 text-emerald-300 hover:bg-emerald-900/45 transition-colors disabled:opacity-40"
-                      style={{ touchAction: 'manipulation' }}
-                    >
-                      {isGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
-                      {isGenerating
-                        ? 'DM is writing…'
-                        : progress.current > 0
-                          ? `Send to DM (${progress.current} line${progress.current === 1 ? '' : 's'}${progress.speakers ? ` · ${progress.speakers} hero${progress.speakers === 1 ? '' : 'es'}` : ''})`
-                          : 'Send to DM'}
-                    </button>
-                  )}
-                </div>
-
                 {/* Hand-off order — host arranges how the DM reads the batch */}
                 {isHost && onReorderSelected && (orderedSelected?.length || 0) > 1 && (
                   <div className="mb-1.5 rounded-md border border-emerald-900/30 bg-emerald-950/20 p-1.5">
@@ -1052,6 +952,98 @@ export function RoundChatDrawer({
                     </div>
                   </div>
                 )}
+
+                {isHost && (
+                  <button
+                    onClick={onSendToDMNow}
+                    disabled={isGenerating || progress.current === 0}
+                    style={{ touchAction: 'manipulation' }}
+                    className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-emerald-500/30 bg-emerald-900/25 text-emerald-300 text-[12px] font-cinzel transition-colors active:bg-emerald-900/45 disabled:opacity-35"
+                  >
+                    {isGenerating
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <Zap className="w-3.5 h-3.5" />}
+                    {isGenerating
+                      ? 'DM is writing…'
+                      : progress.current > 0
+                        ? `Send to DM · ${progress.current}`
+                        : 'Send to DM'}
+                  </button>
+                )}
+
+                {/* Who is speaking. The pictures are the same ones used for this
+                    player's bubbles, so the tile you pick matches what appears in
+                    the chat. Tapping the already-selected tile renames it. */}
+                <div className="flex items-center gap-2">
+                  {([
+                    {
+                      key: 'ic' as const,
+                      active: inCharacter,
+                      url: currentUserId ? avatars?.[currentUserId]?.ic : undefined,
+                      name: (characterName || 'Character').trim(),
+                      ring: 'border-2 border-amber-400/70',
+                      tint: 'bg-amber-500/20 text-amber-200',
+                    },
+                    {
+                      key: 'ooc' as const,
+                      active: !inCharacter,
+                      url: currentUserId ? avatars?.[currentUserId]?.ooc : undefined,
+                      name: ((currentUserId && oocNames?.[currentUserId]) || 'You').trim(),
+                      ring: 'border-2 border-dashed border-sky-400/70',
+                      tint: 'bg-sky-500/20 text-sky-200',
+                    },
+                  ]).map(tile => (
+                    <button
+                      key={tile.key}
+                      onClick={() => {
+                        if (tile.key === 'ic') { setInCharacter(true); return; }
+                        // Second tap on the selected table-talk tile opens the rename field.
+                        if (!inCharacter && onSetOocName) {
+                          setOocNameDraft((currentUserId && oocNames?.[currentUserId]) || '');
+                          setEditingOocName(true);
+                          return;
+                        }
+                        setInCharacter(false);
+                      }}
+                      aria-pressed={tile.active}
+                      aria-label={tile.key === 'ic' ? `Speak as ${tile.name}` : `Speak as yourself, ${tile.name}`}
+                      style={{ touchAction: 'manipulation' }}
+                      className={cn(
+                        "relative shrink-0 w-14 h-14 rounded-xl overflow-hidden transition-all",
+                        tile.active ? tile.ring : "border border-white/10 opacity-40 grayscale",
+                      )}
+                    >
+                      {tile.url ? (
+                        <img src={tile.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                      ) : (
+                        <span className={cn("absolute inset-0 flex items-center justify-center text-base font-semibold", tile.tint)}>
+                          {tile.name.charAt(0).toUpperCase() || '?'}
+                        </span>
+                      )}
+                      <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent px-1 pt-2 pb-0.5">
+                        <span className="block font-body text-[8px] leading-tight text-white/90 truncate">
+                          {tile.name}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+
+                  {editingOocName && onSetOocName && (
+                    <input
+                      autoFocus
+                      value={oocNameDraft}
+                      maxLength={40}
+                      onChange={(e) => setOocNameDraft(e.target.value)}
+                      onBlur={() => { onSetOocName(oocNameDraft); setEditingOocName(false); }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); onSetOocName(oocNameDraft); setEditingOocName(false); }
+                        if (e.key === 'Escape') setEditingOocName(false);
+                      }}
+                      placeholder="Your table name"
+                      className="flex-1 min-w-0 px-2 py-2 rounded-lg text-[12px] bg-black/40 border border-sky-400/40 text-sky-100 outline-none"
+                    />
+                  )}
+                </div>
 
                 {replyTo && (
                   <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-amber-500/25 bg-amber-500/5">
