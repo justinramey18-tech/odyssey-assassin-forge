@@ -48,11 +48,24 @@ export function DMHandoffBar({
   return (
     <div className="px-2 pb-2 space-y-1.5">
       {showOrder && (
-        <div className="rounded-md border border-emerald-900/30 bg-emerald-950/20 p-1.5">
-          <div className="text-[9px] uppercase tracking-wider text-emerald-300/60 mb-1 font-cinzel">
-            Send order
-          </div>
-          <div className="space-y-1 max-h-24 overflow-y-auto scrollbar-hide">
+        <div className="rounded-md border border-emerald-900/30 bg-emerald-950/20">
+          <button
+            onClick={() => setOrderOpen(v => !v)}
+            style={{ touchAction: 'manipulation' }}
+            className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[9px] uppercase tracking-wider text-emerald-300/60 font-cinzel"
+          >
+            {orderOpen
+              ? <ChevronDown className="w-3 h-3 shrink-0" />
+              : <ChevronRight className="w-3 h-3 shrink-0" />}
+            <span>Send order</span>
+            <span className="ml-auto normal-case tracking-normal text-emerald-300/40">
+              {orderedSelected!.length} lines
+            </span>
+          </button>
+          <div className={cn(
+            "space-y-1 overflow-y-auto scrollbar-hide px-1.5 pb-1.5",
+            orderOpen ? "max-h-24" : "hidden",
+          )}>
             {orderedSelected!.map((m, i) => {
               const ids = orderedSelected!.map(x => x.id);
               const move = (dir: -1 | 1) => {
