@@ -2,7 +2,7 @@
 // character on the right. Pictures come from the same ic / ooc avatar slots the
 // Live DM Table uses, so what shows here matches what shows on their messages.
 
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ChatAvatars } from '@/hooks/use-chat-avatars';
 
@@ -19,6 +19,8 @@ interface PartyRosterBoardProps {
   /** userId -> the player's own table name. */
   oocNames?: Record<string, string>;
   currentUserId?: string;
+  /** Opens the Party DM — shown in place of "playing as" on the user's own row. */
+  onOpenPartyDM?: () => void;
 }
 
 /** One picture tile with a caption underneath. */
@@ -61,6 +63,7 @@ export function PartyRosterBoard({
   avatars,
   oocNames,
   currentUserId,
+  onOpenPartyDM,
 }: PartyRosterBoardProps) {
   if (!members || members.length === 0) return null;
 
@@ -95,17 +98,36 @@ export function PartyRosterBoard({
                   isSelf={isSelf}
                 />
 
-                <div className="flex-1 min-w-0 flex flex-col items-center justify-center pt-5">
-                  <ArrowRight className="w-4 h-4 text-white/30" />
-                  <span className="font-body text-[10px] text-white/40 whitespace-nowrap">
-                    playing as
-                  </span>
-                  {(className || level) && (
-                    <span className="font-body text-[9px] text-white/25 truncate max-w-full text-center">
-                      {className}{level ? ` · Lv.${level}` : ''}
+                {isSelf && onOpenPartyDM ? (
+                  <div className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 pt-2">
+                    <button
+                      onClick={onOpenPartyDM}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-sky-500/30 bg-sky-950/20 hover:bg-sky-900/30 active:scale-[0.97] transition-all"
+                      style={{ touchAction: 'manipulation' }}
+                      aria-label="Open Party DM"
+                    >
+                      <Users className="w-4 h-4 text-sky-400" />
+                      <span className="text-[10px] font-cinzel uppercase tracking-wider text-sky-300">Party DM</span>
+                    </button>
+                    {(className || level) && (
+                      <span className="font-body text-[9px] text-white/25 truncate max-w-full text-center">
+                        {className}{level ? ` · Lv.${level}` : ''}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex-1 min-w-0 flex flex-col items-center justify-center pt-5">
+                    <ArrowRight className="w-4 h-4 text-white/30" />
+                    <span className="font-body text-[10px] text-white/40 whitespace-nowrap">
+                      playing as
                     </span>
-                  )}
-                </div>
+                    {(className || level) && (
+                      <span className="font-body text-[9px] text-white/25 truncate max-w-full text-center">
+                        {className}{level ? ` · Lv.${level}` : ''}
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 <RosterFace
                   url={avatars?.[m.user_id]?.ic}
