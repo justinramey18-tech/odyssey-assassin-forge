@@ -48,6 +48,8 @@ import { WildShapeOverlay } from './WildShapeOverlay';
 import { CategoryQuickNav } from './CategoryQuickNav';
 import { BackgroundUploadButton } from './BackgroundUploadButton';
 import { PartyPanel } from '@/components/party/PartyPanel';
+import { PartyRosterBoard } from '@/components/party/PartyRosterBoard';
+import { useChatAvatars } from '@/hooks/use-chat-avatars';
 
 import { FullscreenPartyChat } from '@/components/party/FullscreenPartyChat';
 import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
