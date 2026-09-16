@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronUp, Send, Smile, Trash2, MessageSquare, Zap, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft } from 'lucide-react';
+import { ChevronDown, Send, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft } from 'lucide-react';
 import { AvatarCropDialog } from './AvatarCropDialog';
 
 import { Textarea } from '@/components/ui/textarea';
@@ -900,81 +900,11 @@ export function RoundChatDrawer({
                 style={fullScreen ? { paddingBottom: 'env(safe-area-inset-bottom, 0px)' } : undefined}
               >
                 
-                {/* Hand-off order — host arranges how the DM reads the batch */}
-                {isHost && onReorderSelected && (orderedSelected?.length || 0) > 1 && (
-                  <div className="mb-1.5 rounded-md border border-emerald-900/30 bg-emerald-950/20 p-1.5">
-                    <div className="text-[9px] uppercase tracking-wider text-emerald-300/60 mb-1 font-cinzel">
-                      Send order
-                    </div>
-                    <div className="space-y-1 max-h-24 overflow-y-auto scrollbar-hide">
-                      {orderedSelected!.map((m, i) => {
-                        const ids = orderedSelected!.map(x => x.id);
-                        const move = (dir: -1 | 1) => {
-                          const next = [...ids];
-                          const j = i + dir;
-                          if (j < 0 || j >= next.length) return;
-                          [next[i], next[j]] = [next[j], next[i]];
-                          onReorderSelected(next);
-                        };
-                        return (
-                          <div key={m.id} className="flex items-center gap-1.5">
-                            <span className="w-4 shrink-0 text-[9px] text-white/35 text-center">{i + 1}</span>
-                            <span className={cn(
-                              "text-[10px] font-semibold shrink-0 truncate max-w-[72px] font-cinzel",
-                              m.in_character ? playerColor(m.user_id) : 'text-amber-300/80',
-                            )}>
-                              {m.in_character ? (m.character_name || 'Player') : (oocNames?.[m.user_id] || m.character_name || 'Player')}
-                            </span>
-                            <span className="text-[10px] text-white/45 truncate min-w-0 flex-1">
-                              {parseActionCard(m.content).body || m.content}
-                            </span>
-                            <button
-                              onClick={() => move(-1)}
-                              disabled={i === 0}
-                              aria-label="Move earlier"
-                              style={{ touchAction: 'manipulation' }}
-                              className="shrink-0 w-6 h-6 rounded border border-white/10 bg-white/5 text-white/60 disabled:opacity-25 flex items-center justify-center"
-                            >
-                              <ChevronUp className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => move(1)}
-                              disabled={i === orderedSelected!.length - 1}
-                              aria-label="Move later"
-                              style={{ touchAction: 'manipulation' }}
-                              className="shrink-0 w-6 h-6 rounded border border-white/10 bg-white/5 text-white/60 disabled:opacity-25 flex items-center justify-center"
-                            >
-                              <ChevronDown className="w-3 h-3" />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {isHost && (
-                  <button
-                    onClick={onSendToDMNow}
-                    disabled={isGenerating || progress.current === 0}
-                    style={{ touchAction: 'manipulation' }}
-                    className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-emerald-500/30 bg-emerald-900/25 text-emerald-300 text-[12px] font-cinzel transition-colors active:bg-emerald-900/45 disabled:opacity-35"
-                  >
-                    {isGenerating
-                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      : <Zap className="w-3.5 h-3.5" />}
-                    {isGenerating
-                      ? 'DM is writing…'
-                      : progress.current > 0
-                        ? `Send to DM · ${progress.current}`
-                        : 'Send to DM'}
-                  </button>
-                )}
 
                 {/* Who is speaking. The pictures are the same ones used for this
                     player's bubbles, so the tile you pick matches what appears in
                     the chat. Tapping the already-selected tile renames it. */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-stretch gap-2">
                   {([
                     {
                       key: 'ic' as const,
@@ -1009,41 +939,42 @@ export function RoundChatDrawer({
                       aria-label={tile.key === 'ic' ? `Speak as ${tile.name}` : `Speak as yourself, ${tile.name}`}
                       style={{ touchAction: 'manipulation' }}
                       className={cn(
-                        "relative shrink-0 w-14 h-14 rounded-xl overflow-hidden transition-all",
+                        "relative flex-1 min-w-0 h-20 rounded-xl overflow-hidden transition-all",
                         tile.active ? tile.ring : "border border-white/10 opacity-40 grayscale",
                       )}
                     >
                       {tile.url ? (
                         <img src={tile.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
                       ) : (
-                        <span className={cn("absolute inset-0 flex items-center justify-center text-base font-semibold", tile.tint)}>
+                        <span className={cn("absolute inset-0 flex items-center justify-center text-2xl font-semibold", tile.tint)}>
                           {tile.name.charAt(0).toUpperCase() || '?'}
                         </span>
                       )}
                       <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent px-1 pt-2 pb-0.5">
-                        <span className="block font-body text-[8px] leading-tight text-white/90 truncate">
+                        <span className="block font-body text-[11px] font-semibold leading-tight text-white/95 truncate">
                           {tile.name}
                         </span>
                       </span>
                     </button>
                   ))}
 
-                  {editingOocName && onSetOocName && (
-                    <input
-                      autoFocus
-                      value={oocNameDraft}
-                      maxLength={40}
-                      onChange={(e) => setOocNameDraft(e.target.value)}
-                      onBlur={() => { onSetOocName(oocNameDraft); setEditingOocName(false); }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') { e.preventDefault(); onSetOocName(oocNameDraft); setEditingOocName(false); }
-                        if (e.key === 'Escape') setEditingOocName(false);
-                      }}
-                      placeholder="Your table name"
-                      className="flex-1 min-w-0 px-2 py-2 rounded-lg text-[12px] bg-black/40 border border-sky-400/40 text-sky-100 outline-none"
-                    />
-                  )}
                 </div>
+
+                {editingOocName && onSetOocName && (
+                  <input
+                    autoFocus
+                    value={oocNameDraft}
+                    maxLength={40}
+                    onChange={(e) => setOocNameDraft(e.target.value)}
+                    onBlur={() => { onSetOocName(oocNameDraft); setEditingOocName(false); }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); onSetOocName(oocNameDraft); setEditingOocName(false); }
+                      if (e.key === 'Escape') setEditingOocName(false);
+                    }}
+                    placeholder="Your table name"
+                    className="w-full px-2 py-2 rounded-lg text-[12px] bg-black/40 border border-sky-400/40 text-sky-100 outline-none"
+                  />
+                )}
 
                 {replyTo && (
                   <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-amber-500/25 bg-amber-500/5">
@@ -1088,7 +1019,7 @@ export function RoundChatDrawer({
                         }
                       }
                     }}
-                    placeholder={inCharacter ? `Speak as ${characterName || 'your character'}...` : 'Table talk — not sent to the DM'}
+                    placeholder={inCharacter ? `Speak as ${characterName || 'your character'}...` : 'Table talk — speak as yourself...'}
                     className="min-h-[38px] max-h-[140px] font-body text-[15px] py-2 resize-none bg-white/5 border-amber-900/30"
                     rows={1}
                   />
