@@ -2,8 +2,9 @@
 // in what order, and the button that sends them. Lives on the story screen rather
 // than inside the chat drawer, so the drawer is just conversation.
 
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { ChevronUp, ChevronDown, Zap, Loader2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronRight, Zap, Loader2 } from 'lucide-react';
 import { playerColor } from './RoundChatDrawer';
 import { parseActionCard } from '@/lib/roundChatActionCard';
 
@@ -35,6 +36,8 @@ export function DMHandoffBar({
   onSendToDMNow,
   oocNames,
 }: DMHandoffBarProps) {
+  const [orderOpen, setOrderOpen] = useState(false);
+
   // Nothing ticked and not mid-generation means nothing to show. The bar must not
   // eat vertical space on the story screen when it has no job.
   if (!isHost) return null;
