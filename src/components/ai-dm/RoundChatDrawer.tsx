@@ -900,58 +900,6 @@ export function RoundChatDrawer({
                 style={fullScreen ? { paddingBottom: 'env(safe-area-inset-bottom, 0px)' } : undefined}
               >
                 
-                {/* Hand-off order — host arranges how the DM reads the batch */}
-                {isHost && onReorderSelected && (orderedSelected?.length || 0) > 1 && (
-                  <div className="mb-1.5 rounded-md border border-emerald-900/30 bg-emerald-950/20 p-1.5">
-                    <div className="text-[9px] uppercase tracking-wider text-emerald-300/60 mb-1 font-cinzel">
-                      Send order
-                    </div>
-                    <div className="space-y-1 max-h-24 overflow-y-auto scrollbar-hide">
-                      {orderedSelected!.map((m, i) => {
-                        const ids = orderedSelected!.map(x => x.id);
-                        const move = (dir: -1 | 1) => {
-                          const next = [...ids];
-                          const j = i + dir;
-                          if (j < 0 || j >= next.length) return;
-                          [next[i], next[j]] = [next[j], next[i]];
-                          onReorderSelected(next);
-                        };
-                        return (
-                          <div key={m.id} className="flex items-center gap-1.5">
-                            <span className="w-4 shrink-0 text-[9px] text-white/35 text-center">{i + 1}</span>
-                            <span className={cn(
-                              "text-[10px] font-semibold shrink-0 truncate max-w-[72px] font-cinzel",
-                              m.in_character ? playerColor(m.user_id) : 'text-amber-300/80',
-                            )}>
-                              {m.in_character ? (m.character_name || 'Player') : (oocNames?.[m.user_id] || m.character_name || 'Player')}
-                            </span>
-                            <span className="text-[10px] text-white/45 truncate min-w-0 flex-1">
-                              {parseActionCard(m.content).body || m.content}
-                            </span>
-                            <button
-                              onClick={() => move(-1)}
-                              disabled={i === 0}
-                              aria-label="Move earlier"
-                              style={{ touchAction: 'manipulation' }}
-                              className="shrink-0 w-6 h-6 rounded border border-white/10 bg-white/5 text-white/60 disabled:opacity-25 flex items-center justify-center"
-                            >
-                              <ChevronUp className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => move(1)}
-                              disabled={i === orderedSelected!.length - 1}
-                              aria-label="Move later"
-                              style={{ touchAction: 'manipulation' }}
-                              className="shrink-0 w-6 h-6 rounded border border-white/10 bg-white/5 text-white/60 disabled:opacity-25 flex items-center justify-center"
-                            >
-                              <ChevronDown className="w-3 h-3" />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
 
                 {/* Who is speaking. The pictures are the same ones used for this
                     player's bubbles, so the tile you pick matches what appears in
