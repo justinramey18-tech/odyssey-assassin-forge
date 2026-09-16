@@ -939,19 +939,19 @@ export function RoundChatDrawer({
                       aria-label={tile.key === 'ic' ? `Speak as ${tile.name}` : `Speak as yourself, ${tile.name}`}
                       style={{ touchAction: 'manipulation' }}
                       className={cn(
-                        "relative shrink-0 w-14 h-14 rounded-xl overflow-hidden transition-all",
+                        "relative flex-1 min-w-0 h-20 rounded-xl overflow-hidden transition-all",
                         tile.active ? tile.ring : "border border-white/10 opacity-40 grayscale",
                       )}
                     >
                       {tile.url ? (
                         <img src={tile.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
                       ) : (
-                        <span className={cn("absolute inset-0 flex items-center justify-center text-base font-semibold", tile.tint)}>
+                        <span className={cn("absolute inset-0 flex items-center justify-center text-2xl font-semibold", tile.tint)}>
                           {tile.name.charAt(0).toUpperCase() || '?'}
                         </span>
                       )}
                       <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent px-1 pt-2 pb-0.5">
-                        <span className="block font-body text-[8px] leading-tight text-white/90 truncate">
+                        <span className="block font-body text-[11px] font-semibold leading-tight text-white/95 truncate">
                           {tile.name}
                         </span>
                       </span>
