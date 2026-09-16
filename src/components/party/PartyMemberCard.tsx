@@ -55,7 +55,7 @@ export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onK
   return (
     <div
       className={cn(
-        "rounded-lg border bg-card/60 backdrop-blur-sm space-y-2 transition-colors",
+        "rounded-lg border bg-card/60 backdrop-blur-sm space-y-2 transition-colors overflow-hidden",
         compact ? "p-2" : "p-3",
         isSelf ? "border-primary/40" : "border-border/40",
         isTappable && "cursor-pointer hover:bg-card/80 active:bg-card/90"
@@ -64,7 +64,7 @@ export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onK
     >
       {/* Name + Level + Class + Avatar */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <div className="relative">
             <Avatar className={compact ? "w-6 h-6" : "w-7 h-7"}>
               {profileImage ? (
@@ -84,14 +84,14 @@ export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onK
               />
             )}
           </div>
-          <span className={cn("font-cinzel font-semibold text-sm truncate", compact ? "max-w-[90px]" : "max-w-[120px]")}>
+          <span className={cn("font-cinzel font-semibold text-sm truncate min-w-0", compact ? "max-w-[90px]" : "max-w-[120px]")}>
             {member.character_name}
           </span>
           {isSelf && (
-            <span className="text-[9px] uppercase tracking-wider text-primary font-bold">You</span>
+            <span className="text-[9px] uppercase tracking-wider text-primary font-bold shrink-0">You</span>
           )}
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 shrink-0">
           {!compact && playerTz && playerTime && (
             <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground/70 font-mono">
               <Clock className="w-2.5 h-2.5" />
@@ -99,15 +99,15 @@ export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onK
             </span>
           )}
           {status.className && (
-            <span className="text-[10px] text-muted-foreground">{status.className}</span>
+            <span className="text-[10px] text-muted-foreground truncate max-w-[64px]">{status.className}</span>
           )}
           {status.level && (
-            <span className="text-[10px] text-muted-foreground">Lv.{status.level}</span>
+            <span className="text-[10px] text-muted-foreground shrink-0">Lv.{status.level}</span>
           )}
           {!isSelf && onSendItem && (
             <button
               onClick={(e) => { e.stopPropagation(); onSendItem(member); }}
-              className="p-0.5 rounded hover:bg-primary/10 transition-colors"
+              className="p-1.5 shrink-0 rounded hover:bg-primary/10 transition-colors"
               title="Send item"
             >
               <Gift className="w-3 h-3 text-amber-400/70 hover:text-amber-400" />
@@ -116,14 +116,14 @@ export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onK
           {!isSelf && isCreator && onKick && (
             <button
               onClick={(e) => { e.stopPropagation(); onKick(member); }}
-              className="p-0.5 rounded hover:bg-destructive/10 transition-colors"
+              className="p-1.5 shrink-0 rounded hover:bg-destructive/10 transition-colors"
               title="Remove from party"
             >
               <UserMinus className="w-3 h-3 text-destructive/70 hover:text-destructive" />
             </button>
           )}
           {isTappable && (
-            <Eye className="w-3 h-3 text-muted-foreground/50" />
+            <Eye className="w-3 h-3 shrink-0 text-muted-foreground/50" />
           )}
         </div>
       </div>
