@@ -48,6 +48,8 @@ import { WildShapeOverlay } from './WildShapeOverlay';
 import { CategoryQuickNav } from './CategoryQuickNav';
 import { BackgroundUploadButton } from './BackgroundUploadButton';
 import { PartyPanel } from '@/components/party/PartyPanel';
+import { PartyRosterBoard } from '@/components/party/PartyRosterBoard';
+import { useChatAvatars } from '@/hooks/use-chat-avatars';
 
 import { FullscreenPartyChat } from '@/components/party/FullscreenPartyChat';
 import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
@@ -342,6 +344,9 @@ export function HomeScreen({
   const [geraltHpPct, setGeraltHpPct] = useState<number | undefined>(undefined);
   // Persist last-read message count per party in localStorage
   const partyIdForChat = partySync?.party?.partyId;
+  // Same avatar source the Live DM Table uses, so the roster pictures match the
+  // pictures on each player's chat messages.
+  const rosterAvatars = useChatAvatars(partyIdForChat ?? null, userId);
   const lastSeenKey = partyIdForChat ? `odyssey_chat_lastSeen_${partyIdForChat}` : null;
   const lastSeenMessageCount = useRef(0);
   useEffect(() => {
@@ -1062,6 +1067,22 @@ export function HomeScreen({
                   <span className="text-xs font-cinzel uppercase tracking-wider text-cyan-300">Menus</span>
                 </button>
               </motion.div>
+
+              {/* Who is playing whom */}
+              {playMode === 'party' && partySync?.party?.partyId && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.95, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <PartyRosterBoard
+                    members={partySync.party.members}
+                    avatars={rosterAvatars.avatars}
+                    oocNames={rosterAvatars.oocNames}
+                    currentUserId={userId}
+                  />
+                </motion.div>
+              )}
 
               {/* Dynamic Health Bar */}
               {showFeature('home.healthBar') && (
