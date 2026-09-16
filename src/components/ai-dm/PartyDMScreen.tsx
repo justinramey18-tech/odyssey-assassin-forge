@@ -3080,7 +3080,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       {/* Chat Rounds: mini party chat that drives the DM.
           Shown whenever the table is in chat/live mode — it must not vanish just
           because the session config hasn't loaded or the host hasn't started yet. */}
-      {chatRoundsOn && (
+      {chatRoundsOn && (<>
         <DMHandoffBar
           isHost={isCreator}
           isGenerating={partyDm.isGenerating}
@@ -3158,7 +3158,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             character_name: m.character_name || 'Player',
           }))}
           onMarkRead={roundChat.markRead}
-        />
+        /></>
       )}
 
       {/* Prompt Queue Status */}
