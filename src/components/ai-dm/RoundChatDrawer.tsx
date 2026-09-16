@@ -958,22 +958,23 @@ export function RoundChatDrawer({
                     </button>
                   ))}
 
-                  {editingOocName && onSetOocName && (
-                    <input
-                      autoFocus
-                      value={oocNameDraft}
-                      maxLength={40}
-                      onChange={(e) => setOocNameDraft(e.target.value)}
-                      onBlur={() => { onSetOocName(oocNameDraft); setEditingOocName(false); }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') { e.preventDefault(); onSetOocName(oocNameDraft); setEditingOocName(false); }
-                        if (e.key === 'Escape') setEditingOocName(false);
-                      }}
-                      placeholder="Your table name"
-                      className="flex-1 min-w-0 px-2 py-2 rounded-lg text-[12px] bg-black/40 border border-sky-400/40 text-sky-100 outline-none"
-                    />
-                  )}
                 </div>
+
+                {editingOocName && onSetOocName && (
+                  <input
+                    autoFocus
+                    value={oocNameDraft}
+                    maxLength={40}
+                    onChange={(e) => setOocNameDraft(e.target.value)}
+                    onBlur={() => { onSetOocName(oocNameDraft); setEditingOocName(false); }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); onSetOocName(oocNameDraft); setEditingOocName(false); }
+                      if (e.key === 'Escape') setEditingOocName(false);
+                    }}
+                    placeholder="Your table name"
+                    className="w-full px-2 py-2 rounded-lg text-[12px] bg-black/40 border border-sky-400/40 text-sky-100 outline-none"
+                  />
+                )}
 
                 {replyTo && (
                   <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-amber-500/25 bg-amber-500/5">
@@ -1018,7 +1019,7 @@ export function RoundChatDrawer({
                         }
                       }
                     }}
-                    placeholder={inCharacter ? `Speak as ${characterName || 'your character'}...` : 'Table talk — not sent to the DM'}
+                    placeholder={inCharacter ? `Speak as ${characterName || 'your character'}...` : 'Table talk — speak as yourself...'}
                     className="min-h-[38px] max-h-[140px] font-body text-[15px] py-2 resize-none bg-white/5 border-amber-900/30"
                     rows={1}
                   />
