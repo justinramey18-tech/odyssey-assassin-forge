@@ -148,6 +148,9 @@ serve(async (req) => {
       campaign_summary,
       story_flavor_label,
       story_flavor_guidance,
+      live_table_lines,
+      synergy_mode,
+      synergy_targets,
       model,
       user_api_key,       // Anthropic
       user_openai_key,    // OpenAI direct
