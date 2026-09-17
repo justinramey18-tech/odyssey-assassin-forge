@@ -82,6 +82,7 @@ import { parseRollHint } from '@/lib/whisperRollHint';
 import { resolveWhisperAutoRoll, performWhisperRoll } from '@/lib/whisperAutoRoll';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
 import { stripActionCard } from '@/lib/roundChatActionCard';
+import { parseReply } from '@/lib/chatReply';
 import { useHealingItemAction } from '@/hooks/use-healing-item';
 import { RoundTimer, TimerSettings } from './RoundTimer';
 import { AfkPersonalityGuide } from './AfkPersonalityGuide';
@@ -1922,7 +1923,29 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   );
 
   // Story-mode masterwork pills (non-Empyrean party campaigns)
-  const handleFetchStoryPills = useCallback(async (flavorId?: string) => {
+  /**
+   * Players with an unsent, in-character line right now — the people you can
+   * ask the suggestion helper to play off. Table talk never qualifies.
+   */
+  const liveTableCandidates = useMemo(() => {
+    const byUser = new Map<string, { userId: string; name: string; preview: string; avatarUrl?: string }>();
+    for (const m of roundChat.pendingMessages) {
+      if (!m.in_character) continue;
+      if (m.user_id === currentUserId) continue;
+      const text = stripActionCard(parseReply(m.content).body).trim();
+      if (!text) continue;
+      // Later messages overwrite earlier ones, so each player shows their latest line.
+      byUser.set(m.user_id, {
+        userId: m.user_id,
+        name: m.character_name || 'Player',
+        preview: text.length > 90 ? `${text.slice(0, 90)}…` : text,
+        avatarUrl: chatAvatars.avatars[m.user_id]?.ic,
+      });
+    }
+    return Array.from(byUser.values());
+  }, [roundChat.pendingMessages, currentUserId, chatAvatars.avatars]);
+
+  const handleFetchStoryPills = useCallback(async (flavorId?: string, mode?: 'solo' | 'sync', targetIds?: string[]) => {
     // Include the recent back-and-forth (DM + this player + other players), not just DM replies,
     // so suggestions respond to what the player themselves was actually just doing.
     // Build the recent narrative newest-last, but NEVER front-truncate the joined
@@ -1970,6 +1993,33 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     const flaws = myStatus.flaws || '';
     const campaignSummary = (partyDm.sessionConfig as any)?.campaignSummary || '';
 
+    // Synergy mode: hand over the unsent in-character lines so the suggestions can
+    // answer what the table is doing right now, before the DM has resolved any of it.
+    let liveTableLines = '';
+    let synergyTargets: string[] = [];
+    if (mode === 'sync') {
+      const icPending = roundChat.pendingMessages.filter(m => m.in_character).slice(-10);
+      liveTableLines = icPending
+        .map(m => {
+          const raw = stripActionCard(parseReply(m.content).body).trim();
+          if (!raw) return '';
+          const text = raw.length > 400 ? `${raw.slice(0, 400)}…` : raw;
+          const who = m.user_id === currentUserId ? 'You' : (m.character_name || 'Player');
+          return `[${who}]: ${text}`;
+        })
+        .filter(Boolean)
+        .join('\n');
+      const idSet = new Set(targetIds || []);
+      synergyTargets = Array.from(
+        new Set(
+          icPending
+            .filter(m => idSet.has(m.user_id))
+            .map(m => m.character_name || 'Player'),
+        ),
+      );
+    }
+    const useSynergy = mode === 'sync' && !!liveTableLines && synergyTargets.length > 0;
+
     const { data, error } = await supabase.functions.invoke('empyrean-masterwork-pills', {
       body: {
         category: 'story',
@@ -1986,6 +2036,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         story_flavor_guidance: flavorId ? getRpFlavor(flavorId)?.guidance : undefined,
         character_bonds: bonds,
         character_flaws: flaws,
+        live_table_lines: liveTableLines || undefined,
+        synergy_mode: useSynergy || undefined,
+        synergy_targets: useSynergy ? synergyTargets : undefined,
         model: (partyDm.sessionConfig as any)?.model || undefined,
         user_api_key: loadApiKey('anthropic') || undefined,
         user_openai_key: loadApiKey('openai') || undefined,
@@ -2002,7 +2055,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
     if (!Array.isArray((data as any)?.pills)) throw new Error('Invalid response from suggestion generator.');
     return (data as any).pills;
-  }, [partyDm.messages, (partyDm.sessionConfig as any)?.campaignSummary, members, currentUserId, myDriftZone, myAlignmentHistoryCount]);
+  }, [partyDm.messages, (partyDm.sessionConfig as any)?.campaignSummary, members, currentUserId, myDriftZone, myAlignmentHistoryCount, roundChat.pendingMessages]);
 
 
   // Whisper roll: state + handlers
@@ -3055,6 +3108,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   playerInputRef.current?.setText(prompt);
                 }}
                 fetchStoryPills={handleFetchStoryPills}
+                liveTableCandidates={liveTableCandidates}
               />
             </div>
           )}

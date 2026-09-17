@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Sparkles, X, RotateCcw, Check, Loader2, ChevronLeft } from 'lucide-react';
+import { Sparkles, X, RotateCcw, Check, Loader2, ChevronLeft, User, Users } from 'lucide-react';
 import offeringJointAsset from '@/assets/offering-joint.jpg.asset.json';
 import { RP_FLAVORS, getRpFlavor, type RpFlavor } from '@/lib/rpFlavors';
 
@@ -11,26 +11,42 @@ interface ActionItem {
   prompt: string;
 }
 
+export interface LiveTableCandidate {
+  userId: string;
+  name: string;
+  preview: string;
+  avatarUrl?: string;
+}
+
+type SuggestMode = 'solo' | 'sync';
+
 interface StoryMasterworkActionsProps {
   disabled?: boolean;
   onSelect: (prompt: string) => void;
-  fetchStoryPills: (flavorId?: string) => Promise<ActionItem[]>;
+  fetchStoryPills: (flavorId?: string, mode?: SuggestMode, targetIds?: string[]) => Promise<ActionItem[]>;
+  /** Players with an unsent in-character line right now. Empty → the picker is skipped. */
+  liveTableCandidates?: LiveTableCandidate[];
 }
 
-export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills }: StoryMasterworkActionsProps) {
+export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, liveTableCandidates = [] }: StoryMasterworkActionsProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pills, setPills] = useState<ActionItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [flavorId, setFlavorId] = useState<string | null>(null);
+  const [mode, setMode] = useState<SuggestMode | null>(null);
+  const [targetIds, setTargetIds] = useState<string[]>([]);
+  const [targetsDone, setTargetsDone] = useState(false);
 
-  const generate = useCallback(async (id: string) => {
+  const hasCandidates = liveTableCandidates.length > 0;
+
+  const generate = useCallback(async (id: string, useMode: SuggestMode, ids: string[]) => {
     setFlavorId(id);
     setLoading(true);
     setError(null);
     setPills([]);
     try {
-      const result = await fetchStoryPills(id);
+      const result = await fetchStoryPills(id, useMode, useMode === 'sync' ? ids : undefined);
       setPills(result);
     } catch (e: any) {
       setError(e?.message || 'Could not generate suggestions.');
@@ -39,16 +55,45 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills }: 
     }
   }, [fetchStoryPills]);
 
-  /** Back to the alignment grid without closing the panel. */
-  const backToPicker = useCallback(() => {
-    setFlavorId(null);
-    setPills([]);
-    setError(null);
+  const pickMode = useCallback((m: SuggestMode) => {
+    setTargetIds([]);
+    if (m === 'sync' && hasCandidates) {
+      setMode('sync');
+      setTargetsDone(false);
+      return;
+    }
+    // No one has spoken yet — synergy has nothing to work with, so behave like solo.
+    setMode('solo');
+    setTargetsDone(true);
+  }, [hasCandidates]);
+
+  const toggleTarget = useCallback((id: string) => {
+    setTargetIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
   }, []);
+
+  /** Step back one screen without closing the panel. */
+  const back = useCallback(() => {
+    if (flavorId) {
+      setFlavorId(null);
+      setPills([]);
+      setError(null);
+      return;
+    }
+    if (mode === 'sync' && targetsDone) {
+      setTargetsDone(false);
+      return;
+    }
+    setMode(null);
+    setTargetsDone(false);
+    setTargetIds([]);
+  }, [flavorId, mode, targetsDone]);
 
   const close = useCallback(() => {
     setOpen(false);
     setFlavorId(null);
+    setMode(null);
+    setTargetsDone(false);
+    setTargetIds([]);
     setPills([]);
     setError(null);
   }, []);
@@ -58,6 +103,18 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills }: 
     setOpen(false);
   }, [onSelect]);
 
+  const showTargets = mode === 'sync' && !targetsDone && !flavorId;
+  const showFlavors = mode !== null && !showTargets && !flavorId;
+  const canContinue = targetIds.length > 0;
+
+  const headerTitle = flavorId
+    ? (getRpFlavor(flavorId)?.label || 'Suggested Moves')
+    : showTargets
+      ? 'Who are you reacting to?'
+      : mode === null
+        ? 'How do you want to play it?'
+        : 'What kind of move?';
+
   return (
     <>
       <div className="relative w-full">
@@ -66,7 +123,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills }: 
           aria-hidden="true"
         />
         <button
-          onClick={() => { setOpen(true); setFlavorId(null); }}
+          onClick={() => { setOpen(true); setFlavorId(null); setMode(null); setTargetsDone(false); setTargetIds([]); }}
           disabled={disabled}
           className="relative isolate w-full flex flex-col justify-between items-center text-center min-h-[220px] py-5 px-4 rounded-lg border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 text-amber-100 hover:text-amber-50 text-xs leading-snug transition-colors disabled:opacity-40 overflow-hidden"
           style={{ touchAction: 'manipulation' }}
@@ -93,16 +150,16 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills }: 
       {open && createPortal(
         <div className="fixed inset-0 z-[80] bg-black/80 backdrop-blur-sm flex flex-col">
           <div className="flex items-center justify-between px-4 py-3 border-b border-amber-900/30 bg-[#0d0d12]">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-amber-400" />
-              <span className="text-sm font-cinzel text-amber-300">
-                {flavorId ? (getRpFlavor(flavorId)?.label || 'Suggested Moves') : 'What kind of move?'}
+            <div className="flex items-center gap-2 min-w-0">
+              <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+              <span className="text-sm font-cinzel text-amber-300 truncate">
+                {headerTitle}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              {flavorId && !loading && (
+            <div className="flex items-center gap-2 shrink-0">
+              {mode !== null && !loading && (
                 <button
-                  onClick={backToPicker}
+                  onClick={back}
                   className="flex items-center gap-1 text-[11px] text-amber-300/60 hover:text-amber-300 px-2 py-1 rounded"
                   style={{ touchAction: 'manipulation' }}
                 >
@@ -112,7 +169,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills }: 
               )}
               {!loading && flavorId && (
                 <button
-                  onClick={() => generate(flavorId)}
+                  onClick={() => generate(flavorId, mode || 'solo', targetIds)}
                   className="flex items-center gap-1 text-[11px] text-amber-300/60 hover:text-amber-300 px-2 py-1 rounded"
                   style={{ touchAction: 'manipulation' }}
                   title="Regenerate"
@@ -133,12 +190,89 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills }: 
           </div>
 
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-            {!flavorId ? (
+            {mode === null ? (
+              <div className="space-y-3">
+                <button
+                  onClick={() => pickMode('solo')}
+                  style={{ touchAction: 'manipulation' }}
+                  className="w-full flex items-start gap-3 text-left rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-4 min-h-[104px] active:scale-[0.98] transition-transform"
+                >
+                  <User className="w-5 h-5 text-amber-300 shrink-0 mt-0.5" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-cinzel text-amber-200">Do my own thing</span>
+                    <span className="block text-[11px] text-white/50 mt-1 leading-snug">
+                      Moves built purely on the story so far. Ignores what the others are typing.
+                    </span>
+                  </span>
+                </button>
+                <button
+                  onClick={() => pickMode('sync')}
+                  style={{ touchAction: 'manipulation' }}
+                  className="w-full flex items-start gap-3 text-left rounded-xl border border-sky-500/30 bg-sky-950/20 px-4 py-4 min-h-[104px] active:scale-[0.98] transition-transform"
+                >
+                  <Users className="w-5 h-5 text-sky-300 shrink-0 mt-0.5" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-cinzel text-sky-200">Synergize with others</span>
+                    <span className="block text-[11px] text-white/50 mt-1 leading-snug">
+                      {hasCandidates
+                        ? 'Reads what the others just said at the table so you can back them up — or cut across them.'
+                        : 'Nobody has an unsent line right now, so this will fall back to story-only moves.'}
+                    </span>
+                  </span>
+                </button>
+              </div>
+            ) : showTargets ? (
+              <div className="space-y-3">
+                <button
+                  onClick={() => setTargetIds(liveTableCandidates.map(c => c.userId))}
+                  style={{ touchAction: 'manipulation' }}
+                  className="w-full py-2.5 rounded-lg border border-sky-500/30 bg-sky-950/20 text-[12px] font-cinzel text-sky-200"
+                >
+                  Everyone who spoke
+                </button>
+                {liveTableCandidates.map((c) => {
+                  const selected = targetIds.includes(c.userId);
+                  return (
+                    <button
+                      key={c.userId}
+                      onClick={() => toggleTarget(c.userId)}
+                      style={{ touchAction: 'manipulation' }}
+                      className={`w-full flex items-start gap-3 text-left rounded-xl border px-3 py-3 min-h-[104px] active:scale-[0.98] transition-transform ${
+                        selected
+                          ? 'border-amber-400/70 ring-2 ring-amber-400/40 bg-amber-950/30'
+                          : 'border-white/10 bg-white/[0.03]'
+                      }`}
+                    >
+                      <span className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-white/15 bg-black/40 flex items-center justify-center text-base font-semibold text-white/70">
+                        {c.avatarUrl
+                          ? <img src={c.avatarUrl} alt="" className="w-full h-full object-cover" />
+                          : (c.name.charAt(0).toUpperCase() || '?')}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-cinzel text-amber-200 truncate">{c.name}</span>
+                        <span className="block text-[11px] text-white/55 mt-1 leading-snug line-clamp-3">
+                          {c.preview}
+                        </span>
+                      </span>
+                      {selected && <Check className="w-4 h-4 text-amber-300 shrink-0 mt-1" />}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => setTargetsDone(true)}
+                  disabled={!canContinue}
+                  style={{ touchAction: 'manipulation' }}
+                  className="w-full py-3 rounded-lg bg-amber-900/40 border border-amber-500/30 text-amber-100 text-sm font-cinzel disabled:opacity-40"
+                >
+                  Continue
+                </button>
+              </div>
+            ) : showFlavors ? (
               <div className="grid grid-cols-3 gap-2">
                 {RP_FLAVORS.map((f: RpFlavor) => (
                   <button
                     key={f.id}
-                    onClick={() => generate(f.id)}
+                    onClick={() => generate(f.id, mode, targetIds)}
                     style={{ touchAction: 'manipulation' }}
                     className={`flex flex-col items-center justify-start text-center gap-1 rounded-xl border px-2 py-3 min-h-[104px] active:scale-[0.97] transition-transform ${f.accent}`}
                   >
@@ -165,7 +299,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills }: 
                   <div className="flex flex-col items-center justify-center py-16 gap-3">
                     <p className="text-sm text-red-300/80 text-center">{error}</p>
                     <button
-                      onClick={() => flavorId && generate(flavorId)}
+                      onClick={() => flavorId && generate(flavorId, mode || 'solo', targetIds)}
                       className="text-xs text-amber-300 underline"
                       style={{ touchAction: 'manipulation' }}
                     >
