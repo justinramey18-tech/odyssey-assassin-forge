@@ -137,7 +137,7 @@ interface PartyDMScreenProps {
   onDemoteCoHost?: (userId: string) => void;
   currentUserId?: string;
   memberCount: number;
-  members: Array<{ user_id: string; character_name: string; character_status?: Record<string, unknown> }>;
+  members: Array<{ user_id: string; character_name: string; character_status?: Record<string, unknown>; updated_at?: string }>;
   onShowGuides?: () => void;
   onShowCharacterGuideBuilder?: () => void;
   
@@ -3223,6 +3223,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           partyMembers={members.map(m => ({
             user_id: m.user_id,
             character_name: m.character_name || 'Player',
+            updated_at: m.updated_at,
           }))}
           onMarkRead={roundChat.markRead}
         /></>

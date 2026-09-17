@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { parseActionCard } from '@/lib/roundChatActionCard';
 import { parseReply, quotePreview, formatReply } from '@/lib/chatReply';
 import { QuickActionLine } from './QuickActionCard';
+import { useOnlineStatus } from '@/hooks/use-online-status';
 import type { RoundChatMessage, RoundChatReaction, RoundStyle } from '@/hooks/use-round-chat';
 
 const EMOJI_SET = ['🤣','😅','🤪','🙄','😬','😏','🤮','🥵','🥶','🤯','🧐','😎','😱','😭','🤬','😈','❤️','💯','👏','🙌','🤝','🖕','🫦','🗣','🍑','🍆'];
@@ -102,7 +103,7 @@ interface RoundChatDrawerProps {
   /** userId -> ISO timestamp of the newest message that player has seen. */
   readReceipts?: Record<string, string>;
   /** Everyone in the party, for naming who has read a message. */
-  partyMembers?: Array<{ user_id: string; character_name: string }>;
+  partyMembers?: Array<{ user_id: string; character_name: string; updated_at?: string }>;
   /** Record that this player has seen everything up to this ISO timestamp. */
   onMarkRead?: (iso: string) => void;
 }
@@ -114,12 +115,17 @@ function ChatAvatar({
   kind,
   editable,
   onPick,
+  active,
+  presence,
 }: {
   url?: string;
   label: string;
   kind: 'ic' | 'ooc';
   editable: boolean;
   onPick?: (file: File) => void;
+  /** When set, true = message matches the composer's mode (bright ring), false = other mode (faded). */
+  active?: boolean;
+  presence?: 'online' | 'offline';
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const initials = (label || '?').trim().charAt(0).toUpperCase();
@@ -132,10 +138,12 @@ function ChatAvatar({
         aria-label={editable ? `Change your ${kind === 'ic' ? 'character' : 'player'} picture` : label}
         style={{ touchAction: 'manipulation' }}
         className={cn(
-          "w-10 h-10 rounded-full overflow-hidden border flex items-center justify-center text-[13px] font-semibold",
+          "w-10 h-10 rounded-full overflow-hidden border flex items-center justify-center text-[13px] font-semibold transition-all duration-200",
           kind === 'ic'
             ? "border-emerald-400/40 bg-emerald-900/30 text-emerald-200"
             : "border-amber-400/40 border-dashed bg-amber-900/20 text-amber-200",
+          active === true && (kind === 'ic' ? "ring-2 ring-emerald-400/80" : "ring-2 ring-sky-400/80"),
+          active === false && "opacity-45",
           editable && "hover:brightness-125"
         )}
       >
@@ -145,9 +153,24 @@ function ChatAvatar({
           initials
         )}
       </button>
+      {presence && (
+        /* Presence dot, styled exactly like the player cards on the home screen. */
+        <span
+          aria-hidden="true"
+          className={cn(
+            "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-card",
+            presence === 'online' ? "bg-emerald-500" : "bg-muted-foreground/40",
+          )}
+        />
+      )}
       {editable && (
         <>
-          <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-black/80 border border-white/20 flex items-center justify-center">
+          <span
+            className={cn(
+              "absolute w-3 h-3 rounded-full bg-black/80 border border-white/20 flex items-center justify-center",
+              presence ? "-top-0.5 -right-0.5" : "-bottom-0.5 -right-0.5",
+            )}
+          >
             <ImagePlus className="w-2 h-2 text-white/70" />
           </span>
           <input
@@ -233,6 +256,16 @@ export function RoundChatDrawer({
   const swipeStart = useRef<{ x: number; y: number; locked: boolean } | null>(null);
 
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Presence dots: same heartbeat the player cards on the home screen use.
+  // Only members carrying a last-active timestamp can show a dot.
+  const membersWithPresence = useMemo(
+    () => (partyMembers || []).filter(
+      (pm): pm is typeof pm & { updated_at: string } => typeof pm.updated_at === 'string' && pm.updated_at.length > 0,
+    ),
+    [partyMembers],
+  );
+  const onlineStatus = useOnlineStatus(membersWithPresence);
 
   const jumpToMessage = useCallback((id: string) => {
     const el = messageRefs.current[id];
@@ -548,6 +581,10 @@ export function RoundChatDrawer({
                     ? avatars?.[m.user_id]?.ic
                     : avatars?.[m.user_id]?.ooc;
                   const modeMatch = m.in_character === inCharacter;
+                  const presenceInfo = onlineStatus[m.user_id];
+                  const presence = presenceInfo
+                    ? (presenceInfo.isOnline ? 'online' as const : 'offline' as const)
+                    : undefined;
 
                   // Alter-ego line: who is speaking, and who is playing them.
                   const icName = (m.character_name || 'Player').trim();
@@ -612,6 +649,8 @@ export function RoundChatDrawer({
                           kind={m.in_character ? 'ic' : 'ooc'}
                           editable={isSelf && !!onUploadAvatar}
                           onPick={(file) => setCropTarget({ kind: m.in_character ? 'ic' : 'ooc', file })}
+                          active={modeMatch}
+                          presence={presence}
                         />
                       )}
 
@@ -758,17 +797,21 @@ export function RoundChatDrawer({
                                   "relative font-body text-[13.5px] font-medium leading-[1.32] whitespace-pre-wrap break-words [overflow-wrap:anywhere] transition-colors duration-200",
                                   modeMatch ? "text-white" : "text-white/70"
                                 )}
-                                style={avatarUrl && !imageUrl ? {
-                                  textShadow: [
-                                    '0 0 1px rgba(0,0,0,1)',
-                                    '0 0 2px rgba(0,0,0,1)',
-                                    '0 0 3px rgba(0,0,0,1)',
-                                    '0 1px 2px rgba(0,0,0,1)',
-                                    '0 0 8px rgba(0,0,0,0.95)',
-                                    '0 0 16px rgba(0,0,0,0.9)',
-                                    '0 0 28px rgba(0,0,0,0.75)',
-                                  ].join(', '),
-                                } : undefined}
+                                style={{
+                                  ...(avatarUrl && !imageUrl ? {
+                                    textShadow: [
+                                      '0 0 1px rgba(0,0,0,1)',
+                                      '0 0 2px rgba(0,0,0,1)',
+                                      '0 0 3px rgba(0,0,0,1)',
+                                      '0 1px 2px rgba(0,0,0,1)',
+                                      '0 0 8px rgba(0,0,0,0.95)',
+                                      '0 0 16px rgba(0,0,0,0.9)',
+                                      '0 0 28px rgba(0,0,0,0.75)',
+                                    ].join(', '),
+                                  } : {}),
+                                  // Thin light outline on the letters of active-mode text only.
+                                  ...(modeMatch ? { WebkitTextStroke: '0.4px rgba(255,255,255,0.6)' } : {}),
+                                }}
                               >
                                 {parsedReply.body}
                               </p>
