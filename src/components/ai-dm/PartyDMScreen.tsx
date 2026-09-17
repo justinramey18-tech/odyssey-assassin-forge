@@ -2036,6 +2036,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         story_flavor_guidance: flavorId ? getRpFlavor(flavorId)?.guidance : undefined,
         character_bonds: bonds,
         character_flaws: flaws,
+        live_table_lines: liveTableLines || undefined,
+        synergy_mode: useSynergy || undefined,
+        synergy_targets: useSynergy ? synergyTargets : undefined,
         model: (partyDm.sessionConfig as any)?.model || undefined,
         user_api_key: loadApiKey('anthropic') || undefined,
         user_openai_key: loadApiKey('openai') || undefined,
@@ -2052,7 +2055,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
     if (!Array.isArray((data as any)?.pills)) throw new Error('Invalid response from suggestion generator.');
     return (data as any).pills;
-  }, [partyDm.messages, (partyDm.sessionConfig as any)?.campaignSummary, members, currentUserId, myDriftZone, myAlignmentHistoryCount]);
+  }, [partyDm.messages, (partyDm.sessionConfig as any)?.campaignSummary, members, currentUserId, myDriftZone, myAlignmentHistoryCount, roundChat.pendingMessages]);
 
 
   // Whisper roll: state + handlers
