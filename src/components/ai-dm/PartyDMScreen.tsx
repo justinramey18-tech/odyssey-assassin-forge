@@ -82,6 +82,7 @@ import { parseRollHint } from '@/lib/whisperRollHint';
 import { resolveWhisperAutoRoll, performWhisperRoll } from '@/lib/whisperAutoRoll';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
 import { stripActionCard } from '@/lib/roundChatActionCard';
+import { parseReply } from '@/lib/chatReply';
 import { useHealingItemAction } from '@/hooks/use-healing-item';
 import { RoundTimer, TimerSettings } from './RoundTimer';
 import { AfkPersonalityGuide } from './AfkPersonalityGuide';
