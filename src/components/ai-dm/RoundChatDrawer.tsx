@@ -547,6 +547,7 @@ export function RoundChatDrawer({
                   const avatarUrl = m.in_character
                     ? avatars?.[m.user_id]?.ic
                     : avatars?.[m.user_id]?.ooc;
+                  const modeMatch = m.in_character === inCharacter;
 
                   // Alter-ego line: who is speaking, and who is playing them.
                   const icName = (m.character_name || 'Player').trim();
