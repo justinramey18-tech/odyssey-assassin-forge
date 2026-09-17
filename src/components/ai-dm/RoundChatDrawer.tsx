@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { parseActionCard } from '@/lib/roundChatActionCard';
 import { parseReply, quotePreview, formatReply } from '@/lib/chatReply';
 import { QuickActionLine } from './QuickActionCard';
+import { useOnlineStatus } from '@/hooks/use-online-status';
 import type { RoundChatMessage, RoundChatReaction, RoundStyle } from '@/hooks/use-round-chat';
 
 const EMOJI_SET = ['🤣','😅','🤪','🙄','😬','😏','🤮','🥵','🥶','🤯','🧐','😎','😱','😭','🤬','😈','❤️','💯','👏','🙌','🤝','🖕','🫦','🗣','🍑','🍆'];
@@ -114,12 +115,17 @@ function ChatAvatar({
   kind,
   editable,
   onPick,
+  active,
+  presence,
 }: {
   url?: string;
   label: string;
   kind: 'ic' | 'ooc';
   editable: boolean;
   onPick?: (file: File) => void;
+  /** When set, true = message matches the composer's mode (bright ring), false = other mode (faded). */
+  active?: boolean;
+  presence?: 'online' | 'offline';
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const initials = (label || '?').trim().charAt(0).toUpperCase();
@@ -132,10 +138,12 @@ function ChatAvatar({
         aria-label={editable ? `Change your ${kind === 'ic' ? 'character' : 'player'} picture` : label}
         style={{ touchAction: 'manipulation' }}
         className={cn(
-          "w-10 h-10 rounded-full overflow-hidden border flex items-center justify-center text-[13px] font-semibold",
+          "w-10 h-10 rounded-full overflow-hidden border flex items-center justify-center text-[13px] font-semibold transition-all duration-200",
           kind === 'ic'
             ? "border-emerald-400/40 bg-emerald-900/30 text-emerald-200"
             : "border-amber-400/40 border-dashed bg-amber-900/20 text-amber-200",
+          active === true && (kind === 'ic' ? "ring-2 ring-emerald-400/80" : "ring-2 ring-sky-400/80"),
+          active === false && "opacity-45",
           editable && "hover:brightness-125"
         )}
       >
@@ -145,9 +153,24 @@ function ChatAvatar({
           initials
         )}
       </button>
+      {presence && (
+        /* Presence dot, styled exactly like the player cards on the home screen. */
+        <span
+          aria-hidden="true"
+          className={cn(
+            "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-card",
+            presence === 'online' ? "bg-emerald-500" : "bg-muted-foreground/40",
+          )}
+        />
+      )}
       {editable && (
         <>
-          <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-black/80 border border-white/20 flex items-center justify-center">
+          <span
+            className={cn(
+              "absolute w-3 h-3 rounded-full bg-black/80 border border-white/20 flex items-center justify-center",
+              presence ? "-top-0.5 -right-0.5" : "-bottom-0.5 -right-0.5",
+            )}
+          >
             <ImagePlus className="w-2 h-2 text-white/70" />
           </span>
           <input
