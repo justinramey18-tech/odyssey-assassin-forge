@@ -1922,7 +1922,29 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   );
 
   // Story-mode masterwork pills (non-Empyrean party campaigns)
-  const handleFetchStoryPills = useCallback(async (flavorId?: string) => {
+  /**
+   * Players with an unsent, in-character line right now — the people you can
+   * ask the suggestion helper to play off. Table talk never qualifies.
+   */
+  const liveTableCandidates = useMemo(() => {
+    const byUser = new Map<string, { userId: string; name: string; preview: string; avatarUrl?: string }>();
+    for (const m of roundChat.pendingMessages) {
+      if (!m.in_character) continue;
+      if (m.user_id === currentUserId) continue;
+      const text = stripActionCard(parseReply(m.content).body).trim();
+      if (!text) continue;
+      // Later messages overwrite earlier ones, so each player shows their latest line.
+      byUser.set(m.user_id, {
+        userId: m.user_id,
+        name: m.character_name || 'Player',
+        preview: text.length > 90 ? `${text.slice(0, 90)}…` : text,
+        avatarUrl: chatAvatars.avatars[m.user_id]?.ic,
+      });
+    }
+    return Array.from(byUser.values());
+  }, [roundChat.pendingMessages, currentUserId, chatAvatars.avatars]);
+
+  const handleFetchStoryPills = useCallback(async (flavorId?: string, mode?: 'solo' | 'sync', targetIds?: string[]) => {
     // Include the recent back-and-forth (DM + this player + other players), not just DM replies,
     // so suggestions respond to what the player themselves was actually just doing.
     // Build the recent narrative newest-last, but NEVER front-truncate the joined
