@@ -233,8 +233,50 @@ ${latestBeat}`;
     const summaryBlock = (isStoryMode && campaign_summary)
       ? `## CAMPAIGN BACKGROUND (distant context only — do NOT base suggestions primarily on this; it is older than the recent narrative below)\n${String(campaign_summary).slice(0, 900)}`
       : '';
+
+    // Lines the other players have typed but NOT yet handed to the DM. They are
+    // attempts in progress, not resolved events.
+    const liveLines = (isStoryMode && typeof live_table_lines === 'string' && live_table_lines.trim())
+      ? live_table_lines.trim().slice(0, 4000)
+      : '';
+    const targets: string[] = Array.isArray(synergy_targets)
+      ? synergy_targets.filter((t: unknown): t is string => typeof t === 'string' && !!t.trim()).slice(0, 8)
+      : [];
+    const isSynergy = isStoryMode && !!liveLines && synergy_mode === true && targets.length > 0;
+    const targetList = targets.join(', ');
+
+    const liveTableBlock = liveLines
+      ? `## AT THE TABLE RIGHT NOW (unsent, unresolved)
+
+These lines have been typed by other players this moment but have NOT been given to the Dungeon Master yet. Nothing in them has happened or succeeded — they are attempts in progress. Never treat them as resolved outcomes.
+
+${liveLines}${isSynergy ? `\n\nThe suggestions must react specifically to what ${targetList} ${targets.length > 1 ? 'are' : 'is'} attempting. Other lines here are background only.` : ''}`
+      : '';
+
     const flavorBlock = (isStoryMode && story_flavor_label)
-      ? `## TONE FOR THIS SET — NON-NEGOTIABLE
+      ? (isSynergy
+        ? `## TONE FOR THIS SET — NON-NEGOTIABLE
+
+Every one of the 4 suggestions must be a ${story_flavor_label} move, and every one must engage directly with what ${targetList} ${targets.length > 1 ? 'are' : 'is'} attempting right now.
+${story_flavor_guidance ? String(story_flavor_guidance).slice(0, 600) : ''}
+
+All 4 suggestions share ONE central idea. They differ only in stance and intensity:
+- Pill 1: works AGAINST ${targetList} — cuts across, blocks, contradicts or undercuts what ${targets.length > 1 ? 'they are' : 'they are'} doing. Mild, restrained version.
+- Pill 2: the SAME opposing idea, full send — the boldest, most committed version of going against ${targetList}.
+- Pill 3: works WITH ${targetList} — supports, reinforces or completes what ${targets.length > 1 ? 'they are' : 'they are'} doing, built on the same central idea. Mild, restrained version.
+- Pill 4: the SAME supporting idea, full send — the boldest, most committed version of going with ${targetList}.
+${targets.length > 1 ? `\nEvery suggestion must involve ALL of these players: ${targetList}. Do not pick just one of them.` : ''}
+
+All four must stay ${story_flavor_label}. Do NOT drift toward a different alignment as intensity rises.
+
+Set each pill's "label" field exactly:
+- Pill 1 label: "Against · Mild"
+- Pill 2 label: "Against · Full send"
+- Pill 3 label: "With · Mild"
+- Pill 4 label: "With · Full send"
+
+This instruction OVERRIDES the general rule about varying the flavour of the 4 suggestions.`
+        : `## TONE FOR THIS SET — NON-NEGOTIABLE
 
 Every one of the 4 suggestions must be a ${story_flavor_label} move.
 ${story_flavor_guidance ? String(story_flavor_guidance).slice(0, 600) : ''}
@@ -252,10 +294,10 @@ Set each pill's "label" field to its intensity step, exactly:
 - Pill 3 label: "Bold"
 - Pill 4 label: "Full send"
 
-This tone instruction OVERRIDES the general rule about varying the flavour of the 4 suggestions. Here they deliberately share one flavour and vary only in intensity.`
+This tone instruction OVERRIDES the general rule about varying the flavour of the 4 suggestions. Here they deliberately share one flavour and vary only in intensity.`)
       : '';
     const systemPrompt = isStoryMode
-      ? [activeSystemPrompt, categoryBlock, summaryBlock, characterBlock, narrativeBlock, flavorBlock]
+      ? [activeSystemPrompt, categoryBlock, summaryBlock, characterBlock, narrativeBlock, liveTableBlock, flavorBlock]
           .filter(Boolean)
           .join('\n\n')
       : `${activeSystemPrompt}\n\n${categoryBlock}\n\n${characterBlock}\n\n${narrativeBlock}`;
