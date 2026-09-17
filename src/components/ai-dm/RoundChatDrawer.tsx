@@ -102,7 +102,7 @@ interface RoundChatDrawerProps {
   /** userId -> ISO timestamp of the newest message that player has seen. */
   readReceipts?: Record<string, string>;
   /** Everyone in the party, for naming who has read a message. */
-  partyMembers?: Array<{ user_id: string; character_name: string }>;
+  partyMembers?: Array<{ user_id: string; character_name: string; updated_at?: string }>;
   /** Record that this player has seen everything up to this ISO timestamp. */
   onMarkRead?: (iso: string) => void;
 }
