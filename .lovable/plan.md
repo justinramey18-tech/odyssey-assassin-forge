@@ -1,22 +1,40 @@
-# Suggestions that read the live table, not just the story
+# Suggestions that can play off the rest of the table
 
 ## What changes
 
-Right now "Suggest my next move" only looks at the DM's narration and the messages already handed to the DM. Anything a player has typed in the live chat but not yet sent to the DM is invisible to it — so you can't get suggestions that play off what someone else just said at the table.
+Right now "Suggest my next move" jumps straight to the alignment grid and only looks at the DM's narration. Anything a player has typed in the live chat but not yet sent to the DM is invisible to it — so you can't get suggestions that play off what someone else just said.
 
-After this, the suggestion helper also reads the most recent unsent, in-character lines in the live chat. If another player just shouted a threat or grabbed the door handle, your four suggestions can answer that directly.
+After this, tapping the button walks through two quick choices before the suggestions appear.
 
-## Details
+## The new flow
 
-- Only unsent in-character lines are included. Table talk (out-of-character banter) is ignored, so it can't steer your character's options.
-- Lines are labelled by who said them, with your own lines marked as yours.
-- Capped to the most recent handful of lines so the helper isn't flooded; the DM's narration stays the primary context and the live lines sit underneath it as "what's happening at the table right now, not yet narrated".
-- The helper is told these are unresolved: the DM has not reacted to them yet, so suggestions should respond to them as things being attempted, never as things that already succeeded.
-- When the chat is empty or nobody has an unsent in-character line, the behaviour is exactly as it is today.
-- Party mode only — solo has no live chat, and nothing there changes.
+1. **Tap the button** → a screen with two big choices:
+   - **Do my own thing** — works exactly like today. Only the story is read; the live chat is ignored.
+   - **Synergize with others** — reads the story *and* the latest unsent, in-character lines in the live chat.
+2. **Alignment grid** (the existing 3×3) — unchanged.
+3. **Four suggestions.**
+
+## How the four suggestions differ
+
+- **Do my own thing:** unchanged — four moves in the chosen alignment, ordered mildest to boldest ("Barely", "Mild", "Bold", "Full send").
+- **Synergize:** the four split into two pairs around one shared idea.
+  - Options 1 and 2 **cut against** what the other players are doing — 1 is the mild version, 2 is the full-send version.
+  - Options 3 and 4 **work with** them on the same idea — 3 mild, 4 full send.
+  - Labels read "Against · Mild", "Against · Full send", "With · Mild", "With · Full send".
+  - All four still stay inside the alignment you picked.
+
+## Details on the live chat reading
+
+- Only unsent **in-character** lines count. Table talk is ignored so banter can't steer your character.
+- Lines are labelled by who said them, with your own marked as yours, capped to the most recent handful.
+- The helper is told these are unresolved — the DM hasn't reacted yet — so suggestions treat them as attempts, never as things that already worked.
+- If nobody has an unsent in-character line, Synergize falls back to normal story-only suggestions rather than inventing a partner.
+- Party mode only. Solo has no live chat and nothing there changes.
+- Back and Regenerate keep working, returning to the step before and re-running the same mode plus alignment.
 
 ## Technical section
 
-- `PartyDMScreen.tsx` → `handleFetchStoryPills`: after building `recentNarrative`, build `liveTableLines` from `roundChat.pendingMessages` filtered to `in_character`, take the last 10, cap each at ~400 chars, strip the action-card/reply tokens the DM formatter already strips (reuse `parseReply(...).body`), label each `[<character_name>]` with the current user's own lines as `[You]`, join with newlines. Pass as a new optional `live_table_lines` string in the invoke body. Add `roundChat.pendingMessages` and `currentUserId` to the `useCallback` dependency array.
-- `empyrean-masterwork-pills/index.ts`: destructure optional `live_table_lines`; when `isStoryMode` and it is a non-empty string, build a `liveTableBlock` ("## AT THE TABLE RIGHT NOW (unsent, unresolved)" + the lines + the instruction that these are attempts the DM has not yet resolved). Insert it into the story prompt array immediately after `narrativeBlock` and before `flavorBlock`, so the flavour instruction stays last. Absent → prompt byte-identical to today.
+- `StoryMasterworkActions.tsx`: add a `mode` step before the flavour grid. State `mode: 'solo' | 'sync' | null`; header title "How do you want to play it?" → then the existing "What kind of move?" → then the alignment name. Two cards (min-height 104px, `touchAction: 'manipulation'`) for the two choices. Back steps flavour → mode → closed; Regenerate re-runs with the stored `{mode, flavorId}`. `fetchStoryPills` signature becomes `(flavorId?: string, mode?: 'solo' | 'sync')`.
+- `PartyDMScreen.tsx` → `handleFetchStoryPills(flavorId?, mode?)`: when `mode === 'sync'`, build `liveTableLines` from `roundChat.pendingMessages` filtered to `in_character`, last 10, each capped ~400 chars, body via `parseReply(...).body` + `stripActionCard`, labelled `[<character_name>]` (`[You]` for the current user). Pass `live_table_lines` and `synergy_mode: true` in the invoke body only in sync mode. Add `roundChat.pendingMessages` to the dependency array.
+- `empyrean-masterwork-pills/index.ts`: destructure optional `live_table_lines` and `synergy_mode`. When story mode and `live_table_lines` is non-empty, add a `liveTableBlock` ("## AT THE TABLE RIGHT NOW (unsent, unresolved)") after `narrativeBlock`. When `synergy_mode` and live lines exist, replace the intensity-ordering half of `flavorBlock` with the against/with pairing rules and the four fixed labels; the alignment constraint text stays. Without these fields the prompt is byte-identical to today.
 - No database changes. Non-story categories untouched.
