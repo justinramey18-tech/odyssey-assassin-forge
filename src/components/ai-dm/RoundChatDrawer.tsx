@@ -751,7 +751,10 @@ export function RoundChatDrawer({
                               />
                             ) : (
                               <p
-                                className="relative font-body text-[13.5px] font-medium leading-[1.32] text-white whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+                                className={cn(
+                                  "relative font-body text-[13.5px] font-medium leading-[1.32] whitespace-pre-wrap break-words [overflow-wrap:anywhere] transition-colors duration-200",
+                                  modeMatch ? "text-white" : "text-white/70"
+                                )}
                                 style={avatarUrl && !imageUrl ? {
                                   textShadow: [
                                     '0 0 1px rgba(0,0,0,1)',
