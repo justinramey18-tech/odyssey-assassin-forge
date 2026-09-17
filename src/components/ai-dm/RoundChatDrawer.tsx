@@ -706,7 +706,10 @@ export function RoundChatDrawer({
                                  portrait's chest. */
                               <span
                                 aria-hidden="true"
-                                className="absolute inset-0 -z-10 bg-cover bg-top"
+                                className={cn(
+                                  "absolute inset-0 -z-10 bg-cover bg-top transition-opacity duration-200",
+                                  modeMatch ? "opacity-100" : "opacity-40"
+                                )}
                                 style={{ backgroundImage: `url(${avatarUrl})` }}
                               />
                             ) : !imageUrl ? (
@@ -714,7 +717,11 @@ export function RoundChatDrawer({
                                  they are still distinguishable from everyone else. */
                               <span
                                 aria-hidden="true"
-                                className={cn("absolute inset-0 -z-10 opacity-20", playerTint(m.user_id))}
+                                className={cn(
+                                  "absolute inset-0 -z-10 transition-opacity duration-200",
+                                  modeMatch ? "opacity-20" : "opacity-[0.07]",
+                                  playerTint(m.user_id)
+                                )}
                               />
                             ) : null}
 
