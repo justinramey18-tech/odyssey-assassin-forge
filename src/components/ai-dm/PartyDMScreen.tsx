@@ -2850,7 +2850,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             return "";
           })()
         )}>
-          {partyDm.messages.length === 0 ? (
+          {visibleMessages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-6">
               <Users className="w-12 h-12 text-primary/40 mb-4" />
               <h2 className="text-lg font-cinzel text-amber-200 mb-2">Party DM Session</h2>
@@ -2860,18 +2860,20 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             </div>
           ) : (
             <AnimatePresence initial={false}>
-              {partyDm.messages.map((msg, idx) => {
+              {visibleMessages.map((msg, idx) => {
                 // Hide the last assistant message while slideshow is playing
-                if (msg.role === 'assistant' && idx === partyDm.messages.length - 1 && (showSlideshow || (partyDm.isGenerating && cinematicModeEnabled))) {
+                if (msg.role === 'assistant' && idx === visibleMessages.length - 1 && (showSlideshow || (partyDm.isGenerating && cinematicModeEnabled))) {
                   return null;
                 }
                 // Pre-compute AFK names from preceding user message
                 let afkNames: string[] | undefined;
                 if (msg.role === 'assistant' && idx > 0) {
-                  const prev = partyDm.messages[idx - 1];
+                  const prev = visibleMessages[idx - 1];
                   if (prev.role === 'user') {
                     afkNames = extractAfkNames(prev.content);
                   }
+                }
+
                 }
                 return (
                 <React.Fragment key={msg.id}>
