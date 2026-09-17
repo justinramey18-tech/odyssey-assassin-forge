@@ -3108,6 +3108,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   playerInputRef.current?.setText(prompt);
                 }}
                 fetchStoryPills={handleFetchStoryPills}
+                liveTableCandidates={liveTableCandidates}
               />
             </div>
           )}
