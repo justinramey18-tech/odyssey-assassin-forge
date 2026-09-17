@@ -2874,7 +2874,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   }
                 }
 
-                }
+
                 return (
                 <React.Fragment key={msg.id}>
                   {/* Bookmark divider */}
