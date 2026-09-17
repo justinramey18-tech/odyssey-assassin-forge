@@ -1993,6 +1993,33 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     const flaws = myStatus.flaws || '';
     const campaignSummary = (partyDm.sessionConfig as any)?.campaignSummary || '';
 
+    // Synergy mode: hand over the unsent in-character lines so the suggestions can
+    // answer what the table is doing right now, before the DM has resolved any of it.
+    let liveTableLines = '';
+    let synergyTargets: string[] = [];
+    if (mode === 'sync') {
+      const icPending = roundChat.pendingMessages.filter(m => m.in_character).slice(-10);
+      liveTableLines = icPending
+        .map(m => {
+          const raw = stripActionCard(parseReply(m.content).body).trim();
+          if (!raw) return '';
+          const text = raw.length > 400 ? `${raw.slice(0, 400)}…` : raw;
+          const who = m.user_id === currentUserId ? 'You' : (m.character_name || 'Player');
+          return `[${who}]: ${text}`;
+        })
+        .filter(Boolean)
+        .join('\n');
+      const idSet = new Set(targetIds || []);
+      synergyTargets = Array.from(
+        new Set(
+          icPending
+            .filter(m => idSet.has(m.user_id))
+            .map(m => m.character_name || 'Player'),
+        ),
+      );
+    }
+    const useSynergy = mode === 'sync' && !!liveTableLines && synergyTargets.length > 0;
+
     const { data, error } = await supabase.functions.invoke('empyrean-masterwork-pills', {
       body: {
         category: 'story',
