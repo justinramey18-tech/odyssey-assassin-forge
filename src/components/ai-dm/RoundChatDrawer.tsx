@@ -257,6 +257,16 @@ export function RoundChatDrawer({
 
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
+  // Presence dots: same heartbeat the player cards on the home screen use.
+  // Only members carrying a last-active timestamp can show a dot.
+  const membersWithPresence = useMemo(
+    () => (partyMembers || []).filter(
+      (pm): pm is typeof pm & { updated_at: string } => typeof pm.updated_at === 'string' && pm.updated_at.length > 0,
+    ),
+    [partyMembers],
+  );
+  const onlineStatus = useOnlineStatus(membersWithPresence);
+
   const jumpToMessage = useCallback((id: string) => {
     const el = messageRefs.current[id];
     if (!el) return;
@@ -571,6 +581,10 @@ export function RoundChatDrawer({
                     ? avatars?.[m.user_id]?.ic
                     : avatars?.[m.user_id]?.ooc;
                   const modeMatch = m.in_character === inCharacter;
+                  const presenceInfo = onlineStatus[m.user_id];
+                  const presence = presenceInfo
+                    ? (presenceInfo.isOnline ? 'online' as const : 'offline' as const)
+                    : undefined;
 
                   // Alter-ego line: who is speaking, and who is playing them.
                   const icName = (m.character_name || 'Player').trim();
@@ -635,6 +649,8 @@ export function RoundChatDrawer({
                           kind={m.in_character ? 'ic' : 'ooc'}
                           editable={isSelf && !!onUploadAvatar}
                           onPick={(file) => setCropTarget({ kind: m.in_character ? 'ic' : 'ooc', file })}
+                          active={modeMatch}
+                          presence={presence}
                         />
                       )}
 
