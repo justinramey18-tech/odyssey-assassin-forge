@@ -36,6 +36,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
   const [flavorId, setFlavorId] = useState<string | null>(null);
   const [mode, setMode] = useState<SuggestMode | null>(null);
   const [targetIds, setTargetIds] = useState<string[]>([]);
+  const [targetsDone, setTargetsDone] = useState(false);
 
   const hasCandidates = liveTableCandidates.length > 0;
 
