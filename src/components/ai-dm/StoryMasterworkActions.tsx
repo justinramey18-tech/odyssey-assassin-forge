@@ -56,14 +56,15 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
   }, [fetchStoryPills]);
 
   const pickMode = useCallback((m: SuggestMode) => {
+    setTargetIds([]);
     if (m === 'sync' && hasCandidates) {
       setMode('sync');
-      setTargetIds([]);
+      setTargetsDone(false);
       return;
     }
     // No one has spoken yet — synergy has nothing to work with, so behave like solo.
     setMode('solo');
-    setTargetIds([]);
+    setTargetsDone(true);
   }, [hasCandidates]);
 
   const toggleTarget = useCallback((id: string) => {
@@ -78,15 +79,20 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
       setError(null);
       return;
     }
-    // On the targets screen → back to the mode screen.
+    if (mode === 'sync' && targetsDone) {
+      setTargetsDone(false);
+      return;
+    }
     setMode(null);
+    setTargetsDone(false);
     setTargetIds([]);
-  }, [flavorId]);
+  }, [flavorId, mode, targetsDone]);
 
   const close = useCallback(() => {
     setOpen(false);
     setFlavorId(null);
     setMode(null);
+    setTargetsDone(false);
     setTargetIds([]);
     setPills([]);
     setError(null);
@@ -97,7 +103,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
     setOpen(false);
   }, [onSelect]);
 
-  const showTargets = mode === 'sync' && !flavorId;
+  const showTargets = mode === 'sync' && !targetsDone && !flavorId;
   const showFlavors = mode !== null && !showTargets && !flavorId;
   const canContinue = targetIds.length > 0;
 
