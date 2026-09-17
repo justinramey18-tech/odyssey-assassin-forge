@@ -1922,7 +1922,18 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     [partyDm.messages, members, currentUserId, dragonBonds.myDragon?.dragonName, dragonBonds.myDragon?.signetType]
   );
 
+  /**
+   * Story feed rows. Absent-player filler ("holds their action") and autopilot
+   * stand-in lines are hidden from the reader — they are still stored and still
+   * sent to the DM, this only affects what the story shows.
+   */
+  const visibleMessages = useMemo(
+    () => partyDm.messages.filter(m => (m as any).is_afk_marker !== true),
+    [partyDm.messages]
+  );
+
   // Story-mode masterwork pills (non-Empyrean party campaigns)
+
   /**
    * Players with an unsent, in-character line right now — the people you can
    * ask the suggestion helper to play off. Table talk never qualifies.
