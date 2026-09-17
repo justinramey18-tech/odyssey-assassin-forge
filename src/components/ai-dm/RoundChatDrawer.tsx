@@ -547,6 +547,7 @@ export function RoundChatDrawer({
                   const avatarUrl = m.in_character
                     ? avatars?.[m.user_id]?.ic
                     : avatars?.[m.user_id]?.ooc;
+                  const modeMatch = m.in_character === inCharacter;
 
                   // Alter-ego line: who is speaking, and who is playing them.
                   const icName = (m.character_name || 'Player').trim();
@@ -686,9 +687,11 @@ export function RoundChatDrawer({
                               alignRight ? "rounded-br-md" : "rounded-bl-md",
                               m.in_character
                                 ? (isSelf
-                                    ? "bg-amber-500/15 border-amber-400/25"
-                                    : "bg-white/[0.07] border-white/10")
-                                : "bg-sky-500/[0.08] border-sky-400/25 border-dashed",
+                                    ? (modeMatch ? "bg-amber-500/25 border-amber-400/50" : "bg-amber-500/10 border-amber-400/15")
+                                    : (modeMatch ? "bg-white/[0.12] border-white/25" : "bg-white/[0.04] border-white/[0.07]"))
+                                : (modeMatch
+                                    ? "bg-sky-500/[0.16] border-sky-400/50 border-dashed"
+                                    : "bg-sky-500/[0.05] border-sky-400/15 border-dashed"),
                               m.selected && "ring-1 ring-emerald-400/60",
                               m.consumed && "opacity-55",
                               imageUrl && "p-1",
@@ -703,7 +706,10 @@ export function RoundChatDrawer({
                                  portrait's chest. */
                               <span
                                 aria-hidden="true"
-                                className="absolute inset-0 -z-10 bg-cover bg-top"
+                                className={cn(
+                                  "absolute inset-0 -z-10 bg-cover bg-top transition-opacity duration-200",
+                                  modeMatch ? "opacity-100" : "opacity-40"
+                                )}
                                 style={{ backgroundImage: `url(${avatarUrl})` }}
                               />
                             ) : !imageUrl ? (
@@ -711,7 +717,11 @@ export function RoundChatDrawer({
                                  they are still distinguishable from everyone else. */
                               <span
                                 aria-hidden="true"
-                                className={cn("absolute inset-0 -z-10 opacity-20", playerTint(m.user_id))}
+                                className={cn(
+                                  "absolute inset-0 -z-10 transition-opacity duration-200",
+                                  modeMatch ? "opacity-20" : "opacity-[0.07]",
+                                  playerTint(m.user_id)
+                                )}
                               />
                             ) : null}
 
@@ -737,11 +747,17 @@ export function RoundChatDrawer({
                                 alt="Shared image"
                                 loading="lazy"
                                 onClick={(e) => { e.stopPropagation(); setViewingImage(imageUrl); }}
-                                className="relative block rounded-xl max-h-[260px] w-auto max-w-full object-contain cursor-zoom-in"
+                                className={cn(
+                                  "relative block rounded-xl max-h-[260px] w-auto max-w-full object-contain cursor-zoom-in transition-opacity duration-200",
+                                  modeMatch ? "opacity-100" : "opacity-60"
+                                )}
                               />
                             ) : (
                               <p
-                                className="relative font-body text-[13.5px] font-medium leading-[1.32] text-white whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+                                className={cn(
+                                  "relative font-body text-[13.5px] font-medium leading-[1.32] whitespace-pre-wrap break-words [overflow-wrap:anywhere] transition-colors duration-200",
+                                  modeMatch ? "text-white" : "text-white/70"
+                                )}
                                 style={avatarUrl && !imageUrl ? {
                                   textShadow: [
                                     '0 0 1px rgba(0,0,0,1)',
