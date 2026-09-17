@@ -137,7 +137,7 @@ interface PartyDMScreenProps {
   onDemoteCoHost?: (userId: string) => void;
   currentUserId?: string;
   memberCount: number;
-  members: Array<{ user_id: string; character_name: string; character_status?: Record<string, unknown> }>;
+  members: Array<{ user_id: string; character_name: string; character_status?: Record<string, unknown>; updated_at?: string }>;
   onShowGuides?: () => void;
   onShowCharacterGuideBuilder?: () => void;
   
