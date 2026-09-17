@@ -797,17 +797,21 @@ export function RoundChatDrawer({
                                   "relative font-body text-[13.5px] font-medium leading-[1.32] whitespace-pre-wrap break-words [overflow-wrap:anywhere] transition-colors duration-200",
                                   modeMatch ? "text-white" : "text-white/70"
                                 )}
-                                style={avatarUrl && !imageUrl ? {
-                                  textShadow: [
-                                    '0 0 1px rgba(0,0,0,1)',
-                                    '0 0 2px rgba(0,0,0,1)',
-                                    '0 0 3px rgba(0,0,0,1)',
-                                    '0 1px 2px rgba(0,0,0,1)',
-                                    '0 0 8px rgba(0,0,0,0.95)',
-                                    '0 0 16px rgba(0,0,0,0.9)',
-                                    '0 0 28px rgba(0,0,0,0.75)',
-                                  ].join(', '),
-                                } : undefined}
+                                style={{
+                                  ...(avatarUrl && !imageUrl ? {
+                                    textShadow: [
+                                      '0 0 1px rgba(0,0,0,1)',
+                                      '0 0 2px rgba(0,0,0,1)',
+                                      '0 0 3px rgba(0,0,0,1)',
+                                      '0 1px 2px rgba(0,0,0,1)',
+                                      '0 0 8px rgba(0,0,0,0.95)',
+                                      '0 0 16px rgba(0,0,0,0.9)',
+                                      '0 0 28px rgba(0,0,0,0.75)',
+                                    ].join(', '),
+                                  } : {}),
+                                  // Thin light outline on the letters of active-mode text only.
+                                  ...(modeMatch ? { WebkitTextStroke: '0.4px rgba(255,255,255,0.6)' } : {}),
+                                }}
                               >
                                 {parsedReply.body}
                               </p>
