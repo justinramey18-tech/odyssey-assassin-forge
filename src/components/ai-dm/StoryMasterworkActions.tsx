@@ -123,7 +123,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
           aria-hidden="true"
         />
         <button
-          onClick={() => { setOpen(true); setFlavorId(null); setMode(null); setTargetIds([]); }}
+          onClick={() => { setOpen(true); setFlavorId(null); setMode(null); setTargetsDone(false); setTargetIds([]); }}
           disabled={disabled}
           className="relative isolate w-full flex flex-col justify-between items-center text-center min-h-[220px] py-5 px-4 rounded-lg border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 text-amber-100 hover:text-amber-50 text-xs leading-snug transition-colors disabled:opacity-40 overflow-hidden"
           style={{ touchAction: 'manipulation' }}
@@ -259,12 +259,10 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
                   );
                 })}
                 <button
-                  onClick={() => { if (canContinue) setMode('sync'); setFlavorId(null); if (canContinue) setTargetIds(prev => prev); }}
+                  onClick={() => setTargetsDone(true)}
                   disabled={!canContinue}
                   style={{ touchAction: 'manipulation' }}
                   className="w-full py-3 rounded-lg bg-amber-900/40 border border-amber-500/30 text-amber-100 text-sm font-cinzel disabled:opacity-40"
-                  data-continue="targets"
-                  onClickCapture={() => { if (canContinue) setTargetsDone(true); }}
                 >
                   Continue
                 </button>
