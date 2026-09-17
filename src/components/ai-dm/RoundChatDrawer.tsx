@@ -747,7 +747,10 @@ export function RoundChatDrawer({
                                 alt="Shared image"
                                 loading="lazy"
                                 onClick={(e) => { e.stopPropagation(); setViewingImage(imageUrl); }}
-                                className="relative block rounded-xl max-h-[260px] w-auto max-w-full object-contain cursor-zoom-in"
+                                className={cn(
+                                  "relative block rounded-xl max-h-[260px] w-auto max-w-full object-contain cursor-zoom-in transition-opacity duration-200",
+                                  modeMatch ? "opacity-100" : "opacity-60"
+                                )}
                               />
                             ) : (
                               <p
