@@ -562,6 +562,9 @@ export function NarrationStudio({
                     )}>
                       {row.kind === 'table' ? 'DM aside' : row.voiceLabel}
                     </span>
+                    {row.covering && (
+                      <span className="text-[9px] text-rose-200/70">covering {row.covering}</span>
+                    )}
                     {row.audio ? (
                       <span className="text-[9px] text-emerald-300/70">
                         has audio{row.audio.created_by_name ? ` · ${row.audio.created_by_name}` : ''}
