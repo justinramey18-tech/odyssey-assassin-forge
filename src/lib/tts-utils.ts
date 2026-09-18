@@ -751,7 +751,10 @@ export function splitStorySegments(story: string, messageId?: string): Narration
 
   const overrides = messageId ? loadNarrationOverrides(messageId) : [];
   const withOverrides = overrides.length ? applyOverrides(base, overrides) : base;
-  const merged = mergeNarrator(withOverrides);
+  // Drop pieces with nothing speakable left (dividers, status lines, bare
+  // headings) so they never become gaps that need audio.
+  const speakable = withOverrides.filter((s) => !!stripMarkdownForTTS(s.text || '').trim());
+  const merged = mergeNarrator(speakable.length ? speakable : withOverrides);
   return merged.length ? merged : [{ speaker: null, text: raw }];
 }
 

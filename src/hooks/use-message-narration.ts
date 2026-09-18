@@ -556,23 +556,43 @@ export function useMessageNarration(
       }
 
       const narratorVoice = loadSpeechifyVoiceId();
+      let made = 0;
+      let failed = 0;
       for (let i = 0; i < segments.length; i++) {
         const seg = segments[i];
         setCastProgress({ messageId, done, total, speaker: seg.speaker });
         // Passages a player recorded themselves are never sent to Speechify.
-        if (hasClip(segmentKey(seg)) || isSelfRecordedVoice(seg.voiceId)) {
+        // Pieces with nothing speakable left are skipped, never synthesized.
+        if (
+          hasClip(segmentKey(seg))
+          || isSelfRecordedVoice(seg.voiceId)
+          || !stripMarkdownForTTS(seg.text || '').trim()
+        ) {
           done++;
           setCastProgress({ messageId, done, total, speaker: segments[i + 1]?.speaker ?? null });
           continue;
         }
 
         const voiceId = seg.voiceId || (seg.speaker && voiceForSpeaker(seg.speaker)) || narratorVoice;
-        const blob = await synthesize(seg.text, voiceId, apiKey);
-        await storeClip(messageId, segmentKey(seg), blob, voiceId);
+        try {
+          const blob = await synthesize(seg.text, voiceId, apiKey);
+          await storeClip(messageId, segmentKey(seg), blob, voiceId);
+          made++;
+        } catch (error) {
+          // One bad passage must never throw away the whole run.
+          console.warn('[MessageNarration] segment failed, continuing:', error);
+          failed++;
+        }
         done++;
         setCastProgress({ messageId, done, total, speaker: segments[i + 1]?.speaker ?? null });
       }
-      toast.success(`Narration ready (${done} clip${done === 1 ? '' : 's'})`);
+      if (failed > 0) {
+        toast.warning(`Narration ready (${made} clip${made === 1 ? '' : 's'})`, {
+          description: `${failed} passage${failed === 1 ? '' : 's'} could not be voiced.`,
+        });
+      } else {
+        toast.success(`Narration ready (${made} clip${made === 1 ? '' : 's'})`);
+      }
     } finally {
       setCastProgress(null);
     }
@@ -614,9 +634,8 @@ export function useMessageNarration(
           // voices the narration sitting between the hand-picked passages.
           await castRun(messageId, content, apiKey);
         } catch (error) {
+          // Filling gaps is best-effort — still play whatever clips exist.
           console.error('[MessageNarration] filling narration gaps failed:', error);
-          toast.error(error instanceof Error ? error.message : 'Narration failed');
-          return;
         } finally {
           setGeneratingId(null);
         }
@@ -624,7 +643,10 @@ export function useMessageNarration(
     }
 
     const queue = buildOrderedClips(messageId, content);
-    if (queue.length === 0) return;
+    if (queue.length === 0) {
+      toast.error('No narration audio to play yet');
+      return;
+    }
     stop();
     queueRef.current = queue;
     runQueue();
