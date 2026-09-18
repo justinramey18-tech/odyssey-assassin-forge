@@ -780,7 +780,6 @@ export function RoundChatDrawer({
                                     ? "bg-sky-500/[0.16] border-sky-300/90 border-dashed ring-1 ring-sky-400/35"
                                     : "bg-sky-500/[0.03] border-sky-400/10 border-dashed"),
                               m.selected && "ring-1 ring-emerald-400/60",
-                              m.consumed && "opacity-55",
                               imageUrl && "p-1",
                             )}
                           >
@@ -811,6 +810,20 @@ export function RoundChatDrawer({
                                 )}
                               />
                             ) : null}
+
+                            {/* Sent to the DM: a giant green check behind the words but
+                                above the background picture. It fades with the mode
+                                toggle like everything else. */}
+                            {m.consumed && !imageUrl && (
+                              <Check
+                                aria-hidden="true"
+                                strokeWidth={2.5}
+                                className={cn(
+                                  "absolute inset-0 m-auto w-16 h-16 text-emerald-400 pointer-events-none transition-opacity duration-200",
+                                  modeMatch ? "opacity-70" : "opacity-20",
+                                )}
+                              />
+                            )}
 
                             {parsedReply.replyToId && (
                               <span
