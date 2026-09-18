@@ -486,6 +486,12 @@ export interface NarrationSegment {
   voiceId?: string | null;
   /** True when the player hand-picked this passage's voice. */
   manual?: boolean;
+  /**
+   * Index of the source paragraph this piece came from. Narrator pieces are
+   * only merged together when they share one. Deliberately NOT part of
+   * segmentKey, so a clip's id depends on its text alone.
+   */
+  para?: number;
 }
 
 /** Removes [VOICE:...] markers while keeping the words, for on-screen display. */
@@ -519,7 +525,7 @@ function mergeNarrator(list: NarrationSegment[]): NarrationSegment[] {
   const out: NarrationSegment[] = [];
   for (const seg of list) {
     const prev = out[out.length - 1];
-    if (prev && !prev.speaker && !prev.manual && !seg.speaker && !seg.manual) {
+    if (prev && !prev.speaker && !prev.manual && !seg.speaker && !seg.manual && prev.para === seg.para) {
       prev.text = `${prev.text}\n\n${seg.text}`;
     } else {
       out.push({ ...seg });
@@ -533,14 +539,21 @@ function mergeNarrator(list: NarrationSegment[]): NarrationSegment[] {
  * (bold or plain) and contain quoted speech get that speaker on the quoted
  * lines, while the surrounding prose stays with the narrator.
  */
-function autoDetectSegments(raw: string): NarrationSegment[] {
+function autoDetectSegments(raw: string, paraOffset = 0): NarrationSegment[] {
   const cast = loadVoiceCast();
-  if (cast.length === 0) return [{ speaker: null, text: raw }];
+  const paras = raw.split(/\n{2,}/).map((x) => x.trim()).filter(Boolean);
+
+  // With no cast saved we still split by paragraph. Returning the whole story
+  // as one segment is what made a single highlight re-key everything.
+  if (cast.length === 0) {
+    return paras.length
+      ? paras.map((p, pi) => ({ speaker: null, text: p, para: paraOffset + pi }))
+      : [{ speaker: null, text: raw, para: paraOffset }];
+  }
 
   const out: NarrationSegment[] = [];
-  for (const para of raw.split(/\n{2,}/)) {
-    const p = para.trim();
-    if (!p) continue;
+  paras.forEach((p, pi) => {
+    const para = paraOffset + pi;
 
     const outsideQuotes = p.replace(new RegExp(QUOTED.source, 'g'), ' ');
     let speaker: string | null = null;
@@ -559,7 +572,7 @@ function autoDetectSegments(raw: string): NarrationSegment[] {
       }
     }
 
-    if (!speaker) { out.push({ speaker: null, text: p }); continue; }
+    if (!speaker) { out.push({ speaker: null, text: p, para }); return; }
 
     const re = new RegExp(QUOTED.source, 'g');
     const pieces: NarrationSegment[] = [];
@@ -567,16 +580,16 @@ function autoDetectSegments(raw: string): NarrationSegment[] {
     let m: RegExpExecArray | null;
     while ((m = re.exec(p)) !== null) {
       const before = p.slice(cursor, m.index).trim();
-      if (before) pieces.push({ speaker: null, text: before });
-      pieces.push({ speaker, text: m[0] });
+      if (before) pieces.push({ speaker: null, text: before, para });
+      pieces.push({ speaker, text: m[0], para });
       cursor = m.index + m[0].length;
     }
     const tail = p.slice(cursor).trim();
-    if (tail) pieces.push({ speaker: null, text: tail });
-    out.push(...(pieces.length ? pieces : [{ speaker: null, text: p }]));
-  }
+    if (tail) pieces.push({ speaker: null, text: tail, para });
+    out.push(...(pieces.length ? pieces : [{ speaker: null, text: p, para }]));
+  });
 
-  return out.length ? out : [{ speaker: null, text: raw }];
+  return out.length ? out : [{ speaker: null, text: raw, para: paraOffset }];
 }
 
 // ── Manual highlight overrides ──────────────────────────────────────────────
@@ -681,9 +694,9 @@ function applyOverrides(segments: NarrationSegment[], overrides: NarrationOverri
       if (!m || m.index === undefined) { next.push(seg); continue; }
       const before = seg.text.slice(0, m.index).trim();
       const after = seg.text.slice(m.index + m[0].length).trim();
-      if (before) next.push({ speaker: seg.speaker, text: before });
-      next.push({ speaker: ov.label || seg.speaker || null, text: m[0].trim(), voiceId: ov.voiceId, manual: true });
-      if (after) next.push({ speaker: seg.speaker, text: after });
+      if (before) next.push({ speaker: seg.speaker, text: before, para: seg.para });
+      next.push({ speaker: ov.label || seg.speaker || null, text: m[0].trim(), voiceId: ov.voiceId, manual: true, para: seg.para });
+      if (after) next.push({ speaker: seg.speaker, text: after, para: seg.para });
       placed = true;
     }
     working = next;
@@ -719,9 +732,21 @@ export function splitStorySegments(story: string, messageId?: string): Narration
   let base: NarrationSegment[];
   if (hasTags) {
     // Tags win, but untagged prose still gets auto-detection.
-    base = tagged.flatMap((s) => (s.speaker ? [s] : autoDetectSegments(s.text)));
+    // paraCursor keeps paragraph numbers unique across the whole story, so
+    // mergeNarrator can never glue two different paragraphs into one clip.
+    let paraCursor = 0;
+    base = tagged.flatMap((s) => {
+      if (s.speaker) {
+        const one: NarrationSegment[] = [{ ...s, para: paraCursor }];
+        paraCursor += 1;
+        return one;
+      }
+      const auto = autoDetectSegments(s.text, paraCursor);
+      paraCursor += Math.max(1, s.text.split(/\n{2,}/).filter((x) => x.trim()).length);
+      return auto;
+    });
   } else {
-    base = autoDetectSegments(raw);
+    base = autoDetectSegments(raw, 0);
   }
 
   const overrides = messageId ? loadNarrationOverrides(messageId) : [];
