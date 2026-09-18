@@ -120,6 +120,7 @@ export function NarrationStudio({
   onDeleteAll,
   onVoiceSegment,
   onRecordSegment,
+  onRevertToCastVoice,
   onShareVoices,
   onRestoreClip,
 }: NarrationStudioProps) {
@@ -196,6 +197,13 @@ export function NarrationStudio({
     return ov?.label || null;
   }, [overrides]);
 
+  /** Cast takes that a mic recording is currently covering, by piece. */
+  const displaced = useMemo(
+    () => loadDisplacedVoices(messageId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [messageId, version],
+  );
+
   const rows = useMemo<StudioRow[]>(() => {
     const byPart = new Map<string, StudioRow>();
     if (tableTalk.trim()) {
@@ -210,6 +218,7 @@ export function NarrationStudio({
     for (const seg of segments) {
       const part = segmentKey(seg);
       const recorded = isSelfRecordedVoice(seg.voiceId);
+      const cover = recorded ? displaced[part] : undefined;
       byPart.set(part, {
         part,
         kind: 'segment',
@@ -220,11 +229,13 @@ export function NarrationStudio({
           : seg.manual
             ? (overrideLabelFor(seg) || 'Picked voice')
             : seg.speaker || 'Narrator',
+        covering: cover ? (cover.previousLabel || 'cast voice') : null,
+        canRevert: !!cover,
         audio: narrationMap[narrationKey(messageId, part)],
       });
     }
     return orderedParts.map((p) => byPart.get(p)).filter((r): r is StudioRow => !!r);
-  }, [tableTalk, segments, narrationMap, messageId, orderedParts, overrideLabelFor]);
+  }, [tableTalk, segments, narrationMap, messageId, orderedParts, overrideLabelFor, displaced]);
 
   const resolvedVoiceFor = useCallback((seg: NarrationSegment): { voiceId: string; label: string } => {
     if (seg.voiceId && !isSelfRecordedVoice(seg.voiceId)) {
