@@ -78,6 +78,8 @@ export function useSpotify() {
   const [autoMoodEnabled, setAutoMoodEnabledState] = useState(loadAutoMood);
   const [sdkDeviceId, setSdkDeviceId] = useState<string | null>(null);
   const [sdkReady, setSdkReady] = useState(false);
+  // Set only when the Web Playback SDK explicitly reports a non-Premium account.
+  const [premiumDenied, setPremiumDenied] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastAutoMoodPresetIdRef = useRef<string | null>(null);
   const lastAutoMoodTimeRef = useRef<number>(0);
@@ -130,7 +132,15 @@ export function useSpotify() {
       getUserProfile()
         .then(p => {
           setUserName(p?.display_name || p?.email || 'Connected');
-          setIsPremium(p?.product === 'premium');
+          // Spotify removed "product" from GET /me for Development Mode apps in
+          // the February 2026 API migration. When it is absent we must NOT
+          // conclude the user is on Free - leave it unknown (null) and let the
+          // Web Playback SDK tell us.
+          if (typeof p?.product === 'string') {
+            setIsPremium(p.product === 'premium');
+          } else {
+            setIsPremium(null);
+          }
         })
         .catch(() => {});
     } else {
@@ -139,19 +149,30 @@ export function useSpotify() {
     }
   }, [connected]);
 
-  // Initialize SDK player for Premium users
+  // Initialize the SDK browser player whenever Premium has not been ruled out.
+  // IMPORTANT: this effect must NOT depend on isPremium, because the SDK's own
+  // "ready" callback sets isPremium - depending on it would destroy and rebuild
+  // the player in a loop.
   useEffect(() => {
-    if (!connected || isPremium !== true) return;
+    if (!connected || premiumDenied) return;
 
     initPlayer(
       (id) => {
         setSdkDeviceId(id);
         setSdkReady(true);
+        // Only a Premium account ever gets a device id from the SDK.
+        setIsPremium(true);
         console.log('[Spotify] Browser player ready');
       },
       () => {
         setSdkDeviceId(null);
         setSdkReady(false);
+      },
+      undefined,
+      (message) => {
+        console.warn('[Spotify] SDK reports non-Premium account:', message);
+        setPremiumDenied(true);
+        setIsPremium(false);
       },
     );
 
@@ -160,7 +181,7 @@ export function useSpotify() {
       setSdkDeviceId(null);
       setSdkReady(false);
     };
-  }, [connected, isPremium]);
+  }, [connected, premiumDenied]);
 
   // Poll playback state
   useEffect(() => {
@@ -212,6 +233,8 @@ export function useSpotify() {
     setUserName(null);
     setSdkDeviceId(null);
     setSdkReady(false);
+    setPremiumDenied(false);
+    setIsPremium(null);
     toast.success('Spotify disconnected');
   }, []);
 
@@ -223,6 +246,8 @@ export function useSpotify() {
     setUserName(null);
     setSdkDeviceId(null);
     setSdkReady(false);
+    setPremiumDenied(false);
+    setIsPremium(null);
     try {
       await startAuth();
     } catch (e) {
