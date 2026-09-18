@@ -556,23 +556,43 @@ export function useMessageNarration(
       }
 
       const narratorVoice = loadSpeechifyVoiceId();
+      let made = 0;
+      let failed = 0;
       for (let i = 0; i < segments.length; i++) {
         const seg = segments[i];
         setCastProgress({ messageId, done, total, speaker: seg.speaker });
         // Passages a player recorded themselves are never sent to Speechify.
-        if (hasClip(segmentKey(seg)) || isSelfRecordedVoice(seg.voiceId)) {
+        // Pieces with nothing speakable left are skipped, never synthesized.
+        if (
+          hasClip(segmentKey(seg))
+          || isSelfRecordedVoice(seg.voiceId)
+          || !stripMarkdownForTTS(seg.text || '').trim()
+        ) {
           done++;
           setCastProgress({ messageId, done, total, speaker: segments[i + 1]?.speaker ?? null });
           continue;
         }
 
         const voiceId = seg.voiceId || (seg.speaker && voiceForSpeaker(seg.speaker)) || narratorVoice;
-        const blob = await synthesize(seg.text, voiceId, apiKey);
-        await storeClip(messageId, segmentKey(seg), blob, voiceId);
+        try {
+          const blob = await synthesize(seg.text, voiceId, apiKey);
+          await storeClip(messageId, segmentKey(seg), blob, voiceId);
+          made++;
+        } catch (error) {
+          // One bad passage must never throw away the whole run.
+          console.warn('[MessageNarration] segment failed, continuing:', error);
+          failed++;
+        }
         done++;
         setCastProgress({ messageId, done, total, speaker: segments[i + 1]?.speaker ?? null });
       }
-      toast.success(`Narration ready (${done} clip${done === 1 ? '' : 's'})`);
+      if (failed > 0) {
+        toast.warning(`Narration ready (${made} clip${made === 1 ? '' : 's'})`, {
+          description: `${failed} passage${failed === 1 ? '' : 's'} could not be voiced.`,
+        });
+      } else {
+        toast.success(`Narration ready (${made} clip${made === 1 ? '' : 's'})`);
+      }
     } finally {
       setCastProgress(null);
     }
