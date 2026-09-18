@@ -74,6 +74,17 @@ interface UseMessageNarrationReturn {
   generate: (messageId: string, text: string, part?: NarrationPart) => Promise<void>;
   /** Generates the DM aside plus one clip per story segment, in cast voices. */
   generateCast: (messageId: string, content: string) => Promise<void>;
+  /**
+   * Voices ONLY a highlighted passage, in the chosen voice. The rest of the
+   * message is never sent to Speechify.
+   */
+  generateSegment: (
+    messageId: string,
+    content: string,
+    passage: string,
+    voiceId: string,
+    label?: string,
+  ) => Promise<void>;
   play: (messageId: string, part?: NarrationPart) => void;
   /** Plays the DM aside, then every story segment in story order. */
   playAll: (messageId: string, content?: string) => void;
@@ -618,6 +629,61 @@ export function useMessageNarration(
     }
   }, [partyId, generatingId, synthesize, storeClip, castRun]);
 
+  /**
+   * Voices ONLY a highlighted passage. The passage is carved out as its own
+   * segment in the chosen voice, and just that slice is synthesized - the
+   * surrounding narration is never sent to Speechify.
+   */
+  const generateSegment = useCallback(async (
+    messageId: string,
+    content: string,
+    passage: string,
+    voiceId: string,
+    label?: string,
+  ) => {
+    if (!partyId) return;
+    const apiKey = loadApiKey('speechify');
+    if (!apiKey) {
+      toast.error('No Speechify API key', { description: 'Add one in Settings -> API Keys.' });
+      return;
+    }
+    if (generatingId) return;
+
+    const text = (passage || '').trim();
+    if (!text) return;
+
+    // 1. Carve the passage out as its own segment in the chosen voice.
+    addNarrationOverride(messageId, { text, voiceId, label: label || undefined });
+
+    // 2. Find the segment key every client will compute for it.
+    const { story } = splitDMResponseParts(content || '');
+    const segments = splitStorySegments(story || content || '', messageId);
+    const target = segments.find((s) => s.manual && s.voiceId === voiceId && s.text.trim() === text)
+      || segments.find((s) => s.manual && s.voiceId === voiceId)
+      || segments.find((s) => s.text.trim() === text);
+
+    if (!target) {
+      toast.error('Could not match that passage', { description: 'Try selecting a full sentence.' });
+      return;
+    }
+
+    // 3. Synthesize ONLY that segment.
+    const part = segmentKey(target);
+    setGeneratingId(narrationKey(messageId, part));
+    try {
+      const blob = await synthesize(target.text, voiceId, apiKey);
+      await storeClip(messageId, part, blob, voiceId);
+      toast.success(label ? `Voiced in ${label}` : 'Passage voiced', {
+        description: 'Only the highlighted words were sent to Speechify.',
+      });
+    } catch (error) {
+      console.error('[MessageNarration] segment generate failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Narration failed');
+    } finally {
+      setGeneratingId(null);
+    }
+  }, [partyId, generatingId, synthesize, storeClip]);
+
   const generateCast = useCallback(async (messageId: string, content: string) => {
     if (!partyId) return;
     const apiKey = loadApiKey('speechify');
@@ -828,6 +894,7 @@ export function useMessageNarration(
     speakingName,
     generate,
     generateCast,
+    generateSegment,
     play,
     playAll,
     stop,
