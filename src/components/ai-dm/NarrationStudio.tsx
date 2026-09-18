@@ -34,6 +34,7 @@ import {
   isSelfRecordedVoice,
   loadStudioState,
   saveStudioState,
+  loadDisplacedVoices,
   type NarrationSegment,
   type NarrationOverride,
   type NarrationStudioState,
@@ -62,6 +63,9 @@ interface StudioRow {
   seg?: NarrationSegment;
   displayText: string;
   voiceLabel: string;
+  /** Cast voice this recording is covering, if any. */
+  covering?: string | null;
+  canRevert?: boolean;
   audio?: MessageAudioRow;
 }
 
@@ -89,7 +93,9 @@ interface NarrationStudioProps {
   onDeletePart?: (part: NarrationPart) => void;
   onDeleteAll?: () => void;
   onVoiceSegment?: (passage: string, voiceId: string, label?: string) => Promise<void>;
-  onRecordSegment?: (passage: string, blob: Blob) => Promise<void>;
+  onRecordSegment?: (passage: string, blob: Blob, hint?: NarrationSegment) => Promise<void>;
+  /** Swaps a self-recorded piece back to the cast voice it covered. */
+  onRevertToCastVoice?: (part: NarrationPart) => Promise<void>;
   onShareVoices?: () => void;
   onRestoreClip?: (part: NarrationPart, blob: Blob, voiceId: string) => Promise<void>;
 }
@@ -117,6 +123,7 @@ export function NarrationStudio({
   onDeleteAll,
   onVoiceSegment,
   onRecordSegment,
+  onRevertToCastVoice,
   onShareVoices,
   onRestoreClip,
 }: NarrationStudioProps) {
@@ -193,6 +200,13 @@ export function NarrationStudio({
     return ov?.label || null;
   }, [overrides]);
 
+  /** Cast takes that a mic recording is currently covering, by piece. */
+  const displaced = useMemo(
+    () => loadDisplacedVoices(messageId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [messageId, version],
+  );
+
   const rows = useMemo<StudioRow[]>(() => {
     const byPart = new Map<string, StudioRow>();
     if (tableTalk.trim()) {
@@ -207,6 +221,7 @@ export function NarrationStudio({
     for (const seg of segments) {
       const part = segmentKey(seg);
       const recorded = isSelfRecordedVoice(seg.voiceId);
+      const cover = recorded ? displaced[part] : undefined;
       byPart.set(part, {
         part,
         kind: 'segment',
@@ -217,11 +232,13 @@ export function NarrationStudio({
           : seg.manual
             ? (overrideLabelFor(seg) || 'Picked voice')
             : seg.speaker || 'Narrator',
+        covering: cover ? (cover.previousLabel || 'cast voice') : null,
+        canRevert: !!cover,
         audio: narrationMap[narrationKey(messageId, part)],
       });
     }
     return orderedParts.map((p) => byPart.get(p)).filter((r): r is StudioRow => !!r);
-  }, [tableTalk, segments, narrationMap, messageId, orderedParts, overrideLabelFor]);
+  }, [tableTalk, segments, narrationMap, messageId, orderedParts, overrideLabelFor, displaced]);
 
   const resolvedVoiceFor = useCallback((seg: NarrationSegment): { voiceId: string; label: string } => {
     if (seg.voiceId && !isSelfRecordedVoice(seg.voiceId)) {
@@ -545,6 +562,9 @@ export function NarrationStudio({
                     )}>
                       {row.kind === 'table' ? 'DM aside' : row.voiceLabel}
                     </span>
+                    {row.covering && (
+                      <span className="text-[9px] text-rose-200/70">covering {row.covering}</span>
+                    )}
                     {row.audio ? (
                       <span className="text-[9px] text-emerald-300/70">
                         has audio{row.audio.created_by_name ? ` · ${row.audio.created_by_name}` : ''}
@@ -631,7 +651,19 @@ export function NarrationStudio({
                     title="Record this piece in your own voice"
                   >
                     <Mic className="w-3 h-3" />
-                    Record
+                    {row.canRevert || isSelfRecordedVoice(row.seg?.voiceId) ? 'Re-record' : 'Record'}
+                  </button>
+                )}
+
+                {row.kind === 'segment' && row.canRevert && onRevertToCastVoice && (
+                  <button
+                    onClick={() => { void onRevertToCastVoice(row.part).then(bump); }}
+                    style={{ touchAction: 'manipulation' }}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] border border-emerald-500/30 bg-emerald-900/20 text-emerald-200/85 hover:bg-emerald-900/40"
+                    title={`Play ${row.covering} here again - your recording is kept`}
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Revert to {row.covering}
                   </button>
                 )}
 
@@ -812,9 +844,13 @@ export function NarrationStudio({
             setSavingRecording(true);
             pushHistory(takeSnapshot());
             try {
-              await onRecordSegment(row.seg.text.trim(), file);
+              // Hand the exact piece over: no guessing from the words.
+              await onRecordSegment(row.seg.text.trim(), file, row.seg);
               setRecordFor(null);
               bump();
+            } catch (error) {
+              // Keep the recorder open so the take can be sent again.
+              console.error('[NarrationStudio] saving recording failed:', error);
             } finally {
               setSavingRecording(false);
             }

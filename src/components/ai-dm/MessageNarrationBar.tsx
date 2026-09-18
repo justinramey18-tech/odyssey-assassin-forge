@@ -5,6 +5,7 @@ import {
   splitStorySegments,
   segmentKey,
   voiceForSpeaker,
+  type NarrationSegment,
 } from '@/lib/tts-utils';
 import { NarrationStudio } from './NarrationStudio';
 import { narrationKey, type CastProgress, type MessageAudioRow, type NarrationPart } from '@/hooks/use-message-narration';
@@ -30,7 +31,9 @@ interface MessageNarrationBarProps {
   onDelete?: (messageId: string, part: NarrationPart) => void;
   onDeleteAll?: (messageId: string) => void;
   /** Saves a mic recording for one piece of the story. */
-  onRecordSegment?: (messageId: string, content: string, passage: string, blob: Blob) => Promise<void>;
+  onRecordSegment?: (messageId: string, content: string, passage: string, blob: Blob, label?: string, hint?: NarrationSegment) => Promise<void>;
+  /** Swaps a self-recorded piece back to the cast voice it covered. */
+  onRevertToCastVoice?: (messageId: string, part: NarrationPart) => Promise<void>;
   /** Synthesizes ONE piece of the story in the chosen voice. */
   onVoiceSegment?: (messageId: string, content: string, passage: string, voiceId: string, label?: string) => Promise<void>;
   /** Packages this message's clips into one audio file on the device. */
@@ -66,6 +69,7 @@ export function MessageNarrationBar({
   onDelete,
   onDeleteAll,
   onRecordSegment,
+  onRevertToCastVoice,
   onVoiceSegment,
   onDownloadFile,
   isDownloading,
@@ -176,7 +180,10 @@ export function MessageNarrationBar({
           ? (passage, voiceId, label) => onVoiceSegment(messageId, content, passage, voiceId, label)
           : undefined}
         onRecordSegment={onRecordSegment
-          ? (passage, blob) => onRecordSegment(messageId, content, passage, blob)
+          ? (passage, blob, hint) => onRecordSegment(messageId, content, passage, blob, undefined, hint)
+          : undefined}
+        onRevertToCastVoice={onRevertToCastVoice
+          ? (part) => onRevertToCastVoice(messageId, part)
           : undefined}
         onShareVoices={onShareVoices ? () => onShareVoices(messageId) : undefined}
         onRestoreClip={onRestoreClip
