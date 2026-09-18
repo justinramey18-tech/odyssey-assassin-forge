@@ -426,10 +426,38 @@ export function loadVoiceCast(): VoiceCastEntry[] {
   }
 }
 
+/** Fired on window whenever the character voice cast is written. */
+export const VOICE_CAST_EVENT = 'odyssey-voice-cast';
+
 export function saveVoiceCast(cast: VoiceCastEntry[]): void {
   try {
     localStorage.setItem(VOICE_CAST_KEY, JSON.stringify(cast));
   } catch { /* ignore */ }
+  // Tell every mounted component that the cast changed. Without this, screens
+  // that read the cast once (the passage voice picker) keep showing a stale
+  // list until a full page reload.
+  try {
+    window.dispatchEvent(new CustomEvent(VOICE_CAST_EVENT));
+  } catch { /* ignore */ }
+}
+
+/**
+ * Subscribes to voice-cast changes. Returns an unsubscribe function, so it can
+ * be returned directly from a useEffect.
+ * Also listens to the native 'storage' event so a change made in another tab
+ * or window is picked up too.
+ */
+export function subscribeVoiceCast(onChange: () => void): () => void {
+  if (typeof window === 'undefined') return () => { /* no-op on server */ };
+  const onStorage = (e: StorageEvent) => {
+    if (!e.key || e.key === VOICE_CAST_KEY) onChange();
+  };
+  window.addEventListener(VOICE_CAST_EVENT, onChange);
+  window.addEventListener('storage', onStorage);
+  return () => {
+    window.removeEventListener(VOICE_CAST_EVENT, onChange);
+    window.removeEventListener('storage', onStorage);
+  };
 }
 
 /** Looks up a cast voice by speaker name (case/spacing tolerant). */

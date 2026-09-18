@@ -6,6 +6,8 @@ import {
   splitStorySegments,
   segmentKey,
   loadVoiceCast,
+  subscribeVoiceCast,
+  type VoiceCastEntry,
   loadSpeechifyVoiceId,
   loadSpeechifyDMVoiceId,
   loadNarrationOverrides,
@@ -132,7 +134,19 @@ export function MessageNarrationBar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [messageId, overrideVersion],
   );
-  const cast = useMemo(() => loadVoiceCast(), [overrideVersion]);
+  // The cast is editable from the Voices tab while this bar stays mounted, so
+  // it must be state that re-reads on change - a useMemo keyed on
+  // overrideVersion never updated, because adding a character does not touch
+  // narration overrides.
+  const [cast, setCast] = useState<VoiceCastEntry[]>(loadVoiceCast);
+
+  useEffect(() => subscribeVoiceCast(() => setCast(loadVoiceCast())), []);
+
+  // Belt and braces: re-read the moment the picker opens, so the list is
+  // correct even if a save somehow did not broadcast.
+  useEffect(() => {
+    if (pickerOpen) setCast(loadVoiceCast());
+  }, [pickerOpen]);
 
   const hasTableTalk = tableTalk.trim().length > 0;
   const hasVoicedSegments = segments.some((s) => s.voiceId || (s.speaker && voiceForSpeaker(s.speaker)));
