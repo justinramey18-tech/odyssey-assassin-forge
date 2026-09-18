@@ -86,6 +86,8 @@ export function MessageNarrationBar({
   castProgress,
   speakingName,
   canDelete,
+  canGenerate = false,
+
   onNarrate,
   onNarrateCast,
   onPlay,
@@ -214,7 +216,12 @@ export function MessageNarrationBar({
   const storyAudio = narrationMap[narrationKey(messageId, 'story')];
   const segmentClips = segments.filter((s) => !!narrationMap[narrationKey(messageId, segmentKey(s))]).length;
 
+  const storyHasAudio = hasVoicedSegments ? segmentClips > 0 : !!storyAudio;
+  // Players who cannot generate may still highlight a passage to record their
+  // own voice, so the highlight tools stay available when a recorder exists.
+  const canHighlight = canGenerate || !!onRecordSegment;
   const isCasting = generatingPart === 'cast';
+
   const isPlayingAny = !!playingPart;
   const playAllReady = (segmentClips > 0 && (!hasTableTalk || !!tableAudio))
     || (hasTableTalk && !!tableAudio && !!storyAudio);
@@ -261,7 +268,7 @@ export function MessageNarrationBar({
 
   return (
     <div className="mt-1.5 space-y-1.5">
-      {selection && !pickerOpen && (
+      {selection && !pickerOpen && canHighlight && (
         <div
           className="fixed z-[70]"
           style={{ top: selection.top, left: selection.left }}
