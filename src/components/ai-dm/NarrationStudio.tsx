@@ -651,7 +651,19 @@ export function NarrationStudio({
                     title="Record this piece in your own voice"
                   >
                     <Mic className="w-3 h-3" />
-                    Record
+                    {row.canRevert || isSelfRecordedVoice(row.seg?.voiceId) ? 'Re-record' : 'Record'}
+                  </button>
+                )}
+
+                {row.kind === 'segment' && row.canRevert && onRevertToCastVoice && (
+                  <button
+                    onClick={() => { void onRevertToCastVoice(row.part).then(bump); }}
+                    style={{ touchAction: 'manipulation' }}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] border border-emerald-500/30 bg-emerald-900/20 text-emerald-200/85 hover:bg-emerald-900/40"
+                    title={`Play ${row.covering} here again - your recording is kept`}
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Revert to {row.covering}
                   </button>
                 )}
 
