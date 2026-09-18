@@ -30,7 +30,9 @@ interface MessageNarrationBarProps {
   onDelete?: (messageId: string, part: NarrationPart) => void;
   onDeleteAll?: (messageId: string) => void;
   /** Saves a mic recording for one piece of the story. */
-  onRecordSegment?: (messageId: string, content: string, passage: string, blob: Blob) => Promise<void>;
+  onRecordSegment?: (messageId: string, content: string, passage: string, blob: Blob, label?: string, hint?: NarrationSegment) => Promise<void>;
+  /** Swaps a self-recorded piece back to the cast voice it covered. */
+  onRevertToCastVoice?: (messageId: string, part: NarrationPart) => Promise<void>;
   /** Synthesizes ONE piece of the story in the chosen voice. */
   onVoiceSegment?: (messageId: string, content: string, passage: string, voiceId: string, label?: string) => Promise<void>;
   /** Packages this message's clips into one audio file on the device. */
