@@ -213,11 +213,14 @@ async function spotifyFetch(endpoint: string, options: RequestInit = {}, _retry 
     throw new Error('Spotify session expired. Please reconnect.');
   }
 
+  // No-content success (204, or an empty 200/202 from player commands).
   if (res.status === 204) return null;
 
   const contentType = res.headers.get('content-type');
   if (!contentType?.includes('application/json')) {
     const text = await res.text().catch(() => '');
+    // Successful command with an empty/non-JSON body — treat as done, not an error.
+    if (res.ok) return null;
     console.error('[Spotify] Non-JSON response:', res.status, text.substring(0, 200));
     throw new Error(`Spotify returned an unexpected response (${res.status}). Try reconnecting Spotify.`);
   }
