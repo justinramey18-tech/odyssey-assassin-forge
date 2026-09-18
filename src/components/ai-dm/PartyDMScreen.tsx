@@ -3158,6 +3158,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           oocNames={chatAvatars.oocNames}
         />
         <RoundChatDrawer
+          partyId={partyId}
           open={roundChatOpen}
           onOpenChange={setRoundChatOpen}
           messages={roundChat.messages}

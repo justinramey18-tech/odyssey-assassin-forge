@@ -10,6 +10,7 @@ import { parseActionCard } from '@/lib/roundChatActionCard';
 import { parseReply, quotePreview, formatReply } from '@/lib/chatReply';
 import { QuickActionLine } from './QuickActionCard';
 import { useOnlineStatus } from '@/hooks/use-online-status';
+import { supabase } from '@/integrations/supabase/client';
 import type { RoundChatMessage, RoundChatReaction, RoundStyle } from '@/hooks/use-round-chat';
 
 const EMOJI_SET = ['🤣','😅','🤪','🙄','😬','😏','🤮','🥵','🥶','🤯','🧐','😎','😱','😭','🤬','😈','❤️','💯','👏','🙌','🤝','🖕','🫦','🗣','🍑','🍆'];
@@ -62,6 +63,7 @@ const SWIPE_MAX = 80;       // px the bubble can be dragged
 
 
 interface RoundChatDrawerProps {
+  partyId?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   messages: RoundChatMessage[];
@@ -192,6 +194,7 @@ function ChatAvatar({
 
 
 export function RoundChatDrawer({
+  partyId,
   open,
   onOpenChange,
   messages,
@@ -266,6 +269,46 @@ export function RoundChatDrawer({
     [partyMembers],
   );
   const onlineStatus = useOnlineStatus(membersWithPresence);
+  const [livePresenceIds, setLivePresenceIds] = useState<Set<string>>(new Set());
+  const [livePresenceReady, setLivePresenceReady] = useState(false);
+
+  // The Live DM Table uses realtime presence so dots react immediately when a
+  // player enters or leaves the party screen. Timestamp status remains the
+  // fallback while the presence channel connects.
+  useEffect(() => {
+    if (!partyId || !currentUserId) {
+      setLivePresenceIds(new Set());
+      setLivePresenceReady(false);
+      return;
+    }
+
+    const channel = supabase.channel(`round-chat-presence-${partyId}`, {
+      config: { presence: { key: currentUserId } },
+    });
+
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        const ids = new Set<string>();
+        for (const presences of Object.values(state)) {
+          for (const presence of presences as Array<{ user_id?: string }>) {
+            if (presence.user_id) ids.add(presence.user_id);
+          }
+        }
+        setLivePresenceIds(ids);
+        setLivePresenceReady(true);
+      })
+      .subscribe(async status => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ user_id: currentUserId, online_at: new Date().toISOString() });
+        }
+      });
+
+    return () => {
+      channel.untrack();
+      supabase.removeChannel(channel);
+    };
+  }, [partyId, currentUserId]);
 
   const jumpToMessage = useCallback((id: string) => {
     const el = messageRefs.current[id];
@@ -582,9 +625,11 @@ export function RoundChatDrawer({
                     : avatars?.[m.user_id]?.ooc;
                   const modeMatch = m.in_character === inCharacter;
                   const presenceInfo = onlineStatus[m.user_id];
-                  const presence = presenceInfo
-                    ? (presenceInfo.isOnline ? 'online' as const : 'offline' as const)
-                    : undefined;
+                  const presence = livePresenceReady
+                    ? (livePresenceIds.has(m.user_id) ? 'online' as const : 'offline' as const)
+                    : presenceInfo
+                      ? (presenceInfo.isOnline ? 'online' as const : 'offline' as const)
+                      : undefined;
 
                   // Alter-ego line: who is speaking, and who is playing them.
                   const icName = (m.character_name || 'Player').trim();
@@ -729,7 +774,7 @@ export function RoundChatDrawer({
                                     ? (modeMatch ? "bg-amber-500/25 border-amber-400/50" : "bg-amber-500/10 border-amber-400/15")
                                     : (modeMatch ? "bg-white/[0.12] border-white/25" : "bg-white/[0.04] border-white/[0.07]"))
                                 : (modeMatch
-                                    ? "bg-sky-500/[0.16] border-sky-400/50 border-dashed"
+                                    ? "bg-sky-500/[0.16] border-sky-300/90 border-dashed ring-1 ring-sky-400/35"
                                     : "bg-sky-500/[0.05] border-sky-400/15 border-dashed"),
                               m.selected && "ring-1 ring-emerald-400/60",
                               m.consumed && "opacity-55",
