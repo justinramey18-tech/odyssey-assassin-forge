@@ -634,9 +634,8 @@ export function useMessageNarration(
           // voices the narration sitting between the hand-picked passages.
           await castRun(messageId, content, apiKey);
         } catch (error) {
+          // Filling gaps is best-effort — still play whatever clips exist.
           console.error('[MessageNarration] filling narration gaps failed:', error);
-          toast.error(error instanceof Error ? error.message : 'Narration failed');
-          return;
         } finally {
           setGeneratingId(null);
         }
@@ -644,7 +643,10 @@ export function useMessageNarration(
     }
 
     const queue = buildOrderedClips(messageId, content);
-    if (queue.length === 0) return;
+    if (queue.length === 0) {
+      toast.error('No narration audio to play yet');
+      return;
+    }
     stop();
     queueRef.current = queue;
     runQueue();
