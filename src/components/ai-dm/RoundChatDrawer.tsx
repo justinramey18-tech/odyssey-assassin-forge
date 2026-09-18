@@ -878,6 +878,19 @@ export function RoundChatDrawer({
                               </p>
                             )}
 
+                            {/* Same sent check for shared pictures — drawn on top of
+                                the image so it stays visible. */}
+                            {m.consumed && imageUrl && (
+                              <Check
+                                aria-hidden="true"
+                                strokeWidth={2.5}
+                                className={cn(
+                                  "absolute inset-0 m-auto w-16 h-16 text-emerald-400 pointer-events-none transition-opacity duration-200",
+                                  modeMatch ? "opacity-70" : "opacity-20",
+                                )}
+                              />
+                            )}
+
                           </button>
                         )}
 
