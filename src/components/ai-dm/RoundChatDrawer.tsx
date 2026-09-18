@@ -1014,20 +1014,20 @@ export function RoundChatDrawer({
                 <div className="flex items-stretch gap-2">
                   {([
                     {
-                      key: 'ic' as const,
-                      active: inCharacter,
-                      url: currentUserId ? avatars?.[currentUserId]?.ic : undefined,
-                      name: (characterName || 'Character').trim(),
-                      ring: 'border-2 border-amber-400/70',
-                      tint: 'bg-amber-500/20 text-amber-200',
-                    },
-                    {
                       key: 'ooc' as const,
                       active: !inCharacter,
                       url: currentUserId ? avatars?.[currentUserId]?.ooc : undefined,
                       name: ((currentUserId && oocNames?.[currentUserId]) || 'You').trim(),
                       ring: 'border-2 border-dashed border-sky-400/70',
                       tint: 'bg-sky-500/20 text-sky-200',
+                    },
+                    {
+                      key: 'ic' as const,
+                      active: inCharacter,
+                      url: currentUserId ? avatars?.[currentUserId]?.ic : undefined,
+                      name: (characterName || 'Character').trim(),
+                      ring: 'border-2 border-amber-400/70',
+                      tint: 'bg-amber-500/20 text-amber-200',
                     },
                   ]).map(tile => (
                     <button
