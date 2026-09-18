@@ -6,7 +6,7 @@ Under each message only two controls remain: **Play all** and **Edit narration**
 
 ## What the screen shows
 
-A vertical list, one row per piece of the story, in the order it will play. The DM's out-of-character aside is the first row when it exists.
+A vertical list, one row per piece of the story, in the order it will play. The DM's out-of-character aside is the first row when it exists. The pieces start as the paragraphs exactly as they appear in the story text — you do not define what counts as a paragraph up front. From there you reshape them with Split and Merge until the pieces match how you want the audio to sound.
 
 Each row shows:
 - The words of that piece, in full, so it can be read aloud as a script while recording.
