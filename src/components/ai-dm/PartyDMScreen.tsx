@@ -588,7 +588,10 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                 </div>
               </div>
             ) : (
-              <div className="text-xs prose prose-invert prose-xs max-w-none break-words overflow-wrap-anywhere">
+              <div
+                data-odyssey-message={message.id}
+                className="text-xs prose prose-invert prose-xs max-w-none break-words overflow-wrap-anywhere"
+              >
                 {videoMatch ? (
                   <div>
                     <div className="flex items-center gap-1 mb-1.5">
