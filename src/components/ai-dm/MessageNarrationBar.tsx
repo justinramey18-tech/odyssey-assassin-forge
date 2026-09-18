@@ -5,6 +5,7 @@ import {
   splitStorySegments,
   segmentKey,
   voiceForSpeaker,
+  type NarrationSegment,
 } from '@/lib/tts-utils';
 import { NarrationStudio } from './NarrationStudio';
 import { narrationKey, type CastProgress, type MessageAudioRow, type NarrationPart } from '@/hooks/use-message-narration';
@@ -68,6 +69,7 @@ export function MessageNarrationBar({
   onDelete,
   onDeleteAll,
   onRecordSegment,
+  onRevertToCastVoice,
   onVoiceSegment,
   onDownloadFile,
   isDownloading,
