@@ -230,7 +230,9 @@ async function spotifyFetch(endpoint: string, options: RequestInit = {}, _retry 
     data = await res.json();
   } catch {
     if (!res.ok) throw new Error(`Spotify API error ${res.status}`);
-    throw new Error('Spotify returned malformed data. Please try again.');
+    // Empty body on a successful response (e.g. /me/player with nothing
+    // playing, or a player command) — not an error.
+    return null;
   }
 
   if (!res.ok) {
