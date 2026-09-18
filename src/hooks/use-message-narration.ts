@@ -891,15 +891,34 @@ export function useMessageNarration(
     passage: string,
     blob: Blob,
     label?: string,
+    /**
+     * The exact piece the caller (Narration Studio) tapped Record on. When
+     * given we never guess: the recording lands on THAT piece. Text-only
+     * matching is kept as the fallback for the old highlight flow.
+     */
+    hint?: NarrationSegment,
   ) => {
     if (!partyId) return;
-    const text = (passage || '').trim();
+    const loose = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    const text = ((hint?.text ?? passage) || '').trim();
     if (!text) {
-      toast.error('Highlight a passage first');
+      toast.error('Nothing to record over');
       return;
     }
 
     try {
+      const { story } = splitDMResponseParts(content || '');
+
+      // 0. Remember the voice this recording is covering, so it can be undone.
+      const before = splitStorySegments(story || content || '', messageId);
+      const wantedBefore = loose(text);
+      const prevSeg = (hint && before.find((s) => segmentKey(s) === segmentKey(hint)))
+        || before.find((s) => loose(s.text) === wantedBefore)
+        || before.find((s) => loose(s.text).includes(wantedBefore) || wantedBefore.includes(loose(s.text)));
+      const prevOverride = prevSeg
+        ? loadNarrationOverrides(messageId).find((o) => loose(o.text) === loose(prevSeg.text)) || null
+        : null;
+
       // 1. Carve the passage out as its own segment, marked as a mic recording.
       addNarrationOverride(messageId, {
         text,
@@ -908,14 +927,7 @@ export function useMessageNarration(
       });
 
       // 2. Find the segment key everyone's client will compute for it.
-      const { story } = splitDMResponseParts(content || '');
       const segments = splitStorySegments(story || content || '', messageId);
-      // The selection is PLAIN text from the DOM. A segment's text is the RAW
-      // markdown it was carved from, including asterisks, smart quotes and any
-      // leading punctuation tolerantMatcher swallowed. Comparing them directly
-      // fails on every bold or italic passage, so compare on letters and
-      // digits only - that survives all of it.
-      const loose = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
       const wanted = loose(text);
       const mine = segments.filter((s) => isSelfRecordedVoice(s.voiceId));
       const target = mine.find((s) => s.text.trim() === text)
@@ -968,6 +980,21 @@ export function useMessageNarration(
         },
       }));
 
+      // 3b. Remember the cast take this recording is covering. Nothing is
+      // deleted, so "Revert to cast voice" can bring it straight back.
+      if (prevSeg) {
+        const previousPart = segmentKey(prevSeg);
+        if (previousPart !== part) {
+          saveDisplacedVoice(messageId, part, {
+            overrideText: text,
+            previousPart,
+            previousVoiceId: prevSeg.voiceId || null,
+            previousLabel: prevOverride?.label || prevSeg.speaker || null,
+            previousOverride: prevOverride,
+          });
+        }
+      }
+
       // 4. Share the passage split so every player hears it in Play all.
       await publishOverrides(messageId);
       if (typeof window !== 'undefined') {
@@ -977,8 +1004,29 @@ export function useMessageNarration(
     } catch (error) {
       console.error('[MessageNarration] recording failed:', error);
       toast.error(error instanceof Error ? error.message : 'Could not save recording');
+      throw error;
     }
   }, [partyId, currentUserId, currentUserName, publishOverrides]);
+
+  /**
+   * Swaps a self-recorded piece back to the Speechify take it covered.
+   * Nothing is deleted either way - recording again restores the recording.
+   */
+  const revertToCastVoice = useCallback(async (messageId: string, part: NarrationPart) => {
+    const info = loadDisplacedVoices(messageId)[part];
+    if (!info) {
+      toast.error('No cast voice saved for this piece');
+      return;
+    }
+    removeNarrationOverride(messageId, info.overrideText);
+    if (info.previousOverride) addNarrationOverride(messageId, info.previousOverride);
+    clearDisplacedVoice(messageId, part);
+    await publishOverrides(messageId);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('odyssey-narration-overrides'));
+    }
+    toast.success(info.previousLabel ? `Back to ${info.previousLabel}` : 'Back to the cast voice');
+  }, [publishOverrides]);
 
   /** Shares this device's passage voice picks for a message with the party. */
   const sharePassageVoices = useCallback(async (messageId: string) => {
