@@ -101,7 +101,9 @@ interface UseMessageNarrationReturn {
    * Saves a mic recording for a highlighted passage of a DM message.
    * The passage becomes its own segment, so Play all uses the recording there.
    */
-  recordSegment: (messageId: string, content: string, passage: string, blob: Blob, label?: string) => Promise<void>;
+  recordSegment: (messageId: string, content: string, passage: string, blob: Blob, label?: string, hint?: NarrationSegment) => Promise<void>;
+  /** Swaps a self-recorded piece back to the Speechify take it covered. */
+  revertToCastVoice: (messageId: string, part: NarrationPart) => Promise<void>;
   /** Publishes this device's passage voice picks for a message to the party. */
   sharePassageVoices: (messageId: string) => Promise<void>;
   /** Re-uploads a previously deleted clip (used by Narration Studio's undo). */
