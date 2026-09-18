@@ -34,6 +34,7 @@ import {
   isSelfRecordedVoice,
   loadStudioState,
   saveStudioState,
+  loadDisplacedVoices,
   type NarrationSegment,
   type NarrationOverride,
   type NarrationStudioState,
@@ -89,7 +90,9 @@ interface NarrationStudioProps {
   onDeletePart?: (part: NarrationPart) => void;
   onDeleteAll?: () => void;
   onVoiceSegment?: (passage: string, voiceId: string, label?: string) => Promise<void>;
-  onRecordSegment?: (passage: string, blob: Blob) => Promise<void>;
+  onRecordSegment?: (passage: string, blob: Blob, hint?: NarrationSegment) => Promise<void>;
+  /** Swaps a self-recorded piece back to the cast voice it covered. */
+  onRevertToCastVoice?: (part: NarrationPart) => Promise<void>;
   onShareVoices?: () => void;
   onRestoreClip?: (part: NarrationPart, blob: Blob, voiceId: string) => Promise<void>;
 }
