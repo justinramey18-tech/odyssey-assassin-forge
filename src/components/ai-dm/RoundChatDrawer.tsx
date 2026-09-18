@@ -819,8 +819,10 @@ export function RoundChatDrawer({
                                 aria-hidden="true"
                                 strokeWidth={2.5}
                                 className={cn(
-                                  "absolute inset-0 m-auto w-16 h-16 text-emerald-400 pointer-events-none transition-opacity duration-200",
-                                  modeMatch ? "opacity-70" : "opacity-20",
+                                  // Scales with the bubble (up to a cap) so it stays
+                                  // obvious even on tall multi-line messages.
+                                  "absolute inset-0 m-auto w-[min(80%,140px)] h-[min(80%,140px)] min-w-9 min-h-9 text-emerald-400 pointer-events-none transition-opacity duration-200",
+                                  modeMatch ? "opacity-80" : "opacity-25",
                                 )}
                               />
                             )}
@@ -885,8 +887,8 @@ export function RoundChatDrawer({
                                 aria-hidden="true"
                                 strokeWidth={2.5}
                                 className={cn(
-                                  "absolute inset-0 m-auto w-16 h-16 text-emerald-400 pointer-events-none transition-opacity duration-200",
-                                  modeMatch ? "opacity-70" : "opacity-20",
+                                  "absolute inset-0 m-auto w-[min(80%,140px)] h-[min(80%,140px)] min-w-9 min-h-9 text-emerald-400 pointer-events-none transition-opacity duration-200",
+                                  modeMatch ? "opacity-80" : "opacity-25",
                                 )}
                               />
                             )}
