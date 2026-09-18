@@ -47,6 +47,8 @@ interface MessageNarrationBarProps {
   castProgress?: CastProgress | null;
   speakingName?: string | null;
   canDelete?: boolean;
+  /** Host/co-host only. Ignored until the gating step wires it up. */
+  canGenerate?: boolean;
   onNarrate: (messageId: string, text: string, part: NarrationPart) => void;
   onNarrateCast: (messageId: string, content: string) => void;
   onPlay: (messageId: string, part: NarrationPart) => void;
