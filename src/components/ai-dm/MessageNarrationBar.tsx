@@ -428,30 +428,35 @@ export function MessageNarrationBar({
           <p className="text-[10px] text-sky-200/70 line-clamp-2">"{pendingText}"</p>
 
           <div className="flex flex-wrap gap-1.5">
-            {cast.map((entry) => (
-              <button
-                key={entry.name}
-                onClick={() => assignVoice(entry.voiceId, entry.name)}
-                style={{ touchAction: 'manipulation' }}
-                className="px-2.5 py-1.5 rounded-full text-[11px] border border-violet-500/30 bg-violet-900/20 text-violet-200/85"
-              >
-                {entry.name}
-              </button>
-            ))}
-            <button
-              onClick={() => assignVoice(loadSpeechifyVoiceId(), 'Narrator')}
-              style={{ touchAction: 'manipulation' }}
-              className="px-2.5 py-1.5 rounded-full text-[11px] border border-border/40 text-muted-foreground"
-            >
-              Narrator
-            </button>
-            <button
-              onClick={() => assignVoice(loadSpeechifyDMVoiceId(), 'DM')}
-              style={{ touchAction: 'manipulation' }}
-              className="px-2.5 py-1.5 rounded-full text-[11px] border border-amber-500/30 bg-amber-900/20 text-amber-200/85"
-            >
-              DM voice
-            </button>
+            {canGenerate && (
+              <>
+                {cast.map((entry) => (
+                  <button
+                    key={entry.name}
+                    onClick={() => assignVoice(entry.voiceId, entry.name)}
+                    style={{ touchAction: 'manipulation' }}
+                    className="px-2.5 py-1.5 rounded-full text-[11px] border border-violet-500/30 bg-violet-900/20 text-violet-200/85"
+                  >
+                    {entry.name}
+                  </button>
+                ))}
+                <button
+                  onClick={() => assignVoice(loadSpeechifyVoiceId(), 'Narrator')}
+                  style={{ touchAction: 'manipulation' }}
+                  className="px-2.5 py-1.5 rounded-full text-[11px] border border-border/40 text-muted-foreground"
+                >
+                  Narrator
+                </button>
+                <button
+                  onClick={() => assignVoice(loadSpeechifyDMVoiceId(), 'DM')}
+                  style={{ touchAction: 'manipulation' }}
+                  className="px-2.5 py-1.5 rounded-full text-[11px] border border-amber-500/30 bg-amber-900/20 text-amber-200/85"
+                >
+                  DM voice
+                </button>
+              </>
+            )}
+
             {onRecordSegment && (
               <button
                 onClick={() => setRecorderOpen(true)}
