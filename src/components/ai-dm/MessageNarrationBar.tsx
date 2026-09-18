@@ -14,12 +14,26 @@ import {
   addNarrationOverride,
   clearNarrationOverrides,
   voiceForSpeaker,
+  stripTableTalkTags,
   isSelfRecordedVoice,
 } from '@/lib/tts-utils';
 import { MessageNarrationButton } from './MessageNarrationButton';
 import { PartyDMAudioRecorder } from './PartyDMAudioRecorder';
 import { narrationKey, type CastProgress, type MessageAudioRow, type NarrationPart } from '@/hooks/use-message-narration';
 import { cn } from '@/lib/utils';
+
+/**
+ * Comparison key for matching a DOM text selection against raw message text:
+ * lowercase letters and digits only.
+ *
+ * The screen shows the message AFTER ReactMarkdown has rendered it, so the
+ * visible words contain no asterisks, underscores, backticks or link syntax,
+ * and quotes/dashes may differ. Reducing both sides to letters and digits makes
+ * the comparison survive all of that.
+ */
+function looseKey(s: string): string {
+  return (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
 
 
 interface MessageNarrationBarProps {
@@ -95,33 +109,70 @@ export function MessageNarrationBar({
     return () => window.removeEventListener('odyssey-narration-overrides', onSync);
   }, []);
 
+  // The rendered message strips markdown syntax, [VOICE:...] markers and
+  // cinematic comments, so the raw content is NOT what the reader selected.
+  // Strip the same tags the display strips, then reduce to a loose key.
+  const haystack = useMemo(() => {
+    const withoutCinematics = (content || '').replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '');
+    return looseKey(stripTableTalkTags(withoutCinematics));
+  }, [content]);
+
   // Watch text selection; only react when the highlighted words belong to THIS message.
   useEffect(() => {
-    const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
-    const haystack = norm(content || '');
-
     const check = () => {
       const sel = typeof window !== 'undefined' ? window.getSelection() : null;
       const text = sel?.toString().trim() || '';
-      if (!sel || sel.rangeCount === 0 || text.length < 3 || !haystack.includes(norm(text))) {
+      const needle = looseKey(text);
+
+      if (!sel || sel.rangeCount === 0 || text.length < 3 || needle.length < 3) {
         setSelection(null);
         return;
       }
-      const rect = sel.getRangeAt(0).getBoundingClientRect();
+
+      // The selection must physically live inside THIS message's rendered body.
+      // Without this, a common word matches several messages at once and every
+      // one of them shows a chip stacked at the same spot.
+      const body = typeof document !== 'undefined'
+        ? document.querySelector(`[data-odyssey-message="${CSS.escape(messageId)}"]`)
+        : null;
+      if (body && sel.anchorNode && !body.contains(sel.anchorNode)) {
+        setSelection(null);
+        return;
+      }
+
+      if (!haystack.includes(needle)) {
+        setSelection(null);
+        return;
+      }
+
+      // Anchor to the END of the selection (where the drag handle is) rather
+      // than the bounding box of every line it spans.
+      const range = sel.getRangeAt(0);
+      const rects = Array.from(range.getClientRects());
+      const rect = rects.length > 0 ? rects[rects.length - 1] : range.getBoundingClientRect();
       if (!rect || (rect.width === 0 && rect.height === 0)) {
         setSelection(null);
         return;
       }
-      setSelection({ text, top: rect.bottom + 6, left: Math.max(8, Math.min(rect.left, window.innerWidth - 150)) });
+
+      // Keep the chip on screen: flip it above the selection when placing it
+      // below would push it past the bottom of the viewport.
+      const below = rect.bottom + 6;
+      const top = below > window.innerHeight - 56 ? Math.max(8, rect.top - 44) : below;
+      const left = Math.max(8, Math.min(rect.left, window.innerWidth - 150));
+
+      setSelection({ text, top, left });
     };
 
     document.addEventListener('selectionchange', check);
     window.addEventListener('scroll', check, true);
+    window.addEventListener('resize', check);
     return () => {
       document.removeEventListener('selectionchange', check);
       window.removeEventListener('scroll', check, true);
+      window.removeEventListener('resize', check);
     };
-  }, [content]);
+  }, [haystack, messageId]);
 
   const { tableTalk, story } = useMemo(() => splitDMResponseParts(content || ''), [content]);
   const segments = useMemo(
