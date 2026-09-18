@@ -103,6 +103,8 @@ export function useRoundChat(
   ownerUserId?: string | null,
 ) {
   const [style, setStyle] = useState<RoundStyle>(DEFAULT_ROUND_STYLE);
+  /** False until the table's saved round style has been fetched for this party. */
+  const [styleLoaded, setStyleLoaded] = useState(false);
   const [messages, setMessages] = useState<RoundChatMessage[]>([]);
   const [reactions, setReactions] = useState<RoundChatReaction[]>([]);
   const [sending, setSending] = useState(false);
