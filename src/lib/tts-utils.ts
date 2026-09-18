@@ -814,3 +814,57 @@ export function clearStudioState(messageId: string): void {
   delete map[messageId];
   writeStudioMap(map);
 }
+
+// ── Displaced cast voices (a mic recording covering a Speechify take) ───────
+
+const DISPLACED_KEY = 'dnd-narration-displaced';
+
+/**
+ * What a self-recorded piece is covering. Recording a passage changes its
+ * segment key (the voice id is part of the hash), so the earlier Speechify
+ * clip stays in storage but becomes unreachable. This remembers how to get
+ * back to it. Nothing is ever deleted.
+ */
+export interface DisplacedVoice {
+  /** Exact override text written for the recording (used to undo it). */
+  overrideText: string;
+  /** Segment key the piece had before the recording. */
+  previousPart: string;
+  previousVoiceId?: string | null;
+  previousLabel?: string | null;
+  /** The override that was in place before, if any, so it can be restored. */
+  previousOverride?: NarrationOverride | null;
+}
+
+type DisplacedMap = Record<string, Record<string, DisplacedVoice>>;
+
+function readDisplacedMap(): DisplacedMap {
+  try {
+    const raw = localStorage.getItem(DISPLACED_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed as DisplacedMap : {};
+  } catch { return {}; }
+}
+
+function writeDisplacedMap(map: DisplacedMap): void {
+  try { localStorage.setItem(DISPLACED_KEY, JSON.stringify(map)); } catch { /* ignore */ }
+}
+
+export function loadDisplacedVoices(messageId: string): Record<string, DisplacedVoice> {
+  const entry = readDisplacedMap()[messageId];
+  return entry && typeof entry === 'object' ? entry : {};
+}
+
+export function saveDisplacedVoice(messageId: string, part: string, info: DisplacedVoice): void {
+  const map = readDisplacedMap();
+  map[messageId] = { ...(map[messageId] || {}), [part]: info };
+  writeDisplacedMap(map);
+}
+
+export function clearDisplacedVoice(messageId: string, part: string): void {
+  const map = readDisplacedMap();
+  if (!map[messageId]) return;
+  delete map[messageId][part];
+  if (Object.keys(map[messageId]).length === 0) delete map[messageId];
+  writeDisplacedMap(map);
+}
