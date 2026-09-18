@@ -180,7 +180,10 @@ export function MessageNarrationBar({
           ? (passage, voiceId, label) => onVoiceSegment(messageId, content, passage, voiceId, label)
           : undefined}
         onRecordSegment={onRecordSegment
-          ? (passage, blob) => onRecordSegment(messageId, content, passage, blob)
+          ? (passage, blob, hint) => onRecordSegment(messageId, content, passage, blob, undefined, hint)
+          : undefined}
+        onRevertToCastVoice={onRevertToCastVoice
+          ? (part) => onRevertToCastVoice(messageId, part)
           : undefined}
         onShareVoices={onShareVoices ? () => onShareVoices(messageId) : undefined}
         onRestoreClip={onRestoreClip
