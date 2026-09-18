@@ -114,7 +114,7 @@ import { PartyMemberSheets } from '@/components/party/PartyMemberSheets';
 import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
 import { loadPendingDmItems } from '@/lib/pendingDmItems';
 import { DiceRollOverlay } from '@/components/ai-dm/DiceRollOverlay';
-import { stripTableTalkTags } from '@/lib/tts-utils';
+import { stripTableTalkTags, type NarrationSegment } from '@/lib/tts-utils';
 
 function stripCinematicTagsFromDisplay(content: string): string {
   return stripTableTalkTags(content.replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, ''));
