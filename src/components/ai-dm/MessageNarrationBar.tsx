@@ -55,6 +55,11 @@ interface MessageNarrationBarProps {
   onDeleteAll?: (messageId: string) => void;
   /** Saves a mic recording for the highlighted passage. */
   onRecordSegment?: (messageId: string, content: string, passage: string, blob: Blob) => Promise<void>;
+  /**
+   * Synthesizes ONLY the highlighted passage in the chosen voice.
+   * When supplied, picking a voice generates that one clip immediately.
+   */
+  onVoiceSegment?: (messageId: string, content: string, passage: string, voiceId: string, label?: string) => Promise<void>;
   /** Packages this message's clips into one audio file on the device. */
   onDownloadFile?: (messageId: string, content: string) => void;
   /** True while this message's file is being prepared. */
@@ -86,6 +91,7 @@ export function MessageNarrationBar({
   onDelete,
   onDeleteAll,
   onRecordSegment,
+  onVoiceSegment,
   onDownloadFile,
   isDownloading,
   downloadProgress,
@@ -231,10 +237,21 @@ export function MessageNarrationBar({
 
 
   const assignVoice = (voiceId: string, label: string) => {
-    addNarrationOverride(messageId, { text: pendingText, voiceId, label });
+    const passage = pendingText;
     setPickerOpen(false);
     setPickerAnchor(null);
     setPendingText('');
+
+    if (onVoiceSegment) {
+      // Voice ONLY the highlighted words. generateSegment registers the
+      // override itself, so it must not be added again here.
+      void onVoiceSegment(messageId, content, passage, voiceId, label)
+        .finally(() => setOverrideVersion((v) => v + 1));
+      return;
+    }
+
+    // Fallback when no generator was supplied: assign the voice only.
+    addNarrationOverride(messageId, { text: passage, voiceId, label });
     setOverrideVersion((v) => v + 1);
     toast.success(`Passage assigned to ${label}`, { description: 'Tap Narrate story to voice it.' });
   };
