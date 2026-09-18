@@ -103,6 +103,8 @@ export function useRoundChat(
   ownerUserId?: string | null,
 ) {
   const [style, setStyle] = useState<RoundStyle>(DEFAULT_ROUND_STYLE);
+  /** False until the table's saved round style has been fetched for this party. */
+  const [styleLoaded, setStyleLoaded] = useState(false);
   const [messages, setMessages] = useState<RoundChatMessage[]>([]);
   const [reactions, setReactions] = useState<RoundChatReaction[]>([]);
   const [sending, setSending] = useState(false);
@@ -113,20 +115,28 @@ export function useRoundChat(
 
   // ── Style ──
   const loadStyle = useCallback(async () => {
-    if (!partyId) return;
-    // More than one member may have written a settings row. Never fail on that:
-    // prefer the host's row, otherwise the most recently saved one.
-    const { data } = await (supabase.from('party_shared_state') as any)
-      .select('user_id, state_data, updated_at')
-      .eq('party_id', partyId)
-      .eq('state_type', STYLE_STATE_TYPE)
-      .order('updated_at', { ascending: false })
-      .limit(10);
-    const rows = (data || []) as Array<{ user_id: string; state_data: unknown }>;
-    if (rows.length === 0) return;
-    const preferred = (ownerUserId && rows.find(r => r.user_id === ownerUserId)) || rows[0];
-    if (preferred?.state_data) setStyle(parseStyle(preferred.state_data));
+    try {
+      if (!partyId) return;
+      // More than one member may have written a settings row. Never fail on that:
+      // prefer the host's row, otherwise the most recently saved one.
+      const { data } = await (supabase.from('party_shared_state') as any)
+        .select('user_id, state_data, updated_at')
+        .eq('party_id', partyId)
+        .eq('state_type', STYLE_STATE_TYPE)
+        .order('updated_at', { ascending: false })
+        .limit(10);
+      const rows = (data || []) as Array<{ user_id: string; state_data: unknown }>;
+      if (rows.length === 0) return;
+      const preferred = (ownerUserId && rows.find(r => r.user_id === ownerUserId)) || rows[0];
+      if (preferred?.state_data) setStyle(parseStyle(preferred.state_data));
+    } finally {
+      // Whether the fetch found a row or not, the saved choice has been checked.
+      setStyleLoaded(true);
+    }
   }, [partyId, ownerUserId]);
+
+  // A new party always waits for its own saved style before it counts as loaded.
+  useEffect(() => { setStyleLoaded(false); }, [partyId, ownerUserId]);
 
   useEffect(() => { loadStyle(); }, [loadStyle]);
 
@@ -448,6 +458,7 @@ export function useRoundChat(
 
   return {
     style,
+    styleLoaded,
     updateStyle,
     messages,
     reactions,
