@@ -18,6 +18,7 @@ import {
   SELF_RECORDED_VOICE_ID,
   type NarrationSegment,
   type NarrationOverride,
+  loadStudioState,
 } from '@/lib/tts-utils';
 
 import { toast } from 'sonner';
@@ -97,6 +98,10 @@ interface UseMessageNarrationReturn {
    * The passage becomes its own segment, so Play all uses the recording there.
    */
   recordSegment: (messageId: string, content: string, passage: string, blob: Blob, label?: string) => Promise<void>;
+  /** Publishes this device's passage voice picks for a message to the party. */
+  sharePassageVoices: (messageId: string) => Promise<void>;
+  /** Re-uploads a previously deleted clip (used by Narration Studio's undo). */
+  restoreClip: (messageId: string, part: NarrationPart, blob: Blob, voiceId: string) => Promise<void>;
   hasSpeechifyKey: boolean;
   /** How many saved clips are stored on this device for offline play. */
   offlineCount: number;
@@ -140,7 +145,7 @@ export function useMessageNarration(
   const [speakingName, setSpeakingName] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playSeqRef = useRef(0);
-  const queueRef = useRef<Array<{ key: string; url: string; speaker?: string | null }>>([]);
+  const queueRef = useRef<Array<{ key: string; url: string; speaker?: string | null; part?: string; rate?: number }>>([]);
   const audioMapRef = useRef<Record<string, MessageAudioRow>>({});
   audioMapRef.current = audioByMessage;
 
@@ -355,7 +360,7 @@ export function useMessageNarration(
     audio.onended = null;
     audio.onerror = null;
     audio.pause();
-    audio.playbackRate = loadNarrationSpeed();
+    audio.playbackRate = Number.isFinite(next.rate) ? (next.rate as number) : loadNarrationSpeed();
     audio.onended = () => runQueue();
     audio.onerror = () => {
       toast.error('Could not play narration');
@@ -403,10 +408,10 @@ export function useMessageNarration(
 
   /** The ordered clip list for a message: DM aside, then story segments. */
   const buildOrderedClips = useCallback((messageId: string, content?: string) => {
-    const queue: Array<{ key: string; url: string; speaker?: string | null }> = [];
+    const queue: Array<{ key: string; url: string; speaker?: string | null; part?: string; rate?: number }> = [];
     const map = audioMapRef.current;
     const tableRow = map[narrationKey(messageId, 'table')];
-    if (tableRow) queue.push({ key: narrationKey(messageId, 'table'), url: tableRow.audio_url, speaker: 'DM' });
+    if (tableRow) queue.push({ key: narrationKey(messageId, 'table'), url: tableRow.audio_url, speaker: 'DM', part: 'table' });
 
     const segments = content ? splitStorySegments(splitDMResponseParts(content).story, messageId) : [];
     let addedSegments = 0;
@@ -415,14 +420,36 @@ export function useMessageNarration(
       const row = map[narrationKey(messageId, part)]
         || map[narrationKey(messageId, segmentPart(i))];
       if (row) {
-        queue.push({ key: narrationKey(messageId, row.part || part), url: row.audio_url, speaker: seg.speaker });
+        const resolvedPart = row.part || part;
+        queue.push({ key: narrationKey(messageId, resolvedPart), url: row.audio_url, speaker: seg.speaker, part: resolvedPart });
         addedSegments++;
       }
     });
 
     if (addedSegments === 0) {
       const storyRow = map[narrationKey(messageId, 'story')];
-      if (storyRow) queue.push({ key: narrationKey(messageId, 'story'), url: storyRow.audio_url, speaker: null });
+      if (storyRow) queue.push({ key: narrationKey(messageId, 'story'), url: storyRow.audio_url, speaker: null, part: 'story' });
+    }
+
+    // Narration Studio customisations: per-piece speed, then custom order.
+    // Both are playback-only - the written story and the audio never change.
+    const studio = loadStudioState(messageId);
+    if (studio.rates) {
+      for (const item of queue) {
+        const rate = item.part ? studio.rates[item.part] : undefined;
+        if (Number.isFinite(rate)) item.rate = Math.min(2, Math.max(0.5, rate as number));
+      }
+    }
+    if (studio.order && studio.order.length > 0) {
+      const rank = new Map(studio.order.map((part, i) => [part, i]));
+      queue
+        .map((item, i) => ({ item, i }))
+        .sort((a, b) => {
+          const ra = a.item.part !== undefined && rank.has(a.item.part) ? rank.get(a.item.part)! : rank.size + a.i;
+          const rb = b.item.part !== undefined && rank.has(b.item.part) ? rank.get(b.item.part)! : rank.size + b.i;
+          return ra - rb;
+        })
+        .forEach(({ item }, i) => { queue[i] = item; });
     }
     return queue;
   }, []);
@@ -953,6 +980,24 @@ export function useMessageNarration(
     }
   }, [partyId, currentUserId, currentUserName, publishOverrides]);
 
+  /** Shares this device's passage voice picks for a message with the party. */
+  const sharePassageVoices = useCallback(async (messageId: string) => {
+    await publishOverrides(messageId);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('odyssey-narration-overrides'));
+    }
+  }, [publishOverrides]);
+
+  /** Re-uploads a deleted clip so the studio's undo can bring audio back. */
+  const restoreClip = useCallback(async (
+    messageId: string,
+    part: NarrationPart,
+    blob: Blob,
+    voiceId: string,
+  ) => {
+    await storeClip(messageId, part, blob, voiceId);
+  }, [storeClip]);
+
   // ── Downloading clips for offline play ──
 
   const allRows = Object.values(audioByMessage);
@@ -1020,6 +1065,8 @@ export function useMessageNarration(
     remove,
     removeAll,
     recordSegment,
+    sharePassageVoices,
+    restoreClip,
     hasSpeechifyKey,
     offlineCount,
     totalClips: allRows.length,

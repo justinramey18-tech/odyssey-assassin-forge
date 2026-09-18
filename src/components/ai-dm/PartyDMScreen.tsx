@@ -442,7 +442,7 @@ function MessageReactions({ messageId, reactions, currentUserId, onAddReaction, 
   );
 }
 
-const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction, onWhisperAutoRoll, onWhisperOpenRoller, narrationMap, narrationGeneratingPart, narrationPlayingPart, narrationCastProgress, narrationSpeakingName, onNarrate, onNarrateCast, onPlayNarration, onPlayAllNarration, onDeleteNarration, onDeleteAllNarration, onRecordNarrationSegment, onVoiceSegment, narrationDownloading, narrationDownloadProgress, onDownloadNarrationFile }: {
+const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction, onWhisperAutoRoll, onWhisperOpenRoller, narrationMap, narrationGeneratingPart, narrationPlayingPart, narrationCastProgress, narrationSpeakingName, onNarrate, onNarrateCast, onPlayNarration, onPlayAllNarration, onDeleteNarration, onDeleteAllNarration, onRecordNarrationSegment, onVoiceSegment, narrationDownloading, narrationDownloadProgress, onDownloadNarrationFile, onShareNarrationVoices, onRestoreNarrationClip }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -483,6 +483,8 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   onDeleteAllNarration?: (messageId: string) => void;
   onRecordNarrationSegment?: (messageId: string, content: string, passage: string, blob: Blob) => Promise<void>;
   onVoiceSegment?: (messageId: string, content: string, passage: string, voiceId: string, label?: string) => Promise<void>;
+  onShareNarrationVoices?: (messageId: string) => void;
+  onRestoreNarrationClip?: (messageId: string, part: NarrationPart, blob: Blob, voiceId: string) => Promise<void>;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
@@ -703,6 +705,8 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                 onDeleteAll={onDeleteAllNarration}
                 onRecordSegment={onRecordNarrationSegment}
                 onVoiceSegment={onVoiceSegment}
+                onShareVoices={onShareNarrationVoices}
+                onRestoreClip={onRestoreNarrationClip}
                 onDownloadFile={onDownloadNarrationFile}
                 isDownloading={narrationDownloading}
                 downloadProgress={narrationDownloadProgress}
@@ -2942,6 +2946,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     onDeleteAllNarration={isCreator ? messageNarration.removeAll : undefined}
                     onRecordNarrationSegment={messageNarration.recordSegment}
                     onVoiceSegment={messageNarration.generateSegment}
+                    onShareNarrationVoices={(id) => { void messageNarration.sharePassageVoices(id); }}
+                    onRestoreNarrationClip={messageNarration.restoreClip}
                     narrationDownloading={messageNarration.downloadingMessageId === msg.id}
                     narrationDownloadProgress={messageNarration.downloadingMessageId === msg.id ? messageNarration.downloadProgress : null}
                     onDownloadNarrationFile={messageNarration.downloadMessageFile}

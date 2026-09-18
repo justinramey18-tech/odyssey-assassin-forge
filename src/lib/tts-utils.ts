@@ -758,3 +758,59 @@ export function splitStorySegments(story: string, messageId?: string): Narration
   return merged.length ? merged : [{ speaker: null, text: raw }];
 }
 
+
+// ── Narration Studio per-message state (play order + per-piece speed) ───────
+
+const STUDIO_KEY = 'dnd-narration-studio';
+
+export interface NarrationStudioState {
+  /**
+   * Custom playback order: part ids ('table', segmentKey strings) in the
+   * order they should play. Parts not listed keep their story position at
+   * the end. Never changes the written story.
+   */
+  order?: string[];
+  /** Per-part playback rate (0.5 - 2). Playback-only; nothing is re-voiced. */
+  rates?: Record<string, number>;
+}
+
+type StudioMap = Record<string, NarrationStudioState>;
+
+function readStudioMap(): StudioMap {
+  try {
+    const raw = localStorage.getItem(STUDIO_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed as StudioMap : {};
+  } catch { return {}; }
+}
+
+function writeStudioMap(map: StudioMap): void {
+  try { localStorage.setItem(STUDIO_KEY, JSON.stringify(map)); } catch { /* ignore */ }
+}
+
+export function loadStudioState(messageId: string): NarrationStudioState {
+  const state = readStudioMap()[messageId];
+  return state && typeof state === 'object' ? state : {};
+}
+
+export function saveStudioState(messageId: string, state: NarrationStudioState): void {
+  const map = readStudioMap();
+  const clean: NarrationStudioState = {};
+  if (Array.isArray(state.order) && state.order.length > 0) clean.order = state.order.filter((p) => typeof p === 'string');
+  if (state.rates && typeof state.rates === 'object') {
+    const rates: Record<string, number> = {};
+    for (const [part, rate] of Object.entries(state.rates)) {
+      if (Number.isFinite(rate)) rates[part] = Math.min(2, Math.max(0.5, rate));
+    }
+    if (Object.keys(rates).length > 0) clean.rates = rates;
+  }
+  if (clean.order || clean.rates) map[messageId] = clean;
+  else delete map[messageId];
+  writeStudioMap(map);
+}
+
+export function clearStudioState(messageId: string): void {
+  const map = readStudioMap();
+  delete map[messageId];
+  writeStudioMap(map);
+}
