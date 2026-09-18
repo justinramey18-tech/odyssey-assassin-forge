@@ -141,7 +141,7 @@ export function useMessageNarration(
   const [speakingName, setSpeakingName] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playSeqRef = useRef(0);
-  const queueRef = useRef<Array<{ key: string; url: string; speaker?: string | null }>>([]);
+  const queueRef = useRef<Array<{ key: string; url: string; speaker?: string | null; part?: string; rate?: number }>>([]);
   const audioMapRef = useRef<Record<string, MessageAudioRow>>({});
   audioMapRef.current = audioByMessage;
 
@@ -356,7 +356,7 @@ export function useMessageNarration(
     audio.onended = null;
     audio.onerror = null;
     audio.pause();
-    audio.playbackRate = loadNarrationSpeed();
+    audio.playbackRate = Number.isFinite(next.rate) ? (next.rate as number) : loadNarrationSpeed();
     audio.onended = () => runQueue();
     audio.onerror = () => {
       toast.error('Could not play narration');
