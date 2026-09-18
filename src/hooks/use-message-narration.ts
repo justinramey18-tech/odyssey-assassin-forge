@@ -12,6 +12,7 @@ import {
   segmentKey,
   voiceForSpeaker,
   addNarrationOverride,
+  removeNarrationOverride,
   loadNarrationOverrides,
   mergeNarrationOverrides,
   isSelfRecordedVoice,
@@ -19,6 +20,9 @@ import {
   type NarrationSegment,
   type NarrationOverride,
   loadStudioState,
+  loadDisplacedVoices,
+  saveDisplacedVoice,
+  clearDisplacedVoice,
 } from '@/lib/tts-utils';
 
 import { toast } from 'sonner';
