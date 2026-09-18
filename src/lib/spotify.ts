@@ -71,8 +71,13 @@ export function isTokenExpired(): boolean {
 }
 
 export function isConnected(): boolean {
-  const { accessToken } = getStoredTokens();
-  return !!accessToken;
+  const { accessToken, refreshToken, expiresAt } = getStoredTokens();
+  if (!accessToken) return false;
+  // An access token past its expiry is only usable if we still hold a refresh
+  // token. Otherwise report disconnected so the UI offers "Connect Spotify"
+  // instead of silently failing every API call while claiming to be connected.
+  if (Date.now() >= expiresAt) return !!refreshToken;
+  return true;
 }
 
 // ── Auth Flow ─────────────────────────────────────────────────────────────
@@ -165,12 +170,31 @@ export async function refreshAccessToken(): Promise<boolean> {
   }
 
   // Distinguish invalid_grant / auth rejection from transient errors.
-  const errStr = JSON.stringify(error || data || '').toLowerCase();
+  // NOTE: JSON.stringify() on an Error instance returns "{}", which is why the
+  // previous version of this check never matched anything. Build the haystack
+  // from the Error's own fields and, when present, the Supabase FunctionsHttpError
+  // response body.
+  let errStr = '';
+  try {
+    if (error) {
+      errStr += ' ' + (error.message || '') + ' ' + (error.name || '');
+      const ctx: any = (error as any).context;
+      if (ctx && typeof ctx.text === 'function') {
+        try { errStr += ' ' + (await ctx.text()); } catch { /* body already read */ }
+      }
+    }
+    if (data) errStr += ' ' + JSON.stringify(data);
+  } catch { /* ignore */ }
+  errStr = errStr.toLowerCase();
+
+  console.error('[Spotify] Refresh failed. Detail:', errStr || '(no detail)');
+
   const definitivelyInvalid =
     errStr.includes('invalid_grant') ||
     errStr.includes('invalid refresh') ||
     errStr.includes('revoked') ||
-    errStr.includes('unauthorized');
+    errStr.includes('unauthorized') ||
+    errStr.includes('expired');
 
   if (definitivelyInvalid) {
     console.error('[Spotify] Refresh token invalid, clearing:', error || data);
@@ -216,35 +240,64 @@ async function spotifyFetch(endpoint: string, options: RequestInit = {}, _retry 
   // No-content success (204, or an empty 200/202 from player commands).
   if (res.status === 204) return null;
 
-  const contentType = res.headers.get('content-type');
-  if (!contentType?.includes('application/json')) {
-    const text = await res.text().catch(() => '');
-    // Successful command with an empty/non-JSON body — treat as done, not an error.
-    if (res.ok) return null;
-    console.error('[Spotify] Non-JSON response:', res.status, text.substring(0, 200));
-    throw new Error(`Spotify returned an unexpected response (${res.status}). Try reconnecting Spotify.`);
-  }
+  const rawBody = await res.text().catch(() => '');
 
   let data: any = null;
-  try {
-    data = await res.json();
-  } catch {
-    if (!res.ok) throw new Error(`Spotify API error ${res.status}`);
-    // Empty body on a successful response (e.g. /me/player with nothing
-    // playing, or a player command) — not an error.
-    return null;
+  if (rawBody) {
+    try { data = JSON.parse(rawBody); } catch { data = null; }
   }
 
-  if (!res.ok) {
-    throw new Error(data?.error?.message || `Spotify API error ${res.status}`);
+  if (res.ok) {
+    // Empty or non-JSON body on a successful call (player commands, /me/player
+    // with nothing playing) is a success, not an error.
+    return data;
   }
 
-  return data;
+  // ---- Failure path: always say WHICH call failed and WHAT Spotify said. ----
+  const spotifyMessage: string = data?.error?.message || '';
+  const spotifyReason: string = data?.error?.reason || '';
+
+  console.error(
+    '[Spotify] API call failed',
+    JSON.stringify({
+      endpoint,
+      method: (options.method || 'GET'),
+      status: res.status,
+      reason: spotifyReason || null,
+      message: spotifyMessage || null,
+      rawBody: rawBody ? rawBody.substring(0, 300) : '(empty body)',
+    }, null, 2),
+  );
+
+  // Keep Spotify's own wording in the thrown message so existing callers that
+  // look for "player command failed" / "no active device" keep working, and add
+  // the endpoint so the cause is visible in the toast instead of a bare 404.
+  const detail = [spotifyMessage, spotifyReason].filter(Boolean).join(' / ');
+
+  if (res.status === 404 && !detail) {
+    throw new Error(
+      `Spotify endpoint not found: ${endpoint} (404). This endpoint may have been removed by Spotify's API changes.`,
+    );
+  }
+  if (res.status === 403 && !detail) {
+    throw new Error(
+      `Spotify refused ${endpoint} (403). Your Spotify app may be in Development Mode, or this endpoint now requires different access.`,
+    );
+  }
+
+  throw new Error(detail ? `${detail} (${endpoint}, ${res.status})` : `Spotify API error ${res.status} on ${endpoint}`);
 }
 
 export async function getUserPlaylists(query?: string): Promise<any[]> {
   try {
-    const data = await spotifyFetch('/me/playlists?limit=50');
+    let data: any = null;
+    try {
+      data = await spotifyFetch('/me/playlists?limit=50');
+    } catch (limitError) {
+      // Spotify tightened page-size caps in 2026; retry smaller before failing.
+      console.warn('[Spotify] /me/playlists?limit=50 failed, retrying with limit=10:', limitError);
+      data = await spotifyFetch('/me/playlists?limit=10');
+    }
     let items = data?.items;
     if (!Array.isArray(items)) return [];
     items = items.filter((item: any) => item && typeof item === 'object' && item.id && item.uri);
@@ -261,6 +314,9 @@ export async function getUserPlaylists(query?: string): Promise<any[]> {
 }
 
 export async function searchPlaylists(query: string, limit = 10) {
+  // Spotify reduced the /search limit maximum from 50 to 10 in February 2026.
+  limit = Math.min(Math.max(1, limit), 10);
+
   // Fetch personal and public playlists in parallel
   const [personal, publicData] = await Promise.all([
     getUserPlaylists(query).catch(() => []),
@@ -277,7 +333,10 @@ export async function searchPlaylists(query: string, limit = 10) {
 }
 
 export async function getPlaylistTracks(playlistId: string) {
-  return spotifyFetch(`/playlists/${playlistId}/tracks?limit=50`);
+  // Spotify removed /playlists/{id}/tracks in its February 2026 API migration.
+  // The replacement is /playlists/{id}/items, and the response shape changed
+  // from { items: [{ track }] } to { items: [{ item }] }.
+  return spotifyFetch(`/playlists/${playlistId}/items?limit=50`);
 }
 
 export async function getCurrentPlayback() {
