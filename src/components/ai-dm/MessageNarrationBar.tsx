@@ -286,7 +286,7 @@ export function MessageNarrationBar({
       )}
 
       <div className="flex flex-wrap items-center gap-1.5">
-        {hasTableTalk && (
+        {hasTableTalk && (canGenerate || !!tableAudio) && (
           <MessageNarrationButton
             tone="table"
             generateLabel="Narrate DM"
@@ -302,22 +302,25 @@ export function MessageNarrationBar({
           />
         )}
 
-        <MessageNarrationButton
-          tone="story"
-          generateLabel={hasTableTalk ? 'Narrate story' : 'Narrate'}
-          playLabel={hasTableTalk ? 'Story' : 'Play'}
-          hasAudio={hasVoicedSegments ? segmentClips > 0 : !!storyAudio}
-          isGenerating={generatingPart === 'story' || (isCasting && hasVoicedSegments)}
-          isPlaying={playingPart === 'story'}
-          voicedByName={storyAudio?.created_by_name}
-          canDelete={canDelete}
-          onGenerate={() => onNarrate(messageId, story || content, 'story')}
-          onPlay={() => (hasVoicedSegments ? onPlayAll(messageId, content) : onPlay(messageId, 'story'))}
-          onDelete={onDelete ? () => onDelete(messageId, 'story') : undefined}
-        />
+        {(canGenerate || storyHasAudio) && (
+          <MessageNarrationButton
+            tone="story"
+            generateLabel={hasTableTalk ? 'Narrate story' : 'Narrate'}
+            playLabel={hasTableTalk ? 'Story' : 'Play'}
+            hasAudio={storyHasAudio}
+            isGenerating={generatingPart === 'story' || (isCasting && hasVoicedSegments)}
+            isPlaying={playingPart === 'story'}
+            voicedByName={storyAudio?.created_by_name}
+            canDelete={canDelete}
+            onGenerate={() => onNarrate(messageId, story || content, 'story')}
+            onPlay={() => (hasVoicedSegments ? onPlayAll(messageId, content) : onPlay(messageId, 'story'))}
+            onDelete={onDelete ? () => onDelete(messageId, 'story') : undefined}
+          />
+        )}
+
 
         {/* Full voice cast: DM aside + one clip per speaker segment */}
-        {hasVoicedSegments && (
+        {hasVoicedSegments && (canGenerate || segmentClips > 0) && (
           <button
             onClick={() => (segmentClips > 0 ? onPlayAll(messageId, content) : onNarrateCast(messageId, content))}
             disabled={isCasting}
@@ -394,7 +397,7 @@ export function MessageNarrationBar({
         )}
       </div>
 
-      {overrides.length > 0 && (
+      {canGenerate && overrides.length > 0 && (
         <div className="flex items-center gap-1.5 text-[10px] text-sky-300/70">
           <span>
             {overrides.length} hand-picked voice{overrides.length === 1 ? '' : 's'}
