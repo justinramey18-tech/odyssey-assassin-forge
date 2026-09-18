@@ -458,6 +458,7 @@ export function useRoundChat(
 
   return {
     style,
+    styleLoaded,
     updateStyle,
     messages,
     reactions,
