@@ -27,7 +27,7 @@ To a single piece:
 - **Send it to Speechify** to voice or re-voice it, replacing the current audio for that piece.
 - **Record it with your microphone**, with the piece's words on screen as your script; a recording replaces whatever was there and is never overwritten by Speechify.
 - **Set its play speed** (0.5x to 2x). Playback only — it does not re-voice anything and costs nothing. Speed stays strictly per piece; nothing carries over automatically.
-- **Split it** into two pieces at a point you choose, or **merge** it with the piece below, so a long paragraph can get two voices or two short lines can share one.
+- **Split it** into two pieces at a point you choose, or **merge** it with the piece below, so a long paragraph can get two voices or two short lines can share one. Splitting is unlimited: any piece produced by a split can itself be split again, down to a single sentence.
 - **Delete its audio** so it can be voiced fresh.
 
 Across pieces:
