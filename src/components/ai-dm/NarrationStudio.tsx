@@ -63,6 +63,9 @@ interface StudioRow {
   seg?: NarrationSegment;
   displayText: string;
   voiceLabel: string;
+  /** Cast voice this recording is covering, if any. */
+  covering?: string | null;
+  canRevert?: boolean;
   audio?: MessageAudioRow;
 }
 
