@@ -404,10 +404,10 @@ export function useMessageNarration(
 
   /** The ordered clip list for a message: DM aside, then story segments. */
   const buildOrderedClips = useCallback((messageId: string, content?: string) => {
-    const queue: Array<{ key: string; url: string; speaker?: string | null }> = [];
+    const queue: Array<{ key: string; url: string; speaker?: string | null; part?: string; rate?: number }> = [];
     const map = audioMapRef.current;
     const tableRow = map[narrationKey(messageId, 'table')];
-    if (tableRow) queue.push({ key: narrationKey(messageId, 'table'), url: tableRow.audio_url, speaker: 'DM' });
+    if (tableRow) queue.push({ key: narrationKey(messageId, 'table'), url: tableRow.audio_url, speaker: 'DM', part: 'table' });
 
     const segments = content ? splitStorySegments(splitDMResponseParts(content).story, messageId) : [];
     let addedSegments = 0;
@@ -416,14 +416,36 @@ export function useMessageNarration(
       const row = map[narrationKey(messageId, part)]
         || map[narrationKey(messageId, segmentPart(i))];
       if (row) {
-        queue.push({ key: narrationKey(messageId, row.part || part), url: row.audio_url, speaker: seg.speaker });
+        const resolvedPart = row.part || part;
+        queue.push({ key: narrationKey(messageId, resolvedPart), url: row.audio_url, speaker: seg.speaker, part: resolvedPart });
         addedSegments++;
       }
     });
 
     if (addedSegments === 0) {
       const storyRow = map[narrationKey(messageId, 'story')];
-      if (storyRow) queue.push({ key: narrationKey(messageId, 'story'), url: storyRow.audio_url, speaker: null });
+      if (storyRow) queue.push({ key: narrationKey(messageId, 'story'), url: storyRow.audio_url, speaker: null, part: 'story' });
+    }
+
+    // Narration Studio customisations: per-piece speed, then custom order.
+    // Both are playback-only - the written story and the audio never change.
+    const studio = loadStudioState(messageId);
+    if (studio.rates) {
+      for (const item of queue) {
+        const rate = item.part ? studio.rates[item.part] : undefined;
+        if (Number.isFinite(rate)) item.rate = Math.min(2, Math.max(0.5, rate as number));
+      }
+    }
+    if (studio.order && studio.order.length > 0) {
+      const rank = new Map(studio.order.map((part, i) => [part, i]));
+      queue
+        .map((item, i) => ({ item, i }))
+        .sort((a, b) => {
+          const ra = a.item.part !== undefined && rank.has(a.item.part) ? rank.get(a.item.part)! : rank.size + a.i;
+          const rb = b.item.part !== undefined && rank.has(b.item.part) ? rank.get(b.item.part)! : rank.size + b.i;
+          return ra - rb;
+        })
+        .forEach(({ item }, i) => { queue[i] = item; });
     }
     return queue;
   }, []);
