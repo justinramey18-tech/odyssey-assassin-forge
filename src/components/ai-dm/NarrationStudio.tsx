@@ -844,9 +844,13 @@ export function NarrationStudio({
             setSavingRecording(true);
             pushHistory(takeSnapshot());
             try {
-              await onRecordSegment(row.seg.text.trim(), file);
+              // Hand the exact piece over: no guessing from the words.
+              await onRecordSegment(row.seg.text.trim(), file, row.seg);
               setRecordFor(null);
               bump();
+            } catch (error) {
+              // Keep the recorder open so the take can be sent again.
+              console.error('[NarrationStudio] saving recording failed:', error);
             } finally {
               setSavingRecording(false);
             }
