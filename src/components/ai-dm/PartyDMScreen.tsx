@@ -1030,7 +1030,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     partyDm.sessionConfig?.currentRoundId,
   );
   const chatAvatars = useChatAvatars(partyId || null, currentUserId);
-  const chatRoundsOn = roundChat.style.mode === 'chat' || roundChat.style.mode === 'live';
+  // Live DM is assumed while the table's saved style is still loading, so the
+  // classic ready-up UI never flashes first on entry.
+  const chatRoundsOn = !roundChat.styleLoaded || roundChat.style.mode === 'chat' || roundChat.style.mode === 'live';
   const [roundChatOpen, setRoundChatOpen] = useState(false);
   const [roundChatDraft, setRoundChatDraft] = useState<string | null>(null);
   const playerInputRef = useRef<PartyDMInputHandle>(null);
@@ -3231,7 +3233,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       )}
 
       {/* Prompt Queue Status */}
-      {partyDm.isActive && !chatRoundsOn && (
+      {partyDm.isActive && !chatRoundsOn && roundChat.styleLoaded && (
         <div className="border-t border-amber-900/20 bg-black/30 overflow-hidden">
           {/* Round Timer */}
           <RoundTimer
@@ -4062,7 +4064,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 }}
               />
             )}
-            {!chatRoundsOn && (
+            {!chatRoundsOn && roundChat.styleLoaded && (
               <PartyDMInput
                 ref={playerInputRef}
                 onSubmit={handleSubmit}
