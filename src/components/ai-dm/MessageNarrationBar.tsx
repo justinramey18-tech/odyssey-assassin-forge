@@ -86,6 +86,8 @@ export function MessageNarrationBar({
   castProgress,
   speakingName,
   canDelete,
+  canGenerate = false,
+
   onNarrate,
   onNarrateCast,
   onPlay,
@@ -214,7 +216,12 @@ export function MessageNarrationBar({
   const storyAudio = narrationMap[narrationKey(messageId, 'story')];
   const segmentClips = segments.filter((s) => !!narrationMap[narrationKey(messageId, segmentKey(s))]).length;
 
+  const storyHasAudio = hasVoicedSegments ? segmentClips > 0 : !!storyAudio;
+  // Players who cannot generate may still highlight a passage to record their
+  // own voice, so the highlight tools stay available when a recorder exists.
+  const canHighlight = canGenerate || !!onRecordSegment;
   const isCasting = generatingPart === 'cast';
+
   const isPlayingAny = !!playingPart;
   const playAllReady = (segmentClips > 0 && (!hasTableTalk || !!tableAudio))
     || (hasTableTalk && !!tableAudio && !!storyAudio);
@@ -261,7 +268,7 @@ export function MessageNarrationBar({
 
   return (
     <div className="mt-1.5 space-y-1.5">
-      {selection && !pickerOpen && (
+      {selection && !pickerOpen && canHighlight && (
         <div
           className="fixed z-[70]"
           style={{ top: selection.top, left: selection.left }}
@@ -279,7 +286,7 @@ export function MessageNarrationBar({
       )}
 
       <div className="flex flex-wrap items-center gap-1.5">
-        {hasTableTalk && (
+        {hasTableTalk && (canGenerate || !!tableAudio) && (
           <MessageNarrationButton
             tone="table"
             generateLabel="Narrate DM"
@@ -295,22 +302,25 @@ export function MessageNarrationBar({
           />
         )}
 
-        <MessageNarrationButton
-          tone="story"
-          generateLabel={hasTableTalk ? 'Narrate story' : 'Narrate'}
-          playLabel={hasTableTalk ? 'Story' : 'Play'}
-          hasAudio={hasVoicedSegments ? segmentClips > 0 : !!storyAudio}
-          isGenerating={generatingPart === 'story' || (isCasting && hasVoicedSegments)}
-          isPlaying={playingPart === 'story'}
-          voicedByName={storyAudio?.created_by_name}
-          canDelete={canDelete}
-          onGenerate={() => onNarrate(messageId, story || content, 'story')}
-          onPlay={() => (hasVoicedSegments ? onPlayAll(messageId, content) : onPlay(messageId, 'story'))}
-          onDelete={onDelete ? () => onDelete(messageId, 'story') : undefined}
-        />
+        {(canGenerate || storyHasAudio) && (
+          <MessageNarrationButton
+            tone="story"
+            generateLabel={hasTableTalk ? 'Narrate story' : 'Narrate'}
+            playLabel={hasTableTalk ? 'Story' : 'Play'}
+            hasAudio={storyHasAudio}
+            isGenerating={generatingPart === 'story' || (isCasting && hasVoicedSegments)}
+            isPlaying={playingPart === 'story'}
+            voicedByName={storyAudio?.created_by_name}
+            canDelete={canDelete}
+            onGenerate={() => onNarrate(messageId, story || content, 'story')}
+            onPlay={() => (hasVoicedSegments ? onPlayAll(messageId, content) : onPlay(messageId, 'story'))}
+            onDelete={onDelete ? () => onDelete(messageId, 'story') : undefined}
+          />
+        )}
+
 
         {/* Full voice cast: DM aside + one clip per speaker segment */}
-        {hasVoicedSegments && (
+        {hasVoicedSegments && (canGenerate || segmentClips > 0) && (
           <button
             onClick={() => (segmentClips > 0 ? onPlayAll(messageId, content) : onNarrateCast(messageId, content))}
             disabled={isCasting}
@@ -387,7 +397,7 @@ export function MessageNarrationBar({
         )}
       </div>
 
-      {overrides.length > 0 && (
+      {canGenerate && overrides.length > 0 && (
         <div className="flex items-center gap-1.5 text-[10px] text-sky-300/70">
           <span>
             {overrides.length} hand-picked voice{overrides.length === 1 ? '' : 's'}
@@ -418,30 +428,35 @@ export function MessageNarrationBar({
           <p className="text-[10px] text-sky-200/70 line-clamp-2">"{pendingText}"</p>
 
           <div className="flex flex-wrap gap-1.5">
-            {cast.map((entry) => (
-              <button
-                key={entry.name}
-                onClick={() => assignVoice(entry.voiceId, entry.name)}
-                style={{ touchAction: 'manipulation' }}
-                className="px-2.5 py-1.5 rounded-full text-[11px] border border-violet-500/30 bg-violet-900/20 text-violet-200/85"
-              >
-                {entry.name}
-              </button>
-            ))}
-            <button
-              onClick={() => assignVoice(loadSpeechifyVoiceId(), 'Narrator')}
-              style={{ touchAction: 'manipulation' }}
-              className="px-2.5 py-1.5 rounded-full text-[11px] border border-border/40 text-muted-foreground"
-            >
-              Narrator
-            </button>
-            <button
-              onClick={() => assignVoice(loadSpeechifyDMVoiceId(), 'DM')}
-              style={{ touchAction: 'manipulation' }}
-              className="px-2.5 py-1.5 rounded-full text-[11px] border border-amber-500/30 bg-amber-900/20 text-amber-200/85"
-            >
-              DM voice
-            </button>
+            {canGenerate && (
+              <>
+                {cast.map((entry) => (
+                  <button
+                    key={entry.name}
+                    onClick={() => assignVoice(entry.voiceId, entry.name)}
+                    style={{ touchAction: 'manipulation' }}
+                    className="px-2.5 py-1.5 rounded-full text-[11px] border border-violet-500/30 bg-violet-900/20 text-violet-200/85"
+                  >
+                    {entry.name}
+                  </button>
+                ))}
+                <button
+                  onClick={() => assignVoice(loadSpeechifyVoiceId(), 'Narrator')}
+                  style={{ touchAction: 'manipulation' }}
+                  className="px-2.5 py-1.5 rounded-full text-[11px] border border-border/40 text-muted-foreground"
+                >
+                  Narrator
+                </button>
+                <button
+                  onClick={() => assignVoice(loadSpeechifyDMVoiceId(), 'DM')}
+                  style={{ touchAction: 'manipulation' }}
+                  className="px-2.5 py-1.5 rounded-full text-[11px] border border-amber-500/30 bg-amber-900/20 text-amber-200/85"
+                >
+                  DM voice
+                </button>
+              </>
+            )}
+
             {onRecordSegment && (
               <button
                 onClick={() => setRecorderOpen(true)}
