@@ -980,6 +980,24 @@ export function useMessageNarration(
     }
   }, [partyId, currentUserId, currentUserName, publishOverrides]);
 
+  /** Shares this device's passage voice picks for a message with the party. */
+  const sharePassageVoices = useCallback(async (messageId: string) => {
+    await publishOverrides(messageId);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('odyssey-narration-overrides'));
+    }
+  }, [publishOverrides]);
+
+  /** Re-uploads a deleted clip so the studio's undo can bring audio back. */
+  const restoreClip = useCallback(async (
+    messageId: string,
+    part: NarrationPart,
+    blob: Blob,
+    voiceId: string,
+  ) => {
+    await storeClip(messageId, part, blob, voiceId);
+  }, [storeClip]);
+
   // ── Downloading clips for offline play ──
 
   const allRows = Object.values(audioByMessage);
@@ -1047,6 +1065,8 @@ export function useMessageNarration(
     remove,
     removeAll,
     recordSegment,
+    sharePassageVoices,
+    restoreClip,
     hasSpeechifyKey,
     offlineCount,
     totalClips: allRows.length,
