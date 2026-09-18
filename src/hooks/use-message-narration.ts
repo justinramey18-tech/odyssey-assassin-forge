@@ -98,6 +98,10 @@ interface UseMessageNarrationReturn {
    * The passage becomes its own segment, so Play all uses the recording there.
    */
   recordSegment: (messageId: string, content: string, passage: string, blob: Blob, label?: string) => Promise<void>;
+  /** Publishes this device's passage voice picks for a message to the party. */
+  sharePassageVoices: (messageId: string) => Promise<void>;
+  /** Re-uploads a previously deleted clip (used by Narration Studio's undo). */
+  restoreClip: (messageId: string, part: NarrationPart, blob: Blob, voiceId: string) => Promise<void>;
   hasSpeechifyKey: boolean;
   /** How many saved clips are stored on this device for offline play. */
   offlineCount: number;
