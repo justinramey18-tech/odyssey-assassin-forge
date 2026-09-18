@@ -1119,6 +1119,7 @@ export function useMessageNarration(
     remove,
     removeAll,
     recordSegment,
+    revertToCastVoice,
     sharePassageVoices,
     restoreClip,
     hasSpeechifyKey,
