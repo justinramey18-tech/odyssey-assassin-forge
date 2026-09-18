@@ -2269,6 +2269,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      safe_uuid: { Args: { txt: string }; Returns: string }
       setup_telegram_cron: {
         Args: { base_url: string; service_key: string }
         Returns: undefined
