@@ -1059,6 +1059,24 @@ export function RoundChatDrawer({
                           {tile.name}
                         </span>
                       </span>
+                      {tile.key === 'ooc' && onSetOocName && (
+                        /* Always-visible rename affordance — the old "Name yourself" control. */
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          aria-label="Name yourself"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOocNameDraft((currentUserId && oocNames?.[currentUserId]) || '');
+                            setEditingOocName(true);
+                          }}
+                          className="absolute top-1 right-1 flex items-center gap-1 px-1.5 py-1 rounded-md bg-black/70 border border-sky-400/50"
+                          style={{ touchAction: 'manipulation' }}
+                        >
+                          <Pencil className="w-3 h-3 text-sky-200" />
+                          <span className="font-body text-[9px] uppercase tracking-wide text-sky-200">Name</span>
+                        </span>
+                      )}
                     </button>
                   ))}
 
