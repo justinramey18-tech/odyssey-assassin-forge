@@ -61,10 +61,26 @@ if (typeof window !== 'undefined') {
   }
 }
 
-function waitForSDK(): Promise<void> {
-  if (sdkReady) return Promise.resolve();
+function waitForSDK(timeoutMs = 12000): Promise<boolean> {
+  if (sdkReady) return Promise.resolve(true);
   return new Promise(resolve => {
-    pendingResolvers.push(resolve);
+    let settled = false;
+    const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      resolve(ok);
+    };
+    pendingResolvers.push(() => finish(true));
+    setTimeout(() => {
+      if (!settled) {
+        console.error(
+          '[Spotify SDK] spotify-player.js never signalled ready within',
+          timeoutMs,
+          'ms. The script tag in index.html may be blocked or failing to load.',
+        );
+      }
+      finish(false);
+    }, timeoutMs);
   });
 }
 
@@ -80,10 +96,16 @@ export async function initPlayer(
   onReady?: (id: string) => void,
   onNotReady?: () => void,
   onPlayerStateChanged?: (state: any) => void,
+  onAccountError?: (message: string) => void,
 ): Promise<void> {
   if (player) return; // already initialised
 
-  await waitForSDK();
+  const ready = await waitForSDK();
+  if (!ready || !window.Spotify) {
+    console.error('[Spotify SDK] SDK unavailable - browser player will not start.');
+    onNotReady?.();
+    return;
+  }
 
   onStateChange = onPlayerStateChanged || null;
 
@@ -121,11 +143,15 @@ export async function initPlayer(
 
   player.addListener('account_error', ({ message }: { message: string }) => {
     console.error('[Spotify SDK] Account error (Premium required):', message);
+    onAccountError?.(message);
   });
 
   const connected = await player.connect();
   if (!connected) {
-    console.error('[Spotify SDK] Failed to connect');
+    console.error(
+      '[Spotify SDK] player.connect() returned false. Common causes: the access token is expired or missing the "streaming" scope, or the account is not Premium.',
+    );
+    onNotReady?.();
   }
 }
 
