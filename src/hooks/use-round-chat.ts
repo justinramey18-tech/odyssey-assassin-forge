@@ -130,6 +130,9 @@ export function useRoundChat(
     if (preferred?.state_data) setStyle(parseStyle(preferred.state_data));
   }, [partyId, ownerUserId]);
 
+  // A new party always waits for its own saved style before it counts as loaded.
+  useEffect(() => { setStyleLoaded(false); }, [partyId, ownerUserId]);
+
   useEffect(() => { loadStyle(); }, [loadStyle]);
 
   const loadReadReceipts = useCallback(async () => {
