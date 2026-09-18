@@ -694,6 +694,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                 castProgress={narrationCastProgress}
                 speakingName={narrationSpeakingName}
                 canDelete={isCreator}
+                canGenerate={isCreator}
                 onNarrate={onNarrate}
                 onNarrateCast={(id, text) => onNarrateCast?.(id, text)}
                 onPlay={(id, part) => onPlayNarration?.(id, part)}
