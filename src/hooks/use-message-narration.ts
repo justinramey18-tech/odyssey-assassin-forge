@@ -735,6 +735,13 @@ export function useMessageNarration(
   const removeAll = useCallback(async (messageId: string) => {
     if (!partyId) return;
     if (playingId && playingId.startsWith(`${messageId}:`)) stop();
+
+    // Work out which files belong to this message BEFORE the rows are deleted,
+    // otherwise there is nothing left to tell us what to clean up.
+    const parts = Object.values(audioMapRef.current)
+      .filter((row) => row.message_id === messageId)
+      .map((row) => row.part);
+
     const { error } = await (supabase.from('party_message_audio') as any)
       .delete()
       .eq('party_id', partyId)
@@ -743,6 +750,31 @@ export function useMessageNarration(
       toast.error('Could not remove narration');
       return;
     }
+
+    // Delete the actual audio files. Without this the objects stay in the
+    // bucket, and the next generation upserts over them.
+    // Speechify clips are .mp3; mic recordings are .webm or .m4a.
+    const paths: string[] = [];
+    for (const part of parts) {
+      for (const ext of ['mp3', 'webm', 'm4a']) {
+        paths.push(`${partyId}/narration/${messageId}-${part}.${ext}`);
+      }
+    }
+    // legacy path from before multi-clip narration
+    paths.push(`${partyId}/narration/${messageId}.mp3`);
+
+    if (paths.length > 0) {
+      const { error: storageError } = await supabase.storage
+        .from('party-chat-audio')
+        .remove(paths);
+      if (storageError) {
+        console.error('[MessageNarration] could not delete narration files:', storageError);
+        toast.error('Rows cleared, but the audio files could not be deleted', {
+          description: storageError.message,
+        });
+      }
+    }
+
     setAudioByMessage((prev) => {
       const next = { ...prev };
       for (const key of Object.keys(next)) {
