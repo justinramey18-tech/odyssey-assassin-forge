@@ -427,15 +427,7 @@ export function useMessageNarration(
     return queue;
   }, []);
 
-  /** DM aside first, then the story — segment by segment when cast clips exist. */
-  const playAll = useCallback((messageId: string, content?: string) => {
-    const queue = buildOrderedClips(messageId, content);
-    if (queue.length === 0) return;
-    if (playingId && playingId.startsWith(`${messageId}:`)) { stop(); return; }
-    stop();
-    queueRef.current = queue;
-    runQueue();
-  }, [buildOrderedClips, playingId, stop, runQueue]);
+  // playAll now lives below castRun, because it calls it to fill narration gaps.
 
   /** Joins every clip for a message into one MP3 and saves it to the device. */
   const downloadMessageFile = useCallback(async (messageId: string, content?: string) => {
@@ -585,6 +577,58 @@ export function useMessageNarration(
       setCastProgress(null);
     }
   }, [synthesize, storeClip]);
+
+  /**
+   * DM aside first, then the whole story in order.
+   *
+   * If SOME segments have clips and others do not - which is exactly what
+   * happens once a passage is hand-picked on top of a narrated story -
+   * buildOrderedClips would skip the gaps and play the picked voices back to
+   * back with no narration between them. So fill the missing segments in
+   * their proper voices first, then play the lot in story order.
+   */
+  const playAll = useCallback(async (messageId: string, content?: string) => {
+    // Pressing it again while it is playing means Stop, and must never generate.
+    if (playingId && playingId.startsWith(`${messageId}:`)) { stop(); return; }
+
+    if (content) {
+      const { story } = splitDMResponseParts(content);
+      const segments = splitStorySegments(story || content, messageId);
+      const map = audioMapRef.current;
+
+      const voiced = segments.filter((seg, i) => !!(
+        map[narrationKey(messageId, segmentKey(seg))]
+        || map[narrationKey(messageId, segmentPart(i))]
+      )).length;
+
+      // Partly voiced: fill the gaps so the story plays end to end.
+      if (segments.length > 0 && voiced > 0 && voiced < segments.length) {
+        const apiKey = loadApiKey('speechify');
+        if (!apiKey) {
+          toast.error('No Speechify API key', { description: 'Add one in Settings -> API Keys.' });
+          return;
+        }
+        setGeneratingId(narrationKey(messageId, 'cast'));
+        try {
+          // castRun skips every segment that already has a clip, so this only
+          // voices the narration sitting between the hand-picked passages.
+          await castRun(messageId, content, apiKey);
+        } catch (error) {
+          console.error('[MessageNarration] filling narration gaps failed:', error);
+          toast.error(error instanceof Error ? error.message : 'Narration failed');
+          return;
+        } finally {
+          setGeneratingId(null);
+        }
+      }
+    }
+
+    const queue = buildOrderedClips(messageId, content);
+    if (queue.length === 0) return;
+    stop();
+    queueRef.current = queue;
+    runQueue();
+  }, [buildOrderedClips, playingId, stop, runQueue, castRun]);
 
   const generate = useCallback(async (messageId: string, rawText: string, part: NarrationPart = 'story') => {
     if (!partyId) return;
