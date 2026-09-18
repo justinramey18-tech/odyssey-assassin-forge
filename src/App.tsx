@@ -22,10 +22,22 @@ const queryClient = new QueryClient();
 
 const App = () => {
   useEffect(() => {
+    const unlockOrientation = () => {
+      try {
+        screen.orientation?.unlock?.();
+      } catch {
+        // Some browsers only allow orientation controls in fullscreen mode.
+      }
+    };
+
+    unlockOrientation();
     checkForUpdate(true);
     const interval = setInterval(() => checkForUpdate(), 5 * 60 * 1000);
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible') checkForUpdate(true);
+      if (document.visibilityState === 'visible') {
+        unlockOrientation();
+        checkForUpdate(true);
+      }
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {
