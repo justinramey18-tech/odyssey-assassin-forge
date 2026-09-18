@@ -724,9 +724,17 @@ export function useMessageNarration(
     // 2. Find the segment key every client will compute for it.
     const { story } = splitDMResponseParts(content || '');
     const segments = splitStorySegments(story || content || '', messageId);
-    const target = segments.find((s) => s.manual && s.voiceId === voiceId && s.text.trim() === text)
-      || segments.find((s) => s.manual && s.voiceId === voiceId)
-      || segments.find((s) => s.text.trim() === text);
+    // Letters-and-digits comparison, so markdown never breaks the match, AND
+    // so two passages in the same voice are told apart instead of the first
+    // one silently winning both times.
+    const loose = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    const wanted = loose(text);
+    const mine = segments.filter((s) => s.manual && s.voiceId === voiceId);
+    const target = mine.find((s) => s.text.trim() === text)
+      || mine.find((s) => loose(s.text) === wanted)
+      || mine.find((s) => loose(s.text).includes(wanted) || wanted.includes(loose(s.text)))
+      || (mine.length === 1 ? mine[0] : undefined)
+      || segments.find((s) => loose(s.text) === wanted);
 
     if (!target) {
       toast.error('Could not match that passage', { description: 'Try selecting a full sentence.' });
@@ -875,8 +883,21 @@ export function useMessageNarration(
       // 2. Find the segment key everyone's client will compute for it.
       const { story } = splitDMResponseParts(content || '');
       const segments = splitStorySegments(story || content || '', messageId);
-      const target = segments.find((s) => isSelfRecordedVoice(s.voiceId) && s.text.trim() === text)
-        || segments.find((s) => isSelfRecordedVoice(s.voiceId) && text.includes(s.text.trim()));
+      // The selection is PLAIN text from the DOM. A segment's text is the RAW
+      // markdown it was carved from, including asterisks, smart quotes and any
+      // leading punctuation tolerantMatcher swallowed. Comparing them directly
+      // fails on every bold or italic passage, so compare on letters and
+      // digits only - that survives all of it.
+      const loose = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+      const wanted = loose(text);
+      const mine = segments.filter((s) => isSelfRecordedVoice(s.voiceId));
+      const target = mine.find((s) => s.text.trim() === text)
+        || mine.find((s) => loose(s.text) === wanted)
+        || mine.find((s) => loose(s.text).includes(wanted) || wanted.includes(loose(s.text)))
+        // Last resort, and ONLY when there is no ambiguity: if this message has
+        // exactly one recorded passage, it must be this one. With two or more
+        // we refuse rather than risk overwriting the wrong recording.
+        || (mine.length === 1 ? mine[0] : undefined);
       if (!target) {
         toast.error('Could not match that passage', { description: 'Try selecting a full sentence.' });
         return;
