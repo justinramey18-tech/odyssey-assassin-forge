@@ -619,7 +619,10 @@ export function RoundChatDrawer({
                     return acc;
                   }, {});
                   const nameColor = m.in_character ? playerColor(m.user_id) : 'text-sky-300/90';
-                  const alignRight = isSelf;
+                  // Placement follows the mode, not the sender: every in-character
+                  // line (yours included) sits on the right, every table-talk
+                  // line on the left.
+                  const alignRight = m.in_character;
                   const avatarUrl = m.in_character
                     ? avatars?.[m.user_id]?.ic
                     : avatars?.[m.user_id]?.ooc;
