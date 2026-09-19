@@ -719,20 +719,20 @@ export function useMessageNarration(
       // Partly voiced: fill the gaps so the story plays end to end.
       if (segments.length > 0 && voiced > 0 && voiced < segments.length) {
         const apiKey = loadApiKey('speechify');
-        if (!apiKey) {
-          toast.error('No Speechify API key', { description: 'Add one in Settings -> API Keys.' });
-          return;
-        }
-        setGeneratingId(narrationKey(messageId, 'cast'));
-        try {
-          // castRun skips every segment that already has a clip, so this only
-          // voices the narration sitting between the hand-picked passages.
-          await castRun(messageId, content, apiKey);
-        } catch (error) {
-          // Filling gaps is best-effort — still play whatever clips exist.
-          console.error('[MessageNarration] filling narration gaps failed:', error);
-        } finally {
-          setGeneratingId(null);
+        // No key (players, or a host who removed it): skip the fill and play the
+        // clips that exist. Never block playback on synthesis.
+        if (apiKey) {
+          setGeneratingId(narrationKey(messageId, 'cast'));
+          try {
+            // castRun skips every segment that already has a clip, so this only
+            // voices the narration sitting between the hand-picked passages.
+            await castRun(messageId, content, apiKey);
+          } catch (error) {
+            // Filling gaps is best-effort — still play whatever clips exist.
+            console.error('[MessageNarration] filling narration gaps failed:', error);
+          } finally {
+            setGeneratingId(null);
+          }
         }
       }
     }
