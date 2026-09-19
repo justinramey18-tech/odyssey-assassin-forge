@@ -407,9 +407,11 @@ export function NarrationStudio({
         removeMatchingOverride(seg);
         if (assignOnly) {
           addNarrationOverride(messageId, { text: seg.text.trim(), voiceId, label });
+          keepSlotForNewVoice(segmentKey(seg), voiceId, seg.text.trim());
         } else {
           // eslint-disable-next-line no-await-in-loop
           await onVoiceSegment!(seg.text.trim(), voiceId, label);
+          keepSlotForNewVoice(segmentKey(seg), voiceId, seg.text.trim());
         }
         setBatchProgress({ done: i + 1, total: targets.length });
       }
@@ -420,7 +422,8 @@ export function NarrationStudio({
       setBatchProgress(null);
       bump();
     }
-  }, [assignOnly, messageId, onVoiceSegment, onShareVoices, rows, selected, pushHistory, takeSnapshot, removeMatchingOverride, bump]);
+  }, [assignOnly, messageId, onVoiceSegment, onShareVoices, keepSlotForNewVoice, rows, selected, pushHistory, takeSnapshot, removeMatchingOverride, bump]);
+
 
   const splitPiece = useCallback((row: StudioRow, beforeIndex: number) => {
     if (!row.seg) return;
@@ -957,7 +960,11 @@ export function NarrationStudio({
             try {
               // Hand the exact piece over: no guessing from the words.
               const saved = await onRecordSegment(row.seg.text.trim(), file, row.seg);
+              if (saved?.part && saved.part !== row.part && (loadStudioState(messageId).order?.length ?? 0) > 0) {
+                replaceInOrder([row.part], [saved.part]);
+              }
               setSavedRecordings((current) => ({ ...current, [saved.part]: saved.row }));
+
               setRecordFor(null);
               bump();
               toast.success('Recording saved for that piece');
