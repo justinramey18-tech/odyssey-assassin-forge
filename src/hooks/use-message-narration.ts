@@ -410,6 +410,10 @@ export function useMessageNarration(
     void resolvePlaybackUrl(next.url).then((src) => {
       if (seq !== playSeqRef.current) return;
       audio.src = src;
+      // Loading a clip resets playbackRate to defaultPlaybackRate, so the speed
+      // must be applied AFTER src is set, and stored as the default too.
+      audio.defaultPlaybackRate = rate;
+      audio.playbackRate = rate;
       void beginNarrationFocus().finally(() => {
         audio.play().catch(() => {
           queueRef.current = [];
