@@ -52,6 +52,20 @@ export function useAuth() {
   }, []);
 
   const signOut = useCallback(async () => {
+    // Let the auto-save hook push anything still pending before local data is wiped.
+    try {
+      const pending: Promise<unknown>[] = [];
+      window.dispatchEvent(new CustomEvent('odyssey-flush-cloud-sync', {
+        detail: { register: (p: Promise<unknown>) => pending.push(p) },
+      }));
+      if (pending.length > 0) {
+        await Promise.race([
+          Promise.allSettled(pending),
+          new Promise(resolve => setTimeout(resolve, 5000)),
+        ]);
+      }
+    } catch { /* best effort */ }
+
     // Clear all character-scoped localStorage to prevent data bleed between accounts
     try {
       const allKeys = Object.keys(localStorage);
