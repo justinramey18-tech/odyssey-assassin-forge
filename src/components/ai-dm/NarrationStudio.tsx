@@ -409,13 +409,13 @@ export function NarrationStudio({
   const splitPiece = useCallback((row: StudioRow, beforeIndex: number) => {
     if (!row.seg) return;
     const seg = row.seg;
-    const chunks = splitSentences(seg.text);
-    if (beforeIndex < 1 || beforeIndex >= chunks.length) return;
+    const words = splitWords(seg.text);
+    if (beforeIndex < 1 || beforeIndex >= words.length) return;
     pushHistory(takeSnapshot());
     const oldPart = row.part;
     const voice = resolvedVoiceFor(seg);
-    const pieceA = chunks.slice(0, beforeIndex).join(' ');
-    const pieceB = chunks.slice(beforeIndex).join(' ');
+    const pieceA = words.slice(0, beforeIndex).map((w) => w.text).join(' ');
+    const pieceB = words.slice(beforeIndex).map((w) => w.text).join(' ');
     removeMatchingOverride(seg);
     addNarrationOverride(messageId, { text: pieceA, voiceId: voice.voiceId, label: voice.label });
     addNarrationOverride(messageId, { text: pieceB, voiceId: voice.voiceId, label: voice.label });
