@@ -68,7 +68,7 @@ import rehypeRaw from 'rehype-raw';
 import { toast } from 'sonner';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { useNarrator } from '@/hooks/use-narrator';
-import { useMessageNarration, narrationKey, type CastProgress, type MessageAudioRow, type NarrationPart } from '@/hooks/use-message-narration';
+import { useMessageNarration, narrationKey, type CastProgress, type MessageAudioRow, type NarrationPart, type RecordedClipResult } from '@/hooks/use-message-narration';
 import { MessageNarrationBar } from './MessageNarrationBar';
 import { useSpotify } from '@/hooks/use-spotify';
 import { subscribeToPush, unsubscribeFromPush, getPushSubscriptionState, type PushSubscriptionState } from '@/lib/push-subscription';
