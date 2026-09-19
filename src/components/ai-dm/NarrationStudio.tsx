@@ -773,26 +773,39 @@ export function NarrationStudio({
                 </div>
               </div>
 
-              {/* Split point picker */}
-              {splitting && chunks.length > 1 && (
-                <div className="rounded-lg border border-sky-500/25 bg-sky-950/25 p-2 space-y-1">
-                  <p className="text-[10px] text-sky-200/70">Split before…</p>
-                  {chunks.slice(1).map((chunk, ci) => (
-                    <button
-                      key={ci}
-                      onClick={() => splitPiece(row, ci + 1)}
-                      style={{ touchAction: 'manipulation' }}
-                      className="block w-full text-left px-2 py-1.5 rounded text-[11px] text-sky-100/90 hover:bg-sky-900/40"
-                    >
-                      ✂ “{chunk.length > 70 ? `${chunk.slice(0, 70)}…` : chunk}”
-                    </button>
-                  ))}
-                  {chunks.length <= 1 && null}
+              {/* Split point picker - tap between any two words */}
+              {splitting && words.length > 1 && (
+                <div className="rounded-lg border border-sky-500/25 bg-sky-950/25 p-2 space-y-1.5">
+                  <p className="text-[10px] text-sky-200/70">
+                    Tap between two words to cut the piece there. Sentence starts are highlighted.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-y-1 text-[12px] leading-relaxed text-sky-100/90">
+                    {words.map((w, wi) => (
+                      <span key={wi} className="flex items-center">
+                        {wi > 0 && (
+                          <button
+                            onClick={() => splitPiece(row, wi)}
+                            style={{ touchAction: 'manipulation' }}
+                            className={cn(
+                              'mx-0.5 h-12 w-4 shrink-0 rounded flex items-center justify-center text-[11px]',
+                              w.startsSentence
+                                ? 'bg-sky-500/30 text-sky-50 hover:bg-sky-400/50'
+                                : 'text-sky-300/40 hover:bg-sky-900/50 hover:text-sky-100',
+                            )}
+                            title={`Split before "${w.text}"`}
+                          >
+                            ✂
+                          </button>
+                        )}
+                        <span className="py-1">{w.text}</span>
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
-              {splitting && chunks.length <= 1 && (
+              {splitting && words.length <= 1 && (
                 <p className="text-[10px] text-muted-foreground/70 px-1">
-                  This piece is a single sentence — it cannot be split further.
+                  This piece is a single word — it can't be split further.
                 </p>
               )}
             </div>
