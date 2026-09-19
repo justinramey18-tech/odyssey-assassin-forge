@@ -389,7 +389,8 @@ export function useMessageNarration(
     audio.onended = null;
     audio.onerror = null;
     audio.pause();
-    audio.playbackRate = Number.isFinite(next.rate) ? (next.rate as number) : loadNarrationSpeed();
+    // Per-piece speed from the Narration Studio, otherwise the global narration speed.
+    const rate = Number.isFinite(next.rate) ? (next.rate as number) : loadNarrationSpeed();
     audio.onended = () => runQueue();
     audio.onerror = () => {
       toast.error('Could not play narration');
