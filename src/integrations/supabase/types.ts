@@ -954,6 +954,7 @@ export type Database = {
       party_director_messages: {
         Row: {
           category: string | null
+          consumed_at: string | null
           consumed_by_dm: boolean
           content: string
           created_at: string
@@ -965,6 +966,7 @@ export type Database = {
         }
         Insert: {
           category?: string | null
+          consumed_at?: string | null
           consumed_by_dm?: boolean
           content: string
           created_at?: string
@@ -976,6 +978,7 @@ export type Database = {
         }
         Update: {
           category?: string | null
+          consumed_at?: string | null
           consumed_by_dm?: boolean
           content?: string
           created_at?: string
