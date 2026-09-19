@@ -59,6 +59,12 @@ export interface MessageAudioRow {
   created_by_name: string | null;
 }
 
+/** Exact clip identity returned after a microphone take is saved. */
+export interface RecordedClipResult {
+  part: NarrationPart;
+  row: MessageAudioRow;
+}
+
 export const narrationKey = (messageId: string, part: NarrationPart = 'story') => `${messageId}:${part}`;
 
 export interface CastProgress {
@@ -90,7 +96,7 @@ interface UseMessageNarrationReturn {
     voiceId: string,
     label?: string,
   ) => Promise<void>;
-  play: (messageId: string, part?: NarrationPart) => void;
+  play: (messageId: string, part?: NarrationPart, rate?: number) => void;
   /** Plays the DM aside, then every story segment in story order. */
   playAll: (messageId: string, content?: string) => void;
   stop: () => void;
@@ -101,7 +107,7 @@ interface UseMessageNarrationReturn {
    * Saves a mic recording for a highlighted passage of a DM message.
    * The passage becomes its own segment, so Play all uses the recording there.
    */
-  recordSegment: (messageId: string, content: string, passage: string, blob: Blob, label?: string, hint?: NarrationSegment) => Promise<void>;
+  recordSegment: (messageId: string, content: string, passage: string, blob: Blob, label?: string, hint?: NarrationSegment) => Promise<RecordedClipResult>;
   /** Swaps a self-recorded piece back to the Speechify take it covered. */
   revertToCastVoice: (messageId: string, part: NarrationPart) => Promise<void>;
   /** Publishes this device's passage voice picks for a message to the party. */
@@ -402,13 +408,13 @@ export function useMessageNarration(
 
 
 
-  const play = useCallback((messageId: string, part: NarrationPart = 'story') => {
+  const play = useCallback((messageId: string, part: NarrationPart = 'story', rate?: number) => {
     const key = narrationKey(messageId, part);
     const row = audioByMessage[key];
     if (!row) return;
     if (playingId === key) { stop(); return; }
     stop();
-    queueRef.current = [{ key, url: row.audio_url }];
+    queueRef.current = [{ key, url: row.audio_url, part, rate }];
     runQueue();
   }, [audioByMessage, playingId, stop, runQueue]);
 
@@ -686,7 +692,7 @@ export function useMessageNarration(
   }, [buildOrderedClips, playingId, stop, runQueue, castRun]);
 
   const generate = useCallback(async (messageId: string, rawText: string, part: NarrationPart = 'story') => {
-    if (!partyId) return;
+    if (!partyId) throw new Error('Open a party before saving a recording');
     const apiKey = loadApiKey('speechify');
     if (!apiKey) {
       toast.error('No Speechify API key', { description: 'Add one in Settings → API Keys.' });
@@ -925,14 +931,24 @@ export function useMessageNarration(
         ? loadNarrationOverrides(messageId).find((o) => loose(o.text) === loose(prevSeg.text)) || null
         : null;
 
-      // 1. Carve the passage out as its own segment, marked as a mic recording.
+      // 1. Remove any older overlapping assignment before carving this exact
+      // piece out. applyOverrides is intentionally first-match-wins, so leaving
+      // one behind can make the saved clip and the visible row disagree.
+      for (const override of loadNarrationOverrides(messageId)) {
+        const candidate = loose(override.text);
+        if (candidate === wantedBefore || candidate.includes(wantedBefore) || wantedBefore.includes(candidate)) {
+          removeNarrationOverride(messageId, override.text);
+        }
+      }
+
+      // 2. Carve the passage out as its own segment, marked as a mic recording.
       addNarrationOverride(messageId, {
         text,
         voiceId: SELF_RECORDED_VOICE_ID,
         label: label || currentUserName || 'My voice',
       });
 
-      // 2. Find the segment key everyone's client will compute for it.
+      // 3. Find the segment key everyone's client will compute for it.
       const segments = splitStorySegments(story || content || '', messageId);
       const wanted = loose(text);
       const mine = segments.filter((s) => isSelfRecordedVoice(s.voiceId));
@@ -945,11 +961,11 @@ export function useMessageNarration(
         || (mine.length === 1 ? mine[0] : undefined);
       if (!target) {
         toast.error('Could not match that passage', { description: 'Try selecting a full sentence.' });
-        return;
+        throw new Error('Could not match that passage');
       }
       const part = segmentKey(target);
 
-      // 3. Upload the clip and register it for the whole party.
+      // 4. Upload the clip and register it for the whole party.
       const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('mpeg') ? 'mp3' : 'webm';
       const path = `${partyId}/narration/${messageId}-${part}.${ext}`;
       const { error: uploadError } = await supabase.storage
@@ -974,17 +990,22 @@ export function useMessageNarration(
         .upsert(row, { onConflict: 'message_id,part' });
       if (insertError) throw insertError;
 
+      const savedRow: MessageAudioRow = {
+        message_id: messageId,
+        part,
+        audio_url: audioUrl,
+        voice_id: SELF_RECORDED_VOICE_ID,
+        created_by: currentUserId || '',
+        created_by_name: currentUserName || null,
+      };
       setAudioByMessage((prev) => ({
         ...prev,
-        [narrationKey(messageId, part)]: {
-          message_id: messageId,
-          part,
-          audio_url: audioUrl,
-          voice_id: SELF_RECORDED_VOICE_ID,
-          created_by: currentUserId || '',
-          created_by_name: currentUserName || null,
-        },
+        [narrationKey(messageId, part)]: savedRow,
       }));
+      audioMapRef.current = {
+        ...audioMapRef.current,
+        [narrationKey(messageId, part)]: savedRow,
+      };
 
       // 3b. Remember the cast take this recording is covering. Nothing is
       // deleted, so "Revert to cast voice" can bring it straight back.
@@ -1006,7 +1027,7 @@ export function useMessageNarration(
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('odyssey-narration-overrides'));
       }
-      toast.success('Recording saved for that passage');
+      return { part, row: savedRow };
     } catch (error) {
       console.error('[MessageNarration] recording failed:', error);
       toast.error(error instanceof Error ? error.message : 'Could not save recording');
