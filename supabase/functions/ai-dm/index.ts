@@ -680,6 +680,10 @@ Everything outside these tags must be narrative prose — no dice notation or DC
 
 ## APP SYNC (COMPANION APP INTEGRATION)
 This chat is connected to a character-sheet app that auto-detects explicit state changes in your narration. To sync with the app, state changes with explicit numbers: damage and healing ("You take 7 slashing damage", "You recover 12 HP"), XP awards ("You gain 300 XP"), gold ("You find 25 gold"), conditions applied or removed by name, items acquired with quantities, and short or long rests. GM Guides may define WHEN and HOW you award XP, level the player up, manage HP, or grant loot — those guide rules are binding. If no guide covers it, use standard D&D 5e pacing.
+`;
+
+  if (!partyMode) {
+    prompt += `
 
 ## LEVEL-UP MATH (NON-NEGOTIABLE)
 The PROGRESSION line in CHARACTER STATE holds the player's real lifetime XP total and the exact XP required for the next level. Those numbers come from the player's app and may use a scaled XP table — they will NOT match the stock D&D 5e table. Copy them exactly; never recall, estimate, or recompute thresholds from memory.
@@ -687,8 +691,11 @@ The PROGRESSION line in CHARACTER STATE holds the player's real lifetime XP tota
 - XP tracking: award XP freely, then add the award to the current total. Announce a level-up ONLY if that new total reaches or exceeds the stated next-level requirement. Otherwise say how much XP remains to the next level and do NOT mention leveling up, new HP, new slots, or ability score improvements.
 - Milestone tracking: never state XP numbers or award XP. Level-ups happen only at story milestones or when a GM Guide says so.
 - Never invent a different XP table than the one in the PROGRESSION line.`;
+  } else {
+    prompt += `\n\n## XP & LEVELS (PARTY)\nEach player's app tracks their own XP and level. Award XP with explicit numbers addressed to the party ("Each of you gains 150 XP"). Never announce a level-up, new HP, or new spell slots for anyone — each player's app decides that.`;
+  }
 
-  if (ctx.companion) {
+  if (ctx.companion && !partyMode) {
     prompt += `\n\n## COMPANION RULES
 The player has an animal companion (see CHARACTER STATE). Include it naturally. It acts on the player's turn in combat — narrate its attacks when directed. State exact damage/heal amounts ("Geralt takes 8 slashing damage" / "recovers 5 HP"). Track its conditions separately. Describe its mood based on state. At 0 HP it is unconscious but stabilizes automatically (no death saves).`;
   }
@@ -717,7 +724,7 @@ Use this to calibrate the narrative:
   }
 
   // ── Resource Pressure Metric (only when it matters) ──
-  {
+  if (!partyMode) {
     const hpPct = ctx.maxHP > 0 ? ctx.currentHP / ctx.maxHP : 1;
     let slotPct = 1;
     if (ctx.spellcasting?.slots && ctx.spellcasting.slots.length > 0) {
@@ -950,7 +957,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, npcVoicingStrict, maxTokens, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt, liveTable } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, npcVoicingStrict, maxTokens, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt, liveTable, partyMode } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages, then cap by total character count
     let trimmedMessages = messages.length > MAX_MESSAGES
@@ -992,7 +999,7 @@ serve(async (req) => {
           ? `${override}\n\n${narrationStylePrompt.trim()}`
           : override;
       } else {
-        systemPrompt = buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt);
+        systemPrompt = buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt, partyMode);
       }
 
       if (npcVoicingContext) {
