@@ -51,12 +51,23 @@ import { cn } from '@/lib/utils';
 /** Letters-and-digits key, immune to markdown, punctuation and smart quotes. */
 const loose = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 
-/** Splits a piece into sentence-sized chunks so a split point can be picked. */
-function splitSentences(text: string): string[] {
-  const plain = stripMarkdownForTTS(text).trim();
-  const matches = plain.match(/[^.!?…]+(?:[.!?…]+["'”’)\]]*\s*|$)/g);
-  const list = matches ? matches.map((s) => s.trim()).filter(Boolean) : [plain];
-  return list.length > 0 ? list : [plain];
+/** One word of a piece, with a flag for the words that start a sentence. */
+interface SplitWord {
+  text: string;
+  startsSentence: boolean;
+}
+
+/** Breaks a piece into words so a cut point can be picked between any two. */
+function splitWords(text: string): SplitWord[] {
+  const plain = stripMarkdownForTTS(text).replace(/\s+/g, ' ').trim();
+  if (!plain) return [];
+  const raw = plain.split(' ');
+  let sentenceBreak = false;
+  return raw.map((w, i) => {
+    const startsSentence = i > 0 && sentenceBreak;
+    sentenceBreak = /[.!?…]["'”’)\]]*$/.test(w);
+    return { text: w, startsSentence };
+  });
 }
 
 
@@ -332,12 +343,18 @@ export function NarrationStudio({
     bump();
   }, [messageId, playingPart, bump]);
 
-  /** Removes any stored override whose text matches this piece. */
+  /**
+   * Removes stored overrides belonging to THIS piece only: an exact match, or
+   * one whose words sit entirely inside it. Never a longer neighbour that
+   * merely contains these words.
+   */
   const removeMatchingOverride = useCallback((seg: NarrationSegment) => {
     const want = loose(seg.text);
+    if (!want) return;
     for (const ov of loadNarrationOverrides(messageId)) {
       const l = loose(ov.text);
-      if (l === want || l.includes(want) || want.includes(l)) {
+      if (!l) continue;
+      if (l === want || want.includes(l)) {
         removeNarrationOverride(messageId, ov.text);
       }
     }
@@ -392,13 +409,13 @@ export function NarrationStudio({
   const splitPiece = useCallback((row: StudioRow, beforeIndex: number) => {
     if (!row.seg) return;
     const seg = row.seg;
-    const chunks = splitSentences(seg.text);
-    if (beforeIndex < 1 || beforeIndex >= chunks.length) return;
+    const words = splitWords(seg.text);
+    if (beforeIndex < 1 || beforeIndex >= words.length) return;
     pushHistory(takeSnapshot());
     const oldPart = row.part;
     const voice = resolvedVoiceFor(seg);
-    const pieceA = chunks.slice(0, beforeIndex).join(' ');
-    const pieceB = chunks.slice(beforeIndex).join(' ');
+    const pieceA = words.slice(0, beforeIndex).map((w) => w.text).join(' ');
+    const pieceB = words.slice(beforeIndex).map((w) => w.text).join(' ');
     removeMatchingOverride(seg);
     addNarrationOverride(messageId, { text: pieceA, voiceId: voice.voiceId, label: voice.label });
     addNarrationOverride(messageId, { text: pieceB, voiceId: voice.voiceId, label: voice.label });
@@ -545,7 +562,7 @@ export function NarrationStudio({
           const rate = row.part ? studio.rates?.[row.part] : undefined;
           const checked = selected.has(row.part);
           const splitting = splitFor === row.part;
-          const chunks = splitting && row.seg ? splitSentences(row.seg.text) : [];
+          const words = splitting && row.seg ? splitWords(row.seg.text) : [];
 
           return (
             <div
@@ -756,26 +773,39 @@ export function NarrationStudio({
                 </div>
               </div>
 
-              {/* Split point picker */}
-              {splitting && chunks.length > 1 && (
-                <div className="rounded-lg border border-sky-500/25 bg-sky-950/25 p-2 space-y-1">
-                  <p className="text-[10px] text-sky-200/70">Split before…</p>
-                  {chunks.slice(1).map((chunk, ci) => (
-                    <button
-                      key={ci}
-                      onClick={() => splitPiece(row, ci + 1)}
-                      style={{ touchAction: 'manipulation' }}
-                      className="block w-full text-left px-2 py-1.5 rounded text-[11px] text-sky-100/90 hover:bg-sky-900/40"
-                    >
-                      ✂ “{chunk.length > 70 ? `${chunk.slice(0, 70)}…` : chunk}”
-                    </button>
-                  ))}
-                  {chunks.length <= 1 && null}
+              {/* Split point picker - tap between any two words */}
+              {splitting && words.length > 1 && (
+                <div className="rounded-lg border border-sky-500/25 bg-sky-950/25 p-2 space-y-1.5">
+                  <p className="text-[10px] text-sky-200/70">
+                    Tap between two words to cut the piece there. Sentence starts are highlighted.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-y-1 text-[12px] leading-relaxed text-sky-100/90">
+                    {words.map((w, wi) => (
+                      <span key={wi} className="flex items-center">
+                        {wi > 0 && (
+                          <button
+                            onClick={() => splitPiece(row, wi)}
+                            style={{ touchAction: 'manipulation' }}
+                            className={cn(
+                              'mx-0.5 h-12 w-4 shrink-0 rounded flex items-center justify-center text-[11px]',
+                              w.startsSentence
+                                ? 'bg-sky-500/30 text-sky-50 hover:bg-sky-400/50'
+                                : 'text-sky-300/40 hover:bg-sky-900/50 hover:text-sky-100',
+                            )}
+                            title={`Split before "${w.text}"`}
+                          >
+                            ✂
+                          </button>
+                        )}
+                        <span className="py-1">{w.text}</span>
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
-              {splitting && chunks.length <= 1 && (
+              {splitting && words.length <= 1 && (
                 <p className="text-[10px] text-muted-foreground/70 px-1">
-                  This piece is a single sentence — it cannot be split further.
+                  This piece is a single word — it can't be split further.
                 </p>
               )}
             </div>
