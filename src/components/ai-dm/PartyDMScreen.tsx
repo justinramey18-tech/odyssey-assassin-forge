@@ -700,7 +700,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                 canGenerate={isCreator}
                 onNarrate={onNarrate}
                 onNarrateCast={(id, text) => onNarrateCast?.(id, text)}
-                onPlay={(id, part) => onPlayNarration?.(id, part)}
+                onPlay={(id, part, rate) => onPlayNarration?.(id, part, rate)}
                 onPlayAll={(id, text) => onPlayAllNarration?.(id, text)}
                 onDelete={onDeleteNarration}
                 onDeleteAll={onDeleteAllNarration}
