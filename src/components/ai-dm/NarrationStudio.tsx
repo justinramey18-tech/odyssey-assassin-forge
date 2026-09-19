@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { getNarrationAudio } from '@/lib/audioFocus';
 import {
   ArrowDown,
   ArrowUp,
@@ -35,6 +37,7 @@ import {
   loadStudioState,
   saveStudioState,
   loadDisplacedVoices,
+  loadNarrationSpeed,
   type NarrationSegment,
   type NarrationOverride,
   type NarrationStudioState,
@@ -318,8 +321,16 @@ export function NarrationStudio({
     if (rate === 1) delete rates[part];
     else rates[part] = rate;
     saveStudioState(messageId, { ...current, rates });
+    // Changing the speed of the piece that is playing right now applies instantly.
+    // 1x means "no per-piece speed", which plays at the global narration speed.
+    if (playingPart === part) {
+      const effective = rate === 1 ? loadNarrationSpeed() : rate;
+      const audio = getNarrationAudio();
+      audio.defaultPlaybackRate = effective;
+      audio.playbackRate = effective;
+    }
     bump();
-  }, [messageId, bump]);
+  }, [messageId, playingPart, bump]);
 
   /** Removes any stored override whose text matches this piece. */
   const removeMatchingOverride = useCallback((seg: NarrationSegment) => {
@@ -472,7 +483,7 @@ export function NarrationStudio({
     ? rows.find((r) => r.part === voiceSheetFor)
     : null;
 
-  return (
+  const studioUi = (
     <div className="fixed inset-0 z-[70] flex flex-col bg-background">
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-3 border-b border-border/40">
