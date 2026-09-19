@@ -707,6 +707,35 @@ function applyOverrides(segments: NarrationSegment[], overrides: NarrationOverri
       if (after) next.push({ ...keep, text: after });
       placed = true;
     }
+    if (!placed) {
+      // Span fallback: a merged piece can cover words from more than one
+      // paragraph, so no single segment contains it. Join consecutive
+      // segments until the passage matches, then carve it out of the span.
+      for (let i = 0; i < working.length && !placed; i++) {
+        let joined = working[i].text;
+        let end = i;
+        while (!placed) {
+          const m = joined.match(matcher);
+          if (m && m.index !== undefined) {
+            const before = joined.slice(0, m.index).trim();
+            const after = joined.slice(m.index + m[0].length).trim();
+            const first = working[i];
+            const keep = { speaker: first.speaker, voiceId: first.voiceId, manual: first.manual, para: first.para };
+            const repl: NarrationSegment[] = [];
+            if (before) repl.push({ ...keep, text: before });
+            repl.push({ speaker: ov.label || first.speaker || null, text: m[0].trim(), voiceId: ov.voiceId, manual: true, para: first.para });
+            if (after) repl.push({ ...keep, text: after });
+            working = [...working.slice(0, i), ...repl, ...working.slice(end + 1)];
+            placed = true;
+            break;
+          }
+          end += 1;
+          if (end >= working.length || joined.length > 8000) break;
+          joined = `${joined}\n\n${working[end].text}`;
+        }
+      }
+      if (placed) continue;
+    }
     working = next;
   }
   return working;

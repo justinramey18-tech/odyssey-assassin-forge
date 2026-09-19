@@ -436,23 +436,48 @@ export function NarrationStudio({
   const mergeWithNext = useCallback((row: StudioRow) => {
     const i = rows.findIndex((r) => r.part === row.part);
     const next = rows[i + 1];
-    if (!row.seg || !next?.seg) return;
+    if (!row.seg || !next?.seg || next.kind !== 'segment') return;
     pushHistory(takeSnapshot());
     const partA = row.part;
     const partB = next.part;
-    const anchorLoose = loose(row.displayText).slice(0, 24);
+    // The top piece's voice wins; say so when the pair disagreed.
+    const voiceA = resolvedVoiceFor(row.seg);
+    const voiceB = resolvedVoiceFor(next.seg);
+    const voicesDiffer = voiceA.voiceId !== voiceB.voiceId;
+
+    // Join the words into ONE explicit piece. This works across paragraph
+    // breaks and after reordering - no reliance on natural paragraph
+    // splitting finding its way back.
+    const mergedText = [stripMarkdownForTTS(row.seg.text), stripMarkdownForTTS(next.seg.text)]
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
     removeMatchingOverride(row.seg);
     removeMatchingOverride(next.seg);
-    onShareVoices?.();
+    addNarrationOverride(messageId, { text: mergedText, voiceId: voiceA.voiceId, label: voiceA.label });
 
-    // The pieces fall back to natural paragraph splitting. Find what now
-    // holds the first piece's words and keep it where the pair used to sit.
+    // Find the piece the merged override just produced and keep it where the
+    // pair used to sit. The merged piece starts unvoiced; Undo restores both
+    // original pieces with their audio.
     const after = splitStorySegments(story || content || '', messageId);
-    const merged = after.find((s) => loose(stripMarkdownForTTS(s.text)).startsWith(anchorLoose));
-    replaceInOrder([partA, partB], merged ? [segmentKey(merged)] : []);
+    const lm = loose(mergedText);
+    const merged = after.find((s) => loose(s.text) === lm || loose(s.text).includes(lm));
+    if (!merged) {
+      // Could not carve the combined piece back out - put the pair back.
+      removeNarrationOverride(messageId, mergedText);
+      historyRef.current = historyRef.current.slice(0, -1);
+      setHistoryTick((t) => t + 1);
+      bump();
+      toast.error('Those two pieces cannot be merged');
+      return;
+    }
+    replaceInOrder([partA, partB], [segmentKey(merged)]);
+    onShareVoices?.();
     bump();
-    toast.success('Pieces merged back together');
-  }, [rows, story, content, pushHistory, takeSnapshot, removeMatchingOverride, replaceInOrder, onShareVoices, bump]);
+    toast.success('Pieces merged into one', voicesDiffer
+      ? { description: `The merged piece keeps ${voiceA.label}'s voice.` }
+      : undefined);
+  }, [rows, story, content, messageId, pushHistory, takeSnapshot, resolvedVoiceFor, removeMatchingOverride, replaceInOrder, onShareVoices, bump]);
 
   const deleteAudio = useCallback(async (row: StudioRow) => {
     if (!row.audio || !onDeletePart) return;
@@ -728,7 +753,9 @@ export function NarrationStudio({
                       disabled={i >= rows.length - 1 || rows[i + 1]?.kind !== 'segment'}
                       style={{ touchAction: 'manipulation' }}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] border border-border/40 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                      title="Merge with the piece below"
+                      title={i >= rows.length - 1 || rows[i + 1]?.kind !== 'segment'
+                        ? 'Nothing below to merge into'
+                        : 'Merge with the piece below'}
                     >
                       <Merge className="w-3 h-3" />
                       Merge
