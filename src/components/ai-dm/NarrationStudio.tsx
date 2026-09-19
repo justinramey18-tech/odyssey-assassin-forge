@@ -562,7 +562,7 @@ export function NarrationStudio({
           const rate = row.part ? studio.rates?.[row.part] : undefined;
           const checked = selected.has(row.part);
           const splitting = splitFor === row.part;
-          const chunks = splitting && row.seg ? splitSentences(row.seg.text) : [];
+          const words = splitting && row.seg ? splitWords(row.seg.text) : [];
 
           return (
             <div
