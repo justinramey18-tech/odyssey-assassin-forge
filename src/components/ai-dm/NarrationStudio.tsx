@@ -343,12 +343,18 @@ export function NarrationStudio({
     bump();
   }, [messageId, playingPart, bump]);
 
-  /** Removes any stored override whose text matches this piece. */
+  /**
+   * Removes stored overrides belonging to THIS piece only: an exact match, or
+   * one whose words sit entirely inside it. Never a longer neighbour that
+   * merely contains these words.
+   */
   const removeMatchingOverride = useCallback((seg: NarrationSegment) => {
     const want = loose(seg.text);
+    if (!want) return;
     for (const ov of loadNarrationOverrides(messageId)) {
       const l = loose(ov.text);
-      if (l === want || l.includes(want) || want.includes(l)) {
+      if (!l) continue;
+      if (l === want || want.includes(l)) {
         removeNarrationOverride(messageId, ov.text);
       }
     }
