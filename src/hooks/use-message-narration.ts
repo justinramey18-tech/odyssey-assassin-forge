@@ -389,7 +389,8 @@ export function useMessageNarration(
     audio.onended = null;
     audio.onerror = null;
     audio.pause();
-    audio.playbackRate = Number.isFinite(next.rate) ? (next.rate as number) : loadNarrationSpeed();
+    // Per-piece speed from the Narration Studio, otherwise the global narration speed.
+    const rate = Number.isFinite(next.rate) ? (next.rate as number) : loadNarrationSpeed();
     audio.onended = () => runQueue();
     audio.onerror = () => {
       toast.error('Could not play narration');
@@ -409,6 +410,10 @@ export function useMessageNarration(
     void resolvePlaybackUrl(next.url).then((src) => {
       if (seq !== playSeqRef.current) return;
       audio.src = src;
+      // Loading a clip resets playbackRate to defaultPlaybackRate, so the speed
+      // must be applied AFTER src is set, and stored as the default too.
+      audio.defaultPlaybackRate = rate;
+      audio.playbackRate = rate;
       void beginNarrationFocus().finally(() => {
         audio.play().catch(() => {
           queueRef.current = [];
