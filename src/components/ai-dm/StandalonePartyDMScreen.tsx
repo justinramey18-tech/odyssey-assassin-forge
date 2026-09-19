@@ -992,6 +992,7 @@ ${truncated}`);
             if (isPartyCreator || myStatus !== 'complete') return undefined;
             return () => setShowRedoDialog(true);
           })()}
+          onOpenDirector={partyId && userId ? () => setShowDirectorScreen(true) : undefined}
           hasPendingRedoRequest={!!(userId && onboardingRequests.myPendingRequest(userId))}
         />
 

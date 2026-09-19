@@ -5,7 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Heart, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Theater, Megaphone, Film, RefreshCw, Code2, Image as ImageIcon, Trash2, Undo2, RotateCcw, Download, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Heart, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Theater, Megaphone, Film, RefreshCw, Code2, Image as ImageIcon, Trash2, Undo2, RotateCcw, Download, UserPlus, Lock } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { exportPartyStory } from '@/lib/exportPartyStory';
 import { exportGMGuides } from '@/lib/exportGMGuides';
@@ -166,6 +166,8 @@ export interface PartyDMSettingsProps {
   onShowOocChat?: () => void;
   // Player redo request (non-host only)
   onRequestCharacterRedo?: () => void;
+  /** Opens the player's private Director channel ("Talk to the DM"). */
+  onOpenDirector?: () => void;
   hasPendingRedoRequest?: boolean;
   // Chat background (per-character personal preference)
   chatBackground?: string | null;
@@ -217,7 +219,7 @@ export function PartyDMSettings({
   responseMode, onResponseModeChange,
   hasBookmark, onClearBookmark,
   dialogueAutoIntervene, onDialogueAutoInterveneChange,
-  onRequestCharacterRedo, hasPendingRedoRequest = false,
+  onRequestCharacterRedo, onOpenDirector, hasPendingRedoRequest = false,
   chatBackground, onChatBackgroundUpload, onChatBackgroundClear,
   chatBackgroundOpacity = 0.28, chatBackgroundBlur = 0,
   onChatBackgroundOpacityChange, onChatBackgroundBlurChange,
@@ -703,6 +705,14 @@ export function PartyDMSettings({
             label="Dev Assistant"
             description="Ask questions about the app — uses your saved codebase & instructions"
             onClick={onShowDevAssistant}
+          />
+        )}
+        {onOpenDirector && (
+          <ToolRow
+            icon={<Lock className="w-4 h-4 text-purple-300" />}
+            label="Talk to the DM (private)"
+            description="Ask questions or take secret actions — only you and the DM can see this"
+            onClick={onOpenDirector}
           />
         )}
         {onRequestCharacterRedo && (

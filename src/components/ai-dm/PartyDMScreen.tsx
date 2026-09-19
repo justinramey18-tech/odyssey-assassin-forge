@@ -178,6 +178,7 @@ interface PartyDMScreenProps {
   swipeHandlers?: SwipeHandlers;
   /** Player redo request (non-host only, when eligible) */
   onRequestCharacterRedo?: () => void;
+  onOpenDirector?: () => void;
   hasPendingRedoRequest?: boolean;
 }
 
@@ -1028,7 +1029,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.reactions?.every((r, i) => r.id === next.reactions?.[i]?.id);
 });
 
-export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, hasPendingRedoRequest, onScanQuests, worldState = [] }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, onOpenDirector, hasPendingRedoRequest, onScanQuests, worldState = [] }: PartyDMScreenProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   // Shared party quest board, also shown inside each player's character sheet.
   const sheetQuests = usePartyQuests(partyId, currentUserId);
@@ -2356,6 +2357,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onShowNpcScene={() => setShowNpcScene(true)}
               onShowOocChat={onShowOocChat}
               onRequestCharacterRedo={onRequestCharacterRedo}
+              onOpenDirector={onOpenDirector}
               hasPendingRedoRequest={hasPendingRedoRequest}
               chatBackground={chatBackground.background}
               onChatBackgroundUpload={chatBackground.handleImageUpload}
