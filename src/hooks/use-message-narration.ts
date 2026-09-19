@@ -20,6 +20,7 @@ import {
   type NarrationSegment,
   type NarrationOverride,
   loadStudioState,
+  saveStudioState,
   loadDisplacedVoices,
   saveDisplacedVoice,
   clearDisplacedVoice,
@@ -166,6 +167,8 @@ export function useMessageNarration(
   partyId?: string,
   currentUserId?: string,
   currentUserName?: string,
+  /** Hosts/co-hosts only: their custom Narration Studio order is shared with the party. */
+  canPublishOrder: boolean = false,
 ): UseMessageNarrationReturn {
   const [audioByMessage, setAudioByMessage] = useState<Record<string, MessageAudioRow>>({});
   const [generatingId, setGeneratingId] = useState<string | null>(null);
@@ -207,9 +210,19 @@ export function useMessageNarration(
     for (const row of rows) {
       const messages = row?.state_data?.messages;
       if (!messages || typeof messages !== 'object') continue;
-      for (const [messageId, list] of Object.entries(messages)) {
-        if (!Array.isArray(list)) continue;
-        if (mergeNarrationOverrides(messageId, list as NarrationOverride[])) changed = true;
+      for (const [messageId, entry] of Object.entries(messages)) {
+        // Legacy rows are a bare array; new rows are { overrides, order }.
+        const list = Array.isArray(entry) ? entry : (entry as any)?.overrides;
+        if (Array.isArray(list) && mergeNarrationOverrides(messageId, list as NarrationOverride[])) changed = true;
+        const order = Array.isArray(entry) ? undefined : (entry as any)?.order;
+        if (Array.isArray(order)) {
+          const current = loadStudioState(messageId);
+          const next = order.filter((p: unknown): p is string => typeof p === 'string');
+          if (JSON.stringify(current.order ?? []) !== JSON.stringify(next)) {
+            saveStudioState(messageId, { ...current, order: next.length > 0 ? next : undefined });
+            changed = true;
+          }
+        }
       }
     }
     if (changed && typeof window !== 'undefined') {
@@ -261,7 +274,9 @@ export function useMessageNarration(
         .maybeSingle();
 
       const messages = { ...(existing?.state_data?.messages || {}) };
-      messages[messageId] = loadNarrationOverrides(messageId);
+      messages[messageId] = canPublishOrder
+        ? { overrides: loadNarrationOverrides(messageId), order: loadStudioState(messageId).order ?? [] }
+        : { overrides: loadNarrationOverrides(messageId) };
 
       if (existing?.id) {
         await (supabase.from('party_shared_state') as any)
@@ -278,7 +293,7 @@ export function useMessageNarration(
     } catch (error) {
       console.warn('[MessageNarration] could not share passage voices:', error);
     }
-  }, [partyId, currentUserId]);
+  }, [partyId, currentUserId, canPublishOrder]);
 
   // ── Load + live-sync saved narrations ──
 
