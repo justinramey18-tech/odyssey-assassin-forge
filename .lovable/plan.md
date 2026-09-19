@@ -1,27 +1,24 @@
 # Fix Claude connector: "requested path is invalid"
 
-## What happened
-The bridge itself is fine — it is live, locked, and answering. The error comes from the address typed into Claude's connector settings: it is missing the middle portion of the URL. My tests show the exact error you saw only appears when the address is too short; every full-length variation reaches the bridge correctly.
+## Confirmed facts
+- The full bridge address works when called directly.
+- The short address produces the exact error you reported.
+- You confirmed Claude has the full address and provides custom header fields.
+- Claude's attempt is not visibly reaching the bridge, so changing the address again would not solve the underlying problem.
 
-## The fix (one setting to correct in Claude)
-In Claude → Settings → Connectors, edit the "Odyssey Database" connector and make sure the URL is exactly this, all one line, no spaces, no missing pieces:
+## Plan
+1. Add safe connection diagnostics to the bridge. These will record the request method, requested path, and connection format, but never the private key or message contents.
+2. Make the bridge accept Claude's full discovery and connection handshake, including its initial browser-style check and both supported response formats.
+3. Return clear standards-based responses instead of a generic rejection when Claude probes the bridge before connecting.
+4. Redeploy and test the same sequence Claude uses: discovery, initialization, tool listing, reading, authorization rejection, and blocked dangerous commands.
+5. Have you retry the connector while watching the bridge traffic. If no request arrives, use Claude's temporary `ofid_...` reference number to identify this as a Claude-side connector failure rather than changing the app again.
 
-```text
-https://sqvcszzbkyzidigsdqgk.supabase.co/functions/v1/claude-bridge
-```
+## Safety
+- The private bridge key remains required for all data access.
+- Diagnostics will not store the key, database contents, or Claude conversation text.
+- Existing read/write limits and protections remain unchanged.
 
-The part most likely missing or mangled is `functions/v1/` in the middle. The address is not just `...supabase.co/claude-bridge` — that short version produces exactly the error you saw.
-
-Also confirm the header is still there:
-- Name: `Authorization`
-- Value: the word `Bearer`, one space, then your key
-
-Save the connector and let Claude retry.
-
-## What I'll do after you fix it
-1. Watch the bridge's traffic log while Claude connects.
-2. Confirm I can see Claude's handshake arrive (the log will show activity).
-3. If it still fails, capture the exact new error and adjust the bridge to accept whatever address style Claude uses.
-
-## No code changes needed
-Nothing in the app is broken — this is a one-line settings correction on the Claude side.
+## Technical details
+- Update only `supabase/functions/claude-bridge/index.ts`.
+- Add sanitized request logging and standards-compatible GET/POST response negotiation for Streamable HTTP/SSE.
+- Preserve bearer authentication, the current tools, blocked schemas and commands, row limits, and timeouts.
