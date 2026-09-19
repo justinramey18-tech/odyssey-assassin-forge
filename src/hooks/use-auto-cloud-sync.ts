@@ -364,9 +364,20 @@ export function useAutoCloudSync(
       saveToCloudNow();
     };
 
+    // Sign-out asks for a blocking flush: hand back the in-flight promise.
+    const handleFlushRequest = (e: Event) => {
+      const register = (e as CustomEvent<{ register?: (p: Promise<void>) => void }>).detail?.register;
+      const p = syncNow();
+      register?.(p);
+    };
+
     window.addEventListener('odyssey-force-cloud-sync', handleForceSync);
-    return () => window.removeEventListener('odyssey-force-cloud-sync', handleForceSync);
-  }, [enabled, isAuthenticated, saveLocally, saveToCloudNow]);
+    window.addEventListener('odyssey-flush-cloud-sync', handleFlushRequest);
+    return () => {
+      window.removeEventListener('odyssey-force-cloud-sync', handleForceSync);
+      window.removeEventListener('odyssey-flush-cloud-sync', handleFlushRequest);
+    };
+  }, [enabled, isAuthenticated, saveLocally, saveToCloudNow, syncNow]);
 
   return {
     lastCloudSyncTime,
