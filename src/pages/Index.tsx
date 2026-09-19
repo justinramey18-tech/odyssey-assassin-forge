@@ -1608,6 +1608,12 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       removeScopedItem('odyssey-active-party-id');
       console.log('[CloudSave] No party for this character — cleared active party ID');
     }
+
+    // Reconnect now. The marker above is only read on a cold start, so without this
+    // a character switch leaves the party disconnected until the app is reloaded.
+    if (data.partyId) {
+      void partySync.reconnectToParty(data.partyId);
+    }
     
     // 20. Restore custom background from cloud URL
     if (data.backgroundUrl) {
