@@ -239,8 +239,45 @@ async function handleRpc(msg: RpcMessage): Promise<unknown | undefined> {
   };
 }
 
+// ---------- Sanitized diagnostics ----------
+// Records HOW clients connect (method, path, response-format preference) so
+// connection problems can be diagnosed. Never logs the bridge key, SQL beyond
+// the guarded run_sql preview above, or message contents.
+
+function logRequest(req: Request) {
+  const url = new URL(req.url);
+  console.log(
+    `[claude-bridge] ${req.method} ${url.pathname} accept=${req.headers.get('accept') ?? '-'} ` +
+    `content-type=${req.headers.get('content-type') ?? '-'} ` +
+    `mcp-session=${req.headers.get('mcp-session-id') ? 'yes' : 'no'} ` +
+    `auth=${req.headers.get('authorization') ? 'present' : 'missing'}`
+  );
+}
+
+/** True when the client prefers a Server-Sent Events stream for responses. */
+function wantsSse(req: Request): boolean {
+  const accept = req.headers.get('accept') ?? '';
+  return accept.includes('text/event-stream') && !accept.includes('application/json');
+}
+
+/** Wrap one JSON-RPC message in a single SSE `message` event frame. */
+function sseFrame(payload: unknown): Response {
+  const data = `event: message\ndata: ${JSON.stringify(payload)}\n\n`;
+  return new Response(data, {
+    status: 200,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    },
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+  logRequest(req);
 
   // Private-key gate: every request must carry the bridge key.
   const auth = req.headers.get('Authorization') ?? '';
@@ -250,11 +287,17 @@ Deno.serve(async (req) => {
   }
 
   if (req.method === 'GET') {
-    // Stateless server: no server-initiated SSE stream.
-    return json({ jsonrpc: '2.0', error: { code: -32000, message: 'GET not supported' } }, 405);
+    // MCP Streamable HTTP: GET opens the optional server-to-client listen
+    // stream. This server is stateless with nothing to push, so per the spec
+    // answer 405 with the required Allow header instead of a bare error.
+    return json(
+      { jsonrpc: '2.0', error: { code: -32000, message: 'This bridge does not offer a server listen stream; send requests as POST.' } },
+      405,
+      { 'Allow': 'POST' },
+    );
   }
   if (req.method !== 'POST') {
-    return json({ error: 'Method not allowed' }, 405);
+    return json({ error: 'Method not allowed' }, 405, { 'Allow': 'POST, GET' });
   }
 
   let body: unknown;
@@ -265,6 +308,12 @@ Deno.serve(async (req) => {
   }
 
   const messages: RpcMessage[] = Array.isArray(body) ? body as RpcMessage[] : [body as RpcMessage];
+  for (const msg of messages) {
+    if (msg && typeof msg.method === 'string') {
+      console.log(`[claude-bridge] rpc method=${msg.method} id=${msg.id ?? 'notification'}`);
+    }
+  }
+
   const replies: unknown[] = [];
   for (const msg of messages) {
     if (!msg || typeof msg.method !== 'string') {
@@ -279,5 +328,9 @@ Deno.serve(async (req) => {
     // Notification-only batch (e.g. notifications/initialized).
     return new Response(null, { status: 202, headers: corsHeaders });
   }
-  return json(Array.isArray(body) ? replies : replies[0]);
+  const payload = Array.isArray(body) ? replies : replies[0];
+  // Honor the client's negotiated response format: SSE frame when the client
+  // only accepts text/event-stream, plain JSON otherwise.
+  if (wantsSse(req)) return sseFrame(payload);
+  return json(payload);
 });
