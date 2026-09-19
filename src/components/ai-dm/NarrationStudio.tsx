@@ -753,7 +753,9 @@ export function NarrationStudio({
                       disabled={i >= rows.length - 1 || rows[i + 1]?.kind !== 'segment'}
                       style={{ touchAction: 'manipulation' }}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] border border-border/40 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                      title="Merge with the piece below"
+                      title={i >= rows.length - 1 || rows[i + 1]?.kind !== 'segment'
+                        ? 'Nothing below to merge into'
+                        : 'Merge with the piece below'}
                     >
                       <Merge className="w-3 h-3" />
                       Merge
