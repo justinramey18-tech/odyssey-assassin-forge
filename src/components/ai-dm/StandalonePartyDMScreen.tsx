@@ -705,62 +705,87 @@ export function StandalonePartyDMScreen({
   //    loading a campaign would re-apply every XP and gold award in its history
   //  - each message id is recorded, so a re-render or realtime echo cannot
   //    double-apply the same award
+  // Per-party watermark: the created_at of the last DM message this player's sheet
+  // has applied. Persisted, so rounds that land while this screen is closed are
+  // applied on the next open instead of being silently skipped.
   const processedSyncIds = useRef<Set<string>>(new Set());
-  const hasSeededSyncHistory = useRef(false);
+  const watermarkKey = partyId ? `odyssey-dm-sync-watermark::${partyId}` : null;
+  const readWatermark = useCallback((): string | null => {
+    if (!watermarkKey) return null;
+    try { return localStorage.getItem(watermarkKey); } catch { return null; }
+  }, [watermarkKey]);
+
+  const writeWatermark = useCallback((iso: string) => {
+    if (!watermarkKey) return;
+    try {
+      const current = localStorage.getItem(watermarkKey);
+      if (!current || new Date(iso).getTime() > new Date(current).getTime()) localStorage.setItem(watermarkKey, iso);
+    } catch { /* ignore */ }
+  }, [watermarkKey]);
 
   useEffect(() => {
     const msgs = partyDm.messages;
-    if (!msgs || msgs.length === 0) return;
+    if (!msgs || msgs.length === 0 || !watermarkKey) return;
+    if (!autoSync.autoSyncEnabled) return;
+    if (partyDm.isGenerating) return; // wait for the round to finish
 
-    // First pass after mount or campaign load: mark everything already on screen
-    // as processed. Those awards were applied when they originally happened.
-    if (!hasSeededSyncHistory.current) {
-      hasSeededSyncHistory.current = true;
-      for (const m of msgs) processedSyncIds.current.add(m.id);
+    const historyLoadedAt = (partyDm.sessionConfig as any)?.historyLoadedAt as string | null | undefined;
+    const historyMs = historyLoadedAt ? new Date(historyLoadedAt).getTime() : 0;
+
+    // First time this player ever syncs with this party: start from "now" so
+    // existing history is not replayed.
+    let watermark = readWatermark();
+    if (!watermark) {
+      const newest = msgs[msgs.length - 1]?.created_at;
+      if (newest) { writeWatermark(newest); watermark = newest; }
       return;
     }
+    const watermarkMs = new Date(watermark).getTime();
 
-    if (!autoSync.autoSyncEnabled) return;
-    if (partyDm.isGenerating) return; // wait for the message to finish
+    const pending = msgs.filter(m =>
+      m.role === 'assistant' &&
+      !!m.content?.trim() &&
+      !!m.created_at &&
+      new Date(m.created_at).getTime() > watermarkMs &&
+      new Date(m.created_at).getTime() > historyMs &&   // skip re-inserted campaign history
+      !processedSyncIds.current.has(m.id)
+    );
+    if (pending.length === 0) return;
 
-    const last = msgs[msgs.length - 1];
-    if (!last || last.role !== 'assistant') return;
-    if (!last.content || last.content.trim().length === 0) return;
-    if (processedSyncIds.current.has(last.id)) return;
+    for (const m of pending) {
+      processedSyncIds.current.add(m.id);
 
-    processedSyncIds.current.add(last.id);
+      const violations = findCanonViolations(m.content, partyQuests.worldState);
+      if (violations.length > 0) {
+        toast.warning('That beat breaks established world state', {
+          description: violationSummary(violations),
+          duration: 12000,
+          action: isHost
+            ? { label: 'Ask the DM to fix it', onClick: () => { partyDm.applyOocCommand(buildCanonCorrectionPrompt(violations)); } }
+            : undefined,
+        });
+      }
 
-    // Canon guard: flag any beat that reverses an already-settled outcome.
-    const violations = findCanonViolations(last.content, partyQuests.worldState);
-    if (violations.length > 0) {
-      toast.warning('That beat breaks established world state', {
-        description: violationSummary(violations),
-        duration: 12000,
-        action: isHost
-          ? {
-              label: 'Ask the DM to fix it',
-              onClick: () => { partyDm.applyOocCommand(buildCanonCorrectionPrompt(violations)); },
-            }
-          : undefined,
-      });
+      autoSync.extractAndApply(m.content, characterContext)
+        .then(result => {
+          if (result?.items_acquired?.length) addPendingDmItems(result.items_acquired);
+        })
+        .catch(() => {})
+        .finally(() => writeWatermark(m.created_at));
     }
-
-    autoSync.extractAndApply(last.content, characterContext)
-      .then(result => {
-        if (result?.items_acquired?.length) {
-          addPendingDmItems(result.items_acquired);
-        }
-      })
-      .catch(() => {});
   }, [
     partyDm.messages,
     partyDm.isGenerating,
+    partyDm.sessionConfig,
     autoSync.autoSyncEnabled,
     autoSync.extractAndApply,
     characterContext,
     partyQuests.worldState,
     isHost,
     partyDm.applyOocCommand,
+    watermarkKey,
+    readWatermark,
+    writeWatermark,
   ]);
 
 
@@ -795,10 +820,8 @@ export function StandalonePartyDMScreen({
     if (partyDm.messages.length > 0) {
       partyDm.saveCampaign('Party Campaign', partyDm.activeCampaignId || undefined);
     }
-    // A loaded campaign brings its whole history with it. Re-seed so auto-sync
-    // treats all of it as already applied instead of replaying old awards.
-    hasSeededSyncHistory.current = false;
-    processedSyncIds.current.clear();
+    // A loaded campaign brings its whole history with it; the historyLoadedAt stamp
+    // written by loadCampaign keeps auto-sync from replaying those old awards.
     partyDm.loadCampaign(session.id, session.messages, session.campaign_summary);
   }, [partyDm.messages.length, partyDm.saveCampaign, partyDm.activeCampaignId, partyDm.loadCampaign]);
 

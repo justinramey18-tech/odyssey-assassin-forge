@@ -227,6 +227,8 @@ export interface DmSessionConfig {
   currentRoundId: string;
   campaignSummary: string | null;
   isGenerating: boolean;
+  /** Set by loadCampaign. Assistant rows created at/before this instant are re-inserted history, not new rounds. */
+  historyLoadedAt?: string | null;
   splitActive?: boolean;
   dmMode?: DmMode; // 'ai' (default) | 'human' | 'ai-approval' | 'dialogue' | 'turnBased'
   // Couples Mode (turnBased dmMode): whose turn it currently is. Null/undefined = unclaimed,
@@ -995,22 +997,16 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     await (supabase.from('party_dm_messages') as any).delete().eq('party_id', partyId);
     await (supabase.from('party_dm_prompts') as any).delete().eq('party_id', partyId);
 
-    for (const msg of campaignMessages) {
-      await (supabase.from('party_dm_messages') as any).insert({
-        party_id: partyId,
-        role: msg.role,
-        content: msg.content,
-        sender_user_id: msg.sender_user_id || null,
-        sender_name: msg.sender_name || (msg.role === 'assistant' ? 'DM' : 'Party'),
-      });
-    }
-
+    // 1. Stamp the session FIRST so every device (this one included) knows the rows
+    //    about to arrive are history, not new rounds to apply to character sheets.
+    const loadStamp = new Date();
     const roundId = crypto.randomUUID();
     const config: DmSessionConfig = {
       ...(sessionConfig || { active: true, mode: 'shared', isGenerating: false }),
       currentRoundId: roundId,
       campaignSummary,
       isGenerating: false,
+      historyLoadedAt: loadStamp.toISOString(),
     };
     await (supabase.from('party_shared_state') as any).upsert({
       party_id: partyId,
@@ -1019,6 +1015,23 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       state_data: config,
     }, { onConflict: 'party_id,user_id,state_type' });
     setSessionConfig(config);
+
+    // 2. Re-insert history with its ORIGINAL created_at (saved campaigns store it),
+    //    so ordering is preserved and every row predates the stamp. Rows from old
+    //    saves without a timestamp get one just before the stamp.
+    for (let i = 0; i < campaignMessages.length; i++) {
+      const msg = campaignMessages[i];
+      const originalCreatedAt = typeof msg.created_at === 'string' && msg.created_at ? msg.created_at : null;
+      await (supabase.from('party_dm_messages') as any).insert({
+        party_id: partyId,
+        role: msg.role,
+        content: msg.content,
+        sender_user_id: msg.sender_user_id || null,
+        sender_name: msg.sender_name || (msg.role === 'assistant' ? 'DM' : 'Party'),
+        created_at: originalCreatedAt ?? new Date(loadStamp.getTime() - (campaignMessages.length - i) * 1000).toISOString(),
+      });
+    }
+
     setActiveCampaignId(campaignId);
     toast.success('Campaign loaded!');
   }, [partyId, user, isCreator, sessionConfig]);
