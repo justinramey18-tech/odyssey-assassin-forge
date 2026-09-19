@@ -283,6 +283,20 @@ export function useRoundChat(
     setMessages(prev => prev.filter(m => m.id !== messageId));
   }, []);
 
+  /** Host-only: wipe the whole table chat for everyone. Reactions cascade with their messages. */
+  const clearAllMessages = useCallback(async () => {
+    if (!partyId) return;
+    setMessages([]);
+    setReactions([]);
+    setOrderOverride([]);
+    const { error } = await (supabase.from('party_round_chat') as any).delete().eq('party_id', partyId);
+    if (error) {
+      console.error('[round-chat] clear all failed:', error);
+      await loadMessages();
+      throw error;
+    }
+  }, [partyId, loadMessages]);
+
   /** Edit the text of a line you already sent (only before it goes to the DM). */
   const editMessage = useCallback(async (messageId: string, content: string) => {
     const text = content.trim();
