@@ -29,6 +29,13 @@
       "when": 1789826661608,
       "tag": "0003_host_can_delete_party_round_chat",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789842858357,
+      "tag": "0004_add_consumed_at_to_party_director_messages",
+      "breakpoints": true
     }
   ]
 }
