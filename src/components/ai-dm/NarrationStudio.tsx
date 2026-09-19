@@ -884,4 +884,12 @@ export function NarrationStudio({
       )}
     </div>
   );
+
+  // The chat list is its own low layer (relative z-[1]), so rendered in place the
+  // bottom nav drawer (z-50) paints over the studio. Render it into the party
+  // screen's root instead, where z-[70] sits above the drawer.
+  const portalHost = typeof document !== 'undefined'
+    ? document.getElementById('party-dm-screen-root')
+    : null;
+  return portalHost ? createPortal(studioUi, portalHost) : studioUi;
 }
