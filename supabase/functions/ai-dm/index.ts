@@ -214,6 +214,7 @@ interface DMRequest {
   user_xai_key?: string;
   coreRulesInGuides?: boolean;
   narrationStylePrompt?: string;
+  partyMode?: boolean;
   /** Chat Rounds / Live DM hand-off: table rules + comedic chaos dial. */
   liveTable?: {
     mode?: 'chat' | 'live';

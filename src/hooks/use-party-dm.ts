@@ -1620,26 +1620,16 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         user_perplexity_key: loadApiKey('perplexity') || undefined,
         user_xai_key: loadApiKey('xai') || undefined,
         narrationStylePrompt: narrationStyleBlock || undefined,
+        partyMode: true,
         liveTable: liveTable || undefined,
 
         ...(() => {
           const cs = loadCombatSettings();
-          const feats: string[] = [];
-          if (cs.hasGreatWeaponMaster) feats.push('Great Weapon Master');
-          if (cs.hasSharpshooter) feats.push('Sharpshooter');
-          if (cs.hasSentinel) feats.push('Sentinel');
-          if (cs.hasPolearmMaster) feats.push('Polearm Master');
-          if (cs.hasDualWielderFeat) feats.push('Dual Wielder');
-          if (cs.hasTwoWeaponFightingStyle) feats.push('Two-Weapon Fighting Style');
-          if (cs.hasMonkMartialArts) feats.push('Monk Martial Arts');
-          const drift = loadAlignmentDrift();
           return {
             encounterGuidance: formatPartyPowerForPrompt(
               partyMembers.map(m => Number((m.character_status as any)?.level) || 1),
               cs.difficultyPreference
             ) || undefined,
-            combatFeats: feats.length > 0 ? feats : undefined,
-            alignmentContext: drift ? { law: drift.position.law, good: drift.position.good, zone: drift.zone } : undefined,
           };
         })(),
       }),
