@@ -1067,7 +1067,10 @@ export function useMessageNarration(
       };
       const { error: insertError } = await (supabase.from('party_message_audio') as any)
         .upsert(row, { onConflict: 'message_id,part' });
-      if (insertError) throw insertError;
+      if (insertError) {
+        void discardClipFile(audioUrl); // the new file was never used
+        throw insertError;
+      }
 
       const savedRow: MessageAudioRow = {
         message_id: messageId,
@@ -1085,6 +1088,8 @@ export function useMessageNarration(
         ...audioMapRef.current,
         [narrationKey(messageId, part)]: savedRow,
       };
+      // The old take is gone for good: delete its file and this device's saved copy.
+      if (previousUrl && previousUrl !== audioUrl) void discardClipFile(previousUrl);
 
       // 3b. Remember the cast take this recording is covering. Nothing is
       // deleted, so "Revert to cast voice" can bring it straight back.
@@ -1112,7 +1117,7 @@ export function useMessageNarration(
       toast.error(error instanceof Error ? error.message : 'Could not save recording');
       throw error;
     }
-  }, [partyId, currentUserId, currentUserName, publishOverrides]);
+  }, [partyId, currentUserId, currentUserName, publishOverrides, uploadClipFile, discardClipFile]);
 
   /**
    * Swaps a self-recorded piece back to the Speechify take it covered.
