@@ -34,6 +34,7 @@ import {
   clipKey,
   listCachedClips,
   offlineCacheSize,
+  removeCachedClip,
   resolvePlaybackUrl,
 } from '@/lib/narrationOfflineCache';
 import { buildMessageAudioBlob, narrationFileName, saveAudioFile } from '@/lib/narrationDownload';
@@ -139,6 +140,22 @@ interface UseMessageNarrationReturn {
   clearOffline: () => Promise<void>;
 }
 
+
+const NARRATION_BUCKET = 'party-chat-audio';
+
+/** Bucket path of a saved clip, read from its public URL (host and ?v= dropped). */
+function storagePathFromUrl(url?: string | null): string | null {
+  if (!url) return null;
+  const marker = `/object/public/${NARRATION_BUCKET}/`;
+  const at = url.indexOf(marker);
+  if (at === -1) return null;
+  const path = url.slice(at + marker.length).split('?')[0];
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
+}
 
 /**
  * Per-message narration for party DM messages.
@@ -518,20 +535,49 @@ export function useMessageNarration(
     return new Blob(blobs, { type: 'audio/mpeg' });
   }, []);
 
+  /** Uploads a take to a brand-new file, so no cache can ever replay an older take. */
+  const uploadClipFile = useCallback(async (
+    messageId: string,
+    part: NarrationPart,
+    blob: Blob,
+    ext: string,
+    contentType: string,
+  ): Promise<string> => {
+    const path = `${partyId}/narration/${messageId}-${part}-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage
+      .from(NARRATION_BUCKET)
+      .upload(path, blob, { contentType, upsert: false });
+    if (error) throw error;
+    const { data } = supabase.storage.from(NARRATION_BUCKET).getPublicUrl(path);
+    return data.publicUrl;
+  }, [partyId]);
+
+  /** Best effort: deletes a replaced or deleted clip's file and this device's saved copy. Never throws. */
+  const discardClipFile = useCallback(async (url?: string | null) => {
+    if (!url) return;
+    try {
+      await removeCachedClip(url);
+    } catch {
+      /* ignore */
+    }
+    const path = storagePathFromUrl(url);
+    if (!path) return;
+    const { error } = await supabase.storage.from(NARRATION_BUCKET).remove([path]);
+    if (error) console.warn('[MessageNarration] could not delete old clip file:', error);
+  }, []);
+
   const storeClip = useCallback(async (
     messageId: string,
     part: NarrationPart,
     blob: Blob,
     voiceId: string,
   ) => {
-    const path = `${partyId}/narration/${messageId}-${part}.mp3`;
-    const { error: uploadError } = await supabase.storage
-      .from('party-chat-audio')
-      .upload(path, blob, { contentType: 'audio/mpeg', upsert: true });
-    if (uploadError) throw uploadError;
-
-    const { data: urlData } = supabase.storage.from('party-chat-audio').getPublicUrl(path);
-    const audioUrl = `${urlData.publicUrl}?v=${Date.now()}`;
+    const key = narrationKey(messageId, part);
+    // The clip this save replaces, so its file can be cleaned up afterwards.
+    const previousUrl = audioMapRef.current[key]?.audio_url || null;
+    // Speechify clips are MP3. An Undo restore of a mic take keeps its real format.
+    const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('webm') ? 'webm' : 'mp3';
+    const audioUrl = await uploadClipFile(messageId, part, blob, ext, blob.type || 'audio/mpeg');
 
     const row = {
       party_id: partyId,
@@ -545,20 +591,25 @@ export function useMessageNarration(
     };
     const { error: insertError } = await (supabase.from('party_message_audio') as any)
       .upsert(row, { onConflict: 'message_id,part' });
-    if (insertError) throw insertError;
+    if (insertError) {
+      void discardClipFile(audioUrl); // the new file was never used
+      throw insertError;
+    }
 
-    setAudioByMessage((prev) => ({
-      ...prev,
-      [narrationKey(messageId, part)]: {
-        message_id: messageId,
-        part,
-        audio_url: audioUrl,
-        voice_id: voiceId,
-        created_by: currentUserId || '',
-        created_by_name: currentUserName || null,
-      },
-    }));
-  }, [partyId, currentUserId, currentUserName]);
+    const savedRow: MessageAudioRow = {
+      message_id: messageId,
+      part,
+      audio_url: audioUrl,
+      voice_id: voiceId,
+      created_by: currentUserId || '',
+      created_by_name: currentUserName || null,
+    };
+    setAudioByMessage((prev) => ({ ...prev, [key]: savedRow }));
+    audioMapRef.current = { ...audioMapRef.current, [key]: savedRow };
+
+    // The replaced take is gone for good: delete its file and this device's copy.
+    if (previousUrl && previousUrl !== audioUrl) void discardClipFile(previousUrl);
+  }, [partyId, currentUserId, currentUserName, uploadClipFile, discardClipFile]);
 
   /**
    * Runs a full cast pass: the DM aside in the DM voice, then every story
