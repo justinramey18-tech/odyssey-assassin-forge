@@ -593,7 +593,7 @@ function buildLiveTableBlock(lt?: DMRequest['liveTable']): string {
 
 // ── System Prompt Builder ──────────────────────────────────────────────────────
 
-function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>, responseModePrompt?: string, partyContext?: string, recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>, recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>, coreRulesInGuides?: boolean, narrationStylePrompt?: string): string {
+function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>, responseModePrompt?: string, partyContext?: string, recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>, recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>, coreRulesInGuides?: boolean, narrationStylePrompt?: string, partyMode?: boolean): string {
   const contextSummary = buildContextSummary(ctx);
   
   let prompt = '';
@@ -623,14 +623,14 @@ AFK personality guides (wrapped in <<...>>) describe how to roleplay absent char
     prompt += `\n\n## MEMORY ANCHORS (ESTABLISHED CONTINUITY FACTS)\nPersistent campaign facts — who is who, NPCs, relationships, mounts/companions, locations, quest flags, unresolved consequences, world state. Treat as established continuity. Never contradict unless an OOC directive or GM Guide explicitly updates them. If older chat conflicts, the anchors win.\n\n${trimmedAnchors}`;
   }
 
-  prompt += `\n\n## CURRENT CHARACTER STATE
-${contextSummary}
-`;
+  prompt += partyMode
+    ? `\n\n## HOST'S OWN CHARACTER (ONE PLAYER AMONG SEVERAL)\nThis is the sheet of the player who is hosting. It is NOT "the player" and NOT the protagonist — every character listed under PARTY MEMBERS in SESSION CONTEXT has equal weight. Use this block only for this one character's own numbers.\n${contextSummary}\n`
+    : `\n\n## CURRENT CHARACTER STATE\n${contextSummary}\n`;
 
   if (!coreRulesInGuides) {
     prompt += `
 ## DM BASICS
-- Run D&D 5e combat, exploration, social encounters, and roleplay. Describe scenes with sensory detail. Control all NPCs, enemies, and environment with distinct voices. Track scene continuity across the whole conversation. Calibrate to the character's level (${ctx.level}) and capabilities.
+- Run D&D 5e combat, exploration, social encounters, and roleplay. Describe scenes with sensory detail. Control all NPCs, enemies, and environment with distinct voices. Track scene continuity across the whole conversation. ${partyMode ? "Calibrate to the levels listed under PARTY MEMBERS." : `Calibrate to the character's level (${ctx.level}) and capabilities.`}
 - Mechanics: When a check is needed, state exactly what to roll and the DC ("Perception check, DC 14"). Apply advantage/disadvantage and condition effects correctly. Track action economy in combat (Action, Bonus, Reaction, Movement). Reference the character's actual abilities, spells, and gear by name.
 - Combat: Ask for initiative when it begins. Enemy turns should be tactical, not mindless. Describe hits/misses cinematically. Track enemy HP internally, describe condition narratively (bloodied, staggering). Use legendary/lair actions for bosses. Describe aftermath and loot.
 - Never control the player character's actions, thoughts, or speech — describe world and NPCs only. Wait for player input before resolving their actions. Ask for the roll before describing the outcome. Be fair, not adversarial. Reward creative solutions.
