@@ -1362,6 +1362,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   useEffect(() => {
     const saved = loadAutoSave();
     if (saved && saved.character.name) {
+      localSavedAtRef.current = saved.savedAt ?? null;
       setCharacter(saved.character);
       setEquipment(saved.equipment);
       setAchievements(saved.achievements);
@@ -1416,7 +1417,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   }, [activeCloudSaveId, renameSave, partySync.party.partyId, user?.id, toast, autoSync]);
 
   // Handle loading cloud save - RESTORES ALL CHARACTER STATE
-  const handleLoadCloudSave = useCallback(async (data: SaveData, saveId?: string) => {
+  const handleLoadCloudSave = useCallback(async (data: SaveData, saveId?: string, opts?: { skipPreSave?: boolean }) => {
     const previousActiveSaveId = activeCloudSaveId;
     console.log('[CloudSave] Loading character:', data.character.name, 'saveId:', saveId, 'previousSaveId:', previousActiveSaveId);
 
@@ -1425,14 +1426,16 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     // Flush any pending auto-save for current character BEFORE updating the active save ID.
     // If we set the save ID first, getScopedKey() would read the NEW character's scoped keys,
     // causing the pre-switch save to capture the wrong character's localStorage data.
-    try {
-      await autoSync.pendingFlush();
-      if (character.name?.trim()) {
-        await saveToCloud(saveData, character.name, previousActiveSaveId ?? undefined);
-        console.log('[CloudSave] Saved current character to cloud before switching');
+    if (!opts?.skipPreSave) {
+      try {
+        await autoSync.pendingFlush();
+        if (character.name?.trim()) {
+          await saveToCloud(saveData, character.name, previousActiveSaveId ?? undefined);
+          console.log('[CloudSave] Saved current character to cloud before switching');
+        }
+      } catch (e) {
+        console.warn('[CloudSave] Pre-switch cloud save failed:', e);
       }
-    } catch (e) {
-      console.warn('[CloudSave] Pre-switch cloud save failed:', e);
     }
 
     // NOW safe to update the active save ID for the incoming character
@@ -1689,6 +1692,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   // Uses DIRECT state restoration — NOT handleLoadCloudSave which would
   // sync the empty default character to cloud (overwriting real data) and reload
   const hasAttemptedCloudRestore = useRef(false);
+  const localSavedAtRef = useRef<string | null>(null);
+  const hasCheckedCloudNewer = useRef(false);
   useEffect(() => {
     if (hasHydratedFromRoster.current) return; // Roster already handled it
     // The player asked for a NEW character. Restoring the most recent save here
@@ -1852,6 +1857,39 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       }
     })();
   }, [showWizard, authLoading, isAuthenticated, user, loadFromCloud, abilityScores, setPrestigeData, customBackground, toast]);
+
+  // Local-first boot is wrong when the same character was played on another device
+  // more recently. If the cloud row is newer than the snapshot we booted from,
+  // restore from the cloud instead of auto-saving the stale snapshot over it.
+  useEffect(() => {
+    if (hasCheckedCloudNewer.current) return;
+    if (showWizard || authLoading || !isAuthenticated || !user) return;
+    const localSavedAt = localSavedAtRef.current;
+    const saveId = activeCloudSaveId;
+    if (!localSavedAt || !saveId) return;
+    hasCheckedCloudNewer.current = true;
+    (async () => {
+      try {
+        const { data: row } = await supabase
+          .from('character_saves')
+          .select('updated_at')
+          .eq('id', saveId)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (!row?.updated_at) return;
+        const cloudMs = new Date(row.updated_at).getTime();
+        const localMs = new Date(localSavedAt).getTime();
+        if (!Number.isFinite(cloudMs) || !Number.isFinite(localMs) || cloudMs - localMs < 5000) return;
+        const cloudData = await loadFromCloud(saveId);
+        if (!cloudData) return;
+        console.log('[CloudSave] Cloud save is newer than the local snapshot — restoring from cloud');
+        await handleLoadCloudSave(cloudData, saveId, { skipPreSave: true });
+      } catch (e) {
+        console.warn('[CloudSave] Newer-cloud check failed:', e);
+      }
+    })();
+  }, [showWizard, authLoading, isAuthenticated, user, activeCloudSaveId, loadFromCloud, handleLoadCloudSave]);
+
 
   // Calculate unlocked abilities map for drawer
   const unlockedAbilities = useMemo(() => {
