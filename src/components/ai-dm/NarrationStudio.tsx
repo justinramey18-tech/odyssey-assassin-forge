@@ -236,7 +236,7 @@ export function NarrationStudio({
             : seg.speaker || 'Narrator',
         covering: cover ? (cover.previousLabel || 'cast voice') : null,
         canRevert: !!cover,
-        audio: savedRecordings[part] || narrationMap[narrationKey(messageId, part)],
+        audio: narrationMap[narrationKey(messageId, part)] || savedRecordings[part],
       });
     }
     return orderedParts.map((p) => byPart.get(p)).filter((r): r is StudioRow => !!r);
@@ -434,7 +434,16 @@ export function NarrationStudio({
       if (res.ok) snap.deleted.push({ part: row.audio.part, blob: await res.blob(), voiceId: row.audio.voice_id || '' });
     } catch { /* undo simply cannot restore this one */ }
     pushHistory(snap);
-    onDeletePart(row.audio.part);
+    const deletedPart = row.audio.part;
+    onDeletePart(deletedPart);
+    // Forget the local copy too, or the deleted recording keeps showing.
+    setSavedRecordings((current) => {
+      if (!(deletedPart in current) && !(row.part in current)) return current;
+      const next = { ...current };
+      delete next[deletedPart];
+      delete next[row.part];
+      return next;
+    });
     bump();
   }, [onDeletePart, pushHistory, takeSnapshot, bump]);
 
@@ -500,7 +509,7 @@ export function NarrationStudio({
         )}
         {canGenerate && onDeleteAll && (
           <button
-            onClick={onDeleteAll}
+            onClick={() => { setSavedRecordings({}); onDeleteAll?.(); }}
             style={{ touchAction: 'manipulation' }}
             className="p-2 rounded-full text-muted-foreground hover:text-destructive"
             title="Delete every clip for this message"
