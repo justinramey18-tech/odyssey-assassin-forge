@@ -52,6 +52,9 @@ import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { AbilityName, BaseAbilityScores, AbilityScoreBreakdown } from '@/lib/abilityScores/types';
 
+/** sessionStorage key: which DM to reopen after a character switch remounts this provider. */
+const REOPEN_AFTER_SWITCH_KEY = 'odyssey-reopen-dm-after-switch';
+
 const DOMAIN_NAME_MAP: Record<string, string> = {
   life: 'Life', light: 'Light', war: 'War', knowledge: 'Knowledge',
   nature: 'Nature', tempest: 'Tempest', trickery: 'Trickery', death: 'Death',
@@ -346,9 +349,13 @@ export function PromptDrawerProvider({
     }
 
     setPendingMode(mode);
+    // The switch below remounts this provider (Index swaps in a full-screen overlay),
+    // so remember what to open and let the fresh instance do it.
+    try { sessionStorage.setItem(REOPEN_AFTER_SWITCH_KEY, JSON.stringify({ mode, at: Date.now() })); } catch { /* ignore */ }
     try {
       const ok = await onSwitchCharacterSave(target);
       if (!ok) {
+        try { sessionStorage.removeItem(REOPEN_AFTER_SWITCH_KEY); } catch { /* ignore */ }
         // The remembered character is gone or unreadable: forget it so the next
         // open falls back to whoever is active instead of failing again.
         setBoundSaveId(mode, null);
@@ -375,6 +382,20 @@ export function PromptDrawerProvider({
     window.addEventListener('odyssey-navigate-tab', handleNavigateTab);
     return () => window.removeEventListener('odyssey-navigate-tab', handleNavigateTab);
   }, [closeAllDrawers]);
+
+  // After a character switch remounts this provider, reopen the DM the player asked for.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(REOPEN_AFTER_SWITCH_KEY);
+      if (!raw) return;
+      sessionStorage.removeItem(REOPEN_AFTER_SWITCH_KEY);
+      const { mode, at } = JSON.parse(raw) as { mode?: string; at?: number };
+      if (!at || Date.now() - at > 15000) return;
+      if (mode === 'party') setPartyDMOpen(true);
+      else if (mode === 'solo') setAiDMOpen(true);
+    } catch { /* ignore */ }
+  }, []);
+
 
 
   // Edge swipe detection
