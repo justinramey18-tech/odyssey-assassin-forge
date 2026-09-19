@@ -480,6 +480,7 @@ export function useRoundChat(
     sendMessage,
     deleteMessage,
     editMessage,
+    clearAllMessages,
 
     toggleReaction,
     pendingMessages,
