@@ -316,6 +316,18 @@ export function NarrationStudio({
     saveOrder(without);
   }, [orderedParts, saveOrder]);
 
+  /** After voicing changes a piece's key, keep its slot in a custom order (no-op in story order). */
+  const keepSlotForNewVoice = useCallback((oldPart: string, voiceId: string, text: string) => {
+    const current = loadStudioState(messageId);
+    if (!current.order || current.order.length === 0) return;
+    const next = splitStorySegments(story || content || '', messageId);
+    const want = loose(text);
+    const found = next.find((s) => s.manual && s.voiceId === voiceId
+      && (loose(s.text) === want || loose(s.text).includes(want) || want.includes(loose(s.text))));
+    if (found) replaceInOrder([oldPart], [segmentKey(found)]);
+  }, [messageId, story, content, replaceInOrder]);
+
+
   const move = useCallback((part: string, dir: -1 | 1) => {
     if (!canGenerate) return;
     pushHistory(takeSnapshot());
@@ -366,6 +378,7 @@ export function NarrationStudio({
     removeMatchingOverride(seg);
     if (assignOnly) {
       addNarrationOverride(messageId, { text: seg.text.trim(), voiceId, label });
+      keepSlotForNewVoice(segmentKey(seg), voiceId, seg.text.trim());
       onShareVoices?.();
       bump();
       toast.success(`Assigned to ${label}`, { description: 'It will be voiced on the next narration run.' });
@@ -374,11 +387,13 @@ export function NarrationStudio({
     if (!onVoiceSegment) return;
     try {
       await onVoiceSegment(seg.text.trim(), voiceId, label);
+      keepSlotForNewVoice(segmentKey(seg), voiceId, seg.text.trim());
     } finally {
       onShareVoices?.();
       bump();
     }
-  }, [assignOnly, messageId, onShareVoices, onVoiceSegment, pushHistory, takeSnapshot, removeMatchingOverride, bump]);
+  }, [assignOnly, messageId, onShareVoices, onVoiceSegment, keepSlotForNewVoice, pushHistory, takeSnapshot, removeMatchingOverride, bump]);
+
 
   const voiceBatch = useCallback(async (voiceId: string, label: string) => {
     if (!onVoiceSegment && !assignOnly) return;
