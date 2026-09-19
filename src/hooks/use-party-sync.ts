@@ -562,6 +562,16 @@ export function usePartySync(): UsePartySyncReturn {
   useEffect(() => {
     if (!party.partyId || !user) return;
 
+    const partyIdAtSubscribe = party.partyId;
+    const refetchMembers = async () => {
+      const { data } = await supabase
+        .from('party_members')
+        .select('*')
+        .eq('party_id', partyIdAtSubscribe) as { data: PartyMember[] | null };
+      if (!data) return;
+      setParty(prev => (prev.partyId === partyIdAtSubscribe ? { ...prev, members: data } : prev));
+    };
+
     // Subscribe to party member changes
     const membersChannel = supabase
       .channel(`party-members-${party.partyId}`)
@@ -589,7 +599,7 @@ export function usePartySync(): UsePartySyncReturn {
             const updated = payload.new as PartyMember;
             setParty(prev => ({
               ...prev,
-              members: prev.members.map(m => m.id === updated.id ? updated : m),
+              members: prev.members.map(m => m.user_id === updated.user_id ? updated : m),
             }));
           } else if (payload.eventType === 'DELETE') {
             const old = payload.old as { id: string; user_id?: string };
@@ -604,7 +614,16 @@ export function usePartySync(): UsePartySyncReturn {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        // Fresh snapshot on every (re)subscribe — covers events missed while offline
+        // and replaces createParty's client-generated placeholder row.
+        if (status === 'SUBSCRIBED') void refetchMembers();
+      });
+
+    const onMembersVisible = () => {
+      if (document.visibilityState === 'visible') void refetchMembers();
+    };
+    document.addEventListener('visibilitychange', onMembersVisible);
 
     // Subscribe to incoming heal actions
     const actionsChannel = supabase
@@ -951,6 +970,7 @@ export function usePartySync(): UsePartySyncReturn {
       .subscribe();
 
     return () => {
+      document.removeEventListener('visibilitychange', onMembersVisible);
       supabase.removeChannel(membersChannel);
       supabase.removeChannel(actionsChannel);
       supabase.removeChannel(sentActionsChannel);
