@@ -2547,13 +2547,23 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   const editMessage = useCallback(async (messageId: string, newContent: string) => {
     if (!partyId || !isCreator) return;
+    // The editor only ever shows the stripped narrative. Re-attach the hidden
+    // blocks (per-player whispers, roll prompts, tactics) from the stored row so
+    // an edit never deletes them for the rest of the party.
+    const HIDDEN_BLOCK_RE = /<!--(ACTION|TACTICS|WHISPER:[^>]+?)-->[\s\S]*?<!--\/\1-->/g;
+    const original = messages.find(m => m.id === messageId);
+    const hidden = original ? (original.content.match(HIDDEN_BLOCK_RE) ?? []) : [];
+    const missing = hidden.filter(block => !newContent.includes(block));
+    const finalContent = missing.length > 0
+      ? `${newContent.trimEnd()}\n\n${missing.join('\n')}`
+      : newContent;
     await (supabase.from('party_dm_messages') as any)
-      .update({ content: newContent })
+      .update({ content: finalContent })
       .eq('id', messageId)
       .eq('party_id', partyId);
-    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content: newContent } : m));
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content: finalContent } : m));
     toast.success('Message updated');
-  }, [partyId, isCreator]);
+  }, [partyId, isCreator, messages]);
 
   const deleteMessage = useCallback(async (messageId: string) => {
     if (!partyId || !isCreator) return;
