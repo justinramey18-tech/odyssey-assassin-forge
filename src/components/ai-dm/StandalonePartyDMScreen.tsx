@@ -986,6 +986,12 @@ ${truncated}`);
           onRestOccurred={autoSyncCallbacks?.onRestOccurred}
           onUseConsumableByName={autoSyncCallbacks?.onUseConsumableByName}
           swipeHandlers={swipeHandlers}
+          onRequestCharacterRedo={(() => {
+            const myMember = partyMembers.find(m => m.user_id === userId);
+            const myStatus = (myMember as any)?.onboarding_status || 'pending';
+            if (isPartyCreator || myStatus !== 'complete') return undefined;
+            return () => setShowRedoDialog(true);
+          })()}
           onOpenDirector={partyId && userId ? () => setShowDirectorScreen(true) : undefined}
             const myMember = partyMembers.find(m => m.user_id === userId);
             const myStatus = (myMember as any)?.onboarding_status || 'pending';
