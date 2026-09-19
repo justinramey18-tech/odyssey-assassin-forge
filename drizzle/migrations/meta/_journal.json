@@ -15,6 +15,13 @@
       "when": 1789753225869,
       "tag": "0001_narration_audio_update_delete_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789782758304,
+      "tag": "0002_party_message_audio_update_policy",
+      "breakpoints": true
     }
   ]
 }
