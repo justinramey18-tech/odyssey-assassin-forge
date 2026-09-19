@@ -1665,7 +1665,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     // Mark consumed private_actions after successful generation (do not block response on errors)
     if (partyId && Object.keys(directorPrivatesMap).length > 0) {
       try {
-        await (supabase as any)
+        const { error: consumeErr } = await (supabase as any)
           .from('party_director_messages')
           .update({
             consumed_by_dm: true,
@@ -1675,6 +1675,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           .eq('category', 'private_action')
           .eq('consumed_by_dm', false)
           .eq('role', 'user');
+        if (consumeErr) console.error('[party-dm] mark consumed failed:', consumeErr);
       } catch (e) {
         console.error('[party-dm] mark consumed failed:', e);
       }
