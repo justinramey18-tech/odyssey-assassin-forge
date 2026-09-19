@@ -8,7 +8,7 @@ import {
   type NarrationSegment,
 } from '@/lib/tts-utils';
 import { NarrationStudio } from './NarrationStudio';
-import { narrationKey, type CastProgress, type MessageAudioRow, type NarrationPart } from '@/hooks/use-message-narration';
+import { narrationKey, type CastProgress, type MessageAudioRow, type NarrationPart, type RecordedClipResult } from '@/hooks/use-message-narration';
 import { cn } from '@/lib/utils';
 
 interface MessageNarrationBarProps {
@@ -26,12 +26,12 @@ interface MessageNarrationBarProps {
   canGenerate?: boolean;
   onNarrate: (messageId: string, text: string, part: NarrationPart) => void;
   onNarrateCast: (messageId: string, content: string) => void;
-  onPlay: (messageId: string, part: NarrationPart) => void;
+  onPlay: (messageId: string, part: NarrationPart, rate?: number) => void;
   onPlayAll: (messageId: string, content: string) => void;
   onDelete?: (messageId: string, part: NarrationPart) => void;
   onDeleteAll?: (messageId: string) => void;
   /** Saves a mic recording for one piece of the story. */
-  onRecordSegment?: (messageId: string, content: string, passage: string, blob: Blob, label?: string, hint?: NarrationSegment) => Promise<void>;
+  onRecordSegment?: (messageId: string, content: string, passage: string, blob: Blob, label?: string, hint?: NarrationSegment) => Promise<RecordedClipResult>;
   /** Swaps a self-recorded piece back to the cast voice it covered. */
   onRevertToCastVoice?: (messageId: string, part: NarrationPart) => Promise<void>;
   /** Synthesizes ONE piece of the story in the chosen voice. */
@@ -172,7 +172,7 @@ export function MessageNarrationBar({
         speakingName={speakingName}
         canGenerate={canGenerate}
         onNarrateTable={() => onNarrate(messageId, tableTalk, 'table')}
-        onPlay={(part) => onPlay(messageId, part)}
+        onPlay={(part, rate) => onPlay(messageId, part, rate)}
         onPlayAll={() => onPlayAll(messageId, content)}
         onDeletePart={canDelete && onDelete ? (part) => onDelete(messageId, part) : undefined}
         onDeleteAll={canDelete && onDeleteAll ? () => onDeleteAll(messageId) : undefined}

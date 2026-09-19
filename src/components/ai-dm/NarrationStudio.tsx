@@ -40,7 +40,7 @@ import {
   type NarrationStudioState,
   type VoiceCastEntry,
 } from '@/lib/tts-utils';
-import { narrationKey, type MessageAudioRow, type NarrationPart } from '@/hooks/use-message-narration';
+import { narrationKey, type MessageAudioRow, type NarrationPart, type RecordedClipResult } from '@/hooks/use-message-narration';
 import { PartyDMAudioRecorder } from './PartyDMAudioRecorder';
 import { cn } from '@/lib/utils';
 
@@ -88,12 +88,12 @@ interface NarrationStudioProps {
   /** Host/co-host: everything. Others: listen, speeds, record their own voice. */
   canGenerate: boolean;
   onNarrateTable: () => void;
-  onPlay: (part: NarrationPart) => void;
+  onPlay: (part: NarrationPart, rate?: number) => void;
   onPlayAll: () => void;
   onDeletePart?: (part: NarrationPart) => void;
   onDeleteAll?: () => void;
   onVoiceSegment?: (passage: string, voiceId: string, label?: string) => Promise<void>;
-  onRecordSegment?: (passage: string, blob: Blob, hint?: NarrationSegment) => Promise<void>;
+  onRecordSegment?: (passage: string, blob: Blob, hint?: NarrationSegment) => Promise<RecordedClipResult>;
   /** Swaps a self-recorded piece back to the cast voice it covered. */
   onRevertToCastVoice?: (part: NarrationPart) => Promise<void>;
   onShareVoices?: () => void;
@@ -136,6 +136,7 @@ export function NarrationStudio({
   const [splitFor, setSplitFor] = useState<string | null>(null);
   const [recordFor, setRecordFor] = useState<string | null>(null);
   const [savingRecording, setSavingRecording] = useState(false);
+  const [savedRecordings, setSavedRecordings] = useState<Record<string, MessageAudioRow>>({});
   const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
   const historyRef = useRef<Snapshot[]>([]);
   const [, setHistoryTick] = useState(0);
@@ -156,6 +157,7 @@ export function NarrationStudio({
       setSelected(new Set());
       setVoiceSheetFor(null);
       setSplitFor(null);
+      setSavedRecordings({});
     }
   }, [open, messageId]);
 
@@ -234,11 +236,11 @@ export function NarrationStudio({
             : seg.speaker || 'Narrator',
         covering: cover ? (cover.previousLabel || 'cast voice') : null,
         canRevert: !!cover,
-        audio: narrationMap[narrationKey(messageId, part)],
+        audio: savedRecordings[part] || narrationMap[narrationKey(messageId, part)],
       });
     }
     return orderedParts.map((p) => byPart.get(p)).filter((r): r is StudioRow => !!r);
-  }, [tableTalk, segments, narrationMap, messageId, orderedParts, overrideLabelFor, displaced]);
+  }, [tableTalk, segments, narrationMap, messageId, orderedParts, overrideLabelFor, displaced, savedRecordings]);
 
   const resolvedVoiceFor = useCallback((seg: NarrationSegment): { voiceId: string; label: string } => {
     if (seg.voiceId && !isSelfRecordedVoice(seg.voiceId)) {
@@ -532,6 +534,7 @@ export function NarrationStudio({
                 'rounded-xl border p-3 space-y-2',
                 row.kind === 'table' ? 'border-amber-500/25 bg-amber-950/15' : 'border-border/40 bg-card/40',
                 checked && 'border-violet-500/50',
+                isPlaying && 'border-emerald-400/70 bg-emerald-950/30 ring-1 ring-emerald-400/30',
               )}
             >
               <div className="flex items-start gap-2">
@@ -603,7 +606,7 @@ export function NarrationStudio({
               {/* Controls */}
               <div className="flex flex-wrap items-center gap-1.5">
                 <button
-                  onClick={() => row.audio && onPlay(row.audio.part)}
+                  onClick={() => row.audio && onPlay(row.audio.part, rate)}
                   disabled={!row.audio}
                   style={{ touchAction: 'manipulation' }}
                   className={cn(
@@ -845,9 +848,11 @@ export function NarrationStudio({
             pushHistory(takeSnapshot());
             try {
               // Hand the exact piece over: no guessing from the words.
-              await onRecordSegment(row.seg.text.trim(), file, row.seg);
+              const saved = await onRecordSegment(row.seg.text.trim(), file, row.seg);
+              setSavedRecordings((current) => ({ ...current, [saved.part]: saved.row }));
               setRecordFor(null);
               bump();
+              toast.success('Recording saved for that piece');
             } catch (error) {
               // Keep the recorder open so the take can be sent again.
               console.error('[NarrationStudio] saving recording failed:', error);
