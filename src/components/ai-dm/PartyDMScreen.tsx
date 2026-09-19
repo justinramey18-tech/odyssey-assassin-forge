@@ -178,6 +178,7 @@ interface PartyDMScreenProps {
   swipeHandlers?: SwipeHandlers;
   /** Player redo request (non-host only, when eligible) */
   onRequestCharacterRedo?: () => void;
+  onOpenDirector?: () => void;
   hasPendingRedoRequest?: boolean;
 }
 
@@ -2356,6 +2357,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onShowNpcScene={() => setShowNpcScene(true)}
               onShowOocChat={onShowOocChat}
               onRequestCharacterRedo={onRequestCharacterRedo}
+              onOpenDirector={onOpenDirector}
               hasPendingRedoRequest={hasPendingRedoRequest}
               chatBackground={chatBackground.background}
               onChatBackgroundUpload={chatBackground.handleImageUpload}
