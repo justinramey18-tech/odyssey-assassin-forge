@@ -2478,7 +2478,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   );
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
+    <div id="party-dm-screen-root" className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
       {/* Header */}
       {/* Row 1: Main Header */}
       {!isFullscreen && (
