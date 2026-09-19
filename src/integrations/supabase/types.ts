@@ -74,6 +74,21 @@ export type Database = {
         }
         Relationships: []
       }
+      bridge_scratch_test: {
+        Row: {
+          id: number
+          note: string | null
+        }
+        Insert: {
+          id: number
+          note?: string | null
+        }
+        Update: {
+          id?: number
+          note?: string | null
+        }
+        Relationships: []
+      }
       campaign_analytics: {
         Row: {
           created_at: string
