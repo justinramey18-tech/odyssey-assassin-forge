@@ -44,6 +44,7 @@ import {
   type VoiceCastEntry,
 } from '@/lib/tts-utils';
 import { narrationKey, type MessageAudioRow, type NarrationPart, type RecordedClipResult } from '@/hooks/use-message-narration';
+import { Slider } from '@/components/ui/slider';
 import { PartyDMAudioRecorder } from './PartyDMAudioRecorder';
 import { cn } from '@/lib/utils';
 
@@ -58,7 +59,6 @@ function splitSentences(text: string): string[] {
   return list.length > 0 ? list : [plain];
 }
 
-const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
 interface StudioRow {
   part: string;
@@ -730,16 +730,30 @@ export function NarrationStudio({
                   </button>
                 )}
 
-                <select
-                  value={rate ?? 1}
-                  onChange={(e) => setRate(row.part, Number(e.target.value))}
-                  className="ml-auto bg-muted/20 border border-border/40 rounded-full px-2 py-1.5 text-[11px] text-foreground"
-                  title="Play speed for this piece (this device only)"
-                >
-                  {SPEED_OPTIONS.map((s) => (
-                    <option key={s} value={s}>{s}x</option>
-                  ))}
-                </select>
+                <div className="ml-auto flex items-center gap-1.5">
+                  <Slider
+                    min={0.5}
+                    max={2}
+                    step={0.05}
+                    value={[rate ?? 1]}
+                    onValueChange={([v]) => setRate(row.part, Math.round(v * 100) / 100)}
+                    className="w-20"
+                    title="Play speed for this piece (this device only)"
+                  />
+                  <button
+                    onClick={() => setRate(row.part, 1)}
+                    style={{ touchAction: 'manipulation' }}
+                    className={cn(
+                      'w-11 shrink-0 py-1 rounded-full border text-[10px] font-mono transition-colors',
+                      rate && rate !== 1
+                        ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                        : 'border-border/40 bg-muted/20 text-muted-foreground',
+                    )}
+                    title="Tap to reset to 1x (the global narration speed)"
+                  >
+                    {(rate ?? 1).toFixed(2)}x
+                  </button>
+                </div>
               </div>
 
               {/* Split point picker */}
