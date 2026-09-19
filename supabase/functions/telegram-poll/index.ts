@@ -1396,7 +1396,7 @@ async function processCommand(
           const cs = m.character_status as any;
           const className = cs?.className || cs?.class || '?';
           const level = cs?.level || '?';
-          const currentHP = cs?.currentHP || '?';
+          const currentHP = typeof cs?.currentHP === 'number' ? cs.currentHP : '?';
           const maxHP = cs?.maxHP || '?';
           const isHost = m.user_id === party?.created_by;
           const hostBadge = isHost ? ' 👑' : '';

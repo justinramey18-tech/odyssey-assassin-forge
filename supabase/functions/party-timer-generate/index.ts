@@ -27,7 +27,7 @@ Return ONLY JSON: {"mode":"...","spine":"...","focusCharacter":"...","fusedPromp
 function buildServerSystemPrompt(partyMembers: Array<{ character_name: string; character_status: Record<string, unknown> }>, campaignSummary: string | null, customGuides: string | null): string {
   const membersSummary = partyMembers.map(m => {
     const s = m.character_status || {};
-    return `- ${m.character_name} (Level ${s.level || '?'} ${s.className || 'Adventurer'}, ${s.currentHP || '?'}/${s.maxHP || '?'} HP)`;
+    return `- ${m.character_name} (Level ${s.level || '?'} ${s.className || 'Adventurer'}, ${typeof s.currentHP === 'number' ? s.currentHP : '?'}/${typeof s.maxHP === 'number' ? s.maxHP : '?'} HP)`;
   }).join('\n');
 
   let prompt = `You are an expert Dungeon Master running a live D&D 5e session for a party of players. You are immersive, adaptive, and mechanically precise.
