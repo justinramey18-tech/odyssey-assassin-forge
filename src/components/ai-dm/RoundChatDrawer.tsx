@@ -591,6 +591,41 @@ export function RoundChatDrawer({
                 </div>
               )}
 
+              {/* Host-only: wipe the whole table chat */}
+              {isHost && onClearAll && messages.length > 0 && (
+                <div className="mb-1.5 flex justify-end">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex items-center gap-1.5 rounded-md border border-red-500/25 bg-red-500/10 px-2.5 py-1.5 text-[10px] text-red-300 transition-colors hover:bg-red-500/20 active:bg-red-500/25"
+                        style={{ touchAction: 'manipulation', minHeight: 48 }}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        Clear chat for everyone
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Clear the table chat?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This deletes every message in the live chat for everyone in the party. This can't be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Keep messages</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          onClick={() => { void onClearAll(); }}
+                        >
+                          Delete all
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
+
               {/* Feed — roughly half the DM chat window */}
               <div
                 ref={scrollRef}
