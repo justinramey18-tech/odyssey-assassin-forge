@@ -820,10 +820,8 @@ export function StandalonePartyDMScreen({
     if (partyDm.messages.length > 0) {
       partyDm.saveCampaign('Party Campaign', partyDm.activeCampaignId || undefined);
     }
-    // A loaded campaign brings its whole history with it. Re-seed so auto-sync
-    // treats all of it as already applied instead of replaying old awards.
-    hasSeededSyncHistory.current = false;
-    processedSyncIds.current.clear();
+    // A loaded campaign brings its whole history with it; the historyLoadedAt stamp
+    // written by loadCampaign keeps auto-sync from replaying those old awards.
     partyDm.loadCampaign(session.id, session.messages, session.campaign_summary);
   }, [partyDm.messages.length, partyDm.saveCampaign, partyDm.activeCampaignId, partyDm.loadCampaign]);
 
