@@ -363,7 +363,7 @@ CRITICAL ACCURACY RULES:
 - WORLD STATE: record an entry in world_state_changes only for outcomes that can never be undone and that the DM must honour for the rest of the campaign. A won fight, a healed wound or a bought item is NOT a world state change. Destroying an artefact, killing a named ruler, burning a city, ending a siege, or breaking a curse IS. Never repeat an outcome already recorded.
 - If no changes are found, return empty arrays and null values.
 
-CHARACTER: "${characterContext?.name || "Adventurer"}" is Level ${characterContext?.level || 1}, currently at ${characterContext?.currentHP || "?"}/${characterContext?.maxHP || "?"} HP.${companionInfo}${questInfo}`;
+CHARACTER: "${characterContext?.name || "Adventurer"}" is Level ${characterContext?.level || 1}, currently at ${typeof characterContext?.currentHP === 'number' ? characterContext.currentHP : "?"}/${typeof characterContext?.maxHP === 'number' ? characterContext.maxHP : "?"} HP.${companionInfo}${questInfo}`;
 
     // Anthropic path with tool calling
     if (user_api_key && typeof user_api_key === 'string' && user_api_key.trim()) {

@@ -31,6 +31,10 @@ function abilityMod(score: number): string {
  * already broadcasts. Without this the DM only receives name, level, class and
  * HP for everyone but the local player, and fills the gaps by inventing them.
  */
+/** HP for prompts. 0 must render as "0" (downed), never "?". */
+function fmtHP(v: unknown): string {
+  return typeof v === 'number' && Number.isFinite(v) ? String(v) : '?';
+}
 function formatPartyMemberDetail(status: Record<string, unknown>): string[] {
   const lines: string[] = [];
 
@@ -1695,7 +1699,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       const s = m.character_status as Record<string, unknown>;
       const race = s.race ? `, ${s.race}` : '';
       const ac = s.ac ? `, AC ${s.ac}` : '';
-      let line = `- ${m.character_name} — Level ${s.level || '?'} ${s.className || 'Adventurer'}${race}, ${s.currentHP || '?'}/${s.maxHP || '?'} HP${ac}`;
+      let line = `- ${m.character_name} — Level ${s.level || '?'} ${s.className || 'Adventurer'}${race}, ${fmtHP(s.currentHP)}/${fmtHP(s.maxHP)} HP${ac}${s.currentHP === 0 ? ' — DOWN at 0 HP (unconscious, making death saves)' : ''}`;
       if (isEmpyrean && partyDragonConfigs) {
         const dc = partyDragonConfigs.find(d => d.userId === m.user_id);
         if (dc) {
@@ -2081,7 +2085,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       const s = m.character_status as Record<string, unknown>;
       const race = s.race ? `, ${s.race}` : '';
       const ac = s.ac ? `, AC ${s.ac}` : '';
-      let line = `- ${m.character_name} — Level ${s.level || '?'} ${s.className || 'Adventurer'}${race}, ${s.currentHP || '?'}/${s.maxHP || '?'} HP${ac}`;
+      let line = `- ${m.character_name} — Level ${s.level || '?'} ${s.className || 'Adventurer'}${race}, ${fmtHP(s.currentHP)}/${fmtHP(s.maxHP)} HP${ac}${s.currentHP === 0 ? ' — DOWN at 0 HP (unconscious, making death saves)' : ''}`;
       if (sessionConfig?.campaignType === 'empyrean' && freshDragonConfigs) {
         const dc = freshDragonConfigs.find((d: any) => d.userId === m.user_id);
         if (dc) {
