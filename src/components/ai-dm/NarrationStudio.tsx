@@ -51,12 +51,23 @@ import { cn } from '@/lib/utils';
 /** Letters-and-digits key, immune to markdown, punctuation and smart quotes. */
 const loose = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 
-/** Splits a piece into sentence-sized chunks so a split point can be picked. */
-function splitSentences(text: string): string[] {
-  const plain = stripMarkdownForTTS(text).trim();
-  const matches = plain.match(/[^.!?…]+(?:[.!?…]+["'”’)\]]*\s*|$)/g);
-  const list = matches ? matches.map((s) => s.trim()).filter(Boolean) : [plain];
-  return list.length > 0 ? list : [plain];
+/** One word of a piece, with a flag for the words that start a sentence. */
+interface SplitWord {
+  text: string;
+  startsSentence: boolean;
+}
+
+/** Breaks a piece into words so a cut point can be picked between any two. */
+function splitWords(text: string): SplitWord[] {
+  const plain = stripMarkdownForTTS(text).replace(/\s+/g, ' ').trim();
+  if (!plain) return [];
+  const raw = plain.split(' ');
+  let sentenceBreak = false;
+  return raw.map((w, i) => {
+    const startsSentence = i > 0 && sentenceBreak;
+    sentenceBreak = /[.!?…]["'”’)\]]*$/.test(w);
+    return { text: w, startsSentence };
+  });
 }
 
 
