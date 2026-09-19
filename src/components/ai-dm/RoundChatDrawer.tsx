@@ -5,6 +5,17 @@ import { ChevronDown, Send, Smile, Trash2, MessageSquare, Loader2, CheckCircle2,
 import { AvatarCropDialog } from './AvatarCropDialog';
 
 import { Textarea } from '@/components/ui/textarea';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { parseActionCard } from '@/lib/roundChatActionCard';
 import { parseReply, quotePreview, formatReply } from '@/lib/chatReply';
@@ -78,6 +89,8 @@ interface RoundChatDrawerProps {
   onSend: (content: string, inCharacter: boolean) => void | Promise<void>;
   onToggleReaction: (messageId: string, emoji: string) => void;
   onDeleteMessage: (messageId: string) => void;
+  /** Host-only: delete every message in the table chat for everyone. */
+  onClearAll?: () => void | Promise<void>;
   /** Edit the text of a line the player already posted. */
   onEditMessage?: (messageId: string, content: string) => void | Promise<void>;
 
@@ -209,6 +222,7 @@ export function RoundChatDrawer({
   onSend,
   onToggleReaction,
   onDeleteMessage,
+  onClearAll,
   onEditMessage,
 
   onToggleSelected,
