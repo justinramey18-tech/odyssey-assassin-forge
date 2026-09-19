@@ -689,14 +689,22 @@ function applyOverrides(segments: NarrationSegment[], overrides: NarrationOverri
     const next: NarrationSegment[] = [];
     let placed = false;
     for (const seg of working) {
-      if (placed || seg.manual) { next.push(seg); continue; }
+      if (placed) { next.push(seg); continue; }
       const m = seg.text.match(matcher);
       if (!m || m.index === undefined) { next.push(seg); continue; }
       const before = seg.text.slice(0, m.index).trim();
       const after = seg.text.slice(m.index + m[0].length).trim();
-      if (before) next.push({ speaker: seg.speaker, text: before, para: seg.para });
+      // An already hand-picked piece can still be cut apart (that is how a
+      // split of a split works). The leftovers keep the parent's voice.
+      if (seg.manual && !before && !after) {
+        next.push({ ...seg, speaker: ov.label || seg.speaker || null, text: m[0].trim(), voiceId: ov.voiceId, manual: true });
+        placed = true;
+        continue;
+      }
+      const keep = { speaker: seg.speaker, voiceId: seg.voiceId, manual: seg.manual, para: seg.para };
+      if (before) next.push({ ...keep, text: before });
       next.push({ speaker: ov.label || seg.speaker || null, text: m[0].trim(), voiceId: ov.voiceId, manual: true, para: seg.para });
-      if (after) next.push({ speaker: seg.speaker, text: after, para: seg.para });
+      if (after) next.push({ ...keep, text: after });
       placed = true;
     }
     working = next;
