@@ -214,6 +214,7 @@ interface DMRequest {
   user_xai_key?: string;
   coreRulesInGuides?: boolean;
   narrationStylePrompt?: string;
+  partyMode?: boolean;
   /** Chat Rounds / Live DM hand-off: table rules + comedic chaos dial. */
   liveTable?: {
     mode?: 'chat' | 'live';
@@ -592,7 +593,7 @@ function buildLiveTableBlock(lt?: DMRequest['liveTable']): string {
 
 // ── System Prompt Builder ──────────────────────────────────────────────────────
 
-function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>, responseModePrompt?: string, partyContext?: string, recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>, recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>, coreRulesInGuides?: boolean, narrationStylePrompt?: string): string {
+function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>, responseModePrompt?: string, partyContext?: string, recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>, recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>, coreRulesInGuides?: boolean, narrationStylePrompt?: string, partyMode?: boolean): string {
   const contextSummary = buildContextSummary(ctx);
   
   let prompt = '';
@@ -622,14 +623,14 @@ AFK personality guides (wrapped in <<...>>) describe how to roleplay absent char
     prompt += `\n\n## MEMORY ANCHORS (ESTABLISHED CONTINUITY FACTS)\nPersistent campaign facts — who is who, NPCs, relationships, mounts/companions, locations, quest flags, unresolved consequences, world state. Treat as established continuity. Never contradict unless an OOC directive or GM Guide explicitly updates them. If older chat conflicts, the anchors win.\n\n${trimmedAnchors}`;
   }
 
-  prompt += `\n\n## CURRENT CHARACTER STATE
-${contextSummary}
-`;
+  prompt += partyMode
+    ? `\n\n## HOST'S OWN CHARACTER (ONE PLAYER AMONG SEVERAL)\nThis is the sheet of the player who is hosting. It is NOT "the player" and NOT the protagonist — every character listed under PARTY MEMBERS in SESSION CONTEXT has equal weight. Use this block only for this one character's own numbers.\n${contextSummary}\n`
+    : `\n\n## CURRENT CHARACTER STATE\n${contextSummary}\n`;
 
   if (!coreRulesInGuides) {
     prompt += `
 ## DM BASICS
-- Run D&D 5e combat, exploration, social encounters, and roleplay. Describe scenes with sensory detail. Control all NPCs, enemies, and environment with distinct voices. Track scene continuity across the whole conversation. Calibrate to the character's level (${ctx.level}) and capabilities.
+- Run D&D 5e combat, exploration, social encounters, and roleplay. Describe scenes with sensory detail. Control all NPCs, enemies, and environment with distinct voices. Track scene continuity across the whole conversation. ${partyMode ? "Calibrate to the levels listed under PARTY MEMBERS." : `Calibrate to the character's level (${ctx.level}) and capabilities.`}
 - Mechanics: When a check is needed, state exactly what to roll and the DC ("Perception check, DC 14"). Apply advantage/disadvantage and condition effects correctly. Track action economy in combat (Action, Bonus, Reaction, Movement). Reference the character's actual abilities, spells, and gear by name.
 - Combat: Ask for initiative when it begins. Enemy turns should be tactical, not mindless. Describe hits/misses cinematically. Track enemy HP internally, describe condition narratively (bloodied, staggering). Use legendary/lair actions for bosses. Describe aftermath and loot.
 - Never control the player character's actions, thoughts, or speech — describe world and NPCs only. Wait for player input before resolving their actions. Ask for the roll before describing the outcome. Be fair, not adversarial. Reward creative solutions.
@@ -678,7 +679,10 @@ Separate mechanical content from narrative prose using these tags:
 Everything outside these tags must be narrative prose — no dice notation or DCs in narrative text. Multiple tagged blocks per response are fine; keep each concise.
 
 ## APP SYNC (COMPANION APP INTEGRATION)
-This chat is connected to a character-sheet app that auto-detects explicit state changes in your narration. To sync with the app, state changes with explicit numbers: damage and healing ("You take 7 slashing damage", "You recover 12 HP"), XP awards ("You gain 300 XP"), gold ("You find 25 gold"), conditions applied or removed by name, items acquired with quantities, and short or long rests. GM Guides may define WHEN and HOW you award XP, level the player up, manage HP, or grant loot — those guide rules are binding. If no guide covers it, use standard D&D 5e pacing.
+This chat is connected to a character-sheet app that auto-detects explicit state changes in your narration. To sync with the app, state changes with explicit numbers: damage and healing ("You take 7 slashing damage", "You recover 12 HP"), XP awards ("You gain 300 XP"), gold ("You find 25 gold"), conditions applied or removed by name, items acquired with quantities, and short or long rests. GM Guides may define WHEN and HOW you award XP, level the player up, manage HP, or grant loot — those guide rules are binding. If no guide covers it, use standard D&D 5e pacing.`;
+
+  if (!partyMode) {
+    prompt += `
 
 ## LEVEL-UP MATH (NON-NEGOTIABLE)
 The PROGRESSION line in CHARACTER STATE holds the player's real lifetime XP total and the exact XP required for the next level. Those numbers come from the player's app and may use a scaled XP table — they will NOT match the stock D&D 5e table. Copy them exactly; never recall, estimate, or recompute thresholds from memory.
@@ -686,8 +690,11 @@ The PROGRESSION line in CHARACTER STATE holds the player's real lifetime XP tota
 - XP tracking: award XP freely, then add the award to the current total. Announce a level-up ONLY if that new total reaches or exceeds the stated next-level requirement. Otherwise say how much XP remains to the next level and do NOT mention leveling up, new HP, new slots, or ability score improvements.
 - Milestone tracking: never state XP numbers or award XP. Level-ups happen only at story milestones or when a GM Guide says so.
 - Never invent a different XP table than the one in the PROGRESSION line.`;
+  } else {
+    prompt += `\n\n## XP & LEVELS (PARTY)\nEach player's app tracks their own XP and level. Award XP with explicit numbers addressed to the party ("Each of you gains 150 XP"). Never announce a level-up, new HP, or new spell slots for anyone — each player's app decides that.`;
+  }
 
-  if (ctx.companion) {
+  if (ctx.companion && !partyMode) {
     prompt += `\n\n## COMPANION RULES
 The player has an animal companion (see CHARACTER STATE). Include it naturally. It acts on the player's turn in combat — narrate its attacks when directed. State exact damage/heal amounts ("Geralt takes 8 slashing damage" / "recovers 5 HP"). Track its conditions separately. Describe its mood based on state. At 0 HP it is unconscious but stabilizes automatically (no death saves).`;
   }
@@ -716,7 +723,7 @@ Use this to calibrate the narrative:
   }
 
   // ── Resource Pressure Metric (only when it matters) ──
-  {
+  if (!partyMode) {
     const hpPct = ctx.maxHP > 0 ? ctx.currentHP / ctx.maxHP : 1;
     let slotPct = 1;
     if (ctx.spellcasting?.slots && ctx.spellcasting.slots.length > 0) {
@@ -949,7 +956,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, npcVoicingStrict, maxTokens, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt, liveTable } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, npcVoicingStrict, maxTokens, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt, liveTable, partyMode } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages, then cap by total character count
     let trimmedMessages = messages.length > MAX_MESSAGES
@@ -991,7 +998,7 @@ serve(async (req) => {
           ? `${override}\n\n${narrationStylePrompt.trim()}`
           : override;
       } else {
-        systemPrompt = buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt);
+        systemPrompt = buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt, partyMode);
       }
 
       if (npcVoicingContext) {
