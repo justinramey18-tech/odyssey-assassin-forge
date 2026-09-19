@@ -300,7 +300,8 @@ export function NarrationStudio({
     const isDefault = parts.length === defaultParts.length && parts.every((p, i) => p === defaultParts[i]);
     saveStudioState(messageId, { ...current, order: isDefault ? undefined : parts });
     bump();
-  }, [messageId, defaultParts, bump]);
+    onShareVoices?.();
+  }, [messageId, defaultParts, bump, onShareVoices]);
 
   /** Replaces old parts with new ones in the stored order, in place. */
   const replaceInOrder = useCallback((oldParts: string[], newParts: string[]) => {
@@ -505,8 +506,9 @@ export function NarrationStudio({
     const current = loadStudioState(messageId);
     saveStudioState(messageId, { ...current, order: undefined });
     bump();
+    onShareVoices?.();
     toast.success('Back to story order');
-  }, [messageId, pushHistory, takeSnapshot, bump]);
+  }, [messageId, pushHistory, takeSnapshot, bump, onShareVoices]);
 
   if (!open) return null;
 

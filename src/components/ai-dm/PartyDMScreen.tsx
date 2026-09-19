@@ -1079,7 +1079,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [formattedReading, setFormattedReading] = useState<FormattedReading | null>(null);
   const [isFormattingReading, setIsFormattingReading] = useState(false);
   const dmPolls = useDmPolls(partyId || null);
-  const messageNarration = useMessageNarration(partyId || undefined, currentUserId, members.find(m => m.user_id === currentUserId)?.character_name);
+  const messageNarration = useMessageNarration(partyId || undefined, currentUserId, members.find(m => m.user_id === currentUserId)?.character_name, isCreator);
   const partyNPCNames = useNPCAutocomplete(partyDm.messages as any);
   const isEmpyrean = partyDm.sessionConfig?.campaignType === 'empyrean';
   const dragonBonds = usePartyDragonBonds(isEmpyrean ? (partyId || null) : null, currentUserId || null, members);
