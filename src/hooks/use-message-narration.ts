@@ -872,6 +872,8 @@ export function useMessageNarration(
   const remove = useCallback(async (messageId: string, part: NarrationPart = 'story') => {
     if (!partyId) return;
     const key = narrationKey(messageId, part);
+    // Read the clip's real file before the row is gone.
+    const existingUrl = audioMapRef.current[key]?.audio_url || null;
     if (playingId === key) stop();
     const { error } = await (supabase.from('party_message_audio') as any)
       .delete()
@@ -882,13 +884,31 @@ export function useMessageNarration(
       toast.error('Could not remove narration');
       return;
     }
-    await supabase.storage
-      .from('party-chat-audio')
-      .remove([
-        `${partyId}/narration/${messageId}-${part}.mp3`,
-        // legacy paths from before multi-clip narration
-        `${partyId}/narration/${messageId}${part === 'table' ? '-table' : ''}.mp3`,
-      ]);
+
+    // Delete the file this clip really uses (mic takes are .webm/.m4a), plus the
+    // fixed file names used before every take got its own file.
+    const paths = new Set<string>();
+    const current = storagePathFromUrl(existingUrl);
+    if (current) paths.add(current);
+    for (const ext of ['mp3', 'webm', 'm4a']) {
+      paths.add(`${partyId}/narration/${messageId}-${part}.${ext}`);
+    }
+    // Legacy whole-story file from before multi-clip narration (story part only).
+    if (part === 'story') paths.add(`${partyId}/narration/${messageId}.mp3`);
+    const { error: storageError } = await supabase.storage
+      .from(NARRATION_BUCKET)
+      .remove([...paths]);
+    if (storageError) console.warn('[MessageNarration] could not delete narration file:', storageError);
+
+    // Clear this device's saved copy so it can never be replayed.
+    if (existingUrl) {
+      try {
+        await removeCachedClip(existingUrl);
+      } catch {
+        /* ignore */
+      }
+    }
+
     setAudioByMessage((prev) => {
       const next = { ...prev };
       delete next[key];
@@ -902,9 +922,8 @@ export function useMessageNarration(
 
     // Work out which files belong to this message BEFORE the rows are deleted,
     // otherwise there is nothing left to tell us what to clean up.
-    const parts = Object.values(audioMapRef.current)
-      .filter((row) => row.message_id === messageId)
-      .map((row) => row.part);
+    const rows = Object.values(audioMapRef.current).filter((row) => row.message_id === messageId);
+    const parts = rows.map((row) => row.part);
 
     const { error } = await (supabase.from('party_message_audio') as any)
       .delete()
@@ -919,6 +938,11 @@ export function useMessageNarration(
     // bucket, and the next generation upserts over them.
     // Speechify clips are .mp3; mic recordings are .webm or .m4a.
     const paths: string[] = [];
+    // Each clip's real file first (every take now has its own file name).
+    for (const row of rows) {
+      const path = storagePathFromUrl(row.audio_url);
+      if (path) paths.push(path);
+    }
     for (const part of parts) {
       for (const ext of ['mp3', 'webm', 'm4a']) {
         paths.push(`${partyId}/narration/${messageId}-${part}.${ext}`);
@@ -929,13 +953,22 @@ export function useMessageNarration(
 
     if (paths.length > 0) {
       const { error: storageError } = await supabase.storage
-        .from('party-chat-audio')
+        .from(NARRATION_BUCKET)
         .remove(paths);
       if (storageError) {
         console.error('[MessageNarration] could not delete narration files:', storageError);
         toast.error('Rows cleared, but the audio files could not be deleted', {
           description: storageError.message,
         });
+      }
+    }
+
+    // Clear this device's saved copies too.
+    for (const row of rows) {
+      try {
+        await removeCachedClip(row.audio_url);
+      } catch {
+        /* ignore */
       }
     }
 
@@ -1015,17 +1048,12 @@ export function useMessageNarration(
         throw new Error('Could not match that passage');
       }
       const part = segmentKey(target);
+      // The take this recording replaces (if any), so its file can be cleaned up.
+      const previousUrl = audioMapRef.current[narrationKey(messageId, part)]?.audio_url || null;
 
       // 4. Upload the clip and register it for the whole party.
       const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('mpeg') ? 'mp3' : 'webm';
-      const path = `${partyId}/narration/${messageId}-${part}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from('party-chat-audio')
-        .upload(path, blob, { contentType: blob.type || 'audio/webm', upsert: true });
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage.from('party-chat-audio').getPublicUrl(path);
-      const audioUrl = `${urlData.publicUrl}?v=${Date.now()}`;
+      const audioUrl = await uploadClipFile(messageId, part, blob, ext, blob.type || 'audio/webm');
 
       const row = {
         party_id: partyId,
