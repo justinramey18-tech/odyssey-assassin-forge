@@ -422,7 +422,7 @@ export function NarrationStudio({
     }
     if (!onVoiceSegment) return;
     try {
-      await onVoiceSegment(seg.text.trim(), voiceId, label);
+      await onVoiceSegment(seg.text.trim(), voiceId, label, loadStudioState(messageId).scripts?.[segmentKey(seg)]);
       keepSlotForNewVoice(segmentKey(seg), voiceId, seg.text.trim());
     } finally {
       onShareVoices?.();
@@ -446,7 +446,7 @@ export function NarrationStudio({
           keepSlotForNewVoice(segmentKey(seg), voiceId, seg.text.trim());
         } else {
           // eslint-disable-next-line no-await-in-loop
-          await onVoiceSegment!(seg.text.trim(), voiceId, label);
+          await onVoiceSegment!(seg.text.trim(), voiceId, label, loadStudioState(messageId).scripts?.[segmentKey(seg)]);
           keepSlotForNewVoice(segmentKey(seg), voiceId, seg.text.trim());
         }
         setBatchProgress({ done: i + 1, total: targets.length });
