@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import { Sword, Sparkles, BookOpen, FlaskConical, Star, ChevronDown, Play, Flame, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -71,6 +71,7 @@ interface QuickActionItem {
   attackBonus?: number;
   /** Extra facts shown in the pre-roll breakdown. */
   damageType?: string;
+  healingFormula?: string;
   saveStat?: string;
   attackType?: string;
   rulesText?: string;
@@ -173,12 +174,87 @@ interface SectionProps {
   onCloseDrawer?: () => void;
   spentCosts?: { action: boolean; bonus: boolean; reaction: boolean };
   onActionSpent?: (cost: ActionCost, name: string) => void;
+  drawerOpen: boolean;
 }
 
-function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = false, onHeal, onCloseDrawer, spentCosts, onActionSpent }: SectionProps) {
+interface SpellRulesDetailsProps {
+  item: QuickActionItem;
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
+}
+
+function SpellRulesDetails({ item, expanded, onExpandedChange }: SpellRulesDetailsProps) {
+  const rulesRef = useRef<HTMLParagraphElement>(null);
+  const [overflows, setOverflows] = useState(false);
+
+  useLayoutEffect(() => {
+    const element = rulesRef.current;
+    if (!element || !item.rulesText) {
+      setOverflows(false);
+      return;
+    }
+
+    const measure = () => {
+      const lineHeight = Number.parseFloat(window.getComputedStyle(element).lineHeight);
+      const collapsedHeight = Number.isFinite(lineHeight) ? lineHeight * 2 : element.clientHeight;
+      setOverflows(element.scrollHeight > collapsedHeight + 1);
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [item.rulesText]);
+
+  const facts = [
+    item.damageFormula ? `${item.damageFormula}${item.damageType ? ` ${item.damageType}` : ''}` : '',
+    item.healingFormula ? `Heals ${item.healingFormula}` : '',
+    item.saveStat ? `${String(item.saveStat).toUpperCase()} save` : '',
+  ].filter(Boolean);
+
+  return (
+    <>
+      {item.rulesText && (
+        <div className="mt-1">
+          <p
+            ref={rulesRef}
+            className={cn('text-[12px] leading-snug text-white/60', !expanded && 'line-clamp-2')}
+          >
+            {item.rulesText}
+          </p>
+          {overflows && (
+            <button
+              type="button"
+              aria-expanded={expanded}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onExpandedChange(!expanded);
+              }}
+              className="inline-flex min-h-11 items-center text-[11px] text-amber-300/80 hover:text-amber-200"
+              style={{ touchAction: 'manipulation' }}
+            >
+              {expanded ? 'less' : 'more'}
+            </button>
+          )}
+        </div>
+      )}
+      {facts.length > 0 && (
+        <p className="mt-1 text-[11px] text-amber-300/80">{facts.join(' • ')}</p>
+      )}
+    </>
+  );
+}
+
+function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = false, onHeal, onCloseDrawer, spentCosts, onActionSpent, drawerOpen }: SectionProps) {
   const [open, setOpen] = useState(defaultOpen);
+  const [expandedSpellIds, setExpandedSpellIds] = useState<Set<string>>(() => new Set());
   // The attack/spell about to be rolled, held while the player checks the maths.
   const [pending, setPending] = useState<QuickActionItem | null>(null);
+
+  useEffect(() => {
+    if (!drawerOpen) setExpandedSpellIds(new Set());
+  }, [drawerOpen]);
 
   const runAttackOrSpell = (item: QuickActionItem, choice: RollPreviewChoice) => {
     // Casting from quick actions spends the real slot first, so a
@@ -243,11 +319,28 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="space-y-1 px-2 pb-2">
-          {items.map(item => (
-            <div key={item.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] transition-colors">
+          {items.map(item => {
+            const isSpell = item.removeCategory === 'spell' || item.removeCategory === 'cantrip' || item.removeCategory === 'homebrew-spell';
+            const expanded = expandedSpellIds.has(item.id);
+            return (
+            <div key={item.id} className={cn("flex gap-2 px-2.5 py-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] transition-colors", isSpell ? 'items-start' : 'items-center')}>
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-white/80 truncate">{item.name}</p>
                 <p className="text-[10px] text-white/35 truncate">{item.detail}</p>
+                {isSpell && (
+                  <SpellRulesDetails
+                    item={item}
+                    expanded={expanded}
+                    onExpandedChange={(nextExpanded) => {
+                      setExpandedSpellIds(current => {
+                        const next = new Set(current);
+                        if (nextExpanded) next.add(item.id);
+                        else next.delete(item.id);
+                        return next;
+                      });
+                    }}
+                  />
+                )}
                 {item.actionCost && item.actionCost !== 'free' && (
                   <span className={cn(
                     'inline-block mt-1 text-[9px] px-1.5 py-0.5 rounded border font-mono',
@@ -316,7 +409,8 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                 </button>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       </CollapsibleContent>
 
@@ -525,6 +619,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         spellLevel: typeof full.level === 'number' ? full.level : undefined,
         damageFormula: full.damageFormula,
         damageType: full.damageType,
+        healingFormula: full.healingFormula,
         saveStat: full.saveStat,
         attackType: full.attackType,
         rulesText: full.description,
@@ -660,6 +755,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   defaultOpen={true}
                   spentCosts={spentCosts}
                   onActionSpent={onActionSpent}
+                  drawerOpen={open}
                 />
               )}
               {showSection('weapons') && sectionFilter !== 'magic' && (
@@ -674,6 +770,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   defaultOpen={true}
                   spentCosts={spentCosts}
                   onActionSpent={onActionSpent}
+                  drawerOpen={open}
                 />
               )}
               {showSection('abilities') && sectionFilter !== 'magic' && (
@@ -687,6 +784,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   onRemove={handleRemoveItem}
                   spentCosts={spentCosts}
                   onActionSpent={onActionSpent}
+                  drawerOpen={open}
                 />
               )}
               {showSection('spells') && sectionFilter !== 'combat' && (
@@ -700,6 +798,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   onRemove={handleRemoveItem}
                   spentCosts={spentCosts}
                   onActionSpent={onActionSpent}
+                  drawerOpen={open}
                 />
               )}
               {showSection('cantrips') && sectionFilter !== 'combat' && (
@@ -713,6 +812,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   onRemove={handleRemoveItem}
                   spentCosts={spentCosts}
                   onActionSpent={onActionSpent}
+                  drawerOpen={open}
                 />
               )}
               {!focused && sectionFilter !== 'magic' && (
@@ -727,6 +827,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   onRemove={handleRemoveItem}
                   spentCosts={spentCosts}
                   onActionSpent={onActionSpent}
+                  drawerOpen={open}
                 />
               )}
               {!focused && sectionFilter !== 'magic' && (
@@ -740,6 +841,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   onRemove={handleRemoveItem}
                   spentCosts={spentCosts}
                   onActionSpent={onActionSpent}
+                  drawerOpen={open}
                 />
               )}
               {sectionFilter !== 'magic' && homebrewForFocus.length > 0 && (
@@ -753,6 +855,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   onRemove={handleRemoveItem}
                   spentCosts={spentCosts}
                   onActionSpent={onActionSpent}
+                  drawerOpen={open}
                 />
               )}
             </>
