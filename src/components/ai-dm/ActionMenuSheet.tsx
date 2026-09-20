@@ -3,7 +3,7 @@ import { Backpack, BookOpen, Dices, Sparkles, Sword, WandSparkles } from 'lucide
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
-export type ActionMenuChoice = 'dice' | 'actions' | 'spells' | 'story' | 'bag' | 'coming-soon';
+export type ActionMenuChoice = 'dice' | 'actions' | 'spells' | 'story' | 'bag' | 'moves';
 
 interface ActionMenuSheetProps {
   open: boolean;
@@ -97,9 +97,9 @@ export function ActionMenuSheet({ open, onOpenChange, onSelect, characterName, c
     { label: 'Spells', description: 'Cast spells and cantrips', image: '/action-menu/wand.png', fallback: WandSparkles },
     { label: 'Story', description: 'Open your story and quests', image: '/action-menu/book.png', fallback: BookOpen },
     { label: 'Bag & Stats', description: 'Open your items and character stats', fallback: Backpack, characterImage, initials, overlayText: 'BAG & STATS' },
-    { label: 'Coming Soon', description: 'Future action slot', image: '/action-menu/slot6.png', fallback: Sparkles },
+    { label: 'Get Moves', description: 'Suggested moves when you are stuck', image: '/action-menu/slot6.png', fallback: Sparkles },
   ];
-  const choices: ActionMenuChoice[] = ['dice', 'actions', 'spells', 'story', 'bag', 'coming-soon'];
+  const choices: ActionMenuChoice[] = ['dice', 'actions', 'spells', 'story', 'bag', 'moves'];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

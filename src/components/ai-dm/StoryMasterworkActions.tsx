@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Sparkles, X, RotateCcw, Check, Loader2, ChevronLeft, User, Users } from 'lucide-react';
 import offeringJointAsset from '@/assets/offering-joint.jpg.asset.json';
@@ -26,10 +26,21 @@ interface StoryMasterworkActionsProps {
   fetchStoryPills: (flavorId?: string, mode?: SuggestMode, targetIds?: string[]) => Promise<ActionItem[]>;
   /** Players with an unsent in-character line right now. Empty → the picker is skipped. */
   liveTableCandidates?: LiveTableCandidate[];
+  /** External control: when both are passed, they replace the internal open state. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Hide the card button — render only the picker. */
+  hideTrigger?: boolean;
 }
 
-export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, liveTableCandidates = [] }: StoryMasterworkActionsProps) {
-  const [open, setOpen] = useState(false);
+export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, liveTableCandidates = [], open: openProp, onOpenChange, hideTrigger }: StoryMasterworkActionsProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const controlled = openProp !== undefined && onOpenChange !== undefined;
+  const open = controlled ? openProp : internalOpen;
+  const setOpen = useCallback((v: boolean) => {
+    if (controlled) onOpenChange!(v);
+    else setInternalOpen(v);
+  }, [controlled, onOpenChange]);
   const [loading, setLoading] = useState(false);
   const [pills, setPills] = useState<ActionItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +50,17 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
   const [targetsDone, setTargetsDone] = useState(false);
 
   const hasCandidates = liveTableCandidates.length > 0;
+
+  // Reset the flow every time the picker opens, whether from the card or externally.
+  useEffect(() => {
+    if (!open) return;
+    setFlavorId(null);
+    setMode(null);
+    setTargetsDone(false);
+    setTargetIds([]);
+    setPills([]);
+    setError(null);
+  }, [open]);
 
   const generate = useCallback(async (id: string, useMode: SuggestMode, ids: string[]) => {
     setFlavorId(id);
@@ -96,12 +118,12 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
     setTargetIds([]);
     setPills([]);
     setError(null);
-  }, []);
+  }, [setOpen]);
 
   const choose = useCallback((prompt: string) => {
     onSelect(prompt);
     setOpen(false);
-  }, [onSelect]);
+  }, [onSelect, setOpen]);
 
   const showTargets = mode === 'sync' && !targetsDone && !flavorId;
   const showFlavors = mode !== null && !showTargets && !flavorId;
@@ -117,6 +139,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
 
   return (
     <>
+      {!hideTrigger && (
       <div className="relative w-full">
         <span
           className="absolute -inset-[2px] rounded-xl bg-green-500/70 animate-pulse"
@@ -146,6 +169,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
           </span>
         </button>
       </div>
+      )}
 
       {open && createPortal(
         <div className="fixed inset-0 z-[80] bg-black/80 backdrop-blur-sm flex flex-col">
