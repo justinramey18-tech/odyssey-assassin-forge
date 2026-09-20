@@ -1671,6 +1671,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     // Notify localStorage-dependent hooks to re-initialize from their scoped keys
     window.dispatchEvent(new CustomEvent('odyssey-character-loaded', { detail: { saveId } }));
 
+    // Stats, level and prestige are now applied — the max-HP effect may run.
+    hpSyncReady.current = true;
+
     // Show home screen with newly loaded character
     setShowHomeScreen(true);
     setIsSwitchingCharacter(false);
