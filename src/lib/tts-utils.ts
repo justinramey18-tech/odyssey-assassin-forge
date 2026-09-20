@@ -827,6 +827,12 @@ export interface NarrationStudioState {
   order?: string[];
   /** Per-part playback rate (0.5 - 2). Playback-only; nothing is re-voiced. */
   rates?: Record<string, number>;
+  /**
+   * Part ids removed from the narration draft. Pieces are re-derived from the
+   * message text every load, so without this a removed piece reappears. The
+   * written story is never changed.
+   */
+  hidden?: string[];
 }
 
 type StudioMap = Record<string, NarrationStudioState>;
