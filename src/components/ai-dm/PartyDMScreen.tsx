@@ -5091,24 +5091,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onRest={onRestOccurred}
           onRestPrompt={(text) => dispatchPrompt(text)}
           onAcceptItem={onAcceptItem}
-          onUseConsumableByName={onUseConsumableByName ? (name) => {
-            const consumable = characterContext.consumables.find(item => item.name === name);
-            const healingDice = getHealingDiceForItem(name, consumable?.effect);
-            if (healingDice) {
-              setShowCharacterSheet(false);
-              const roll = rollHealing(healingDice.count, healingDice.die, healingDice.bonus);
-              requestDiceRoll({
-                title: name,
-                roll,
-                onComplete: () => {
-                  const prompt = handleHealingItemUsed(name, roll);
-                  if (prompt) dispatchPrompt(encodeActionCard(actionCardFromRoll(name, roll), prompt));
-                },
-              });
-              return;
-            }
-            if (onUseConsumableByName(name, 1)) dispatchPrompt(`${characterContext.name || 'The Adventurer'} uses ${name}.`);
-          } : undefined}
+          onUseConsumableByName={handleConsumableUse}
           onUseLootItem={(text) => {
             if (chatRoundsOnRef.current) { dispatchPrompt(text); return; }
             playerInputRef.current?.appendText(text);
