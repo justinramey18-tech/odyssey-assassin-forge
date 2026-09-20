@@ -25,7 +25,7 @@ import secondaryWeaponBackground from '@/assets/weapons/weapon-secondary.jpg.ass
 import rangedWeaponBackground from '@/assets/weapons/weapon-ranged.jpg.asset.json';
 
 import type { CharacterContext } from '@/components/oracle/types';
-import { rarityConfig, type EquipmentSlotType, type EquipmentStats, type Enchantment, type Rarity } from '@/lib/inventory/types';
+import { rarityConfig, type EquipmentStats, type Enchantment, type Rarity } from '@/lib/inventory/types';
 
 const SCHOOL_BG: Record<string, string> = {
   evocation: evocationBackground.url,

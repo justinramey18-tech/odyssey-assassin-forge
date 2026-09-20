@@ -1,4 +1,4 @@
-- [ ] Add supplied Primary, Secondary, and Ranged weapon artwork.
-- [ ] Show complete live equipped-weapon details in Quick Actions without changing saved gear.
-- [ ] Replace weapon rows with fixed picture cards while preserving attack and remove behavior.
+- [x] Add supplied Primary, Secondary, and Ranged weapon artwork.
+- [x] Show complete live equipped-weapon details in Quick Actions without changing saved gear.
+- [x] Replace weapon rows with fixed picture cards while preserving attack and remove behavior.
 - [ ] Verify the cards at 360px and confirm the latest preview build.
