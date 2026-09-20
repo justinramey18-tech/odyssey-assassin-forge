@@ -833,6 +833,11 @@ export interface NarrationStudioState {
    * written story is never changed.
    */
   hidden?: string[];
+  /**
+   * Per-part spoken words. When set, this is what gets sent to Speechify for
+   * that piece instead of the story text. The written story is never changed.
+   */
+  scripts?: Record<string, string>;
 }
 
 type StudioMap = Record<string, NarrationStudioState>;
@@ -868,7 +873,14 @@ export function saveStudioState(messageId: string, state: NarrationStudioState):
   if (Array.isArray(state.hidden) && state.hidden.length > 0) {
     clean.hidden = state.hidden.filter((p) => typeof p === 'string');
   }
-  if (clean.order || clean.rates || clean.hidden) map[messageId] = clean;
+  if (state.scripts && typeof state.scripts === 'object') {
+    const scripts: Record<string, string> = {};
+    for (const [part, text] of Object.entries(state.scripts)) {
+      if (typeof text === 'string' && text.trim()) scripts[part] = text;
+    }
+    if (Object.keys(scripts).length > 0) clean.scripts = scripts;
+  }
+  if (clean.order || clean.rates || clean.hidden || clean.scripts) map[messageId] = clean;
   else delete map[messageId];
   writeStudioMap(map);
 }
