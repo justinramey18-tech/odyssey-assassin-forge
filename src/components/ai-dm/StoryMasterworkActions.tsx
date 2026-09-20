@@ -16,6 +16,8 @@ export interface LiveTableCandidate {
   name: string;
   preview: string;
   avatarUrl?: string;
+  /** Marks a candidate whose line came from the most recently resolved round. */
+  fromLastRound?: boolean;
 }
 
 type SuggestMode = 'solo' | 'sync';
@@ -24,7 +26,7 @@ interface StoryMasterworkActionsProps {
   disabled?: boolean;
   onSelect: (prompt: string) => void;
   fetchStoryPills: (flavorId?: string, mode?: SuggestMode, targetIds?: string[]) => Promise<ActionItem[]>;
-  /** Players with an unsent in-character line right now. Empty → the picker is skipped. */
+  /** Players with an in-character line to react to, preferring unsent lines over the latest resolved round. */
   liveTableCandidates?: LiveTableCandidate[];
   /** External control: when both are passed, they replace the internal open state. */
   open?: boolean;
@@ -79,12 +81,12 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
 
   const pickMode = useCallback((m: SuggestMode) => {
     setTargetIds([]);
-    if (m === 'sync' && hasCandidates) {
+    if (m === 'sync') {
+      if (!hasCandidates) return;
       setMode('sync');
       setTargetsDone(false);
       return;
     }
-    // No one has spoken yet — synergy has nothing to work with, so behave like solo.
     setMode('solo');
     setTargetsDone(true);
   }, [hasCandidates]);
@@ -128,6 +130,10 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
   const showTargets = mode === 'sync' && !targetsDone && !flavorId;
   const showFlavors = mode !== null && !showTargets && !flavorId;
   const canContinue = targetIds.length > 0;
+  const selectedCandidates = liveTableCandidates.filter(candidate => targetIds.includes(candidate.userId));
+  const selectedNames = selectedCandidates.map(candidate => candidate.name).join(', ');
+  const contextLabel = mode === 'sync' && selectedNames ? `Reacting to: ${selectedNames}` : 'Your own move';
+  const showContext = showFlavors || !!flavorId;
 
   const headerTitle = flavorId
     ? (getRpFlavor(flavorId)?.label || 'Suggested Moves')
@@ -172,8 +178,9 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
       )}
 
       {open && createPortal(
-        <div className="fixed inset-0 z-[80] bg-black/80 backdrop-blur-sm flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-amber-900/30 bg-[#0d0d12]">
+        <div className="fixed inset-0 z-[80] bg-black/80 flex items-stretch justify-center">
+        <div className="flex h-full w-full max-w-lg flex-col bg-background">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-amber-900/30 bg-background">
             <div className="flex items-center gap-2 min-w-0">
               <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
               <span className="text-sm font-cinzel text-amber-300 truncate">
@@ -231,16 +238,19 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
                 </button>
                 <button
                   onClick={() => pickMode('sync')}
+                  disabled={!hasCandidates}
                   style={{ touchAction: 'manipulation' }}
-                  className="w-full flex items-start gap-3 text-left rounded-xl border border-sky-500/30 bg-sky-950/20 px-4 py-4 min-h-[104px] active:scale-[0.98] transition-transform"
+                  className="w-full flex items-start gap-3 text-left rounded-xl border border-sky-500/30 bg-sky-950/20 px-4 py-4 min-h-[104px] active:scale-[0.98] transition-transform disabled:border-muted disabled:bg-muted/30 disabled:opacity-45 disabled:active:scale-100"
                 >
                   <Users className="w-5 h-5 text-sky-300 shrink-0 mt-0.5" />
                   <span className="min-w-0">
                     <span className="block text-sm font-cinzel text-sky-200">Synergize with others</span>
                     <span className="block text-[11px] text-white/50 mt-1 leading-snug">
                       {hasCandidates
-                        ? 'Reads what the others just said at the table so you can back them up — or cut across them.'
-                        : 'Nobody has an unsent line right now, so this will fall back to story-only moves.'}
+                        ? liveTableCandidates.some(candidate => candidate.fromLastRound)
+                          ? 'Uses what the others said in the last round so you can build on it — or cut across it.'
+                          : 'Reads what the others just said at the table so you can back them up — or cut across them.'
+                        : 'Nobody has said anything yet'}
                     </span>
                   </span>
                 </button>
@@ -273,7 +283,14 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
                           : (c.name.charAt(0).toUpperCase() || '?')}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-cinzel text-amber-200 truncate">{c.name}</span>
+                        <span className="flex items-center gap-2 min-w-0">
+                          <span className="block min-w-0 truncate text-sm font-cinzel text-amber-200">{c.name}</span>
+                          {c.fromLastRound && (
+                            <span className="shrink-0 rounded border border-sky-500/25 bg-sky-950/40 px-1.5 py-0.5 text-[9px] uppercase text-sky-200/70">
+                              from last round
+                            </span>
+                          )}
+                        </span>
                         <span className="block text-[11px] text-white/55 mt-1 leading-snug line-clamp-3">
                           {c.preview}
                         </span>
@@ -292,7 +309,20 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
                 </button>
               </div>
             ) : showFlavors ? (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-3">
+                {showContext && (
+                  <div className="flex min-h-12 items-center gap-2 border-y border-amber-500/20 bg-muted/40 px-3 py-2">
+                    {mode === 'sync' && selectedCandidates.slice(0, 2).map(candidate => (
+                      <span key={candidate.userId} className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-amber-500/30 bg-muted text-xs text-muted-foreground">
+                        {candidate.avatarUrl
+                          ? <img src={candidate.avatarUrl} alt="" className="h-full w-full object-cover" />
+                          : (candidate.name.charAt(0).toUpperCase() || '?')}
+                      </span>
+                    ))}
+                    <span className="min-w-0 truncate text-xs font-cinzel text-amber-200">{contextLabel}</span>
+                  </div>
+                )}
+                <div className="grid grid-cols-3 gap-2">
                 {RP_FLAVORS.map((f: RpFlavor) => (
                   <button
                     key={f.id}
@@ -309,9 +339,22 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
                     <span className="text-[9px] text-white/40 leading-tight">{f.blurb}</span>
                   </button>
                 ))}
+                </div>
               </div>
             ) : (
               <>
+                {showContext && (
+                  <div className="flex min-h-12 items-center gap-2 border-y border-amber-500/20 bg-muted/40 px-3 py-2">
+                    {mode === 'sync' && selectedCandidates.slice(0, 2).map(candidate => (
+                      <span key={candidate.userId} className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-amber-500/30 bg-muted text-xs text-muted-foreground">
+                        {candidate.avatarUrl
+                          ? <img src={candidate.avatarUrl} alt="" className="h-full w-full object-cover" />
+                          : (candidate.name.charAt(0).toUpperCase() || '?')}
+                      </span>
+                    ))}
+                    <span className="min-w-0 truncate text-xs font-cinzel text-amber-200">{contextLabel}</span>
+                  </div>
+                )}
                 {loading && (
                   <div className="flex flex-col items-center justify-center py-16 gap-3 text-amber-300/60">
                     <Loader2 className="w-6 h-6 animate-spin" />
@@ -341,7 +384,9 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
                       <span className="text-lg leading-none mt-0.5">{pill.emoji}</span>
                       <div className="flex-1 min-w-0">
                         {pill.label && (
-                          <p className="text-xs font-semibold text-amber-200/90 mb-1">{pill.label}</p>
+                          <span className="mb-2 inline-flex rounded border border-amber-500/30 bg-amber-950/40 px-2 py-0.5 text-[10px] font-semibold text-amber-200/90">
+                            {pill.label}
+                          </span>
                         )}
                         <p className="text-sm text-white/85 whitespace-pre-wrap break-words leading-relaxed">
                           {pill.prompt}
@@ -368,11 +413,12 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
             )}
           </div>
 
-          <div className="px-4 py-2 border-t border-amber-900/30 bg-[#0d0d12]">
+          <div className="px-4 py-2 border-t border-amber-900/30 bg-background">
             <p className="text-[10px] text-white/40 text-center">
               Choosing a suggestion drops it into your input — you can still edit before you ready up.
             </p>
           </div>
+        </div>
         </div>,
         document.body,
       )}
