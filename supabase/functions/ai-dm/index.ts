@@ -59,7 +59,14 @@ interface CharacterContext {
     isCustomized?: boolean;
   }>;
   equippedAbilities: string[];
-  equipment: Array<{ slot: string; name: string; rarity: string }>;
+  equipment: Array<{
+    slot: string;
+    name: string;
+    rarity: string;
+    stats?: Record<string, number | string | undefined>;
+    properties?: string[];
+    enchantments?: Array<{ name: string; description: string; icon?: string }>;
+  }>;
   activeSetBonuses: string[];
   consumables: Array<{ name: string; quantity: number; type: string }>;
   cooldowns: {

@@ -681,10 +681,17 @@ export function PromptDrawerProvider({
       .map(id => findAbility(id)?.name || id)
       .filter(Boolean) as string[];
 
-    const equipmentList: Array<{ slot: string; name: string; rarity: string }> = [];
+    const equipmentList: CharacterContext['equipment'] = [];
     if (equipment) {
       Object.entries(equipment.slots).forEach(([slot, item]) => {
-        if (item) equipmentList.push({ slot, name: item.name, rarity: item.rarity });
+        if (item) equipmentList.push({
+          slot,
+          name: item.name,
+          rarity: item.rarity,
+          stats: item.stats,
+          properties: item.properties,
+          enchantments: item.enchantments,
+        });
       });
     }
 
