@@ -23,7 +23,7 @@ import conjurationBackground from '@/assets/spell-bg/conjuration.jpg.asset.json'
 import primaryWeaponBackground from '@/assets/weapons/weapon-primary.jpg.asset.json';
 import secondaryWeaponBackground from '@/assets/weapons/weapon-secondary.jpg.asset.json';
 import rangedWeaponBackground from '@/assets/weapons/weapon-ranged.jpg.asset.json';
-import rollAttackSeal from '@/assets/roll-attack.png.asset.json';
+import rollAttackSeal from '@/assets/roll-attack-2.png.asset.json';
 
 import type { CharacterContext } from '@/components/oracle/types';
 import { rarityConfig, type EquipmentStats, type Enchantment, type Rarity } from '@/lib/inventory/types';
