@@ -2294,13 +2294,34 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         setCharacterSheetInitialTab('story');
         setShowCharacterSheet(true);
       } else if (choice === 'bag') {
-        setCharacterSheetInitialTab('items');
-        setShowCharacterSheet(true);
+        setShowBagStats(true);
       } else {
         toast.info('Coming soon');
       }
     }, 200);
   }, []);
+
+  /** Shared consumable use: healing items roll real dice, everything else is announced to the DM. */
+  const handleConsumableUse = useCallback((name: string) => {
+    if (!characterContext || !onUseConsumableByName) return;
+    const consumable = characterContext.consumables.find(item => item.name === name);
+    const healingDice = getHealingDiceForItem(name, consumable?.effect);
+    if (healingDice) {
+      setShowCharacterSheet(false);
+      setShowBagStats(false);
+      const roll = rollHealing(healingDice.count, healingDice.die, healingDice.bonus);
+      requestDiceRoll({
+        title: name,
+        roll,
+        onComplete: () => {
+          const prompt = handleHealingItemUsed(name, roll);
+          if (prompt) dispatchPrompt(encodeActionCard(actionCardFromRoll(name, roll), prompt));
+        },
+      });
+      return;
+    }
+    if (onUseConsumableByName(name, 1)) dispatchPrompt(`${characterContext.name || 'The Adventurer'} uses ${name}.`);
+  }, [characterContext, onUseConsumableByName, handleHealingItemUsed, dispatchPrompt]);
   const hasSubmitted = !!partyDm.myPrompt;
   const isReady = partyDm.myPrompt?.is_ready ?? false;
   const isDialogueMode = partyDm.sessionConfig?.dmMode === 'dialogue';
