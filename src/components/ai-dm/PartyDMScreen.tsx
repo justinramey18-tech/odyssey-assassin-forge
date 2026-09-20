@@ -209,6 +209,89 @@ function getMemberColor(userId: string, members: Array<{ user_id: string }>): st
   return MEMBER_COLORS[idx >= 0 ? idx % MEMBER_COLORS.length : 0];
 }
 
+function getCharacterInitials(name: string): string {
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(word => Array.from(word)[0] || '')
+    .join('')
+    .toUpperCase();
+  return initials || '?';
+}
+
+function stripSenderPrefix(content: string, senderName: string): string {
+  const prefix = `[${senderName}]: `;
+  return content.startsWith(prefix) ? content.slice(prefix.length) : content;
+}
+
+function PlayerMessageAvatar({
+  userId,
+  senderName,
+  members,
+  avatars,
+}: {
+  userId: string;
+  senderName: string;
+  members: Array<{ user_id: string }>;
+  avatars?: Record<string, { ic?: string; ooc?: string }>;
+}) {
+  const color = getMemberColor(userId, members);
+  const avatarUrl = avatars?.[userId]?.ic;
+
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={senderName}
+        loading="lazy"
+        className="w-9 h-9 rounded-full object-cover shrink-0"
+        style={{ border: `1.5px solid ${color}` }}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold"
+      style={{ backgroundColor: `${color}25`, border: `1.5px solid ${color}`, color }}
+      aria-label={senderName}
+    >
+      {getCharacterInitials(senderName)}
+    </div>
+  );
+}
+
+type CombinedPartySegment = { name: string; content: string; raw: string };
+
+function splitCombinedPartyContent(content: string): CombinedPartySegment[] {
+  const segments: CombinedPartySegment[] = [];
+  let current: CombinedPartySegment | null = null;
+
+  const flush = () => {
+    if (!current) return;
+    segments.push(current);
+    current = null;
+  };
+
+  for (const line of content.split('\n')) {
+    const playerLine = line.match(/^\[([^\]]+)\]:\s?(.*)$/);
+    const statusLine = !playerLine ? line.match(/^\[([^\]]+)\]\s+(.+)$/) : null;
+    const match = playerLine || statusLine;
+    if (match) {
+      flush();
+      current = { name: match[1].trim(), content: match[2], raw: line };
+    } else if (current) {
+      current.content += `\n${line}`;
+      current.raw += `\n${line}`;
+    } else if (line.trim()) {
+      segments.push({ name: 'System', content: line, raw: line });
+    }
+  }
+  flush();
+  return segments;
+}
+
 const PARTY_VIDEO_REGEX = /^\s*\[video:(https?:\/\/.+)\]\s*$/;
 const PARTY_IMAGE_REGEX = /^\s*\[image:(https?:\/\/.+)\]\s*$/;
 const PARTY_AUDIO_REGEX = /^\s*\[audio:(https?:\/\/.+)\]\s*$/;
@@ -449,10 +532,11 @@ function MessageReactions({ messageId, reactions, currentUserId, onAddReaction, 
   );
 }
 
-const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction, onWhisperAutoRoll, onWhisperOpenRoller, narrationMap, narrationGeneratingPart, narrationPlayingPart, narrationCastProgress, narrationSpeakingName, onNarrate, onNarrateCast, onPlayNarration, onPlayAllNarration, onDeleteNarration, onDeleteAllNarration, onRecordNarrationSegment, onRevertToCastVoice, onVoiceSegment, narrationDownloading, narrationDownloadProgress, onDownloadNarrationFile, onShareNarrationVoices, onRestoreNarrationClip }: {
+const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, avatars, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction, onWhisperAutoRoll, onWhisperOpenRoller, narrationMap, narrationGeneratingPart, narrationPlayingPart, narrationCastProgress, narrationSpeakingName, onNarrate, onNarrateCast, onPlayNarration, onPlayAllNarration, onDeleteNarration, onDeleteAllNarration, onRecordNarrationSegment, onRevertToCastVoice, onVoiceSegment, narrationDownloading, narrationDownloadProgress, onDownloadNarrationFile, onShareNarrationVoices, onRestoreNarrationClip }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
+  avatars?: Record<string, { ic?: string; ooc?: string }>;
   mode: 'shared' | 'private';
   isCreator?: boolean;
   onCopy?: (content: string) => void;
@@ -825,14 +909,30 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     const target = members.find(m => m.user_id === targetId);
     return target?.character_name || 'Unknown';
   })();
+  const hasRealPlayerName = message.sender_name !== 'Party' && message.sender_name !== 'System';
+  const hasPlayerAvatarIdentity = Boolean(message.sender_user_id && hasRealPlayerName);
+  const combinedPartySegments = !isWhisper && message.sender_name === 'Party'
+    ? splitCombinedPartyContent(message.content)
+    : [];
+  const isCombinedPartyMessage = combinedPartySegments.length > 0;
+  const displayedContent = hasRealPlayerName
+    ? stripSenderPrefix(message.content, message.sender_name)
+    : message.content;
 
   // User message (combined prompts)
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-1.5 justify-start group/msg relative min-w-0">
-      {isWhisper ? (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-start gap-1.5 justify-start group/msg relative min-w-0">
+      {isCombinedPartyMessage ? null : isWhisper ? (
         <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-purple-900/30 border border-purple-500/30">
           <Lock className="w-3.5 h-3.5 text-purple-400" />
         </div>
+      ) : hasPlayerAvatarIdentity && message.sender_user_id ? (
+        <PlayerMessageAvatar
+          userId={message.sender_user_id}
+          senderName={message.sender_name}
+          members={members}
+          avatars={avatars}
+        />
       ) : isDialogueMessage ? (
         <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
           style={{ backgroundColor: getMemberColor(message.sender_user_id || '', members) + '25', border: `1px solid ${getMemberColor(message.sender_user_id || '', members)}40` }}>
@@ -856,9 +956,9 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
             {message.team === 'alpha' ? 'Alpha' : 'Beta'}
           </span>
         )}
-        <div className="flex items-center gap-1.5 mb-1">
+        {!isCombinedPartyMessage && <div className="flex items-center gap-1.5 mb-1">
           <p className={cn("text-[11px] font-semibold", isWhisper ? "text-purple-300" : "text-primary")}>
-            {isWhisper || isDialogueMessage ? message.sender_name : 'Party Actions'}
+            {hasRealPlayerName || isWhisper || isDialogueMessage ? message.sender_name : 'Party Actions'}
           </p>
           {isWhisper && (
             <>
@@ -874,7 +974,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
             if (hasAction) return <span className="text-[9px] italic text-amber-400/50">action</span>;
             return <span className="text-[9px] italic text-muted-foreground/50">dialogue</span>;
           })()}
-        </div>
+        </div>}
         {isEditingMsg ? (
           <div className="space-y-2">
             <textarea
@@ -907,6 +1007,46 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                 Save
               </Button>
             </div>
+          </div>
+        ) : isCombinedPartyMessage ? (
+          <div className="space-y-2 min-w-0">
+            {combinedPartySegments.map((segment, segmentIndex) => {
+              const member = members.find(
+                candidate => candidate.character_name.toLowerCase() === segment.name.toLowerCase()
+              );
+              const segmentAfkNames = extractAfkNames(segment.raw);
+              const isHeldAction = /^:?\s*Holds their action\b/i.test(segment.content);
+              const isSystemSegment = segment.name === 'System' || !member || isHeldAction || segmentAfkNames.length > 0;
+              const segmentContent = isSystemSegment ? segment.raw : segment.content;
+
+              return (
+                <div key={`${segment.name}-${segmentIndex}`} className="flex items-start gap-2 min-w-0">
+                  {member && !isSystemSegment ? (
+                    <PlayerMessageAvatar
+                      userId={member.user_id}
+                      senderName={segment.name}
+                      members={members}
+                      avatars={avatars}
+                    />
+                  ) : (
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-primary/20 border border-primary/30">
+                      <Users className="w-3.5 h-3.5 text-primary" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    {!isSystemSegment && (
+                      <p className="text-[11px] font-semibold text-primary mb-1">{segment.name}</p>
+                    )}
+                    <div className="text-xs whitespace-pre-wrap text-white/90 break-words min-w-0">
+                      <AfkAnnotatedContent
+                        content={stripCinematicTagsFromDisplay(segmentContent)}
+                        afkNames={segmentAfkNames}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
         <p className="text-xs whitespace-pre-wrap text-white/90">
@@ -944,10 +1084,10 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                 p: ({ children }) => <span>{children}</span>,
               }}
             >
-              {stripCinematicTagsFromDisplay(message.content.slice(message.content.indexOf(']: ') + 3))}
+              {stripCinematicTagsFromDisplay(displayedContent)}
             </ReactMarkdown>
           ) : (
-            <AfkAnnotatedContent content={stripCinematicTagsFromDisplay(message.content)} afkNames={extractAfkNames(message.content)} />
+            <AfkAnnotatedContent content={stripCinematicTagsFromDisplay(displayedContent)} afkNames={extractAfkNames(message.content)} />
           )}
         </p>
         )}
@@ -1023,6 +1163,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.mode === next.mode
     && prev.showTeamTag === next.showTeamTag
     && prev.currentUserId === next.currentUserId
+    && prev.avatars === next.avatars
     && prev.isBookmarked === next.isBookmarked
     && prev.narrationMap === next.narrationMap
     && prev.narrationGeneratingPart === next.narrationGeneratingPart
@@ -2992,6 +3133,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     message={msg}
                     currentUserId={currentUserId}
                     members={stableMembers}
+                    avatars={chatAvatars.avatars}
                     mode={partyDm.isSplitActive ? 'private' : 'shared'}
                     isCreator={isCreator}
                     onCopy={handleCopyMessage}
