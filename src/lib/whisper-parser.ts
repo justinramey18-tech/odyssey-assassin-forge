@@ -10,6 +10,65 @@ export interface ParsedMessage {
   whispers: Whisper[];
 }
 
+// ── Action addressing ──────────────────────────────────────────────────────────
+// ACTION blocks may name who is being asked to roll:
+//   "Phoenix: Roll a Stealth check (DC 14)"
+//   "Everyone: Roll initiative"
+//   "Phoenix, Edgar [adv]: Roll a Perception check"
+// The name(s) are matched against party members by the caller.
+
+export interface ActionAddress {
+  /** Raw text before the first colon, or null when the block isn't addressed. */
+  address: string | null;
+  /** Individual names parsed out of the address. */
+  names: string[];
+  /** True when addressed to the whole party. */
+  everyone: boolean;
+  /** Advantage/disadvantage marker written after the name. */
+  rollMode: 'normal' | 'advantage' | 'disadvantage';
+  /** The check text with the address prefix and markers removed. */
+  text: string;
+}
+
+const ADV_MARK_RE = /\[\s*(adv|advantage)\s*\]/i;
+const DIS_MARK_RE = /\[\s*(dis|disadvantage)\s*\]/i;
+const EVERYONE_RE = /^(everyone|everybody|party|all|the party|all players)$/i;
+
+export function parseActionAddress(content: string): ActionAddress {
+  const raw = (content || '').trim();
+
+  let rollMode: ActionAddress['rollMode'] = 'normal';
+  if (DIS_MARK_RE.test(raw)) rollMode = 'disadvantage';
+  else if (ADV_MARK_RE.test(raw)) rollMode = 'advantage';
+
+  const colon = raw.indexOf(':');
+  // A prefix only counts as an address when it's short and reads like names.
+  const prefixRaw = colon > 0 ? raw.slice(0, colon) : '';
+  const looksAddressed =
+    colon > 0 &&
+    prefixRaw.length <= 60 &&
+    !/[.!?;]/.test(prefixRaw);
+
+  const stripMarks = (s: string) =>
+    s.replace(ADV_MARK_RE, '').replace(DIS_MARK_RE, '').replace(/\s{2,}/g, ' ').trim();
+
+  if (!looksAddressed) {
+    return { address: null, names: [], everyone: false, rollMode, text: stripMarks(raw) };
+  }
+
+  const address = stripMarks(prefixRaw);
+  const text = stripMarks(raw.slice(colon + 1));
+
+  const names = address
+    .split(/\s*(?:,|&|\band\b)\s*/i)
+    .map(n => n.trim())
+    .filter(Boolean);
+
+  const everyone = names.some(n => EVERYONE_RE.test(n));
+
+  return { address, names, everyone, rollMode, text: text || stripMarks(raw) };
+}
+
 // ── Delimiter regex ────────────────────────────────────────────────────────────
 // Matches <!--ACTION-->...<!--/ACTION-->, <!--TACTICS-->...<!--/TACTICS-->,
 // and <!--WHISPER:Name-->...<!--/WHISPER:Name-->
