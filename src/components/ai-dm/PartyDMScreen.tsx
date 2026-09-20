@@ -1982,7 +1982,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const usingLastRoundSynergy = pendingSynergyMessages.length === 0 && lastRoundSynergyMessages.length > 0;
 
   const liveTableCandidates = useMemo(() => {
-    const byUser = new Map<string, { userId: string; name: string; preview: string; avatarUrl?: string }>();
+    const byUser = new Map<string, { userId: string; name: string; preview: string; avatarUrl?: string; fromLastRound?: boolean }>();
     for (const m of synergyMessages) {
       if (!m.in_character) continue;
       if (m.user_id === currentUserId) continue;
