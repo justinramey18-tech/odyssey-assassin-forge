@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Sparkles, X, RotateCcw, Check, Loader2, ChevronLeft, User, Users } from 'lucide-react';
 import offeringJointAsset from '@/assets/offering-joint.jpg.asset.json';
@@ -26,10 +26,21 @@ interface StoryMasterworkActionsProps {
   fetchStoryPills: (flavorId?: string, mode?: SuggestMode, targetIds?: string[]) => Promise<ActionItem[]>;
   /** Players with an unsent in-character line right now. Empty → the picker is skipped. */
   liveTableCandidates?: LiveTableCandidate[];
+  /** External control: when both are passed, they replace the internal open state. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Hide the card button — render only the picker. */
+  hideTrigger?: boolean;
 }
 
-export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, liveTableCandidates = [] }: StoryMasterworkActionsProps) {
-  const [open, setOpen] = useState(false);
+export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, liveTableCandidates = [], open: openProp, onOpenChange, hideTrigger }: StoryMasterworkActionsProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const controlled = openProp !== undefined && onOpenChange !== undefined;
+  const open = controlled ? openProp : internalOpen;
+  const setOpen = useCallback((v: boolean) => {
+    if (controlled) onOpenChange!(v);
+    else setInternalOpen(v);
+  }, [controlled, onOpenChange]);
   const [loading, setLoading] = useState(false);
   const [pills, setPills] = useState<ActionItem[]>([]);
   const [error, setError] = useState<string | null>(null);
