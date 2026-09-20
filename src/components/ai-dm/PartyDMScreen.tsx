@@ -1963,9 +1963,27 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
    * Players with an unsent, in-character line right now — the people you can
    * ask the suggestion helper to play off. Table talk never qualifies.
    */
+  const pendingSynergyMessages = useMemo(
+    () => roundChat.pendingMessages.filter(m => m.in_character && m.user_id !== currentUserId),
+    [roundChat.pendingMessages, currentUserId],
+  );
+
+  const lastRoundSynergyMessages = useMemo(() => {
+    const latestOtherLine = [...roundChat.messages]
+      .reverse()
+      .find(m => m.consumed && m.in_character && m.user_id !== currentUserId && stripActionCard(parseReply(m.content).body).trim());
+    if (!latestOtherLine) return [];
+    return roundChat.messages.filter(m => m.consumed && m.in_character && m.round_id === latestOtherLine.round_id);
+  }, [roundChat.messages, currentUserId]);
+
+  const synergyMessages = pendingSynergyMessages.length > 0
+    ? roundChat.pendingMessages.filter(m => m.in_character)
+    : lastRoundSynergyMessages;
+  const usingLastRoundSynergy = pendingSynergyMessages.length === 0 && lastRoundSynergyMessages.length > 0;
+
   const liveTableCandidates = useMemo(() => {
     const byUser = new Map<string, { userId: string; name: string; preview: string; avatarUrl?: string }>();
-    for (const m of roundChat.pendingMessages) {
+    for (const m of synergyMessages) {
       if (!m.in_character) continue;
       if (m.user_id === currentUserId) continue;
       const text = stripActionCard(parseReply(m.content).body).trim();
@@ -1976,10 +1994,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         name: m.character_name || 'Player',
         preview: text.length > 90 ? `${text.slice(0, 90)}…` : text,
         avatarUrl: chatAvatars.avatars[m.user_id]?.ic,
+        fromLastRound: usingLastRoundSynergy,
       });
     }
     return Array.from(byUser.values());
-  }, [roundChat.pendingMessages, currentUserId, chatAvatars.avatars]);
+  }, [synergyMessages, currentUserId, chatAvatars.avatars, usingLastRoundSynergy]);
 
   const handleFetchStoryPills = useCallback(async (flavorId?: string, mode?: 'solo' | 'sync', targetIds?: string[]) => {
     // Include the recent back-and-forth (DM + this player + other players), not just DM replies,
@@ -2034,8 +2053,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     let liveTableLines = '';
     let synergyTargets: string[] = [];
     if (mode === 'sync') {
-      const icPending = roundChat.pendingMessages.filter(m => m.in_character).slice(-10);
-      liveTableLines = icPending
+      const sourceLines = synergyMessages.slice(-10);
+      liveTableLines = sourceLines
         .map(m => {
           const raw = stripActionCard(parseReply(m.content).body).trim();
           if (!raw) return '';
@@ -2048,7 +2067,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       const idSet = new Set(targetIds || []);
       synergyTargets = Array.from(
         new Set(
-          icPending
+          sourceLines
             .filter(m => idSet.has(m.user_id))
             .map(m => m.character_name || 'Player'),
         ),
@@ -2091,7 +2110,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
     if (!Array.isArray((data as any)?.pills)) throw new Error('Invalid response from suggestion generator.');
     return (data as any).pills;
-  }, [partyDm.messages, (partyDm.sessionConfig as any)?.campaignSummary, members, currentUserId, myDriftZone, myAlignmentHistoryCount, roundChat.pendingMessages]);
+  }, [partyDm.messages, (partyDm.sessionConfig as any)?.campaignSummary, members, currentUserId, myDriftZone, myAlignmentHistoryCount, synergyMessages]);
 
 
   // Whisper roll: state + handlers
