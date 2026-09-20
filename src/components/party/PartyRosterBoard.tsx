@@ -2,7 +2,7 @@
 // character on the right. Pictures come from the same ic / ooc avatar slots the
 // Live DM Table uses, so what shows here matches what shows on their messages.
 
-import { ArrowRight, Users } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ChatAvatars } from '@/hooks/use-chat-avatars';
 
