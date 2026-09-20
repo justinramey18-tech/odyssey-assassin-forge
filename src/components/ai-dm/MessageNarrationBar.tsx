@@ -1,4 +1,5 @@
-import { Download, ListMusic, Loader2, Pause, SlidersHorizontal } from 'lucide-react';
+import { Download, Loader2, Pause, SlidersHorizontal } from 'lucide-react';
+import listenToStory from '@/assets/listen-to-story.png.asset.json';
 import { useEffect, useMemo, useState } from 'react';
 import {
   splitDMResponseParts,
@@ -109,22 +110,34 @@ export function MessageNarrationBar({
 
   return (
     <div className="mt-1.5">
-      <div className="flex flex-wrap items-center gap-1.5">
-        {playAllReady && (
+      {/* Listen to Story — picture banner on its own line so the pill row doesn't wrap on narrow screens */}
+      {playAllReady && (
+        <div className="mb-1.5">
           <button
             onClick={() => onPlayAll(messageId, content)}
             style={{ touchAction: 'manipulation' }}
-            className={cn(
-              'flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] transition-colors',
-              'border border-emerald-500/30 bg-emerald-900/20 text-emerald-200/85 hover:bg-emerald-900/40',
-            )}
+            className="relative inline-flex h-14 rounded-xl overflow-hidden border border-amber-500/30 shadow-md transition-transform active:scale-95"
             title="Play every clip in your custom order"
+            aria-label="Listen to Story"
           >
-            {isPlayingAny ? <Pause className="w-3 h-3" /> : <ListMusic className="w-3 h-3" />}
-            {isPlayingAny ? (speakingName ? `Stop · ${speakingName}` : 'Stop') : 'Play all'}
+            <img
+              src={listenToStory.url}
+              alt="Listen to Story"
+              loading="lazy"
+              draggable={false}
+              className="h-14 w-auto object-cover"
+            />
+            {isPlayingAny && (
+              <span className="absolute inset-0 flex items-center justify-center gap-1.5 bg-black/60 text-[11px] text-amber-100">
+                <Pause className="w-4 h-4 shrink-0" />
+                <span className="truncate px-1">{speakingName ? `Stop · ${speakingName}` : 'Stop'}</span>
+              </span>
+            )}
           </button>
-        )}
+        </div>
+      )}
 
+      <div className="flex flex-wrap items-center gap-1.5">
         {isCasting && (
           <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] border border-violet-500/30 bg-violet-900/20 text-violet-200/85">
             <Loader2 className="w-3 h-3 animate-spin" />
