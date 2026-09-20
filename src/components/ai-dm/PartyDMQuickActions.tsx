@@ -14,9 +14,16 @@ import { castSpellByName, describeSlotSpend, getMagicResources } from '@/lib/mag
 import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic/castResolver';
 import { RollPreviewSheet, type RollPreviewChoice } from '@/components/magic/RollPreviewSheet';
 import { COST_META, resolveActionCost, type ActionCost } from '@/lib/combat/actionCost';
+import evocationBackground from '@/assets/spell-bg/evocation.jpg.asset.json';
+import enchantmentBackground from '@/assets/spell-bg/enchantment.jpg.asset.json';
 
 
 import type { CharacterContext } from '@/components/oracle/types';
+
+const SCHOOL_BG: Record<string, string> = {
+  evocation: evocationBackground.url,
+  enchantment: enchantmentBackground.url,
+};
 
 export type QuickActionRemoveCategory = 'weapon' | 'ability' | 'spell' | 'cantrip' | 'consumable' | 'prestige' | 'homebrew-ability' | 'homebrew-spell';
 
@@ -75,6 +82,7 @@ interface QuickActionItem {
   saveStat?: string;
   attackType?: string;
   rulesText?: string;
+  spellSchool?: string;
   /** What tapping this costs on your turn. */
   actionCost?: ActionCost;
 }
@@ -218,7 +226,11 @@ function SpellRulesDetails({ item, expanded, onExpandedChange }: SpellRulesDetai
         <div className="mt-1">
           <p
             ref={rulesRef}
-            className={cn('text-[12px] leading-snug text-white/60', !expanded && 'line-clamp-2')}
+            className={cn(
+              'text-[12px] leading-snug',
+              SCHOOL_BG[item.spellSchool?.toLowerCase() ?? ''] ? 'text-[#EBE4D7]' : 'text-white/60',
+              !expanded && 'line-clamp-2',
+            )}
           >
             {item.rulesText}
           </p>
@@ -246,15 +258,21 @@ function SpellRulesDetails({ item, expanded, onExpandedChange }: SpellRulesDetai
   );
 }
 
-function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = false, onHeal, onCloseDrawer, spentCosts, onActionSpent, drawerOpen }: SectionProps) {
+function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = true, onHeal, onCloseDrawer, spentCosts, onActionSpent, drawerOpen }: SectionProps) {
   const [open, setOpen] = useState(defaultOpen);
-  const [expandedSpellIds, setExpandedSpellIds] = useState<Set<string>>(() => new Set());
+  const spellIds = useMemo(() => items
+    .filter(item => item.removeCategory === 'spell' || item.removeCategory === 'cantrip' || item.removeCategory === 'homebrew-spell')
+    .map(item => item.id), [items]);
+  const [expandedSpellIds, setExpandedSpellIds] = useState<Set<string>>(() => new Set(spellIds));
   // The attack/spell about to be rolled, held while the player checks the maths.
   const [pending, setPending] = useState<QuickActionItem | null>(null);
 
   useEffect(() => {
-    if (!drawerOpen) setExpandedSpellIds(new Set());
-  }, [drawerOpen]);
+    if (drawerOpen) {
+      setOpen(true);
+      setExpandedSpellIds(new Set(spellIds));
+    }
+  }, [drawerOpen, spellIds]);
 
   const runAttackOrSpell = (item: QuickActionItem, choice: RollPreviewChoice) => {
     // Casting from quick actions spends the real slot first, so a
@@ -322,11 +340,21 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
           {items.map(item => {
             const isSpell = item.removeCategory === 'spell' || item.removeCategory === 'cantrip' || item.removeCategory === 'homebrew-spell';
             const expanded = expandedSpellIds.has(item.id);
+            const schoolBackground = isSpell ? SCHOOL_BG[item.spellSchool?.toLowerCase() ?? ''] : undefined;
             return (
-            <div key={item.id} className={cn("flex gap-2 px-2.5 py-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] transition-colors", isSpell ? 'items-start' : 'items-center')}>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-white/80 truncate">{item.name}</p>
-                <p className="text-[10px] text-white/35 truncate">{item.detail}</p>
+            <div
+              key={item.id}
+              className={cn(
+                'relative flex gap-2 overflow-hidden rounded-lg px-2.5 py-2 transition-colors',
+                schoolBackground ? 'bg-cover bg-right' : 'bg-white/[0.03] hover:bg-white/[0.06]',
+                isSpell ? 'items-start' : 'items-center',
+              )}
+              style={schoolBackground ? { backgroundImage: `url(${schoolBackground})` } : undefined}
+            >
+              {schoolBackground && <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[rgba(10,6,4,0.80)] to-[rgba(10,6,4,0.45)]" aria-hidden="true" />}
+              <div className="relative z-[1] flex-1 min-w-0">
+                <p className={cn('truncate text-sm', schoolBackground ? 'text-[#F0EBE1]' : 'text-white/80')}>{item.name}</p>
+                <p className={cn('truncate text-[10px]', schoolBackground ? 'text-[#C8BEAF]' : 'text-white/35')}>{item.detail}</p>
                 {isSpell && (
                   <SpellRulesDetails
                     item={item}
@@ -391,7 +419,7 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                   }
                 }}
                 className={cn(
-                  "shrink-0 p-1.5 rounded-lg transition-colors",
+                  "relative z-[1] shrink-0 p-1.5 rounded-lg transition-colors",
                   "bg-emerald-900/30 hover:bg-emerald-900/50 border border-emerald-500/20 hover:border-emerald-500/40"
                 )}
                 style={{ touchAction: 'manipulation' }}
@@ -401,7 +429,7 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
               {onRemove && (
                 <button
                   onClick={() => onRemove(item)}
-                  className="shrink-0 p-1.5 rounded-lg transition-colors bg-red-900/20 hover:bg-red-900/40 border border-red-500/15 hover:border-red-500/30"
+                  className="relative z-[1] shrink-0 p-1.5 rounded-lg transition-colors bg-red-900/20 hover:bg-red-900/40 border border-red-500/15 hover:border-red-500/30"
                   style={{ touchAction: 'manipulation' }}
                   title={`Remove ${item.name}`}
                 >
@@ -623,6 +651,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         saveStat: full.saveStat,
         attackType: full.attackType,
         rulesText: full.description,
+        spellSchool: full.school,
         actionCost: resolveActionCost({ kind: full.isHomebrew ? 'homebrew-spell' : isCantrip ? 'cantrip' : 'spell', castingTime: (full as any).castingTime }),
       };
 
@@ -698,16 +727,24 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[70vh] bg-gradient-to-b from-[#1a1a2e] to-[#0d0d12] border-amber-900/30 party-dm-quick-actions-content">
-        <DrawerHeader className="pb-2">
+      <DrawerContent className="h-[100dvh] max-h-[100dvh] rounded-none bg-gradient-to-b from-[#1a1a2e] to-[#0d0d12] border-amber-900/30 party-dm-quick-actions-content">
+        <DrawerHeader className="relative shrink-0 border-b border-amber-900/30 pb-2">
           <DrawerTitle className="text-amber-200 font-cinzel text-center">
             Quick Actions
             <span className="text-[10px] text-white/40 ml-2 font-sans">({totalItems} available)</span>
           </DrawerTitle>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            aria-label="Close Quick Actions"
+            className="absolute right-2 top-0 flex h-11 w-11 items-center justify-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <X className="h-5 w-5" />
+          </button>
         </DrawerHeader>
-        <div className="flex-1 overflow-y-auto overscroll-contain px-2 pb-6 space-y-1">
-          {showSpellSlots && characterContext?.spellcasting && (
-            <div className="mx-2 mb-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2" aria-label="Available spell slots">
+        {showSpellSlots && characterContext?.spellcasting && (
+          <div className="mx-4 my-2 shrink-0 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2" aria-label="Available spell slots">
               <p className="mb-1.5 text-[10px] uppercase text-amber-200/70">Spell slots</p>
               <div className="space-y-1">
                 {characterContext.spellcasting.slots.filter(slot => slot.max > 0).map(slot => (
@@ -731,8 +768,9 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   </div>
                 )}
               </div>
-            </div>
-          )}
+          </div>
+        )}
+        <div className="flex-1 overflow-y-auto overscroll-contain px-2 pb-6 space-y-1">
           {totalItems === 0 ? (
             <p className="text-center text-sm text-white/30 py-8">No actions available. Equip weapons, prepare spells, or unlock abilities.</p>
           ) : (
