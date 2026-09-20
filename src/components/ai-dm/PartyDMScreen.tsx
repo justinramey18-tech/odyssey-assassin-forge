@@ -574,7 +574,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   onDeleteAllNarration?: (messageId: string) => void;
   onRecordNarrationSegment?: (messageId: string, content: string, passage: string, blob: Blob, label?: string, hint?: NarrationSegment) => Promise<RecordedClipResult>;
   onRevertToCastVoice?: (messageId: string, part: NarrationPart) => Promise<void>;
-  onVoiceSegment?: (messageId: string, content: string, passage: string, voiceId: string, label?: string) => Promise<void>;
+  onVoiceSegment?: (messageId: string, content: string, passage: string, voiceId: string, label?: string, spokenText?: string) => Promise<void>;
   onShareNarrationVoices?: (messageId: string) => void;
   onRestoreNarrationClip?: (messageId: string, part: NarrationPart, blob: Blob, voiceId: string) => Promise<void>;
 }) {

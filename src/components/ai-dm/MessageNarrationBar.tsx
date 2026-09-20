@@ -36,7 +36,7 @@ interface MessageNarrationBarProps {
   /** Swaps a self-recorded piece back to the cast voice it covered. */
   onRevertToCastVoice?: (messageId: string, part: NarrationPart) => Promise<void>;
   /** Synthesizes ONE piece of the story in the chosen voice. */
-  onVoiceSegment?: (messageId: string, content: string, passage: string, voiceId: string, label?: string) => Promise<void>;
+  onVoiceSegment?: (messageId: string, content: string, passage: string, voiceId: string, label?: string, spokenText?: string) => Promise<void>;
   /** Packages this message's clips into one audio file on the device. */
   onDownloadFile?: (messageId: string, content: string) => void;
   /** True while this message's file is being prepared. */
@@ -190,7 +190,7 @@ export function MessageNarrationBar({
         onDeletePart={canDelete && onDelete ? (part) => onDelete(messageId, part) : undefined}
         onDeleteAll={canDelete && onDeleteAll ? () => onDeleteAll(messageId) : undefined}
         onVoiceSegment={canGenerate && onVoiceSegment
-          ? (passage, voiceId, label) => onVoiceSegment(messageId, content, passage, voiceId, label)
+          ? (passage, voiceId, label, spokenText) => onVoiceSegment(messageId, content, passage, voiceId, label, spokenText)
           : undefined}
         onRecordSegment={onRecordSegment
           ? (passage, blob, hint) => onRecordSegment(messageId, content, passage, blob, undefined, hint)

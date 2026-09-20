@@ -97,6 +97,7 @@ interface UseMessageNarrationReturn {
     passage: string,
     voiceId: string,
     label?: string,
+    spokenText?: string,
   ) => Promise<void>;
   play: (messageId: string, part?: NarrationPart, rate?: number) => void;
   /** Plays the DM aside, then every story segment in story order. */
