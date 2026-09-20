@@ -23,6 +23,7 @@ import { QuickActionLine } from './QuickActionCard';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { supabase } from '@/integrations/supabase/client';
 import type { RoundChatMessage, RoundChatReaction, RoundStyle } from '@/hooks/use-round-chat';
+import liveChatBgAsset from '@/assets/live-chat-bg.jpg.asset.json';
 
 const EMOJI_SET = ['🤣','😅','🤪','🙄','😬','😏','🤮','🥵','🥶','🤯','🧐','😎','😱','😭','🤬','😈','❤️','💯','👏','🙌','🤝','🖕','🫦','🗣','🍑','🍆'];
 
@@ -506,6 +507,13 @@ export function RoundChatDrawer({
       "relative border-t border-amber-900/30 bg-gradient-to-b from-amber-950/25 to-black/40 overflow-hidden",
       fullScreen && "fixed inset-0 z-50 flex flex-col border-t-0 bg-[#0b0b10]",
     )}>
+      {/* Arcane floor background — dimmed so chat text stays readable */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-40"
+        style={{ backgroundImage: `url(${liveChatBgAsset.url})` }}
+      />
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-black/55" />
       {/* Expansion trigger — large, ornamented header */}
       <button
         onClick={() => onOpenChange(!open)}
