@@ -71,6 +71,31 @@ function playerTint(userId: string): string {
  *  main party DM stream uses - see IMAGE_REGEX in AIDMScreen.tsx. */
 const CHAT_IMAGE_REGEX = /^\s*\[image:(https?:\/\/[^\]]+)\]\s*$/;
 
+/** One person's slot inside a roll request card. */
+export interface RollRequestRow {
+  /** Party member the row belongs to, or 'any' for an untargeted request. */
+  userId: string;
+  name: string;
+  /** True when this device's player is allowed to press this row. */
+  mine: boolean;
+  /** Filled in once the roll has landed. */
+  result?: { text: string; total: number; rolledBy?: string } | null;
+}
+
+/** A dice roll the DM has asked for, shown as a card above the composer. */
+export interface RollRequestCard {
+  id: string;
+  /** "Charisma (Performance), DC 14" */
+  label: string;
+  /** "Roll" / "Roll with Advantage" / "Roll with Disadvantage" */
+  buttonLabel: string;
+  /** True when the whole party is being asked. */
+  everyone: boolean;
+  rows: RollRequestRow[];
+  /** Short title for party-wide cards, e.g. "Initiative". */
+  title?: string;
+}
+
 const SWIPE_TRIGGER = 56;   // px of travel needed to arm the reply
 const SWIPE_MAX = 80;       // px the bubble can be dragged
 
