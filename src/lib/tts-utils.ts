@@ -492,6 +492,13 @@ export interface NarrationSegment {
    * segmentKey, so a clip's id depends on its text alone.
    */
   para?: number;
+  /**
+   * 1-based count of how many identical pieces came before this one in the
+   * same message. The first keeps the plain hash (so existing clips still
+   * match); later duplicates get a "-2", "-3"… suffix so every row has its
+   * own id.
+   */
+  occurrence?: number;
 }
 
 /** Removes [VOICE:...] markers while keeping the words, for on-screen display. */
@@ -504,7 +511,9 @@ export function segmentKey(seg: NarrationSegment): string {
   const basis = `${seg.speaker || ''}|${seg.voiceId || ''}|${(seg.text || '').replace(/\s+/g, ' ').trim()}`;
   let h = 5381;
   for (let i = 0; i < basis.length; i++) h = ((h * 33) ^ basis.charCodeAt(i)) >>> 0;
-  return `seg-${h.toString(36)}`;
+  const base = `seg-${h.toString(36)}`;
+  const n = seg.occurrence;
+  return Number.isFinite(n) && (n as number) > 1 ? `${base}-${n}` : base;
 }
 
 function escapeRe(s: string): string {
