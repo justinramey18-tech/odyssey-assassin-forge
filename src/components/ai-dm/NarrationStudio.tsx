@@ -81,6 +81,8 @@ interface StudioRow {
   covering?: string | null;
   canRevert?: boolean;
   audio?: MessageAudioRow;
+  /** True when the spoken words were hand-edited away from the story text. */
+  edited?: boolean;
 }
 
 /** What one undo step restores. */
@@ -152,6 +154,8 @@ export function NarrationStudio({
   const [savingRecording, setSavingRecording] = useState(false);
   const [savedRecordings, setSavedRecordings] = useState<Record<string, MessageAudioRow>>({});
   const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
+  const [editFor, setEditFor] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState('');
   const historyRef = useRef<Snapshot[]>([]);
   const [, setHistoryTick] = useState(0);
 
