@@ -581,7 +581,8 @@ export function NarrationStudio({
   if (!open) return null;
 
   const canRecord = !!onRecordSegment;
-  const hasCustomOrder = !!studio.order && studio.order.length > 0;
+  const hasCustomOrder = (!!studio.order && studio.order.length > 0)
+    || (!!studio.hidden && studio.hidden.length > 0);
   const isCasting = generatingPart === 'cast';
   const anyGenerating = !!generatingPart;
 
