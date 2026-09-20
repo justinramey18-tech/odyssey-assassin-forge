@@ -754,8 +754,51 @@ export function NarrationStudio({
                     ) : (
                       <span className="text-[9px] text-muted-foreground/60">silent</span>
                     )}
+                    {row.edited && (
+                      <button
+                        onClick={() => resetScript(row.part)}
+                        disabled={!canGenerate}
+                        style={{ touchAction: 'manipulation' }}
+                        className="text-[9px] text-amber-300/80 underline underline-offset-2 disabled:no-underline"
+                        title="Read the story words again"
+                      >
+                        edited · reset
+                      </button>
+                    )}
                   </div>
-                  <p className="text-sm text-foreground/90 whitespace-pre-wrap mt-1">{row.displayText}</p>
+                  {editFor === row.part ? (
+                    <div className="mt-1 space-y-1.5">
+                      <textarea
+                        value={editDraft}
+                        onChange={(e) => setEditDraft(e.target.value)}
+                        rows={4}
+                        autoFocus
+                        className="w-full rounded-md border border-sky-500/40 bg-muted/20 p-2 text-sm text-foreground/90 focus:outline-none focus:ring-1 focus:ring-sky-400/60"
+                        placeholder="Words to read aloud"
+                      />
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => saveScript(row.part, editDraft, stripMarkdownForTTS(row.seg?.text || ''))}
+                          style={{ touchAction: 'manipulation' }}
+                          className="px-3 py-2 rounded-full text-[11px] border border-emerald-500/30 bg-emerald-900/20 text-emerald-200/85"
+                        >
+                          Save words
+                        </button>
+                        <button
+                          onClick={() => setEditFor(null)}
+                          style={{ touchAction: 'manipulation' }}
+                          className="px-3 py-2 rounded-full text-[11px] border border-border/40 text-muted-foreground"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      <p className="text-[9px] text-muted-foreground/70">
+                        Only changes what is read aloud. The story stays as written.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-foreground/90 whitespace-pre-wrap mt-1">{row.displayText}</p>
+                  )}
                 </div>
 
                 {canGenerate && (
