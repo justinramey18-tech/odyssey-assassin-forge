@@ -39,6 +39,7 @@ import { usePartyNarrationStyle } from '@/hooks/use-party-narration-style';
 import { useRoundChat } from '@/hooks/use-round-chat';
 import { useChatAvatars } from '@/hooks/use-chat-avatars';
 import { RoundChatDrawer } from './RoundChatDrawer';
+import { ActionMenuSheet, type ActionMenuChoice } from './ActionMenuSheet';
 import { DMHandoffBar } from './DMHandoffBar';
 import { narrationStyleLine } from '@/lib/narrationStyle';
 import { withQuestEvent, WorldStateEntry, buildQuestKickoffPrompt } from '@/lib/quests';
@@ -1056,6 +1057,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [showMemorial, setShowMemorial] = useState(false);
   const [showDeathTransition, setShowDeathTransition] = useState(false);
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
+  const [characterSheetInitialTab, setCharacterSheetInitialTab] = useState<SheetTab>('vitals');
   const [showTableGuide, setShowTableGuide] = useState(false);
 
   const [showPartySheets, setShowPartySheets] = useState(false);
@@ -1495,6 +1497,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   });
 
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [quickActionSections, setQuickActionSections] = useState<Array<'weapons' | 'abilities' | 'spells' | 'cantrips'> | undefined>();
+  const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [showStoneDrawer, setShowStoneDrawer] = useState(false);
 
   // Split party state
@@ -2248,6 +2252,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       return;
     }
     if (tab === 'actions') {
+      setQuickActionSections(undefined);
       setQuickActionsOpen(true);
       return;
     }
@@ -2267,6 +2272,30 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     // Dice, wildshape, oracle, settings tabs toggle full-screen content
     setActiveNavTab(prev => prev === tab ? null : tab);
   }, [isEmpyrean, dragonBonds.isSetup]);
+
+  const handleActionMenuSelect = useCallback((choice: ActionMenuChoice) => {
+    setActionMenuOpen(false);
+    window.setTimeout(() => {
+      if (choice === 'dice') {
+        setDiceRollerWhisperText(null);
+        setDiceRollerOpen(true);
+      } else if (choice === 'actions') {
+        setQuickActionSections(['weapons', 'abilities']);
+        setQuickActionsOpen(true);
+      } else if (choice === 'spells') {
+        setQuickActionSections(['spells', 'cantrips']);
+        setQuickActionsOpen(true);
+      } else if (choice === 'story') {
+        setCharacterSheetInitialTab('story');
+        setShowCharacterSheet(true);
+      } else if (choice === 'bag') {
+        setCharacterSheetInitialTab('items');
+        setShowCharacterSheet(true);
+      } else {
+        toast.info('Coming soon');
+      }
+    }, 200);
+  }, []);
   const hasSubmitted = !!partyDm.myPrompt;
   const isReady = partyDm.myPrompt?.is_ready ?? false;
   const isDialogueMode = partyDm.sessionConfig?.dmMode === 'dialogue';
@@ -3255,6 +3284,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             updated_at: m.updated_at,
           }))}
           onMarkRead={roundChat.markRead}
+          onOpenActionMenu={() => setActionMenuOpen(true)}
         /></>
       )}
 
@@ -4262,7 +4292,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 nextLevelXP={partyXpSnapshot.nextLevelXP}
                 isMilestone={partyXpSnapshot.mode === 'milestone'}
                 pendingItemCount={partyPendingItemCount}
-                onOpen={() => setShowCharacterSheet(true)}
+                onOpen={() => { setCharacterSheetInitialTab('vitals'); setShowCharacterSheet(true); }}
               />
             </div>
           ) : undefined}
@@ -4397,7 +4427,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           isGenerating={partyDm.isGenerating}
           isHost={isCreator}
           turn={combatTurn}
-          onOpenCharacterSheet={() => setShowCharacterSheet(true)}
+          onOpenCharacterSheet={() => { setCharacterSheetInitialTab('vitals'); setShowCharacterSheet(true); }}
           isTransformed={wildShape?.state.isTransformed}
           wildShapeSpeed={wildShape?.state.currentForm?.speed}
           renderSettings={renderPartySettings}
@@ -4427,6 +4457,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         onUsePrompt={handleUsePrompt}
         onHealingItemUsed={handleHealingItemUsed}
         empyreanDragonName={isEmpyrean && dragonBonds.myDragon?.dragonName ? dragonBonds.myDragon.dragonName : undefined}
+        sectionsToShow={quickActionSections}
+      />
+      <ActionMenuSheet
+        open={actionMenuOpen}
+        onOpenChange={setActionMenuOpen}
+        onSelect={handleActionMenuSelect}
+        characterName={characterContext?.name}
+        characterImage={currentUserId ? chatAvatars.avatars[currentUserId]?.ic : undefined}
       />
       <DiceRollOverlay />
       {/* Infinity Stone DM Drawer */}
@@ -5004,6 +5042,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           partySheetCount={members.filter(m => m.user_id !== currentUserId).length}
           onClose={() => setShowCharacterSheet(false)}
           ctx={characterContext}
+          initialTab={characterSheetInitialTab}
           currentXP={currentXP ?? 0}
           gold={characterContext.gold ?? 0}
           quests={sheetQuests.quests}
@@ -5026,6 +5065,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onRest={onRestOccurred}
           onRestPrompt={(text) => dispatchPrompt(text)}
           onAcceptItem={onAcceptItem}
+          onUseConsumableByName={onUseConsumableByName ? (name) => {
+            if (onUseConsumableByName(name, 1)) dispatchPrompt(`${characterContext.name || 'The Adventurer'} uses ${name}.`);
+          } : undefined}
           onUseLootItem={(text) => {
             if (chatRoundsOnRef.current) { dispatchPrompt(text); return; }
             playerInputRef.current?.appendText(text);
