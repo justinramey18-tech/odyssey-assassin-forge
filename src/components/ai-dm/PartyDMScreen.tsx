@@ -111,6 +111,7 @@ import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { formatForReadingMode, type FormattedReading } from '@/lib/reading-mode-formatter';
 import { SoloCharacterSheet, type SheetTab } from '@/components/ai-dm/SoloCharacterSheet';
+import { BagStatsScreen } from '@/components/ai-dm/BagStatsScreen';
 import { TableGuide } from '@/components/help/TableGuide';
 
 import { CharacterSheetStrip } from '@/components/ai-dm/CharacterSheetStrip';
@@ -1061,6 +1062,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [showDeathTransition, setShowDeathTransition] = useState(false);
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
   const [characterSheetInitialTab, setCharacterSheetInitialTab] = useState<SheetTab>('vitals');
+  const [showBagStats, setShowBagStats] = useState(false);
   const [showTableGuide, setShowTableGuide] = useState(false);
 
   const [showPartySheets, setShowPartySheets] = useState(false);
@@ -2292,13 +2294,34 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         setCharacterSheetInitialTab('story');
         setShowCharacterSheet(true);
       } else if (choice === 'bag') {
-        setCharacterSheetInitialTab('items');
-        setShowCharacterSheet(true);
+        setShowBagStats(true);
       } else {
         toast.info('Coming soon');
       }
     }, 200);
   }, []);
+
+  /** Shared consumable use: healing items roll real dice, everything else is announced to the DM. */
+  const handleConsumableUse = useCallback((name: string) => {
+    if (!characterContext || !onUseConsumableByName) return;
+    const consumable = characterContext.consumables.find(item => item.name === name);
+    const healingDice = getHealingDiceForItem(name, consumable?.effect);
+    if (healingDice) {
+      setShowCharacterSheet(false);
+      setShowBagStats(false);
+      const roll = rollHealing(healingDice.count, healingDice.die, healingDice.bonus);
+      requestDiceRoll({
+        title: name,
+        roll,
+        onComplete: () => {
+          const prompt = handleHealingItemUsed(name, roll);
+          if (prompt) dispatchPrompt(encodeActionCard(actionCardFromRoll(name, roll), prompt));
+        },
+      });
+      return;
+    }
+    if (onUseConsumableByName(name, 1)) dispatchPrompt(`${characterContext.name || 'The Adventurer'} uses ${name}.`);
+  }, [characterContext, onUseConsumableByName, handleHealingItemUsed, dispatchPrompt]);
   const hasSubmitted = !!partyDm.myPrompt;
   const isReady = partyDm.myPrompt?.is_ready ?? false;
   const isDialogueMode = partyDm.sessionConfig?.dmMode === 'dialogue';
@@ -5068,27 +5091,26 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onRest={onRestOccurred}
           onRestPrompt={(text) => dispatchPrompt(text)}
           onAcceptItem={onAcceptItem}
-          onUseConsumableByName={onUseConsumableByName ? (name) => {
-            const consumable = characterContext.consumables.find(item => item.name === name);
-            const healingDice = getHealingDiceForItem(name, consumable?.effect);
-            if (healingDice) {
-              setShowCharacterSheet(false);
-              const roll = rollHealing(healingDice.count, healingDice.die, healingDice.bonus);
-              requestDiceRoll({
-                title: name,
-                roll,
-                onComplete: () => {
-                  const prompt = handleHealingItemUsed(name, roll);
-                  if (prompt) dispatchPrompt(encodeActionCard(actionCardFromRoll(name, roll), prompt));
-                },
-              });
-              return;
-            }
-            if (onUseConsumableByName(name, 1)) dispatchPrompt(`${characterContext.name || 'The Adventurer'} uses ${name}.`);
-          } : undefined}
+          onUseConsumableByName={handleConsumableUse}
           onUseLootItem={(text) => {
             if (chatRoundsOnRef.current) { dispatchPrompt(text); return; }
             playerInputRef.current?.appendText(text);
+          }}
+        />
+      )}
+
+      {characterContext && (
+        <BagStatsScreen
+          open={showBagStats}
+          onClose={() => setShowBagStats(false)}
+          ctx={characterContext}
+          currentXP={currentXP ?? 0}
+          gold={characterContext.gold ?? 0}
+          onUseConsumable={onUseConsumableByName ? handleConsumableUse : undefined}
+          onOpenFullSheet={() => {
+            setShowBagStats(false);
+            setCharacterSheetInitialTab('items');
+            setShowCharacterSheet(true);
           }}
         />
       )}
