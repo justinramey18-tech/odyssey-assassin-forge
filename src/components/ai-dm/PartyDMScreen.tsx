@@ -204,6 +204,57 @@ function formatAutoSaveTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+/** Stable id for a DM roll request so every device agrees on the same card. */
+function hashRequestId(input: string): string {
+  let h = 0;
+  for (let i = 0; i < input.length; i++) h = (h * 31 + input.charCodeAt(i)) >>> 0;
+  return `rr${h.toString(36)}`;
+}
+
+const SKILL_LABELS: Record<string, string> = {
+  acrobatics: 'Acrobatics', animal_handling: 'Animal Handling', arcana: 'Arcana',
+  athletics: 'Athletics', deception: 'Deception', history: 'History', insight: 'Insight',
+  intimidation: 'Intimidation', investigation: 'Investigation', medicine: 'Medicine',
+  nature: 'Nature', perception: 'Perception', performance: 'Performance',
+  persuasion: 'Persuasion', religion: 'Religion', sleight_of_hand: 'Sleight of Hand',
+  stealth: 'Stealth', survival: 'Survival',
+};
+
+const ABILITY_LABELS: Record<string, string> = {
+  str: 'Strength', dex: 'Dexterity', con: 'Constitution',
+  int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma',
+};
+
+/** Short name for the roll, used in the posted chat line. */
+function describeRollName(hint: { ability: string | null; skillId: string | null; isSave: boolean }, text: string): string {
+  if (/initiative/i.test(text)) return 'Initiative';
+  if (hint.skillId && SKILL_LABELS[hint.skillId]) return SKILL_LABELS[hint.skillId];
+  if (hint.ability && ABILITY_LABELS[hint.ability]) {
+    return `${ABILITY_LABELS[hint.ability]}${hint.isSave ? ' Save' : ''}`;
+  }
+  return 'Roll';
+}
+
+/** Card subtitle, e.g. "Charisma (Performance), DC 14". */
+function describeRollRequest(
+  hint: { ability: string | null; skillId: string | null; isSave: boolean; dc: number | null },
+  text: string,
+): string {
+  const parts: string[] = [];
+  if (/initiative/i.test(text)) {
+    parts.push('Initiative (Dexterity)');
+  } else if (hint.skillId && SKILL_LABELS[hint.skillId]) {
+    parts.push(hint.ability && ABILITY_LABELS[hint.ability]
+      ? `${ABILITY_LABELS[hint.ability]} (${SKILL_LABELS[hint.skillId]})`
+      : SKILL_LABELS[hint.skillId]);
+  } else if (hint.ability && ABILITY_LABELS[hint.ability]) {
+    parts.push(`${ABILITY_LABELS[hint.ability]}${hint.isSave ? ' save' : ' check'}`);
+  }
+  if (hint.dc != null) parts.push(`DC ${hint.dc}`);
+  if (!parts.length) return text;
+  return parts.join(', ');
+}
+
 function getMemberColor(userId: string, members: Array<{ user_id: string }>): string {
   const idx = members.findIndex(m => m.user_id === userId);
   return MEMBER_COLORS[idx >= 0 ? idx % MEMBER_COLORS.length : 0];
