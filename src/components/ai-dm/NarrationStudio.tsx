@@ -2,8 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getNarrationAudio } from '@/lib/audioFocus';
 import {
-  ArrowDown,
-  ArrowUp,
   Check,
   ChevronLeft,
   Loader2,
@@ -17,6 +15,7 @@ import {
   Undo2,
   Users,
   Merge,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -202,9 +201,15 @@ export function NarrationStudio({
   /** Stored order, filtered to pieces that still exist, stragglers appended. */
   const orderedParts = useMemo(() => {
     const stored = studio.order || [];
+    const hidden = new Set(studio.hidden || []);
     const kept = stored.filter((p) => defaultParts.includes(p));
     const missing = defaultParts.filter((p) => !kept.includes(p));
-    return [...kept, ...missing];
+    const seen = new Set<string>();
+    return [...kept, ...missing].filter((p) => {
+      if (hidden.has(p) || seen.has(p)) return false;
+      seen.add(p);
+      return true;
+    });
   }, [studio, defaultParts]);
 
   const overrideLabelFor = useCallback((seg: NarrationSegment): string | null => {
@@ -336,6 +341,20 @@ export function NarrationStudio({
     const j = i + dir;
     if (i === -1 || j < 0 || j >= parts.length) return;
     [parts[i], parts[j]] = [parts[j], parts[i]];
+    saveOrder(parts);
+  }, [canGenerate, orderedParts, pushHistory, takeSnapshot, saveOrder]);
+
+  /** Moves a piece to a typed position (1…N); everything else closes the gap. */
+  const moveTo = useCallback((part: string, position: number) => {
+    if (!canGenerate) return;
+    const parts = [...orderedParts];
+    const i = parts.indexOf(part);
+    if (i === -1) return;
+    const target = Math.min(parts.length, Math.max(1, Math.round(position))) - 1;
+    if (target === i) return;
+    pushHistory(takeSnapshot());
+    parts.splice(i, 1);
+    parts.splice(target, 0, part);
     saveOrder(parts);
   }, [canGenerate, orderedParts, pushHistory, takeSnapshot, saveOrder]);
 
@@ -519,10 +538,41 @@ export function NarrationStudio({
     bump();
   }, [onDeletePart, pushHistory, takeSnapshot, bump]);
 
+  /** Removes a piece from the draft (never from the written story). */
+  const deletePiece = useCallback(async (row: StudioRow) => {
+    if (!canGenerate) return;
+    const snap = takeSnapshot();
+    if (row.audio && onDeletePart) {
+      try {
+        const res = await fetch(row.audio.audio_url);
+        if (res.ok) snap.deleted.push({ part: row.audio.part, blob: await res.blob(), voiceId: row.audio.voice_id || '' });
+      } catch { /* undo simply cannot restore this one */ }
+    }
+    pushHistory(snap);
+    if (row.audio && onDeletePart) {
+      const deletedPart = row.audio.part;
+      onDeletePart(deletedPart);
+      setSavedRecordings((current) => {
+        if (!(deletedPart in current) && !(row.part in current)) return current;
+        const next = { ...current };
+        delete next[deletedPart];
+        delete next[row.part];
+        return next;
+      });
+    }
+    const current = loadStudioState(messageId);
+    const hidden = Array.from(new Set([...(current.hidden || []), row.part]));
+    const order = orderedParts.filter((p) => p !== row.part);
+    saveStudioState(messageId, { ...current, hidden, order });
+    bump();
+    onShareVoices?.();
+    toast.success('Piece removed from the draft');
+  }, [canGenerate, messageId, orderedParts, onDeletePart, onShareVoices, pushHistory, takeSnapshot, bump]);
+
   const resetOrder = useCallback(() => {
     pushHistory(takeSnapshot());
     const current = loadStudioState(messageId);
-    saveStudioState(messageId, { ...current, order: undefined });
+    saveStudioState(messageId, { ...current, order: undefined, hidden: undefined });
     bump();
     onShareVoices?.();
     toast.success('Back to story order');
@@ -531,7 +581,8 @@ export function NarrationStudio({
   if (!open) return null;
 
   const canRecord = !!onRecordSegment;
-  const hasCustomOrder = !!studio.order && studio.order.length > 0;
+  const hasCustomOrder = (!!studio.order && studio.order.length > 0)
+    || (!!studio.hidden && studio.hidden.length > 0);
   const isCasting = generatingPart === 'cast';
   const anyGenerating = !!generatingPart;
 
@@ -662,24 +713,31 @@ export function NarrationStudio({
                 </div>
 
                 {canGenerate && (
-                  <div className="flex flex-col gap-1 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0">
+                    <input
+                      key={`${row.part}-${i}`}
+                      type="text"
+                      inputMode="numeric"
+                      defaultValue={String(i + 1)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                      }}
+                      onBlur={(e) => {
+                        const n = parseInt(e.target.value, 10);
+                        if (!Number.isFinite(n)) { e.target.value = String(i + 1); return; }
+                        moveTo(row.part, n);
+                      }}
+                      className="w-12 h-8 text-center rounded border border-border/50 bg-muted/20 text-[12px] text-foreground"
+                      title="Play position — type a number to move this piece"
+                      aria-label="Play position"
+                    />
                     <button
-                      onClick={() => move(row.part, -1)}
-                      disabled={i === 0}
+                      onClick={() => void deletePiece(row)}
                       style={{ touchAction: 'manipulation' }}
-                      className="p-1.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-20"
-                      title="Play earlier"
+                      className="p-1.5 rounded text-red-400/60 hover:text-red-400"
+                      title="Remove this piece from the draft"
                     >
-                      <ArrowUp className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => move(row.part, 1)}
-                      disabled={i === rows.length - 1}
-                      style={{ touchAction: 'manipulation' }}
-                      className="p-1.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-20"
-                      title="Play later"
-                    >
-                      <ArrowDown className="w-3.5 h-3.5" />
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
                 )}

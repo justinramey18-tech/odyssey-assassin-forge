@@ -492,6 +492,13 @@ export interface NarrationSegment {
    * segmentKey, so a clip's id depends on its text alone.
    */
   para?: number;
+  /**
+   * 1-based count of how many identical pieces came before this one in the
+   * same message. The first keeps the plain hash (so existing clips still
+   * match); later duplicates get a "-2", "-3"… suffix so every row has its
+   * own id.
+   */
+  occurrence?: number;
 }
 
 /** Removes [VOICE:...] markers while keeping the words, for on-screen display. */
@@ -504,7 +511,9 @@ export function segmentKey(seg: NarrationSegment): string {
   const basis = `${seg.speaker || ''}|${seg.voiceId || ''}|${(seg.text || '').replace(/\s+/g, ' ').trim()}`;
   let h = 5381;
   for (let i = 0; i < basis.length; i++) h = ((h * 33) ^ basis.charCodeAt(i)) >>> 0;
-  return `seg-${h.toString(36)}`;
+  const base = `seg-${h.toString(36)}`;
+  const n = seg.occurrence;
+  return Number.isFinite(n) && (n as number) > 1 ? `${base}-${n}` : base;
 }
 
 function escapeRe(s: string): string {
@@ -792,7 +801,16 @@ export function splitStorySegments(story: string, messageId?: string): Narration
   // headings) so they never become gaps that need audio.
   const speakable = withOverrides.filter((s) => !!stripMarkdownForTTS(s.text || '').trim());
   const merged = mergeNarrator(speakable.length ? speakable : withOverrides);
-  return merged.length ? merged : [{ speaker: null, text: raw }];
+  const final = merged.length ? merged : [{ speaker: null, text: raw }];
+  // Two pieces with identical words would otherwise share one id, which made
+  // them render (and reorder) as a single row. Number the repeats in order.
+  const seen = new Map<string, number>();
+  return final.map((s) => {
+    const basis = `${s.speaker || ''}|${s.voiceId || ''}|${(s.text || '').replace(/\s+/g, ' ').trim()}`;
+    const n = (seen.get(basis) || 0) + 1;
+    seen.set(basis, n);
+    return n > 1 ? { ...s, occurrence: n } : s;
+  });
 }
 
 
@@ -809,6 +827,12 @@ export interface NarrationStudioState {
   order?: string[];
   /** Per-part playback rate (0.5 - 2). Playback-only; nothing is re-voiced. */
   rates?: Record<string, number>;
+  /**
+   * Part ids removed from the narration draft. Pieces are re-derived from the
+   * message text every load, so without this a removed piece reappears. The
+   * written story is never changed.
+   */
+  hidden?: string[];
 }
 
 type StudioMap = Record<string, NarrationStudioState>;
@@ -841,7 +865,10 @@ export function saveStudioState(messageId: string, state: NarrationStudioState):
     }
     if (Object.keys(rates).length > 0) clean.rates = rates;
   }
-  if (clean.order || clean.rates) map[messageId] = clean;
+  if (Array.isArray(state.hidden) && state.hidden.length > 0) {
+    clean.hidden = state.hidden.filter((p) => typeof p === 'string');
+  }
+  if (clean.order || clean.rates || clean.hidden) map[messageId] = clean;
   else delete map[messageId];
   writeStudioMap(map);
 }
