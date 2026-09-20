@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Send, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft } from 'lucide-react';
+import { ChevronDown, Send, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft, Swords } from 'lucide-react';
 import { AvatarCropDialog } from './AvatarCropDialog';
 
 import { Textarea } from '@/components/ui/textarea';
@@ -121,6 +121,8 @@ interface RoundChatDrawerProps {
   partyMembers?: Array<{ user_id: string; character_name: string; updated_at?: string }>;
   /** Record that this player has seen everything up to this ISO timestamp. */
   onMarkRead?: (iso: string) => void;
+  /** Opens the Live DM Table action menu without disturbing the composer draft. */
+  onOpenActionMenu?: () => void;
 }
 
 /** Small circular face beside a message. Tapping your own opens the picker. */
@@ -243,6 +245,7 @@ export function RoundChatDrawer({
   readReceipts,
   partyMembers,
   onMarkRead,
+  onOpenActionMenu,
 }: RoundChatDrawerProps) {
   const [editingOocName, setEditingOocName] = useState(false);
   const [oocNameDraft, setOocNameDraft] = useState('');
@@ -1261,6 +1264,17 @@ export function RoundChatDrawer({
                     <Send className="w-3.5 h-3.5" />
                   </button>
                 </div>
+                {onOpenActionMenu && (
+                  <button
+                    type="button"
+                    onClick={onOpenActionMenu}
+                    style={{ touchAction: 'manipulation' }}
+                    className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 text-[13px] text-amber-200 active:bg-amber-500/20"
+                  >
+                    <Swords className="h-4 w-4 shrink-0" />
+                    <span>Tap here to use items, spells, attacks, or roll dice</span>
+                  </button>
+                )}
               </div>
             </div>
           </motion.div>

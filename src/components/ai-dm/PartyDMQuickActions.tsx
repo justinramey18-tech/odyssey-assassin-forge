@@ -42,6 +42,8 @@ interface PartyDMQuickActionsProps {
   onSendPrompt?: (prompt: string) => void;
   /** Show only combat items ('combat') or only magic items ('magic'). Undefined shows everything. */
   sectionFilter?: 'combat' | 'magic';
+  /** Optional exact sections for focused entry points. Omitted preserves the full drawer. */
+  sectionsToShow?: Array<'weapons' | 'abilities' | 'spells' | 'cantrips'>;
   /** Which economy slots are already spent, so used items can be dimmed. */
   spentCosts?: { action: boolean; bonus: boolean; reaction: boolean };
   /** Fired when an item is tapped, so the caller can spend the slot. */
@@ -395,7 +397,7 @@ function buildPartyDragonActions(charName: string, dragonName: string): QuickAct
   ];
 }
 
-export function PartyDMQuickActions({ open, onOpenChange, characterContext, characterName, onUsePrompt, empyreanDragonName, onHealingItemUsed, onSendPrompt, sectionFilter, spentCosts, onActionSpent }: PartyDMQuickActionsProps) {
+export function PartyDMQuickActions({ open, onOpenChange, characterContext, characterName, onUsePrompt, empyreanDragonName, onHealingItemUsed, onSendPrompt, sectionFilter, sectionsToShow, spentCosts, onActionSpent }: PartyDMQuickActionsProps) {
   const handleRemoveItem = useCallback((item: QuickActionItem) => {
     const detail: QuickActionRemoveEvent = {
       category: item.removeCategory,
@@ -582,7 +584,22 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
     return { dragonActions, weapons, abilities: standardAbilities, spells, cantrips, consumables, prestige, homebrew };
   }, [characterContext, characterName, empyreanDragonName]);
 
-  const totalItems = Object.values(sections).reduce((sum, arr) => sum + arr.length, 0);
+  const focused = !!sectionsToShow;
+  const showSection = (name: 'weapons' | 'abilities' | 'spells' | 'cantrips') => !focused || sectionsToShow.includes(name);
+  const homebrewForFocus = !focused
+    ? sections.homebrew
+    : sections.homebrew.filter(item =>
+        (item.removeCategory === 'homebrew-ability' && sectionsToShow.includes('abilities'))
+        || (item.removeCategory === 'homebrew-spell' && (sectionsToShow.includes('spells') || sectionsToShow.includes('cantrips')))
+      );
+  const totalItems = focused
+    ? (showSection('weapons') ? sections.weapons.length : 0)
+      + (showSection('abilities') ? sections.abilities.length : 0)
+      + (showSection('spells') ? sections.spells.length : 0)
+      + (showSection('cantrips') ? sections.cantrips.length : 0)
+      + homebrewForFocus.length
+    : Object.values(sections).reduce((sum, arr) => sum + arr.length, 0);
+  const showSpellSlots = focused && (sectionsToShow.includes('spells') || sectionsToShow.includes('cantrips'));
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -594,11 +611,38 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
           </DrawerTitle>
         </DrawerHeader>
         <div className="flex-1 overflow-y-auto overscroll-contain px-2 pb-6 space-y-1">
+          {showSpellSlots && characterContext?.spellcasting && (
+            <div className="mx-2 mb-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2" aria-label="Available spell slots">
+              <p className="mb-1.5 text-[10px] uppercase text-amber-200/70">Spell slots</p>
+              <div className="space-y-1">
+                {characterContext.spellcasting.slots.filter(slot => slot.max > 0).map(slot => (
+                  <div key={slot.level} className="flex items-center gap-2 text-[11px] text-white/60">
+                    <span className="w-8">L{slot.level}</span>
+                    <span className="flex flex-wrap gap-1" aria-label={`Level ${slot.level}: ${slot.current} of ${slot.max} remaining`}>
+                      {Array.from({ length: slot.max }, (_, index) => (
+                        <span key={index} className={cn('h-2.5 w-2.5 rounded-full border border-amber-300/50', index < slot.current ? 'bg-amber-300' : 'bg-transparent')} />
+                      ))}
+                    </span>
+                  </div>
+                ))}
+                {characterContext.spellcasting.pactSlots && characterContext.spellcasting.pactSlots.max > 0 && (
+                  <div className="flex items-center gap-2 text-[11px] text-white/60">
+                    <span className="w-8">Pact</span>
+                    <span className="flex flex-wrap gap-1" aria-label={`Pact slots: ${characterContext.spellcasting.pactSlots.current} of ${characterContext.spellcasting.pactSlots.max} remaining`}>
+                      {Array.from({ length: characterContext.spellcasting.pactSlots.max }, (_, index) => (
+                        <span key={index} className={cn('h-2.5 w-2.5 rounded-full border border-cyan-300/50', index < characterContext.spellcasting.pactSlots.current ? 'bg-cyan-300' : 'bg-transparent')} />
+                      ))}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           {totalItems === 0 ? (
             <p className="text-center text-sm text-white/30 py-8">No actions available. Equip weapons, prepare spells, or unlock abilities.</p>
           ) : (
             <>
-              {sectionFilter !== 'magic' && sections.dragonActions.length > 0 && (
+              {!focused && sectionFilter !== 'magic' && sections.dragonActions.length > 0 && (
                 <QuickActionSection
                   onCloseDrawer={() => onOpenChange(false)}
                   title="Dragon Actions"
@@ -618,7 +662,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   onActionSpent={onActionSpent}
                 />
               )}
-              {sectionFilter !== 'magic' && (
+              {showSection('weapons') && sectionFilter !== 'magic' && (
                 <QuickActionSection
                     onCloseDrawer={() => onOpenChange(false)}
                   title="Weapons"
@@ -632,7 +676,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   onActionSpent={onActionSpent}
                 />
               )}
-              {sectionFilter !== 'magic' && (
+              {showSection('abilities') && sectionFilter !== 'magic' && (
                 <QuickActionSection
                     onCloseDrawer={() => onOpenChange(false)}
                   title="Abilities"
@@ -645,7 +689,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   onActionSpent={onActionSpent}
                 />
               )}
-              {sectionFilter !== 'combat' && (
+              {showSection('spells') && sectionFilter !== 'combat' && (
                 <QuickActionSection
                     onCloseDrawer={() => onOpenChange(false)}
                   title={isEmpyreanMode() ? 'Signets' : 'Spells'}
@@ -658,7 +702,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   onActionSpent={onActionSpent}
                 />
               )}
-              {sectionFilter !== 'combat' && (
+              {showSection('cantrips') && sectionFilter !== 'combat' && (
                 <QuickActionSection
                     onCloseDrawer={() => onOpenChange(false)}
                   title={isEmpyreanMode() ? 'Minor Signets' : 'Cantrips'}
@@ -671,7 +715,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   onActionSpent={onActionSpent}
                 />
               )}
-              {sectionFilter !== 'magic' && (
+              {!focused && sectionFilter !== 'magic' && (
                 <QuickActionSection
                     onCloseDrawer={() => onOpenChange(false)}
                   title="Items"
@@ -685,7 +729,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   onActionSpent={onActionSpent}
                 />
               )}
-              {sectionFilter !== 'magic' && (
+              {!focused && sectionFilter !== 'magic' && (
                 <QuickActionSection
                     onCloseDrawer={() => onOpenChange(false)}
                   title="Legacy"
@@ -698,12 +742,12 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   onActionSpent={onActionSpent}
                 />
               )}
-              {sectionFilter !== 'magic' && sections.homebrew.length > 0 && (
+              {sectionFilter !== 'magic' && homebrewForFocus.length > 0 && (
                 <QuickActionSection
                   onCloseDrawer={() => onOpenChange(false)}
                   title="Homebrew"
                   icon={<Flame className="w-4 h-4" />}
-                  items={sections.homebrew}
+                  items={homebrewForFocus}
                   accentClass="text-orange-400"
                   onUse={onUsePrompt}
                   onRemove={handleRemoveItem}
