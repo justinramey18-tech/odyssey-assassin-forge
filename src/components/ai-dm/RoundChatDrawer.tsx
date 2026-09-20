@@ -278,6 +278,8 @@ export function RoundChatDrawer({
   partyMembers,
   onMarkRead,
   onOpenActionMenu,
+  rollRequests,
+  onRollRequest,
 }: RoundChatDrawerProps) {
   const [editingOocName, setEditingOocName] = useState(false);
   const [oocNameDraft, setOocNameDraft] = useState('');
