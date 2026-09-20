@@ -538,10 +538,41 @@ export function NarrationStudio({
     bump();
   }, [onDeletePart, pushHistory, takeSnapshot, bump]);
 
+  /** Removes a piece from the draft (never from the written story). */
+  const deletePiece = useCallback(async (row: StudioRow) => {
+    if (!canGenerate) return;
+    const snap = takeSnapshot();
+    if (row.audio && onDeletePart) {
+      try {
+        const res = await fetch(row.audio.audio_url);
+        if (res.ok) snap.deleted.push({ part: row.audio.part, blob: await res.blob(), voiceId: row.audio.voice_id || '' });
+      } catch { /* undo simply cannot restore this one */ }
+    }
+    pushHistory(snap);
+    if (row.audio && onDeletePart) {
+      const deletedPart = row.audio.part;
+      onDeletePart(deletedPart);
+      setSavedRecordings((current) => {
+        if (!(deletedPart in current) && !(row.part in current)) return current;
+        const next = { ...current };
+        delete next[deletedPart];
+        delete next[row.part];
+        return next;
+      });
+    }
+    const current = loadStudioState(messageId);
+    const hidden = Array.from(new Set([...(current.hidden || []), row.part]));
+    const order = orderedParts.filter((p) => p !== row.part);
+    saveStudioState(messageId, { ...current, hidden, order });
+    bump();
+    onShareVoices?.();
+    toast.success('Piece removed from the draft');
+  }, [canGenerate, messageId, orderedParts, onDeletePart, onShareVoices, pushHistory, takeSnapshot, bump]);
+
   const resetOrder = useCallback(() => {
     pushHistory(takeSnapshot());
     const current = loadStudioState(messageId);
-    saveStudioState(messageId, { ...current, order: undefined });
+    saveStudioState(messageId, { ...current, order: undefined, hidden: undefined });
     bump();
     onShareVoices?.();
     toast.success('Back to story order');
