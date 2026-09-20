@@ -5099,6 +5099,22 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         />
       )}
 
+      {characterContext && (
+        <BagStatsScreen
+          open={showBagStats}
+          onClose={() => setShowBagStats(false)}
+          ctx={characterContext}
+          currentXP={currentXP ?? 0}
+          gold={characterContext.gold ?? 0}
+          onUseConsumable={onUseConsumableByName ? handleConsumableUse : undefined}
+          onOpenFullSheet={() => {
+            setShowBagStats(false);
+            setCharacterSheetInitialTab('items');
+            setShowCharacterSheet(true);
+          }}
+        />
+      )}
+
       <PartyMemberSheets
         open={showPartySheets}
         onClose={() => setShowPartySheets(false)}
