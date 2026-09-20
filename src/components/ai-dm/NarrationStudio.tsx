@@ -15,6 +15,7 @@ import {
   Undo2,
   Users,
   Merge,
+  Pencil,
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -105,7 +106,7 @@ interface NarrationStudioProps {
   onPlayAll: () => void;
   onDeletePart?: (part: NarrationPart) => void;
   onDeleteAll?: () => void;
-  onVoiceSegment?: (passage: string, voiceId: string, label?: string) => Promise<void>;
+  onVoiceSegment?: (passage: string, voiceId: string, label?: string, spokenText?: string) => Promise<void>;
   onRecordSegment?: (passage: string, blob: Blob, hint?: NarrationSegment) => Promise<RecordedClipResult>;
   /** Swaps a self-recorded piece back to the cast voice it covered. */
   onRevertToCastVoice?: (part: NarrationPart) => Promise<void>;
