@@ -589,11 +589,39 @@ export function NarrationStudio({
   const resetOrder = useCallback(() => {
     pushHistory(takeSnapshot());
     const current = loadStudioState(messageId);
-    saveStudioState(messageId, { ...current, order: undefined, hidden: undefined });
+    saveStudioState(messageId, { ...current, order: undefined, hidden: undefined, scripts: undefined });
     bump();
     onShareVoices?.();
     toast.success('Back to story order');
   }, [messageId, pushHistory, takeSnapshot, bump, onShareVoices]);
+
+  /** Saves hand-edited spoken words for one piece. Story text is untouched. */
+  const saveScript = useCallback((part: string, text: string, storyText: string) => {
+    if (!canGenerate) return;
+    const next = text.trim();
+    if (!next) { toast.error('The spoken words cannot be empty'); return; }
+    pushHistory(takeSnapshot());
+    const current = loadStudioState(messageId);
+    const scripts = { ...(current.scripts || {}) };
+    if (next === storyText.trim()) delete scripts[part];
+    else scripts[part] = next;
+    saveStudioState(messageId, { ...current, scripts });
+    setEditFor(null);
+    bump();
+    toast.success('Spoken words saved', { description: 'Re-voice this piece to hear the change.' });
+  }, [canGenerate, messageId, pushHistory, takeSnapshot, bump]);
+
+  /** Puts a piece back to reading the story words. */
+  const resetScript = useCallback((part: string) => {
+    pushHistory(takeSnapshot());
+    const current = loadStudioState(messageId);
+    const scripts = { ...(current.scripts || {}) };
+    delete scripts[part];
+    saveStudioState(messageId, { ...current, scripts });
+    setEditFor(null);
+    bump();
+    toast.success('Back to the story words');
+  }, [messageId, pushHistory, takeSnapshot, bump]);
 
   if (!open) return null;
 
