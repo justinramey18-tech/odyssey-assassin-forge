@@ -515,43 +515,40 @@ export function RoundChatDrawer({
       />
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-black/55" />
       {open ? (
-        /* Collapsed→expanded header — ornamented collapse control */
+        /* Expanded header — RETURN TO STORY banner artwork collapses the table */
         <button
           onClick={() => onOpenChange(false)}
           aria-expanded
+          aria-label={style.mode === 'live' ? 'Return to story: close the Live DM Table' : 'Return to story: close the round chat'}
           className={cn(
-            "w-full relative px-3 pt-2 pb-3 text-left transition-colors hover:bg-amber-500/[0.06] active:bg-amber-500/10",
+            "relative block w-full transition-transform active:scale-[0.99]",
             fullScreen && "shrink-0"
           )}
-          style={{ touchAction: 'manipulation', minHeight: 64 }}
+          style={{ touchAction: 'manipulation', minHeight: 44 }}
         >
-          {/* grab handle */}
-          <div className="mx-auto mb-2 h-1.5 w-14 rounded-full bg-amber-400/35" />
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
-          <div className="flex items-center gap-2">
-            <span className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/25">
-              <MessageSquare className="w-4 h-4 text-amber-300/80" />
+          <img
+            src="/play-banner-return.png"
+            alt=""
+            className="w-full h-[65px] object-cover object-center block"
+            draggable={false}
+          />
+          {/* Subtle dark gradient so the badges stay readable over the art */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-9 bg-gradient-to-b from-black/55 to-transparent" />
+          {/* Round progress badge — keeps tick status visible on the artwork */}
+          <span className={cn(
+            "absolute right-2 top-2 text-[10px] px-1.5 py-0.5 rounded-full border font-cinzel tracking-wide",
+            progress.met
+              ? "text-emerald-300 border-emerald-400/40 bg-black/60"
+              : "text-amber-100 border-amber-400/30 bg-black/60"
+          )}>
+            {progress.current} ticked
+          </span>
+          {unseen > 0 && (
+            <span className="absolute left-2 top-2 min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white border border-red-300/40">
+              {unseen > 99 ? '99+' : unseen}
             </span>
-            <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-2">
-                <span className="font-cinzel text-[13px] tracking-wide text-amber-200/90">
-                  {style.mode === 'live' ? 'Live DM Table' : 'Round Chat'}
-                </span>
-                <span className={cn(
-                  "text-[10px] px-1.5 py-0.5 rounded-full border shrink-0",
-                  progress.met
-                    ? "text-emerald-300 border-emerald-400/30 bg-emerald-500/10"
-                    : "text-white/50 border-white/15 bg-white/5"
-                )}>
-                  {progress.current} ticked
-                </span>
-              </span>
-              <span className="block text-[10px] text-white/40 truncate mt-0.5">
-                Tap to collapse the table
-              </span>
-            </span>
-            <ChevronDown className="w-5 h-5 text-amber-300/60 shrink-0 transition-transform duration-200 rotate-180" />
-          </div>
+          )}
         </button>
       ) : (
         /* Collapsed trigger — PLAY banner artwork opens the table */
