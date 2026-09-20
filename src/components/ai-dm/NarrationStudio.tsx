@@ -244,15 +244,18 @@ export function NarrationStudio({
         audio: narrationMap[narrationKey(messageId, 'table')],
       });
     }
+    const scripts = studio.scripts || {};
     for (const seg of segments) {
       const part = segmentKey(seg);
       const recorded = isSelfRecordedVoice(seg.voiceId);
       const cover = recorded ? displaced[part] : undefined;
+      const script = scripts[part];
       byPart.set(part, {
         part,
         kind: 'segment',
         seg,
-        displayText: stripMarkdownForTTS(seg.text),
+        edited: !!script,
+        displayText: script || stripMarkdownForTTS(seg.text),
         voiceLabel: recorded
           ? (overrideLabelFor(seg) || 'Recorded')
           : seg.manual
@@ -264,7 +267,7 @@ export function NarrationStudio({
       });
     }
     return orderedParts.map((p) => byPart.get(p)).filter((r): r is StudioRow => !!r);
-  }, [tableTalk, segments, narrationMap, messageId, orderedParts, overrideLabelFor, displaced, savedRecordings]);
+  }, [tableTalk, segments, narrationMap, messageId, orderedParts, overrideLabelFor, displaced, savedRecordings, studio]);
 
   const resolvedVoiceFor = useCallback((seg: NarrationSegment): { voiceId: string; label: string } => {
     if (seg.voiceId && !isSelfRecordedVoice(seg.voiceId)) {
