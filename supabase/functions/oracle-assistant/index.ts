@@ -33,7 +33,14 @@ interface CharacterContext {
   relationships?: Array<{ name: string; disposition: string; notes?: string }>;
   abilities: Array<{ name: string; tier: number; tree: string }>;
   equippedAbilities: string[];
-  equipment: Array<{ slot: string; name: string; rarity: string }>;
+  equipment: Array<{
+    slot: string;
+    name: string;
+    rarity: string;
+    stats?: Record<string, number | string | undefined>;
+    properties?: string[];
+    enchantments?: Array<{ name: string; description: string; icon?: string }>;
+  }>;
   activeSetBonuses: string[];
   consumables: Array<{ name: string; quantity: number; type: string }>;
   cooldowns: {

@@ -81,7 +81,15 @@ export interface CharacterContext {
     isCustomized?: boolean;
   }>;
   equippedAbilities: string[];
-  equipment: Array<{ slot: string; name: string; rarity: string }>;
+  equipment: Array<{
+    slot: string;
+    name: string;
+    rarity: string;
+    /** Full item details used by read-only equipment displays such as Quick Actions. */
+    stats?: import('@/lib/inventory/types').EquipmentStats;
+    properties?: string[];
+    enchantments?: import('@/lib/inventory/types').Enchantment[];
+  }>;
   activeSetBonuses: string[];
   /** Per-item gear contribution breakdown for the Stats tab. UI only — not sent to the model. */
   gearBonuses?: import('@/components/character/GearBonusBreakdown').GearBonusData;

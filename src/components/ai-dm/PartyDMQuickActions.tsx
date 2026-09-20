@@ -20,8 +20,12 @@ import necromancyBackground from '@/assets/spell-bg/necromancy.jpg.asset.json';
 import illusionBackground from '@/assets/spell-bg/illusion.jpg.asset.json';
 import transmutationBackground from '@/assets/spell-bg/transmutation.jpg.asset.json';
 import conjurationBackground from '@/assets/spell-bg/conjuration.jpg.asset.json';
+import primaryWeaponBackground from '@/assets/weapons/weapon-primary.jpg.asset.json';
+import secondaryWeaponBackground from '@/assets/weapons/weapon-secondary.jpg.asset.json';
+import rangedWeaponBackground from '@/assets/weapons/weapon-ranged.jpg.asset.json';
 
 import type { CharacterContext } from '@/components/oracle/types';
+import { rarityConfig, type EquipmentStats, type Enchantment, type Rarity } from '@/lib/inventory/types';
 
 const SCHOOL_BG: Record<string, string> = {
   evocation: evocationBackground.url,
@@ -30,6 +34,15 @@ const SCHOOL_BG: Record<string, string> = {
   illusion: illusionBackground.url,
   transmutation: transmutationBackground.url,
   conjuration: conjurationBackground.url,
+};
+
+const WEAPON_SLOTS = ['primary_weapon', 'secondary_weapon', 'ranged_weapon'] as const;
+type WeaponSlot = typeof WEAPON_SLOTS[number];
+
+const WEAPON_BG: Record<WeaponSlot, string> = {
+  primary_weapon: primaryWeaponBackground.url,
+  secondary_weapon: secondaryWeaponBackground.url,
+  ranged_weapon: rangedWeaponBackground.url,
 };
 
 export type QuickActionRemoveCategory = 'weapon' | 'ability' | 'spell' | 'cantrip' | 'consumable' | 'prestige' | 'homebrew-ability' | 'homebrew-spell';
@@ -92,6 +105,13 @@ interface QuickActionItem {
   spellSchool?: string;
   /** What tapping this costs on your turn. */
   actionCost?: ActionCost;
+  /** Read-only presentation details for the three fixed weapon cards. */
+  weaponSlot?: WeaponSlot;
+  weaponStats?: EquipmentStats;
+  weaponProperties?: string[];
+  weaponEnchantments?: Enchantment[];
+  weaponRarity?: string;
+  isEmptyWeaponSlot?: boolean;
 }
 
 
@@ -330,6 +350,44 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
     });
   };
 
+  const handleItemUse = (item: QuickActionItem) => {
+    if (item.isEmptyWeaponSlot) return;
+    if (item.actionCost && onActionSpent) onActionSpent(item.actionCost, item.name);
+    if (item.rollKind === 'heal' && item.healingDice && onHeal) {
+      onHeal(item);
+    } else if (item.rollKind === 'attack' || item.rollKind === 'spell') {
+      // Show the maths first — the roll only happens on confirm.
+      setPending(item);
+    } else if (item.rollKind === 'check') {
+      const roll = rollCheck();
+      onCloseDrawer?.();
+      requestDiceRoll({
+        title: item.name,
+        roll,
+        onComplete: () => {
+          onUse(encodeActionCard(actionCardFromRoll(item.name, roll), item.prompt + rollSuffix(roll)));
+          toast.success('Prompt added to input');
+        },
+      });
+    } else if (item.rollKind === 'effect' && item.effectDice) {
+      const d = item.effectDice;
+      const roll = rollEffect(item.name, d.count, d.die, d.bonus);
+      onCloseDrawer?.();
+      requestDiceRoll({
+        title: item.name,
+        roll,
+        onComplete: () => {
+          onUse(encodeActionCard(actionCardFromRoll(item.name, roll), item.prompt + rollSuffix(roll)));
+          toast.success('Prompt added to input');
+        },
+      });
+    } else {
+      onCloseDrawer?.();
+      onUse(item.prompt);
+      toast.success('Prompt added to input');
+    }
+  };
+
   if (items.length === 0) return null;
 
   return (
@@ -343,11 +401,123 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
         <ChevronDown className={cn("w-3.5 h-3.5 text-white/40 transition-transform", open && "rotate-180")} />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="space-y-1 px-2 pb-2">
+        <div className={cn(title === 'Weapons' ? 'flex flex-col gap-3' : 'space-y-1', 'px-2 pb-2')}>
           {items.map(item => {
             const isSpell = item.removeCategory === 'spell' || item.removeCategory === 'cantrip' || item.removeCategory === 'homebrew-spell';
             const expanded = expandedSpellIds.has(item.id);
             const schoolBackground = isSpell ? SCHOOL_BG[item.spellSchool?.toLowerCase() ?? ''] : undefined;
+            if (item.weaponSlot) {
+              const isEmpty = item.isEmptyWeaponSlot === true;
+              const stats = item.weaponStats;
+              const abilityChips = (['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const)
+                .flatMap(ability => {
+                  const value = Number(stats?.[ability]);
+                  return Number.isFinite(value) && value !== 0
+                    ? [`${value > 0 ? '+' : ''}${value} ${ability.slice(0, 3).toUpperCase()}`]
+                    : [];
+                });
+              const rarity = item.weaponRarity && item.weaponRarity in rarityConfig
+                ? item.weaponRarity as Rarity
+                : undefined;
+              const chips = [
+                stats?.damage ? `⚔ ${stats.damage}` : '',
+                stats?.attackBonus !== undefined && Number.isFinite(Number(stats.attackBonus))
+                  ? `${Number(stats.attackBonus) >= 0 ? '+' : ''}${stats.attackBonus} to hit`
+                  : '',
+                ...abilityChips,
+                item.weaponProperties?.length ? item.weaponProperties.join(' · ') : '',
+              ].filter(Boolean);
+
+              return (
+                <div
+                  key={item.id}
+                  role={isEmpty ? undefined : 'button'}
+                  tabIndex={isEmpty ? undefined : 0}
+                  aria-label={isEmpty ? `${item.weaponSlot.replace(/_/g, ' ')}: Nothing equipped` : `Use ${item.name}`}
+                  onClick={() => handleItemUse(item)}
+                  onKeyDown={(event) => {
+                    if (!isEmpty && (event.key === 'Enter' || event.key === ' ')) {
+                      event.preventDefault();
+                      handleItemUse(item);
+                    }
+                  }}
+                  className={cn(
+                    'group relative aspect-[3/2] w-full overflow-hidden rounded-xl border border-amber-500/25',
+                    'transition-transform active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70',
+                    isEmpty ? 'cursor-default opacity-40 grayscale' : 'cursor-pointer',
+                  )}
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <img
+                    src={WEAPON_BG[item.weaponSlot]}
+                    alt=""
+                    loading="lazy"
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/70" aria-hidden="true" />
+
+                  {!isEmpty && (
+                    <div className="absolute right-2 top-2 z-[2] flex gap-2">
+                      <button
+                        type="button"
+                        onClick={(event) => { event.stopPropagation(); handleItemUse(item); }}
+                        aria-label={`Use ${item.name}`}
+                        className="flex min-h-12 items-center gap-1 rounded-lg border border-emerald-500/30 bg-black/50 px-3 text-xs font-medium text-emerald-300 backdrop-blur-sm transition-colors hover:bg-black/70"
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        <Play className="h-3.5 w-3.5" /> Use
+                      </button>
+                      {onRemove && (
+                        <button
+                          type="button"
+                          onClick={(event) => { event.stopPropagation(); onRemove(item); }}
+                          aria-label={`Remove ${item.name}`}
+                          title={`Remove ${item.name}`}
+                          className="flex min-h-12 items-center gap-1 rounded-lg border border-red-500/25 bg-black/50 px-3 text-xs font-medium text-red-300 backdrop-blur-sm transition-colors hover:bg-black/70"
+                          style={{ touchAction: 'manipulation' }}
+                        >
+                          <X className="h-3.5 w-3.5" /> Remove
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="absolute inset-x-0 bottom-0 z-[1] px-4 pb-3 text-left drop-shadow-md">
+                    {isEmpty ? (
+                      <p className="font-cinzel text-base text-amber-100">Nothing equipped</p>
+                    ) : (
+                      <>
+                        <p className="truncate pr-1 font-cinzel text-base text-amber-100">{item.name}</p>
+                        {chips.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {chips.map(chip => (
+                              <span key={chip} className="max-w-full rounded-full border border-white/15 bg-black/50 px-2 py-0.5 text-[11px] leading-4 text-white/85">
+                                {chip}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          {rarity && <span className={cn('text-[11px] font-medium capitalize', rarityConfig[rarity].color)}>{rarityConfig[rarity].label}</span>}
+                          {item.actionCost && item.actionCost !== 'free' && (
+                            <span className={cn(
+                              'rounded border px-1.5 py-0.5 font-mono text-[9px]',
+                              COST_META[item.actionCost].className,
+                              spentCosts && spentCosts[item.actionCost === 'bonus' ? 'bonus' : item.actionCost === 'reaction' ? 'reaction' : 'action'] && 'opacity-40 line-through',
+                            )}>
+                              {COST_META[item.actionCost].short}
+                            </span>
+                          )}
+                        </div>
+                        {item.weaponEnchantments?.[0]?.name && (
+                          <p className="mt-0.5 truncate text-[10px] italic text-violet-200/70">{item.weaponEnchantments[0].name}</p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            }
             return (
             <div
               key={item.id}
@@ -387,44 +557,7 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                 )}
               </div>
               <button
-                onClick={() => {
-                  if (item.actionCost && onActionSpent) onActionSpent(item.actionCost, item.name);
-                  if (item.rollKind === 'heal' && item.healingDice && onHeal) {
-                    onHeal(item);
-                  } else if (item.rollKind === 'attack' || item.rollKind === 'spell') {
-                    // Show the maths first — the roll only happens on confirm.
-                    setPending(item);
-                  } else if (item.rollKind === 'check') {
-                    const roll = rollCheck();
-
-                    onCloseDrawer?.();
-                    requestDiceRoll({
-                      title: item.name,
-                      roll,
-                      onComplete: () => {
-                        onUse(encodeActionCard(actionCardFromRoll(item.name, roll), item.prompt + rollSuffix(roll)));
-                        toast.success('Prompt added to input');
-                      },
-                    });
-                  } else if (item.rollKind === 'effect' && item.effectDice) {
-                    const d = item.effectDice;
-                    const roll = rollEffect(item.name, d.count, d.die, d.bonus);
-                    onCloseDrawer?.();
-                    requestDiceRoll({
-                      title: item.name,
-                      roll,
-                      onComplete: () => {
-                        onUse(encodeActionCard(actionCardFromRoll(item.name, roll), item.prompt + rollSuffix(roll)));
-                        toast.success('Prompt added to input');
-                      },
-                    });
-
-                  } else {
-                    onCloseDrawer?.();
-                    onUse(item.prompt);
-                    toast.success('Prompt added to input');
-                  }
-                }}
+                onClick={() => handleItemUse(item)}
                 className={cn(
                   "relative z-[1] shrink-0 p-1.5 rounded-lg transition-colors",
                   "bg-emerald-900/30 hover:bg-emerald-900/50 border border-emerald-500/20 hover:border-emerald-500/40"
@@ -563,18 +696,38 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
     const charName = characterName || characterContext.name || 'The Adventurer';
 
     // Weapons from equipment
-    const weapons: QuickActionItem[] = (characterContext.equipment || [])
-      .filter(e => ['primary_weapon', 'secondary_weapon', 'ranged_weapon'].includes(e.slot))
-      .map(e => ({
-        id: `weapon-${e.slot}`,
-        name: e.name,
-        detail: `${e.rarity} • ${e.slot.replace('_', ' ')}`,
-        prompt: generateWeaponPrompt(e.name, charName),
+    const weapons: QuickActionItem[] = WEAPON_SLOTS.map(slot => {
+      const equipped = (characterContext.equipment || []).find(item => item.slot === slot);
+      if (!equipped) {
+        return {
+          id: `weapon-${slot}`,
+          name: 'Nothing equipped',
+          detail: '',
+          prompt: '',
+          removeCategory: 'weapon' as const,
+          removeSlot: slot,
+          weaponSlot: slot,
+          isEmptyWeaponSlot: true,
+        };
+      }
+      return {
+        id: `weapon-${slot}`,
+        name: equipped.name,
+        detail: `${equipped.rarity} • ${slot.replace('_', ' ')}`,
+        prompt: generateWeaponPrompt(equipped.name, charName),
         removeCategory: 'weapon' as const,
-        removeSlot: e.slot,
+        removeSlot: slot,
         rollKind: 'attack' as const,
-        actionCost: resolveActionCost({ kind: 'weapon', equipmentSlot: e.slot }),
-      }));
+        attackBonus: typeof equipped.stats?.attackBonus === 'number' ? equipped.stats.attackBonus : undefined,
+        damageFormula: typeof equipped.stats?.damage === 'string' ? equipped.stats.damage : undefined,
+        actionCost: resolveActionCost({ kind: 'weapon', equipmentSlot: slot }),
+        weaponSlot: slot,
+        weaponStats: equipped.stats,
+        weaponProperties: equipped.properties,
+        weaponEnchantments: equipped.enchantments,
+        weaponRarity: equipped.rarity,
+      };
+    });
 
     // Abilities with tier > 0
     const allAbilities = (characterContext.abilities || []).filter(a => a.tier > 0);
