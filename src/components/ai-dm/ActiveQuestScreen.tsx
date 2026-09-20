@@ -117,8 +117,8 @@ export function ActiveQuestScreen({ open, onClose, quests, onOpenFullQuestBoard 
       </Button>
 
       <div
-        className="absolute inset-0 overflow-y-auto overscroll-contain pb-[max(1.5rem,env(safe-area-inset-bottom))]"
-        style={{ paddingTop: 'calc(max(36.3vw, 18.1vh) + 12px)' }}
+        className="absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+        style={{ top: 'calc(max(36.3vw, 18.1vh) + 12px)' }}
       >
         {activeQuests.length === 0 ? (
           <p className="mx-auto max-w-sm px-5 py-16 text-center font-serif text-[15px] italic leading-relaxed text-quest-body">
