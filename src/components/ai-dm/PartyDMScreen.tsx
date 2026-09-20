@@ -38,7 +38,7 @@ import { useQuestRewardSplit } from '@/hooks/use-quest-reward-split';
 import { usePartyNarrationStyle } from '@/hooks/use-party-narration-style';
 import { useRoundChat } from '@/hooks/use-round-chat';
 import { useChatAvatars } from '@/hooks/use-chat-avatars';
-import { RoundChatDrawer } from './RoundChatDrawer';
+import { RoundChatDrawer, type RollRequestCard } from './RoundChatDrawer';
 import { ActionMenuSheet, type ActionMenuChoice } from './ActionMenuSheet';
 import { DMHandoffBar } from './DMHandoffBar';
 import { narrationStyleLine } from '@/lib/narrationStyle';
@@ -80,6 +80,7 @@ import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-part
 import { DMDiceRoller } from './DMDiceRoller';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { parseRollHint } from '@/lib/whisperRollHint';
+import { parseActionAddress } from '@/lib/whisper-parser';
 import { resolveWhisperAutoRoll, performWhisperRoll } from '@/lib/whisperAutoRoll';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
 import { actionCardFromRoll, encodeActionCard, stripActionCard } from '@/lib/roundChatActionCard';
@@ -652,6 +653,8 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   if (isAssistant) {
     const myCharName = members.find(m => m.user_id === currentUserId)?.character_name;
     const filteredWhispers = (message.whispers || []).filter((w: any) => {
+      // Roll requests now render as cards in the Live DM chat, not in the tray.
+      if (w.type === 'action') return false;
       if (w.type !== 'whisper') return true;
       if (!w.target || !myCharName) return false;
       return w.target.toLowerCase() === myCharName.toLowerCase();
@@ -3384,8 +3387,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     reactions={messageReactions.filter(r => r.message_id === msg.id)}
                     onAddReaction={addReaction}
                     onRemoveReaction={removeReaction}
-                    onWhisperAutoRoll={isEmpyrean ? handleWhisperAutoRoll : undefined}
-                    onWhisperOpenRoller={isEmpyrean ? handleWhisperOpenRoller : undefined}
+                    onWhisperAutoRoll={handleWhisperAutoRoll}
+                    onWhisperOpenRoller={handleWhisperOpenRoller}
                     narrationMap={messageNarration.audioByMessage}
                     narrationGeneratingPart={
                       messageNarration.generatingId?.startsWith(`${msg.id}:`)
@@ -3647,6 +3650,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onSendToDMNow={fireChatRound}
           orderedSelected={roundChat.orderedSelected}
           onReorderSelected={roundChat.setSelectedOrder}
+
+          rollRequests={rollRequestCards}
+          onRollRequest={handleRollRequest}
 
           draft={roundChatDraft}
           onDraftUsed={() => setRoundChatDraft(null)}
