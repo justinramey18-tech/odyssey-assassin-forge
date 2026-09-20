@@ -865,7 +865,10 @@ export function saveStudioState(messageId: string, state: NarrationStudioState):
     }
     if (Object.keys(rates).length > 0) clean.rates = rates;
   }
-  if (clean.order || clean.rates) map[messageId] = clean;
+  if (Array.isArray(state.hidden) && state.hidden.length > 0) {
+    clean.hidden = state.hidden.filter((p) => typeof p === 'string');
+  }
+  if (clean.order || clean.rates || clean.hidden) map[messageId] = clean;
   else delete map[messageId];
   writeStudioMap(map);
 }
