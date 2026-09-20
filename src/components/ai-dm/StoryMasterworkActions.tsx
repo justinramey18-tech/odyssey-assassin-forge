@@ -51,6 +51,17 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
 
   const hasCandidates = liveTableCandidates.length > 0;
 
+  // Reset the flow every time the picker opens, whether from the card or externally.
+  useEffect(() => {
+    if (!open) return;
+    setFlavorId(null);
+    setMode(null);
+    setTargetsDone(false);
+    setTargetIds([]);
+    setPills([]);
+    setError(null);
+  }, [open]);
+
   const generate = useCallback(async (id: string, useMode: SuggestMode, ids: string[]) => {
     setFlavorId(id);
     setLoading(true);
@@ -107,12 +118,12 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
     setTargetIds([]);
     setPills([]);
     setError(null);
-  }, []);
+  }, [setOpen]);
 
   const choose = useCallback((prompt: string) => {
     onSelect(prompt);
     setOpen(false);
-  }, [onSelect]);
+  }, [onSelect, setOpen]);
 
   const showTargets = mode === 'sync' && !targetsDone && !flavorId;
   const showFlavors = mode !== null && !showTargets && !flavorId;
@@ -128,6 +139,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
 
   return (
     <>
+      {!hideTrigger && (
       <div className="relative w-full">
         <span
           className="absolute -inset-[2px] rounded-xl bg-green-500/70 animate-pulse"
@@ -157,6 +169,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
           </span>
         </button>
       </div>
+      )}
 
       {open && createPortal(
         <div className="fixed inset-0 z-[80] bg-black/80 backdrop-blur-sm flex flex-col">
