@@ -201,9 +201,15 @@ export function NarrationStudio({
   /** Stored order, filtered to pieces that still exist, stragglers appended. */
   const orderedParts = useMemo(() => {
     const stored = studio.order || [];
+    const hidden = new Set(studio.hidden || []);
     const kept = stored.filter((p) => defaultParts.includes(p));
     const missing = defaultParts.filter((p) => !kept.includes(p));
-    return [...kept, ...missing];
+    const seen = new Set<string>();
+    return [...kept, ...missing].filter((p) => {
+      if (hidden.has(p) || seen.has(p)) return false;
+      seen.add(p);
+      return true;
+    });
   }, [studio, defaultParts]);
 
   const overrideLabelFor = useCallback((seg: NarrationSegment): string | null => {
