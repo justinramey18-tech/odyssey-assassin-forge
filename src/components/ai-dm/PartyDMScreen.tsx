@@ -111,6 +111,7 @@ import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { formatForReadingMode, type FormattedReading } from '@/lib/reading-mode-formatter';
 import { SoloCharacterSheet, type SheetTab } from '@/components/ai-dm/SoloCharacterSheet';
+import { BagStatsScreen } from '@/components/ai-dm/BagStatsScreen';
 import { TableGuide } from '@/components/help/TableGuide';
 
 import { CharacterSheetStrip } from '@/components/ai-dm/CharacterSheetStrip';
@@ -1061,6 +1062,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [showDeathTransition, setShowDeathTransition] = useState(false);
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
   const [characterSheetInitialTab, setCharacterSheetInitialTab] = useState<SheetTab>('vitals');
+  const [showBagStats, setShowBagStats] = useState(false);
   const [showTableGuide, setShowTableGuide] = useState(false);
 
   const [showPartySheets, setShowPartySheets] = useState(false);
