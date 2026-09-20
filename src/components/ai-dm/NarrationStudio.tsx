@@ -713,24 +713,31 @@ export function NarrationStudio({
                 </div>
 
                 {canGenerate && (
-                  <div className="flex flex-col gap-1 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0">
+                    <input
+                      key={`${row.part}-${i}`}
+                      type="text"
+                      inputMode="numeric"
+                      defaultValue={String(i + 1)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                      }}
+                      onBlur={(e) => {
+                        const n = parseInt(e.target.value, 10);
+                        if (!Number.isFinite(n)) { e.target.value = String(i + 1); return; }
+                        moveTo(row.part, n);
+                      }}
+                      className="w-12 h-8 text-center rounded border border-border/50 bg-muted/20 text-[12px] text-foreground"
+                      title="Play position — type a number to move this piece"
+                      aria-label="Play position"
+                    />
                     <button
-                      onClick={() => move(row.part, -1)}
-                      disabled={i === 0}
+                      onClick={() => void deletePiece(row)}
                       style={{ touchAction: 'manipulation' }}
-                      className="p-1.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-20"
-                      title="Play earlier"
+                      className="p-1.5 rounded text-red-400/60 hover:text-red-400"
+                      title="Remove this piece from the draft"
                     >
-                      <ArrowUp className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => move(row.part, 1)}
-                      disabled={i === rows.length - 1}
-                      style={{ touchAction: 'manipulation' }}
-                      className="p-1.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-20"
-                      title="Play later"
-                    >
-                      <ArrowDown className="w-3.5 h-3.5" />
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
                 )}
