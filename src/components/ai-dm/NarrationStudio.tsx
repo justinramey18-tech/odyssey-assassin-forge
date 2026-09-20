@@ -803,6 +803,24 @@ export function NarrationStudio({
 
                 {canGenerate && (
                   <div className="flex items-center gap-1 shrink-0">
+                    {row.kind === 'segment' && (
+                      <button
+                        onClick={() => {
+                          if (editFor === row.part) { setEditFor(null); return; }
+                          setEditDraft(row.displayText);
+                          setEditFor(row.part);
+                        }}
+                        style={{ touchAction: 'manipulation' }}
+                        className={cn(
+                          'p-1.5 rounded',
+                          editFor === row.part ? 'text-sky-300' : 'text-muted-foreground hover:text-foreground',
+                        )}
+                        title="Edit the words read aloud"
+                        aria-label="Edit the words read aloud"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
                     <input
                       key={`${row.part}-${i}`}
                       type="text"
