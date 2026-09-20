@@ -1,0 +1,3 @@
+- [ ] Finish full-screen Quick Actions drawer with all sections and spell descriptions reset open.
+- [ ] Add school backgrounds for evocation and enchantment spells using the supplied artwork.
+- [ ] Verify the drawer at 375px and confirm the latest preview build.
