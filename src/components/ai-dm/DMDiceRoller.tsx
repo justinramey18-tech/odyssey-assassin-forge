@@ -540,25 +540,52 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false,
 
         {/* D20 & Quick Rolls */}
         <div className="space-y-1.5">
-          <div className="flex gap-1.5">
-            <button
-              onClick={() => handleRoll('d20', 0)}
-              className="flex-1 py-2 rounded-lg bg-amber-900/20 border border-amber-500/20 hover:bg-amber-900/40 transition-colors text-sm font-cinzel text-amber-200"
-              style={{ touchAction: 'manipulation' }}
-            >
-              🎲 Roll d20
-            </button>
-            <button
-              onClick={() => {
-                const dexMod = getModifier(characterContext, 'dex');
-                handleRoll('Initiative', dexMod);
+          {/* Roll the Dice banner */}
+          <button
+            onClick={() => handleRoll('d20', 0)}
+            aria-label="Roll the dice (d20)"
+            className="relative block w-full aspect-[5/2] rounded-lg overflow-hidden transition-transform duration-150 active:scale-[0.98]"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <img
+              src={PREFERS_REDUCED_MOTION ? '/dice/roll-d20-bg.jpg' : '/dice/roll-d20.gif'}
+              alt=""
+              draggable={false}
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ objectPosition: 'center 30%' }}
+              onError={(e) => {
+                const img = e.currentTarget;
+                if (!img.src.endsWith('/dice/roll-d20-bg.jpg')) img.src = '/dice/roll-d20-bg.jpg';
               }}
-              className="px-3 py-2 rounded-lg bg-purple-900/20 border border-purple-500/20 hover:bg-purple-900/40 transition-colors text-sm font-cinzel text-purple-200"
-              style={{ touchAction: 'manipulation' }}
+            />
+            {/* Dark gradient so the label reads over the image */}
+            <div
+              className="absolute inset-0"
+              style={{ background: 'linear-gradient(to bottom, transparent 55%, rgba(8,6,4,0.9) 100%)' }}
+            />
+            <span
+              className="absolute inset-x-0 bottom-2 text-center font-cinzel font-black uppercase text-[26px] leading-none text-[#FFE4AA] pointer-events-none"
+              style={{
+                WebkitTextStroke: '1px #3C1900',
+                textShadow: '0 0 12px rgba(255,150,40,0.8), 0 0 24px rgba(255,150,40,0.5)',
+              }}
             >
-              ⚡ {isEmpyreanMode() ? 'Combat Reflexes' : 'Initiative'}
-            </button>
-          </div>
+              Roll the Dice
+            </span>
+          </button>
+
+          {/* Initiative — full width, below the banner */}
+          <button
+            onClick={() => {
+              const dexMod = getModifier(characterContext, 'dex');
+              handleRoll('Initiative', dexMod);
+            }}
+            className="w-full py-2 rounded-lg bg-purple-900/20 border border-purple-500/20 hover:bg-purple-900/40 transition-colors text-sm font-cinzel text-purple-200"
+            style={{ touchAction: 'manipulation' }}
+          >
+            ⚡ {isEmpyreanMode() ? 'Combat Reflexes' : 'Initiative'}
+          </button>
+
           
           <div className="grid grid-cols-6 gap-1">
             {(Object.entries(ABILITY_SCORES) as [AbilityScore, typeof ABILITY_SCORES[AbilityScore]][]).map(([key, info]) => {
