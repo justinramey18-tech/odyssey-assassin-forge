@@ -1511,7 +1511,10 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     
     // 6. Restore HP state from saved data (or calculate max if not saved)
     const savedHP = data.hpState ? sanitizeHPState(data.hpState) : null;
-    const savedHPValid = savedHP !== null && Number.isFinite(savedHP.max) && savedHP.max > 0;
+    // Valid only if the raw saved max is a real positive number — otherwise the
+    // full-HP fallback below runs (legacy saves), never over a valid hpState.
+    const rawMax = Number((data.hpState as Record<string, unknown> | undefined)?.max);
+    const savedHPValid = savedHP !== null && Number.isFinite(rawMax) && rawMax > 0;
     if (savedHPValid && savedHP) {
       // Restore exact HP state from cloud save
       setHpState(savedHP);
