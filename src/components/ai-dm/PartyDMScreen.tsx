@@ -909,14 +909,13 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     const target = members.find(m => m.user_id === targetId);
     return target?.character_name || 'Unknown';
   })();
-  const isRealPlayer = Boolean(
-    message.sender_user_id && message.sender_name !== 'Party' && message.sender_name !== 'System'
-  );
+  const hasRealPlayerName = message.sender_name !== 'Party' && message.sender_name !== 'System';
+  const hasPlayerAvatarIdentity = Boolean(message.sender_user_id && hasRealPlayerName);
   const combinedPartySegments = !isWhisper && message.sender_name === 'Party'
     ? splitCombinedPartyContent(message.content)
     : [];
   const isCombinedPartyMessage = combinedPartySegments.length > 0;
-  const displayedContent = isRealPlayer
+  const displayedContent = hasRealPlayerName
     ? stripSenderPrefix(message.content, message.sender_name)
     : message.content;
 
@@ -927,7 +926,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
         <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-purple-900/30 border border-purple-500/30">
           <Lock className="w-3.5 h-3.5 text-purple-400" />
         </div>
-      ) : isRealPlayer && message.sender_user_id ? (
+      ) : hasPlayerAvatarIdentity && message.sender_user_id ? (
         <PlayerMessageAvatar
           userId={message.sender_user_id}
           senderName={message.sender_name}
@@ -959,7 +958,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
         )}
         {!isCombinedPartyMessage && <div className="flex items-center gap-1.5 mb-1">
           <p className={cn("text-[11px] font-semibold", isWhisper ? "text-purple-300" : "text-primary")}>
-            {isRealPlayer || isWhisper || isDialogueMessage ? message.sender_name : 'Party Actions'}
+            {hasRealPlayerName || isWhisper || isDialogueMessage ? message.sender_name : 'Party Actions'}
           </p>
           {isWhisper && (
             <>
@@ -1164,6 +1163,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.mode === next.mode
     && prev.showTeamTag === next.showTeamTag
     && prev.currentUserId === next.currentUserId
+    && prev.avatars === next.avatars
     && prev.isBookmarked === next.isBookmarked
     && prev.narrationMap === next.narrationMap
     && prev.narrationGeneratingPart === next.narrationGeneratingPart
