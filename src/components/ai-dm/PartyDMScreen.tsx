@@ -82,7 +82,10 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { parseRollHint } from '@/lib/whisperRollHint';
 import { resolveWhisperAutoRoll, performWhisperRoll } from '@/lib/whisperAutoRoll';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
-import { stripActionCard } from '@/lib/roundChatActionCard';
+import { actionCardFromRoll, encodeActionCard, stripActionCard } from '@/lib/roundChatActionCard';
+import { getHealingDiceForItem } from '@/lib/consumables/healing';
+import { rollHealing } from '@/lib/promptAutoRoll';
+import { requestDiceRoll } from '@/lib/diceRollBus';
 import { parseReply } from '@/lib/chatReply';
 import { useHealingItemAction } from '@/hooks/use-healing-item';
 import { RoundTimer, TimerSettings } from './RoundTimer';
@@ -5066,6 +5069,21 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onRestPrompt={(text) => dispatchPrompt(text)}
           onAcceptItem={onAcceptItem}
           onUseConsumableByName={onUseConsumableByName ? (name) => {
+            const consumable = characterContext.consumables.find(item => item.name === name);
+            const healingDice = getHealingDiceForItem(name, consumable?.effect);
+            if (healingDice) {
+              setShowCharacterSheet(false);
+              const roll = rollHealing(healingDice.count, healingDice.die, healingDice.bonus);
+              requestDiceRoll({
+                title: name,
+                roll,
+                onComplete: () => {
+                  const prompt = handleHealingItemUsed(name, roll);
+                  if (prompt) dispatchPrompt(encodeActionCard(actionCardFromRoll(name, roll), prompt));
+                },
+              });
+              return;
+            }
             if (onUseConsumableByName(name, 1)) dispatchPrompt(`${characterContext.name || 'The Adventurer'} uses ${name}.`);
           } : undefined}
           onUseLootItem={(text) => {
