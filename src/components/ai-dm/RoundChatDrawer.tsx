@@ -150,6 +150,11 @@ interface RoundChatDrawerProps {
   onMarkRead?: (iso: string) => void;
   /** Opens the Live DM Table action menu without disturbing the composer draft. */
   onOpenActionMenu?: () => void;
+
+  /** Dice rolls the DM has asked for on the newest message. */
+  rollRequests?: RollRequestCard[];
+  /** Roll a request row. userId is 'any' for untargeted requests. */
+  onRollRequest?: (requestId: string, userId: string) => void;
 }
 
 /** Small circular face beside a message. Tapping your own opens the picker. */
