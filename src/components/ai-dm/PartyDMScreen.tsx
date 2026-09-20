@@ -1504,6 +1504,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [quickActionSections, setQuickActionSections] = useState<Array<'weapons' | 'abilities' | 'spells' | 'cantrips'> | undefined>();
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
+  const [movesPickerOpen, setMovesPickerOpen] = useState(false);
   const [showStoneDrawer, setShowStoneDrawer] = useState(false);
 
   // Split party state
@@ -2295,11 +2296,19 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         setShowCharacterSheet(true);
       } else if (choice === 'bag') {
         setShowBagStats(true);
-      } else {
-        toast.info('Coming soon');
+      } else if (choice === 'moves') {
+        if (isEmpyrean) {
+          toast.info('Not available in this mode');
+        } else if (partyDm.messages.length === 0) {
+          toast.info('Start the story first');
+        } else if (partyDm.isGenerating) {
+          toast.info('The DM is still writing, try again in a moment');
+        } else {
+          setMovesPickerOpen(true);
+        }
       }
     }, 200);
-  }, []);
+  }, [isEmpyrean, partyDm.messages.length, partyDm.isGenerating]);
 
   /** Shared consumable use: healing items roll real dice, everything else is announced to the DM. */
   const handleConsumableUse = useCallback((name: string) => {
@@ -3181,25 +3190,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               </motion.div>
             )}
           </AnimatePresence>
-          {/* Suggest my next move — above Dad Huddle */}
-          {!isEmpyrean && partyDm.messages.length > 0 && (
-            <div className="mb-2 mx-1">
-              <StoryMasterworkActions
-                disabled={partyDm.isGenerating}
-                onSelect={(prompt) => {
-                  setRecapDismissed(true);
-                  if (chatRoundsOnRef.current) {
-                    setRoundChatDraft(prompt);
-                    setRoundChatOpen(true);
-                    return;
-                  }
-                  playerInputRef.current?.setText(prompt);
-                }}
-                fetchStoryPills={handleFetchStoryPills}
-                liveTableCandidates={liveTableCandidates}
-              />
-            </div>
-          )}
         </div>
         {/* Fullscreen toggle - bottom-right of chat area */}
         <button
@@ -4491,6 +4481,24 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         onSelect={handleActionMenuSelect}
         characterName={characterContext?.name}
         characterImage={currentUserId ? chatAvatars.avatars[currentUserId]?.ic : undefined}
+      />
+      {/* Suggest-my-move picker — opened from the Action Menu's Get Moves tile */}
+      <StoryMasterworkActions
+        hideTrigger
+        open={movesPickerOpen}
+        onOpenChange={setMovesPickerOpen}
+        disabled={partyDm.isGenerating}
+        onSelect={(prompt) => {
+          setRecapDismissed(true);
+          if (chatRoundsOnRef.current) {
+            setRoundChatDraft(prompt);
+            setRoundChatOpen(true);
+            return;
+          }
+          playerInputRef.current?.setText(prompt);
+        }}
+        fetchStoryPills={handleFetchStoryPills}
+        liveTableCandidates={liveTableCandidates}
       />
       <DiceRollOverlay />
       {/* Infinity Stone DM Drawer */}
