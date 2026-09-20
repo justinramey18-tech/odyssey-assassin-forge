@@ -2,8 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getNarrationAudio } from '@/lib/audioFocus';
 import {
-  ArrowDown,
-  ArrowUp,
   Check,
   ChevronLeft,
   Loader2,
@@ -17,6 +15,7 @@ import {
   Undo2,
   Users,
   Merge,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
