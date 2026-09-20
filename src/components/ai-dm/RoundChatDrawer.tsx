@@ -451,7 +451,6 @@ export function RoundChatDrawer({
   }, [open, pinned, messages, onMarkRead]);
 
 
-  const lastLine = messages.length > 0 ? messages[messages.length - 1] : null;
 
 
   const reactionsByMessage = useMemo(() => {
