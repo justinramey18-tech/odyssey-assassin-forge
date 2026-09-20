@@ -27,6 +27,7 @@ const SCHOOL_BG: Record<string, string> = {
   enchantment: enchantmentBackground.url,
   necromancy: necromancyBackground.url,
   illusion: illusionBackground.url,
+  transmutation: transmutationBackground.url,
 };
 
 export type QuickActionRemoveCategory = 'weapon' | 'ability' | 'spell' | 'cantrip' | 'consumable' | 'prestige' | 'homebrew-ability' | 'homebrew-spell';
