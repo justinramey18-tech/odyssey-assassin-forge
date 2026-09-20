@@ -179,6 +179,12 @@ function formatRollMessage(label: string, roll: ReturnType<typeof rollD20>, modi
   return `🎲 **${label}**: [${roll.rolls[0]}] ${modStr} = **${total}**${critStr}`;
 }
 
+// Reduced-motion users get the still JPG instead of the animated GIF
+const PREFERS_REDUCED_MOTION =
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 const QUICK_DICE = [
   { label: 'd4', sides: 4 },
   { label: 'd6', sides: 6 },
