@@ -344,6 +344,20 @@ export function NarrationStudio({
     saveOrder(parts);
   }, [canGenerate, orderedParts, pushHistory, takeSnapshot, saveOrder]);
 
+  /** Moves a piece to a typed position (1…N); everything else closes the gap. */
+  const moveTo = useCallback((part: string, position: number) => {
+    if (!canGenerate) return;
+    const parts = [...orderedParts];
+    const i = parts.indexOf(part);
+    if (i === -1) return;
+    const target = Math.min(parts.length, Math.max(1, Math.round(position))) - 1;
+    if (target === i) return;
+    pushHistory(takeSnapshot());
+    parts.splice(i, 1);
+    parts.splice(target, 0, part);
+    saveOrder(parts);
+  }, [canGenerate, orderedParts, pushHistory, takeSnapshot, saveOrder]);
+
   const setRate = useCallback((part: string, rate: number) => {
     const current = loadStudioState(messageId);
     const rates = { ...(current.rates || {}) };
