@@ -97,6 +97,7 @@ interface UseMessageNarrationReturn {
     passage: string,
     voiceId: string,
     label?: string,
+    spokenText?: string,
   ) => Promise<void>;
   play: (messageId: string, part?: NarrationPart, rate?: number) => void;
   /** Plays the DM aside, then every story segment in story order. */
@@ -816,6 +817,8 @@ export function useMessageNarration(
     passage: string,
     voiceId: string,
     label?: string,
+    /** Edited words to read aloud. Falls back to the passage's own text. */
+    spokenText?: string,
   ) => {
     if (!partyId) return;
     const apiKey = loadApiKey('speechify');
@@ -855,7 +858,7 @@ export function useMessageNarration(
     const part = segmentKey(target);
     setGeneratingId(narrationKey(messageId, part));
     try {
-      const blob = await synthesize(target.text, voiceId, apiKey);
+      const blob = await synthesize((spokenText || '').trim() || target.text, voiceId, apiKey);
       await storeClip(messageId, part, blob, voiceId);
       toast.success(label ? `Voiced in ${label}` : 'Passage voiced', {
         description: 'Only the highlighted words were sent to Speechify.',

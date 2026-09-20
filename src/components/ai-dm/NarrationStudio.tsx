@@ -15,6 +15,7 @@ import {
   Undo2,
   Users,
   Merge,
+  Pencil,
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -80,6 +81,8 @@ interface StudioRow {
   covering?: string | null;
   canRevert?: boolean;
   audio?: MessageAudioRow;
+  /** True when the spoken words were hand-edited away from the story text. */
+  edited?: boolean;
 }
 
 /** What one undo step restores. */
@@ -105,7 +108,7 @@ interface NarrationStudioProps {
   onPlayAll: () => void;
   onDeletePart?: (part: NarrationPart) => void;
   onDeleteAll?: () => void;
-  onVoiceSegment?: (passage: string, voiceId: string, label?: string) => Promise<void>;
+  onVoiceSegment?: (passage: string, voiceId: string, label?: string, spokenText?: string) => Promise<void>;
   onRecordSegment?: (passage: string, blob: Blob, hint?: NarrationSegment) => Promise<RecordedClipResult>;
   /** Swaps a self-recorded piece back to the cast voice it covered. */
   onRevertToCastVoice?: (part: NarrationPart) => Promise<void>;
@@ -151,6 +154,8 @@ export function NarrationStudio({
   const [savingRecording, setSavingRecording] = useState(false);
   const [savedRecordings, setSavedRecordings] = useState<Record<string, MessageAudioRow>>({});
   const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
+  const [editFor, setEditFor] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState('');
   const historyRef = useRef<Snapshot[]>([]);
   const [, setHistoryTick] = useState(0);
 
@@ -239,15 +244,18 @@ export function NarrationStudio({
         audio: narrationMap[narrationKey(messageId, 'table')],
       });
     }
+    const scripts = studio.scripts || {};
     for (const seg of segments) {
       const part = segmentKey(seg);
       const recorded = isSelfRecordedVoice(seg.voiceId);
       const cover = recorded ? displaced[part] : undefined;
+      const script = scripts[part];
       byPart.set(part, {
         part,
         kind: 'segment',
         seg,
-        displayText: stripMarkdownForTTS(seg.text),
+        edited: !!script,
+        displayText: script || stripMarkdownForTTS(seg.text),
         voiceLabel: recorded
           ? (overrideLabelFor(seg) || 'Recorded')
           : seg.manual
@@ -259,7 +267,7 @@ export function NarrationStudio({
       });
     }
     return orderedParts.map((p) => byPart.get(p)).filter((r): r is StudioRow => !!r);
-  }, [tableTalk, segments, narrationMap, messageId, orderedParts, overrideLabelFor, displaced, savedRecordings]);
+  }, [tableTalk, segments, narrationMap, messageId, orderedParts, overrideLabelFor, displaced, savedRecordings, studio]);
 
   const resolvedVoiceFor = useCallback((seg: NarrationSegment): { voiceId: string; label: string } => {
     if (seg.voiceId && !isSelfRecordedVoice(seg.voiceId)) {
@@ -324,12 +332,21 @@ export function NarrationStudio({
   /** After voicing changes a piece's key, keep its slot in a custom order (no-op in story order). */
   const keepSlotForNewVoice = useCallback((oldPart: string, voiceId: string, text: string) => {
     const current = loadStudioState(messageId);
-    if (!current.order || current.order.length === 0) return;
     const next = splitStorySegments(story || content || '', messageId);
     const want = loose(text);
     const found = next.find((s) => s.manual && s.voiceId === voiceId
       && (loose(s.text) === want || loose(s.text).includes(want) || want.includes(loose(s.text))));
-    if (found) replaceInOrder([oldPart], [segmentKey(found)]);
+    if (!found) return;
+    const newPart = segmentKey(found);
+    // Hand-edited spoken words follow the piece when its voice changes.
+    const script = current.scripts?.[oldPart];
+    if (script && newPart !== oldPart) {
+      const scripts = { ...(current.scripts || {}) };
+      delete scripts[oldPart];
+      scripts[newPart] = script;
+      saveStudioState(messageId, { ...loadStudioState(messageId), scripts });
+    }
+    if (current.order && current.order.length > 0) replaceInOrder([oldPart], [newPart]);
   }, [messageId, story, content, replaceInOrder]);
 
 
@@ -405,7 +422,7 @@ export function NarrationStudio({
     }
     if (!onVoiceSegment) return;
     try {
-      await onVoiceSegment(seg.text.trim(), voiceId, label);
+      await onVoiceSegment(seg.text.trim(), voiceId, label, loadStudioState(messageId).scripts?.[segmentKey(seg)]);
       keepSlotForNewVoice(segmentKey(seg), voiceId, seg.text.trim());
     } finally {
       onShareVoices?.();
@@ -429,7 +446,7 @@ export function NarrationStudio({
           keepSlotForNewVoice(segmentKey(seg), voiceId, seg.text.trim());
         } else {
           // eslint-disable-next-line no-await-in-loop
-          await onVoiceSegment!(seg.text.trim(), voiceId, label);
+          await onVoiceSegment!(seg.text.trim(), voiceId, label, loadStudioState(messageId).scripts?.[segmentKey(seg)]);
           keepSlotForNewVoice(segmentKey(seg), voiceId, seg.text.trim());
         }
         setBatchProgress({ done: i + 1, total: targets.length });
@@ -572,17 +589,46 @@ export function NarrationStudio({
   const resetOrder = useCallback(() => {
     pushHistory(takeSnapshot());
     const current = loadStudioState(messageId);
-    saveStudioState(messageId, { ...current, order: undefined, hidden: undefined });
+    saveStudioState(messageId, { ...current, order: undefined, hidden: undefined, scripts: undefined });
     bump();
     onShareVoices?.();
     toast.success('Back to story order');
   }, [messageId, pushHistory, takeSnapshot, bump, onShareVoices]);
 
+  /** Saves hand-edited spoken words for one piece. Story text is untouched. */
+  const saveScript = useCallback((part: string, text: string, storyText: string) => {
+    if (!canGenerate) return;
+    const next = text.trim();
+    if (!next) { toast.error('The spoken words cannot be empty'); return; }
+    pushHistory(takeSnapshot());
+    const current = loadStudioState(messageId);
+    const scripts = { ...(current.scripts || {}) };
+    if (next === storyText.trim()) delete scripts[part];
+    else scripts[part] = next;
+    saveStudioState(messageId, { ...current, scripts });
+    setEditFor(null);
+    bump();
+    toast.success('Spoken words saved', { description: 'Re-voice this piece to hear the change.' });
+  }, [canGenerate, messageId, pushHistory, takeSnapshot, bump]);
+
+  /** Puts a piece back to reading the story words. */
+  const resetScript = useCallback((part: string) => {
+    pushHistory(takeSnapshot());
+    const current = loadStudioState(messageId);
+    const scripts = { ...(current.scripts || {}) };
+    delete scripts[part];
+    saveStudioState(messageId, { ...current, scripts });
+    setEditFor(null);
+    bump();
+    toast.success('Back to the story words');
+  }, [messageId, pushHistory, takeSnapshot, bump]);
+
   if (!open) return null;
 
   const canRecord = !!onRecordSegment;
   const hasCustomOrder = (!!studio.order && studio.order.length > 0)
-    || (!!studio.hidden && studio.hidden.length > 0);
+    || (!!studio.hidden && studio.hidden.length > 0)
+    || (!!studio.scripts && Object.keys(studio.scripts).length > 0);
   const isCasting = generatingPart === 'cast';
   const anyGenerating = !!generatingPart;
 
@@ -708,12 +754,73 @@ export function NarrationStudio({
                     ) : (
                       <span className="text-[9px] text-muted-foreground/60">silent</span>
                     )}
+                    {row.edited && (
+                      <button
+                        onClick={() => resetScript(row.part)}
+                        disabled={!canGenerate}
+                        style={{ touchAction: 'manipulation' }}
+                        className="text-[9px] text-amber-300/80 underline underline-offset-2 disabled:no-underline"
+                        title="Read the story words again"
+                      >
+                        edited · reset
+                      </button>
+                    )}
                   </div>
-                  <p className="text-sm text-foreground/90 whitespace-pre-wrap mt-1">{row.displayText}</p>
+                  {editFor === row.part ? (
+                    <div className="mt-1 space-y-1.5">
+                      <textarea
+                        value={editDraft}
+                        onChange={(e) => setEditDraft(e.target.value)}
+                        rows={4}
+                        autoFocus
+                        className="w-full rounded-md border border-sky-500/40 bg-muted/20 p-2 text-sm text-foreground/90 focus:outline-none focus:ring-1 focus:ring-sky-400/60"
+                        placeholder="Words to read aloud"
+                      />
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => saveScript(row.part, editDraft, stripMarkdownForTTS(row.seg?.text || ''))}
+                          style={{ touchAction: 'manipulation' }}
+                          className="px-3 py-2 rounded-full text-[11px] border border-emerald-500/30 bg-emerald-900/20 text-emerald-200/85"
+                        >
+                          Save words
+                        </button>
+                        <button
+                          onClick={() => setEditFor(null)}
+                          style={{ touchAction: 'manipulation' }}
+                          className="px-3 py-2 rounded-full text-[11px] border border-border/40 text-muted-foreground"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      <p className="text-[9px] text-muted-foreground/70">
+                        Only changes what is read aloud. The story stays as written.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-foreground/90 whitespace-pre-wrap mt-1">{row.displayText}</p>
+                  )}
                 </div>
 
                 {canGenerate && (
                   <div className="flex items-center gap-1 shrink-0">
+                    {row.kind === 'segment' && (
+                      <button
+                        onClick={() => {
+                          if (editFor === row.part) { setEditFor(null); return; }
+                          setEditDraft(row.displayText);
+                          setEditFor(row.part);
+                        }}
+                        style={{ touchAction: 'manipulation' }}
+                        className={cn(
+                          'p-1.5 rounded',
+                          editFor === row.part ? 'text-sky-300' : 'text-muted-foreground hover:text-foreground',
+                        )}
+                        title="Edit the words read aloud"
+                        aria-label="Edit the words read aloud"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
                     <input
                       key={`${row.part}-${i}`}
                       type="text"
