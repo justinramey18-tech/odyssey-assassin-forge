@@ -96,6 +96,11 @@
     /* Parchment texture overlay color */
     --parchment: 35 30% 85%;
     --parchment-dark: 30 25% 15%;
+    --quest-parchment: 42 48% 48%;
+    --quest-ink: 24 66% 11%;
+    --quest-red: 5 60% 28%;
+    --quest-body: 26 57% 15%;
+    --quest-reward: 32 89% 19%;
 
     /* Sidebar - keeping for compatibility */
     --sidebar-background: 220 20% 6%;

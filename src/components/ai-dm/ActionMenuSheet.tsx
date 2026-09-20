@@ -16,6 +16,7 @@ interface ActionMenuSheetProps {
 interface ActionTileProps {
   label: string;
   description: string;
+  ariaLabel?: string;
   image?: string;
   fallback: ComponentType<{ className?: string }>;
   onClick: () => void;
@@ -25,7 +26,7 @@ interface ActionTileProps {
   overlayText?: string;
 }
 
-function ActionTile({ label, description, image, fallback: Fallback, onClick, characterImage, initials, overlayText }: ActionTileProps) {
+function ActionTile({ label, description, ariaLabel, image, fallback: Fallback, onClick, characterImage, initials, overlayText }: ActionTileProps) {
   const [imageFailed, setImageFailed] = useState(false);
   const source = characterImage || image;
   const showingImage = !!source && !imageFailed;
@@ -37,7 +38,7 @@ function ActionTile({ label, description, image, fallback: Fallback, onClick, ch
       type="button"
       variant="outline"
       onClick={onClick}
-      aria-label={`${label}: ${description}`}
+      aria-label={ariaLabel ?? `${label}: ${description}`}
       style={{ touchAction: 'manipulation' }}
       className="relative aspect-square h-auto min-h-[132px] w-full overflow-hidden rounded-lg border-amber-500/30 bg-card/90 p-0 text-foreground shadow-lg active:scale-[0.98]"
     >
@@ -95,7 +96,7 @@ export function ActionMenuSheet({ open, onOpenChange, onSelect, characterName, c
     { label: 'Dice', description: 'Open the dice roller', image: '/action-menu/dice.png', fallback: Dices },
     { label: 'Actions', description: 'Use weapons and abilities', image: '/action-menu/sword.png', fallback: Sword },
     { label: 'Spells', description: 'Cast spells and cantrips', image: '/action-menu/wand.png', fallback: WandSparkles },
-    { label: 'Story', description: 'Open your story and quests', image: '/action-menu/book.png', fallback: BookOpen },
+    { label: 'Quest Log', description: 'Open your active quests', ariaLabel: 'Quest log', image: '/action-menu/book.png', fallback: BookOpen },
     { label: 'Bag & Stats', description: 'Open your items and character stats', fallback: Backpack, characterImage, initials, overlayText: 'BAG & STATS' },
     { label: 'Get Moves', description: 'Suggested moves when you are stuck', image: '/action-menu/slot6.png', fallback: Sparkles },
   ];

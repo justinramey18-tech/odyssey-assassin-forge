@@ -94,6 +94,13 @@ export default {
           DEFAULT: "hsl(var(--parchment))",
           dark: "hsl(var(--parchment-dark))",
         },
+        quest: {
+          parchment: "hsl(var(--quest-parchment))",
+          ink: "hsl(var(--quest-ink))",
+          red: "hsl(var(--quest-red))",
+          body: "hsl(var(--quest-body))",
+          reward: "hsl(var(--quest-reward))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
