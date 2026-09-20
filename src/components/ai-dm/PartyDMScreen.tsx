@@ -112,6 +112,7 @@ import { parseWhispers } from '@/lib/whisper-parser';
 import { formatForReadingMode, type FormattedReading } from '@/lib/reading-mode-formatter';
 import { SoloCharacterSheet, type SheetTab } from '@/components/ai-dm/SoloCharacterSheet';
 import { BagStatsScreen } from '@/components/ai-dm/BagStatsScreen';
+import { ActiveQuestScreen } from '@/components/ai-dm/ActiveQuestScreen';
 import { TableGuide } from '@/components/help/TableGuide';
 
 import { CharacterSheetStrip } from '@/components/ai-dm/CharacterSheetStrip';
@@ -1063,6 +1064,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
   const [characterSheetInitialTab, setCharacterSheetInitialTab] = useState<SheetTab>('vitals');
   const [showBagStats, setShowBagStats] = useState(false);
+  const [showActiveQuest, setShowActiveQuest] = useState(false);
   const [showTableGuide, setShowTableGuide] = useState(false);
 
   const [showPartySheets, setShowPartySheets] = useState(false);
@@ -2311,8 +2313,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         setQuickActionSections(['spells', 'cantrips']);
         setQuickActionsOpen(true);
       } else if (choice === 'story') {
-        setCharacterSheetInitialTab('story');
-        setShowCharacterSheet(true);
+        setShowActiveQuest(true);
       } else if (choice === 'bag') {
         setShowBagStats(true);
       } else if (choice === 'moves') {
@@ -5141,6 +5142,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           }}
         />
       )}
+
+      <ActiveQuestScreen
+        open={showActiveQuest}
+        onClose={() => setShowActiveQuest(false)}
+        quests={sheetQuests.quests}
+        onOpenFullQuestBoard={() => {
+          setShowActiveQuest(false);
+          setCharacterSheetInitialTab('story');
+          setShowCharacterSheet(true);
+        }}
+      />
 
       <PartyMemberSheets
         open={showPartySheets}
