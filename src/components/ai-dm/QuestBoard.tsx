@@ -449,31 +449,6 @@ export function QuestBoard({ quests, canManage = true, onAccept, onDecline, onSc
         </div>
       )}
 
-      {active.length > 0 && (
-        <div>
-          <p className="text-[10px] text-emerald-300/60 uppercase tracking-wider mb-2">Active</p>
-          <div className="space-y-2">
-            {active.map(q => activeOnly ? (
-              <div key={q.key} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
-                <QuestHeader q={q} />
-                <ProgressBar pct={questPercent(q)} />
-              </div>
-            ) : (
-              <div key={q.key} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5">
-                <QuestHeader q={q} />
-                {q.description && <p className="text-[10px] text-white/50 mt-1 leading-snug">{q.description}</p>}
-                <Stages q={q} />
-                <ProgressBar pct={questPercent(q)} />
-                <RewardRow q={q} />
-                {q.notes && <p className="text-[10px] text-white/35 mt-1.5 italic">{q.notes}</p>}
-                <QuestTimeline q={q} />
-              </div>
-
-            ))}
-          </div>
-        </div>
-      )}
-
       {done.length > 0 && (
         <div>
           <p className="text-[10px] text-green-400/60 uppercase tracking-wider mb-2">Completed</p>
