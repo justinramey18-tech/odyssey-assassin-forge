@@ -627,7 +627,8 @@ export function NarrationStudio({
 
   const canRecord = !!onRecordSegment;
   const hasCustomOrder = (!!studio.order && studio.order.length > 0)
-    || (!!studio.hidden && studio.hidden.length > 0);
+    || (!!studio.hidden && studio.hidden.length > 0)
+    || (!!studio.scripts && Object.keys(studio.scripts).length > 0);
   const isCasting = generatingPart === 'cast';
   const anyGenerating = !!generatingPart;
 
