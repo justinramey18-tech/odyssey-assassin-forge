@@ -1441,6 +1441,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     console.log('[CloudSave] Loading character:', data.character.name, 'saveId:', saveId, 'previousSaveId:', previousActiveSaveId);
 
     setIsSwitchingCharacter(true);
+    // Re-gate the max-HP effect while the incoming character's stats load.
+    hpSyncReady.current = false;
     
     // Flush any pending auto-save for current character BEFORE updating the active save ID.
     // If we set the save ID first, getScopedKey() would read the NEW character's scoped keys,
