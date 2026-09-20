@@ -855,6 +855,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   onRemove={handleRemoveItem}
                   spentCosts={spentCosts}
                   onActionSpent={onActionSpent}
+                  drawerOpen={open}
                 />
               )}
             </>
