@@ -24,6 +24,7 @@ import { useOnlineStatus } from '@/hooks/use-online-status';
 import { supabase } from '@/integrations/supabase/client';
 import type { RoundChatMessage, RoundChatReaction, RoundStyle } from '@/hooks/use-round-chat';
 import liveChatBgAsset from '@/assets/live-chat-bg.jpg.asset.json';
+import playBannerAsset from '@/assets/play-banner.png.asset.json';
 
 const EMOJI_SET = ['🤣','😅','🤪','🙄','😬','😏','🤮','🥵','🥶','🤯','🧐','😎','😱','😭','🤬','😈','❤️','💯','👏','🙌','🤝','🖕','🫦','🗣','🍑','🍆'];
 
@@ -450,7 +451,6 @@ export function RoundChatDrawer({
   }, [open, pinned, messages, onMarkRead]);
 
 
-  const lastLine = messages.length > 0 ? messages[messages.length - 1] : null;
 
 
   const reactionsByMessage = useMemo(() => {
@@ -514,49 +514,80 @@ export function RoundChatDrawer({
         style={{ backgroundImage: `url(${liveChatBgAsset.url})` }}
       />
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-black/55" />
-      {/* Expansion trigger — large, ornamented header */}
-      <button
-        onClick={() => onOpenChange(!open)}
-        aria-expanded={open}
-        className={cn(
-          "w-full relative px-3 pt-2 pb-3 text-left transition-colors hover:bg-amber-500/[0.06] active:bg-amber-500/10",
-          fullScreen && "shrink-0"
-        )}
-        style={{ touchAction: 'manipulation', minHeight: 64 }}
-      >
-        {/* grab handle */}
-        <div className="mx-auto mb-2 h-1.5 w-14 rounded-full bg-amber-400/35" />
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
-        <div className="flex items-center gap-2">
-          <span className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/25">
-            <MessageSquare className="w-4 h-4 text-amber-300/80" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="flex items-center gap-2">
-              <span className="font-cinzel text-[13px] tracking-wide text-amber-200/90">
-                {style.mode === 'live' ? 'Live DM Table' : 'Round Chat'}
+      {open ? (
+        /* Collapsed→expanded header — ornamented collapse control */
+        <button
+          onClick={() => onOpenChange(false)}
+          aria-expanded
+          className={cn(
+            "w-full relative px-3 pt-2 pb-3 text-left transition-colors hover:bg-amber-500/[0.06] active:bg-amber-500/10",
+            fullScreen && "shrink-0"
+          )}
+          style={{ touchAction: 'manipulation', minHeight: 64 }}
+        >
+          {/* grab handle */}
+          <div className="mx-auto mb-2 h-1.5 w-14 rounded-full bg-amber-400/35" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/25">
+              <MessageSquare className="w-4 h-4 text-amber-300/80" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-2">
+                <span className="font-cinzel text-[13px] tracking-wide text-amber-200/90">
+                  {style.mode === 'live' ? 'Live DM Table' : 'Round Chat'}
+                </span>
+                <span className={cn(
+                  "text-[10px] px-1.5 py-0.5 rounded-full border shrink-0",
+                  progress.met
+                    ? "text-emerald-300 border-emerald-400/30 bg-emerald-500/10"
+                    : "text-white/50 border-white/15 bg-white/5"
+                )}>
+                  {progress.current} ticked
+                </span>
               </span>
-              <span className={cn(
-                "text-[10px] px-1.5 py-0.5 rounded-full border shrink-0",
-                progress.met
-                  ? "text-emerald-300 border-emerald-400/30 bg-emerald-500/10"
-                  : "text-white/50 border-white/15 bg-white/5"
-              )}>
-                {progress.current} ticked
+              <span className="block text-[10px] text-white/40 truncate mt-0.5">
+                Tap to collapse the table
               </span>
             </span>
-            <span className="block text-[10px] text-white/40 truncate mt-0.5">
-              {!open && lastLine
-                ? `${lastLine.character_name}: ${lastLine.content}`
-                : open ? 'Tap to collapse the table' : 'Tap to open the table chat'}
-            </span>
+            <ChevronDown className="w-5 h-5 text-amber-300/60 shrink-0 transition-transform duration-200 rotate-180" />
+          </div>
+        </button>
+      ) : (
+        /* Collapsed trigger — PLAY banner artwork opens the table */
+        <button
+          onClick={() => onOpenChange(true)}
+          aria-expanded={false}
+          aria-label={style.mode === 'live' ? 'Open the Live DM Table' : 'Open the round chat'}
+          className={cn(
+            "relative block w-full transition-transform active:scale-[0.99]",
+            fullScreen && "shrink-0"
+          )}
+          style={{ touchAction: 'manipulation' }}
+        >
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
+          <img
+            src={playBannerAsset.url}
+            alt=""
+            className="w-full block"
+            draggable={false}
+          />
+          {/* Round progress badge — keeps tick status visible on the artwork */}
+          <span className={cn(
+            "absolute right-2 top-2 text-[10px] px-1.5 py-0.5 rounded-full border font-cinzel tracking-wide",
+            progress.met
+              ? "text-emerald-300 border-emerald-400/40 bg-black/60"
+              : "text-amber-100 border-amber-400/30 bg-black/60"
+          )}>
+            {progress.current} ticked
           </span>
-          <ChevronDown className={cn(
-            "w-5 h-5 text-amber-300/60 shrink-0 transition-transform duration-200",
-            open && "rotate-180",
-          )} />
-        </div>
-      </button>
+          {unseen > 0 && (
+            <span className="absolute left-2 top-2 min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white border border-red-300/40">
+              {unseen > 99 ? '99+' : unseen}
+            </span>
+          )}
+        </button>
+      )}
 
 
 
