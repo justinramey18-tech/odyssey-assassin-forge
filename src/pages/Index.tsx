@@ -959,23 +959,36 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
 
   // Track whether initial HP sync has completed to suppress load-time toasts
   const hasInitialHPSynced = useRef(false);
+  // Gate for the max-HP effect below. Load-order race: hpState restores from
+  // storage synchronously, but ability scores / level / prestige arrive a render
+  // or two later, so calculatedMaxHP starts at a low default. Without this gate
+  // the effect clamps current HP down to the fake max, then "heals" it back up
+  // when the real scores land — silently restoring a damaged character to full.
+  const hpSyncReady = useRef(false);
 
   // Auto-update max HP when calculation changes (level up, CON change, prestige)
   useEffect(() => {
+    // Don't touch HP until the character's real stats have loaded.
+    if (!hpSyncReady.current) return;
+    // Ignore an implausible max — a value under 10 for a character above level 1
+    // is the pre-load default, not a real change.
+    if (calculatedMaxHP < 10 && character.level > 1) return;
     if (calculatedMaxHP !== hpState.max) {
       const hpDiff = calculatedMaxHP - hpState.max;
-      const newCurrent = hpDiff > 0 
-        ? Math.min(calculatedMaxHP, hpState.current + hpDiff)
+      // Never raise current HP on a max increase — a level-up should not heal.
+      // On a decrease, clamp current down to the new max.
+      const newCurrent = hpDiff > 0
+        ? hpState.current
         : Math.min(calculatedMaxHP, hpState.current);
-      
-      const newState = persistHPState({ 
-        current: newCurrent, 
-        max: calculatedMaxHP, 
-        temp: hpState.temp 
+
+      const newState = persistHPState({
+        current: newCurrent,
+        max: calculatedMaxHP,
+        temp: hpState.temp
       });
       setHpState(newState);
 
-      
+
       // Show toast for significant changes, but NOT on initial app load
       if (hasInitialHPSynced.current && hpState.max > 8 && hpDiff !== 0) {
         toast({
@@ -985,12 +998,18 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         });
       }
     }
-    // Delay marking initial sync complete to handle React strict mode double-invocation
-    if (!hasInitialHPSynced.current) {
-      const t = setTimeout(() => { hasInitialHPSynced.current = true; }, 500);
-      return () => clearTimeout(t);
-    }
-  }, [calculatedMaxHP, hpState.max, hpState.current, hpState.temp, toast]);
+  }, [calculatedMaxHP, hpState.max, hpState.current, hpState.temp, character.level, toast]);
+
+  // Mark HP sync ready once the initial load (cloud save or local restore) has
+  // had time to apply ability scores, level and prestige. loadFromCloudSave
+  // also flips this immediately when it finishes.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      hpSyncReady.current = true;
+      hasInitialHPSynced.current = true;
+    }, 500);
+    return () => clearTimeout(t);
+  }, []);
   // Wire party incoming heal callback (only in party mode)
   useEffect(() => {
     if (isSoloMode) return;
@@ -1422,6 +1441,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     console.log('[CloudSave] Loading character:', data.character.name, 'saveId:', saveId, 'previousSaveId:', previousActiveSaveId);
 
     setIsSwitchingCharacter(true);
+    // Re-gate the max-HP effect while the incoming character's stats load.
+    hpSyncReady.current = false;
     
     // Flush any pending auto-save for current character BEFORE updating the active save ID.
     // If we set the save ID first, getScopedKey() would read the NEW character's scoped keys,
@@ -1491,12 +1512,16 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     }
     
     // 6. Restore HP state from saved data (or calculate max if not saved)
-    if (data.hpState) {
+    const savedHP = data.hpState ? sanitizeHPState(data.hpState) : null;
+    // Valid only if the raw saved max is a real positive number — otherwise the
+    // full-HP fallback below runs (legacy saves), never over a valid hpState.
+    const rawMax = Number((data.hpState as Record<string, unknown> | undefined)?.max);
+    const savedHPValid = savedHP !== null && Number.isFinite(rawMax) && rawMax > 0;
+    if (savedHPValid && savedHP) {
       // Restore exact HP state from cloud save
-      const restored = sanitizeHPState(data.hpState);
-      setHpState(restored);
-      setScopedItem('odyssey-hp-state', JSON.stringify(restored));
-      console.log('[CloudSave] Restored HP:', restored.current, '/', restored.max, 'temp:', restored.temp);
+      setHpState(savedHP);
+      setScopedItem('odyssey-hp-state', JSON.stringify(savedHP));
+      console.log('[CloudSave] Restored HP:', savedHP.current, '/', savedHP.max, 'temp:', savedHP.temp);
     } else if (data.abilityScores) {
       // Fallback: Calculate max HP if HP state wasn't saved (legacy saves)
       const loadedConMod = scoreToModifier(data.abilityScores.constitution);
@@ -1647,6 +1672,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
 
     // Notify localStorage-dependent hooks to re-initialize from their scoped keys
     window.dispatchEvent(new CustomEvent('odyssey-character-loaded', { detail: { saveId } }));
+
+    // Stats, level and prestige are now applied — the max-HP effect may run.
+    hpSyncReady.current = true;
 
     // Show home screen with newly loaded character
     setShowHomeScreen(true);
