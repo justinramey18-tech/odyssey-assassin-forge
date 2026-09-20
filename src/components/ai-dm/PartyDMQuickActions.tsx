@@ -23,6 +23,7 @@ import conjurationBackground from '@/assets/spell-bg/conjuration.jpg.asset.json'
 import primaryWeaponBackground from '@/assets/weapons/weapon-primary.jpg.asset.json';
 import secondaryWeaponBackground from '@/assets/weapons/weapon-secondary.jpg.asset.json';
 import rangedWeaponBackground from '@/assets/weapons/weapon-ranged.jpg.asset.json';
+import rollAttackSeal from '@/assets/roll-attack.png.asset.json';
 
 import type { CharacterContext } from '@/components/oracle/types';
 import { rarityConfig, type EquipmentStats, type Enchantment, type Rarity } from '@/lib/inventory/types';
@@ -457,32 +458,24 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/70" aria-hidden="true" />
 
                   {!isEmpty && (
-                    <div className="absolute right-2 top-2 z-[2] flex gap-2">
-                      <button
-                        type="button"
-                        onClick={(event) => { event.stopPropagation(); handleItemUse(item); }}
-                        aria-label={`Use ${item.name}`}
-                        className="flex min-h-12 items-center gap-1 rounded-lg border border-emerald-500/30 bg-black/50 px-3 text-xs font-medium text-emerald-300 backdrop-blur-sm transition-colors hover:bg-black/70"
-                        style={{ touchAction: 'manipulation' }}
-                      >
-                        <Play className="h-3.5 w-3.5" /> Use
-                      </button>
-                      {onRemove && (
-                        <button
-                          type="button"
-                          onClick={(event) => { event.stopPropagation(); onRemove(item); }}
-                          aria-label={`Remove ${item.name}`}
-                          title={`Remove ${item.name}`}
-                          className="flex min-h-12 items-center gap-1 rounded-lg border border-red-500/25 bg-black/50 px-3 text-xs font-medium text-red-300 backdrop-blur-sm transition-colors hover:bg-black/70"
-                          style={{ touchAction: 'manipulation' }}
-                        >
-                          <X className="h-3.5 w-3.5" /> Remove
-                        </button>
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={(event) => { event.stopPropagation(); handleItemUse(item); }}
+                      aria-label={`Roll attack — ${item.name}`}
+                      className="absolute bottom-3 right-3 z-[2] h-14 w-14 overflow-hidden rounded-lg opacity-90 ring-1 ring-white/10 drop-shadow-lg transition-transform active:scale-95 active:ring-amber-400/40 active:opacity-100"
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      <img
+                        src={rollAttackSeal.url}
+                        alt="Roll attack"
+                        loading="lazy"
+                        draggable={false}
+                        className="h-full w-full object-cover"
+                      />
+                    </button>
                   )}
 
-                  <div className="absolute inset-x-0 bottom-0 z-[1] px-4 pb-3 text-left drop-shadow-md">
+                  <div className="absolute inset-x-0 bottom-0 z-[1] px-4 pb-3 pr-20 text-left drop-shadow-md">
                     {isEmpty ? (
                       <p className="font-cinzel text-base text-amber-100">Nothing equipped</p>
                     ) : (
