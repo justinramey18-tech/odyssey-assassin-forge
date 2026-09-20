@@ -1,4 +1,4 @@
-import { Download, ListMusic, Loader2, Pause, SlidersHorizontal } from 'lucide-react';
+import { Download, Loader2, Pause, SlidersHorizontal } from 'lucide-react';
 import listenToStory from '@/assets/listen-to-story.png.asset.json';
 import { useEffect, useMemo, useState } from 'react';
 import {
