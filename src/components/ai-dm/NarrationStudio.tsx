@@ -332,12 +332,21 @@ export function NarrationStudio({
   /** After voicing changes a piece's key, keep its slot in a custom order (no-op in story order). */
   const keepSlotForNewVoice = useCallback((oldPart: string, voiceId: string, text: string) => {
     const current = loadStudioState(messageId);
-    if (!current.order || current.order.length === 0) return;
     const next = splitStorySegments(story || content || '', messageId);
     const want = loose(text);
     const found = next.find((s) => s.manual && s.voiceId === voiceId
       && (loose(s.text) === want || loose(s.text).includes(want) || want.includes(loose(s.text))));
-    if (found) replaceInOrder([oldPart], [segmentKey(found)]);
+    if (!found) return;
+    const newPart = segmentKey(found);
+    // Hand-edited spoken words follow the piece when its voice changes.
+    const script = current.scripts?.[oldPart];
+    if (script && newPart !== oldPart) {
+      const scripts = { ...(current.scripts || {}) };
+      delete scripts[oldPart];
+      scripts[newPart] = script;
+      saveStudioState(messageId, { ...loadStudioState(messageId), scripts });
+    }
+    if (current.order && current.order.length > 0) replaceInOrder([oldPart], [newPart]);
   }, [messageId, story, content, replaceInOrder]);
 
 
