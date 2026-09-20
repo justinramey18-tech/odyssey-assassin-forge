@@ -574,16 +574,43 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false,
             </span>
           </button>
 
-          {/* Initiative — full width, below the banner */}
+          {/* Initiative — full-width picture banner, below the dice banner */}
           <button
             onClick={() => {
               const dexMod = getModifier(characterContext, 'dex');
               handleRoll('Initiative', dexMod);
             }}
-            className="w-full py-2 rounded-lg bg-purple-900/20 border border-purple-500/20 hover:bg-purple-900/40 transition-colors text-sm font-cinzel text-purple-200"
+            aria-label={isEmpyreanMode() ? 'Combat Reflexes (initiative roll)' : 'Roll initiative (d20)'}
+            className="relative block w-full aspect-[5/2] rounded-lg overflow-hidden transition-transform duration-150 active:scale-[0.98]"
             style={{ touchAction: 'manipulation' }}
           >
-            ⚡ {isEmpyreanMode() ? 'Combat Reflexes' : 'Initiative'}
+            <img
+              src={PREFERS_REDUCED_MOTION ? '/dice/roll-initiative-bg.jpg' : '/dice/roll-initiative.gif'}
+              alt=""
+              draggable={false}
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ objectPosition: 'center bottom' }}
+              onError={(e) => {
+                const img = e.currentTarget;
+                if (!img.src.endsWith('/dice/roll-initiative-bg.jpg')) img.src = '/dice/roll-initiative-bg.jpg';
+              }}
+            />
+            {/* Dark gradient so any overlay label reads over the image */}
+            <div
+              className="absolute inset-0"
+              style={{ background: 'linear-gradient(to bottom, transparent 55%, rgba(8,6,4,0.85) 100%)' }}
+            />
+            {isEmpyreanMode() && (
+              <span
+                className="absolute inset-x-0 bottom-2 text-center font-cinzel font-black uppercase text-[24px] leading-none text-[#FFE4AA] pointer-events-none"
+                style={{
+                  WebkitTextStroke: '1px #3C1900',
+                  textShadow: '0 0 12px rgba(255,150,40,0.8), 0 0 24px rgba(255,150,40,0.5)',
+                }}
+              >
+                Combat Reflexes
+              </span>
+            )}
           </button>
 
           
