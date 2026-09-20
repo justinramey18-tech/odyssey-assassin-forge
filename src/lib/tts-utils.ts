@@ -801,7 +801,16 @@ export function splitStorySegments(story: string, messageId?: string): Narration
   // headings) so they never become gaps that need audio.
   const speakable = withOverrides.filter((s) => !!stripMarkdownForTTS(s.text || '').trim());
   const merged = mergeNarrator(speakable.length ? speakable : withOverrides);
-  return merged.length ? merged : [{ speaker: null, text: raw }];
+  const final = merged.length ? merged : [{ speaker: null, text: raw }];
+  // Two pieces with identical words would otherwise share one id, which made
+  // them render (and reorder) as a single row. Number the repeats in order.
+  const seen = new Map<string, number>();
+  return final.map((s) => {
+    const basis = `${s.speaker || ''}|${s.voiceId || ''}|${(s.text || '').replace(/\s+/g, ' ').trim()}`;
+    const n = (seen.get(basis) || 0) + 1;
+    seen.set(basis, n);
+    return n > 1 ? { ...s, occurrence: n } : s;
+  });
 }
 
 
