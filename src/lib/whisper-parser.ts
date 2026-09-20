@@ -97,7 +97,8 @@ export function parseWhispers(raw: string): ParsedMessage {
     if (!trimmed) return '';
 
     if (tag === 'ACTION') {
-      whispers.push({ type: 'action', content: trimmed });
+      const addr = parseActionAddress(trimmed);
+      whispers.push({ type: 'action', target: addr.address || undefined, content: trimmed });
     } else if (tag === 'TACTICS') {
       whispers.push({ type: 'tactics', content: trimmed });
     } else if (tag.startsWith('WHISPER:') && whisperTarget) {
