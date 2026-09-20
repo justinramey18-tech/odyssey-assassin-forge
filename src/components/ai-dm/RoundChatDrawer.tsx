@@ -1154,7 +1154,76 @@ export function RoundChatDrawer({
                 className={cn("mt-2 space-y-1.5", fullScreen && "shrink-0")}
                 style={fullScreen ? { paddingBottom: 'env(safe-area-inset-bottom, 0px)' } : undefined}
               >
-                
+                {/* Rolls the DM has asked for on the newest message. */}
+                {(rollRequests?.length || 0) > 0 && (
+                  <div className="flex flex-col gap-2 max-h-[40vh] overflow-y-auto">
+                    {rollRequests!.map(req => {
+                      const done = req.rows.filter(r => r.result);
+                      const complete = done.length === req.rows.length && req.rows.length > 0;
+                      const summary = complete && req.everyone
+                        ? [...req.rows]
+                            .sort((a, b) => (b.result?.total ?? 0) - (a.result?.total ?? 0))
+                            .map(r => `${r.name} ${r.result?.total ?? 0}`)
+                            .join(' · ')
+                        : null;
+                      return (
+                        <div
+                          key={req.id}
+                          className={cn(
+                            "rounded-lg border bg-black/70 px-3 py-2",
+                            complete ? "border-amber-900/40 opacity-60" : "border-amber-500/40",
+                          )}
+                        >
+                          <div className="flex items-baseline justify-between gap-2">
+                            <p className="font-cinzel text-[11px] uppercase tracking-wide text-amber-300/90 truncate">
+                              {req.title || 'Roll'}
+                              {req.everyone && ` — ${done.length} of ${req.rows.length} rolled`}
+                            </p>
+                          </div>
+                          <p className="font-body text-[12px] text-white/70 mt-0.5">{req.label}</p>
+
+                          {complete && summary ? (
+                            <p className="font-body text-[12px] text-amber-200/90 mt-1.5">⚔️ {summary}</p>
+                          ) : (
+                            <div className="flex flex-col gap-1.5 mt-2">
+                              {req.rows.map(row => {
+                                const rolled = !!row.result;
+                                const canPress = !rolled && (row.mine || isHost);
+                                return (
+                                  <div key={row.userId} className="flex items-center gap-2">
+                                    <span className={cn(
+                                      "font-body text-[12px] flex-1 min-w-0 truncate",
+                                      rolled ? "text-white/40" : "text-white/80",
+                                    )}>
+                                      {rolled
+                                        ? `${row.name}: ${row.result!.total}${row.result!.rolledBy && row.result!.rolledBy !== row.name ? ` (by ${row.result!.rolledBy})` : ''}`
+                                        : row.mine || row.userId === 'any' ? row.name : `Waiting on ${row.name}`}
+                                    </span>
+                                    {!rolled && (
+                                      <button
+                                        onClick={() => canPress && onRollRequest?.(req.id, row.userId)}
+                                        disabled={!canPress}
+                                        style={{ touchAction: 'manipulation' }}
+                                        className={cn(
+                                          "shrink-0 min-h-[40px] px-3 rounded-lg border font-body text-[12px] transition-colors",
+                                          canPress
+                                            ? "border-amber-500/50 bg-amber-500/15 text-amber-200 active:bg-amber-500/30"
+                                            : "border-white/10 bg-white/[0.03] text-white/30",
+                                        )}
+                                      >
+                                        {row.mine ? req.buttonLabel : isHost ? 'Roll for them' : 'Waiting'}
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {/* Who is speaking. The pictures are the same ones used for this
                     player's bubbles, so the tile you pick matches what appears in
