@@ -19,6 +19,7 @@ import enchantmentBackground from '@/assets/spell-bg/enchantment.jpg.asset.json'
 import necromancyBackground from '@/assets/spell-bg/necromancy.jpg.asset.json';
 import illusionBackground from '@/assets/spell-bg/illusion.jpg.asset.json';
 import transmutationBackground from '@/assets/spell-bg/transmutation.jpg.asset.json';
+import conjurationBackground from '@/assets/spell-bg/conjuration.jpg.asset.json';
 
 import type { CharacterContext } from '@/components/oracle/types';
 
@@ -28,6 +29,7 @@ const SCHOOL_BG: Record<string, string> = {
   necromancy: necromancyBackground.url,
   illusion: illusionBackground.url,
   transmutation: transmutationBackground.url,
+  conjuration: conjurationBackground.url,
 };
 
 export type QuickActionRemoveCategory = 'weapon' | 'ability' | 'spell' | 'cantrip' | 'consumable' | 'prestige' | 'homebrew-ability' | 'homebrew-spell';
