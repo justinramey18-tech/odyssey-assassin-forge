@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Send, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft, Swords } from 'lucide-react';
+import { ChevronDown, Send, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft } from 'lucide-react';
 import { AvatarCropDialog } from './AvatarCropDialog';
 
 import { Textarea } from '@/components/ui/textarea';
@@ -1308,10 +1308,15 @@ export function RoundChatDrawer({
                     type="button"
                     onClick={onOpenActionMenu}
                     style={{ touchAction: 'manipulation' }}
-                    className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 text-[13px] text-amber-200 active:bg-amber-500/20"
+                    aria-label="Open actions: roll dice, fight, spells, stats, quests"
+                    className="relative h-[90px] min-h-[44px] w-full overflow-hidden rounded-lg border border-amber-500/30 bg-muted/40 active:brightness-110"
                   >
-                    <Swords className="h-4 w-4 shrink-0" />
-                    <span>Tap here to use items, spells, attacks, or roll dice</span>
+                    <img
+                      src="/action-menu/actions-banner.png"
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute inset-0 h-full w-full object-cover object-center"
+                    />
                   </button>
                 )}
               </div>
