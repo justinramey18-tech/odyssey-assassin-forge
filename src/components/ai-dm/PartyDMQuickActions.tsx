@@ -727,7 +727,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="h-[100dvh] max-h-[100dvh] rounded-none bg-gradient-to-b from-[#1a1a2e] to-[#0d0d12] border-amber-900/30 party-dm-quick-actions-content">
+      <DrawerContent className="mt-0 h-[100dvh] max-h-[100dvh] rounded-none bg-gradient-to-b from-[#1a1a2e] to-[#0d0d12] border-amber-900/30 party-dm-quick-actions-content">
         <DrawerHeader className="relative shrink-0 border-b border-amber-900/30 pb-2">
           <DrawerTitle className="text-amber-200 font-cinzel text-center">
             Quick Actions
