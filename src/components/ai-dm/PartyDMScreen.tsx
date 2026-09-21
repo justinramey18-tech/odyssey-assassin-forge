@@ -38,7 +38,7 @@ import { useQuestRewardSplit } from '@/hooks/use-quest-reward-split';
 import { usePartyNarrationStyle } from '@/hooks/use-party-narration-style';
 import { useRoundChat } from '@/hooks/use-round-chat';
 import { useChatAvatars } from '@/hooks/use-chat-avatars';
-import { RoundChatDrawer, type RollRequestCard } from './RoundChatDrawer';
+import { RoundChatDrawer } from './RoundChatDrawer';
 import { ActionMenuSheet, type ActionMenuChoice } from './ActionMenuSheet';
 import { DMHandoffBar } from './DMHandoffBar';
 import { narrationStyleLine } from '@/lib/narrationStyle';
@@ -80,7 +80,6 @@ import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-part
 import { DMDiceRoller } from './DMDiceRoller';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { parseRollHint } from '@/lib/whisperRollHint';
-import { parseActionAddress } from '@/lib/whisper-parser';
 import { resolveWhisperAutoRoll, performWhisperRoll } from '@/lib/whisperAutoRoll';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
 import { actionCardFromRoll, encodeActionCard, stripActionCard } from '@/lib/roundChatActionCard';
@@ -203,57 +202,6 @@ function formatAutoSaveTime(date: Date): string {
   const diffMins = Math.floor(diffSecs / 60);
   if (diffMins < 60) return `${diffMins}m ago`;
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-/** Stable id for a DM roll request so every device agrees on the same card. */
-function hashRequestId(input: string): string {
-  let h = 0;
-  for (let i = 0; i < input.length; i++) h = (h * 31 + input.charCodeAt(i)) >>> 0;
-  return `rr${h.toString(36)}`;
-}
-
-const SKILL_LABELS: Record<string, string> = {
-  acrobatics: 'Acrobatics', animal_handling: 'Animal Handling', arcana: 'Arcana',
-  athletics: 'Athletics', deception: 'Deception', history: 'History', insight: 'Insight',
-  intimidation: 'Intimidation', investigation: 'Investigation', medicine: 'Medicine',
-  nature: 'Nature', perception: 'Perception', performance: 'Performance',
-  persuasion: 'Persuasion', religion: 'Religion', sleight_of_hand: 'Sleight of Hand',
-  stealth: 'Stealth', survival: 'Survival',
-};
-
-const ABILITY_LABELS: Record<string, string> = {
-  str: 'Strength', dex: 'Dexterity', con: 'Constitution',
-  int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma',
-};
-
-/** Short name for the roll, used in the posted chat line. */
-function describeRollName(hint: { ability: string | null; skillId: string | null; isSave: boolean }, text: string): string {
-  if (/initiative/i.test(text)) return 'Initiative';
-  if (hint.skillId && SKILL_LABELS[hint.skillId]) return SKILL_LABELS[hint.skillId];
-  if (hint.ability && ABILITY_LABELS[hint.ability]) {
-    return `${ABILITY_LABELS[hint.ability]}${hint.isSave ? ' Save' : ''}`;
-  }
-  return 'Roll';
-}
-
-/** Card subtitle, e.g. "Charisma (Performance), DC 14". */
-function describeRollRequest(
-  hint: { ability: string | null; skillId: string | null; isSave: boolean; dc: number | null },
-  text: string,
-): string {
-  const parts: string[] = [];
-  if (/initiative/i.test(text)) {
-    parts.push('Initiative (Dexterity)');
-  } else if (hint.skillId && SKILL_LABELS[hint.skillId]) {
-    parts.push(hint.ability && ABILITY_LABELS[hint.ability]
-      ? `${ABILITY_LABELS[hint.ability]} (${SKILL_LABELS[hint.skillId]})`
-      : SKILL_LABELS[hint.skillId]);
-  } else if (hint.ability && ABILITY_LABELS[hint.ability]) {
-    parts.push(`${ABILITY_LABELS[hint.ability]}${hint.isSave ? ' save' : ' check'}`);
-  }
-  if (hint.dc != null) parts.push(`DC ${hint.dc}`);
-  if (!parts.length) return text;
-  return parts.join(', ');
 }
 
 function getMemberColor(userId: string, members: Array<{ user_id: string }>): string {
@@ -653,8 +601,6 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   if (isAssistant) {
     const myCharName = members.find(m => m.user_id === currentUserId)?.character_name;
     const filteredWhispers = (message.whispers || []).filter((w: any) => {
-      // Roll requests now render as cards in the Live DM chat, not in the tray.
-      if (w.type === 'action') return false;
       if (w.type !== 'whisper') return true;
       if (!w.target || !myCharName) return false;
       return w.target.toLowerCase() === myCharName.toLowerCase();
@@ -2338,186 +2284,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     setDiceRollerOpen(true);
   }, []);
 
-  // ── DM roll requests: cards in the Live DM chat ────────────────────────────
-  // Every ACTION block on the newest DM message becomes a card. Results live in
-  // party_shared_state (state_type 'roll_requests') so every phone agrees.
-  type RollRowState = { result: string; total: number; dexMod?: number; rolledBy?: string; rolledAt: string };
-  const [rollResolutions, setRollResolutions] = useState<Record<string, { rows: Record<string, RollRowState> }>>({});
-
-  useEffect(() => {
-    if (!partyId || !currentUserId) return;
-    let cancelled = false;
-    (supabase.from('party_shared_state') as any)
-      .select('state_data')
-      .eq('party_id', partyId)
-      .eq('state_type', 'roll_requests')
-      .maybeSingle()
-      .then(({ data }: any) => {
-        if (!cancelled && data?.state_data?.requests) setRollResolutions(data.state_data.requests);
-      });
-    const ch = supabase
-      .channel(`roll-requests-${partyId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'party_shared_state', filter: `party_id=eq.${partyId}` }, (payload: any) => {
-        const row = payload?.new;
-        if (row?.state_type === 'roll_requests') setRollResolutions(row.state_data?.requests || {});
-      })
-      .subscribe();
-    return () => { cancelled = true; supabase.removeChannel(ch); };
-  }, [partyId, currentUserId]);
-
-  const rollRequestSpecs = useMemo(() => {
-    const msgs = partyDm.messages || [];
-    let latest: any = null;
-    for (let i = msgs.length - 1; i >= 0; i--) {
-      if ((msgs[i] as any).role === 'assistant') { latest = msgs[i]; break; }
-    }
-    if (!latest) return [] as Array<{ id: string; text: string; rollMode: 'normal' | 'advantage' | 'disadvantage'; everyone: boolean; targets: typeof members }>;
-    const actions = ((latest.whispers || []) as any[]).filter(w => w.type === 'action');
-    const living = members.filter(m => {
-      const hp = (m.character_status as any)?.currentHP;
-      return !Number.isFinite(hp) || (hp as number) > 0;
-    });
-    return actions.map(w => {
-      const addr = parseActionAddress(w.content);
-      const matched = members.filter(m =>
-        addr.names.some(n => n.toLowerCase() === (m.character_name || '').toLowerCase())
-      );
-      const everyone = addr.everyone;
-      const targets = everyone ? living : matched;
-      return {
-        id: hashRequestId(`${latest.id}|${w.content}`),
-        text: addr.text,
-        rollMode: addr.rollMode,
-        everyone: everyone || targets.length > 1,
-        targets,
-      };
-    });
-  }, [partyDm.messages, members]);
-
-  const rollRequestSpecsRef = useRef(rollRequestSpecs);
-  useEffect(() => { rollRequestSpecsRef.current = rollRequestSpecs; }, [rollRequestSpecs]);
-
-  const rollRequestCards: RollRequestCard[] = useMemo(() => rollRequestSpecs.map(spec => {
-    const hint = parseRollHint(spec.text);
-    const saved = rollResolutions[spec.id]?.rows || {};
-    const toRow = (userId: string, name: string, mine: boolean) => {
-      const s = saved[userId];
-      return {
-        userId,
-        name,
-        mine,
-        result: s ? { text: s.result, total: s.total, rolledBy: s.rolledBy } : null,
-      };
-    };
-    const rows = spec.targets.length
-      ? spec.targets.map(m => toRow(m.user_id, m.character_name || 'Player', m.user_id === currentUserId))
-      : [toRow('any', 'Anyone', true)];
-    const isInitiative = /initiative/i.test(spec.text);
-    return {
-      id: spec.id,
-      label: describeRollRequest(hint, spec.text),
-      buttonLabel: spec.rollMode === 'advantage'
-        ? 'Roll with Advantage'
-        : spec.rollMode === 'disadvantage' ? 'Roll with Disadvantage' : 'Roll',
-      everyone: spec.everyone,
-      title: isInitiative ? 'Initiative' : spec.everyone ? 'Party roll' : (spec.targets[0]?.character_name || 'Roll'),
-      rows,
-    };
-  }), [rollRequestSpecs, rollResolutions, currentUserId]);
-
-  const handleRollRequest = useCallback(async (requestId: string, rowUserId: string) => {
-    const spec = rollRequestSpecsRef.current.find(s => s.id === requestId);
-    if (!spec || !partyId) return;
-    const isMine = rowUserId === 'any' || rowUserId === currentUserId;
-    if (!isMine && !isCreator) return;
-
-    const member = rowUserId === 'any'
-      ? members.find(m => m.user_id === currentUserId)
-      : members.find(m => m.user_id === rowUserId);
-
-    const hint = parseRollHint(spec.text);
-    if (spec.rollMode !== 'normal') hint.rollMode = spec.rollMode;
-    if (/initiative/i.test(spec.text) && !hint.ability && !hint.skillId) hint.ability = 'dex';
-
-    const auto = resolveWhisperAutoRoll(hint);
-    if (!auto.canAutoRoll || !auto.actionPhrase) {
-      if (isMine) { setDiceRollerWhisperText(spec.text); setDiceRollerOpen(true); }
-      return;
-    }
-
-    const cs: any = member?.character_status || {};
-    const characterContext: any = {
-      level: cs.level ?? 1,
-      abilityScores: cs.abilityScores ?? {},
-      skillProficiencies: cs.skillProficiencies ?? [],
-      savingThrowProficiencies: cs.savingThrowProficiencies ?? [],
-    };
-    const result = performWhisperRoll({ hint, actionPhrase: auto.actionPhrase, characterContext });
-
-    const dexScore = Number(cs.abilityScores?.dex);
-    const dexMod = Number.isFinite(dexScore) ? Math.floor((dexScore - 10) / 2) : 0;
-
-    const name = describeRollName(hint, spec.text);
-    const advTag = hint.rollMode === 'advantage' ? ' (adv)' : hint.rollMode === 'disadvantage' ? ' (dis)' : '';
-    const mod = result.modifier >= 0 ? `+${result.modifier}` : `${result.modifier}`;
-    const line = `🎲 **${name}**${advTag}: [${result.rolls.join(', ')}] ${mod} = **${result.total}**`;
-    const myName = members.find(m => m.user_id === currentUserId)?.character_name || 'Host';
-    const chatLine = isMine ? line : `${line} — rolled by ${myName} for ${member?.character_name || 'a player'}`;
-
-    try {
-      await roundChat.sendMessage(chatLine, true);
-    } catch {
-      toast.error('Could not post that roll to the chat');
-    }
-
-    try {
-      const { data: existing } = await (supabase.from('party_shared_state') as any)
-        .select('id, state_data')
-        .eq('party_id', partyId)
-        .eq('state_type', 'roll_requests')
-        .maybeSingle();
-      const requests = existing?.state_data?.requests || {};
-      const rows = {
-        ...(requests[requestId]?.rows || {}),
-        [rowUserId]: {
-          result: line,
-          total: result.total,
-          dexMod,
-          rolledBy: myName,
-          rolledAt: new Date().toISOString(),
-        } as RollRowState,
-      };
-      const next = { ...requests, [requestId]: { rows } };
-      if (existing?.id) {
-        await supabase.from('party_shared_state').update({ state_data: { requests: next } as any }).eq('id', existing.id);
-      } else {
-        await supabase.from('party_shared_state').insert({
-          party_id: partyId,
-          user_id: currentUserId,
-          state_type: 'roll_requests',
-          state_data: { requests: next } as any,
-        });
-      }
-      setRollResolutions(next);
-
-      // Party-wide card just filled its last row — post the ranked summary once.
-      if (spec.everyone && spec.targets.length > 0) {
-        const allIn = spec.targets.every(m => rows[m.user_id]);
-        if (allIn) {
-          const ranked = [...spec.targets]
-            .map(m => ({ name: m.character_name || 'Player', ...rows[m.user_id] }))
-            .sort((a, b) => (b.total - a.total) || ((b.dexMod ?? 0) - (a.dexMod ?? 0)))
-            .map(r => `${r.name} ${r.total}`)
-            .join(' · ');
-          const heading = /initiative/i.test(spec.text) ? 'Initiative' : describeRollName(hint, spec.text);
-          await roundChat.sendMessage(`⚔️ ${heading}: ${ranked}`, true);
-        }
-      }
-    } catch (err) {
-      console.warn('[PartyDM] Roll request save failed:', err);
-    }
-  }, [partyId, currentUserId, isCreator, members, roundChat]);
-
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -3387,8 +3153,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     reactions={messageReactions.filter(r => r.message_id === msg.id)}
                     onAddReaction={addReaction}
                     onRemoveReaction={removeReaction}
-                    onWhisperAutoRoll={handleWhisperAutoRoll}
-                    onWhisperOpenRoller={handleWhisperOpenRoller}
+                    onWhisperAutoRoll={isEmpyrean ? handleWhisperAutoRoll : undefined}
+                    onWhisperOpenRoller={isEmpyrean ? handleWhisperOpenRoller : undefined}
                     narrationMap={messageNarration.audioByMessage}
                     narrationGeneratingPart={
                       messageNarration.generatingId?.startsWith(`${msg.id}:`)
@@ -3650,9 +3416,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onSendToDMNow={fireChatRound}
           orderedSelected={roundChat.orderedSelected}
           onReorderSelected={roundChat.setSelectedOrder}
-
-          rollRequests={rollRequestCards}
-          onRollRequest={handleRollRequest}
 
           draft={roundChatDraft}
           onDraftUsed={() => setRoundChatDraft(null)}

@@ -2995,15 +2995,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       const whisperPrompt = `You are a formatting assistant for a D&D AI Dungeon Master. Your ONLY task is to re-read the following AI DM response and re-format it by wrapping mechanical content in the correct delimiter tags. Do NOT change the narrative text. Do NOT add new content. Do NOT remove content. Only add the delimiter tags where appropriate.
 
 ## DELIMITER FORMAT
-- Dice rolls & checks: <!--ACTION-->Xeyle: Roll a Stealth check (DC 14)<!--/ACTION-->
+- Dice rolls & checks: <!--ACTION-->Roll a Perception check (DC 14)<!--/ACTION-->
 - Strategic advice & tactical tips: <!--TACTICS-->Consider saving Shield for the next attack.<!--/TACTICS-->
 - Per-player whispers: <!--WHISPER:CharacterName-->Secret info here.<!--/WHISPER:CharacterName-->
-
-## ACTION TAG RULES
-- ALWAYS name the character being asked to roll, before a colon: <!--ACTION-->Xeyle: Roll a Stealth check (DC 14)<!--/ACTION-->
-- For a roll the whole table makes, write ONE block addressed to Everyone: <!--ACTION-->Everyone: Roll initiative<!--/ACTION--> — never one block per player
-- Add [adv] or [dis] after the name when the situation calls for it: <!--ACTION-->Xeyle [adv]: Roll a Perception check (DC 12)<!--/ACTION-->
-- One ACTION block per roll
 
 ## RULES
 - Everything outside these tags must remain pure narrative prose
