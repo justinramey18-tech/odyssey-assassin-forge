@@ -73,8 +73,11 @@ export function PartyRosterBoard({
 
   return (
     <div className="px-4">
-      <div className="rounded-xl border border-white/10 bg-black/25 backdrop-blur-sm p-3">
-        <div className="text-[9px] uppercase tracking-wider text-white/40 font-cinzel mb-2">
+      <div className="rounded-xl border border-white/10 p-3">
+        <div
+          className="text-[9px] uppercase tracking-wider text-white/40 font-cinzel mb-2"
+          style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
+        >
           The table
         </div>
 
