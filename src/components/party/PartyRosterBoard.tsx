@@ -93,10 +93,7 @@ export function PartyRosterBoard({
             return (
               <div
                 key={m.user_id}
-                className={cn(
-                  "flex items-start gap-2 rounded-lg p-2",
-                  isSelf ? "bg-amber-500/[0.07]" : "bg-white/[0.02]",
-                )}
+                className="flex items-start gap-2 rounded-lg p-2"
               >
                 <RosterFace
                   url={avatars?.[m.user_id]?.ooc}
