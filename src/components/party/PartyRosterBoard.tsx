@@ -111,13 +111,16 @@ export function PartyRosterBoard({
                       aria-label="Enter the story"
                     >
                       <img
-                        src="/enter-story.png"
+                        src={enterStoryEmblem}
                         alt=""
                         className="w-full h-full object-contain enter-story-glow"
                       />
                     </button>
                     {(className || level) && (
-                      <span className="font-body text-[9px] text-white/25 truncate max-w-full text-center">
+                      <span
+                        className="font-body text-[9px] text-white/25 truncate max-w-full text-center"
+                        style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
+                      >
                         {className}{level ? ` · Lv.${level}` : ''}
                       </span>
                     )}
@@ -125,11 +128,17 @@ export function PartyRosterBoard({
                 ) : (
                   <div className="flex-1 min-w-0 flex flex-col items-center justify-center pt-5">
                     <ArrowRight className="w-4 h-4 text-white/30" />
-                    <span className="font-body text-[10px] text-white/40 whitespace-nowrap">
+                    <span
+                      className="font-body text-[10px] text-white/40 whitespace-nowrap"
+                      style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
+                    >
                       playing as
                     </span>
                     {(className || level) && (
-                      <span className="font-body text-[9px] text-white/25 truncate max-w-full text-center">
+                      <span
+                        className="font-body text-[9px] text-white/25 truncate max-w-full text-center"
+                        style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
+                      >
                         {className}{level ? ` · Lv.${level}` : ''}
                       </span>
                     )}
