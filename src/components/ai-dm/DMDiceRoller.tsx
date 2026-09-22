@@ -17,12 +17,12 @@ import oddsFairArt from '@/assets/odds-fair.webp.asset.json';
 import oddsHeroicArt from '@/assets/odds-heroic.webp.asset.json';
 import oddsDramaticArt from '@/assets/odds-dramatic.webp.asset.json';
 import oddsChaoticArt from '@/assets/odds-chaotic.webp.asset.json';
-  import oddsCursedArt from '@/assets/odds-cursed.webp.asset.json';
-  import modeNormalArt from '@/assets/dice-modes/mode-normal.webp.asset.json';
-  import modeAdvantageArt from '@/assets/dice-modes/mode-advantage.webp.asset.json';
-  import modeDisadvantageArt from '@/assets/dice-modes/mode-disadvantage.webp.asset.json';
-  import rollInitiativeArt from '@/assets/dice-modes/roll-initiative.webp.asset.json';
-  import { toast } from 'sonner';
+import oddsCursedArt from '@/assets/odds-cursed.webp.asset.json';
+import modeNormalArt from '@/assets/dice-modes/mode-normal.webp.asset.json';
+import modeAdvantageArt from '@/assets/dice-modes/mode-advantage.webp.asset.json';
+import modeDisadvantageArt from '@/assets/dice-modes/mode-disadvantage.webp.asset.json';
+import rollInitiativeArt from '@/assets/dice-modes/roll-initiative.webp.asset.json';
+import { toast } from 'sonner';
 
 type RollMode = 'normal' | 'advantage' | 'disadvantage';
 
