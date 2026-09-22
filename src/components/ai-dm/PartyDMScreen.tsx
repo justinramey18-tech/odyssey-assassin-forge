@@ -11,7 +11,7 @@ import { PartyDMAudioRecorder } from './PartyDMAudioRecorder';
 import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import empyreanSpeaksImg from '@/assets/empyrean-speaks.jpg';
 import empyreanDmBg from '@/assets/empyrean-dm-bg.jpg';
-import diceBg from '@/assets/dice-bg.webp.asset.json';
+import diceBg from '@/assets/dice-bg-fire.jpg.asset.json';
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
 import CinematicSlideshow from '@/components/empyrean/CinematicSlideshow';
 import EmpyreanContextualActions from '@/components/empyrean/EmpyreanContextualActions';
