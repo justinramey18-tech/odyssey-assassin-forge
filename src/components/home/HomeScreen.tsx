@@ -69,6 +69,7 @@ import { getSoloHP, getPartyHP } from '@/lib/dragonBondState';
 
 import homeBackground from '@/assets/home-background-mobile.jpg';
 import empyreanBackground from '@/assets/empyrean-bg.jpg';
+import fullAccessBackground from '@/assets/full-access-home-bg.jpg';
 
 // Navigable tab types
 type NavigableTab = 
@@ -551,7 +552,10 @@ export function HomeScreen({
   };
   const hasWildShapeBg = isWildShape && !!wildShapeBackground;
   // When custom background is a video, use default image as fallback for the image layer
-  const defaultBg = (customVideoUrl ? null : customBackground) || (appMode === 'empyrean' ? empyreanBackground : homeBackground);
+  const defaultBg = (customVideoUrl ? null : customBackground) || (appMode === 'empyrean' ? empyreanBackground : appMode === 'fullAccess' ? fullAccessBackground : homeBackground);
+  // True only when the Full Access door scene itself is the active background
+  // (no custom image/video override and we're in fullAccess mode)
+  const isFullAccessBg = !customVideoUrl && !customBackground && appMode === 'fullAccess';
 
   // Mode-specific looping video backgrounds for all users
   const MAGIC_BUILD_VIDEO_URL = 'https://rkkgmonjfvncpvlzsojw.supabase.co/storage/v1/object/public/videos/magic-build-bg.mp4';
@@ -587,19 +591,27 @@ export function HomeScreen({
   return (
     <div className="fixed inset-0 z-50 relative min-h-screen w-full overflow-hidden">
       {/* Default background layer (always present) */}
-      <BackgroundWrapper
-        imagePath={defaultBg}
-        videoSrc={activeVideoSrc}
-        overlayOpacity={customBackground ? 55 : 55}
-        tintColor="cyan"
-        tintOpacity={10}
-        fixed={true}
-        backgroundSize="cover"
-        backgroundPosition="center center"
-        className="fixed inset-0 z-0"
+      {/* Full Access door scene gets a slow ambient zoom (disabled under reduced motion) */}
+      <div
+        className={cn(
+          "fixed inset-0 z-0",
+          isFullAccessBg && "full-access-ambient-zoom",
+        )}
       >
-        <div />
-      </BackgroundWrapper>
+        <BackgroundWrapper
+          imagePath={defaultBg}
+          videoSrc={activeVideoSrc}
+          overlayOpacity={isFullAccessBg ? 35 : 55}
+          tintColor={isFullAccessBg ? undefined : 'cyan'}
+          tintOpacity={isFullAccessBg ? 0 : 10}
+          fixed={true}
+          backgroundSize="cover"
+          backgroundPosition={isFullAccessBg ? 'center 40%' : 'center center'}
+          className="fixed inset-0 z-0"
+        >
+          <div />
+        </BackgroundWrapper>
+      </div>
 
       {/* Wild Shape background layer (crossfades in/out) */}
       <AnimatePresence>
