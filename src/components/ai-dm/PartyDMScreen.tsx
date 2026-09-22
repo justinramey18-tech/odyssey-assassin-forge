@@ -126,6 +126,29 @@ function stripCinematicTagsFromDisplay(content: string): string {
   return stripTableTalkTags(content.replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, ''));
 }
 
+function partyMemberDiceContext(member?: { character_status?: Record<string, unknown> }) {
+  const cs = member?.character_status ?? {};
+  const scores = (cs.abilityScores ?? {}) as Partial<Record<'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha', number>>;
+  const normalize = (score: number | undefined) => {
+    const final = Number.isFinite(score) ? Number(score) : 10;
+    return { base: final, final, modifier: Math.floor((final - 10) / 2) };
+  };
+
+  return {
+    level: Number.isFinite(cs.level) ? Number(cs.level) : 1,
+    abilityScores: {
+      strength: normalize(scores.str),
+      dexterity: normalize(scores.dex),
+      constitution: normalize(scores.con),
+      intelligence: normalize(scores.int),
+      wisdom: normalize(scores.wis),
+      charisma: normalize(scores.cha),
+    },
+    skillProficiencies: Array.isArray(cs.skillProficiencies) ? cs.skillProficiencies : [],
+    savingThrowProficiencies: Array.isArray(cs.savingThrowProficiencies) ? cs.savingThrowProficiencies : [],
+  };
+}
+
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
 
 interface PartyDMScreenProps {
@@ -2269,12 +2292,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       return;
     }
     const myMember = members.find(m => m.user_id === currentUserId);
-    const characterContext: any = {
-      level: (myMember as any)?.level ?? 1,
-      abilityScores: (myMember as any)?.ability_scores ?? (myMember as any)?.stats ?? {},
-      skillProficiencies: (myMember as any)?.skill_proficiencies ?? [],
-      savingThrowProficiencies: (myMember as any)?.saving_throw_proficiencies ?? [],
-    };
+    const characterContext = partyMemberDiceContext(myMember);
     const result = performWhisperRoll({ hint, actionPhrase: auto.actionPhrase, characterContext });
     dispatchPrompt(result.chatMessage);
   }, [members, currentUserId]);
@@ -4775,22 +4793,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       {/* Whisper-driven dice roller (Empyrean party mode) */}
       <Sheet open={diceRollerOpen} onOpenChange={setDiceRollerOpen}>
         <SheetContent side="bottom" className="h-[85vh] p-0 bg-background/95 backdrop-blur-lg border-t border-amber-500/30 rounded-t-2xl overflow-hidden flex flex-col">
-          <DMDiceRoller
-            rollHint={diceRollerWhisperText ? parseRollHint(diceRollerWhisperText) : null}
-            characterContext={(() => {
-              const myMember = members.find(m => m.user_id === currentUserId);
-              return {
-                level: (myMember as any)?.level ?? 1,
-                abilityScores: (myMember as any)?.ability_scores ?? (myMember as any)?.stats ?? {},
-                skillProficiencies: (myMember as any)?.skill_proficiencies ?? [],
-                savingThrowProficiencies: (myMember as any)?.saving_throw_proficiencies ?? [],
-              } as any;
-            })()}
-            onRollResult={(text: string) => {
-              dispatchPrompt(text);
-              setDiceRollerOpen(false);
-            }}
-          />
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-8">
+            <DMDiceRoller
+              rollHint={diceRollerWhisperText ? parseRollHint(diceRollerWhisperText) : null}
+              characterContext={partyMemberDiceContext(members.find(m => m.user_id === currentUserId)) as CharacterContext}
+              onRollResult={(text: string) => {
+                dispatchPrompt(text);
+                setDiceRollerOpen(false);
+              }}
+            />
+          </div>
         </SheetContent>
       </Sheet>
 

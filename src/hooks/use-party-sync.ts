@@ -70,6 +70,8 @@ export interface PartyMember {
     race?: string;
     gender?: string;
     abilityScores?: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
+    skillProficiencies?: string[];
+    savingThrowProficiencies?: string[];
     equippedGear?: Array<{ slot: string; name: string }>;
     multiclassLevels?: Record<string, number>;
     /** Short character backstory, shared so the DM can write everyone in character. */
