@@ -813,32 +813,69 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false,
 
         {/* Section: Dice Odds */}
         <div>
-          <div className="text-[10px] font-mono uppercase tracking-wider text-white/40 border-b border-white/5 pb-1 mb-2">
-            🎰 Dice Odds
+          {/* Engraved plate header with live text overlay */}
+          <div className="relative w-full">
+            <img
+              src={oddsBannerArt.url}
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              width="1014"
+              height="166"
+              draggable={false}
+              className="w-full object-contain"
+            />
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center font-cinzel text-sm font-bold uppercase tracking-[0.25em] text-amber-100 drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]">
+              Dice Odds
+            </span>
           </div>
-          <div className="grid grid-cols-5 gap-1.5">
+
+          {/* Mode medallions */}
+          <div className="mt-2 flex items-start justify-between">
             {(Object.keys(DICE_ODDS_CONFIGS) as DiceOddsMode[]).map(mode => {
               const config = DICE_ODDS_CONFIGS[mode];
               const isSelected = currentOddsMode === mode;
+              const chrome = ODDS_CHROME[mode];
               return (
                 <button
                   key={mode}
                   onClick={() => handleSelectOddsMode(mode)}
-                  className={cn(
-                    "flex flex-col items-center gap-1 py-2 px-1 rounded-lg border transition-all",
-                    isSelected ? MODE_COLORS_SELECTED[mode] : MODE_COLORS[mode]
-                  )}
+                  aria-pressed={isSelected}
+                  aria-label={`${config.label} dice odds`}
+                  className="flex w-16 flex-col items-center gap-1 rounded-lg py-1 active:scale-95 motion-safe:transition-transform motion-safe:duration-[120ms] motion-reduce:transition-none"
                   style={{ touchAction: 'manipulation' }}
                 >
-                  {MODE_ICONS[mode]}
-                  <span className="text-[8px] font-mono uppercase leading-tight text-center">
+                  <img
+                    src={ODDS_ART[mode]}
+                    alt=""
+                    aria-hidden="true"
+                    loading="lazy"
+                    width="64"
+                    height="64"
+                    draggable={false}
+                    className={cn(
+                      "h-16 w-16 rounded-full object-contain motion-safe:transition-all motion-safe:duration-[150ms] motion-reduce:transition-none",
+                      isSelected ? cn(chrome.ring, "ring-2", chrome.glow, "opacity-100") : "opacity-60"
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "text-[10px] font-medium uppercase tracking-wider text-center leading-tight motion-safe:transition-colors motion-safe:duration-[150ms] motion-reduce:transition-none",
+                      isSelected ? chrome.text : "text-white/40"
+                    )}
+                  >
                     {config.label.split(' ')[0]}
                   </span>
                 </button>
               );
             })}
           </div>
-          <p className="text-[9px] text-white/40 text-center italic mt-1.5">
+
+          {/* Selected mode description + quote */}
+          <p className="text-[10px] text-white/60 text-center leading-snug mt-1 px-2">
+            {currentOddsConfig.description}
+          </p>
+          <p className="text-[9px] text-white/40 text-center italic mt-0.5">
             {currentOddsConfig.deadpoolQuote}
           </p>
         </div>
