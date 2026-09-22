@@ -52,7 +52,10 @@ function RosterFace({
           </span>
         )}
       </div>
-      <span className="w-full text-center font-body text-[11px] leading-tight text-white/70 truncate">
+      <span
+        className="w-full text-center font-body text-[11px] leading-tight text-white/70 truncate"
+        style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
+      >
         {label}
       </span>
     </div>
