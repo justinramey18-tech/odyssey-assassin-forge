@@ -983,17 +983,12 @@ export function HomeScreen({
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6, duration: 0.4 }}
-                    onClick={() => { triggerHaptic('light'); drawerContext?.openAIDMScreen(); }}
-                    className={cn(
-                      "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
-                      "border border-violet-500/30 bg-violet-950/20 backdrop-blur-sm",
-                      "hover:bg-violet-900/30 hover:border-violet-400/50",
-                      "active:scale-[0.97] transition-all duration-200"
-                    )}
+                    onClick={() => { triggerHaptic('light'); onAppModeChange?.('storyteller'); drawerContext?.openAIDMScreen(); }}
+                    className="flex-1 aspect-square rounded-xl overflow-hidden border border-violet-500/30 active:scale-[0.97] transition-all duration-200"
                     style={{ touchAction: 'manipulation' }}
+                    aria-label="Play solo campaign"
                   >
-                    <Crown className="w-6 h-6 text-violet-400" />
-                    <span className="text-xs font-cinzel uppercase tracking-wider text-violet-300">Solo DM</span>
+                    <img src={soloDmButtonArt.url} alt="" className="w-full h-full object-cover" loading="lazy" />
                   </motion.button>
                 )}
                 {_isDMButtonVisible('dm.empyrean') && (
@@ -1001,35 +996,12 @@ export function HomeScreen({
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.7, duration: 0.4 }}
-                    onClick={() => { triggerHaptic('light'); setShowEmpyreanScreen(true); }}
-                    className={cn(
-                      "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
-                      "border border-amber-500/30 bg-amber-950/20 backdrop-blur-sm",
-                      "hover:bg-amber-900/30 hover:border-amber-400/50",
-                      "active:scale-[0.97] transition-all duration-200"
-                    )}
+                    onClick={() => { triggerHaptic('light'); onAppModeChange?.('empyrean'); setShowEmpyreanScreen(true); }}
+                    className="flex-1 aspect-square rounded-xl overflow-hidden border border-amber-500/30 active:scale-[0.97] transition-all duration-200"
                     style={{ touchAction: 'manipulation' }}
+                    aria-label="Dragon rider campaign"
                   >
-                    <ScrollText className="w-6 h-6 text-amber-400" />
-                    <span className="text-xs font-cinzel uppercase tracking-wider text-amber-300">Empyrean</span>
-                  </motion.button>
-                )}
-                {_isDMButtonVisible('dm.party') && (
-                  <motion.button
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.8, duration: 0.4 }}
-                    onClick={() => { triggerHaptic('light'); drawerContext?.openPartyDMScreen(); }}
-                    className={cn(
-                      "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
-                      "border border-sky-500/30 bg-sky-950/20 backdrop-blur-sm",
-                      "hover:bg-sky-900/30 hover:border-sky-400/50",
-                      "active:scale-[0.97] transition-all duration-200"
-                    )}
-                    style={{ touchAction: 'manipulation' }}
-                  >
-                    <Users className="w-6 h-6 text-sky-400" />
-                    <span className="text-xs font-cinzel uppercase tracking-wider text-sky-300">Party DM</span>
+                    <img src={empyreanDmButtonArt.url} alt="" className="w-full h-full object-cover" loading="lazy" />
                   </motion.button>
                 )}
               </motion.div>
