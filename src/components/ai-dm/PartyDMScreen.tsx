@@ -2735,47 +2735,58 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       {/* Header */}
       {/* Row 1: Main Header */}
       {!isFullscreen && (
-      <header className="flex items-center justify-between px-3 py-2.5 border-b border-amber-900/30 bg-black/40 backdrop-blur-sm">
+      <header className="flex items-center justify-between px-3 py-1.5 border-b border-amber-900/30 bg-black/40 backdrop-blur-sm">
         <button onClick={onBack} className="p-2 rounded-lg hover:bg-white/10 transition-colors" style={{ touchAction: 'manipulation' }}>
           <Home className="w-5 h-5 text-white/80" />
         </button>
-        <div
-          className="flex-1 min-w-0 flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden"
-          style={{ scrollbarWidth: 'none' }}
-        >
-          {[
-            ...members.filter(m => m.user_id === currentUserId),
-            ...members.filter(m => m.user_id !== currentUserId),
-          ].map(member => {
-            const status = onlineStatus[member.user_id];
-            const statusLabel = status?.isOnline ? 'online' : (status?.lastSeenLabel ?? 'offline');
-            const portrait = chatAvatars.avatars[member.user_id]?.ic;
-            return (
-              <div
-                key={member.user_id}
-                className="relative shrink-0"
-                aria-label={`${member.character_name} ${statusLabel}`}
-                title={`${member.character_name} ${statusLabel}`}
-              >
-                <div className={cn(
-                  'w-9 h-9 rounded-full overflow-hidden border',
-                  member.user_id === currentUserId ? 'border-amber-400/60' : 'border-white/15',
-                )}>
-                  {portrait ? (
-                    <img src={portrait} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-amber-500/15 text-xs font-cinzel text-amber-200">
-                      {member.character_name.charAt(0).toUpperCase()}
+        <div className="relative flex-1 min-w-0 aspect-[3.6/1]">
+          <img
+            src={partyDmHeaderBanner}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+            draggable={false}
+          />
+          <div
+            className="absolute z-10 flex items-center justify-start overflow-x-auto [&::-webkit-scrollbar]:hidden"
+            style={{ top: '30%', bottom: '32%', left: '11%', right: '11%', scrollbarWidth: 'none' }}
+          >
+            <div className="flex items-center gap-1.5 h-full mx-auto">
+              {[
+                ...members.filter(m => m.user_id === currentUserId),
+                ...members.filter(m => m.user_id !== currentUserId),
+              ].map(member => {
+                const status = onlineStatus[member.user_id];
+                const statusLabel = status?.isOnline ? 'online' : (status?.lastSeenLabel ?? 'offline');
+                const portrait = chatAvatars.avatars[member.user_id]?.ic;
+                return (
+                  <div
+                    key={member.user_id}
+                    className="relative shrink-0 h-[88%] aspect-square"
+                    aria-label={`${member.character_name} ${statusLabel}`}
+                    title={`${member.character_name} ${statusLabel}`}
+                  >
+                    <div className={cn(
+                      'w-full h-full rounded-full overflow-hidden border',
+                      member.user_id === currentUserId ? 'border-amber-400/60' : 'border-white/15',
+                    )}>
+                      {portrait ? (
+                        <img src={portrait} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-amber-500/15 text-xs font-cinzel text-amber-200">
+                          {member.character_name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <span className={cn(
-                  'absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-black',
-                  status?.isOnline ? 'bg-emerald-500' : 'bg-zinc-500',
-                )} />
-              </div>
-            );
-          })}
+                    <span className={cn(
+                      'absolute -bottom-px -right-px w-[30%] h-[30%] rounded-full ring-1 ring-black',
+                      status?.isOnline ? 'bg-emerald-500' : 'bg-zinc-500',
+                    )} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </header>
       )}
