@@ -3210,6 +3210,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           tabFilter={appMode.isTabVisible}
           appMode={appMode.appMode ?? undefined}
           onOpenModeSelection={() => setShowIntroSplash(true)}
+          onAppModeChange={appMode.setAppMode}
           autoOpenPartyDM={autoOpenPartyDM}
           onAutoOpenPartyDMHandled={() => setAutoOpenPartyDM(false)}
           autoOpenSoloDM={autoOpenSoloDM}

@@ -15,7 +15,6 @@ import {
   Settings, Coffee, Moon, TrendingUp,
   MessageCircle, Gem, Zap, HelpCircle, BookOpen,
   Swords, Wand2, ListChecks, ChevronUp, Users, User, Film,
-  Crown, ScrollText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -68,8 +67,13 @@ import { StandalonePartyDMScreen } from '@/components/ai-dm/StandalonePartyDMScr
 import { getSoloHP, getPartyHP } from '@/lib/dragonBondState';
 
 import homeBackground from '@/assets/home-background-mobile.jpg';
-import empyreanBackground from '@/assets/empyrean-bg.jpg';
 import fullAccessBackground from '@/assets/full-access-home-bg.jpg';
+import soloHomeBackgroundAsset from '@/assets/solo-home-bg.jpg.asset.json';
+import empyreanHomeBackgroundAsset from '@/assets/empyrean-home-bg.jpg.asset.json';
+import soloDmButtonArt from '@/assets/solo-dm-button.jpg.asset.json';
+import empyreanDmButtonArt from '@/assets/empyrean-dm-button.jpg.asset.json';
+const soloBackground = soloHomeBackgroundAsset.url;
+const empyreanHomeBackground = empyreanHomeBackgroundAsset.url;
 
 // Navigable tab types
 type NavigableTab = 
@@ -176,6 +180,7 @@ interface HomeScreenProps {
   // Current app mode (for companion mode switcher)
   appMode?: AppMode;
   onOpenModeSelection?: () => void;
+  onAppModeChange?: (mode: AppMode) => void;
   autoOpenPartyDM?: boolean;
   onAutoOpenPartyDMHandled?: () => void;
   autoOpenSoloDM?: boolean;
@@ -287,6 +292,7 @@ export function HomeScreen({
   tabFilter,
   appMode,
   onOpenModeSelection,
+  onAppModeChange,
   autoOpenPartyDM = false,
   onAutoOpenPartyDMHandled,
   autoOpenSoloDM = false,
@@ -552,10 +558,10 @@ export function HomeScreen({
   };
   const hasWildShapeBg = isWildShape && !!wildShapeBackground;
   // When custom background is a video, use default image as fallback for the image layer
-  const defaultBg = (customVideoUrl ? null : customBackground) || (appMode === 'empyrean' ? empyreanBackground : appMode === 'fullAccess' ? fullAccessBackground : homeBackground);
-  // True only when the Full Access door scene itself is the active background
-  // (no custom image/video override and we're in fullAccess mode)
-  const isFullAccessBg = !customVideoUrl && !customBackground && appMode === 'fullAccess';
+  const defaultBg = (customVideoUrl ? null : customBackground) || (appMode === 'empyrean' ? empyreanHomeBackground : appMode === 'storyteller' ? soloBackground : appMode === 'fullAccess' ? fullAccessBackground : homeBackground);
+  // True only when one of the illustrated mode backgrounds is the active
+  // background (no custom image/video override)
+  const isArtBackground = !customVideoUrl && !customBackground && (appMode === 'fullAccess' || appMode === 'storyteller' || appMode === 'empyrean');
 
   // Mode-specific looping video backgrounds for all users
   const MAGIC_BUILD_VIDEO_URL = 'https://rkkgmonjfvncpvlzsojw.supabase.co/storage/v1/object/public/videos/magic-build-bg.mp4';
@@ -591,22 +597,22 @@ export function HomeScreen({
   return (
     <div className="fixed inset-0 z-50 relative min-h-screen w-full overflow-hidden">
       {/* Default background layer (always present) */}
-      {/* Full Access door scene gets a slow ambient zoom (disabled under reduced motion) */}
+      {/* Illustrated mode backgrounds get a slow ambient zoom (disabled under reduced motion) */}
       <div
         className={cn(
           "fixed inset-0 z-0",
-          isFullAccessBg && "full-access-ambient-zoom",
+          isArtBackground && "full-access-ambient-zoom",
         )}
       >
         <BackgroundWrapper
           imagePath={defaultBg}
           videoSrc={activeVideoSrc}
-          overlayOpacity={isFullAccessBg ? 35 : 55}
-          tintColor={isFullAccessBg ? undefined : 'cyan'}
-          tintOpacity={isFullAccessBg ? 0 : 10}
+          overlayOpacity={isArtBackground ? 35 : 55}
+          tintColor={isArtBackground ? undefined : 'cyan'}
+          tintOpacity={isArtBackground ? 0 : 10}
           fixed={true}
           backgroundSize="cover"
-          backgroundPosition={isFullAccessBg ? 'center 40%' : 'center center'}
+          backgroundPosition={isArtBackground ? 'center 40%' : 'center center'}
           className="fixed inset-0 z-0"
         >
           <div />
@@ -977,17 +983,12 @@ export function HomeScreen({
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6, duration: 0.4 }}
-                    onClick={() => { triggerHaptic('light'); drawerContext?.openAIDMScreen(); }}
-                    className={cn(
-                      "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
-                      "border border-violet-500/30 bg-violet-950/20 backdrop-blur-sm",
-                      "hover:bg-violet-900/30 hover:border-violet-400/50",
-                      "active:scale-[0.97] transition-all duration-200"
-                    )}
+                    onClick={() => { triggerHaptic('light'); onAppModeChange?.('storyteller'); drawerContext?.openAIDMScreen(); }}
+                    className="flex-1 aspect-square rounded-xl overflow-hidden border border-violet-500/30 active:scale-[0.97] transition-all duration-200"
                     style={{ touchAction: 'manipulation' }}
+                    aria-label="Play solo campaign"
                   >
-                    <Crown className="w-6 h-6 text-violet-400" />
-                    <span className="text-xs font-cinzel uppercase tracking-wider text-violet-300">Solo DM</span>
+                    <img src={soloDmButtonArt.url} alt="" className="w-full h-full object-cover" loading="lazy" />
                   </motion.button>
                 )}
                 {_isDMButtonVisible('dm.empyrean') && (
@@ -995,35 +996,12 @@ export function HomeScreen({
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.7, duration: 0.4 }}
-                    onClick={() => { triggerHaptic('light'); setShowEmpyreanScreen(true); }}
-                    className={cn(
-                      "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
-                      "border border-amber-500/30 bg-amber-950/20 backdrop-blur-sm",
-                      "hover:bg-amber-900/30 hover:border-amber-400/50",
-                      "active:scale-[0.97] transition-all duration-200"
-                    )}
+                    onClick={() => { triggerHaptic('light'); onAppModeChange?.('empyrean'); setShowEmpyreanScreen(true); }}
+                    className="flex-1 aspect-square rounded-xl overflow-hidden border border-amber-500/30 active:scale-[0.97] transition-all duration-200"
                     style={{ touchAction: 'manipulation' }}
+                    aria-label="Dragon rider campaign"
                   >
-                    <ScrollText className="w-6 h-6 text-amber-400" />
-                    <span className="text-xs font-cinzel uppercase tracking-wider text-amber-300">Empyrean</span>
-                  </motion.button>
-                )}
-                {_isDMButtonVisible('dm.party') && (
-                  <motion.button
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.8, duration: 0.4 }}
-                    onClick={() => { triggerHaptic('light'); drawerContext?.openPartyDMScreen(); }}
-                    className={cn(
-                      "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
-                      "border border-sky-500/30 bg-sky-950/20 backdrop-blur-sm",
-                      "hover:bg-sky-900/30 hover:border-sky-400/50",
-                      "active:scale-[0.97] transition-all duration-200"
-                    )}
-                    style={{ touchAction: 'manipulation' }}
-                  >
-                    <Users className="w-6 h-6 text-sky-400" />
-                    <span className="text-xs font-cinzel uppercase tracking-wider text-sky-300">Party DM</span>
+                    <img src={empyreanDmButtonArt.url} alt="" className="w-full h-full object-cover" loading="lazy" />
                   </motion.button>
                 )}
               </motion.div>
