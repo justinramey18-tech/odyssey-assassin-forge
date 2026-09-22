@@ -16,7 +16,7 @@ import partyDmHeaderBannerAsset from '@/assets/party-dm-header-banner.png.asset.
 const partyDmHeaderBanner = partyDmHeaderBannerAsset.url;
 import partyDmHeaderBgAsset from '@/assets/party-dm-header-bg.jpg.asset.json';
 const partyDmHeaderBg = partyDmHeaderBgAsset.url;
-import partyDmHomeEmblemAsset from '@/assets/party-dm-home-emblem.png.asset.json';
+import partyDmHomeEmblemAsset from '@/assets/party-dm-home-emblem-v2.png.asset.json';
 const partyDmHomeEmblem = partyDmHomeEmblemAsset.url;
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
 import CinematicSlideshow from '@/components/empyrean/CinematicSlideshow';
