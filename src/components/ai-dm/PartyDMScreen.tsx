@@ -2739,7 +2739,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       {/* Header */}
       {/* Row 1: Main Header */}
       {!isFullscreen && (
-      <header className="relative w-full aspect-[4/1] overflow-hidden border-b border-amber-900/30">
+      <header className="relative w-full aspect-[3.55/1] overflow-hidden border-b border-amber-900/30">
         {/* Layer 1: backdrop art */}
         <img
           src={partyDmHeaderBg}
@@ -2748,69 +2748,73 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           draggable={false}
           className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
         />
-        {/* Layer 2: content row on top of the backdrop */}
-        <div className="relative z-10 h-full flex items-center gap-1 px-2">
-          <button
-            onClick={onBack}
-            aria-label="Back to home"
-            className="shrink-0 h-[84%] aspect-[9/10] rounded-lg active:scale-95 transition-transform"
-            style={{ touchAction: 'manipulation' }}
-          >
+        {/* Layer 2: centered banner with home emblem + portraits */}
+        <div className="relative z-10 h-full flex items-center justify-center">
+          <div className="relative w-[94%] aspect-[3.6/1]">
             <img
-              src={partyDmHomeEmblem}
+              src={partyDmHeaderBanner}
               alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
               draggable={false}
-              className="w-full h-full object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]"
             />
-          </button>
-          <div className="flex-1 min-w-0 h-full flex items-center justify-center">
-            <div className="relative h-[80%] max-w-full aspect-[3.6/1]">
-              <img
-                src={partyDmHeaderBanner}
-                alt=""
-                aria-hidden="true"
-                className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
-                draggable={false}
-              />
-              <div
-                className="absolute z-10 flex items-center justify-start overflow-x-auto [&::-webkit-scrollbar]:hidden"
-                style={{ top: '30%', bottom: '32%', left: '11%', right: '11%', scrollbarWidth: 'none' }}
+            {/* Home button inside the banner frame; wrapper carries the vertical centering so the press scale animation doesn't cancel it */}
+            <div
+              className="absolute z-20 aspect-[9/10]"
+              style={{ left: '9%', top: '50%', height: '80%', transform: 'translateY(-50%)' }}
+            >
+              <button
+                onClick={onBack}
+                aria-label="Back to home"
+                className="w-full h-full rounded-lg active:scale-95 transition-transform"
+                style={{ touchAction: 'manipulation' }}
               >
-                <div className="flex items-center gap-1.5 h-full mx-auto">
-                  {[
-                    ...members.filter(m => m.user_id === currentUserId),
-                    ...members.filter(m => m.user_id !== currentUserId),
-                  ].map(member => {
-                    const status = onlineStatus[member.user_id];
-                    const statusLabel = status?.isOnline ? 'online' : (status?.lastSeenLabel ?? 'offline');
-                    const portrait = chatAvatars.avatars[member.user_id]?.ic;
-                    return (
-                      <div
-                        key={member.user_id}
-                        className="relative shrink-0 h-[88%] aspect-square"
-                        aria-label={`${member.character_name} ${statusLabel}`}
-                        title={`${member.character_name} ${statusLabel}`}
-                      >
-                        <div className={cn(
-                          'w-full h-full rounded-full overflow-hidden border',
-                          member.user_id === currentUserId ? 'border-amber-400/60' : 'border-white/15',
-                        )}>
-                          {portrait ? (
-                            <img src={portrait} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-amber-500/15 text-xs font-cinzel text-amber-200">
-                              {member.character_name.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                        </div>
-                        <span className={cn(
-                          'absolute -bottom-px -right-px w-[30%] h-[30%] rounded-full ring-1 ring-black',
-                          status?.isOnline ? 'bg-emerald-500' : 'bg-zinc-500',
-                        )} />
+                <img
+                  src={partyDmHomeEmblem}
+                  alt=""
+                  draggable={false}
+                  className="w-full h-full object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]"
+                />
+              </button>
+            </div>
+            <div
+              className="absolute z-10 flex items-center justify-start overflow-x-auto [&::-webkit-scrollbar]:hidden"
+              style={{ top: '30%', bottom: '32%', left: '34%', right: '11%', scrollbarWidth: 'none' }}
+            >
+              <div className="flex items-center gap-1.5 h-full mx-auto">
+                {[
+                  ...members.filter(m => m.user_id === currentUserId),
+                  ...members.filter(m => m.user_id !== currentUserId),
+                ].map(member => {
+                  const status = onlineStatus[member.user_id];
+                  const statusLabel = status?.isOnline ? 'online' : (status?.lastSeenLabel ?? 'offline');
+                  const portrait = chatAvatars.avatars[member.user_id]?.ic;
+                  return (
+                    <div
+                      key={member.user_id}
+                      className="relative shrink-0 h-[88%] aspect-square"
+                      aria-label={`${member.character_name} ${statusLabel}`}
+                      title={`${member.character_name} ${statusLabel}`}
+                    >
+                      <div className={cn(
+                        'w-full h-full rounded-full overflow-hidden border',
+                        member.user_id === currentUserId ? 'border-amber-400/60' : 'border-white/15',
+                      )}>
+                        {portrait ? (
+                          <img src={portrait} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-amber-500/15 text-xs font-cinzel text-amber-200">
+                            {member.character_name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
+                      <span className={cn(
+                        'absolute -bottom-px -right-px w-[30%] h-[30%] rounded-full ring-1 ring-black',
+                        status?.isOnline ? 'bg-emerald-500' : 'bg-zinc-500',
+                      )} />
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
