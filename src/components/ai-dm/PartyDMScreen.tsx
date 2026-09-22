@@ -126,7 +126,7 @@ function stripCinematicTagsFromDisplay(content: string): string {
   return stripTableTalkTags(content.replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, ''));
 }
 
-function partyMemberDiceContext(member?: { character_status?: Record<string, unknown> }) {
+function partyMemberDiceContext(member?: { character_status?: Record<string, unknown> }): CharacterContext {
   const cs = member?.character_status ?? {};
   const scores = (cs.abilityScores ?? {}) as Partial<Record<'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha', number>>;
   const normalize = (score: number | undefined) => {
@@ -146,7 +146,7 @@ function partyMemberDiceContext(member?: { character_status?: Record<string, unk
     },
     skillProficiencies: Array.isArray(cs.skillProficiencies) ? cs.skillProficiencies : [],
     savingThrowProficiencies: Array.isArray(cs.savingThrowProficiencies) ? cs.savingThrowProficiencies : [],
-  };
+  } as unknown as CharacterContext;
 }
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
@@ -4796,7 +4796,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-8">
             <DMDiceRoller
               rollHint={diceRollerWhisperText ? parseRollHint(diceRollerWhisperText) : null}
-              characterContext={partyMemberDiceContext(members.find(m => m.user_id === currentUserId)) as CharacterContext}
+              characterContext={partyMemberDiceContext(members.find(m => m.user_id === currentUserId))}
               onRollResult={(text: string) => {
                 dispatchPrompt(text);
                 setDiceRollerOpen(false);
