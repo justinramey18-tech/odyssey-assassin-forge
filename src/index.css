@@ -1,3 +1,28 @@
+/* Full Access homescreen: slow ambient zoom on the door scene */
+@keyframes full-access-ambient-zoom {
+  from { transform: scale(1); }
+  to { transform: scale(1.06); }
+}
+.full-access-ambient-zoom {
+  animation: full-access-ambient-zoom 30s ease-in-out infinite alternate;
+}
+
+/* "Enter the Story" emblem: soft breathing teal glow */
+@keyframes enter-story-glow {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(94, 234, 212, 0.45)); }
+  50% { filter: drop-shadow(0 0 18px rgba(94, 234, 212, 0.45)); }
+}
+.enter-story-glow {
+  animation: enter-story-glow 3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .full-access-ambient-zoom,
+  .enter-story-glow {
+    animation: none;
+  }
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
