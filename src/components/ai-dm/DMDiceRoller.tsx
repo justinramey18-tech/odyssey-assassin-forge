@@ -554,25 +554,52 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false,
         </button>
 
         <div className="px-3 py-3 space-y-4">
-        {/* Roll mode toggle */}
-        <div className="grid grid-cols-3 overflow-hidden rounded-full border border-amber-500/20 bg-black/25 p-1">
-          {(['normal', 'advantage', 'disadvantage'] as RollMode[]).map(mode => (
-            <button
-              key={mode}
-              onClick={() => setRollMode(mode)}
-              disabled={disabled}
-              className={cn(
-                "min-h-11 rounded-full px-1 text-[10px] font-semibold motion-safe:transition-all motion-safe:duration-[120ms] motion-reduce:transition-none",
-                rollMode === mode
-                  ? "bg-amber-500/20 text-amber-200 shadow-inner ring-1 ring-amber-400/35"
-                  : "text-white/45 hover:text-white/70",
-                "active:scale-95"
-              )}
-              style={{ touchAction: 'manipulation' }}
-            >
-              {mode === 'normal' ? 'Normal' : mode === 'advantage' ? 'Advantage' : 'Disadvantage'}
-            </button>
-          ))}
+        {/* Roll mode toggle — dark-iron plates, stacked full width */}
+        <div className="space-y-2">
+          {(['normal', 'advantage', 'disadvantage'] as RollMode[]).map(mode => {
+            const plateArt = mode === 'normal'
+              ? modeNormalArt
+              : mode === 'advantage'
+                ? modeAdvantageArt
+                : modeDisadvantageArt;
+            const selected = rollMode === mode;
+            const glowColor = mode === 'normal'
+              ? 'rgba(251,191,36,0.45)'
+              : mode === 'advantage'
+                ? 'rgba(52,211,153,0.45)'
+                : 'rgba(239,68,68,0.45)';
+            return (
+              <button
+                key={mode}
+                onClick={() => setRollMode(mode)}
+                disabled={disabled}
+                aria-pressed={selected}
+                className={cn(
+                  "relative flex min-h-[56px] w-full flex-col items-center justify-center rounded-lg overflow-hidden disabled:opacity-50 motion-safe:transition-all motion-safe:duration-[120ms] motion-reduce:transition-none active:scale-[0.99]",
+                  selected ? "brightness-100" : "brightness-[0.55]"
+                )}
+                style={{
+                  touchAction: 'manipulation',
+                  backgroundImage: `url(${plateArt.url})`,
+                  backgroundSize: '100% 100%',
+                  backgroundRepeat: 'no-repeat',
+                  boxShadow: selected ? `0 0 18px ${glowColor}` : undefined,
+                }}
+              >
+                <span
+                  className={cn(
+                    "font-cinzel text-[11px] font-bold uppercase tracking-[0.2em] text-amber-100",
+                    !selected && "text-amber-100/50"
+                  )}
+                >
+                  {mode === 'normal' ? 'Normal' : mode === 'advantage' ? 'Advantage' : 'Disadvantage'}
+                </span>
+                <span className="font-mono text-[9px] tracking-wider text-amber-200/45">
+                  {mode === 'normal' ? '1d20' : mode === 'advantage' ? '2d20 · keep higher' : '2d20 · keep lower'}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* D20 & Quick Rolls */}
