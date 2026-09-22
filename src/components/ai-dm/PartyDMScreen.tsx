@@ -4793,7 +4793,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
       {/* Whisper-driven dice roller (Empyrean party mode) */}
       <Sheet open={diceRollerOpen} onOpenChange={setDiceRollerOpen}>
-        <SheetContent side="bottom" className="h-[85vh] p-0 bg-background/95 backdrop-blur-lg border-t border-amber-500/30 rounded-t-2xl overflow-hidden flex flex-col">
+        <SheetContent
+          side="bottom"
+          className="h-[85vh] p-0 bg-background/40 backdrop-blur-lg border-t border-amber-500/30 rounded-t-2xl overflow-hidden flex flex-col"
+          style={{
+            backgroundImage: `url(${diceBg.url})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundAttachment: 'fixed',
+          }}
+        >
           <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-8">
             <DMDiceRoller
               rollHint={diceRollerWhisperText ? parseRollHint(diceRollerWhisperText) : null}
