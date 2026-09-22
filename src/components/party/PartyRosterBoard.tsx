@@ -5,6 +5,7 @@
 import { ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ChatAvatars } from '@/hooks/use-chat-avatars';
+import enterStoryEmblem from '@/assets/enter-story-emblem.png';
 
 interface RosterMember {
   user_id: string;
