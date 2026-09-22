@@ -1,6 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dices, Shield, Sparkles, Scale, Flame, Shuffle, Skull } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { rollDie } from '@/lib/diceRoller';
 import { rollWeightedDie, loadDiceOddsMode, saveDiceOddsMode, DICE_ODDS_CONFIGS, type DiceOddsMode } from '@/lib/diceOdds';
@@ -13,6 +12,12 @@ import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { getProficiencyBonus } from '@/lib/magic/calculations';
 import { ABILITY_ART, DIE_ART, SKILL_ART } from '@/lib/diceRollerArt';
 import heroBannerArt from '@/assets/dice/hero-banner.webp.asset.json';
+import oddsBannerArt from '@/assets/odds-banner.webp.asset.json';
+import oddsFairArt from '@/assets/odds-fair.webp.asset.json';
+import oddsHeroicArt from '@/assets/odds-heroic.webp.asset.json';
+import oddsDramaticArt from '@/assets/odds-dramatic.webp.asset.json';
+import oddsChaoticArt from '@/assets/odds-chaotic.webp.asset.json';
+import oddsCursedArt from '@/assets/odds-cursed.webp.asset.json';
 import { toast } from 'sonner';
 
 type RollMode = 'normal' | 'advantage' | 'disadvantage';
@@ -57,28 +62,21 @@ const ABILITY_CHROME: Record<AbilityScore, { text: string; border: string; activ
   cha: { text: 'text-pink-400', border: 'border-pink-400/25', active: 'active:ring-pink-400/30' },
 };
 
-const MODE_ICONS: Record<DiceOddsMode, React.ReactNode> = {
-  fair: <Scale className="w-3.5 h-3.5" />,
-  heroic: <Sparkles className="w-3.5 h-3.5" />,
-  dramatic: <Flame className="w-3.5 h-3.5" />,
-  chaotic: <Shuffle className="w-3.5 h-3.5" />,
-  cursed: <Skull className="w-3.5 h-3.5" />,
+// Medallion artwork per odds mode (dark iron discs — no scrim behind them)
+const ODDS_ART: Record<DiceOddsMode, string> = {
+  fair: oddsFairArt.url,
+  heroic: oddsHeroicArt.url,
+  dramatic: oddsDramaticArt.url,
+  chaotic: oddsChaoticArt.url,
+  cursed: oddsCursedArt.url,
 };
 
-const MODE_COLORS: Record<DiceOddsMode, string> = {
-  fair: 'text-white/60 border-white/10 hover:bg-white/10',
-  heroic: 'text-amber-300 border-amber-500/30 hover:bg-amber-900/30',
-  dramatic: 'text-purple-300 border-purple-500/30 hover:bg-purple-900/30',
-  chaotic: 'text-cyan-300 border-cyan-500/30 hover:bg-cyan-900/30',
-  cursed: 'text-red-300 border-red-500/30 hover:bg-red-900/30',
-};
-
-const MODE_COLORS_SELECTED: Record<DiceOddsMode, string> = {
-  fair: 'text-white/80 bg-white/10 border-white/20',
-  heroic: 'text-amber-300 bg-amber-900/40 border-amber-500/40',
-  dramatic: 'text-purple-300 bg-purple-900/40 border-purple-500/40',
-  chaotic: 'text-cyan-300 bg-cyan-900/40 border-cyan-500/40',
-  cursed: 'text-red-300 bg-red-900/40 border-red-500/40',
+const ODDS_CHROME: Record<DiceOddsMode, { ring: string; glow: string; text: string }> = {
+  fair: { ring: 'ring-amber-400', glow: 'shadow-[0_0_16px_rgba(251,191,36,0.4)]', text: 'text-amber-400' },
+  heroic: { ring: 'ring-emerald-400', glow: 'shadow-[0_0_16px_rgba(52,211,153,0.4)]', text: 'text-emerald-400' },
+  dramatic: { ring: 'ring-violet-400', glow: 'shadow-[0_0_16px_rgba(167,139,250,0.4)]', text: 'text-violet-400' },
+  chaotic: { ring: 'ring-fuchsia-400', glow: 'shadow-[0_0_16px_rgba(232,121,249,0.4)]', text: 'text-fuchsia-400' },
+  cursed: { ring: 'ring-red-500', glow: 'shadow-[0_0_16px_rgba(239,68,68,0.4)]', text: 'text-red-500' },
 };
 
 // Skill descriptions for new players
@@ -815,32 +813,69 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false,
 
         {/* Section: Dice Odds */}
         <div>
-          <div className="text-[10px] font-mono uppercase tracking-wider text-white/40 border-b border-white/5 pb-1 mb-2">
-            🎰 Dice Odds
+          {/* Engraved plate header with live text overlay */}
+          <div className="relative w-full">
+            <img
+              src={oddsBannerArt.url}
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              width="1014"
+              height="166"
+              draggable={false}
+              className="w-full object-contain"
+            />
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center font-cinzel text-sm font-bold uppercase tracking-[0.25em] text-amber-100 drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]">
+              Dice Odds
+            </span>
           </div>
-          <div className="grid grid-cols-5 gap-1.5">
+
+          {/* Mode medallions */}
+          <div className="mt-2 flex items-start justify-between">
             {(Object.keys(DICE_ODDS_CONFIGS) as DiceOddsMode[]).map(mode => {
               const config = DICE_ODDS_CONFIGS[mode];
               const isSelected = currentOddsMode === mode;
+              const chrome = ODDS_CHROME[mode];
               return (
                 <button
                   key={mode}
                   onClick={() => handleSelectOddsMode(mode)}
-                  className={cn(
-                    "flex flex-col items-center gap-1 py-2 px-1 rounded-lg border transition-all",
-                    isSelected ? MODE_COLORS_SELECTED[mode] : MODE_COLORS[mode]
-                  )}
+                  aria-pressed={isSelected}
+                  aria-label={`${config.label} dice odds`}
+                  className="flex w-16 flex-col items-center gap-1 rounded-lg py-1 active:scale-95 motion-safe:transition-transform motion-safe:duration-[120ms] motion-reduce:transition-none"
                   style={{ touchAction: 'manipulation' }}
                 >
-                  {MODE_ICONS[mode]}
-                  <span className="text-[8px] font-mono uppercase leading-tight text-center">
+                  <img
+                    src={ODDS_ART[mode]}
+                    alt=""
+                    aria-hidden="true"
+                    loading="lazy"
+                    width="64"
+                    height="64"
+                    draggable={false}
+                    className={cn(
+                      "h-16 w-16 rounded-full object-contain motion-safe:transition-all motion-safe:duration-[150ms] motion-reduce:transition-none",
+                      isSelected ? cn(chrome.ring, "ring-2", chrome.glow, "opacity-100") : "opacity-60"
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "text-[10px] font-medium uppercase tracking-wider text-center leading-tight motion-safe:transition-colors motion-safe:duration-[150ms] motion-reduce:transition-none",
+                      isSelected ? chrome.text : "text-white/40"
+                    )}
+                  >
                     {config.label.split(' ')[0]}
                   </span>
                 </button>
               );
             })}
           </div>
-          <p className="text-[9px] text-white/40 text-center italic mt-1.5">
+
+          {/* Selected mode description + quote */}
+          <p className="text-[10px] text-white/60 text-center leading-snug mt-1 px-2">
+            {currentOddsConfig.description}
+          </p>
+          <p className="text-[9px] text-white/40 text-center italic mt-0.5">
             {currentOddsConfig.deadpoolQuote}
           </p>
         </div>
