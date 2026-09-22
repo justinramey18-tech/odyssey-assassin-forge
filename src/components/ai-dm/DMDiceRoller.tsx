@@ -11,6 +11,8 @@ import type { RollHint } from '@/lib/whisperRollHint';
 import { playDiceRattle, playDiceThud } from '@/lib/diceSounds';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { getProficiencyBonus } from '@/lib/magic/calculations';
+import { ABILITY_ART, DIE_ART, SKILL_ART } from '@/lib/diceRollerArt';
+import heroBannerArt from '@/assets/dice/hero-banner.webp.asset.json';
 import { toast } from 'sonner';
 
 type RollMode = 'normal' | 'advantage' | 'disadvantage';
@@ -44,6 +46,15 @@ const ABILITY_MAP: Record<string, AbilityScore> = {
   intelligence: 'int',
   wisdom: 'wis',
   charisma: 'cha',
+};
+
+const ABILITY_CHROME: Record<AbilityScore, { text: string; border: string; active: string }> = {
+  str: { text: 'text-red-400', border: 'border-red-400/25', active: 'active:ring-red-400/30' },
+  dex: { text: 'text-green-400', border: 'border-green-400/25', active: 'active:ring-green-400/30' },
+  con: { text: 'text-amber-400', border: 'border-amber-400/25', active: 'active:ring-amber-400/30' },
+  int: { text: 'text-blue-400', border: 'border-blue-400/25', active: 'active:ring-blue-400/30' },
+  wis: { text: 'text-purple-400', border: 'border-purple-400/25', active: 'active:ring-purple-400/30' },
+  cha: { text: 'text-pink-400', border: 'border-pink-400/25', active: 'active:ring-pink-400/30' },
 };
 
 const MODE_ICONS: Record<DiceOddsMode, React.ReactNode> = {
@@ -516,20 +527,44 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false,
         )}
       </AnimatePresence>
 
-      <div className="px-3 py-2 space-y-3">
+      <div className="pb-8">
+        {/* Illustrated d20 header */}
+        <button
+          onClick={() => handleRoll('d20', 0)}
+          disabled={disabled}
+          aria-label="Roll the dice (d20)"
+          className="group relative block w-full max-h-[140px] min-h-[128px] overflow-hidden disabled:opacity-50 active:scale-[0.99] motion-safe:transition-transform motion-safe:duration-[120ms] motion-safe:ease-out motion-reduce:transition-none"
+          style={{ touchAction: 'manipulation' }}
+        >
+          <img
+            src={heroBannerArt.url}
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            width="946"
+            height="946"
+            draggable={false}
+            className="h-full max-h-[140px] min-h-[128px] w-full object-cover object-center group-active:brightness-125 motion-safe:transition-[filter] motion-safe:duration-[120ms] motion-reduce:transition-none"
+          />
+          <span className="pointer-events-none absolute inset-x-0 bottom-[14%] text-center font-cinzel text-sm font-bold uppercase tracking-[0.2em] text-amber-100 drop-shadow-[0_2px_5px_rgba(0,0,0,0.95)]">
+            Roll the Dice
+          </span>
+        </button>
+
+        <div className="px-3 py-3 space-y-4">
         {/* Roll mode toggle */}
-        <div className="flex items-center gap-1">
+        <div className="grid grid-cols-3 overflow-hidden rounded-full border border-amber-500/20 bg-black/25 p-1">
           {(['normal', 'advantage', 'disadvantage'] as RollMode[]).map(mode => (
             <button
               key={mode}
               onClick={() => setRollMode(mode)}
+              disabled={disabled}
               className={cn(
-                "px-2 py-1 rounded-md text-[10px] font-semibold transition-colors",
+                "min-h-11 rounded-full px-1 text-[10px] font-semibold motion-safe:transition-all motion-safe:duration-[120ms] motion-reduce:transition-none",
                 rollMode === mode
-                  ? mode === 'advantage' ? "bg-emerald-900/40 text-emerald-300 border border-emerald-500/30"
-                    : mode === 'disadvantage' ? "bg-red-900/40 text-red-300 border border-red-500/30"
-                    : "bg-amber-900/30 text-amber-300 border border-amber-500/30"
-                  : "bg-white/5 text-white/40 border border-transparent hover:bg-white/10"
+                  ? "bg-amber-500/20 text-amber-200 shadow-inner ring-1 ring-amber-400/35"
+                  : "text-white/45 hover:text-white/70",
+                "active:scale-95"
               )}
               style={{ touchAction: 'manipulation' }}
             >
@@ -540,53 +575,24 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false,
 
         {/* D20 & Quick Rolls */}
         <div className="space-y-1.5">
-          {/* Roll the Dice banner */}
-          <button
-            onClick={() => handleRoll('d20', 0)}
-            aria-label="Roll the dice (d20)"
-            className="relative block w-full aspect-[5/2] rounded-lg overflow-hidden transition-transform duration-150 active:scale-[0.98]"
-            style={{ touchAction: 'manipulation' }}
-          >
-            <img
-              src={PREFERS_REDUCED_MOTION ? '/dice/roll-d20-bg.jpg' : '/dice/roll-d20.gif'}
-              alt=""
-              draggable={false}
-              className="absolute inset-0 w-full h-full object-cover"
-              style={{ objectPosition: 'center 30%' }}
-              onError={(e) => {
-                const img = e.currentTarget;
-                if (!img.src.endsWith('/dice/roll-d20-bg.jpg')) img.src = '/dice/roll-d20-bg.jpg';
-              }}
-            />
-            {/* Dark gradient so the label reads over the image */}
-            <div
-              className="absolute inset-0"
-              style={{ background: 'linear-gradient(to bottom, transparent 55%, rgba(8,6,4,0.9) 100%)' }}
-            />
-            <span
-              className="absolute inset-x-0 bottom-2 text-center font-cinzel font-black uppercase text-[26px] leading-none text-[#FFE4AA] pointer-events-none"
-              style={{
-                WebkitTextStroke: '1px #3C1900',
-                textShadow: '0 0 12px rgba(255,150,40,0.8), 0 0 24px rgba(255,150,40,0.5)',
-              }}
-            >
-              Roll the Dice
-            </span>
-          </button>
-
           {/* Initiative — full-width picture banner, below the dice banner */}
           <button
             onClick={() => {
               const dexMod = getModifier(characterContext, 'dex');
               handleRoll('Initiative', dexMod);
             }}
+            disabled={disabled}
             aria-label={isEmpyreanMode() ? 'Combat Reflexes (initiative roll)' : 'Roll initiative (d20)'}
-            className="relative block w-full aspect-[5/2] rounded-lg overflow-hidden transition-transform duration-150 active:scale-[0.98]"
+            className="relative block w-full aspect-[5/2] rounded-lg overflow-hidden active:scale-[0.98] motion-safe:transition-transform motion-safe:duration-[120ms] motion-safe:ease-out motion-reduce:transition-none"
             style={{ touchAction: 'manipulation' }}
           >
             <img
               src={PREFERS_REDUCED_MOTION ? '/dice/roll-initiative-bg.jpg' : '/dice/roll-initiative.gif'}
               alt=""
+              aria-hidden="true"
+              loading="lazy"
+              width="500"
+              height="200"
               draggable={false}
               className="absolute inset-0 w-full h-full object-cover"
               style={{ objectPosition: 'center bottom' }}
@@ -618,29 +624,54 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false,
             {(Object.entries(ABILITY_SCORES) as [AbilityScore, typeof ABILITY_SCORES[AbilityScore]][]).map(([key, info]) => {
               const mod = getModifier(characterContext, key);
               const display = getAbilityScoreDisplay(key);
+              const chrome = ABILITY_CHROME[key];
               return (
                 <button
                   key={key}
                   onClick={() => handleRoll(`${display.name} Check`, mod)}
-                  className="flex flex-col items-center gap-0.5 py-1.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-colors"
+                  disabled={disabled}
+                  className={cn(
+                    "group flex min-h-[94px] min-w-0 flex-col items-center justify-center rounded-xl border bg-gradient-to-b from-white/[0.06] to-transparent px-0.5 py-1 active:scale-95 active:ring-2 motion-safe:transition-all motion-safe:duration-[120ms] motion-safe:ease-out motion-reduce:transition-none",
+                    chrome.border,
+                    chrome.active
+                  )}
                   style={{ touchAction: 'manipulation' }}
                 >
-                  <span className={cn("text-[10px] font-bold", info.color)}>{display.abbr}</span>
-                  <span className="text-[9px] text-white/40">{mod >= 0 ? `+${mod}` : mod}</span>
+                  <img
+                    src={ABILITY_ART[key]}
+                    alt=""
+                    aria-hidden="true"
+                    loading="lazy"
+                    width="44"
+                    height="44"
+                    className="h-11 w-11 shrink-0 object-contain group-active:brightness-125 motion-safe:transition-[filter] motion-safe:duration-[120ms] motion-reduce:transition-none"
+                  />
+                  <span className={cn("text-[10px] font-bold uppercase tracking-wider", chrome.text)}>{display.abbr}</span>
+                  <span className={cn("font-mono text-sm font-bold leading-none", chrome.text)}>{mod >= 0 ? `+${mod}` : mod}</span>
                 </button>
               );
             })}
           </div>
 
-          <div className="flex gap-1">
+          <div className="grid grid-cols-5 gap-1">
             {QUICK_DICE.map(d => (
               <button
                 key={d.label}
                 onClick={() => handleQuickDie(d.sides, d.label)}
-                className="flex-1 py-1 rounded-md bg-white/5 hover:bg-white/10 text-[10px] text-white/50 hover:text-white/70 transition-colors border border-white/5"
+                disabled={disabled}
+                className="group flex min-h-[66px] flex-col items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] py-1 text-[10px] text-white/55 active:scale-95 motion-safe:transition-all motion-safe:duration-[120ms] motion-safe:ease-out motion-reduce:transition-none"
                 style={{ touchAction: 'manipulation' }}
               >
-                {d.label}
+                <img
+                  src={DIE_ART[d.sides]}
+                  alt=""
+                  aria-hidden="true"
+                  loading="lazy"
+                  width="40"
+                  height="40"
+                  className="h-10 w-10 object-contain group-active:brightness-125 motion-safe:transition-[filter] motion-safe:duration-[120ms] motion-reduce:transition-none"
+                />
+                <span className="font-mono uppercase tracking-wider">{d.label}</span>
               </button>
             ))}
           </div>
@@ -665,7 +696,7 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false,
               {editMode ? '✓ Done' : '✏ Edit'}
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-1">
+          <div className="grid grid-cols-2 gap-1.5">
             {getSkillsForDisplay().map(skill => {
               const baseMod = getModifier(characterContext, skill.ability);
               const isProf = proficientSkills.has(skill.id);
@@ -677,39 +708,42 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false,
                 <button
                   key={skill.id}
                   onClick={() => editMode ? cycleSkillProficiency(skill.id) : handleRoll(`${skill.name}`, totalMod)}
+                  disabled={disabled}
                   className={cn(
-                    "flex items-center justify-between px-2 py-2 rounded-md border transition-colors text-left",
+                    "group relative flex min-h-[64px] min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border px-1.5 py-1.5 text-left active:scale-95 motion-safe:transition-all motion-safe:duration-[120ms] motion-safe:ease-out motion-reduce:transition-none",
                     editMode && "ring-1 ring-white/10",
                     isExpert
-                      ? "bg-amber-900/15 border-amber-500/20 hover:bg-amber-900/25"
+                      ? "border-amber-500/30 bg-amber-900/15"
                       : isProf
-                        ? "bg-emerald-900/15 border-emerald-500/20 hover:bg-emerald-900/25"
-                        : "bg-white/5 hover:bg-white/10 border-white/5",
+                        ? "border-amber-500/30 bg-white/[0.04]"
+                        : "border-white/5 bg-white/[0.03]",
                     rollHint?.skillId === skill.id && "ring-2 ring-amber-400/60 bg-amber-500/15"
                   )}
                   style={{ touchAction: 'manipulation' }}
                 >
-                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                    {editMode ? (
-                      <span className={cn(
-                        "w-2.5 h-2.5 rounded-full shrink-0 border-2 transition-colors",
-                        isExpert ? "bg-amber-400 border-amber-400" : isProf ? "bg-emerald-400 border-emerald-400" : "border-white/30 bg-transparent"
-                      )} />
-                    ) : (isProf || isExpert) ? (
-                      <span className={cn(
-                        "w-1.5 h-1.5 rounded-full shrink-0",
-                        isExpert ? "bg-amber-400" : "bg-emerald-400"
-                      )} />
-                    ) : null}
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <span className={cn(
-                        "text-[11px] truncate",
-                        isExpert ? "text-amber-200/80" : isProf ? "text-emerald-200/80" : "text-white/70"
-                      )}>{skill.name}</span>
-{desc && <span className="text-[9px] text-white/35 line-clamp-2 leading-tight">{desc}</span>}
-                    </div>
+                  <div className={cn(
+                    "relative h-10 w-10 shrink-0 rounded-full",
+                    isExpert && "ring-2 ring-amber-300/70 ring-offset-1 ring-offset-amber-900/40 after:absolute after:-inset-2 after:-z-10 after:rounded-full after:bg-amber-400/15 after:blur-md",
+                    isProf && !isExpert && "ring-1 ring-amber-400/50"
+                  )}>
+                    <img
+                      src={SKILL_ART[skill.id]}
+                      alt=""
+                      aria-hidden="true"
+                      loading="lazy"
+                      width="40"
+                      height="40"
+                      className={cn(
+                        "h-10 w-10 object-contain group-active:brightness-125 motion-safe:transition-[filter,opacity] motion-safe:duration-[120ms] motion-reduce:transition-none",
+                        isProf || isExpert ? "opacity-100" : "opacity-80"
+                      )}
+                    />
                   </div>
-                  <span className={cn("text-[10px] font-semibold shrink-0 ml-1", abilityInfo.color)}>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className={cn("break-words text-[10px] font-medium leading-tight", isExpert ? "text-amber-200/90" : "text-white/75")}>{skill.name}</span>
+                    {desc && <span className="line-clamp-2 text-[10px] leading-[1.15] text-white/40">{desc}</span>}
+                  </div>
+                  <span className={cn("shrink-0 font-mono text-[11px] font-bold", abilityInfo.color)}>
                     {totalMod >= 0 ? `+${totalMod}` : totalMod}
                   </span>
                 </button>
@@ -719,11 +753,11 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false,
           {/* Legend */}
           <div className="flex items-center gap-3 mt-1.5 px-1">
             <div className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span className="h-2.5 w-2.5 rounded-full ring-1 ring-amber-400/50" />
               <span className="text-[8px] text-white/30">Proficient</span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              <span className="h-2.5 w-2.5 rounded-full ring-2 ring-amber-300/70 ring-offset-1 ring-offset-amber-900/40" />
               <span className="text-[8px] text-white/30">Expertise</span>
             </div>
             {editMode && (
@@ -809,6 +843,7 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false,
           <p className="text-[9px] text-white/40 text-center italic mt-1.5">
             {currentOddsConfig.deadpoolQuote}
           </p>
+        </div>
         </div>
       </div>
     </div>

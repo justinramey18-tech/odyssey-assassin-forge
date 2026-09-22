@@ -1,4 +1,8 @@
 - [x] Add supplied Primary, Secondary, and Ranged weapon artwork.
 - [x] Show complete live equipped-weapon details in Quick Actions without changing saved gear.
 - [x] Replace weapon rows with fixed picture cards while preserving attack and remove behavior.
-- [ ] Verify the cards at 360px and confirm the latest preview build.
+- [x] Verify the cards at 360px and confirm the latest preview build.
+- [x] Add the supplied engraved-gold dice, ability, skill, and banner artwork.
+- [x] Redesign the DM dice roller without changing roll behavior.
+- [x] Restore party-sheet scrolling and real character modifiers.
+- [x] Verify the redesigned roller at 360px and confirm the preview build.
