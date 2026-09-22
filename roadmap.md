@@ -3,6 +3,6 @@
 - [x] Replace weapon rows with fixed picture cards while preserving attack and remove behavior.
 - [x] Verify the cards at 360px and confirm the latest preview build.
 - [x] Add the supplied engraved-gold dice, ability, skill, and banner artwork.
-- [ ] Redesign the DM dice roller without changing roll behavior.
-- [ ] Restore party-sheet scrolling and real character modifiers.
-- [ ] Verify the redesigned roller at 360px and confirm the preview build.
+- [x] Redesign the DM dice roller without changing roll behavior.
+- [x] Restore party-sheet scrolling and real character modifiers.
+- [x] Verify the redesigned roller at 360px and confirm the preview build.
