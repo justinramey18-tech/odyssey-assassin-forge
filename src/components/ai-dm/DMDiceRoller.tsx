@@ -612,7 +612,7 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false,
             }}
             disabled={disabled}
             aria-label={isEmpyreanMode() ? 'Combat Reflexes (initiative roll)' : 'Roll initiative (d20)'}
-            className="relative block w-full aspect-[5/2] rounded-lg overflow-hidden active:scale-[0.98] motion-safe:transition-transform motion-safe:duration-[120ms] motion-safe:ease-out motion-reduce:transition-none"
+            className="relative block w-full aspect-[2/1] rounded-lg overflow-hidden active:scale-[0.98] motion-safe:transition-transform motion-safe:duration-[120ms] motion-safe:ease-out motion-reduce:transition-none"
             style={{ touchAction: 'manipulation' }}
           >
             <img
