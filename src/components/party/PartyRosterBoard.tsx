@@ -102,14 +102,14 @@ export function PartyRosterBoard({
                   <div className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1">
                     <button
                       onClick={onOpenPartyDM}
-                      className="w-full aspect-[2/1] min-h-[44px] rounded-lg overflow-hidden border border-amber-500/40 active:scale-[0.97] transition-transform"
+                      className="w-full max-w-[160px] aspect-square mx-auto min-h-[44px] active:scale-[0.97] transition-transform"
                       style={{ touchAction: 'manipulation' }}
                       aria-label="Enter the story"
                     >
                       <img
                         src="/enter-story.png"
                         alt=""
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain enter-story-glow"
                       />
                     </button>
                     {(className || level) && (
