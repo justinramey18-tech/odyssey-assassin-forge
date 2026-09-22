@@ -39,6 +39,7 @@ import { useQuestRewardSplit } from '@/hooks/use-quest-reward-split';
 import { usePartyNarrationStyle } from '@/hooks/use-party-narration-style';
 import { useRoundChat } from '@/hooks/use-round-chat';
 import { useChatAvatars } from '@/hooks/use-chat-avatars';
+import { useOnlineStatus } from '@/hooks/use-online-status';
 import { RoundChatDrawer } from './RoundChatDrawer';
 import { ActionMenuSheet, type ActionMenuChoice } from './ActionMenuSheet';
 import { DMHandoffBar } from './DMHandoffBar';
@@ -59,7 +60,6 @@ import { loadApiKey, isFeatureSkipped } from '@/lib/api-keys';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { CombatBar } from './CombatBar';
 import { usePartyCombatTurn } from '@/hooks/use-party-combat-turn';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -1214,6 +1214,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     partyDm.sessionConfig?.currentRoundId,
   );
   const chatAvatars = useChatAvatars(partyId || null, currentUserId);
+  const onlineMembers = useMemo(() => members.map(m => ({ user_id: m.user_id, updated_at: m.updated_at ?? '1970-01-01T00:00:00Z' })), [members]);
+  const onlineStatus = useOnlineStatus(onlineMembers);
   // Live DM is assumed while the table's saved style is still loading, so the
   // classic ready-up UI never flashes first on entry.
   const chatRoundsOn = !roundChat.styleLoaded || roundChat.style.mode === 'chat' || roundChat.style.mode === 'live';
@@ -2586,6 +2588,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onTogglePush={handleTogglePush}
               
               onShowSaves={onShowSaves}
+               onNewGame={isCreator ? onNewGame : undefined}
+               onShowTableGuide={() => setShowTableGuide(true)}
+               lastAutoSaveLabel={partyDm.lastAutoSaveTime ? formatAutoSaveTime(partyDm.lastAutoSaveTime) : undefined}
               onShowGuides={onShowGuides}
               onShowCharacterGuideBuilder={onShowCharacterGuideBuilder}
               onShowChat={onShowChat}
@@ -2729,111 +2734,47 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       {/* Row 1: Main Header */}
       {!isFullscreen && (
       <header className="flex items-center justify-between px-3 py-2.5 border-b border-amber-900/30 bg-black/40 backdrop-blur-sm">
-        <div className="flex items-center gap-2 min-w-0">
-          <button onClick={onBack} className="p-2 rounded-lg hover:bg-white/10 transition-colors" style={{ touchAction: 'manipulation' }}>
-            <Home className="w-5 h-5 text-white/80" />
-          </button>
-          <Crown className="w-6 h-6 text-amber-400 shrink-0" />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-amber-500/25 hover:bg-white/10 transition-colors min-w-0 max-w-[190px]"
-                style={{ touchAction: 'manipulation', minHeight: 40 }}
+        <button onClick={onBack} className="p-2 rounded-lg hover:bg-white/10 transition-colors" style={{ touchAction: 'manipulation' }}>
+          <Home className="w-5 h-5 text-white/80" />
+        </button>
+        <div
+          className="flex-1 min-w-0 flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+          style={{ scrollbarWidth: 'none' }}
+        >
+          {[
+            ...members.filter(m => m.user_id === currentUserId),
+            ...members.filter(m => m.user_id !== currentUserId),
+          ].map(member => {
+            const status = onlineStatus[member.user_id];
+            const statusLabel = status?.isOnline ? 'online' : (status?.lastSeenLabel ?? 'offline');
+            const portrait = chatAvatars.avatars[member.user_id]?.ic;
+            return (
+              <div
+                key={member.user_id}
+                className="relative shrink-0"
+                aria-label={`${member.character_name} ${statusLabel}`}
+                title={`${member.character_name} ${statusLabel}`}
               >
-                <UserCog className="w-4 h-4 text-amber-400/80 shrink-0" />
-                <span className="text-xs font-cinzel text-amber-200 truncate">
-                  {characterContext?.name || 'Character'}
-                </span>
-                <ChevronDown className="w-3.5 h-3.5 text-amber-400/60 shrink-0" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-64 bg-[#1a1a2e] border-amber-900/40 backdrop-blur-md z-[9999]">
-              {onOpenCharacterPicker && (
-                <>
-                  <DropdownMenuItem
-                    onClick={onOpenCharacterPicker}
-                    className="gap-2 text-amber-300 focus:text-amber-200 focus:bg-amber-900/30 text-xs"
-                  >
-                    <UserCog className="w-3.5 h-3.5" />
-                    Change character
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-amber-900/30" />
-                </>
-              )}
-              {partyDm.messages.length > 0 && (
-                <DropdownMenuItem
-                  onClick={() => {
-                    const name = partyDm.activeCampaignId ? undefined : `Party Campaign ${new Date().toLocaleDateString()}`;
-                    partyDm.saveCampaign(name || 'Party Campaign', partyDm.activeCampaignId || undefined);
-                  }}
-                  className="gap-2 text-white/70 focus:text-white/90 focus:bg-amber-900/20 text-xs"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  <div className="flex flex-col">
-                    <span>Save campaign</span>
-                    {partyDm.lastAutoSaveTime && (
-                      <span className="text-[10px] text-white/30">Saved {formatAutoSaveTime(partyDm.lastAutoSaveTime)}</span>
-                    )}
-                  </div>
-                </DropdownMenuItem>
-              )}
-              {isCreator && onNewGame && (
-                <DropdownMenuItem
-                  onClick={onNewGame}
-                  className="gap-2 text-amber-300 focus:text-amber-200 focus:bg-amber-900/30 text-xs"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  New campaign
-                </DropdownMenuItem>
-              )}
-              {isCreator && campaignSessions && onLoadCampaign && (
-                <>
-                  <DropdownMenuSeparator className="bg-amber-900/30" />
-                  {campaignSessionsLoading ? (
-                    <div className="flex items-center justify-center py-3">
-                      <Loader2 className="w-4 h-4 text-amber-400/60 animate-spin" />
-                    </div>
-                  ) : campaignSessions.length === 0 ? (
-                    <div className="px-2 py-3 text-center text-xs text-white/30">No saved campaigns</div>
+                <div className={cn(
+                  'w-9 h-9 rounded-full overflow-hidden border',
+                  member.user_id === currentUserId ? 'border-amber-400/60' : 'border-white/15',
+                )}>
+                  {portrait ? (
+                    <img src={portrait} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="max-h-[240px] overflow-y-auto">
-                      {campaignSessions.map(session => {
-                        const isActive = session.id === partyDm.activeCampaignId;
-                        return (
-                          <DropdownMenuItem
-                            key={session.id}
-                            onClick={() => { if (!isActive) onLoadCampaign(session); }}
-                            className={cn(
-                              'gap-2 focus:bg-amber-900/20 text-xs cursor-pointer',
-                              isActive ? 'text-amber-300' : 'text-white/70 focus:text-white/90'
-                            )}
-                          >
-                            {isActive ? <Check className="w-3.5 h-3.5 text-amber-400 shrink-0" /> : <Save className="w-3.5 h-3.5 text-white/30 shrink-0" />}
-                            <span className="truncate">{session.name}</span>
-                          </DropdownMenuItem>
-                        );
-                      })}
+                    <div className="w-full h-full flex items-center justify-center bg-amber-500/15 text-xs font-cinzel text-amber-200">
+                      {member.character_name.charAt(0).toUpperCase()}
                     </div>
                   )}
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <button
-            onClick={() => setShowTableGuide(true)}
-            aria-label="Open the table guide"
-            title="How to play"
-            className="shrink-0 flex items-center justify-center w-9 h-9 rounded-lg border border-amber-500/25 bg-amber-500/5 hover:bg-amber-500/15 active:bg-amber-500/20 transition-colors"
-            style={{ touchAction: 'manipulation' }}
-          >
-            <HelpCircle className="w-[18px] h-[18px] text-amber-300/90" />
-          </button>
+                </div>
+                <span className={cn(
+                  'absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-black',
+                  status?.isOnline ? 'bg-emerald-500' : 'bg-zinc-500',
+                )} />
+              </div>
+            );
+          })}
         </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground whitespace-nowrap">{memberCount} players</span>
-        </div>
-
       </header>
       )}
 
