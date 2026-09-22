@@ -12,6 +12,8 @@ import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import empyreanSpeaksImg from '@/assets/empyrean-speaks.jpg';
 import empyreanDmBg from '@/assets/empyrean-dm-bg.jpg';
 import diceBg from '@/assets/dice-bg-fire.jpg.asset.json';
+import partyDmHeaderBannerAsset from '@/assets/party-dm-header-banner.png.asset.json';
+const partyDmHeaderBanner = partyDmHeaderBannerAsset.url;
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
 import CinematicSlideshow from '@/components/empyrean/CinematicSlideshow';
 import EmpyreanContextualActions from '@/components/empyrean/EmpyreanContextualActions';
