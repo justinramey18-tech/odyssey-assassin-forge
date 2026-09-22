@@ -2753,7 +2753,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           <button
             onClick={onBack}
             aria-label="Back to home"
-            className="shrink-0 h-[68%] aspect-square rounded-full active:scale-95 transition-transform"
+            className="shrink-0 h-[84%] aspect-[9/10] rounded-lg active:scale-95 transition-transform"
             style={{ touchAction: 'manipulation' }}
           >
             <img
@@ -2764,7 +2764,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             />
           </button>
           <div className="flex-1 min-w-0 h-full flex items-center justify-center">
-            <div className="relative h-[84%] max-w-full aspect-[3.6/1]">
+            <div className="relative h-[80%] max-w-full aspect-[3.6/1]">
               <img
                 src={partyDmHeaderBanner}
                 alt=""
