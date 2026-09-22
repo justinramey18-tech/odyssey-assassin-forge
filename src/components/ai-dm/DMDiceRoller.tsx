@@ -616,24 +616,13 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false,
             style={{ touchAction: 'manipulation' }}
           >
             <img
-              src={PREFERS_REDUCED_MOTION ? '/dice/roll-initiative-bg.jpg' : '/dice/roll-initiative.gif'}
-              alt=""
-              aria-hidden="true"
+              src={rollInitiativeArt.url}
+              alt="Roll Initiative"
               loading="lazy"
-              width="500"
-              height="200"
+              width="1024"
+              height="500"
               draggable={false}
-              className="absolute inset-0 w-full h-full object-cover"
-              style={{ objectPosition: 'center bottom' }}
-              onError={(e) => {
-                const img = e.currentTarget;
-                if (!img.src.endsWith('/dice/roll-initiative-bg.jpg')) img.src = '/dice/roll-initiative-bg.jpg';
-              }}
-            />
-            {/* Dark gradient so any overlay label reads over the image */}
-            <div
-              className="absolute inset-0"
-              style={{ background: 'linear-gradient(to bottom, transparent 55%, rgba(8,6,4,0.85) 100%)' }}
+              className="w-full object-contain"
             />
             {isEmpyreanMode() && (
               <span
