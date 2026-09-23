@@ -24,6 +24,12 @@ import dmSigilAsset from '@/assets/dm-message/dm-sigil.png.asset.json';
 import dmGlyphBookmarkAsset from '@/assets/dm-message/dm-glyph-bookmark.png.asset.json';
 import dmGlyphExpandAsset from '@/assets/dm-message/dm-glyph-expand.png.asset.json';
 import dmGlyphRegenerateAsset from '@/assets/dm-message/dm-glyph-regenerate.png.asset.json';
+import playerRingAsset from '@/assets/rolls/player-ring.png.asset.json';
+import playerFrameAsset from '@/assets/rolls/player-frame.png.asset.json';
+import partyActsDividerAsset from '@/assets/rolls/party-acts-divider.png.asset.json';
+const playerRing = playerRingAsset.url;
+const playerFrame = playerFrameAsset.url;
+const partyActsDivider = partyActsDividerAsset.url;
 const dmFrame = dmFrameAsset.url;
 const dmCrest = dmCrestAsset.url;
 const dmSigil = dmSigilAsset.url;
@@ -283,13 +289,15 @@ function PlayerMessageAvatar({
 
   if (avatarUrl) {
     return (
-      <img
-        src={avatarUrl}
-        alt={senderName}
-        loading="lazy"
-        className="w-9 h-9 rounded-full object-cover shrink-0"
-        style={{ border: `1.5px solid ${color}` }}
-      />
+      <div className="relative w-9 h-9 shrink-0">
+        <img
+          src={avatarUrl}
+          alt={senderName}
+          loading="lazy"
+          className="w-full h-full rounded-full object-cover"
+        />
+        <img src={playerRing} alt="" aria-hidden="true" className="pointer-events-none absolute -inset-[3px] w-[calc(100%+6px)] h-[calc(100%+6px)]" />
+      </div>
     );
   }
 
@@ -997,10 +1005,21 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
           <Users className="w-3.5 h-3.5 text-primary" />
         </div>
       )}
-      <div className={cn(
-        "flex-1 min-w-0 rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 rounded-bl-sm overflow-hidden",
-        isWhisper ? "bg-purple-900/20 border border-purple-500/20" : "bg-white/5 border border-white/10"
-      )}>
+      <div
+        className={cn(
+          "flex-1 min-w-0 px-2 py-1",
+          isWhisper && "bg-purple-500/10"
+        )}
+        style={{
+          borderStyle: 'solid',
+          borderWidth: '10px',
+          borderImage: `url(${playerFrame}) 40 fill / 14px stretch`,
+          boxShadow: !isWhisper && message.sender_user_id ? `inset 2px 0 0 ${getMemberColor(message.sender_user_id, members)}` : undefined,
+        }}
+      >
+        {isCombinedPartyMessage && (
+          <img src={partyActsDivider} alt="The party acts" draggable={false} className="block w-full max-w-[340px] mx-auto mb-2" />
+        )}
         {!isWhisper && showTeamTag && message.team && (
           <span className={cn(
             "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-cinzel mb-1",
@@ -1011,7 +1030,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
           </span>
         )}
         {!isCombinedPartyMessage && <div className="flex items-center gap-1.5 mb-1">
-          <p className={cn("text-[11px] font-semibold", isWhisper ? "text-purple-300" : "text-primary")}>
+          <p className={cn("text-[11px] font-semibold font-cinzel tracking-wide", isWhisper ? "text-purple-300" : "text-slate-300")}>
             {hasRealPlayerName || isWhisper || isDialogueMessage ? message.sender_name : 'Party Actions'}
           </p>
           {isWhisper && (
@@ -1089,9 +1108,9 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                   )}
                   <div className="flex-1 min-w-0">
                     {!isSystemSegment && (
-                      <p className="text-[11px] font-semibold text-primary mb-1">{segment.name}</p>
+                      <p className="text-[11px] font-semibold font-cinzel tracking-wide text-slate-300 mb-1">{segment.name}</p>
                     )}
-                    <div className="text-xs whitespace-pre-wrap text-white/90 break-words min-w-0">
+                    <div className="font-body text-[13.5px] leading-snug text-white/80 whitespace-pre-wrap break-words min-w-0">
                       <AfkAnnotatedContent
                         content={stripCinematicTagsFromDisplay(segmentContent)}
                         afkNames={segmentAfkNames}
@@ -1103,7 +1122,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
             })}
           </div>
         ) : (
-        <p className="text-xs whitespace-pre-wrap text-white/90">
+        <p className="font-body text-[13.5px] leading-snug text-white/80 whitespace-pre-wrap">
           {videoMatch ? (
             <span>
               <span className="flex items-center gap-1 mb-1.5">
