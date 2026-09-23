@@ -826,6 +826,33 @@ export function RoundChatDrawer({
                             isSelf={isSelf}
                             alignRight={alignRight}
                           />
+                        ) : diceRoll ? (
+                          <button
+                            onClick={() => setActionsFor(showActions ? null : m.id)}
+                            style={{ ...PILL(homePillPlaque.url), touchAction: 'manipulation' }}
+                            className={cn(
+                              "inline-flex items-center gap-1.5 max-w-full whitespace-nowrap text-xs text-amber-50 active:scale-[0.98] transition-transform",
+                              m.selected && "drop-shadow-[0_0_6px_rgba(52,211,153,0.8)]",
+                              !modeMatch && "opacity-40",
+                            )}
+                          >
+                            <img src={glyphD20Asset.url} alt="" className="w-3.5 h-3.5 shrink-0" />
+                            <span className="font-cinzel">{diceRoll.label}</span>
+                            <span className="opacity-50">·</span>
+                            {diceRoll.rolls.map((r, i) => (
+                              <span key={i} className={cn(r.dropped && "line-through opacity-40")}>{r.value}</span>
+                            ))}
+                            {diceRoll.modifier && <span>{diceRoll.modifier}</span>}
+                            <span className="opacity-50">=</span>
+                            <span className="font-cinzel text-[15px] text-white">{diceRoll.total}</span>
+                            {diceRoll.crit === 'nat20' && (
+                              <span className="text-[9px] font-semibold tracking-wider text-amber-300">NAT 20</span>
+                            )}
+                            {diceRoll.crit === 'nat1' && (
+                              <span className="text-[9px] font-semibold tracking-wider text-red-400">NAT 1</span>
+                            )}
+                            {m.consumed && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                          </button>
                         ) : editingMessageId === m.id ? (
                           <div className="w-full space-y-1.5 text-left">
                             <textarea
