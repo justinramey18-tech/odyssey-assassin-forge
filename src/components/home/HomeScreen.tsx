@@ -13,8 +13,8 @@ import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { SaveData } from '@/hooks/use-auto-save';
 import { 
   Settings, Coffee, Moon, TrendingUp,
-  MessageCircle, Gem, Zap, HelpCircle, BookOpen,
-  Swords, Wand2, ListChecks, ChevronUp, Users, User, Film,
+  MessageCircle, Gem, Zap, BookOpen,
+  Swords, Wand2, ListChecks, Users, User, Film,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -73,6 +73,14 @@ import empyreanHomeBackgroundAsset from '@/assets/empyrean-home-bg.jpg.asset.jso
 import soloDmButtonArt from '@/assets/solo-dm-button.jpg.asset.json';
 import empyreanDmButtonArt from '@/assets/empyrean-dm-button.jpg.asset.json';
 import enterStoryEmblem from '@/assets/enter-story-emblem.png';
+import homeIconHelpAsset from '@/assets/home/home-icon-help.png.asset.json';
+import homeIconPartyAsset from '@/assets/home/home-icon-party.png.asset.json';
+import homeTogglePartyAsset from '@/assets/home/home-toggle-party.png.asset.json';
+import homeToggleSoloAsset from '@/assets/home/home-toggle-solo.png.asset.json';
+import homeToggleCollapseAsset from '@/assets/home/home-toggle-collapse.png.asset.json';
+import homeBtnArchitectAsset from '@/assets/home/home-btn-architect.png.asset.json';
+import homeBtnNavigationAsset from '@/assets/home/home-btn-navigation.png.asset.json';
+import homeFooterTrayAsset from '@/assets/home/home-footer-tray.jpg.asset.json';
 const soloBackground = soloHomeBackgroundAsset.url;
 const empyreanHomeBackground = empyreanHomeBackgroundAsset.url;
 
@@ -227,9 +235,6 @@ const triggerHaptic = (intensity: 'light' | 'medium' | 'heavy' = 'light') => {
     navigator.vibrate(patterns[intensity]);
   }
 };
-
-// Transparent button style
-const transparentButtonBase = "border border-white/30 rounded-lg bg-transparent hover:bg-white/10 hover:border-white/50 transition-all duration-300";
 
 /** Tiny sub-badge showing online count with a green dot */
 function OnlineCountBadge({ members }: { members: Array<{ user_id: string; updated_at: string }> }) {
@@ -795,18 +800,19 @@ export function HomeScreen({
               onLoadSave={onLoadSave ?? (() => {})}
               onCloudClick={onCloudSyncClick ?? (() => {})}
               onBeforeSwitch={onQuickSave}
+              variant="ornate"
             />
-            <ClockWidget />
+            <ClockWidget variant="ornate" />
             <button 
                 onClick={() => {
                   triggerHaptic('light');
                   setShowFAQDrawer(true);
                 }}
-                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 transition-transform"
                 style={{ touchAction: 'manipulation' }}
                 aria-label="Help & FAQ"
               >
-                <HelpCircle className="w-4 h-4 text-white/80" />
+                <img src={homeIconHelpAsset.url} alt="" draggable={false} className="w-8 h-8" />
               </button>
           </div>
         </motion.header>
@@ -819,6 +825,7 @@ export function HomeScreen({
             primaryClass={character.primaryClass}
             dragonName={loadEmpyreanDMConfig()?.dragonName}
             onOpenSettings={onOpenSettings}
+            variant="ornate"
           />
         ) : (
           <motion.div
@@ -832,6 +839,7 @@ export function HomeScreen({
               primaryClass={character.primaryClass}
               dragonName={loadEmpyreanDMConfig()?.dragonName}
               onOpenSettings={onOpenSettings}
+              variant="ornate"
             />
           </motion.div>
         )}
@@ -952,8 +960,8 @@ export function HomeScreen({
                 {/* App update */}
                 {showFeature('home.restButtons') && (
                   <div className="px-4 py-2">
-                    <div className="flex gap-3 max-w-md mx-auto justify-center">
-                      <AppUpdateButton className={transparentButtonBase} />
+                    <div className="w-full">
+                      <AppUpdateButton />
                     </div>
                   </div>
                 )}
@@ -1027,25 +1035,16 @@ export function HomeScreen({
                           onPlayModeChange('party');
                         }
                       }}
-                      className={cn(
-                        "flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-cinzel uppercase tracking-wider transition-colors border",
-                        playMode === 'party'
-                          ? "border-emerald-500/40 bg-emerald-900/30 text-emerald-300"
-                          : "border-muted-foreground/30 bg-muted/20 text-muted-foreground"
-                      )}
+                      className="min-h-[44px] flex items-center active:scale-95 transition-transform"
                       style={{ touchAction: 'manipulation' }}
+                      aria-label={playMode === 'party' ? 'Party mode, tap to switch to solo' : 'Solo mode, tap to switch to party'}
                     >
-                      {playMode === 'party' ? (
-                        <>
-                          <Users className="w-3 h-3" />
-                          <span>Party</span>
-                        </>
-                      ) : (
-                        <>
-                          <User className="w-3 h-3" />
-                          <span>Solo</span>
-                        </>
-                      )}
+                      <img
+                        src={playMode === 'party' ? homeTogglePartyAsset.url : homeToggleSoloAsset.url}
+                        alt=""
+                        draggable={false}
+                        className="h-9 w-auto"
+                      />
                     </button>
                   )}
                   {playMode === 'party' && (
@@ -1054,11 +1053,11 @@ export function HomeScreen({
                         triggerHaptic('light');
                         setShowPartyDrawer(true);
                       }}
-                      className="p-2 rounded-lg hover:bg-white/10 transition-colors relative flex items-center gap-1.5"
+                      className="relative min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 transition-transform"
                       style={{ touchAction: 'manipulation' }}
                       aria-label={`Party — ${partySync.party.members.length} members`}
                     >
-                      <Users className="w-5 h-5 text-emerald-400" />
+                      <img src={homeIconPartyAsset.url} alt="" draggable={false} className="w-10 h-10" />
                       <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
                         {partySync.party.members.length}
                       </span>
@@ -1080,12 +1079,11 @@ export function HomeScreen({
                       triggerHaptic('light');
                       setShowPartyDrawer(true);
                     }}
-                    className="rounded-lg transition-colors relative flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-emerald-900/20 border border-emerald-500/30"
+                    className="min-h-[44px] flex items-center active:scale-95 transition-transform"
                     style={{ touchAction: 'manipulation' }}
                     aria-label="Create or Join Party"
                   >
-                    <Users className="w-4 h-4 text-emerald-400/70" />
-                    <span className="text-[10px] font-cinzel uppercase tracking-wider text-emerald-400/70">Party</span>
+                    <img src={homeTogglePartyAsset.url} alt="" draggable={false} className="h-9 w-auto" />
                   </button>
                 </motion.div>
               )}
@@ -1135,16 +1133,11 @@ export function HomeScreen({
                 >
                   <button
                     onClick={() => { triggerHaptic('light'); drawerContext?.openPartyDMCampaignBuilder(); }}
-                    className={cn(
-                      "w-full flex items-center justify-center gap-2 py-3 rounded-xl",
-                      "border border-amber-500/40 bg-amber-950/25 backdrop-blur-sm",
-                      "hover:bg-amber-900/35 hover:border-amber-400/60",
-                      "active:scale-[0.98] transition-all duration-200"
-                    )}
+                    className="block w-[80%] max-w-[330px] mx-auto active:scale-[0.98] transition-transform"
                     style={{ touchAction: 'manipulation' }}
+                    aria-label="New game, Campaign Architect"
                   >
-                    <Wand2 className="w-5 h-5 text-amber-400" />
-                    <span className="text-sm font-cinzel uppercase tracking-wider text-amber-300">New Game / Campaign Architect</span>
+                    <img src={homeBtnArchitectAsset.url} alt="" draggable={false} className="block w-full" />
                   </button>
                 </motion.div>
               )}
@@ -1160,8 +1153,8 @@ export function HomeScreen({
                   transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                   className="px-4 py-2"
                 >
-                  <div className="flex gap-3 max-w-md mx-auto justify-center">
-                    <AppUpdateButton className={transparentButtonBase} />
+                  <div className="w-full">
+                    <AppUpdateButton />
                   </div>
                 </motion.div>
               )}
@@ -1177,49 +1170,20 @@ export function HomeScreen({
           initial={{ opacity: 0, y: appMode === 'empyrean' ? 20 : prefersReducedMotion ? 0 : 20 }}
           animate={appMode === 'empyrean' ? { opacity: 1, y: 0 } : stage >= 4 ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 20 }}
           transition={appMode === 'empyrean' ? { delay: 0.9, duration: 0.3 } : { duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          className="border-t border-white/10"
+          className="relative bg-cover bg-top bg-no-repeat"
+          style={{ backgroundImage: `url(${homeFooterTrayAsset.url})` }}
         >
           {/* Collapse toggle tab */}
           <button
             onClick={toggleFooter}
-            className={cn(
-              "w-full flex items-center justify-center gap-2 py-3 min-h-[48px] transition-all duration-200",
-              footerCollapsed
-                ? "bg-white/5 hover:bg-white/10 border-b border-white/5"
-                : "hover:bg-white/5"
-            )}
+            className="w-full flex items-center justify-center min-h-[48px] active:scale-[0.98] transition-transform"
             style={{ touchAction: 'manipulation' }}
             aria-label={footerCollapsed ? 'Expand navigation' : 'Collapse navigation'}
           >
             {footerCollapsed ? (
-              <>
-                <div className="flex gap-1.5 items-center">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400/50" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-400/50" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400/50" />
-                </div>
-                <span className="text-[11px] font-cinzel uppercase tracking-widest text-white/50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                  Navigation
-                </span>
-                <motion.div
-                  animate={{ rotate: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <ChevronUp className="w-5 h-5 text-white/50" />
-                </motion.div>
-              </>
+              <img src={homeBtnNavigationAsset.url} alt="" draggable={false} className="h-11 w-auto" />
             ) : (
-              <>
-                <span className="text-[10px] font-mono uppercase tracking-widest text-white/30">
-                  Collapse
-                </span>
-                <motion.div
-                  animate={{ rotate: 180 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <ChevronUp className="w-5 h-5 text-white/40" />
-                </motion.div>
-              </>
+              <img src={homeToggleCollapseAsset.url} alt="" draggable={false} className="h-8 w-auto" />
             )}
           </button>
 
