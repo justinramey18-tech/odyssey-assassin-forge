@@ -1,5 +1,7 @@
-import { Download, Loader2, Pause, SlidersHorizontal } from 'lucide-react';
+import { Download, Loader2 } from 'lucide-react';
 import listenToStory from '@/assets/listen-to-story.png.asset.json';
+import dmGlyphNarrateAsset from '@/assets/dm-message/dm-glyph-narrate.png.asset.json';
+import dmGlyphPauseAsset from '@/assets/dm-message/dm-glyph-pause.png.asset.json';
 import { useEffect, useMemo, useState } from 'react';
 import {
   splitDMResponseParts,
@@ -129,7 +131,7 @@ export function MessageNarrationBar({
             />
             {isPlayingAny && (
               <span className="absolute inset-0 flex items-center justify-center gap-1.5 bg-black/60 text-[11px] text-amber-100">
-                <Pause className="w-4 h-4 shrink-0" />
+                <img src={dmGlyphPauseAsset.url} alt="" draggable={false} className="w-4 h-4 shrink-0" />
                 <span className="truncate px-1">{speakingName ? `Stop · ${speakingName}` : 'Stop'}</span>
               </span>
             )}
@@ -148,10 +150,10 @@ export function MessageNarrationBar({
         <button
           onClick={() => setStudioOpen(true)}
           style={{ touchAction: 'manipulation' }}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] border border-sky-500/30 bg-sky-900/20 text-sky-200/85 hover:bg-sky-900/40 transition-colors"
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] border border-amber-500/35 bg-amber-950/30 text-amber-100 hover:bg-amber-900/40 transition-colors"
           title="Open the Narration Studio for this message"
         >
-          <SlidersHorizontal className="w-3 h-3" />
+          <img src={dmGlyphNarrateAsset.url} alt="" draggable={false} className="w-4 h-4" />
           Edit narration
         </button>
 

@@ -18,6 +18,18 @@ import partyDmHeaderBgAsset from '@/assets/party-dm-header-bg.jpg.asset.json';
 const partyDmHeaderBg = partyDmHeaderBgAsset.url;
 import partyDmHomeEmblemAsset from '@/assets/party-dm-home-emblem-v2.png.asset.json';
 const partyDmHomeEmblem = partyDmHomeEmblemAsset.url;
+import dmFrameAsset from '@/assets/dm-message/dm-frame.png.asset.json';
+import dmCrestAsset from '@/assets/dm-message/dm-crest.png.asset.json';
+import dmSigilAsset from '@/assets/dm-message/dm-sigil.png.asset.json';
+import dmGlyphBookmarkAsset from '@/assets/dm-message/dm-glyph-bookmark.png.asset.json';
+import dmGlyphExpandAsset from '@/assets/dm-message/dm-glyph-expand.png.asset.json';
+import dmGlyphRegenerateAsset from '@/assets/dm-message/dm-glyph-regenerate.png.asset.json';
+const dmFrame = dmFrameAsset.url;
+const dmCrest = dmCrestAsset.url;
+const dmSigil = dmSigilAsset.url;
+const dmGlyphBookmark = dmGlyphBookmarkAsset.url;
+const dmGlyphExpand = dmGlyphExpandAsset.url;
+const dmGlyphRegenerate = dmGlyphRegenerateAsset.url;
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
 import CinematicSlideshow from '@/components/empyrean/CinematicSlideshow';
 import EmpyreanContextualActions from '@/components/empyrean/EmpyreanContextualActions';
@@ -30,7 +42,7 @@ import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, ChevronRight, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause, MessageCircle, SmilePlus, Theater, Megaphone, Swords } from 'lucide-react';
+import { Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, MoreVertical, Film, Image as ImageIcon, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, ChevronRight, Timer, Ghost, Lock, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause, MessageCircle, SmilePlus, Theater, Megaphone, Swords } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer, PreSplitChatViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -656,12 +668,19 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
               </div>
             </button>
           )}
-          <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
-            {message.sender_name === 'DM' ? (
-              <Crown className="w-3.5 h-3.5 text-amber-400" />
-            ) : (
+          {message.sender_name === 'DM' ? (
+            <img src={dmSigil} alt="" draggable={false} className="w-9 h-9 shrink-0 mt-1.5" />
+          ) : (
+            <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
               <MessageCircle className="w-3.5 h-3.5 text-amber-500" />
-            )}
+            </div>
+          )}
+          <div className="relative flex-1 min-w-0">
+            {message.sender_name === 'DM' && <img src={dmCrest} alt="" aria-hidden="true" draggable={false} className="pointer-events-none absolute left-1/2 -translate-x-1/2 -top-6 z-10 w-[40%] max-w-[180px]" />}
+          <div
+            className="min-w-0 px-2 pb-1.5 sm:px-3"
+            style={{ borderStyle: 'solid', borderWidth: '12px', borderImage: `url(${dmFrame}) 100 fill / 40px stretch`, paddingTop: message.sender_name === 'DM' ? 28 : 8 }}
+          >
           </div>
           <div className="flex-1 min-w-0 rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 bg-indigo-950/15 border border-indigo-500/15 rounded-bl-sm overflow-hidden">
             {message.sender_name !== 'DM' && (
@@ -715,7 +734,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
             ) : (
               <div
                 data-odyssey-message={message.id}
-                className="text-xs prose prose-invert prose-xs max-w-none break-words overflow-wrap-anywhere"
+                className={cn("font-story text-[15px] leading-[1.6] text-white/90 prose prose-invert max-w-none break-words overflow-wrap-anywhere prose-p:my-2", message.sender_name === 'DM' && "dm-dropcap")}
               >
                 {videoMatch ? (
                   <div>
@@ -755,6 +774,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                       },
                       strong: ({ children }) => <strong className="text-amber-300">{children}</strong>,
                       em: ({ children }) => <em className="text-white/70">{children}</em>,
+                      hr: () => <div role="separator" className="my-4 h-px bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />,
                       ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
                       ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
                       li: ({ children }) => <li className="mb-1">{children}</li>,
@@ -800,7 +820,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                     size="sm"
                     className="gap-1 bg-amber-900/40 border border-amber-500/30 hover:bg-amber-900/60 text-amber-300 h-7 px-2 text-xs"
                   >
-                    <RefreshCw className="w-3 h-3" />
+                    <img src={dmGlyphRegenerate} alt="" draggable={false} className="w-3.5 h-3.5" />
                     Regenerate
                   </Button>
                 </div>
@@ -853,7 +873,12 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                 style={{ touchAction: 'manipulation' }}
                 title={isBookmarked ? "Bookmarked" : "Bookmark here"}
               >
-                {isBookmarked ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+                <img
+                  src={dmGlyphBookmark}
+                  alt=""
+                  draggable={false}
+                  className={cn("w-4 h-4", isBookmarked ? "drop-shadow-[0_0_6px_rgba(251,191,36,0.9)]" : "opacity-40")}
+                />
               </button>
             )}
 
@@ -888,7 +913,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                       className="p-1.5 rounded hover:bg-amber-900/30 text-amber-400/60 hover:text-amber-300 transition-colors"
                       title="Regenerate"
                     >
-                      <RefreshCw className="w-3.5 h-3.5" />
+                      <img src={dmGlyphRegenerate} alt="" draggable={false} className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => { setShowRegenNote(true); setShowActions(false); }}
@@ -915,6 +940,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                 )}
               </div>
             )}
+          </div>
           </div>
         </motion.div>
         {/* Whisper tray below the AI message bubble, filtered to current player */}
@@ -3368,9 +3394,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
         >
           {isFullscreen ? (
-            <Minimize2 className="w-4 h-4 text-white/70" />
+            <Minimize2 className="w-4 h-4 text-amber-300/80" />
           ) : (
-            <Maximize2 className="w-4 h-4 text-white/40" />
+            <img src={dmGlyphExpand} alt="" draggable={false} className="w-4 h-4 opacity-70" />
           )}
         </button>
       </div>
