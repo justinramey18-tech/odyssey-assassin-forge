@@ -2788,7 +2788,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   );
 
   return (
-    <div id="party-dm-screen-root" className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
+    <div id="party-dm-screen-root" className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f] animate-in fade-in-0 duration-200 motion-reduce:animate-none">
       {/* Header */}
       {/* Row 1: Main Header */}
       {!isFullscreen && (
@@ -3150,12 +3150,30 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             return "";
           })()
         )}>
-          {visibleMessages.length === 0 ? (
+          {visibleMessages.length === 0 && !partyDm.initialLoadDone ? (
+            /* First load: the session and story are still on their way. */
+            <div className="space-y-5 px-2 pt-2" aria-busy="true" aria-label="Loading the story">
+              {[0, 1, 2].map(i => (
+                <div key={i} className="flex gap-2 items-start">
+                  <div className="w-7 h-7 rounded-full bg-amber-900/40 animate-pulse shrink-0" style={{ animationDelay: `${i * 0.15}s` }} />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 w-24 rounded bg-amber-200/10 animate-pulse" style={{ animationDelay: `${i * 0.15}s` }} />
+                    <div className="h-3 w-full rounded bg-white/[0.06] animate-pulse" style={{ animationDelay: `${i * 0.15 + 0.05}s` }} />
+                    <div className="h-3 w-5/6 rounded bg-white/[0.06] animate-pulse" style={{ animationDelay: `${i * 0.15 + 0.1}s` }} />
+                    <div className="h-3 w-2/3 rounded bg-white/[0.06] animate-pulse" style={{ animationDelay: `${i * 0.15 + 0.15}s` }} />
+                  </div>
+                </div>
+              ))}
+              <p className="text-center font-cinzel text-[11px] tracking-widest uppercase text-amber-200/40">Opening the story…</p>
+            </div>
+          ) : visibleMessages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-6">
               <Users className="w-12 h-12 text-primary/40 mb-4" />
               <h2 className="text-lg font-cinzel text-amber-200 mb-2">Party DM Session</h2>
               <p className="text-sm text-white/40 max-w-[280px]">
-                Each player submits their action, then clicks Ready. When everyone is ready, the DM responds to all actions at once.
+                {chatRoundsOn
+                  ? 'Tap PLAY below to talk at the table. Tick the lines you want the DM to answer, and the host sends them to the DM.'
+                  : 'Each player submits their action, then clicks Ready. When everyone is ready, the DM responds to all actions at once.'}
               </p>
             </div>
           ) : (

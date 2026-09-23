@@ -427,7 +427,23 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [splitState, setSplitState] = useState<DmSplitState | null>(null);
   const [activeMoodPresetId, setActiveMoodPresetIdState] = useState<string | null>(null);
 
+  // First-load tracking, so the screen can show a loading state instead of the empty
+  // "no story yet" card while the session and its messages are still on their way.
+  const [sessionConfigLoaded, setSessionConfigLoaded] = useState(false);
+  const [messagesLoaded, setMessagesLoaded] = useState(false);
+  useEffect(() => {
+    setSessionConfigLoaded(false);
+    setMessagesLoaded(false);
+  }, [partyId]);
+
   const isActive = sessionConfig?.active === true;
+
+  // Safety net: never leave the story on a loading state if the message fetch stalls.
+  useEffect(() => {
+    if (!isActive || messagesLoaded) return;
+    const t = window.setTimeout(() => setMessagesLoaded(true), 8000);
+    return () => window.clearTimeout(t);
+  }, [isActive, messagesLoaded]);
   const isSplitActive = splitState?.active === true;
 
   // Determine current user's team
@@ -517,6 +533,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
       const msgs = msgsRes.data ? [...msgsRes.data].reverse() : [];
       setMessages(msgs);
+      setMessagesLoaded(true);
       if (promptsRes.data) {
         // Dedupe per user: prefer a real (non-blank) prompt over a blank placeholder;
         // among rows of equal "realness", prefer the newest. Guards against legacy dupes.
@@ -588,40 +605,39 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   useEffect(() => {
     if (!partyId) return;
 
+    let cancelled = false;
     (async () => {
-      const { data } = await (supabase.from('party_shared_state') as any)
-        .select('*')
-        .eq('party_id', partyId)
-        .eq('state_type', 'dm_session')
-        .maybeSingle();
-      if (data?.state_data) {
-        setSessionConfig(data.state_data as DmSessionConfig);
-      }
-
-      // Load split state
-      const { data: splitData } = await (supabase.from('party_shared_state') as any)
-        .select('*')
-        .eq('party_id', partyId)
-        .eq('state_type', 'dm_split')
-        .maybeSingle();
-      if (splitData?.state_data) {
-        setSplitState(splitData.state_data as DmSplitState);
-      }
-
-      // Load persisted active mood preset for this party (per-partyId persistence).
       try {
-        const { data: moodRow } = await (supabase.from('party_shared_state') as any)
-          .select('state_data')
+        // One round trip for the session, split and mood rows (was three in a row).
+        const { data, error } = await (supabase.from('party_shared_state') as any)
+          .select('state_type, state_data, updated_at')
           .eq('party_id', partyId)
-          .eq('state_type', 'active_mood')
-          .maybeSingle();
-        if (moodRow?.state_data?.presetId) {
-          setActiveMoodPresetIdState(moodRow.state_data.presetId as string);
+          .in('state_type', ['dm_session', 'dm_split', 'active_mood'])
+          .order('updated_at', { ascending: false });
+        if (error) console.error('[PartyDM] failed to load session state:', error);
+        if (cancelled) return;
+
+        // Newest row per type wins.
+        const byType = new Map<string, any>();
+        for (const row of (data || []) as Array<{ state_type: string; state_data: any }>) {
+          if (!byType.has(row.state_type)) byType.set(row.state_type, row.state_data);
         }
+
+        const session = byType.get('dm_session');
+        if (session) setSessionConfig(session as DmSessionConfig);
+
+        const split = byType.get('dm_split');
+        if (split) setSplitState(split as DmSplitState);
+
+        const mood = byType.get('active_mood');
+        if (mood?.presetId) setActiveMoodPresetIdState(mood.presetId as string);
       } catch (e) {
-        console.error('[PartyDM] failed to load active_mood:', e);
+        console.error('[PartyDM] failed to load session state:', e);
+      } finally {
+        if (!cancelled) setSessionConfigLoaded(true);
       }
     })();
+    return () => { cancelled = true; };
   }, [partyId]);
 
   // Realtime subscriptions
@@ -4217,6 +4233,9 @@ Rules:
 
   const computedIsGenerating = isGenerating || (sessionConfig?.isGenerating ?? false);
 
+  /** True once the first load has settled: session checked, and messages fetched if a session is running. */
+  const initialLoadDone = sessionConfigLoaded && (!isActive || messagesLoaded);
+
   return useMemo(() => ({
     messages: filteredMessages,
     allMessages: messages,
@@ -4283,6 +4302,7 @@ Rules:
     dismissExtensions,
     activeMoodPresetId,
     setActiveMoodPreset,
+    initialLoadDone,
   }), [
     filteredMessages, messages, currentPrompts, sessionConfig, isActive,
     computedIsGenerating, isSummarizing, isFullSummarizing, fullSummarize, allReady, isTurnBasedMode, turnReady, myPrompt, activeCampaignId,
@@ -4294,6 +4314,6 @@ Rules:
     addMediaMessage, stopGeneration, applyOocCommand, initiateSplit, regroupParty,
     updateSessionConfig, reclaimTurn, redoLastRound, setTimerConfig, startTimer, pauseTimer, resumeTimer,
     cancelTimer, requestExtension, approveExtension, dismissExtensions,
-    activeMoodPresetId, setActiveMoodPreset,
+    activeMoodPresetId, setActiveMoodPreset, initialLoadDone,
   ]);
 }
