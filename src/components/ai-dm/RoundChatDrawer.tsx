@@ -129,6 +129,9 @@ interface RoundChatDrawerProps {
   onMarkRead?: (iso: string) => void;
   /** Opens the Live DM Table action menu without disturbing the composer draft. */
   onOpenActionMenu?: () => void;
+  /** Shared realtime presence from PartyDMScreen. When provided, the drawer uses it instead of its own channel. */
+  presenceIds?: Set<string>;
+  presenceReady?: boolean;
 }
 
 /** Small circular face beside a message. Tapping your own opens the picker. */
@@ -252,6 +255,8 @@ export function RoundChatDrawer({
   partyMembers,
   onMarkRead,
   onOpenActionMenu,
+  presenceIds,
+  presenceReady,
 }: RoundChatDrawerProps) {
   const [editingOocName, setEditingOocName] = useState(false);
   const [oocNameDraft, setOocNameDraft] = useState('');
