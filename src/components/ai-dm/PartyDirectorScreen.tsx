@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { X, Loader2 } from 'lucide-react';
+import directorBanner from '@/assets/director/director-banner.png';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { usePartyDirector, type DirectorCategory, type DirectorMessage } from '@/hooks/use-party-director';
@@ -81,14 +82,13 @@ export function PartyDirectorScreen({
         style={{ background: 'linear-gradient(180deg, rgba(6,3,5,.1) 0%, rgba(6,3,5,.45) 30%, rgba(6,3,5,.72) 100%)' }} />
 
       {/* Header */}
-      <div className="relative shrink-0 flex items-center gap-2.5 px-3 pb-3 pt-[max(0.625rem,env(safe-area-inset-top))] bg-gradient-to-b from-black/85 to-black/35">
-        <img src={sealChannelUrl} alt="" draggable={false} className="h-12 w-12 shrink-0 drop-shadow-[0_0_8px_rgba(220,38,38,0.45)]" />
-        <div className="min-w-0">
-          <h2 className="font-cinzel text-[17px] font-bold tracking-[0.04em] text-[#FFE4AA] [text-shadow:0_0_8px_rgba(245,158,11,0.55),0_1px_2px_#000]">Director's Channel</h2>
-          <p className="mt-0.5 text-[11px] text-amber-100/60">Only you and the DM can see this.</p>
-        </div>
+      <div className="relative shrink-0 flex flex-col items-center px-3 pb-2.5 pt-[max(0.5rem,env(safe-area-inset-top))] bg-gradient-to-b from-black/85 to-black/35">
+        <h2 className="sr-only">Director's Channel</h2>
+        <img src={directorBanner} alt="" aria-hidden="true" draggable={false}
+          className="w-[86%] max-w-[370px] h-auto drop-shadow-[0_6px_12px_rgba(0,0,0,0.8)]" />
+        <p className="-mt-0.5 text-center text-[11px] text-amber-100/60">Only you and the DM can see this.</p>
         <button onClick={onClose} aria-label="Close" style={{ touchAction: 'manipulation' }}
-          className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-yellow-500/55 bg-black/60 text-amber-300 shadow-[inset_0_0_8px_rgba(0,0,0,0.8)] active:scale-95">
+          className="absolute right-2 top-[max(0.5rem,env(safe-area-inset-top))] flex h-9 w-9 items-center justify-center rounded-full border border-yellow-500/55 bg-black/60 text-amber-300 shadow-[inset_0_0_8px_rgba(0,0,0,0.8)] active:scale-95">
           <X className="h-4 w-4" />
         </button>
         <div aria-hidden="true" className="absolute inset-x-3 bottom-0 h-px"
