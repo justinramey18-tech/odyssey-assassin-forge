@@ -1,11 +1,20 @@
 import { useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Heart, Backpack, Coins, Activity, ScrollText, ChevronRight } from 'lucide-react';
+import { X, ScrollText, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CharacterContext } from '@/components/oracle/types';
 import { useXPProgression } from '@/hooks/use-xp-progression';
 import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
 import { Button } from '@/components/ui/button';
+import bagStatsBg from '@/assets/bag-stats/bag-stats-bg.jpg';
+import bagTitlePlaque from '@/assets/bag-stats/bag-title-plaque.png';
+import bagPanelFrame from '@/assets/bag-stats/bag-panel-frame.png';
+import bagGaugeFrame from '@/assets/bag-stats/bag-gauge-frame.png';
+import bagIconHeart from '@/assets/bag-stats/bag-icon-heart.png';
+import bagIconProgression from '@/assets/bag-stats/bag-icon-progression.png';
+import bagIconGold from '@/assets/bag-stats/bag-icon-gold.png';
+import bagIconBag from '@/assets/bag-stats/bag-icon-bag.png';
+import bagIconPotion from '@/assets/bag-stats/bag-icon-potion.png';
 
 interface BagStatsScreenProps {
   open: boolean;
@@ -25,14 +34,36 @@ const fmt = (n: unknown): string => {
   return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString() : '?';
 };
 
-function Section({ title, icon: Icon, children }: { title: string; icon: React.ComponentType<{ className?: string }>; children: React.ReactNode }) {
+function Section({ title, iconSrc, children }: { title: string; iconSrc: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-black/30 overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-white/[0.03]">
-        {Icon && <Icon className="w-4 h-4 text-amber-400/80 shrink-0" />}
-        <span className="text-xs font-cinzel tracking-wide text-foreground truncate">{title}</span>
+    <div
+      className="relative"
+      style={{
+        borderStyle: 'solid',
+        borderWidth: '14px',
+        borderImageSource: `url(${bagPanelFrame})`,
+        borderImageSlice: '90 fill',
+        borderImageWidth: '36px',
+        borderImageRepeat: 'stretch',
+      }}
+    >
+      <div className="flex items-center justify-center gap-2 px-2 pt-1.5 pb-2">
+        <img src={iconSrc} alt="" className="w-7 h-7 shrink-0" />
+        <span className="text-[13px] font-cinzel uppercase tracking-[0.08em] text-amber-50 truncate">{title}</span>
       </div>
-      <div className="p-3">{children}</div>
+      <div className="h-px mx-4 bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
+      <div className="px-3 pt-2.5 pb-3">{children}</div>
+    </div>
+  );
+}
+
+function Gauge({ pct, fillClassName }: { pct: number; fillClassName: string }) {
+  return (
+    <div className="relative w-full aspect-[6.19/1]">
+      <img src={bagGaugeFrame} alt="" aria-hidden="true" draggable={false} className="absolute inset-0 w-full h-full pointer-events-none select-none" />
+      <div className="absolute overflow-hidden rounded-full" style={{ top: '31%', bottom: '33%', left: '9%', right: '8.5%' }}>
+        <div className={cn('h-full rounded-full transition-all', fillClassName)} style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
+      </div>
     </div>
   );
 }
@@ -72,51 +103,45 @@ export function BagStatsScreen({
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[80] bg-background flex flex-col" role="dialog" aria-label="Bag and Stats">
+    <div className="fixed inset-0 z-[80] bg-[#0b0b0e] flex flex-col" role="dialog" aria-label="Bag and Stats">
+      <img src={bagStatsBg} alt="" aria-hidden="true" draggable={false} className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none" />
+      <div aria-hidden="true" className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/35 via-black/55 to-black/35" />
       {/* Header */}
-      <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2.5 border-b border-amber-900/30 bg-black/50 backdrop-blur-sm">
-        <div className="flex items-center gap-2 min-w-0">
-          <Coins className="w-4 h-4 text-amber-400 shrink-0" />
-          <div className="min-w-0">
-            <h2 className="text-sm font-cinzel font-bold text-amber-100 leading-tight">Bag &amp; Stats</h2>
-            {ctx.name && <p className="text-[10px] text-white/40 truncate leading-tight">{ctx.name}</p>}
-          </div>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          {onOpenFullSheet && (
-            <button
-              onClick={onOpenFullSheet}
-              className="flex items-center gap-1 px-2.5 rounded-lg border border-amber-900/30 bg-black/30 hover:bg-black/50 min-h-[48px] text-[11px] text-amber-200"
-              style={{ touchAction: 'manipulation' }}
-            >
-              Full sheet <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          )}
+      <div className="relative z-10 shrink-0 flex items-center justify-between gap-2 px-3 py-1.5">
+        <h2 className="sr-only">Bag &amp; Stats</h2>
+        {onOpenFullSheet ? (
           <button
-            onClick={onClose}
-            aria-label="Close Bag and Stats"
-            className="p-2 rounded-lg hover:bg-white/10 min-w-[48px] min-h-[48px] flex items-center justify-center"
+            onClick={onOpenFullSheet}
+            className="flex items-center gap-1 px-2.5 rounded-lg border border-amber-900/30 bg-black/30 hover:bg-black/50 min-h-[48px] text-[11px] text-amber-200"
             style={{ touchAction: 'manipulation' }}
           >
-            <X className="w-5 h-5" />
+            Full sheet <ChevronRight className="w-3.5 h-3.5" />
           </button>
-        </div>
+        ) : <span />}
+        <button
+          onClick={onClose}
+          aria-label="Close Bag and Stats"
+          className="p-2 rounded-lg hover:bg-white/10 min-w-[48px] min-h-[48px] flex items-center justify-center"
+          style={{ touchAction: 'manipulation' }}
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 space-y-3 pb-24">
+      <div className="relative z-10 flex-1 overflow-y-auto overscroll-contain px-3 pt-0 pb-24 space-y-3">
+        <img src={bagTitlePlaque} alt="Bag & Stats" draggable={false} className="block w-[78%] max-w-[340px] mx-auto" />
+        {ctx.name && <p className="text-center text-[11px] font-cinzel uppercase tracking-[0.2em] text-amber-200/60 -mt-1 mb-1">{ctx.name}</p>}
         {/* HP */}
-        <Section title="Hit Points" icon={Heart}>
-          <div className="flex items-baseline justify-between mb-2">
+        <Section title="Hit Points" iconSrc={bagIconHeart}>
+          <div className="flex items-baseline justify-between mb-1">
             <span className="text-2xl font-display font-bold text-foreground">{fmt(currentHP)}</span>
             <span className="text-xs text-white/50">/ {fmt(maxHP)} max</span>
           </div>
-          <div className="h-3 rounded-full bg-white/10 overflow-hidden mb-2">
-            <div
-              className={cn('h-full rounded-full transition-all', hpPct > 50 ? 'bg-emerald-500' : hpPct > 25 ? 'bg-amber-500' : 'bg-red-500')}
-              style={{ width: `${hpPct}%` }}
-            />
-          </div>
+          <Gauge
+            pct={hpPct}
+            fillClassName={hpPct > 50 ? 'bg-gradient-to-b from-emerald-400 to-emerald-600' : hpPct > 25 ? 'bg-gradient-to-b from-amber-400 to-amber-600' : 'bg-gradient-to-b from-red-400 to-red-600'}
+          />
           {currentHP <= 0 && (
             <p className="text-[11px] text-red-300 bg-red-500/10 border border-red-500/30 rounded-md px-2 py-1.5">
               Downed — unconscious and making death saves.
@@ -128,7 +153,7 @@ export function BagStatsScreen({
         </Section>
 
         {/* XP */}
-        <Section title="Progression" icon={Activity}>
+        <Section title="Progression" iconSrc={bagIconProgression}>
           <div className="grid grid-cols-2 gap-2 mb-3">
             <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
               <p className="text-[10px] uppercase tracking-wider text-white/40">Level</p>
@@ -152,9 +177,7 @@ export function BagStatsScreen({
                   <span className="text-white/40"> / {fmt(xpInfo.needed)}</span>
                 </span>
               </div>
-              <div className="h-2.5 rounded-full bg-white/10 overflow-hidden">
-                <div className="h-full bg-amber-500 rounded-full transition-all" style={{ width: `${Math.max(0, Math.min(100, xpInfo.progress))}%` }} />
-              </div>
+              <Gauge pct={xpInfo.progress} fillClassName="bg-gradient-to-b from-amber-300 to-amber-600" />
               <div className="flex justify-between text-[10px] text-white/40 mt-1">
                 <span>Total {fmt(currentXP)} XP</span>
                 <span>{fmt(xpInfo.toNext)} XP to next</span>
@@ -169,17 +192,15 @@ export function BagStatsScreen({
         </Section>
 
         {/* Gold */}
-        <Section title="Gold" icon={Coins}>
+        <Section title="Gold" iconSrc={bagIconGold}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full border border-amber-500/30 bg-amber-500/10 flex items-center justify-center shrink-0">
-              <Coins className="w-5 h-5 text-amber-400" />
-            </div>
+            <img src={bagIconGold} alt="" className="w-12 h-12 shrink-0" />
             <p className="text-2xl font-display font-bold text-amber-300">{fmt(gold)}</p>
           </div>
         </Section>
 
         {/* Bag */}
-        <Section title={`Bag (${loot.length})`} icon={Backpack}>
+        <Section title={`Bag (${loot.length})`} iconSrc={bagIconBag}>
           {loot.length === 0 ? (
             <p className="text-xs text-white/40 text-center py-2">No treasure carried yet.</p>
           ) : (
@@ -206,7 +227,7 @@ export function BagStatsScreen({
         </Section>
 
         {/* Consumables */}
-        <Section title="Consumables" icon={Backpack}>
+        <Section title="Consumables" iconSrc={bagIconPotion}>
           {consumables.length === 0 ? (
             <p className="text-xs text-white/40 text-center py-2">No consumables carried.</p>
           ) : (
