@@ -1778,6 +1778,7 @@ export function usePartySync(): UsePartySyncReturn {
 
   return {
     party,
+    hasResolvedParty,
     pendingHeals,
     pendingTrades,
     createParty,

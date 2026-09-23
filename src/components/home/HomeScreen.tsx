@@ -367,7 +367,9 @@ export function HomeScreen({
   // Same avatar source the Live DM Table uses, so the roster pictures match the
   // pictures on each player's chat messages.
   const rosterAvatars = useChatAvatars(partyIdForChat ?? null, userId);
-  const partySettled = !partySync || !partySync.party.isLoading;
+  const partySettled = !partySync || partySync.hasResolvedParty;
+  const avatarsRef = useRef(rosterAvatars.avatars);
+  avatarsRef.current = rosterAvatars.avatars;
   const hasRoster = playMode === 'party' && !!partySync?.party?.partyId && (partySync?.party?.members?.length ?? 0) > 0;
   useEffect(() => {
     if (!bgReady || !partySettled || sequenceStartedRef.current) return;
