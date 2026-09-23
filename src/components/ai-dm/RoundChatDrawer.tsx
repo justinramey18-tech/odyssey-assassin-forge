@@ -129,6 +129,9 @@ interface RoundChatDrawerProps {
   onMarkRead?: (iso: string) => void;
   /** Opens the Live DM Table action menu without disturbing the composer draft. */
   onOpenActionMenu?: () => void;
+  /** Shared realtime presence from PartyDMScreen. When provided, the drawer uses it instead of its own channel. */
+  presenceIds?: Set<string>;
+  presenceReady?: boolean;
 }
 
 /** Small circular face beside a message. Tapping your own opens the picker. */
@@ -252,6 +255,8 @@ export function RoundChatDrawer({
   partyMembers,
   onMarkRead,
   onOpenActionMenu,
+  presenceIds,
+  presenceReady,
 }: RoundChatDrawerProps) {
   const [editingOocName, setEditingOocName] = useState(false);
   const [oocNameDraft, setOocNameDraft] = useState('');
@@ -297,11 +302,14 @@ export function RoundChatDrawer({
 
   // The Live DM Table uses realtime presence so dots react immediately when a
   // player enters or leaves the party screen. Timestamp status remains the
-  // fallback while the presence channel connects.
+  // fallback while the presence channel connects. When shared presence from
+  // PartyDMScreen is provided, it wins and this drawer skips its own channel.
   useEffect(() => {
-    if (!partyId || !currentUserId) {
-      setLivePresenceIds(new Set());
-      setLivePresenceReady(false);
+    if (!partyId || !currentUserId || presenceIds) {
+      if (!presenceIds) {
+        setLivePresenceIds(new Set());
+        setLivePresenceReady(false);
+      }
       return;
     }
 
@@ -331,7 +339,11 @@ export function RoundChatDrawer({
       channel.untrack();
       supabase.removeChannel(channel);
     };
-  }, [partyId, currentUserId]);
+  }, [partyId, currentUserId, presenceIds]);
+
+  // Prefer the shared presence channel from PartyDMScreen when it is connected.
+  const sharedReady = presenceIds ? !!presenceReady : livePresenceReady;
+  const sharedIds = presenceIds ?? livePresenceIds;
 
   const jumpToMessage = useCallback((id: string) => {
     const el = messageRefs.current[id];
@@ -722,8 +734,8 @@ export function RoundChatDrawer({
                     : avatars?.[m.user_id]?.ooc;
                   const modeMatch = m.in_character === inCharacter;
                   const presenceInfo = onlineStatus[m.user_id];
-                  const presence = livePresenceReady
-                    ? (livePresenceIds.has(m.user_id) ? 'online' as const : 'offline' as const)
+                  const presence = sharedReady
+                    ? (sharedIds.has(m.user_id) ? 'online' as const : 'offline' as const)
                     : presenceInfo
                       ? (presenceInfo.isOnline ? 'online' as const : 'offline' as const)
                       : undefined;

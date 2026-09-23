@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 
-const ONLINE_TIMEOUT_MS = 60_000; // 1 minute
+const ONLINE_TIMEOUT_MS = 150_000; // 2.5 min — heartbeat runs every 60s; tolerates one missed beat + drift
 const REFRESH_INTERVAL_MS = 10_000; // Re-evaluate every 10s
 
 export interface OnlineInfo {

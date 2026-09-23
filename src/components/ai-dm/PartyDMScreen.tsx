@@ -65,6 +65,7 @@ import { usePartyNarrationStyle } from '@/hooks/use-party-narration-style';
 import { useRoundChat } from '@/hooks/use-round-chat';
 import { useChatAvatars } from '@/hooks/use-chat-avatars';
 import { useOnlineStatus } from '@/hooks/use-online-status';
+import { usePartyPresence } from '@/hooks/use-party-presence';
 import { RoundChatDrawer } from './RoundChatDrawer';
 import { ActionMenuSheet, type ActionMenuChoice } from './ActionMenuSheet';
 import { DMHandoffBar } from './DMHandoffBar';
@@ -1266,6 +1267,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const chatAvatars = useChatAvatars(partyId || null, currentUserId);
   const onlineMembers = useMemo(() => members.map(m => ({ user_id: m.user_id, updated_at: m.updated_at ?? '1970-01-01T00:00:00Z' })), [members]);
   const onlineStatus = useOnlineStatus(onlineMembers);
+  const partyPresence = usePartyPresence(partyId, currentUserId);
   // Live DM is assumed while the table's saved style is still loading, so the
   // classic ready-up UI never flashes first on entry.
   const chatRoundsOn = !roundChat.styleLoaded || roundChat.style.mode === 'chat' || roundChat.style.mode === 'live';
@@ -2838,7 +2840,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   ...members.filter(m => m.user_id !== currentUserId),
                 ].map(member => {
                   const status = onlineStatus[member.user_id];
-                  const statusLabel = status?.isOnline ? 'online' : (status?.lastSeenLabel ?? 'offline');
+                  const isOnline = partyPresence.ready ? partyPresence.onlineIds.has(member.user_id) : !!status?.isOnline;
+                  const statusLabel = isOnline ? 'online' : (status?.lastSeenLabel ?? 'offline');
                   const portrait = chatAvatars.avatars[member.user_id]?.ic;
                   return (
                     <div
@@ -2861,7 +2864,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                       </div>
                       <span className={cn(
                         'absolute -bottom-px -right-px w-[30%] h-[30%] rounded-full ring-1 ring-black',
-                        status?.isOnline ? 'bg-emerald-500' : 'bg-zinc-500',
+                        isOnline ? 'bg-emerald-500' : 'bg-zinc-500',
                       )} />
                     </div>
                   );
@@ -3518,6 +3521,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           }))}
           onMarkRead={roundChat.markRead}
           onOpenActionMenu={() => setActionMenuOpen(true)}
+          presenceIds={partyPresence.onlineIds}
+          presenceReady={partyPresence.ready}
         /></>
       )}
 
