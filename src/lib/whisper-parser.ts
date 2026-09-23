@@ -107,3 +107,16 @@ export function serializeWhispers(narrative: string, whispers: Whisper[]): strin
 
   return `${narrative.trim()}\n\n${blocks.join('\n')}`;
 }
+
+/**
+ * The DM sometimes writes its private planning (ILWR blueprint, NBE/SCTE beats, WNSE world state,
+ * hidden DM dice rolls) inside a TACTICS tag. It's for the DM's own continuity, not for players.
+ * The ILWR ADDON combat tracker (HP/AC) is NOT matched — players can see it.
+ */
+const DM_BLUEPRINT_RE =
+  /\[ILWR FRAMEWORK|NARRATION BLUEPRINT ENGINE|\[NBE\]|\[PIH\]|\[SCTE\]|SCTE-STEP|\bWNSE\b|WORLD AND NPC STATE ENGINE|\[CIL\]|\[NOH\]|PARAGRAPH PREVIEW:|NARRATIVE VOICE:|DM DICE ROLLS/i;
+
+/** True when a whisper is the DM's private planning blueprint rather than a real player-facing tip. */
+export function isDmBlueprintWhisper(w: Whisper): boolean {
+  return w.type === 'tactics' && DM_BLUEPRINT_RE.test(w.content);
+}
