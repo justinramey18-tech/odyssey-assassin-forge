@@ -1,8 +1,78 @@
 import { useState, useCallback, useEffect } from 'react';
+import type React from 'react';
 import { createPortal } from 'react-dom';
-import { Sparkles, X, RotateCcw, Check, Loader2, ChevronLeft, User, Users } from 'lucide-react';
+import { Sparkles, Loader2 } from 'lucide-react';
 import offeringJointAsset from '@/assets/offering-joint.jpg.asset.json';
+import moveBgAsset from '@/assets/move-flow/move-bg.jpg.asset.json';
+import moveHeaderPlaqueAsset from '@/assets/move-flow/move-header-plaque.png.asset.json';
+import moveCardSoloAsset from '@/assets/move-flow/move-card-solo.jpg.asset.json';
+import moveCardSyncAsset from '@/assets/move-flow/move-card-sync.jpg.asset.json';
+import moveBtnEveryoneAsset from '@/assets/move-flow/move-btn-everyone.png.asset.json';
+import moveBtnContinueAsset from '@/assets/move-flow/move-btn-continue.png.asset.json';
+import moveBtnRegenerateAsset from '@/assets/move-flow/move-btn-regenerate.png.asset.json';
+import moveBtnBackAsset from '@/assets/move-flow/move-btn-back.png.asset.json';
+import moveCheckAsset from '@/assets/move-flow/move-check.png.asset.json';
+import moveStanceAgainstMildAsset from '@/assets/move-flow/move-stance-against-mild.png.asset.json';
+import moveStanceAgainstFullAsset from '@/assets/move-flow/move-stance-against-full.png.asset.json';
+import moveStanceWithMildAsset from '@/assets/move-flow/move-stance-with-mild.png.asset.json';
+import moveStanceWithFullAsset from '@/assets/move-flow/move-stance-with-full.png.asset.json';
+import moveAlignLawfulGoodAsset from '@/assets/move-flow/move-align-lawful-good.png.asset.json';
+import moveAlignNeutralGoodAsset from '@/assets/move-flow/move-align-neutral-good.png.asset.json';
+import moveAlignChaoticGoodAsset from '@/assets/move-flow/move-align-chaotic-good.png.asset.json';
+import moveAlignLawfulNeutralAsset from '@/assets/move-flow/move-align-lawful-neutral.png.asset.json';
+import moveAlignTrueNeutralAsset from '@/assets/move-flow/move-align-true-neutral.png.asset.json';
+import moveAlignChaoticNeutralAsset from '@/assets/move-flow/move-align-chaotic-neutral.png.asset.json';
+import moveAlignLawfulEvilAsset from '@/assets/move-flow/move-align-lawful-evil.png.asset.json';
+import moveAlignNeutralEvilAsset from '@/assets/move-flow/move-align-neutral-evil.png.asset.json';
+import moveAlignChaoticEvilAsset from '@/assets/move-flow/move-align-chaotic-evil.png.asset.json';
+import bagClose from '@/assets/bag-stats/bag-close.png';
+import bagBtnUse from '@/assets/bag-stats/bag-btn-use.png';
+import bagPanelFrame from '@/assets/bag-stats/bag-panel-frame.png';
 import { RP_FLAVORS, getRpFlavor, type RpFlavor } from '@/lib/rpFlavors';
+
+const moveBg = moveBgAsset.url;
+const moveHeaderPlaque = moveHeaderPlaqueAsset.url;
+const moveCardSolo = moveCardSoloAsset.url;
+const moveCardSync = moveCardSyncAsset.url;
+const moveBtnEveryone = moveBtnEveryoneAsset.url;
+const moveBtnContinue = moveBtnContinueAsset.url;
+const moveBtnRegenerate = moveBtnRegenerateAsset.url;
+const moveBtnBack = moveBtnBackAsset.url;
+const moveCheck = moveCheckAsset.url;
+const moveStanceAgainstMild = moveStanceAgainstMildAsset.url;
+const moveStanceAgainstFull = moveStanceAgainstFullAsset.url;
+const moveStanceWithMild = moveStanceWithMildAsset.url;
+const moveStanceWithFull = moveStanceWithFullAsset.url;
+
+const ALIGN_EMBLEMS: Record<string, string> = {
+  'lawful-good': moveAlignLawfulGoodAsset.url,
+  'neutral-good': moveAlignNeutralGoodAsset.url,
+  'chaotic-good': moveAlignChaoticGoodAsset.url,
+  'lawful-neutral': moveAlignLawfulNeutralAsset.url,
+  'true-neutral': moveAlignTrueNeutralAsset.url,
+  'chaotic-neutral': moveAlignChaoticNeutralAsset.url,
+  'lawful-evil': moveAlignLawfulEvilAsset.url,
+  'neutral-evil': moveAlignNeutralEvilAsset.url,
+  'chaotic-evil': moveAlignChaoticEvilAsset.url,
+};
+
+const PANEL_FRAME_STYLE: React.CSSProperties = {
+  borderStyle: 'solid',
+  borderWidth: '14px',
+  borderImageSource: `url(${bagPanelFrame})`,
+  borderImageSlice: '90 fill',
+  borderImageWidth: '36px',
+  borderImageRepeat: 'stretch',
+};
+
+function stanceIcon(label?: string): string | null {
+  const normalized = label?.toLowerCase().replace(/\s+/g, ' ').trim();
+  if (normalized === 'against · mild') return moveStanceAgainstMild;
+  if (normalized === 'against · full send') return moveStanceAgainstFull;
+  if (normalized === 'with · mild') return moveStanceWithMild;
+  if (normalized === 'with · full send') return moveStanceWithFull;
+  return null;
+}
 
 interface ActionItem {
   id: string;
@@ -179,79 +249,76 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
 
       {open && createPortal(
         <div className="fixed inset-0 z-[80] bg-black/80 flex items-stretch justify-center">
-        <div className="flex h-full w-full max-w-lg flex-col bg-background">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-amber-900/30 bg-background">
-            <div className="flex items-center gap-2 min-w-0">
-              <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-              <span className="text-sm font-cinzel text-amber-300 truncate">
-                {headerTitle}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {mode !== null && !loading && (
-                <button
-                  onClick={back}
-                  className="flex items-center gap-1 text-[11px] text-amber-300/60 hover:text-amber-300 px-2 py-1 rounded"
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                  Back
-                </button>
-              )}
-              {!loading && flavorId && (
-                <button
-                  onClick={() => generate(flavorId, mode || 'solo', targetIds)}
-                  className="flex items-center gap-1 text-[11px] text-amber-300/60 hover:text-amber-300 px-2 py-1 rounded"
-                  style={{ touchAction: 'manipulation' }}
-                  title="Regenerate"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  Regenerate
-                </button>
-              )}
+        <div className="relative overflow-hidden bg-[#0b0b0e] flex h-full w-full max-w-lg flex-col">
+          <img src={moveBg} alt="" aria-hidden="true" draggable={false} className="pointer-events-none absolute inset-0 h-full w-full object-cover select-none" />
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/45 via-black/65 to-black/45" />
+
+          <div className="relative z-10 flex items-center gap-1 px-2 pt-[max(0.375rem,env(safe-area-inset-top))] min-h-[52px]">
+            {mode !== null && !loading && (
               <button
-                onClick={close}
-                className="p-1.5 rounded-lg border border-amber-500/30 text-amber-300 hover:bg-amber-900/30"
+                onClick={back}
+                className="min-h-[48px] flex items-center active:scale-95 transition-transform"
                 style={{ touchAction: 'manipulation' }}
-                aria-label="Close"
+                aria-label="Back"
               >
-                <X className="w-4 h-4" />
+                <img src={moveBtnBack} alt="" draggable={false} className="h-10 w-auto" />
               </button>
-            </div>
+            )}
+            {!loading && flavorId && (
+              <button
+                onClick={() => generate(flavorId, mode || 'solo', targetIds)}
+                className="min-h-[48px] flex items-center active:scale-95 transition-transform"
+                style={{ touchAction: 'manipulation' }}
+                aria-label="Regenerate"
+              >
+                <img src={moveBtnRegenerate} alt="" draggable={false} className="h-10 w-auto" />
+              </button>
+            )}
+            <div className="flex-1" />
+            <button
+              onClick={close}
+              className="min-w-[48px] min-h-[48px] flex items-center justify-center active:scale-95 transition-transform"
+              style={{ touchAction: 'manipulation' }}
+              aria-label="Close"
+            >
+              <img src={bagClose} alt="" draggable={false} className="h-11 w-11" />
+            </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+          <div className="relative z-10 mx-auto aspect-[900/320] w-[94%] max-w-[440px]">
+            <img src={moveHeaderPlaque} alt="" aria-hidden="true" draggable={false} className="absolute inset-0 h-full w-full select-none" />
+            <h2 className="absolute flex items-center justify-center gap-1.5 text-center font-cinzel text-[13px] leading-tight tracking-[0.06em] text-amber-100 [text-shadow:0_1px_3px_rgba(0,0,0,0.9)]" style={{ left: '14%', right: '14%', top: '38%', bottom: '24%' }}>
+              {flavorId && ALIGN_EMBLEMS[flavorId] && <img src={ALIGN_EMBLEMS[flavorId]} alt="" className="h-6 w-6 shrink-0" />}
+              <span className="truncate">{headerTitle}</span>
+            </h2>
+          </div>
+
+          <div className="relative z-10 flex-1 overflow-y-auto px-4 py-4 space-y-3">
             {mode === null ? (
               <div className="space-y-3">
                 <button
                   onClick={() => pickMode('solo')}
                   style={{ touchAction: 'manipulation' }}
-                  className="w-full flex items-start gap-3 text-left rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-4 min-h-[104px] active:scale-[0.98] transition-transform"
+                  className="block w-full max-w-[300px] mx-auto active:scale-[0.98] transition-transform"
+                  aria-label="Do my own thing"
                 >
-                  <User className="w-5 h-5 text-amber-300 shrink-0 mt-0.5" />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-cinzel text-amber-200">Do my own thing</span>
-                    <span className="block text-[11px] text-white/50 mt-1 leading-snug">
-                      Moves built purely on the story so far. Ignores what the others are typing.
-                    </span>
-                  </span>
+                  <img src={moveCardSolo} alt="" draggable={false} className="block w-full rounded-xl shadow-[0_4px_18px_rgba(0,0,0,0.6)]" />
+                  <span className="mt-1.5 block text-center text-[11px] leading-snug text-white/60">Moves built purely on the story so far. Ignores what the others are typing.</span>
                 </button>
                 <button
                   onClick={() => pickMode('sync')}
                   disabled={!hasCandidates}
                   style={{ touchAction: 'manipulation' }}
-                  className="w-full flex items-start gap-3 text-left rounded-xl border border-sky-500/30 bg-sky-950/20 px-4 py-4 min-h-[104px] active:scale-[0.98] transition-transform disabled:border-muted disabled:bg-muted/30 disabled:opacity-45 disabled:active:scale-100"
+                  className="block w-full max-w-[300px] mx-auto active:scale-[0.98] transition-transform disabled:opacity-45 disabled:grayscale disabled:active:scale-100"
+                  aria-label="Synergize with others"
                 >
-                  <Users className="w-5 h-5 text-sky-300 shrink-0 mt-0.5" />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-cinzel text-sky-200">Synergize with others</span>
-                    <span className="block text-[11px] text-white/50 mt-1 leading-snug">
-                      {hasCandidates
-                        ? liveTableCandidates.some(candidate => candidate.fromLastRound)
-                          ? 'Uses what the others said in the last round so you can build on it — or cut across it.'
-                          : 'Reads what the others just said at the table so you can back them up — or cut across them.'
-                        : 'Nobody has said anything yet'}
-                    </span>
+                  <img src={moveCardSync} alt="" draggable={false} className="block w-full rounded-xl shadow-[0_4px_18px_rgba(0,0,0,0.6)]" />
+                  <span className="mt-1.5 block text-center text-[11px] leading-snug text-white/60">
+                    {hasCandidates
+                      ? liveTableCandidates.some(candidate => candidate.fromLastRound)
+                        ? 'Uses what the others said in the last round so you can build on it — or cut across it.'
+                        : 'Reads what the others just said at the table so you can back them up — or cut across them.'
+                      : 'Nobody has said anything yet'}
                   </span>
                 </button>
               </div>
@@ -260,9 +327,10 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
                 <button
                   onClick={() => setTargetIds(liveTableCandidates.map(c => c.userId))}
                   style={{ touchAction: 'manipulation' }}
-                  className="w-full py-2.5 rounded-lg border border-sky-500/30 bg-sky-950/20 text-[12px] font-cinzel text-sky-200"
+                  className="block w-[84%] max-w-[340px] mx-auto active:scale-[0.98] transition-transform"
+                  aria-label="Everyone who spoke"
                 >
-                  Everyone who spoke
+                  <img src={moveBtnEveryone} alt="" draggable={false} className="block w-full" />
                 </button>
                 {liveTableCandidates.map((c) => {
                   const selected = targetIds.includes(c.userId);
@@ -270,14 +338,11 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
                     <button
                       key={c.userId}
                       onClick={() => toggleTarget(c.userId)}
-                      style={{ touchAction: 'manipulation' }}
-                      className={`w-full flex items-start gap-3 text-left rounded-xl border px-3 py-3 min-h-[104px] active:scale-[0.98] transition-transform ${
-                        selected
-                          ? 'border-amber-400/70 ring-2 ring-amber-400/40 bg-amber-950/30'
-                          : 'border-white/10 bg-white/[0.03]'
-                      }`}
+                      style={{ ...PANEL_FRAME_STYLE, touchAction: 'manipulation' }}
+                      className={`relative w-full flex items-start gap-3 text-left min-h-[104px] active:scale-[0.98] transition-transform ${selected ? 'shadow-[0_0_18px_rgba(251,191,36,0.35)]' : ''}`}
+                      aria-pressed={selected}
                     >
-                      <span className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-white/15 bg-black/40 flex items-center justify-center text-base font-semibold text-white/70">
+                      <span className="w-12 h-12 rounded-full overflow-hidden shrink-0 border-2 border-amber-500/70 bg-black/40 flex items-center justify-center text-base font-semibold text-white/70">
                         {c.avatarUrl
                           ? <img src={c.avatarUrl} alt="" className="w-full h-full object-cover" />
                           : (c.name.charAt(0).toUpperCase() || '?')}
@@ -295,7 +360,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
                           {c.preview}
                         </span>
                       </span>
-                      {selected && <Check className="w-4 h-4 text-amber-300 shrink-0 mt-1" />}
+                      {selected && <img src={moveCheck} alt="" className="absolute -right-2 -top-2 h-9 w-9" />}
                     </button>
                   );
                 })}
@@ -303,17 +368,20 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
                   onClick={() => setTargetsDone(true)}
                   disabled={!canContinue}
                   style={{ touchAction: 'manipulation' }}
-                  className="w-full py-3 rounded-lg bg-amber-900/40 border border-amber-500/30 text-amber-100 text-sm font-cinzel disabled:opacity-40"
+                  className="block w-[84%] max-w-[340px] mx-auto active:scale-[0.98] transition-transform disabled:opacity-40 disabled:grayscale disabled:active:scale-100"
+                  aria-label="Continue"
                 >
-                  Continue
+                  <img src={moveBtnContinue} alt="" draggable={false} className="block w-full" />
                 </button>
               </div>
             ) : showFlavors ? (
               <div className="space-y-3">
                 {showContext && (
-                  <div className="flex min-h-12 items-center gap-2 border-y border-amber-500/20 bg-muted/40 px-3 py-2">
+                  <div className="relative flex min-h-12 items-center gap-2 px-3 py-2">
+                    <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
+                    <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
                     {mode === 'sync' && selectedCandidates.slice(0, 2).map(candidate => (
-                      <span key={candidate.userId} className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-amber-500/30 bg-muted text-xs text-muted-foreground">
+                      <span key={candidate.userId} className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-amber-500/70 bg-muted text-xs text-muted-foreground">
                         {candidate.avatarUrl
                           ? <img src={candidate.avatarUrl} alt="" className="h-full w-full object-cover" />
                           : (candidate.name.charAt(0).toUpperCase() || '?')}
@@ -328,15 +396,17 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
                     key={f.id}
                     onClick={() => generate(f.id, mode, targetIds)}
                     style={{ touchAction: 'manipulation' }}
-                    className={`flex flex-col items-center justify-start text-center gap-1 rounded-xl border px-2 py-3 min-h-[104px] active:scale-[0.97] transition-transform ${f.accent}`}
+                    className="group flex flex-col items-center justify-start text-center gap-1 rounded-xl px-1.5 py-2 min-h-[104px] hover:bg-white/[0.04] active:scale-[0.95] transition-transform"
                   >
-                    <span className="text-xl leading-none">{f.emoji}</span>
+                    {ALIGN_EMBLEMS[f.id]
+                      ? <img src={ALIGN_EMBLEMS[f.id]} alt="" draggable={false} className="h-[62px] w-[62px] transition-[filter] duration-150 group-active:brightness-125 group-active:drop-shadow-[0_0_10px_rgba(251,191,36,0.6)]" />
+                      : <span className="text-xl leading-none">{f.emoji}</span>}
                     <span className={`text-[11px] font-cinzel leading-tight ${f.titleColor}`}>
                       {f.law}
                       <br />
                       {f.moral}
                     </span>
-                    <span className="text-[9px] text-white/40 leading-tight">{f.blurb}</span>
+                    <span className="text-[9px] text-white/45 leading-tight">{f.blurb}</span>
                   </button>
                 ))}
                 </div>
@@ -344,9 +414,11 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
             ) : (
               <>
                 {showContext && (
-                  <div className="flex min-h-12 items-center gap-2 border-y border-amber-500/20 bg-muted/40 px-3 py-2">
+                  <div className="relative flex min-h-12 items-center gap-2 px-3 py-2">
+                    <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
+                    <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
                     {mode === 'sync' && selectedCandidates.slice(0, 2).map(candidate => (
-                      <span key={candidate.userId} className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-amber-500/30 bg-muted text-xs text-muted-foreground">
+                      <span key={candidate.userId} className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-amber-500/70 bg-muted text-xs text-muted-foreground">
                         {candidate.avatarUrl
                           ? <img src={candidate.avatarUrl} alt="" className="h-full w-full object-cover" />
                           : (candidate.name.charAt(0).toUpperCase() || '?')}
@@ -357,8 +429,10 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
                 )}
                 {loading && (
                   <div className="flex flex-col items-center justify-center py-16 gap-3 text-amber-300/60">
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                    <span className="text-xs">Reading the scene...</span>
+                    {flavorId && ALIGN_EMBLEMS[flavorId]
+                      ? <img src={ALIGN_EMBLEMS[flavorId]} alt="" className="h-16 w-16 animate-pulse" />
+                      : <Loader2 className="w-6 h-6 animate-spin" />}
+                    <span className="font-cinzel text-xs text-amber-200/70">Reading the scene...</span>
                   </div>
                 )}
 
@@ -378,13 +452,24 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
                 {!loading && !error && pills.map((pill) => (
                   <div
                     key={pill.id}
-                    className="rounded-xl border border-amber-900/30 bg-amber-950/20 overflow-hidden"
+                    className="relative"
+                    style={PANEL_FRAME_STYLE}
                   >
-                    <div className="px-4 pt-3 pb-2 flex items-start gap-2">
-                      <span className="text-lg leading-none mt-0.5">{pill.emoji}</span>
+                    <div className="px-1 pt-1.5 pb-1 flex items-start gap-2.5">
+                      {stanceIcon(pill.label)
+                        ? <img src={stanceIcon(pill.label) || ''} alt="" className="h-10 w-10 shrink-0" />
+                        : flavorId && ALIGN_EMBLEMS[flavorId]
+                          ? <img src={ALIGN_EMBLEMS[flavorId]} alt="" className="h-10 w-10 shrink-0" />
+                          : <span className="text-lg leading-none mt-0.5">{pill.emoji}</span>}
                       <div className="flex-1 min-w-0">
                         {pill.label && (
-                          <span className="mb-2 inline-flex rounded border border-amber-500/30 bg-amber-950/40 px-2 py-0.5 text-[10px] font-semibold text-amber-200/90">
+                          <span className={`mb-2 inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#f7e3b5] ${
+                            pill.label.toLowerCase().startsWith('against')
+                              ? 'bg-gradient-to-b from-[#8b1a1a] to-[#5c0f0f]'
+                              : pill.label.toLowerCase().startsWith('with')
+                                ? 'bg-gradient-to-b from-teal-700 to-teal-900'
+                                : 'bg-gradient-to-b from-amber-700 to-amber-900'
+                          } ${pill.label.toLowerCase().endsWith('full send') ? 'shadow-[0_0_8px_rgba(251,146,60,0.7)]' : ''}`}>
                             {pill.label}
                           </span>
                         )}
@@ -395,11 +480,11 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
                     </div>
                     <button
                       onClick={() => choose(pill.prompt)}
-                      className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-amber-900/30 hover:bg-amber-900/50 border-t border-amber-900/30 text-amber-200 text-xs font-semibold transition-colors"
+                      className="mx-auto mt-1.5 flex min-h-[48px] items-center justify-center active:scale-95 transition-transform"
                       style={{ touchAction: 'manipulation' }}
+                      aria-label="Use this suggestion"
                     >
-                      <Check className="w-3.5 h-3.5" />
-                      Use this
+                      <img src={bagBtnUse} alt="" draggable={false} className="h-10 w-auto" />
                     </button>
                   </div>
                 ))}
@@ -413,7 +498,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
             )}
           </div>
 
-          <div className="px-4 py-2 border-t border-amber-900/30 bg-background">
+          <div className="relative z-10 px-4 py-2 bg-black/55">
             <p className="text-[10px] text-white/40 text-center">
               Choosing a suggestion drops it into your input — you can still edit before you ready up.
             </p>
