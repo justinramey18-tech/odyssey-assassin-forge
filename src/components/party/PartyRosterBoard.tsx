@@ -43,12 +43,16 @@ function RosterFace({
   fallbackTint,
   isSelf,
   kind,
+  online,
+  onlineLabel,
 }: {
   url?: string;
   label: string;
   fallbackTint: string;
   isSelf?: boolean;
   kind: 'player' | 'character';
+  online?: boolean;
+  onlineLabel?: string;
 }) {
   return (
     <div className="flex flex-col items-center gap-0.5 w-[84px] shrink-0">
