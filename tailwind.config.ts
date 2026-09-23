@@ -17,6 +17,7 @@ export default {
         display: ['Cinzel', 'Times New Roman', 'serif'],
         cinzel: ['Cinzel', 'Times New Roman', 'serif'],
         body: ['Inter', 'system-ui', 'sans-serif'],
+        story: ['"EB Garamond"', 'Georgia', 'serif'],
       },
       colors: {
         border: "hsl(var(--border))",

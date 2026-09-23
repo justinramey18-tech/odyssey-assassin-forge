@@ -16,6 +16,16 @@
   animation: enter-story-glow 3s ease-in-out infinite;
 }
 
+.dm-dropcap > p:first-of-type::first-letter {
+  float: left;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 2.7em;
+  line-height: 0.85;
+  padding: 4px 6px 0 0;
+  color: #fbbf24;
+  text-shadow: 0 0 8px rgba(251,191,36,0.45);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .full-access-ambient-zoom,
   .enter-story-glow {
