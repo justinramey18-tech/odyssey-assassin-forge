@@ -53,6 +53,7 @@ import { useChatAvatars } from '@/hooks/use-chat-avatars';
 import { FullscreenPartyChat } from '@/components/party/FullscreenPartyChat';
 import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
 import { useOnlineStatus, useOnlineCount } from '@/hooks/use-online-status';
+import { usePartyPresence } from '@/hooks/use-party-presence';
 import { WildShapeLightningBorder, CRScaledPulse, TransformationBurst } from './WildShapeLightningBorder';
 import { DragonParticles } from './DragonParticles';
 import WeatherOverlay from './WeatherOverlay';
@@ -320,6 +321,7 @@ export function HomeScreen({
   const isMobile = useIsMobile();
   const prefersReducedMotion = useReducedMotion();
   const chatOnlineStatusMap = useOnlineStatus(partySync?.party?.members ?? []);
+  const partyPresence = usePartyPresence(partySync?.party?.partyId, userId);
   const featuresNavigate = useNavigate();
 
   // CR-scaled haptic burst on Wild Shape activation
@@ -981,6 +983,9 @@ export function HomeScreen({
                     avatars={rosterAvatars.avatars}
                     oocNames={rosterAvatars.oocNames}
                     currentUserId={userId}
+                    presenceIds={partyPresence.onlineIds}
+                    presenceReady={partyPresence.ready}
+                    onlineStatus={chatOnlineStatusMap}
                     showEmblem={stage >= 1}
                     showFaces={stage >= 2}
                     onOpenPartyDM={() => { triggerHaptic('light'); drawerContext?.openPartyDMScreen(); }}
