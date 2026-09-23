@@ -1,16 +1,24 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Swords, Wand2, HeartPulse, Dices, FlaskConical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ActionCard } from '@/lib/roundChatActionCard';
+import { PILL, RIBBON } from './chatPlaques';
+import homePillPlaque from '@/assets/home/home-pill-plaque.png.asset.json';
+import arcaneRibbonAsset from '@/assets/rolls/arcane-ribbon.png.asset.json';
+import glyphTargetAsset from '@/assets/rolls/glyph-target.png.asset.json';
+import glyphWandAsset from '@/assets/rolls/glyph-wand.png.asset.json';
+import glyphHealAsset from '@/assets/rolls/glyph-heal.png.asset.json';
+import glyphD20Asset from '@/assets/rolls/glyph-d20.png.asset.json';
+import glyphBoltAsset from '@/assets/rolls/glyph-bolt.png.asset.json';
 
+const arcaneRibbon = arcaneRibbonAsset.url;
 
-const KIND_META: Record<ActionCard['kind'], { verb: string; icon: React.ElementType; accent: string }> = {
-  attack: { verb: 'attacks with', icon: Swords, accent: 'text-rose-300' },
-  spell: { verb: 'casts', icon: Wand2, accent: 'text-violet-300' },
-  heal: { verb: 'uses', icon: HeartPulse, accent: 'text-emerald-300' },
-  effect: { verb: 'uses', icon: FlaskConical, accent: 'text-amber-300' },
-  check: { verb: 'attempts', icon: Dices, accent: 'text-sky-300' },
+const KIND_META: Record<ActionCard['kind'], { verb: string; glyph: string; accent: string }> = {
+  attack: { verb: 'attacks with', glyph: glyphTargetAsset.url, accent: 'text-rose-300' },
+  spell: { verb: 'casts', glyph: glyphWandAsset.url, accent: 'text-violet-300' },
+  heal: { verb: 'uses', glyph: glyphHealAsset.url, accent: 'text-emerald-300' },
+  effect: { verb: 'uses', glyph: glyphBoltAsset.url, accent: 'text-amber-300' },
+  check: { verb: 'attempts', glyph: glyphD20Asset.url, accent: 'text-sky-300' },
 };
 
 interface Props {
@@ -27,7 +35,6 @@ interface Props {
 export function QuickActionLine({ card, actorName, nameClass, alignRight, className }: Props) {
   const [open, setOpen] = useState(false);
   const meta = KIND_META[card.kind] ?? KIND_META.effect;
-  const Icon = meta.icon;
 
   const nat20 = card.d20 === 20;
   const nat1 = card.d20 === 1;
@@ -51,32 +58,45 @@ export function QuickActionLine({ card, actorName, nameClass, alignRight, classN
   }
 
   const hasDetails = bits.length > 0 || nat20 || nat1 || !!card.note;
+  const isSpell = card.kind === 'spell';
 
   return (
-    <motion.p
+    <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.22 }}
       onClick={() => hasDetails && setOpen(o => !o)}
       style={{ touchAction: 'manipulation' }}
       className={cn(
-        'text-xs leading-snug break-words [overflow-wrap:anywhere] py-1.5',
+        'flex flex-col py-1',
+        alignRight ? 'items-end' : 'items-start',
         hasDetails && 'cursor-pointer',
-        alignRight ? 'text-right' : 'text-left',
         className,
       )}
     >
-      <Icon className={cn('inline-block w-3 h-3 mr-1 -mt-[2px]', meta.accent)} />
-      <span className={cn('font-cinzel font-semibold', nameClass ?? 'text-white/90')}>{actorName}</span>
-      <span className="text-white/55"> {meta.verb} </span>
-      <span className={cn('font-semibold', meta.accent)}>{card.action}</span>
-      <Icon className={cn('inline-block w-3 h-3 ml-1 -mt-[2px]', meta.accent)} />
-      {!open && hasDetails && (
-        <span className="ml-1 text-[9px] uppercase tracking-wider text-white/35">tap for rolls</span>
-      )}
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 max-w-full whitespace-nowrap overflow-hidden text-xs',
+          isSpell ? 'text-violet-50' : 'text-amber-50',
+        )}
+        style={isSpell ? RIBBON(arcaneRibbon) : PILL(homePillPlaque.url)}
+      >
+        <img src={meta.glyph} alt="" className="w-3.5 h-3.5 shrink-0" />
+        <span className={cn('font-cinzel font-semibold', nameClass ?? 'text-white/90')}>{actorName}</span>
+        <span className="opacity-70">{meta.verb}</span>
+        <span className={cn('font-semibold', meta.accent)}>{card.action}</span>
+        {!open && hasDetails && (
+          <span className="text-[9px] uppercase tracking-wider opacity-50">tap for rolls</span>
+        )}
+      </span>
       {open && (
-        <>
-          {bits.length > 0 && <span className="text-white/70"> — {bits.join(', ')}</span>}
+        <p
+          className={cn(
+            'mt-1 text-xs leading-snug text-white/70 break-words [overflow-wrap:anywhere]',
+            alignRight ? 'text-right' : 'text-left',
+          )}
+        >
+          {bits.length > 0 && <span>{bits.join(', ')}</span>}
           {nat20 && (
             <span className="ml-1 text-[9px] font-semibold uppercase tracking-wider text-amber-300">Nat 20</span>
           )}
@@ -84,9 +104,9 @@ export function QuickActionLine({ card, actorName, nameClass, alignRight, classN
             <span className="ml-1 text-[9px] font-semibold uppercase tracking-wider text-red-400">Nat 1</span>
           )}
           {card.note && <span className="text-white/40"> {card.note.trim()}</span>}
-        </>
+        </p>
       )}
-    </motion.p>
+    </motion.div>
   );
 
 }
