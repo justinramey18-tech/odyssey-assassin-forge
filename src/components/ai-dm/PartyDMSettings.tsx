@@ -263,6 +263,230 @@ export function PartyDMSettings({
       setExportingGuides(false);
     }
   };
+
+  const chatBgFileInput = onChatBackgroundUpload ? (
+    <input
+      ref={bgFileInputRef}
+      type="file"
+      accept="image/*"
+      className="hidden"
+      onChange={async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+          await onChatBackgroundUpload(file);
+          toast.success('Chat background updated');
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : 'Failed to upload image');
+        } finally {
+          if (bgFileInputRef.current) bgFileInputRef.current.value = '';
+        }
+      }}
+    />
+  ) : null;
+
+  const chatBgSliders = chatBackground ? (
+    <div className="px-3 py-2 space-y-3">
+      {onChatBackgroundOpacityChange && (
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-medium text-foreground">Background Opacity</span>
+            <span className="text-[11px] text-muted-foreground tabular-nums">{Math.round(chatBackgroundOpacity * 100)}%</span>
+          </div>
+          <Slider
+            value={[Math.round(chatBackgroundOpacity * 100)]}
+            min={5}
+            max={80}
+            step={1}
+            onValueChange={(v) => onChatBackgroundOpacityChange((v[0] ?? 28) / 100)}
+          />
+          <p className="text-[10px] text-muted-foreground mt-1">Kept under 80% so message text stays readable.</p>
+        </div>
+      )}
+      {onChatBackgroundBlurChange && (
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-medium text-foreground">Background Blur</span>
+            <span className="text-[11px] text-muted-foreground tabular-nums">{chatBackgroundBlur}px</span>
+          </div>
+          <Slider
+            value={[chatBackgroundBlur]}
+            min={0}
+            max={20}
+            step={1}
+            onValueChange={(v) => onChatBackgroundBlurChange(v[0] ?? 0)}
+          />
+          <p className="text-[10px] text-muted-foreground mt-1">Blur busy images to reduce visual noise behind messages.</p>
+        </div>
+      )}
+    </div>
+  ) : null;
+
+  const toolEntries: ToolEntry[] = [
+    {
+      id: 'battle-map', group: 'campaign', show: !!onShowMap, medallion: iconBattleMap,
+      icon: <Map className="w-4 h-4" />, label: 'Battle Map', description: 'View the tactical map', onClick: onShowMap,
+    },
+    {
+      id: 'saves', group: 'campaign', show: !!onShowSaves, medallion: iconSaves,
+      icon: <FolderOpen className="w-4 h-4" />, label: 'Campaign Saves',
+      description: lastAutoSaveLabel ? `Saved ${lastAutoSaveLabel}` : 'Manage saved campaigns', onClick: onShowSaves,
+    },
+    {
+      id: 'new-campaign', group: 'campaign', show: !!(isCreator && onNewGame), medallion: iconNewCampaign,
+      icon: <Plus className="w-4 h-4 text-amber-400" />, label: 'New Campaign',
+      description: 'Start a fresh campaign with the Campaign Architect', onClick: onNewGame,
+    },
+    {
+      id: 'download-story', group: 'campaign', show: true, medallion: iconDownloadStory,
+      icon: <Download className="w-4 h-4" />,
+      label: exportingStory ? 'Preparing…' : 'Download Full Story',
+      description: 'Export the entire campaign transcript as a zip (for feeding to an assistant)',
+      onClick: exportingStory ? undefined : handleDownloadStory,
+      disabled: exportingStory,
+    },
+    {
+      id: 'save-offline', group: 'narration', show: !!offlineNarration && offlineNarration.total > 0, medallion: iconOfflineNarration,
+      icon: <Download className="w-4 h-4 text-sky-400" />,
+      label: offlineNarration?.saving
+        ? `Saving ${offlineNarration?.progress?.done ?? 0}/${offlineNarration?.progress?.total ?? 0}…`
+        : 'Save Narrations Offline',
+      description: `${offlineNarration?.count ?? 0} of ${offlineNarration?.total ?? 0} clips on this device${(offlineNarration?.bytes ?? 0) > 0 ? ` · ${((offlineNarration?.bytes ?? 0) / 1048576).toFixed(1)} MB` : ''} — plays with no signal`,
+      onClick: offlineNarration?.saving ? undefined : () => void offlineNarration?.onSaveAll(),
+      disabled: offlineNarration?.saving,
+    },
+    {
+      id: 'remove-offline', group: 'narration',
+      show: !!offlineNarration && offlineNarration.total > 0 && offlineNarration.count > 0 && !offlineNarration.saving,
+      medallion: iconOfflineNarration, mark: 'remove',
+      icon: <Trash2 className="w-4 h-4" />, label: 'Remove Offline Narrations',
+      description: 'Frees up space on this device (clips stay in the campaign)',
+      onClick: () => void offlineNarration?.onClear(),
+    },
+    {
+      id: 'gm-guides', group: 'lore', show: !!onShowGuides, medallion: iconGmGuides,
+      icon: <BookOpen className="w-4 h-4" />, label: 'GM Guides', description: 'Custom rules and lore',
+      badge: guidesCount, onClick: onShowGuides,
+    },
+    {
+      id: 'create-character', group: 'lore', show: !!onShowCharacterGuideBuilder, medallion: iconCreateCharacter,
+      icon: <UserPlus className="w-4 h-4 text-amber-400" />, label: 'Create Character with AI',
+      description: 'Build a character through conversation — saves as a GM guide',
+      onClick: onShowCharacterGuideBuilder,
+    },
+    {
+      id: 'download-guides', group: 'lore', show: true, medallion: iconDownloadGuides,
+      icon: <Download className="w-4 h-4" />,
+      label: exportingGuides ? 'Preparing…' : 'Download GM Guides',
+      description: 'Export all campaign GM guides as a zip (for feeding to an assistant)',
+      onClick: exportingGuides ? undefined : handleDownloadGuides,
+      disabled: exportingGuides,
+    },
+    {
+      id: 'memory-anchors', group: 'lore', show: !!onShowMemoryAnchors, medallion: iconMemoryAnchors,
+      icon: <Brain className={cn("w-4 h-4", memoryAnchorsCount > 0 ? "text-purple-400" : "")} />,
+      label: 'Memory Anchors', description: 'Long-term campaign facts for the Oracle',
+      badge: memoryAnchorsCount, onClick: onShowMemoryAnchors,
+    },
+    {
+      id: 'quest-log', group: 'lore', show: !!onShowQuests, medallion: iconQuestLog,
+      icon: <ScrollText className={cn("w-4 h-4", questsCount > 0 ? "text-amber-400" : "")} />,
+      label: 'Quest Log', description: 'Track party objectives', badge: questsCount, onClick: onShowQuests,
+    },
+    {
+      id: 'party-chat', group: 'table', show: !!onShowChat, medallion: iconPartyChat,
+      icon: <MessageSquare className="w-4 h-4" />, label: 'Party Chat',
+      description: 'Out-of-character messaging', onClick: onShowChat,
+    },
+    {
+      id: 'afk-guide', group: 'table', show: true, medallion: iconAfkGuide,
+      icon: <Ghost className={cn("w-4 h-4", myAfkGuide ? "text-purple-400" : "")} />,
+      label: 'AFK Personality Guide',
+      description: myAfkGuide ? 'AFK guide configured' : 'Set how AI plays your character when AFK',
+      badge: myAfkCascadeCount, onClick: onShowAfkGuide,
+    },
+    {
+      id: 'scheduled-events', group: 'host', show: !!(isCreator && onShowScheduledEvents), medallion: iconScheduledEvents,
+      icon: <CalendarClock className={cn("w-4 h-4", scheduledEventsCount > 0 ? "text-amber-400" : "")} />,
+      label: 'Scheduled Events', description: 'Schedule narrative events for a specific date & time',
+      badge: scheduledEventsCount, onClick: onShowScheduledEvents,
+    },
+    {
+      id: 'dev-assistant', group: 'host', show: !!(isCreator && onShowDevAssistant), medallion: iconDevAssistant,
+      icon: <Code2 className="w-4 h-4 text-blue-400" />, label: 'Dev Assistant',
+      description: 'Ask questions about the app — uses your saved codebase & instructions',
+      onClick: onShowDevAssistant,
+    },
+    {
+      id: 'talk-to-dm', group: 'table', show: !!onOpenDirector, screen: false,
+      icon: <Lock className="w-4 h-4 text-purple-300" />, label: 'Talk to the DM (private)',
+      description: 'Ask questions or take secret actions — only you and the DM can see this',
+      onClick: onOpenDirector,
+    },
+    {
+      id: 'character-redo', group: 'table', show: !!onRequestCharacterRedo, medallion: iconCharacterRedo,
+      icon: <RefreshCw className={cn("w-4 h-4", hasPendingRedoRequest ? "text-amber-400" : "")} />,
+      label: 'Request Character Redo',
+      description: hasPendingRedoRequest ? 'Awaiting host approval…' : 'Ask the host to redo your character',
+      onClick: onRequestCharacterRedo, disabled: hasPendingRedoRequest,
+    },
+    {
+      id: 'clear-bookmark', group: 'table', show: !!(hasBookmark && onClearBookmark), medallion: iconBookmark,
+      icon: <BookmarkX className="w-4 h-4 text-amber-400" />, label: 'Clear Reading Bookmark',
+      description: 'Remove your saved reading position', onClick: onClearBookmark,
+    },
+    {
+      id: 'chat-background', group: 'table', show: !!onChatBackgroundUpload, medallion: iconChatBackground,
+      icon: <ImageIcon className={cn('w-4 h-4', chatBackground ? 'text-emerald-400' : '')} />,
+      label: chatBackground ? 'Change Chat Background' : 'Upload Chat Background',
+      description: chatBackground ? 'Tap to replace your custom image' : 'Set a personal image behind the chat',
+      onClick: () => bgFileInputRef.current?.click(),
+      after: chatBgSliders,
+    },
+    {
+      id: 'clear-chat-background', group: 'table',
+      show: !!(onChatBackgroundUpload && chatBackground && onChatBackgroundClear),
+      medallion: iconChatBackground, mark: 'remove',
+      icon: <Trash2 className="w-4 h-4 text-red-400" />, label: 'Clear Chat Background',
+      description: 'Restore the default background',
+      onClick: () => {
+        onChatBackgroundClear?.();
+        toast.success('Chat background cleared');
+      },
+    },
+    {
+      id: 'how-to-play', group: 'table', show: !!onShowTableGuide, medallion: iconHowToPlay,
+      icon: <HelpCircle className="w-4 h-4" />, label: 'How to Play',
+      description: 'Open the table guide', onClick: onShowTableGuide,
+    },
+  ];
+
+  if (layout === 'toolsScreen') {
+    const visible = toolEntries.filter(e => e.show && e.screen !== false);
+    return (
+      <div className="flex flex-col gap-2 pt-1">
+        {chatBgFileInput}
+        {TOOL_GROUPS.map(g => {
+          const items = visible.filter(e => e.group === g.id);
+          if (items.length === 0) return null;
+          return (
+            <Fragment key={g.id}>
+              <ToolsGroupHeader title={g.title} />
+              {items.map(e => (
+                <Fragment key={e.id}>
+                  <OrnateToolRow entry={e} />
+                  {e.after && (
+                    <div className="mx-1 shrink-0 rounded-lg border border-amber-700/30 bg-black/55">{e.after}</div>
+                  )}
+                </Fragment>
+              ))}
+            </Fragment>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="px-3 py-3 space-y-2.5 w-full">
       {/* Session Controls */}
