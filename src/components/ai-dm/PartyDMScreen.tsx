@@ -6,6 +6,7 @@ import { useDmPolls } from '@/hooks/use-dm-polls';
 import { useNPCAutocomplete } from '@/hooks/use-npc-autocomplete';
 import { PartyDMInput, type PartyDMInputHandle } from './PartyDMInput';
 import { PartySessionRecovery } from './PartySessionRecovery';
+import { PartyToolsScreen } from './PartyToolsScreen';
 
 import { PartyDMAudioRecorder } from './PartyDMAudioRecorder';
 import partyChatIcon from '@/assets/party-chat-icon.jpg';
@@ -1705,6 +1706,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   // Bottom nav state
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
+  const [showTools, setShowTools] = useState(false);
   const [navExpanded, setNavExpanded] = useState(false);
 
   // Combat mode state
@@ -2540,6 +2542,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       } else if (choice === 'director') {
         if (onOpenDirector) onOpenDirector();
         else toast.info("Director's Channel isn't available here");
+      } else if (choice === 'tools') {
+        setShowTools(true);
       }
     }, 200);
   }, [isEmpyrean, partyDm.messages.length, partyDm.isGenerating, onOpenDirector]);
@@ -2587,8 +2591,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   }
 
 
-  const renderPartySettings = () => (
+  const renderPartySettings = (layout: 'settings' | 'toolsScreen' = 'settings') => (
             <PartyDMSettings
+              layout={layout}
               offlineNarration={{
                 count: messageNarration.offlineCount,
                 total: messageNarration.totalClips,
@@ -4694,6 +4699,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         characterName={characterContext?.name}
         characterImage={currentUserId ? chatAvatars.avatars[currentUserId]?.ic : undefined}
       />
+      <PartyToolsScreen open={showTools} onClose={() => setShowTools(false)}>
+        {showTools ? renderPartySettings('toolsScreen') : null}
+      </PartyToolsScreen>
       {/* Suggest-my-move picker — opened from the Action Menu's Get Moves tile */}
       <StoryMasterworkActions
         hideTrigger
