@@ -473,9 +473,7 @@ export function HomeScreen({
     }
   }, [openPartyChatRequested, partySync?.party?.partyId, playMode, onPartyChatOpened]);
   
-  const [footerCollapsed, setFooterCollapsed] = useState(() => {
-    try { return localStorage.getItem('odyssey-home-footer-collapsed') === 'true'; } catch { return false; }
-  });
+  const [footerCollapsed, setFooterCollapsed] = useState(true);
   const toggleFooter = useCallback(() => {
     setFooterCollapsed(prev => {
       const next = !prev;
