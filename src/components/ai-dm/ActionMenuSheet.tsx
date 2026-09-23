@@ -1,9 +1,11 @@
 import { useState, type ComponentType } from 'react';
-import { Backpack, BookOpen, Dices, Sparkles, Sword, WandSparkles } from 'lucide-react';
+import { Backpack, BookOpen, Dices, MessageCircle, Sparkles, Sword, WandSparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import directorTileAsset from '@/assets/action-menu/director-tile.jpg.asset.json';
+const directorTile = directorTileAsset.url;
 
-export type ActionMenuChoice = 'dice' | 'actions' | 'spells' | 'story' | 'bag' | 'moves';
+export type ActionMenuChoice = 'dice' | 'actions' | 'spells' | 'story' | 'bag' | 'moves' | 'director';
 
 interface ActionMenuSheetProps {
   open: boolean;
