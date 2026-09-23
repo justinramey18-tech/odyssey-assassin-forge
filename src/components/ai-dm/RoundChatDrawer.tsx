@@ -513,7 +513,7 @@ export function RoundChatDrawer({
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-cover bg-no-repeat"
-        style={{ backgroundImage: `url(${liveChatTablePov})`, backgroundPosition: 'center bottom' }}
+        style={{ backgroundImage: `url(${liveChatTablePov.url})`, backgroundPosition: 'center bottom' }}
       />
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/75 via-black/60 to-black/10" />
       {open ? (
