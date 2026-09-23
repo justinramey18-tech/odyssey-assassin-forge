@@ -250,6 +250,8 @@ export function PartyRosterBoard({
                     fallbackTint="bg-amber-500/20 text-amber-200"
                     isSelf={isSelf}
                     kind="character"
+                    online={online}
+                    onlineLabel={onlineLabel}
                   />
                 </motion.div>
               </div>
