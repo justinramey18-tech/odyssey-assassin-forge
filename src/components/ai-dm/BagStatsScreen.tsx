@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ScrollText, ChevronRight } from 'lucide-react';
+import { ScrollText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CharacterContext } from '@/components/oracle/types';
 import { useXPProgression } from '@/hooks/use-xp-progression';
 import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
-import { Button } from '@/components/ui/button';
 import bagStatsBg from '@/assets/bag-stats/bag-stats-bg.jpg';
+import bagBtnFullSheet from '@/assets/bag-stats/bag-btn-fullsheet.png';
 import bagTitlePlaque from '@/assets/bag-stats/bag-title-plaque.png';
 import bagPanelFrame from '@/assets/bag-stats/bag-panel-frame.png';
 import bagGaugeFrame from '@/assets/bag-stats/bag-gauge-frame.png';
@@ -15,6 +15,11 @@ import bagIconProgression from '@/assets/bag-stats/bag-icon-progression.png';
 import bagIconGold from '@/assets/bag-stats/bag-icon-gold.png';
 import bagIconBag from '@/assets/bag-stats/bag-icon-bag.png';
 import bagIconPotion from '@/assets/bag-stats/bag-icon-potion.png';
+import bagBtnUse from '@/assets/bag-stats/bag-btn-use.png';
+import bagClose from '@/assets/bag-stats/bag-close.png';
+import bagEmpty from '@/assets/bag-stats/bag-empty.png';
+import bagStatLevel from '@/assets/bag-stats/bag-stat-level.png';
+import bagStatAc from '@/assets/bag-stats/bag-stat-ac.png';
 
 interface BagStatsScreenProps {
   open: boolean;
@@ -112,19 +117,20 @@ export function BagStatsScreen({
         {onOpenFullSheet ? (
           <button
             onClick={onOpenFullSheet}
-            className="flex items-center gap-1 px-2.5 rounded-lg border border-amber-900/30 bg-black/30 hover:bg-black/50 min-h-[48px] text-[11px] text-amber-200"
+            aria-label="Open full character sheet"
+            className="flex items-center min-h-[48px] active:scale-95 transition-transform"
             style={{ touchAction: 'manipulation' }}
           >
-            Full sheet <ChevronRight className="w-3.5 h-3.5" />
+            <img src={bagBtnFullSheet} alt="" draggable={false} className="h-11 w-auto" />
           </button>
         ) : <span />}
         <button
           onClick={onClose}
           aria-label="Close Bag and Stats"
-          className="p-2 rounded-lg hover:bg-white/10 min-w-[48px] min-h-[48px] flex items-center justify-center"
+          className="min-w-[48px] min-h-[48px] flex items-center justify-center active:scale-95 transition-transform"
           style={{ touchAction: 'manipulation' }}
         >
-          <X className="w-5 h-5" />
+          <img src={bagClose} alt="" draggable={false} className="w-11 h-11" />
         </button>
       </div>
 
@@ -155,14 +161,14 @@ export function BagStatsScreen({
         {/* XP */}
         <Section title="Progression" iconSrc={bagIconProgression}>
           <div className="grid grid-cols-2 gap-2 mb-3">
-            <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-              <p className="text-[10px] uppercase tracking-wider text-white/40">Level</p>
-              <p className="text-xl font-display font-bold text-foreground">{fmt(ctx.level)}</p>
+            <div className="relative w-full max-w-[130px] mx-auto">
+              <img src={bagStatLevel} alt="" draggable={false} className="block w-full" />
+              <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 text-3xl font-display font-bold text-amber-200 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]" style={{ top: '40.7%' }} aria-label={`Level ${fmt(ctx.level)}`}>{fmt(ctx.level)}</span>
             </div>
             {typeof armorClass === 'number' && Number.isFinite(armorClass) && (
-              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                <p className="text-[10px] uppercase tracking-wider text-white/40">Armor Class</p>
-                <p className="text-xl font-display font-bold text-foreground">{armorClass}</p>
+              <div className="relative w-full max-w-[130px] mx-auto">
+                <img src={bagStatAc} alt="" draggable={false} className="block w-full" />
+                <span className="absolute -translate-y-1/2 text-3xl font-display font-bold text-amber-200 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]" style={{ top: '40.9%', left: '52%' }} aria-label={`Armor class ${armorClass}`}>{armorClass}</span>
               </div>
             )}
           </div>
@@ -202,7 +208,10 @@ export function BagStatsScreen({
         {/* Bag */}
         <Section title={`Bag (${loot.length})`} iconSrc={bagIconBag}>
           {loot.length === 0 ? (
-            <p className="text-xs text-white/40 text-center py-2">No treasure carried yet.</p>
+            <div className="flex flex-col items-center py-1">
+              <img src={bagEmpty} alt="" draggable={false} className="w-28 opacity-90" />
+              <p className="text-xs text-white/45 text-center mt-1">No treasure carried yet.</p>
+            </div>
           ) : (
             <div className="space-y-1.5">
               {loot.map(i => (
@@ -239,9 +248,15 @@ export function BagStatsScreen({
                     <p className="text-[10px] text-white/40 capitalize">{c.type} · ×{fmt(c.quantity ?? 1)}</p>
                   </div>
                   {onUseConsumable && (
-                    <Button size="sm" variant="outline" className="min-h-[48px] min-w-[48px]" onClick={() => onUseConsumable(c.name)} style={{ touchAction: 'manipulation' }}>
-                      Use
-                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => onUseConsumable(c.name)}
+                      aria-label={`Use ${c.name}`}
+                      className="shrink-0 min-h-[48px] min-w-[48px] flex items-center justify-center active:scale-95 transition-transform"
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      <img src={bagBtnUse} alt="" draggable={false} className="h-10 w-auto" />
+                    </button>
                   )}
                 </div>
               ))}
