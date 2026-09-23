@@ -1077,7 +1077,7 @@ export function HomeScreen({
               {/* Host Campaign Architect shortcut */}
               {partySync?.party?.isCreator && playMode === 'party' && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 10 }}
                   animate={bgReady ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 10 }}
                   transition={{ duration: 0.35, delay: REVEAL.rest, ease: [0.16, 1, 0.3, 1] }}
                   className="px-4"
@@ -1123,7 +1123,7 @@ export function HomeScreen({
         {/* Primary Navigation Cards Footer — Collapsible */}
         {showFeature('home.categoryNav') && (
         <motion.footer 
-          initial={{ opacity: 0, y: appMode === 'empyrean' || prefersReducedMotion ? 0 : 20 }}
+          initial={{ opacity: 0, y: appMode === 'empyrean' ? 20 : prefersReducedMotion ? 0 : 20 }}
           animate={appMode === 'empyrean' ? { opacity: 1, y: 0 } : bgReady ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 20 }}
           transition={appMode === 'empyrean' ? { delay: 0.9, duration: 0.3 } : { duration: 0.35, delay: REVEAL.footer, ease: [0.16, 1, 0.3, 1] }}
           className="border-t border-white/10"
