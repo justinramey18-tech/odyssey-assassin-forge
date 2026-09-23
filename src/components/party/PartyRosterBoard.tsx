@@ -2,12 +2,14 @@
 // character on the right. Pictures come from the same ic / ooc avatar slots the
 // Live DM Table uses, so what shows here matches what shows on their messages.
 
-import { ArrowRight } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { ChatAvatars } from '@/hooks/use-chat-avatars';
 import enterStoryEmblem from '@/assets/enter-story-emblem.png';
 import bagPanelFrame from '@/assets/bag-stats/bag-panel-frame.png';
+import framePlayer from '@/assets/roster/frame-player.png';
+import frameCharacter from '@/assets/roster/frame-character.png';
+import playingAsConnector from '@/assets/roster/playing-as-connector.png';
 
 interface RosterMember {
   user_id: string;
@@ -28,36 +30,48 @@ interface PartyRosterBoardProps {
   showFaces?: boolean;
 }
 
-/** One picture tile with a caption underneath. */
+/** One framed picture with a caption underneath. Pewter frame = player, gold frame = character. */
 function RosterFace({
   url,
   label,
   fallbackTint,
   isSelf,
+  kind,
 }: {
   url?: string;
   label: string;
   fallbackTint: string;
   isSelf?: boolean;
+  kind: 'player' | 'character';
 }) {
   return (
-    <div className="flex flex-col items-center gap-1 w-[72px] shrink-0">
-      <div
-        className={cn(
-          "relative w-[72px] h-[72px] rounded-xl overflow-hidden border",
-          isSelf ? "border-amber-400/50" : "border-white/10",
-        )}
-      >
-        {url ? (
-          <img src={url} alt="" className="absolute inset-0 w-full h-full object-cover" />
-        ) : (
-          <span className={cn("absolute inset-0 flex items-center justify-center text-2xl font-semibold", fallbackTint)}>
-            {label.charAt(0).toUpperCase() || '?'}
-          </span>
-        )}
+    <div className="flex flex-col items-center gap-0.5 w-[84px] shrink-0">
+      <div className="relative w-[84px] h-[84px]">
+        <div
+          className={cn(
+            "absolute overflow-hidden rounded-[10px] bg-black/60",
+            kind === 'player' ? "left-[8%] top-[8%] w-[84%] h-[84%]" : "left-[11%] top-[12.5%] w-[78%] h-[73%]",
+          )}
+        >
+          {url ? (
+            <img src={url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          ) : (
+            <span className={cn("absolute inset-0 flex items-center justify-center text-2xl font-semibold", fallbackTint)}>
+              {label.charAt(0).toUpperCase() || '?'}
+            </span>
+          )}
+        </div>
+        <img
+          src={kind === 'player' ? framePlayer : frameCharacter}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="pointer-events-none absolute inset-0 h-full w-full"
+          style={isSelf ? { filter: 'drop-shadow(0 0 6px rgba(245,158,11,0.75))' } : undefined}
+        />
       </div>
       <span
-        className="w-full text-center font-body text-[11px] leading-tight text-white/70 truncate"
+        className="w-full text-center font-body text-[11px] leading-tight text-white/80 truncate"
         style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
       >
         {label}
