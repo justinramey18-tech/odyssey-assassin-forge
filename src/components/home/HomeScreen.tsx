@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Character, getAbilityPointsForLevel, getTotalPointsSpent } from '@/lib/types';
 import { CharacterEquipment } from '@/lib/inventory';
@@ -72,8 +72,11 @@ import soloHomeBackgroundAsset from '@/assets/solo-home-bg.jpg.asset.json';
 import empyreanHomeBackgroundAsset from '@/assets/empyrean-home-bg.jpg.asset.json';
 import soloDmButtonArt from '@/assets/solo-dm-button.jpg.asset.json';
 import empyreanDmButtonArt from '@/assets/empyrean-dm-button.jpg.asset.json';
+import enterStoryEmblem from '@/assets/enter-story-emblem.png';
 const soloBackground = soloHomeBackgroundAsset.url;
 const empyreanHomeBackground = empyreanHomeBackgroundAsset.url;
+
+const REVEAL = { emblem: 0, faces: 0.2, dmButtons: 0.4, footer: 0.6, rest: 0.8 } as const; // seconds after bgReady
 
 // Navigable tab types
 type NavigableTab = 
@@ -305,6 +308,7 @@ export function HomeScreen({
     ? (id: string) => isQuickAccessVisible(`quickAccess.${id}`)
     : (() => true);
   const isMobile = useIsMobile();
+  const prefersReducedMotion = useReducedMotion();
   const chatOnlineStatusMap = useOnlineStatus(partySync?.party?.members ?? []);
   const featuresNavigate = useNavigate();
 
@@ -340,6 +344,8 @@ export function HomeScreen({
   const [showEmpyreanScreen, setShowEmpyreanScreen] = useState(false);
   const [showEmpyreanDMContainer, setShowEmpyreanDMContainer] = useState(false);
   const [empyreanScreenAutoOpen, setEmpyreanScreenAutoOpen] = useState<'manual' | null>(null);
+  const [bgReady, setBgReady] = useState(false);
+  const handleBackgroundLoad = useCallback(() => setBgReady(true), []);
 
 
 
@@ -354,6 +360,18 @@ export function HomeScreen({
   // Same avatar source the Live DM Table uses, so the roster pictures match the
   // pictures on each player's chat messages.
   const rosterAvatars = useChatAvatars(partyIdForChat ?? null, userId);
+  useEffect(() => {
+    const avatarEntries = Object.entries(rosterAvatars.avatars);
+    const orderedAvatarUrls = avatarEntries
+      .sort(([a], [b]) => Number(b === userId) - Number(a === userId))
+      .map(([, avatar]) => avatar.ic);
+    [enterStoryEmblem, ...orderedAvatarUrls, soloDmButtonArt.url, empyreanDmButtonArt.url]
+      .filter((src): src is string => Boolean(src))
+      .forEach(src => {
+        const image = new Image();
+        image.src = src;
+      });
+  }, [rosterAvatars.avatars, userId]);
   const lastSeenKey = partyIdForChat ? `odyssey_chat_lastSeen_${partyIdForChat}` : null;
   const lastSeenMessageCount = useRef(0);
   useEffect(() => {
@@ -583,6 +601,11 @@ export function HomeScreen({
     : hasModeVideo
       ? modeVideoUrl
       : undefined;
+  useEffect(() => {
+    if (activeVideoSrc) setBgReady(true);
+    const fallback = window.setTimeout(() => setBgReady(true), 1500);
+    return () => window.clearTimeout(fallback);
+  }, [activeVideoSrc]);
   // Chronicler mode: render simplified narrative home
   if (appMode === 'chronicler') {
     return (
@@ -614,6 +637,7 @@ export function HomeScreen({
           backgroundSize="cover"
           backgroundPosition={isArtBackground ? 'center 40%' : 'center center'}
           className="fixed inset-0 z-0"
+          onLoad={handleBackgroundLoad}
         >
           <div />
         </BackgroundWrapper>
@@ -679,13 +703,23 @@ export function HomeScreen({
           />
         )}
         {/* Install Banner */}
-        <InstallBanner />
+        {appMode === 'empyrean' ? (
+          <InstallBanner />
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 0 }}
+            animate={bgReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 0 }}
+            transition={{ duration: 0.35, delay: REVEAL.rest, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <InstallBanner />
+          </motion.div>
+        )}
 
         {/* Minimal Utilities Header */}
         <motion.header 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
+          initial={{ opacity: 0, y: 0 }}
+          animate={appMode === 'empyrean' ? { opacity: 1 } : bgReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 0 }}
+          transition={appMode === 'empyrean' ? { duration: 0.3 } : { duration: 0.35, delay: REVEAL.rest, ease: [0.16, 1, 0.3, 1] }}
           className="flex items-center justify-between px-3 py-1.5 border-b border-white/10"
         >
           {/* Left: Hamburger, Background Upload */}
@@ -727,13 +761,29 @@ export function HomeScreen({
         </motion.header>
 
         {/* Character Name Plaque - pinned under header */}
-        <CharacterNamePlaque 
-          name={character.name} 
-          level={character.level}
-          primaryClass={character.primaryClass}
-          dragonName={loadEmpyreanDMConfig()?.dragonName}
-          onOpenSettings={onOpenSettings}
-        />
+        {appMode === 'empyrean' ? (
+          <CharacterNamePlaque 
+            name={character.name} 
+            level={character.level}
+            primaryClass={character.primaryClass}
+            dragonName={loadEmpyreanDMConfig()?.dragonName}
+            onOpenSettings={onOpenSettings}
+          />
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 0 }}
+            animate={bgReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 0 }}
+            transition={{ duration: 0.35, delay: REVEAL.rest, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <CharacterNamePlaque 
+              name={character.name} 
+              level={character.level}
+              primaryClass={character.primaryClass}
+              dragonName={loadEmpyreanDMConfig()?.dragonName}
+              onOpenSettings={onOpenSettings}
+            />
+          </motion.div>
+        )}
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-auto flex flex-col">
@@ -865,15 +915,17 @@ export function HomeScreen({
               {/* Party roster — top of home screen */}
               {playMode === 'party' && partySync?.party?.partyId && (
                 <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                  initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 8 }}
+                  animate={bgReady ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 8 }}
+                  transition={{ duration: 0.35, delay: REVEAL.emblem, ease: [0.16, 1, 0.3, 1] }}
                 >
                   <PartyRosterBoard
                     members={partySync.party.members}
                     avatars={rosterAvatars.avatars}
                     oocNames={rosterAvatars.oocNames}
                     currentUserId={userId}
+                    showEmblem={bgReady}
+                    showFaces={bgReady}
                     onOpenPartyDM={() => { triggerHaptic('light'); drawerContext?.openPartyDMScreen(); }}
                   />
                 </motion.div>
@@ -883,26 +935,37 @@ export function HomeScreen({
 
               {/* Wild Shape Details Overlay */}
               {showFeature('home.wildShape') && isWildShape && wildShapeFormName && onDismissWildShape && (
-                <WildShapeOverlay
-                  formName={wildShapeFormName}
-                  speed={wildShapeSpeed || '30 ft.'}
-                  specialAbilities={wildShapeAbilities}
-                  usesRemaining={wildShapeUsesRemaining}
-                  maxUses={wildShapeMaxUses}
-                  transformedAt={wildShapeTransformedAt}
-                  durationMinutes={wildShapeDurationMinutes}
-                  onDismiss={onDismissWildShape}
-                  characterName={character.name}
-                  formCR={wildShapeFormCR}
-                  formHP={wildShapeFormHP}
-                  formMaxHP={wildShapeFormMaxHP}
-                  formAC={wildShapeFormAC}
-                />
+                <motion.div
+                  initial={{ opacity: 0, y: 0 }}
+                  animate={bgReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 0 }}
+                  transition={{ duration: 0.35, delay: REVEAL.rest, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <WildShapeOverlay
+                    formName={wildShapeFormName}
+                    speed={wildShapeSpeed || '30 ft.'}
+                    specialAbilities={wildShapeAbilities}
+                    usesRemaining={wildShapeUsesRemaining}
+                    maxUses={wildShapeMaxUses}
+                    transformedAt={wildShapeTransformedAt}
+                    durationMinutes={wildShapeDurationMinutes}
+                    onDismiss={onDismissWildShape}
+                    characterName={character.name}
+                    formCR={wildShapeFormCR}
+                    formHP={wildShapeFormHP}
+                    formMaxHP={wildShapeFormMaxHP}
+                    formAC={wildShapeFormAC}
+                  />
+                </motion.div>
               )}
 
               {/* Solo/Party Mode Toggle + Party Button */}
               {showFeature('home.playModeToggle') && partySync && partySync.party.partyId && (
-                <div className="flex items-center justify-center gap-2 mb-[2px]">
+                <motion.div
+                  initial={{ opacity: 0, y: 0 }}
+                  animate={bgReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 0 }}
+                  transition={{ duration: 0.35, delay: REVEAL.rest, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex items-center justify-center gap-2 mb-[2px]"
+                >
                   {onPlayModeChange && (
                     <button
                       onClick={() => {
@@ -951,11 +1014,16 @@ export function HomeScreen({
                       <OnlineCountBadge members={partySync.party.members} />
                     </button>
                   )}
-                </div>
+                </motion.div>
               )}
 
               {showFeature('home.partyButton') && partySync && !partySync.party.partyId && (
-                <div className="flex justify-center mb-[2px]">
+                <motion.div
+                  initial={{ opacity: 0, y: 0 }}
+                  animate={bgReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 0 }}
+                  transition={{ duration: 0.35, delay: REVEAL.rest, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex justify-center mb-[2px]"
+                >
                   <button
                     onClick={() => {
                       triggerHaptic('light');
@@ -968,40 +1036,40 @@ export function HomeScreen({
                     <Users className="w-4 h-4 text-emerald-400/70" />
                     <span className="text-[10px] font-cinzel uppercase tracking-wider text-emerald-400/70">Party</span>
                   </button>
-                </div>
+                </motion.div>
               )}
 
               {/* DM Launch Buttons */}
               <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 12 }}
+                animate={bgReady ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 12 }}
+                transition={{ duration: 0.35, delay: REVEAL.dmButtons, ease: [0.16, 1, 0.3, 1] }}
                 className="flex items-center justify-center gap-3 px-4 py-3"
               >
                 {_isDMButtonVisible('dm.solo') && (
                   <motion.button
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.6, duration: 0.4 }}
+                    initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 10 }}
+                    animate={bgReady ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 10 }}
+                    transition={{ duration: 0.35, delay: REVEAL.dmButtons, ease: [0.16, 1, 0.3, 1] }}
                     onClick={() => { triggerHaptic('light'); onAppModeChange?.('storyteller'); drawerContext?.openAIDMScreen(); }}
                     className="flex-1 aspect-square rounded-xl overflow-hidden border border-violet-500/30 active:scale-[0.97] transition-all duration-200"
                     style={{ touchAction: 'manipulation' }}
                     aria-label="Play solo campaign"
                   >
-                    <img src={soloDmButtonArt.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    <img src={soloDmButtonArt.url} alt="" className="w-full h-full object-cover" loading="eager" decoding="async" />
                   </motion.button>
                 )}
                 {_isDMButtonVisible('dm.empyrean') && (
                   <motion.button
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.7, duration: 0.4 }}
+                    initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 10 }}
+                    animate={bgReady ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 10 }}
+                    transition={{ duration: 0.35, delay: REVEAL.dmButtons, ease: [0.16, 1, 0.3, 1] }}
                     onClick={() => { triggerHaptic('light'); onAppModeChange?.('empyrean'); setShowEmpyreanScreen(true); }}
                     className="flex-1 aspect-square rounded-xl overflow-hidden border border-amber-500/30 active:scale-[0.97] transition-all duration-200"
                     style={{ touchAction: 'manipulation' }}
                     aria-label="Dragon rider campaign"
                   >
-                    <img src={empyreanDmButtonArt.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    <img src={empyreanDmButtonArt.url} alt="" className="w-full h-full object-cover" loading="eager" decoding="async" />
                   </motion.button>
                 )}
               </motion.div>
@@ -1010,8 +1078,8 @@ export function HomeScreen({
               {partySync?.party?.isCreator && playMode === 'party' && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.85, ease: [0.16, 1, 0.3, 1] }}
+                  animate={bgReady ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 10 }}
+                  transition={{ duration: 0.35, delay: REVEAL.rest, ease: [0.16, 1, 0.3, 1] }}
                   className="px-4"
                 >
                   <button
@@ -1035,11 +1103,16 @@ export function HomeScreen({
 
               {/* Quick Actions */}
               {showFeature('home.restButtons') && (
-                <div className="px-4 py-2">
+                <motion.div
+                  initial={{ opacity: 0, y: 0 }}
+                  animate={bgReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 0 }}
+                  transition={{ duration: 0.35, delay: REVEAL.rest, ease: [0.16, 1, 0.3, 1] }}
+                  className="px-4 py-2"
+                >
                   <div className="flex gap-3 max-w-md mx-auto justify-center">
                     <AppUpdateButton className={transparentButtonBase} />
                   </div>
-                </div>
+                </motion.div>
               )}
 
               </div>
@@ -1050,9 +1123,9 @@ export function HomeScreen({
         {/* Primary Navigation Cards Footer — Collapsible */}
         {showFeature('home.categoryNav') && (
         <motion.footer 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.9, duration: 0.3 }}
+          initial={{ opacity: 0, y: appMode === 'empyrean' || prefersReducedMotion ? 0 : 20 }}
+          animate={appMode === 'empyrean' ? { opacity: 1, y: 0 } : bgReady ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 20 }}
+          transition={appMode === 'empyrean' ? { delay: 0.9, duration: 0.3 } : { duration: 0.35, delay: REVEAL.footer, ease: [0.16, 1, 0.3, 1] }}
           className="border-t border-white/10"
         >
           {/* Collapse toggle tab */}
