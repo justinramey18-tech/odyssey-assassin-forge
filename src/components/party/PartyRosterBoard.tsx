@@ -4,6 +4,7 @@
 
 import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import type { OnlineInfo } from '@/hooks/use-online-status';
 import type { ChatAvatars } from '@/hooks/use-chat-avatars';
 import enterStoryEmblem from '@/assets/enter-story-emblem.png';
 import bagPanelFrame from '@/assets/bag-stats/bag-panel-frame.png';
@@ -24,6 +25,11 @@ interface PartyRosterBoardProps {
   /** userId -> the player's own table name. */
   oocNames?: Record<string, string>;
   currentUserId?: string;
+  /** Live presence (instant). Preferred when ready. */
+  presenceIds?: Set<string>;
+  presenceReady?: boolean;
+  /** Timestamp-based fallback: userId -> OnlineInfo (also provides "Last seen …"). */
+  onlineStatus?: Record<string, OnlineInfo>;
   /** Opens the Party DM — shown in place of "playing as" on the user's own row. */
   onOpenPartyDM?: () => void;
   showEmblem?: boolean;
@@ -37,12 +43,16 @@ function RosterFace({
   fallbackTint,
   isSelf,
   kind,
+  online,
+  onlineLabel,
 }: {
   url?: string;
   label: string;
   fallbackTint: string;
   isSelf?: boolean;
   kind: 'player' | 'character';
+  online?: boolean;
+  onlineLabel?: string;
 }) {
   return (
     <div className="flex flex-col items-center gap-0.5 w-[84px] shrink-0">
@@ -69,6 +79,18 @@ function RosterFace({
           className="pointer-events-none absolute inset-0 h-full w-full"
           style={isSelf ? { filter: 'drop-shadow(0 0 6px rgba(245,158,11,0.75))' } : undefined}
         />
+        {online !== undefined && (
+          <span
+            role="img"
+            aria-label={onlineLabel ?? (online ? 'Online' : 'Offline')}
+            title={onlineLabel ?? (online ? 'Online' : 'Offline')}
+            className={cn(
+              'absolute z-[2] h-[13px] w-[13px] rounded-full border-2 border-[#120d06]',
+              online ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]' : 'bg-zinc-500',
+            )}
+            style={{ right: '13%', bottom: '15%' }}
+          />
+        )}
       </div>
       <span
         className="w-full text-center font-body text-[11px] leading-tight text-white/80 truncate"
@@ -85,6 +107,9 @@ export function PartyRosterBoard({
   avatars,
   oocNames,
   currentUserId,
+  presenceIds,
+  presenceReady,
+  onlineStatus,
   onOpenPartyDM,
   showEmblem = true,
   showFaces = true,
@@ -120,6 +145,13 @@ export function PartyRosterBoard({
             const status = m.character_status as Record<string, unknown> | undefined;
             const className = typeof status?.className === 'string' ? status.className : '';
             const level = status?.level;
+            const presenceInfo = onlineStatus?.[m.user_id];
+            const online: boolean | undefined = presenceReady && presenceIds
+              ? presenceIds.has(m.user_id)
+              : presenceInfo
+                ? presenceInfo.isOnline
+                : undefined;
+            const onlineLabel = online ? 'Online' : (presenceInfo?.lastSeenLabel ?? 'Offline');
 
             return (
               <div
@@ -218,6 +250,8 @@ export function PartyRosterBoard({
                     fallbackTint="bg-amber-500/20 text-amber-200"
                     isSelf={isSelf}
                     kind="character"
+                    online={online}
+                    onlineLabel={onlineLabel}
                   />
                 </motion.div>
               </div>

@@ -1,80 +1,271 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
+
+import type { RealtimeChannel } from '@supabase/supabase-js';
+
 import { supabase } from '@/integrations/supabase/client';
+
+
 
 const HEARTBEAT_MS = 60_000;
 
+
+
+export interface PartyPresence {
+
+  onlineIds: Set<string>;
+
+  ready: boolean;
+
+}
+
+
+
+const EMPTY: PartyPresence = { onlineIds: new Set(), ready: false };
+
+
+
+interface Entry {
+
+  refs: number;
+
+  snapshot: PartyPresence;
+
+  listeners: Set<() => void>;
+
+  channel: RealtimeChannel;
+
+  interval: number;
+
+  onVisibility: () => void;
+
+}
+
+
+
 /**
- * Who has this party open right now (realtime presence), plus a heartbeat that keeps
- * party_members.updated_at fresh while the app is visible, so timestamp-based dots
- * and "Last seen" labels elsewhere stay accurate.
+
+ * One presence channel + one heartbeat per party/user, shared by every screen that
+
+ * asks for it (HomeScreen and the Party DM screen are mounted at the same time, and
+
+ * two channels on the same topic would fight). Reference-counted: torn down when the
+
+ * last user unmounts.
+
  */
-export function usePartyPresence(partyId: string | null | undefined, userId: string | null | undefined) {
-  const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set());
-  const [ready, setReady] = useState(false);
 
-  // Realtime presence: instant join/leave.
-  useEffect(() => {
-    if (!partyId || !userId) {
-      setOnlineIds(new Set());
-      setReady(false);
-      return;
-    }
+const entries = new Map<string, Entry>();
 
-    const channel = supabase.channel(`party-presence-${partyId}`, {
-      config: { presence: { key: userId } },
+
+
+function acquire(partyId: string, userId: string): Entry {
+
+  const key = `${partyId}:${userId}`;
+
+  const existing = entries.get(key);
+
+  if (existing) {
+
+    existing.refs += 1;
+
+    return existing;
+
+  }
+
+
+
+  const channel = supabase.channel(`party-presence-${partyId}`, {
+
+    config: { presence: { key: userId } },
+
+  });
+
+
+
+  const entry: Entry = {
+
+    refs: 1,
+
+    snapshot: EMPTY,
+
+    listeners: new Set(),
+
+    channel,
+
+    interval: 0,
+
+    onVisibility: () => {},
+
+  };
+
+
+
+  const emit = (next: PartyPresence) => {
+
+    entry.snapshot = next;
+
+    entry.listeners.forEach(l => l());
+
+  };
+
+
+
+  const track = () => channel.track({ user_id: userId, online_at: new Date().toISOString() });
+
+
+
+  const beat = async () => {
+
+    if (document.visibilityState !== 'visible') return;
+
+    await (supabase.from('party_members') as any)
+
+      .update({ updated_at: new Date().toISOString() })
+
+      .eq('party_id', partyId)
+
+      .eq('user_id', userId);
+
+  };
+
+
+
+  channel
+
+    .on('presence', { event: 'sync' }, () => {
+
+      const ids = new Set<string>();
+
+      for (const list of Object.values(channel.presenceState())) {
+
+        for (const p of list as Array<{ user_id?: string }>) {
+
+          if (p.user_id) ids.add(p.user_id);
+
+        }
+
+      }
+
+      emit({ onlineIds: ids, ready: true });
+
+    })
+
+    .subscribe(async (status) => {
+
+      if (status === 'SUBSCRIBED' && document.visibilityState === 'visible') await track();
+
     });
 
-    const track = () => channel.track({ user_id: userId, online_at: new Date().toISOString() });
 
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        const ids = new Set<string>();
-        for (const list of Object.values(channel.presenceState())) {
-          for (const p of list as Array<{ user_id?: string }>) {
-            if (p.user_id) ids.add(p.user_id);
-          }
-        }
-        setOnlineIds(ids);
-        setReady(true);
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED' && document.visibilityState === 'visible') await track();
-      });
 
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') void track();
-      else void channel.untrack();
-    };
-    document.addEventListener('visibilitychange', onVisibility);
+  entry.onVisibility = () => {
 
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibility);
+    if (document.visibilityState === 'visible') {
+
+      void track();
+
+      void beat();
+
+    } else {
+
       void channel.untrack();
-      supabase.removeChannel(channel);
-    };
-  }, [partyId, userId]);
 
-  // Heartbeat: bump party_members.updated_at while the app is visible.
-  useEffect(() => {
-    if (!partyId || !userId) return;
-    let stopped = false;
-    const beat = async () => {
-      if (stopped || document.visibilityState !== 'visible') return;
-      await (supabase.from('party_members') as any)
-        .update({ updated_at: new Date().toISOString() })
-        .eq('party_id', partyId)
-        .eq('user_id', userId);
-    };
-    void beat();
-    const interval = window.setInterval(beat, HEARTBEAT_MS);
-    const onVisibility = () => { if (document.visibilityState === 'visible') void beat(); };
-    document.addEventListener('visibilitychange', onVisibility);
+    }
+
+  };
+
+  document.addEventListener('visibilitychange', entry.onVisibility);
+
+
+
+  void beat();
+
+  entry.interval = window.setInterval(() => { void beat(); }, HEARTBEAT_MS);
+
+
+
+  entries.set(key, entry);
+
+  return entry;
+
+}
+
+
+
+function release(partyId: string, userId: string) {
+
+  const key = `${partyId}:${userId}`;
+
+  const entry = entries.get(key);
+
+  if (!entry) return;
+
+  entry.refs -= 1;
+
+  if (entry.refs > 0) return;
+
+  window.clearInterval(entry.interval);
+
+  document.removeEventListener('visibilitychange', entry.onVisibility);
+
+  void entry.channel.untrack();
+
+  supabase.removeChannel(entry.channel);
+
+  entries.delete(key);
+
+}
+
+
+
+/**
+
+ * Who has this party open right now (realtime presence), plus a heartbeat that keeps
+
+ * party_members.updated_at fresh while the app is visible, so timestamp-based dots
+
+ * and "Last seen" labels stay accurate. Safe to call from several screens at once.
+
+ */
+
+export function usePartyPresence(partyId: string | null | undefined, userId: string | null | undefined): PartyPresence {
+
+  const key = partyId && userId ? `${partyId}:${userId}` : null;
+
+
+
+  const subscribe = useCallback((onChange: () => void) => {
+
+    if (!partyId || !userId) return () => {};
+
+    const entry = acquire(partyId, userId);
+
+    entry.listeners.add(onChange);
+
+    onChange();
+
     return () => {
-      stopped = true;
-      window.clearInterval(interval);
-      document.removeEventListener('visibilitychange', onVisibility);
+
+      entry.listeners.delete(onChange);
+
+      release(partyId, userId);
+
     };
+
   }, [partyId, userId]);
 
-  return { onlineIds, ready };
+
+
+  const getSnapshot = useCallback(
+
+    () => (key ? entries.get(key)?.snapshot ?? EMPTY : EMPTY),
+
+    [key],
+
+  );
+
+
+
+  return useSyncExternalStore(subscribe, getSnapshot, () => EMPTY);
+
 }
