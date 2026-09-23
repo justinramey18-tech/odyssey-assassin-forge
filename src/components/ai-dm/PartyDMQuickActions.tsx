@@ -363,6 +363,7 @@ function SpellRulesDetails({ item, expanded, onExpandedChange }: SpellRulesDetai
 }
 
 function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = true, onHeal, onCloseDrawer, spentCosts, onActionSpent, drawerOpen }: SectionProps) {
+  const medallion = SECTION_MEDALLION[title];
   const [open, setOpen] = useState(defaultOpen);
   const spellIds = useMemo(() => items
     .filter(item => item.removeCategory === 'spell' || item.removeCategory === 'cantrip' || item.removeCategory === 'homebrew-spell')
