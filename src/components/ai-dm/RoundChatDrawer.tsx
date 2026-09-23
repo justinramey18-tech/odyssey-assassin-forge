@@ -302,11 +302,14 @@ export function RoundChatDrawer({
 
   // The Live DM Table uses realtime presence so dots react immediately when a
   // player enters or leaves the party screen. Timestamp status remains the
-  // fallback while the presence channel connects.
+  // fallback while the presence channel connects. When shared presence from
+  // PartyDMScreen is provided, it wins and this drawer skips its own channel.
   useEffect(() => {
-    if (!partyId || !currentUserId) {
-      setLivePresenceIds(new Set());
-      setLivePresenceReady(false);
+    if (!partyId || !currentUserId || presenceIds) {
+      if (!presenceIds) {
+        setLivePresenceIds(new Set());
+        setLivePresenceReady(false);
+      }
       return;
     }
 
@@ -336,7 +339,11 @@ export function RoundChatDrawer({
       channel.untrack();
       supabase.removeChannel(channel);
     };
-  }, [partyId, currentUserId]);
+  }, [partyId, currentUserId, presenceIds]);
+
+  // Prefer the shared presence channel from PartyDMScreen when it is connected.
+  const sharedReady = presenceIds ? !!presenceReady : livePresenceReady;
+  const sharedIds = presenceIds ?? livePresenceIds;
 
   const jumpToMessage = useCallback((id: string) => {
     const el = messageRefs.current[id];
