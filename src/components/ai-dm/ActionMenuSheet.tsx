@@ -1,11 +1,13 @@
 import { useState, type ComponentType } from 'react';
-import { Backpack, BookOpen, Dices, MessageCircle, Sparkles, Sword, WandSparkles } from 'lucide-react';
+import { Backpack, BookOpen, Dices, MessageCircle, Sparkles, Sword, WandSparkles, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import directorTileAsset from '@/assets/action-menu/director-tile.jpg.asset.json';
+import toolsTileAsset from '@/assets/action-menu/tools-tile.jpg.asset.json';
 const directorTile = directorTileAsset.url;
+const toolsTile = toolsTileAsset.url;
 
-export type ActionMenuChoice = 'dice' | 'actions' | 'spells' | 'story' | 'bag' | 'moves' | 'director';
+export type ActionMenuChoice = 'dice' | 'actions' | 'spells' | 'story' | 'bag' | 'moves' | 'director' | 'tools';
 
 interface ActionMenuSheetProps {
   open: boolean;
@@ -102,8 +104,9 @@ export function ActionMenuSheet({ open, onOpenChange, onSelect, characterName, c
     { label: 'Bag & Stats', description: 'Open your items and character stats', fallback: Backpack, characterImage, initials, overlayText: 'BAG & STATS' },
     { label: 'Get Moves', description: 'Suggested moves when you are stuck', image: '/action-menu/slot6.png', fallback: Sparkles },
     { label: "Director's Channel", description: 'Talk privately with the DM', ariaLabel: "Director's Channel: talk privately with the DM", image: directorTile, fallback: MessageCircle },
+    { label: 'Tools', description: 'Campaign tools, guides and downloads', ariaLabel: 'Tools: campaign tools, guides and downloads', image: toolsTile, fallback: Wrench },
   ];
-  const choices: ActionMenuChoice[] = ['dice', 'actions', 'spells', 'story', 'bag', 'moves', 'director'];
+  const choices: ActionMenuChoice[] = ['dice', 'actions', 'spells', 'story', 'bag', 'moves', 'director', 'tools'];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
