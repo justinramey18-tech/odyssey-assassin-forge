@@ -4,6 +4,7 @@
 
 import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import type { OnlineInfo } from '@/hooks/use-online-status';
 import type { ChatAvatars } from '@/hooks/use-chat-avatars';
 import enterStoryEmblem from '@/assets/enter-story-emblem.png';
 import bagPanelFrame from '@/assets/bag-stats/bag-panel-frame.png';
@@ -24,6 +25,11 @@ interface PartyRosterBoardProps {
   /** userId -> the player's own table name. */
   oocNames?: Record<string, string>;
   currentUserId?: string;
+  /** Live presence (instant). Preferred when ready. */
+  presenceIds?: Set<string>;
+  presenceReady?: boolean;
+  /** Timestamp-based fallback: userId -> OnlineInfo (also provides "Last seen …"). */
+  onlineStatus?: Record<string, OnlineInfo>;
   /** Opens the Party DM — shown in place of "playing as" on the user's own row. */
   onOpenPartyDM?: () => void;
   showEmblem?: boolean;
