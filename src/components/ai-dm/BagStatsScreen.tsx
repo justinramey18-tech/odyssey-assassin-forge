@@ -140,7 +140,7 @@ export function BagStatsScreen({
         {ctx.name && <p className="text-center text-[11px] font-cinzel uppercase tracking-[0.2em] text-amber-200/60 -mt-1 mb-1">{ctx.name}</p>}
         {/* HP */}
         <Section title="Hit Points" iconSrc={bagIconHeart}>
-          <div className="flex items-baseline justify-between mb-1">
+          <div className="flex items-baseline justify-center gap-1.5 mb-1">
             <span className="text-2xl font-display font-bold text-foreground">{fmt(currentHP)}</span>
             <span className="text-xs text-white/50">/ {fmt(maxHP)} max</span>
           </div>
@@ -168,7 +168,7 @@ export function BagStatsScreen({
             {typeof armorClass === 'number' && Number.isFinite(armorClass) && (
               <div className="relative w-full max-w-[130px] mx-auto">
                 <img src={bagStatAc} alt="" draggable={false} className="block w-full" />
-                <span className="absolute -translate-y-1/2 text-3xl font-display font-bold text-amber-200 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]" style={{ top: '40.9%', left: '52%' }} aria-label={`Armor class ${armorClass}`}>{armorClass}</span>
+                <span className="absolute -translate-x-1/2 -translate-y-1/2 leading-none text-3xl font-display font-bold text-amber-200 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]" style={{ top: '42%', left: '53.5%' }} aria-label={`Armor class ${armorClass}`}>{armorClass}</span>
               </div>
             )}
           </div>
@@ -199,7 +199,7 @@ export function BagStatsScreen({
 
         {/* Gold */}
         <Section title="Gold" iconSrc={bagIconGold}>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center gap-3">
             <img src={bagIconGold} alt="" className="w-12 h-12 shrink-0" />
             <p className="text-2xl font-display font-bold text-amber-300">{fmt(gold)}</p>
           </div>
