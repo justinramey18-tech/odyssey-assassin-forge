@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronDown, Send, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft } from 'lucide-react';
 import { AvatarCropDialog } from './AvatarCropDialog';
 
@@ -28,7 +28,43 @@ import { supabase } from '@/integrations/supabase/client';
 import type { RoundChatMessage, RoundChatReaction, RoundStyle } from '@/hooks/use-round-chat';
 import liveChatTablePov from '@/assets/live-chat/live-chat-table-pov.jpg.asset.json';
 import playBannerV2Asset from '@/assets/play-banner-v2.jpg.asset.json';
+import returnToStoryBanner from '@/assets/live-chat/return-to-story-banner.jpg';
+import actionsBanner from '@/assets/live-chat/actions-banner.jpg';
 const playBannerV2 = playBannerV2Asset.url;
+
+/**
+ * Resolves once every URL has loaded (or failed), or after capMs — whichever is first.
+ * Used to warm pictures before they are revealed, never to block the chat forever.
+ */
+function preloadImages(urls: Array<string | undefined>, capMs: number): Promise<void> {
+  const list = urls.filter((u): u is string => !!u);
+  if (list.length === 0) return Promise.resolve();
+  return new Promise(resolve => {
+    let left = list.length;
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      window.clearTimeout(timer);
+      resolve();
+    };
+    const timer = window.setTimeout(finish, capMs);
+    for (const src of list) {
+      const img = new Image();
+      const settle = () => { left -= 1; if (left <= 0) finish(); };
+      img.onload = settle;
+      img.onerror = settle;
+      img.src = src;
+    }
+  });
+}
+
+/**
+ * Opening choreography for the Live DM Table, one step at a time:
+ * 1 background · 2 status pops + messages · 3 input field · 4 IC/OOC tiles · 5 RETURN TO STORY header
+ */
+const STAGE = { background: 1, feed: 2, input: 3, tiles: 4, header: 5 } as const;
+const REVEAL_EASE = [0.16, 1, 0.3, 1] as const;
 
 const EMOJI_SET = ['🤣','😅','🤪','🙄','😬','😏','🤮','🥵','🥶','🤯','🧐','😎','😱','😭','🤬','😈','❤️','💯','👏','🙌','🤝','🖕','🫦','🗣','🍑','🍆'];
 
@@ -132,6 +168,8 @@ interface RoundChatDrawerProps {
   /** Shared realtime presence from PartyDMScreen. When provided, the drawer uses it instead of its own channel. */
   presenceIds?: Set<string>;
   presenceReady?: boolean;
+  /** True once read receipts have been fetched, so the closed-state unread badge never counts early. */
+  readReceiptsLoaded?: boolean;
 }
 
 /** Small circular face beside a message. Tapping your own opens the picker. */
@@ -257,6 +295,7 @@ export function RoundChatDrawer({
   onOpenActionMenu,
   presenceIds,
   presenceReady,
+  readReceiptsLoaded = false,
 }: RoundChatDrawerProps) {
   const [editingOocName, setEditingOocName] = useState(false);
   const [oocNameDraft, setOocNameDraft] = useState('');
@@ -266,7 +305,9 @@ export function RoundChatDrawer({
   const [text, setText] = useState('');
   const [inCharacter, setInCharacter] = useState(true);
   const [pickerFor, setPickerFor] = useState<string | null>(null);
-  const [fullScreen, setFullScreen] = useState(false);
+  // The table is always full screen while open. Deriving it (instead of setting it in an
+  // effect) means the very first open frame is already full size: no in-page → full-screen jump.
+  const fullScreen = open;
   const [actionsFor, setActionsFor] = useState<string | null>(null);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -345,6 +386,14 @@ export function RoundChatDrawer({
   const sharedReady = presenceIds ? !!presenceReady : livePresenceReady;
   const sharedIds = presenceIds ?? livePresenceIds;
 
+  // Unread badge on the collapsed PLAY banner: other players' lines newer than your
+  // read marker. (The open-state `unseen` counter only tracks lines below your scroll.)
+  const myLastRead = currentUserId ? readReceipts?.[currentUserId] : undefined;
+  const closedUnread = useMemo(() => {
+    if (!readReceiptsLoaded || !currentUserId) return 0;
+    return messages.filter(m => m.user_id !== currentUserId && (!myLastRead || m.created_at > myLastRead)).length;
+  }, [messages, currentUserId, myLastRead, readReceiptsLoaded]);
+
   const jumpToMessage = useCallback((id: string) => {
     const el = messageRefs.current[id];
     if (!el) return;
@@ -388,9 +437,70 @@ export function RoundChatDrawer({
   }, [swipeX]);
 
   useEffect(() => {
-    if (open) setFullScreen(true);
-    else { setFullScreen(false); setReplyTo(null); }
+    if (!open) setReplyTo(null);
   }, [open]);
+
+  // ── Opening choreography ──
+  const prefersReducedMotion = useReducedMotion();
+  const [stage, setStage] = useState(0);
+  const avatarsRef = useRef(avatars);
+  avatarsRef.current = avatars;
+
+  useEffect(() => {
+    if (!open) { setStage(0); return; }
+    if (prefersReducedMotion) { setStage(STAGE.header); return; }
+
+    let cancelled = false;
+    const wait = (ms: number) => new Promise<void>(resolve => window.setTimeout(resolve, ms));
+    const step = (n: number) => { if (!cancelled) setStage(s => Math.max(s, n)); };
+
+    // Start fetching your own IC/OOC pictures now, so their tiles are ready by step 4.
+    const mine = currentUserId ? avatarsRef.current?.[currentUserId] : undefined;
+    const tilesReady = preloadImages([mine?.ic, mine?.ooc], 1200);
+
+    const run = async () => {
+      await preloadImages([liveChatTablePov.url], 800);
+      step(STAGE.background);
+      await wait(320);
+      step(STAGE.feed);
+      await wait(260);
+      step(STAGE.input);
+      await Promise.all([wait(220), tilesReady]);
+      step(STAGE.tiles);
+      await wait(240);
+      step(STAGE.header);
+    };
+    void run();
+
+    // Never leave part of the table invisible, even if a picture hangs.
+    const safety = window.setTimeout(() => step(STAGE.header), 2500);
+    return () => { cancelled = true; window.clearTimeout(safety); };
+  }, [open, prefersReducedMotion, currentUserId]);
+
+  /** Fade-and-rise for one step of the choreography. Hidden steps keep their space and ignore taps. */
+  const reveal = (at: number, rise = 8) => {
+    const shown = stage >= at;
+    return {
+      initial: false as const,
+      animate: { opacity: shown ? 1 : 0, y: shown || prefersReducedMotion ? 0 : rise },
+      transition: prefersReducedMotion
+        ? { duration: 0 }
+        : shown
+          ? { duration: 0.35, ease: REVEAL_EASE }
+          : { duration: 0 },
+      style: { pointerEvents: shown ? undefined : ('none' as const) },
+      'aria-hidden': shown ? undefined : true,
+    };
+  };
+
+  // Warm the pictures the open table needs while it is still collapsed, so nothing pops in late.
+  useEffect(() => {
+    void preloadImages([returnToStoryBanner, actionsBanner, liveChatTablePov.url], 8000);
+  }, []);
+  useEffect(() => {
+    const urls = Object.values(avatars || {}).flatMap(a => [a?.ic, a?.ooc]);
+    void preloadImages(urls, 8000);
+  }, [avatars]);
 
   // Hide the floating "Back to character sheet" shortcut while the round chat
   // is expanded, so it doesn't sit on top of the composer.
@@ -525,15 +635,25 @@ export function RoundChatDrawer({
     )}>
       {/* First-person "seat at the table" scene — anchored to the bottom so the
           hands and phone stay in view at every drawer height */}
-      <div
+      {/* Step 1 of the opening: the table fades in first. Collapsed, it simply sits behind PLAY. */}
+      <motion.div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-cover bg-no-repeat"
-        style={{ backgroundImage: `url(${liveChatTablePov.url})`, backgroundPosition: 'center bottom' }}
-      />
-      <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/75 via-black/60 to-black/10" />
+        className="pointer-events-none absolute inset-0"
+        initial={false}
+        animate={{ opacity: !open || stage >= STAGE.background ? 1 : 0 }}
+        transition={{ duration: open && stage >= STAGE.background && !prefersReducedMotion ? 0.45 : 0, ease: 'easeOut' }}
+      >
+        <div
+          className="absolute inset-0 bg-cover bg-no-repeat"
+          style={{ backgroundImage: `url(${liveChatTablePov.url})`, backgroundPosition: 'center bottom' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/60 to-black/10" />
+      </motion.div>
       {open ? (
-        /* Expanded header — RETURN TO STORY banner artwork collapses the table */
-        <button
+        /* Expanded header — RETURN TO STORY banner artwork collapses the table.
+           Step 5: fades in last; its 65px slot is reserved from the first frame. */
+        <motion.button
+          {...reveal(STAGE.header, -8)}
           onClick={() => onOpenChange(false)}
           aria-expanded
           aria-label={style.mode === 'live' ? 'Return to story: close the Live DM Table' : 'Return to story: close the round chat'}
@@ -541,11 +661,11 @@ export function RoundChatDrawer({
             "relative block w-full transition-transform active:scale-[0.99]",
             fullScreen && "shrink-0"
           )}
-          style={{ touchAction: 'manipulation', minHeight: 44 }}
+          style={{ ...reveal(STAGE.header).style, touchAction: 'manipulation', minHeight: 44 }}
         >
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
           <img
-            src="/play-banner-return.png"
+            src={returnToStoryBanner}
             alt=""
             className="w-full h-[65px] object-cover object-center block"
             draggable={false}
@@ -566,7 +686,7 @@ export function RoundChatDrawer({
               {unseen > 99 ? '99+' : unseen}
             </span>
           )}
-        </button>
+        </motion.button>
       ) : (
         /* Collapsed trigger — PLAY banner artwork opens the table */
         <button
@@ -595,9 +715,12 @@ export function RoundChatDrawer({
           )}>
             {progress.current} ticked
           </span>
-          {unseen > 0 && (
-            <span className="absolute left-2 top-2 min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white border border-red-300/40">
-              {unseen > 99 ? '99+' : unseen}
+          {closedUnread > 0 && (
+            <span
+              className="absolute left-2 top-2 min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white border border-red-300/40"
+              aria-label={`${closedUnread} unread`}
+            >
+              {closedUnread > 99 ? '99+' : closedUnread}
             </span>
           )}
         </button>
@@ -605,20 +728,12 @@ export function RoundChatDrawer({
 
 
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            key="round-chat-drawer"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: fullScreen ? '100%' : 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: 'easeInOut' }}
-            className={cn("overflow-hidden", fullScreen && "flex-1 min-h-0 flex flex-col")}
-          >
-            <div className={cn(
-              "px-2 pb-2 relative",
-              fullScreen && "flex-1 min-h-0 flex flex-col",
-            )}>
+      {open && (
+          <div className="relative overflow-hidden flex-1 min-h-0 flex flex-col">
+            <div className="px-2 pb-2 relative flex-1 min-h-0 flex flex-col">
+              {/* Step 2: status pops + messages. Laid out (and scrolled to the newest line)
+                  from the first frame while invisible, so they fade in already in place. */}
+              <motion.div {...reveal(STAGE.feed)} className="flex-1 min-h-0 flex flex-col">
               {/* Compact DM status banner */}
               {dmStatus && (
                 <div
@@ -1147,8 +1262,9 @@ export function RoundChatDrawer({
                   );
                 })}
               </div>
+              </motion.div>
 
-              {!pinned && messages.length > 0 && (
+              {stage >= STAGE.feed && !pinned && messages.length > 0 && (
                 <button
                   onClick={() => scrollToLatest('smooth')}
                   style={{ touchAction: 'manipulation' }}
@@ -1169,9 +1285,11 @@ export function RoundChatDrawer({
               >
                 
 
-                {/* Who is speaking. The pictures are the same ones used for this
+                {/* Step 4: who is speaking. The pictures are the same ones used for this
                     player's bubbles, so the tile you pick matches what appears in
-                    the chat. Tapping the already-selected tile renames it. */}
+                    the chat. Tapping the already-selected tile renames it.
+                    Revealed after the input field, once your pictures have loaded. */}
+                <motion.div {...reveal(STAGE.tiles)} className="space-y-1.5">
                 <div className="flex items-stretch gap-2">
                   {([
                     {
@@ -1261,6 +1379,10 @@ export function RoundChatDrawer({
                     className="w-full px-2 py-2 rounded-lg text-[12px] bg-black/40 border border-sky-400/40 text-sky-100 outline-none"
                   />
                 )}
+                </motion.div>
+
+                {/* Step 3: the input field (reply chip, text box, picture + send, actions banner). */}
+                <motion.div {...reveal(STAGE.input)} className="space-y-1.5">
 
                 {replyTo && (
                   <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-amber-500/25 bg-amber-500/5">
@@ -1354,18 +1476,18 @@ export function RoundChatDrawer({
                     className="relative h-[90px] min-h-[44px] w-full overflow-hidden rounded-lg border border-amber-500/30 bg-muted/40 active:brightness-110"
                   >
                     <img
-                      src="/action-menu/actions-banner.png"
+                      src={actionsBanner}
                       alt=""
                       aria-hidden="true"
                       className="absolute inset-0 h-full w-full object-cover object-center"
                     />
                   </button>
                 )}
+                </motion.div>
               </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+      )}
 
       <AvatarCropDialog
         open={!!cropTarget}

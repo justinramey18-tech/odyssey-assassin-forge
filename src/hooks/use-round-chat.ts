@@ -110,6 +110,8 @@ export function useRoundChat(
   const [sending, setSending] = useState(false);
   /** userId -> ISO timestamp of the newest message that player has seen. */
   const [readReceipts, setReadReceipts] = useState<Record<string, string>>({});
+  /** False until this party's read receipts have been fetched once. */
+  const [readReceiptsLoaded, setReadReceiptsLoaded] = useState(false);
   const roundIdRef = useRef<string | undefined>(roundId);
   useEffect(() => { roundIdRef.current = roundId; }, [roundId]);
 
@@ -142,18 +144,25 @@ export function useRoundChat(
 
   const loadReadReceipts = useCallback(async () => {
     if (!partyId) return;
-    const { data } = await (supabase.from('party_shared_state') as any)
-      .select('user_id, state_data')
-      .eq('party_id', partyId)
-      .eq('state_type', READ_STATE_TYPE);
-    const rows = (data || []) as Array<{ user_id: string; state_data: any }>;
-    const next: Record<string, string> = {};
-    for (const r of rows) {
-      const ts = r?.state_data?.lastReadAt;
-      if (typeof ts === 'string') next[r.user_id] = ts;
+    try {
+      const { data } = await (supabase.from('party_shared_state') as any)
+        .select('user_id, state_data')
+        .eq('party_id', partyId)
+        .eq('state_type', READ_STATE_TYPE);
+      const rows = (data || []) as Array<{ user_id: string; state_data: any }>;
+      const next: Record<string, string> = {};
+      for (const r of rows) {
+        const ts = r?.state_data?.lastReadAt;
+        if (typeof ts === 'string') next[r.user_id] = ts;
+      }
+      setReadReceipts(next);
+    } finally {
+      setReadReceiptsLoaded(true);
     }
-    setReadReceipts(next);
   }, [partyId]);
+
+  // A new party waits for its own receipts before the unread badge counts anything.
+  useEffect(() => { setReadReceiptsLoaded(false); }, [partyId]);
 
   useEffect(() => { loadReadReceipts(); }, [loadReadReceipts]);
 
@@ -192,17 +201,35 @@ export function useRoundChat(
   // ── Messages ──
   const loadMessages = useCallback(async () => {
     if (!partyId) return;
-    const { data } = await (supabase.from('party_round_chat') as any)
-      .select('*')
-      .eq('party_id', partyId)
-      .order('created_at', { ascending: true })
-      .limit(200);
-    setMessages((data || []) as RoundChatMessage[]);
+    // Newest 200 lines (fetched newest-first, then flipped back into reading order),
+    // with their reactions fetched at the same time instead of afterwards.
+    const [msgRes, rxRes] = await Promise.all([
+      (supabase.from('party_round_chat') as any)
+        .select('*')
+        .eq('party_id', partyId)
+        .order('created_at', { ascending: false })
+        .limit(200),
+      (supabase.from('party_round_chat_reactions') as any)
+        .select('id, message_id, user_id, sender_name, emoji')
+        .eq('party_id', partyId)
+        .order('created_at', { ascending: false })
+        .limit(1000),
+    ]);
 
-    const { data: rx } = await (supabase.from('party_round_chat_reactions') as any)
-      .select('id, message_id, user_id, sender_name, emoji')
-      .eq('party_id', partyId);
-    setReactions((rx || []) as RoundChatReaction[]);
+    const loaded = ([...((msgRes.data || []) as RoundChatMessage[])]).reverse();
+    const loadedIds = new Set(loaded.map(m => m.id));
+    // Keep any line that arrived over realtime while this fetch was in flight.
+    setMessages(prev => {
+      const newest = loaded.length ? loaded[loaded.length - 1].created_at : '';
+      const lateArrivals = prev.filter(m => !loadedIds.has(m.id) && m.created_at > newest);
+      return lateArrivals.length ? [...loaded, ...lateArrivals] : loaded;
+    });
+    setReactions(prev => {
+      const fetched = ((rxRes.data || []) as RoundChatReaction[]).filter(r => loadedIds.has(r.message_id));
+      const fetchedIds = new Set(fetched.map(r => r.id));
+      const lateArrivals = prev.filter(r => !fetchedIds.has(r.id));
+      return lateArrivals.length ? [...fetched, ...lateArrivals] : fetched;
+    });
   }, [partyId]);
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
@@ -500,6 +527,7 @@ export function useRoundChat(
     reload: loadMessages,
 
     readReceipts,
+    readReceiptsLoaded,
     markRead,
   };
 }
