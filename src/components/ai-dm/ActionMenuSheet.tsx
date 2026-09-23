@@ -4,6 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import directorTileAsset from '@/assets/action-menu/director-tile.jpg.asset.json';
 import toolsTileAsset from '@/assets/action-menu/tools-tile.jpg.asset.json';
+import tileDice from '@/assets/action-menu/tile-dice.jpg';
+import tileAttack from '@/assets/action-menu/tile-attack.jpg';
+import tileSpell from '@/assets/action-menu/tile-spell.jpg';
+import tileQuest from '@/assets/action-menu/tile-quest.jpg';
+import tileMoves from '@/assets/action-menu/tile-moves.jpg';
+import actionSheetFrame from '@/assets/action-menu/action-sheet-frame.png';
+import { cn } from '@/lib/utils';
 const directorTile = directorTileAsset.url;
 const toolsTile = toolsTileAsset.url;
 
@@ -51,7 +58,7 @@ function ActionTile({ label, description, ariaLabel, image, fallback: Fallback, 
           src={source}
           alt={`${label} action`}
           onError={() => setImageFailed(true)}
-          className="absolute inset-0 h-full w-full object-cover opacity-65"
+          className={cn('absolute inset-0 h-full w-full object-cover', characterImage ? 'opacity-65' : 'opacity-100')}
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center bg-muted/40" aria-hidden="true">
@@ -97,12 +104,12 @@ function ActionTile({ label, description, ariaLabel, image, fallback: Fallback, 
 export function ActionMenuSheet({ open, onOpenChange, onSelect, characterName, characterImage }: ActionMenuSheetProps) {
   const initials = (characterName || 'Adventurer').trim().charAt(0).toUpperCase();
   const tiles: Array<Omit<ActionTileProps, 'onClick'>> = [
-    { label: 'Dice', description: 'Open the dice roller', image: '/action-menu/dice.png', fallback: Dices },
-    { label: 'Actions', description: 'Use weapons and abilities', image: '/action-menu/sword.png', fallback: Sword },
-    { label: 'Spells', description: 'Cast spells and cantrips', image: '/action-menu/wand.png', fallback: WandSparkles },
-    { label: 'Quest Log', description: 'Open your active quests', ariaLabel: 'Quest log', image: '/action-menu/book.png', fallback: BookOpen },
+    { label: 'Dice', description: 'Open the dice roller', image: tileDice, fallback: Dices },
+    { label: 'Actions', description: 'Use weapons and abilities', image: tileAttack, fallback: Sword },
+    { label: 'Spells', description: 'Cast spells and cantrips', image: tileSpell, fallback: WandSparkles },
+    { label: 'Quest Log', description: 'Open your active quests', ariaLabel: 'Quest log', image: tileQuest, fallback: BookOpen },
     { label: 'Bag & Stats', description: 'Open your items and character stats', fallback: Backpack, characterImage, initials, overlayText: 'BAG & STATS' },
-    { label: 'Get Moves', description: 'Suggested moves when you are stuck', image: '/action-menu/slot6.png', fallback: Sparkles },
+    { label: 'Get Moves', description: 'Suggested moves when you are stuck', image: tileMoves, fallback: Sparkles },
     { label: "Director's Channel", description: 'Talk privately with the DM', ariaLabel: "Director's Channel: talk privately with the DM", image: directorTile, fallback: MessageCircle },
     { label: 'Tools', description: 'Campaign tools, guides and downloads', ariaLabel: 'Tools: campaign tools, guides and downloads', image: toolsTile, fallback: Wrench },
   ];
@@ -110,14 +117,29 @@ export function ActionMenuSheet({ open, onOpenChange, onSelect, characterName, c
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="z-[65] max-h-[92dvh] overflow-y-auto rounded-t-2xl border-amber-500/30 bg-background/95 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-lg">
-        <SheetHeader className="pb-2">
-          <SheetTitle className="text-center font-cinzel text-amber-200">Choose an Action</SheetTitle>
-        </SheetHeader>
-        <div className="mx-auto grid w-full max-w-[21rem] grid-cols-2 gap-2.5">
-          {tiles.map((tile, index) => (
-            <ActionTile key={choices[index]} {...tile} onClick={() => onSelect(choices[index])} />
-          ))}
+      <SheetContent
+        side="bottom"
+        className="z-[65] max-h-[92dvh] overflow-y-auto border-0 bg-transparent p-0 pb-[max(0.25rem,env(safe-area-inset-bottom))] shadow-none backdrop-blur-none [&>button:last-child]:right-[34px] [&>button:last-child]:top-[18px] [&>button:last-child]:z-10 [&>button:last-child]:text-amber-300 [&>button:last-child]:opacity-90"
+      >
+        <div
+          className="relative mx-auto w-full max-w-[440px]"
+          style={{
+            borderStyle: 'solid',
+            borderWidth: '108px 26px 30px',
+            borderImage: `url(${actionSheetFrame}) 180 52 56 fill / 108px 26px 30px stretch`,
+            padding: '4px 2px 2px',
+          }}
+        >
+          <SheetHeader className="absolute inset-x-0 top-[-34px] -translate-y-1/2 space-y-0 p-0 text-center sm:text-center">
+            <SheetTitle className="text-center font-cinzel text-[18px] font-bold tracking-[0.06em] text-[#FFE4AA] [text-shadow:0_0_8px_rgba(245,158,11,0.55),0_1px_2px_#000]">
+              Choose an Action
+            </SheetTitle>
+          </SheetHeader>
+          <div className="mx-auto grid w-full max-w-[300px] grid-cols-2 gap-2.5">
+            {tiles.map((tile, index) => (
+              <ActionTile key={choices[index]} {...tile} onClick={() => onSelect(choices[index])} />
+            ))}
+          </div>
         </div>
       </SheetContent>
     </Sheet>
