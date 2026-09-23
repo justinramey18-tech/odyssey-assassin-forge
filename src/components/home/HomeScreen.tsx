@@ -367,7 +367,9 @@ export function HomeScreen({
   // Same avatar source the Live DM Table uses, so the roster pictures match the
   // pictures on each player's chat messages.
   const rosterAvatars = useChatAvatars(partyIdForChat ?? null, userId);
-  const partySettled = !partySync || !partySync.party.isLoading;
+  const partySettled = !partySync || partySync.hasResolvedParty;
+  const avatarsRef = useRef(rosterAvatars.avatars);
+  avatarsRef.current = rosterAvatars.avatars;
   const hasRoster = playMode === 'party' && !!partySync?.party?.partyId && (partySync?.party?.members?.length ?? 0) > 0;
   useEffect(() => {
     if (!bgReady || !partySettled || sequenceStartedRef.current) return;
@@ -384,9 +386,18 @@ export function HomeScreen({
 
         const members = partySync?.party.members ?? [];
         const orderedMembers = [...members].sort((a, b) => Number(b.user_id === userId) - Number(a.user_id === userId));
+
+        // Wait (briefly) for at least one member's avatar entry to arrive.
+        const avatarsReady = () => orderedMembers.some(m => !!avatarsRef.current[m.user_id]);
+        const avatarDeadline = Date.now() + 1500;
+        while (!avatarsReady() && Date.now() < avatarDeadline) {
+          await wait(100);
+          if (cancelled) return;
+        }
+
         const avatarUrls = orderedMembers.flatMap(member => [
-          rosterAvatars.avatars[member.user_id]?.ic,
-          rosterAvatars.avatars[member.user_id]?.ooc,
+          avatarsRef.current[member.user_id]?.ic,
+          avatarsRef.current[member.user_id]?.ooc,
         ]);
         await preloadImages(avatarUrls, 1500);
         if (cancelled) return;
@@ -409,7 +420,7 @@ export function HomeScreen({
     return () => { cancelled = true; };
   }, [bgReady, partySettled]);
   useEffect(() => {
-    const safety = window.setTimeout(() => setStage(current => Math.max(current, 5)), 4000);
+    const safety = window.setTimeout(() => setStage(current => Math.max(current, 5)), 6000);
     return () => window.clearTimeout(safety);
   }, []);
   const lastSeenKey = partyIdForChat ? `odyssey_chat_lastSeen_${partyIdForChat}` : null;

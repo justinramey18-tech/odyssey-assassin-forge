@@ -233,6 +233,7 @@ export interface CombatLogEntry {
 
 export interface UsePartySyncReturn {
   party: PartyState;
+  hasResolvedParty: boolean;
   pendingHeals: PendingHealAction[];
   pendingTrades: PendingTradeAction[];
   // Existing
@@ -313,7 +314,8 @@ export interface UsePartySyncReturn {
 }
 
 export function usePartySync(): UsePartySyncReturn {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const [hasResolvedParty, setHasResolvedParty] = useState(false);
   const [party, setParty] = useState<PartyState>({
     partyId: null,
     linkCode: null,
@@ -443,8 +445,10 @@ export function usePartySync(): UsePartySyncReturn {
 
   // Resolve on mount / auth change, and again when the app regains focus if unresolved
   useEffect(() => {
-    if (!user) return;
-    resolveParty();
+    if (authLoading) return;
+    if (!user) { setHasResolvedParty(true); return; }
+    setHasResolvedParty(false);
+    resolveParty().finally(() => setHasResolvedParty(true));
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
         setParty(prev => {
@@ -455,7 +459,7 @@ export function usePartySync(): UsePartySyncReturn {
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [user, resolveParty]);
+  }, [user, authLoading, resolveParty]);
 
 
   // Load existing data when joining a party
@@ -1774,6 +1778,7 @@ export function usePartySync(): UsePartySyncReturn {
 
   return {
     party,
+    hasResolvedParty,
     pendingHeals,
     pendingTrades,
     createParty,
