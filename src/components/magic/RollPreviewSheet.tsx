@@ -10,7 +10,7 @@ import glyphBolt from '@/assets/rolls/glyph-bolt.png';
 import glyphHourglass from '@/assets/rolls/glyph-hourglass.png';
 import btnCancel from '@/assets/rolls/btn-cancel.png';
 import btnRoll from '@/assets/rolls/btn-roll.png';
-import homePillPlaque from '@/assets/home/home-pill-plaque.png';
+import homePillPlaque from '@/assets/home/home-pill-plaque.png.asset.json';
 import bagPanelFrame from '@/assets/bag-stats/bag-panel-frame.png';
 
 export interface RollPreviewTarget {
