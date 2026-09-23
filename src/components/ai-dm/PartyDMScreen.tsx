@@ -1005,10 +1005,21 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
           <Users className="w-3.5 h-3.5 text-primary" />
         </div>
       )}
-      <div className={cn(
-        "flex-1 min-w-0 rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 rounded-bl-sm overflow-hidden",
-        isWhisper ? "bg-purple-900/20 border border-purple-500/20" : "bg-white/5 border border-white/10"
-      )}>
+      <div
+        className={cn(
+          "flex-1 min-w-0 px-2 py-1",
+          isWhisper && "bg-purple-500/10"
+        )}
+        style={{
+          borderStyle: 'solid',
+          borderWidth: '10px',
+          borderImage: `url(${playerFrame}) 40 fill / 14px stretch`,
+          boxShadow: !isWhisper && message.sender_user_id ? `inset 2px 0 0 ${getMemberColor(message.sender_user_id, members)}` : undefined,
+        }}
+      >
+        {isCombinedPartyMessage && (
+          <img src={partyActsDivider} alt="The party acts" draggable={false} className="block w-full max-w-[340px] mx-auto mb-2" />
+        )}
         {!isWhisper && showTeamTag && message.team && (
           <span className={cn(
             "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-cinzel mb-1",
