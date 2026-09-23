@@ -124,7 +124,7 @@ export function PartyRosterBoard({
             return (
               <div
                 key={m.user_id}
-                className="flex items-start gap-2 rounded-lg p-2"
+                className="flex items-start gap-1.5 rounded-lg px-1 py-1.5"
               >
                 <motion.div
                   initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 6 }}
@@ -136,6 +136,7 @@ export function PartyRosterBoard({
                     label={playerName}
                     fallbackTint="bg-sky-500/20 text-sky-200"
                     isSelf={isSelf}
+                    kind="player"
                   />
                 </motion.div>
 
@@ -163,15 +164,15 @@ export function PartyRosterBoard({
                     </button>
                     </motion.div>
                     {(className || level) && (
-                      <motion.span
-                        initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 6 }}
-                        animate={showFaces ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 6 }}
-                        transition={{ duration: 0.35, delay: rowIndex * 0.06 }}
-                        className="font-body text-[9px] text-white/25 truncate max-w-full text-center"
-                        style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
-                      >
-                        {className}{level ? ` · Lv.${level}` : ''}
-                      </motion.span>
+                        <motion.span
+                          initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 6 }}
+                          animate={showFaces ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 6 }}
+                          transition={{ duration: 0.35, delay: rowIndex * 0.06 }}
+                          className="-mt-1 font-cinzel text-[10px] font-bold capitalize tracking-[0.06em] text-amber-50/80 truncate max-w-full text-center"
+                          style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
+                        >
+                          {className}{level ? ` · Lv ${level}` : ''}
+                        </motion.span>
                     )}
                   </div>
                 ) : (
@@ -179,22 +180,29 @@ export function PartyRosterBoard({
                     initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 6 }}
                     animate={showFaces ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 6 }}
                     transition={{ duration: 0.35, delay: rowIndex * 0.06 }}
-                    className="flex-1 min-w-0 flex flex-col items-center justify-center pt-5"
+                    className="flex-1 min-w-0 h-[84px] flex flex-col items-center justify-center gap-px"
                   >
-                    <ArrowRight className="w-4 h-4 text-white/30" />
-                    <span
-                      className="font-body text-[10px] text-white/40 whitespace-nowrap"
-                      style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
-                    >
-                      playing as
+                    <span className="font-cinzel text-[8px] font-bold uppercase tracking-[0.22em] text-[#E9C77B]/75 [text-shadow:0_1px_2px_#000]">
+                      Playing as
                     </span>
-                    {(className || level) && (
-                      <motion.span
-                        className="font-body text-[9px] text-white/25 truncate max-w-full text-center"
-                        style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
-                      >
-                        {className}{level ? ` · Lv.${level}` : ''}
-                      </motion.span>
+                    <div
+                      className="flex h-6 w-full max-w-[150px] items-center justify-center"
+                      style={{
+                        borderStyle: 'solid',
+                        borderWidth: '0 45px 0 34px',
+                        borderImage: `url(${playingAsConnector}) 0 226 0 172 fill / 0 45px 0 34px stretch`,
+                      }}
+                    >
+                      {level ? (
+                        <span className="whitespace-nowrap font-cinzel text-[9px] font-bold tracking-[0.04em] text-[#FFE4AA] [text-shadow:0_0_4px_rgba(245,158,11,0.6),0_1px_1px_#000]">
+                          Lv {String(level)}
+                        </span>
+                      ) : null}
+                    </div>
+                    {className && (
+                      <span className="max-w-full truncate font-cinzel text-[10.5px] font-bold capitalize text-amber-50/85 [text-shadow:0_1px_3px_#000]">
+                        {className}
+                      </span>
                     )}
                   </motion.div>
                 )}
@@ -209,6 +217,7 @@ export function PartyRosterBoard({
                     label={charName}
                     fallbackTint="bg-amber-500/20 text-amber-200"
                     isSelf={isSelf}
+                    kind="character"
                   />
                 </motion.div>
               </div>
