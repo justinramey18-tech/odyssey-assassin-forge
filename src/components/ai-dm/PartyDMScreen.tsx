@@ -24,6 +24,12 @@ import dmSigilAsset from '@/assets/dm-message/dm-sigil.png.asset.json';
 import dmGlyphBookmarkAsset from '@/assets/dm-message/dm-glyph-bookmark.png.asset.json';
 import dmGlyphExpandAsset from '@/assets/dm-message/dm-glyph-expand.png.asset.json';
 import dmGlyphRegenerateAsset from '@/assets/dm-message/dm-glyph-regenerate.png.asset.json';
+import playerRingAsset from '@/assets/rolls/player-ring.png.asset.json';
+import playerFrameAsset from '@/assets/rolls/player-frame.png.asset.json';
+import partyActsDividerAsset from '@/assets/rolls/party-acts-divider.png.asset.json';
+const playerRing = playerRingAsset.url;
+const playerFrame = playerFrameAsset.url;
+const partyActsDivider = partyActsDividerAsset.url;
 const dmFrame = dmFrameAsset.url;
 const dmCrest = dmCrestAsset.url;
 const dmSigil = dmSigilAsset.url;
@@ -283,13 +289,15 @@ function PlayerMessageAvatar({
 
   if (avatarUrl) {
     return (
-      <img
-        src={avatarUrl}
-        alt={senderName}
-        loading="lazy"
-        className="w-9 h-9 rounded-full object-cover shrink-0"
-        style={{ border: `1.5px solid ${color}` }}
-      />
+      <div className="relative w-9 h-9 shrink-0">
+        <img
+          src={avatarUrl}
+          alt={senderName}
+          loading="lazy"
+          className="w-full h-full rounded-full object-cover"
+        />
+        <img src={playerRing} alt="" aria-hidden="true" className="pointer-events-none absolute -inset-[3px] w-[calc(100%+6px)] h-[calc(100%+6px)]" />
+      </div>
     );
   }
 
