@@ -104,7 +104,7 @@ export function PartyRosterBoard({
                 <motion.div
                   initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 6 }}
                   animate={showFaces ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 6 }}
-                  transition={{ duration: 0.35, delay: 0.2 + rowIndex * 0.05 }}
+                  transition={{ duration: 0.35, delay: rowIndex * 0.06 }}
                 >
                   <RosterFace
                     url={avatars?.[m.user_id]?.ooc}
@@ -120,7 +120,7 @@ export function PartyRosterBoard({
                       initial={{ opacity: 0, scale: prefersReducedMotion ? 1 : 0.92 }}
                       animate={showEmblem ? { opacity: 1, scale: 1 } : { opacity: 0, scale: prefersReducedMotion ? 1 : 0.92 }}
                       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                      className="w-full"
+                      className="w-full flex justify-center"
                     >
                     <button
                       onClick={onOpenPartyDM}
@@ -141,7 +141,7 @@ export function PartyRosterBoard({
                       <motion.span
                         initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 6 }}
                         animate={showFaces ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 6 }}
-                        transition={{ duration: 0.35, delay: 0.2 + rowIndex * 0.05 }}
+                        transition={{ duration: 0.35, delay: rowIndex * 0.06 }}
                         className="font-body text-[9px] text-white/25 truncate max-w-full text-center"
                         style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
                       >
@@ -153,7 +153,7 @@ export function PartyRosterBoard({
                   <motion.div
                     initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 6 }}
                     animate={showFaces ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 6 }}
-                    transition={{ duration: 0.35, delay: 0.2 + rowIndex * 0.05 }}
+                    transition={{ duration: 0.35, delay: rowIndex * 0.06 }}
                     className="flex-1 min-w-0 flex flex-col items-center justify-center pt-5"
                   >
                     <ArrowRight className="w-4 h-4 text-white/30" />
@@ -177,7 +177,7 @@ export function PartyRosterBoard({
                 <motion.div
                   initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 6 }}
                   animate={showFaces ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 6 }}
-                  transition={{ duration: 0.35, delay: 0.2 + rowIndex * 0.05 }}
+                  transition={{ duration: 0.35, delay: rowIndex * 0.06 }}
                 >
                   <RosterFace
                     url={avatars?.[m.user_id]?.ic}
