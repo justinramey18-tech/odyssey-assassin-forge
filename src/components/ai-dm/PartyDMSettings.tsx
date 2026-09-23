@@ -124,6 +124,61 @@ function ToolRow({ icon, label, description, badge, onClick, disabled }: ToolRow
   );
 }
 
+function ToolsGroupHeader({ title }: { title: string }) {
+  return (
+    <div className="mt-2.5 shrink-0" role="heading" aria-level={3}>
+      <span className="-mb-1 block pl-6 font-cinzel text-[11.5px] font-bold uppercase tracking-[0.22em] text-[#E9C77B] [text-shadow:0_1px_2px_#000]">
+        {title}
+      </span>
+      <div
+        aria-hidden="true"
+        style={{ height: 18, borderStyle: 'solid', borderWidth: '0 8px 0 18px', borderImage: `url(${toolsDivider}) 0 60 0 120 fill / 0 8px 0 18px stretch` }}
+      />
+    </div>
+  );
+}
+
+function OrnateToolRow({ entry }: { entry: ToolEntry }) {
+  return (
+    <button
+      type="button"
+      onClick={entry.onClick}
+      disabled={entry.disabled}
+      className="relative flex h-[76px] w-full shrink-0 items-center text-left transition-transform active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-45 disabled:saturate-[.4]"
+      style={{
+        touchAction: 'manipulation',
+        borderStyle: 'solid',
+        borderWidth: '0 20px 0 68px',
+        borderImage: `url(${toolsRowPlate}) 0 64 0 216 fill / 0 20px 0 68px stretch`,
+        padding: '0 4px 0 6px',
+      }}
+    >
+      <span aria-hidden="true" className="pointer-events-none absolute top-1/2 h-[50px] w-[50px] -translate-y-1/2" style={{ left: -58 }}>
+        {entry.medallion
+          ? <img src={entry.medallion} alt="" className={cn('h-full w-full', entry.mark === 'remove' && 'opacity-55 grayscale-[.5]')} />
+          : <span className="flex h-full w-full items-center justify-center text-amber-300">{entry.icon}</span>}
+        {entry.mark === 'remove' && (
+          <span className="absolute -bottom-0.5 -right-0.5 flex h-[18px] w-[18px] items-center justify-center rounded-full border border-red-300 bg-red-900 text-[10px] text-red-50">✕</span>
+        )}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="font-cinzel text-[13.5px] font-bold tracking-[0.03em] text-[#F3DDA8] [text-shadow:0_1px_2px_#000]">{entry.label}</span>
+        {entry.description && (
+          <span className="line-clamp-2 text-[11px] leading-[1.3] text-[#D6C4A0]/80">{entry.description}</span>
+        )}
+      </span>
+      {entry.badge != null && entry.badge > 0 && (
+        <span
+          className="flex h-[22px] min-w-[22px] shrink-0 items-center justify-center rounded-full px-1.5 text-[10.5px] font-bold text-[#1c1003]"
+          style={{ background: 'radial-gradient(circle at 35% 30%, #fde68a, #b45309 70%)', boxShadow: '0 0 6px rgba(245,158,11,.5), inset 0 -1px 2px rgba(0,0,0,.4)' }}
+        >
+          {entry.badge}
+        </span>
+      )}
+    </button>
+  );
+}
+
 interface ToggleRowProps {
   icon: React.ReactNode;
   label: string;
