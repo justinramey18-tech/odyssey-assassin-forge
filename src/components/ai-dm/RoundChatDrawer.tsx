@@ -734,8 +734,8 @@ export function RoundChatDrawer({
                     : avatars?.[m.user_id]?.ooc;
                   const modeMatch = m.in_character === inCharacter;
                   const presenceInfo = onlineStatus[m.user_id];
-                  const presence = livePresenceReady
-                    ? (livePresenceIds.has(m.user_id) ? 'online' as const : 'offline' as const)
+                  const presence = sharedReady
+                    ? (sharedIds.has(m.user_id) ? 'online' as const : 'offline' as const)
                     : presenceInfo
                       ? (presenceInfo.isOnline ? 'online' as const : 'offline' as const)
                       : undefined;
