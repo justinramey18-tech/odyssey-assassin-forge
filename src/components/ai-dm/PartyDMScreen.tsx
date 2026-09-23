@@ -3521,6 +3521,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           }))}
           onMarkRead={roundChat.markRead}
           onOpenActionMenu={() => setActionMenuOpen(true)}
+          presenceIds={partyPresence.onlineIds}
+          presenceReady={partyPresence.ready}
         /></>
       )}
 
