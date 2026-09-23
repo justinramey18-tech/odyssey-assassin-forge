@@ -701,6 +701,7 @@ export function RoundChatDrawer({
                   const isSelf = m.user_id === currentUserId;
                   const { card, body } = parseActionCard(m.content);
                   const parsedReply = parseReply(body);
+                  const diceRoll = !card ? parseDiceRoll(parsedReply.body) : null;
                   const quoted = parsedReply.replyToId
                     ? messages.find(mm => mm.id === parsedReply.replyToId)
                     : null;
