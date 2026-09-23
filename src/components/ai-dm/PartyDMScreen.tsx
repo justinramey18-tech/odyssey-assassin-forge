@@ -681,8 +681,6 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
             className="min-w-0 px-2 pb-1.5 sm:px-3"
             style={{ borderStyle: 'solid', borderWidth: '12px', borderImage: `url(${dmFrame}) 100 fill / 40px stretch`, paddingTop: message.sender_name === 'DM' ? 28 : 8 }}
           >
-          </div>
-          <div className="flex-1 min-w-0 rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 bg-indigo-950/15 border border-indigo-500/15 rounded-bl-sm overflow-hidden">
             {message.sender_name !== 'DM' && (
               <div className="flex items-center gap-1.5 mb-1">
                 <p className="text-[11px] font-semibold text-amber-300">{message.sender_name}</p>
