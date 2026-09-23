@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { isEmpyreanMode } from '@/lib/empyreanLabels';
-import { Sword, Sparkles, BookOpen, FlaskConical, Star, ChevronDown, Play, Flame, X } from 'lucide-react';
+import { Sword, Sparkles, BookOpen, FlaskConical, Star, ChevronDown, Flame, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
@@ -14,12 +14,35 @@ import { castSpellByName, describeSlotSpend, getMagicResources } from '@/lib/mag
 import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic/castResolver';
 import { RollPreviewSheet, type RollPreviewChoice } from '@/components/magic/RollPreviewSheet';
 import { COST_META, resolveActionCost, type ActionCost } from '@/lib/combat/actionCost';
-import evocationBackground from '@/assets/spell-bg/evocation.jpg.asset.json';
-import enchantmentBackground from '@/assets/spell-bg/enchantment.jpg.asset.json';
-import necromancyBackground from '@/assets/spell-bg/necromancy.jpg.asset.json';
-import illusionBackground from '@/assets/spell-bg/illusion.jpg.asset.json';
-import transmutationBackground from '@/assets/spell-bg/transmutation.jpg.asset.json';
-import conjurationBackground from '@/assets/spell-bg/conjuration.jpg.asset.json';
+import schoolAbjuration from '@/assets/quick-actions/schools/abjuration.jpg';
+import schoolConjuration from '@/assets/quick-actions/schools/conjuration.jpg';
+import schoolDivination from '@/assets/quick-actions/schools/divination.jpg';
+import schoolEnchantment from '@/assets/quick-actions/schools/enchantment.jpg';
+import schoolEvocation from '@/assets/quick-actions/schools/evocation.jpg';
+import schoolIllusion from '@/assets/quick-actions/schools/illusion.jpg';
+import schoolNecromancy from '@/assets/quick-actions/schools/necromancy.jpg';
+import schoolTransmutation from '@/assets/quick-actions/schools/transmutation.jpg';
+import qaBg from '@/assets/quick-actions/qa-bg.jpg';
+import qaBanner from '@/assets/quick-actions/qa-banner.png';
+import qaSlotTray from '@/assets/quick-actions/qa-slot-tray.png';
+import qaCardFrame from '@/assets/quick-actions/qa-card-frame.png';
+import qaSectionPlaque from '@/assets/quick-actions/qa-section-plaque.png';
+import qaGemFilled from '@/assets/quick-actions/gem-filled.png';
+import qaGemEmpty from '@/assets/quick-actions/gem-empty.png';
+import qaGemPact from '@/assets/quick-actions/gem-pact.png';
+import qaBtnUse from '@/assets/quick-actions/btn-use.png';
+import qaBtnRemove from '@/assets/quick-actions/btn-remove.png';
+import tokenAction from '@/assets/quick-actions/token-action.png';
+import tokenBonus from '@/assets/quick-actions/token-bonus.png';
+import tokenReaction from '@/assets/quick-actions/token-reaction.png';
+import iconWeapons from '@/assets/quick-actions/icon-weapons.png';
+import iconAbilities from '@/assets/quick-actions/icon-abilities.png';
+import iconSpells from '@/assets/quick-actions/icon-spells.png';
+import iconCantrips from '@/assets/quick-actions/icon-cantrips.png';
+import iconHomebrew from '@/assets/quick-actions/icon-homebrew.png';
+import iconItems from '@/assets/quick-actions/icon-items.png';
+import iconLegacy from '@/assets/quick-actions/icon-legacy.png';
+import iconDragon from '@/assets/quick-actions/icon-dragon.png';
 import primaryWeaponBackground from '@/assets/weapons/weapon-primary.jpg.asset.json';
 import secondaryWeaponBackground from '@/assets/weapons/weapon-secondary.jpg.asset.json';
 import rangedWeaponBackground from '@/assets/weapons/weapon-ranged.jpg.asset.json';
@@ -29,12 +52,65 @@ import type { CharacterContext } from '@/components/oracle/types';
 import { rarityConfig, type EquipmentStats, type Enchantment, type Rarity } from '@/lib/inventory/types';
 
 const SCHOOL_BG: Record<string, string> = {
-  evocation: evocationBackground.url,
-  enchantment: enchantmentBackground.url,
-  necromancy: necromancyBackground.url,
-  illusion: illusionBackground.url,
-  transmutation: transmutationBackground.url,
-  conjuration: conjurationBackground.url,
+  abjuration: schoolAbjuration,
+  conjuration: schoolConjuration,
+  divination: schoolDivination,
+  enchantment: schoolEnchantment,
+  evocation: schoolEvocation,
+  illusion: schoolIllusion,
+  necromancy: schoolNecromancy,
+  transmutation: schoolTransmutation,
+};
+
+/** Section medallion by section title (Empyrean titles map to the same art). */
+const SECTION_MEDALLION: Record<string, string> = {
+  'Dragon Actions': iconDragon,
+  Weapons: iconWeapons,
+  Abilities: iconAbilities,
+  Spells: iconSpells,
+  Signets: iconSpells,
+  Cantrips: iconCantrips,
+  'Minor Signets': iconCantrips,
+  Items: iconItems,
+  Legacy: iconLegacy,
+  Homebrew: iconHomebrew,
+};
+
+const COST_TOKEN: Partial<Record<ActionCost, string>> = {
+  action: tokenAction,
+  bonus: tokenBonus,
+  reaction: tokenReaction,
+};
+
+/** Gold-rimmed enamel pill for ACT / BNS / RCT. Falls back to the old chip for any other cost. */
+function CostToken({ cost, spent }: { cost: ActionCost; spent?: boolean }) {
+  const img = COST_TOKEN[cost];
+  if (!img) {
+    return (
+      <span className={cn('inline-block rounded border px-1.5 py-0.5 font-mono text-[9px]', COST_META[cost].className, spent && 'opacity-40 line-through')}>
+        {COST_META[cost].short}
+      </span>
+    );
+  }
+  return (
+    <span
+      title={COST_META[cost].label}
+      className={cn(
+        'relative inline-flex h-[22px] w-[60px] items-center justify-end pr-2.5 font-cinzel text-[9px] font-bold tracking-[0.1em] text-white [text-shadow:0_1px_2px_#000]',
+        spent && 'opacity-40 grayscale line-through',
+      )}
+      style={{ backgroundImage: `url(${img})`, backgroundSize: '100% 100%' }}
+    >
+      {COST_META[cost].short}
+    </span>
+  );
+}
+
+/** Gold card frame drawn over any card (the center is transparent). */
+const CARD_FRAME_STYLE: React.CSSProperties = {
+  borderStyle: 'solid',
+  borderWidth: '22px',
+  borderImage: `url(${qaCardFrame}) 100 / 22px stretch`,
 };
 
 const WEAPON_SLOTS = ['primary_weapon', 'secondary_weapon', 'ranged_weapon'] as const;
@@ -255,8 +331,8 @@ function SpellRulesDetails({ item, expanded, onExpandedChange }: SpellRulesDetai
           <p
             ref={rulesRef}
             className={cn(
-              'text-[12px] leading-snug',
-              SCHOOL_BG[item.spellSchool?.toLowerCase() ?? ''] ? 'text-[#EBE4D7]' : 'text-white/60',
+              'text-[12.5px] leading-[1.5]',
+              SCHOOL_BG[item.spellSchool?.toLowerCase() ?? ''] ? 'text-[#EDE6D8] [text-shadow:0_1px_2px_#000]' : 'text-white/70',
               !expanded && 'line-clamp-2',
             )}
           >
@@ -271,7 +347,7 @@ function SpellRulesDetails({ item, expanded, onExpandedChange }: SpellRulesDetai
                 event.stopPropagation();
                 onExpandedChange(!expanded);
               }}
-              className="inline-flex min-h-11 items-center text-[11px] text-amber-300/80 hover:text-amber-200"
+              className="inline-flex min-h-11 items-center font-cinzel text-[10px] font-bold uppercase tracking-[0.14em] text-[#E9C77B] hover:text-amber-200"
               style={{ touchAction: 'manipulation' }}
             >
               {expanded ? 'less' : 'more'}
@@ -280,13 +356,14 @@ function SpellRulesDetails({ item, expanded, onExpandedChange }: SpellRulesDetai
         </div>
       )}
       {facts.length > 0 && (
-        <p className="mt-1 text-[11px] text-amber-300/80">{facts.join(' • ')}</p>
+        <p className="mt-1 font-cinzel text-[10.5px] font-bold tracking-[0.03em] text-[#fcd9a0]">{facts.join(' • ')}</p>
       )}
     </>
   );
 }
 
 function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = true, onHeal, onCloseDrawer, spentCosts, onActionSpent, drawerOpen }: SectionProps) {
+  const medallion = SECTION_MEDALLION[title];
   const [open, setOpen] = useState(defaultOpen);
   const spellIds = useMemo(() => items
     .filter(item => item.removeCategory === 'spell' || item.removeCategory === 'cantrip' || item.removeCategory === 'homebrew-spell')
@@ -393,16 +470,30 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors">
-        <span className={cn("shrink-0", accentClass)}>{icon}</span>
-        <span className="text-sm font-semibold text-white/90 flex-1 text-left">{title}</span>
-        <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium", accentClass, "bg-white/10")}>
+      <CollapsibleTrigger
+        className="relative mb-2 mt-1.5 flex h-11 w-full items-center pl-1.5 pr-1 text-left transition-transform active:scale-[0.99]"
+        style={{
+          borderStyle: 'solid',
+          borderWidth: '0 22px 0 46px',
+          borderImage: `url(${qaSectionPlaque}) 0 100 0 205 fill / 0 22px 0 46px stretch`,
+        }}
+      >
+        {medallion ? (
+          <img src={medallion} alt="" aria-hidden="true" className="pointer-events-none absolute top-1/2 h-[38px] w-[38px] -translate-y-1/2" style={{ left: -44 }} />
+        ) : (
+          <span className={cn('absolute top-1/2 -translate-y-1/2', accentClass)} style={{ left: -34 }}>{icon}</span>
+        )}
+        <span className="flex-1 font-cinzel text-sm font-bold tracking-[0.05em] text-[#F3DDA8] [text-shadow:0_1px_2px_#000]">{title}</span>
+        <span
+          className="flex h-[22px] min-w-[22px] items-center justify-center rounded-full px-1.5 text-[10.5px] font-bold text-[#1c1003]"
+          style={{ background: 'radial-gradient(circle at 35% 30%, #fde68a, #b45309 70%)', boxShadow: '0 0 6px rgba(245,158,11,.5)' }}
+        >
           {items.length}
         </span>
-        <ChevronDown className={cn("w-3.5 h-3.5 text-white/40 transition-transform", open && "rotate-180")} />
+        <ChevronDown className={cn('ml-2 h-3.5 w-3.5 text-[#f0c97a]/80 transition-transform', open && 'rotate-180')} />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className={cn(title === 'Weapons' ? 'flex flex-col gap-3' : 'space-y-1', 'px-2 pb-2')}>
+        <div className={cn(title === 'Weapons' ? 'flex flex-col gap-3' : 'space-y-2.5', 'px-2 pb-2')}>
           {items.map(item => {
             const isSpell = item.removeCategory === 'spell' || item.removeCategory === 'cantrip' || item.removeCategory === 'homebrew-spell';
             const expanded = expandedSpellIds.has(item.id);
@@ -443,7 +534,7 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                     }
                   }}
                   className={cn(
-                    'group relative aspect-[3/2] w-full overflow-hidden rounded-xl border border-amber-500/25',
+                    'group relative aspect-[3/2] w-full overflow-hidden rounded-md border border-amber-500/25',
                     'transition-transform active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70',
                     isEmpty ? 'cursor-default opacity-40 grayscale' : 'cursor-pointer',
                   )}
@@ -456,6 +547,7 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                     className="absolute inset-0 h-full w-full object-cover"
                   />
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/70" aria-hidden="true" />
+                  <div className="pointer-events-none absolute inset-0 z-[1]" style={CARD_FRAME_STYLE} aria-hidden="true" />
 
                   {!isEmpty && (
                     <button
@@ -493,13 +585,10 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
                         <div className="mt-1 flex flex-wrap items-center gap-2">
                           {rarity && <span className={cn('text-[11px] font-medium capitalize', rarityConfig[rarity].color)}>{rarityConfig[rarity].label}</span>}
                           {item.actionCost && item.actionCost !== 'free' && (
-                            <span className={cn(
-                              'rounded border px-1.5 py-0.5 font-mono text-[9px]',
-                              COST_META[item.actionCost].className,
-                              spentCosts && spentCosts[item.actionCost === 'bonus' ? 'bonus' : item.actionCost === 'reaction' ? 'reaction' : 'action'] && 'opacity-40 line-through',
-                            )}>
-                              {COST_META[item.actionCost].short}
-                            </span>
+                            <CostToken
+                              cost={item.actionCost}
+                              spent={!!(spentCosts && spentCosts[item.actionCost === 'bonus' ? 'bonus' : item.actionCost === 'reaction' ? 'reaction' : 'action'])}
+                            />
                           )}
                         </div>
                         {item.weaponEnchantments?.[0]?.name && (
@@ -512,64 +601,69 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
               );
             }
             return (
-            <div
-              key={item.id}
-              className={cn(
-                'relative flex gap-2 overflow-hidden rounded-lg px-2.5 py-2 transition-colors',
-                schoolBackground ? 'bg-cover bg-right' : 'bg-white/[0.03] hover:bg-white/[0.06]',
-                isSpell ? 'items-start' : 'items-center',
-              )}
-              style={schoolBackground ? { backgroundImage: `url(${schoolBackground})` } : undefined}
-            >
-              {schoolBackground && <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[rgba(10,6,4,0.80)] to-[rgba(10,6,4,0.45)]" aria-hidden="true" />}
-              <div className="relative z-[1] flex-1 min-w-0">
-                <p className={cn('truncate text-sm', schoolBackground ? 'text-[#F0EBE1]' : 'text-white/80')}>{item.name}</p>
-                <p className={cn('truncate text-[10px]', schoolBackground ? 'text-[#C8BEAF]' : 'text-white/35')}>{item.detail}</p>
-                {isSpell && (
-                  <SpellRulesDetails
-                    item={item}
-                    expanded={expanded}
-                    onExpandedChange={(nextExpanded) => {
-                      setExpandedSpellIds(current => {
-                        const next = new Set(current);
-                        if (nextExpanded) next.add(item.id);
-                        else next.delete(item.id);
-                        return next;
-                      });
-                    }}
-                  />
-                )}
-                {item.actionCost && item.actionCost !== 'free' && (
-                  <span className={cn(
-                    'inline-block mt-1 text-[9px] px-1.5 py-0.5 rounded border font-mono',
-                    COST_META[item.actionCost].className,
-                    spentCosts && spentCosts[item.actionCost === 'bonus' ? 'bonus' : item.actionCost === 'reaction' ? 'reaction' : 'action'] && 'opacity-40 line-through'
-                  )}>
-                    {COST_META[item.actionCost].short}
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={() => handleItemUse(item)}
+              <div
+                key={item.id}
                 className={cn(
-                  "relative z-[1] shrink-0 p-1.5 rounded-lg transition-colors",
-                  "bg-emerald-900/30 hover:bg-emerald-900/50 border border-emerald-500/20 hover:border-emerald-500/40"
+                  'relative flex gap-2 overflow-hidden rounded-md px-3 pb-3 pt-3.5',
+                  schoolBackground ? 'bg-cover bg-right' : 'bg-[linear-gradient(135deg,rgba(30,24,18,0.94),rgba(12,10,14,0.94))]',
+                  isSpell ? 'items-start' : 'items-center',
                 )}
-                style={{ touchAction: 'manipulation' }}
+                style={schoolBackground ? { backgroundImage: `url(${schoolBackground})` } : undefined}
               >
-                <Play className="w-3.5 h-3.5 text-emerald-400" />
-              </button>
-              {onRemove && (
-                <button
-                  onClick={() => onRemove(item)}
-                  className="relative z-[1] shrink-0 p-1.5 rounded-lg transition-colors bg-red-900/20 hover:bg-red-900/40 border border-red-500/15 hover:border-red-500/30"
-                  style={{ touchAction: 'manipulation' }}
-                  title={`Remove ${item.name}`}
-                >
-                  <X className="w-3.5 h-3.5 text-red-400/70" />
-                </button>
-              )}
-            </div>
+                {schoolBackground && (
+                  <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(8,6,10,0.78),rgba(8,6,10,0.5)_55%,rgba(8,6,10,0.1))]" aria-hidden="true" />
+                )}
+                <div className="pointer-events-none absolute inset-0 z-[2]" style={CARD_FRAME_STYLE} aria-hidden="true" />
+                <div className="relative z-[1] min-w-0 flex-1">
+                  <p className="truncate font-cinzel text-[15px] font-bold text-[#F3E6CC] [text-shadow:0_1px_2px_#000]">{item.name}</p>
+                  <p className="truncate font-cinzel text-[9.5px] font-bold uppercase tracking-[0.14em] text-[#E9C77B]/80">{item.detail}</p>
+                  {isSpell && (
+                    <SpellRulesDetails
+                      item={item}
+                      expanded={expanded}
+                      onExpandedChange={(nextExpanded) => {
+                        setExpandedSpellIds(current => {
+                          const next = new Set(current);
+                          if (nextExpanded) next.add(item.id);
+                          else next.delete(item.id);
+                          return next;
+                        });
+                      }}
+                    />
+                  )}
+                  {item.actionCost && item.actionCost !== 'free' && (
+                    <div className="mt-1.5">
+                      <CostToken
+                        cost={item.actionCost}
+                        spent={!!(spentCosts && spentCosts[item.actionCost === 'bonus' ? 'bonus' : item.actionCost === 'reaction' ? 'reaction' : 'action'])}
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="relative z-[3] flex shrink-0 flex-col items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleItemUse(item)}
+                    aria-label={`Use ${item.name}`}
+                    className="h-[42px] w-[42px] rounded-full transition-transform active:scale-95"
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <img src={qaBtnUse} alt="" draggable={false} className="h-full w-full drop-shadow-[0_2px_4px_#000]" />
+                  </button>
+                  {onRemove && (
+                    <button
+                      type="button"
+                      onClick={() => onRemove(item)}
+                      aria-label={`Remove ${item.name}`}
+                      title={`Remove ${item.name}`}
+                      className="h-8 w-8 rounded-full opacity-90 transition-transform active:scale-95"
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      <img src={qaBtnRemove} alt="" draggable={false} className="h-full w-full" />
+                    </button>
+                  )}
+                </div>
+              </div>
             );
           })}
         </div>
@@ -880,50 +974,56 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="mt-0 h-[100dvh] max-h-[100dvh] rounded-none bg-gradient-to-b from-[#1a1a2e] to-[#0d0d12] border-amber-900/30 party-dm-quick-actions-content">
-        <DrawerHeader className="relative shrink-0 border-b border-amber-900/30 pb-2">
-          <DrawerTitle className="text-amber-200 font-cinzel text-center">
-            Quick Actions
-            <span className="text-[10px] text-white/40 ml-2 font-sans">({totalItems} available)</span>
-          </DrawerTitle>
+      <DrawerContent
+        className="mt-0 h-[100dvh] max-h-[100dvh] rounded-none border-amber-900/30 bg-[#0b0a0e] bg-cover bg-top party-dm-quick-actions-content"
+        style={{ backgroundImage: `linear-gradient(180deg, rgba(0,0,0,.25), rgba(0,0,0,.55) 30%, rgba(0,0,0,.62)), url(${qaBg})` }}
+      >
+        <DrawerHeader className="relative flex shrink-0 flex-col items-center gap-0 px-3 pb-1 pt-2 text-center sm:text-center">
+          <DrawerTitle className="sr-only">Quick Actions</DrawerTitle>
+          <img src={qaBanner} alt="" aria-hidden="true" draggable={false} className="h-auto w-[82%] max-w-[340px] drop-shadow-[0_6px_12px_rgba(0,0,0,0.8)]" />
+          <p className="-mt-1 font-cinzel text-[10px] font-bold uppercase tracking-[0.14em] text-amber-100/60">{totalItems} available</p>
           <button
             type="button"
             onClick={() => onOpenChange(false)}
             aria-label="Close Quick Actions"
-            className="absolute right-2 top-0 flex h-11 w-11 items-center justify-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
+            className="absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-full border border-[#caa05a]/70 bg-black/70 text-[#f0c97a] active:scale-95"
             style={{ touchAction: 'manipulation' }}
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </DrawerHeader>
         {showSpellSlots && characterContext?.spellcasting && (
-          <div className="mx-4 my-2 shrink-0 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2" aria-label="Available spell slots">
-              <p className="mb-1.5 text-[10px] uppercase text-amber-200/70">Spell slots</p>
-              <div className="space-y-1">
-                {characterContext.spellcasting.slots.filter(slot => slot.max > 0).map(slot => (
-                  <div key={slot.level} className="flex items-center gap-2 text-[11px] text-white/60">
-                    <span className="w-8">L{slot.level}</span>
-                    <span className="flex flex-wrap gap-1" aria-label={`Level ${slot.level}: ${slot.current} of ${slot.max} remaining`}>
-                      {Array.from({ length: slot.max }, (_, index) => (
-                        <span key={index} className={cn('h-2.5 w-2.5 rounded-full border border-amber-300/50', index < slot.current ? 'bg-amber-300' : 'bg-transparent')} />
-                      ))}
-                    </span>
-                  </div>
-                ))}
-                {characterContext.spellcasting.pactSlots && characterContext.spellcasting.pactSlots.max > 0 && (
-                  <div className="flex items-center gap-2 text-[11px] text-white/60">
-                    <span className="w-8">Pact</span>
-                    <span className="flex flex-wrap gap-1" aria-label={`Pact slots: ${characterContext.spellcasting.pactSlots.current} of ${characterContext.spellcasting.pactSlots.max} remaining`}>
-                      {Array.from({ length: characterContext.spellcasting.pactSlots.max }, (_, index) => (
-                        <span key={index} className={cn('h-2.5 w-2.5 rounded-full border border-cyan-300/50', index < characterContext.spellcasting.pactSlots.current ? 'bg-cyan-300' : 'bg-transparent')} />
-                      ))}
-                    </span>
-                  </div>
-                )}
-              </div>
+          <div
+            className="mx-4 my-2 shrink-0"
+            aria-label="Available spell slots"
+            style={{ borderStyle: 'solid', borderWidth: '10px', borderImage: `url(${qaSlotTray}) 60 fill / 16px stretch`, padding: '4px 8px 6px' }}
+          >
+            <p className="mb-1 font-cinzel text-[9.5px] font-bold uppercase tracking-[0.2em] text-[#E9C77B]/80">Spell slots</p>
+            <div className="space-y-1">
+              {characterContext.spellcasting.slots.filter(slot => slot.max > 0).map(slot => (
+                <div key={slot.level} className="flex items-center gap-1.5">
+                  <span className="w-6 font-cinzel text-[11px] font-bold text-amber-50/70">L{slot.level}</span>
+                  <span className="flex flex-wrap gap-0.5" aria-label={`Level ${slot.level}: ${slot.current} of ${slot.max} remaining`}>
+                    {Array.from({ length: slot.max }, (_, index) => (
+                      <img key={index} src={index < slot.current ? qaGemFilled : qaGemEmpty} alt="" className="h-[19px] w-[19px]" />
+                    ))}
+                  </span>
+                </div>
+              ))}
+              {characterContext.spellcasting.pactSlots && characterContext.spellcasting.pactSlots.max > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <span className="w-6 font-cinzel text-[11px] font-bold text-cyan-100/70">Pact</span>
+                  <span className="flex flex-wrap gap-0.5" aria-label={`Pact slots: ${characterContext.spellcasting.pactSlots.current} of ${characterContext.spellcasting.pactSlots.max} remaining`}>
+                    {Array.from({ length: characterContext.spellcasting.pactSlots.max }, (_, index) => (
+                      <img key={index} src={index < characterContext.spellcasting!.pactSlots!.current ? qaGemPact : qaGemEmpty} alt="" className="h-[19px] w-[19px]" />
+                    ))}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         )}
-        <div className="flex-1 overflow-y-auto overscroll-contain px-2 pb-6 space-y-1">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-2.5 pb-6 space-y-1.5">
           {totalItems === 0 ? (
             <p className="text-center text-sm text-white/30 py-8">No actions available. Equip weapons, prepare spells, or unlock abilities.</p>
           ) : (
