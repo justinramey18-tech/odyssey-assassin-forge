@@ -427,7 +427,23 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [splitState, setSplitState] = useState<DmSplitState | null>(null);
   const [activeMoodPresetId, setActiveMoodPresetIdState] = useState<string | null>(null);
 
+  // First-load tracking, so the screen can show a loading state instead of the empty
+  // "no story yet" card while the session and its messages are still on their way.
+  const [sessionConfigLoaded, setSessionConfigLoaded] = useState(false);
+  const [messagesLoaded, setMessagesLoaded] = useState(false);
+  useEffect(() => {
+    setSessionConfigLoaded(false);
+    setMessagesLoaded(false);
+  }, [partyId]);
+
   const isActive = sessionConfig?.active === true;
+
+  // Safety net: never leave the story on a loading state if the message fetch stalls.
+  useEffect(() => {
+    if (!isActive || messagesLoaded) return;
+    const t = window.setTimeout(() => setMessagesLoaded(true), 8000);
+    return () => window.clearTimeout(t);
+  }, [isActive, messagesLoaded]);
   const isSplitActive = splitState?.active === true;
 
   // Determine current user's team
@@ -517,6 +533,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
       const msgs = msgsRes.data ? [...msgsRes.data].reverse() : [];
       setMessages(msgs);
+      setMessagesLoaded(true);
       if (promptsRes.data) {
         // Dedupe per user: prefer a real (non-blank) prompt over a blank placeholder;
         // among rows of equal "realness", prefer the newest. Guards against legacy dupes.
