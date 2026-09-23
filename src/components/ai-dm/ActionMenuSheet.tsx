@@ -101,16 +101,17 @@ export function ActionMenuSheet({ open, onOpenChange, onSelect, characterName, c
     { label: 'Quest Log', description: 'Open your active quests', ariaLabel: 'Quest log', image: '/action-menu/book.png', fallback: BookOpen },
     { label: 'Bag & Stats', description: 'Open your items and character stats', fallback: Backpack, characterImage, initials, overlayText: 'BAG & STATS' },
     { label: 'Get Moves', description: 'Suggested moves when you are stuck', image: '/action-menu/slot6.png', fallback: Sparkles },
+    { label: "Director's Channel", description: 'Talk privately with the DM', ariaLabel: "Director's Channel: talk privately with the DM", image: directorTile, fallback: MessageCircle },
   ];
-  const choices: ActionMenuChoice[] = ['dice', 'actions', 'spells', 'story', 'bag', 'moves'];
+  const choices: ActionMenuChoice[] = ['dice', 'actions', 'spells', 'story', 'bag', 'moves', 'director'];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="z-[65] max-h-[92dvh] overflow-y-auto rounded-t-2xl border-amber-500/30 bg-background/95 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-lg">
-        <SheetHeader className="pb-3">
+        <SheetHeader className="pb-2">
           <SheetTitle className="text-center font-cinzel text-amber-200">Choose an Action</SheetTitle>
         </SheetHeader>
-        <div className="mx-auto grid w-full max-w-md grid-cols-2 gap-3">
+        <div className="mx-auto grid w-full max-w-[21rem] grid-cols-2 gap-2.5">
           {tiles.map((tile, index) => (
             <ActionTile key={choices[index]} {...tile} onClick={() => onSelect(choices[index])} />
           ))}

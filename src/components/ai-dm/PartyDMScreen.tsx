@@ -2537,9 +2537,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         } else {
           setMovesPickerOpen(true);
         }
+      } else if (choice === 'director') {
+        if (onOpenDirector) onOpenDirector();
+        else toast.info("Director's Channel isn't available here");
       }
     }, 200);
-  }, [isEmpyrean, partyDm.messages.length, partyDm.isGenerating]);
+  }, [isEmpyrean, partyDm.messages.length, partyDm.isGenerating, onOpenDirector]);
 
   /** Shared consumable use: healing items roll real dice, everything else is announced to the DM. */
   const handleConsumableUse = useCallback((name: string) => {
