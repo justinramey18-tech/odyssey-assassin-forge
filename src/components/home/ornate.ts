@@ -1,6 +1,6 @@
-import type { CSSProperties } from 'react';
+import type React from 'react';
 
-export const PILL_STYLE = (pillUrl: string): CSSProperties => ({
+export const PILL_STYLE = (pillUrl: string): React.CSSProperties => ({
   height: 30,
   borderStyle: 'solid',
   borderWidth: '0 26px',

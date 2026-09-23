@@ -92,13 +92,13 @@ export function CharacterNamePlaque({ name, level, primaryClass, dragonName, onO
 
       {/* Identity subtitle (race/gender) */}
       {gender || race ? (
-        <div className="flex items-center justify-center gap-1.5 mt-0.5">
+        <div className={cn("flex items-center justify-center gap-1.5 mt-0.5", variant === 'ornate' && !classLabel && !alignmentZone && "-mt-1.5")}>
           <span className="text-[11px] font-cinzel text-muted-foreground uppercase tracking-wider">
             {[gender, race].filter(Boolean).join(' ')}
           </span>
         </div>
       ) : (
-        <div className="flex items-center justify-center mt-0.5">
+        <div className={cn("flex items-center justify-center mt-0.5", variant === 'ornate' && !classLabel && !alignmentZone && "-mt-1.5")}>
           <button
             onClick={onOpenSettings}
             className="text-[11px] font-cinzel uppercase tracking-wider text-primary/60 underline hover:text-primary/80 transition-colors"
@@ -109,7 +109,7 @@ export function CharacterNamePlaque({ name, level, primaryClass, dragonName, onO
       )}
 
       {badges.length > 0 && (
-        <div className="flex items-center justify-center gap-1.5 mt-1">
+        <div className={cn("flex items-center justify-center gap-1.5 mt-1", variant === 'ornate' && !classLabel && !alignmentZone && !gender && !race && "-mt-1.5")}>
           {badges.map(b => (
             <span
               key={b.label}
