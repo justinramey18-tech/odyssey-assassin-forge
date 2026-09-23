@@ -1,9 +1,17 @@
 import { useMemo, useState } from 'react';
-import { Dices, Zap, Shield, X } from 'lucide-react';
+import { Shield, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { getCastOptions, getMagicResources, type CastOption } from '@/lib/magic/castBus';
 import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic/castResolver';
+import { RIBBON, PILL } from '@/components/ai-dm/chatPlaques';
+import arcaneRibbon from '@/assets/rolls/arcane-ribbon.png';
+import glyphTarget from '@/assets/rolls/glyph-target.png';
+import glyphBolt from '@/assets/rolls/glyph-bolt.png';
+import glyphHourglass from '@/assets/rolls/glyph-hourglass.png';
+import btnCancel from '@/assets/rolls/btn-cancel.png';
+import btnRoll from '@/assets/rolls/btn-roll.png';
+import homePillPlaque from '@/assets/home/home-pill-plaque.png.asset.json';
+import bagPanelFrame from '@/assets/bag-stats/bag-panel-frame.png';
 
 export interface RollPreviewTarget {
   name: string;
@@ -30,6 +38,13 @@ interface RollPreviewSheetProps {
   onCancel: () => void;
   onConfirm: (choice: RollPreviewChoice) => void;
 }
+
+/** Info/rules box framed with the bag panel artwork. */
+const PANEL_FRAME = {
+  borderStyle: 'solid',
+  borderWidth: '12px',
+  borderImage: `url(${bagPanelFrame}) 90 fill / 30px stretch`,
+} as const;
 
 /**
  * Shown before any dice are thrown: the exact to-hit maths and the exact damage
@@ -66,19 +81,28 @@ export function RollPreviewSheet({ target, onCancel, onConfirm }: RollPreviewShe
   return (
     <div className="fixed inset-0 z-[86] flex items-end justify-center bg-black/70 backdrop-blur-sm" onClick={onCancel}>
       <div
-        className="w-full max-w-lg rounded-t-2xl border-t border-x border-amber-400/25 bg-[#0b0a12] p-4 pb-8 space-y-4 max-h-[85vh] overflow-y-auto"
+        className="relative w-full max-w-lg rounded-t-2xl border-t border-x border-violet-400/30 bg-[#0b0a12] p-4 pb-8 space-y-4 max-h-[85vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="font-cinzel text-base text-amber-200 truncate">{target.name}</h3>
-            <p className="text-[11px] text-white/45">
-              Check the numbers before you roll
-            </p>
+        <button
+          onClick={onCancel}
+          className="absolute top-2 right-2 z-10 p-2 text-white/40"
+          style={{ touchAction: 'manipulation' }}
+          aria-label="Close"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <div>
+          <div
+            style={{ ...RIBBON(arcaneRibbon), height: 40, borderWidth: '0 40px', borderImage: `url(${arcaneRibbon}) 0 150 0 150 fill / 0 40px stretch` }}
+            className="flex items-center justify-center px-1 font-cinzel text-base tracking-[0.08em] text-violet-50 truncate"
+          >
+            {target.name}
           </div>
-          <button onClick={onCancel} className="p-2 -m-2 text-white/40" style={{ touchAction: 'manipulation' }} aria-label="Close">
-            <X className="w-4 h-4" />
-          </button>
+          <p className="mt-1 text-center text-[11px] text-white/45">
+            Check the numbers before you roll
+          </p>
         </div>
 
         {isSpell && !isCantrip && (
@@ -92,19 +116,26 @@ export function RollPreviewSheet({ target, onCancel, onConfirm }: RollPreviewShe
                   <button
                     key={`${o.slotLevel}-${o.usePact ? 'pact' : 'std'}`}
                     onClick={() => setChosen(i)}
-                    style={{ touchAction: 'manipulation' }}
+                    style={{
+                      ...PILL(homePillPlaque.url),
+                      height: 40,
+                      borderWidth: '0 20px',
+                      borderImage: `url(${homePillPlaque.url}) 0 134 0 134 fill / 0 20px stretch`,
+                      touchAction: 'manipulation',
+                    }}
                     className={cn(
-                      'min-h-[48px] px-3 rounded-lg border text-xs transition-colors',
-                      i === chosen
-                        ? 'border-amber-400/60 bg-amber-500/15 text-amber-100'
-                        : 'border-white/10 bg-white/[0.03] text-white/60',
+                      'flex flex-col items-center justify-center px-1 min-h-[48px] text-xs text-amber-50 leading-tight transition-opacity',
+                      i === chosen ? 'drop-shadow-[0_0_10px_rgba(251,191,36,0.55)]' : 'opacity-55',
                     )}
                   >
                     <span className="block">
                       {o.usePact ? `Pact Lv ${o.slotLevel}` : `Level ${o.slotLevel}`}
                       {o.isUpcast && <span className="ml-1 text-amber-300/80">upcast</span>}
                     </span>
-                    <span className="block text-[10px] text-white/40">{o.remaining} left</span>
+                    <span className="block text-[10px] text-white/40">
+                      <img src={glyphHourglass} alt="" className="inline w-2.5 h-2.5 mr-0.5 -mt-px" />
+                      {o.remaining} left
+                    </span>
                   </button>
                 ))}
               </div>
@@ -112,9 +143,9 @@ export function RollPreviewSheet({ target, onCancel, onConfirm }: RollPreviewShe
           </div>
         )}
 
-        <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3 space-y-2 text-xs text-white/70">
+        <div style={PANEL_FRAME} className="px-2.5 py-1.5 space-y-2 text-xs text-white/70">
           <p className="flex items-start gap-2">
-            <Dices className="w-3.5 h-3.5 mt-0.5 text-amber-300/80 shrink-0" />
+            <img src={glyphTarget} alt="" className="w-4 h-4 mt-0.5 shrink-0" />
             <span>
               <span className="text-white/45">To hit: </span>
               1d20 {attackBonus >= 0 ? '+' : '−'} {Math.abs(attackBonus)}
@@ -125,7 +156,7 @@ export function RollPreviewSheet({ target, onCancel, onConfirm }: RollPreviewShe
           </p>
 
           <p className="flex items-start gap-2">
-            <Zap className="w-3.5 h-3.5 mt-0.5 text-orange-300/80 shrink-0" />
+            <img src={glyphBolt} alt="" className="w-4 h-4 mt-0.5 shrink-0" />
             <span>
               <span className="text-white/45">Damage: </span>
               {damageLabel}{target.damageType ? ` ${target.damageType}` : ''}
@@ -149,24 +180,33 @@ export function RollPreviewSheet({ target, onCancel, onConfirm }: RollPreviewShe
         </div>
 
         {target.rulesText && (
-          <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+          <div style={PANEL_FRAME} className="px-2.5 py-1.5">
             <p className="text-[10px] uppercase tracking-wide text-white/35 mb-1">Rules text</p>
-            <p className="text-[11px] leading-relaxed text-white/55">{target.rulesText}</p>
+            <p className="font-story text-[13px] leading-relaxed text-white/70">{target.rulesText}</p>
           </div>
         )}
 
-        <div className="flex gap-2">
-          <Button variant="outline" className="flex-1 min-h-[48px]" onClick={onCancel} style={{ touchAction: 'manipulation' }}>
-            Cancel
-          </Button>
-          <Button
-            className="flex-1 min-h-[48px]"
-            disabled={blocked}
-            onClick={() => onConfirm({ slotLevel: isSpell && !isCantrip ? option?.slotLevel : undefined, usePact: option?.usePact })}
-            style={{ touchAction: 'manipulation' }}
-          >
-            {blocked ? 'No slot available' : 'Roll it'}
-          </Button>
+        <div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onCancel}
+              aria-label="Cancel"
+              className="flex-1 min-h-[48px] flex items-center justify-center active:scale-95 transition-transform"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <img src={btnCancel} alt="" draggable={false} className="h-12 w-auto" />
+            </button>
+            <button
+              disabled={blocked}
+              onClick={() => onConfirm({ slotLevel: isSpell && !isCantrip ? option?.slotLevel : undefined, usePact: option?.usePact })}
+              aria-label="Roll it"
+              className="flex-1 min-h-[48px] flex items-center justify-center active:scale-95 transition-transform"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <img src={btnRoll} alt="" draggable={false} className={cn('h-[68px] -my-2.5 w-auto', blocked && 'grayscale opacity-40')} />
+            </button>
+          </div>
+          {blocked && <p className="text-center text-[11px] text-red-300/80">No slot available</p>}
         </div>
       </div>
     </div>
