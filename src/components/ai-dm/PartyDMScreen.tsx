@@ -1030,7 +1030,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
           </span>
         )}
         {!isCombinedPartyMessage && <div className="flex items-center gap-1.5 mb-1">
-          <p className={cn("text-[11px] font-semibold", isWhisper ? "text-purple-300" : "text-primary")}>
+          <p className={cn("text-[11px] font-semibold font-cinzel tracking-wide", isWhisper ? "text-purple-300" : "text-slate-300")}>
             {hasRealPlayerName || isWhisper || isDialogueMessage ? message.sender_name : 'Party Actions'}
           </p>
           {isWhisper && (
@@ -1108,9 +1108,9 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                   )}
                   <div className="flex-1 min-w-0">
                     {!isSystemSegment && (
-                      <p className="text-[11px] font-semibold text-primary mb-1">{segment.name}</p>
+                      <p className="text-[11px] font-semibold font-cinzel tracking-wide text-slate-300 mb-1">{segment.name}</p>
                     )}
-                    <div className="text-xs whitespace-pre-wrap text-white/90 break-words min-w-0">
+                    <div className="font-body text-[13.5px] leading-snug text-white/80 whitespace-pre-wrap break-words min-w-0">
                       <AfkAnnotatedContent
                         content={stripCinematicTagsFromDisplay(segmentContent)}
                         afkNames={segmentAfkNames}
@@ -1122,7 +1122,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
             })}
           </div>
         ) : (
-        <p className="text-xs whitespace-pre-wrap text-white/90">
+        <p className="font-body text-[13.5px] leading-snug text-white/80 whitespace-pre-wrap">
           {videoMatch ? (
             <span>
               <span className="flex items-center gap-1 mb-1.5">
