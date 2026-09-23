@@ -79,6 +79,18 @@ function RosterFace({
           className="pointer-events-none absolute inset-0 h-full w-full"
           style={isSelf ? { filter: 'drop-shadow(0 0 6px rgba(245,158,11,0.75))' } : undefined}
         />
+        {online !== undefined && (
+          <span
+            role="img"
+            aria-label={onlineLabel ?? (online ? 'Online' : 'Offline')}
+            title={onlineLabel ?? (online ? 'Online' : 'Offline')}
+            className={cn(
+              'absolute z-[2] h-[13px] w-[13px] rounded-full border-2 border-[#120d06]',
+              online ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]' : 'bg-zinc-500',
+            )}
+            style={{ right: '13%', bottom: '15%' }}
+          />
+        )}
       </div>
       <span
         className="w-full text-center font-body text-[11px] leading-tight text-white/80 truncate"
