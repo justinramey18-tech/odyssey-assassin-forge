@@ -4,6 +4,7 @@ import { getThistleBadges, getEllieBadges, getBadgeColorClasses } from '@/lib/ea
 import { type AlignmentScore, getAlignmentZone } from '@/lib/alignmentSpectrum';
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 import { useCharacterIdentity } from '@/hooks/use-character-identity';
+import moveHeaderPlaqueAsset from '@/assets/move-flow/move-header-plaque.png.asset.json';
 
 interface CharacterNamePlaqueProps {
   name: string;
@@ -11,6 +12,7 @@ interface CharacterNamePlaqueProps {
   primaryClass?: string;
   dragonName?: string;
   onOpenSettings?: () => void;
+  variant?: 'default' | 'ornate';
 }
 
 const CLASS_LABELS: Record<string, string> = {
@@ -23,7 +25,7 @@ const CLASS_LABELS: Record<string, string> = {
   bard: 'Bard',
 };
 
-export function CharacterNamePlaque({ name, level, primaryClass, dragonName, onOpenSettings }: CharacterNamePlaqueProps) {
+export function CharacterNamePlaque({ name, level, primaryClass, dragonName, onOpenSettings, variant = 'default' }: CharacterNamePlaqueProps) {
   const badges = [...getThistleBadges(name || ''), ...getEllieBadges(dragonName || '')];
   const { driftPosition, historyCount } = useAlignmentDrift();
   const { gender, race } = useCharacterIdentity();
@@ -38,10 +40,18 @@ export function CharacterNamePlaque({ name, level, primaryClass, dragonName, onO
       transition={{ duration: 0.4, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
       className="px-4 py-1"
     >
-      <div className="flex items-center justify-center gap-3">
+      <div className={variant === 'ornate' ? "relative mx-auto aspect-[900/320] w-[80%] max-w-[340px]" : undefined}>
+        {variant === 'ornate' && (
+          <img src={moveHeaderPlaqueAsset.url} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full select-none" />
+        )}
+        <div
+          className={variant === 'ornate' ? "absolute flex items-center justify-center gap-2" : "flex items-center justify-center gap-3"}
+          style={variant === 'ornate' ? { left: '14%', right: '14%', top: '38%', bottom: '24%' } : undefined}
+        >
         <h1 
           className={cn(
-            "font-cinzel font-bold text-lg uppercase tracking-widest",
+            "font-cinzel font-bold uppercase tracking-widest whitespace-nowrap",
+            variant === 'ornate' ? "text-sm" : "text-lg",
             "text-foreground text-3d-plaque"
           )}
         >
@@ -52,16 +62,18 @@ export function CharacterNamePlaque({ name, level, primaryClass, dragonName, onO
         
         <span 
           className={cn(
-            "text-primary font-cinzel font-semibold text-sm uppercase tracking-wider"
+            "text-primary font-cinzel font-semibold uppercase tracking-wider whitespace-nowrap",
+            variant === 'ornate' ? "text-xs" : "text-sm"
           )}
         >
           Level {level}
         </span>
+        </div>
       </div>
 
       {/* Class & Alignment subtitle */}
       {(classLabel || alignmentZone) && (
-        <div className="flex items-center justify-center gap-1.5 mt-0.5">
+        <div className={cn("flex items-center justify-center gap-1.5 mt-0.5", variant === 'ornate' && "-mt-1.5")}>
           {classLabel && (
             <span className="text-[11px] font-cinzel text-muted-foreground uppercase tracking-wider">
               {classLabel}

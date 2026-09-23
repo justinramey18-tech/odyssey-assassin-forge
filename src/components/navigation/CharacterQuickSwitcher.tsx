@@ -14,6 +14,8 @@ import { useCloudSave, CloudSave } from '@/hooks/use-cloud-save';
 import { SaveData } from '@/hooks/use-auto-save';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import homePillPlaqueAsset from '@/assets/home/home-pill-plaque.png.asset.json';
+import { PILL_STYLE } from '@/components/home/ornate';
 
 interface CharacterQuickSwitcherProps {
   currentCharacterName: string;
@@ -22,6 +24,7 @@ interface CharacterQuickSwitcherProps {
   onCloudClick: () => void;
   /** Called before navigating to roster — flush current character to cloud */
   onBeforeSwitch?: () => Promise<void>;
+  variant?: 'default' | 'ornate';
 }
 
 export function CharacterQuickSwitcher({
@@ -30,6 +33,7 @@ export function CharacterQuickSwitcher({
   onLoadSave,
   onCloudClick,
   onBeforeSwitch,
+  variant = 'default',
 }: CharacterQuickSwitcherProps) {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
@@ -77,19 +81,36 @@ export function CharacterQuickSwitcher({
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
         <button
-          className={cn(
-            "flex items-center gap-1.5 px-2 py-1 rounded-md",
-            "bg-background/40 border border-primary/30 hover:border-primary/60",
-            "text-xs font-cinzel transition-all",
-            "focus:outline-none focus:ring-1 focus:ring-primary/50"
-          )}
+          className={variant === 'ornate'
+            ? "min-h-[44px] flex items-center focus:outline-none"
+            : cn(
+                "flex items-center gap-1.5 px-2 py-1 rounded-md",
+                "bg-background/40 border border-primary/30 hover:border-primary/60",
+                "text-xs font-cinzel transition-all",
+                "focus:outline-none focus:ring-1 focus:ring-primary/50"
+              )}
         >
-          <User className="w-3 h-3 text-primary" />
-          <span className="text-foreground/90 max-w-[80px] truncate">{truncatedName}</span>
-          <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-primary/40">
-            {currentCharacterLevel}
-          </Badge>
-          <ChevronDown className="w-3 h-3 text-muted-foreground" />
+          {variant === 'ornate' ? (
+            <span
+              style={PILL_STYLE(homePillPlaqueAsset.url)}
+              className="flex items-center gap-1.5 px-0.5 font-cinzel text-xs text-amber-100 whitespace-nowrap"
+            >
+              <span className="max-w-[66px] truncate">{truncatedName}</span>
+              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-amber-400/60 text-[10px]">
+                {currentCharacterLevel}
+              </span>
+              <ChevronDown className="w-3 h-3 text-amber-300/70" />
+            </span>
+          ) : (
+            <>
+              <User className="w-3 h-3 text-primary" />
+              <span className="text-foreground/90 max-w-[80px] truncate">{truncatedName}</span>
+              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-primary/40">
+                {currentCharacterLevel}
+              </Badge>
+              <ChevronDown className="w-3 h-3 text-muted-foreground" />
+            </>
+          )}
         </button>
       </DropdownMenuTrigger>
       
