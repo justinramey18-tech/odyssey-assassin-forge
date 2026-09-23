@@ -3515,6 +3515,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           }}
 
           readReceipts={roundChat.readReceipts}
+          readReceiptsLoaded={roundChat.readReceiptsLoaded}
           partyMembers={members.map(m => ({
             user_id: m.user_id,
             character_name: m.character_name || 'Player',
