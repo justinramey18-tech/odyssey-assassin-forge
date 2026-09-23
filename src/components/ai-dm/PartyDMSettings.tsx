@@ -321,6 +321,8 @@ export interface PartyDMSettingsProps {
   /** Host-only combat mode toggle. */
   combatMode?: boolean;
   onToggleCombatMode?: (enabled: boolean) => void;
+  /** 'settings' renders inside the settings drawer; 'toolsScreen' renders the standalone Tools screen list. */
+  layout?: 'settings' | 'toolsScreen';
 }
 
 
@@ -355,6 +357,7 @@ export function PartyDMSettings({
   narrationStyle = DEFAULT_NARRATION_STATE, onNarrationStyleChange, onNarrationIntensityChange,
   roundStyle, onRoundStyleChange,
   combatMode, onToggleCombatMode,
+  layout = 'settings',
 }: PartyDMSettingsProps) {
   const bgFileInputRef = useRef<HTMLInputElement>(null);
   const originalCreator = isOriginalCreatorProp ?? isCreator;
