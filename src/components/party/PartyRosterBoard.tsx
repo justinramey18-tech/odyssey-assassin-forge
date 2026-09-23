@@ -107,6 +107,9 @@ export function PartyRosterBoard({
   avatars,
   oocNames,
   currentUserId,
+  presenceIds,
+  presenceReady,
+  onlineStatus,
   onOpenPartyDM,
   showEmblem = true,
   showFaces = true,
@@ -142,6 +145,13 @@ export function PartyRosterBoard({
             const status = m.character_status as Record<string, unknown> | undefined;
             const className = typeof status?.className === 'string' ? status.className : '';
             const level = status?.level;
+            const presenceInfo = onlineStatus?.[m.user_id];
+            const online: boolean | undefined = presenceReady && presenceIds
+              ? presenceIds.has(m.user_id)
+              : presenceInfo
+                ? presenceInfo.isOnline
+                : undefined;
+            const onlineLabel = online ? 'Online' : (presenceInfo?.lastSeenLabel ?? 'Offline');
 
             return (
               <div
