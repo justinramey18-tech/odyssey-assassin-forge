@@ -2814,7 +2814,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             {/* Home button inside the banner frame; wrapper carries the vertical centering so the press scale animation doesn't cancel it */}
             <div
               className="absolute z-20 aspect-[9/10]"
-              style={{ left: '9%', top: '50%', height: '80%', transform: 'translateY(-50%)' }}
+              style={{ left: '0%', top: '14.8%', height: '80%' }}
             >
               <button
                 onClick={onBack}
@@ -2831,10 +2831,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               </button>
             </div>
             <div
-              className="absolute z-10 flex items-center justify-start overflow-x-auto [&::-webkit-scrollbar]:hidden"
-              style={{ top: '30%', bottom: '32%', left: '34%', right: '11%', scrollbarWidth: 'none' }}
+              className="absolute z-10 flex items-center justify-center overflow-hidden"
+              style={{ top: '30%', bottom: '32%', left: '22%', right: '22%', containerType: 'size' }}
             >
-              <div className="flex items-center gap-1.5 h-full mx-auto">
+              <div className="flex items-center justify-center gap-1.5 h-full">
                 {[
                   ...members.filter(m => m.user_id === currentUserId),
                   ...members.filter(m => m.user_id !== currentUserId),
@@ -2846,7 +2846,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   return (
                     <div
                       key={member.user_id}
-                      className="relative shrink-0 h-[88%] aspect-square"
+                      className="relative shrink-0 aspect-square"
+                      style={{ width: `min(88cqh, calc((100cqw - ${6 * (members.length - 1)}px) / ${members.length}))` }}
                       aria-label={`${member.character_name} ${statusLabel}`}
                       title={`${member.character_name} ${statusLabel}`}
                     >
