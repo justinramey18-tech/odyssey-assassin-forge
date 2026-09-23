@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Download, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import homeBtnUpdateAsset from '@/assets/home/home-btn-update.png.asset.json';
 
 interface AppUpdateButtonProps {
   className?: string;
@@ -59,18 +60,17 @@ export function AppUpdateButton({ className }: AppUpdateButtonProps) {
     <button
       onClick={handleCheck}
       disabled={checking}
-      className={cn('py-3 px-6 flex flex-col items-center gap-1 text-white disabled:opacity-60', className)}
+      className={cn('relative block w-[52%] max-w-[220px] mx-auto active:scale-[0.98] transition-transform disabled:opacity-60', className)}
       style={{ touchAction: 'manipulation' }}
       aria-label="Check for app updates"
     >
-      {checking ? (
-        <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
-      ) : (
-        <Download className="w-5 h-5 text-cyan-400" />
-      )}
-      <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">
-        {checking ? 'Checking...' : 'Update App'}
-      </span>
+      <img
+        src={homeBtnUpdateAsset.url}
+        alt=""
+        draggable={false}
+        className={cn('block w-full', checking && 'opacity-60')}
+      />
+      {checking && <Loader2 className="absolute inset-0 m-auto w-5 h-5 text-amber-300 animate-spin" />}
     </button>
   );
 }

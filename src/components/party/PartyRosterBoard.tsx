@@ -7,6 +7,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { ChatAvatars } from '@/hooks/use-chat-avatars';
 import enterStoryEmblem from '@/assets/enter-story-emblem.png';
+import bagPanelFrame from '@/assets/bag-stats/bag-panel-frame.png';
 
 interface RosterMember {
   user_id: string;
@@ -79,7 +80,17 @@ export function PartyRosterBoard({
 
   return (
     <div className="px-4">
-      <div className="rounded-xl border border-white/10 p-3">
+      <div
+        className="px-1 py-0.5"
+        style={{
+          borderStyle: 'solid',
+          borderWidth: '14px',
+          borderImageSource: `url(${bagPanelFrame})`,
+          borderImageSlice: '90 fill',
+          borderImageWidth: '36px',
+          borderImageRepeat: 'stretch',
+        }}
+      >
         <div
           className="text-[9px] uppercase tracking-wider text-white/40 font-cinzel mb-2"
           style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}

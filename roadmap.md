@@ -6,3 +6,5 @@
 - [x] Redesign the DM dice roller without changing roll behavior.
 - [x] Restore party-sheet scrolling and real character modifiers.
 - [x] Verify the redesigned roller at 360px and confirm the preview build.
+- [x] Reskin the remaining Full Access home controls with the supplied artwork.
+- [x] Confirm the home reskin compiles without opening the preview or authentication.

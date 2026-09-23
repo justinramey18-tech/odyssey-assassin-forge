@@ -3,8 +3,14 @@ import { Clock, Copy, Check } from 'lucide-react';
 import { Glass } from '@/components/ui/glass';
 import { getCurrentESTTimestamp } from '@/lib/fourthWallTime';
 import { loadTimezone, getTimezoneAbbr, formatTimeForTimezone, TIMEZONE_CHANGE_EVENT } from '@/lib/timezone-storage';
+import homePillPlaqueAsset from '@/assets/home/home-pill-plaque.png.asset.json';
+import { PILL_STYLE } from './ornate';
 
-export function ClockWidget() {
+interface ClockWidgetProps {
+  variant?: 'default' | 'ornate';
+}
+
+export function ClockWidget({ variant = 'default' }: ClockWidgetProps) {
   const [time, setTime] = useState<string>('');
   const [abbr, setAbbr] = useState<string>('');
   const [copied, setCopied] = useState(false);
@@ -42,13 +48,9 @@ export function ClockWidget() {
     }
   }, []);
 
-  return (
-    <Glass
-      variant="default"
-      rounded="full"
-      className="flex items-center gap-1.5 px-2 py-1 text-xs font-mono tracking-wide"
-    >
-      <Clock className="w-3 h-3 text-red-400" />
+  const content = (
+    <>
+      {variant === 'default' && <Clock className="w-3 h-3 text-red-400" />}
       <span className="text-white">{time}</span>
       <span className="text-[10px] text-white/60">{abbr}</span>
       <button
@@ -62,6 +64,27 @@ export function ClockWidget() {
           <Copy className="w-2.5 h-2.5 text-white/50" />
         )}
       </button>
+    </>
+  );
+
+  if (variant === 'ornate') {
+    return (
+      <span
+        style={PILL_STYLE(homePillPlaqueAsset.url)}
+        className="flex items-center gap-1.5 px-0.5 text-xs font-mono tracking-wide"
+      >
+        {content}
+      </span>
+    );
+  }
+
+  return (
+    <Glass
+      variant="default"
+      rounded="full"
+      className="flex items-center gap-1.5 px-2 py-1 text-xs font-mono tracking-wide"
+    >
+      {content}
     </Glass>
   );
 }

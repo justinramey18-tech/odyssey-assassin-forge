@@ -12,6 +12,9 @@ import {
   getSubTabsForCategory,
   type MainCategory,
 } from '@/components/navigation/types';
+import homeCatFightingAsset from '@/assets/home/home-cat-fighting.png.asset.json';
+import homeCatInventoryAsset from '@/assets/home/home-cat-inventory.png.asset.json';
+import homeCatUtilityAsset from '@/assets/home/home-cat-utility.png.asset.json';
 
 interface CategoryQuickNavProps {
   onSubTabSelect: (category: MainCategory, subTabId: string) => void;
@@ -23,6 +26,11 @@ interface CategoryQuickNavProps {
 }
 
 const CATEGORIES: MainCategory[] = ['fighting', 'inventory', 'utility'];
+const CATEGORY_ART: Partial<Record<MainCategory, string>> = {
+  fighting: homeCatFightingAsset.url,
+  inventory: homeCatInventoryAsset.url,
+  utility: homeCatUtilityAsset.url,
+};
 
 const CATEGORY_STYLES: Record<MainCategory, {
   border: string;
@@ -77,7 +85,7 @@ const cardVariants = {
     opacity: 1,
     y: 0,
     transition: {
-      delay: 0.9 + i * 0.08,
+      delay: i * 0.08,
       duration: 0.4,
       ease: [0.22, 1, 0.36, 1] as const,
     },
@@ -100,6 +108,7 @@ export function CategoryQuickNav({ onSubTabSelect, isLegacyUnlocked = false, onO
         const config = CATEGORY_CONFIG[category];
         const styles = CATEGORY_STYLES[category];
         const Icon = config.icon;
+        const categoryArt = CATEGORY_ART[category];
         const allSubTabs = getSubTabsForCategory(category);
         const subTabs = tabFilter ? allSubTabs.filter(t => tabFilter(t.id)) : allSubTabs;
 
@@ -111,25 +120,34 @@ export function CategoryQuickNav({ onSubTabSelect, isLegacyUnlocked = false, onO
                 variants={cardVariants}
                 initial="hidden"
                 animate="visible"
-                className={cn(
-                  "relative min-h-[72px] p-3 w-full",
-                  "flex flex-col items-center justify-center text-center gap-1",
-                  "rounded-lg border bg-black/40 backdrop-blur-sm",
-                  "transition-all duration-300 hover:bg-black/50",
-                  styles.border,
-                  styles.hoverBorder,
-                )}
+                className={categoryArt
+                  ? "relative block w-full active:scale-[0.97] transition-transform"
+                  : cn(
+                      "relative min-h-[72px] p-3 w-full",
+                      "flex flex-col items-center justify-center text-center gap-1",
+                      "rounded-lg border bg-black/40 backdrop-blur-sm",
+                      "transition-all duration-300 hover:bg-black/50",
+                      styles.border,
+                      styles.hoverBorder,
+                    )}
                 style={{ touchAction: 'manipulation' }}
+                aria-label={`${config.label} menu`}
               >
-                <div className={cn("w-8 h-8 rounded-full flex items-center justify-center", styles.iconBg)}>
-                  <Icon className={cn("w-4 h-4", styles.iconText)} />
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="font-cinzel font-bold text-[10px] text-white uppercase tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                    {config.label}
-                  </span>
-                  <ChevronDown className="w-3 h-3 text-white/50" />
-                </div>
+                {categoryArt ? (
+                  <img src={categoryArt} alt="" draggable={false} className="block w-full" />
+                ) : (
+                  <>
+                    <div className={cn("w-8 h-8 rounded-full flex items-center justify-center", styles.iconBg)}>
+                      <Icon className={cn("w-4 h-4", styles.iconText)} />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="font-cinzel font-bold text-[10px] text-white uppercase tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                        {config.label}
+                      </span>
+                      <ChevronDown className="w-3 h-3 text-white/50" />
+                    </div>
+                  </>
+                )}
               </motion.button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
