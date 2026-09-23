@@ -379,7 +379,7 @@ export function HomeScreen({
       if (hasRoster) {
         await preloadImages([enterStoryEmblem], 1200);
         if (cancelled) return;
-        setStage(1);
+        setStage(current => Math.max(current, 1));
         await wait(250);
 
         const members = partySync?.party.members ?? [];
@@ -390,26 +390,26 @@ export function HomeScreen({
         ]);
         await preloadImages(avatarUrls, 1500);
         if (cancelled) return;
-        setStage(2);
+        setStage(current => Math.max(current, 2));
         await wait(250);
       }
 
       await preloadImages([soloDmButtonArt.url, empyreanDmButtonArt.url], 1200);
       if (cancelled) return;
-      setStage(3);
+      setStage(current => Math.max(current, 3));
       await wait(200);
       if (cancelled) return;
-      setStage(4);
+      setStage(current => Math.max(current, 4));
       await wait(200);
       if (cancelled) return;
-      setStage(5);
+      setStage(current => Math.max(current, 5));
     };
 
     void runSequence();
     return () => { cancelled = true; };
   }, [bgReady, partySettled]);
   useEffect(() => {
-    const safety = window.setTimeout(() => setStage(5), 4000);
+    const safety = window.setTimeout(() => setStage(current => Math.max(current, 5)), 4000);
     return () => window.clearTimeout(safety);
   }, []);
   const lastSeenKey = partyIdForChat ? `odyssey_chat_lastSeen_${partyIdForChat}` : null;
