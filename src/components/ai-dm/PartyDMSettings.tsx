@@ -6,7 +6,75 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
 import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Heart, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Theater, Megaphone, Film, RefreshCw, Code2, Image as ImageIcon, Trash2, Undo2, RotateCcw, Download, UserPlus, Lock, HelpCircle } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
+import iconSavesAsset from '@/assets/tools/icon-saves.png.asset.json';
+import iconNewCampaignAsset from '@/assets/tools/icon-new-campaign.png.asset.json';
+import iconDownloadStoryAsset from '@/assets/tools/icon-download-story.png.asset.json';
+import iconOfflineNarrationAsset from '@/assets/tools/icon-offline-narration.png.asset.json';
+import iconBattleMapAsset from '@/assets/tools/icon-battle-map.png.asset.json';
+import iconQuestLogAsset from '@/assets/tools/icon-quest-log.png.asset.json';
+import iconMemoryAnchorsAsset from '@/assets/tools/icon-memory-anchors.png.asset.json';
+import iconScheduledEventsAsset from '@/assets/tools/icon-scheduled-events.png.asset.json';
+import iconCharacterRedoAsset from '@/assets/tools/icon-character-redo.png.asset.json';
+import iconGmGuidesAsset from '@/assets/tools/icon-gm-guides.png.asset.json';
+import iconCreateCharacterAsset from '@/assets/tools/icon-create-character.png.asset.json';
+import iconDownloadGuidesAsset from '@/assets/tools/icon-download-guides.png.asset.json';
+import iconPartyChatAsset from '@/assets/tools/icon-party-chat.png.asset.json';
+import iconAfkGuideAsset from '@/assets/tools/icon-afk-guide.png.asset.json';
+import iconDevAssistantAsset from '@/assets/tools/icon-dev-assistant.png.asset.json';
+import iconBookmarkAsset from '@/assets/tools/icon-bookmark.png.asset.json';
+import iconChatBackgroundAsset from '@/assets/tools/icon-chat-background.png.asset.json';
+import iconHowToPlayAsset from '@/assets/tools/icon-how-to-play.png.asset.json';
+import toolsRowPlateAsset from '@/assets/tools/tools-row-plate.png.asset.json';
+import toolsDividerAsset from '@/assets/tools/tools-divider.png.asset.json';
+
+const iconSaves = iconSavesAsset.url;
+const iconNewCampaign = iconNewCampaignAsset.url;
+const iconDownloadStory = iconDownloadStoryAsset.url;
+const iconOfflineNarration = iconOfflineNarrationAsset.url;
+const iconBattleMap = iconBattleMapAsset.url;
+const iconQuestLog = iconQuestLogAsset.url;
+const iconMemoryAnchors = iconMemoryAnchorsAsset.url;
+const iconScheduledEvents = iconScheduledEventsAsset.url;
+const iconCharacterRedo = iconCharacterRedoAsset.url;
+const iconGmGuides = iconGmGuidesAsset.url;
+const iconCreateCharacter = iconCreateCharacterAsset.url;
+const iconDownloadGuides = iconDownloadGuidesAsset.url;
+const iconPartyChat = iconPartyChatAsset.url;
+const iconAfkGuide = iconAfkGuideAsset.url;
+const iconDevAssistant = iconDevAssistantAsset.url;
+const iconBookmark = iconBookmarkAsset.url;
+const iconChatBackground = iconChatBackgroundAsset.url;
+const iconHowToPlay = iconHowToPlayAsset.url;
+const toolsRowPlate = toolsRowPlateAsset.url;
+const toolsDivider = toolsDividerAsset.url;
+
+type ToolGroup = 'campaign' | 'narration' | 'lore' | 'table' | 'host';
+
+interface ToolEntry {
+  id: string;
+  group: ToolGroup;
+  show: boolean;
+  /** false = Settings only, hidden on the Tools screen */
+  screen?: boolean;
+  icon: React.ReactNode;
+  medallion?: string;
+  mark?: 'remove';
+  label: string;
+  description?: string;
+  badge?: number;
+  onClick?: () => void;
+  disabled?: boolean;
+  after?: React.ReactNode;
+}
+
+const TOOL_GROUPS: { id: ToolGroup; title: string }[] = [
+  { id: 'campaign', title: 'Campaign' },
+  { id: 'narration', title: 'Narration' },
+  { id: 'lore', title: 'Lore & Guides' },
+  { id: 'table', title: 'Table' },
+  { id: 'host', title: 'Host Tools' },
+];
 import { exportPartyStory } from '@/lib/exportPartyStory';
 import { exportGMGuides } from '@/lib/exportGMGuides';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
