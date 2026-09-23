@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ImagePlus, Trash2, Check, X, Loader2, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import homeIconBackgroundAsset from '@/assets/home/home-icon-background.png.asset.json';
 
 interface BackgroundUploadButtonProps {
   hasCustomBackground: boolean;
@@ -79,20 +80,18 @@ export function BackgroundUploadButton({
         disabled={isUploading}
         whileTap={{ scale: 0.95 }}
         className={cn(
-          "p-2 rounded-lg transition-all duration-200",
-          "border border-white/20 hover:border-white/40",
-          "bg-black/30 hover:bg-black/50 backdrop-blur-sm",
+          "relative min-w-[44px] min-h-[44px] flex items-center justify-center",
           isUploading && "opacity-50 cursor-not-allowed"
         )}
         aria-label={hasCustomBackground ? "Change or clear custom background" : "Upload custom background"}
       >
-        {isUploading ? (
-          <Loader2 className="w-5 h-5 text-white/80 animate-spin" />
-        ) : hasCustomBackground ? (
-          <ImagePlus className="w-5 h-5 text-primary" />
-        ) : (
-          <ImagePlus className="w-5 h-5 text-white/80" />
-        )}
+        <img
+          src={homeIconBackgroundAsset.url}
+          alt=""
+          draggable={false}
+          className={cn("w-9 h-9", hasCustomBackground && "drop-shadow-[0_0_6px_rgba(251,191,36,0.8)]")}
+        />
+        {isUploading && <Loader2 className="absolute w-5 h-5 text-amber-300 animate-spin" />}
       </motion.button>
 
       {/* Confirm Clear Popover */}

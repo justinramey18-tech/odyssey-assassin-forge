@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Menu, Cloud, CloudOff, Loader2, LogIn, User, Settings, Trash2, Save, Check,
+  Cloud, CloudOff, Loader2, LogIn, User, Settings, Trash2, Save, Check,
   Coins, Wand2, Package, Heart, Swords, Sparkles, Edit3, X, Download, Upload
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -27,6 +27,7 @@ import { SaveData } from '@/hooks/use-auto-save';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { exportSaveToFile, importSaveFromFile } from '@/lib/save-export';
+import homeIconSavesAsset from '@/assets/home/home-icon-saves.png.asset.json';
 
 interface CharacterSavesDrawerProps {
   isOpen: boolean;
@@ -570,17 +571,11 @@ export function CharacterSavesTrigger({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className={cn(
-        "p-3 rounded-lg border-2 border-primary/40",
-        "bg-black/40 backdrop-blur-sm",
-        "hover:bg-black/60 hover:border-primary/60",
-        "transition-all duration-300",
-        "hover:shadow-[0_0_15px_rgba(220,38,38,0.2)]"
-      )}
+      className="min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 transition-transform"
       style={{ touchAction: 'manipulation' }}
       aria-label="Open character saves"
     >
-      <Menu className="w-6 h-6 text-primary" />
+      <img src={homeIconSavesAsset.url} alt="" draggable={false} className="w-10 h-10" />
     </button>
   );
 }
