@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import recapBg from '@/assets/quick-recap/recap-bg.jpg';
 import recapBanner from '@/assets/quick-recap/recap-banner.png';
 import recapCardFrame from '@/assets/quick-recap/recap-card-frame.png';
-import playButton from '@/assets/quick-recap/play-button.png';
+import playOrbArt from '@/assets/dock/play-orb.png';
 import recapLoading from '@/assets/quick-recap/recap-loading.png';
 import iconRightNow from '@/assets/quick-recap/icon-right-now.png';
 import iconWhereWhen from '@/assets/quick-recap/icon-where-when.png';
@@ -28,7 +28,7 @@ const RECAP_ORB_ART: string | null = recapOrbArt;
 const BG_ART: string | null = recapBg;
 const BANNER_ART: string | null = recapBanner;
 const LOADING_ART: string | null = recapLoading;
-const PLAY_ART: string | null = playButton;
+const PLAY_ART: string | null = playOrbArt;
 const CARD_FRAME_ART: string | null = recapCardFrame;
 const FRAME_SLICE = 112;
 const FRAME_WIDTH = 26;
@@ -512,7 +512,7 @@ export function QuickRecapDrawer({ open, onOpenChange, onPlay, partyId, characte
               </button>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pb-32">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pb-44">
               <div className="mx-auto w-full max-w-[480px] flex flex-col gap-3">
                 {renderBody()}
               </div>
@@ -523,23 +523,33 @@ export function QuickRecapDrawer({ open, onOpenChange, onPlay, partyId, characte
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25 }}
-                className="absolute inset-x-0 bottom-0 px-4 pt-6 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-black/90 via-black/60 to-transparent"
+                className="absolute inset-x-0 bottom-0 px-4 pt-8 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-black/90 via-black/60 to-transparent"
               >
                 <button
+                  type="button"
                   onClick={handlePlay}
                   aria-label="Play: close the recap and open the live chat"
-                  className={cn(
-                    'block w-full max-w-[380px] mx-auto h-[64px] active:scale-[0.98] transition-transform',
-                    !PLAY_ART && 'bg-gradient-to-b from-amber-600 via-amber-700 to-amber-900 border border-amber-300/60 rounded-xl shadow-[0_0_24px_rgba(245,158,11,0.35)]',
-                  )}
-                  style={{
-                    touchAction: 'manipulation',
-                    ...(PLAY_ART ? { backgroundImage: `url(${PLAY_ART})`, backgroundSize: '100% 100%', border: 'none', background: undefined } : {}),
-                  }}
+                  className="relative mx-auto block h-[112px] w-[112px] rounded-full transition-transform duration-150 active:scale-[0.93] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/80"
+                  style={{ touchAction: 'manipulation' }}
                 >
-                  <span className="font-cinzel text-[22px] font-black tracking-[0.2em] text-[#FFE4AA]" style={{ textShadow: GLOW_TEXT_SHADOW }}>
-                    PLAY
-                  </span>
+                  <span aria-hidden className="pointer-events-none absolute -inset-2 rounded-full bg-amber-500/25 blur-md motion-safe:animate-pulse" />
+                  {PLAY_ART ? (
+                    <img
+                      src={PLAY_ART}
+                      alt=""
+                      draggable={false}
+                      className="relative h-full w-full select-none object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,0.85)]"
+                    />
+                  ) : (
+                    <div
+                      className="relative flex h-full w-full items-center justify-center rounded-full border-2 border-[#caa05a]"
+                      style={{ background: 'radial-gradient(circle at 50% 38%, #f59e0b 0%, #b45309 45%, #3b1d06 80%, #1a0e05 100%)' }}
+                    >
+                      <span className="font-cinzel text-[22px] font-black tracking-[0.12em] text-[#FFE4AA]" style={{ textShadow: GLOW_TEXT_SHADOW }}>
+                        PLAY
+                      </span>
+                    </div>
+                  )}
                 </button>
               </motion.div>
             )}

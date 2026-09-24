@@ -21,7 +21,9 @@ const SYSTEM_PROMPT = `You write a Quick Recap for a tabletop roleplaying game p
 
 7. Options are suggestions phrased as possibilities, never orders. Include at least one option that is not combat.
 
-8. Write the rightNow field in second person, addressed to the party ("You are...").`;
+8. Write the rightNow field in second person, addressed to the party ("You are...").
+
+9. The storySoFar field is the player's memory of the campaign, so give it real substance. Cover the whole arc in order: how the job or adventure started, the key turning points, and the most recent events leading into right now. Each beat says who did what, where, and why it mattered (what it changed, revealed or cost). Use character and NPC names, not "the party" or "someone". Include discoveries, deals, betrayals, promises, injuries and items gained or lost when they matter later. Draw the early beats from the campaign summary and the later beats from the recent story. Do not repeat what is already in rightNow.`;
 
 const TOOL = {
   type: "function",
@@ -42,7 +44,7 @@ const TOOL = {
           },
           required: ["location", "sceneType"],
         },
-        storySoFar: { type: "array", items: { type: "string" }, description: "3 to 5 one-sentence beats, max 25 words each, oldest first." },
+        storySoFar: { type: "array", items: { type: "string" }, description: "5 to 8 beats, oldest first. Each beat is 1 to 2 sentences, max 45 words, naming who did what, where, and why it mattered." },
         objectives: {
           type: "array",
           items: {
@@ -276,7 +278,7 @@ serve(async (req) => {
       headline: typeof recap.headline === "string" ? recap.headline : "",
       rightNow: typeof recap.rightNow === "string" ? recap.rightNow : "",
       whereAndWhen: recap.whereAndWhen && typeof recap.whereAndWhen === "object" ? recap.whereAndWhen : { location: "", sceneType: "exploration" },
-      storySoFar: asArray(recap.storySoFar, 5),
+      storySoFar: asArray(recap.storySoFar, 8),
       objectives: asArray(recap.objectives, 4),
       keyNpcs: asArray(recap.keyNpcs, 5),
       threats: asArray(recap.threats, 3),
