@@ -59,8 +59,10 @@ function preloadImages(urls: Array<string | undefined>, capMs: number): Promise<
   });
 }
 
-/** How long the table scene fades in when the table opens. Everything else appears the moment it finishes. */
+/** How long the table scene fades in when the table opens. */
 const BACKGROUND_FADE_S = 0.8;
+/** When every component appears, measured from the start of the fade (just before it finishes). */
+const CONTENT_REVEAL_S = 0.7;
 
 const EMOJI_SET = ['🤣','😅','🤪','🙄','😬','😏','🤮','🥵','🥶','🤯','🧐','😎','😱','😭','🤬','😈','❤️','💯','👏','🙌','🤝','🖕','🫦','🗣','🍑','🍆'];
 
@@ -446,21 +448,29 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   }, [open]);
 
   // ── Opening: background first, then everything at once ──
-  // The table scene fades in on its own. The moment that fade finishes, every other
-  // component appears on the same frame. They're laid out (and scrolled to the newest
-  // line) underneath while hidden, so they appear already in place.
+  // Every component renders — fully visible, laid out, scrolled to the newest line and
+  // painted — on the very first frame, underneath a curtain. The curtain is the table
+  // scene fading in over the dark base. 0.7 s into that 0.8 s fade the curtain is
+  // removed, which only uncovers what is already drawn: nothing has to be painted on
+  // the reveal frame, so there is no blank flash and no stall.
   const prefersReducedMotion = useReducedMotion();
   const [contentShown, setContentShown] = useState(false);
+  const revealTimerRef = useRef<number | undefined>(undefined);
   useLayoutEffect(() => {
+    window.clearTimeout(revealTimerRef.current);
     if (!open) { setContentShown(false); return; }
     if (prefersReducedMotion) { setContentShown(true); return; }
-    // Safety net in case the fade's completion event never arrives.
-    const t = window.setTimeout(() => setContentShown(true), BACKGROUND_FADE_S * 1000 + 300);
+    // Safety net: never leave the curtain down if the fade never starts.
+    const t = window.setTimeout(() => setContentShown(true), 2500);
     return () => window.clearTimeout(t);
   }, [open, prefersReducedMotion]);
-  /** Hides a component until the background fade has finished. Opacity (not visibility)
-   *  so its pictures still load and decode underneath, ready to appear on the same frame. */
-  const hiddenUntilShown = contentShown ? undefined : ({ opacity: 0, pointerEvents: 'none' } as const);
+  useEffect(() => () => window.clearTimeout(revealTimerRef.current), []);
+  /** Starts the reveal clock when the fade actually starts animating, not when the tap happened,
+   *  so a slow first frame on an older phone can't eat into the fade. */
+  const startRevealClock = useCallback(() => {
+    window.clearTimeout(revealTimerRef.current);
+    revealTimerRef.current = window.setTimeout(() => setContentShown(true), CONTENT_REVEAL_S * 1000);
+  }, []);
 
   // Warm the pictures the open table needs while it is still collapsed, so nothing pops in late.
   useEffect(() => {
@@ -526,13 +536,13 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   }, [messages.length, open]);
 
   // Opening the drawer always lands on the newest line — scrolled before the first
-  // frame is painted, while the components are still hidden behind the fade.
+  // frame is painted, while the components are still under the curtain.
   useLayoutEffect(() => {
     if (open) scrollToLatest('auto');
   }, [open]);
 
-  // …and once more on the frame everything appears, in case pictures changed heights
-  // during the fade.
+  // …and once more when the curtain lifts, in case pictures changed heights during the fade.
+  // (A no-op when nothing moved, so it doesn't force a repaint.)
   useLayoutEffect(() => {
     if (open && contentShown && pinnedRef.current) scrollToLatest('auto');
   }, [contentShown]);
@@ -617,27 +627,18 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
     )}>
       {/* First-person "seat at the table" scene — anchored to the bottom so the
           hands and phone stay in view at every drawer height */}
-      {/* The table scene. Collapsed, it sits behind PLAY at full strength. On open it
-          remounts at zero and fades in first; when the fade completes, everything else
-          appears at once. */}
-      <motion.div
-        key={open ? 'table-scene-open' : 'table-scene-closed'}
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        initial={{ opacity: open && !prefersReducedMotion ? 0 : 1 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: open && !prefersReducedMotion ? BACKGROUND_FADE_S : 0, ease: 'easeOut' }}
-        onAnimationComplete={() => { if (open) setContentShown(true); }}
-      >
+      {/* The table scene, always at full strength: behind PLAY when collapsed, and behind
+          the components when open. The opening fade happens on the curtain below. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
         <div
           className="absolute inset-0 bg-cover bg-no-repeat"
           style={{ backgroundImage: `url(${liveChatTablePov.url})`, backgroundPosition: 'center bottom' }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/60 to-black/10" />
-      </motion.div>
+      </div>
       {open ? (
         /* Expanded header — RETURN TO STORY banner artwork collapses the table.
-           Hidden (space kept) until the background fade finishes. */
+           Its own layer, so it's painted under the curtain and just uncovered on reveal. */
         <button
           onClick={() => onOpenChange(false)}
           aria-expanded
@@ -646,7 +647,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
             "relative block w-full transition-transform active:scale-[0.99]",
             fullScreen && "shrink-0"
           )}
-          style={{ touchAction: 'manipulation', minHeight: 44, ...hiddenUntilShown }}
+          style={{ touchAction: 'manipulation', minHeight: 44, willChange: 'transform' }}
         >
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
           <img
@@ -714,7 +715,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
 
 
       {open && (
-          <div className="relative overflow-hidden flex-1 min-h-0 flex flex-col" style={hiddenUntilShown}>
+          <div className="relative overflow-hidden flex-1 min-h-0 flex flex-col" style={{ willChange: 'transform' }}>
             <div className="px-2 pb-2 relative flex-1 min-h-0 flex flex-col">
               {/* Status pops + messages */}
               <div className="flex-1 min-h-0 flex flex-col">
@@ -1470,6 +1471,32 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
               </div>
             </div>
           </div>
+      )}
+
+      {/* The curtain. While the table scene fades in, this covers the components, which
+          are already fully rendered and painted on their own layers underneath. At 0.7 s
+          it is removed in one frame: the components are uncovered, not drawn, so the
+          reveal is instant with no blank flash. It also swallows taps while it's down. */}
+      {open && !contentShown && (
+        <div
+          aria-hidden
+          className="absolute inset-0 z-20 bg-[#0b0b10]"
+          style={{ willChange: 'opacity' }}
+        >
+          <motion.div
+            className="pointer-events-none absolute inset-0"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: BACKGROUND_FADE_S, ease: 'easeOut' }}
+            onAnimationStart={startRevealClock}
+          >
+            <div
+              className="absolute inset-0 bg-cover bg-no-repeat"
+              style={{ backgroundImage: `url(${liveChatTablePov.url})`, backgroundPosition: 'center bottom' }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/60 to-black/10" />
+          </motion.div>
+        </div>
       )}
 
       <AvatarCropDialog
