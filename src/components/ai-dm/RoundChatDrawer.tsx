@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, useCallback } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronDown, Send, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft } from 'lucide-react';
@@ -59,12 +59,8 @@ function preloadImages(urls: Array<string | undefined>, capMs: number): Promise<
   });
 }
 
-/**
- * Opening choreography for the Live DM Table, one step at a time:
- * 1 background · 2 status pops + messages · 3 input field · 4 IC/OOC tiles · 5 RETURN TO STORY header
- */
-const STAGE = { background: 1, feed: 2, input: 3, tiles: 4, header: 5 } as const;
-const REVEAL_EASE = [0.16, 1, 0.3, 1] as const;
+/** How long the table scene fades in when the table opens. Everything else appears the moment it finishes. */
+const BACKGROUND_FADE_S = 0.8;
 
 const EMOJI_SET = ['🤣','😅','🤪','🙄','😬','😏','🤮','🥵','🥶','🤯','🧐','😎','😱','😭','🤬','😈','❤️','💯','👏','🙌','🤝','🖕','🫦','🗣','🍑','🍆'];
 
@@ -449,58 +445,22 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
     if (!open) setReplyTo(null);
   }, [open]);
 
-  // ── Opening choreography ──
+  // ── Opening: background first, then everything at once ──
+  // The table scene fades in on its own. The moment that fade finishes, every other
+  // component appears on the same frame. They're laid out (and scrolled to the newest
+  // line) underneath while hidden, so they appear already in place.
   const prefersReducedMotion = useReducedMotion();
-  const [stage, setStage] = useState(0);
-  const avatarsRef = useRef(avatars);
-  avatarsRef.current = avatars;
-
-  useEffect(() => {
-    if (!open) { setStage(0); return; }
-    if (prefersReducedMotion) { setStage(STAGE.header); return; }
-
-    let cancelled = false;
-    const wait = (ms: number) => new Promise<void>(resolve => window.setTimeout(resolve, ms));
-    const step = (n: number) => { if (!cancelled) setStage(s => Math.max(s, n)); };
-
-    // Start fetching your own IC/OOC pictures now, so their tiles are ready by step 4.
-    const mine = currentUserId ? avatarsRef.current?.[currentUserId] : undefined;
-    const tilesReady = preloadImages([mine?.ic, mine?.ooc], 1200);
-
-    const run = async () => {
-      await preloadImages([liveChatTablePov.url], 800);
-      step(STAGE.background);
-      await wait(320);
-      step(STAGE.feed);
-      await wait(260);
-      step(STAGE.input);
-      await Promise.all([wait(220), tilesReady]);
-      step(STAGE.tiles);
-      await wait(240);
-      step(STAGE.header);
-    };
-    void run();
-
-    // Never leave part of the table invisible, even if a picture hangs.
-    const safety = window.setTimeout(() => step(STAGE.header), 2500);
-    return () => { cancelled = true; window.clearTimeout(safety); };
-  }, [open, prefersReducedMotion, currentUserId]);
-
-  /** Fade-and-rise for one step of the choreography. Hidden steps keep their space and ignore taps. */
-  const reveal = (at: number, rise = 8) => {
-    const shown = stage >= at;
-    return {
-      initial: false as const,
-      animate: { opacity: shown ? 1 : 0, y: shown || prefersReducedMotion ? 0 : rise },
-      transition: prefersReducedMotion
-        ? { duration: 0 }
-        : shown
-          ? { duration: 0.35, ease: REVEAL_EASE }
-          : { duration: 0 },
-      style: { pointerEvents: shown ? undefined : ('none' as const) },
-      'aria-hidden': shown ? undefined : true,
-    };
-  };
+  const [contentShown, setContentShown] = useState(false);
+  useLayoutEffect(() => {
+    if (!open) { setContentShown(false); return; }
+    if (prefersReducedMotion) { setContentShown(true); return; }
+    // Safety net in case the fade's completion event never arrives.
+    const t = window.setTimeout(() => setContentShown(true), BACKGROUND_FADE_S * 1000 + 300);
+    return () => window.clearTimeout(t);
+  }, [open, prefersReducedMotion]);
+  /** Hides a component until the background fade has finished. Opacity (not visibility)
+   *  so its pictures still load and decode underneath, ready to appear on the same frame. */
+  const hiddenUntilShown = contentShown ? undefined : ({ opacity: 0, pointerEvents: 'none' } as const);
 
   // Warm the pictures the open table needs while it is still collapsed, so nothing pops in late.
   useEffect(() => {
@@ -565,10 +525,17 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
     }
   }, [messages.length, open]);
 
-  // Opening the drawer always lands on the newest line.
-  useEffect(() => {
-    if (open) requestAnimationFrame(() => scrollToLatest('auto'));
+  // Opening the drawer always lands on the newest line — scrolled before the first
+  // frame is painted, while the components are still hidden behind the fade.
+  useLayoutEffect(() => {
+    if (open) scrollToLatest('auto');
   }, [open]);
+
+  // …and once more on the frame everything appears, in case pictures changed heights
+  // during the fade.
+  useLayoutEffect(() => {
+    if (open && contentShown && pinnedRef.current) scrollToLatest('auto');
+  }, [contentShown]);
 
   // When the DM finishes expanding its response, bring the round feed back into view.
   useEffect(() => {
@@ -650,13 +617,17 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
     )}>
       {/* First-person "seat at the table" scene — anchored to the bottom so the
           hands and phone stay in view at every drawer height */}
-      {/* Step 1 of the opening: the table fades in first. Collapsed, it simply sits behind PLAY. */}
+      {/* The table scene. Collapsed, it sits behind PLAY at full strength. On open it
+          remounts at zero and fades in first; when the fade completes, everything else
+          appears at once. */}
       <motion.div
+        key={open ? 'table-scene-open' : 'table-scene-closed'}
         aria-hidden
         className="pointer-events-none absolute inset-0"
-        initial={false}
-        animate={{ opacity: !open || stage >= STAGE.background ? 1 : 0 }}
-        transition={{ duration: open && stage >= STAGE.background && !prefersReducedMotion ? 0.45 : 0, ease: 'easeOut' }}
+        initial={{ opacity: open && !prefersReducedMotion ? 0 : 1 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: open && !prefersReducedMotion ? BACKGROUND_FADE_S : 0, ease: 'easeOut' }}
+        onAnimationComplete={() => { if (open) setContentShown(true); }}
       >
         <div
           className="absolute inset-0 bg-cover bg-no-repeat"
@@ -666,9 +637,8 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
       </motion.div>
       {open ? (
         /* Expanded header — RETURN TO STORY banner artwork collapses the table.
-           Step 5: fades in last; its 65px slot is reserved from the first frame. */
-        <motion.button
-          {...reveal(STAGE.header, -8)}
+           Hidden (space kept) until the background fade finishes. */
+        <button
           onClick={() => onOpenChange(false)}
           aria-expanded
           aria-label={style.mode === 'live' ? 'Return to story: close the Live DM Table' : 'Return to story: close the round chat'}
@@ -676,7 +646,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
             "relative block w-full transition-transform active:scale-[0.99]",
             fullScreen && "shrink-0"
           )}
-          style={{ ...reveal(STAGE.header).style, touchAction: 'manipulation', minHeight: 44 }}
+          style={{ touchAction: 'manipulation', minHeight: 44, ...hiddenUntilShown }}
         >
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
           <img
@@ -701,7 +671,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
               {unseen > 99 ? '99+' : unseen}
             </span>
           )}
-        </motion.button>
+        </button>
       ) : (
         /* Collapsed trigger — PLAY banner artwork opens the table */
         <button
@@ -744,11 +714,10 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
 
 
       {open && (
-          <div className="relative overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="relative overflow-hidden flex-1 min-h-0 flex flex-col" style={hiddenUntilShown}>
             <div className="px-2 pb-2 relative flex-1 min-h-0 flex flex-col">
-              {/* Step 2: status pops + messages. Laid out (and scrolled to the newest line)
-                  from the first frame while invisible, so they fade in already in place. */}
-              <motion.div {...reveal(STAGE.feed)} className="flex-1 min-h-0 flex flex-col">
+              {/* Status pops + messages */}
+              <div className="flex-1 min-h-0 flex flex-col">
               {/* Compact DM status banner */}
               {dmStatus && (
                 <div
@@ -1277,9 +1246,9 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                   );
                 })}
               </div>
-              </motion.div>
+              </div>
 
-              {stage >= STAGE.feed && !pinned && messages.length > 0 && (
+              {!pinned && messages.length > 0 && (
                 <button
                   onClick={() => scrollToLatest('smooth')}
                   style={{ touchAction: 'manipulation' }}
@@ -1300,11 +1269,10 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
               >
                 
 
-                {/* Step 4: who is speaking. The pictures are the same ones used for this
+                {/* Who is speaking. The pictures are the same ones used for this
                     player's bubbles, so the tile you pick matches what appears in
-                    the chat. Tapping the already-selected tile renames it.
-                    Revealed after the input field, once your pictures have loaded. */}
-                <motion.div {...reveal(STAGE.tiles)} className="space-y-1.5">
+                    the chat. Tapping the already-selected tile renames it. */}
+                <div className="space-y-1.5">
                 <div className="flex items-stretch gap-2">
                   {([
                     {
@@ -1394,10 +1362,10 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                     className="w-full px-2 py-2 rounded-lg text-[12px] bg-black/40 border border-sky-400/40 text-sky-100 outline-none"
                   />
                 )}
-                </motion.div>
+                </div>
 
-                {/* Step 3: the input field (reply chip, text box, picture + send, actions banner). */}
-                <motion.div {...reveal(STAGE.input)} className="space-y-1.5">
+                {/* The input field (reply chip, text box, picture + send, actions banner). */}
+                <div className="space-y-1.5">
 
                 {replyTo && (
                   <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-amber-500/25 bg-amber-500/5">
@@ -1498,7 +1466,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                     />
                   </button>
                 )}
-                </motion.div>
+                </div>
               </div>
             </div>
           </div>
