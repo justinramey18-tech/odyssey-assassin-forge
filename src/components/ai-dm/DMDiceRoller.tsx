@@ -213,6 +213,36 @@ const QUICK_DICE = [
   { label: 'd12', sides: 12 },
 ];
 
+const warmedArt = new Set<string>();
+
+/**
+ * Starts downloading and decoding the art that is on screen the moment the roller
+ * opens (banner, roll-mode plates, initiative, ability and quick-die art), plus any
+ * extra URLs the host passes (e.g. its sheet background). Call it just before the
+ * roller is likely to open so nothing pops in while its sheet slides up. Safe to call
+ * repeatedly; each picture is only requested once.
+ */
+export function preloadDiceRollerArt(extra: string[] = []): void {
+  if (typeof window === 'undefined') return;
+  const urls = [
+    heroBannerArt.url,
+    modeNormalArt.url,
+    modeAdvantageArt.url,
+    modeDisadvantageArt.url,
+    rollInitiativeArt.url,
+    ...Object.values(ABILITY_ART),
+    ...QUICK_DICE.map(d => DIE_ART[d.sides]),
+    ...extra,
+  ];
+  for (const src of urls) {
+    if (!src || warmedArt.has(src)) continue;
+    warmedArt.add(src);
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = src;
+  }
+}
+
 // Animated rolling number component
 function RollingNumber({ target, sides, duration = 600, onLand }: { target: number; sides: number; duration?: number; onLand?: () => void }) {
   const [display, setDisplay] = useState(target);
@@ -575,7 +605,7 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
             src={heroBannerArt.url}
             alt=""
             aria-hidden="true"
-            loading="lazy"
+            loading="eager"
             width="946"
             height="946"
             draggable={false}
@@ -651,7 +681,7 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
             <img
               src={rollInitiativeArt.url}
               alt="Roll Initiative"
-              loading="lazy"
+              loading="eager"
               width="1024"
               height="500"
               draggable={false}
@@ -692,7 +722,7 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
                     src={ABILITY_ART[key]}
                     alt=""
                     aria-hidden="true"
-                    loading="lazy"
+                    loading="eager"
                     width="44"
                     height="44"
                     className="h-11 w-11 shrink-0 object-contain group-active:brightness-125 motion-safe:transition-[filter] motion-safe:duration-[120ms] motion-reduce:transition-none"
@@ -717,7 +747,7 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
                   src={DIE_ART[d.sides]}
                   alt=""
                   aria-hidden="true"
-                  loading="lazy"
+                  loading="eager"
                   width="40"
                   height="40"
                   className="h-10 w-10 object-contain group-active:brightness-125 motion-safe:transition-[filter] motion-safe:duration-[120ms] motion-reduce:transition-none"

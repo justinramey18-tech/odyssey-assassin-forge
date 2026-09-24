@@ -105,7 +105,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { loadSelectedModel, saveSelectedModel } from '@/lib/dm-models';
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-party-dm';
-import { DMDiceRoller } from './DMDiceRoller';
+import { DMDiceRoller, preloadDiceRollerArt } from './DMDiceRoller';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { parseRollHint } from '@/lib/whisperRollHint';
 import { resolveWhisperAutoRoll, performWhisperRoll } from '@/lib/whisperAutoRoll';
@@ -1255,6 +1255,13 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
 type QuickActionSection = 'weapons' | 'abilities' | 'spells' | 'cantrips';
 
 /**
+ * The Action Menu is a Sheet whose close animation lasts 300 ms. The panel the player
+ * picked opens just after that, so the two sheets (and their dark overlays) never
+ * overlap mid-animation.
+ */
+const ACTION_MENU_CLOSE_MS = 320;
+
+/**
  * Panels driven through the overlay ganglion, with the payload each one opens with.
  * Opening or closing any of these re-renders only that panel, not this whole screen.
  */
@@ -1313,6 +1320,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   // Refresh the pending-item badge whenever the character sheet opens.
   useOverlayChange(overlays, 'characterSheet', (open) => {
     if (open) setPartyPendingItemCount(loadPendingDmItems().length);
+  });
+  // While the Action Menu is up, start loading the dice roller's art and its fire
+  // background, so choosing "Roll the dice" opens a sheet that's already painted.
+  useOverlayChange(overlays, 'actionMenu', (open) => {
+    if (open) preloadDiceRollerArt([diceBg.url]);
   });
   const narrator = useNarrator();
   const spotify = useSpotify();
@@ -2549,7 +2561,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       } else if (choice === 'tools') {
         overlays.open('tools');
       }
-    }, 200);
+    }, ACTION_MENU_CLOSE_MS);
   }, [isEmpyrean, partyDm.messages.length, partyDm.isGenerating, onOpenDirector]);
 
   /** Shared consumable use: healing items roll real dice, everything else is announced to the DM. */
@@ -4870,12 +4882,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       <Sheet open={diceOpen} onOpenChange={setDiceOpen}>
         <SheetContent
           side="bottom"
-          className="h-[85vh] p-0 bg-background/40 backdrop-blur-lg border-t border-amber-500/30 rounded-t-2xl overflow-hidden flex flex-col"
+          className="h-[85vh] p-0 bg-[#0b0b10] backdrop-blur-none border-t border-amber-500/30 rounded-t-2xl overflow-hidden flex flex-col"
           style={{
             backgroundImage: `url(${diceBg.url})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
-            backgroundAttachment: 'fixed',
           }}
         >
           <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-8">
