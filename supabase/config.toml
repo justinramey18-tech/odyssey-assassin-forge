@@ -63,3 +63,5 @@ project_id = "sqvcszzbkyzidigsdqgk"
     verify_jwt = true
   [functions.change-username]
     verify_jwt = true
+  [functions.party-quick-recap]
+    verify_jwt = true
