@@ -2056,7 +2056,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
     const picked = roundChatRef.current.orderedSelected;
     if (picked.length === 0) {
-      toast.info('Tick the lines you want the DM to answer first');
+      toast.info('Seal the lines you want the DM to answer first');
       return;
     }
 
@@ -3359,7 +3359,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               <h2 className="text-lg font-cinzel text-amber-200 mb-2">Party DM Session</h2>
               <p className="text-sm text-white/40 max-w-[280px]">
                 {chatRoundsOn
-                  ? 'Tap PLAY below to talk at the table. Tick the lines you want the DM to answer, and the host sends them to the DM.'
+                  ? 'Tap PLAY below to talk at the table. Seal the lines you want the DM to answer, and the host delivers them to the DM.'
                   : 'Each player submits their action, then clicks Ready. When everyone is ready, the DM responds to all actions at once.'}
               </p>
             </div>
