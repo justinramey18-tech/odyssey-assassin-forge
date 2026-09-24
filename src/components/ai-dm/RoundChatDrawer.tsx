@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronDown, Send, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft } from 'lucide-react';
@@ -115,10 +115,20 @@ const SWIPE_TRIGGER = 56;   // px of travel needed to arm the reply
 const SWIPE_MAX = 80;       // px the bubble can be dragged
 
 
+/**
+ * Commands the Party DM screen uses to drive the table. The open/closed state lives
+ * inside the drawer, so opening or closing re-renders only the drawer, not the
+ * whole Party DM screen.
+ */
+export interface RoundChatDrawerHandle {
+  open: () => void;
+  close: () => void;
+  /** Adds text to the composer (as the character) and opens the table. */
+  openWithDraft: (text: string) => void;
+}
+
 interface RoundChatDrawerProps {
   partyId?: string | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   messages: RoundChatMessage[];
   reactions: RoundChatReaction[];
   currentUserId?: string;
@@ -146,8 +156,6 @@ interface RoundChatDrawerProps {
   onReorderSelected?: (ids: string[]) => void;
 
   /** Text pushed in from outside (e.g. "suggest my action") to prefill the composer. */
-  draft?: string | null;
-  onDraftUsed?: () => void;
   /** Per-player avatars: { [userId]: { ic, ooc } } */
   avatars?: Record<string, { ic?: string; ooc?: string }>;
   onUploadAvatar?: (kind: 'ic' | 'ooc', file: File) => void | Promise<void>;
@@ -255,10 +263,8 @@ function ChatAvatar({
 }
 
 
-export function RoundChatDrawer({
+export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawerProps>(function RoundChatDrawer({
   partyId,
-  open,
-  onOpenChange,
   messages,
   reactions,
   currentUserId,
@@ -281,8 +287,6 @@ export function RoundChatDrawer({
   orderedSelected,
   onReorderSelected,
 
-  draft,
-  onDraftUsed,
   avatars,
   onUploadAvatar,
   onUploadImage,
@@ -296,7 +300,12 @@ export function RoundChatDrawer({
   presenceIds,
   presenceReady,
   readReceiptsLoaded = false,
-}: RoundChatDrawerProps) {
+}, ref) {
+  // Open/closed lives here, not in PartyDMScreen: toggling the table re-renders this
+  // component only. The parent drives it through the ref handle below.
+  const [open, setOpen] = useState(false);
+  const onOpenChange = setOpen;
+
   const [editingOocName, setEditingOocName] = useState(false);
   const [oocNameDraft, setOocNameDraft] = useState('');
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -511,13 +520,19 @@ export function RoundChatDrawer({
   }, [open]);
 
 
-  // Outside suggestions land in the composer so the player can edit before sending.
-  useEffect(() => {
-    if (!draft) return;
-    setText(prev => (prev.trim() ? `${prev.trim()} ${draft}` : draft));
-    setInCharacter(true);
-    onDraftUsed?.();
-  }, [draft]);
+  // Commands for the Party DM screen. Outside suggestions land in the composer so
+  // the player can edit before sending.
+  useImperativeHandle(ref, () => ({
+    open: () => setOpen(true),
+    close: () => setOpen(false),
+    openWithDraft: (draft: string) => {
+      if (draft) {
+        setText(prev => (prev.trim() ? `${prev.trim()} ${draft}` : draft));
+        setInCharacter(true);
+      }
+      setOpen(true);
+    },
+  }), []);
 
   const scrollToLatest = (behavior: ScrollBehavior = 'smooth') => {
     const el = scrollRef.current;
@@ -1525,4 +1540,4 @@ export function RoundChatDrawer({
       )}
     </div>
   );
-}
+});
