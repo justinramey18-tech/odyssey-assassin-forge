@@ -4886,6 +4886,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 dispatchPrompt(text);
                 setDiceOpen(false);
               }}
+              onRoll={(roll, message, label) => {
+                // Close the sheet first so the dice tray is visible, then post the
+                // roll line once the tray finishes (or is tapped to skip).
+                setDiceOpen(false);
+                requestDiceRoll({ title: label, roll, onComplete: () => dispatchPrompt(message) });
+              }}
             />
           </div>
         </SheetContent>

@@ -208,6 +208,111 @@ export function DiceRollOverlay() {
     );
   }
 
+  if (roll.kind === 'test') {
+    const isD20 = roll.die === 20;
+    const keptIndex = roll.rolls.indexOf(roll.kept);
+    const dropped = roll.rolls.filter((_, i) => i !== keptIndex);
+    const nat20 = isD20 && roll.kept === 20;
+    const nat1 = isD20 && roll.kept === 1;
+    const testLanded = phase === 'done';
+    const modText = roll.modifier === 0 ? '' : ` ${roll.modifier > 0 ? '+' : '-'} ${Math.abs(roll.modifier)}`;
+    const rollModeText = roll.rollMode === 'advantage'
+      ? 'advantage · 2d20 keep higher'
+      : roll.rollMode === 'disadvantage'
+        ? 'disadvantage · 2d20 keep lower'
+        : `${modeLabel} dice`;
+
+    return createPortal(
+      <div
+        className="fixed inset-0 z-[75] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+        onClick={finish}
+        role="dialog"
+        aria-label={`Dice roll for ${req.title}`}
+      >
+        <Tray>
+          <p className="text-[9px] uppercase tracking-[0.2em] text-white/45">{isD20 ? rollModeText : 'quick roll'}</p>
+          <p className="text-sm font-cinzel text-amber-200 truncate max-w-full">{req.title}</p>
+
+          {isD20 ? (
+            <div className="relative w-[62%] mt-3">
+              {testLanded && (nat20 || nat1) && (
+                <motion.img
+                  src={nat20 ? crit20 : crit1}
+                  alt=""
+                  aria-hidden="true"
+                  initial={{ opacity: 0, scale: 0.6 }}
+                  animate={{ opacity: 0.75, scale: 1 }}
+                  transition={{ duration: 0.35 }}
+                  className="pointer-events-none absolute -inset-[30%] w-[160%] max-w-none mix-blend-screen"
+                />
+              )}
+              <motion.div
+                className="relative z-10"
+                initial={reduceMotion ? { opacity: 0 } : { rotate: 0, x: 0, y: 0, filter: 'blur(1.5px)' }}
+                animate={
+                  reduceMotion
+                    ? { opacity: 1 }
+                    : testLanded
+                      ? { rotate: 720, x: 0, y: 0, filter: 'blur(0px)', scale: [1.12, 1] }
+                      : {
+                          rotate: [0, 220, 430, 600, 700, 720],
+                          x: [0, -14, 10, -6, 3, 0],
+                          y: [0, -10, 4, -4, 1, 0],
+                          filter: ['blur(1.5px)', 'blur(0px)'],
+                        }
+                }
+                transition={
+                  reduceMotion
+                    ? { duration: 0.3 }
+                    : testLanded
+                      ? { duration: 0.25, ease: 'easeOut' }
+                      : { duration: D20_MS / 1000, ease: 'easeOut' }
+                }
+              >
+                <img src={d20} alt="" draggable={false} className="block w-full select-none" />
+                <div className="absolute" style={{ left: '50%', top: '52%', transform: 'translate(-50%, -50%)' }}>
+                  <Tumble
+                    target={roll.kept}
+                    sides={20}
+                    duration={D20_MS}
+                    onLand={handleAllLanded}
+                    className="text-5xl font-cinzel font-bold text-white [text-shadow:0_0_10px_rgba(251,191,36,0.8),0_2px_3px_#000]"
+                  />
+                </div>
+              </motion.div>
+            </div>
+          ) : (
+            <div className="relative w-[58%] mt-4">
+              <img src={ringEffect} alt="" aria-hidden="true" draggable={false} className="block w-full select-none" />
+              <div className="absolute inset-0 flex items-center justify-center text-4xl font-cinzel text-amber-200">
+                <Tumble target={roll.kept} sides={roll.die} duration={DMG_MS} onLand={handleAllLanded} />
+              </div>
+            </div>
+          )}
+          <p className="text-[10px] uppercase tracking-wider text-white/35 mt-1">d{roll.die}</p>
+
+          <div className="mt-3 min-h-6 flex flex-col items-center">
+            {testLanded && dropped.length > 0 && (
+              <p className="text-[11px] text-white/45">
+                other die <span className="line-through">{dropped.join(', ')}</span>
+              </p>
+            )}
+            {testLanded && (
+              <p className={cn(
+                'text-sm font-bold tracking-widest',
+                nat20 ? 'text-emerald-300' : nat1 ? 'text-red-400' : 'text-amber-300',
+              )}>
+                {roll.modifier !== 0 ? `${roll.kept}${modText} = ${roll.total}` : `${roll.total}`}
+                {nat20 ? ' · NATURAL 20' : nat1 ? ' · NATURAL 1' : ''}
+              </p>
+            )}
+          </div>
+        </Tray>
+      </div>,
+      document.body
+    );
+  }
+
   const d20Land = isCheck ? handleAllLanded : undefined;
 
 

@@ -8,6 +8,7 @@ import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { RollHint } from '@/lib/whisperRollHint';
 import { playDiceRattle, playDiceThud } from '@/lib/diceSounds';
+import type { DiceTestRoll } from '@/lib/diceRollBus';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { getProficiencyBonus } from '@/lib/magic/calculations';
 import { ABILITY_ART, DIE_ART, SKILL_ART } from '@/lib/diceRollerArt';
@@ -29,6 +30,12 @@ type RollMode = 'normal' | 'advantage' | 'disadvantage';
 interface DMDiceRollerProps {
   characterContext: CharacterContext;
   onRollResult: (message: string) => void;
+  /**
+   * Optional. When provided, every roll is handed here (structured roll + the chat line
+   * + its label) INSTEAD of onRollResult, and the inline result card is skipped. The host
+   * uses this to close its sheet and play the animated dice tray before posting the line.
+   */
+  onRoll?: (roll: DiceTestRoll, message: string, label: string) => void;
   disabled?: boolean;
   /** Optional pre-selection hint parsed from a whisper. When provided, the roller opens with these fields pre-selected and (if a DC is given) displays it prominently. */
   rollHint?: RollHint | null;
@@ -255,7 +262,7 @@ function useLongPress(callback: () => void, ms = 500) {
   return { onTouchStart: onStart, onMouseDown: onStart, onTouchEnd: onEnd, onMouseUp: onEnd, onMouseLeave: onEnd };
 }
 
-export function DMDiceRoller({ characterContext, onRollResult, disabled = false, rollHint }: DMDiceRollerProps) {
+export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled = false, rollHint }: DMDiceRollerProps) {
   const [rollMode, setRollMode] = useState<RollMode>('normal');
 
   // Apply roll hint: pre-set the roll mode when a hint arrives.
@@ -361,6 +368,19 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false,
   const handleRoll = useCallback((label: string, modifier: number) => {
     const roll = rollD20(rollMode);
     const message = formatRollMessage(label, roll, modifier, rollMode);
+    if (onRoll) {
+      onRoll({
+        kind: 'test',
+        rolls: roll.rolls,
+        kept: roll.kept,
+        die: 20,
+        modifier,
+        total: roll.kept + modifier,
+        rollMode,
+        mode: loadDiceOddsMode(),
+      }, message, label);
+      return;
+    }
     rollIdRef.current += 1;
     setLastRoll({
       label,
@@ -374,11 +394,24 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false,
       id: rollIdRef.current,
     });
     onRollResult(message);
-  }, [rollMode, onRollResult]);
+  }, [rollMode, onRollResult, onRoll]);
 
   const handleQuickDie = useCallback((sides: number, label: string) => {
     const result = rollDie(sides);
     const message = `🎲 **${label}**: [${result}] = **${result}**`;
+    if (onRoll) {
+      onRoll({
+        kind: 'test',
+        rolls: [result],
+        kept: result,
+        die: sides,
+        modifier: 0,
+        total: result,
+        rollMode: 'normal',
+        mode: loadDiceOddsMode(),
+      }, message, label);
+      return;
+    }
     rollIdRef.current += 1;
     setLastRoll({
       label,
@@ -394,7 +427,7 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false,
       id: rollIdRef.current,
     });
     onRollResult(message);
-  }, [onRollResult]);
+  }, [onRollResult, onRoll]);
 
   const handleSelectOddsMode = useCallback((mode: DiceOddsMode) => {
     setCurrentOddsMode(mode);
