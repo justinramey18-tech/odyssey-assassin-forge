@@ -7,18 +7,34 @@ import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
+import recapBg from '@/assets/quick-recap/recap-bg.jpg';
+import recapBanner from '@/assets/quick-recap/recap-banner.png';
+import recapHandle from '@/assets/quick-recap/recap-handle.png';
+import recapCardFrame from '@/assets/quick-recap/recap-card-frame.png';
+import playButton from '@/assets/quick-recap/play-button.png';
+import recapLoading from '@/assets/quick-recap/recap-loading.png';
+import iconRightNow from '@/assets/quick-recap/icon-right-now.png';
+import iconWhereWhen from '@/assets/quick-recap/icon-where-when.png';
+import iconStory from '@/assets/quick-recap/icon-story.png';
+import iconObjectives from '@/assets/quick-recap/icon-objectives.png';
+import iconNpcs from '@/assets/quick-recap/icon-npcs.png';
+import iconThreats from '@/assets/quick-recap/icon-threats.png';
+import iconCrew from '@/assets/quick-recap/icon-crew.png';
+import iconOptions from '@/assets/quick-recap/icon-options.png';
+import iconThreads from '@/assets/quick-recap/icon-threads.png';
+
 // ── Art slots (null = styled fallback) ──
-const HANDLE_ART: string | null = null;
-const BG_ART: string | null = null;
-const BANNER_ART: string | null = null;
-const LOADING_ART: string | null = null;
-const PLAY_ART: string | null = null;
-const CARD_FRAME_ART: string | null = null;
-const FRAME_SLICE = 120;
-const FRAME_WIDTH = 22;
+const HANDLE_ART: string | null = recapHandle;
+const BG_ART: string | null = recapBg;
+const BANNER_ART: string | null = recapBanner;
+const LOADING_ART: string | null = recapLoading;
+const PLAY_ART: string | null = playButton;
+const CARD_FRAME_ART: string | null = recapCardFrame;
+const FRAME_SLICE = 112;
+const FRAME_WIDTH = 26;
 const SECTION_ICON_ART: Record<string, string | null> = {
-  rightNow: null, whereWhen: null, story: null, objectives: null, npcs: null,
-  threats: null, crew: null, options: null, threads: null,
+  rightNow: iconRightNow, whereWhen: iconWhereWhen, story: iconStory, objectives: iconObjectives, npcs: iconNpcs,
+  threats: iconThreats, crew: iconCrew, options: iconOptions, threads: iconThreads,
 };
 
 const GLOW_TEXT_SHADOW =
