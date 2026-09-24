@@ -2831,7 +2831,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           const cs = m.character_status as any;
           return { name: m.character_name as string, className: cs?.className, level: cs?.level, currentHP: cs?.currentHP, maxHP: cs?.maxHP, conditions: cs?.conditions };
         }),
-      recentMessages: storyMessages.slice(-30).map(m => ({ role: m.role as 'user' | 'assistant', name: m.sender_name, content: m.content })),
+      recentMessages: storyMessages.slice(-50).map(m => ({ role: m.role as 'user' | 'assistant', name: m.sender_name, content: m.content })),
     };
   };
 

@@ -344,9 +344,10 @@ export function QuickRecapDrawer({ open, onOpenChange, onPlay, partyId, characte
 
         {story.length > 0 && (
           <RecapCard title="Story So Far" icon={ScrollText} iconArt={SECTION_ICON_ART.story}>
-            <ol className="list-decimal pl-5 space-y-1.5">
+            <p className="-mt-1 mb-2 text-[11px] italic text-amber-200/50">as told by a chronicler of questionable morals</p>
+            <ol className="list-decimal pl-5 space-y-2.5">
               {story.map((beat, i) => (
-                <li key={i} className={cn('text-[14px]', i === story.length - 1 ? 'text-zinc-100' : 'text-zinc-300')}>{beat}</li>
+                <li key={i} className={cn('text-[14px] leading-relaxed', i === story.length - 1 ? 'text-zinc-100' : 'text-zinc-300')}>{beat}</li>
               ))}
             </ol>
           </RecapCard>

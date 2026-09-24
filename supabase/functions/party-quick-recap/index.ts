@@ -23,7 +23,15 @@ const SYSTEM_PROMPT = `You write a Quick Recap for a tabletop roleplaying game p
 
 8. Write the rightNow field in second person, addressed to the party ("You are...").
 
-9. The storySoFar field is the player's memory of the campaign, so give it real substance. Cover the whole arc in order: how the job or adventure started, the key turning points, and the most recent events leading into right now. Each beat says who did what, where, and why it mattered (what it changed, revealed or cost). Use character and NPC names, not "the party" or "someone". Include discoveries, deals, betrayals, promises, injuries and items gained or lost when they matter later. Draw the early beats from the campaign summary and the later beats from the recent story. Do not repeat what is already in rightNow.`;
+9. STORY SO FAR VOICE. The storySoFar field, and ONLY that field, is narrated by a chaotic neutral chronicler: a gleefully unreliable, foul-mouthed tavern bard who has seen this party do some truly deranged things, is not mad about it, is not proud of it, and mostly just wants the story told right with the stupid parts left in. Rules for this voice:
+- Cover the whole arc in order: how the job started, every major turning point, and the most recent events leading into right now. The early beats come from the campaign summary, the later beats from the recent story.
+- Put the players' chaotic, absurd and unhinged actions front and center. Look hard at the player lines in RECENT STORY: insults thrown at gods, cursed songs, reckless bluffs, ridiculous plans, weird obsessions, betrayals of common sense, and anything that made the NPCs visibly regret meeting them. Name who did it and quote or closely paraphrase the best lines.
+- Every beat is still TRUE. The jokes live in the narration (the framing, the commentary, the asides), never in invented events. Do not make up actions, outcomes, items or NPCs.
+- Each beat still says who did what, where, and why it mattered (what it changed, revealed or cost), so a returning player actually remembers what happened.
+- Tone: adult, R-rated, deadpan and savage. Swearing is welcome. Crude, raunchy and gross-out humor and innuendo are fair game, and so is roasting the player characters' decisions, dignity and survival odds. Punch at choices and chaos, never at real-world groups. No slurs, no hate toward real identities, no graphic sexual description. Keep it clever, not just shock.
+- Style: vivid and specific. Mix short punchlines with longer run-ons. Sarcastic asides in parentheses are encouraged. An occasional score like "(Dignity: gone.)" or "(Plan quality: 2/10.)" is fine. No markdown, no emoji.
+- Do not repeat what is already in rightNow.
+Rules 2 and 3 do not limit storySoFar's tone or length, only its facts. Every other field (headline, rightNow, whereAndWhen, objectives, keyNpcs, threats, crew, yourOptions, looseThreads) keeps the plain, short, practical style described above.`;
 
 const TOOL = {
   type: "function",
@@ -44,7 +52,7 @@ const TOOL = {
           },
           required: ["location", "sceneType"],
         },
-        storySoFar: { type: "array", items: { type: "string" }, description: "5 to 8 beats, oldest first. Each beat is 1 to 2 sentences, max 45 words, naming who did what, where, and why it mattered." },
+        storySoFar: { type: "array", items: { type: "string" }, description: "8 to 12 beats, oldest first. Each beat is 2 to 4 sentences, max 75 words, in the chaotic neutral chronicler voice from rule 9: true events, funny adult narration, naming who did what, where, and why it mattered." },
         objectives: {
           type: "array",
           items: {
@@ -150,7 +158,7 @@ serve(async (req) => {
     const worldState = asArray(body.worldState, 8);
     const party = asArray(body.party, 20);
 
-    const rawMessages = asArray(body.recentMessages, 1000).slice(-30);
+    const rawMessages = asArray(body.recentMessages, 1000).slice(-50);
     const recentMessages = rawMessages
       .map((m) => {
         const msg = m as { role?: string; name?: string; content?: string };
@@ -226,7 +234,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-lite",
-        temperature: 0.3,
+        temperature: 0.6,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: sections.join("\n\n") },
@@ -278,7 +286,7 @@ serve(async (req) => {
       headline: typeof recap.headline === "string" ? recap.headline : "",
       rightNow: typeof recap.rightNow === "string" ? recap.rightNow : "",
       whereAndWhen: recap.whereAndWhen && typeof recap.whereAndWhen === "object" ? recap.whereAndWhen : { location: "", sceneType: "exploration" },
-      storySoFar: asArray(recap.storySoFar, 8),
+      storySoFar: asArray(recap.storySoFar, 12),
       objectives: asArray(recap.objectives, 4),
       keyNpcs: asArray(recap.keyNpcs, 5),
       threats: asArray(recap.threats, 3),
