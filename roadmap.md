@@ -8,6 +8,6 @@
 - [x] Verify the redesigned roller at 360px and confirm the preview build.
 - [x] Reskin the remaining Full Access home controls with the supplied artwork.
 - [x] Confirm the home reskin compiles without opening the preview or authentication.
-- [ ] Add local invisible-ink reveals and ornate framing for sealed party lines.
-- [ ] Replace remaining player-facing chat “tick” wording with “seal” wording.
-- [ ] Verify both changes by reading the edited code and checking TypeScript.
+- [x] Add local invisible-ink reveals and ornate framing for sealed party lines.
+- [x] Replace remaining player-facing chat “tick” wording with “seal” wording.
+- [x] Verify both changes by reading the edited code and checking TypeScript.
