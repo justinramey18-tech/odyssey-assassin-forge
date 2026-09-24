@@ -9,7 +9,6 @@ import { cn } from '@/lib/utils';
 
 import recapBg from '@/assets/quick-recap/recap-bg.jpg';
 import recapBanner from '@/assets/quick-recap/recap-banner.png';
-import recapHandle from '@/assets/quick-recap/recap-handle.png';
 import recapCardFrame from '@/assets/quick-recap/recap-card-frame.png';
 import playButton from '@/assets/quick-recap/play-button.png';
 import recapLoading from '@/assets/quick-recap/recap-loading.png';
@@ -22,9 +21,10 @@ import iconThreats from '@/assets/quick-recap/icon-threats.png';
 import iconCrew from '@/assets/quick-recap/icon-crew.png';
 import iconOptions from '@/assets/quick-recap/icon-options.png';
 import iconThreads from '@/assets/quick-recap/icon-threads.png';
+import recapOrbArt from '@/assets/dock/recap-orb.png';
 
 // ── Art slots (null = styled fallback) ──
-const HANDLE_ART: string | null = recapHandle;
+const RECAP_ORB_ART: string | null = recapOrbArt;
 const BG_ART: string | null = recapBg;
 const BANNER_ART: string | null = recapBanner;
 const LOADING_ART: string | null = recapLoading;
@@ -67,6 +67,42 @@ export type QuickRecap = {
 type Status = 'idle' | 'loading' | 'ready' | 'error' | 'empty';
 type CacheEntry = { recap: QuickRecap; lastMessageId: string | null; generatedAt: number };
 
+export function QuickRecapButton({ onClick, className }: { onClick: () => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Open quick recap"
+      className={cn(
+        'relative h-[80px] w-[80px] shrink-0 rounded-full transition-transform duration-150 active:scale-[0.93] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/80',
+        className,
+      )}
+      style={{ touchAction: 'manipulation' }}
+    >
+      <span aria-hidden className="pointer-events-none absolute -inset-1.5 rounded-full bg-amber-600/15 blur-md" />
+      {RECAP_ORB_ART ? (
+        <img
+          src={RECAP_ORB_ART}
+          alt=""
+          draggable={false}
+          className="relative h-full w-full select-none object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,0.85)]"
+        />
+      ) : (
+        <span
+          className="relative h-full w-full rounded-full flex flex-col items-center justify-center gap-0.5 border-2 border-[#caa05a]"
+          style={{
+            background: 'radial-gradient(circle at 50% 35%, #2a1a0a 0%, #120c06 60%, #07060a 100%)',
+            boxShadow: 'inset 0 0 16px rgba(245,158,11,0.25), 0 6px 14px rgba(0,0,0,0.85)',
+          }}
+        >
+          <ScrollText className="h-6 w-6 text-amber-300" />
+          <span className="font-cinzel text-[12px] font-bold tracking-[0.14em] text-[#FFE4AA]">RECAP</span>
+        </span>
+      )}
+    </button>
+  );
+}
+
 interface QuickRecapDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -74,6 +110,7 @@ interface QuickRecapDrawerProps {
   partyId: string;
   characterName: string;
   getContext: () => QuickRecapContext;
+  hideTrigger?: boolean;
 }
 
 const cacheKey = (partyId: string, name: string) => `odyssey:quick-recap:${partyId}:${name}`;
@@ -137,7 +174,7 @@ const ATTITUDE: Record<string, { dot: string; label: string }> = {
   unknown: { dot: 'bg-violet-300', label: 'Unknown' },
 };
 
-export function QuickRecapDrawer({ open, onOpenChange, onPlay, partyId, characterName, getContext }: QuickRecapDrawerProps) {
+export function QuickRecapDrawer({ open, onOpenChange, onPlay, partyId, characterName, getContext, hideTrigger }: QuickRecapDrawerProps) {
   const [recap, setRecap] = useState<QuickRecap | null>(null);
   const [status, setStatus] = useState<Status>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -222,20 +259,6 @@ export function QuickRecapDrawer({ open, onOpenChange, onPlay, partyId, characte
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onOpenChange]);
-
-  // Notch swipe-up (same thresholds as DMBottomNav)
-  const touchStartY = useRef(0);
-  const touchStartTime = useRef(0);
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
-    touchStartTime.current = Date.now();
-  }, []);
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    const dy = touchStartY.current - e.changedTouches[0].clientY;
-    const dt = Date.now() - touchStartTime.current;
-    const velocity = Math.abs(dy) / Math.max(dt, 1);
-    if (dy > 30 || (dy > 10 && velocity > 0.3)) onOpenChange(true);
-  }, [onOpenChange]);
 
   // Header swipe-down to close
   const headerStartY = useRef(0);
@@ -434,35 +457,9 @@ export function QuickRecapDrawer({ open, onOpenChange, onPlay, partyId, characte
 
   return (
     <>
-      {!open && !hideNotch && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom">
-          <div className="bg-background/95 backdrop-blur-sm border-t border-amber-900/30">
-            <div
-              className="flex flex-col items-center py-2.5 cursor-grab active:cursor-grabbing touch-none"
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
-              onClick={() => onOpenChange(true)}
-              role="button"
-              aria-label="Open quick recap"
-              style={{ touchAction: 'manipulation' }}
-            >
-              {HANDLE_ART ? (
-                <div className="relative w-full">
-                  <img src={HANDLE_ART} alt="" className="h-[44px] w-full object-contain pointer-events-none" />
-                  <span className="absolute inset-x-0 bottom-0 h-1/2 flex items-center justify-center text-[11px] font-mono tracking-widest text-amber-400/60 font-semibold select-none">
-                    📜 QUICK RECAP
-                  </span>
-                </div>
-              ) : (
-                <>
-                  <div className="w-14 h-1.5 rounded-full transition-all bg-amber-500/30 shadow-[0_0_10px_3px_rgba(245,158,11,0.3)] animate-pulse" />
-                  <span className="text-[11px] font-mono text-amber-400/60 mt-1 tracking-widest select-none font-semibold">
-                    📜 QUICK RECAP
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
+      {!open && !hideNotch && !hideTrigger && (
+        <div className="fixed left-3 z-50" style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+          <QuickRecapButton onClick={() => onOpenChange(true)} />
         </div>
       )}
 

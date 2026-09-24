@@ -56,7 +56,7 @@ import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { WhisperTray } from './WhisperTray';
 import { OraclePanel } from '@/components/oracle/OraclePanel';
 import { PartyDMSettings, ToolsGroupHeader } from './PartyDMSettings';
-import { QuickRecapDrawer, type QuickRecapContext } from './QuickRecapDrawer';
+import { QuickRecapDrawer, QuickRecapButton, type QuickRecapContext } from './QuickRecapDrawer';
 import { usePartyChatBackground } from '@/hooks/use-party-chat-background';
 import { PartyMemoryAnchorsPanel } from './PartyMemoryAnchorsPanel';
 import { PartyQuestsPanel } from './PartyQuestsPanel';
@@ -3716,6 +3716,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             }
           }}
 
+          dockLeading={!combatModeOn && !isFullscreen ? <QuickRecapButton onClick={() => overlays.open('quickRecap')} /> : undefined}
           readReceipts={roundChat.readReceipts}
           readReceiptsLoaded={roundChat.readReceiptsLoaded}
           partyMembers={members.map(m => ({
@@ -4727,6 +4728,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             characterName={characterContext?.name || members.find(m => m.user_id === currentUserId)?.character_name || 'Adventurer'}
             getContext={getQuickRecapContext}
             onPlay={() => { if (chatRoundsOnRef.current) roundChatDrawerRef.current?.open(); }}
+            hideTrigger={chatRoundsOn}
           />
         )}</OverlaySlot>
       )}
