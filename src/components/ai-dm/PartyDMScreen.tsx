@@ -67,6 +67,7 @@ import { useChatAvatars } from '@/hooks/use-chat-avatars';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { usePartyPresence } from '@/hooks/use-party-presence';
 import { RoundChatDrawer, type RoundChatDrawerHandle } from './RoundChatDrawer';
+import { OverlaySlot, useOverlayChange, useOverlayGanglion } from '@/hooks/use-overlay-ganglion';
 import { ActionMenuSheet, type ActionMenuChoice } from './ActionMenuSheet';
 import { DMHandoffBar } from './DMHandoffBar';
 import { narrationStyleLine } from '@/lib/narrationStyle';
@@ -1251,6 +1252,27 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.reactions?.every((r, i) => r.id === next.reactions?.[i]?.id);
 });
 
+type QuickActionSection = 'weapons' | 'abilities' | 'spells' | 'cantrips';
+
+/**
+ * Panels driven through the overlay ganglion, with the payload each one opens with.
+ * Opening or closing any of these re-renders only that panel, not this whole screen.
+ */
+type PartyOverlays = {
+  actionMenu: undefined;
+  quickActions: QuickActionSection[] | undefined;
+  diceRoller: string | null;
+  bagStats: undefined;
+  activeQuest: undefined;
+  movesPicker: undefined;
+  tools: undefined;
+  characterSheet: SheetTab;
+  partySheets: undefined;
+  stoneDrawer: undefined;
+  geraltWidget: undefined;
+  bottomNav: undefined;
+};
+
 export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, onOpenDirector, hasPendingRedoRequest, onScanQuests, worldState = [] }: PartyDMScreenProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   // Shared party quest board, also shown inside each player's character sheet.
@@ -1277,22 +1299,21 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
   const [showDeathSaves, setShowDeathSaves] = useState(false);
-  const [recapExpanded, setRecapExpanded] = useState(false);
-  const [recapDismissed, setRecapDismissed] = useState(false);
   const [showMemorial, setShowMemorial] = useState(false);
   const [showDeathTransition, setShowDeathTransition] = useState(false);
-  const [showCharacterSheet, setShowCharacterSheet] = useState(false);
-  const [characterSheetInitialTab, setCharacterSheetInitialTab] = useState<SheetTab>('vitals');
-  const [showBagStats, setShowBagStats] = useState(false);
-  const [showActiveQuest, setShowActiveQuest] = useState(false);
   const [showTableGuide, setShowTableGuide] = useState(false);
 
-  const [showPartySheets, setShowPartySheets] = useState(false);
+  // The overlay ganglion: every frequently used panel (Action Menu, Quick Actions, dice
+  // roller, Bag & Stats, Active Quest, Suggest-my-move, Tools, character sheet, party
+  // sheets, Infinity Stone drawer, Geralt widget, bottom nav) opens and closes through
+  // this hub, so toggling one re-renders only that panel, not this whole screen.
+  const overlays = useOverlayGanglion<PartyOverlays>();
   const partyXpSnapshot = useXPSnapshot(characterContext?.level ?? 1, currentXP ?? 0);
   const [partyPendingItemCount, setPartyPendingItemCount] = useState(() => loadPendingDmItems().length);
-  useEffect(() => {
-    if (showCharacterSheet) setPartyPendingItemCount(loadPendingDmItems().length);
-  }, [showCharacterSheet]);
+  // Refresh the pending-item badge whenever the character sheet opens.
+  useOverlayChange(overlays, 'characterSheet', (open) => {
+    if (open) setPartyPendingItemCount(loadPendingDmItems().length);
+  });
   const narrator = useNarrator();
   const spotify = useSpotify();
   const drawerContext = usePromptDrawers();
@@ -1300,7 +1321,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const { cinematicModeEnabled, setCinematicMode } = useCinematicMode();
   const [showSlideshow, setShowSlideshow] = useState(false);
   const [partySituation, setPartySituation] = useState('exploration');
-  const [musicPanelOpen, setMusicPanelOpen] = useState(false);
   const [slideshowSlides, setSlideshowSlides] = useState<import('@/lib/parseSlides').Slide[]>([]);
   const lastSlideshowMsgIdRef = useRef<string | null>(null);
   const [readingMode, setReadingMode] = useState(false);
@@ -1709,8 +1729,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   // Bottom nav state
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
-  const [showTools, setShowTools] = useState(false);
-  const [navExpanded, setNavExpanded] = useState(false);
 
   // Combat mode state
   const combatModeOn = partyDm.sessionConfig?.combatMode === true;
@@ -1724,11 +1742,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     enabled: combatModeOn,
   });
 
-  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
-  const [quickActionSections, setQuickActionSections] = useState<Array<'weapons' | 'abilities' | 'spells' | 'cantrips'> | undefined>();
-  const [actionMenuOpen, setActionMenuOpen] = useState(false);
-  const [movesPickerOpen, setMovesPickerOpen] = useState(false);
-  const [showStoneDrawer, setShowStoneDrawer] = useState(false);
 
   // Split party state
   const [showSplitInitiator, setShowSplitInitiator] = useState(false);
@@ -2118,7 +2131,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
 
   const handleSubmit = useCallback((text: string) => {
-    setRecapDismissed(true);
     let finalPrompt = text;
     if (armedSignetIntensity != null) {
       finalPrompt = `${text}\n\n[SIGNET CHANNELED — intensity ${armedSignetIntensity}/8. Narrate signet power proportional to this intensity: 1 = faint flicker, 8 = catastrophic overload.]`;
@@ -2129,7 +2141,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   const handleReadyAutopilot = useCallback(() => {
     if (!myAfkGuide) return;
-    setRecapDismissed(true);
     const autopilotPrompt = `<<${myAfkGuide}>>`;
     if (chatRoundsOnRef.current) {
       dispatchPrompt(autopilotPrompt);
@@ -2337,15 +2348,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
 
   // Whisper roll: state + handlers
-  const [diceRollerOpen, setDiceRollerOpen] = useState(false);
-  const [diceRollerWhisperText, setDiceRollerWhisperText] = useState<string | null>(null);
-
   const handleWhisperAutoRoll = useCallback((whisperContent: string) => {
     const hint = parseRollHint(whisperContent);
     const auto = resolveWhisperAutoRoll(hint);
     if (!auto.canAutoRoll || !auto.actionPhrase) {
-      setDiceRollerWhisperText(whisperContent);
-      setDiceRollerOpen(true);
+      overlays.open('diceRoller', whisperContent);
       return;
     }
     const myMember = members.find(m => m.user_id === currentUserId);
@@ -2355,8 +2362,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   }, [members, currentUserId]);
 
   const handleWhisperOpenRoller = useCallback((whisperContent: string) => {
-    setDiceRollerWhisperText(whisperContent);
-    setDiceRollerOpen(true);
+    overlays.open('diceRoller', whisperContent);
   }, []);
 
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
@@ -2470,8 +2476,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   });
 
 
-  // Geralt widget state (momo easter egg)
-  const [showGeraltWidget, setShowGeraltWidget] = useState(false);
+  // Geralt widget (momo easter egg) opens through the overlay ganglion.
   const isMomo = useMemo(() => isMomoEasterEgg(characterContext?.name || ''), [characterContext?.name]);
   const geraltCharacterId = useMemo(() => (characterContext?.name || '').toLowerCase().trim() || 'unknown', [characterContext?.name]);
 
@@ -2491,16 +2496,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   // Bottom nav tab handler
   const handleNavTabChange = useCallback((tab: DMNavTab) => {
     if (tab === 'prompts') {
-      setShowStoneDrawer(true);
+      overlays.open('stoneDrawer');
       return;
     }
     if (tab === 'actions') {
-      setQuickActionSections(undefined);
-      setQuickActionsOpen(true);
+      overlays.open('quickActions', undefined);
       return;
     }
     if (tab === 'geralt') {
-      setShowGeraltWidget(true);
+      overlays.open('geraltWidget');
       return;
     }
     if (tab === 'afk') {
@@ -2517,21 +2521,18 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   }, [isEmpyrean, dragonBonds.isSetup]);
 
   const handleActionMenuSelect = useCallback((choice: ActionMenuChoice) => {
-    setActionMenuOpen(false);
+    overlays.close('actionMenu');
     window.setTimeout(() => {
       if (choice === 'dice') {
-        setDiceRollerWhisperText(null);
-        setDiceRollerOpen(true);
+        overlays.open('diceRoller', null);
       } else if (choice === 'actions') {
-        setQuickActionSections(['weapons', 'abilities']);
-        setQuickActionsOpen(true);
+        overlays.open('quickActions', ['weapons', 'abilities']);
       } else if (choice === 'spells') {
-        setQuickActionSections(['spells', 'cantrips']);
-        setQuickActionsOpen(true);
+        overlays.open('quickActions', ['spells', 'cantrips']);
       } else if (choice === 'story') {
-        setShowActiveQuest(true);
+        overlays.open('activeQuest');
       } else if (choice === 'bag') {
-        setShowBagStats(true);
+        overlays.open('bagStats');
       } else if (choice === 'moves') {
         if (isEmpyrean) {
           toast.info('Not available in this mode');
@@ -2540,13 +2541,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         } else if (partyDm.isGenerating) {
           toast.info('The DM is still writing, try again in a moment');
         } else {
-          setMovesPickerOpen(true);
+          overlays.open('movesPicker');
         }
       } else if (choice === 'director') {
         if (onOpenDirector) onOpenDirector();
         else toast.info("Director's Channel isn't available here");
       } else if (choice === 'tools') {
-        setShowTools(true);
+        overlays.open('tools');
       }
     }, 200);
   }, [isEmpyrean, partyDm.messages.length, partyDm.isGenerating, onOpenDirector]);
@@ -2557,8 +2558,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     const consumable = characterContext.consumables.find(item => item.name === name);
     const healingDice = getHealingDiceForItem(name, consumable?.effect);
     if (healingDice) {
-      setShowCharacterSheet(false);
-      setShowBagStats(false);
+      overlays.close('characterSheet');
+      overlays.close('bagStats');
       const roll = rollHealing(healingDice.count, healingDice.die, healingDice.bonus);
       requestDiceRoll({
         title: name,
@@ -3434,7 +3435,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         {/* Fullscreen toggle - bottom-right of chat area */}
         <button
           onClick={() => {
-            if (!isFullscreen) setNavExpanded(false);
+            if (!isFullscreen) overlays.close('bottomNav');
             setIsFullscreen(f => !f);
           }}
           className="absolute bottom-2 right-2 z-[5] w-9 h-9 rounded-full flex items-center justify-center bg-black/40 hover:bg-black/60 transition-all"
@@ -3538,7 +3539,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             updated_at: m.updated_at,
           }))}
           onMarkRead={roundChat.markRead}
-          onOpenActionMenu={() => setActionMenuOpen(true)}
+          onOpenActionMenu={() => overlays.open('actionMenu')}
           presenceIds={partyPresence.onlineIds}
           presenceReady={partyPresence.ready}
         /></>
@@ -4362,7 +4363,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 dragonName={dragonBonds.myDragon?.dragonName || ''}
                 signetType={dragonBonds.myDragon?.signetType || ''}
                 onAction={(prompt) => {
-                  setRecapDismissed(true);
                   dispatchPrompt(prompt);
                 }}
                 disabled={partyDm.isGenerating}
@@ -4534,6 +4534,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
       {/* Bottom Navigation Drawer */}
       {!isFullscreen && !combatModeOn && (
+        <OverlaySlot ganglion={overlays} name="bottomNav">{(navOpen, setNavOpen) => (
         <DMBottomNav
           headerContent={characterContext ? (
             <div className="px-3 pt-2 pb-1">
@@ -4548,14 +4549,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 nextLevelXP={partyXpSnapshot.nextLevelXP}
                 isMilestone={partyXpSnapshot.mode === 'milestone'}
                 pendingItemCount={partyPendingItemCount}
-                onOpen={() => { setCharacterSheetInitialTab('vitals'); setShowCharacterSheet(true); }}
+                onOpen={() => overlays.open('characterSheet', 'vitals')}
               />
             </div>
           ) : undefined}
           activeTab={activeNavTab}
           onTabChange={handleNavTabChange}
-          isExpanded={navExpanded}
-          onExpandedChange={setNavExpanded}
+          isExpanded={navOpen}
+          onExpandedChange={setNavOpen}
           disabled={partyDm.isGenerating || (isEmpyrean && dragonBonds.myDragon?.signetType && (() => {
             const bLevel = dragonBonds.myDragon!.burnout;
             const bBond = dragonBonds.myDragon!.bond ?? 50;
@@ -4669,6 +4670,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             </div>
           ) : undefined}
         />
+        )}</OverlaySlot>
       )}
 
       {/* Combat Bar (combat mode only) */}
@@ -4683,7 +4685,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           isGenerating={partyDm.isGenerating}
           isHost={isCreator}
           turn={combatTurn}
-          onOpenCharacterSheet={() => { setCharacterSheetInitialTab('vitals'); setShowCharacterSheet(true); }}
+          onOpenCharacterSheet={() => overlays.open('characterSheet', 'vitals')}
           isTransformed={wildShape?.state.isTransformed}
           wildShapeSpeed={wildShape?.state.currentForm?.speed}
           renderSettings={renderPartySettings}
@@ -4695,61 +4697,72 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
       {/* Geralt Gameplay Widget (momo only) */}
       {isMomo && (
-        <GeraltGameplayWidget
-          open={showGeraltWidget}
-          onClose={() => setShowGeraltWidget(false)}
-          characterId={geraltCharacterId}
-          onHpChange={handleGeraltHpChange}
-          onUsePrompt={handleUsePrompt}
-        />
+        <OverlaySlot ganglion={overlays} name="geraltWidget">{(open, setOpen) => (
+          <GeraltGameplayWidget
+            open={open}
+            onClose={() => setOpen(false)}
+            characterId={geraltCharacterId}
+            onHpChange={handleGeraltHpChange}
+            onUsePrompt={handleUsePrompt}
+          />
+        )}</OverlaySlot>
       )}
 
       {/* Quick Actions Drawer */}
-      <PartyDMQuickActions
-        open={quickActionsOpen}
-        onOpenChange={setQuickActionsOpen}
-        characterContext={characterContext}
-        characterName={characterContext?.name || 'The Adventurer'}
-        onUsePrompt={handleUsePrompt}
-        onHealingItemUsed={handleHealingItemUsed}
-        empyreanDragonName={isEmpyrean && dragonBonds.myDragon?.dragonName ? dragonBonds.myDragon.dragonName : undefined}
-        sectionsToShow={quickActionSections}
-      />
-      <ActionMenuSheet
-        open={actionMenuOpen}
-        onOpenChange={setActionMenuOpen}
-        onSelect={handleActionMenuSelect}
-        characterName={characterContext?.name}
-        characterImage={currentUserId ? chatAvatars.avatars[currentUserId]?.ic : undefined}
-      />
-      <PartyToolsScreen open={showTools} onClose={() => setShowTools(false)}>
-        {showTools ? renderPartySettings('toolsScreen') : null}
-      </PartyToolsScreen>
+      <OverlaySlot ganglion={overlays} name="quickActions">{(open, setOpen, sections) => (
+        <PartyDMQuickActions
+          open={open}
+          onOpenChange={setOpen}
+          characterContext={characterContext}
+          characterName={characterContext?.name || 'The Adventurer'}
+          onUsePrompt={handleUsePrompt}
+          onHealingItemUsed={handleHealingItemUsed}
+          empyreanDragonName={isEmpyrean && dragonBonds.myDragon?.dragonName ? dragonBonds.myDragon.dragonName : undefined}
+          sectionsToShow={sections}
+        />
+      )}</OverlaySlot>
+      <OverlaySlot ganglion={overlays} name="actionMenu">{(open, setOpen) => (
+        <ActionMenuSheet
+          open={open}
+          onOpenChange={setOpen}
+          onSelect={handleActionMenuSelect}
+          characterName={characterContext?.name}
+          characterImage={currentUserId ? chatAvatars.avatars[currentUserId]?.ic : undefined}
+        />
+      )}</OverlaySlot>
+      <OverlaySlot ganglion={overlays} name="tools">{(open, setOpen) => (
+        <PartyToolsScreen open={open} onClose={() => setOpen(false)}>
+          {open ? renderPartySettings('toolsScreen') : null}
+        </PartyToolsScreen>
+      )}</OverlaySlot>
       {/* Suggest-my-move picker — opened from the Action Menu's Get Moves tile */}
-      <StoryMasterworkActions
-        hideTrigger
-        open={movesPickerOpen}
-        onOpenChange={setMovesPickerOpen}
-        disabled={partyDm.isGenerating}
-        onSelect={(prompt) => {
-          setRecapDismissed(true);
-          if (chatRoundsOnRef.current) {
-            roundChatDrawerRef.current?.openWithDraft(prompt);
-            return;
-          }
-          playerInputRef.current?.setText(prompt);
-        }}
-        fetchStoryPills={handleFetchStoryPills}
-        liveTableCandidates={liveTableCandidates}
-      />
+      <OverlaySlot ganglion={overlays} name="movesPicker">{(open, setOpen) => (
+        <StoryMasterworkActions
+          hideTrigger
+          open={open}
+          onOpenChange={setOpen}
+          disabled={partyDm.isGenerating}
+          onSelect={(prompt) => {
+            if (chatRoundsOnRef.current) {
+              roundChatDrawerRef.current?.openWithDraft(prompt);
+              return;
+            }
+            playerInputRef.current?.setText(prompt);
+          }}
+          fetchStoryPills={handleFetchStoryPills}
+          liveTableCandidates={liveTableCandidates}
+        />
+      )}</OverlaySlot>
       <DiceRollOverlay />
       {/* Infinity Stone DM Drawer */}
-      <InfinityStoneDMDrawer
-        open={showStoneDrawer}
-        onOpenChange={setShowStoneDrawer}
-        characterName={characterContext?.name || 'The Adventurer'}
-        onUsePrompt={handleUsePrompt}
-      />
+      <OverlaySlot ganglion={overlays} name="stoneDrawer">{(open, setOpen) => (
+        <InfinityStoneDMDrawer
+          open={open}
+          onOpenChange={setOpen}
+          characterName={characterContext?.name || 'The Adventurer'}
+          onUsePrompt={handleUsePrompt}
+        />
+      )}</OverlaySlot>
 
       {/* Split Party Overlays */}
       <SplitInitiator
@@ -4853,7 +4866,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       />
 
       {/* Whisper-driven dice roller (Empyrean party mode) */}
-      <Sheet open={diceRollerOpen} onOpenChange={setDiceRollerOpen}>
+      <OverlaySlot ganglion={overlays} name="diceRoller">{(diceOpen, setDiceOpen, whisperText) => (
+      <Sheet open={diceOpen} onOpenChange={setDiceOpen}>
         <SheetContent
           side="bottom"
           className="h-[85vh] p-0 bg-background/40 backdrop-blur-lg border-t border-amber-500/30 rounded-t-2xl overflow-hidden flex flex-col"
@@ -4866,16 +4880,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         >
           <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-8">
             <DMDiceRoller
-              rollHint={diceRollerWhisperText ? parseRollHint(diceRollerWhisperText) : null}
+              rollHint={whisperText ? parseRollHint(whisperText) : null}
               characterContext={partyMemberDiceContext(members.find(m => m.user_id === currentUserId))}
               onRollResult={(text: string) => {
                 dispatchPrompt(text);
-                setDiceRollerOpen(false);
+                setDiceOpen(false);
               }}
             />
           </div>
         </SheetContent>
       </Sheet>
+      )}</OverlaySlot>
 
       {/* Dragon Telegram Scheduler (host only, empyrean mode) */}
       {isCreator && isEmpyrean && partyId && (
@@ -5313,15 +5328,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
 
       {characterContext && (
+        <OverlaySlot ganglion={overlays} name="characterSheet">{(sheetOpen, setSheetOpen, sheetTab) => (
         <SoloCharacterSheet
           npcSuggestions={partyNPCNames}
-          open={showCharacterSheet}
+          open={sheetOpen}
           origin="party"
-          onViewPartySheets={() => setShowPartySheets(true)}
+          onViewPartySheets={() => overlays.open('partySheets')}
           partySheetCount={members.filter(m => m.user_id !== currentUserId).length}
-          onClose={() => setShowCharacterSheet(false)}
+          onClose={() => setSheetOpen(false)}
           ctx={characterContext}
-          initialTab={characterSheetInitialTab}
+          initialTab={sheetTab ?? 'vitals'}
           currentXP={currentXP ?? 0}
           gold={characterContext.gold ?? 0}
           quests={sheetQuests.quests}
@@ -5350,41 +5366,46 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             playerInputRef.current?.appendText(text);
           }}
         />
+        )}</OverlaySlot>
       )}
 
       {characterContext && (
-        <BagStatsScreen
-          open={showBagStats}
-          onClose={() => setShowBagStats(false)}
-          ctx={characterContext}
-          currentXP={currentXP ?? 0}
-          gold={characterContext.gold ?? 0}
-          onUseConsumable={onUseConsumableByName ? handleConsumableUse : undefined}
-          onOpenFullSheet={() => {
-            setShowBagStats(false);
-            setCharacterSheetInitialTab('items');
-            setShowCharacterSheet(true);
-          }}
-        />
+        <OverlaySlot ganglion={overlays} name="bagStats">{(open, setOpen) => (
+          <BagStatsScreen
+            open={open}
+            onClose={() => setOpen(false)}
+            ctx={characterContext}
+            currentXP={currentXP ?? 0}
+            gold={characterContext.gold ?? 0}
+            onUseConsumable={onUseConsumableByName ? handleConsumableUse : undefined}
+            onOpenFullSheet={() => {
+              setOpen(false);
+              overlays.open('characterSheet', 'items');
+            }}
+          />
+        )}</OverlaySlot>
       )}
 
-      <ActiveQuestScreen
-        open={showActiveQuest}
-        onClose={() => setShowActiveQuest(false)}
-        quests={sheetQuests.quests}
-        onOpenFullQuestBoard={() => {
-          setShowActiveQuest(false);
-          setCharacterSheetInitialTab('story');
-          setShowCharacterSheet(true);
-        }}
-      />
+      <OverlaySlot ganglion={overlays} name="activeQuest">{(open, setOpen) => (
+        <ActiveQuestScreen
+          open={open}
+          onClose={() => setOpen(false)}
+          quests={sheetQuests.quests}
+          onOpenFullQuestBoard={() => {
+            setOpen(false);
+            overlays.open('characterSheet', 'story');
+          }}
+        />
+      )}</OverlaySlot>
 
-      <PartyMemberSheets
-        open={showPartySheets}
-        onClose={() => setShowPartySheets(false)}
-        members={members}
-        currentUserId={currentUserId}
-      />
+      <OverlaySlot ganglion={overlays} name="partySheets">{(open, setOpen) => (
+        <PartyMemberSheets
+          open={open}
+          onClose={() => setOpen(false)}
+          members={members}
+          currentUserId={currentUserId}
+        />
+      )}</OverlaySlot>
     </div>
 
   );
