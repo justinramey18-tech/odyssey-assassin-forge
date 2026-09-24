@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ChevronDown, Send, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft } from 'lucide-react';
+import { ChevronDown, Send, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft, Stamp } from 'lucide-react';
 import { AvatarCropDialog } from './AvatarCropDialog';
 
 import { Textarea } from '@/components/ui/textarea';
@@ -29,8 +29,14 @@ import type { RoundChatMessage, RoundChatReaction, RoundStyle } from '@/hooks/us
 import liveChatTablePov from '@/assets/live-chat/live-chat-table-pov.jpg.asset.json';
 import returnToStoryBanner from '@/assets/live-chat/return-to-story-banner.jpg';
 import actionsBanner from '@/assets/live-chat/actions-banner.jpg';
+import sealOpenArt from '@/assets/live-chat/seal-open.png';
+import sealSealedArt from '@/assets/live-chat/seal-sealed.png';
 import playOrbArt from '@/assets/dock/play-orb.png';
 const PLAY_ORB_ART: string | null = playOrbArt;
+const SEAL_OPEN_ART: string | null = sealOpenArt;
+const SEAL_SEALED_ART: string | null = sealSealedArt;
+
+if (typeof window !== 'undefined' && SEAL_SEALED_ART) { const img = new Image(); img.src = SEAL_SEALED_ART; }
 
 /**
  * Resolves once every URL has loaded (or failed), or after capMs — whichever is first.
@@ -583,7 +589,15 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
     return map;
   }, [reactions]);
 
-  const triggerHint = 'Tick the lines you want the DM to answer, then the host taps Send to DM.';
+  const nudgeMessageId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const x = messages[i];
+      if (x.user_id === currentUserId && !x.consumed) return x.selected ? null : x.id;
+    }
+    return null;
+  }, [messages, currentUserId]);
+
+  const triggerHint = 'Seal the lines you want the DM to answer. The host delivers them with Send to DM.';
 
   /** Compact status line: picked -> thinking -> ready. */
   const dmStatus: { tone: 'queued' | 'thinking' | 'ready'; label: string } | null = (() => {
@@ -592,7 +606,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
     if (progress.current > 0) {
       return {
         tone: 'queued',
-        label: `${progress.current} line${progress.current === 1 ? '' : 's'} ticked${isHost ? ' — tap Send to DM when ready.' : ' — waiting on the host to send.'}`,
+        label: `${progress.current} line${progress.current === 1 ? '' : 's'} sealed${isHost ? ' — tap Send to DM when ready.' : ' — waiting on the host to deliver them.'}`,
       };
     }
     return null;
@@ -668,7 +682,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
               ? "text-emerald-300 border-emerald-400/40 bg-black/60"
               : "text-amber-100 border-amber-400/30 bg-black/60"
           )}>
-            {progress.current} ticked
+            {progress.current} sealed
           </span>
           {unseen > 0 && (
             <span className="absolute left-2 top-2 min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white border border-red-300/40">
@@ -736,7 +750,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                     : "text-amber-100 border-amber-400/30"
                 )}
               >
-                {progress.current} ticked
+                {progress.current} sealed
               </span>
             )}
           </button>
@@ -1043,7 +1057,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                                 : (modeMatch
                                     ? "bg-sky-500/[0.16] border-sky-300/90 border-dashed ring-1 ring-sky-400/35"
                                     : "bg-sky-500/[0.03] border-sky-400/10 border-dashed"),
-                              m.selected && "ring-1 ring-emerald-400/60",
+                              m.selected && "ring-2 ring-emerald-400/70",
                               imageUrl && "p-1",
                             )}
                           >
@@ -1160,31 +1174,53 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                           </button>
                         )}
 
-                        {(showActions || m.selected) && (
+                        {(selectable || m.consumed || showActions) && (
                           <div className={cn(
                             "flex items-center gap-1.5 mt-1 px-1",
                             alignRight && "flex-row-reverse",
                           )}>
                             {selectable ? (
                               <button
+                                type="button"
                                 onClick={() => onToggleSelected(m.id)}
                                 role="checkbox"
                                 aria-checked={!!m.selected}
-                                aria-label={m.selected ? 'Remove from the DM hand-off' : 'Send this line to the DM'}
+                                aria-label={m.selected ? 'Unseal this line. It will not go to the DM.' : 'Seal this line for the DM. The host sends sealed lines to the DM.'}
                                 style={{ touchAction: 'manipulation' }}
                                 className={cn(
-                                  "font-body shrink-0 flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] transition-colors",
+                                  "relative shrink-0 inline-flex items-center gap-1.5 min-h-[32px] rounded-full border pl-1 pr-3 py-1 font-cinzel text-[11px] tracking-wide transition-all duration-150 active:scale-95",
                                   m.selected
-                                    ? "bg-emerald-500/20 border-emerald-400/50 text-emerald-200"
-                                    : "bg-white/[0.03] border-white/10 text-white/30",
+                                    ? "border-emerald-400/70 bg-gradient-to-b from-[#0f3d22] to-[#062014] text-emerald-50 shadow-[0_0_10px_rgba(52,211,153,0.45)]"
+                                    : "border-amber-500/45 bg-black/55 text-amber-200/85",
                                 )}
                               >
-                                <Check className="w-3 h-3" />
-                                {m.selected ? 'ticked' : 'tick'}
+                                {m.id === nudgeMessageId && (
+                                  <span aria-hidden className="pointer-events-none absolute -inset-1 rounded-full ring-2 ring-amber-400/60 motion-safe:animate-pulse" />
+                                )}
+                                <motion.span
+                                  key={m.selected ? 'sealed' : 'open'}
+                                  initial={{ scale: 1.35 }}
+                                  animate={{ scale: 1 }}
+                                  transition={{ type: 'spring', stiffness: 500, damping: 18 }}
+                                  className="shrink-0"
+                                >
+                                  {m.selected ? (
+                                    SEAL_SEALED_ART ? (
+                                      <img src={SEAL_SEALED_ART} alt="" draggable={false} className="h-6 w-6 shrink-0 object-contain drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]" />
+                                    ) : (
+                                      <Stamp className="h-6 w-6 shrink-0 text-emerald-300" />
+                                    )
+                                  ) : SEAL_OPEN_ART ? (
+                                    <img src={SEAL_OPEN_ART} alt="" draggable={false} className="h-6 w-6 shrink-0 object-contain" />
+                                  ) : (
+                                    <Stamp className="h-6 w-6 shrink-0 text-amber-300/80" />
+                                  )}
+                                </motion.span>
+                                {m.selected ? 'Sealed for DM' : 'Seal for DM'}
                               </button>
                             ) : (
                               <span className="font-body shrink-0 flex items-center gap-1 text-[10px] text-emerald-300/50">
-                                <Check className="w-3 h-3" /> sent
+                                <Check className="w-3 h-3" /> delivered
                               </span>
                             )}
 
