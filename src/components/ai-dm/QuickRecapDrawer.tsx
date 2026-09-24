@@ -260,20 +260,6 @@ export function QuickRecapDrawer({ open, onOpenChange, onPlay, partyId, characte
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onOpenChange]);
 
-  // Notch swipe-up (same thresholds as DMBottomNav)
-  const touchStartY = useRef(0);
-  const touchStartTime = useRef(0);
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
-    touchStartTime.current = Date.now();
-  }, []);
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    const dy = touchStartY.current - e.changedTouches[0].clientY;
-    const dt = Date.now() - touchStartTime.current;
-    const velocity = Math.abs(dy) / Math.max(dt, 1);
-    if (dy > 30 || (dy > 10 && velocity > 0.3)) onOpenChange(true);
-  }, [onOpenChange]);
-
   // Header swipe-down to close
   const headerStartY = useRef(0);
   const onHeaderTouchStart = useCallback((e: React.TouchEvent) => { headerStartY.current = e.touches[0].clientY; }, []);
@@ -471,35 +457,9 @@ export function QuickRecapDrawer({ open, onOpenChange, onPlay, partyId, characte
 
   return (
     <>
-      {!open && !hideNotch && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom">
-          <div className="bg-background/95 backdrop-blur-sm border-t border-amber-900/30">
-            <div
-              className="flex flex-col items-center py-2.5 cursor-grab active:cursor-grabbing touch-none"
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
-              onClick={() => onOpenChange(true)}
-              role="button"
-              aria-label="Open quick recap"
-              style={{ touchAction: 'manipulation' }}
-            >
-              {HANDLE_ART ? (
-                <div className="relative w-full">
-                  <img src={HANDLE_ART} alt="" className="h-[44px] w-full object-contain pointer-events-none" />
-                  <span className="absolute inset-x-0 bottom-0 h-1/2 flex items-center justify-center text-[11px] font-mono tracking-widest text-amber-400/60 font-semibold select-none">
-                    📜 QUICK RECAP
-                  </span>
-                </div>
-              ) : (
-                <>
-                  <div className="w-14 h-1.5 rounded-full transition-all bg-amber-500/30 shadow-[0_0_10px_3px_rgba(245,158,11,0.3)] animate-pulse" />
-                  <span className="text-[11px] font-mono text-amber-400/60 mt-1 tracking-widest select-none font-semibold">
-                    📜 QUICK RECAP
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
+      {!open && !hideNotch && !hideTrigger && (
+        <div className="fixed left-3 z-50" style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+          <QuickRecapButton onClick={() => onOpenChange(true)} />
         </div>
       )}
 
