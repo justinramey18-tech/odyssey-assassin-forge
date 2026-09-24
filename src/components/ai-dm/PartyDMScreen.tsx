@@ -66,7 +66,7 @@ import { useRoundChat } from '@/hooks/use-round-chat';
 import { useChatAvatars } from '@/hooks/use-chat-avatars';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { usePartyPresence } from '@/hooks/use-party-presence';
-import { RoundChatDrawer } from './RoundChatDrawer';
+import { RoundChatDrawer, type RoundChatDrawerHandle } from './RoundChatDrawer';
 import { ActionMenuSheet, type ActionMenuChoice } from './ActionMenuSheet';
 import { DMHandoffBar } from './DMHandoffBar';
 import { narrationStyleLine } from '@/lib/narrationStyle';
@@ -1271,8 +1271,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   // Live DM is assumed while the table's saved style is still loading, so the
   // classic ready-up UI never flashes first on entry.
   const chatRoundsOn = !roundChat.styleLoaded || roundChat.style.mode === 'chat' || roundChat.style.mode === 'live';
-  const [roundChatOpen, setRoundChatOpen] = useState(false);
-  const [roundChatDraft, setRoundChatDraft] = useState<string | null>(null);
+  // The Live DM Table owns its own open/closed state (so toggling it doesn't re-render
+  // this whole screen). Drive it through this handle.
+  const roundChatDrawerRef = useRef<RoundChatDrawerHandle>(null);
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
   const [showDeathSaves, setShowDeathSaves] = useState(false);
@@ -2061,7 +2062,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       return;
     }
     chatRoundFiredRef.current = fireKey;
-    setRoundChatOpen(false);
+    roundChatDrawerRef.current?.close();
     const participants = roundChatRef.current.selectedParticipants;
     const coveredUserIds = participants.map(p => p.userId);
     // Captured before the ticks are cleared — the backend applies the table
@@ -2102,7 +2103,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const dispatchPrompt = useCallback((text: string, intensity?: number) => {
     if (!text || !text.trim()) return;
     if (chatRoundsOnRef.current) {
-      setRoundChatOpen(true);
+      roundChatDrawerRef.current?.open();
       void roundChatRef.current.sendMessage(text, true);
       return;
     }
@@ -3462,9 +3463,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           oocNames={chatAvatars.oocNames}
         />
         <RoundChatDrawer
+          ref={roundChatDrawerRef}
           partyId={partyId}
-          open={roundChatOpen}
-          onOpenChange={setRoundChatOpen}
           messages={roundChat.messages}
           reactions={roundChat.reactions}
           currentUserId={currentUserId}
@@ -3494,8 +3494,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           orderedSelected={roundChat.orderedSelected}
           onReorderSelected={roundChat.setSelectedOrder}
 
-          draft={roundChatDraft}
-          onDraftUsed={() => setRoundChatDraft(null)}
           avatars={chatAvatars.avatars}
           oocNames={chatAvatars.oocNames}
           onSetOocName={async (name) => {
@@ -4736,8 +4734,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         onSelect={(prompt) => {
           setRecapDismissed(true);
           if (chatRoundsOnRef.current) {
-            setRoundChatDraft(prompt);
-            setRoundChatOpen(true);
+            roundChatDrawerRef.current?.openWithDraft(prompt);
             return;
           }
           playerInputRef.current?.setText(prompt);
