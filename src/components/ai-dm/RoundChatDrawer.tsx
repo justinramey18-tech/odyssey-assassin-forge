@@ -31,6 +31,8 @@ import returnToStoryBanner from '@/assets/live-chat/return-to-story-banner.jpg';
 import actionsBanner from '@/assets/live-chat/actions-banner.jpg';
 import sealOpenArt from '@/assets/live-chat/seal-open.png';
 import sealSealedArt from '@/assets/live-chat/seal-sealed.png';
+import sealedBorderArt from '@/assets/live-chat/sealed-border.png';
+import sealedPlaqueArt from '@/assets/live-chat/sealed-border-plaque.png';
 import playOrbArt from '@/assets/dock/play-orb.png';
 const PLAY_ORB_ART: string | null = playOrbArt;
 const SEAL_OPEN_ART: string | null = sealOpenArt;
@@ -342,6 +344,19 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   const [swipeId, setSwipeId] = useState<string | null>(null);
   const [swipeX, setSwipeX] = useState(0);
   const swipeStart = useRef<{ x: number; y: number; locked: boolean } | null>(null);
+  const [revealedIds, setRevealedIds] = useState<Set<string>>(() => new Set());
+  const revealTimers = useRef<Record<string, number>>({});
+
+  useEffect(() => () => { Object.values(revealTimers.current).forEach(id => window.clearTimeout(id)); }, []);
+
+  const revealLine = useCallback((id: string) => {
+    setRevealedIds(prev => { const next = new Set(prev); next.add(id); return next; });
+    window.clearTimeout(revealTimers.current[id]);
+    revealTimers.current[id] = window.setTimeout(() => {
+      setRevealedIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+      delete revealTimers.current[id];
+    }, 12000);
+  }, []);
 
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -901,6 +916,8 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
 
                   const selectable = !m.consumed;
                   const showActions = actionsFor === m.id;
+                  const sealedForOthers = !!m.selected && !m.consumed && !isSelf && !card && !diceRoll && editingMessageId !== m.id;
+                  const veiled = sealedForOthers && !revealedIds.has(m.id);
                   const readerNames = showActions
                     ? (partyMembers || [])
                         .filter(pm => pm.user_id !== m.user_id)
@@ -1043,9 +1060,11 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                               </button>
                             </div>
                           </div>
-                        ) : (
+                        ) : (() => {
+                          const bubble = (
                           <button
-                            onClick={() => setActionsFor(showActions ? null : m.id)}
+                            onClick={() => veiled ? revealLine(m.id) : setActionsFor(showActions ? null : m.id)}
+                            aria-label={veiled ? `Sealed line from ${primaryName}, hidden. Tap to reveal.` : undefined}
                             style={{ touchAction: 'manipulation' }}
                             className={cn(
                               "relative isolate overflow-hidden text-left rounded-2xl border px-2.5 py-1.5 transition-colors max-w-full min-w-0",
@@ -1059,9 +1078,10 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                                     : "bg-sky-500/[0.03] border-sky-400/10 border-dashed"),
                               m.selected && "ring-2 ring-emerald-400/70",
                               imageUrl && "p-1",
+                              veiled && "min-w-[200px] min-h-[56px] bg-[#062014]/85 border-emerald-400/35",
                             )}
                           >
-                            {avatarUrl && !imageUrl ? (
+                            {avatarUrl && !imageUrl && !veiled ? (
                               /* Full clarity: no blur, no scrim. Legibility is carried
                                  entirely by the text shadow stack on the paragraph below.
                                  IC and table talk resolve to different avatar slots, so the
@@ -1109,8 +1129,11 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                               <span
                                 role="button"
                                 tabIndex={0}
-                                onClick={(e) => { e.stopPropagation(); jumpToMessage(parsedReply.replyToId!); }}
-                                className="relative block w-full min-w-0 max-w-full mb-1.5 pl-2 border-l-2 border-amber-400/60 text-left cursor-pointer overflow-hidden"
+                                onClick={(e) => { e.stopPropagation(); veiled ? revealLine(m.id) : jumpToMessage(parsedReply.replyToId!); }}
+                                className={cn(
+                                  "relative block w-full min-w-0 max-w-full mb-1.5 pl-2 border-l-2 border-amber-400/60 text-left cursor-pointer overflow-hidden",
+                                  veiled && "blur-[4px] select-none",
+                                )}
                               >
                                 <span className="block font-body text-[11px] font-semibold text-amber-300/90 truncate">
                                   {quoted?.character_name || 'Deleted message'}
@@ -1126,17 +1149,20 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                                 src={imageUrl}
                                 alt="Shared image"
                                 loading="lazy"
-                                onClick={(e) => { e.stopPropagation(); setViewingImage(imageUrl); }}
+                                onClick={(e) => { e.stopPropagation(); veiled ? revealLine(m.id) : setViewingImage(imageUrl); }}
                                 className={cn(
                                   "relative block rounded-xl max-h-[260px] w-auto max-w-full object-contain cursor-zoom-in transition-opacity duration-200",
-                                  modeMatch ? "opacity-100" : "opacity-30"
+                                  modeMatch ? "opacity-100" : "opacity-30",
+                                  veiled && "blur-xl",
                                 )}
                               />
                             ) : (
                               <p
+                                aria-hidden={veiled || undefined}
                                 className={cn(
                                   "relative font-body text-[13.5px] font-medium leading-[1.32] whitespace-pre-wrap break-words [overflow-wrap:anywhere] transition-colors duration-200",
-                                  modeMatch ? "text-white" : "text-white/45"
+                                  modeMatch ? "text-white" : "text-white/45",
+                                  veiled && "blur-[5px] opacity-60 select-none",
                                 )}
                                 style={{
                                   ...(avatarUrl && !imageUrl ? {
@@ -1171,8 +1197,31 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                               />
                             )}
 
+                            {veiled && <span aria-hidden className="ink-sparkle" />}
+
                           </button>
-                        )}
+                          );
+
+                          return sealedForOthers ? (
+                            <div className="relative mx-4 mt-6 mb-4">
+                              {bubble}
+                              <span
+                                aria-hidden
+                                className="pointer-events-none absolute -inset-[18px] z-10"
+                                style={{ borderStyle: 'solid', borderWidth: 40, borderImage: `url(${sealedBorderArt}) 128 / 40px stretch` }}
+                              />
+                              {veiled && (
+                                <img
+                                  src={sealedPlaqueArt}
+                                  alt=""
+                                  aria-hidden
+                                  draggable={false}
+                                  className="pointer-events-none absolute left-1/2 -top-[25px] z-20 h-8 w-auto -translate-x-1/2 select-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+                                />
+                              )}
+                            </div>
+                          ) : bubble;
+                        })()}
 
                         {(selectable || m.consumed || showActions) && (
                           <div className={cn(
