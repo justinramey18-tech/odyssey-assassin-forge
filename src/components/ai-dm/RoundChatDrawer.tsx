@@ -59,10 +59,10 @@ function preloadImages(urls: Array<string | undefined>, capMs: number): Promise<
   });
 }
 
-/** How long the table scene fades in when the table opens. */
-const BACKGROUND_FADE_S = 0.8;
-/** When every component appears, measured from the start of the fade (just before it finishes). */
-const CONTENT_REVEAL_S = 0.7;
+/** How long the table scene fades in when the table opens. Change this one number to retime the opening. */
+const BACKGROUND_FADE_S = 1.5;
+/** Every component appears 0.1 s before the fade finishes, measured from the start of the fade. */
+const CONTENT_REVEAL_S = BACKGROUND_FADE_S - 0.1;
 
 const EMOJI_SET = ['🤣','😅','🤪','🙄','😬','😏','🤮','🥵','🥶','🤯','🧐','😎','😱','😭','🤬','😈','❤️','💯','👏','🙌','🤝','🖕','🫦','🗣','🍑','🍆'];
 
@@ -460,8 +460,8 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
     window.clearTimeout(revealTimerRef.current);
     if (!open) { setContentShown(false); return; }
     if (prefersReducedMotion) { setContentShown(true); return; }
-    // Safety net: never leave the curtain down if the fade never starts.
-    const t = window.setTimeout(() => setContentShown(true), 2500);
+    // Safety net: never leave the curtain down if the fade never starts (fade + 1.5 s).
+    const t = window.setTimeout(() => setContentShown(true), (BACKGROUND_FADE_S + 1.5) * 1000);
     return () => window.clearTimeout(t);
   }, [open, prefersReducedMotion]);
   useEffect(() => () => window.clearTimeout(revealTimerRef.current), []);
