@@ -57,6 +57,8 @@ interface DMBottomNavProps {
   onCharacterSheet?: () => void;
   /** Rendered at the top of the expanded drawer, above the tab bar (e.g. character HP/XP strip). */
   headerContent?: React.ReactNode;
+  /** Render inline inside another screen (the party Tools screen): no fixed positioning, no notch, always expanded. */
+  embedded?: boolean;
 
   /** Override the notch handle label (default: 'TOOLS'). */
   notchLabelOverride?: string;
@@ -89,7 +91,7 @@ const activeIndicatorColors: Record<DMNavTab, string> = {
   character: 'bg-sky-500',
 };
 
-export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive, oracleLabel, oracleColor, oracleActiveBg, afkLabel, afkColor, afkActiveBg, afkIcon, hideDice, hideAfk, hidePrompts, hideActions, hideSettings, showCharacterSheet, onCharacterSheet, headerContent, notchLabelOverride, notchIconOverride }: DMBottomNavProps) {
+export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive, oracleLabel, oracleColor, oracleActiveBg, afkLabel, afkColor, afkActiveBg, afkIcon, hideDice, hideAfk, hidePrompts, hideActions, hideSettings, showCharacterSheet, onCharacterSheet, headerContent, notchLabelOverride, notchIconOverride, embedded = false }: DMBottomNavProps) {
   const [roundChatExpanded, setRoundChatExpanded] = useState(false);
 
   useEffect(() => {
@@ -151,10 +153,11 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
     onExpandedChange(!isExpanded);
   }, [isExpanded, onExpandedChange]);
 
-  const showDiceContent = isExpanded && activeTab === 'dice' && diceContent;
-  const showSettingsContent = isExpanded && activeTab === 'settings' && settingsContent;
-  const showOracleContent = isExpanded && activeTab === 'oracle' && oracleContent;
-  const showWildShapeContent = isExpanded && activeTab === 'wildshape' && wildshapeContent;
+  const expanded = embedded || isExpanded;
+  const showDiceContent = expanded && activeTab === 'dice' && diceContent;
+  const showSettingsContent = expanded && activeTab === 'settings' && settingsContent;
+  const showOracleContent = expanded && activeTab === 'oracle' && oracleContent;
+  const showWildShapeContent = expanded && activeTab === 'wildshape' && wildshapeContent;
   const hasActiveContent = showDiceContent || showSettingsContent || showOracleContent || showWildShapeContent;
 
   const activeContent = showDiceContent ? diceContent : showSettingsContent ? settingsContent : showOracleContent ? oracleContent : showWildShapeContent ? wildshapeContent : null;
@@ -163,82 +166,9 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
   // Hide the bottom nav while the round chat is expanded so it cannot sit on top
   // of the chat composer. This MUST stay below every hook call - putting it above
   // the useCallbacks changes the hook count between renders and crashes React.
-  if (roundChatExpanded) return null;
+  if (roundChatExpanded && !embedded) return null;
 
-  return (
-    <>
-      {/* Full-screen content overlay */}
-      <AnimatePresence>
-        {hasActiveContent && activeContentTab && (
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 40 }}
-            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-            className="fixed inset-0 z-[55] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]"
-          >
-            {/* Full-screen header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-amber-900/30 bg-black/40 backdrop-blur-sm">
-              <div className="flex items-center gap-2.5">
-                <activeContentTab.icon className={cn("w-5 h-5", activeContentTab.color)} />
-                <span className="text-sm font-cinzel text-white/90 tracking-wide">
-                  {activeContentTab.label}
-                </span>
-              </div>
-              <button
-                onClick={() => onTabChange(activeTab!)}
-                className="p-2 rounded-lg hover:bg-white/10 transition-colors active:scale-95"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <X className="w-5 h-5 text-white/70" />
-              </button>
-            </div>
-            {/* Full-screen scrollable content */}
-            <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]">
-              {activeContent}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom">
-        <div className="bg-background/95 backdrop-blur-sm border-t border-amber-900/30">
-          {/* Notch handle + label — always visible */}
-          <div
-            className="flex flex-col items-center py-2.5 cursor-grab active:cursor-grabbing touch-none"
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            onClick={handleToggle}
-            role="button"
-            aria-label={isExpanded ? 'Collapse toolbar' : 'Expand toolbar'}
-          >
-            <div className={cn(
-              "w-14 h-1.5 rounded-full transition-all",
-              isExpanded
-                ? "bg-amber-500/50"
-                : "bg-amber-500/30 shadow-[0_0_10px_3px_rgba(245,158,11,0.3)] animate-pulse"
-            )} />
-            {!isExpanded && (
-              <span className="text-[11px] font-mono text-amber-400/60 mt-1 tracking-widest select-none font-semibold">
-                {notchIconOverride ?? '⚔'} {notchLabelOverride ?? 'CHARACTER SHEET'}
-              </span>
-            )}
-          </div>
-
-          {/* Expanded content */}
-          <AnimatePresence>
-            {isExpanded && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                className="overflow-hidden"
-                onTouchStart={handleTouchStart}
-                onTouchEnd={handleTouchEnd}
-              >
-                {headerContent}
-                {/* Tab bar */}
+  const tabBar = (
                 <div className="flex h-14 border-t border-amber-900/20">
                   {tabs.map((tab) => {
                     const Icon = tab.icon;
@@ -294,11 +224,95 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
                     );
                   })}
                 </div>
+  );
+
+  return (
+    <>
+      {/* Full-screen content overlay */}
+      <AnimatePresence>
+        {hasActiveContent && activeContentTab && (
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+            className={cn("fixed inset-0 flex", embedded ? "z-[70]" : "z-[55]", "flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]")}
+          >
+            {/* Full-screen header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-amber-900/30 bg-black/40 backdrop-blur-sm">
+              <div className="flex items-center gap-2.5">
+                <activeContentTab.icon className={cn("w-5 h-5", activeContentTab.color)} />
+                <span className="text-sm font-cinzel text-white/90 tracking-wide">
+                  {activeContentTab.label}
+                </span>
+              </div>
+              <button
+                onClick={() => onTabChange(activeTab!)}
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors active:scale-95"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <X className="w-5 h-5 text-white/70" />
+              </button>
+            </div>
+            {/* Full-screen scrollable content */}
+            <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]">
+              {activeContent}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {embedded ? (
+        <div className="mx-1 overflow-hidden rounded-lg border border-amber-700/30 bg-black/55">
+          {headerContent}
+          {tabBar}
+        </div>
+      ) : (
+      <div className="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom">
+        <div className="bg-background/95 backdrop-blur-sm border-t border-amber-900/30">
+          {/* Notch handle + label — always visible */}
+          <div
+            className="flex flex-col items-center py-2.5 cursor-grab active:cursor-grabbing touch-none"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            onClick={handleToggle}
+            role="button"
+            aria-label={isExpanded ? 'Collapse toolbar' : 'Expand toolbar'}
+          >
+            <div className={cn(
+              "w-14 h-1.5 rounded-full transition-all",
+              isExpanded
+                ? "bg-amber-500/50"
+                : "bg-amber-500/30 shadow-[0_0_10px_3px_rgba(245,158,11,0.3)] animate-pulse"
+            )} />
+            {!isExpanded && (
+              <span className="text-[11px] font-mono text-amber-400/60 mt-1 tracking-widest select-none font-semibold">
+                {notchIconOverride ?? '⚔'} {notchLabelOverride ?? 'CHARACTER SHEET'}
+              </span>
+            )}
+          </div>
+
+          {/* Expanded content */}
+          <AnimatePresence>
+            {isExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="overflow-hidden"
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+              >
+                {headerContent}
+                {/* Tab bar */}
+                {tabBar}
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </div>
+      )}
     </>
   );
 }
