@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ChevronDown, Send, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft, Stamp } from 'lucide-react';
+import { ChevronDown, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft, Stamp } from 'lucide-react';
 import { AvatarCropDialog } from './AvatarCropDialog';
 
 import { Textarea } from '@/components/ui/textarea';
@@ -34,9 +34,22 @@ import sealSealedArt from '@/assets/live-chat/seal-sealed.png';
 import sealedBorderArt from '@/assets/live-chat/sealed-border.png';
 import sealedPlaqueArt from '@/assets/live-chat/sealed-border-plaque.png';
 import playOrbArt from '@/assets/dock/play-orb.png';
+import talkFrameArt from '@/assets/live-chat/composer/talk-frame.png';
+import talkPlaqueArt from '@/assets/live-chat/composer/talk-plaque.png';
+import characterFrameArt from '@/assets/live-chat/composer/character-frame.png';
+import characterPlaqueArt from '@/assets/live-chat/composer/character-plaque.png';
+import inputFrameArt from '@/assets/live-chat/composer/input-frame.png';
+import pictureButtonArt from '@/assets/live-chat/composer/picture-button.png';
+import sendButtonArt from '@/assets/live-chat/composer/send-button.png';
+import nameChipArt from '@/assets/live-chat/composer/name-chip.png';
 const PLAY_ORB_ART: string | null = playOrbArt;
 const SEAL_OPEN_ART: string | null = sealOpenArt;
 const SEAL_SEALED_ART: string | null = sealSealedArt;
+
+const TILE_ART = {
+  ooc: { frame: talkFrameArt, plaque: talkPlaqueArt, plaqueTop: 1, photoInset: { top: 9, right: 6, bottom: 9, left: 6 }, glow: 'drop-shadow(0 0 6px rgba(56,189,248,0.55))' },
+  ic: { frame: characterFrameArt, plaque: characterPlaqueArt, plaqueTop: 4, photoInset: { top: 13, right: 11, bottom: 13, left: 11 }, glow: 'drop-shadow(0 0 6px rgba(245,158,11,0.55))' },
+} as const;
 
 if (typeof window !== 'undefined' && SEAL_SEALED_ART) { const img = new Image(); img.src = SEAL_SEALED_ART; }
 
@@ -1390,14 +1403,13 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                     player's bubbles, so the tile you pick matches what appears in
                     the chat. Tapping the already-selected tile renames it. */}
                 <div className="space-y-1.5">
-                <div className="flex items-stretch gap-2">
+                <div className="flex items-stretch gap-2 pt-0.5">
                   {([
                     {
                       key: 'ooc' as const,
                       active: !inCharacter,
                       url: currentUserId ? avatars?.[currentUserId]?.ooc : undefined,
                       name: ((currentUserId && oocNames?.[currentUserId]) || 'You').trim(),
-                      ring: 'border-2 border-dashed border-sky-400/70',
                       tint: 'bg-sky-500/20 text-sky-200',
                     },
                     {
@@ -1405,7 +1417,6 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                       active: inCharacter,
                       url: currentUserId ? avatars?.[currentUserId]?.ic : undefined,
                       name: (characterName || 'Character').trim(),
-                      ring: 'border-2 border-amber-400/70',
                       tint: 'bg-amber-500/20 text-amber-200',
                     },
                   ]).map(tile => (
@@ -1423,42 +1434,87 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                       }}
                       aria-pressed={tile.active}
                       aria-label={tile.key === 'ic' ? `Speak as ${tile.name}` : `Speak as yourself, ${tile.name}`}
-                      style={{ touchAction: 'manipulation' }}
+                      style={{
+                        touchAction: 'manipulation',
+                        filter: tile.active ? TILE_ART[tile.key].glow : undefined,
+                      }}
                       className={cn(
-                        "relative flex-1 min-w-0 h-20 rounded-xl overflow-hidden transition-all",
-                        tile.active ? tile.ring : "border border-white/10 opacity-40 grayscale",
+                        "relative flex-1 min-w-0 h-24 overflow-hidden transition-[opacity,filter] duration-200",
+                        !tile.active && "opacity-45 grayscale",
                       )}
                     >
                       {tile.url ? (
-                        <img src={tile.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                        <img
+                          src={tile.url}
+                          alt=""
+                          className="absolute object-cover"
+                          style={TILE_ART[tile.key].photoInset}
+                        />
                       ) : (
-                        <span className={cn("absolute inset-0 flex items-center justify-center text-2xl font-semibold", tile.tint)}>
+                        <span
+                          className={cn("absolute flex items-center justify-center text-2xl font-semibold", tile.tint)}
+                          style={TILE_ART[tile.key].photoInset}
+                        >
                           {tile.name.charAt(0).toUpperCase() || '?'}
                         </span>
                       )}
-                      <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent px-1 pt-2 pb-0.5">
-                        <span className="block font-body text-[11px] font-semibold leading-tight text-white/95 truncate">
+                      <span
+                        aria-hidden
+                        className="pointer-events-none absolute inset-0"
+                        style={{
+                          borderStyle: 'solid',
+                          borderWidth: 28,
+                          borderImage: `url(${TILE_ART[tile.key].frame}) 100 / 28px stretch`,
+                        }}
+                      />
+                      <img
+                        src={TILE_ART[tile.key].plaque}
+                        alt=""
+                        aria-hidden
+                        draggable={false}
+                        className="pointer-events-none absolute left-1/2 -translate-x-1/2 w-[calc(100%-60px)] max-w-[170px] h-auto select-none drop-shadow-[0_2px_3px_rgba(0,0,0,0.8)]"
+                        style={{ top: TILE_ART[tile.key].plaqueTop }}
+                      />
+                      {tile.key === 'ic' && (
+                        <span
+                          className="absolute inset-x-0 bottom-[15px] text-center font-body text-[11px] font-semibold text-white truncate px-8"
+                          style={{ textShadow: '0 1px 2px #000, 0 0 6px #000' }}
+                        >
                           {tile.name}
                         </span>
-                      </span>
-                      {tile.key === 'ooc' && onSetOocName && (
-                        /* Always-visible rename affordance — the old "Name yourself" control. */
+                      )}
+                      {tile.key === 'ooc' && (onSetOocName ? (
                         <span
                           role="button"
                           tabIndex={0}
-                          aria-label="Name yourself"
+                          aria-label={`Rename yourself (currently ${tile.name})`}
                           onClick={(e) => {
                             e.stopPropagation();
+                            if (!onSetOocName) return;
                             setOocNameDraft((currentUserId && oocNames?.[currentUserId]) || '');
                             setEditingOocName(true);
                           }}
-                          className="absolute top-1 right-1 flex items-center gap-1 px-1.5 py-1 rounded-md bg-black/70 border border-sky-400/50"
-                          style={{ touchAction: 'manipulation' }}
+                          onKeyDown={(e) => {
+                            if ((e.key === 'Enter' || e.key === ' ') && onSetOocName) {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setOocNameDraft((currentUserId && oocNames?.[currentUserId]) || '');
+                              setEditingOocName(true);
+                            }
+                          }}
+                          className="absolute left-1/2 -translate-x-1/2 bottom-[13px] h-5 flex items-center"
+                          style={{ aspectRatio: '300 / 63', backgroundImage: `url(${nameChipArt})`, backgroundSize: '100% 100%', paddingLeft: '22%', paddingRight: '8%', touchAction: 'manipulation' }}
                         >
-                          <Pencil className="w-3 h-3 text-sky-200" />
-                          <span className="font-body text-[9px] uppercase tracking-wide text-sky-200">Name</span>
+                          <span className="font-body text-[10.5px] font-semibold text-sky-100 truncate" style={{ textShadow: '0 1px 1px #000' }}>{tile.name}</span>
                         </span>
-                      )}
+                      ) : (
+                        <span
+                          className="absolute left-1/2 -translate-x-1/2 bottom-[13px] h-5 flex items-center"
+                          style={{ aspectRatio: '300 / 63', backgroundImage: `url(${nameChipArt})`, backgroundSize: '100% 100%', paddingLeft: '22%', paddingRight: '8%', touchAction: 'manipulation' }}
+                        >
+                          <span className="font-body text-[10.5px] font-semibold text-sky-100 truncate" style={{ textShadow: '0 1px 1px #000' }}>{tile.name}</span>
+                        </span>
+                      ))}
                     </button>
                   ))}
 
@@ -1507,30 +1563,35 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                 )}
 
                 <div className="flex gap-1.5 items-end">
-                  <Textarea
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSend();
-                      }
-                    }}
-                    onPaste={(e) => {
-                      const items = e.clipboardData?.items;
-                      if (!items) return;
-                      for (const item of Array.from(items)) {
-                        if (item.type.startsWith('image/')) {
-                          const file = item.getAsFile();
-                          if (file) { e.preventDefault(); sendImage(file); }
-                          return;
+                  <div
+                    className="flex-1 min-w-0 transition-[filter] focus-within:[filter:drop-shadow(0_0_6px_rgba(245,158,11,0.45))]"
+                    style={{ borderStyle: 'solid', borderWidth: 12, borderImage: `url(${inputFrameArt}) 40 fill / 12px stretch` }}
+                  >
+                    <Textarea
+                      value={text}
+                      onChange={(e) => setText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSend();
                         }
-                      }
-                    }}
-                    placeholder={inCharacter ? `Speak as ${characterName || 'your character'}...` : 'Table talk — speak as yourself...'}
-                    className="min-h-[38px] max-h-[140px] font-body text-[15px] py-2 resize-none bg-white/5 border-amber-900/30"
-                    rows={1}
-                  />
+                      }}
+                      onPaste={(e) => {
+                        const items = e.clipboardData?.items;
+                        if (!items) return;
+                        for (const item of Array.from(items)) {
+                          if (item.type.startsWith('image/')) {
+                            const file = item.getAsFile();
+                            if (file) { e.preventDefault(); sendImage(file); }
+                            return;
+                          }
+                        }
+                      }}
+                      placeholder={inCharacter ? `Speak as ${characterName || 'your character'}...` : 'Speak as yourself...'}
+                      className="min-h-[24px] max-h-[116px] font-body text-[15px] px-1.5 py-1 resize-none bg-transparent border-0 shadow-none rounded-none text-stone-100 placeholder:text-amber-100/40 focus-visible:ring-0 focus-visible:ring-offset-0"
+                      rows={1}
+                    />
+                  </div>
                   {onUploadImage && (
                     <>
                       <input
@@ -1549,22 +1610,21 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                         disabled={uploadingImage || sending}
                         aria-label="Share a picture"
                         style={{ touchAction: 'manipulation' }}
-                        className="shrink-0 w-11 h-11 flex items-center justify-center rounded-lg border border-amber-500/25 bg-amber-500/5 text-amber-300/70 active:bg-amber-500/15 disabled:opacity-40"
+                        className="relative shrink-0 w-11 h-11 active:scale-95 transition-transform disabled:opacity-40"
                       >
-                        {uploadingImage
-                          ? <Loader2 className="w-5 h-5 animate-spin" />
-                          : <ImagePlus className="w-5 h-5" />}
+                        <img src={pictureButtonArt} alt="" draggable={false} className="h-full w-full select-none" />
+                        {uploadingImage && <Loader2 className="absolute inset-0 m-auto w-5 h-5 animate-spin text-amber-200" />}
                       </button>
                     </>
                   )}
                   <button
                     onClick={handleSend}
                     disabled={!text.trim() || sending}
-                    className="h-9 w-9 shrink-0 rounded-lg flex items-center justify-center bg-amber-900/40 border border-amber-500/30 text-amber-300 disabled:opacity-40"
+                    className="relative shrink-0 w-11 h-11 active:scale-95 transition-transform disabled:opacity-40"
                     style={{ touchAction: 'manipulation' }}
                     aria-label="Send round chat message"
                   >
-                    <Send className="w-3.5 h-3.5" />
+                    <img src={sendButtonArt} alt="" draggable={false} className="h-full w-full select-none" />
                   </button>
                 </div>
                 {onOpenActionMenu && (
