@@ -562,3 +562,19 @@
 a, button, [role="button"], input, select, textarea, label {
   touch-action: manipulation;
 }
+
+.ink-sparkle { position: absolute; inset: 0; pointer-events: none; border-radius: inherit; overflow: hidden; z-index: 2; }
+
+.ink-sparkle::before, .ink-sparkle::after { content: ''; position: absolute; inset: 0; background-image: url('./assets/live-chat/ink-sparkle.png'); background-repeat: repeat; }
+
+.ink-sparkle::before { background-size: 80px 80px; animation: ink-drift-a 6s linear infinite, ink-flicker 2.4s ease-in-out infinite; }
+
+.ink-sparkle::after { background-size: 112px 112px; opacity: 0.7; animation: ink-drift-b 9s linear infinite, ink-flicker 3.1s ease-in-out infinite reverse; }
+
+@keyframes ink-drift-a { from { background-position: 0 0; } to { background-position: 80px -160px; } }
+
+@keyframes ink-drift-b { from { background-position: 0 0; } to { background-position: -224px 112px; } }
+
+@keyframes ink-flicker { 0%, 100% { opacity: 0.95; } 50% { opacity: 0.55; } }
+
+@media (prefers-reduced-motion: reduce) { .ink-sparkle::before, .ink-sparkle::after { animation: none; } }

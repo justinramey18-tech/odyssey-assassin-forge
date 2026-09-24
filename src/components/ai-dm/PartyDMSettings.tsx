@@ -926,9 +926,9 @@ export function PartyDMSettings({
             ) : (
               <div className="text-sm text-foreground">
                 {roundStyle.mode === 'live'
-                  ? 'Live DM — tick the lines (banter included) and the host sends them to the DM.'
+                  ? 'Live DM — seal the lines (banter included) and the host delivers them to the DM.'
                   : roundStyle.mode === 'chat'
-                    ? 'Chat Rounds — tick the lines and the host sends them to the DM.'
+                    ? 'Chat Rounds — seal the lines and the host delivers them to the DM.'
                     : 'Ready-up queue (classic)'}
               </div>
             )}
