@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronDown, Send, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft } from 'lucide-react';
@@ -27,10 +27,10 @@ import { useOnlineStatus } from '@/hooks/use-online-status';
 import { supabase } from '@/integrations/supabase/client';
 import type { RoundChatMessage, RoundChatReaction, RoundStyle } from '@/hooks/use-round-chat';
 import liveChatTablePov from '@/assets/live-chat/live-chat-table-pov.jpg.asset.json';
-import playBannerV2Asset from '@/assets/play-banner-v2.jpg.asset.json';
 import returnToStoryBanner from '@/assets/live-chat/return-to-story-banner.jpg';
 import actionsBanner from '@/assets/live-chat/actions-banner.jpg';
-const playBannerV2 = playBannerV2Asset.url;
+import playOrbArt from '@/assets/dock/play-orb.png';
+const PLAY_ORB_ART: string | null = playOrbArt;
 
 /**
  * Resolves once every URL has loaded (or failed), or after capMs — whichever is first.
@@ -176,6 +176,8 @@ interface RoundChatDrawerProps {
   presenceReady?: boolean;
   /** True once read receipts have been fetched, so the closed-state unread badge never counts early. */
   readReceiptsLoaded?: boolean;
+  /** Rendered to the left of the PLAY orb in the collapsed bottom dock (used for the Quick Recap button). */
+  dockLeading?: ReactNode;
 }
 
 /** Small circular face beside a message. Tapping your own opens the picker. */
@@ -298,6 +300,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   presenceIds,
   presenceReady,
   readReceiptsLoaded = false,
+  dockLeading,
 }, ref) {
   // Open/closed lives here, not in PartyDMScreen: toggling the table re-renders this
   // component only. The parent drives it through the ref handle below.
@@ -674,42 +677,70 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
           )}
         </button>
       ) : (
-        /* Collapsed trigger — PLAY banner artwork opens the table */
-        <button
-          onClick={() => onOpenChange(true)}
-          aria-expanded={false}
-          aria-label={style.mode === 'live' ? 'Open the Live DM Table' : 'Open the round chat'}
-          className={cn(
-            "relative block w-full transition-transform active:scale-[0.99]",
-            fullScreen && "shrink-0"
-          )}
-          style={{ touchAction: 'manipulation' }}
+        /* Collapsed trigger — compact bottom dock with the circular PLAY orb.
+           The table-scene background behind the collapsed state shows around it. */
+        <div
+          className="relative flex items-center justify-center gap-7 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+          style={{ minHeight: 112 }}
         >
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
-          <img
-            src={playBannerV2}
-            alt=""
-            className="w-full block"
-            draggable={false}
-          />
-          {/* Round progress badge — keeps tick status visible on the artwork */}
-          <span className={cn(
-            "absolute right-2 top-2 text-[10px] px-1.5 py-0.5 rounded-full border font-cinzel tracking-wide",
-            progress.met
-              ? "text-emerald-300 border-emerald-400/40 bg-black/60"
-              : "text-amber-100 border-amber-400/30 bg-black/60"
-          )}>
-            {progress.current} ticked
-          </span>
-          {closedUnread > 0 && (
-            <span
-              className="absolute left-2 top-2 min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white border border-red-300/40"
-              aria-label={`${closedUnread} unread`}
-            >
-              {closedUnread > 99 ? '99+' : closedUnread}
-            </span>
-          )}
-        </button>
+          {dockLeading}
+          <button
+            type="button"
+            onClick={() => onOpenChange(true)}
+            aria-expanded={false}
+            aria-label={style.mode === 'live' ? 'Open the Live DM Table' : 'Open the round chat'}
+            className="relative h-[96px] w-[96px] shrink-0 rounded-full transition-transform duration-150 active:scale-[0.93] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/80"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <span aria-hidden className="pointer-events-none absolute -inset-2 rounded-full bg-amber-500/25 blur-md motion-safe:animate-pulse" />
+            {PLAY_ORB_ART ? (
+              <img
+                src={PLAY_ORB_ART}
+                alt=""
+                draggable={false}
+                className="relative h-full w-full select-none object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,0.85)]"
+              />
+            ) : (
+              <span
+                className="relative flex h-full w-full items-center justify-center rounded-full border-2 border-[#caa05a]"
+                style={{
+                  background: 'radial-gradient(circle at 50% 38%, #f59e0b 0%, #b45309 45%, #3b1d06 80%, #1a0e05 100%)',
+                  boxShadow: 'inset 0 0 18px rgba(0,0,0,0.7), 0 6px 14px rgba(0,0,0,0.85)',
+                }}
+              >
+                <span
+                  className="font-cinzel text-[22px] font-black tracking-[0.12em] text-[#FFE4AA]"
+                  style={{ textShadow: '0 0 8px rgba(245,158,11,0.9), 0 2px 2px rgba(0,0,0,0.95)' }}
+                >
+                  PLAY
+                </span>
+              </span>
+            )}
+            {/* Unread badge */}
+            {closedUnread > 0 && (
+              <span
+                className="absolute -right-1 -top-1 min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white border border-red-300/40"
+                aria-label={`${closedUnread} unread`}
+              >
+                {closedUnread > 99 ? '99+' : closedUnread}
+              </span>
+            )}
+            {/* Ticked pill — only when lines are ticked */}
+            {progress.current > 0 && (
+              <span
+                className={cn(
+                  "absolute left-1/2 -bottom-2 -translate-x-1/2 whitespace-nowrap text-[10px] font-cinzel tracking-wide px-1.5 py-0.5 rounded-full border bg-black/70",
+                  progress.met
+                    ? "text-emerald-300 border-emerald-400/40"
+                    : "text-amber-100 border-amber-400/30"
+                )}
+              >
+                {progress.current} ticked
+              </span>
+            )}
+          </button>
+        </div>
       )}
 
 
