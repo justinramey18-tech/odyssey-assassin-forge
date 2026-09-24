@@ -74,7 +74,7 @@ export function QuickRecapButton({ onClick, className }: { onClick: () => void; 
       onClick={onClick}
       aria-label="Open quick recap"
       className={cn(
-        'relative h-[80px] w-[80px] shrink-0 rounded-full transition-transform duration-150 active:scale-[0.93] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/80',
+        'relative h-[112px] w-[112px] shrink-0 rounded-full transition-transform duration-150 active:scale-[0.93] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/80',
         className,
       )}
       style={{ touchAction: 'manipulation' }}

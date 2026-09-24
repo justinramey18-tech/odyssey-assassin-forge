@@ -680,8 +680,8 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
         /* Collapsed trigger — compact bottom dock with the circular PLAY orb.
            The table-scene background behind the collapsed state shows around it. */
         <div
-          className="relative flex items-center justify-center gap-7 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-          style={{ minHeight: 112 }}
+          className="relative flex items-center justify-center gap-8 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+          style={{ minHeight: 132 }}
         >
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
           {dockLeading}
@@ -690,7 +690,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
             onClick={() => onOpenChange(true)}
             aria-expanded={false}
             aria-label={style.mode === 'live' ? 'Open the Live DM Table' : 'Open the round chat'}
-            className="relative h-[96px] w-[96px] shrink-0 rounded-full transition-transform duration-150 active:scale-[0.93] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/80"
+            className="relative h-[112px] w-[112px] shrink-0 rounded-full transition-transform duration-150 active:scale-[0.93] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/80"
             style={{ touchAction: 'manipulation' }}
           >
             <span aria-hidden className="pointer-events-none absolute -inset-2 rounded-full bg-amber-500/25 blur-md motion-safe:animate-pulse" />
