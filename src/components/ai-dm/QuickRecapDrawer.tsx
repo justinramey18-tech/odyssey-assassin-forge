@@ -9,7 +9,6 @@ import { cn } from '@/lib/utils';
 
 import recapBg from '@/assets/quick-recap/recap-bg.jpg';
 import recapBanner from '@/assets/quick-recap/recap-banner.png';
-import recapHandle from '@/assets/quick-recap/recap-handle.png';
 import recapCardFrame from '@/assets/quick-recap/recap-card-frame.png';
 import playButton from '@/assets/quick-recap/play-button.png';
 import recapLoading from '@/assets/quick-recap/recap-loading.png';
@@ -22,9 +21,10 @@ import iconThreats from '@/assets/quick-recap/icon-threats.png';
 import iconCrew from '@/assets/quick-recap/icon-crew.png';
 import iconOptions from '@/assets/quick-recap/icon-options.png';
 import iconThreads from '@/assets/quick-recap/icon-threads.png';
+import recapOrbArt from '@/assets/dock/recap-orb.png';
 
 // ── Art slots (null = styled fallback) ──
-const HANDLE_ART: string | null = recapHandle;
+const RECAP_ORB_ART: string | null = recapOrbArt;
 const BG_ART: string | null = recapBg;
 const BANNER_ART: string | null = recapBanner;
 const LOADING_ART: string | null = recapLoading;
@@ -67,6 +67,42 @@ export type QuickRecap = {
 type Status = 'idle' | 'loading' | 'ready' | 'error' | 'empty';
 type CacheEntry = { recap: QuickRecap; lastMessageId: string | null; generatedAt: number };
 
+export function QuickRecapButton({ onClick, className }: { onClick: () => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Open quick recap"
+      className={cn(
+        'relative h-[80px] w-[80px] shrink-0 rounded-full transition-transform duration-150 active:scale-[0.93] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/80',
+        className,
+      )}
+      style={{ touchAction: 'manipulation' }}
+    >
+      <span aria-hidden className="pointer-events-none absolute -inset-1.5 rounded-full bg-amber-600/15 blur-md" />
+      {RECAP_ORB_ART ? (
+        <img
+          src={RECAP_ORB_ART}
+          alt=""
+          draggable={false}
+          className="relative h-full w-full select-none object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,0.85)]"
+        />
+      ) : (
+        <span
+          className="relative h-full w-full rounded-full flex flex-col items-center justify-center gap-0.5 border-2 border-[#caa05a]"
+          style={{
+            background: 'radial-gradient(circle at 50% 35%, #2a1a0a 0%, #120c06 60%, #07060a 100%)',
+            boxShadow: 'inset 0 0 16px rgba(245,158,11,0.25), 0 6px 14px rgba(0,0,0,0.85)',
+          }}
+        >
+          <ScrollText className="h-6 w-6 text-amber-300" />
+          <span className="font-cinzel text-[12px] font-bold tracking-[0.14em] text-[#FFE4AA]">RECAP</span>
+        </span>
+      )}
+    </button>
+  );
+}
+
 interface QuickRecapDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -74,6 +110,7 @@ interface QuickRecapDrawerProps {
   partyId: string;
   characterName: string;
   getContext: () => QuickRecapContext;
+  hideTrigger?: boolean;
 }
 
 const cacheKey = (partyId: string, name: string) => `odyssey:quick-recap:${partyId}:${name}`;
@@ -137,7 +174,7 @@ const ATTITUDE: Record<string, { dot: string; label: string }> = {
   unknown: { dot: 'bg-violet-300', label: 'Unknown' },
 };
 
-export function QuickRecapDrawer({ open, onOpenChange, onPlay, partyId, characterName, getContext }: QuickRecapDrawerProps) {
+export function QuickRecapDrawer({ open, onOpenChange, onPlay, partyId, characterName, getContext, hideTrigger }: QuickRecapDrawerProps) {
   const [recap, setRecap] = useState<QuickRecap | null>(null);
   const [status, setStatus] = useState<Status>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
