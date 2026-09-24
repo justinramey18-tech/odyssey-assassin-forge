@@ -124,7 +124,7 @@ function ToolRow({ icon, label, description, badge, onClick, disabled }: ToolRow
   );
 }
 
-function ToolsGroupHeader({ title }: { title: string }) {
+export function ToolsGroupHeader({ title }: { title: string }) {
   return (
     <div className="mt-2.5 shrink-0" role="heading" aria-level={3}>
       <span className="-mb-1 block pl-6 font-cinzel text-[11.5px] font-bold uppercase tracking-[0.22em] text-[#E9C77B] [text-shadow:0_1px_2px_#000]">

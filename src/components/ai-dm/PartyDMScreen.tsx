@@ -55,7 +55,8 @@ import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer, PreSp
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { WhisperTray } from './WhisperTray';
 import { OraclePanel } from '@/components/oracle/OraclePanel';
-import { PartyDMSettings } from './PartyDMSettings';
+import { PartyDMSettings, ToolsGroupHeader } from './PartyDMSettings';
+import { QuickRecapDrawer, type QuickRecapContext } from './QuickRecapDrawer';
 import { usePartyChatBackground } from '@/hooks/use-party-chat-background';
 import { PartyMemoryAnchorsPanel } from './PartyMemoryAnchorsPanel';
 import { PartyQuestsPanel } from './PartyQuestsPanel';
@@ -1277,7 +1278,7 @@ type PartyOverlays = {
   partySheets: undefined;
   stoneDrawer: undefined;
   geraltWidget: undefined;
-  bottomNav: undefined;
+  quickRecap: undefined;
 };
 
 export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, onOpenDirector, hasPendingRedoRequest, onScanQuests, worldState = [] }: PartyDMScreenProps) {
@@ -1312,7 +1313,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   // The overlay ganglion: every frequently used panel (Action Menu, Quick Actions, dice
   // roller, Bag & Stats, Active Quest, Suggest-my-move, Tools, character sheet, party
-  // sheets, Infinity Stone drawer, Geralt widget, bottom nav) opens and closes through
+  // sheets, Infinity Stone drawer, Geralt widget, quick recap) opens and closes through
   // this hub, so toggling one re-renders only that panel, not this whole screen.
   const overlays = useOverlayGanglion<PartyOverlays>();
   const partyXpSnapshot = useXPSnapshot(characterContext?.level ?? 1, currentXP ?? 0);
@@ -1741,6 +1742,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   // Bottom nav state
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
+  useOverlayChange(overlays, 'tools', (open) => { if (!open) setActiveNavTab(null); });
 
   // Combat mode state
   const combatModeOn = partyDm.sessionConfig?.combatMode === true;
@@ -2508,18 +2510,22 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   // Bottom nav tab handler
   const handleNavTabChange = useCallback((tab: DMNavTab) => {
     if (tab === 'prompts') {
+      overlays.close('tools');
       overlays.open('stoneDrawer');
       return;
     }
     if (tab === 'actions') {
+      overlays.close('tools');
       overlays.open('quickActions', undefined);
       return;
     }
     if (tab === 'geralt') {
+      overlays.close('tools');
       overlays.open('geraltWidget');
       return;
     }
     if (tab === 'afk') {
+      overlays.close('tools');
       if (isEmpyrean && dragonBonds.isSetup) {
         dragonBonds.loadDragonChat();
         setShowDragonChat(true);
@@ -2799,6 +2805,173 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 );
               }}
             />
+  );
+
+  const getQuickRecapContext = (): QuickRecapContext => {
+    const storyMessages = partyDm.messages.filter(m => m.role === 'user' || m.role === 'assistant');
+    return {
+      lastMessageId: storyMessages.length ? storyMessages[storyMessages.length - 1].id : null,
+      characterName: characterContext?.name || members.find(m => m.user_id === currentUserId)?.character_name || 'Adventurer',
+      campaignSummary: partyDm.sessionConfig?.campaignSummary || null,
+      memoryAnchors: memoryAnchorsContent || null,
+      quests: sheetQuests.quests
+        .filter(q => q.status === 'active' || q.status === 'offered')
+        .slice(0, 10)
+        .map(q => {
+          const detail = q.stages ? (q.stages.find(s => !s.done)?.text || '') : (q.notes || q.description || '');
+          return { title: q.title || q.key, status: q.status, detail: detail.slice(0, 200) };
+        }),
+      worldState: [...worldState]
+        .sort((a, b) => (b.at || '').localeCompare(a.at || ''))
+        .slice(0, 8)
+        .map(w => ({ title: w.title, consequence: w.consequence || '', impact: w.impact })),
+      party: members
+        .filter(m => m.character_name)
+        .map(m => {
+          const cs = m.character_status as any;
+          return { name: m.character_name as string, className: cs?.className, level: cs?.level, currentHP: cs?.currentHP, maxHP: cs?.maxHP, conditions: cs?.conditions };
+        }),
+      recentMessages: storyMessages.slice(-30).map(m => ({ role: m.role as 'user' | 'assistant', name: m.sender_name, content: m.content })),
+    };
+  };
+
+  const renderCharacterDrawer = () => (
+        <DMBottomNav
+          headerContent={characterContext ? (
+            <div className="px-3 pt-2 pb-1">
+              <CharacterSheetStrip
+                name={characterContext.name || 'Adventurer'}
+                level={characterContext.level}
+                currentHP={characterContext.currentHP}
+                maxHP={characterContext.maxHP}
+                xpInLevel={partyXpSnapshot.xpIntoLevel}
+                xpNeeded={partyXpSnapshot.xpLevelSpan}
+                totalXP={partyXpSnapshot.totalXP}
+                nextLevelXP={partyXpSnapshot.nextLevelXP}
+                isMilestone={partyXpSnapshot.mode === 'milestone'}
+                pendingItemCount={partyPendingItemCount}
+                onOpen={() => overlays.open('characterSheet', 'vitals')}
+              />
+            </div>
+          ) : undefined}
+          activeTab={activeNavTab}
+          onTabChange={handleNavTabChange}
+          embedded
+          isExpanded={true}
+          onExpandedChange={() => {}}
+          hideSettings
+          disabled={partyDm.isGenerating || (isEmpyrean && dragonBonds.myDragon?.signetType && (() => {
+            const bLevel = dragonBonds.myDragon!.burnout;
+            const bBond = dragonBonds.myDragon!.bond ?? 50;
+            const bMax = bBond >= 76 ? 12 : bBond >= 51 ? 11 : bBond >= 26 ? 10 : 8;
+            return bLevel >= bMax;
+          })())}
+          showGeralt={isMomo}
+          showWildShape={isMomoMoonDruid}
+          isWildShapeActive={wildShape?.state.isTransformed}
+          afkLabel={isEmpyrean && dragonBonds.isSetup && dragonBonds.myDragon?.dragonName
+            ? dragonBonds.myDragon.dragonName.toUpperCase()
+            : undefined}
+          afkColor={isEmpyrean && dragonBonds.isSetup ? 'text-amber-400' : undefined}
+          afkActiveBg={isEmpyrean && dragonBonds.isSetup ? 'bg-amber-500/10' : undefined}
+          diceContent={showDiceContent ? (
+            <DMDiceRoller
+              characterContext={characterContext!}
+              onRollResult={handleDiceRoll}
+              disabled={partyDm.isGenerating}
+            />
+          ) : undefined}
+          oracleContent={activeNavTab === 'oracle' && characterContext ? (() => {
+            const bmIdx = bookmarkedMessageId
+              ? partyDm.messages.findIndex(m => m.id === bookmarkedMessageId)
+              : -1;
+            const narrativeSlice = bmIdx >= 0
+              ? partyDm.messages.slice(bmIdx)
+              : partyDm.messages.slice(-35);
+            const filteredNarrative = narrativeSlice
+              .filter(m => m.role === 'user' || m.role === 'assistant');
+            return (
+              <OraclePanel
+                characterContext={{
+                  ...characterContext,
+                  campaignSummary: partyDm.sessionConfig?.campaignSummary || undefined,
+                  gmGuidesContent: gmGuidesContent || undefined,
+                  memoryAnchors: memoryAnchorsContent || undefined,
+                  recentNarrative: filteredNarrative.map(m => ({
+                    role: m.role,
+                    name: m.sender_name,
+                    content: m.content,
+                  })),
+                  partyMembers: members
+                    .filter(m => m.user_id !== currentUserId && m.character_name)
+                    .map(m => {
+                      const cs = m.character_status as any;
+                      const qa = cs?.quickActions;
+                      return {
+                        name: m.character_name,
+                        level: cs?.level,
+                        className: cs?.className,
+                        currentHP: cs?.currentHP,
+                        maxHP: cs?.maxHP,
+                        ac: cs?.ac,
+                        conditions: cs?.conditions,
+                        race: cs?.race,
+                        gender: cs?.gender,
+                        multiclassLevels: cs?.multiclassLevels,
+                        abilityScores: cs?.abilityScores,
+                        equippedAbilities: qa?.abilities?.map((a: any) => a.name)?.slice(0, 10),
+                        preparedSpells: qa?.spells?.map((s: any) => s.name)?.slice(0, 15),
+                        spellSlots: cs?.spellSlots
+                          ? Object.entries(cs.spellSlots)
+                              .filter(([, s]: any) => s?.max > 0)
+                              .map(([lvl, s]: any) => ({ level: Number(lvl), current: s.current, max: s.max }))
+                          : undefined,
+                      };
+                    }),
+                }}
+                bookmarkActive={bmIdx >= 0}
+                bookmarkMessageCount={filteredNarrative.length}
+                onQuestExtracted={async (quests) => {
+                  try {
+                    const { data: existingState } = await supabase
+                      .from('party_shared_state')
+                      .select('id, state_data')
+                      .eq('party_id', partyId!)
+                      .eq('state_type', 'quest_flags')
+                      .maybeSingle();
+
+                    const existingFlags = (existingState?.state_data as Record<string, any>) || {};
+                    const updatedFlags = { ...existingFlags };
+                    for (const q of quests) {
+                      if (q.key && q.status) {
+                        updatedFlags[q.key] = { status: q.status, notes: q.notes || '', updated_at: new Date().toISOString() };
+                      }
+                    }
+
+                    if (existingState) {
+                      await supabase.from('party_shared_state').update({ state_data: updatedFlags }).eq('id', existingState.id);
+                    } else {
+                      await supabase.from('party_shared_state').insert({
+                        party_id: partyId!,
+                        user_id: currentUserId,
+                        state_type: 'quest_flags',
+                        state_data: updatedFlags,
+                      });
+                    }
+                    toast.success(`📜 ${quests.length} quest(s) added to quest log`);
+                  } catch (err) {
+                    console.warn('[PartyDM] Oracle quest save failed:', err);
+                  }
+                }}
+              />
+            );
+          })() : undefined}
+          wildshapeContent={activeNavTab === 'wildshape' && wildShape && wildShape.config ? (
+            <div className="px-3 py-3">
+              <WildShapeSection wildShape={wildShape} characterName={characterContext?.name || 'Adventurer'} />
+            </div>
+          ) : undefined}
+        />
   );
 
   return (
@@ -3447,7 +3620,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         {/* Fullscreen toggle - bottom-right of chat area */}
         <button
           onClick={() => {
-            if (!isFullscreen) overlays.close('bottomNav');
+            if (!isFullscreen) overlays.close('quickRecap');
             setIsFullscreen(f => !f);
           }}
           className="absolute bottom-2 right-2 z-[5] w-9 h-9 rounded-full flex items-center justify-center bg-black/40 hover:bg-black/60 transition-all"
@@ -4544,144 +4717,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       </div>
       )}
 
-      {/* Bottom Navigation Drawer */}
+      {/* Quick Recap (bottom notch) */}
       {!isFullscreen && !combatModeOn && (
-        <OverlaySlot ganglion={overlays} name="bottomNav">{(navOpen, setNavOpen) => (
-        <DMBottomNav
-          headerContent={characterContext ? (
-            <div className="px-3 pt-2 pb-1">
-              <CharacterSheetStrip
-                name={characterContext.name || 'Adventurer'}
-                level={characterContext.level}
-                currentHP={characterContext.currentHP}
-                maxHP={characterContext.maxHP}
-                xpInLevel={partyXpSnapshot.xpIntoLevel}
-                xpNeeded={partyXpSnapshot.xpLevelSpan}
-                totalXP={partyXpSnapshot.totalXP}
-                nextLevelXP={partyXpSnapshot.nextLevelXP}
-                isMilestone={partyXpSnapshot.mode === 'milestone'}
-                pendingItemCount={partyPendingItemCount}
-                onOpen={() => overlays.open('characterSheet', 'vitals')}
-              />
-            </div>
-          ) : undefined}
-          activeTab={activeNavTab}
-          onTabChange={handleNavTabChange}
-          isExpanded={navOpen}
-          onExpandedChange={setNavOpen}
-          disabled={partyDm.isGenerating || (isEmpyrean && dragonBonds.myDragon?.signetType && (() => {
-            const bLevel = dragonBonds.myDragon!.burnout;
-            const bBond = dragonBonds.myDragon!.bond ?? 50;
-            const bMax = bBond >= 76 ? 12 : bBond >= 51 ? 11 : bBond >= 26 ? 10 : 8;
-            return bLevel >= bMax;
-          })())}
-          showGeralt={isMomo}
-          showWildShape={isMomoMoonDruid}
-          isWildShapeActive={wildShape?.state.isTransformed}
-          afkLabel={isEmpyrean && dragonBonds.isSetup && dragonBonds.myDragon?.dragonName
-            ? dragonBonds.myDragon.dragonName.toUpperCase()
-            : undefined}
-          afkColor={isEmpyrean && dragonBonds.isSetup ? 'text-amber-400' : undefined}
-          afkActiveBg={isEmpyrean && dragonBonds.isSetup ? 'bg-amber-500/10' : undefined}
-          diceContent={showDiceContent ? (
-            <DMDiceRoller
-              characterContext={characterContext!}
-              onRollResult={handleDiceRoll}
-              disabled={partyDm.isGenerating}
-            />
-          ) : undefined}
-          settingsContent={activeNavTab === 'settings' ? renderPartySettings() : undefined}
-          oracleContent={activeNavTab === 'oracle' && characterContext ? (() => {
-            const bmIdx = bookmarkedMessageId
-              ? partyDm.messages.findIndex(m => m.id === bookmarkedMessageId)
-              : -1;
-            const narrativeSlice = bmIdx >= 0
-              ? partyDm.messages.slice(bmIdx)
-              : partyDm.messages.slice(-35);
-            const filteredNarrative = narrativeSlice
-              .filter(m => m.role === 'user' || m.role === 'assistant');
-            return (
-              <OraclePanel
-                characterContext={{
-                  ...characterContext,
-                  campaignSummary: partyDm.sessionConfig?.campaignSummary || undefined,
-                  gmGuidesContent: gmGuidesContent || undefined,
-                  memoryAnchors: memoryAnchorsContent || undefined,
-                  recentNarrative: filteredNarrative.map(m => ({
-                    role: m.role,
-                    name: m.sender_name,
-                    content: m.content,
-                  })),
-                  partyMembers: members
-                    .filter(m => m.user_id !== currentUserId && m.character_name)
-                    .map(m => {
-                      const cs = m.character_status as any;
-                      const qa = cs?.quickActions;
-                      return {
-                        name: m.character_name,
-                        level: cs?.level,
-                        className: cs?.className,
-                        currentHP: cs?.currentHP,
-                        maxHP: cs?.maxHP,
-                        ac: cs?.ac,
-                        conditions: cs?.conditions,
-                        race: cs?.race,
-                        gender: cs?.gender,
-                        multiclassLevels: cs?.multiclassLevels,
-                        abilityScores: cs?.abilityScores,
-                        equippedAbilities: qa?.abilities?.map((a: any) => a.name)?.slice(0, 10),
-                        preparedSpells: qa?.spells?.map((s: any) => s.name)?.slice(0, 15),
-                        spellSlots: cs?.spellSlots
-                          ? Object.entries(cs.spellSlots)
-                              .filter(([, s]: any) => s?.max > 0)
-                              .map(([lvl, s]: any) => ({ level: Number(lvl), current: s.current, max: s.max }))
-                          : undefined,
-                      };
-                    }),
-                }}
-                bookmarkActive={bmIdx >= 0}
-                bookmarkMessageCount={filteredNarrative.length}
-                onQuestExtracted={async (quests) => {
-                  try {
-                    const { data: existingState } = await supabase
-                      .from('party_shared_state')
-                      .select('id, state_data')
-                      .eq('party_id', partyId!)
-                      .eq('state_type', 'quest_flags')
-                      .maybeSingle();
-
-                    const existingFlags = (existingState?.state_data as Record<string, any>) || {};
-                    const updatedFlags = { ...existingFlags };
-                    for (const q of quests) {
-                      if (q.key && q.status) {
-                        updatedFlags[q.key] = { status: q.status, notes: q.notes || '', updated_at: new Date().toISOString() };
-                      }
-                    }
-
-                    if (existingState) {
-                      await supabase.from('party_shared_state').update({ state_data: updatedFlags }).eq('id', existingState.id);
-                    } else {
-                      await supabase.from('party_shared_state').insert({
-                        party_id: partyId!,
-                        user_id: currentUserId,
-                        state_type: 'quest_flags',
-                        state_data: updatedFlags,
-                      });
-                    }
-                    toast.success(`📜 ${quests.length} quest(s) added to quest log`);
-                  } catch (err) {
-                    console.warn('[PartyDM] Oracle quest save failed:', err);
-                  }
-                }}
-              />
-            );
-          })() : undefined}
-          wildshapeContent={activeNavTab === 'wildshape' && wildShape && wildShape.config ? (
-            <div className="px-3 py-3">
-              <WildShapeSection wildShape={wildShape} characterName={characterContext?.name || 'Adventurer'} />
-            </div>
-          ) : undefined}
-        />
+        <OverlaySlot ganglion={overlays} name="quickRecap">{(open, setOpen) => (
+          <QuickRecapDrawer
+            open={open}
+            onOpenChange={setOpen}
+            partyId={partyId!}
+            characterName={characterContext?.name || members.find(m => m.user_id === currentUserId)?.character_name || 'Adventurer'}
+            getContext={getQuickRecapContext}
+            onPlay={() => { if (chatRoundsOnRef.current) roundChatDrawerRef.current?.open(); }}
+          />
         )}</OverlaySlot>
       )}
 
@@ -4744,7 +4790,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       )}</OverlaySlot>
       <OverlaySlot ganglion={overlays} name="tools">{(open, setOpen) => (
         <PartyToolsScreen open={open} onClose={() => setOpen(false)}>
-          {open ? renderPartySettings('toolsScreen') : null}
+          {open ? (
+            <>
+              <ToolsGroupHeader title="Character" />
+              {renderCharacterDrawer()}
+              <div className="h-3" />
+              {renderPartySettings('toolsScreen')}
+            </>
+          ) : null}
         </PartyToolsScreen>
       )}</OverlaySlot>
       {/* Suggest-my-move picker — opened from the Action Menu's Get Moves tile */}
