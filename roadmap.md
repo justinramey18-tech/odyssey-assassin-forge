@@ -10,4 +10,5 @@
 - [x] Confirm the home reskin compiles without opening the preview or authentication.
 - [x] Add local invisible-ink reveals and ornate framing for sealed party lines.
 - [x] Replace remaining player-facing chat “tick” wording with “seal” wording.
+- [x] Restyle the live chat composer with the supplied framed artwork.
 - [x] Verify both changes by reading the edited code and checking TypeScript.
