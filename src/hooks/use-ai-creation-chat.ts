@@ -168,13 +168,19 @@ export function useAICreationChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [buildData, setBuildData] = useState<CharacterBuildData | null>(() => draft?.buildData ?? null);
   const [error, setError] = useState<string | null>(null);
+  const [campaign, setCampaign] = useState<CampaignContext | null>(() => draft?.campaign ?? null);
+  const campaignRef = useRef<CampaignContext | null>(draft?.campaign ?? null);
+  const attachCampaign = useCallback((c: CampaignContext | null) => {
+    campaignRef.current = c;
+    setCampaign(c);
+  }, []);
   const abortRef = useRef<AbortController | null>(null);
 
   // Keep the conversation safe on the device so a reload or tab kill doesn't lose it.
   useEffect(() => {
     if (messages.length === 0) return;
-    try { localStorage.setItem(AI_CREATION_DRAFT_KEY, JSON.stringify({ messages, buildData, savedAt: Date.now() })); } catch { /* storage full */ }
-  }, [messages, buildData]);
+    try { localStorage.setItem(AI_CREATION_DRAFT_KEY, JSON.stringify({ messages, buildData, campaign, savedAt: Date.now() })); } catch { /* storage full */ }
+  }, [messages, buildData, campaign]);
 
   const sendMessage = useCallback(async (input: string) => {
     const userMsg: ChatMessage = { role: 'user', content: input };
