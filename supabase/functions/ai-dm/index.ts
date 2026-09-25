@@ -474,7 +474,6 @@ function buildContextSummary(ctx: CharacterContext, latestPlayerText: string = '
         return turnText.includes(full) || (short.length >= 4 && turnText.includes(short));
       };
       const usedNow = spell.homebrewSpells.filter(hb => isUsedThisTurn(hb.name));
-      const others = spell.homebrewSpells.filter(hb => !isUsedThisTurn(hb.name));
 
       // One short line per known custom spell so the DM knows what exists (no effect text)
       lines.push(`   CUSTOM SPELLS KNOWN (created in the app, not from any D&D book): ${spell.homebrewSpells.map(hb => `${hb.name} (${hb.level === 0 ? 'cantrip' : 'level ' + hb.level}${hb.castable === false ? ', not castable yet' : ''})`).join(', ')}`);
