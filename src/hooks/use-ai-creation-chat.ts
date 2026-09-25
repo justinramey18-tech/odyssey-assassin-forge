@@ -3,6 +3,7 @@ import { WizardState, QUICK_START_DEFAULTS } from '@/components/wizard/types';
 import { HonestModeRules } from '@/lib/gameModes';
 import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import { AI_CREATION_DRAFT_KEY } from '@/lib/creation-guard';
+import type { CampaignContext } from '@/lib/ai-creation/readCampaignFile';
 
 export type ChatMessage = {
   role: 'user' | 'assistant';
@@ -75,14 +76,17 @@ export interface CharacterBuildData {
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-creation-assistant`;
 
-function loadDraft(): { messages: ChatMessage[]; buildData: CharacterBuildData | null } | null {
+function loadDraft(): { messages: ChatMessage[]; buildData: CharacterBuildData | null; campaign: CampaignContext | null } | null {
   try {
     const raw = localStorage.getItem(AI_CREATION_DRAFT_KEY);
     if (!raw) return null;
     const d = JSON.parse(raw);
     if (!Array.isArray(d?.messages) || d.messages.length === 0) return null;
     if (typeof d.savedAt !== 'number' || Date.now() - d.savedAt > 24 * 60 * 60 * 1000) { localStorage.removeItem(AI_CREATION_DRAFT_KEY); return null; }
-    return { messages: d.messages, buildData: d.buildData ?? null };
+    const campaign = d.campaign && typeof d.campaign.name === 'string' && typeof d.campaign.text === 'string'
+      ? (d.campaign as CampaignContext)
+      : null;
+    return { messages: d.messages, buildData: d.buildData ?? null, campaign };
   } catch { return null; }
 }
 
@@ -164,13 +168,19 @@ export function useAICreationChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [buildData, setBuildData] = useState<CharacterBuildData | null>(() => draft?.buildData ?? null);
   const [error, setError] = useState<string | null>(null);
+  const [campaign, setCampaign] = useState<CampaignContext | null>(() => draft?.campaign ?? null);
+  const campaignRef = useRef<CampaignContext | null>(draft?.campaign ?? null);
+  const attachCampaign = useCallback((c: CampaignContext | null) => {
+    campaignRef.current = c;
+    setCampaign(c);
+  }, []);
   const abortRef = useRef<AbortController | null>(null);
 
   // Keep the conversation safe on the device so a reload or tab kill doesn't lose it.
   useEffect(() => {
     if (messages.length === 0) return;
-    try { localStorage.setItem(AI_CREATION_DRAFT_KEY, JSON.stringify({ messages, buildData, savedAt: Date.now() })); } catch { /* storage full */ }
-  }, [messages, buildData]);
+    try { localStorage.setItem(AI_CREATION_DRAFT_KEY, JSON.stringify({ messages, buildData, campaign, savedAt: Date.now() })); } catch { /* storage full */ }
+  }, [messages, buildData, campaign]);
 
   const sendMessage = useCallback(async (input: string) => {
     const userMsg: ChatMessage = { role: 'user', content: input };
@@ -203,6 +213,7 @@ export function useAICreationChat() {
         body: JSON.stringify({
           messages: allMessages,
           appMode: isEmpyreanMode() ? 'empyrean' : 'standard',
+          campaignContext: campaignRef.current ? { name: campaignRef.current.name, text: campaignRef.current.text } : undefined,
         }),
         signal: abortRef.current.signal,
       });
@@ -293,6 +304,8 @@ export function useAICreationChat() {
     setBuildData(null);
     setError(null);
     setIsLoading(false);
+    campaignRef.current = null;
+    setCampaign(null);
     try { localStorage.removeItem(AI_CREATION_DRAFT_KEY); } catch { /* ignore */ }
   }, []);
 
@@ -316,6 +329,8 @@ export function useAICreationChat() {
     buildData,
     error,
     suggestions,
+    campaign,
+    attachCampaign,
     sendMessage,
     reset,
   };
