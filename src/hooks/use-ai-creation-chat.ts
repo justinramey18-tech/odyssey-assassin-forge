@@ -1,7 +1,8 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { WizardState, QUICK_START_DEFAULTS } from '@/components/wizard/types';
 import { HonestModeRules } from '@/lib/gameModes';
 import { isEmpyreanMode } from '@/lib/empyreanLabels';
+import { AI_CREATION_DRAFT_KEY } from '@/lib/creation-guard';
 
 export type ChatMessage = {
   role: 'user' | 'assistant';
