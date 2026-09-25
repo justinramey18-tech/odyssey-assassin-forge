@@ -123,7 +123,7 @@ Odyssey supports an EMPYREAN MODE — a Fourth Wing-inspired dragon rider settin
 HOW TO DETECT EMPYREAN:
 - If the request body includes appMode:"empyrean", the user is ALREADY in Empyrean mode. Automatically use Empyrean terminology and skip asking about mode selection.
 - If the user mentions dragon riders, Fourth Wing, Empyrean, dragons, signets, Basgiath, or Navarre at ANY point, immediately shift to Empyrean creation mode.
-- If neither condition is met, you will ask about Empyrean as part of the CAMPAIGN SETTING step (see above).
+- Otherwise the user picks it in STEP 1: THE WORLD.
 
 When in Empyrean creation mode: shift your tone to a senior instructor at Basgiath War College. Reference Basgiath, Navarre, the ward line, Venin, and dragon rider culture naturally.
 
@@ -259,9 +259,23 @@ When presenting the character summary for an Empyrean character, add these lines
 If unbonded, show:
 🐉 Dragon: UNBONDED — no dragon bond yet
 
-### FRANCHISE ROTATION IN EMPYREAN
-When in Empyrean mode, heavily favor Fourth Wing references (Tairn, Xaden, Violet, Basgiath, signets, threshing, the parapet) but still rotate through other franchises too. Fourth Wing references can appear in EVERY message alongside one other franchise reference.
 `;
+
+const CAMPAIGN_CONTEXT_MAX_CHARS = 200000;
+const CREATION_MODEL = "claude-sonnet-4-5-20250929";
+
+function buildCampaignBlock(name: string, text: string): string {
+  return "\n\n## CAMPAIGN WORLD: " + name + "\n" +
+    "The user uploaded this campaign. Build the character for THIS world:\n" +
+    "1. Use the campaign's setting, tone and vocabulary everywhere: class names in conversation, race, gear, backstory. If the campaign bans certain words (for example no magic words in a sci-fi setting), obey that in every reply and in the backstory.\n" +
+    "2. Default level: the party's lowest current level, unless the user says otherwise.\n" +
+    "3. Read the party roster and recommend a role the party is missing.\n" +
+    "4. Tie the backstory to the campaign's current situation, factions or NPCs so the DM can drop the character straight in. If the files suggest entry hooks, offer the best two or three.\n" +
+    "5. Match the table's humor and maturity as shown in the files.\n" +
+    "6. Material marked DM-only or secret: use it to keep the character consistent, but never write a secret into the backstory as something the character knows, and never reveal secrets in chat unless the user asks.\n" +
+    "7. The app still only accepts the class, ability, path and preset IDs listed above. Reskin them in conversation and in homebrew names. For a non-fantasy world, prefer selectedPresetId custom with up to 5 themed homebrew gear items, and themed homebrew consumables instead of fantasy ones.\n" +
+    "CAMPAIGN FILES:\n" + text;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -269,7 +283,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, appMode } = await req.json();
+    const { messages, appMode, campaignContext } = await req.json();
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
 
@@ -279,8 +293,12 @@ serve(async (req) => {
       content: m.content,
     }));
 
-    // Estimate input size and reject if too large (prevent context window overflow)
-    const effectiveSystemPrompt = SYSTEM_PROMPT + EMPYREAN_ADDENDUM;
+    // Only include the Empyrean addendum when it's relevant, and attach an uploaded campaign block when present
+    const wantsEmpyrean = appMode === "empyrean" || userMessages.some((m: { role: string; content: string }) => m.role === "user" && /empyrean|dragon rider|fourth wing|basgiath/i.test(m.content));
+    const campaignName = typeof campaignContext?.name === "string" ? campaignContext.name.trim().slice(0, 80) : "";
+    const campaignText = typeof campaignContext?.text === "string" ? campaignContext.text.slice(0, CAMPAIGN_CONTEXT_MAX_CHARS) : "";
+    const campaignBlock = campaignText ? buildCampaignBlock(campaignName || "Uploaded campaign", campaignText) : "";
+    const effectiveSystemPrompt = SYSTEM_PROMPT + (wantsEmpyrean ? EMPYREAN_ADDENDUM : "") + campaignBlock;
     const totalInputChars = effectiveSystemPrompt.length + userMessages.reduce((sum: number, m: { content: string }) => sum + m.content.length, 0);
     const estimatedTokens = Math.ceil(totalInputChars / 3.5); // ~3.5 chars per token for mixed content
     const MAX_INPUT_TOKENS = 150000;
@@ -304,9 +322,9 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5-20250929",
+          model: CREATION_MODEL,
           max_tokens: 16384,
-          system: effectiveSystemPrompt,
+          system: [{ type: "text", text: effectiveSystemPrompt, cache_control: { type: "ephemeral" } }],
           messages: userMessages,
           stream: true,
         }),
