@@ -364,13 +364,39 @@ export default function AICreationAssistant() {
 
         {/* Input — fixed at bottom */}
         <div className="shrink-0 px-4 py-3 border-t border-border/50 bg-black/60 backdrop-blur-md">
+          {campaign && (
+            <div className="flex items-center gap-2 mb-2 rounded-full border border-primary/40 bg-black/50 px-3 py-1.5 text-xs">
+              <span className="truncate flex-1 text-primary font-display">📦 {campaign.name} · {campaign.fileCount} files · {Math.round(campaign.text.length / 1000)}k chars{campaign.truncated ? ' (trimmed)' : ''}</span>
+              <button
+                type="button"
+                aria-label="Remove campaign"
+                onClick={() => attachCampaign(null)}
+                className="shrink-0 p-1.5 -mr-1 text-muted-foreground hover:text-foreground"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
           <div className="flex items-end gap-2">
+            <Button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading || readingCampaign}
+              size="icon"
+              variant="ghost"
+              aria-label="Upload a campaign file"
+              className="shrink-0 h-11 w-11 text-primary hover:bg-primary/10"
+              style={{ touchAction: 'manipulation' }}
+            >
+              {readingCampaign ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
+            </Button>
             <textarea
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Describe your character..."
+              placeholder={campaign ? `Describe a character for ${campaign.name}...` : 'Describe your character...'}
               rows={1}
               className="flex-1 resize-none bg-black/40 border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 max-h-24 backdrop-blur-sm"
               disabled={isLoading}
@@ -391,6 +417,13 @@ export default function AICreationAssistant() {
           </div>
         </div>
       </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".zip,.md,.markdown,.txt,.json,application/zip"
+        className="hidden"
+        onChange={handleCampaignFile}
+      />
     </BackgroundWrapper>
   );
 }
