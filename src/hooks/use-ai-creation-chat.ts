@@ -213,6 +213,7 @@ export function useAICreationChat() {
         body: JSON.stringify({
           messages: allMessages,
           appMode: isEmpyreanMode() ? 'empyrean' : 'standard',
+          campaignContext: campaignRef.current ? { name: campaignRef.current.name, text: campaignRef.current.text } : undefined,
         }),
         signal: abortRef.current.signal,
       });
