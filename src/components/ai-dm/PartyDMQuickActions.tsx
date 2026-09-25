@@ -14,6 +14,8 @@ import { castSpellByName, describeSlotSpend, getMagicResources } from '@/lib/mag
 import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic/castResolver';
 import { RollPreviewSheet, type RollPreviewChoice } from '@/components/magic/RollPreviewSheet';
 import { COST_META, resolveActionCost, type ActionCost } from '@/lib/combat/actionCost';
+import { parseRollTable } from '@/lib/magic/parseRollTable';
+import { DiceOutcomeTable } from '@/components/magic/DiceOutcomeTable';
 import schoolAbjuration from '@/assets/quick-actions/schools/abjuration.jpg';
 import schoolConjuration from '@/assets/quick-actions/schools/conjuration.jpg';
 import schoolDivination from '@/assets/quick-actions/schools/divination.jpg';
@@ -112,6 +114,9 @@ const CARD_FRAME_STYLE: React.CSSProperties = {
   borderWidth: '22px',
   borderImage: `url(${qaCardFrame}) 100 / 22px stretch`,
 };
+
+/** Last natural d20 rolled per spell name this session, so its table row can be highlighted. */
+const lastSpellRolls = new Map<string, number>();
 
 const WEAPON_SLOTS = ['primary_weapon', 'secondary_weapon', 'ranged_weapon'] as const;
 type WeaponSlot = typeof WEAPON_SLOTS[number];
@@ -298,10 +303,11 @@ interface SpellRulesDetailsProps {
 function SpellRulesDetails({ item, expanded, onExpandedChange }: SpellRulesDetailsProps) {
   const rulesRef = useRef<HTMLParagraphElement>(null);
   const [overflows, setOverflows] = useState(false);
+  const parsed = useMemo(() => parseRollTable(item.rulesText), [item.rulesText]);
 
   useLayoutEffect(() => {
     const element = rulesRef.current;
-    if (!element || !item.rulesText) {
+    if (!element || !parsed.intro) {
       setOverflows(false);
       return;
     }
@@ -316,7 +322,7 @@ function SpellRulesDetails({ item, expanded, onExpandedChange }: SpellRulesDetai
     const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [item.rulesText]);
+  }, [parsed.intro]);
 
   const facts = [
     item.damageFormula ? `${item.damageFormula}${item.damageType ? ` ${item.damageType}` : ''}` : '',
@@ -326,17 +332,17 @@ function SpellRulesDetails({ item, expanded, onExpandedChange }: SpellRulesDetai
 
   return (
     <>
-      {item.rulesText && (
+      {parsed.intro && (
         <div className="mt-1">
           <p
             ref={rulesRef}
             className={cn(
-              'text-[12.5px] leading-[1.5]',
+              'whitespace-pre-line text-[12.5px] leading-[1.5]',
               SCHOOL_BG[item.spellSchool?.toLowerCase() ?? ''] ? 'text-[#EDE6D8] [text-shadow:0_1px_2px_#000]' : 'text-white/70',
               !expanded && 'line-clamp-2',
             )}
           >
-            {item.rulesText}
+            {parsed.intro}
           </p>
           {overflows && (
             <button
@@ -354,6 +360,9 @@ function SpellRulesDetails({ item, expanded, onExpandedChange }: SpellRulesDetai
             </button>
           )}
         </div>
+      )}
+      {parsed.table && (
+        <DiceOutcomeTable table={parsed.table} highlight={lastSpellRolls.get(item.name)} />
       )}
       {facts.length > 0 && (
         <p className="mt-1 font-cinzel text-[10.5px] font-bold tracking-[0.03em] text-[#fcd9a0]">{facts.join(' • ')}</p>
@@ -417,6 +426,7 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
       ? getMagicResources()?.spellAttackBonus
       : item.attackBonus;
     const roll = rollAttack(item.rollKind === 'spell' ? 'spell' : 'attack', damageFormula, attackBonus);
+    if (item.rollKind === 'spell') lastSpellRolls.set(item.name, roll.d20);
     onCloseDrawer?.();
     requestDiceRoll({
       title: item.name,
