@@ -54,15 +54,15 @@ export function AvatarCropDialog({ open, file, kind, onCancel, onConfirm }: Avat
     return () => URL.revokeObjectURL(url);
   }, [open, file]);
 
-  // Scale that makes the shorter side exactly fill the circle at zoom 1.
-  const baseScale = img ? VIEW / Math.min(img.naturalWidth, img.naturalHeight) : 1;
+  // Scale that makes the picture cover the whole wide window at zoom 1.
+  const baseScale = img ? Math.max(VIEW_W / img.naturalWidth, VIEW_H / img.naturalHeight) : 1;
   const drawW = img ? img.naturalWidth * baseScale * zoom : 0;
   const drawH = img ? img.naturalHeight * baseScale * zoom : 0;
 
-  /** Keep the picture covering the whole circle — no empty corners. */
+  /** Keep the picture covering the whole window — no empty corners. */
   const clamp = useCallback((x: number, y: number) => {
-    const maxX = Math.max(0, (drawW - VIEW) / 2);
-    const maxY = Math.max(0, (drawH - VIEW) / 2);
+    const maxX = Math.max(0, (drawW - VIEW_W) / 2);
+    const maxY = Math.max(0, (drawH - VIEW_H) / 2);
     return {
       x: Math.min(maxX, Math.max(-maxX, x)),
       y: Math.min(maxY, Math.max(-maxY, y)),
@@ -87,16 +87,16 @@ export function AvatarCropDialog({ open, file, kind, onCancel, onConfirm }: Avat
     setBusy(true);
     try {
       const canvas = document.createElement('canvas');
-      canvas.width = AVATAR_OUTPUT_SIZE;
-      canvas.height = AVATAR_OUTPUT_SIZE;
+      canvas.width = AVATAR_OUTPUT_W;
+      canvas.height = AVATAR_OUTPUT_H;
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('Could not prepare the image.');
-      const ratio = AVATAR_OUTPUT_SIZE / VIEW;
+      const ratio = AVATAR_OUTPUT_W / VIEW_W;
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(
         img,
-        (VIEW / 2 - drawW / 2 + offset.x) * ratio,
-        (VIEW / 2 - drawH / 2 + offset.y) * ratio,
+        (VIEW_W / 2 - drawW / 2 + offset.x) * ratio,
+        (VIEW_H / 2 - drawH / 2 + offset.y) * ratio,
         drawW * ratio,
         drawH * ratio,
       );
