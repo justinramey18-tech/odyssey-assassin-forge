@@ -6,6 +6,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { loadApiKey } from '@/lib/api-keys';
 
 import recapBg from '@/assets/quick-recap/recap-bg.jpg';
 import recapBanner from '@/assets/quick-recap/recap-banner.png';
@@ -56,6 +57,7 @@ export type QuickRecap = {
   rightNow: string;
   whereAndWhen: { location: string; time?: string; sceneType: string };
   storySoFar: string[];
+  storySoFarSource?: 'grok' | 'gemini';
   objectives: { title: string; status: 'active' | 'urgent' | 'done' | string; detail: string }[];
   keyNpcs: { name: string; role: string; attitude: 'ally' | 'neutral' | 'hostile' | 'unknown' | string; note: string }[];
   threats: { name: string; detail: string; clock?: string }[];
@@ -202,7 +204,8 @@ export function QuickRecapDrawer({ open, onOpenChange, onPlay, partyId, characte
     setErrorMessage(null);
     try {
       const ctx = getContextRef.current();
-      const { lastMessageId, ...body } = ctx;
+      const { lastMessageId, ...ctxBody } = ctx;
+      const body = { ...ctxBody, user_xai_key: loadApiKey('xai') || undefined };
       const { data, error } = await supabase.functions.invoke('party-quick-recap', { body });
       if (error) {
         let msg = 'Could not build the recap.';
@@ -344,7 +347,7 @@ export function QuickRecapDrawer({ open, onOpenChange, onPlay, partyId, characte
 
         {story.length > 0 && (
           <RecapCard title="Story So Far" icon={ScrollText} iconArt={SECTION_ICON_ART.story}>
-            <p className="-mt-1 mb-2 text-[11px] italic text-amber-200/50">as told by a chronicler of questionable morals</p>
+            <p className="-mt-1 mb-2 text-[11px] italic text-amber-200/50">{recap.storySoFarSource === 'grok' ? 'as told by a chronicler of questionable morals (Grok)' : 'as told by a chronicler of questionable morals'}</p>
             <ol className="list-decimal pl-5 space-y-2.5">
               {story.map((beat, i) => (
                 <li key={i} className={cn('text-[14px] leading-relaxed', i === story.length - 1 ? 'text-zinc-100' : 'text-zinc-300')}>{beat}</li>

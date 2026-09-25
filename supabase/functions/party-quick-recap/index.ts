@@ -5,6 +5,34 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const GROK_RECAP_MODEL = "grok-4.20-0309-non-reasoning"; // fast and cheap. Switch to "grok-4.7" for the flagship.
+const GROK_TIMEOUT_MS = 25000;
+
+const GROK_STORY_PROMPT = `You are the Chronicler: a gleefully unreliable, foul-mouthed, chaotic neutral tavern bard recapping a tabletop roleplaying campaign for a table of consenting adults who are returning to the story. You are not mad about what this party has done, you are not proud of it, and you refuse to leave the stupid parts out.
+
+Write the STORY SO FAR as 8 to 12 beats, oldest first. Each beat is 2 to 4 sentences and at most 75 words.
+
+Rules:
+
+1. Cover the whole arc in order: how the job started, every major turning point, and the most recent events leading into the present scene. Early beats come from the campaign summary, later beats from the recent story.
+
+2. Every beat is TRUE. The comedy lives in your narration, framing and asides, never in invented events, items, outcomes or NPCs.
+
+3. Each beat says who did what, where, and why it mattered: what it changed, revealed or cost.
+
+4. Put the players' chaotic, absurd, crude and unhinged actions front and center. Hunt through the player lines for insults hurled at gods, cursed songs, reckless bluffs, disgusting ideas, weird obsessions and anything that made an NPC regret being born. Name who did it and quote or closely paraphrase the best lines.
+
+5. Tone: R-rated, deadpan and savage. Swear freely. Crude, raunchy, gross-out and bodily-function humor and innuendo are welcome, and so is roasting the characters' choices, dignity and survival odds. Sarcastic asides in parentheses and scores like "(Dignity: gone.)" or "(Plan quality: 2/10.)" are encouraged.
+
+6. Limits: roast the characters, not real people. No slurs, no jokes aimed at real-world groups, no sexual violence, and explicit sex acts get a cutaway joke instead of a description.
+
+7. Use character and NPC names from the context, never "the party" or "someone". Use the campaign's own vocabulary (tech, implants, gods), not generic fantasy words.
+
+8. No markdown, no emoji, no headings.
+
+Output ONLY a JSON object, with no code fences and no other text: {"storySoFar": ["beat 1", "beat 2", ...]}`;
+
+
 const SYSTEM_PROMPT = `You write a Quick Recap for a tabletop roleplaying game player who is returning to the story. Your only job is to re-orient them so they can make their next decision. Rules:
 
 1. Only include what the player characters know. Never reveal GM secrets, hidden motives, or future plot.
@@ -128,6 +156,63 @@ function asArray(value: unknown, max: number): unknown[] {
   return value.slice(0, max);
 }
 
+async function callGrok(xaiKey: string, sectionsText: string): Promise<string[] | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), GROK_TIMEOUT_MS);
+  try {
+    const res = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${xaiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: GROK_RECAP_MODEL,
+        temperature: 0.9,
+        max_tokens: 2000,
+        stream: false,
+        messages: [
+          { role: "system", content: GROK_STORY_PROMPT },
+          { role: "user", content: sectionsText },
+        ],
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      console.error("Grok recap failed: status", res.status);
+      await res.body?.cancel();
+      return null;
+    }
+    const data = await res.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (typeof content !== "string") {
+      console.error("Grok recap failed: no content");
+      return null;
+    }
+    const cleaned = content.replace(/```(?:json)?/g, "");
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start === -1 || end <= start) {
+      console.error("Grok recap failed: no JSON object");
+      return null;
+    }
+    const parsed = JSON.parse(cleaned.slice(start, end + 1));
+    const beats = Array.isArray(parsed?.storySoFar)
+      ? parsed.storySoFar
+          .filter((b: unknown): b is string => typeof b === "string" && b.trim().length > 0)
+          .map((b: string) => b.trim())
+          .slice(0, 12)
+      : [];
+    if (beats.length < 3) {
+      console.error("Grok recap failed: too few beats", beats.length);
+      return null;
+    }
+    return beats;
+  } catch (e) {
+    console.error("Grok recap failed:", e instanceof Error && e.name === "AbortError" ? "timeout" : "error");
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -226,7 +311,10 @@ serve(async (req) => {
       );
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const sectionsText = sections.join("\n\n");
+    const xaiKey = (Deno.env.get("XAI_API_KEY") || (typeof body.user_xai_key === "string" ? body.user_xai_key.trim() : "")) || null;
+
+    const geminiPromise = fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -237,12 +325,20 @@ serve(async (req) => {
         temperature: 0.6,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: sections.join("\n\n") },
+          { role: "user", content: sectionsText },
         ],
         tools: [TOOL],
         tool_choice: { type: "function", function: { name: "return_recap" } },
       }),
     });
+
+    const grokPromise: Promise<string[] | null> = xaiKey ? callGrok(xaiKey, sectionsText) : Promise.resolve(null);
+
+    const [geminiResult, grokResult] = await Promise.allSettled([geminiPromise, grokPromise]);
+    if (geminiResult.status === "rejected") throw geminiResult.reason;
+    const response = geminiResult.value;
+    const grokBeats = grokResult.status === "fulfilled" ? grokResult.value : null;
+    if (grokResult.status === "rejected") console.error("Grok recap failed: exception");
 
     if (!response.ok) {
       if (response.status === 429) {
@@ -287,6 +383,7 @@ serve(async (req) => {
       rightNow: typeof recap.rightNow === "string" ? recap.rightNow : "",
       whereAndWhen: recap.whereAndWhen && typeof recap.whereAndWhen === "object" ? recap.whereAndWhen : { location: "", sceneType: "exploration" },
       storySoFar: asArray(recap.storySoFar, 12),
+      storySoFarSource: "gemini" as "grok" | "gemini",
       objectives: asArray(recap.objectives, 4),
       keyNpcs: asArray(recap.keyNpcs, 5),
       threats: asArray(recap.threats, 3),
@@ -294,6 +391,11 @@ serve(async (req) => {
       yourOptions: asArray(recap.yourOptions, 4),
       looseThreads: asArray(recap.looseThreads, 3),
     };
+
+    if (grokBeats && grokBeats.length >= 3) {
+      validated.storySoFar = grokBeats;
+      validated.storySoFarSource = "grok";
+    }
 
     return json({ recap: validated, generatedAt: new Date().toISOString() });
   } catch (error) {
