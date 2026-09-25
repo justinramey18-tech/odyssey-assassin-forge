@@ -293,6 +293,7 @@ export function useAICreationChat() {
     setBuildData(null);
     setError(null);
     setIsLoading(false);
+    try { localStorage.removeItem(AI_CREATION_DRAFT_KEY); } catch { /* ignore */ }
   }, []);
 
   // Parse suggestions from last assistant message
