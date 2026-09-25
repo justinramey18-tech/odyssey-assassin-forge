@@ -126,10 +126,10 @@ export function AvatarCropDialog({ open, file, kind, onCancel, onConfirm }: Avat
           <>
             <div
               className={cn(
-                "relative mx-auto rounded-full overflow-hidden border-2 touch-none select-none bg-black/60",
+                "relative mx-auto rounded-lg overflow-hidden border-2 touch-none select-none bg-black/60",
                 kind === 'ic' ? "border-emerald-400/50" : "border-amber-400/50"
               )}
-              style={{ width: VIEW, height: VIEW }}
+              style={{ width: VIEW_W, height: VIEW_H }}
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
@@ -152,10 +152,22 @@ export function AvatarCropDialog({ open, file, kind, onCancel, onConfirm }: Avat
                   <Loader2 className="w-5 h-5 animate-spin text-white/50" />
                 </div>
               )}
+
+              {/* Framing guides — pointer-events-none so dragging still works. */}
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-[16%] bg-black/45 flex items-center justify-center">
+                <span className="text-[9px] uppercase tracking-widest text-white/60">plaque</span>
+              </div>
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[20%] bg-black/45 flex items-center justify-center">
+                <span className="text-[9px] uppercase tracking-widest text-white/60">name</span>
+              </div>
+              <div
+                className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-white/60"
+                style={{ width: VIEW_H - 8, height: VIEW_H - 8 }}
+              />
             </div>
 
             <p className="text-[10px] text-muted-foreground text-center mt-2">
-              Drag to reposition · pinch or slide to zoom
+              Drag so your face sits inside the circle, between the dark bands · slide to zoom
             </p>
 
             <div className="flex items-center gap-2 mt-2">
