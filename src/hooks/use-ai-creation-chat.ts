@@ -1,7 +1,8 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { WizardState, QUICK_START_DEFAULTS } from '@/components/wizard/types';
 import { HonestModeRules } from '@/lib/gameModes';
 import { isEmpyreanMode } from '@/lib/empyreanLabels';
+import { AI_CREATION_DRAFT_KEY } from '@/lib/creation-guard';
 
 export type ChatMessage = {
   role: 'user' | 'assistant';
@@ -73,6 +74,17 @@ export interface CharacterBuildData {
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-creation-assistant`;
+
+function loadDraft(): { messages: ChatMessage[]; buildData: CharacterBuildData | null } | null {
+  try {
+    const raw = localStorage.getItem(AI_CREATION_DRAFT_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    if (!Array.isArray(d?.messages) || d.messages.length === 0) return null;
+    if (typeof d.savedAt !== 'number' || Date.now() - d.savedAt > 24 * 60 * 60 * 1000) { localStorage.removeItem(AI_CREATION_DRAFT_KEY); return null; }
+    return { messages: d.messages, buildData: d.buildData ?? null };
+  } catch { return null; }
+}
 
 function tryExtractBuildData(content: string): CharacterBuildData | null {
   // Look for JSON code block with apply_character action
@@ -147,11 +159,18 @@ export function buildDataToWizardState(data: CharacterBuildData): WizardState {
 }
 
 export function useAICreationChat() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [draft] = useState(loadDraft);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => draft?.messages ?? []);
   const [isLoading, setIsLoading] = useState(false);
-  const [buildData, setBuildData] = useState<CharacterBuildData | null>(null);
+  const [buildData, setBuildData] = useState<CharacterBuildData | null>(() => draft?.buildData ?? null);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Keep the conversation safe on the device so a reload or tab kill doesn't lose it.
+  useEffect(() => {
+    if (messages.length === 0) return;
+    try { localStorage.setItem(AI_CREATION_DRAFT_KEY, JSON.stringify({ messages, buildData, savedAt: Date.now() })); } catch { /* storage full */ }
+  }, [messages, buildData]);
 
   const sendMessage = useCallback(async (input: string) => {
     const userMsg: ChatMessage = { role: 'user', content: input };
@@ -274,6 +293,7 @@ export function useAICreationChat() {
     setBuildData(null);
     setError(null);
     setIsLoading(false);
+    try { localStorage.removeItem(AI_CREATION_DRAFT_KEY); } catch { /* ignore */ }
   }, []);
 
   // Parse suggestions from last assistant message
