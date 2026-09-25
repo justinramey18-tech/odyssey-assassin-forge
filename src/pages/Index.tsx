@@ -2008,35 +2008,92 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   }, [wizardSetters, autoSync, toast]);
 
   // ── AI Creation Assistant: apply character when navigated back with aiCreatedCharacter state ──
+  // Source of truth is the router state, falling back to the pending device
+  // backup saved by Apply & Continue — that covers a reload between Apply and
+  // the confirmed cloud save.
   const hasAppliedAICharacter = useRef(false);
   useEffect(() => {
     if (hasAppliedAICharacter.current) return;
-    if (!rosterState?.aiCreatedCharacter) return;
+    const wizardState = rosterState?.aiCreatedCharacter ?? readPendingAiCharacter()?.wizardState as WizardState | undefined;
+    if (!wizardState) return;
     hasAppliedAICharacter.current = true;
-
-    console.log('[AICreation] Applying AI-created character:', rosterState.aiCreatedCharacter.name);
-    const result = applyWizardState(rosterState.aiCreatedCharacter, wizardSetters);
-    if (result.success) {
-      setShowWizard(false);
-      // Show mode selection screen
-      setShowIntroSplash(true);
-      // Dispatch event so homebrew hooks re-initialize with saved content
-      setTimeout(() => {
-        window.dispatchEvent(new Event('odyssey-character-loaded'));
-        console.log('[AICreation] Dispatched odyssey-character-loaded for homebrew content sync');
-      }, 100);
-      // Force an immediate cloud save so the character persists across sessions
-      setTimeout(() => {
-        autoSync.syncNow().then(() => {
-          console.log('[AICreation] Immediate cloud save completed');
-        }).catch((err) => {
-          console.error('[AICreation] Immediate cloud save failed:', err);
-        });
-      }, 2000); // Wait 2s for state to settle before syncing
-    } else {
-      console.error('[AICreation] Failed:', result.errors);
+    if (rosterState?.aiCreatedCharacter) {
+      // Clear route state so refresh doesn't re-trigger
+      routerNavigate('/', { replace: true, state: null });
     }
-  }, [rosterState, wizardSetters, autoSync]);
+
+    console.log('[AICreation] Applying AI-created character:', wizardState.name);
+    const result = applyWizardState(wizardState, wizardSetters);
+    if (!result.success) {
+      // Keep the pending backup so reopening the app can retry the apply.
+      console.error('[AICreation] Failed:', result.errors);
+      toast({
+        title: 'Could not apply your character',
+        description: 'Tap Apply & Continue again.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setShowWizard(false);
+    // Show mode selection screen
+    setShowIntroSplash(true);
+    // Dispatch event so homebrew hooks re-initialize with saved content
+    setTimeout(() => {
+      window.dispatchEvent(new Event('odyssey-character-loaded'));
+      console.log('[AICreation] Dispatched odyssey-character-loaded for homebrew content sync');
+    }, 100);
+
+    // Persist once, and tell the player whether it worked — same confirmed-save
+    // pattern the manual wizard uses. A blind 2-second timer raced the debounced
+    // auto-save and swallowed errors, so a failed save looked identical to a
+    // successful one until the next refresh.
+    let settled = false;
+    let retryTimer: number | undefined;
+    const reportFailure = () => {
+      if (settled) return;
+      settled = true;
+      // Keep the pending backup on failure, so reopening the app re-applies
+      // and re-saves the character.
+      toast({
+        title: 'Character not saved to the cloud',
+        description: 'They exist on this device. Open Manage Saves and save manually before switching characters.',
+        variant: 'destructive',
+      });
+      retryTimer = window.setTimeout(() => {
+        autoSync.syncNow().then(() => {
+          settled = true;
+          clearPendingAiCharacter();
+          console.log('[AICreation] Cloud save confirmed on retry');
+        }).catch((err) => {
+          console.error('[AICreation] Cloud save retry failed:', err);
+        });
+      }, 5000);
+    };
+
+    window.setTimeout(() => {
+      autoSync.syncNow()
+        .then(() => {
+          settled = true;
+          clearPendingAiCharacter();
+          isCreatingNewCharacter.current = false;
+          console.log('[AICreation] Cloud save confirmed');
+        })
+        .catch((err) => {
+          console.error('[AICreation] Cloud save failed:', err);
+          reportFailure();
+        });
+      // Safety net: if syncNow never settles, do not leave the player believing
+      // the character was stored.
+      window.setTimeout(() => {
+        if (!settled) reportFailure();
+      }, 15000);
+    }, 600);
+
+    return () => {
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+    };
+  }, [rosterState, wizardSetters, autoSync, toast, routerNavigate]);
 
   // ── Cosmic Chef: one-shot re-gear when the stored loadout version is stale ──
   const hasRegearedCosmicChef = useRef(false);
