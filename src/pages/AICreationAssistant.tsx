@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Send, Sparkles, Loader2, AlertTriangle, Paperclip, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { readCampaignFile } from '@/lib/ai-creation/readCampaignFile';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useAICreationChat, buildDataToWizardState, CharacterBuildData } from '@/hooks/use-ai-creation-chat';
@@ -16,21 +18,41 @@ import { saveBondState, DEFAULT_BOND, DEFAULT_TRUST, setIsUnbonded } from '@/lib
 
 export default function AICreationAssistant() {
   const navigate = useNavigate();
-  const { messages, isLoading, buildData, error, suggestions, sendMessage, reset } = useAICreationChat();
+  const { messages, isLoading, buildData, error, suggestions, campaign, attachCampaign, sendMessage, reset } = useAICreationChat();
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const hasSentGreeting = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [readingCampaign, setReadingCampaign] = useState(false);
+
+  const handleCampaignFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // so picking the same file again still fires
+    if (!file) return;
+    setReadingCampaign(true);
+    try {
+      const ctx = await readCampaignFile(file);
+      attachCampaign(ctx);
+      toast.success(`Loaded ${ctx.name} (${ctx.fileCount} files)`);
+      if (ctx.truncated) toast.warning('The campaign was large, so only the first part was loaded.');
+      if (!isLoading) sendMessage(`I uploaded the campaign "${ctx.name}" (${ctx.fileCount} files). Build a character for this world.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not read that file.');
+    } finally {
+      setReadingCampaign(false);
+    }
+  }, [attachCampaign, isLoading, sendMessage]);
 
   // Complexity meter: estimate token usage from conversation length
   const complexity = useMemo(() => {
-    const totalChars = messages.reduce((sum, m) => sum + m.content.length, 0);
+    const totalChars = messages.reduce((sum, m) => sum + m.content.length, 0) + (campaign?.text.length ?? 0);
     const estimatedTokens = Math.ceil(totalChars / 3.5);
     const maxTokens = 150000;
     const percent = Math.min(Math.round((estimatedTokens / maxTokens) * 100), 100);
     const level = percent < 50 ? 'low' : percent < 75 ? 'moderate' : percent < 90 ? 'high' : 'critical';
     return { percent, level, estimatedTokens };
-  }, [messages]);
+  }, [messages, campaign]);
 
   useEffect(() => {
     if (!hasSentGreeting.current && messages.length === 0) {
@@ -313,6 +335,7 @@ export default function AICreationAssistant() {
                 <button
                   key={i}
                   onClick={() => {
+                    if (/upload|zip/i.test(s)) { fileInputRef.current?.click(); return; }
                     setInput('');
                     sendMessage(s);
                   }}
@@ -341,13 +364,39 @@ export default function AICreationAssistant() {
 
         {/* Input — fixed at bottom */}
         <div className="shrink-0 px-4 py-3 border-t border-border/50 bg-black/60 backdrop-blur-md">
+          {campaign && (
+            <div className="flex items-center gap-2 mb-2 rounded-full border border-primary/40 bg-black/50 px-3 py-1.5 text-xs">
+              <span className="truncate flex-1 text-primary font-display">📦 {campaign.name} · {campaign.fileCount} files · {Math.round(campaign.text.length / 1000)}k chars{campaign.truncated ? ' (trimmed)' : ''}</span>
+              <button
+                type="button"
+                aria-label="Remove campaign"
+                onClick={() => attachCampaign(null)}
+                className="shrink-0 p-1.5 -mr-1 text-muted-foreground hover:text-foreground"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
           <div className="flex items-end gap-2">
+            <Button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading || readingCampaign}
+              size="icon"
+              variant="ghost"
+              aria-label="Upload a campaign file"
+              className="shrink-0 h-11 w-11 text-primary hover:bg-primary/10"
+              style={{ touchAction: 'manipulation' }}
+            >
+              {readingCampaign ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
+            </Button>
             <textarea
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Describe your character..."
+              placeholder={campaign ? `Describe a character for ${campaign.name}...` : 'Describe your character...'}
               rows={1}
               className="flex-1 resize-none bg-black/40 border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 max-h-24 backdrop-blur-sm"
               disabled={isLoading}
@@ -368,6 +417,13 @@ export default function AICreationAssistant() {
           </div>
         </div>
       </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".zip,.md,.markdown,.txt,.json,application/zip"
+        className="hidden"
+        onChange={handleCampaignFile}
+      />
     </BackgroundWrapper>
   );
 }
