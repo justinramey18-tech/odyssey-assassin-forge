@@ -87,7 +87,6 @@ class AppErrorBoundary extends React.Component<
 
           <button
             onClick={() => window.location.reload()}
-            touch-action="manipulation"
             className="h-12 w-full rounded-md bg-amber-500 text-black font-semibold active:scale-[0.98] transition-transform"
             style={{ touchAction: 'manipulation' }}
           >
