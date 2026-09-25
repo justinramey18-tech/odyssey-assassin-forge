@@ -76,14 +76,17 @@ export interface CharacterBuildData {
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-creation-assistant`;
 
-function loadDraft(): { messages: ChatMessage[]; buildData: CharacterBuildData | null } | null {
+function loadDraft(): { messages: ChatMessage[]; buildData: CharacterBuildData | null; campaign: CampaignContext | null } | null {
   try {
     const raw = localStorage.getItem(AI_CREATION_DRAFT_KEY);
     if (!raw) return null;
     const d = JSON.parse(raw);
     if (!Array.isArray(d?.messages) || d.messages.length === 0) return null;
     if (typeof d.savedAt !== 'number' || Date.now() - d.savedAt > 24 * 60 * 60 * 1000) { localStorage.removeItem(AI_CREATION_DRAFT_KEY); return null; }
-    return { messages: d.messages, buildData: d.buildData ?? null };
+    const campaign = d.campaign && typeof d.campaign.name === 'string' && typeof d.campaign.text === 'string'
+      ? (d.campaign as CampaignContext)
+      : null;
+    return { messages: d.messages, buildData: d.buildData ?? null, campaign };
   } catch { return null; }
 }
 
