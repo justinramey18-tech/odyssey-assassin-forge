@@ -5,10 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Loader2, ZoomIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-/** Everything the circular chat avatars need: square, centred, small. */
-export const AVATAR_OUTPUT_SIZE = 256;
+/**
+ * Wide crop that matches the speaker tile's photo window (about 2.25:1).
+ * The picture is framed in a wide window matching the speaker tile; chat
+ * circles show the centre of it.
+ */
+export const AVATAR_OUTPUT_W = 576;
+export const AVATAR_OUTPUT_H = 256;
 const MAX_SOURCE_BYTES = 12 * 1024 * 1024;
-const VIEW = 260; // on-screen crop window, square
+const VIEW_W = 300; // on-screen crop window
+const VIEW_H = 134;
 
 interface AvatarCropDialogProps {
   open: boolean;
@@ -48,15 +54,15 @@ export function AvatarCropDialog({ open, file, kind, onCancel, onConfirm }: Avat
     return () => URL.revokeObjectURL(url);
   }, [open, file]);
 
-  // Scale that makes the shorter side exactly fill the circle at zoom 1.
-  const baseScale = img ? VIEW / Math.min(img.naturalWidth, img.naturalHeight) : 1;
+  // Scale that makes the picture cover the whole wide window at zoom 1.
+  const baseScale = img ? Math.max(VIEW_W / img.naturalWidth, VIEW_H / img.naturalHeight) : 1;
   const drawW = img ? img.naturalWidth * baseScale * zoom : 0;
   const drawH = img ? img.naturalHeight * baseScale * zoom : 0;
 
-  /** Keep the picture covering the whole circle — no empty corners. */
+  /** Keep the picture covering the whole window — no empty corners. */
   const clamp = useCallback((x: number, y: number) => {
-    const maxX = Math.max(0, (drawW - VIEW) / 2);
-    const maxY = Math.max(0, (drawH - VIEW) / 2);
+    const maxX = Math.max(0, (drawW - VIEW_W) / 2);
+    const maxY = Math.max(0, (drawH - VIEW_H) / 2);
     return {
       x: Math.min(maxX, Math.max(-maxX, x)),
       y: Math.min(maxY, Math.max(-maxY, y)),
@@ -81,16 +87,16 @@ export function AvatarCropDialog({ open, file, kind, onCancel, onConfirm }: Avat
     setBusy(true);
     try {
       const canvas = document.createElement('canvas');
-      canvas.width = AVATAR_OUTPUT_SIZE;
-      canvas.height = AVATAR_OUTPUT_SIZE;
+      canvas.width = AVATAR_OUTPUT_W;
+      canvas.height = AVATAR_OUTPUT_H;
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('Could not prepare the image.');
-      const ratio = AVATAR_OUTPUT_SIZE / VIEW;
+      const ratio = AVATAR_OUTPUT_W / VIEW_W;
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(
         img,
-        (VIEW / 2 - drawW / 2 + offset.x) * ratio,
-        (VIEW / 2 - drawH / 2 + offset.y) * ratio,
+        (VIEW_W / 2 - drawW / 2 + offset.x) * ratio,
+        (VIEW_H / 2 - drawH / 2 + offset.y) * ratio,
         drawW * ratio,
         drawH * ratio,
       );
@@ -120,10 +126,10 @@ export function AvatarCropDialog({ open, file, kind, onCancel, onConfirm }: Avat
           <>
             <div
               className={cn(
-                "relative mx-auto rounded-full overflow-hidden border-2 touch-none select-none bg-black/60",
+                "relative mx-auto rounded-lg overflow-hidden border-2 touch-none select-none bg-black/60",
                 kind === 'ic' ? "border-emerald-400/50" : "border-amber-400/50"
               )}
-              style={{ width: VIEW, height: VIEW }}
+              style={{ width: VIEW_W, height: VIEW_H }}
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
@@ -146,10 +152,22 @@ export function AvatarCropDialog({ open, file, kind, onCancel, onConfirm }: Avat
                   <Loader2 className="w-5 h-5 animate-spin text-white/50" />
                 </div>
               )}
+
+              {/* Framing guides — pointer-events-none so dragging still works. */}
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-[16%] bg-black/45 flex items-center justify-center">
+                <span className="text-[9px] uppercase tracking-widest text-white/60">plaque</span>
+              </div>
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[20%] bg-black/45 flex items-center justify-center">
+                <span className="text-[9px] uppercase tracking-widest text-white/60">name</span>
+              </div>
+              <div
+                className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-white/60"
+                style={{ width: VIEW_H - 8, height: VIEW_H - 8 }}
+              />
             </div>
 
             <p className="text-[10px] text-muted-foreground text-center mt-2">
-              Drag to reposition · pinch or slide to zoom
+              Drag so your face sits inside the circle, between the dark bands · slide to zoom
             </p>
 
             <div className="flex items-center gap-2 mt-2">

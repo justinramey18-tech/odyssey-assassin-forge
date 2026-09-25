@@ -1444,12 +1444,17 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                       )}
                     >
                       {tile.url ? (
-                        <img
-                          src={tile.url}
-                          alt=""
-                          className="absolute object-cover"
+                        <span
+                          className="absolute overflow-hidden bg-black/60"
                           style={TILE_ART[tile.key].photoInset}
-                        />
+                        >
+                          <img
+                            src={tile.url}
+                            alt=""
+                            draggable={false}
+                            className="h-full w-full object-cover object-center select-none"
+                          />
+                        </span>
                       ) : (
                         <span
                           className={cn("absolute flex items-center justify-center text-2xl font-semibold", tile.tint)}
