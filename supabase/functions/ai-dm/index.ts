@@ -506,7 +506,6 @@ function buildContextSummary(ctx: CharacterContext, latestPlayerText: string = '
           if (hb.higherLevels) lines.push(`     At higher levels: ${hb.higherLevels}`);
         }
       }
-      void others;
     }
   }
 
