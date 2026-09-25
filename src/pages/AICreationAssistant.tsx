@@ -11,6 +11,7 @@ import aiCreationBg from '@/assets/ai-creation-bg.jpeg';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { saveHomebrewContentFromBuildData } from '@/lib/ai-creation/saveHomebrew';
 import { saveEmpyreanDMConfig, saveDragonNotes } from '@/lib/empyreanDMPersona';
+import { savePendingAiCharacter } from '@/lib/creation-guard';
 import { saveBondState, DEFAULT_BOND, DEFAULT_TRUST, setIsUnbonded } from '@/lib/dragonBondState';
 
 export default function AICreationAssistant() {
@@ -174,6 +175,10 @@ export default function AICreationAssistant() {
         campaignFocus: emp.campaignFocus,
       });
     }
+
+    // Keep a device-local backup until the cloud save is confirmed, so a
+    // reload between Apply and the save can recover the character.
+    savePendingAiCharacter(wizardState);
 
     navigate('/', {
       state: { 
