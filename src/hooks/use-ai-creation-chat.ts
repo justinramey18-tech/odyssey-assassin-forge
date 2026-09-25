@@ -75,6 +75,17 @@ export interface CharacterBuildData {
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-creation-assistant`;
 
+function loadDraft(): { messages: ChatMessage[]; buildData: CharacterBuildData | null } | null {
+  try {
+    const raw = localStorage.getItem(AI_CREATION_DRAFT_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    if (!Array.isArray(d?.messages) || d.messages.length === 0) return null;
+    if (typeof d.savedAt !== 'number' || Date.now() - d.savedAt > 24 * 60 * 60 * 1000) { localStorage.removeItem(AI_CREATION_DRAFT_KEY); return null; }
+    return { messages: d.messages, buildData: d.buildData ?? null };
+  } catch { return null; }
+}
+
 function tryExtractBuildData(content: string): CharacterBuildData | null {
   // Look for JSON code block with apply_character action
   const jsonMatch = content.match(/```json\s*\n?\s*(\{[\s\S]*?"action"\s*:\s*"apply_character"[\s\S]*?\})\s*\n?\s*```/);
