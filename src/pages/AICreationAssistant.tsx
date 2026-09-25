@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Send, Sparkles, Loader2, AlertTriangle, Paperclip, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { readCampaignFile } from '@/lib/ai-creation/readCampaignFile';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useAICreationChat, buildDataToWizardState, CharacterBuildData } from '@/hooks/use-ai-creation-chat';
@@ -16,21 +18,41 @@ import { saveBondState, DEFAULT_BOND, DEFAULT_TRUST, setIsUnbonded } from '@/lib
 
 export default function AICreationAssistant() {
   const navigate = useNavigate();
-  const { messages, isLoading, buildData, error, suggestions, sendMessage, reset } = useAICreationChat();
+  const { messages, isLoading, buildData, error, suggestions, campaign, attachCampaign, sendMessage, reset } = useAICreationChat();
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const hasSentGreeting = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [readingCampaign, setReadingCampaign] = useState(false);
+
+  const handleCampaignFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // so picking the same file again still fires
+    if (!file) return;
+    setReadingCampaign(true);
+    try {
+      const ctx = await readCampaignFile(file);
+      attachCampaign(ctx);
+      toast.success(`Loaded ${ctx.name} (${ctx.fileCount} files)`);
+      if (ctx.truncated) toast.warning('The campaign was large, so only the first part was loaded.');
+      if (!isLoading) sendMessage(`I uploaded the campaign "${ctx.name}" (${ctx.fileCount} files). Build a character for this world.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not read that file.');
+    } finally {
+      setReadingCampaign(false);
+    }
+  }, [attachCampaign, isLoading, sendMessage]);
 
   // Complexity meter: estimate token usage from conversation length
   const complexity = useMemo(() => {
-    const totalChars = messages.reduce((sum, m) => sum + m.content.length, 0);
+    const totalChars = messages.reduce((sum, m) => sum + m.content.length, 0) + (campaign?.text.length ?? 0);
     const estimatedTokens = Math.ceil(totalChars / 3.5);
     const maxTokens = 150000;
     const percent = Math.min(Math.round((estimatedTokens / maxTokens) * 100), 100);
     const level = percent < 50 ? 'low' : percent < 75 ? 'moderate' : percent < 90 ? 'high' : 'critical';
     return { percent, level, estimatedTokens };
-  }, [messages]);
+  }, [messages, campaign]);
 
   useEffect(() => {
     if (!hasSentGreeting.current && messages.length === 0) {
@@ -313,6 +335,7 @@ export default function AICreationAssistant() {
                 <button
                   key={i}
                   onClick={() => {
+                    if (/upload|zip/i.test(s)) { fileInputRef.current?.click(); return; }
                     setInput('');
                     sendMessage(s);
                   }}
