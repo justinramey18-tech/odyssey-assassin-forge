@@ -329,6 +329,8 @@ export function useAICreationChat() {
     buildData,
     error,
     suggestions,
+    campaign,
+    attachCampaign,
     sendMessage,
     reset,
   };
