@@ -5,10 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Loader2, ZoomIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-/** Everything the circular chat avatars need: square, centred, small. */
-export const AVATAR_OUTPUT_SIZE = 256;
+/**
+ * Wide crop that matches the speaker tile's photo window (about 2.25:1).
+ * The picture is framed in a wide window matching the speaker tile; chat
+ * circles show the centre of it.
+ */
+export const AVATAR_OUTPUT_W = 576;
+export const AVATAR_OUTPUT_H = 256;
 const MAX_SOURCE_BYTES = 12 * 1024 * 1024;
-const VIEW = 260; // on-screen crop window, square
+const VIEW_W = 300; // on-screen crop window
+const VIEW_H = 134;
 
 interface AvatarCropDialogProps {
   open: boolean;
