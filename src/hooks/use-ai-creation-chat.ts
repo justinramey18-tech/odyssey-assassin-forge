@@ -3,6 +3,7 @@ import { WizardState, QUICK_START_DEFAULTS } from '@/components/wizard/types';
 import { HonestModeRules } from '@/lib/gameModes';
 import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import { AI_CREATION_DRAFT_KEY } from '@/lib/creation-guard';
+import type { CampaignContext } from '@/lib/ai-creation/readCampaignFile';
 
 export type ChatMessage = {
   role: 'user' | 'assistant';
