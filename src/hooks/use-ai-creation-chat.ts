@@ -159,11 +159,18 @@ export function buildDataToWizardState(data: CharacterBuildData): WizardState {
 }
 
 export function useAICreationChat() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [draft] = useState(loadDraft);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => draft?.messages ?? []);
   const [isLoading, setIsLoading] = useState(false);
-  const [buildData, setBuildData] = useState<CharacterBuildData | null>(null);
+  const [buildData, setBuildData] = useState<CharacterBuildData | null>(() => draft?.buildData ?? null);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Keep the conversation safe on the device so a reload or tab kill doesn't lose it.
+  useEffect(() => {
+    if (messages.length === 0) return;
+    try { localStorage.setItem(AI_CREATION_DRAFT_KEY, JSON.stringify({ messages, buildData, savedAt: Date.now() })); } catch { /* storage full */ }
+  }, [messages, buildData]);
 
   const sendMessage = useCallback(async (input: string) => {
     const userMsg: ChatMessage = { role: 'user', content: input };
