@@ -97,6 +97,7 @@ import { PrestigeTreeScreen } from '@/components/prestigeTree';
 import { usePrestigeTree } from '@/hooks/use-prestige-tree';
 import { getPrestigeAbilityById } from '@/lib/prestigeTree/abilities';
 import { resetAllAppData, repairXPData } from '@/lib/resetApp';
+import { readPendingAiCharacter, clearPendingAiCharacter, setWizardOpen } from '@/lib/creation-guard';
 import { calculateMaxHP } from '@/lib/hpCalculation';
 import { scoreToModifier } from '@/lib/abilityScores/types';
 import { getConcentrationCheckDC } from '@/lib/magic/calculations';
@@ -218,8 +219,10 @@ const Index = () => {
 
   // Set when the player deliberately chose "Create New Hero". The startup cloud
   // auto-restore below fires on showWizard becoming true, and would otherwise
-  // reload the most recent save and cancel the creation.
-  const isCreatingNewCharacter = useRef(false);
+  // reload the most recent save and cancel the creation. Also true when an
+  // AI-created character is waiting to be saved, so a pending backup blocks the
+  // startup restore from loading an older character over it.
+  const isCreatingNewCharacter = useRef(!!readPendingAiCharacter());
   
   // Check for reset parameter on mount
   useEffect(() => {
@@ -242,6 +245,9 @@ const Index = () => {
   const appMode = useAppMode();
 
   const [showWizard, setShowWizard] = useState(true);
+  // Keep the creation-guard's wizard-open flag in sync so the app knows not to
+  // reload itself while the character wizard is on screen.
+  useEffect(() => { setWizardOpen(showWizard); }, [showWizard]);
   const [showIntroSplash, setShowIntroSplash] = useState(() => {
     // Show mode selection if user hasn't chosen a mode yet
     return !getScopedItem('odyssey-app-mode');
@@ -844,6 +850,13 @@ const Index = () => {
     }
 
     if (rosterState.newCharacter) {
+      // A pending AI character is waiting to be saved — the new-character reset
+      // must never wipe its backup. Re-route to a clean load so the AI apply
+      // effect picks it up instead.
+      if (readPendingAiCharacter()) {
+        routerNavigate('/', { replace: true, state: null });
+        return;
+      }
       // "Create New" was picked. The active save id has already been cleared, which
       // means every scoped hook is now reading the UNSCOPED bucket — and that bucket
       // still holds the previous character's gear, loot, gold, cooldowns and
