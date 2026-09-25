@@ -1,3 +1,4 @@
+import { isCreationInProgress } from './lib/creation-guard';
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "@fontsource/cinzel/400.css";
