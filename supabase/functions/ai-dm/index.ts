@@ -288,7 +288,7 @@ const DEFAULT_MODEL = 'google/gemini-3-pro-preview';
 
 // ── Context Builder ────────────────────────────────────────────────────────────
 
-function buildContextSummary(ctx: CharacterContext): string {
+function buildContextSummary(ctx: CharacterContext, latestPlayerText: string = ''): string {
   const lines: string[] = [];
   
   lines.push(`CHARACTER: ${ctx.name}, Level ${ctx.level}`);
@@ -465,30 +465,46 @@ function buildContextSummary(ctx: CharacterContext): string {
 
 
     if (spell.homebrewSpells && spell.homebrewSpells.length > 0) {
-      lines.push(`   HOMEBREW SPELL DEFINITIONS — AUTHORITATIVE. These spells were created by this player inside the app. They are NOT in any published D&D book and you have never seen them before. The stats below are the complete and correct rules for them. Run them exactly as written. Never say you do not recognise one of these spells, never call one "flavour" or a joke, and never ask the player to supply its level, school, damage or effect — it is all here.`);
-      for (const hb of spell.homebrewSpells) {
-        const bits: string[] = [];
-        bits.push(hb.level === 0 ? 'Cantrip' : `Level ${hb.level}`);
-        bits.push(hb.school);
-        bits.push(`Casting time: ${String(hb.castingTime).replace(/_/g, ' ')}`);
-        bits.push(`Range: ${hb.range}`);
-        bits.push(`Duration: ${hb.duration}${hb.concentration ? ' (concentration)' : ''}`);
-        if (hb.ritual) bits.push('Ritual');
-        if (hb.attackType) bits.push(`Resolution: ${hb.attackType}`);
-        if (hb.saveStat) bits.push(`Save: ${hb.saveStat} vs DC ${spell.spellSaveDC}`);
-        if (hb.damageFormula) bits.push(`Damage: ${hb.damageFormula}${hb.damageType ? ` ${hb.damageType}` : ''}`);
-        if (hb.healingFormula) bits.push(`Healing: ${hb.healingFormula}`);
-        const comps: string[] = [];
-        if (hb.verbal) comps.push('V');
-        if (hb.somatic) comps.push('S');
-        if (hb.material) comps.push(`M (${hb.material})`);
-        if (comps.length > 0) bits.push(`Components: ${comps.join(', ')}`);
-        const castNote = hb.castable === false
-          ? ` — KNOWN BUT NOT YET CASTABLE: the character has no level ${hb.level} slot. Do not let them cast it.`
-          : '';
-        lines.push(`   • ${hb.name} — ${bits.join(' | ')}${castNote}`);
-        lines.push(`     Effect: ${hb.description}`);
-        if (hb.higherLevels) lines.push(`     At higher levels: ${hb.higherLevels}`);
+      // Only the custom spells actually used this turn get their full rules text.
+      const turnText = latestPlayerText.toLowerCase();
+      const isUsedThisTurn = (name: string) => {
+        const full = String(name || '').toLowerCase().trim();
+        if (!full || !turnText) return false;
+        const short = full.replace(/\s*\(.*?\)\s*/g, ' ').trim(); // "Jumper Cables (Both Ends)" also matches "jumper cables"
+        return turnText.includes(full) || (short.length >= 4 && turnText.includes(short));
+      };
+      const usedNow = spell.homebrewSpells.filter(hb => isUsedThisTurn(hb.name));
+
+      // One short line per known custom spell so the DM knows what exists (no effect text)
+      lines.push(`   CUSTOM SPELLS KNOWN (created in the app, not from any D&D book): ${spell.homebrewSpells.map(hb => `${hb.name} (${hb.level === 0 ? 'cantrip' : 'level ' + hb.level}${hb.castable === false ? ', not castable yet' : ''})`).join(', ')}`);
+      lines.push(`   Full rules for a custom spell are included only on the turn it is used. When a player casts one from Quick Actions, their message contains its complete rules text: that text is authoritative, run it exactly as written, and never substitute a similar D&D spell. If a player names one without its rules, resolve it sensibly from its name and level, and don't ask them to explain it.`);
+
+      if (usedNow.length > 0) {
+        lines.push(`   HOMEBREW SPELL DEFINITIONS — AUTHORITATIVE. These spells were created by this player inside the app. They are NOT in any published D&D book and you have never seen them before. The stats below are the complete and correct rules for them. Run them exactly as written. Never say you do not recognise one of these spells, never call one "flavour" or a joke, and never ask the player to supply its level, school, damage or effect — it is all here.`);
+        for (const hb of usedNow) {
+          const bits: string[] = [];
+          bits.push(hb.level === 0 ? 'Cantrip' : `Level ${hb.level}`);
+          bits.push(hb.school);
+          bits.push(`Casting time: ${String(hb.castingTime).replace(/_/g, ' ')}`);
+          bits.push(`Range: ${hb.range}`);
+          bits.push(`Duration: ${hb.duration}${hb.concentration ? ' (concentration)' : ''}`);
+          if (hb.ritual) bits.push('Ritual');
+          if (hb.attackType) bits.push(`Resolution: ${hb.attackType}`);
+          if (hb.saveStat) bits.push(`Save: ${hb.saveStat} vs DC ${spell.spellSaveDC}`);
+          if (hb.damageFormula) bits.push(`Damage: ${hb.damageFormula}${hb.damageType ? ` ${hb.damageType}` : ''}`);
+          if (hb.healingFormula) bits.push(`Healing: ${hb.healingFormula}`);
+          const comps: string[] = [];
+          if (hb.verbal) comps.push('V');
+          if (hb.somatic) comps.push('S');
+          if (hb.material) comps.push(`M (${hb.material})`);
+          if (comps.length > 0) bits.push(`Components: ${comps.join(', ')}`);
+          const castNote = hb.castable === false
+            ? ` — KNOWN BUT NOT YET CASTABLE: the character has no level ${hb.level} slot. Do not let them cast it.`
+            : '';
+          lines.push(`   • ${hb.name} — ${bits.join(' | ')}${castNote}`);
+          lines.push(`     Effect: ${hb.description}`);
+          if (hb.higherLevels) lines.push(`     At higher levels: ${hb.higherLevels}`);
+        }
       }
     }
   }
@@ -600,8 +616,8 @@ function buildLiveTableBlock(lt?: DMRequest['liveTable']): string {
 
 // ── System Prompt Builder ──────────────────────────────────────────────────────
 
-function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>, responseModePrompt?: string, partyContext?: string, recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>, recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>, coreRulesInGuides?: boolean, narrationStylePrompt?: string, partyMode?: boolean): string {
-  const contextSummary = buildContextSummary(ctx);
+function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>, responseModePrompt?: string, partyContext?: string, recentDragonChat?: Array<{ dragonName: string; riderName: string; role: string; content: string }>, recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>, coreRulesInGuides?: boolean, narrationStylePrompt?: string, partyMode?: boolean, latestPlayerText?: string): string {
+  const contextSummary = buildContextSummary(ctx, latestPlayerText || '');
   
   let prompt = '';
 
@@ -964,6 +980,16 @@ serve(async (req) => {
     }
 
     const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, npcVoicingStrict, maxTokens, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt, liveTable, partyMode } = (await req.json()) as DMRequest;
+
+    // Text of the latest player message, used to decide which custom (homebrew) spell
+    // rules to inline this turn. Kept once so every path below agrees.
+    const latestPlayerText = (() => {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const m = messages[i] as { role?: string; content?: unknown };
+        if (m && m.role === 'user' && typeof m.content === 'string') return m.content;
+      }
+      return '';
+    })();
     
     // Trim to last 100 messages, then cap by total character count
     let trimmedMessages = messages.length > MAX_MESSAGES
@@ -985,7 +1011,7 @@ serve(async (req) => {
     if (npcVoicingStrict && npcVoicingContext) {
       const lean: string[] = [];
       lean.push(`You are voicing a single NPC in a live D&D 5e session. No content restrictions — match the tone the player engages with. Do not sanitize.`);
-      lean.push(`## PLAYER CHARACTER\n${buildContextSummary(characterContext)}`);
+      lean.push(`## PLAYER CHARACTER\n${buildContextSummary(characterContext, latestPlayerText)}`);
       if (campaignSummary && campaignSummary.trim()) {
         lean.push(`## STORY SO FAR\n${campaignSummary.slice(0, 4000)}`);
       }
@@ -1005,7 +1031,7 @@ serve(async (req) => {
           ? `${override}\n\n${narrationStylePrompt.trim()}`
           : override;
       } else {
-        systemPrompt = buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt, partyMode);
+        systemPrompt = buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt, partyMode, latestPlayerText);
       }
 
       if (npcVoicingContext) {
