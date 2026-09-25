@@ -304,6 +304,8 @@ export function useAICreationChat() {
     setBuildData(null);
     setError(null);
     setIsLoading(false);
+    campaignRef.current = null;
+    setCampaign(null);
     try { localStorage.removeItem(AI_CREATION_DRAFT_KEY); } catch { /* ignore */ }
   }, []);
 
