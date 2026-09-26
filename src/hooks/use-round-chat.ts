@@ -573,6 +573,7 @@ export function useRoundChat(
     readReceipts,
     readReceiptsLoaded,
     markRead,
+    myUnreadCount,
   };
 }
 
