@@ -14,11 +14,15 @@ export default function CharacterRoster() {
   // Only auto-jump into a character right after sign-in. When the player
   // deliberately opens the roster (Switch Character), always show the list.
   const autoLoad = Boolean((location.state as { autoLoad?: boolean } | null)?.autoLoad);
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const { cloudSaves, fetchSaves, loadFromCloud, loading: savesLoading } = useCloudSave(user?.id);
   const { effectiveMode } = useAppMode();
   const [initialFetchDone, setInitialFetchDone] = useState(false);
+  const [fetchFailed, setFetchFailed] = useState(false);
   const [showAll, setShowAll] = useState(false);
+
+  const signedInAs = user?.email ? user.email.replace('@odyssey.local', '') : '';
+  const handleSignOut = async () => { await signOut(); navigate('/auth', { replace: true }); };
 
 
   // Redirect to auth if not logged in
@@ -28,10 +32,18 @@ export default function CharacterRoster() {
     }
   }, [authLoading, user, navigate]);
 
-  // Fetch saves on mount
+  // Fetch saves on mount — retry once automatically if the first attempt fails
   useEffect(() => {
     if (user?.id && !initialFetchDone) {
-      fetchSaves().then(() => setInitialFetchDone(true));
+      fetchSaves().then(async (firstOk) => {
+        let ok = firstOk;
+        if (!ok) {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          ok = await fetchSaves();
+        }
+        setFetchFailed(!ok);
+        setInitialFetchDone(true);
+      });
     }
   }, [user?.id, fetchSaves, initialFetchDone]);
 
@@ -49,6 +61,7 @@ export default function CharacterRoster() {
   // Auto-load single character or redirect to creation
   useEffect(() => {
     if (!initialFetchDone || savesLoading || showAll) return;
+    if (fetchFailed) return; // never treat a failed load as "brand-new player"
 
     if (cloudSaves.length === 0) {
       // Truly empty — go straight to character creation
