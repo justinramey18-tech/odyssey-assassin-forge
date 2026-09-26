@@ -550,8 +550,18 @@ export function HomeScreen({
     setEnterStoryActive(true);
   }, [drawerContext, prefersReducedMotion]);
 
+  // Stable reference: a fresh arrow here would restart every cinematic timer.
+  const handleOpenPartyDMForCinematic = useCallback(() => {
+    drawerContext?.openPartyDMScreen();
+  }, [drawerContext]);
+
+  // Once the cinematic has run, the home screen stays at opacity 0 until it
+  // actually remounts — no flash back to full brightness mid-handoff.
+  const [enterStoryHasRun, setEnterStoryHasRun] = useState(false);
+
   const handleEnterStoryComplete = useCallback(() => {
     enterStoryActiveRef.current = false;
+    setEnterStoryHasRun(true);
     setEnterStoryActive(false);
   }, []);
 
