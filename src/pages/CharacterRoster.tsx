@@ -85,7 +85,7 @@ export default function CharacterRoster() {
         navigate('/', { state: { saveData: data, saveId: save.id }, replace: true });
       }
     });
-  }, [initialFetchDone, savesLoading, cloudSaves, filteredSaves, loadFromCloud, navigate, showAll, autoLoad]);
+  }, [initialFetchDone, savesLoading, cloudSaves, filteredSaves, loadFromCloud, navigate, showAll, autoLoad, fetchFailed]);
 
   const showEmptyForMode =
     autoLoad && initialFetchDone && !savesLoading && cloudSaves.length > 0 && filteredSaves.length === 0 && !showAll;
@@ -121,6 +121,39 @@ export default function CharacterRoster() {
     return (
       <div className="fixed inset-0 bg-background flex items-center justify-center">
         <RefreshCw className="w-6 h-6 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  // Fetch failed — never send the player to character creation on a network error
+  if (fetchFailed) {
+    return (
+      <div className="fixed inset-0 bg-background flex items-center justify-center px-6">
+        <div className="text-center max-w-sm">
+          <h2 className="text-xl font-cinzel font-bold text-foreground mb-2">
+            Couldn't load your characters
+          </h2>
+          <p className="text-sm text-muted-foreground mb-6">
+            Check your connection and try again.
+          </p>
+          <button
+            onClick={() => {
+              setFetchFailed(false);
+              setInitialFetchDone(false);
+            }}
+            className="px-6 py-3 rounded-xl bg-primary text-primary-foreground font-bold font-cinzel text-sm shadow-lg shadow-primary/20 hover:bg-primary/90 transition-colors"
+            style={{ touchAction: 'manipulation', minHeight: 48 }}
+          >
+            Retry
+          </button>
+          <button
+            onClick={handleSignOut}
+            className="mt-4 block mx-auto text-xs text-muted-foreground underline px-4 py-3"
+            style={{ touchAction: 'manipulation', minHeight: 48 }}
+          >
+            Sign out
+          </button>
+        </div>
       </div>
     );
   }
