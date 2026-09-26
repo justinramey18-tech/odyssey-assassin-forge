@@ -488,14 +488,49 @@ export function useRoundChat(
   }), [isLive, style.chaosLevel, orderedSelected]);
 
 
-  /** Mark the ticked lines as sent. Unticked lines stay available for later. */
-  const consumePending = useCallback(async () => {
-    if (!partyId || selectedMessages.length === 0) return;
-    const ids = selectedMessages.map(m => m.id);
-    setMessages(prev => prev.map(m => (ids.includes(m.id) ? { ...m, consumed: true, selected: false } : m)));
-    setOrderOverride([]);
-    await (supabase.from('party_round_chat') as any).update({ consumed: true, selected: false }).in('id', ids);
-  }, [partyId, selectedMessages]);
+  // ── Unread badge (app icon dot / number) ──
+  /** Lines in the table this player has not seen yet (anyone else's, newer than their read marker). */
+  const myUnreadCount = useMemo(() => {
+    if (!userId) return 0;
+    const lastRead = readReceipts[userId];
+    if (!lastRead) return 0;
+    return messages.filter(m => m.user_id !== userId && m.created_at > lastRead).length;
+  }, [messages, readReceipts, userId]);
+
+  // Keep the app icon badge in step with what the player has actually read, and
+  // dismiss this party's live-chat notifications once everything is caught up.
+  useEffect(() => {
+    try {
+      const nav = navigator as Navigator & {
+        setAppBadge?: (n?: number) => Promise<void>;
+        clearAppBadge?: () => Promise<void>;
+      };
+      if (nav.setAppBadge && nav.clearAppBadge) {
+        if (myUnreadCount > 0) {
+          nav.setAppBadge(myUnreadCount).catch(() => {});
+        } else {
+          nav.clearAppBadge().catch(() => {});
+        }
+      }
+    } catch {
+      // Badge APIs are not everywhere — never let them break the table.
+    }
+
+    if (myUnreadCount === 0 && partyId) {
+      (async () => {
+        try {
+          if (!('serviceWorker' in navigator)) return;
+          const registration = await navigator.serviceWorker.ready;
+          const notifications = await registration.getNotifications({
+            tag: `live-chat-${partyId}`,
+          });
+          for (const n of notifications) n.close();
+        } catch {
+          // No notifications to clear, or the browser refused — ignore.
+        }
+      })();
+    }
+  }, [myUnreadCount, partyId]);
 
   return {
     style,
