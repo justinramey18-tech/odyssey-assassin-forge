@@ -357,7 +357,10 @@ export function HomeScreen({
   const [showEmpyreanScreen, setShowEmpyreanScreen] = useState(false);
   const [showEmpyreanDMContainer, setShowEmpyreanDMContainer] = useState(false);
   const [enterStoryActive, setEnterStoryActive] = useState(false);
+  const [enterStoryRevealing, setEnterStoryRevealing] = useState(false);
   const enterStoryActiveRef = useRef(false);
+  const enterStoryVideoRef = useRef<HTMLVideoElement>(null);
+  const [enterStoryVideoFailed, setEnterStoryVideoFailed] = useState(false);
   const [empyreanScreenAutoOpen, setEmpyreanScreenAutoOpen] = useState<'manual' | null>(null);
   const [bgReady, setBgReady] = useState(false);
   const [stage, setStage] = useState(0);
@@ -539,16 +542,23 @@ export function HomeScreen({
   const concentrationSpell = drawerContext?.conditions.concentrationSpell;
   const concentrationSpellName = concentrationSpell?.name ?? null;
 
+  const isEnterStoryBackground = appMode === 'party'
+    && !customBackground
+    && !customVideoUrl
+    && !isMomoEasterEgg(character.name)
+    && !(isWildShape && wildShapeBackground);
+
   const handleEnterStory = useCallback(() => {
     triggerHaptic('light');
     if (enterStoryActiveRef.current) return;
-    if (prefersReducedMotion) {
+    if (prefersReducedMotion || !isEnterStoryBackground || enterStoryVideoFailed) {
       drawerContext?.openPartyDMScreen();
       return;
     }
     enterStoryActiveRef.current = true;
+    setEnterStoryRevealing(false);
     setEnterStoryActive(true);
-  }, [drawerContext, prefersReducedMotion]);
+  }, [drawerContext, enterStoryVideoFailed, isEnterStoryBackground, prefersReducedMotion]);
 
   // Stable reference: a fresh arrow here would restart every cinematic timer.
   const handleOpenPartyDMForCinematic = useCallback(() => {
@@ -563,6 +573,11 @@ export function HomeScreen({
     enterStoryActiveRef.current = false;
     setEnterStoryHasRun(true);
     setEnterStoryActive(false);
+    setEnterStoryRevealing(false);
+  }, []);
+
+  const handleEnterStoryWhiteStart = useCallback(() => {
+    setEnterStoryRevealing(true);
   }, []);
 
   // Cooldown summary
@@ -703,7 +718,10 @@ export function HomeScreen({
   }
 
   return (
-    <div className="fixed inset-0 z-50 relative min-h-screen w-full overflow-hidden">
+    <div className={cn(
+      "fixed inset-0 relative min-h-screen w-full overflow-hidden",
+      enterStoryActive && !enterStoryRevealing ? "z-[100]" : "z-50",
+    )}>
       {/* Default background layer (always present) */}
       {/* Illustrated mode backgrounds get a slow ambient zoom (disabled under reduced motion) */}
       <div
@@ -712,20 +730,43 @@ export function HomeScreen({
           isArtBackground && "full-access-ambient-zoom",
         )}
       >
-        <BackgroundWrapper
-          imagePath={defaultBg}
-          videoSrc={activeVideoSrc}
-          overlayOpacity={isArtBackground ? 35 : 55}
-          tintColor={isArtBackground ? undefined : 'cyan'}
-          tintOpacity={isArtBackground ? 0 : 10}
-          fixed={true}
-          backgroundSize="cover"
-          backgroundPosition={isArtBackground ? 'center 40%' : 'center center'}
-          className="fixed inset-0 z-0"
-          onLoad={handleBackgroundLoad}
-        >
-          <div />
-        </BackgroundWrapper>
+        {isEnterStoryBackground ? (
+          <div className="fixed inset-0 z-0 min-h-screen w-full overflow-hidden">
+            <video
+              ref={enterStoryVideoRef}
+              src="/enter-story-cinematic.mp4"
+              poster="/enter-story-poster.jpg"
+              className="absolute inset-0 z-0 h-full w-full object-cover object-center"
+              playsInline
+              muted
+              preload="auto"
+              aria-hidden="true"
+              onLoadedData={handleBackgroundLoad}
+              onCanPlay={handleBackgroundLoad}
+              onError={() => {
+                setEnterStoryVideoFailed(true);
+                setBgReady(true);
+              }}
+            />
+            <div className="absolute inset-0 z-[2] bg-gradient-to-b from-black/50 via-black/30 to-black/50" aria-hidden="true" />
+            <div className="absolute inset-0 z-[3] bg-gradient-to-r from-cyan-900 via-transparent to-cyan-900 opacity-10" aria-hidden="true" />
+          </div>
+        ) : (
+          <BackgroundWrapper
+            imagePath={defaultBg}
+            videoSrc={activeVideoSrc}
+            overlayOpacity={isArtBackground ? 35 : 55}
+            tintColor={isArtBackground ? undefined : 'cyan'}
+            tintOpacity={isArtBackground ? 0 : 10}
+            fixed={true}
+            backgroundSize="cover"
+            backgroundPosition={isArtBackground ? 'center 40%' : 'center center'}
+            className="fixed inset-0 z-0"
+            onLoad={handleBackgroundLoad}
+          >
+            <div />
+          </BackgroundWrapper>
+        )}
       </div>
 
       {/* Wild Shape background layer (crossfades in/out) */}
@@ -1510,10 +1551,12 @@ export function HomeScreen({
       </AlertDialog>
       </motion.div>
 
-      {/* Cinematic overlay — kept outside the fading element (it portals to body) */}
+      {/* Timing, skip control and white handoff for the background video */}
       <EnterStoryCinematic
         active={enterStoryActive}
+        videoRef={enterStoryVideoRef}
         onOpenPartyDM={handleOpenPartyDMForCinematic}
+        onWhiteStart={handleEnterStoryWhiteStart}
         onComplete={handleEnterStoryComplete}
       />
     </div>

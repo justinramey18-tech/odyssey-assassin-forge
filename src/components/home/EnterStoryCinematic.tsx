@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 
-const CINEMATIC_SRC = '/enter-story-cinematic.mp4';
 const VIDEO_START_DELAY_MS = 2000;
 const SKIP_REVEAL_DELAY_MS = 1000;
 const PLAYBACK_SAFETY_MS = 9000;
@@ -13,16 +12,19 @@ type CinematicPhase = 'idle' | 'waiting' | 'video' | 'white';
 
 interface EnterStoryCinematicProps {
   active: boolean;
+  videoRef: RefObject<HTMLVideoElement | null>;
   onOpenPartyDM: () => void;
+  onWhiteStart: () => void;
   onComplete: () => void;
 }
 
 export function EnterStoryCinematic({
   active,
+  videoRef,
   onOpenPartyDM,
+  onWhiteStart,
   onComplete,
 }: EnterStoryCinematicProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
   const openedPartyRef = useRef(false);
   const finishedRef = useRef(false);
   const [phase, setPhase] = useState<CinematicPhase>('idle');
@@ -30,23 +32,11 @@ export function EnterStoryCinematic({
 
   // Callbacks are held in refs so timer effects never depend on their identity.
   const onOpenPartyDMRef = useRef(onOpenPartyDM);
+  const onWhiteStartRef = useRef(onWhiteStart);
   const onCompleteRef = useRef(onComplete);
   useEffect(() => { onOpenPartyDMRef.current = onOpenPartyDM; }, [onOpenPartyDM]);
+  useEffect(() => { onWhiteStartRef.current = onWhiteStart; }, [onWhiteStart]);
   useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
-
-  // Warm the browser cache as soon as HomeScreen mounts, well before the tap.
-  useEffect(() => {
-    const preloader = document.createElement('video');
-    preloader.preload = 'auto';
-    preloader.playsInline = true;
-    preloader.src = CINEMATIC_SRC;
-    preloader.load();
-
-    return () => {
-      preloader.removeAttribute('src');
-      preloader.load();
-    };
-  }, []);
 
   const openPartyOnce = () => {
     if (openedPartyRef.current) return;
@@ -108,45 +98,33 @@ export function EnterStoryCinematic({
       return;
     }
 
-    video.currentTime = 0;
-    video.muted = false;
-    void video.play().catch(() => {
-      video.muted = true;
-      return video.play();
-    }).catch(() => finishImmediately());
+    const handleEnded = () => {
+      onWhiteStartRef.current();
+      setPhase('white');
+    };
+    const handleError = () => finishImmediately();
+    video.addEventListener('ended', handleEnded);
+    video.addEventListener('error', handleError);
+
+    video.muted = true;
+    void video.play().catch(() => finishImmediately());
 
     const safetyTimer = window.setTimeout(finishImmediately, PLAYBACK_SAFETY_MS);
-    return () => window.clearTimeout(safetyTimer);
+    return () => {
+      window.clearTimeout(safetyTimer);
+      video.removeEventListener('ended', handleEnded);
+      video.removeEventListener('error', handleError);
+    };
   }, [phase]);
 
-  if (!active || phase === 'idle' || phase === 'waiting' || typeof document === 'undefined') return null;
+  if (!active || phase === 'idle' || typeof document === 'undefined') return null;
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] bg-black"
+      className="fixed inset-0 z-[110] bg-transparent"
       onClick={finishImmediately}
       style={{ touchAction: 'manipulation' }}
     >
-      {phase === 'video' && (
-        <motion.div
-          className="absolute inset-0 bg-black"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3, ease: 'easeOut' }}
-        >
-          <video
-            ref={videoRef}
-            src={CINEMATIC_SRC}
-            className="h-full w-full object-cover"
-            playsInline
-            preload="auto"
-            aria-hidden="true"
-            onEnded={() => setPhase('white')}
-            onError={finishImmediately}
-          />
-        </motion.div>
-      )}
-
       {phase === 'white' && (
         <motion.div
           className="absolute inset-0 bg-white"
