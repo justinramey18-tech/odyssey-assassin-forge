@@ -553,18 +553,14 @@ export function HomeScreen({
   const handleEnterStory = useCallback(() => {
     triggerHaptic('light');
     if (enterStoryActiveRef.current) return;
-    if (prefersReducedMotion || enterStoryVideoFailed) {
-      drawerContext?.openPartyDMScreen();
-      return;
-    }
-    if (!canPlayEnterStoryCinematic) {
+    if (prefersReducedMotion || !canPlayEnterStoryCinematic) {
       drawerContext?.openPartyDMScreen();
       return;
     }
     enterStoryActiveRef.current = true;
     setEnterStoryRevealing(false);
     setEnterStoryActive(true);
-  }, [canPlayEnterStoryCinematic, drawerContext, enterStoryVideoFailed, prefersReducedMotion]);
+  }, [canPlayEnterStoryCinematic, drawerContext, prefersReducedMotion]);
 
   // Stable reference: a fresh arrow here would restart every cinematic timer.
   const handleOpenPartyDMForCinematic = useCallback(() => {
