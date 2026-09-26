@@ -55,9 +55,12 @@ self.addEventListener('push', (event) => {
         }
       }
 
-      // Skip the notification if the player already has the app open on screen.
+      // Skip the notification when the player has the app open on screen —
+      // except on Apple devices, where Safari treats a silent push as a
+      // failed one and can cancel the push subscription after a few.
+      const isApple = /iPhone|iPad|iPod|Macintosh/.test(self.navigator.userAgent || '');
       const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
-      if (clientList.some((client) => client.visibilityState === 'visible')) {
+      if (!isApple && clientList.some((client) => client.visibilityState === 'visible')) {
         return;
       }
 
