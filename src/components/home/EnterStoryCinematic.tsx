@@ -14,6 +14,7 @@ interface EnterStoryCinematicProps {
   active: boolean;
   videoRef: RefObject<HTMLVideoElement | null>;
   onOpenPartyDM: () => void;
+  onWhiteStart: () => void;
   onComplete: () => void;
 }
 
@@ -21,6 +22,7 @@ export function EnterStoryCinematic({
   active,
   videoRef,
   onOpenPartyDM,
+  onWhiteStart,
   onComplete,
 }: EnterStoryCinematicProps) {
   const openedPartyRef = useRef(false);
@@ -30,8 +32,10 @@ export function EnterStoryCinematic({
 
   // Callbacks are held in refs so timer effects never depend on their identity.
   const onOpenPartyDMRef = useRef(onOpenPartyDM);
+  const onWhiteStartRef = useRef(onWhiteStart);
   const onCompleteRef = useRef(onComplete);
   useEffect(() => { onOpenPartyDMRef.current = onOpenPartyDM; }, [onOpenPartyDM]);
+  useEffect(() => { onWhiteStartRef.current = onWhiteStart; }, [onWhiteStart]);
   useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
 
   const openPartyOnce = () => {
@@ -94,7 +98,10 @@ export function EnterStoryCinematic({
       return;
     }
 
-    const handleEnded = () => setPhase('white');
+    const handleEnded = () => {
+      onWhiteStartRef.current();
+      setPhase('white');
+    };
     const handleError = () => finishImmediately();
     video.addEventListener('ended', handleEnded);
     video.addEventListener('error', handleError);

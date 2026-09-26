@@ -357,6 +357,7 @@ export function HomeScreen({
   const [showEmpyreanScreen, setShowEmpyreanScreen] = useState(false);
   const [showEmpyreanDMContainer, setShowEmpyreanDMContainer] = useState(false);
   const [enterStoryActive, setEnterStoryActive] = useState(false);
+  const [enterStoryRevealing, setEnterStoryRevealing] = useState(false);
   const enterStoryActiveRef = useRef(false);
   const enterStoryVideoRef = useRef<HTMLVideoElement>(null);
   const [enterStoryVideoFailed, setEnterStoryVideoFailed] = useState(false);
@@ -555,6 +556,7 @@ export function HomeScreen({
       return;
     }
     enterStoryActiveRef.current = true;
+    setEnterStoryRevealing(false);
     setEnterStoryActive(true);
   }, [drawerContext, enterStoryVideoFailed, isEnterStoryBackground, prefersReducedMotion]);
 
@@ -571,6 +573,11 @@ export function HomeScreen({
     enterStoryActiveRef.current = false;
     setEnterStoryHasRun(true);
     setEnterStoryActive(false);
+    setEnterStoryRevealing(false);
+  }, []);
+
+  const handleEnterStoryWhiteStart = useCallback(() => {
+    setEnterStoryRevealing(true);
   }, []);
 
   // Cooldown summary
@@ -713,7 +720,7 @@ export function HomeScreen({
   return (
     <div className={cn(
       "fixed inset-0 relative min-h-screen w-full overflow-hidden",
-      enterStoryActive ? "z-[100]" : "z-50",
+      enterStoryActive && !enterStoryRevealing ? "z-[100]" : "z-50",
     )}>
       {/* Default background layer (always present) */}
       {/* Illustrated mode backgrounds get a slow ambient zoom (disabled under reduced motion) */}
@@ -1549,6 +1556,7 @@ export function HomeScreen({
         active={enterStoryActive}
         videoRef={enterStoryVideoRef}
         onOpenPartyDM={handleOpenPartyDMForCinematic}
+        onWhiteStart={handleEnterStoryWhiteStart}
         onComplete={handleEnterStoryComplete}
       />
     </div>
