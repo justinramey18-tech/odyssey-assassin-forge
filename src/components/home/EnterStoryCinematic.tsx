@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ const CINEMATIC_SRC = '/enter-story-cinematic.mp4';
 const VIDEO_START_DELAY_MS = 2000;
 const SKIP_REVEAL_DELAY_MS = 1000;
 const PLAYBACK_SAFETY_MS = 9000;
+const ABSOLUTE_BACKSTOP_MS = 13000;
 
 type CinematicPhase = 'idle' | 'waiting' | 'video' | 'white';
 
@@ -27,6 +28,12 @@ export function EnterStoryCinematic({
   const [phase, setPhase] = useState<CinematicPhase>('idle');
   const [showSkip, setShowSkip] = useState(false);
 
+  // Callbacks are held in refs so timer effects never depend on their identity.
+  const onOpenPartyDMRef = useRef(onOpenPartyDM);
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => { onOpenPartyDMRef.current = onOpenPartyDM; }, [onOpenPartyDM]);
+  useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
+
   // Warm the browser cache as soon as HomeScreen mounts, well before the tap.
   useEffect(() => {
     const preloader = document.createElement('video');
@@ -41,28 +48,30 @@ export function EnterStoryCinematic({
     };
   }, []);
 
-  const openPartyOnce = useCallback(() => {
+  const openPartyOnce = () => {
     if (openedPartyRef.current) return;
     openedPartyRef.current = true;
-    onOpenPartyDM();
-  }, [onOpenPartyDM]);
+    onOpenPartyDMRef.current();
+  };
 
-  const finishImmediately = useCallback(() => {
+  const finishImmediately = () => {
     if (finishedRef.current) return;
     finishedRef.current = true;
     videoRef.current?.pause();
     openPartyOnce();
     setPhase('idle');
-    onComplete();
-  }, [onComplete, openPartyOnce]);
+    onCompleteRef.current();
+  };
 
-  const finishAfterWhite = useCallback(() => {
+  const finishAfterWhite = () => {
     if (finishedRef.current) return;
     finishedRef.current = true;
     setPhase('idle');
-    onComplete();
-  }, [onComplete]);
+    onCompleteRef.current();
+  };
 
+  // Owned by `active` alone: nothing but a real activation can start or restart
+  // these timers, so unstable callbacks can never tear them down.
   useEffect(() => {
     if (!active) {
       setPhase('idle');
@@ -80,12 +89,15 @@ export function EnterStoryCinematic({
       openPartyOnce();
       setPhase('video');
     }, VIDEO_START_DELAY_MS);
+    // Absolute backstop: no matter what goes wrong, the player lands in Party DM.
+    const backstopTimer = window.setTimeout(finishImmediately, ABSOLUTE_BACKSTOP_MS);
 
     return () => {
       window.clearTimeout(skipTimer);
       window.clearTimeout(startTimer);
+      window.clearTimeout(backstopTimer);
     };
-  }, [active, openPartyOnce]);
+  }, [active]);
 
   useEffect(() => {
     if (phase !== 'video') return;
@@ -105,7 +117,7 @@ export function EnterStoryCinematic({
 
     const safetyTimer = window.setTimeout(finishImmediately, PLAYBACK_SAFETY_MS);
     return () => window.clearTimeout(safetyTimer);
-  }, [finishImmediately, phase]);
+  }, [phase]);
 
   if (!active || phase === 'idle' || phase === 'waiting' || typeof document === 'undefined') return null;
 

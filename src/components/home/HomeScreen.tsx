@@ -550,8 +550,18 @@ export function HomeScreen({
     setEnterStoryActive(true);
   }, [drawerContext, prefersReducedMotion]);
 
+  // Stable reference: a fresh arrow here would restart every cinematic timer.
+  const handleOpenPartyDMForCinematic = useCallback(() => {
+    drawerContext?.openPartyDMScreen();
+  }, [drawerContext]);
+
+  // Once the cinematic has run, the home screen stays at opacity 0 until it
+  // actually remounts — no flash back to full brightness mid-handoff.
+  const [enterStoryHasRun, setEnterStoryHasRun] = useState(false);
+
   const handleEnterStoryComplete = useCallback(() => {
     enterStoryActiveRef.current = false;
+    setEnterStoryHasRun(true);
     setEnterStoryActive(false);
   }, []);
 
@@ -695,7 +705,7 @@ export function HomeScreen({
   return (
     <motion.div
       className="fixed inset-0 z-50 relative min-h-screen w-full overflow-hidden"
-      animate={{ opacity: enterStoryActive ? 0 : 1 }}
+      animate={{ opacity: (enterStoryActive || enterStoryHasRun) ? 0 : 1 }}
       transition={{ duration: enterStoryActive ? 4 : 0, ease: 'easeOut' }}
     >
       {/* Default background layer (always present) */}
@@ -1495,7 +1505,7 @@ export function HomeScreen({
       </AlertDialog>
       <EnterStoryCinematic
         active={enterStoryActive}
-        onOpenPartyDM={() => drawerContext?.openPartyDMScreen()}
+        onOpenPartyDM={handleOpenPartyDMForCinematic}
         onComplete={handleEnterStoryComplete}
       />
     </motion.div>
