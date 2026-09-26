@@ -360,6 +360,26 @@ export function CharacterWizard({
               </button>
             )}
           </div>
+
+          {signedInAs && (
+            <div className="mt-4 rounded-lg border border-border bg-background/70 p-4 text-center space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Signed in as <span className="font-display font-bold text-primary">{signedInAs}</span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Expecting to see your character? You may be signed into the wrong account.
+              </p>
+              <Button
+                {...pressProps(handleSwitchAccount)}
+                variant="outline"
+                className="w-full"
+                style={{ ...{ touchAction: 'manipulation' as const }, minHeight: 48 }}
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Switch Account
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     );
