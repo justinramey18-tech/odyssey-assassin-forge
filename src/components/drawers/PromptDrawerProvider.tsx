@@ -73,6 +73,8 @@ interface PromptDrawerContextValue {
   openQuickActionsDrawer: () => void;
   openAIDMScreen: () => void;
   openPartyDMScreen: () => void;
+  /** Whether the Party DM screen is currently open (HomeScreen watches this to restore after return). */
+  partyDMOpen: boolean;
   openPartyDMCampaignBuilder: () => void;
   openModeCharacterPicker: (mode: 'solo' | 'party' | 'empyrean') => void;
   closeAllDrawers: () => void;
@@ -992,6 +994,7 @@ export function PromptDrawerProvider({
       closeAllDrawers();
       void openModeWithCharacter('party', () => setPartyDMOpen(true));
     }, [closeAllDrawers, openModeWithCharacter]),
+    partyDMOpen,
     openPartyDMCampaignBuilder: useCallback(() => {
       closeAllDrawers();
       void openModeWithCharacter('party', () => { setPartyDMOpen(true); setPartyDMBuilderAutoOpen(true); });
