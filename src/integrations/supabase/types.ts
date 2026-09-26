@@ -1787,6 +1787,42 @@ export type Database = {
         }
         Relationships: []
       }
+      push_delivery_log: {
+        Row: {
+          created_at: string
+          detail: string | null
+          failed: number
+          function_name: string
+          id: string
+          message_id: string | null
+          party_id: string | null
+          recipients: number
+          sent: number
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          failed?: number
+          function_name: string
+          id?: string
+          message_id?: string | null
+          party_id?: string | null
+          recipients?: number
+          sent?: number
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          failed?: number
+          function_name?: string
+          id?: string
+          message_id?: string | null
+          party_id?: string | null
+          recipients?: number
+          sent?: number
+        }
+        Relationships: []
+      }
       scheduled_telegram_jobs: {
         Row: {
           ai_model: string
