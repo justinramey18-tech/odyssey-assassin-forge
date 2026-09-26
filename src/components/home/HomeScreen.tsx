@@ -703,11 +703,7 @@ export function HomeScreen({
   }
 
   return (
-    <motion.div
-      className="fixed inset-0 z-50 relative min-h-screen w-full overflow-hidden"
-      animate={{ opacity: (enterStoryActive || enterStoryHasRun) ? 0 : 1 }}
-      transition={{ duration: enterStoryActive ? 4 : 0, ease: 'easeOut' }}
-    >
+    <div className="fixed inset-0 z-50 relative min-h-screen w-full overflow-hidden">
       {/* Default background layer (always present) */}
       {/* Illustrated mode backgrounds get a slow ambient zoom (disabled under reduced motion) */}
       <div
@@ -780,8 +776,12 @@ export function HomeScreen({
         />
       )}
 
-      {/* Content layer */}
-      <div className="flex flex-col h-screen overflow-hidden relative z-10">
+      {/* Content layer — fades with the cinematic; background layers stay fully visible and still */}
+      <motion.div
+        className="flex flex-col h-screen overflow-hidden relative z-10"
+        animate={{ opacity: (enterStoryActive || enterStoryHasRun) ? 0 : 1 }}
+        transition={{ duration: enterStoryActive ? 4 : 0, ease: 'easeOut' }}
+      >
         {/* Empyrean dual HP bars */}
         {appMode === 'empyrean' && (
           <EmpyreanDualHPBars
@@ -1264,8 +1264,13 @@ export function HomeScreen({
             </button>
           </div>
         )}
-      </div>
+      </motion.div>
 
+      {/* Drawers, dialogs and overlays — they fade with the content */}
+      <motion.div
+        animate={{ opacity: (enterStoryActive || enterStoryHasRun) ? 0 : 1 }}
+        transition={{ duration: enterStoryActive ? 4 : 0, ease: 'easeOut' }}
+      >
       {/* Drawers Quick-Access Sheet */}
       <Sheet open={showDrawersMenu} onOpenChange={setShowDrawersMenu}>
         <SheetContent side="bottom" className="h-auto max-h-[70vh] rounded-t-xl pb-safe">
@@ -1503,11 +1508,14 @@ export function HomeScreen({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </motion.div>
+
+      {/* Cinematic overlay — kept outside the fading element (it portals to body) */}
       <EnterStoryCinematic
         active={enterStoryActive}
         onOpenPartyDM={handleOpenPartyDMForCinematic}
         onComplete={handleEnterStoryComplete}
       />
-    </motion.div>
+    </div>
   );
 }
