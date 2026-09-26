@@ -65,3 +65,5 @@ project_id = "sqvcszzbkyzidigsdqgk"
     verify_jwt = true
   [functions.party-quick-recap]
     verify_jwt = true
+  [functions.notify-live-chat]
+    verify_jwt = false
