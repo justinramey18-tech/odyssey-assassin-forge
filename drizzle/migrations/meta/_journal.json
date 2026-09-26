@@ -43,6 +43,13 @@
       "when": 1789842917092,
       "tag": "0005_director_messages_co_host_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790445423708,
+      "tag": "0006_notify_live_chat_trigger",
+      "breakpoints": true
     }
   ]
 }
