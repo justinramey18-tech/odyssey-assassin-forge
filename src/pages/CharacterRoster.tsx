@@ -280,6 +280,22 @@ export default function CharacterRoster() {
             ))}
           </div>
         )}
+
+        {/* Signed-in footer */}
+        {signedInAs && (
+          <div className="text-center mt-8 pb-2">
+            <p className="text-xs text-muted-foreground">
+              Signed in as <span className="font-bold">{signedInAs}</span>
+            </p>
+            <button
+              onClick={handleSignOut}
+              className="text-xs text-muted-foreground underline px-4 py-3"
+              style={{ touchAction: 'manipulation' }}
+            >
+              Sign out
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
