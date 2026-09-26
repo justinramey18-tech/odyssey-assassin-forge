@@ -25,18 +25,52 @@ self.addEventListener('push', (event) => {
     return;
   }
 
-  const { title, body, tag, icon, badge, data } = payload;
+  if (payload.type !== 'live_chat') {
+    // Existing behavior (ready-up notifications etc.)
+    const { title, body, tag, icon, badge, data } = payload;
 
+    event.waitUntil(
+      self.registration.showNotification(title || 'Party Update', {
+        body: body || '',
+        tag: tag || 'party-update',
+        icon: icon || '/pwa-192x192.png',
+        badge: badge || '/pwa-192x192.png',
+        data: data || {},
+        requireInteraction: false,
+        vibrate: [200, 100, 200],
+      })
+    );
+    return;
+  }
+
+  // New-message push for the Live DM Table
   event.waitUntil(
-    self.registration.showNotification(title || 'Party Update', {
-      body: body || '',
-      tag: tag || 'party-update',
-      icon: icon || '/pwa-192x192.png',
-      badge: badge || '/pwa-192x192.png',
-      data: data || {},
-      requireInteraction: false,
-      vibrate: [200, 100, 200],
-    })
+    (async () => {
+      const badgeCount = Number(payload.badgeCount);
+      if (self.navigator.setAppBadge && Number.isFinite(badgeCount) && badgeCount > 0) {
+        try {
+          await self.navigator.setAppBadge(badgeCount);
+        } catch (error) {
+          // App badges are best-effort; ignore failures.
+        }
+      }
+
+      // Skip the notification if the player already has the app open on screen.
+      const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+      if (clientList.some((client) => client.visibilityState === 'visible')) {
+        return;
+      }
+
+      await self.registration.showNotification(payload.title || 'Live DM Table', {
+        body: payload.body || '',
+        tag: payload.tag || 'live-chat',
+        renotify: false,
+        icon: '/pwa-192x192.png',
+        badge: '/pwa-192x192.png',
+        data: payload.data || {},
+        vibrate: [120, 60, 120],
+      });
+    })()
   );
 });
 
