@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { InstallBanner } from './InstallBanner';
 import { AppUpdateButton } from './AppUpdateButton';
+import { EnterStoryCinematic } from './EnterStoryCinematic';
 
 import { ClockWidget } from './ClockWidget';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
@@ -355,6 +356,8 @@ export function HomeScreen({
   const [showSoloConfirm, setShowSoloConfirm] = useState(false);
   const [showEmpyreanScreen, setShowEmpyreanScreen] = useState(false);
   const [showEmpyreanDMContainer, setShowEmpyreanDMContainer] = useState(false);
+  const [enterStoryActive, setEnterStoryActive] = useState(false);
+  const enterStoryActiveRef = useRef(false);
   const [empyreanScreenAutoOpen, setEmpyreanScreenAutoOpen] = useState<'manual' | null>(null);
   const [bgReady, setBgReady] = useState(false);
   const [stage, setStage] = useState(0);
@@ -536,6 +539,22 @@ export function HomeScreen({
   const concentrationSpell = drawerContext?.conditions.concentrationSpell;
   const concentrationSpellName = concentrationSpell?.name ?? null;
 
+  const handleEnterStory = useCallback(() => {
+    triggerHaptic('light');
+    if (enterStoryActiveRef.current) return;
+    if (prefersReducedMotion) {
+      drawerContext?.openPartyDMScreen();
+      return;
+    }
+    enterStoryActiveRef.current = true;
+    setEnterStoryActive(true);
+  }, [drawerContext, prefersReducedMotion]);
+
+  const handleEnterStoryComplete = useCallback(() => {
+    enterStoryActiveRef.current = false;
+    setEnterStoryActive(false);
+  }, []);
+
   // Cooldown summary
   const readyCooldownCount = drawerContext?.cooldownSummary.readyCount ?? 0;
   const coolingCooldownCount = drawerContext?.cooldownSummary.coolingCount ?? 0;
@@ -674,7 +693,11 @@ export function HomeScreen({
   }
 
   return (
-    <div className="fixed inset-0 z-50 relative min-h-screen w-full overflow-hidden">
+    <motion.div
+      className="fixed inset-0 z-50 relative min-h-screen w-full overflow-hidden"
+      animate={{ opacity: enterStoryActive ? 0 : 1 }}
+      transition={{ duration: enterStoryActive ? 4 : 0, ease: 'easeOut' }}
+    >
       {/* Default background layer (always present) */}
       {/* Illustrated mode backgrounds get a slow ambient zoom (disabled under reduced motion) */}
       <div
@@ -988,7 +1011,7 @@ export function HomeScreen({
                     onlineStatus={chatOnlineStatusMap}
                     showEmblem={stage >= 1}
                     showFaces={stage >= 2}
-                    onOpenPartyDM={() => { triggerHaptic('light'); drawerContext?.openPartyDMScreen(); }}
+                    onOpenPartyDM={handleEnterStory}
                   />
                 </motion.div>
               )}
@@ -1470,6 +1493,11 @@ export function HomeScreen({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      <EnterStoryCinematic
+        active={enterStoryActive}
+        onOpenPartyDM={() => drawerContext?.openPartyDMScreen()}
+        onComplete={handleEnterStoryComplete}
+      />
+    </motion.div>
   );
 }
