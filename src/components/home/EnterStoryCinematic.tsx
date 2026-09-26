@@ -107,7 +107,7 @@ export function EnterStoryCinematic({
     return () => window.clearTimeout(safetyTimer);
   }, [finishImmediately, phase]);
 
-  if (!active || phase === 'idle' || typeof document === 'undefined') return null;
+  if (!active || phase === 'idle' || phase === 'waiting' || typeof document === 'undefined') return null;
 
   return createPortal(
     <div
