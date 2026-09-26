@@ -40,10 +40,12 @@ export function useCloudSave(userId: string | undefined) {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [cloudSaves, setCloudSaves] = useState<CloudSave[]>([]);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const fetchSaves = useCallback(async () => {
-    if (!userId) return;
-    
+  const fetchSaves = useCallback(async (): Promise<boolean> => {
+    if (!userId) return false;
+
+    setFetchError(null);
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -98,8 +100,11 @@ export function useCloudSave(userId: string | undefined) {
       });
       
       setCloudSaves(savesWithPreview);
+      return true;
     } catch (error) {
       console.error('[CloudSave] Failed to fetch saves:', error);
+      setFetchError("Couldn't reach the server to load your characters.");
+      return false;
     } finally {
       setLoading(false);
     }
@@ -391,6 +396,7 @@ export function useCloudSave(userId: string | undefined) {
     saving,
     loading,
     cloudSaves,
+    fetchError,
     fetchSaves,
     saveToCloud,
     loadFromCloud,

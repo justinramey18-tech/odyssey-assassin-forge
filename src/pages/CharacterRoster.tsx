@@ -14,11 +14,15 @@ export default function CharacterRoster() {
   // Only auto-jump into a character right after sign-in. When the player
   // deliberately opens the roster (Switch Character), always show the list.
   const autoLoad = Boolean((location.state as { autoLoad?: boolean } | null)?.autoLoad);
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const { cloudSaves, fetchSaves, loadFromCloud, loading: savesLoading } = useCloudSave(user?.id);
   const { effectiveMode } = useAppMode();
   const [initialFetchDone, setInitialFetchDone] = useState(false);
+  const [fetchFailed, setFetchFailed] = useState(false);
   const [showAll, setShowAll] = useState(false);
+
+  const signedInAs = user?.email ? user.email.replace('@odyssey.local', '') : '';
+  const handleSignOut = async () => { await signOut(); navigate('/auth', { replace: true }); };
 
 
   // Redirect to auth if not logged in
@@ -28,10 +32,18 @@ export default function CharacterRoster() {
     }
   }, [authLoading, user, navigate]);
 
-  // Fetch saves on mount
+  // Fetch saves on mount — retry once automatically if the first attempt fails
   useEffect(() => {
     if (user?.id && !initialFetchDone) {
-      fetchSaves().then(() => setInitialFetchDone(true));
+      fetchSaves().then(async (firstOk) => {
+        let ok = firstOk;
+        if (!ok) {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          ok = await fetchSaves();
+        }
+        setFetchFailed(!ok);
+        setInitialFetchDone(true);
+      });
     }
   }, [user?.id, fetchSaves, initialFetchDone]);
 
@@ -49,6 +61,7 @@ export default function CharacterRoster() {
   // Auto-load single character or redirect to creation
   useEffect(() => {
     if (!initialFetchDone || savesLoading || showAll) return;
+    if (fetchFailed) return; // never treat a failed load as "brand-new player"
 
     if (cloudSaves.length === 0) {
       // Truly empty — go straight to character creation
@@ -72,7 +85,7 @@ export default function CharacterRoster() {
         navigate('/', { state: { saveData: data, saveId: save.id }, replace: true });
       }
     });
-  }, [initialFetchDone, savesLoading, cloudSaves, filteredSaves, loadFromCloud, navigate, showAll, autoLoad]);
+  }, [initialFetchDone, savesLoading, cloudSaves, filteredSaves, loadFromCloud, navigate, showAll, autoLoad, fetchFailed]);
 
   const showEmptyForMode =
     autoLoad && initialFetchDone && !savesLoading && cloudSaves.length > 0 && filteredSaves.length === 0 && !showAll;
@@ -108,6 +121,39 @@ export default function CharacterRoster() {
     return (
       <div className="fixed inset-0 bg-background flex items-center justify-center">
         <RefreshCw className="w-6 h-6 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  // Fetch failed — never send the player to character creation on a network error
+  if (fetchFailed) {
+    return (
+      <div className="fixed inset-0 bg-background flex items-center justify-center px-6">
+        <div className="text-center max-w-sm">
+          <h2 className="text-xl font-cinzel font-bold text-foreground mb-2">
+            Couldn't load your characters
+          </h2>
+          <p className="text-sm text-muted-foreground mb-6">
+            Check your connection and try again.
+          </p>
+          <button
+            onClick={() => {
+              setFetchFailed(false);
+              setInitialFetchDone(false);
+            }}
+            className="px-6 py-3 rounded-xl bg-primary text-primary-foreground font-bold font-cinzel text-sm shadow-lg shadow-primary/20 hover:bg-primary/90 transition-colors"
+            style={{ touchAction: 'manipulation', minHeight: 48 }}
+          >
+            Retry
+          </button>
+          <button
+            onClick={handleSignOut}
+            className="mt-4 block mx-auto text-xs text-muted-foreground underline px-4 py-3"
+            style={{ touchAction: 'manipulation', minHeight: 48 }}
+          >
+            Sign out
+          </button>
+        </div>
       </div>
     );
   }
@@ -232,6 +278,22 @@ export default function CharacterRoster() {
                 )}
               </button>
             ))}
+          </div>
+        )}
+
+        {/* Signed-in footer */}
+        {signedInAs && (
+          <div className="text-center mt-8 pb-2">
+            <p className="text-xs text-muted-foreground">
+              Signed in as <span className="font-bold">{signedInAs}</span>
+            </p>
+            <button
+              onClick={handleSignOut}
+              className="text-xs text-muted-foreground underline px-4 py-3"
+              style={{ touchAction: 'manipulation' }}
+            >
+              Sign out
+            </button>
           </div>
         )}
       </div>
