@@ -360,12 +360,17 @@ export function HomeScreen({
   const [enterStoryRevealing, setEnterStoryRevealing] = useState(false);
   const enterStoryActiveRef = useRef(false);
   const enterStoryVideoRef = useRef<HTMLVideoElement>(null);
+  const enterStoryBackgroundRef = useRef<HTMLDivElement>(null);
   const [enterStoryVideoFailed, setEnterStoryVideoFailed] = useState(false);
   const [empyreanScreenAutoOpen, setEmpyreanScreenAutoOpen] = useState<'manual' | null>(null);
   const [bgReady, setBgReady] = useState(false);
   const [stage, setStage] = useState(0);
   const sequenceStartedRef = useRef(false);
   const handleBackgroundLoad = useCallback(() => setBgReady(true), []);
+
+  useEffect(() => {
+    setEnterStoryVideoFailed(false);
+  }, []);
 
 
 
@@ -542,23 +547,24 @@ export function HomeScreen({
   const concentrationSpell = drawerContext?.conditions.concentrationSpell;
   const concentrationSpellName = concentrationSpell?.name ?? null;
 
-  const isEnterStoryBackground = appMode === 'party'
-    && !customBackground
-    && !customVideoUrl
-    && !isMomoEasterEgg(character.name)
-    && !(isWildShape && wildShapeBackground);
+  const canPlayEnterStoryCinematic =
+    appMode === 'fullAccess' && !enterStoryVideoFailed;
 
   const handleEnterStory = useCallback(() => {
     triggerHaptic('light');
     if (enterStoryActiveRef.current) return;
-    if (prefersReducedMotion || !isEnterStoryBackground || enterStoryVideoFailed) {
+    if (prefersReducedMotion || enterStoryVideoFailed) {
+      drawerContext?.openPartyDMScreen();
+      return;
+    }
+    if (!canPlayEnterStoryCinematic) {
       drawerContext?.openPartyDMScreen();
       return;
     }
     enterStoryActiveRef.current = true;
     setEnterStoryRevealing(false);
     setEnterStoryActive(true);
-  }, [drawerContext, enterStoryVideoFailed, isEnterStoryBackground, prefersReducedMotion]);
+  }, [canPlayEnterStoryCinematic, drawerContext, enterStoryVideoFailed, prefersReducedMotion]);
 
   // Stable reference: a fresh arrow here would restart every cinematic timer.
   const handleOpenPartyDMForCinematic = useCallback(() => {
@@ -725,12 +731,13 @@ export function HomeScreen({
       {/* Default background layer (always present) */}
       {/* Illustrated mode backgrounds get a slow ambient zoom (disabled under reduced motion) */}
       <div
+        ref={enterStoryBackgroundRef}
         className={cn(
           "fixed inset-0 z-0",
           isArtBackground && "full-access-ambient-zoom",
         )}
       >
-        {isEnterStoryBackground ? (
+        {appMode === 'fullAccess' && !enterStoryVideoFailed ? (
           <div className="fixed inset-0 z-0 min-h-screen w-full overflow-hidden">
             <video
               ref={enterStoryVideoRef}
@@ -743,6 +750,11 @@ export function HomeScreen({
               aria-hidden="true"
               onLoadedData={handleBackgroundLoad}
               onCanPlay={handleBackgroundLoad}
+              onPlay={() => {
+                if (enterStoryBackgroundRef.current) {
+                  enterStoryBackgroundRef.current.style.animationPlayState = 'paused';
+                }
+              }}
               onError={() => {
                 setEnterStoryVideoFailed(true);
                 setBgReady(true);
