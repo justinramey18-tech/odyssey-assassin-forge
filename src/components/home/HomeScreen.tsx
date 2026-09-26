@@ -567,8 +567,8 @@ export function HomeScreen({
     drawerContext?.openPartyDMScreen();
   }, [drawerContext]);
 
-  // Once the cinematic has run, the home screen stays at opacity 0 until it
-  // actually remounts — no flash back to full brightness mid-handoff.
+  // Once the cinematic has run, the home screen stays at opacity 0 while
+  // Party DM is open — no flash back to full brightness mid-handoff.
   const [enterStoryHasRun, setEnterStoryHasRun] = useState(false);
 
   const handleEnterStoryComplete = useCallback(() => {
@@ -577,6 +577,34 @@ export function HomeScreen({
     setEnterStoryActive(false);
     setEnterStoryRevealing(false);
   }, []);
+
+  // HomeScreen stays mounted underneath Party DM, so watch the open state:
+  // when Party DM closes, reset the whole cinematic so the home screen is
+  // fully restored and ENTER THE STORY can run again from the start.
+  const partyDMOpen = drawerContext?.partyDMOpen ?? false;
+  const prevPartyDMOpenRef = useRef(partyDMOpen);
+  useEffect(() => {
+    const wasOpen = prevPartyDMOpenRef.current;
+    prevPartyDMOpenRef.current = partyDMOpen;
+    if (!wasOpen || partyDMOpen) return;
+
+    setEnterStoryHasRun(false);
+    setEnterStoryActive(false);
+    setEnterStoryRevealing(false);
+    setEnterStoryVideoFailed(false);
+    enterStoryActiveRef.current = false;
+    const video = enterStoryVideoRef.current;
+    if (video) {
+      video.pause();
+      // The poster does not reappear after playback, so seeking to frame 0
+      // is what restores the opening image.
+      video.currentTime = 0;
+    }
+    // The ambient zoom was frozen when the cinematic started — resume it.
+    if (enterStoryBackgroundRef.current) {
+      enterStoryBackgroundRef.current.style.animationPlayState = 'running';
+    }
+  }, [partyDMOpen]);
 
   const handleEnterStoryWhiteStart = useCallback(() => {
     setEnterStoryRevealing(true);
@@ -829,7 +857,7 @@ export function HomeScreen({
       <motion.div
         className="flex flex-col h-screen overflow-hidden relative z-10"
         animate={{ opacity: (enterStoryActive || enterStoryHasRun) ? 0 : 1 }}
-        transition={{ duration: enterStoryActive ? 4 : 0, ease: 'easeOut' }}
+        transition={{ duration: enterStoryActive ? 4 : 0.4, ease: 'easeOut' }}
       >
         {/* Empyrean dual HP bars */}
         {appMode === 'empyrean' && (
@@ -1318,7 +1346,7 @@ export function HomeScreen({
       {/* Drawers, dialogs and overlays — they fade with the content */}
       <motion.div
         animate={{ opacity: (enterStoryActive || enterStoryHasRun) ? 0 : 1 }}
-        transition={{ duration: enterStoryActive ? 4 : 0, ease: 'easeOut' }}
+        transition={{ duration: enterStoryActive ? 4 : 0.4, ease: 'easeOut' }}
       >
       {/* Drawers Quick-Access Sheet */}
       <Sheet open={showDrawersMenu} onOpenChange={setShowDrawersMenu}>
