@@ -488,6 +488,15 @@ export function useRoundChat(
   }), [isLive, style.chaosLevel, orderedSelected]);
 
 
+  /** Mark the ticked lines as sent. Unticked lines stay available for later. */
+  const consumePending = useCallback(async () => {
+    if (!partyId || selectedMessages.length === 0) return;
+    const ids = selectedMessages.map(m => m.id);
+    setMessages(prev => prev.map(m => (ids.includes(m.id) ? { ...m, consumed: true, selected: false } : m)));
+    setOrderOverride([]);
+    await (supabase.from('party_round_chat') as any).update({ consumed: true, selected: false }).in('id', ids);
+  }, [partyId, selectedMessages]);
+
   // ── Unread badge (app icon dot / number) ──
   /** Lines in the table this player has not seen yet (anyone else's, newer than their read marker). */
   const myUnreadCount = useMemo(() => {
