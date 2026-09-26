@@ -16,7 +16,8 @@ import { CombatPrimerStep } from './steps/CombatPrimerStep';
 import { SummaryStep } from './steps/SummaryStep';
 import { WizardState, QUICK_START_DEFAULTS } from './types';
 import { Button } from '@/components/ui/button';
-import { Skull, Zap, Settings2, Cloud, Sparkles } from 'lucide-react';
+import { Skull, Zap, Settings2, Cloud, Sparkles, LogOut } from 'lucide-react';
+import { useAuth } from '@/hooks/use-auth';
 import wizardBackground from '@/assets/wizard-background.jpg';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DnDClass } from '@/lib/classes';
@@ -42,6 +43,14 @@ export function CharacterWizard({
   const lastActivationRef = useRef(0);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+  const signedInAs = user?.email
+    ? (user.email.endsWith('@odyssey.local') ? user.email.replace('@odyssey.local', '') : user.email)
+    : null;
+  const handleSwitchAccount = useCallback(async () => {
+    await signOut();
+    navigate('/auth', { replace: true });
+  }, [signOut, navigate]);
   
   const wizard = useWizardState();
   const { state, hasResumableProgress, restoreProgress, clearProgress, reset } = wizard;
@@ -351,6 +360,26 @@ export function CharacterWizard({
               </button>
             )}
           </div>
+
+          {signedInAs && (
+            <div className="mt-4 rounded-lg border border-border bg-background/70 p-4 text-center space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Signed in as <span className="font-display font-bold text-primary">{signedInAs}</span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Expecting to see your character? You may be signed into the wrong account.
+              </p>
+              <Button
+                {...pressProps(handleSwitchAccount)}
+                variant="outline"
+                className="w-full"
+                style={{ ...{ touchAction: 'manipulation' as const }, minHeight: 48 }}
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Switch Account
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     );
