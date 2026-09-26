@@ -43,6 +43,14 @@ export function CharacterWizard({
   const lastActivationRef = useRef(0);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+  const signedInAs = user?.email
+    ? (user.email.endsWith('@odyssey.local') ? user.email.replace('@odyssey.local', '') : user.email)
+    : null;
+  const handleSwitchAccount = useCallback(async () => {
+    await signOut();
+    navigate('/auth', { replace: true });
+  }, [signOut, navigate]);
   
   const wizard = useWizardState();
   const { state, hasResumableProgress, restoreProgress, clearProgress, reset } = wizard;
