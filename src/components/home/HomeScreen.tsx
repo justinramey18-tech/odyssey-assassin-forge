@@ -730,7 +730,7 @@ export function HomeScreen({
         ref={enterStoryBackgroundRef}
         className={cn(
           "fixed inset-0 z-0",
-          isArtBackground && "full-access-ambient-zoom",
+          (isArtBackground || appMode === 'fullAccess') && "full-access-ambient-zoom",
         )}
       >
         {appMode === 'fullAccess' && !enterStoryVideoFailed ? (
