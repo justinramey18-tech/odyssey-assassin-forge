@@ -705,7 +705,7 @@ export function HomeScreen({
   return (
     <motion.div
       className="fixed inset-0 z-50 relative min-h-screen w-full overflow-hidden"
-      animate={{ opacity: enterStoryActive ? 0 : 1 }}
+      animate={{ opacity: (enterStoryActive || enterStoryHasRun) ? 0 : 1 }}
       transition={{ duration: enterStoryActive ? 4 : 0, ease: 'easeOut' }}
     >
       {/* Default background layer (always present) */}
@@ -1505,7 +1505,7 @@ export function HomeScreen({
       </AlertDialog>
       <EnterStoryCinematic
         active={enterStoryActive}
-        onOpenPartyDM={() => drawerContext?.openPartyDMScreen()}
+        onOpenPartyDM={handleOpenPartyDMForCinematic}
         onComplete={handleEnterStoryComplete}
       />
     </motion.div>
