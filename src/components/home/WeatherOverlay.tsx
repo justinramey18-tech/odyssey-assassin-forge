@@ -76,6 +76,7 @@ const WeatherOverlay = ({ condition, windSpeed, isDay }: WeatherOverlayProps) =>
       return Array.from({ length: 3 }, (_, i) => ({
         id: i,
         x: 10 + Math.random() * 60,
+        // eslint-disable-next-line no-restricted-syntax -- cloud screen position, not a dice roll
         y: 5 + Math.random() * 20,
         size: 300 + Math.random() * 200,
         opacity: 0.05 + Math.random() * 0.05,

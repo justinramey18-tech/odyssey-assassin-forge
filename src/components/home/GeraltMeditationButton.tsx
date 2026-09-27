@@ -200,6 +200,7 @@ export function GeraltMeditationButton({ onClick, companionHpPct }: GeraltMedita
             }}
             animate={{
               x: [p.x * 0.3, p.x * 0.6 + p.drift, p.x],
+              // eslint-disable-next-line no-restricted-syntax -- particle float height for animation, not a dice roll
               y: [0, -40 - Math.random() * 30, -70 - Math.random() * 20],
               opacity: [0, hpState === 'happy' ? 0.5 : 0.9, 0],
               scale: [0.5, 1, 0.2],
