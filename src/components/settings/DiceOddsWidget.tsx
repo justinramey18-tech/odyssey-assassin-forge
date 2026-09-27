@@ -1,7 +1,11 @@
 import { 
   DiceOddsMode, 
   DICE_ODDS_CONFIGS, 
-  saveDiceOddsMode, 
+  ADAPTIVE_PROFILES,
+  ODDS_PROFILES,
+  loadOddsProfileId,
+  saveOddsProfileId,
+  describeProfileScenes,
 } from '@/lib/diceOdds';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -43,11 +47,20 @@ const bracketColors = [
 
 export function DiceOddsWidget({ value, onChange }: DiceOddsWidgetProps) {
   const modes = Object.values(DICE_ODDS_CONFIGS);
-  const currentConfig = DICE_ODDS_CONFIGS[value];
+  const [profileId, setProfileId] = useState<string>(() => loadOddsProfileId() ?? value);
+  const activeProfile = ODDS_PROFILES[profileId] ?? ODDS_PROFILES[value];
+  const isAdaptive = !activeProfile.uniform;
+  const currentConfig = isAdaptive ? activeProfile : DICE_ODDS_CONFIGS[value];
+  const colorKey: DiceOddsMode = isAdaptive ? 'heroic' : value;
 
   const handleSelect = (mode: DiceOddsMode) => {
+    setProfileId(mode);
+    saveOddsProfileId(mode);
     onChange(mode);
-    saveDiceOddsMode(mode);
+  };
+  const handleSelectAdaptive = (id: string) => {
+    setProfileId(id);
+    saveOddsProfileId(id);
   };
   const [critCine, setCritCine] = useState(loadCritCinematicsEnabled);
 
@@ -70,12 +83,13 @@ export function DiceOddsWidget({ value, onChange }: DiceOddsWidgetProps) {
         Adjust how the dice favor your rolls. This affects all combat and ability rolls.
       </p>
 
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">Simple</div>
       {/* Mode Selection Grid */}
       <div className="grid grid-cols-4 gap-2">
         {modes.map((config) => (
           <button
             key={config.mode}
-            data-selected={value === config.mode}
+            data-selected={!isAdaptive && value === config.mode}
             onClick={() => handleSelect(config.mode)}
             className={cn(
               'flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all',
@@ -92,13 +106,32 @@ export function DiceOddsWidget({ value, onChange }: DiceOddsWidgetProps) {
         ))}
       </div>
 
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">Adaptive</div>
+      <div className="grid grid-cols-1 gap-2">
+        {Object.values(ADAPTIVE_PROFILES).map((p) => (
+          <button
+            key={p.id}
+            onClick={() => handleSelectAdaptive(p.id)}
+            aria-pressed={profileId === p.id}
+            className={cn(
+              'min-h-12 w-full rounded-lg border-2 px-3 py-2 text-left transition-all active:scale-95',
+              profileId === p.id ? 'border-primary bg-primary/15 text-primary' : 'border-border bg-muted/20 text-muted-foreground'
+            )}
+            style={{ touchAction: 'manipulation' }}
+          >
+            <div className="font-cinzel text-sm font-semibold">{p.label}</div>
+            <div className="text-[11px] font-body opacity-80">{describeProfileScenes(p)}</div>
+          </button>
+        ))}
+      </div>
+
       {/* Selected Mode Details */}
       <div className={cn(
         'rounded-lg border p-3 transition-all',
-        modeColors[value].replace('data-[selected=true]:', '')
+        modeColors[colorKey].replace('data-[selected=true]:', '')
       )} data-selected="true">
         <div className="flex items-center gap-2 mb-2">
-          {modeIcons[value]}
+          {modeIcons[colorKey]}
           <span className="font-display text-sm font-semibold">
             {currentConfig.label}
           </span>
@@ -110,13 +143,16 @@ export function DiceOddsWidget({ value, onChange }: DiceOddsWidgetProps) {
           {currentConfig.deadpoolQuote}
         </p>
         
+        {isAdaptive && (
+          <p className="text-[11px] font-body text-foreground/80">{describeProfileScenes(activeProfile)}</p>
+        )}
         {/* Bracket Visualization */}
-        <div className="mt-3 pt-3 border-t border-current/20">
+        {!isAdaptive && (<div className="mt-3 pt-3 border-t border-current/20">
           <div className="text-[9px] uppercase tracking-wider mb-2 opacity-70 font-mono">
             Roll Distribution
           </div>
           <div className="flex gap-1 h-5">
-            {currentConfig.brackets.length === 0 ? (
+            {DICE_ODDS_CONFIGS[value].brackets.length === 0 ? (
               <div 
                 className="bg-primary/40 rounded-sm flex items-center justify-center text-[8px] font-mono flex-1"
                 title="Uniform 1-20"
@@ -124,7 +160,7 @@ export function DiceOddsWidget({ value, onChange }: DiceOddsWidgetProps) {
                 1-20 (uniform)
               </div>
             ) : (
-              currentConfig.brackets.map((bracket, i) => (
+              DICE_ODDS_CONFIGS[value].brackets.map((bracket, i) => (
                 <div 
                   key={i}
                   className={cn(bracketColors[i % bracketColors.length], "rounded-sm flex items-center justify-center text-[7px] font-mono leading-none")}
@@ -136,7 +172,7 @@ export function DiceOddsWidget({ value, onChange }: DiceOddsWidgetProps) {
               ))
             )}
           </div>
-        </div>
+        </div>)}
       </div>
     </div>
   );

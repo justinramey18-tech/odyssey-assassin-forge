@@ -43,6 +43,7 @@ export const SCOPED_KEYS = [
   'odyssey-initiative',
   'odyssey-ability-customization',
   'odyssey-assassin-dice-odds',
+  'odyssey-dice-odds-profile',
   // Class-specific
   'dnd-druid-circle',
   'dnd-cleric-domain',

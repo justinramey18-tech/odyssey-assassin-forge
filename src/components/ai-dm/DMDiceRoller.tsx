@@ -1,9 +1,9 @@
-import { rollD20 as sharedRollD20, awaitD20Reveal, type D20Context, type D20Result } from '@/lib/rollD20';
+import { rollD20 as sharedRollD20, awaitD20Reveal, subscribeD20Rolls, type D20Context, type D20Result } from '@/lib/rollD20';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { rollDie } from '@/lib/diceRoller';
-import { rollWeightedDie, loadDiceOddsMode, saveDiceOddsMode, DICE_ODDS_CONFIGS, type DiceOddsMode } from '@/lib/diceOdds';
+import { rollWeightedDie, loadDiceOddsMode, saveDiceOddsMode, DICE_ODDS_CONFIGS, type DiceOddsMode, ADAPTIVE_PROFILES, ODDS_PROFILES, loadOddsProfileId, saveOddsProfileId, resolveOddsForContext, describeProfileScenes, CONTEXT_SCENE, ODDS_PROFILE_CHANGED_EVENT, type SceneKind } from '@/lib/diceOdds';
 import { SKILLS, ABILITY_SCORES, type AbilityScore, getAbilityScoreDisplay, getSkillsForDisplay } from '@/lib/diceRollerConfig';
 import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import type { CharacterContext } from '@/components/oracle/types';
@@ -310,7 +310,18 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
     }
   }, [rollHint]);
 
-  const [currentOddsMode, setCurrentOddsMode] = useState<DiceOddsMode>(() => loadDiceOddsMode());
+  const [profileId, setProfileId] = useState<string>(() => loadOddsProfileId());
+  const profile = ODDS_PROFILES[profileId] ?? ODDS_PROFILES.fair;
+  // Scene of the most recent player roll — drives the live sub-mode indicator.
+  const [liveScene, setLiveScene] = useState<SceneKind>('roleplay');
+  const currentOddsMode: DiceOddsMode = profile.byScene[liveScene];
+  useEffect(() => {
+    const unsub = subscribeD20Rolls((r) => { if (r.context !== 'other') setLiveScene(CONTEXT_SCENE[r.context]); });
+    const onChange = () => setProfileId(loadOddsProfileId());
+    window.addEventListener(ODDS_PROFILE_CHANGED_EVENT, onChange);
+    window.addEventListener('odyssey-character-loaded', onChange);
+    return () => { unsub(); window.removeEventListener(ODDS_PROFILE_CHANGED_EVENT, onChange); window.removeEventListener('odyssey-character-loaded', onChange); };
+  }, []);
   const [lastRoll, setLastRoll] = useState<RollDisplay | null>(null);
   const [editMode, setEditMode] = useState(false);
   const rollIdRef = useRef(0);
@@ -418,7 +429,7 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
         modifier,
         total: roll.kept + modifier,
         rollMode,
-        mode: loadDiceOddsMode(),
+        mode: resolveOddsForContext(roll.d20.context),
       }, message, label);
       return;
     }
@@ -471,14 +482,14 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
     onRollResult(message);
   }, [onRollResult, onRoll]);
 
-  const handleSelectOddsMode = useCallback((mode: DiceOddsMode) => {
-    setCurrentOddsMode(mode);
-    saveDiceOddsMode(mode);
+  const handleSelectOddsMode = useCallback((id: string) => {
+    setProfileId(id);
+    saveOddsProfileId(id);
   }, []);
 
   // profBonus already defined above via getProficiencyBonus
 
-  const currentOddsConfig = DICE_ODDS_CONFIGS[currentOddsMode];
+  const currentOddsConfig = profile;
 
   return (
     <div className="bg-black/20 relative">
@@ -493,6 +504,17 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
           )}
         >
           {currentOddsMode === 'godmode' ? '👑 God Mode — every d20 is a 20' : '💀 Doomed — every d20 is a 1'}
+        </div>
+      )}
+
+      {/* Live sub-mode: always show what the dice are doing right now under an adaptive profile */}
+      {!profile.uniform && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mx-3 mt-3 mb-1 px-3 py-1.5 rounded-full border border-amber-400/50 bg-amber-500/10 text-center font-cinzel text-[11px] font-bold uppercase tracking-[0.15em] text-amber-100"
+        >
+          {profile.label} · {liveScene === 'combat' ? 'Combat' : 'Roleplay'} ({DICE_ODDS_CONFIGS[currentOddsMode].label})
         </div>
       )}
 
@@ -940,11 +962,12 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
             </span>
           </div>
 
+          <div className="mt-2 text-[9px] uppercase tracking-[0.2em] text-white/45 text-center">Simple</div>
           {/* Mode medallions — wraps so all seven fit at 360px */}
           <div className="mt-2 flex flex-wrap items-start justify-center gap-x-1 gap-y-2">
             {(Object.keys(DICE_ODDS_CONFIGS) as DiceOddsMode[]).map(mode => {
               const config = DICE_ODDS_CONFIGS[mode];
-              const isSelected = currentOddsMode === mode;
+              const isSelected = profileId === mode;
               const chrome = ODDS_CHROME[mode];
               return (
                 <button
@@ -979,6 +1002,31 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
                 </button>
               );
             })}
+          </div>
+
+          {/* Adaptive profiles — mode changes with what is being rolled */}
+          <div className="mt-3 px-2">
+            <div className="text-[9px] uppercase tracking-[0.2em] text-white/45 text-center mb-1.5">Adaptive</div>
+            <div className="grid grid-cols-2 gap-2">
+              {Object.values(ADAPTIVE_PROFILES).map((p) => {
+                const sel = profileId === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => handleSelectOddsMode(p.id)}
+                    aria-pressed={sel}
+                    className={cn(
+                      "min-h-12 min-w-0 rounded-lg border px-2 py-1.5 text-left active:scale-95",
+                      sel ? "border-amber-400 bg-amber-500/15 text-amber-100" : "border-white/15 bg-black/30 text-white/60"
+                    )}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <div className="font-cinzel text-xs font-bold">{p.label}</div>
+                    <div className="text-[9px] leading-tight opacity-80">{describeProfileScenes(p)}</div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Selected mode description + quote */}
