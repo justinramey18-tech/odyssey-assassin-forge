@@ -14,8 +14,8 @@ import { rollD20 } from '@/lib/rollD20';
  *  4. fallback "Roll for it" — caller opens the dice roller
  */
 
-import { rollDie } from '@/lib/diceRoller';
-import { rollWeightedDie, loadDiceOddsMode } from '@/lib/diceOdds';
+
+
 import { getProficiencyBonus } from '@/lib/magic/calculations';
 import type { RollHint } from '@/lib/whisperRollHint';
 import type { AbilityScore } from '@/lib/diceRollerConfig';

@@ -1,6 +1,6 @@
 import { rollD20 } from '@/lib/rollD20';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { rollWeightedDie, loadDiceOddsMode } from '@/lib/diceOdds';
+
 
 interface DeathSaveScreenProps {
   open: boolean;

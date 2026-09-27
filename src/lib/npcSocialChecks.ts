@@ -2,7 +2,7 @@ import { rollD20 } from '@/lib/rollD20';
 import type { CharacterContext } from '@/components/oracle/types';
 import { getProficiencyBonus } from '@/lib/magic/calculations';
 import { getScopedItem } from '@/lib/scoped-storage';
-import { rollWeightedDie, loadDiceOddsMode, type DiceOddsMode } from '@/lib/diceOdds';
+import { loadDiceOddsMode, type DiceOddsMode } from '@/lib/diceOdds';
 
 
 export type SocialSkillId = 'persuasion' | 'intimidation' | 'insight' | 'deception';

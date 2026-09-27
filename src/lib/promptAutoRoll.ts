@@ -3,7 +3,7 @@ import { rollD20 } from '@/lib/rollD20';
 // The d20 honours the player's dice odds mode; damage dice always roll fair
 // because the odds brackets are shaped for the d20 only.
 
-import { rollWeightedDie, loadDiceOddsMode, DICE_ODDS_CONFIGS, type DiceOddsMode } from '@/lib/diceOdds';
+import { loadDiceOddsMode, DICE_ODDS_CONFIGS, type DiceOddsMode } from '@/lib/diceOdds';
 
 export interface AttackRollResult {
   kind: 'attack' | 'spell';
@@ -94,7 +94,7 @@ export function rollAttack(kind: 'attack' | 'spell', damageFormula?: string, att
 
 export function rollCheck(): CheckRollResult {
   const mode = loadDiceOddsMode();
-  const d20 = rollD20({ context: 'skill' }).kept;
+  const d20 = rollD20({ context: 'other' }).kept; // RP-beat check, not a skill test: no cinematic
   const outcome: CheckRollResult['outcome'] =
     d20 === 1 ? 'critical failure'
     : d20 <= 7 ? 'failure'
