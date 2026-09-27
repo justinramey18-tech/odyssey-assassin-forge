@@ -2249,7 +2249,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     return Array.from(byUser.values());
   }, [synergyMessages, currentUserId, chatAvatars.avatars, usingLastRoundSynergy]);
 
-  const handleFetchStoryPills = useCallback(async (flavorId?: string, mode?: 'solo' | 'sync', targetIds?: string[]) => {
+  const handleFetchStoryPills = useCallback(async (flavorId?: string, mode?: 'solo' | 'sync', targetIds?: string[], customIntent?: string) => {
     // Include the recent back-and-forth (DM + this player + other players), not just DM replies,
     // so suggestions respond to what the player themselves was actually just doing.
     // Build the recent narrative newest-last, but NEVER front-truncate the joined
@@ -2338,6 +2338,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         // the player may deliberately ask for moves outside their usual register.
         story_flavor_label: flavorId ? getRpFlavor(flavorId)?.label : undefined,
         story_flavor_guidance: flavorId ? getRpFlavor(flavorId)?.guidance : undefined,
+        custom_intent: customIntent,
         character_bonds: bonds,
         character_flaws: flaws,
         live_table_lines: liveTableLines || undefined,

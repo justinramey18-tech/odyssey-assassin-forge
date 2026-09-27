@@ -95,7 +95,7 @@ type SuggestMode = 'solo' | 'sync';
 interface StoryMasterworkActionsProps {
   disabled?: boolean;
   onSelect: (prompt: string) => void;
-  fetchStoryPills: (flavorId?: string, mode?: SuggestMode, targetIds?: string[]) => Promise<ActionItem[]>;
+  fetchStoryPills: (flavorId?: string, mode?: SuggestMode, targetIds?: string[], customIntent?: string) => Promise<ActionItem[]>;
   /** Players with an in-character line to react to, preferring unsent lines over the latest resolved round. */
   liveTableCandidates?: LiveTableCandidate[];
   /** External control: when both are passed, they replace the internal open state. */
@@ -120,6 +120,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
   const [mode, setMode] = useState<SuggestMode | null>(null);
   const [targetIds, setTargetIds] = useState<string[]>([]);
   const [targetsDone, setTargetsDone] = useState(false);
+  const [customIntent, setCustomIntent] = useState('');
 
   const hasCandidates = liveTableCandidates.length > 0;
 
@@ -132,6 +133,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
     setTargetIds([]);
     setPills([]);
     setError(null);
+    setCustomIntent('');
   }, [open]);
 
   const generate = useCallback(async (id: string, useMode: SuggestMode, ids: string[]) => {
@@ -140,14 +142,14 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
     setError(null);
     setPills([]);
     try {
-      const result = await fetchStoryPills(id, useMode, useMode === 'sync' ? ids : undefined);
+      const result = await fetchStoryPills(id, useMode, useMode === 'sync' ? ids : undefined, customIntent.trim() || undefined);
       setPills(result);
     } catch (e: any) {
       setError(e?.message || 'Could not generate suggestions.');
     } finally {
       setLoading(false);
     }
-  }, [fetchStoryPills]);
+  }, [fetchStoryPills, customIntent]);
 
   const pickMode = useCallback((m: SuggestMode) => {
     setTargetIds([]);
@@ -190,6 +192,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
     setTargetIds([]);
     setPills([]);
     setError(null);
+    setCustomIntent('');
   }, [setOpen]);
 
   const choose = useCallback((prompt: string) => {
@@ -390,6 +393,22 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
                     <span className="min-w-0 truncate text-xs font-cinzel text-amber-200">{contextLabel}</span>
                   </div>
                 )}
+                <div className="relative">
+                  <textarea
+                    value={customIntent}
+                    onChange={(e) => setCustomIntent(e.target.value.slice(0, 300))}
+                    placeholder="What do you want to do? (optional)"
+                    rows={2}
+                    maxLength={300}
+                    className="w-full resize-none rounded-lg border border-amber-500/25 bg-black/50 px-3 py-2 text-sm text-amber-50 placeholder:text-white/35 focus:outline-none focus:border-amber-500/50"
+                  />
+                  {customIntent.length > 200 && (
+                    <span className="absolute bottom-1.5 right-2 text-[9px] text-white/40">{customIntent.length}/300</span>
+                  )}
+                </div>
+                <p className="text-center text-[11px] text-white/55">
+                  {customIntent.trim() ? 'Pick how you want to do it' : 'Pick an alignment'}
+                </p>
                 <div className="grid grid-cols-3 gap-2">
                 {RP_FLAVORS.map((f: RpFlavor) => (
                   <button
