@@ -5,7 +5,7 @@ import { isCriticalHit, isCriticalMiss, type DieType, type RollMode } from '@/li
 const SRC = '/nat20-cinematic.mp4';
 const PREF_KEY = 'odyssey-crit-cinematics'; // device preference, not per-character
 const READY_WAIT_MS = 300;
-const SAFETY_MS = 9500;
+const SAFETY_MS = 24500; // 22.9s video + headroom; fires only on genuine playback failure
 
 export function loadCritCinematicsEnabled(): boolean {
   try { return localStorage.getItem(PREF_KEY) !== 'off'; } catch { return true; }
@@ -136,7 +136,7 @@ export function CritCinematicProvider({ children }: { children: ReactNode }) {
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); finishRef.current?.(); }}
-            className="absolute right-4 bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-h-12 min-w-12 px-4 rounded-full border border-border bg-background/60 text-foreground font-cinzel text-sm backdrop-blur"
+            className="absolute right-4 bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-h-12 min-w-[7rem] px-5 rounded-full border-2 border-border bg-background/90 text-foreground font-cinzel text-base font-semibold shadow-lg shadow-black/40 backdrop-blur"
             style={{ touchAction: 'manipulation' }}
           >
             Skip
