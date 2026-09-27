@@ -381,6 +381,7 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
   const [expandedSpellIds, setExpandedSpellIds] = useState<Set<string>>(() => new Set(spellIds));
   // The attack/spell about to be rolled, held while the player checks the maths.
   const [pending, setPending] = useState<QuickActionItem | null>(null);
+  const { maybePlayCritCinematic } = useCritCinematic();
 
   useEffect(() => {
     if (drawerOpen) {
