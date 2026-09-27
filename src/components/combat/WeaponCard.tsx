@@ -1,3 +1,4 @@
+import { rollD20Dice, rollModeFrom } from '@/lib/rollD20';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -72,7 +73,7 @@ export function WeaponCard({
       rollNote = ' (disadvantage)';
     }
 
-    const roll = rollDice('d20', rollCount, totalAttackBonus);
+    const roll = rollD20Dice(totalAttackBonus, 'attack', rollModeFrom(hasAdvantage, hasDisadvantage));
 
     // Build damage string
     let damage = baseDamage;

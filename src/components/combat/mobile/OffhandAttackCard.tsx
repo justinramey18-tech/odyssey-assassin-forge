@@ -1,3 +1,4 @@
+import { rollD20Dice, rollModeFrom } from '@/lib/rollD20';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -133,7 +134,7 @@ export function OffhandAttackCard({
     if (hasAdvantage && !hasDisadvantage) rollCount = 2;
     else if (hasDisadvantage && !hasAdvantage) rollCount = 2;
 
-    const roll = rollDice('d20', rollCount, totalAttackBonus);
+    const roll = rollD20Dice(totalAttackBonus, 'attack', rollModeFrom(hasAdvantage, hasDisadvantage));
 
     let damage = baseDamage;
     if (offhandDamageBonus > 0) damage += `+${offhandDamageBonus}`;
