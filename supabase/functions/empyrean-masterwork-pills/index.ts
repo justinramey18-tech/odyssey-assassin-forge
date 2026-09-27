@@ -311,7 +311,7 @@ Set each pill's "label" field to its intensity step, exactly:
 This tone instruction OVERRIDES the general rule about varying the flavour of the 4 suggestions. Here they deliberately share one flavour and vary only in intensity.`)
       : '';
     const systemPrompt = isStoryMode
-      ? [activeSystemPrompt, categoryBlock, summaryBlock, characterBlock, narrativeBlock, liveTableBlock, flavorBlock]
+      ? [activeSystemPrompt, categoryBlock, summaryBlock, characterBlock, narrativeBlock, liveTableBlock, intentBlock + flavorBlock]
           .filter(Boolean)
           .join('\n\n')
       : `${activeSystemPrompt}\n\n${categoryBlock}\n\n${characterBlock}\n\n${narrativeBlock}`;
