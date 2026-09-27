@@ -89,7 +89,7 @@ export function CastCard({ spell: rawSpell, onClose, onResolved }: CastCardProps
 
   const canCast = isCantrip || !!option;
 
-  const handleCast = () => {
+  const handleCast = async () => {
     if (busy || !canCast) return;
     setBusy(true);
 
@@ -113,6 +113,12 @@ export function CastCard({ spell: rawSpell, onClose, onResolved }: CastCardProps
       castLevel,
     });
     resolved.slotNote = describeSlotSpend(outcome) ?? undefined;
+
+    // A critical spell attack plays the cinematic BEFORE the result is revealed —
+    // the video is the reveal. It fails open, so the result always appears.
+    if (resolved.attack?.isCrit) {
+      await maybePlayCritCinematic([resolved.attack.d20], 'normal', 'd20');
+    }
 
     toast.success(`${spell.name} cast`, { description: summariseCast(resolved) });
     onResolved(buildCastReceipt(resolved, spell), resolved);
