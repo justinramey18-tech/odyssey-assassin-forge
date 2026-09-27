@@ -14,8 +14,9 @@
  * subscribeD20Rolls().
  */
 
-import { rollWeightedDie, loadDiceOddsMode, type DiceOddsMode } from '@/lib/diceOdds';
-import { isCriticalHit, isCriticalMiss, getEffectiveDie, type RollMode } from '@/lib/diceRoller';
+import { rollWeightedDieSilent, loadDiceOddsMode, type DiceOddsMode } from '@/lib/diceOdds';
+import { maybePlayCritSound } from '@/lib/critSound';
+import { isCriticalHit, isCriticalMiss, getEffectiveDie, type RollMode, type DiceRoll } from '@/lib/diceRoller';
 
 export type D20Context =
   | 'skill' | 'save' | 'attack' | 'spell-attack'
@@ -96,7 +97,7 @@ export function rollD20(opts?: {
   const odds = opts?.odds ?? loadDiceOddsMode();
   const count = mode === 'normal' ? 1 : 2;
   const rolls: number[] = [];
-  for (let i = 0; i < count; i++) rolls.push(rollWeightedDie(20, odds));
+  for (let i = 0; i < count; i++) rolls.push(rollWeightedDieSilent(20, odds));
   const result: D20Result = {
     rolls,
     kept: getEffectiveDie(rolls, mode),
@@ -106,5 +107,42 @@ export function rollD20(opts?: {
     context,
   };
   emit(result);
+  playCritSoundUnlessCinematic(result);
   return result;
+}
+
+/**
+ * The crit cinematic carries its own audio, so the app's crit sound must not
+ * double up with it. Contexts that never get the cinematic (concentration,
+ * initiative, death saves, NPC/'other') play the sound straight away. For
+ * cinematic contexts we wait to hear whether the video actually played; if it
+ * was skipped (disabled, not ready, reduced motion) the sound plays instead.
+ */
+function playCritSoundUnlessCinematic(result: D20Result): void {
+  const playAll = () => result.rolls.forEach((r) => maybePlayCritSound(r, 20));
+  const wait = pending.get(result);
+  if (result.isCrit && CINEMATIC_CONTEXTS.has(result.context) && wait) {
+    void wait.then((played) => { if (!played) playAll(); });
+    return;
+  }
+  playAll();
+}
+
+/** Advantage/disadvantage from combat conditions (both cancel out). */
+export function rollModeFrom(hasAdvantage: boolean, hasDisadvantage: boolean): RollMode {
+  if (hasAdvantage && !hasDisadvantage) return 'advantage';
+  if (hasDisadvantage && !hasAdvantage) return 'disadvantage';
+  return 'normal';
+}
+
+/**
+ * rollD20() returned in the older DiceRoll shape, for callers that used
+ * rollDice('d20', count, modifier). Keeps that shape exactly (total = sum of
+ * all rolled dice + modifier) so nothing downstream changes.
+ */
+export function rollD20Dice(modifier: number, context: D20Context, mode: RollMode = 'normal'): DiceRoll & { d20: D20Result } {
+  const oddsMode = loadDiceOddsMode();
+  const d20 = rollD20({ mode, context, odds: oddsMode });
+  const total = d20.rolls.reduce((s, r) => s + r, 0) + modifier;
+  return { die: 'd20', count: d20.rolls.length, modifier, rolls: d20.rolls, total, oddsMode, d20 };
 }
