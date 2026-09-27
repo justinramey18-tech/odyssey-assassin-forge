@@ -126,7 +126,7 @@ export function usePartyDirector({ partyId, userId, campaignPlan, characterConte
     await send(msg.content, newMode, (msg.intent as DirectorIntent) || 'now');
   }, [messages, send]);
 
-  /** Retire a standing note: marks it consumed and clears its intent so the DM stops seeing it. */
+  /** Permanently delete one of this player's own standing notes so the DM stops seeing it. */
   const deleteStandingNote = useCallback(async (messageId: string) => {
     if (!partyId || !userId) return;
     const { error: delErr } = await (supabase as any)
