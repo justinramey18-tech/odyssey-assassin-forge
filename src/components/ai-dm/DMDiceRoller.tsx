@@ -80,6 +80,8 @@ const ODDS_ART: Record<DiceOddsMode, string> = {
   dramatic: oddsDramaticArt.url,
   chaotic: oddsChaoticArt.url,
   cursed: oddsCursedArt.url,
+  godmode: oddsHeroicArt.url,
+  doomed: oddsCursedArt.url,
 };
 
 const ODDS_CHROME: Record<DiceOddsMode, { ring: string; glow: string; text: string }> = {
@@ -88,6 +90,8 @@ const ODDS_CHROME: Record<DiceOddsMode, { ring: string; glow: string; text: stri
   dramatic: { ring: 'ring-violet-400', glow: 'shadow-[0_0_16px_rgba(167,139,250,0.4)]', text: 'text-violet-400' },
   chaotic: { ring: 'ring-fuchsia-400', glow: 'shadow-[0_0_16px_rgba(232,121,249,0.4)]', text: 'text-fuchsia-400' },
   cursed: { ring: 'ring-red-500', glow: 'shadow-[0_0_16px_rgba(239,68,68,0.4)]', text: 'text-red-500' },
+  godmode: { ring: 'ring-yellow-300', glow: 'shadow-[0_0_20px_rgba(253,224,71,0.6)]', text: 'text-yellow-300' },
+  doomed: { ring: 'ring-red-600', glow: 'shadow-[0_0_20px_rgba(220,38,38,0.6)]', text: 'text-red-600' },
 };
 
 // Skill descriptions for new players
@@ -913,8 +917,8 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
             </span>
           </div>
 
-          {/* Mode medallions */}
-          <div className="mt-2 flex items-start justify-between">
+          {/* Mode medallions — wraps so all seven fit at 360px */}
+          <div className="mt-2 flex flex-wrap items-start justify-center gap-x-1 gap-y-2">
             {(Object.keys(DICE_ODDS_CONFIGS) as DiceOddsMode[]).map(mode => {
               const config = DICE_ODDS_CONFIGS[mode];
               const isSelected = currentOddsMode === mode;
@@ -925,7 +929,7 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
                   onClick={() => handleSelectOddsMode(mode)}
                   aria-pressed={isSelected}
                   aria-label={`${config.label} dice odds`}
-                  className="flex w-16 flex-col items-center gap-1 rounded-lg py-1 active:scale-95 motion-safe:transition-transform motion-safe:duration-[120ms] motion-reduce:transition-none"
+                  className="flex w-14 flex-col items-center gap-1 rounded-lg py-1 active:scale-95 motion-safe:transition-transform motion-safe:duration-[120ms] motion-reduce:transition-none"
                   style={{ touchAction: 'manipulation' }}
                 >
                   <img
@@ -937,7 +941,7 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
                     height="64"
                     draggable={false}
                     className={cn(
-                      "h-16 w-16 rounded-full object-contain motion-safe:transition-all motion-safe:duration-[150ms] motion-reduce:transition-none",
+                      "h-14 w-14 rounded-full object-contain motion-safe:transition-all motion-safe:duration-[150ms] motion-reduce:transition-none",
                       isSelected ? cn(chrome.ring, "ring-2", chrome.glow, "opacity-100") : "opacity-60"
                     )}
                   />
