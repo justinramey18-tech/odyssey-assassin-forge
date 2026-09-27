@@ -3,7 +3,8 @@
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { maybePlayCritSound } from '@/lib/critSound';
 
-export type DiceOddsMode = 'fair' | 'heroic' | 'dramatic' | 'chaotic' | 'cursed';
+export type DiceOddsMode =
+  'fair' | 'heroic' | 'dramatic' | 'chaotic' | 'cursed' | 'godmode' | 'doomed';
 
 export interface OddsBracket {
   chance: number;  // 0-1 probability
@@ -71,6 +72,24 @@ export const DICE_ODDS_CONFIGS: Record<DiceOddsMode, DiceOddsConfig> = {
       { chance: 0.65, min: 2, max: 7, label: '2-7' },
       { chance: 0.15, min: 8, max: 14, label: '8-14' },
       { chance: 0.05, min: 15, max: 20, label: '15-20' },
+    ],
+  },
+  godmode: {
+    mode: 'godmode',
+    label: 'God Mode',
+    description: 'Every d20 rolls a natural 20. No exceptions.',
+    deadpoolQuote: '"This is cheating and I love it."',
+    brackets: [
+      { chance: 1.0, min: 20, max: 20, label: 'Nat 20' },
+    ],
+  },
+  doomed: {
+    mode: 'doomed',
+    label: 'Doomed',
+    description: 'Every d20 rolls a natural 1. Abandon hope.',
+    deadpoolQuote: '"Why would you do this to yourself?"',
+    brackets: [
+      { chance: 1.0, min: 1, max: 1, label: 'Nat 1' },
     ],
   },
 };

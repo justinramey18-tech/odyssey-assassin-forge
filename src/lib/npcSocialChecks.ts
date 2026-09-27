@@ -45,6 +45,8 @@ const OPPOSING_ODDS_MODE: Record<DiceOddsMode, DiceOddsMode> = {
   dramatic: 'dramatic',
   chaotic: 'chaotic',
   cursed: 'heroic',
+  godmode: 'cursed',
+  doomed: 'heroic',
 };
 
 export function getPlayerSocialModifier(ctx: CharacterContext, skillId: SocialSkillId): number {
