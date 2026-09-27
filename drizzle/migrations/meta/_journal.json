@@ -57,6 +57,13 @@
       "when": 1790457638871,
       "tag": "0007_push_delivery_log_and_notify_live_chat",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790552240163,
+      "tag": "0008_director_note_intent",
+      "breakpoints": true
     }
   ]
 }

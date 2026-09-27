@@ -958,7 +958,9 @@ export type Database = {
           consumed_by_dm: boolean
           content: string
           created_at: string
+          fires_remaining: number
           id: string
+          intent: string | null
           overridden: boolean
           party_id: string
           role: string
@@ -970,7 +972,9 @@ export type Database = {
           consumed_by_dm?: boolean
           content: string
           created_at?: string
+          fires_remaining?: number
           id?: string
+          intent?: string | null
           overridden?: boolean
           party_id: string
           role: string
@@ -982,7 +986,9 @@ export type Database = {
           consumed_by_dm?: boolean
           content?: string
           created_at?: string
+          fires_remaining?: number
           id?: string
+          intent?: string | null
           overridden?: boolean
           party_id?: string
           role?: string
