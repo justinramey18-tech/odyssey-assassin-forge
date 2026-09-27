@@ -14,7 +14,7 @@
  * subscribeD20Rolls().
  */
 
-import { rollWeightedDieSilent, loadDiceOddsMode, type DiceOddsMode } from '@/lib/diceOdds';
+import { rollWeightedDieSilent, resolveOddsForContext, type DiceOddsMode } from '@/lib/diceOdds';
 import { maybePlayCritSound } from '@/lib/critSound';
 import { isCriticalHit, isCriticalMiss, getEffectiveDie, type RollMode, type DiceRoll } from '@/lib/diceRoller';
 
@@ -94,7 +94,7 @@ export function rollD20(opts?: {
 }): D20Result {
   const mode: RollMode = opts?.mode ?? 'normal';
   const context: D20Context = opts?.context ?? 'other';
-  const odds = opts?.odds ?? loadDiceOddsMode();
+  const odds = opts?.odds ?? resolveOddsForContext(context);
   const count = mode === 'normal' ? 1 : 2;
   const rolls: number[] = [];
   for (let i = 0; i < count; i++) rolls.push(rollWeightedDieSilent(20, odds));
@@ -141,7 +141,7 @@ export function rollModeFrom(hasAdvantage: boolean, hasDisadvantage: boolean): R
  * all rolled dice + modifier) so nothing downstream changes.
  */
 export function rollD20Dice(modifier: number, context: D20Context, mode: RollMode = 'normal'): DiceRoll & { d20: D20Result } {
-  const oddsMode = loadDiceOddsMode();
+  const oddsMode = resolveOddsForContext(context);
   const d20 = rollD20({ mode, context, odds: oddsMode });
   const total = d20.rolls.reduce((s, r) => s + r, 0) + modifier;
   return { die: 'd20', count: d20.rolls.length, modifier, rolls: d20.rolls, total, oddsMode, d20 };

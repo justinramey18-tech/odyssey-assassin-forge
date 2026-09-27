@@ -2,7 +2,7 @@ import { rollD20 } from '@/lib/rollD20';
 import type { CharacterContext } from '@/components/oracle/types';
 import { getProficiencyBonus } from '@/lib/magic/calculations';
 import { getScopedItem } from '@/lib/scoped-storage';
-import { loadDiceOddsMode, type DiceOddsMode } from '@/lib/diceOdds';
+import { resolveOddsForContext, type DiceOddsMode } from '@/lib/diceOdds';
 
 
 export type SocialSkillId = 'persuasion' | 'intimidation' | 'insight' | 'deception';
@@ -87,7 +87,7 @@ const NPC_MOD_LEVEL_DIVISOR = 2;
 export function rollPlayerSocialCheck(
   ctx: CharacterContext,
   skillId: SocialSkillId,
-  oddsMode: DiceOddsMode = loadDiceOddsMode()
+  oddsMode: DiceOddsMode = resolveOddsForContext('skill')
 ): SocialRollResult {
   const die = rollD20({ context: 'skill', odds: oddsMode }).kept;
   const modifier = getPlayerSocialModifier(ctx, skillId);
@@ -96,7 +96,7 @@ export function rollPlayerSocialCheck(
 
 export function rollNpcOpposingCheck(
   ctx: CharacterContext,
-  playerOddsMode: DiceOddsMode = loadDiceOddsMode()
+  playerOddsMode: DiceOddsMode = resolveOddsForContext('skill')
 ): SocialRollResult {
   // NPC roll: context 'other' so it never plays the crit cinematic.
   const die = rollD20({ context: 'other', odds: OPPOSING_ODDS_MODE[playerOddsMode] ?? 'fair' }).kept;
@@ -109,7 +109,8 @@ export function rollNpcOpposingCheck(
 
 export function resolveSocialCheck(ctx: CharacterContext, npcName: string, skillId: SocialSkillId): SocialCheckResult {
   const config = SOCIAL_SKILLS.find((s) => s.id === skillId)!;
-  const oddsMode = loadDiceOddsMode();
+  // Player's EFFECTIVE mode for this context; the NPC mirrors that.
+  const oddsMode = resolveOddsForContext('skill');
   const playerRoll = rollPlayerSocialCheck(ctx, skillId, oddsMode);
   const npcRoll = rollNpcOpposingCheck(ctx, oddsMode);
   const outcome: 'success' | 'failure' | 'tie' =

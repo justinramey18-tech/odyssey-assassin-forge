@@ -54,6 +54,7 @@ const ALL_STORAGE_KEYS = [
   'odyssey-game-mode',
   'odyssey-4th-wall-time',
   'odyssey-assassin-dice-odds',
+  'odyssey-dice-odds-profile',
   'floating-overlay-settings',
   
   // Navigation & UI

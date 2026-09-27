@@ -140,13 +140,103 @@ function rollWeightedDieInternal(sides: number, mode: DiceOddsMode): number {
 const DICE_ODDS_STORAGE_KEY = 'odyssey-assassin-dice-odds';
 
 export function saveDiceOddsMode(mode: DiceOddsMode): void {
-  setScopedItem(DICE_ODDS_STORAGE_KEY, mode);
+  // Picking a single mode selects its uniform profile.
+  saveOddsProfileId(mode);
 }
 
+/** Legacy single-mode read (the raw old key). Rolls use resolveOddsForContext(). */
 export function loadDiceOddsMode(): DiceOddsMode {
   const stored = getScopedItem(DICE_ODDS_STORAGE_KEY);
   if (stored && stored in DICE_ODDS_CONFIGS) {
     return stored as DiceOddsMode;
   }
   return 'fair';
+}
+
+// ─── Odds profiles: pick a mode per scene kind (combat vs roleplay) ─────────
+import type { D20Context } from '@/lib/rollD20';
+
+export type SceneKind = 'combat' | 'roleplay';
+
+export const CONTEXT_SCENE: Record<D20Context, SceneKind> = {
+  'attack': 'combat',
+  'spell-attack': 'combat',
+  'initiative': 'combat',
+  'death-save': 'combat',
+  'concentration': 'combat',
+  'save': 'combat',      // most saves happen in combat
+  'skill': 'roleplay',
+  'other': 'roleplay',
+};
+
+export interface OddsProfile {
+  id: string;
+  label: string;
+  description: string;
+  deadpoolQuote: string;
+  /** Which odds mode to use per scene kind. */
+  byScene: Record<SceneKind, DiceOddsMode>;
+  /** True for the plain single-mode profiles. */
+  uniform: boolean;
+}
+
+const UNIFORM_PROFILES: Record<string, OddsProfile> = Object.fromEntries(
+  (Object.keys(DICE_ODDS_CONFIGS) as DiceOddsMode[]).map((m) => {
+    const c = DICE_ODDS_CONFIGS[m];
+    return [m, { id: m, label: c.label, description: c.description, deadpoolQuote: c.deadpoolQuote, byScene: { combat: m, roleplay: m }, uniform: true }];
+  }),
+);
+
+export const ADAPTIVE_PROFILES: Record<string, OddsProfile> = {
+  protagonist: {
+    id: 'protagonist',
+    label: 'Protagonist',
+    description: 'Heroic in a fight, honest everywhere else. You will survive the battle — the story is genuinely uncertain.',
+    deadpoolQuote: '"Plot armor, but only when swords are out."',
+    byScene: { combat: 'heroic', roleplay: 'fair' },
+    uniform: false,
+  },
+  mastermind: {
+    id: 'mastermind',
+    label: 'Mastermind',
+    description: 'Silver-tongued out of combat, mortal in it. You steer the story, but a fight could go any way.',
+    deadpoolQuote: '"I talk my way out of things for a reason."',
+    byScene: { combat: 'fair', roleplay: 'heroic' },
+    uniform: false,
+  },
+};
+
+export const ODDS_PROFILES: Record<string, OddsProfile> = { ...UNIFORM_PROFILES, ...ADAPTIVE_PROFILES };
+
+const ODDS_PROFILE_STORAGE_KEY = 'odyssey-dice-odds-profile';
+export const ODDS_PROFILE_CHANGED_EVENT = 'odyssey-odds-profile-changed';
+
+export function loadOddsProfileId(): string {
+  const stored = getScopedItem(ODDS_PROFILE_STORAGE_KEY);
+  if (stored && stored in ODDS_PROFILES) return stored;
+  // Migration: an existing bare mode becomes its matching uniform profile.
+  return loadDiceOddsMode();
+}
+
+export function loadOddsProfile(): OddsProfile {
+  return ODDS_PROFILES[loadOddsProfileId()] ?? ODDS_PROFILES.fair;
+}
+
+export function saveOddsProfileId(id: string): void {
+  const profile = ODDS_PROFILES[id];
+  if (!profile) return;
+  setScopedItem(ODDS_PROFILE_STORAGE_KEY, id);
+  // Keep the legacy key meaningful for older readers (uniform profiles only).
+  if (profile.uniform) setScopedItem(DICE_ODDS_STORAGE_KEY, profile.byScene.combat);
+  try { window.dispatchEvent(new CustomEvent(ODDS_PROFILE_CHANGED_EVENT, { detail: id })); } catch { /* non-browser */ }
+}
+
+export function resolveOddsForContext(context: D20Context): DiceOddsMode {
+  const profile = loadOddsProfile();
+  return profile.byScene[CONTEXT_SCENE[context] ?? 'roleplay'];
+}
+
+/** "Combat: Heroic · Roleplay: Fair" */
+export function describeProfileScenes(p: OddsProfile): string {
+  return `Combat: ${DICE_ODDS_CONFIGS[p.byScene.combat].label} · Roleplay: ${DICE_ODDS_CONFIGS[p.byScene.roleplay].label}`;
 }
