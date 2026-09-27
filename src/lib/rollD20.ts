@@ -34,8 +34,17 @@ export interface D20Result {
   context: D20Context;
 }
 
-type D20Listener = (result: D20Result) => void;
+/**
+ * A listener may return a promise (resolving true if it showed something,
+ * e.g. the crit cinematic). Callers await it with awaitD20Reveal() before
+ * showing the result.
+ */
+type D20Listener = (result: D20Result) => void | Promise<boolean>;
 const listeners = new Set<D20Listener>();
+const pending = new WeakMap<D20Result, Promise<boolean>>();
+
+/** Contexts that earn the crit cinematic. Concentration, initiative, death saves and NPC ('other') rolls do not. */
+export const CINEMATIC_CONTEXTS: ReadonlySet<D20Context> = new Set(['attack', 'spell-attack', 'skill', 'save']);
 
 /** Subscribe to every d20 rolled through rollD20(). Returns an unsubscribe. */
 export function subscribeD20Rolls(l: D20Listener): () => void {
@@ -44,9 +53,25 @@ export function subscribeD20Rolls(l: D20Listener): () => void {
 }
 
 function emit(result: D20Result): void {
+  const waits: Promise<boolean>[] = [];
   listeners.forEach((l) => {
-    try { l(result); } catch (e) { console.error('[rollD20] listener failed', e); }
+    try {
+      const r = l(result);
+      if (r && typeof (r as Promise<boolean>).then === 'function') {
+        waits.push((r as Promise<boolean>).catch(() => false));
+      }
+    } catch (e) { console.error('[rollD20] listener failed', e); }
   });
+  if (waits.length) pending.set(result, Promise.all(waits).then((a) => a.some(Boolean)));
+}
+
+/**
+ * Await anything the roll triggered (e.g. the crit cinematic) before revealing
+ * the result. Resolves true if something played. Never rejects; resolves
+ * immediately when nothing is listening.
+ */
+export function awaitD20Reveal(result: D20Result): Promise<boolean> {
+  return pending.get(result) ?? Promise.resolve(false);
 }
 
 export function rollD20(opts?: { mode?: RollMode; context?: D20Context }): D20Result {
