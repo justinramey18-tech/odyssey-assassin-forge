@@ -146,6 +146,7 @@ const DeathSaveScreen: React.FC<DeathSaveScreenProps> = ({
     let count = 0;
     const maxTicks = 18;
     const interval = setInterval(() => {
+      // eslint-disable-next-line no-restricted-syntax -- animation-only spinning number
       setDisplayNumber(Math.floor(Math.random() * 20) + 1);
       count++;
       if (count >= maxTicks) {
