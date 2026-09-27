@@ -5,6 +5,8 @@
 // roll the dice, scale for upcasting, work out the save DC — and hand the DM a
 // factual receipt to narrate. The DM never invents the numbers.
 
+import { rollWeightedDie, loadDiceOddsMode } from '@/lib/diceOdds';
+
 export interface DiceFormula {
   count: number;
   die: number;
@@ -86,7 +88,8 @@ export interface AttackRoll {
 }
 
 export function rollSpellAttack(bonus: number): AttackRoll {
-  const d20 = rollDie(20);
+  // Attack d20s go through the player's dice odds setting; damage dice stay uniform.
+  const d20 = rollWeightedDie(20, loadDiceOddsMode());
   const safeBonus = Number.isFinite(bonus) ? bonus : 0;
   return {
     d20,
