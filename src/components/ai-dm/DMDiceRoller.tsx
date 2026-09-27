@@ -1,4 +1,4 @@
-import { rollD20 as sharedRollD20, awaitD20Reveal, type D20Context, type D20Result } from '@/lib/rollD20';
+import { rollD20 as sharedRollD20, awaitD20Reveal, subscribeD20Rolls, type D20Context, type D20Result } from '@/lib/rollD20';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -962,6 +962,7 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
             </span>
           </div>
 
+          <div className="mt-2 text-[9px] uppercase tracking-[0.2em] text-white/45 text-center">Simple</div>
           {/* Mode medallions — wraps so all seven fit at 360px */}
           <div className="mt-2 flex flex-wrap items-start justify-center gap-x-1 gap-y-2">
             {(Object.keys(DICE_ODDS_CONFIGS) as DiceOddsMode[]).map(mode => {
