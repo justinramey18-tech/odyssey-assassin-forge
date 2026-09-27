@@ -1,3 +1,4 @@
+import { rollD20 } from '@/lib/rollD20';
 // Initiative Utilities - DEX Modifier Estimates by Creature Type
 
 import { CreatureType } from './creatureTypes';
@@ -41,7 +42,7 @@ export function rollInitiativeWithEstimate(creatureType?: CreatureType): {
   modifier: number;
   total: number;
 } {
-  const roll = Math.floor(Math.random() * 20) + 1;
+  const roll = rollD20({ context: 'initiative' }).kept;
   const modifier = getEstimatedDexModifier(creatureType);
   return {
     roll,

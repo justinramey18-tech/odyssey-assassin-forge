@@ -5,7 +5,7 @@
 // roll the dice, scale for upcasting, work out the save DC — and hand the DM a
 // factual receipt to narrate. The DM never invents the numbers.
 
-import { rollWeightedDie, loadDiceOddsMode } from '@/lib/diceOdds';
+import { rollD20, type D20Result } from '@/lib/rollD20';
 
 export interface DiceFormula {
   count: number;
@@ -80,6 +80,8 @@ export function scaleForUpcast(f: DiceFormula, baseLevel: number, castLevel: num
 }
 
 export interface AttackRoll {
+  /** The shared d20 roll, so the UI can await the crit cinematic. */
+  d20Result?: D20Result;
   d20: number;
   bonus: number;
   total: number;
@@ -89,10 +91,12 @@ export interface AttackRoll {
 
 export function rollSpellAttack(bonus: number): AttackRoll {
   // Attack d20s go through the player's dice odds setting; damage dice stay uniform.
-  const d20 = rollWeightedDie(20, loadDiceOddsMode());
+  const roll = rollD20({ context: 'spell-attack' });
+  const d20 = roll.kept;
   const safeBonus = Number.isFinite(bonus) ? bonus : 0;
   return {
     d20,
+    d20Result: roll,
     bonus: safeBonus,
     total: d20 + safeBonus,
     isCrit: d20 === 20,

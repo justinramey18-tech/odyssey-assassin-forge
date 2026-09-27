@@ -22,7 +22,7 @@ import {
   type CastSpellDefinition,
   type ResolvedCast,
 } from '@/lib/magic/castResolver';
-import { useCritCinematic } from '@/components/dice/CritCinematicProvider';
+import { awaitD20Reveal } from '@/lib/rollD20';
 
 export interface CastCardProps {
   spell: CastSpellDefinition | null;
@@ -68,7 +68,6 @@ export function CastCard({ spell: rawSpell, onClose, onResolved }: CastCardProps
 
   const [chosen, setChosen] = useState<number>(0);
   const [busy, setBusy] = useState(false);
-  const { maybePlayCritCinematic } = useCritCinematic();
 
   if (!spell) return null;
 
@@ -116,8 +115,8 @@ export function CastCard({ spell: rawSpell, onClose, onResolved }: CastCardProps
 
     // A critical spell attack plays the cinematic BEFORE the result is revealed —
     // the video is the reveal. It fails open, so the result always appears.
-    if (resolved.attack?.isCrit) {
-      await maybePlayCritCinematic([resolved.attack.d20], 'normal', 'd20');
+    if (resolved.attack?.d20Result) {
+      await awaitD20Reveal(resolved.attack.d20Result);
     }
 
     toast.success(`${spell.name} cast`, { description: summariseCast(resolved) });
