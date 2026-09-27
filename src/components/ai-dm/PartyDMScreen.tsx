@@ -109,6 +109,7 @@ import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-part
 import { DMDiceRoller, preloadDiceRollerArt } from './DMDiceRoller';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { parseRollHint } from '@/lib/whisperRollHint';
+import { awaitLatestD20Reveal } from '@/lib/rollD20';
 import { resolveWhisperAutoRoll, performWhisperRoll } from '@/lib/whisperAutoRoll';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
 import { actionCardFromRoll, encodeActionCard, stripActionCard } from '@/lib/roundChatActionCard';
@@ -2372,7 +2373,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     const myMember = members.find(m => m.user_id === currentUserId);
     const characterContext = partyMemberDiceContext(myMember);
     const result = performWhisperRoll({ hint, actionPhrase: auto.actionPhrase, characterContext });
-    dispatchPrompt(result.chatMessage);
+    // Whisper auto-rolls are the player's own: hold the result until any crit cinematic finishes.
+    void awaitLatestD20Reveal().then(() => dispatchPrompt(result.chatMessage));
   }, [members, currentUserId]);
 
   const handleWhisperOpenRoller = useCallback((whisperContent: string) => {

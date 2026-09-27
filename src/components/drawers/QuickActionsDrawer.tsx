@@ -1,3 +1,4 @@
+import { rollD20Dice, rollModeFrom } from '@/lib/rollD20';
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -1137,15 +1138,13 @@ export function QuickActionsDrawer({
   // ── Roll handlers ──
 
   const handleWeaponRoll = useCallback((weapon: WeaponAttack) => {
-    const diceCount = weaponRollMode === 'normal' ? 1 : 2;
-    const roll = rollDice('d20', diceCount, weapon.attackBonus);
+    const roll = rollD20Dice(weapon.attackBonus, 'attack', weaponRollMode);
     const prompt = generateWeaponRollPrompt(weapon, roll, characterName, weaponRollMode);
     setActiveRoll({ id: `weapon-${weapon.id}`, roll, prompt });
   }, [characterName, weaponRollMode]);
 
   const handleWeaponReroll = useCallback((weapon: WeaponAttack) => {
-    const diceCount = weaponRollMode === 'normal' ? 1 : 2;
-    const roll = rollDice('d20', diceCount, weapon.attackBonus);
+    const roll = rollD20Dice(weapon.attackBonus, 'attack', weaponRollMode);
     const prompt = generateWeaponRollPrompt(weapon, roll, characterName, weaponRollMode);
     setActiveRoll({ id: `weapon-${weapon.id}`, roll, prompt });
   }, [characterName, weaponRollMode]);
@@ -1158,8 +1157,7 @@ export function QuickActionsDrawer({
       const weaponId = activeRoll.id.replace('weapon-', '');
       const weapon = weapons.find(w => w.id === weaponId);
       if (weapon) {
-        const diceCount = mode === 'normal' ? 1 : 2;
-        const roll = rollDice('d20', diceCount, weapon.attackBonus);
+        const roll = rollD20Dice(weapon.attackBonus, 'attack', mode);
         const prompt = generateWeaponRollPrompt(weapon, roll, characterName, mode);
         setActiveRoll({ id: `weapon-${weapon.id}`, roll, prompt });
       }

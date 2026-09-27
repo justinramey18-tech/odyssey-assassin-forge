@@ -1,3 +1,4 @@
+import { rollD20Dice, rollModeFrom } from '@/lib/rollD20';
 import { useState, useCallback } from 'react';
 import { Ability } from '@/lib/types';
 import { WeaponAttack, DEFAULT_WEAPONS, getSneakAttackDice } from '@/lib/combat/combatTypes';
@@ -261,7 +262,7 @@ export function useCombatActions({
 
     for (const queuedAttack of attackQueue.sortedQueue) {
       const totalAttackBonus = combatStats.attackBonus + queuedAttack.weapon.attackBonus;
-      const roll = rollDice('d20', rollCount, totalAttackBonus);
+      const roll = rollD20Dice(totalAttackBonus, 'attack', rollModeFrom(hasAdvantage, hasDisadvantage));
 
       let damage = queuedAttack.weapon.damage;
       if (!queuedAttack.isOffhand || combatSettings.hasTwoWeaponFightingStyle) {
@@ -338,7 +339,7 @@ export function useCombatActions({
 
   // FAB quick actions
   const handleQuickRoll = useCallback(() => {
-    const roll = rollDice('d20', 1);
+    const roll = rollD20Dice(0, 'other');
     setDiceRoll(roll);
     setDicePrompt('Quick d20 roll');
     setActiveAbility(null);
@@ -347,12 +348,12 @@ export function useCombatActions({
 
   const handleQuickAttack = useCallback(() => {
     const weapon = DEFAULT_WEAPONS[0];
-    const roll = rollDice('d20', 1, combatStats.attackBonus);
+    const roll = rollD20Dice(combatStats.attackBonus, 'attack');
     handleWeaponRoll('normal', weapon, roll, weapon.damage);
   }, [combatStats.attackBonus, handleWeaponRoll]);
 
   const handleQuickHide = useCallback(() => {
-    const roll = rollDice('d20', 1, 11); // Stealth +11
+    const roll = rollD20Dice(11, 'skill'); // Stealth +11
     setDiceRoll(roll);
     setDicePrompt('Stealth Check to Hide');
     setActiveAbility(null);

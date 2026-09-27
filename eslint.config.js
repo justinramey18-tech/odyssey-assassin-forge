@@ -24,7 +24,7 @@ export default tseslint.config(
       // Every real d20 roll must go through rollD20() in src/lib/rollD20.ts so it
       // respects dice odds and triggers the crit cinematic. Animation-only
       // spinning numbers may disable this line with a comment saying why.
-      "no-restricted-syntax": ["warn",
+      "no-restricted-syntax": ["error",
         {
           selector: "BinaryExpression[operator='*'][left.callee.object.name='Math'][left.callee.property.name='random'][right.value=20]",
           message: "Real d20 rolls must use rollD20() from '@/lib/rollD20'. Animation-only? Add an eslint-disable comment explaining why.",

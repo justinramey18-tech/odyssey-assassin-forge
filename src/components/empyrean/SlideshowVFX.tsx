@@ -50,6 +50,7 @@ function EmbersVFX() {
       left: 10 + Math.random() * 80,
       size: 3 + Math.random() * 4,
       hue: 20 + Math.random() * 25,
+      // eslint-disable-next-line no-restricted-syntax -- ember colour lightness, not a dice roll
       lightness: 50 + Math.random() * 20,
       duration: 2.5 + Math.random() * 3,
       delay: Math.random() * 2.5,

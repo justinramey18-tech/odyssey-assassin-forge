@@ -1,3 +1,4 @@
+import { rollD20Dice, rollModeFrom } from '@/lib/rollD20';
 import { useState } from 'react';
 import { Zap, Copy, Check, Shield, Flame, Skull } from 'lucide-react';
 import { toast } from 'sonner';
@@ -61,7 +62,7 @@ export function AbilitiesDrawer({
 
   const openPromptModal = (ability: Ability) => {
     const tier = unlockedAbilities.get(ability.id) || 1;
-    const roll = rollDice('d20', 1);
+    const roll = rollD20Dice(0, 'attack');
     const prompt = generateRPPrompt(ability, tier as 1 | 2 | 3, roll, character.name || 'The Assassin');
     setPromptModal({ ability, prompt });
   };

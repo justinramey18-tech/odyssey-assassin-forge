@@ -27,6 +27,7 @@ import {
 } from '@/lib/diceRollerConfig';
 import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import { rollDie } from '@/lib/diceRoller';
+import { rollD20, awaitD20Reveal, type D20Context } from '@/lib/rollD20';
 import { getD20RollQuality } from '@/lib/rollQuality';
 import { DiceOddsWidget } from '@/components/settings/DiceOddsWidget';
 import { DiceOddsMode, loadDiceOddsMode, saveDiceOddsMode } from '@/lib/diceOdds';
@@ -499,7 +500,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
   const QUICK_EXPRESSIONS = ['2d6', '1d8+4', '4d6', '2d10+5', '8d6', '1d20+5'];
 
   // Roll a die with animation and modifier
-  const rollDice = useCallback((die: DieSize, label?: string, modifier: number = 0, useRollMode: boolean = false) => {
+  const rollDice = useCallback((die: DieSize, label?: string, modifier: number = 0, useRollMode: boolean = false, d20Context?: D20Context) => {
     setIsRolling(true);
     triggerHaptic('medium');
 
@@ -528,9 +529,13 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
         clearInterval(animate);
         
         // Roll the dice
-        const allRolls: number[] = [];
-        for (let i = 0; i < rollCount; i++) {
-          allRolls.push(rollDie(sides));
+        // Real d20 checks go through rollD20() so dice odds and the crit cinematic apply.
+        const d20 = die === 'd20' && d20Context ? rollD20({ mode: effectiveMode, context: d20Context }) : null;
+        const allRolls: number[] = d20 ? [...d20.rolls] : [];
+        if (!d20) {
+          for (let i = 0; i < rollCount; i++) {
+            allRolls.push(rollDie(sides));
+          }
         }
         
         // Determine final roll based on mode
@@ -558,11 +563,19 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
           allRolls: rollCount > 1 ? allRolls : undefined,
           droppedRoll,
         };
-        maybePlayCritSound(finalRawRoll, sides);
-        setCurrentRoll(newRoll);
-        setRollHistory(prev => [newRoll, ...prev.slice(0, 19)]);
-        setIsRolling(false);
-        triggerHaptic('heavy');
+        const reveal = () => {
+          setCurrentRoll(newRoll);
+          setRollHistory(prev => [newRoll, ...prev.slice(0, 19)]);
+          setIsRolling(false);
+          triggerHaptic('heavy');
+        };
+        if (d20) {
+          // rollD20 handles the crit sound; hold the result until any cinematic finishes.
+          void awaitD20Reveal(d20).then(reveal);
+        } else {
+          maybePlayCritSound(finalRawRoll, sides);
+          reveal();
+        }
       }
     }, 50);
   }, [rollMode]);
@@ -576,7 +589,8 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
     const profBonus = proficiencyBonus * profMultiplier;
     const totalMod = abilityMod + profBonus;
     const indicator = hasExpertise ? '★' : (isProficient ? '●' : '');
-    rollDice('d20', `${indicator}${skillName} (${getAbilityScoreDisplay(ability).abbr})`, totalMod, true);
+    // eslint-disable-next-line no-restricted-syntax -- this screen's own rollDice routes d20 checks through rollD20() via the context argument
+    rollDice('d20', `${indicator}${skillName} (${getAbilityScoreDisplay(ability).abbr})`, totalMod, true, 'skill');
   }, [rollDice, abilityModifiers, proficiencyBonus, proficientSkills, expertiseSkills]);
 
   // Roll saving throw (d20) with modifiers and roll mode
@@ -585,7 +599,8 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
     const profBonus = proficientSaves.has(ability) ? proficiencyBonus : 0;
     const totalMod = abilityMod + profBonus;
     const profIndicator = profBonus > 0 ? '●' : '';
-    rollDice('d20', `${profIndicator}${getAbilityScoreDisplay(ability).name} Save`, totalMod, true);
+    // eslint-disable-next-line no-restricted-syntax -- this screen's own rollDice routes d20 checks through rollD20() via the context argument
+    rollDice('d20', `${profIndicator}${getAbilityScoreDisplay(ability).name} Save`, totalMod, true, 'save');
   }, [rollDice, abilityModifiers, proficiencyBonus, proficientSaves]);
 
   // Copy to clipboard
@@ -892,7 +907,8 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
               onClick={() => {
               const dexMod = abilityModifiers.dex;
                 const initLabel = isEmpyreanMode() ? `⚡ Combat Reflexes (${getAbilityScoreDisplay('dex').abbr})` : `⚡ Initiative (DEX)`;
-                rollDice('d20', initLabel, dexMod, true);
+                // eslint-disable-next-line no-restricted-syntax -- this screen's own rollDice routes d20 checks through rollD20() via the context argument
+                rollDice('d20', initLabel, dexMod, true, 'initiative');
               }}
               disabled={isRolling}
               className={cn(

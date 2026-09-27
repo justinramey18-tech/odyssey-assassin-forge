@@ -1,3 +1,4 @@
+import { rollD20Dice, rollModeFrom } from '@/lib/rollD20';
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -38,7 +39,7 @@ export function GeraltCompanionScreen({ open, onClose, characterId, onHpChange }
 
   const rollHit = useCallback((atk: typeof ATTACKS[0]) => {
     if (!atk.hitMod) return;
-    const roll = rollDice('d20', 1, atk.hitMod);
+    const roll = rollD20Dice(atk.hitMod, 'attack');
     const nat = roll.rolls[0];
     setLastRoll({ attackName: atk.name, type: 'hit', roll, isNat20: nat === 20, isNat1: nat === 1 });
   }, []);

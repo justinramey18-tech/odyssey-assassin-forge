@@ -101,6 +101,11 @@ export function rollWeightedDie(sides: number, mode: DiceOddsMode): number {
   return value;
 }
 
+/** Same as rollWeightedDie but never plays the crit sound. rollD20() decides sound itself. */
+export function rollWeightedDieSilent(sides: number, mode: DiceOddsMode): number {
+  return rollWeightedDieInternal(sides, mode);
+}
+
 function rollWeightedDieInternal(sides: number, mode: DiceOddsMode): number {
   // Fair mode: pure uniform random
   if (mode === 'fair') {
