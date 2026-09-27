@@ -1,3 +1,4 @@
+import { CritCinematicProvider } from '@/components/dice/CritCinematicProvider';
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode, useMemo, useRef } from 'react';
 import { getScopedItem } from '@/lib/scoped-storage';
 import { useCharacterIdentity } from '@/hooks/use-character-identity';
@@ -1020,6 +1021,7 @@ export function PromptDrawerProvider({
 
   return (
     <PromptDrawerContext.Provider value={contextValue}>
+    <CritCinematicProvider>
       {children}
 
       {enabled && (
@@ -1292,6 +1294,7 @@ export function PromptDrawerProvider({
           )}
         </>
       )}
+    </CritCinematicProvider>
     </PromptDrawerContext.Provider>
   );
 }
