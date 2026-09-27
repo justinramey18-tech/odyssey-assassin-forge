@@ -1,3 +1,4 @@
+import { rollD20 } from '@/lib/rollD20';
 import { useState } from 'react';
 import { Skull, Heart, RotateCcw, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -28,7 +29,7 @@ export function DeathSavesTracker({
     
     // Simulate dice roll animation
     setTimeout(() => {
-      const roll = Math.floor(Math.random() * 20) + 1;
+      const roll = rollD20({ context: 'death-save' }).kept;
       let newSuccesses = deathSaves.successes;
       let newFailures = deathSaves.failures;
 

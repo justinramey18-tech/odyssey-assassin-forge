@@ -1,3 +1,4 @@
+import { rollD20 } from '@/lib/rollD20';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Enemy } from '@/lib/combat/targetTypes';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
@@ -162,7 +163,7 @@ export function useInitiative(
 
   // Roll player initiative (d20 + modifier)
   const rollPlayerInitiative = useCallback((modifier: number = 0): number => {
-    const roll = Math.floor(Math.random() * 20) + 1;
+    const roll = rollD20({ context: 'initiative' }).kept;
     const total = roll + modifier;
     setState(prev => ({ ...prev, playerInitiative: total }));
     return total;

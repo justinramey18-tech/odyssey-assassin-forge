@@ -1,3 +1,4 @@
+import { rollD20 } from '@/lib/rollD20';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Eye, Shield, AlertTriangle, X, Dices, Check, XCircle } from 'lucide-react';
@@ -63,7 +64,7 @@ export function ConcentrationCheckPanel({
     if (damage <= 0) return;
 
     const dc = getConcentrationCheckDC(damage);
-    const roll = Math.floor(Math.random() * 20) + 1;
+    const roll = rollD20({ context: 'concentration' }).kept;
     const total = roll + saveBonus;
     const success = total >= dc || roll === 20;
     const critFail = roll === 1;
@@ -312,7 +313,7 @@ export function ConcentrationCheckInline({
   const saveBonus = conModifier + (isProficientInConSaves ? proficiencyBonus : 0);
 
   const handleRoll = () => {
-    const roll = Math.floor(Math.random() * 20) + 1;
+    const roll = rollD20({ context: 'concentration' }).kept;
     const total = roll + saveBonus;
     const success = total >= dc || roll === 20;
     const critFail = roll === 1;
