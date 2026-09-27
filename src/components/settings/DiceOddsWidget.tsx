@@ -4,7 +4,7 @@ import {
   saveDiceOddsMode, 
 } from '@/lib/diceOdds';
 import { cn } from '@/lib/utils';
-import { Dices, Sparkles, Flame, Skull, Shuffle, Scale } from 'lucide-react';
+import { Dices, Sparkles, Flame, Skull, Shuffle, Scale, Crown, CloudRainWind } from 'lucide-react';
 
 interface DiceOddsWidgetProps {
   value: DiceOddsMode;
@@ -17,6 +17,8 @@ const modeIcons: Record<DiceOddsMode, React.ReactNode> = {
   dramatic: <Flame className="w-5 h-5" />,
   chaotic: <Shuffle className="w-5 h-5" />,
   cursed: <Skull className="w-5 h-5" />,
+  godmode: <Crown className="w-5 h-5" />,
+  doomed: <CloudRainWind className="w-5 h-5" />,
 };
 
 const modeColors: Record<DiceOddsMode, string> = {
@@ -25,6 +27,8 @@ const modeColors: Record<DiceOddsMode, string> = {
   dramatic: 'border-purple-500/30 bg-purple-500/5 text-purple-600/70 data-[selected=true]:border-purple-400 data-[selected=true]:bg-purple-500/20 data-[selected=true]:text-purple-400',
   chaotic: 'border-cyan-500/30 bg-cyan-500/5 text-cyan-600/70 data-[selected=true]:border-cyan-400 data-[selected=true]:bg-cyan-500/20 data-[selected=true]:text-cyan-400',
   cursed: 'border-red-500/30 bg-red-500/5 text-red-600/70 data-[selected=true]:border-red-400 data-[selected=true]:bg-red-500/20 data-[selected=true]:text-red-400',
+  godmode: 'border-yellow-300/40 bg-yellow-300/5 text-yellow-500/80 data-[selected=true]:border-yellow-300 data-[selected=true]:bg-yellow-300/20 data-[selected=true]:text-yellow-300',
+  doomed: 'border-red-700/40 bg-red-700/5 text-red-700/80 data-[selected=true]:border-red-600 data-[selected=true]:bg-red-700/20 data-[selected=true]:text-red-500',
 };
 
 const bracketColors = [
@@ -58,7 +62,7 @@ export function DiceOddsWidget({ value, onChange }: DiceOddsWidgetProps) {
       </p>
 
       {/* Mode Selection Grid */}
-      <div className="grid grid-cols-5 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         {modes.map((config) => (
           <button
             key={config.mode}

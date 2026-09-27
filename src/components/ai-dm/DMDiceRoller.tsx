@@ -474,6 +474,20 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
 
   return (
     <div className="bg-black/20 relative">
+      {/* Persistent badge while God Mode / Doomed is active — these override every d20 */}
+      {(currentOddsMode === 'godmode' || currentOddsMode === 'doomed') && (
+        <div
+          className={cn(
+            "mx-3 mt-3 mb-1 px-3 py-1.5 rounded-full border text-center font-cinzel text-[11px] font-bold uppercase tracking-[0.2em]",
+            currentOddsMode === 'godmode'
+              ? "border-yellow-300/60 bg-yellow-400/15 text-yellow-200 shadow-[0_0_14px_rgba(253,224,71,0.35)]"
+              : "border-red-600/60 bg-red-600/15 text-red-300 shadow-[0_0_14px_rgba(220,38,38,0.35)]"
+          )}
+        >
+          {currentOddsMode === 'godmode' ? '👑 God Mode — every d20 is a 20' : '💀 Doomed — every d20 is a 1'}
+        </div>
+      )}
+
       {/* DC banner (whisper-driven hint) */}
       {rollHint && rollHint.dc != null && (
         <div className="mx-3 mt-3 mb-2 px-3 py-2 rounded-lg border border-amber-500/30 bg-amber-500/10 text-[11px] text-amber-200 flex items-center justify-between">
