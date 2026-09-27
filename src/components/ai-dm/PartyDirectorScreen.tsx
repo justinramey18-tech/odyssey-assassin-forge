@@ -1,9 +1,23 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, Trash2 } from 'lucide-react';
+import { getScopedItem, setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
 import directorBanner from '@/assets/director/director-banner.png';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
-import { usePartyDirector, type DirectorCategory, type DirectorMessage } from '@/hooks/use-party-director';
+import { usePartyDirector, STANDING_INTENTS, type DirectorCategory, type DirectorMessage, type DirectorIntent } from '@/hooks/use-party-director';
+
+const INTENT_KEY = 'odyssey-director-intent';
+const INTENTS: { id: DirectorIntent; icon: string; label: string; desc: string }[] = [
+  { id: 'now', icon: '⚡', label: 'Now', desc: 'Make this happen in the next response' },
+  { id: 'soon', icon: '🕯', label: 'Soon', desc: 'Make this happen within the next few turns' },
+  { id: 'slow_burn', icon: '🌱', label: 'Slow burn', desc: 'Keep this in mind, surface it when it fits' },
+  { id: 'canon', icon: '📕', label: 'Canon', desc: 'True about my character. Never say it outright' },
+  { id: 'steer', icon: '🎚', label: 'Steer', desc: 'How to run the game, not what happens' },
+];
+function loadIntent(): DirectorIntent {
+  const v = getScopedItem(INTENT_KEY);
+  return INTENTS.some(i => i.id === v) ? (v as DirectorIntent) : 'now';
+}
 import directorBg from '@/assets/director/director-bg.jpg.asset.json';
 import playerFrame from '@/assets/director/director-player-frame.png.asset.json';
 import dmFrame from '@/assets/director/director-dm-frame.png.asset.json';
@@ -47,10 +61,25 @@ interface PartyDirectorScreenProps {
 export function PartyDirectorScreen({
   open, onClose, partyId, userId, campaignPlan, characterContext, onPublicAction,
 }: PartyDirectorScreenProps) {
-  const { messages, isSending, error, send, overrideMessage } = usePartyDirector({
+  const { messages, isSending, error, send, overrideMessage, deleteStandingNote } = usePartyDirector({
     partyId, userId, campaignPlan, characterContext, onPublicAction,
   });
   const [input, setInput] = useState('');
+  const [intent, setIntentState] = useState<DirectorIntent>(() => { migrateToScoped(INTENT_KEY); return loadIntent(); });
+  const [showStanding, setShowStanding] = useState(false);
+  useEffect(() => {
+    const reload = () => setIntentState(loadIntent());
+    window.addEventListener('odyssey-character-loaded', reload);
+    return () => window.removeEventListener('odyssey-character-loaded', reload);
+  }, []);
+  const setIntent = useCallback((v: DirectorIntent) => {
+    setIntentState(v);
+    try { setScopedItem(INTENT_KEY, v); } catch { /* ignore */ }
+  }, []);
+  const standingNotes = messages.filter(m =>
+    m.role === 'user' && m.intent && STANDING_INTENTS.includes(m.intent) &&
+    m.category !== 'rejected' && m.category !== 'escalated' && m.category !== 'public_action');
+  const selectedIntent = INTENTS.find(i => i.id === intent) ?? INTENTS[0];
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -63,8 +92,8 @@ export function PartyDirectorScreen({
     if (!input.trim() || isSending) return;
     const text = input;
     setInput('');
-    send(text);
-  }, [input, isSending, send]);
+    send(text, undefined, intent);
+  }, [input, isSending, send, intent]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -129,6 +158,50 @@ export function PartyDirectorScreen({
             {error}
           </div>
         )}
+      </div>
+
+      {/* Standing notes + timing chips */}
+      <div className="relative shrink-0 space-y-1.5 bg-black/70 px-2.5 pt-2">
+        {standingNotes.length > 0 && (
+          <div className="rounded-lg border border-yellow-500/25 bg-black/50">
+            <button type="button" onClick={() => setShowStanding(v => !v)}
+              className="flex min-h-[40px] w-full items-center justify-between px-3 text-left font-cinzel text-[11px] font-bold uppercase tracking-[0.1em] text-amber-200/85"
+              style={{ touchAction: 'manipulation' }}>
+              <span>Standing notes ({standingNotes.length})</span>
+              <span className="text-amber-100/50">{showStanding ? 'Hide' : 'Show'}</span>
+            </button>
+            {showStanding && (
+              <ul className="max-h-40 space-y-1.5 overflow-y-auto px-2 pb-2">
+                {standingNotes.map(n => {
+                  const meta = INTENTS.find(i => i.id === n.intent);
+                  return (
+                    <li key={n.id} className="flex items-start gap-2 rounded-md border border-white/10 bg-black/40 p-2">
+                      <span className="shrink-0 text-sm" aria-label={meta?.label}>{meta?.icon}</span>
+                      <p className="flex-1 whitespace-pre-wrap text-xs leading-snug text-amber-50/90">{n.content}</p>
+                      <button type="button" onClick={() => deleteStandingNote(n.id)} aria-label="Delete note"
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-red-300/80 active:scale-95"
+                        style={{ touchAction: 'manipulation' }}>
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+        <div className="grid grid-cols-5 gap-1" role="radiogroup" aria-label="When should this happen">
+          {INTENTS.map(i => (
+            <button key={i.id} type="button" role="radio" aria-checked={intent === i.id} onClick={() => setIntent(i.id)}
+              className={cn('flex min-h-[48px] flex-col items-center justify-center rounded-lg border px-0.5 text-[10px] leading-tight transition-colors',
+                intent === i.id ? 'border-amber-400/80 bg-amber-500/20 text-amber-100' : 'border-white/10 bg-black/40 text-amber-100/55')}
+              style={{ touchAction: 'manipulation' }}>
+              <span className="text-base leading-none">{i.icon}</span>
+              <span className="mt-0.5 font-semibold">{i.label}</span>
+            </button>
+          ))}
+        </div>
+        <p className="text-center text-[11px] italic text-amber-100/65">{selectedIntent.desc}</p>
       </div>
 
       {/* Input bar + wax-seal send button */}
