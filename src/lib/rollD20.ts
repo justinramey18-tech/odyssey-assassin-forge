@@ -14,7 +14,7 @@
  * subscribeD20Rolls().
  */
 
-import { rollWeightedDie, loadDiceOddsMode } from '@/lib/diceOdds';
+import { rollWeightedDie, loadDiceOddsMode, type DiceOddsMode } from '@/lib/diceOdds';
 import { isCriticalHit, isCriticalMiss, getEffectiveDie, type RollMode } from '@/lib/diceRoller';
 
 export type D20Context =
@@ -42,6 +42,7 @@ export interface D20Result {
 type D20Listener = (result: D20Result) => void | Promise<boolean>;
 const listeners = new Set<D20Listener>();
 const pending = new WeakMap<D20Result, Promise<boolean>>();
+let latest: D20Result | null = null;
 
 /** Contexts that earn the crit cinematic. Concentration, initiative, death saves and NPC ('other') rolls do not. */
 export const CINEMATIC_CONTEXTS: ReadonlySet<D20Context> = new Set(['attack', 'spell-attack', 'skill', 'save']);
@@ -62,6 +63,7 @@ function emit(result: D20Result): void {
       }
     } catch (e) { console.error('[rollD20] listener failed', e); }
   });
+  latest = result;
   if (waits.length) pending.set(result, Promise.all(waits).then((a) => a.some(Boolean)));
 }
 
@@ -74,10 +76,24 @@ export function awaitD20Reveal(result: D20Result): Promise<boolean> {
   return pending.get(result) ?? Promise.resolve(false);
 }
 
-export function rollD20(opts?: { mode?: RollMode; context?: D20Context }): D20Result {
+/**
+ * Await whatever the most recent rollD20() call triggered. For roll helpers
+ * that return their own result shape instead of the D20Result — call it
+ * straight after the roll, before anything else can roll.
+ */
+export function awaitLatestD20Reveal(): Promise<boolean> {
+  return latest ? awaitD20Reveal(latest) : Promise.resolve(false);
+}
+
+export function rollD20(opts?: {
+  mode?: RollMode;
+  context?: D20Context;
+  /** Override the player's odds setting. Only for NPC rolls that mirror it (npcSocialChecks). */
+  odds?: DiceOddsMode;
+}): D20Result {
   const mode: RollMode = opts?.mode ?? 'normal';
   const context: D20Context = opts?.context ?? 'other';
-  const odds = loadDiceOddsMode();
+  const odds = opts?.odds ?? loadDiceOddsMode();
   const count = mode === 'normal' ? 1 : 2;
   const rolls: number[] = [];
   for (let i = 0; i < count; i++) rolls.push(rollWeightedDie(20, odds));

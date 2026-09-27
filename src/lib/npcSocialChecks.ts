@@ -1,7 +1,8 @@
+import { rollD20 } from '@/lib/rollD20';
 import type { CharacterContext } from '@/components/oracle/types';
 import { getProficiencyBonus } from '@/lib/magic/calculations';
 import { getScopedItem } from '@/lib/scoped-storage';
-import { rollWeightedDie, loadDiceOddsMode, type DiceOddsMode } from '@/lib/diceOdds';
+import { loadDiceOddsMode, type DiceOddsMode } from '@/lib/diceOdds';
 
 
 export type SocialSkillId = 'persuasion' | 'intimidation' | 'insight' | 'deception';
@@ -88,7 +89,7 @@ export function rollPlayerSocialCheck(
   skillId: SocialSkillId,
   oddsMode: DiceOddsMode = loadDiceOddsMode()
 ): SocialRollResult {
-  const die = rollWeightedDie(20, oddsMode);
+  const die = rollD20({ context: 'skill', odds: oddsMode }).kept;
   const modifier = getPlayerSocialModifier(ctx, skillId);
   return { die, modifier, total: die + modifier };
 }
@@ -97,7 +98,8 @@ export function rollNpcOpposingCheck(
   ctx: CharacterContext,
   playerOddsMode: DiceOddsMode = loadDiceOddsMode()
 ): SocialRollResult {
-  const die = rollWeightedDie(20, OPPOSING_ODDS_MODE[playerOddsMode] ?? 'fair');
+  // NPC roll: context 'other' so it never plays the crit cinematic.
+  const die = rollD20({ context: 'other', odds: OPPOSING_ODDS_MODE[playerOddsMode] ?? 'fair' }).kept;
   // Centered bonus: ranges from -half to +half instead of always positive.
   const range = NPC_MOD_BASE + Math.floor((ctx.level || 1) / NPC_MOD_LEVEL_DIVISOR);
   const half = Math.floor(range / 2);

@@ -1,3 +1,4 @@
+import { rollD20 } from '@/lib/rollD20';
 /**
  * Whisper Auto-Roll — one-tap intent-based rolling.
  *
@@ -13,8 +14,8 @@
  *  4. fallback "Roll for it" — caller opens the dice roller
  */
 
-import { rollDie } from '@/lib/diceRoller';
-import { rollWeightedDie, loadDiceOddsMode } from '@/lib/diceOdds';
+
+
 import { getProficiencyBonus } from '@/lib/magic/calculations';
 import type { RollHint } from '@/lib/whisperRollHint';
 import type { AbilityScore } from '@/lib/diceRollerConfig';
@@ -126,8 +127,6 @@ export function performWhisperRoll(params: {
 }): WhisperRollResult {
   const { hint, actionPhrase, characterContext } = params;
 
-  const oddsMode = loadDiceOddsMode();
-  const rollD20 = () => oddsMode === 'fair' ? rollDie(20) : rollWeightedDie(20, oddsMode);
 
   const ability: AbilityScore =
     hint.ability ??
@@ -147,18 +146,12 @@ export function performWhisperRoll(params: {
 
   const modifier = abilityMod + proficiencyBonus;
 
-  let rolls: number[];
-  let kept: number;
-  if (hint.rollMode === 'advantage') {
-    rolls = [rollD20(), rollD20()];
-    kept = Math.max(rolls[0], rolls[1]);
-  } else if (hint.rollMode === 'disadvantage') {
-    rolls = [rollD20(), rollD20()];
-    kept = Math.min(rolls[0], rolls[1]);
-  } else {
-    rolls = [rollD20()];
-    kept = rolls[0];
-  }
+  const d20 = rollD20({
+    mode: hint.rollMode === 'advantage' || hint.rollMode === 'disadvantage' ? hint.rollMode : 'normal',
+    context: hint.isSave ? 'save' : 'skill',
+  });
+  const rolls = d20.rolls;
+  const kept = d20.kept;
 
   const total = kept + modifier;
   const isCrit = kept === 20;
