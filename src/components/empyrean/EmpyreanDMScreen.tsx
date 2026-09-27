@@ -97,6 +97,7 @@ import type { CampaignBuildData } from '@/hooks/use-ai-campaign-chat';
 import { useEmpyreanAutopilot } from '@/hooks/use-empyrean-autopilot';
 import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
 import { parseRollHint, type RollHint } from '@/lib/whisperRollHint';
+import { awaitLatestD20Reveal } from '@/lib/rollD20';
 import { performWhisperRoll, resolveWhisperAutoRoll } from '@/lib/whisperAutoRoll';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -1070,7 +1071,8 @@ ${oocLines}`;
       actionPhrase: auto.actionPhrase,
       characterContext,
     });
-    empyreanInputRef.current?.appendText(result.chatMessage);
+    // Hold the result until any crit cinematic finishes.
+    void awaitLatestD20Reveal().then(() => empyreanInputRef.current?.appendText(result.chatMessage));
   }, [characterContext]);
 
   const handleAskDirector = useCallback(() => {
