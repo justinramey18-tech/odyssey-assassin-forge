@@ -24,6 +24,7 @@ import modeAdvantageArt from '@/assets/dice-modes/mode-advantage.webp.asset.json
 import modeDisadvantageArt from '@/assets/dice-modes/mode-disadvantage.webp.asset.json';
 import rollInitiativeArt from '@/assets/dice-modes/roll-initiative.webp.asset.json';
 import { toast } from 'sonner';
+import { useCritCinematic } from '@/components/dice/CritCinematicProvider';
 
 type RollMode = 'normal' | 'advantage' | 'disadvantage';
 
@@ -52,6 +53,8 @@ interface RollDisplay {
   mode: RollMode;
   isQuickDie?: boolean;
   dieSides?: number;
+  /** The crit cinematic was the reveal — skip rolling animation and thud. */
+  cinematic?: boolean;
   id: number;
 }
 
@@ -248,12 +251,13 @@ export function preloadDiceRollerArt(extra: string[] = []): void {
 }
 
 // Animated rolling number component
-function RollingNumber({ target, sides, duration = 600, onLand }: { target: number; sides: number; duration?: number; onLand?: () => void }) {
+function RollingNumber({ target, sides, duration = 600, onLand, instant = false }: { target: number; sides: number; duration?: number; onLand?: () => void; instant?: boolean }) {
   const [display, setDisplay] = useState(target);
-  const [isRolling, setIsRolling] = useState(true);
+  const [isRolling, setIsRolling] = useState(!instant);
   const frameRef = useRef<number>(0);
 
   useEffect(() => {
+    if (instant) { setDisplay(target); setIsRolling(false); return; }
     setIsRolling(true);
     playDiceRattle(duration);
     const startTime = Date.now();
@@ -312,6 +316,8 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
   const [lastRoll, setLastRoll] = useState<RollDisplay | null>(null);
   const [editMode, setEditMode] = useState(false);
   const rollIdRef = useRef(0);
+  const { maybePlayCritCinematic, preloadCritCinematic } = useCritCinematic();
+  useEffect(() => { preloadCritCinematic(); }, [preloadCritCinematic]);
   const dismissTimerRef = useRef<number>(0);
 
   // Load proficiency data from storage as state (so we can toggle)
@@ -399,8 +405,11 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
     return () => { if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current); };
   }, [lastRoll]);
 
-  const handleRoll = useCallback((label: string, modifier: number) => {
+  const handleRoll = useCallback(async (label: string, modifier: number) => {
     const roll = rollD20(rollMode);
+    // The crit cinematic is the reveal: hold the result until it ends (fails open).
+    let cinematic = false;
+    try { cinematic = await maybePlayCritCinematic(roll.rolls, rollMode, 'd20'); } catch { cinematic = false; }
     const message = formatRollMessage(label, roll, modifier, rollMode);
     if (onRoll) {
       onRoll({
@@ -425,10 +434,11 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
       isCrit: roll.kept === 20,
       isFumble: roll.kept === 1,
       mode: rollMode,
+      cinematic,
       id: rollIdRef.current,
     });
     onRollResult(message);
-  }, [rollMode, onRollResult, onRoll]);
+  }, [rollMode, onRollResult, onRoll, maybePlayCritCinematic]);
 
   const handleQuickDie = useCallback((sides: number, label: string) => {
     const result = rollDie(sides);
@@ -559,7 +569,8 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
                           target={r}
                           sides={lastRoll.isQuickDie ? (lastRoll.dieSides ?? 20) : 20}
                           duration={isDropped ? 400 : 600}
-                          onLand={!isDropped ? () => playDiceThud(lastRoll.isCrit, lastRoll.isFumble) : undefined}
+                          instant={!!lastRoll.cinematic}
+                          onLand={!isDropped && !lastRoll.cinematic ? () => playDiceThud(lastRoll.isCrit, lastRoll.isFumble) : undefined}
                         />
                       </span>
                     );
