@@ -1767,6 +1767,10 @@ async function processCommand(
     const ext = (save.extended_data || {}) as any;
     const dex = ext.abilityScores?.dexterity || 10;
     const dexMod = abilityMod(dex);
+    // DELIBERATE: Telegram initiative is rolled fair on the server and ignores the
+    // player's client-side dice odds (God Mode, Doomed, etc.). Do not "fix" this
+    // by switching to rollD20() — that setting lives on the device, not here.
+    // eslint-disable-next-line no-restricted-syntax -- server-side fair roll, see above
     const d20 = Math.floor(Math.random() * 20) + 1;
     const total = d20 + dexMod;
     const name = (save.character_data as any)?.name || 'You';
