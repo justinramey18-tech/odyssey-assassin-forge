@@ -589,6 +589,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
     const profBonus = proficiencyBonus * profMultiplier;
     const totalMod = abilityMod + profBonus;
     const indicator = hasExpertise ? '★' : (isProficient ? '●' : '');
+    // eslint-disable-next-line no-restricted-syntax -- this screen's own rollDice routes d20 checks through rollD20() via the context argument
     rollDice('d20', `${indicator}${skillName} (${getAbilityScoreDisplay(ability).abbr})`, totalMod, true, 'skill');
   }, [rollDice, abilityModifiers, proficiencyBonus, proficientSkills, expertiseSkills]);
 
@@ -598,6 +599,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
     const profBonus = proficientSaves.has(ability) ? proficiencyBonus : 0;
     const totalMod = abilityMod + profBonus;
     const profIndicator = profBonus > 0 ? '●' : '';
+    // eslint-disable-next-line no-restricted-syntax -- this screen's own rollDice routes d20 checks through rollD20() via the context argument
     rollDice('d20', `${profIndicator}${getAbilityScoreDisplay(ability).name} Save`, totalMod, true, 'save');
   }, [rollDice, abilityModifiers, proficiencyBonus, proficientSaves]);
 
@@ -905,6 +907,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
               onClick={() => {
               const dexMod = abilityModifiers.dex;
                 const initLabel = isEmpyreanMode() ? `⚡ Combat Reflexes (${getAbilityScoreDisplay('dex').abbr})` : `⚡ Initiative (DEX)`;
+                // eslint-disable-next-line no-restricted-syntax -- this screen's own rollDice routes d20 checks through rollD20() via the context argument
                 rollDice('d20', initLabel, dexMod, true, 'initiative');
               }}
               disabled={isRolling}
