@@ -148,6 +148,7 @@ serve(async (req) => {
       campaign_summary,
       story_flavor_label,
       story_flavor_guidance,
+      custom_intent,
       live_table_lines,
       synergy_mode,
       synergy_targets,
@@ -253,6 +254,19 @@ These lines have been typed by other players this moment but have NOT been given
 ${liveLines}${isSynergy ? `\n\nThe suggestions must react specifically to what ${targetList} ${targets.length > 1 ? 'are' : 'is'} attempting. Other lines here are background only.` : ''}`
       : '';
 
+    const customIntent = typeof custom_intent === 'string' ? custom_intent.slice(0, 300).trim() : '';
+    const intentBlock = (isStoryMode && customIntent)
+      ? `## WHAT THE PLAYER WANTS TO DO — THIS IS THE SUBJECT
+
+The player has stated their intent in their own words:
+"${customIntent}"
+
+All 4 suggestions must be ways of doing THAT specific thing. Do not substitute a different action, and do not drift to a more sensible or safer idea. The alignment below controls HOW they do it, never WHAT.
+
+If the stated intent is vague, interpret it in the most entertaining way the current scene allows. If it is impossible in the fiction right now, write suggestions for attempting it anyway and let the fiction push back.
+
+`
+      : '';
     const flavorBlock = (isStoryMode && story_flavor_label)
       ? (isSynergy
         ? `## TONE FOR THIS SET — NON-NEGOTIABLE
