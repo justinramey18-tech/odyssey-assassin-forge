@@ -3,7 +3,7 @@ import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import { Sword, Sparkles, BookOpen, FlaskConical, Star, ChevronDown, Flame, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { useCritCinematic } from '@/components/dice/CritCinematicProvider';
+import { awaitLatestD20Reveal } from '@/lib/rollD20';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
@@ -381,7 +381,6 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
   const [expandedSpellIds, setExpandedSpellIds] = useState<Set<string>>(() => new Set(spellIds));
   // The attack/spell about to be rolled, held while the player checks the maths.
   const [pending, setPending] = useState<QuickActionItem | null>(null);
-  const { maybePlayCritCinematic } = useCritCinematic();
 
   useEffect(() => {
     if (drawerOpen) {
@@ -428,18 +427,17 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
       ? getMagicResources()?.spellAttackBonus
       : item.attackBonus;
     const roll = rollAttack(item.rollKind === 'spell' ? 'spell' : 'attack', damageFormula, attackBonus);
+    const reveal = awaitLatestD20Reveal();
     if (item.rollKind === 'spell') lastSpellRolls.set(item.name, roll.d20);
     onCloseDrawer?.();
     const complete = () => {
       onUse(encodeActionCard(actionCardFromRoll(item.name, roll, slotNote), item.prompt + rollSuffix(roll) + slotNote));
       toast.success('Prompt added to input');
     };
-    // Spell to-hit only: a nat 20 plays the crit cinematic as the reveal
-    // instead of the usual dice animation. Fails open.
+    // A nat 20 to-hit plays the crit cinematic as the reveal instead of the
+    // usual dice animation. Fails open.
     let cinematic = false;
-    if (item.rollKind === 'spell') {
-      try { cinematic = await maybePlayCritCinematic([roll.d20], 'normal', 'd20'); } catch { cinematic = false; }
-    }
+    try { cinematic = await reveal; } catch { cinematic = false; }
     if (cinematic) { complete(); return; }
     requestDiceRoll({ title: item.name, roll, onComplete: complete });
   };

@@ -1,3 +1,4 @@
+import { rollD20 as sharedRollD20, awaitD20Reveal, type D20Context, type D20Result } from '@/lib/rollD20';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -177,19 +178,16 @@ function getModifier(ctx: CharacterContext, ability: AbilityScore): number {
   return (ctx.abilityScores as Record<string, { modifier: number }>)[fullName]?.modifier ?? 0;
 }
 
-function rollD20(mode: RollMode): { result: number; rolls: number[]; kept: number } {
-  const oddsMode = loadDiceOddsMode();
-  if (mode === 'normal') {
-    const r = rollWeightedDie(20, oddsMode);
-    return { result: r, rolls: [r], kept: r };
-  }
-  const r1 = rollWeightedDie(20, oddsMode);
-  const r2 = rollWeightedDie(20, oddsMode);
-  const kept = mode === 'advantage' ? Math.max(r1, r2) : Math.min(r1, r2);
-  return { result: kept, rolls: [r1, r2], kept };
+/** Thin wrapper over the shared roll; initiative never plays the crit cinematic. */
+function rollTestD20(mode: RollMode, label: string): { result: number; rolls: number[]; kept: number; d20: D20Result } {
+  const context: D20Context = label === 'Initiative' ? 'initiative'
+    : label.endsWith(' Save') ? 'save'
+    : 'skill';
+  const d20 = sharedRollD20({ mode, context });
+  return { result: d20.kept, rolls: d20.rolls, kept: d20.kept, d20 };
 }
 
-function formatRollMessage(label: string, roll: ReturnType<typeof rollD20>, modifier: number, mode: RollMode): string {
+function formatRollMessage(label: string, roll: ReturnType<typeof rollTestD20>, modifier: number, mode: RollMode): string {
   const modStr = modifier >= 0 ? `+${modifier}` : `${modifier}`;
   const total = roll.kept + modifier;
   const modeLabel = mode === 'advantage' ? ' (Advantage)' : mode === 'disadvantage' ? ' (Disadvantage)' : '';
@@ -316,7 +314,7 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
   const [lastRoll, setLastRoll] = useState<RollDisplay | null>(null);
   const [editMode, setEditMode] = useState(false);
   const rollIdRef = useRef(0);
-  const { maybePlayCritCinematic, preloadCritCinematic } = useCritCinematic();
+  const { preloadCritCinematic } = useCritCinematic();
   useEffect(() => { preloadCritCinematic(); }, [preloadCritCinematic]);
   const dismissTimerRef = useRef<number>(0);
 
@@ -406,10 +404,10 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
   }, [lastRoll]);
 
   const handleRoll = useCallback(async (label: string, modifier: number) => {
-    const roll = rollD20(rollMode);
+    const roll = rollTestD20(rollMode, label);
     // The crit cinematic is the reveal: hold the result until it ends (fails open).
     let cinematic = false;
-    try { cinematic = await maybePlayCritCinematic(roll.rolls, rollMode, 'd20'); } catch { cinematic = false; }
+    try { cinematic = await awaitD20Reveal(roll.d20); } catch { cinematic = false; }
     const message = formatRollMessage(label, roll, modifier, rollMode);
     if (onRoll) {
       onRoll({
@@ -438,7 +436,7 @@ export function DMDiceRoller({ characterContext, onRollResult, onRoll, disabled 
       id: rollIdRef.current,
     });
     onRollResult(message);
-  }, [rollMode, onRollResult, onRoll, maybePlayCritCinematic]);
+  }, [rollMode, onRollResult, onRoll]);
 
   const handleQuickDie = useCallback((sides: number, label: string) => {
     const result = rollDie(sides);

@@ -1,3 +1,4 @@
+import { rollD20 } from '@/lib/rollD20';
 // Dice results + prompt suffixes for auto-rolled action and RP prompts.
 // The d20 honours the player's dice odds mode; damage dice always roll fair
 // because the odds brackets are shaped for the d20 only.
@@ -72,7 +73,7 @@ export function parseDamageFlat(formula: string | undefined): number {
 
 export function rollAttack(kind: 'attack' | 'spell', damageFormula?: string, attackBonus?: number): AttackRollResult {
   const mode = loadDiceOddsMode();
-  const d20 = rollWeightedDie(20, mode);
+  const d20 = rollD20({ context: kind === 'spell' ? 'spell-attack' : 'attack' }).kept;
   const dice = parseDamageDice(damageFormula) ?? { count: 1, die: 8 };
   const flat = parseDamageFlat(damageFormula);
   const damageRolls = Array.from({ length: dice.count }, () => rollFair(dice.die));
@@ -93,7 +94,7 @@ export function rollAttack(kind: 'attack' | 'spell', damageFormula?: string, att
 
 export function rollCheck(): CheckRollResult {
   const mode = loadDiceOddsMode();
-  const d20 = rollWeightedDie(20, mode);
+  const d20 = rollD20({ context: 'skill' }).kept;
   const outcome: CheckRollResult['outcome'] =
     d20 === 1 ? 'critical failure'
     : d20 <= 7 ? 'failure'

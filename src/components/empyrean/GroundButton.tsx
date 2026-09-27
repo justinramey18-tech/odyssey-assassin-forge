@@ -1,3 +1,4 @@
+import { rollD20 } from '@/lib/rollD20';
 import React, { useState, useEffect, useCallback } from 'react';
 import { rollWeightedDie, loadDiceOddsMode } from '@/lib/diceOdds';
 
@@ -34,7 +35,7 @@ const GroundButton: React.FC<GroundButtonProps> = ({ active, onGround, currentHP
     if (rolling || isGrounded || currentHP <= 0) return;
     setRolling(true);
 
-    const result = rollWeightedDie(20, loadDiceOddsMode());
+    const result = rollD20({ context: 'other' }).kept;
     setLastRoll(result);
     setShowResult(true);
 
