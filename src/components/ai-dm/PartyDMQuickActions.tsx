@@ -3,6 +3,7 @@ import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import { Sword, Sparkles, BookOpen, FlaskConical, Star, ChevronDown, Flame, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useCritCinematic } from '@/components/dice/CritCinematicProvider';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
@@ -380,6 +381,7 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
   const [expandedSpellIds, setExpandedSpellIds] = useState<Set<string>>(() => new Set(spellIds));
   // The attack/spell about to be rolled, held while the player checks the maths.
   const [pending, setPending] = useState<QuickActionItem | null>(null);
+  const { maybePlayCritCinematic } = useCritCinematic();
 
   useEffect(() => {
     if (drawerOpen) {
@@ -388,7 +390,7 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
     }
   }, [drawerOpen, spellIds]);
 
-  const runAttackOrSpell = (item: QuickActionItem, choice: RollPreviewChoice) => {
+  const runAttackOrSpell = async (item: QuickActionItem, choice: RollPreviewChoice) => {
     // Casting from quick actions spends the real slot first, so a
     // spell the character can no longer afford never reaches the DM.
     let slotNote = '';
@@ -428,14 +430,18 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
     const roll = rollAttack(item.rollKind === 'spell' ? 'spell' : 'attack', damageFormula, attackBonus);
     if (item.rollKind === 'spell') lastSpellRolls.set(item.name, roll.d20);
     onCloseDrawer?.();
-    requestDiceRoll({
-      title: item.name,
-      roll,
-      onComplete: () => {
-        onUse(encodeActionCard(actionCardFromRoll(item.name, roll, slotNote), item.prompt + rollSuffix(roll) + slotNote));
-        toast.success('Prompt added to input');
-      },
-    });
+    const complete = () => {
+      onUse(encodeActionCard(actionCardFromRoll(item.name, roll, slotNote), item.prompt + rollSuffix(roll) + slotNote));
+      toast.success('Prompt added to input');
+    };
+    // Spell to-hit only: a nat 20 plays the crit cinematic as the reveal
+    // instead of the usual dice animation. Fails open.
+    let cinematic = false;
+    if (item.rollKind === 'spell') {
+      try { cinematic = await maybePlayCritCinematic([roll.d20], 'normal', 'd20'); } catch { cinematic = false; }
+    }
+    if (cinematic) { complete(); return; }
+    requestDiceRoll({ title: item.name, roll, onComplete: complete });
   };
 
   const handleItemUse = (item: QuickActionItem) => {

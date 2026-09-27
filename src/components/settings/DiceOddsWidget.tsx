@@ -4,6 +4,9 @@ import {
   saveDiceOddsMode, 
 } from '@/lib/diceOdds';
 import { cn } from '@/lib/utils';
+import { useState } from 'react';
+import { Switch } from '@/components/ui/switch';
+import { loadCritCinematicsEnabled, saveCritCinematicsEnabled } from '@/components/dice/CritCinematicProvider';
 import { Dices, Sparkles, Flame, Skull, Shuffle, Scale, Crown, CloudRainWind } from 'lucide-react';
 
 interface DiceOddsWidgetProps {
@@ -46,9 +49,15 @@ export function DiceOddsWidget({ value, onChange }: DiceOddsWidgetProps) {
     onChange(mode);
     saveDiceOddsMode(mode);
   };
+  const [critCine, setCritCine] = useState(loadCritCinematicsEnabled);
 
   return (
     <div className="space-y-4" data-tutorial-id="dice-odds-widget">
+      <label className="flex items-center justify-between gap-3 min-h-12 rounded-lg border border-border px-3" style={{ touchAction: 'manipulation' }}>
+        <span className="text-sm font-body text-foreground">Natural 20 cinematic</span>
+        <Switch checked={critCine} onCheckedChange={(v) => { setCritCine(v); saveCritCinematicsEnabled(v); }} />
+      </label>
+
       {/* Header */}
       <div className="flex items-center gap-2">
         <Dices className="w-5 h-5 text-primary" />
