@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { subscribeD20Rolls, CINEMATIC_CONTEXTS } from '@/lib/rollD20';
 import { isCriticalHit, isCriticalMiss, type DieType, type RollMode } from '@/lib/diceRoller';
 
 const SRC = '/nat20-cinematic.mp4';
@@ -100,6 +101,15 @@ export function CritCinematicProvider({ children }: { children: ReactNode }) {
   }, [preloadCritCinematic]);
 
   useEffect(() => () => { finishRef.current?.(); }, []);
+
+  // Any d20 rolled through rollD20() gets the cinematic automatically,
+  // for eligible contexts only. The caller awaits it via awaitD20Reveal().
+  const playRef = useRef(maybePlayCritCinematic);
+  playRef.current = maybePlayCritCinematic;
+  useEffect(() => subscribeD20Rolls((r) => {
+    if (!r.isCrit || !CINEMATIC_CONTEXTS.has(r.context)) return;
+    return playRef.current(r.rolls, r.mode, 'd20');
+  }), []);
 
   return (
     <Ctx.Provider value={{ maybePlayCritCinematic, preloadCritCinematic }}>
