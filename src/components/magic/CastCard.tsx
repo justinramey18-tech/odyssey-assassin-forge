@@ -22,6 +22,7 @@ import {
   type CastSpellDefinition,
   type ResolvedCast,
 } from '@/lib/magic/castResolver';
+import { useCritCinematic } from '@/components/dice/CritCinematicProvider';
 
 export interface CastCardProps {
   spell: CastSpellDefinition | null;
@@ -67,6 +68,7 @@ export function CastCard({ spell: rawSpell, onClose, onResolved }: CastCardProps
 
   const [chosen, setChosen] = useState<number>(0);
   const [busy, setBusy] = useState(false);
+  const { maybePlayCritCinematic } = useCritCinematic();
 
   if (!spell) return null;
 
