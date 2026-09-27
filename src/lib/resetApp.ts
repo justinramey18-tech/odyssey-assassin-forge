@@ -55,6 +55,7 @@ const ALL_STORAGE_KEYS = [
   'odyssey-4th-wall-time',
   'odyssey-assassin-dice-odds',
   'odyssey-dice-odds-profile',
+  'odyssey-director-intent',
   'floating-overlay-settings',
   
   // Navigation & UI

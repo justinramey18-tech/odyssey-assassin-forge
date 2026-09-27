@@ -13,7 +13,11 @@ export interface DirectorMessage {
   consumed_by_dm: boolean;
   overridden: boolean;
   created_at: string;
+  intent?: DirectorIntent | null;
 }
+
+export type DirectorIntent = 'now' | 'soon' | 'slow_burn' | 'canon' | 'steer';
+export const STANDING_INTENTS: DirectorIntent[] = ['slow_burn', 'canon', 'steer'];
 
 interface UsePartyDirectorOptions {
   partyId: string | null;
@@ -82,7 +86,7 @@ export function usePartyDirector({ partyId, userId, campaignPlan, characterConte
     };
   }, [partyId, userId]);
 
-  const send = useCallback(async (text: string, override?: 'private' | 'public') => {
+  const send = useCallback(async (text: string, override?: 'private' | 'public', intent?: DirectorIntent) => {
     if (!partyId || !userId || !text.trim() || isSending) return;
     setError(null);
     setIsSending(true);
@@ -98,6 +102,7 @@ export function usePartyDirector({ partyId, userId, campaignPlan, characterConte
           campaign_plan: campaignPlan || '',
           character_context: characterContext || '',
           player_override: override || null,
+          intent: intent || 'now',
         },
       });
 
@@ -118,8 +123,24 @@ export function usePartyDirector({ partyId, userId, campaignPlan, characterConte
   const overrideMessage = useCallback(async (messageId: string, newMode: 'private' | 'public') => {
     const msg = messages.find(m => m.id === messageId);
     if (!msg || msg.role !== 'user') return;
-    await send(msg.content, newMode);
+    await send(msg.content, newMode, (msg.intent as DirectorIntent) || 'now');
   }, [messages, send]);
+
+  /** Permanently delete one of this player's own standing notes so the DM stops seeing it. */
+  const deleteStandingNote = useCallback(async (messageId: string) => {
+    if (!partyId || !userId) return;
+    const { error: delErr } = await (supabase as any)
+      .from('party_director_messages')
+      .delete()
+      .eq('id', messageId)
+      .eq('user_id', userId);
+    if (delErr) {
+      console.error('[party-director] delete note failed:', delErr);
+      setError(delErr.message);
+    } else {
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+    }
+  }, [partyId, userId]);
 
   const clear = useCallback(async () => {
     if (!partyId || !userId) return;
@@ -144,5 +165,6 @@ export function usePartyDirector({ partyId, userId, campaignPlan, characterConte
     send,
     overrideMessage,
     clear,
+    deleteStandingNote,
   };
 }

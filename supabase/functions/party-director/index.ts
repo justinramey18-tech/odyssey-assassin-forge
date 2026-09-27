@@ -174,6 +174,7 @@ serve(async (req) => {
       campaign_plan,
       character_context,
       player_override,
+      intent,
     } = body ?? {};
 
     if (!party_id || !user_id || typeof user_message !== "string" || user_message.trim().length === 0) {
@@ -398,6 +399,7 @@ serve(async (req) => {
         content: user_message.trim().slice(0, 2000),
         overridden,
         consumed_by_dm: finalCategory !== 'private_action', // only private actions get consumed later
+        intent: ['now', 'soon', 'slow_burn', 'canon', 'steer'].includes(intent) ? intent : null,
       });
 
     if (userMsgErr) {

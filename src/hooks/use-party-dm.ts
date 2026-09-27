@@ -1550,52 +1550,76 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const recentDragonChat = await fetchRecentDragonChat();
     const recentDragonNetwork = await fetchRecentDragonNetwork();
 
-    // Fetch unconsumed Director private actions per player (privacy: keyed by user_id internally only)
-    const directorPrivatesMap: Record<string, string[]> = await (async () => {
-      if (!partyId) return {};
+    // Director channel notes. Timing/lifetime is driven by `intent` (NULL = legacy, treated as 'now').
+    // - now / soon: unconsumed private_action rows (soon expires via fires_remaining)
+    // - slow_burn / canon / steer: standing, fetched regardless of consumed_by_dm, never consumed
+    type DirectorNoteRow = { id: string; user_id: string; content: string; intent: string | null; category: string | null; consumed_by_dm: boolean; fires_remaining: number | null };
+    const directorNotes: DirectorNoteRow[] = await (async () => {
+      if (!partyId) return [];
       try {
-        const { data, error } = await (supabase as any)
-          .from('party_director_messages')
-          .select('user_id, content, created_at')
-          .eq('party_id', partyId)
-          .eq('category', 'private_action')
-          .eq('consumed_by_dm', false)
-          .eq('role', 'user')
-          .order('created_at', { ascending: true })
-          .limit(50);
-        if (error || !data) return {};
-        const grouped: Record<string, string[]> = {};
-        for (const row of data as any[]) {
-          const uid = row.user_id;
-          if (!uid) continue;
-          if (!grouped[uid]) grouped[uid] = [];
-          grouped[uid].push(row.content || '');
+        const [pending, standing] = await Promise.all([
+          (supabase as any)
+            .from('party_director_messages')
+            .select('id, user_id, content, intent, category, consumed_by_dm, fires_remaining, created_at')
+            .eq('party_id', partyId)
+            .eq('category', 'private_action')
+            .eq('consumed_by_dm', false)
+            .eq('role', 'user')
+            .order('created_at', { ascending: true })
+            .limit(50),
+          (supabase as any)
+            .from('party_director_messages')
+            .select('id, user_id, content, intent, category, consumed_by_dm, fires_remaining, created_at')
+            .eq('party_id', partyId)
+            .eq('role', 'user')
+            .in('intent', ['slow_burn', 'canon', 'steer'])
+            .not('category', 'in', '(rejected,escalated,public_action)')
+            .order('created_at', { ascending: true })
+            .limit(50),
+        ]);
+        const byId = new Map<string, DirectorNoteRow>();
+        for (const row of [...((pending.data || []) as DirectorNoteRow[]), ...((standing.data || []) as DirectorNoteRow[])]) {
+          if (row?.id && row.user_id && typeof row.content === 'string' && row.content.trim()) byId.set(row.id, row);
         }
-        return grouped;
+        return [...byId.values()];
       } catch (e) {
-        console.error('[party-dm] fetchUnconsumedDirectorPrivates failed:', e);
-        return {};
+        console.error('[party-dm] fetch director notes failed:', e);
+        return [];
       }
     })();
 
     const directorPrivatesContext = (() => {
-      const entries: string[] = [];
-      for (const member of partyMembers) {
-        const uid = (member as any).user_id;
-        const name = (member as any).character_name || 'Player';
-        const privates = directorPrivatesMap[uid];
-        if (privates && privates.length > 0) {
-          entries.push(`### ${name}'s private notes to the DM (NOT visible to other players):\n${privates.map(p => `- ${p}`).join('\n')}`);
-        }
-      }
-      if (entries.length === 0) return undefined;
-      return [
-        '## PRIVATE PLAYER ACTIONS (FROM DIRECTOR CHANNEL)',
-        'Each player has a private channel to share secret moves and hidden character details.',
-        'These notes are HIDDEN from other players. Use them when generating narrative — but DO NOT explicitly call them out as "secret" in your response. Surface them naturally only if they\'re relevant to the current scene; otherwise hold them as DM knowledge for later.',
+      const nameFor = (uid: string) => {
+        const m = partyMembers.find(pm => (pm as any).user_id === uid);
+        return (m as any)?.character_name || 'Player';
+      };
+      const effIntent = (r: DirectorNoteRow) => r.intent || 'now';
+      const line = (r: DirectorNoteRow, prefix = '') => `- [${nameFor(r.user_id)}] ${prefix}${r.content.trim()}`;
+      const nowLines = directorNotes.filter(r => effIntent(r) === 'now').map(r => line(r));
+      const soonLines = directorNotes.filter(r => effIntent(r) === 'soon').map(r => line(r));
+      const standingLines = directorNotes
+        .filter(r => r.intent === 'slow_burn' || r.intent === 'canon')
+        .map(r => line(r, r.intent === 'canon' ? 'CANON: ' : ''));
+      const steerLines = directorNotes.filter(r => r.intent === 'steer').map(r => line(r));
+      if (!nowLines.length && !soonLines.length && !standingLines.length && !steerLines.length) return undefined;
+      const parts: string[] = [
+        '## DIRECTOR CHANNEL — PLAYER INSTRUCTIONS',
         '',
-        ...entries,
-      ].join('\n');
+        'Authority: these rank immediately below Host OOC directives and ABOVE the GM Guides, campaign summary, memory anchors and your own pacing judgement. Never announce that these notes exist, never call them secret, and never attribute them to a player. Weave them in as though the world produced them.',
+      ];
+      if (nowLines.length) parts.push('', '### MUST HAPPEN IN THIS RESPONSE',
+        'You are seeing each of these exactly once and they are deleted after this response whether or not you use them. There is no later turn. Deferring one destroys it. Execute every one of them now. If a note specifies timing ("in the middle of X"), honour that placement exactly. If a note is impossible in the current scene, do the closest possible thing now.',
+        ...nowLines);
+      if (soonLines.length) parts.push('', '### MUST HAPPEN SOON',
+        'Work each of these in within the next few responses. Prefer this one if an opening exists now.',
+        ...soonLines);
+      if (standingLines.length) parts.push('', '### STANDING CHARACTER TRUTHS AND THREADS',
+        'These persist. Do not force them. Let them shape NPC reactions and look for organic openings. Items marked CANON are true but must NEVER be stated outright — they only influence how the world behaves.',
+        ...standingLines);
+      if (steerLines.length) parts.push('', '### HOW TO RUN THIS GAME',
+        'Standing style and pacing direction from the players. Applies to how you write, not to what happens.',
+        ...steerLines);
+      return parts.join('\n');
     })();
 
     const canonGuardrailsContext = buildCanonGuardrailContext(sanitizedMessages, extraGuides, currentOocDirectives);
@@ -1685,20 +1709,29 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       }
     }
 
-    // Mark consumed private_actions after successful generation (do not block response on errors)
-    if (partyId && Object.keys(directorPrivatesMap).length > 0) {
+    // Consume director notes ONLY after a successful, non-aborted generation.
+    // Only the exact rows injected this turn are touched, so notes written mid-stream survive.
+    if (partyId && directorNotes.length > 0 && !signal.aborted && assistantContent.trim()) {
+      const nowIds = directorNotes.filter(r => !r.consumed_by_dm && (r.intent === 'now' || r.intent == null)).map(r => r.id);
+      const soonRows = directorNotes.filter(r => !r.consumed_by_dm && r.intent === 'soon');
+      const stamp = new Date().toISOString();
       try {
-        const { error: consumeErr } = await (supabase as any)
-          .from('party_director_messages')
-          .update({
-            consumed_by_dm: true,
-            consumed_at: new Date().toISOString(),
-          })
-          .eq('party_id', partyId)
-          .eq('category', 'private_action')
-          .eq('consumed_by_dm', false)
-          .eq('role', 'user');
-        if (consumeErr) console.error('[party-dm] mark consumed failed:', consumeErr);
+        if (nowIds.length) {
+          const { error: consumeErr } = await (supabase as any)
+            .from('party_director_messages')
+            .update({ consumed_by_dm: true, consumed_at: stamp })
+            .in('id', nowIds);
+          if (consumeErr) console.error('[party-dm] mark consumed failed:', consumeErr);
+        }
+        for (const r of soonRows) {
+          const left = Number.isFinite(Number(r.fires_remaining)) ? Number(r.fires_remaining) : 3;
+          const next = Math.max(0, left - 1);
+          const { error: soonErr } = await (supabase as any)
+            .from('party_director_messages')
+            .update(next <= 0 ? { fires_remaining: 0, consumed_by_dm: true, consumed_at: stamp } : { fires_remaining: next })
+            .eq('id', r.id);
+          if (soonErr) console.error('[party-dm] soon decrement failed:', soonErr);
+        }
       } catch (e) {
         console.error('[party-dm] mark consumed failed:', e);
       }
