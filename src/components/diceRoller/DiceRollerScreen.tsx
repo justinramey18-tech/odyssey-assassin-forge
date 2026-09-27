@@ -447,6 +447,7 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
     const animate = setInterval(() => {
       iterations++;
       // Show random numbers during animation
+      // eslint-disable-next-line no-restricted-syntax -- animation-only spinning number
       const animResult = Math.floor(Math.random() * 20) + 1;
       setCustomResult({
         terms: [],
