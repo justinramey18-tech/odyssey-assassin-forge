@@ -910,6 +910,7 @@ export type Database = {
           created_at: string
           host_comment: string | null
           id: string
+          intent: string | null
           party_id: string
           request_text: string
           resolved_at: string | null
@@ -922,6 +923,7 @@ export type Database = {
           created_at?: string
           host_comment?: string | null
           id?: string
+          intent?: string | null
           party_id: string
           request_text: string
           resolved_at?: string | null
@@ -934,6 +936,7 @@ export type Database = {
           created_at?: string
           host_comment?: string | null
           id?: string
+          intent?: string | null
           party_id?: string
           request_text?: string
           resolved_at?: string | null
