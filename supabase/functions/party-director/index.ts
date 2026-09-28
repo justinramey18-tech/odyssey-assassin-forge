@@ -388,6 +388,10 @@ serve(async (req) => {
       overridden = true;
     }
 
+    // Single source of truth for the player's timing choice.
+    const safeIntent: string | null =
+      ['now', 'soon', 'slow_burn', 'canon', 'steer'].includes(intent) ? intent : null;
+
     // Write the user's message
     const { error: userMsgErr } = await supabase
       .from('party_director_messages')
@@ -399,7 +403,7 @@ serve(async (req) => {
         content: user_message.trim().slice(0, 2000),
         overridden,
         consumed_by_dm: finalCategory !== 'private_action', // only private actions get consumed later
-        intent: ['now', 'soon', 'slow_burn', 'canon', 'steer'].includes(intent) ? intent : null,
+        intent: safeIntent,
       });
 
     if (userMsgErr) {
@@ -437,6 +441,7 @@ serve(async (req) => {
           request_text: user_message.trim().slice(0, 2000),
           ai_rationale: rationale.slice(0, 500),
           status: 'pending',
+          intent: safeIntent,
         })
         .select('id')
         .single();
