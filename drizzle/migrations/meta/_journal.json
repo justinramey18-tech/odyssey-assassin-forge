@@ -64,6 +64,13 @@
       "when": 1790552240163,
       "tag": "0008_director_note_intent",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790554842087,
+      "tag": "0009_add_intent_to_party_director_escalations",
+      "breakpoints": true
     }
   ]
 }

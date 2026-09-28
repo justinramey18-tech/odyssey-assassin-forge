@@ -7,6 +7,7 @@ export interface DirectorEscalation {
   user_id: string;
   request_text: string;
   ai_rationale: string | null;
+  intent: string | null;
   status: 'pending' | 'approved' | 'denied';
   host_comment: string | null;
   resolved_by: string | null;
@@ -82,6 +83,26 @@ export function usePartyDirectorEscalations({ partyId }: UsePartyDirectorEscalat
         return false;
       }
 
+      // Carry the player's intent across the approval handoff. Older escalation
+      // rows predate the column, so fall back to the original escalated message.
+      let carriedIntent: string | null = escalation.intent ?? null;
+      if (!carriedIntent) {
+        const { data: origRow } = await (supabase as any)
+          .from('party_director_messages')
+          .select('intent')
+          .eq('party_id', escalation.party_id)
+          .eq('user_id', escalation.user_id)
+          .eq('category', 'escalated')
+          .eq('content', escalation.request_text)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        carriedIntent = (origRow?.intent as string | null) ?? null;
+      }
+
+      const isStanding =
+        carriedIntent === 'slow_burn' || carriedIntent === 'canon' || carriedIntent === 'steer';
+
       const { error: msgErr } = await (supabase as any)
         .from('party_director_messages')
         .insert({
@@ -90,7 +111,8 @@ export function usePartyDirectorEscalations({ partyId }: UsePartyDirectorEscalat
           role: 'user',
           category: 'private_action',
           content: escalation.request_text,
-          consumed_by_dm: false,
+          consumed_by_dm: isStanding,
+          intent: carriedIntent,
         });
       if (msgErr) {
         console.error('[director-escalations] insert approved private_action failed:', msgErr);
