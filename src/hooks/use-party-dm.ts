@@ -1672,7 +1672,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         responseModePrompt: responseModePrompt || undefined,
         dmPersonaPrompt: dmPersonaPrompt || undefined,
         directorPrivatesContext: directorPrivatesContext || undefined,
-        model: loadSelectedModel(),
+        model: resolvePartyModel(sessionConfig?.dmModel),
         user_api_key: loadApiKey('anthropic') || undefined,
         user_openai_key: loadApiKey('openai') || undefined,
         user_perplexity_key: loadApiKey('perplexity') || undefined,
@@ -1756,7 +1756,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
 
     return assistantContent;
-  }, [characterContext, sessionConfig?.campaignSummary, memoryAnchorsContent, worldStatePrompt, mergeConsecutiveRoles, fetchRecentPartyChat, fetchRecentDragonChat, fetchRecentDragonNetwork, buildCanonGuardrailContext, partyId, partyMembers]);
+  }, [characterContext, sessionConfig?.campaignSummary, sessionConfig?.dmModel, memoryAnchorsContent, worldStatePrompt, mergeConsecutiveRoles, fetchRecentPartyChat, fetchRecentDragonChat, fetchRecentDragonNetwork, buildCanonGuardrailContext, partyId, partyMembers]);
 
 
   // Build party members system prompt section
@@ -2846,7 +2846,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           messages: sanitizedMessages.slice(-50),
           characterContext,
           systemPromptOverride: npcSystemPrompt,
-          model: loadSelectedModel(),
+          model: resolvePartyModel(sessionConfig?.dmModel),
           maxTokens: 300,
         }),
         signal: abortRef.current!.signal,
@@ -3829,7 +3829,7 @@ Rules:
             messages: apiMessages.slice(-50),
             characterContext,
             systemPromptOverride: npcSystemPrompt,
-            model: loadSelectedModel(),
+            model: resolvePartyModel(sessionConfig?.dmModel),
             maxTokens: 200,
           }),
           signal: abortRef.current!.signal,
