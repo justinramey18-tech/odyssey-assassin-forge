@@ -1677,6 +1677,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         user_openai_key: loadApiKey('openai') || undefined,
         user_perplexity_key: loadApiKey('perplexity') || undefined,
         user_xai_key: loadApiKey('xai') || undefined,
+        user_venice_key: loadApiKey('venice') || undefined,
         narrationStylePrompt: narrationStyleBlock || undefined,
         partyMode: true,
         liveTable: liveTable || undefined,

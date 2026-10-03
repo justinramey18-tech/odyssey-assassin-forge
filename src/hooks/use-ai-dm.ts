@@ -350,6 +350,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           user_openai_key: loadApiKey('openai') || undefined,
           user_perplexity_key: loadApiKey('perplexity') || undefined,
           user_xai_key: loadApiKey('xai') || undefined,
+          user_venice_key: loadApiKey('venice') || undefined,
           coreRulesInGuides: coreRulesInGuides || undefined,
           narrationStylePrompt: buildNarrationStyleBlock(loadNarrationStyle()) || undefined,
           ...(() => {
@@ -620,6 +621,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           user_openai_key: loadApiKey('openai') || undefined,
           user_perplexity_key: loadApiKey('perplexity') || undefined,
           user_xai_key: loadApiKey('xai') || undefined,
+          user_venice_key: loadApiKey('venice') || undefined,
           coreRulesInGuides: coreRulesInGuides || undefined,
           npcVoicingContext: npcVoicingPrompt,
           npcVoicingStrict: names.length === 1 ? true : undefined,
