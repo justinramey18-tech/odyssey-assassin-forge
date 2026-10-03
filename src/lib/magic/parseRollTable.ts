@@ -24,7 +24,12 @@ function splitTags(raw: string): { text: string; tags: RollTableTag[] } {
  */
 export function parseRollTable(text?: string | null): { intro: string; table: RollTable | null } {
   if (!text) return { intro: '', table: null };
-  const lines = text.split(/\r?\n/);
+  const rawLines = text.split(/\r?\n/);
+  // Strip markdown bold/underline/code markers so headers like
+  // "**MALPRACTICE ROLL:** ..." and rows like "1. **Wrong File:** ..."
+  // still match the header/row patterns and don't show stray ** on the card.
+  const clean = (s: string) => s.replace(/\*\*|__|`/g, '');
+  const lines = rawLines.map(clean);
 
   const first = lines.findIndex(l => ROW_RE.test(l));
   if (first === -1) return { intro: text.trim(), table: null };
