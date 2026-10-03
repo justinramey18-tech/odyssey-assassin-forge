@@ -617,7 +617,16 @@ export function PartyDMSettings({
                     </SelectItem>
                   ))}
                   <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Own API key</div>
-                  {DM_MODELS.filter(m => m.provider !== 'lovable').map(m => (
+                  {DM_MODELS.filter(m => m.provider !== 'lovable' && m.provider !== 'venice').map(m => (
+                    <SelectItem key={m.id} value={m.id} className="text-xs">
+                      <span>
+                        <span className="font-medium">{m.label}</span>
+                        <span className="text-muted-foreground"> — {m.description}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                  <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Venice.ai</div>
+                  {DM_MODELS.filter(m => m.provider === 'venice').map(m => (
                     <SelectItem key={m.id} value={m.id} className="text-xs">
                       <span>
                         <span className="font-medium">{m.label}</span>
