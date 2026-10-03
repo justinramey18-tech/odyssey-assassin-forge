@@ -2128,14 +2128,36 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const roundChatRef = useRef(roundChat);
   roundChatRef.current = roundChat;
 
-  const dispatchPrompt = useCallback((text: string, intensity?: number) => {
-    if (!text || !text.trim()) return;
+  const dispatchPrompt = useCallback(async (text: string, intensity?: number): Promise<boolean> => {
+    if (!text || !text.trim()) return false;
     if (chatRoundsOnRef.current) {
       roundChatDrawerRef.current?.open();
-      void roundChatRef.current.sendMessage(text, true);
-      return;
+      try {
+        const sent = await roundChatRef.current.sendMessage(text, true);
+        if (!sent) throw new Error('send returned false');
+      } catch (err) {
+        console.error('[party-dm] table post failed:', err);
+        toast.error("Couldn't post to the table", {
+          description: 'Your action was not sent. Tap Retry.',
+          action: { label: 'Retry', onClick: () => { void dispatchPrompt(text, intensity); } },
+          duration: 15000,
+        });
+        return false;
+      }
+      return true;
     }
-    partyDmRef.current?.submitPrompt(stripActionCard(text), intensity);
+    try {
+      partyDmRef.current?.submitPrompt(stripActionCard(text), intensity);
+ality      return true;
+    } catch (err) {
+      console.error('[party-dm] prompt submit failed:', err);
+      toast.error("Couldn't post to the table", {
+        description: 'Your action was not sent. Tap Retry.',
+        action: { label: 'Retry', onClick: () => { void dispatchPrompt(text, intensity); } },
+        duration: 15000,
+      });
+      return false;
+    }
   }, []);
 
 
