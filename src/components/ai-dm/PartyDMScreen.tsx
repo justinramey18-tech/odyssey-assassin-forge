@@ -2186,6 +2186,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           user_api_key: loadApiKey('anthropic') || undefined,
           user_openai_key: loadApiKey('openai') || undefined,
           user_xai_key: loadApiKey('xai') || undefined,
+          user_venice_key: loadApiKey('venice') || undefined,
         },
       });
       if (error) throw error;
@@ -2348,6 +2349,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         user_api_key: loadApiKey('anthropic') || undefined,
         user_openai_key: loadApiKey('openai') || undefined,
         user_xai_key: loadApiKey('xai') || undefined,
+        user_venice_key: loadApiKey('venice') || undefined,
       },
     });
     if (error || (data as any)?.error) {
