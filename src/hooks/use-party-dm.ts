@@ -4347,6 +4347,7 @@ Rules:
     initiateSplit,
     regroupParty,
     updateSessionConfig,
+    setPartyModel,
     reclaimTurn,
     redoLastRound,
     // Timer
@@ -4370,7 +4371,7 @@ Rules:
     generateResponse, sendManualDmMessage, approveDraft, discardDraft,
     editMessage, deleteMessage, sendDialogueMessage, sendWhisper, callDM, voiceNPC, startNpcScene, stopNpcScene, submitNpcInterjection, generateDialogueRecap, regenerateMessage, regenerateWhispers,
     addMediaMessage, stopGeneration, applyOocCommand, initiateSplit, regroupParty,
-    updateSessionConfig, reclaimTurn, redoLastRound, setTimerConfig, startTimer, pauseTimer, resumeTimer,
+    updateSessionConfig, setPartyModel, reclaimTurn, redoLastRound, setTimerConfig, startTimer, pauseTimer, resumeTimer,
     cancelTimer, requestExtension, approveExtension, dismissExtensions,
     activeMoodPresetId, setActiveMoodPreset, initialLoadDone,
   ]);
