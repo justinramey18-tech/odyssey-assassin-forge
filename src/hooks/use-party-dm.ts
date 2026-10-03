@@ -3483,6 +3483,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     setSessionConfig(updated);
   }, [partyId, resolveSessionConfig]);
 
+  // Host-only: set the shared AI model the whole party's requests use.
+  const setPartyModel = useCallback(async (modelId: string) => {
+    if (!partyId || !isCreator) return;
+    if (!DM_MODELS.some(m => m.id === modelId)) return;
+    await updateSessionConfig({ dmModel: modelId });
+  }, [partyId, isCreator, updateSessionConfig]);
+
   // Host-only: reclaim the current turn in Couples/turn-based mode so the host can go again.
   const reclaimTurn = useCallback(async () => {
     if (!partyId || !user || !isCreator) return;
