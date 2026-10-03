@@ -1124,6 +1124,11 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     soloDMInputRef.current?.appendText(prompt);
   }, []);
 
+  // Shared "post to the table" channel — other screens send actions through here
+  // while this solo DM screen is open.
+  useEffect(() => registerTablePoster((text) => { handleUsePrompt(text); return true; }), [handleUsePrompt]);
+
+
   const handleHealingItemUsed = useHealingItemAction({
     characterName: characterName || characterContext?.name || 'The Adventurer',
     maxHP: characterContext?.maxHP ?? 0,
