@@ -219,6 +219,7 @@ interface DMRequest {
   recentDragonNetwork?: Array<{ fromDragon: string; toDragon: string; exchange: string; timestamp: string }>;
   user_perplexity_key?: string;
   user_xai_key?: string;
+  user_venice_key?: string;
   coreRulesInGuides?: boolean;
   narrationStylePrompt?: string;
   partyMode?: boolean;
@@ -979,7 +980,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, npcVoicingStrict, maxTokens, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt, liveTable, partyMode } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, user_venice_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, npcVoicingStrict, maxTokens, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt, liveTable, partyMode } = (await req.json()) as DMRequest;
 
     // Text of the latest player message, used to decide which custom (homebrew) spell
     // rules to inline this turn. Kept once so every path below agrees.
@@ -1187,6 +1188,65 @@ serve(async (req) => {
         });
       }
       return new Response(xaiResponse.body, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
+    }
+
+    // ── Venice.ai direct path — OpenAI-compatible SSE ──
+    // Any model id starting with "venice/" routes here; the rest of the id is the exact Venice model id.
+    const veniceModelId = requestedModel.startsWith('venice/') ? requestedModel.slice('venice/'.length) : null;
+    if (veniceModelId) {
+      const veniceKey = (typeof user_venice_key === 'string' && user_venice_key.trim())
+        ? user_venice_key.trim()
+        : Deno.env.get("VENICE_API_KEY")?.trim() || null;
+      if (!veniceKey) {
+        return new Response(JSON.stringify({ error: "No Venice API key. Add your key in Settings → API Keys, or ask the host to add the VENICE_API_KEY server secret." }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const veniceResponse = await fetch("https://api.venice.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${veniceKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: veniceModelId,
+          max_tokens: maxTokens || 16000,
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...trimmedMessages,
+          ],
+          stream: true,
+          venice_parameters: {
+            include_venice_system_prompt: false,
+            strip_thinking_response: true,
+          },
+        }),
+      });
+      if (!veniceResponse.ok) {
+        const errText = await veniceResponse.text();
+        console.error("Venice API error:", veniceResponse.status, errText);
+        if (veniceResponse.status === 401) {
+          return new Response(JSON.stringify({ error: "Invalid Venice API key. Check your key in Settings → API Keys." }), {
+            status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (veniceResponse.status === 402) {
+          return new Response(JSON.stringify({ error: "Venice account is out of credit. Top up at venice.ai." }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (veniceResponse.status === 429) {
+          return new Response(JSON.stringify({ error: "Venice rate limit exceeded. Please wait and try again." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        return new Response(JSON.stringify({ error: "Venice API error" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(veniceResponse.body, {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
       });
     }
