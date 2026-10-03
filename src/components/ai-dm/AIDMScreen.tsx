@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
 import { firePendingNat20Fanfare } from '@/lib/critSound';
+import { registerTablePoster } from '@/lib/tablePostBus';
+
 import { useWeather } from '@/hooks/use-weather';
 import { getCachedWeather, buildWeatherPrompt, loadWeatherEnabled } from '@/lib/weather';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
@@ -1123,6 +1125,11 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const handleUsePrompt = useCallback((prompt: string) => {
     soloDMInputRef.current?.appendText(prompt);
   }, []);
+
+  // Shared "post to the table" channel — other screens send actions through here
+  // while this solo DM screen is open.
+  useEffect(() => registerTablePoster((text) => { handleUsePrompt(text); return true; }), [handleUsePrompt]);
+
 
   const handleHealingItemUsed = useHealingItemAction({
     characterName: characterName || characterContext?.name || 'The Adventurer',

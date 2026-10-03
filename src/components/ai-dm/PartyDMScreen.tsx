@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { firePendingNat20Fanfare } from '@/lib/critSound';
+import { registerTablePoster } from '@/lib/tablePostBus';
+
 import { SCOPED_KEYS } from '@/lib/scoped-keys';
 import { getRpFlavor } from '@/lib/rpFlavors';
 import { useDmPolls } from '@/hooks/use-dm-polls';
@@ -2507,6 +2509,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     playerInputRef.current?.appendText(stripActionCard(prompt));
     return true;
   }, [dispatchPrompt]);
+
+  // Shared "post to the table" channel — the spellbook and other screens send casts
+  // through here while this DM screen is open.
+  useEffect(() => registerTablePoster((text) => handleUsePrompt(text)), [handleUsePrompt]);
+
 
   const handleHealingItemUsed = useHealingItemAction({
     characterName: characterContext?.name || 'The Adventurer',
