@@ -2502,10 +2502,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const handleUsePrompt = useCallback((prompt: string) => {
     // The classic composer is hidden in Chat Rounds / Live DM — post to the room instead.
     if (chatRoundsOnRef.current) {
-      dispatchPrompt(prompt);
-      return;
+      return dispatchPrompt(prompt);
     }
     playerInputRef.current?.appendText(stripActionCard(prompt));
+    return true;
   }, [dispatchPrompt]);
 
   const handleHealingItemUsed = useHealingItemAction({
