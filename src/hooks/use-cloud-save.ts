@@ -288,22 +288,31 @@ export function useCloudSave(userId: string | undefined) {
         }
       }
 
-      // Merge the global homebrew spell library. Merge by id, never overwrite:
+      // Merge the global homebrew spell library. Merge by id, never delete:
       // this library is shared by every character, so replacing it wholesale
-      // would erase spells authored on a different character. On an id clash the
-      // copy already on this device wins, so local edits are never lost.
+      // would erase spells authored on a different character. On an id clash
+      // keep whichever copy has the larger updatedAt (ms), so an edit made on
+      // another device (or a direct database fix) is not thrown away by this
+      // phone's older copy. Missing/non-numeric updatedAt counts as 0; on a
+      // tie the local copy wins.
       const incomingLibrary = extendedData.homebrewSpellLibrary as string | undefined;
       if (typeof incomingLibrary === 'string' && incomingLibrary.length > 0) {
         try {
-          const incoming = JSON.parse(incomingLibrary) as { homebrewSpells?: Array<{ id: string }> };
+          const incoming = JSON.parse(incomingLibrary) as { homebrewSpells?: Array<{ id: string; updatedAt?: unknown }> };
           const rawExisting = localStorage.getItem(HOMEBREW_SPELL_LIBRARY_KEY);
           const existing = rawExisting
-            ? JSON.parse(rawExisting) as { homebrewSpells?: Array<{ id: string }> }
+            ? JSON.parse(rawExisting) as { homebrewSpells?: Array<{ id: string; updatedAt?: unknown }> }
             : { homebrewSpells: [] };
 
-          const byId = new Map<string, { id: string }>();
-          (incoming.homebrewSpells || []).forEach(s => { if (s && s.id) byId.set(s.id, s); });
+          const byId = new Map<string, { id: string; updatedAt?: unknown }>();
           (existing.homebrewSpells || []).forEach(s => { if (s && s.id) byId.set(s.id, s); });
+          (incoming.homebrewSpells || []).forEach(s => {
+            if (!s || !s.id) return;
+            const local = byId.get(s.id);
+            const localTime = Number(local?.updatedAt) || 0;
+            const incomingTime = Number(s.updatedAt) || 0;
+            if (!local || incomingTime > localTime) byId.set(s.id, s);
+          });
 
           const merged = { ...existing, homebrewSpells: Array.from(byId.values()) };
           localStorage.setItem(HOMEBREW_SPELL_LIBRARY_KEY, JSON.stringify(merged));

@@ -316,21 +316,25 @@ ${spell.description}${spell.higherLevels ? `\n\n**At Higher Levels:** ${spell.hi
 
           {/* Actions */}
           <div className="flex gap-2 pb-8">
-            {/* Prepare/Learn button — show for leveled spells, AND for cantrips on known casters */}
-            {(spell.level > 0 || (!isPreparedCaster && spell.level === 0)) && (
-              <Button
-                variant={isPrepared ? "outline" : "default"}
-                className="flex-1"
-                onClick={isPrepared ? onUnprepare : onPrepare}
-                disabled={!isPrepared && !canPrepareMore}
-              >
-                {isPrepared 
-                  ? (isPreparedCaster ? 'Unprepare' : 'Forget') 
-                  : (canPrepareMore 
-                    ? (isPreparedCaster ? 'Prepare' : 'Learn') 
-                    : 'At Limit')}
-              </Button>
-            )}
+            {/* Prepare/Learn button — show for every spell. On cantrips for a
+                prepared caster it means Add/Remove from Quick Actions, which
+                is never limited by the preparation count. */}
+            <Button
+              variant={isPrepared ? "outline" : "default"}
+              className="flex-1"
+              onClick={isPrepared ? onUnprepare : onPrepare}
+              disabled={!isPrepared && !canPrepareMore && !(isCantrip && isPreparedCaster)}
+            >
+              {isPrepared
+                ? (isCantrip && isPreparedCaster
+                    ? 'Remove from Quick Actions'
+                    : isPreparedCaster ? 'Unprepare' : 'Forget')
+                : (isCantrip && isPreparedCaster
+                    ? 'Add to Quick Actions'
+                    : canPrepareMore
+                      ? (isPreparedCaster ? 'Prepare' : 'Learn')
+                      : 'At Limit')}
+            </Button>
             <Button
               variant="default"
               className={cn(
