@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { firePendingNat20Fanfare } from '@/lib/critSound';
+import { registerTablePoster } from '@/lib/tablePostBus';
+
 import { SCOPED_KEYS } from '@/lib/scoped-keys';
 import { getRpFlavor } from '@/lib/rpFlavors';
 import { useDmPolls } from '@/hooks/use-dm-polls';

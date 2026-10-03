@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
 import { firePendingNat20Fanfare } from '@/lib/critSound';
+import { registerTablePoster } from '@/lib/tablePostBus';
+
 import { useWeather } from '@/hooks/use-weather';
 import { getCachedWeather, buildWeatherPrompt, loadWeatherEnabled } from '@/lib/weather';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
