@@ -9,7 +9,7 @@ import type { DmSplitState, SplitTeam } from '@/lib/party-split-types';
 import { sendReadyUpNotification } from '@/lib/party-notifications';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
-import { loadSelectedModel } from '@/lib/dm-models';
+import { loadSelectedModel, DM_MODELS, DEFAULT_MODEL_ID } from '@/lib/dm-models';
 import { loadApiKey, isFeatureSkipped } from '@/lib/api-keys';
 import { buildNarrationStyleBlock } from '@/lib/narrationStyle';
 import { fetchPartyNarrationStyle } from '@/hooks/use-party-narration-style';
@@ -226,6 +226,7 @@ export interface DmSessionConfig {
   mode: 'shared' | 'private';
   currentRoundId: string;
   campaignSummary: string | null;
+  dmModel?: string; // Host-chosen AI model id for the whole party. Undefined = fall back to this device's saved model.
   isGenerating: boolean;
   /** Set by loadCampaign. Assistant rows created at/before this instant are re-inserted history, not new rounds. */
   historyLoadedAt?: string | null;
@@ -298,6 +299,23 @@ interface UsePartyDmOptions {
   onDragonMemoryDetected?: (memory: string) => void;
   onDragonBondFormed?: () => void;
   isSoloEmpyrean?: boolean;
+}
+
+/**
+ * Resolve the AI model for a party request. Prefers the host-chosen shared
+ * party model; falls back to this device's saved model when the shared value
+ * is missing or unknown. Own-key providers only resolve if THIS device has
+ * the player's key, otherwise we fall back to the gateway default.
+ */
+function resolvePartyModel(sharedModelId?: string): string {
+  const candidate = sharedModelId && DM_MODELS.some(m => m.id === sharedModelId) ? sharedModelId : loadSelectedModel();
+  const provider = DM_MODELS.find(m => m.id === candidate)?.provider;
+  // Anthropic has a server-side key fallback, and Lovable models need no key.
+  // These providers only work if THIS device has the player's own key:
+  if (provider === 'openai-direct' && !loadApiKey('openai')) return DEFAULT_MODEL_ID;
+  if (provider === 'perplexity' && !loadApiKey('perplexity')) return DEFAULT_MODEL_ID;
+  if (provider === 'xai-direct' && !loadApiKey('xai')) return DEFAULT_MODEL_ID;
+  return candidate;
 }
 
 export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, worldStatePrompt, partyDragonConfigs, myDragonName, onBurnoutDetected, onBurnoutTickDetected, onBondStrainDetected, onBondGrowthDetected, onDragonMemoryDetected, onDragonBondFormed, isSoloEmpyrean }: UsePartyDmOptions) {
@@ -1654,7 +1672,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         responseModePrompt: responseModePrompt || undefined,
         dmPersonaPrompt: dmPersonaPrompt || undefined,
         directorPrivatesContext: directorPrivatesContext || undefined,
-        model: loadSelectedModel(),
+        model: resolvePartyModel(sessionConfig?.dmModel),
         user_api_key: loadApiKey('anthropic') || undefined,
         user_openai_key: loadApiKey('openai') || undefined,
         user_perplexity_key: loadApiKey('perplexity') || undefined,
@@ -1738,7 +1756,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
 
     return assistantContent;
-  }, [characterContext, sessionConfig?.campaignSummary, memoryAnchorsContent, worldStatePrompt, mergeConsecutiveRoles, fetchRecentPartyChat, fetchRecentDragonChat, fetchRecentDragonNetwork, buildCanonGuardrailContext, partyId, partyMembers]);
+  }, [characterContext, sessionConfig?.campaignSummary, sessionConfig?.dmModel, memoryAnchorsContent, worldStatePrompt, mergeConsecutiveRoles, fetchRecentPartyChat, fetchRecentDragonChat, fetchRecentDragonNetwork, buildCanonGuardrailContext, partyId, partyMembers]);
 
 
   // Build party members system prompt section
@@ -2828,7 +2846,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           messages: sanitizedMessages.slice(-50),
           characterContext,
           systemPromptOverride: npcSystemPrompt,
-          model: loadSelectedModel(),
+          model: resolvePartyModel(sessionConfig?.dmModel),
           maxTokens: 300,
         }),
         signal: abortRef.current!.signal,
@@ -3465,6 +3483,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     setSessionConfig(updated);
   }, [partyId, resolveSessionConfig]);
 
+  // Host-only: set the shared AI model the whole party's requests use.
+  const setPartyModel = useCallback(async (modelId: string) => {
+    if (!partyId || !isCreator) return;
+    if (!DM_MODELS.some(m => m.id === modelId)) return;
+    await updateSessionConfig({ dmModel: modelId });
+  }, [partyId, isCreator, updateSessionConfig]);
+
   // Host-only: reclaim the current turn in Couples/turn-based mode so the host can go again.
   const reclaimTurn = useCallback(async () => {
     if (!partyId || !user || !isCreator) return;
@@ -3811,7 +3836,7 @@ Rules:
             messages: apiMessages.slice(-50),
             characterContext,
             systemPromptOverride: npcSystemPrompt,
-            model: loadSelectedModel(),
+            model: resolvePartyModel(sessionConfig?.dmModel),
             maxTokens: 200,
           }),
           signal: abortRef.current!.signal,
@@ -4322,6 +4347,7 @@ Rules:
     initiateSplit,
     regroupParty,
     updateSessionConfig,
+    setPartyModel,
     reclaimTurn,
     redoLastRound,
     // Timer
@@ -4345,7 +4371,7 @@ Rules:
     generateResponse, sendManualDmMessage, approveDraft, discardDraft,
     editMessage, deleteMessage, sendDialogueMessage, sendWhisper, callDM, voiceNPC, startNpcScene, stopNpcScene, submitNpcInterjection, generateDialogueRecap, regenerateMessage, regenerateWhispers,
     addMediaMessage, stopGeneration, applyOocCommand, initiateSplit, regroupParty,
-    updateSessionConfig, reclaimTurn, redoLastRound, setTimerConfig, startTimer, pauseTimer, resumeTimer,
+    updateSessionConfig, setPartyModel, reclaimTurn, redoLastRound, setTimerConfig, startTimer, pauseTimer, resumeTimer,
     cancelTimer, requestExtension, approveExtension, dismissExtensions,
     activeMoodPresetId, setActiveMoodPreset, initialLoadDone,
   ]);
