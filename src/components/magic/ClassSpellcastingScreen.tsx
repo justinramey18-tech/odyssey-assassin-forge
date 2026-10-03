@@ -41,6 +41,12 @@ import { HealTargetPicker } from '@/components/party/HealTargetPicker';
 import type { PartyMember } from '@/hooks/use-party-sync';
 import type { PartyAction } from '@/hooks/use-party-sync';
 import { getScopedItem, setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
+import { generateSpellPrompt } from '@/lib/spellCastPrompt';
+import { hasTablePoster, postToTable } from '@/lib/tablePostBus';
+import { rollAttack, rollSuffix } from '@/lib/promptAutoRoll';
+import { actionCardFromRoll, encodeActionCard } from '@/lib/roundChatActionCard';
+import { requestDiceRoll } from '@/lib/diceRollBus';
+import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic/castResolver';
 
 // Background image
 import arcanaBackground from '@/assets/trees/arcana-wizards-mobile.jpg';

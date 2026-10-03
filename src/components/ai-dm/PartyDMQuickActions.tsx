@@ -7,6 +7,7 @@ import { awaitLatestD20Reveal } from '@/lib/rollD20';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
+import { generateSpellPrompt } from '@/lib/spellCastPrompt';
 import { rollAttack, rollCheck, rollHealing, rollEffect, rollSuffix, type HealRollResult } from '@/lib/promptAutoRoll';
 import { actionCardFromRoll, encodeActionCard } from '@/lib/roundChatActionCard';
 import { getHealingDiceForItem, type HealingDice } from '@/lib/consumables/healing';
