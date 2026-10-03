@@ -271,7 +271,7 @@ export function ApiCredentials() {
       <ApiKeyInput provider="xai" label="xAI (Grok) API Key" placeholder="xai-..." />
       <ApiKeyInput provider="venice" label="Venice.ai API Key" placeholder="Paste your Venice inference key" />
       <p className="text-[10px] text-muted-foreground leading-relaxed">
-        Create an Inference key at venice.ai -> API. Keys stay on this device. For party play, the host can also add it as a server secret so every player's turns can use Venice.
+        Create an Inference key at venice.ai {'->'} API. Keys stay on this device. For party play, the host can also add it as a server secret so every player's turns can use Venice.
       </p>
       <SupportingLocalOnlyToggle />
       <PerFeatureSkipToggles />
