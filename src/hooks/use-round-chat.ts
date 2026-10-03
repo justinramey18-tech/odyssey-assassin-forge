@@ -283,16 +283,21 @@ export function useRoundChat(
     return () => { supabase.removeChannel(channel); };
   }, [partyId]);
 
-  const sendMessage = useCallback(async (content: string, inCharacter: boolean) => {
+  const sendMessage = useCallback(async (content: string, inCharacter: boolean): Promise<boolean> => {
     const text = content.trim();
     // Before the host starts the session there is no round yet — keep the table
     // usable by tagging early lines with a local round id.
     if (!roundIdRef.current) roundIdRef.current = crypto.randomUUID();
     const round = roundIdRef.current;
-    if (!partyId || !userId || !text || !round) return;
+    if (!partyId || !userId || !text || !round) {
+      console.warn('[round-chat] send skipped — missing:', {
+        partyId: !!partyId, userId: !!userId, text: !!text, round: !!round,
+      });
+      return false;
+    }
     setSending(true);
     try {
-      await (supabase.from('party_round_chat') as any).insert({
+      const { error } = await (supabase.from('party_round_chat') as any).insert({
         party_id: partyId,
         user_id: userId,
         character_name: characterName || 'Player',
@@ -300,6 +305,11 @@ export function useRoundChat(
         in_character: inCharacter,
         round_id: round,
       });
+      if (error) {
+        console.error('[round-chat] send failed:', error);
+        return false;
+      }
+      return true;
     } finally {
       setSending(false);
     }
