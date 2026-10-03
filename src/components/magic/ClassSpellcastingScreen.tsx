@@ -41,6 +41,12 @@ import { HealTargetPicker } from '@/components/party/HealTargetPicker';
 import type { PartyMember } from '@/hooks/use-party-sync';
 import type { PartyAction } from '@/hooks/use-party-sync';
 import { getScopedItem, setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
+import { generateSpellPrompt } from '@/lib/spellCastPrompt';
+import { hasTablePoster, postToTable } from '@/lib/tablePostBus';
+import { rollAttack, rollSuffix } from '@/lib/promptAutoRoll';
+import { actionCardFromRoll, encodeActionCard } from '@/lib/roundChatActionCard';
+import { requestDiceRoll } from '@/lib/diceRollBus';
+import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic/castResolver';
 
 // Background image
 import arcanaBackground from '@/assets/trees/arcana-wizards-mobile.jpg';
@@ -281,15 +287,58 @@ export function ClassSpellcastingScreen({
   const handleCastSpell = (castLevel: number, usePact: boolean) => {
     if (!castingSpell) return;
 
+    const spell = castingSpell;
+
     const result = castSpell(
-      castingSpell.id,
-      castingSpell.name,
-      castingSpell.level,
+      spell.id,
+      spell.name,
+      spell.level,
       castLevel,
       usePact,
-      castingSpell.concentration,
-      castingSpell.duration
+      spell.concentration,
+      spell.duration
     );
+
+    // When a DM screen is open, send the cast to the live table / DM the same
+    // way Quick Actions does, so the table sees every spellbook cast.
+    if (result.success && hasTablePoster()) {
+      const prompt = generateSpellPrompt(spell.name, characterName, spell.level === 0, {
+        level: spell.level,
+        school: spell.school,
+        description: spell.description,
+        damageFormula: spell.damageFormula,
+        damageType: spell.damageType,
+        healingFormula: spell.healingFormula,
+        saveStat: spell.saveStat,
+        attackType: spell.attackType,
+        isHomebrew: (spell as any).isHomebrew === true,
+      });
+      // Scale the damage dice for upcasting, exactly like Quick Actions.
+      let damageFormula = spell.damageFormula;
+      if (castLevel > spell.level) {
+        const parsed = parseDiceFormula(damageFormula);
+        if (parsed) damageFormula = formatDiceFormula(scaleForUpcast(parsed, spell.level, castLevel));
+      }
+      const roll = rollAttack('spell', damageFormula, spellAttackBonus);
+      const slotNote = spell.level > 0 ? ` A level ${castLevel} slot was spent.` : '';
+      const text = encodeActionCard(
+        actionCardFromRoll(spell.name, roll, slotNote),
+        prompt + rollSuffix(roll) + slotNote,
+      );
+      requestDiceRoll({
+        title: spell.name,
+        roll,
+        onComplete: async () => {
+          const ok = await postToTable(text);
+          if (ok) toast.success(`${spell.name} sent to the table`);
+          else toast.error("Couldn't post to the table", {
+            description: 'Your cast was not sent. Tap Retry.',
+            action: { label: 'Retry', onClick: () => { void postToTable(text); } },
+            duration: 15000,
+          });
+        },
+      });
+    }
 
     // Check if this is a healing spell
     if (result.success && castingSpell.healingFormula && onHPChange && currentHP !== undefined && maxHP !== undefined) {

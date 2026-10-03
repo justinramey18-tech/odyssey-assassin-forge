@@ -7,6 +7,7 @@ import { awaitLatestD20Reveal } from '@/lib/rollD20';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
+import { generateSpellPrompt } from '@/lib/spellCastPrompt';
 import { rollAttack, rollCheck, rollHealing, rollEffect, rollSuffix, type HealRollResult } from '@/lib/promptAutoRoll';
 import { actionCardFromRoll, encodeActionCard } from '@/lib/roundChatActionCard';
 import { getHealingDiceForItem, type HealingDice } from '@/lib/consumables/healing';
@@ -220,28 +221,6 @@ function generateAbilityPrompt(
   );
 }
 
-function generateSpellPrompt(
-  name: string,
-  characterName: string,
-  isCantrip: boolean,
-  detail?: {
-    level?: number; school?: string; description?: string; damageFormula?: string; damageType?: string;
-    healingFormula?: string; saveStat?: string; attackType?: string; isHomebrew?: boolean;
-  },
-): string {
-  const type = isCantrip ? 'cantrip' : 'spell';
-  const bits: string[] = [];
-  if (detail?.school) bits.push(` ${detail.school} school${typeof detail.level === 'number' ? `, level ${detail.level}` : ''}.`);
-  if (detail?.description) bits.push(` Its rules text: ${detail.description}`);
-  if (detail?.damageFormula) bits.push(` Damage ${detail.damageFormula}${detail.damageType ? ` ${detail.damageType}` : ''}.`);
-  if (detail?.healingFormula) bits.push(` Healing ${detail.healingFormula}.`);
-  if (detail?.saveStat) bits.push(` Target makes a ${String(detail.saveStat).toUpperCase()} save.`);
-  if (detail?.attackType) bits.push(` Resolved as a ${String(detail.attackType).replace(/_/g, ' ')} attack.`);
-  if (detail?.isHomebrew) bits.push(' This is a custom spell — follow the rules text exactly, do not substitute a similar spell.');
-  return applyTimePrefix(
-    `${characterName} casts ${name} (${type}).${bits.join('')} Describe the somatic/verbal components, the magical manifestation, and its effect. Keep it under 80 words.`
-  );
-}
 
 
 interface EffectDice {
