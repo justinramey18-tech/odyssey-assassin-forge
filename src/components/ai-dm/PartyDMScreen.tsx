@@ -2148,7 +2148,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
     try {
       partyDmRef.current?.submitPrompt(stripActionCard(text), intensity);
-ality      return true;
+      return true;
     } catch (err) {
       console.error('[party-dm] prompt submit failed:', err);
       toast.error("Couldn't post to the table", {
