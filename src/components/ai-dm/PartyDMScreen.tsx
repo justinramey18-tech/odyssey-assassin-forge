@@ -2508,6 +2508,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     return true;
   }, [dispatchPrompt]);
 
+  // Shared "post to the table" channel — the spellbook and other screens send casts
+  // through here while this DM screen is open.
+  useEffect(() => registerTablePoster((text) => handleUsePrompt(text)), [handleUsePrompt]);
+
+
   const handleHealingItemUsed = useHealingItemAction({
     characterName: characterContext?.name || 'The Adventurer',
     maxHP: characterContext?.maxHP ?? 0,
