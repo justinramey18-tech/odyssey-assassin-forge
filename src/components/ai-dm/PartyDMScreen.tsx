@@ -103,7 +103,7 @@ import { MessageNarrationBar } from './MessageNarrationBar';
 import { useSpotify } from '@/hooks/use-spotify';
 import { subscribeToPush, unsubscribeFromPush, getPushSubscriptionState, type PushSubscriptionState } from '@/lib/push-subscription';
 import { useAuth } from '@/hooks/use-auth';
-import { loadSelectedModel, saveSelectedModel } from '@/lib/dm-models';
+import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-models';
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-party-dm';
 import { DMDiceRoller, preloadDiceRollerArt } from './DMDiceRoller';
@@ -2663,8 +2663,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               partyId={partyId}
               autoSyncEnabled={autoSyncEnabled}
               onToggleAutoSync={onToggleAutoSync}
-              selectedModel={selectedDmModel}
-              onModelChange={(id) => { setSelectedDmModel(id); saveSelectedModel(id); }}
+              selectedModel={partyDm.sessionConfig?.dmModel ?? selectedDmModel}
+              onModelChange={(id) => {
+                partyDm.setPartyModel(id);
+                saveSelectedModel(id);
+                setSelectedDmModel(id);
+                toast.success(`Kade now runs on ${getModelLabel(id)}`);
+              }}
               isExtracting={isExtracting}
               pushState={pushState}
               onTogglePush={handleTogglePush}

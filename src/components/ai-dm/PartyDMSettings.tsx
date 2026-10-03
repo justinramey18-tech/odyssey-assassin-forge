@@ -592,6 +592,58 @@ export function PartyDMSettings({
     return (
       <div className="flex flex-col gap-2 pt-1">
         {chatBgFileInput}
+        {/* AI Storyteller — shared party model, host picks, players see read-only */}
+        <ToolsGroupHeader title="AI Storyteller" />
+        <div className="mx-1 shrink-0 rounded-lg border border-amber-700/30 bg-black/55 px-3 py-2.5">
+          {isCreator && selectedModel !== undefined && onModelChange ? (
+            <>
+              <div className="flex items-center gap-2 mb-1">
+                <Cpu className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">AI Model</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mb-2">Which AI tells the story for the whole party</p>
+              <Select value={selectedModel} onValueChange={onModelChange}>
+                <SelectTrigger className="w-full h-9 text-xs">
+                  <SelectValue>{getModelLabel(selectedModel)}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Included</div>
+                  {DM_MODELS.filter(m => m.provider === 'lovable').map(m => (
+                    <SelectItem key={m.id} value={m.id} className="text-xs">
+                      <span>
+                        <span className="font-medium">{m.label}</span>
+                        <span className="text-muted-foreground"> — {m.description}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                  <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Own API key</div>
+                  {DM_MODELS.filter(m => m.provider !== 'lovable').map(m => (
+                    <SelectItem key={m.id} value={m.id} className="text-xs">
+                      <span>
+                        <span className="font-medium">{m.label}</span>
+                        <span className="text-muted-foreground"> — {m.description}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(() => {
+                const sel = DM_MODELS.find(m => m.id === selectedModel);
+                return sel && (sel.provider === 'openai-direct' || sel.provider === 'perplexity' || sel.provider === 'xai-direct') ? (
+                  <p className="text-[11px] text-amber-400 mt-1.5">Uses your own key. On other players' devices without that key, Kade falls back to Gemini 3 Pro.</p>
+                ) : null;
+              })()}
+            </>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Cpu className="w-4 h-4 text-muted-foreground shrink-0" />
+              <div className="min-w-0">
+                <span className="text-sm font-medium text-foreground">AI Model</span>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Kade is running on {getModelLabel(selectedModel ?? '')}</p>
+              </div>
+            </div>
+          )}
+        </div>
         {TOOL_GROUPS.map(g => {
           const items = visible.filter(e => e.group === g.id);
           if (items.length === 0) return null;
@@ -676,29 +728,6 @@ export function PartyDMSettings({
             checked={dialogueAutoIntervene ?? false}
             onCheckedChange={onDialogueAutoInterveneChange}
           />
-        )}
-        {isCreator && selectedModel !== undefined && onModelChange && (
-          <div className="px-3 py-2.5">
-            <div className="flex items-center gap-2 mb-1.5">
-              <Cpu className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-foreground">AI Model</span>
-            </div>
-            <Select value={selectedModel} onValueChange={onModelChange}>
-              <SelectTrigger className="w-full h-9 text-xs">
-                <SelectValue>{getModelLabel(selectedModel)}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {DM_MODELS.map(m => (
-                  <SelectItem key={m.id} value={m.id} className="text-xs">
-                    <span>
-                      <span className="font-medium">{m.label}</span>
-                      <span className="text-muted-foreground"> — {m.description}</span>
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         )}
         {isCreator && (
           <ToggleRow
