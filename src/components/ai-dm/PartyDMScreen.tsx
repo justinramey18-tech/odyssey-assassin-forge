@@ -3692,7 +3692,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           sending={roundChat.sending}
           isGenerating={partyDm.isGenerating}
           isHost={isCreator}
-          onSend={(content, ic) => roundChat.sendMessage(content, ic)}
+          onSend={(content, ic) => { void roundChat.sendMessage(content, ic); }}
           onToggleReaction={(id, emoji) => roundChat.toggleReaction(id, emoji, members.find(m => m.user_id === currentUserId)?.character_name || 'Player')}
           onDeleteMessage={roundChat.deleteMessage}
           onClearAll={async () => {
