@@ -5,9 +5,10 @@ const STORAGE_KEYS: Record<string, string> = {
   speechify: 'dnd-speechify-api-key',
   perplexity: 'dnd-perplexity-api-key',
   xai: 'dnd-xai-api-key',
+  venice: 'dnd-venice-api-key',
 };
 
-export type ApiKeyProvider = 'anthropic' | 'elevenlabs' | 'openai' | 'speechify' | 'perplexity' | 'xai';
+export type ApiKeyProvider = 'anthropic' | 'elevenlabs' | 'openai' | 'speechify' | 'perplexity' | 'xai' | 'venice';
 
 export function loadApiKey(provider: ApiKeyProvider): string | null {
   try {
