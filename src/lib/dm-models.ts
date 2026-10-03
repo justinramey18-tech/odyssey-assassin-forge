@@ -13,7 +13,7 @@ export const GPT_EVERYWHERE_MODEL_ID = 'openai-direct/gpt-5';
 export interface DMAIModel {
   id: string;
   label: string;
-  provider: 'lovable' | 'anthropic' | 'openai-direct' | 'perplexity' | 'xai-direct';
+  provider: 'lovable' | 'anthropic' | 'openai-direct' | 'perplexity' | 'xai-direct' | 'venice';
   description: string;
 }
 
@@ -42,6 +42,18 @@ export const DM_MODELS: DMAIModel[] = [
   { id: 'xai-direct/grok-3', label: 'Grok 3 (own key)', provider: 'xai-direct', description: 'Strong reasoning + creativity (own key)' },
   { id: 'xai-direct/grok-3-mini', label: 'Grok 3 Mini (own key)', provider: 'xai-direct', description: 'Fast & cheap (own key)' },
   { id: 'xai-direct/grok-2-latest', label: 'Grok 2 (own key)', provider: 'xai-direct', description: 'Prior-gen Grok (own key)' },
+  { id: 'venice/venice-uncensored-1-2', label: 'Venice Uncensored 1.2', provider: 'venice', description: 'Fewest refusals, built for uncensored stories (Venice)' },
+  { id: 'venice/venice-uncensored-role-play', label: 'Venice Role Play', provider: 'venice', description: 'Uncensored, tuned for character role-play (Venice)' },
+  { id: 'venice/hermes-3-llama-3.1-405b', label: 'Hermes 3 405B', provider: 'venice', description: 'Classic creative role-play model (Venice)' },
+  { id: 'venice/qwen-3-6-plus', label: 'Qwen 3.6 Plus Uncensored', provider: 'venice', description: 'Uncensored with a huge memory (Venice)' },
+  { id: 'venice/gemma-4-uncensored', label: 'Gemma 4 Uncensored', provider: 'venice', description: 'Fast, uncensored, mid-size (Venice)' },
+  { id: 'venice/grok-4-7', label: 'Grok 4.7', provider: 'venice', description: 'Venice\'s smartest pick (Venice)' },
+  { id: 'venice/kimi-k3', label: 'Kimi K3', provider: 'venice', description: 'Strong reasoning and long context (Venice)' },
+  { id: 'venice/deepseek-v4-pro', label: 'DeepSeek V4 Pro', provider: 'venice', description: 'High quality, low cost (Venice)' },
+  { id: 'venice/zai-org-glm-5-2', label: 'GLM 5.2', provider: 'venice', description: 'Venice\'s default all-rounder (Venice)' },
+  { id: 'venice/claude-opus-5', label: 'Claude Opus 5 (Venice)', provider: 'venice', description: 'Top-tier writing, billed through Venice' },
+  { id: 'venice/claude-sonnet-5', label: 'Claude Sonnet 5 (Venice)', provider: 'venice', description: 'Great writing, cheaper than Opus (Venice)' },
+  { id: 'venice/gemini-3-8-flash', label: 'Gemini 3.8 Flash (Venice)', provider: 'venice', description: 'Very fast (Venice)' },
 ];
 
 export const DEFAULT_MODEL_ID = 'google/gemini-3-pro-preview';

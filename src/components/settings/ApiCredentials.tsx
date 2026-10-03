@@ -10,9 +10,10 @@ import {
   isGPTEverywhereEnabled, setGPTEverywhere,
   isSupportingLocalOnlyEnabled, setSupportingLocalOnly,
   isFeatureSkipEnabled, setFeatureSkipEnabled, type SkippableFeature,
+  type ApiKeyProvider,
 } from '@/lib/api-keys';
 
-function ApiKeyInput({ provider, label, placeholder }: { provider: 'anthropic' | 'elevenlabs' | 'openai' | 'speechify' | 'perplexity' | 'xai'; label: string; placeholder: string }) {
+function ApiKeyInput({ provider, label, placeholder }: { provider: ApiKeyProvider; label: string; placeholder: string }) {
   const [keyInput, setKeyInput] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [hasSavedKey, setHasSavedKey] = useState(() => hasApiKey(provider));
@@ -268,6 +269,10 @@ export function ApiCredentials() {
       <ApiKeyInput provider="speechify" label="Speechify API Key" placeholder="spfy_..." />
       <ApiKeyInput provider="perplexity" label="Perplexity API Key" placeholder="pplx-..." />
       <ApiKeyInput provider="xai" label="xAI (Grok) API Key" placeholder="xai-..." />
+      <ApiKeyInput provider="venice" label="Venice.ai API Key" placeholder="Paste your Venice inference key" />
+      <p className="text-[10px] text-muted-foreground leading-relaxed">
+        Create an Inference key at venice.ai {'->'} API. Keys stay on this device. For party play, the host can also add it as a server secret so every player's turns can use Venice.
+      </p>
       <SupportingLocalOnlyToggle />
       <PerFeatureSkipToggles />
     </div>
