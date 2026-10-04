@@ -23,6 +23,8 @@ export interface SpellForgeChatProps {
   onClose: () => void;
   character: { name: string; className?: string; level?: number; spellcastingAbility?: string; spellSaveDC?: number; spellAttackBonus?: number; existingSpellNames?: string[] };
   onInstall: (draft: SpellForgeDraft) => Promise<{ ok: boolean; message: string }>;
+  /** Render inside the open drawer instead of a body portal. */
+  inline?: boolean;
 }
 
 interface ChatMsg { role: 'user' | 'assistant'; content: string }
@@ -154,7 +156,7 @@ function Celebration({ name, reduced, onDone }: { name: string; reduced: boolean
   }, [onDone]);
   useEffect(() => { const t = setTimeout(finish, reduced ? 1500 : 5000); return () => clearTimeout(t); }, [finish, reduced]);
   return (
-    <div onClick={finish} className={cn('fixed inset-0 z-[95] bg-black transition-opacity duration-300', fading ? 'opacity-0' : 'opacity-100')}>
+    <div onClick={finish} data-vaul-no-drag="" style={{ zIndex: 10060 }} className={cn('fixed inset-0 bg-black transition-opacity duration-300', fading ? 'opacity-0' : 'opacity-100')}>
       <FallbackVideo src="/forge-installed.mp4" poster="/forge-installed-poster.webp" loop={false} reduced={reduced} onEnded={finish} className="absolute inset-0 h-full w-full object-cover" />
       <div className="absolute inset-x-0 bottom-0 flex h-1/3 flex-col items-center justify-center bg-gradient-to-t from-black/90 to-transparent px-6 text-center">
         <p className="font-cinzel text-3xl text-primary [text-shadow:0_2px_8px_#000]">{name}</p>
@@ -164,7 +166,7 @@ function Celebration({ name, reduced, onDone }: { name: string; reduced: boolean
   );
 }
 
-export function SpellForgeChat({ open, onClose, character, onInstall }: SpellForgeChatProps) {
+export function SpellForgeChat({ open, onClose, character, onInstall, inline = false }: SpellForgeChatProps) {
   const reduced = !!useReducedMotion();
   const chatKey = `odyssey-spell-forge-chat-${character.name}`;
   const veniceModels = useMemo(() => DM_MODELS.filter(m => m.provider === 'venice'), []);
