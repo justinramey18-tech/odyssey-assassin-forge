@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { isEmpyreanMode } from '@/lib/empyreanLabels';
-import { Sword, Sparkles, BookOpen, FlaskConical, Star, ChevronDown, Flame, X } from 'lucide-react';
+import { Sword, Sparkles, BookOpen, FlaskConical, Star, ChevronDown, ChevronRight, Flame, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { awaitLatestD20Reveal } from '@/lib/rollD20';
@@ -18,6 +18,8 @@ import { RollPreviewSheet, type RollPreviewChoice } from '@/components/magic/Rol
 import { COST_META, resolveActionCost, type ActionCost } from '@/lib/combat/actionCost';
 import { parseRollTable } from '@/lib/magic/parseRollTable';
 import { DiceOutcomeTable } from '@/components/magic/DiceOutcomeTable';
+import { SpellForgeChat } from '@/components/magic/SpellForgeChat';
+import { installForgedSpell } from '@/lib/spellForgeBus';
 import schoolAbjuration from '@/assets/quick-actions/schools/abjuration.jpg';
 import schoolConjuration from '@/assets/quick-actions/schools/conjuration.jpg';
 import schoolDivination from '@/assets/quick-actions/schools/divination.jpg';
@@ -964,6 +966,24 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
       + homebrewForFocus.length
     : Object.values(sections).reduce((sum, arr) => sum + arr.length, 0);
   const showSpellSlots = focused && (sectionsToShow.includes('spells') || sectionsToShow.includes('cantrips'));
+  const showForgeBanner = showSpellSlots || sectionFilter === 'magic';
+  const [forgeOpen, setForgeOpen] = useState(false);
+  const chaosForge = useMemo(() => Math.random() < 1 / 8, []);
+
+  const forgeCharacter = useMemo(() => {
+    const magic = getMagicResources();
+    const names = new Set<string>();
+    for (const s of characterContext?.spellcasting?.homebrewSpells || []) names.add(s.name);
+    for (const s of characterContext?.spellcasting?.preparedSpellDetails || []) names.add(s.name);
+    return {
+      name: characterName || characterContext?.name || 'The Adventurer',
+      className: characterContext?.characterClass,
+      level: characterContext?.level,
+      spellSaveDC: magic?.spellSaveDC,
+      spellAttackBonus: magic?.spellAttackBonus,
+      existingSpellNames: Array.from(names),
+    };
+  }, [characterContext, characterName, forgeOpen]);
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -1015,6 +1035,42 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
               )}
             </div>
           </div>
+        )}
+        {showForgeBanner && (
+          <button
+            type="button"
+            onClick={() => setForgeOpen(true)}
+            className="relative mx-4 my-2 block h-[88px] w-[calc(100%-2rem)] shrink-0 overflow-hidden rounded-xl border border-[#caa05a]/60 bg-[#12100e] text-left active:scale-[0.98]"
+            style={{ touchAction: 'manipulation' }}
+            aria-label="Open the Spell Forge"
+          >
+            <img
+              src={chaosForge ? '/forge-banner-chaos.webp' : '/forge-banner.webp'}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className="absolute inset-0 h-full w-full object-cover object-center"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/85 to-black/20" />
+            <div className="relative flex h-full items-center gap-3 px-4">
+              <img
+                src="/forge-icon.webp"
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                className="h-10 w-10 shrink-0 rounded-full shadow-[0_0_14px_rgba(233,199,123,0.55)]"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block font-cinzel text-[15px] font-bold tracking-wide text-[#f0c97a]">Spell Forge</span>
+                <span className="block truncate text-[11.5px] text-amber-100/70">
+                  {chaosForge ? 'Something went horribly right.' : 'Build a new spell with a d20 table'}
+                </span>
+              </span>
+              <ChevronRight className="h-5 w-5 shrink-0 text-[#f0c97a]/80" />
+            </div>
+          </button>
         )}
         <div className="flex-1 overflow-y-auto overscroll-contain px-2.5 pb-6 space-y-1.5">
           {totalItems === 0 ? (
@@ -1146,6 +1202,12 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
           )}
         </div>
       </DrawerContent>
+      <SpellForgeChat
+        open={forgeOpen}
+        onClose={() => setForgeOpen(false)}
+        character={forgeCharacter}
+        onInstall={installForgedSpell}
+      />
     </Drawer>
   );
 }
