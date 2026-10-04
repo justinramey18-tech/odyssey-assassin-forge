@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { isEmpyreanMode } from '@/lib/empyreanLabels';
-import { Sword, Sparkles, BookOpen, FlaskConical, Star, ChevronDown, Flame, X } from 'lucide-react';
+import { Sword, Sparkles, BookOpen, FlaskConical, Star, ChevronDown, ChevronRight, Flame, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { awaitLatestD20Reveal } from '@/lib/rollD20';
@@ -18,6 +18,8 @@ import { RollPreviewSheet, type RollPreviewChoice } from '@/components/magic/Rol
 import { COST_META, resolveActionCost, type ActionCost } from '@/lib/combat/actionCost';
 import { parseRollTable } from '@/lib/magic/parseRollTable';
 import { DiceOutcomeTable } from '@/components/magic/DiceOutcomeTable';
+import { SpellForgeChat } from '@/components/magic/SpellForgeChat';
+import { installForgedSpell } from '@/lib/spellForgeBus';
 import schoolAbjuration from '@/assets/quick-actions/schools/abjuration.jpg';
 import schoolConjuration from '@/assets/quick-actions/schools/conjuration.jpg';
 import schoolDivination from '@/assets/quick-actions/schools/divination.jpg';
