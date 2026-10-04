@@ -1201,13 +1201,14 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
             </>
           )}
         </div>
+        <SpellForgeChat
+          inline
+          open={forgeOpen}
+          onClose={() => setForgeOpen(false)}
+          character={forgeCharacter}
+          onInstall={installForgedSpell}
+        />
       </DrawerContent>
-      <SpellForgeChat
-        open={forgeOpen}
-        onClose={() => setForgeOpen(false)}
-        character={forgeCharacter}
-        onInstall={installForgedSpell}
-      />
     </Drawer>
   );
 }
