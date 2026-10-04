@@ -160,65 +160,139 @@ serve(async (req) => {
 
     const systemPrompt = buildSystemPrompt(body?.character);
 
-    const veniceResponse = await fetch("https://api.venice.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: model.slice("venice/".length),
-        messages: [{ role: "system", content: systemPrompt }, ...messages],
-        max_tokens: 6000,
-        temperature: 0.9,
-        stream: false,
-        venice_parameters: {
-          include_venice_system_prompt: false,
-          strip_thinking_response: true,
-        },
-      }),
-    });
+    const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
+    const errorJson = (message: string, status: number) =>
+      new Response(JSON.stringify({ error: message }), { status, headers: jsonHeaders });
 
-    if (!veniceResponse.ok) {
-      const errorText = await veniceResponse.text();
-      console.error(`Venice error ${veniceResponse.status}: ${errorText}`);
+    const veniceModel = model.slice("venice/".length);
+    const startedAt = Date.now();
 
-      let message = "Spell Forge couldn't reach Venice.";
-      let status = 500;
-      if (veniceResponse.status === 401) {
-        message = "Invalid Venice API key.";
-        status = 401;
-      } else if (veniceResponse.status === 402) {
-        message = "Venice account is out of credit.";
-        status = 402;
-      } else if (veniceResponse.status === 429) {
-        message = "Venice rate limit. Wait a moment and try again.";
-        status = 429;
+    const callVenice = async (includeDisableThinking: boolean): Promise<Response> => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 140000);
+      try {
+        const veniceResponse = await fetch("https://api.venice.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model: veniceModel,
+            messages: [{ role: "system", content: systemPrompt }, ...messages],
+            max_tokens: 8000,
+            temperature: 0.9,
+            stream: true,
+            venice_parameters: {
+              include_venice_system_prompt: false,
+              strip_thinking_response: true,
+              ...(includeDisableThinking ? { disable_thinking: true } : {}),
+            },
+          }),
+        });
+
+        if (!veniceResponse.ok) {
+          const errorText = await veniceResponse.text();
+          console.error(`Venice error ${veniceResponse.status}: ${errorText.slice(0, 500)}`);
+
+          if (veniceResponse.status === 401) return errorJson("Invalid Venice API key.", 401);
+          if (veniceResponse.status === 402) return errorJson("Venice account is out of credit.", 402);
+          if (veniceResponse.status === 429) return errorJson("Venice rate limit. Wait a moment and try again.", 429);
+
+          let detail = errorText;
+          try {
+            const parsed = JSON.parse(errorText);
+            detail = String(parsed?.error?.message ?? (typeof parsed?.error === "string" ? parsed.error : undefined) ?? parsed?.message ?? errorText);
+          } catch { /* keep raw text */ }
+          detail = detail.slice(0, 160);
+          return errorJson(`Venice error ${veniceResponse.status}: ${detail}`, 502);
+        }
+
+        // Read the SSE stream
+        const reader = veniceResponse.body?.getReader();
+        if (!reader) return errorJson("Venice error 502: no response body", 502);
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let collected = "";
+        let finishReason: string | null = null;
+        let streamError: string | null = null;
+
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? ""; // keep partial last line
+          for (const line of lines) {
+            if (!line.startsWith("data:")) continue;
+            const payload = line.slice(5).trim();
+            if (!payload || payload === "[DONE]") continue;
+            let chunk: any;
+            try {
+              chunk = JSON.parse(payload);
+            } catch {
+              continue;
+            }
+            if (chunk?.error) {
+              streamError = typeof chunk.error === "string" ? chunk.error : (chunk.error?.message ?? "unknown stream error");
+              break;
+            }
+            const choice = chunk?.choices?.[0];
+            const deltaContent = choice?.delta?.content;
+            if (typeof deltaContent === "string") collected += deltaContent;
+            if (typeof choice?.finish_reason === "string") finishReason = choice.finish_reason;
+          }
+          if (streamError) break;
+        }
+
+        if (streamError) {
+          return errorJson(`Venice error: ${streamError.slice(0, 160)}`, 502);
+        }
+
+        const reply = stripThinking(collected).trim();
+        const elapsed = Date.now() - startedAt;
+        console.log(`spell-forge model=${veniceModel} status=${veniceResponse.status} finish=${finishReason ?? "none"} replyLen=${reply.length} elapsedMs=${elapsed}`);
+
+        if (reply) {
+          return new Response(JSON.stringify({ reply }), { status: 200, headers: jsonHeaders });
+        }
+        if (finishReason === "length") {
+          return errorJson("The model used its whole token budget before answering. Try again, or pick Venice Uncensored 1.2.", 502);
+        }
+        return errorJson("Venice sent back an empty reply. Try again or pick another model.", 502);
+      } catch (err) {
+        if (controller.signal.aborted) {
+          return errorJson("Venice took too long to answer. Try again, or pick a faster model like Venice Uncensored 1.2.", 504);
+        }
+        const msg = err instanceof Error ? err.message : String(err);
+        return errorJson(`Couldn't connect to Venice: ${msg}`, 502);
+      } finally {
+        clearTimeout(timeout);
       }
-      return new Response(JSON.stringify({ error: message }), {
-        status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    };
+
+    let result = await callVenice(true);
+
+    // Retry once without disable_thinking if Venice rejects that parameter
+    if (result.status === 502) {
+      const clone = result.clone();
+      try {
+        const errBody = await clone.json();
+        const errMsg = typeof errBody?.error === "string" ? errBody.error : "";
+        if (errMsg.includes("Venice error 400") && errMsg.includes("disable_thinking")) {
+          result = await callVenice(false);
+        }
+      } catch { /* keep original result */ }
     }
 
-    const data = await veniceResponse.json();
-    const rawReply = data?.choices?.[0]?.message?.content;
-    if (typeof rawReply !== "string" || !rawReply.trim()) {
-      console.error("Venice returned no content:", JSON.stringify(data).slice(0, 500));
-      return new Response(JSON.stringify({ error: "Spell Forge couldn't reach Venice." }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    return new Response(JSON.stringify({ reply: stripThinking(rawReply) }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return result;
   } catch (err) {
     console.error("Spell Forge error:", err);
-    return new Response(JSON.stringify({ error: "Spell Forge couldn't reach Venice." }), {
-      status: 500,
+    const msg = err instanceof Error ? err.message : String(err);
+    return new Response(JSON.stringify({ error: `Couldn't connect to Venice: ${msg}` }), {
+      status: 502,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
