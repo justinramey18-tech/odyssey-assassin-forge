@@ -1036,6 +1036,42 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
             </div>
           </div>
         )}
+        {showForgeBanner && (
+          <button
+            type="button"
+            onClick={() => setForgeOpen(true)}
+            className="relative mx-4 my-2 block h-[88px] w-[calc(100%-2rem)] shrink-0 overflow-hidden rounded-xl border border-[#caa05a]/60 bg-[#12100e] text-left active:scale-[0.98]"
+            style={{ touchAction: 'manipulation' }}
+            aria-label="Open the Spell Forge"
+          >
+            <img
+              src={chaosForge ? '/forge-banner-chaos.webp' : '/forge-banner.webp'}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className="absolute inset-0 h-full w-full object-cover object-center"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/85 to-black/20" />
+            <div className="relative flex h-full items-center gap-3 px-4">
+              <img
+                src="/forge-icon.webp"
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                className="h-10 w-10 shrink-0 rounded-full shadow-[0_0_14px_rgba(233,199,123,0.55)]"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block font-cinzel text-[15px] font-bold tracking-wide text-[#f0c97a]">Spell Forge</span>
+                <span className="block truncate text-[11.5px] text-amber-100/70">
+                  {chaosForge ? 'Something went horribly right.' : 'Build a new spell with a d20 table'}
+                </span>
+              </span>
+              <ChevronRight className="h-5 w-5 shrink-0 text-[#f0c97a]/80" />
+            </div>
+          </button>
+        )}
         <div className="flex-1 overflow-y-auto overscroll-contain px-2.5 pb-6 space-y-1.5">
           {totalItems === 0 ? (
             <p className="text-center text-sm text-white/30 py-8">No actions available. Equip weapons, prepare spells, or unlock abilities.</p>
@@ -1166,6 +1202,12 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
           )}
         </div>
       </DrawerContent>
+      <SpellForgeChat
+        open={forgeOpen}
+        onClose={() => setForgeOpen(false)}
+        character={forgeCharacter}
+        onInstall={installForgedSpell}
+      />
     </Drawer>
   );
 }
