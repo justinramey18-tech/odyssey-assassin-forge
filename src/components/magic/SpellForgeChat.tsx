@@ -235,8 +235,8 @@ export function SpellForgeChat({ open, onClose, character, onInstall, inline = f
 
   if (!open) return null;
 
-  return createPortal(
-    <div className="fixed inset-0 z-[90] flex flex-col bg-[#0d0d12]" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+  const layer = (
+    <div data-vaul-no-drag="" className="fixed inset-0 flex flex-col bg-[#0d0d12]" style={{ zIndex: 10050, pointerEvents: 'auto', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <FallbackVideo src="/forge-chat-bg.mp4" poster="/forge-chat-bg-poster.webp" reduced={reduced} className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
       <div className="pointer-events-none absolute inset-0 bg-black/55" />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-transparent" />
@@ -327,9 +327,10 @@ export function SpellForgeChat({ open, onClose, character, onInstall, inline = f
       </div>
 
       {celebrating && <Celebration name={celebrating} reduced={reduced} onDone={() => setCelebrating(null)} />}
-    </div>,
-    document.body,
+    </div>
   );
+
+  return inline ? layer : createPortal(layer, document.body);
 }
 
 export default SpellForgeChat;
