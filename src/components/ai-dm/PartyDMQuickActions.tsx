@@ -966,6 +966,24 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
       + homebrewForFocus.length
     : Object.values(sections).reduce((sum, arr) => sum + arr.length, 0);
   const showSpellSlots = focused && (sectionsToShow.includes('spells') || sectionsToShow.includes('cantrips'));
+  const showForgeBanner = showSpellSlots || sectionFilter === 'magic';
+  const [forgeOpen, setForgeOpen] = useState(false);
+  const chaosForge = useMemo(() => Math.random() < 1 / 8, []);
+
+  const forgeCharacter = useMemo(() => {
+    const magic = getMagicResources();
+    const names = new Set<string>();
+    for (const s of characterContext?.spellcasting?.homebrewSpells || []) names.add(s.name);
+    for (const s of characterContext?.spellcasting?.preparedSpellDetails || []) names.add(s.name);
+    return {
+      name: characterName || characterContext?.name || 'The Adventurer',
+      className: characterContext?.characterClass,
+      level: characterContext?.level,
+      spellSaveDC: magic?.spellSaveDC,
+      spellAttackBonus: magic?.spellAttackBonus,
+      existingSpellNames: Array.from(names),
+    };
+  }, [characterContext, characterName, forgeOpen]);
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
