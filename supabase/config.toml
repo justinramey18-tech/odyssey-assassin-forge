@@ -67,3 +67,5 @@ project_id = "sqvcszzbkyzidigsdqgk"
     verify_jwt = true
   [functions.notify-live-chat]
     verify_jwt = false
+  [functions.spell-forge]
+    verify_jwt = false
