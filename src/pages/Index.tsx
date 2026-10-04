@@ -803,6 +803,66 @@ const Index = () => {
   // Spell Customization (homebrew spells)
   const spellCustomization = useSpellCustomization();
 
+  // Spell Forge installer: adds a forged spell to the homebrew library, then
+  // prepares/learns it in the same spellcasting state that feeds Quick Actions.
+  const spellForgeRef = useRef({ combatSpellcasting, spellCustomization, isPreparedCaster: isRogueClass ? true : classSpellcasting.isPreparedCaster });
+  spellForgeRef.current = { combatSpellcasting, spellCustomization, isPreparedCaster: isRogueClass ? true : classSpellcasting.isPreparedCaster };
+  useEffect(() => {
+    return registerSpellInstaller(async (draft) => {
+      const { combatSpellcasting: sc, spellCustomization: cust, isPreparedCaster } = spellForgeRef.current;
+      const now = Date.now();
+      const spell: HomebrewSpell = {
+        id: generateHomebrewSpellId(),
+        name: draft.name,
+        level: Math.min(9, Math.max(0, Math.floor(draft.level))) as HomebrewSpell['level'],
+        school: draft.school as SpellSchool,
+        castingTime: draft.castingTime as CastingTime,
+        range: draft.range,
+        duration: draft.duration,
+        concentration: !!draft.concentration,
+        ritual: !!draft.ritual,
+        components: {
+          verbal: !!draft.components?.verbal,
+          somatic: !!draft.components?.somatic,
+          material: draft.components?.material ? draft.components.material : undefined,
+        },
+        attackType: (draft.attackType as AttackType) || undefined,
+        saveStat: (draft.saveStat as SaveStat) || undefined,
+        damageFormula: draft.damageFormula || undefined,
+        damageType: draft.damageType || undefined,
+        healingFormula: draft.healingFormula || undefined,
+        higherLevels: draft.higherLevels || undefined,
+        description: draft.description,
+        iconName: 'Sparkles',
+        personalityQuips: { thunderhead: '', jarvis: '', deadpool: '' },
+        isHomebrew: true,
+        aiGenerated: true,
+        createdAt: now,
+        updatedAt: now,
+      };
+      cust.addSpell(spell);
+      // Wait for the spell to resolve through the same lookup prepareSpell uses.
+      const deadline = Date.now() + 1000;
+      while (!getSpellById(spell.id) && Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 50));
+      }
+      if (!getSpellById(spell.id)) {
+        return { ok: false, message: 'Install failed. Try again.' };
+      }
+      if (isPreparedCaster) sc.prepareSpell(spell.id);
+      else sc.learnSpell(spell.id);
+      // Confirm the id actually landed before reporting success.
+      await new Promise(r => setTimeout(r, 100));
+      const landed = spellForgeRef.current.combatSpellcasting.state.preparedSpells.includes(spell.id)
+        || spellForgeRef.current.combatSpellcasting.state.knownSpells.includes(spell.id);
+      if (landed) return { ok: true, message: `${spell.name} is ready in Quick Actions.` };
+      if (spell.level > 0) {
+        return { ok: true, message: `${spell.name} is in your spellbook, but you're at your prepared limit. Unprepare a spell to use it from Quick Actions.` };
+      }
+      return { ok: false, message: 'Install failed. Try again.' };
+    });
+  }, []);
+
   // Ability Customization (homebrew abilities)
   const abilityCustomization = useAbilityCustomization();
   const { images: abilityImages } = useAbilityImages();
