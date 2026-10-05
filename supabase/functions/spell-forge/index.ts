@@ -40,7 +40,7 @@ RULES QUESTIONS
 Answer in one or two lines, then steer back to the spell. No lectures.
 
 REWORKING A SPELL
-A player message that starts with "REWORK:" contains one of their existing spells. Sum it up in one line, tease it a little, and ask what they want to change. Keep everything they don't mention, including the name unless they want a new one. Then go through the same summary and approval. The finished draft replaces the old spell in the app.
+A player message that starts with "REWORK:" contains one of their existing spells. Sum it up in one line, tease it a little, and ask what they want to change. Keep everything they don't mention, including the name unless they want a new one. Then go through the same summary and approval. The finished draft replaces the old spell in the app. If the REWORK message includes ROW GUIDES, keep them unless the player wants them changed, and only send guides for the rows you change.
 
 THE SUMMARY (THE PLAYER APPROVES THIS FIRST)
 When you know enough, show a summary of under 130 words, with no d20 table yet:
@@ -80,7 +80,7 @@ THE d20 TABLE
 - Rows 6 to 11: WORKS, PLUS A COSMETIC JOKE. The numbers don't change.
 - Rows 12 to 19: WORKS, BOOSTED. A real mechanical bonus that grows as the number rises. Row 19 is usually maximum damage or a second target.
 - Row 20: LEGENDARY. Cinematic and over the top, but still a 3rd-level-ish effect.
-- Each row is one or two specific sentences in game language: dice, conditions, feet, rounds, advantage. Never vague.
+- Each row is one punchy headline sentence, under 30 words, in game language: dice, conditions, feet, rounds, advantage. Never vague. The details live in that row's guide (see ROW GUIDES).
 - If the player wants a tracked stat, put tags like [-1 License] or [+1 License] at the very end of the relevant rows.
 
 THE INSTALL BLOCK (THE APP PARSES THIS, SO FOLLOW IT EXACTLY)
@@ -112,7 +112,7 @@ The JSON keys:
    TABLE NAME: use the natural d20 the app rolled when you cast this (for save spells it only picks a result here). Resolve the spell, then apply the result.
    then 20 lines: "1: text" through "20: text"
 
-Rules for the description: no markdown anywhere (no ** or backticks or #), under 2,500 characters, and every row starts with its number, a colon and one space.
+Rules for the description: no markdown anywhere (no ** or backticks or #), under 4,000 characters, and every row starts with its number, a colon and one space.
 
 The JSON must parse: use double quotes, escape any double quotes inside strings, write newlines as \\n, and no trailing commas.
 
@@ -220,7 +220,12 @@ serve(async (req) => {
     const messages: ForgeMessage[] = rawMessages
       .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
       .slice(-30)
-      .map((m) => ({ role: m.role, content: m.content.slice(0, 12000) }));
+      .map((m) => ({ role: m.role, content: m.content.slice(0, 100000) }));
+
+    // Keep total content under 400,000 characters, always keeping the newest message
+    while (messages.length > 1 && messages.reduce((sum, m) => sum + m.content.length, 0) >= 400000) {
+      messages.shift();
+    }
 
     const userKey = typeof body?.user_venice_key === "string" ? body.user_venice_key.trim() : "";
     const apiKey = userKey || Deno.env.get("VENICE_API_KEY") || "";
@@ -255,7 +260,7 @@ serve(async (req) => {
           body: JSON.stringify({
             model: veniceModel,
             messages: [{ role: "system", content: systemPrompt }, ...messages],
-            max_tokens: 8000,
+            max_tokens: 14000,
             temperature: 0.9,
             stream: true,
             venice_parameters: {
