@@ -14,6 +14,8 @@ export interface HomebrewSpell extends SpellDefinition {
   updatedAt: number;
   notes?: string;
   aiGenerated?: boolean;
+  /** Optional GM guide per d20 table row, keyed "1" to "20". Sent to the DM only when that row is rolled. Never add these to the character context. */
+  rowGuides?: Record<string, string>;
 }
 
 /**
