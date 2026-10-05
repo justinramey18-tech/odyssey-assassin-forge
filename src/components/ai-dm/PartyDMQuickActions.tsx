@@ -17,6 +17,7 @@ import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic
 import { RollPreviewSheet, type RollPreviewChoice } from '@/components/magic/RollPreviewSheet';
 import { COST_META, resolveActionCost, type ActionCost } from '@/lib/combat/actionCost';
 import { parseRollTable } from '@/lib/magic/parseRollTable';
+import { getRowGuide } from '@/lib/magic/rowGuides';
 import { DiceOutcomeTable } from '@/components/magic/DiceOutcomeTable';
 import { SpellForgeChat } from '@/components/magic/SpellForgeChat';
 import { installForgedSpell } from '@/lib/spellForgeBus';
@@ -894,6 +895,17 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
           healingFormula: full.healingFormula, saveStat: full.saveStat,
           attackType: full.attackType, isHomebrew: full.isHomebrew,
         }),
+        spellPromptArgs: {
+          name: full.name,
+          characterName: charName,
+          isCantrip,
+          detail: {
+            level: full.level, school: full.school, description: full.description,
+            damageFormula: full.damageFormula, damageType: full.damageType,
+            healingFormula: full.healingFormula, saveStat: full.saveStat,
+            attackType: full.attackType, isHomebrew: full.isHomebrew,
+          },
+        },
         removeCategory: full.isHomebrew ? 'homebrew-spell' as const : isCantrip ? 'cantrip' as const : 'spell' as const,
         rollKind: 'spell' as const,
         spellLevel: typeof full.level === 'number' ? full.level : undefined,
