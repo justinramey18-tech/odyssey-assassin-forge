@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ScrollText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { RollTable } from '@/lib/magic/parseRollTable';
 import frameArt from '@/assets/dice-table/dice-table-frame.png';
@@ -13,16 +13,32 @@ interface DiceOutcomeTableProps {
   table: RollTable;
   /** The last number actually rolled for this spell, if known. That row is highlighted. */
   highlight?: number;
+  /** Per-row GM notes keyed "1" to "20". A row with a note can be tapped to read it. */
+  guides?: Record<string, string>;
   defaultOpen?: boolean;
 }
 
 /** Ornate collapsible dice table: header plaque (tap to open), framed rows, a d20 badge per row. */
-export function DiceOutcomeTable({ table, highlight, defaultOpen = false }: DiceOutcomeTableProps) {
+export function DiceOutcomeTable({ table, highlight, guides, defaultOpen = false }: DiceOutcomeTableProps) {
   const [open, setOpen] = useState(defaultOpen);
+  const [openGuide, setOpenGuide] = useState<number | null>(null);
   const max = table.rows.reduce((m, r) => Math.max(m, r.roll), 0) || 20;
   const failCutoff = Math.max(1, Math.round(max / 4));
   const tierOf = (roll: number) => (roll >= max ? 'crit' : roll <= failCutoff ? 'fail' : 'normal');
   const badgeArt = { fail: d20Fail, normal: d20Normal, crit: d20Crit } as const;
+
+  /** The cleaned guide for one row, or null when that row has none. */
+  const guideFor = (roll: number): string | null => {
+    const raw = guides?.[String(roll)];
+    if (typeof raw !== 'string') return null;
+    const trimmed = raw.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  };
+  const guideCount = Object.keys(guides ?? {}).reduce((n, key) => {
+    const roll = Number(key);
+    if (!Number.isInteger(roll) || roll < 1 || roll > 20) return n;
+    return guideFor(roll) ? n + 1 : n;
+  }, 0);
 
   return (
     <div className="relative mt-2" onClick={(e) => e.stopPropagation()}>
