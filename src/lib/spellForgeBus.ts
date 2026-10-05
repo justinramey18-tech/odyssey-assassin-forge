@@ -1,7 +1,7 @@
 import type { SpellForgeDraft } from '@/components/magic/SpellForgeChat';
 import type { HomebrewSpell } from '@/lib/spellCustomization/types';
 
-export type InstallResult = { ok: boolean; message: string };
+export type InstallResult = { ok: boolean; message: string; spellId?: string };
 export type InstallOptions = { replaceId?: string };
 
 type Installer = (draft: SpellForgeDraft, options?: InstallOptions) => Promise<InstallResult>;

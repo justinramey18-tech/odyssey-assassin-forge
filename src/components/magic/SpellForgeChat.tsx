@@ -18,6 +18,8 @@ export interface SpellForgeDraft {
   components: { verbal: boolean; somatic: boolean; material?: string | null };
   attackType?: string | null; saveStat?: string | null; damageFormula?: string | null; damageType?: string | null;
   healingFormula?: string | null; higherLevels?: string | null; description: string;
+  /** Per-row GM notes keyed "1" to "20", installed with the spell. */
+  rowGuides?: Record<string, string>;
 }
 
 type InstallFn = (draft: SpellForgeDraft, options?: { replaceId?: string }) => Promise<{ ok: boolean; message: string }>;
