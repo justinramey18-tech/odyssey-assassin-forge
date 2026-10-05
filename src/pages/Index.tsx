@@ -140,6 +140,7 @@ import { useWildShape } from '@/hooks/use-wild-shape';
 import { DruidCircle, getCircleById } from '@/lib/classes/druidCircles';
 import { useSpellCustomization } from '@/hooks/use-spell-customization';
 import { registerSpellInstaller, registerReworkableSpellLister } from '@/lib/spellForgeBus';
+import { ROW_GUIDE_MAX_CHARS } from '@/lib/magic/rowGuides';
 import { generateHomebrewSpellId } from '@/lib/spellCustomization/utils';
 import type { HomebrewSpell } from '@/lib/spellCustomization/types';
 import type { SpellSchool, CastingTime, AttackType, SaveStat } from '@/lib/magic/types';
@@ -835,6 +836,23 @@ const Index = () => {
         higherLevels: draft.higherLevels || undefined,
         description: draft.description,
       });
+      // Row guides ride along with the draft: only keys "1" to "20" holding a
+      // non-empty string, trimmed and capped. Anything else is dropped.
+      const cleanRowGuides = (): Record<string, string> => {
+        const guides: Record<string, string> = {};
+        const raw = draft.rowGuides;
+        if (!raw || typeof raw !== 'object') return guides;
+        for (let roll = 1; roll <= 20; roll++) {
+          const value = (raw as Record<string, unknown>)[String(roll)];
+          if (typeof value !== 'string') continue;
+          const trimmed = value.trim();
+          if (!trimmed) continue;
+          guides[String(roll)] = trimmed.slice(0, ROW_GUIDE_MAX_CHARS);
+        }
+        return guides;
+      };
+      const rowGuides = cleanRowGuides();
+      const guideFields = () => (Object.keys(rowGuides).length > 0 ? { rowGuides } : {});
       const ensureLanded = async (spellId: string): Promise<boolean> => {
         // Wait for the spell to resolve through the same lookup prepareSpell uses.
         const deadline = Date.now() + 1000;
