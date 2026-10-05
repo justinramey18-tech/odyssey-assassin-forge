@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useReducedMotion } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
 import { X, Send, Loader2, RotateCcw, Plus, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { DM_MODELS } from '@/lib/dm-models';
 import { loadApiKey } from '@/lib/api-keys';
+import { listReworkableSpells } from '@/lib/spellForgeBus';
 import { parseRollTable } from '@/lib/magic/parseRollTable';
 import { DiceOutcomeTable } from '@/components/magic/DiceOutcomeTable';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,26 +20,52 @@ export interface SpellForgeDraft {
   healingFormula?: string | null; higherLevels?: string | null; description: string;
 }
 
+type InstallFn = (draft: SpellForgeDraft, options?: { replaceId?: string }) => Promise<{ ok: boolean; message: string }>;
+
 export interface SpellForgeChatProps {
   open: boolean;
   onClose: () => void;
   character: { name: string; className?: string; level?: number; spellcastingAbility?: string; spellSaveDC?: number; spellAttackBonus?: number; existingSpellNames?: string[] };
-  onInstall: (draft: SpellForgeDraft) => Promise<{ ok: boolean; message: string }>;
+  onInstall: InstallFn;
   /** Render inside the open drawer instead of a body portal. */
   inline?: boolean;
 }
 
-interface ChatMsg { role: 'user' | 'assistant'; content: string }
+interface ChatMsg { role: 'user' | 'assistant'; content: string; display?: string }
+type ReworkTarget = { id: string; name: string };
 
 const MODEL_KEY = 'odyssey-spell-forge-model';
 const DEFAULT_MODEL = 'venice/venice-uncensored-1-2';
-const GREETING = "Tell me the spell you want. A bit, a joke, a power fantasy. I'll ask a couple of questions, then forge it with a d20 table you can install straight into Quick Actions.";
+const GREETING = "Welcome to the Spell Forge, where bad ideas become worse spells. Tell me what you want your magic to do to some poor bastard and I'll hammer it into a spell with a d20 table. Got an idea, or want me to pitch you some?";
 const RESEND_MSG = "Your install block didn't parse. Resend the full draft with a valid [[SPELL]] JSON block.";
 const BLOCK_RE = /\[\[SPELL\]\]([\s\S]*?)\[\[\/SPELL\]\]/g;
+const READY_RE = /^[ \t]*\[FORGE_READY\][ \t]*$/m;
 
 function readModel(): string {
   try { return localStorage.getItem(MODEL_KEY) || DEFAULT_MODEL; } catch { return DEFAULT_MODEL; }
 }
+
+function parseSuggestions(content: string): string[] {
+  const match = content.match(/\[SUGGESTIONS:\s*(.*?)\]\s*$/);
+  if (!match) return [];
+  try {
+    const raw = match[1];
+    const suggestions: string[] = [];
+    const regex = /"([^"]+)"/g;
+    let m;
+    while ((m = regex.exec(raw)) !== null) suggestions.push(m[1]);
+    return suggestions;
+  } catch {
+    return [];
+  }
+}
+
+function stripSuggestions(content: string): string {
+  return content.replace(/\n?\[SUGGESTIONS:\s*.*?\]\s*$/, '').trimEnd();
+}
+
+function hasReady(content: string): boolean { return READY_RE.test(stripSuggestions(content)); }
+function stripReady(content: string): string { return content.replace(/^[ \t]*\[FORGE_READY\][ \t]*$\n?/gm, '').trim(); }
 
 function splitBlock(content: string): { text: string; block: string | null } {
   const matches = [...content.matchAll(BLOCK_RE)];
@@ -47,6 +75,30 @@ function splitBlock(content: string): { text: string; block: string | null } {
   const text = (content.slice(0, idx) + content.slice(idx + last[0].length)).trim();
   return { text, block: last[1].trim() };
 }
+
+function buildReworkContent(s: Record<string, any>): string {
+  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : '');
+  const join = (parts: string[]) => parts.filter(Boolean).join(' · ');
+  const lines: string[] = [`REWORK: ${str(s.name)}`];
+  const lvl = typeof s.level === 'number' ? (s.level === 0 ? 'Cantrip' : String(s.level)) : '';
+  const l1 = join([lvl && `Level: ${lvl}`, str(s.school) && `School: ${str(s.school)}`]); if (l1) lines.push(l1);
+  const l2 = join([str(s.castingTime) && `Casting time: ${str(s.castingTime)}`, str(s.range) && `Range: ${str(s.range)}`, str(s.duration) && `Duration: ${str(s.duration)}`]); if (l2) lines.push(l2);
+  const l3 = join([typeof s.concentration === 'boolean' ? `Concentration: ${s.concentration ? 'yes' : 'no'}` : '', typeof s.ritual === 'boolean' ? `Ritual: ${s.ritual ? 'yes' : 'no'}` : '']); if (l3) lines.push(l3);
+  const c = s.components;
+  if (c && typeof c === 'object') {
+    const parts = [c.verbal ? 'V' : '', c.somatic ? 'S' : '', str(c.material) ? `M (${str(c.material)})` : (c.material === true ? 'M' : '')].filter(Boolean);
+    if (parts.length) lines.push(`Components: ${parts.join(', ')}`);
+  }
+  const atk = [str(s.attackType), str(s.saveStat)].filter(Boolean).join(' ');
+  if (atk) lines.push(`Attack or save: ${atk}`);
+  const dmg = [str(s.damageFormula), str(s.damageType)].filter(Boolean).join(' ');
+  const l4 = join([dmg && `Damage: ${dmg}`, str(s.healingFormula) && `Healing: ${str(s.healingFormula)}`]); if (l4) lines.push(l4);
+  if (str(s.higherLevels)) lines.push(`Higher levels: ${str(s.higherLevels)}`);
+  if (typeof s.description === 'string' && s.description) { lines.push('Description:'); lines.push(s.description); }
+  return lines.join('\n');
+}
+
+const CHIP_CLASS = 'animate-in fade-in-0 zoom-in-95 fill-mode-both duration-300 rounded-full min-h-[40px] px-3 text-sm font-cinzel text-primary border border-primary/50 bg-black/60 backdrop-blur-sm';
 
 function validate(d: SpellForgeDraft): string[] {
   const errs: string[] = [];
