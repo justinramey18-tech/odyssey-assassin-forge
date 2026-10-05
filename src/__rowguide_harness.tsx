@@ -86,6 +86,23 @@ declare global {
 }
 window.__castPrompts = [];
 
+// The spellcasting hook normally registers these; the harness stands in for it
+// so the pre-roll sheet has a real slot to offer.
+registerSpellCaster(req => ({
+  ok: true,
+  slotLevel: req.level === 0 ? undefined : 2,
+  remaining: 2,
+  totalRemaining: 2,
+  isCantrip: req.level === 0,
+}));
+registerMagicResourceInspector(() => ({
+  spellAttackBonus: 5,
+  spellSaveDC: 13,
+  slots: [{ level: 2, current: 3, max: 3 }],
+  concentratingOn: null,
+  activeEffects: [],
+}));
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <PartyDMQuickActions
