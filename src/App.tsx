@@ -18,7 +18,6 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const Features = lazy(() => import("./pages/Features"));
 const CharacterRoster = lazy(() => import("./pages/CharacterRoster"));
 const AICreationAssistant = lazy(() => import("./pages/AICreationAssistant"));
-const ForgeHarness = lazy(() => import("./pages/ForgeHarness"));
 
 const queryClient = new QueryClient();
 
@@ -68,7 +67,6 @@ const App = () => {
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/recover-account" element={<RecoverAccount />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="/forge-harness" element={<ForgeHarness />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
