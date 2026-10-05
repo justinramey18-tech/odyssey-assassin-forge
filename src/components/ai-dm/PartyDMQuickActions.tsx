@@ -423,7 +423,25 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
     if (item.rollKind === 'spell') lastSpellRolls.set(item.name, roll.d20);
     onCloseDrawer?.();
     const complete = () => {
-      onUse(encodeActionCard(actionCardFromRoll(item.name, roll, slotNote), item.prompt + rollSuffix(roll) + slotNote));
+      // Table spells rebuild their prompt here so the DM gets only the row
+      // matching the player's d20 — never all 20 rows.
+      let castPrompt = item.prompt;
+      if (item.rollKind === 'spell' && item.spellPromptArgs && item.rulesText) {
+        const hasTable = !!parseRollTable(item.rulesText).table;
+        if (hasTable) {
+          castPrompt = generateSpellPrompt(
+            item.spellPromptArgs.name,
+            item.spellPromptArgs.characterName,
+            item.spellPromptArgs.isCantrip,
+            {
+              ...item.spellPromptArgs.detail,
+              tableRoll: roll.d20,
+              rowGuide: getRowGuide(item.spellPromptArgs.name, roll.d20),
+            },
+          );
+        }
+      }
+      onUse(encodeActionCard(actionCardFromRoll(item.name, roll, slotNote), castPrompt + rollSuffix(roll) + slotNote));
       toast.success('Prompt added to input');
     };
     // A nat 20 to-hit plays the crit cinematic as the reveal instead of the
