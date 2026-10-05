@@ -17,6 +17,7 @@ import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic
 import { RollPreviewSheet, type RollPreviewChoice } from '@/components/magic/RollPreviewSheet';
 import { COST_META, resolveActionCost, type ActionCost } from '@/lib/combat/actionCost';
 import { parseRollTable } from '@/lib/magic/parseRollTable';
+import { getRowGuide } from '@/lib/magic/rowGuides';
 import { DiceOutcomeTable } from '@/components/magic/DiceOutcomeTable';
 import { SpellForgeChat } from '@/components/magic/SpellForgeChat';
 import { installForgedSpell } from '@/lib/spellForgeBus';
@@ -197,6 +198,16 @@ interface QuickActionItem {
   weaponProperties?: string[];
   weaponEnchantments?: Enchantment[];
   weaponRarity?: string;
+  /** Everything needed to rebuild the spell prompt at cast time, so only the rolled table row is sent. */
+  spellPromptArgs?: {
+    name: string;
+    characterName: string;
+    isCantrip: boolean;
+    detail: {
+      level?: number; school?: string; description?: string; damageFormula?: string; damageType?: string;
+      healingFormula?: string; saveStat?: string; attackType?: string; isHomebrew?: boolean;
+    };
+  };
   isEmptyWeaponSlot?: boolean;
 }
 
@@ -412,7 +423,25 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
     if (item.rollKind === 'spell') lastSpellRolls.set(item.name, roll.d20);
     onCloseDrawer?.();
     const complete = () => {
-      onUse(encodeActionCard(actionCardFromRoll(item.name, roll, slotNote), item.prompt + rollSuffix(roll) + slotNote));
+      // Table spells rebuild their prompt here so the DM gets only the row
+      // matching the player's d20 — never all 20 rows.
+      let castPrompt = item.prompt;
+      if (item.rollKind === 'spell' && item.spellPromptArgs && item.rulesText) {
+        const hasTable = !!parseRollTable(item.rulesText).table;
+        if (hasTable) {
+          castPrompt = generateSpellPrompt(
+            item.spellPromptArgs.name,
+            item.spellPromptArgs.characterName,
+            item.spellPromptArgs.isCantrip,
+            {
+              ...item.spellPromptArgs.detail,
+              tableRoll: roll.d20,
+              rowGuide: getRowGuide(item.spellPromptArgs.name, roll.d20),
+            },
+          );
+        }
+      }
+      onUse(encodeActionCard(actionCardFromRoll(item.name, roll, slotNote), castPrompt + rollSuffix(roll) + slotNote));
       toast.success('Prompt added to input');
     };
     // A nat 20 to-hit plays the crit cinematic as the reveal instead of the
@@ -884,6 +913,17 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
           healingFormula: full.healingFormula, saveStat: full.saveStat,
           attackType: full.attackType, isHomebrew: full.isHomebrew,
         }),
+        spellPromptArgs: {
+          name: full.name,
+          characterName: charName,
+          isCantrip,
+          detail: {
+            level: full.level, school: full.school, description: full.description,
+            damageFormula: full.damageFormula, damageType: full.damageType,
+            healingFormula: full.healingFormula, saveStat: full.saveStat,
+            attackType: full.attackType, isHomebrew: full.isHomebrew,
+          },
+        },
         removeCategory: full.isHomebrew ? 'homebrew-spell' as const : isCantrip ? 'cantrip' as const : 'spell' as const,
         rollKind: 'spell' as const,
         spellLevel: typeof full.level === 'number' ? full.level : undefined,
