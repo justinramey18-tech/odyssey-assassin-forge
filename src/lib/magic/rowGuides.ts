@@ -8,6 +8,9 @@ export type RowGuidedSpell = SpellDefinition & { rowGuides?: Record<string, stri
 
 /**
  * Finds a player-created spell by id first, then by name (case-insensitive, trimmed).
+ * When several spells share a name, the copy that actually has row guides wins,
+ * then the most recently edited one — otherwise an older guideless duplicate
+ * would shadow the newer one and the player's notes would never show.
  */
 export function findCustomSpell(idOrName: string): RowGuidedSpell | undefined {
   const key = idOrName.trim();
@@ -15,10 +18,26 @@ export function findCustomSpell(idOrName: string): RowGuidedSpell | undefined {
   const byId = customSpellRegistry[key];
   if (byId) return byId;
   const lowered = key.toLowerCase();
-  for (const spell of Object.values(customSpellRegistry)) {
-    if (spell.name.trim().toLowerCase() === lowered) return spell;
-  }
-  return undefined;
+  const matches = Object.values(customSpellRegistry).filter(
+    spell => spell.name.trim().toLowerCase() === lowered,
+  );
+  if (matches.length === 0) return undefined;
+  if (matches.length === 1) return matches[0];
+
+  const updatedAtOf = (spell: RowGuidedSpell) => (spell as { updatedAt?: number }).updatedAt ?? 0;
+  const hasGuide = (spell: RowGuidedSpell) =>
+    Object.entries(spell.rowGuides ?? {}).some(
+      ([row, text]) =>
+        Number(row) >= 1 &&
+        Number(row) <= 20 &&
+        typeof text === 'string' &&
+        text.trim() !== '',
+    );
+  const pool = matches.some(hasGuide) ? matches.filter(hasGuide) : matches;
+  return pool.reduce(
+    (best, spell) => (updatedAtOf(spell) > updatedAtOf(best) ? spell : best),
+    pool[0],
+  );
 }
 
 /**

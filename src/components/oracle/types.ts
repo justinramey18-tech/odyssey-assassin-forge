@@ -151,6 +151,7 @@ export interface CharacterContext {
     /** Full details for every prepared spell (standard and homebrew). UI-facing; the
      *  model already receives homebrewSpells separately. */
     preparedSpellDetails?: Array<{
+      id?: string;
       name: string;
       level: number;
       school: string;

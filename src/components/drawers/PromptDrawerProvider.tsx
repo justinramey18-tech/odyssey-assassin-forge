@@ -762,6 +762,7 @@ export function PromptDrawerProvider({
         .map(id => getSpellById(id))
         .filter((s): s is NonNullable<typeof s> => !!s)
         .map(s => ({
+          id: s.id,
           name: s.name,
           level: s.level,
           school: s.school,
