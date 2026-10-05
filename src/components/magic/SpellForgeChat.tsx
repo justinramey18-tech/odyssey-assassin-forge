@@ -8,6 +8,7 @@ import { DM_MODELS } from '@/lib/dm-models';
 import { loadApiKey } from '@/lib/api-keys';
 import { listReworkableSpells } from '@/lib/spellForgeBus';
 import { parseRollTable } from '@/lib/magic/parseRollTable';
+import { ROW_GUIDE_MAX_CHARS, getRowGuides } from '@/lib/magic/rowGuides';
 import { DiceOutcomeTable } from '@/components/magic/DiceOutcomeTable';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
@@ -22,7 +23,7 @@ export interface SpellForgeDraft {
   rowGuides?: Record<string, string>;
 }
 
-type InstallFn = (draft: SpellForgeDraft, options?: { replaceId?: string }) => Promise<{ ok: boolean; message: string }>;
+type InstallFn = (draft: SpellForgeDraft, options?: { replaceId?: string }) => Promise<{ ok: boolean; message: string; spellId?: string }>;
 
 export interface SpellForgeChatProps {
   open: boolean;
@@ -78,6 +79,38 @@ function splitBlock(content: string): { text: string; block: string | null } {
   return { text, block: last[1].trim() };
 }
 
+const GUIDE_RE = /\[\[ROWGUIDE\s+(\d{1,2})\]\]([\s\S]*?)\[\[\/ROWGUIDE\]\]/g;
+type GuideBlock = { row: number; text: string };
+
+/** Pull row-guide blocks out of a message; returns the remaining text and the valid guides in order. */
+function splitGuides(content: string): { text: string; guides: GuideBlock[] } {
+  const guides: GuideBlock[] = [];
+  for (const m of content.matchAll(GUIDE_RE)) {
+    const row = Number(m[1]);
+    if (!Number.isInteger(row) || row < 1 || row > 20) continue;
+    const text = m[2].trim().slice(0, ROW_GUIDE_MAX_CHARS);
+    if (text) guides.push({ row, text });
+  }
+  return { text: content.replace(GUIDE_RE, '').replace(/\n{3,}/g, '\n\n').trim(), guides };
+}
+
+function GuideCard({ guide }: { guide: GuideBlock }) {
+  const [all, setAll] = useState(false);
+  const lines = guide.text.split('\n');
+  const long = lines.length > 3;
+  return (
+    <div className="mt-2 rounded-xl border border-primary/40 bg-black/70 p-3 backdrop-blur-sm">
+      <p className="font-cinzel text-sm text-primary">📜 Row {guide.row} guide</p>
+      <p className="mt-1 whitespace-pre-wrap text-sm text-foreground/90">{all || !long ? guide.text : lines.slice(0, 3).join('\n')}</p>
+      {long && (
+        <button onClick={() => setAll(v => !v)} className="mt-1 min-h-[40px] text-xs text-primary underline" style={{ touchAction: 'manipulation' }}>
+          {all ? 'Show less' : 'Show all'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function buildReworkContent(s: Record<string, any>): string {
   const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : '');
   const join = (parts: string[]) => parts.filter(Boolean).join(' · ');
@@ -97,6 +130,19 @@ function buildReworkContent(s: Record<string, any>): string {
   const l4 = join([dmg && `Damage: ${dmg}`, str(s.healingFormula) && `Healing: ${str(s.healingFormula)}`]); if (l4) lines.push(l4);
   if (str(s.higherLevels)) lines.push(`Higher levels: ${str(s.higherLevels)}`);
   if (typeof s.description === 'string' && s.description) { lines.push('Description:'); lines.push(s.description); }
+  const guides = getRowGuides(String(s.id ?? ''));
+  const rows = Object.keys(guides).map(Number).filter(n => Number.isInteger(n)).sort((a, b) => a - b);
+  if (rows.length) {
+    lines.push('ROW GUIDES:');
+    let len = lines.join('\n').length;
+    const skipped: number[] = [];
+    for (const n of rows) {
+      const block = `[[ROWGUIDE ${n}]]\n${guides[String(n)]}\n[[/ROWGUIDE]]`;
+      if (skipped.length || len + block.length + 1 > 60000) { skipped.push(n); continue; }
+      lines.push(block); len += block.length + 1;
+    }
+    if (skipped.length) lines.push(`Row guides also exist for rows: ${skipped.join(', ')}`);
+  }
   return lines.join('\n');
 }
 
@@ -131,11 +177,12 @@ function Avatar() {
   return <img src="/forge-avatar.webp" alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />;
 }
 
-function SpellPreviewCard({ block, installedNames, onInstall, onResend, onCelebrate, busy, rework }: {
+function SpellPreviewCard({ block, installedNames, onInstall, onResend, onCelebrate, busy, rework, guides, installable, guidesAfter }: {
   block: string; installedNames: Set<string>; busy: boolean;
   onInstall: InstallFn;
-  onResend: (msg: string) => void; onCelebrate: (name: string) => void;
+  onResend: (msg: string) => void; onCelebrate: (name: string, spellId: string | undefined, isNew: boolean) => void;
   rework: ReworkTarget | null;
+  guides: Record<string, string>; installable: boolean; guidesAfter: boolean;
 }) {
   const [state, setState] = useState<'idle' | 'working' | 'done' | 'error'>('idle');
   const [msg, setMsg] = useState('');
@@ -166,13 +213,17 @@ function SpellPreviewCard({ block, installedNames, onInstall, onResend, onCelebr
     draft.damageFormula ? `${draft.damageFormula}${draft.damageType ? ` ${draft.damageType}` : ''}` : null,
     draft.saveStat ? `${draft.saveStat} save` : null].filter(Boolean) as string[];
   const again = installedNames.has(draft.name.trim().toLowerCase());
+  const guideCount = Object.keys(guides).length;
+  const withGuides = guidesAfter && guideCount > 0 ? ` with ${guideCount} guides` : '';
 
   const install = async (replace: boolean) => {
     setState('working'); setMsg('');
     try {
-      const res = replace && rework ? await onInstall(draft, { replaceId: rework.id }) : await onInstall(draft);
+      const full: SpellForgeDraft = { ...draft, rowGuides: guides };
+      const isUpdate = !!(replace && rework);
+      const res = isUpdate ? await onInstall(full, { replaceId: rework!.id }) : await onInstall(full);
       setMsg(res.message);
-      if (res.ok) { setState('done'); onCelebrate(draft.name); } else setState('error');
+      if (res.ok) { setState('done'); onCelebrate(draft.name, res.spellId, !isUpdate); } else setState('error');
     } catch (e) {
       setState('error'); setMsg(e instanceof Error ? e.message : 'Install failed.');
     }
@@ -186,20 +237,23 @@ function SpellPreviewCard({ block, installedNames, onInstall, onResend, onCelebr
         {chips.map(c => <span key={c} className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] capitalize text-foreground">{c}</span>)}
       </div>
       {intro && <p className="mt-2 whitespace-pre-wrap text-sm text-foreground/90">{intro}</p>}
-      {table && <div className="mt-3"><DiceOutcomeTable table={table} /></div>}
+      {table && <div className="mt-3"><DiceOutcomeTable table={table} guides={guides} /></div>}
+      {table && guideCount > 0 && <p className="mt-1 text-xs text-muted-foreground">Row guides: {guideCount} of 20</p>}
+      {!installable ? <p className="mt-3 text-xs italic text-muted-foreground">A newer draft is below. Install that one.</p> : <>
       <button
         onClick={() => install(true)} disabled={state === 'working'}
         className={cn('mt-3 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-lg font-cinzel text-base font-semibold',
           state === 'done' ? 'bg-green-700 text-foreground' : 'bg-primary text-primary-foreground', 'disabled:opacity-70')}
         style={{ touchAction: 'manipulation' }}
       >
-        {state === 'working' ? <Loader2 className="h-5 w-5 animate-spin" /> : state === 'done' ? <><Check className="h-5 w-5" />Installed</> : rework ? `Update ${rework.name}` : again ? 'Install again' : 'Install to Quick Actions'}
+        {state === 'working' ? <Loader2 className="h-5 w-5 animate-spin" /> : state === 'done' ? <><Check className="h-5 w-5" />Installed</> : rework ? `Update ${rework.name}${withGuides}` : guidesAfter && guideCount > 0 ? `Install with ${guideCount} guides` : again ? 'Install again' : 'Install to Quick Actions'}
       </button>
       {rework && state !== 'done' && (
         <button onClick={() => install(false)} disabled={state === 'working'} className="mt-1 min-h-[40px] w-full text-xs text-muted-foreground underline disabled:opacity-50" style={{ touchAction: 'manipulation' }}>
           Save as a new spell instead
         </button>
       )}
+      </>}
       {msg && <p className={cn('mt-2 text-sm', state === 'error' ? 'text-destructive' : 'text-muted-foreground')}>{msg}</p>}
     </div>
   );
@@ -303,7 +357,7 @@ export function SpellForgeChat({ open, onClose, character, onInstall, inline = f
   const sendText = useCallback((text: string, opts?: { display?: string; forging?: boolean }) => {
     const t = text.trim();
     if (!t || loading) return;
-    const forge = opts?.forging ?? isForgeRequest(messages, t);
+    const forge = opts?.forging ?? (isForgeRequest(messages, t) || /guide/i.test(t));
     const msg: ChatMsg = opts?.display ? { role: 'user', content: t, display: opts.display } : { role: 'user', content: t };
     const history = [...messages, msg];
     setMessages(history);
@@ -338,7 +392,21 @@ export function SpellForgeChat({ open, onClose, character, onInstall, inline = f
     ? ["I've got an idea", 'Pitch me 3 ideas', ...(reworkable.length ? ['Rework one of my spells'] : []), 'Surprise me']
     : lastMsg?.role === 'assistant' ? parseSuggestions(lastMsg.content) : [];
 
-  const celebrate = (name: string) => {
+  const collectedGuides = useMemo(() => {
+    const out: Record<string, string> = reworkTarget ? { ...getRowGuides(reworkTarget.id) } : {};
+    for (const m of messages) for (const g of splitGuides(m.content).guides) out[String(g.row)] = g.text;
+    return out;
+  }, [messages, reworkTarget]);
+  const newestSpellIdx = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant' && splitBlock(messages[i].content).block !== null) return i;
+    }
+    return -1;
+  }, [messages]);
+  const guidesAfterSpell = useMemo(() => newestSpellIdx >= 0 && messages.slice(newestSpellIdx + 1).some(m => m.role === 'assistant' && splitGuides(m.content).guides.length > 0), [messages, newestSpellIdx]);
+
+  const celebrate = (name: string, spellId?: string, isNew?: boolean) => {
+    if (isNew && spellId) setReworkTarget({ id: spellId, name });
     setInstalled(prev => new Set(prev).add(name.trim().toLowerCase()));
     setCelebrating(name);
   };
@@ -393,15 +461,17 @@ export function SpellForgeChat({ open, onClose, character, onInstall, inline = f
               </div>
             );
           }
-          const { text, block } = splitBlock(stripReady(stripSuggestions(m.content)));
+          const { text: noGuides, guides: blocks } = splitGuides(stripReady(stripSuggestions(m.content)));
+          const { text, block } = splitBlock(noGuides);
           return (
             <div key={i} className="flex items-start gap-2">
               <Avatar />
               <div className="min-w-0 max-w-[88%] flex-1">
                 {text && <div className="rounded-2xl rounded-tl-sm bg-black/60 px-3 py-2 text-sm text-foreground backdrop-blur-sm"><div className="prose prose-sm prose-invert max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0"><ReactMarkdown>{text}</ReactMarkdown></div></div>}
                 {block !== null && (
-                  <SpellPreviewCard block={block} installedNames={installed} busy={loading} onInstall={onInstall} onResend={resend} onCelebrate={celebrate} rework={reworkTarget} />
+                  <SpellPreviewCard block={block} installedNames={installed} busy={loading} onInstall={onInstall} onResend={resend} onCelebrate={celebrate} rework={reworkTarget} guides={collectedGuides} installable={i === newestSpellIdx} guidesAfter={guidesAfterSpell} />
                 )}
+                {blocks.map((g, gi) => <GuideCard key={`${g.row}-${gi}`} guide={g} />)}
               </div>
             </div>
           );
