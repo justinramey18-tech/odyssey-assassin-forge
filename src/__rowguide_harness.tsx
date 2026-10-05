@@ -5,6 +5,7 @@ import '@fontsource/cinzel/400.css';
 import '@fontsource/inter/400.css';
 import './index.css';
 import { registerCustomSpell, getSpellById } from '@/lib/magic/spells';
+import { registerSpellCaster, registerMagicResourceInspector } from '@/lib/magic/castBus';
 import { PartyDMQuickActions } from '@/components/ai-dm/PartyDMQuickActions';
 import type { CharacterContext } from '@/components/oracle/types';
 
