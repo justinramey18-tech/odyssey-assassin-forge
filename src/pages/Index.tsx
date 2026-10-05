@@ -880,19 +880,24 @@ const Index = () => {
       if (replaceId) {
         const existing = cust.homebrewSpells.find(s => s.id === replaceId);
         if (existing) {
-          cust.updateSpell(replaceId, { ...mapDraftToFields(), aiGenerated: true });
+          // Merge with the guides the spell already carries so notes written
+          // in earlier sessions are never lost.
+          const merged = { ...(existing.rowGuides ?? {}), ...rowGuides };
+          const mergedFields = Object.keys(merged).length > 0 ? { rowGuides: merged } : {};
+          cust.updateSpell(replaceId, { ...mapDraftToFields(), aiGenerated: true, ...mergedFields });
           const landed = await ensureLanded(replaceId);
           if (!landed) {
             const limit = limitMessage({ ...existing, ...mapDraftToFields() });
-            if (limit) return { ok: true, message: limit };
+            if (limit) return { ok: true, message: limit, spellId: replaceId };
             return { ok: false, message: 'Install failed. Try again.' };
           }
-          return { ok: true, message: `${draft.name} updated. Quick Actions has the new version.` };
+          return { ok: true, message: `${draft.name} updated. Quick Actions has the new version.`, spellId: replaceId };
         }
         // Old id not found — fall through and install as a brand-new spell.
         const spell: HomebrewSpell = {
           id: generateHomebrewSpellId(),
           ...mapDraftToFields(),
+          ...guideFields(),
           iconName: 'Sparkles',
           personalityQuips: { thunderhead: '', jarvis: '', deadpool: '' },
           isHomebrew: true,
@@ -904,16 +909,17 @@ const Index = () => {
         const landed = await ensureLanded(spell.id);
         if (!landed) {
           const limit = limitMessage(spell);
-          if (limit) return { ok: true, message: limit };
+          if (limit) return { ok: true, message: limit, spellId: spell.id };
           return { ok: false, message: 'Install failed. Try again.' };
         }
-        return { ok: true, message: `${draft.name} was saved as a new spell (the old one wasn't found).` };
+        return { ok: true, message: `${draft.name} was saved as a new spell (the old one wasn't found).`, spellId: spell.id };
       }
 
       // New-spell path (unchanged behavior when no options are passed).
       const spell: HomebrewSpell = {
         id: generateHomebrewSpellId(),
         ...mapDraftToFields(),
+        ...guideFields(),
         iconName: 'Sparkles',
         personalityQuips: { thunderhead: '', jarvis: '', deadpool: '' },
         isHomebrew: true,
@@ -925,10 +931,10 @@ const Index = () => {
       const landed = await ensureLanded(spell.id);
       if (!landed) {
         const limit = limitMessage(spell);
-        if (limit) return { ok: true, message: limit };
+        if (limit) return { ok: true, message: limit, spellId: spell.id };
         return { ok: false, message: 'Install failed. Try again.' };
       }
-      return { ok: true, message: `${spell.name} is ready in Quick Actions.` };
+      return { ok: true, message: `${spell.name} is ready in Quick Actions.`, spellId: spell.id };
     });
   }, []);
 
