@@ -139,7 +139,7 @@ import { useCombatStats } from '@/hooks/use-combat-stats';
 import { useWildShape } from '@/hooks/use-wild-shape';
 import { DruidCircle, getCircleById } from '@/lib/classes/druidCircles';
 import { useSpellCustomization } from '@/hooks/use-spell-customization';
-import { registerSpellInstaller } from '@/lib/spellForgeBus';
+import { registerSpellInstaller, registerReworkableSpellLister } from '@/lib/spellForgeBus';
 import { generateHomebrewSpellId } from '@/lib/spellCustomization/utils';
 import type { HomebrewSpell } from '@/lib/spellCustomization/types';
 import type { SpellSchool, CastingTime, AttackType, SaveStat } from '@/lib/magic/types';
