@@ -1,4 +1,4 @@
-import { SpellDefinition } from '../types';
+import { SpellDefinition } from './types';
 import { customSpellRegistry } from './spells';
 import { parseRollTable } from './parseRollTable';
 
