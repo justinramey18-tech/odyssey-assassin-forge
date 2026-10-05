@@ -70,6 +70,11 @@ export function DiceOutcomeTable({ table, highlight, guides, defaultOpen = false
             backgroundClip: 'padding-box',
           }}
         >
+          {guideCount > 0 && (
+            <p className="px-1 pb-1 font-cinzel text-[9.5px] font-bold uppercase tracking-[0.12em] text-[#f5c97a]/85">
+              Row guides: {guideCount} of 20
+            </p>
+          )}
           {table.preamble && (
             <p className="px-1 pb-2 text-[10.5px] italic leading-snug text-white/55">{table.preamble}</p>
           )}
@@ -77,6 +82,47 @@ export function DiceOutcomeTable({ table, highlight, guides, defaultOpen = false
             {table.rows.map((row, i) => {
               const tier = tierOf(row.roll);
               const isHit = highlight === row.roll;
+              const guide = guideFor(row.roll);
+              const rowContent = (
+                <>
+                  <span className="relative h-9 w-9">
+                    <img src={badgeArt[tier]} alt="" draggable={false} className="h-full w-full" />
+                    <b
+                      className={cn(
+                        'absolute inset-x-0 top-[44%] -translate-y-1/2 text-center font-cinzel text-[12px] font-extrabold',
+                        tier === 'crit'
+                          ? 'text-[#3a2200] [text-shadow:0_0_3px_#fff6d8]'
+                          : 'text-[#fff3dc] [text-shadow:0_0_3px_#000,0_1px_2px_#000]',
+                      )}
+                    >
+                      {row.roll}
+                    </b>
+                  </span>
+                  <span className="text-[11.5px] leading-[1.4] text-[#EDE6D8] [text-shadow:0_1px_2px_#000]">
+                    {row.text}
+                    {row.tags.map((tag, t) => (
+                      <span
+                        key={t}
+                        className={cn(
+                          'ml-1 inline-block rounded-full border px-1.5 align-[1px] text-[9.5px] font-bold uppercase tracking-[0.05em]',
+                          tag.tone === 'minus'
+                            ? 'border-red-400/70 bg-red-700/35 text-red-100'
+                            : 'border-yellow-400/75 bg-yellow-600/30 text-yellow-100',
+                        )}
+                      >
+                        {tag.label}
+                      </span>
+                    ))}
+                    {isHit && <span className="ml-1 text-[9.5px] font-bold uppercase tracking-[0.1em] text-[#f5c97a]">you rolled this</span>}
+                    {guide && (
+                      <ScrollText
+                        aria-hidden="true"
+                        className="ml-1.5 inline-block h-3 w-3 align-[-2px] text-[#f5c97a]"
+                      />
+                    )}
+                  </span>
+                </>
+              );
               return (
                 <li key={`${row.roll}-${i}`}>
                   {i > 0 && (
@@ -86,43 +132,37 @@ export function DiceOutcomeTable({ table, highlight, guides, defaultOpen = false
                       style={{ background: `url(${dividerArt}) center / 100% 100% no-repeat` }}
                     />
                   )}
-                  <div
-                    className={cn(
-                      'grid grid-cols-[36px_1fr] items-center gap-2 rounded-md px-1 py-1',
-                      isHit && 'bg-[rgba(245,201,122,0.14)] shadow-[inset_0_0_0_1px_rgba(245,201,122,0.55)]',
-                    )}
-                  >
-                    <span className="relative h-9 w-9">
-                      <img src={badgeArt[tier]} alt="" draggable={false} className="h-full w-full" />
-                      <b
-                        className={cn(
-                          'absolute inset-x-0 top-[44%] -translate-y-1/2 text-center font-cinzel text-[12px] font-extrabold',
-                          tier === 'crit'
-                            ? 'text-[#3a2200] [text-shadow:0_0_3px_#fff6d8]'
-                            : 'text-[#fff3dc] [text-shadow:0_0_3px_#000,0_1px_2px_#000]',
-                        )}
-                      >
-                        {row.roll}
-                      </b>
-                    </span>
-                    <span className="text-[11.5px] leading-[1.4] text-[#EDE6D8] [text-shadow:0_1px_2px_#000]">
-                      {row.text}
-                      {row.tags.map((tag, t) => (
-                        <span
-                          key={t}
-                          className={cn(
-                            'ml-1 inline-block rounded-full border px-1.5 align-[1px] text-[9.5px] font-bold uppercase tracking-[0.05em]',
-                            tag.tone === 'minus'
-                              ? 'border-red-400/70 bg-red-700/35 text-red-100'
-                              : 'border-yellow-400/75 bg-yellow-600/30 text-yellow-100',
-                          )}
-                        >
-                          {tag.label}
-                        </span>
-                      ))}
-                      {isHit && <span className="ml-1 text-[9.5px] font-bold uppercase tracking-[0.1em] text-[#f5c97a]">you rolled this</span>}
-                    </span>
-                  </div>
+                  {guide ? (
+                    <button
+                      type="button"
+                      aria-expanded={openGuide === row.roll}
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenGuide(v => (v === row.roll ? null : row.roll)); }}
+                      className={cn(
+                        'grid w-full grid-cols-[36px_1fr] items-center gap-2 rounded-md px-1 py-1 text-left',
+                        isHit && 'bg-[rgba(245,201,122,0.14)] shadow-[inset_0_0_0_1px_rgba(245,201,122,0.55)]',
+                      )}
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      {rowContent}
+                    </button>
+                  ) : (
+                    <div
+                      className={cn(
+                        'grid grid-cols-[36px_1fr] items-center gap-2 rounded-md px-1 py-1',
+                        isHit && 'bg-[rgba(245,201,122,0.14)] shadow-[inset_0_0_0_1px_rgba(245,201,122,0.55)]',
+                      )}
+                    >
+                      {rowContent}
+                    </div>
+                  )}
+                  {guide && openGuide === row.roll && (
+                    <div
+                      data-vaul-no-drag=""
+                      className="mx-1.5 mt-1 max-h-[50vh] overflow-y-auto overscroll-contain whitespace-pre-wrap rounded-md border border-[rgba(245,201,122,0.45)] bg-[rgba(3,2,2,0.92)] p-2 text-sm leading-[1.45] text-[#EDE6D8] shadow-[inset_0_0_14px_rgba(0,0,0,0.85)] [text-shadow:0_1px_2px_#000]"
+                    >
+                      {guide}
+                    </div>
+                  )}
                 </li>
               );
             })}
