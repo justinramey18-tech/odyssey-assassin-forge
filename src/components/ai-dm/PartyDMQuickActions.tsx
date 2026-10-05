@@ -198,6 +198,8 @@ interface QuickActionItem {
   weaponProperties?: string[];
   weaponEnchantments?: Enchantment[];
   weaponRarity?: string;
+  /** The spell's own id, so guides resolve to the exact copy when two spells share a name. */
+  spellId?: string;
   /** Everything needed to rebuild the spell prompt at cast time, so only the rolled table row is sent. */
   spellPromptArgs?: {
     name: string;
