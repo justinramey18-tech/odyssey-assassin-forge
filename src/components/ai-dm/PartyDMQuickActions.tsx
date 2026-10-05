@@ -197,6 +197,16 @@ interface QuickActionItem {
   weaponProperties?: string[];
   weaponEnchantments?: Enchantment[];
   weaponRarity?: string;
+  /** Everything needed to rebuild the spell prompt at cast time, so only the rolled table row is sent. */
+  spellPromptArgs?: {
+    name: string;
+    characterName: string;
+    isCantrip: boolean;
+    detail: {
+      level?: number; school?: string; description?: string; damageFormula?: string; damageType?: string;
+      healingFormula?: string; saveStat?: string; attackType?: string; isHomebrew?: boolean;
+    };
+  };
   isEmptyWeaponSlot?: boolean;
 }
 
