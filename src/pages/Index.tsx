@@ -139,7 +139,7 @@ import { useCombatStats } from '@/hooks/use-combat-stats';
 import { useWildShape } from '@/hooks/use-wild-shape';
 import { DruidCircle, getCircleById } from '@/lib/classes/druidCircles';
 import { useSpellCustomization } from '@/hooks/use-spell-customization';
-import { registerSpellInstaller } from '@/lib/spellForgeBus';
+import { registerSpellInstaller, registerReworkableSpellLister } from '@/lib/spellForgeBus';
 import { generateHomebrewSpellId } from '@/lib/spellCustomization/utils';
 import type { HomebrewSpell } from '@/lib/spellCustomization/types';
 import type { SpellSchool, CastingTime, AttackType, SaveStat } from '@/lib/magic/types';
@@ -808,11 +808,12 @@ const Index = () => {
   const spellForgeRef = useRef({ combatSpellcasting, spellCustomization, isPreparedCaster: isRogueClass ? true : classSpellcasting.isPreparedCaster });
   spellForgeRef.current = { combatSpellcasting, spellCustomization, isPreparedCaster: isRogueClass ? true : classSpellcasting.isPreparedCaster };
   useEffect(() => {
-    return registerSpellInstaller(async (draft) => {
+    return registerSpellInstaller(async (draft, options) => {
       const { combatSpellcasting: sc, spellCustomization: cust, isPreparedCaster } = spellForgeRef.current;
       const now = Date.now();
-      const spell: HomebrewSpell = {
-        id: generateHomebrewSpellId(),
+      // Single mapping shared by the new-spell and update paths so both
+      // produce identical fields (null becomes undefined, level clamped 0-9).
+      const mapDraftToFields = () => ({
         name: draft.name,
         level: Math.min(9, Math.max(0, Math.floor(draft.level))) as HomebrewSpell['level'],
         school: draft.school as SpellSchool,
@@ -833,6 +834,68 @@ const Index = () => {
         healingFormula: draft.healingFormula || undefined,
         higherLevels: draft.higherLevels || undefined,
         description: draft.description,
+      });
+      const ensureLanded = async (spellId: string): Promise<boolean> => {
+        // Wait for the spell to resolve through the same lookup prepareSpell uses.
+        const deadline = Date.now() + 1000;
+        while (!getSpellById(spellId) && Date.now() < deadline) {
+          await new Promise(r => setTimeout(r, 50));
+        }
+        if (!getSpellById(spellId)) return false;
+        if (isPreparedCaster) sc.prepareSpell(spellId);
+        else sc.learnSpell(spellId);
+        // Confirm the id actually landed before reporting success.
+        await new Promise(r => setTimeout(r, 100));
+        return spellForgeRef.current.combatSpellcasting.state.preparedSpells.includes(spellId)
+          || spellForgeRef.current.combatSpellcasting.state.knownSpells.includes(spellId);
+      };
+      const limitMessage = (spell: HomebrewSpell) => {
+        if (spell.level > 0) {
+          return `${spell.name} is in your spellbook, but you're at your prepared limit. Unprepare a spell to use it from Quick Actions.`;
+        }
+        return null;
+      };
+
+      // Rework path: replace an existing homebrew spell in place (same id, so
+      // it stays prepared/learned and syncs to the cloud as an update).
+      const replaceId = options?.replaceId;
+      if (replaceId) {
+        const existing = cust.homebrewSpells.find(s => s.id === replaceId);
+        if (existing) {
+          cust.updateSpell(replaceId, { ...mapDraftToFields(), aiGenerated: true });
+          const landed = await ensureLanded(replaceId);
+          if (!landed) {
+            const limit = limitMessage({ ...existing, ...mapDraftToFields() });
+            if (limit) return { ok: true, message: limit };
+            return { ok: false, message: 'Install failed. Try again.' };
+          }
+          return { ok: true, message: `${draft.name} updated. Quick Actions has the new version.` };
+        }
+        // Old id not found — fall through and install as a brand-new spell.
+        const spell: HomebrewSpell = {
+          id: generateHomebrewSpellId(),
+          ...mapDraftToFields(),
+          iconName: 'Sparkles',
+          personalityQuips: { thunderhead: '', jarvis: '', deadpool: '' },
+          isHomebrew: true,
+          aiGenerated: true,
+          createdAt: now,
+          updatedAt: now,
+        };
+        cust.addSpell(spell);
+        const landed = await ensureLanded(spell.id);
+        if (!landed) {
+          const limit = limitMessage(spell);
+          if (limit) return { ok: true, message: limit };
+          return { ok: false, message: 'Install failed. Try again.' };
+        }
+        return { ok: true, message: `${draft.name} was saved as a new spell (the old one wasn't found).` };
+      }
+
+      // New-spell path (unchanged behavior when no options are passed).
+      const spell: HomebrewSpell = {
+        id: generateHomebrewSpellId(),
+        ...mapDraftToFields(),
         iconName: 'Sparkles',
         personalityQuips: { thunderhead: '', jarvis: '', deadpool: '' },
         isHomebrew: true,
@@ -841,25 +904,25 @@ const Index = () => {
         updatedAt: now,
       };
       cust.addSpell(spell);
-      // Wait for the spell to resolve through the same lookup prepareSpell uses.
-      const deadline = Date.now() + 1000;
-      while (!getSpellById(spell.id) && Date.now() < deadline) {
-        await new Promise(r => setTimeout(r, 50));
-      }
-      if (!getSpellById(spell.id)) {
+      const landed = await ensureLanded(spell.id);
+      if (!landed) {
+        const limit = limitMessage(spell);
+        if (limit) return { ok: true, message: limit };
         return { ok: false, message: 'Install failed. Try again.' };
       }
-      if (isPreparedCaster) sc.prepareSpell(spell.id);
-      else sc.learnSpell(spell.id);
-      // Confirm the id actually landed before reporting success.
-      await new Promise(r => setTimeout(r, 100));
-      const landed = spellForgeRef.current.combatSpellcasting.state.preparedSpells.includes(spell.id)
-        || spellForgeRef.current.combatSpellcasting.state.knownSpells.includes(spell.id);
-      if (landed) return { ok: true, message: `${spell.name} is ready in Quick Actions.` };
-      if (spell.level > 0) {
-        return { ok: true, message: `${spell.name} is in your spellbook, but you're at your prepared limit. Unprepare a spell to use it from Quick Actions.` };
-      }
-      return { ok: false, message: 'Install failed. Try again.' };
+      return { ok: true, message: `${spell.name} is ready in Quick Actions.` };
+    });
+  }, []);
+
+  // Expose the character's installed homebrew spells so the Forge can offer
+  // reworking an existing spell instead of always creating a new one.
+  useEffect(() => {
+    return registerReworkableSpellLister(() => {
+      const { combatSpellcasting: sc, spellCustomization: cust } = spellForgeRef.current;
+      const installed = cust.homebrewSpells.filter(s =>
+        sc.state.preparedSpells.includes(s.id) || sc.state.knownSpells.includes(s.id)
+      );
+      return installed.length > 0 ? installed : cust.homebrewSpells;
     });
   }, []);
 
