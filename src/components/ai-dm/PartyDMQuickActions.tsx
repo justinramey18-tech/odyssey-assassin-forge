@@ -17,7 +17,7 @@ import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic
 import { RollPreviewSheet, type RollPreviewChoice } from '@/components/magic/RollPreviewSheet';
 import { COST_META, resolveActionCost, type ActionCost } from '@/lib/combat/actionCost';
 import { parseRollTable } from '@/lib/magic/parseRollTable';
-import { getRowGuide } from '@/lib/magic/rowGuides';
+import { getRowGuide, getRowGuides } from '@/lib/magic/rowGuides';
 import { DiceOutcomeTable } from '@/components/magic/DiceOutcomeTable';
 import { SpellForgeChat } from '@/components/magic/SpellForgeChat';
 import { installForgedSpell } from '@/lib/spellForgeBus';
@@ -355,7 +355,7 @@ function SpellRulesDetails({ item, expanded, onExpandedChange }: SpellRulesDetai
         </div>
       )}
       {parsed.table && (
-        <DiceOutcomeTable table={parsed.table} highlight={lastSpellRolls.get(item.name)} />
+        <DiceOutcomeTable table={parsed.table} highlight={lastSpellRolls.get(item.name)} guides={getRowGuides(item.name)} />
       )}
       {facts.length > 0 && (
         <p className="mt-1 font-cinzel text-[10.5px] font-bold tracking-[0.03em] text-[#fcd9a0]">{facts.join(' • ')}</p>
