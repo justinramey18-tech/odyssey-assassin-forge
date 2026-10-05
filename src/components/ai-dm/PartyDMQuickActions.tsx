@@ -357,7 +357,7 @@ function SpellRulesDetails({ item, expanded, onExpandedChange }: SpellRulesDetai
         </div>
       )}
       {parsed.table && (
-        <DiceOutcomeTable table={parsed.table} highlight={lastSpellRolls.get(item.name)} guides={getRowGuides(item.name)} />
+        <DiceOutcomeTable table={parsed.table} highlight={lastSpellRolls.get(item.name)} guides={getRowGuides(item.spellId ?? item.name)} />
       )}
       {facts.length > 0 && (
         <p className="mt-1 font-cinzel text-[10.5px] font-bold tracking-[0.03em] text-[#fcd9a0]">{facts.join(' • ')}</p>
@@ -438,7 +438,7 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
             {
               ...item.spellPromptArgs.detail,
               tableRoll: roll.d20,
-              rowGuide: getRowGuide(item.spellPromptArgs.name, roll.d20),
+              rowGuide: getRowGuide(item.spellId ?? item.spellPromptArgs.name, roll.d20),
             },
           );
         }
@@ -904,7 +904,8 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         : (isEmpyreanMode() ? `Prepared Signet • Lv ${full.level}` : `Level ${full.level}`);
       const isUnresolved = (s as { __unresolved?: boolean }).__unresolved === true;
       const item: QuickActionItem = {
-        id: `spell-${full.name}`,
+        id: `spell-${(full as { id?: string }).id ?? full.name}`,
+        spellId: (full as { id?: string }).id,
         name: full.name,
         detail: isUnresolved
           ? 'Custom spell • details unavailable — reopen your spellbook to reload'
