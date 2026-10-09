@@ -73,6 +73,8 @@ import { RoundChatDrawer, type RoundChatDrawerHandle } from './RoundChatDrawer';
 import { OverlaySlot, useOverlayChange, useOverlayGanglion } from '@/hooks/use-overlay-ganglion';
 import { ActionMenuSheet, type ActionMenuChoice } from './ActionMenuSheet';
 import { DMHandoffBar } from './DMHandoffBar';
+import { DMAssistantPanel } from './DMAssistantPanel';
+import type { AssistantLiveContext } from '@/lib/dm-assistant';
 import { narrationStyleLine } from '@/lib/narrationStyle';
 import { withQuestEvent, WorldStateEntry, buildQuestKickoffPrompt } from '@/lib/quests';
 
@@ -1282,6 +1284,7 @@ type PartyOverlays = {
   stoneDrawer: undefined;
   geraltWidget: undefined;
   quickRecap: undefined;
+  dmAssistant: undefined;
 };
 
 export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, onOpenDirector, hasPendingRedoRequest, onScanQuests, worldState = [] }: PartyDMScreenProps) {
@@ -2166,6 +2169,82 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   // No automatic firing, and no ready-up detour: "Send to DM" hands the ticked
   // lines straight to the DM in one call.
+
+  // ── Human DM Assistant (host only) ──
+  // Everything the assistant reads, pulled at send time so this screen never
+  // re-renders for the assistant's chat.
+  const getAssistantContext = useCallback((): AssistantLiveContext => {
+    const pd = partyDmRef.current;
+    const rc = roundChatRef.current;
+    return {
+      roster: members,
+      campaignSummary: pd.sessionConfig?.campaignSummary ?? null,
+      memoryAnchors: memoryAnchorsContent || '',
+      quests: sheetQuests.quests,
+      worldState,
+      story: pd.messages,
+      tableLines: rc.messages.map(m => ({
+        id: m.id,
+        characterName: m.in_character
+          ? (m.character_name || 'Player')
+          : (chatAvatars.oocNames?.[m.user_id] || m.character_name || 'Player'),
+        content: m.content,
+        inCharacter: m.in_character,
+        sealed: !!m.selected && !m.consumed,
+        sent: !!m.consumed,
+        createdAt: m.created_at,
+      })),
+      sealedOrder: rc.orderedSelected.map(m => m.id),
+      guides: gmGuidesContent || '',
+    };
+  }, [members, memoryAnchorsContent, sheetQuests.quests, worldState, chatAvatars.oocNames, gmGuidesContent]);
+
+  const openDmAssistant = useCallback(() => overlays.open('dmAssistant'), [overlays]);
+
+  // Posts the assistant's draft as the DM's reply to the sealed lines.
+  // Resolves false (and keeps the draft and the sealed lines) if anything fails.
+  const handleAssistantApply = useCallback(async (content: string): Promise<boolean> => {
+    let pd = partyDmRef.current;
+    if (pd.isGenerating) {
+      toast.info('The AI DM is writing right now. Apply when it finishes.');
+      return false;
+    }
+    // Same as Send to DM: start the session if the table is in use before it was started.
+    if (!pd.sessionConfig?.currentRoundId) {
+      try {
+        await pd.startSession('shared');
+      } catch {
+        toast.error('Could not start the session. Try again.');
+        return false;
+      }
+      for (let i = 0; i < 40 && !partyDmRef.current.sessionConfig?.currentRoundId; i++) {
+        await new Promise(r => setTimeout(r, 100));
+      }
+      pd = partyDmRef.current;
+      if (!pd.sessionConfig?.currentRoundId) {
+        toast.error('The session did not start. Please try again.');
+        return false;
+      }
+    }
+    const participants = roundChatRef.current.selectedParticipants;
+    try {
+      await pd.postAssistedDmResponse({ content, participants });
+    } catch (err) {
+      console.error('[dm-assistant] apply failed:', err);
+      toast.error(err instanceof Error ? err.message : 'Could not post to the table. Your draft is still here.');
+      return false;
+    }
+    if (participants.length > 0) {
+      try {
+        await roundChatRef.current.consumePending();
+      } catch (err) {
+        console.error('[dm-assistant] mark sent failed:', err);
+        toast.warning('Posted, but the sealed lines could not be marked as sent. Untick them before the next Send to DM.');
+      }
+    }
+    toast.success('Posted to the table');
+    return true;
+  }, []);
 
 
 
@@ -3686,6 +3765,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onReorderSelected={roundChat.setSelectedOrder}
           onSendToDMNow={fireChatRound}
           oocNames={chatAvatars.oocNames}
+          onOpenAssistant={originalCreator ? openDmAssistant : undefined}
         />
         <RoundChatDrawer
           ref={roundChatDrawerRef}
@@ -5002,6 +5082,22 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         </SheetContent>
       </Sheet>
       )}</OverlaySlot>
+
+      {/* Human DM Assistant (host only, Live Table) */}
+      {originalCreator && chatRoundsOn && (
+        <OverlaySlot ganglion={overlays} name="dmAssistant">{(open, setOpen) => (
+          <DMAssistantPanel
+            open={open}
+            onOpenChange={setOpen}
+            partyId={partyId || null}
+            partyModel={partyDm.sessionConfig?.dmModel ?? null}
+            partyMemberNames={members.map(m => m.character_name)}
+            getContext={getAssistantContext}
+            onApply={handleAssistantApply}
+            aiDmWriting={partyDm.isGenerating}
+          />
+        )}</OverlaySlot>
+      )}
 
       {/* Dragon Telegram Scheduler (host only, empyrean mode) */}
       {isCreator && isEmpyrean && partyId && (
