@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { ChevronUp, ChevronDown, ChevronRight, Zap, Loader2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronRight, Zap, Loader2, Sparkles } from 'lucide-react';
 import { playerColor } from './RoundChatDrawer';
 import { parseActionCard } from '@/lib/roundChatActionCard';
 
@@ -25,6 +25,8 @@ interface DMHandoffBarProps {
   onReorderSelected?: (ids: string[]) => void;
   onSendToDMNow: () => void;
   oocNames?: Record<string, string>;
+  /** Host only: opens the Human DM Assistant. When set, the bar stays visible even with nothing sealed. */
+  onOpenAssistant?: () => void;
 }
 
 export function DMHandoffBar({
@@ -35,13 +37,15 @@ export function DMHandoffBar({
   onReorderSelected,
   onSendToDMNow,
   oocNames,
+  onOpenAssistant,
 }: DMHandoffBarProps) {
   const [orderOpen, setOrderOpen] = useState(false);
 
   // Nothing ticked and not mid-generation means nothing to show. The bar must not
   // eat vertical space on the story screen when it has no job.
   if (!isHost) return null;
-  if (tickedCount === 0 && !isGenerating) return null;
+  const showSend = tickedCount > 0 || isGenerating;
+  if (!showSend && !onOpenAssistant) return null;
 
   const showOrder = !!onReorderSelected && (orderedSelected?.length || 0) > 1;
 
@@ -114,6 +118,7 @@ export function DMHandoffBar({
         </div>
       )}
 
+      {showSend && (
       <button
         onClick={onSendToDMNow}
         disabled={isGenerating || tickedCount === 0}
@@ -123,6 +128,18 @@ export function DMHandoffBar({
         {isGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
         {isGenerating ? 'DM is writing…' : `Send to DM · ${tickedCount}`}
       </button>
+      )}
+
+      {onOpenAssistant && (
+        <button
+          onClick={onOpenAssistant}
+          style={{ touchAction: 'manipulation' }}
+          className="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg border border-amber-500/25 bg-amber-900/15 text-amber-200/85 text-[12px] font-cinzel transition-colors active:bg-amber-900/35"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          Human DM Assistant
+        </button>
+      )}
     </div>
   );
 }
