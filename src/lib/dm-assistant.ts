@@ -30,10 +30,15 @@ export interface AssistantChatMessage {
   role: 'host' | 'assistant';
   /** Chat text only. Draft blocks are removed before saving. */
   text: string;
-  /** True when this assistant turn produced a new draft. */
+  /** True when this assistant turn changed the draft. */
   draftUpdated?: boolean;
+  /** Short note of what changed, e.g. "New draft" or "Edited ¶3". */
+  draftNote?: string;
   createdAt: string;
 }
+
+/** Brainstorm: talk only, the draft is never touched. Draft: the assistant may write or edit the draft. */
+export type AssistantMode = 'brainstorm' | 'draft';
 
 export interface AssistantDraft {
   narrative: string;
@@ -175,6 +180,16 @@ export function saveAssistantModel(modelId: string): void {
   try { localStorage.setItem(MODEL_KEY, modelId); } catch { /* ignore */ }
 }
 
+const MODE_KEY = 'odyssey-dm-assistant-mode';
+
+export function loadAssistantMode(): AssistantMode {
+  try { return localStorage.getItem(MODE_KEY) === 'draft' ? 'draft' : 'brainstorm'; } catch { return 'brainstorm'; }
+}
+
+export function saveAssistantMode(mode: AssistantMode): void {
+  try { localStorage.setItem(MODE_KEY, mode); } catch { /* ignore */ }
+}
+
 /** The model actually sent: falls back to the default if a needed key is missing. */
 export function resolveAssistantModel(modelId: string): string {
   if (!DM_MODELS.some(m => m.id === modelId)) return DEFAULT_MODEL_ID;
@@ -288,12 +303,29 @@ export function buildDigestMessages(guides: string): Array<{ role: 'user'; conte
 
 const DRAFT_OPEN_RE = /\[\[\s*DRAFT\s*\]\]/i;
 const DRAFT_BLOCK_RE = /\[\[\s*DRAFT\s*\]\]([\s\S]*?)\[\[\s*\/\s*DRAFT\s*\]\]/gi;
+const EDIT_OPEN_RE = /\[\[\s*EDIT\s*\]\]/i;
+const EDIT_BLOCK_RE = /\[\[\s*EDIT\s*\]\]([\s\S]*?)\[\[\s*\/\s*EDIT\s*\]\]/gi;
+const ANY_OPEN_RE = /\[\[\s*(?:DRAFT|EDIT)\s*\]\]/i;
+const ANY_CLOSE_RE = /\[\[\s*\/\s*(?:DRAFT|EDIT)\s*\]\]/i;
+
+/** One small change to the draft. Numbers are 1-based and refer to the draft as it was sent. */
+export interface DraftEdit {
+  op: 'replace' | 'insert' | 'delete' | 'add';
+  target: 'paragraph' | 'whisper';
+  /** Paragraph or whisper number. For insert, 0 means "at the very start". Null for add. */
+  index: number | null;
+  body: string;
+  /** The command line as written, e.g. "REPLACE ¶3". */
+  label: string;
+}
 
 export interface ParsedAssistantReply {
   /** The chat reply shown to the host. */
   chatText: string;
-  /** Full new draft text, or null when this reply did not change the draft. */
+  /** Full new draft text, or null when this reply did not write a full draft. */
   draftText: string | null;
+  /** Small edits, in the order written. Ignored when a full draft is present. */
+  edits: DraftEdit[];
 }
 
 function stripFences(text: string): string {
@@ -303,10 +335,36 @@ function stripFences(text: string): string {
     .trim();
 }
 
+const EDIT_HEADER_RE = /^(REPLACE|INSERT\s+AFTER|INSERT|DELETE|REMOVE|ADD)\s*(¶|PARAGRAPH|PARA|P|W(?:HISPER)?)?\s*#?\s*(\d+)?\s*:?\s*$/i;
+
+/** Read one [[EDIT]] block. Returns null when the command line can't be understood. */
+export function parseEditBlock(raw: string): DraftEdit | null {
+  const text = stripFences(raw);
+  const nl = text.indexOf('\n');
+  const header = (nl === -1 ? text : text.slice(0, nl)).trim().replace(/^[*_`]+|[*_`]+$/g, '');
+  const body = (nl === -1 ? '' : text.slice(nl + 1)).trim();
+  const m = EDIT_HEADER_RE.exec(header);
+  if (!m) return null;
+  const verb = m[1].toUpperCase().replace(/\s+/g, ' ');
+  const kind = (m[2] || '').toUpperCase();
+  const target: DraftEdit['target'] = kind.startsWith('W') ? 'whisper' : 'paragraph';
+  const index = m[3] !== undefined ? parseInt(m[3], 10) : null;
+  let op: DraftEdit['op'];
+  if (verb === 'REPLACE') op = 'replace';
+  else if (verb === 'DELETE' || verb === 'REMOVE') op = 'delete';
+  else if (verb === 'ADD') op = 'add';
+  else op = 'insert';
+  if (op === 'add' && target === 'paragraph') { op = 'insert'; }
+  if ((op === 'replace' || op === 'delete') && (index === null || index < 1)) return null;
+  if (op === 'insert' && target === 'paragraph' && index === null) return null;
+  if ((op === 'replace' || op === 'insert' || op === 'add') && !body) return null;
+  return { op, target, index, body, label: header };
+}
+
 /**
- * Split a finished assistant reply into chat text and draft.
- * The last complete [[DRAFT]]…[[/DRAFT]] block wins. If the closing marker is
- * missing (the model ran out of room), everything after [[DRAFT]] is the draft.
+ * Split a finished assistant reply into chat text, a full draft and/or small edits.
+ * The last complete [[DRAFT]]…[[/DRAFT]] block wins. If a closing marker is missing
+ * (the model ran out of room), everything after the opening marker is used.
  */
 export function parseAssistantReply(raw: string): ParsedAssistantReply {
   const text = raw || '';
@@ -318,29 +376,176 @@ export function parseAssistantReply(raw: string): ParsedAssistantReply {
   }
   let chat = text.replace(DRAFT_BLOCK_RE, '');
 
-  const open = chat.search(DRAFT_OPEN_RE);
-  if (open !== -1) {
-    const rest = chat.slice(open).replace(DRAFT_OPEN_RE, '');
+  const edits: DraftEdit[] = [];
+  EDIT_BLOCK_RE.lastIndex = 0;
+  while ((match = EDIT_BLOCK_RE.exec(chat)) !== null) {
+    const edit = parseEditBlock(match[1]);
+    if (edit) edits.push(edit);
+  }
+  chat = chat.replace(EDIT_BLOCK_RE, '');
+
+  const draftOpen = chat.search(DRAFT_OPEN_RE);
+  if (draftOpen !== -1) {
+    const rest = chat.slice(draftOpen).replace(DRAFT_OPEN_RE, '');
     if (draftText === null) draftText = stripFences(rest);
-    chat = chat.slice(0, open);
+    chat = chat.slice(0, draftOpen);
+  }
+  const editOpen = chat.search(EDIT_OPEN_RE);
+  if (editOpen !== -1) {
+    const edit = parseEditBlock(chat.slice(editOpen).replace(EDIT_OPEN_RE, ''));
+    if (edit) edits.push(edit);
+    chat = chat.slice(0, editOpen);
   }
 
   // Tidy fences left around a removed block.
   chat = chat.replace(/```[a-z]*\s*```/gi, '').replace(/\n{3,}/g, '\n\n').trim();
   if (draftText !== null && !draftText.trim()) draftText = null;
-  return { chatText: chat, draftText };
+  return { chatText: chat, draftText, edits };
 }
 
 /** What to show in the chat bubble while the reply is still streaming. */
 export function visibleWhileStreaming(raw: string): { text: string; writingDraft: boolean } {
-  const text = raw || '';
-  const open = text.search(DRAFT_OPEN_RE);
-  if (open === -1) return { text: text.trim(), writingDraft: false };
-  const afterOpen = text.slice(open);
-  const closed = /\[\[\s*\/\s*DRAFT\s*\]\]/i.exec(afterOpen);
-  if (!closed) return { text: text.slice(0, open).trim(), writingDraft: true };
-  const after = afterOpen.slice(closed.index + closed[0].length);
-  return { text: `${text.slice(0, open)}${after}`.replace(/\n{3,}/g, '\n\n').trim(), writingDraft: false };
+  let rest = raw || '';
+  let shown = '';
+  for (;;) {
+    const open = rest.search(ANY_OPEN_RE);
+    if (open === -1) { shown += rest; break; }
+    shown += rest.slice(0, open);
+    const after = rest.slice(open);
+    const close = ANY_CLOSE_RE.exec(after);
+    if (!close) return { text: shown.replace(/\n{3,}/g, '\n\n').trim(), writingDraft: true };
+    rest = after.slice(close.index + close[0].length);
+  }
+  return { text: shown.replace(/\n{3,}/g, '\n\n').trim(), writingDraft: false };
+}
+
+// ─── Numbered draft and small edits ──────────────────────────────────────────
+
+/** Paragraphs are separated by a blank line. */
+export function splitParagraphs(narrative: string): string[] {
+  return (narrative || '').split(/\n[ \t]*\n/).map(p => p.trim()).filter(Boolean);
+}
+
+export function joinParagraphs(paragraphs: string[]): string {
+  return paragraphs.map(p => p.trim()).filter(Boolean).join('\n\n');
+}
+
+function whisperToTag(w: Whisper): string {
+  if (w.type === 'action') return `<!--ACTION-->${w.content.trim()}<!--/ACTION-->`;
+  if (w.type === 'tactics') return `<!--TACTICS-->${w.content.trim()}<!--/TACTICS-->`;
+  const target = w.target?.trim() || 'Unknown';
+  return `<!--WHISPER:${target}-->${w.content.trim()}<!--/WHISPER:${target}-->`;
+}
+
+/** The draft as the assistant sees it: ¶1, ¶2… for story paragraphs and W1, W2… for rolls, tips and whispers. */
+export function draftToNumberedText(draft: AssistantDraft): string {
+  const paras = splitParagraphs(draft.narrative).map((p, i) => `¶${i + 1} ${p}`);
+  const tags = draft.whispers.filter(w => w.content.trim()).map((w, i) => `W${i + 1} ${whisperToTag(w)}`);
+  return [...paras, ...tags].join('\n\n');
+}
+
+/** Plain description of an edit for the chat, e.g. "¶3", "removed W1", "added a paragraph after ¶2". */
+export function describeEdit(e: DraftEdit): string {
+  const ref = `${e.target === 'paragraph' ? '¶' : 'W'}${e.index ?? ''}`;
+  if (e.op === 'replace') return ref;
+  if (e.op === 'delete') return `removed ${ref}`;
+  if (e.target === 'paragraph') return e.index === 0 ? 'added an opening paragraph' : `added a paragraph after ${ref}`;
+  return 'added a roll or whisper';
+}
+
+export interface AppliedEdits {
+  draft: AssistantDraft;
+  /** 0-based positions in the NEW draft that were added or changed, to highlight. */
+  changedParagraphs: number[];
+  changedWhispers: number[];
+  /** Edits that could not be applied (bad number), described in plain words. */
+  skipped: string[];
+  /** Edits that were applied, described in plain words. */
+  applied: string[];
+}
+
+/** Rebuild a list from per-position replacements and insertions (all 1-based on the original list). */
+function rebuild<T>(
+  original: T[],
+  replace: Map<number, T[] | null>,
+  insertAfter: Map<number, T[]>,
+): { items: T[]; changed: number[] } {
+  const items: T[] = [];
+  const changed: number[] = [];
+  for (let i = 0; i <= original.length; i++) {
+    if (i > 0) {
+      const r = replace.get(i);
+      if (r === undefined) items.push(original[i - 1]);
+      else if (r !== null) for (const x of r) { changed.push(items.length); items.push(x); }
+    }
+    for (const x of insertAfter.get(i) || []) { changed.push(items.length); items.push(x); }
+  }
+  return { items, changed };
+}
+
+/**
+ * Apply small edits to the draft. Every number refers to the draft as it was
+ * sent, so several edits in one reply never shift each other's targets.
+ */
+export function applyDraftEdits(draft: AssistantDraft, edits: DraftEdit[]): AppliedEdits {
+  const paras = splitParagraphs(draft.narrative);
+  const whispers = draft.whispers.filter(w => w.content.trim());
+  const pReplace = new Map<number, string[] | null>();
+  const pInsert = new Map<number, string[]>();
+  const wReplace = new Map<number, Whisper[] | null>();
+  const wInsert = new Map<number, Whisper[]>();
+  const skipped: string[] = [];
+  const applied: string[] = [];
+  const push = <T,>(map: Map<number, T[]>, key: number, items: T[]) => map.set(key, [...(map.get(key) || []), ...items]);
+
+  for (const e of edits) {
+    if (e.target === 'paragraph') {
+      if (e.op === 'delete') {
+        if (e.index! > paras.length) { skipped.push(describeEdit(e)); continue; }
+        pReplace.set(e.index!, null);
+      } else {
+        // A paragraph body may carry roll or whisper tags; those become whisper cards.
+        const parsed = parseWhispers(e.body);
+        const newParas = splitParagraphs(parsed.narrative);
+        if (e.op === 'replace') {
+          if (e.index! > paras.length) { skipped.push(describeEdit(e)); continue; }
+          pReplace.set(e.index!, newParas);
+        } else {
+          if (e.index! > paras.length) { skipped.push(describeEdit(e)); continue; }
+          if (!newParas.length && !parsed.whispers.length) { skipped.push(describeEdit(e)); continue; }
+          push(pInsert, e.index!, newParas);
+        }
+        if (parsed.whispers.length) push(wInsert, whispers.length, parsed.whispers);
+      }
+    } else {
+      if (e.op === 'delete') {
+        if (e.index! > whispers.length) { skipped.push(describeEdit(e)); continue; }
+        wReplace.set(e.index!, null);
+      } else {
+        const found = parseWhispers(e.body).whispers;
+        if (!found.length) { skipped.push(describeEdit(e)); continue; }
+        if (e.op === 'replace') {
+          if (e.index! > whispers.length) { skipped.push(describeEdit(e)); continue; }
+          wReplace.set(e.index!, found);
+        } else {
+          const after = e.op === 'insert' && e.index !== null ? e.index : whispers.length;
+          if (after > whispers.length) { skipped.push(describeEdit(e)); continue; }
+          push(wInsert, after, found);
+        }
+      }
+    }
+    applied.push(describeEdit(e));
+  }
+
+  const p = rebuild(paras, pReplace, pInsert);
+  const w = rebuild(whispers, wReplace, wInsert);
+  return {
+    draft: { narrative: joinParagraphs(p.items), whispers: w.items },
+    changedParagraphs: p.changed,
+    changedWhispers: w.changed,
+    skipped,
+    applied,
+  };
 }
 
 /** Turn draft text into the editor's story + whisper cards (same parser the table uses). */
@@ -353,12 +558,7 @@ export function draftFromText(text: string): AssistantDraft {
 export function draftToText(draft: AssistantDraft): string {
   const blocks = draft.whispers
     .filter(w => w.content.trim())
-    .map(w => {
-      if (w.type === 'action') return `<!--ACTION-->${w.content.trim()}<!--/ACTION-->`;
-      if (w.type === 'tactics') return `<!--TACTICS-->${w.content.trim()}<!--/TACTICS-->`;
-      const target = w.target?.trim() || 'Unknown';
-      return `<!--WHISPER:${target}-->${w.content.trim()}<!--/WHISPER:${target}-->`;
-    });
+    .map(whisperToTag);
   return [draft.narrative.trim(), ...blocks].filter(Boolean).join('\n\n');
 }
 
@@ -380,20 +580,18 @@ const ASSISTANT_RULES = [
   'You are the Human DM Assistant for a live, play-by-post D&D 5e table. The HOST is the human Dungeon Master. You are their co-DM in a private side chat that the players never see. You never post to the table yourself: the host applies your draft when they are happy with it.',
   '',
   'YOUR JOB',
-  '- Help the host build the best possible DM post: narration, NPC dialogue, consequences, roll requests and private whispers.',
-  '- Answer rules questions, offer options, keep continuity, and flag problems: a sealed line nobody answered, a player left out, a World Bible rule being broken.',
+  '- Be a creative partner: bounce ideas around with the host, react to theirs, suggest twists, NPC motives and consequences, answer rules questions, and keep continuity.',
+  '- Flag problems: a sealed line nobody answered, a player left out, a World Bible rule being broken.',
   '- The host is the DM. Their decisions override the World Bible, the story summary and your own ideas. If a request conflicts with the World Bible, do it and mention the conflict in one line.',
-  '- In chat be brief and direct, like a sharp co-DM. No preamble, no flattery.',
+  '',
+  'HOW TO TALK',
+  '- Talk like a sharp co-DM sitting next to the host: plain, warm and brief. Usually 2 to 6 sentences. No preamble, no flattery, no headings.',
+  '- When ideas help, give 2 or 3 concrete options in a short list, then stop. Ask one short question back when it would move things forward.',
+  '- Never repeat the draft back in chat.',
+  '- A host message that starts with a target like [¶3] or [W2] is about that part of the CURRENT DRAFT.',
   '',
   'THE DRAFT',
-  'The draft is the post the host will apply to the table. It is shown under CURRENT DRAFT.',
-  'Whenever you create or change it, write the COMPLETE new draft (never a partial edit) between these markers, each on its own line:',
-  '[[DRAFT]]',
-  '(the full post)',
-  '[[/DRAFT]]',
-  '- Only include a draft block when the host asks for a draft or for a change to it. When you only answer a question, leave it out.',
-  '- Put your short chat reply BEFORE the draft block. Never put chat inside the block.',
-  '- If the host edited the draft by hand, keep their edits unless they ask you to change them.',
+  'The draft is the post the host will apply to the table. It is shown under CURRENT DRAFT, numbered: ¶1, ¶2… are story paragraphs, and W1, W2… are roll requests, tips and whispers. Whether you may change it is set by the MODE at the very end of these instructions.',
   '',
   'INSIDE THE DRAFT',
   '- Story text for the whole table, written as the DM. Answer every sealed line. Every player in the scene gets their moment, and the post ends with a clear prompt for what they do next.',
@@ -498,6 +696,38 @@ function tableSection(lines: AssistantTableLine[], sealedOrder: string[]): { tab
   return { table, sealed, sealedCount: sealedLines.length };
 }
 
+const MODE_RULES: Record<AssistantMode, string> = {
+  brainstorm: [
+    'MODE: BRAINSTORM',
+    'Talk ideas through with the host. Do not write or change the draft in this mode: never output [[DRAFT]] or [[EDIT]] blocks, even if asked to change the draft. If the host asks for a change, discuss it and say they can switch to Draft mode to have you make it.',
+    'You may quote a sentence or two as an example of how something could read.',
+  ].join('\n'),
+  draft: [
+    'MODE: DRAFT',
+    'You may write and change the draft. Always say in one short line what you did, BEFORE any block. If the request is unclear, ask instead of guessing.',
+    '',
+    'When there is no draft yet, or the host asks for a full rewrite, write the whole post in one block:',
+    '[[DRAFT]]',
+    '(the full post)',
+    '[[/DRAFT]]',
+    '',
+    'Otherwise make the SMALLEST change that does what the host asked, with one [[EDIT]] block per change and never the whole draft. The first line of the block is the command; the new text follows on the next lines:',
+    '[[EDIT]]',
+    'REPLACE ¶3',
+    '(the new text of paragraph 3)',
+    '[[/EDIT]]',
+    'Commands:',
+    '- REPLACE ¶n  (new paragraph text follows; it may be more than one paragraph)',
+    '- INSERT AFTER ¶n  (new paragraph text follows; use ¶0 for the very start)',
+    '- DELETE ¶n  (nothing follows)',
+    '- REPLACE Wn  (the full replacement tag block follows, e.g. <!--ACTION-->Kaelen: roll a DC 14 Perception check<!--/ACTION-->)',
+    '- ADD W  (one or more new tag blocks follow)',
+    '- DELETE Wn  (nothing follows)',
+    'Numbers always refer to the CURRENT DRAFT exactly as shown above, even when you make several edits in one reply. Leave every part you were not asked to change exactly as it is.',
+    'If the host edited the draft by hand, keep their edits unless they ask you to change them.',
+  ].join('\n'),
+};
+
 export interface BuiltHandoff {
   systemPrompt: string;
   chars: number;
@@ -505,7 +735,12 @@ export interface BuiltHandoff {
 }
 
 /** Build the lean handoff the assistant reads on every message. */
-export function buildAssistantSystemPrompt(ctx: AssistantLiveContext, bible: AssistantBible, draft: AssistantDraft): BuiltHandoff {
+export function buildAssistantSystemPrompt(
+  ctx: AssistantLiveContext,
+  bible: AssistantBible,
+  draft: AssistantDraft,
+  mode: AssistantMode = 'draft',
+): BuiltHandoff {
   const { latest, before } = latestStory(ctx.story || []);
   const { table, sealed, sealedCount } = tableSection(ctx.tableLines || [], ctx.sealedOrder || []);
   const bibleText = bible.mode === 'full'
@@ -523,7 +758,7 @@ export function buildAssistantSystemPrompt(ctx: AssistantLiveContext, bible: Ass
     ['LATEST DM POST (the scene the players are answering)', latest],
     ['LIVE TABLE (recent lines, oldest first)', table],
     ['SEALED LINES TO ANSWER (in this order)', sealed || '(none sealed — the host may be writing without player lines)'],
-    ['CURRENT DRAFT', capStart(draftToText(draft), LIMITS.draft) || '(empty)'],
+    ['CURRENT DRAFT (numbered)', capStart(draftToNumberedText(draft), LIMITS.draft) || '(empty: no draft yet)'],
   ];
 
   const body = sections
@@ -531,7 +766,8 @@ export function buildAssistantSystemPrompt(ctx: AssistantLiveContext, bible: Ass
     .map(([title, text]) => `=== ${title} ===\n${text}`)
     .join('\n\n');
 
-  const systemPrompt = `${ASSISTANT_RULES}\n\n${body}`;
+  // The mode goes last, so the long, rarely-changing part of the brief stays identical between messages.
+  const systemPrompt = `${ASSISTANT_RULES}\n\n${body}\n\n=== ${MODE_RULES[mode]}`;
   return { systemPrompt, chars: systemPrompt.length, sealedCount };
 }
 
@@ -547,7 +783,7 @@ export function buildAssistantMessages(
     ...history.map(m => ({
       role: (m.role === 'host' ? 'user' : 'assistant') as 'user' | 'assistant',
       content: m.role === 'assistant' && m.draftUpdated
-        ? `${m.text.trim()}\n(I updated the draft.)`.trim()
+        ? `${m.text.trim()}\n(${m.draftNote || 'I updated the draft'}.)`.trim()
         : m.text.trim(),
     })),
     { role: 'user' as const, content: newHostText.trim() },
@@ -570,10 +806,27 @@ export function buildAssistantMessages(
 
 // ─── Quick starts for the panel ───────────────────────────────────────────────
 
-export const QUICK_PROMPTS: Array<{ label: string; text: string }> = [
-  { label: 'Draft a response', text: 'Draft a full DM post answering the sealed lines.' },
-  { label: 'Ask for a roll', text: 'Add the roll requests this moment calls for, with fair DCs, and tell me why.' },
-  { label: 'Add a whisper', text: 'Suggest a private whisper for one player that would deepen the scene.' },
-  { label: 'Check it', text: 'Check the current draft: did every sealed line get answered, does anything break the World Bible, and is anyone left out?' },
-  { label: 'Tighten it', text: 'Tighten the draft: same events, fewer words, stronger ending prompt.' },
+export interface QuickPrompt {
+  label: string;
+  text: string;
+  /** Switch to this mode before sending. */
+  mode?: AssistantMode;
+}
+
+export const BRAINSTORM_PROMPTS: QuickPrompt[] = [
+  { label: 'Ideas for this', text: 'Give me 2 or 3 ideas for where this scene could go next, given the sealed lines.' },
+  { label: 'What could go wrong?', text: 'What could go wrong for the party here? Give me 2 or 3 complications that fit the story.' },
+  { label: 'NPC reactions', text: 'How would the NPCs in this scene react to what the players just did?' },
+  { label: 'Check my draft', text: 'Check the current draft: did every sealed line get answered, does anything break the World Bible, and is anyone left out? Just tell me; do not change it.' },
+  { label: 'Draft it', text: 'Write the full DM post answering the sealed lines, using what we talked about.', mode: 'draft' },
 ];
+
+export const DRAFT_PROMPTS: QuickPrompt[] = [
+  { label: 'Draft it', text: 'Write the full DM post answering the sealed lines, using what we talked about.' },
+  { label: 'Add a roll', text: 'Add the roll request this moment calls for, with a fair DC, as a small edit.' },
+  { label: 'Add a whisper', text: 'Add one private whisper for the player it would matter most to, as a small edit.' },
+  { label: 'Tighten it', text: 'Tighten the draft with small edits: same events, fewer words, a stronger ending prompt.' },
+];
+
+/** Kept so the app still builds between update steps. The panel now uses BRAINSTORM_PROMPTS and DRAFT_PROMPTS. */
+export const QUICK_PROMPTS: QuickPrompt[] = DRAFT_PROMPTS;
