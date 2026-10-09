@@ -18,10 +18,24 @@
 
 import { DM_MODELS, DEFAULT_MODEL_ID, loadSelectedModel } from '@/lib/dm-models';
 import { loadApiKey } from '@/lib/api-keys';
-import { parseWhispers, isDmBlueprintWhisper, type Whisper } from '@/lib/whisper-parser';
+import { isDmBlueprintWhisper, type Whisper } from '@/lib/whisper-parser';
+import {
+  type AssistantDraft,
+  type DraftEdit,
+  EMPTY_DRAFT,
+  draftToNumberedText,
+  draftToText,
+  parseEditBlock,
+  splitParagraphs,
+  stripFences,
+} from '@/lib/dm-assistant-draft';
+
+// The draft and its small edits live in their own file; re-exported so imports stay the same.
+export * from '@/lib/dm-assistant-draft';
 import { questContextLine, type Quest, type WorldStateEntry } from '@/lib/quests';
 import { stripActionCard } from '@/lib/roundChatActionCard';
 import { parseReply } from '@/lib/chatReply';
+import { rollForAssistant, type DiceRoll } from '@/lib/dm-dice';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,18 +50,33 @@ export interface AssistantChatMessage {
   draftNote?: string;
   /** Tap-to-reply suggestions the assistant offered at the end of this reply. */
   suggestions?: string[];
+  /** Alternate versions of one paragraph the host can keep. */
+  takes?: AssistantTakes;
+  /** NPC rehearsal: the NPC this line was said to (host) or by (assistant). */
+  npc?: string;
+  /** The rehearsal scene this message belongs to. */
+  sceneId?: string;
+  /** NPC line picked to go into the draft. */
+  picked?: boolean;
+  /** A dice roll made by the app (shown as a dice card, sent to the assistant as a result). */
+  roll?: DiceRoll;
+  /** Sent automatically to continue after dice results. */
+  auto?: boolean;
   createdAt: string;
+}
+
+export interface AssistantTakes {
+  /** Paragraph number at the time the versions were written. */
+  paragraph: number;
+  /** That paragraph's text then, so "Keep" still finds it if the numbers changed. */
+  basis: string;
+  options: string[];
+  /** Index of the version the host kept, if any. */
+  kept?: number;
 }
 
 /** Brainstorm: talk only, the draft is never touched. Draft: the assistant may write or edit the draft. */
 export type AssistantMode = 'brainstorm' | 'draft';
-
-export interface AssistantDraft {
-  narrative: string;
-  whispers: Whisper[];
-}
-
-export const EMPTY_DRAFT: AssistantDraft = { narrative: '', whispers: [] };
 
 /** One line from the Live Table, as the assistant sees it. */
 export interface AssistantTableLine {
@@ -210,6 +239,60 @@ export function saveAssistantMode(mode: AssistantMode): void {
   try { localStorage.setItem(MODE_KEY, mode); } catch { /* ignore */ }
 }
 
+// ─── Personality ──────────────────────────────────────────────────────────────
+
+export type AssistantPersona = 'default' | 'veteran' | 'bard' | 'editor';
+
+/** Changes how the assistant talks in chat, never how the DM post is written. */
+export const PERSONAS: Record<AssistantPersona, { label: string; line: string }> = {
+  default: { label: 'Sharp co-DM', line: '' },
+  veteran: {
+    label: 'Grizzled veteran DM',
+    line: 'PERSONALITY: in chat you are a grizzled veteran DM who has run a thousand tables: dry, blunt, a little gruff, full of hard-won table wisdom and the occasional war story in one line. You care about pacing and fairness above all.',
+  },
+  bard: {
+    label: 'Hype bard',
+    line: 'PERSONALITY: in chat you are an over-the-top hype bard: enthusiastic, theatrical, quick with a dramatic flourish and genuine excitement about the host\'s ideas, but still useful and specific.',
+  },
+  editor: {
+    label: 'Ruthless editor',
+    line: 'PERSONALITY: in chat you are a ruthless editor: terse, precise, allergic to purple prose and filler. You point out what is weak without softening it and always say how to fix it.',
+  },
+};
+
+const PERSONA_KEY = 'odyssey-dm-assistant-persona';
+
+export function loadAssistantPersona(): AssistantPersona {
+  try {
+    const saved = localStorage.getItem(PERSONA_KEY) as AssistantPersona | null;
+    if (saved && saved in PERSONAS) return saved;
+  } catch { /* ignore */ }
+  return 'default';
+}
+
+export function saveAssistantPersona(persona: AssistantPersona): void {
+  try { localStorage.setItem(PERSONA_KEY, persona); } catch { /* ignore */ }
+}
+
+const RECENT_NPCS_KEY = 'odyssey-dm-assistant-npcs';
+
+/** NPC names the host rehearsed with recently on this phone, newest first. */
+export function loadRecentNpcs(): string[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(RECENT_NPCS_KEY) || '[]');
+    return Array.isArray(raw) ? raw.filter((n): n is string => typeof n === 'string' && !!n.trim()).slice(0, 8) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveRecentNpc(name: string): string[] {
+  const clean = name.trim();
+  const next = [clean, ...loadRecentNpcs().filter(n => n.toLowerCase() !== clean.toLowerCase())].slice(0, 8);
+  try { localStorage.setItem(RECENT_NPCS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+  return next;
+}
+
 /** The model actually sent: falls back to the default if a needed key is missing. */
 export function resolveAssistantModel(modelId: string): string {
   if (!DM_MODELS.some(m => m.id === modelId)) return DEFAULT_MODEL_ID;
@@ -327,8 +410,20 @@ const EDIT_OPEN_RE = /\[\[\s*EDIT\s*\]\]/i;
 const EDIT_BLOCK_RE = /\[\[\s*EDIT\s*\]\]([\s\S]*?)\[\[\s*\/\s*EDIT\s*\]\]/gi;
 const NEXT_OPEN_RE = /\[\[\s*NEXT\s*\]\]/i;
 const NEXT_BLOCK_RE = /\[\[\s*NEXT\s*\]\]([\s\S]*?)\[\[\s*\/\s*NEXT\s*\]\]/gi;
-const ANY_OPEN_RE = /\[\[\s*(?:DRAFT|EDIT|NEXT)\s*\]\]/i;
-const ANY_CLOSE_RE = /\[\[\s*\/\s*(?:DRAFT|EDIT|NEXT)\s*\]\]/i;
+const ROLL_BLOCK_RE = /\[\[\s*ROLL\s*\]\]([\s\S]*?)\[\[\s*\/\s*ROLL\s*\]\]/gi;
+const TAKES_OPEN_RE = /\[\[\s*TAKES\b[^\]]*\]\]/i;
+const TAKES_BLOCK_RE = /\[\[\s*TAKES\s*(?:¶|PARAGRAPH|PARA|P)?\s*#?\s*(\d+)?\s*\]\]([\s\S]*?)\[\[\s*\/\s*TAKES\s*\]\]/gi;
+const ANY_OPEN_RE = /\[\[\s*(?:DRAFT|EDIT|NEXT|ROLL|TAKES[^\]]*)\s*\]\]/i;
+const ANY_CLOSE_RE = /\[\[\s*\/\s*(?:DRAFT|EDIT|NEXT|ROLL|TAKES)\s*\]\]/i;
+
+/** Split a TAKES block into its versions (separated by a line of ---). At most 4. */
+export function parseTakeOptions(raw: string): string[] {
+  return stripFences(raw)
+    .split(/\n\s*-{3,}\s*(?:\n|$)/)
+    .map(t => t.replace(/^\s*(?:\*\*)?(?:version|take|option)\s*\d+\s*(?:\*\*)?\s*[:.)-]?\s*(?:\*\*)?\s*/i, '').trim())
+    .filter(Boolean)
+    .slice(0, 4);
+}
 
 /** At most 3 short, distinct suggestion lines; list markers and quotes removed. */
 export function parseSuggestions(raw: string): string[] {
@@ -346,17 +441,6 @@ export function parseSuggestions(raw: string): string[] {
   return out;
 }
 
-/** One small change to the draft. Numbers are 1-based and refer to the draft as it was sent. */
-export interface DraftEdit {
-  op: 'replace' | 'insert' | 'delete' | 'add';
-  target: 'paragraph' | 'whisper';
-  /** Paragraph or whisper number. For insert, 0 means "at the very start". Null for add. */
-  index: number | null;
-  body: string;
-  /** The command line as written, e.g. "REPLACE ¶3". */
-  label: string;
-}
-
 export interface ParsedAssistantReply {
   /** The chat reply shown to the host. */
   chatText: string;
@@ -366,39 +450,10 @@ export interface ParsedAssistantReply {
   edits: DraftEdit[];
   /** Tap-to-reply suggestions (0 to 3). */
   suggestions: string[];
-}
-
-function stripFences(text: string): string {
-  return text
-    .replace(/^\s*```[a-z]*\s*\n?/i, '')
-    .replace(/\n?\s*```\s*$/i, '')
-    .trim();
-}
-
-const EDIT_HEADER_RE = /^(REPLACE|INSERT\s+AFTER|INSERT|DELETE|REMOVE|ADD)\s*(¶|PARAGRAPH|PARA|P|W(?:HISPER)?)?\s*#?\s*(\d+)?\s*:?\s*$/i;
-
-/** Read one [[EDIT]] block. Returns null when the command line can't be understood. */
-export function parseEditBlock(raw: string): DraftEdit | null {
-  const text = stripFences(raw);
-  const nl = text.indexOf('\n');
-  const header = (nl === -1 ? text : text.slice(0, nl)).trim().replace(/^[*_`]+|[*_`]+$/g, '');
-  const body = (nl === -1 ? '' : text.slice(nl + 1)).trim();
-  const m = EDIT_HEADER_RE.exec(header);
-  if (!m) return null;
-  const verb = m[1].toUpperCase().replace(/\s+/g, ' ');
-  const kind = (m[2] || '').toUpperCase();
-  const target: DraftEdit['target'] = kind.startsWith('W') ? 'whisper' : 'paragraph';
-  const index = m[3] !== undefined ? parseInt(m[3], 10) : null;
-  let op: DraftEdit['op'];
-  if (verb === 'REPLACE') op = 'replace';
-  else if (verb === 'DELETE' || verb === 'REMOVE') op = 'delete';
-  else if (verb === 'ADD') op = 'add';
-  else op = 'insert';
-  if (op === 'add' && target === 'paragraph') { op = 'insert'; }
-  if ((op === 'replace' || op === 'delete') && (index === null || index < 1)) return null;
-  if (op === 'insert' && target === 'paragraph' && index === null) return null;
-  if ((op === 'replace' || op === 'insert' || op === 'add') && !body) return null;
-  return { op, target, index, body, label: header };
+  /** Alternate versions of one paragraph, or null. */
+  takes: { paragraph: number; options: string[] } | null;
+  /** Dice the assistant asked the app to roll, one request per line ("Grukk's attack: 1d20+5"). */
+  rolls: string[];
 }
 
 /**
@@ -418,6 +473,29 @@ export function parseAssistantReply(raw: string): ParsedAssistantReply {
     // An unclosed list is always the last thing in a reply.
     if (!suggestions.length) suggestions = parseSuggestions(text.slice(nextOpen).replace(NEXT_OPEN_RE, ''));
     text = text.slice(0, nextOpen);
+  }
+
+  const rolls: string[] = [];
+  ROLL_BLOCK_RE.lastIndex = 0;
+  while ((match = ROLL_BLOCK_RE.exec(text)) !== null) {
+    rolls.push(...stripFences(match[1]).split('\n').map(l => l.trim()).filter(Boolean));
+  }
+  text = text.replace(ROLL_BLOCK_RE, '');
+
+  let takes: ParsedAssistantReply['takes'] = null;
+  TAKES_BLOCK_RE.lastIndex = 0;
+  while ((match = TAKES_BLOCK_RE.exec(text)) !== null) {
+    const options = parseTakeOptions(match[2]);
+    if (match[1] && options.length) takes = { paragraph: parseInt(match[1], 10), options };
+  }
+  text = text.replace(TAKES_BLOCK_RE, '');
+  const takesOpen = text.search(TAKES_OPEN_RE);
+  if (takesOpen !== -1) {
+    // Unclosed (ran out of room): use what arrived.
+    const head = /\[\[\s*TAKES\s*(?:¶|PARAGRAPH|PARA|P)?\s*#?\s*(\d+)?/i.exec(text.slice(takesOpen));
+    const options = parseTakeOptions(text.slice(takesOpen).replace(TAKES_OPEN_RE, ''));
+    if (!takes && head?.[1] && options.length) takes = { paragraph: parseInt(head[1], 10), options };
+    text = text.slice(0, takesOpen);
   }
 
   let draftText: string | null = null;
@@ -451,7 +529,7 @@ export function parseAssistantReply(raw: string): ParsedAssistantReply {
   // Tidy fences left around a removed block.
   chat = chat.replace(/```[a-z]*\s*```/gi, '').replace(/\n{3,}/g, '\n\n').trim();
   if (draftText !== null && !draftText.trim()) draftText = null;
-  return { chatText: chat, draftText, edits, suggestions };
+  return { chatText: chat, draftText, edits, suggestions, takes, rolls };
 }
 
 /** What to show in the chat bubble while the reply is still streaming. */
@@ -470,161 +548,6 @@ export function visibleWhileStreaming(raw: string): { text: string; writingDraft
   return { text: shown.replace(/\n{3,}/g, '\n\n').trim(), writingDraft: false };
 }
 
-// ─── Numbered draft and small edits ──────────────────────────────────────────
-
-/** Paragraphs are separated by a blank line. */
-export function splitParagraphs(narrative: string): string[] {
-  return (narrative || '').split(/\n[ \t]*\n/).map(p => p.trim()).filter(Boolean);
-}
-
-export function joinParagraphs(paragraphs: string[]): string {
-  return paragraphs.map(p => p.trim()).filter(Boolean).join('\n\n');
-}
-
-function whisperToTag(w: Whisper): string {
-  if (w.type === 'action') return `<!--ACTION-->${w.content.trim()}<!--/ACTION-->`;
-  if (w.type === 'tactics') return `<!--TACTICS-->${w.content.trim()}<!--/TACTICS-->`;
-  const target = w.target?.trim() || 'Unknown';
-  return `<!--WHISPER:${target}-->${w.content.trim()}<!--/WHISPER:${target}-->`;
-}
-
-/** The draft as the assistant sees it: ¶1, ¶2… for story paragraphs and W1, W2… for rolls, tips and whispers. */
-export function draftToNumberedText(draft: AssistantDraft): string {
-  const paras = splitParagraphs(draft.narrative).map((p, i) => `¶${i + 1} ${p}`);
-  const tags = draft.whispers.filter(w => w.content.trim()).map((w, i) => `W${i + 1} ${whisperToTag(w)}`);
-  return [...paras, ...tags].join('\n\n');
-}
-
-/** Plain description of an edit for the chat, e.g. "¶3", "removed W1", "added a paragraph after ¶2". */
-export function describeEdit(e: DraftEdit): string {
-  const ref = `${e.target === 'paragraph' ? '¶' : 'W'}${e.index ?? ''}`;
-  if (e.op === 'replace') return ref;
-  if (e.op === 'delete') return `removed ${ref}`;
-  if (e.target === 'paragraph') return e.index === 0 ? 'added an opening paragraph' : `added a paragraph after ${ref}`;
-  return 'added a roll or whisper';
-}
-
-export interface AppliedEdits {
-  draft: AssistantDraft;
-  /** 0-based positions in the NEW draft that were added or changed, to highlight. */
-  changedParagraphs: number[];
-  changedWhispers: number[];
-  /** Edits that could not be applied (bad number), described in plain words. */
-  skipped: string[];
-  /** Edits that were applied, described in plain words. */
-  applied: string[];
-}
-
-/** Rebuild a list from per-position replacements and insertions (all 1-based on the original list). */
-function rebuild<T>(
-  original: T[],
-  replace: Map<number, T[] | null>,
-  insertAfter: Map<number, T[]>,
-): { items: T[]; changed: number[] } {
-  const items: T[] = [];
-  const changed: number[] = [];
-  for (let i = 0; i <= original.length; i++) {
-    if (i > 0) {
-      const r = replace.get(i);
-      if (r === undefined) items.push(original[i - 1]);
-      else if (r !== null) for (const x of r) { changed.push(items.length); items.push(x); }
-    }
-    for (const x of insertAfter.get(i) || []) { changed.push(items.length); items.push(x); }
-  }
-  return { items, changed };
-}
-
-/**
- * Apply small edits to the draft. Every number refers to the draft as it was
- * sent, so several edits in one reply never shift each other's targets.
- */
-export function applyDraftEdits(draft: AssistantDraft, edits: DraftEdit[]): AppliedEdits {
-  const paras = splitParagraphs(draft.narrative);
-  const whispers = draft.whispers.filter(w => w.content.trim());
-  const pReplace = new Map<number, string[] | null>();
-  const pInsert = new Map<number, string[]>();
-  const wReplace = new Map<number, Whisper[] | null>();
-  const wInsert = new Map<number, Whisper[]>();
-  const skipped: string[] = [];
-  const applied: string[] = [];
-  const push = <T,>(map: Map<number, T[]>, key: number, items: T[]) => map.set(key, [...(map.get(key) || []), ...items]);
-
-  for (const e of edits) {
-    if (e.target === 'paragraph') {
-      if (e.op === 'delete') {
-        if (e.index! > paras.length) { skipped.push(describeEdit(e)); continue; }
-        pReplace.set(e.index!, null);
-      } else {
-        // A paragraph body may carry roll or whisper tags; those become whisper cards.
-        const parsed = parseWhispers(e.body);
-        const newParas = splitParagraphs(parsed.narrative);
-        if (e.op === 'replace') {
-          if (e.index! > paras.length) { skipped.push(describeEdit(e)); continue; }
-          pReplace.set(e.index!, newParas);
-        } else {
-          if (e.index! > paras.length) { skipped.push(describeEdit(e)); continue; }
-          if (!newParas.length && !parsed.whispers.length) { skipped.push(describeEdit(e)); continue; }
-          push(pInsert, e.index!, newParas);
-        }
-        if (parsed.whispers.length) push(wInsert, whispers.length, parsed.whispers);
-      }
-    } else {
-      if (e.op === 'delete') {
-        if (e.index! > whispers.length) { skipped.push(describeEdit(e)); continue; }
-        wReplace.set(e.index!, null);
-      } else {
-        const found = parseWhispers(e.body).whispers;
-        if (!found.length) { skipped.push(describeEdit(e)); continue; }
-        if (e.op === 'replace') {
-          if (e.index! > whispers.length) { skipped.push(describeEdit(e)); continue; }
-          wReplace.set(e.index!, found);
-        } else {
-          const after = e.op === 'insert' && e.index !== null ? e.index : whispers.length;
-          if (after > whispers.length) { skipped.push(describeEdit(e)); continue; }
-          push(wInsert, after, found);
-        }
-      }
-    }
-    applied.push(describeEdit(e));
-  }
-
-  const p = rebuild(paras, pReplace, pInsert);
-  const w = rebuild(whispers, wReplace, wInsert);
-  return {
-    draft: { narrative: joinParagraphs(p.items), whispers: w.items },
-    changedParagraphs: p.changed,
-    changedWhispers: w.changed,
-    skipped,
-    applied,
-  };
-}
-
-/** Turn draft text into the editor's story + whisper cards (same parser the table uses). */
-export function draftFromText(text: string): AssistantDraft {
-  const { narrative, whispers } = parseWhispers(text || '');
-  return { narrative, whispers };
-}
-
-/** Draft as the assistant should see it (the same format it writes). */
-export function draftToText(draft: AssistantDraft): string {
-  const blocks = draft.whispers
-    .filter(w => w.content.trim())
-    .map(whisperToTag);
-  return [draft.narrative.trim(), ...blocks].filter(Boolean).join('\n\n');
-}
-
-export function draftIsEmpty(draft: AssistantDraft): boolean {
-  return !draft.narrative.trim();
-}
-
-export function draftCounts(draft: AssistantDraft): { rolls: number; whispers: number; tactics: number } {
-  return {
-    rolls: draft.whispers.filter(w => w.type === 'action' && w.content.trim()).length,
-    whispers: draft.whispers.filter(w => w.type === 'whisper' && w.content.trim()).length,
-    tactics: draft.whispers.filter(w => w.type === 'tactics' && w.content.trim()).length,
-  };
-}
-
 // ─── The handoff (system prompt) ──────────────────────────────────────────────
 
 const ASSISTANT_RULES = [
@@ -640,6 +563,25 @@ const ASSISTANT_RULES = [
   '- When ideas help, give 2 or 3 concrete options in a short list, then stop. Ask one short question back when it would move things forward.',
   '- Never repeat the draft back in chat.',
   '- A host message that starts with a target like [¶3] or [W2] is about that part of the CURRENT DRAFT.',
+  '',
+  'ALTERNATE VERSIONS',
+  'When the host asks for versions or alternatives of a paragraph, do not edit the draft. Reply with one short line, then the versions in one block, separated by a line containing only ---, usually 3 versions that differ in approach, not just wording:',
+  '[[TAKES ¶3]]',
+  '(version one)',
+  '---',
+  '(version two)',
+  '---',
+  '(version three)',
+  '[[/TAKES]]',
+  'The host keeps the one they like; the app puts it in the draft.',
+  '',
+  'DICE',
+  'You cannot roll dice, and you must never invent or assume a roll result. When a DM or NPC roll would decide something (an attack, a save, a check, damage), ask the app to roll it with real dice, one roll per line as "Label: expression", then stop and wait:',
+  '[[ROLL]]',
+  "Grukk's attack on Kaelen: 1d20+5",
+  'Grukk club damage: 2d8+3',
+  '[[/ROLL]]',
+  'Expressions: NdM+K, and "adv" or "dis" after a d20 for advantage or disadvantage. The app sends the results back in a message starting "Dice (rolled by the app):"; use them exactly. Player characters roll for themselves: ask them through ACTION roll requests in the draft, never here.',
   '',
   'TAP-TO-REPLY SUGGESTIONS',
   'End EVERY reply with 2 or 3 short replies the host is likely to want next, written as the host speaking (under 7 words each, no numbering), one per line, in this block:',
@@ -789,6 +731,18 @@ const MODE_RULES: Record<AssistantMode, string> = {
   ].join('\n'),
 };
 
+/** NPC rehearsal replaces the mode section: the assistant becomes the NPC. */
+export function rehearsalRules(npc: string): string {
+  return [
+    `MODE: NPC REHEARSAL WITH ${npc.toUpperCase()}`,
+    `The host is rehearsing dialogue with ${npc} to build natural lines for the scene. Reply ONLY as ${npc}, fully in character: what ${npc} says out loud, with at most one short action beat in *asterisks*. Usually under 70 words.`,
+    `Host messages are what the party says or does to ${npc}; a message may name the speaker, e.g. "Kaelen: where is the pup?". Never speak or act for the party.`,
+    `Stay consistent with everything the story, memory anchors and World Bible say about ${npc}: voice, knowledge, secrets and attitude. If ${npc} is new, give them a distinct voice that fits the scene. ${npc} only knows what they would plausibly know.`,
+    'No out-of-character notes, no narration of the scene, no [[DRAFT]], [[EDIT]] or [[TAKES]] blocks. If a roll would decide something (lying, noticing, intimidating), you may ask for it in a [[ROLL]] block.',
+    `End with a [[NEXT]] block of 2 or 3 short things the party might say to ${npc} next.`,
+  ].join('\n');
+}
+
 export interface BuiltHandoff {
   systemPrompt: string;
   chars: number;
@@ -801,6 +755,7 @@ export function buildAssistantSystemPrompt(
   bible: AssistantBible,
   draft: AssistantDraft,
   mode: AssistantMode = 'draft',
+  extras: { persona?: AssistantPersona; npc?: string | null } = {},
 ): BuiltHandoff {
   const { latest, before } = latestStory(ctx.story || []);
   const { table, sealed, sealedCount } = tableSection(ctx.tableLines || [], ctx.sealedOrder || []);
@@ -828,8 +783,23 @@ export function buildAssistantSystemPrompt(
     .join('\n\n');
 
   // The mode goes last, so the long, rarely-changing part of the brief stays identical between messages.
-  const systemPrompt = `${ASSISTANT_RULES}\n\n${body}\n\n=== ${MODE_RULES[mode]}`;
+  const tail = extras.npc ? rehearsalRules(extras.npc) : MODE_RULES[mode];
+  const personaLine = PERSONAS[extras.persona ?? 'default']?.line;
+  const systemPrompt = `${ASSISTANT_RULES}\n\n${body}\n\n=== ${tail}${personaLine ? `\n\n${personaLine}` : ''}`;
   return { systemPrompt, chars: systemPrompt.length, sealedCount };
+}
+
+/** How one saved chat message is shown to the assistant later. */
+function historyText(m: AssistantChatMessage): string {
+  if (m.roll) return `Dice (rolled by the app): ${rollForAssistant(m.roll)}`;
+  let text = m.text.trim();
+  if (m.npc) text = m.role === 'assistant' ? `[as ${m.npc}] ${text}` : `[to ${m.npc}] ${text}`;
+  if (m.role === 'assistant' && m.takes) {
+    const kept = m.takes.kept !== undefined ? ` The host kept version ${m.takes.kept + 1}.` : '';
+    text = `${text}\n(I offered ${m.takes.options.length} versions of ¶${m.takes.paragraph}.${kept})`;
+  }
+  if (m.role === 'assistant' && m.draftUpdated) text = `${text}\n(${m.draftNote || 'I updated the draft'}.)`;
+  return text.trim();
 }
 
 /**
@@ -843,9 +813,7 @@ export function buildAssistantMessages(
   const turns = [
     ...history.map(m => ({
       role: (m.role === 'host' ? 'user' : 'assistant') as 'user' | 'assistant',
-      content: m.role === 'assistant' && m.draftUpdated
-        ? `${m.text.trim()}\n(${m.draftNote || 'I updated the draft'}.)`.trim()
-        : m.text.trim(),
+      content: historyText(m),
     })),
     { role: 'user' as const, content: newHostText.trim() },
   ].filter(t => t.content);
@@ -888,6 +856,68 @@ export const DRAFT_PROMPTS: QuickPrompt[] = [
   { label: 'Add a whisper', text: 'Add one private whisper for the player it would matter most to, as a small edit.' },
   { label: 'Tighten it', text: 'Tighten the draft with small edits: same events, fewer words, a stronger ending prompt.' },
 ];
+
+export const TONE_PROMPTS: QuickPrompt[] = [
+  { label: 'Darker', text: 'Make this darker.', mode: 'draft' },
+  { label: 'Funnier', text: 'Make this funnier.', mode: 'draft' },
+  { label: 'Tenser', text: 'Make this tenser.', mode: 'draft' },
+  { label: 'Shorter', text: 'Make this shorter. Keep what matters.', mode: 'draft' },
+  { label: 'More vivid', text: 'Make this more vivid and sensory.', mode: 'draft' },
+];
+
+export const VERSIONS_PROMPT = 'Give me 3 alternate versions of this paragraph.';
+
+// ─── NPC dialogue into the draft ─────────────────────────────────────────────
+
+/**
+ * Turn one rehearsed NPC line into story text: spoken words get voice tags,
+ * *action beats* become plain narration.
+ */
+const BEAT_SUBJECTS = new Set(['he', 'she', 'they', 'it', 'his', 'her', 'their', 'its', 'the', 'a', 'an', 'i', 'we']);
+
+export function npcLineToStory(npc: string, line: string): string {
+  const parts: string[] = [];
+  const re = /\*([^*]+)\*/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  const speech = (raw: string) => {
+    const words = raw.trim().replace(/^["“”]+|["“”]+$/g, '').trim();
+    if (words) parts.push(`[VOICE:${npc}]"${words}"[/VOICE]`);
+  };
+  while ((m = re.exec(line)) !== null) {
+    speech(line.slice(last, m.index));
+    const beat = m[1].trim().replace(/[.!?]*$/, '');
+    if (beat) {
+      // "*plants his feet*" reads as "Grukk plants his feet."; "*He sighs*" stays as written.
+      const first = beat.split(/\s+/)[0].toLowerCase();
+      const needsName = /^[a-z]/.test(beat) && !BEAT_SUBJECTS.has(first);
+      parts.push(needsName ? `${npc} ${beat}.` : `${beat.charAt(0).toUpperCase()}${beat.slice(1)}.`);
+    }
+    last = m.index + m[0].length;
+  }
+  speech(line.slice(last));
+  return parts.join(' ');
+}
+
+/** The ask that weaves a rehearsed exchange into the draft. */
+export function buildWeavePrompt(
+  npc: string,
+  exchange: Array<{ who: 'party' | 'npc'; text: string }>,
+  afterParagraph: number | null,
+): string {
+  const lines = exchange.map(e => `${e.who === 'npc' ? npc : 'Party'}: ${e.text.trim()}`).join('\n');
+  const place = afterParagraph !== null
+    ? `Insert it after ¶${afterParagraph}.`
+    : 'Put it where it fits best, or write the full post if there is no draft yet.';
+  return [
+    `Weave this rehearsed exchange with ${npc} into the draft as natural dialogue with light narration.`,
+    `Keep ${npc}'s lines as written (trim if needed) inside voice tags. Players speak for their own characters at the table, so keep the party's side brief or turn it into narration.`,
+    `${place} Use small edits.`,
+    '',
+    'EXCHANGE:',
+    lines,
+  ].join('\n');
+}
 
 /** Kept so the app still builds between update steps. The panel now uses BRAINSTORM_PROMPTS and DRAFT_PROMPTS. */
 export const QUICK_PROMPTS: QuickPrompt[] = DRAFT_PROMPTS;
