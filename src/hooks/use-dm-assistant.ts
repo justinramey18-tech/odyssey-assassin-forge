@@ -11,7 +11,9 @@ import {
   type AssistantChatMessage,
   type AssistantDraft,
   type AssistantLiveContext,
+  type AssistantMode,
   EMPTY_DRAFT,
+  applyDraftEdits,
   DIGEST_SYSTEM_PROMPT,
   buildAssistantMessages,
   buildAssistantSystemPrompt,
@@ -23,11 +25,13 @@ import {
   hashText,
   isDigestCurrent,
   loadAssistantModel,
+  loadAssistantMode,
   loadAssistantState,
   loadDigest,
   parseAssistantReply,
   resolveAssistantModel,
   saveAssistantModel,
+  saveAssistantMode,
   saveAssistantState,
   saveDigest,
   visibleWhileStreaming,
@@ -99,6 +103,14 @@ async function streamFromAiDm(opts: {
   return full;
 }
 
+/** What the last reply changed, so the panel can highlight it. Positions are 0-based in the new draft. */
+export interface DraftChange {
+  kind: 'new' | 'edit';
+  paragraphs: number[];
+  whispers: number[];
+  at: number;
+}
+
 export type DigestStatus = 'none' | 'ready' | 'stale' | 'building' | 'error' | 'no-guides';
 
 interface UseDmAssistantOptions {
@@ -124,6 +136,9 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
   const [digestStatus, setDigestStatus] = useState<DigestStatus>('none');
   const [digestBuiltAt, setDigestBuiltAt] = useState<string | null>(null);
   const [lastSendTokens, setLastSendTokens] = useState<number | null>(null);
+  const [lastReplyTokens, setLastReplyTokens] = useState<number | null>(null);
+  const [mode, setModeState] = useState<AssistantMode>(() => loadAssistantMode());
+  const [lastChange, setLastChange] = useState<DraftChange | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
@@ -149,6 +164,11 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
   useEffect(() => {
     saveAssistantState(ownerRef.current, { messages, draft });
   }, [messages, draft]);
+
+  const setMode = useCallback((next: AssistantMode) => {
+    setModeState(next);
+    saveAssistantMode(next);
+  }, []);
 
   const setModel = useCallback((id: string) => {
     setModelState(id);
@@ -197,9 +217,13 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
     }
   }, [partyId]);
 
-  const send = useCallback(async (rawText: string) => {
+  const send = useCallback(async (rawText: string, modeOverride?: AssistantMode) => {
     const text = rawText.trim();
     if (!text || abortRef.current) return;
+    const modeAtSend = modeOverride ?? mode;
+    if (modeOverride && modeOverride !== mode) setMode(modeOverride);
+    // Edit numbers refer to the draft exactly as it was sent.
+    const draftAtSend = draftRef.current;
 
     const history = messagesRef.current;
     const hostMsg: AssistantChatMessage = { id: newId(), role: 'host', text, createdAt: new Date().toISOString() };
@@ -224,7 +248,7 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
         ? { mode: 'full', text: ctx.guides || '' }
         : await ensureBible(ctx.guides || '', modelId, controller.signal);
 
-      const handoff = buildAssistantSystemPrompt(ctx, bible, draftRef.current);
+      const handoff = buildAssistantSystemPrompt(ctx, bible, draftAtSend, modeAtSend);
       const apiMessages = buildAssistantMessages(history, text);
       const sentChars = handoff.chars + apiMessages.reduce((n, m) => n + m.content.length, 0);
       setLastSendTokens(estimateTokens(sentChars));
@@ -243,16 +267,38 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
         },
       });
 
+      setLastReplyTokens(estimateTokens(raw.length));
       const parsed = parseAssistantReply(raw);
-      if (!parsed.chatText && !parsed.draftText) {
+      if (!parsed.chatText && !parsed.draftText && !parsed.edits.length) {
         throw new Error('The assistant sent back an empty reply. Try again, or pick another model.');
       }
-      if (parsed.draftText) setDraft(draftFromText(parsed.draftText));
+
+      let draftNote: string | undefined;
+      const wantsChange = !!parsed.draftText || parsed.edits.length > 0;
+      if (wantsChange && modeAtSend === 'brainstorm') {
+        toast.info('Brainstorm mode leaves the draft alone', { description: 'Switch to Draft mode to let the assistant change it.' });
+      } else if (parsed.draftText) {
+        setDraft(draftFromText(parsed.draftText));
+        draftNote = 'New draft';
+        setLastChange({ kind: 'new', paragraphs: [], whispers: [], at: Date.now() });
+      } else if (parsed.edits.length) {
+        const result = applyDraftEdits(draftAtSend, parsed.edits);
+        if (result.applied.length) {
+          setDraft(result.draft);
+          draftNote = `Edited ${result.applied.join(', ')}`;
+          setLastChange({ kind: 'edit', paragraphs: result.changedParagraphs, whispers: result.changedWhispers, at: Date.now() });
+        }
+        if (result.skipped.length) {
+          toast.warning(`Skipped ${result.skipped.join(', ')}`, { description: "That part of the draft doesn't exist. Everything else was applied." });
+        }
+      }
+
       setMessages(prev => [...prev, {
         id: newId(),
         role: 'assistant',
-        text: parsed.chatText || 'Draft updated.',
-        draftUpdated: !!parsed.draftText,
+        text: parsed.chatText || (draftNote ? `${draftNote}.` : 'Done.'),
+        draftUpdated: !!draftNote,
+        draftNote,
         createdAt: new Date().toISOString(),
       }]);
       // "Full Bible" is for one message only.
@@ -278,7 +324,7 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
       setWritingDraft(false);
       refreshDigestStatus();
     }
-  }, [model, fullBible, ensureBible, refreshDigestStatus]);
+  }, [model, mode, setMode, fullBible, ensureBible, refreshDigestStatus]);
 
   /** Resend the last host message after an error. */
   const retryLast = useCallback(() => {
@@ -296,6 +342,7 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
     abortRef.current?.abort();
     setMessages([]);
     setDraft({ ...EMPTY_DRAFT, whispers: [] });
+    setLastChange(null);
     setError(null);
     clearAssistantState(ownerRef.current);
   }, []);
@@ -313,6 +360,9 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
     setDraft,
     model,
     setModel,
+    mode,
+    setMode,
+    lastChange,
     fullBible,
     setFullBible,
     isStreaming,
@@ -323,6 +373,7 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
     refreshDigestStatus,
     rebuildDigest,
     lastSendTokens,
+    lastReplyTokens,
     error,
     send,
     retryLast,
