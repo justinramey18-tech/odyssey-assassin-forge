@@ -25,12 +25,14 @@ import {
   hashText,
   isDigestCurrent,
   loadAssistantModel,
+  loadBrainstormModel,
   loadAssistantMode,
   loadAssistantState,
   loadDigest,
   parseAssistantReply,
   resolveAssistantModel,
   saveAssistantModel,
+  saveBrainstormModel,
   saveAssistantMode,
   saveAssistantState,
   saveDigest,
@@ -111,6 +113,16 @@ export interface DraftChange {
   at: number;
 }
 
+/** One step of undo: the draft before an assistant change, and the draft it produced. */
+interface UndoStep {
+  before: AssistantDraft;
+  after: AssistantDraft;
+  note: string;
+}
+
+const MAX_UNDO = 10;
+const sameDraft = (x: AssistantDraft, y: AssistantDraft) => JSON.stringify(x) === JSON.stringify(y);
+
 export type DigestStatus = 'none' | 'ready' | 'stale' | 'building' | 'error' | 'no-guides';
 
 interface UseDmAssistantOptions {
@@ -128,7 +140,12 @@ const newId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto
 export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssistantOptions) {
   const [messages, setMessages] = useState<AssistantChatMessage[]>(() => loadAssistantState(partyId).messages);
   const [draft, setDraft] = useState<AssistantDraft>(() => loadAssistantState(partyId).draft);
-  const [model, setModelState] = useState<string>(() => loadAssistantModel(partyModel));
+  // One model per mode: a fast one for brainstorming, the stronger writer for drafting.
+  const [models, setModels] = useState<Record<AssistantMode, string>>(() => ({
+    brainstorm: loadBrainstormModel(partyModel),
+    draft: loadAssistantModel(partyModel),
+  }));
+  const [undoStack, setUndoStack] = useState<UndoStep[]>([]);
   const [fullBible, setFullBible] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState('');
@@ -158,6 +175,7 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
     ownerRef.current = partyId;
     setMessages(saved.messages);
     setDraft(saved.draft);
+    setUndoStack([]);
   }, [partyId]);
 
   // Save the chat and draft on this phone whenever they change.
@@ -170,9 +188,10 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
     saveAssistantMode(next);
   }, []);
 
-  const setModel = useCallback((id: string) => {
-    setModelState(id);
-    saveAssistantModel(id);
+  const setModel = useCallback((forMode: AssistantMode, id: string) => {
+    setModels(prev => ({ ...prev, [forMode]: id }));
+    if (forMode === 'brainstorm') saveBrainstormModel(id);
+    else saveAssistantModel(id);
   }, []);
 
   const refreshDigestStatus = useCallback(() => {
@@ -239,8 +258,9 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
     let partial = '';
     try {
       const ctx = getContextRef.current();
-      const modelId = resolveAssistantModel(model);
-      if (modelId !== model) {
+      const chosen = models[modeAtSend];
+      const modelId = resolveAssistantModel(chosen);
+      if (modelId !== chosen) {
         toast.info('That model needs your own API key on this phone', { description: 'Using the default model for this message.' });
       }
 
@@ -278,14 +298,17 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
       if (wantsChange && modeAtSend === 'brainstorm') {
         toast.info('Brainstorm mode leaves the draft alone', { description: 'Switch to Draft mode to let the assistant change it.' });
       } else if (parsed.draftText) {
-        setDraft(draftFromText(parsed.draftText));
+        const next = draftFromText(parsed.draftText);
+        setDraft(next);
         draftNote = 'New draft';
+        setUndoStack(prev => [...prev, { before: draftAtSend, after: next, note: draftNote! }].slice(-MAX_UNDO));
         setLastChange({ kind: 'new', paragraphs: [], whispers: [], at: Date.now() });
       } else if (parsed.edits.length) {
         const result = applyDraftEdits(draftAtSend, parsed.edits);
         if (result.applied.length) {
           setDraft(result.draft);
           draftNote = `Edited ${result.applied.join(', ')}`;
+          setUndoStack(prev => [...prev, { before: draftAtSend, after: result.draft, note: draftNote! }].slice(-MAX_UNDO));
           setLastChange({ kind: 'edit', paragraphs: result.changedParagraphs, whispers: result.changedWhispers, at: Date.now() });
         }
         if (result.skipped.length) {
@@ -299,6 +322,7 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
         text: parsed.chatText || (draftNote ? `${draftNote}.` : 'Done.'),
         draftUpdated: !!draftNote,
         draftNote,
+        suggestions: parsed.suggestions.length ? parsed.suggestions : undefined,
         createdAt: new Date().toISOString(),
       }]);
       // "Full Bible" is for one message only.
@@ -324,7 +348,23 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
       setWritingDraft(false);
       refreshDigestStatus();
     }
-  }, [model, mode, setMode, fullBible, ensureBible, refreshDigestStatus]);
+  }, [models, mode, setMode, fullBible, ensureBible, refreshDigestStatus]);
+
+  /**
+   * Put the draft back the way it was before the assistant's last change.
+   * Returns false (and changes nothing) when the host edited the draft by hand
+   * since then and did not confirm losing those edits.
+   */
+  const undo = useCallback((confirmLoseHandEdits?: () => boolean): boolean => {
+    const step = undoStack[undoStack.length - 1];
+    if (!step) return false;
+    if (!sameDraft(draftRef.current, step.after) && confirmLoseHandEdits && !confirmLoseHandEdits()) return false;
+    setDraft(step.before);
+    setUndoStack(prev => prev.slice(0, -1));
+    setLastChange(null);
+    toast.success(`Undid: ${step.note}`);
+    return true;
+  }, [undoStack]);
 
   /** Resend the last host message after an error. */
   const retryLast = useCallback(() => {
@@ -343,6 +383,7 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
     setMessages([]);
     setDraft({ ...EMPTY_DRAFT, whispers: [] });
     setLastChange(null);
+    setUndoStack([]);
     setError(null);
     clearAssistantState(ownerRef.current);
   }, []);
@@ -358,8 +399,13 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
     messages,
     draft,
     setDraft,
-    model,
+    /** The model the current mode will use. */
+    model: models[mode],
+    models,
     setModel,
+    undo,
+    canUndo: undoStack.length > 0,
+    undoNote: undoStack[undoStack.length - 1]?.note ?? null,
     mode,
     setMode,
     lastChange,

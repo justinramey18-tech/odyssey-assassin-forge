@@ -4,7 +4,7 @@
 // opens over the chat area and starts collapsed whenever a new draft arrives.
 // Players never see this chat.
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -12,6 +12,7 @@ import { WhisperEditor } from './WhisperEditor';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
 import { serializeWhispers } from '@/lib/whisper-parser';
 import { useDmAssistant, type DigestStatus, type DraftChange } from '@/hooks/use-dm-assistant';
+import { useSpeechToText } from '@/hooks/use-speech-to-text';
 import {
   BRAINSTORM_PROMPTS,
   DRAFT_PROMPTS,
@@ -20,6 +21,7 @@ import {
   modelNeedsMissingKey,
   splitParagraphs,
   type AssistantLiveContext,
+  type AssistantMode,
   type QuickPrompt,
 } from '@/lib/dm-assistant';
 import { cn } from '@/lib/utils';
@@ -32,12 +34,15 @@ import {
   ChevronUp,
   Loader2,
   MessageCircle,
+  Mic,
+  MicOff,
   PenLine,
   RotateCcw,
   Send,
   Settings2,
   Sparkles,
   Square,
+  Undo2,
   X,
 } from 'lucide-react';
 
@@ -111,6 +116,15 @@ export function DMAssistantPanel({
   const [applying, setApplying] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
+  // Voice input: spoken words are added to the message box, ready to edit or send.
+  const speech = useSpeechToText({
+    onTranscript: useCallback((text: string) => {
+      setInput(prev => (prev.trim() ? `${prev.trimEnd()} ${text}` : text));
+    }, []),
+  });
+  const { stop: stopListening } = speech;
+  useEffect(() => { if (!open) stopListening(); }, [open, stopListening]);
+
   const { refreshDigestStatus } = a;
   useEffect(() => {
     if (open) refreshDigestStatus();
@@ -161,6 +175,9 @@ export function DMAssistantPanel({
   const hasDraft = !draftIsEmpty(a.draft);
   const canApply = hasDraft && !a.isStreaming && !aiDmWriting && !applying;
   const lastAssistant = [...a.messages].reverse().find(m => m.role === 'assistant');
+  const lastMessage = a.messages[a.messages.length - 1];
+  const lastDraftChangeId = [...a.messages].reverse().find(m => m.draftUpdated)?.id;
+  const suggestions = !a.isStreaming && lastMessage?.role === 'assistant' ? (lastMessage.suggestions || []) : [];
   const prompts: QuickPrompt[] = a.mode === 'brainstorm'
     ? BRAINSTORM_PROMPTS
     : DRAFT_PROMPTS.map(q => (q.label === 'Draft it' && hasDraft ? { ...q, label: 'Redraft all' } : q));
@@ -178,10 +195,22 @@ export function DMAssistantPanel({
     const typed = (q?.text ?? input).trim();
     if (!typed || a.isStreaming) return;
     const text = aim && !q ? `[${aimLabel}] ${typed}` : typed;
+    if (speech.isListening) speech.stop();
     setConfirming(false);
     setEditByHand(false);
     void a.send(text, q?.mode);
     if (!q) { setInput(''); setAim(null); }
+  };
+
+  /** A suggestion starting with "Draft:" switches to Draft mode and asks for the change. */
+  const sendSuggestion = (text: string) => {
+    const m = /^draft\s*:\s*(.+)$/i.exec(text.trim());
+    if (m) handleSend({ label: text, text: `Draft it: ${m[1]}`, mode: 'draft' });
+    else handleSend({ label: text, text });
+  };
+
+  const handleUndo = () => {
+    a.undo(() => window.confirm('Undo will also remove the hand edits you made since that change. Undo anyway?'));
   };
 
   const handleNewChat = () => {
@@ -287,25 +316,32 @@ export function DMAssistantPanel({
 
           {settingsOpen && (
             <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-2">
-              <select
-                value={a.model}
-                onChange={e => a.setModel(e.target.value)}
-                aria-label="Assistant model"
-                className="w-full min-h-[40px] rounded-lg bg-white/5 border border-white/10 text-[13px] text-white/85 px-2"
-              >
-                {groups.map(g => (
-                  <optgroup key={g.provider} label={PROVIDER_LABEL[g.provider]}>
-                    {g.models.map(m => {
-                      const locked = modelNeedsMissingKey(m.id);
-                      return (
-                        <option key={m.id} value={m.id} disabled={locked}>
-                          {m.label}{locked ? ' (needs your key)' : ''}
-                        </option>
-                      );
-                    })}
-                  </optgroup>
-                ))}
-              </select>
+              {(['brainstorm', 'draft'] as AssistantMode[]).map(m => (
+                <label key={m} className="block">
+                  <span className="block text-[11px] text-white/50 mb-1 px-0.5">
+                    {m === 'brainstorm' ? 'Brainstorm model (fast is best)' : 'Draft model (best writer)'}
+                  </span>
+                  <select
+                    value={a.models[m]}
+                    onChange={e => a.setModel(m, e.target.value)}
+                    aria-label={m === 'brainstorm' ? 'Brainstorm model' : 'Draft model'}
+                    className="w-full min-h-[40px] rounded-lg bg-white/5 border border-white/10 text-[13px] text-white/85 px-2"
+                  >
+                    {groups.map(g => (
+                      <optgroup key={g.provider} label={PROVIDER_LABEL[g.provider]}>
+                        {g.models.map(model => {
+                          const locked = modelNeedsMissingKey(model.id);
+                          return (
+                            <option key={model.id} value={model.id} disabled={locked}>
+                              {model.label}{locked ? ' (needs your key)' : ''}
+                            </option>
+                          );
+                        })}
+                      </optgroup>
+                    ))}
+                  </select>
+                </label>
+              ))}
               <div className="flex items-center gap-2 text-[11px] text-white/50">
                 <BookOpen className="w-3.5 h-3.5 shrink-0 text-amber-300/70" />
                 <span className="truncate">{DIGEST_LABEL[a.digestStatus]}</span>
@@ -357,17 +393,50 @@ export function DMAssistantPanel({
                 )}>
                   {m.text}
                   {m.draftUpdated && (
-                    <button
-                      onClick={() => setDraftOpen(true)}
-                      style={{ touchAction: 'manipulation' }}
-                      className="mt-1.5 flex items-center gap-1 text-[11px] text-emerald-300/85"
-                    >
-                      <Check className="w-3 h-3" /> {m.draftNote || 'Draft updated'} · view
-                    </button>
+                    <span className="mt-1.5 flex items-center gap-3">
+                      <button
+                        onClick={() => setDraftOpen(true)}
+                        style={{ touchAction: 'manipulation' }}
+                        className="flex items-center gap-1 text-[11px] text-emerald-300/85"
+                      >
+                        <Check className="w-3 h-3" /> {m.draftNote || 'Draft updated'} · view
+                      </button>
+                      {m.id === lastDraftChangeId && a.canUndo && (
+                        <button
+                          onClick={handleUndo}
+                          disabled={a.isStreaming}
+                          style={{ touchAction: 'manipulation' }}
+                          className="flex items-center gap-1 text-[11px] text-amber-200/80 disabled:opacity-40"
+                        >
+                          <Undo2 className="w-3 h-3" /> Undo
+                        </button>
+                      )}
+                    </span>
                   )}
                 </div>
               </div>
             ))}
+
+            {suggestions.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pl-1">
+                {suggestions.map(text => {
+                  const drafts = /^draft\s*:/i.test(text);
+                  return (
+                    <button
+                      key={text}
+                      onClick={() => sendSuggestion(text)}
+                      style={{ touchAction: 'manipulation' }}
+                      className={cn(
+                        'min-h-[36px] px-3 rounded-full border text-[12.5px] text-left',
+                        drafts ? 'border-amber-400/45 bg-amber-800/30 text-amber-100' : 'border-teal-400/35 bg-teal-900/25 text-teal-100',
+                      )}
+                    >
+                      {text}{drafts && a.mode === 'brainstorm' ? ' →' : ''}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {a.isStreaming && (
               <div className="flex justify-start">
@@ -417,11 +486,22 @@ export function DMAssistantPanel({
                 <span className="text-[11px] text-white/40 truncate">
                   {editByHand ? 'Leave a blank line between paragraphs.' : paragraphs.length ? 'Tap a paragraph to point the assistant at it.' : ''}
                 </span>
+                {a.canUndo && (
+                  <button
+                    onClick={handleUndo}
+                    disabled={a.isStreaming}
+                    aria-label={a.undoNote ? `Undo: ${a.undoNote}` : 'Undo'}
+                    style={{ touchAction: 'manipulation' }}
+                    className="ml-auto shrink-0 min-h-[32px] px-2.5 rounded-md border border-white/15 bg-white/5 text-white/70 text-[12px] flex items-center gap-1.5 disabled:opacity-40"
+                  >
+                    <Undo2 className="w-3.5 h-3.5" /> Undo
+                  </button>
+                )}
                 <button
                   onClick={() => { setEditByHand(v => !v); setAim(null); }}
                   disabled={a.isStreaming}
                   style={{ touchAction: 'manipulation' }}
-                  className={cn('ml-auto shrink-0 min-h-[32px] px-2.5 rounded-md border text-[12px] flex items-center gap-1.5 disabled:opacity-40',
+                  className={cn('shrink-0 min-h-[32px] px-2.5 rounded-md border text-[12px] flex items-center gap-1.5 disabled:opacity-40', !a.canUndo && 'ml-auto',
                     editByHand ? 'border-emerald-400/40 bg-emerald-900/30 text-emerald-100' : 'border-white/15 bg-white/5 text-white/70')}
                 >
                   {editByHand ? <Check className="w-3.5 h-3.5" /> : <PenLine className="w-3.5 h-3.5" />}
@@ -580,7 +660,28 @@ export function DMAssistantPanel({
             ))}
           </div>
 
+          {speech.isListening && (
+            <div className="flex items-center gap-2 px-1 text-[12px] text-red-200/85">
+              <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+              <span className="truncate">{speech.interimText ? `${speech.interimText}…` : 'Listening… tap the mic again to stop'}</span>
+            </div>
+          )}
+
           <div className="flex items-end gap-2">
+            {speech.isSupported && (
+              <button
+                onClick={speech.toggle}
+                aria-label={speech.isListening ? 'Stop listening' : 'Speak your message'}
+                aria-pressed={speech.isListening}
+                style={{ touchAction: 'manipulation' }}
+                className={cn(
+                  'shrink-0 w-11 h-11 rounded-xl border flex items-center justify-center',
+                  speech.isListening ? 'border-red-400/50 bg-red-900/35 text-red-200' : 'border-white/10 bg-white/5 text-white/60',
+                )}
+              >
+                {speech.isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </button>
+            )}
             <Textarea
               value={input}
               onChange={e => setInput(e.target.value)}
