@@ -4210,6 +4210,70 @@ Rules:
     silentAutoSave(allMsgs, sessionConfig.campaignSummary || null);
   }, [partyId, user, sessionConfig, isSplitActive, splitState, characterName, currentPrompts, updateSessionConfig, silentAutoSave, messages]);
 
+  // Human DM Assistant (host only): post the host's finished draft as the DM's reply to the
+  // sealed Live Table lines. Like Send to DM, each sealed player line is saved first as that
+  // player's own story row, so the story record keeps what the players said. Throws on any
+  // failure so the caller keeps the lines sealed.
+  const postAssistedDmResponse = useCallback(async (input: {
+    content: string;
+    participants: Array<{ userId: string; characterName: string; text: string }>;
+  }) => {
+    if (!partyId || !user || !sessionConfig) throw new Error('The session is not ready yet.');
+    if (isGenerating || sessionConfig.isGenerating) throw new Error('The AI DM is writing right now.');
+    const content = input.content.trim();
+    if (!content) throw new Error('The draft is empty.');
+
+    // 1. One story row per player, under their own user id (same format as Send to DM).
+    const playerRows: PartyDmMessage[] = [];
+    for (const p of input.participants) {
+      const line = (p.text || '').trim();
+      if (!line) continue;
+      const name = p.characterName || 'Player';
+      const rowContent = `[${name}]: ${line}`;
+      await insertPartyMessageHelper(partyId, {
+        party_id: partyId,
+        role: 'user',
+        content: rowContent,
+        sender_user_id: p.userId,
+        sender_name: name,
+      });
+      playerRows.push({ id: '', party_id: partyId, role: 'user', content: rowContent, sender_user_id: p.userId, sender_name: name, created_at: '' });
+    }
+
+    // 2. The DM post.
+    const dmRow = await insertPartyMessageHelper(partyId, {
+      party_id: partyId,
+      role: 'assistant',
+      content,
+      sender_user_id: user.id,
+      sender_name: 'DM',
+    });
+
+    // 3. Tell the table. Story text only, never the whispers.
+    const preview = parseWhispers(content).narrative.replace(/\[\/?VOICE(?::[^\]]*)?\]/gi, '').trim();
+    sendTelegramNotification({
+      type: 'custom',
+      partyId,
+      title: '📖 The DM Has Spoken',
+      body: preview.substring(0, 300) + (preview.length > 300 ? '…' : ''),
+      mode: sessionConfig.campaignType === 'empyrean' ? 'empyrean' : 'party',
+    });
+
+    // 4. Start the next round (same fields the AI DM resets after a reply).
+    await updateSessionConfig({
+      currentRoundId: crypto.randomUUID(),
+      timerStartedAt: sessionConfig.timerEnabled ? new Date().toISOString() : null,
+      timerPausedRemaining: null,
+      extensionRequests: [],
+    });
+
+    // 5. Keep the running story summary and the campaign save up to date.
+    const dmForSave: PartyDmMessage = dmRow ?? { id: '', party_id: partyId, role: 'assistant', content, sender_user_id: user.id, sender_name: 'DM', created_at: '' };
+    const updatedMessages = [...messages, ...playerRows, dmForSave];
+    triggerSummaryIfNeeded(updatedMessages);
+    silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
+  }, [partyId, user, sessionConfig, isGenerating, messages, insertPartyMessageHelper, updateSessionConfig, triggerSummaryIfNeeded, silentAutoSave]);
+
   // Approve AI draft (AI Approval mode): insert edited content as assistant message
   const approveDraft = useCallback(async (editedContent: string) => {
     if (!partyId || !user || !sessionConfig || !pendingDraft) return;
@@ -4328,6 +4392,7 @@ Rules:
     unready,
     generateResponse,
     sendManualDmMessage,
+    postAssistedDmResponse,
     approveDraft,
     discardDraft,
     editMessage,
@@ -4369,7 +4434,7 @@ Rules:
     lastAutoSaveTime, splitState, isSplitActive, myTeam, pendingDraft,
     startSession, endSession, startNewCampaign, saveCampaign, loadCampaign,
     submitPrompt, editPrompt, retractPrompt, setReady, unready,
-    generateResponse, sendManualDmMessage, approveDraft, discardDraft,
+    generateResponse, sendManualDmMessage, postAssistedDmResponse, approveDraft, discardDraft,
     editMessage, deleteMessage, sendDialogueMessage, sendWhisper, callDM, voiceNPC, startNpcScene, stopNpcScene, submitNpcInterjection, generateDialogueRecap, regenerateMessage, regenerateWhispers,
     addMediaMessage, stopGeneration, applyOocCommand, initiateSplit, regroupParty,
     updateSessionConfig, setPartyModel, reclaimTurn, redoLastRound, setTimerConfig, startTimer, pauseTimer, resumeTimer,
