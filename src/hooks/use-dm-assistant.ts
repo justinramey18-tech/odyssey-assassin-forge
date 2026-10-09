@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { getAuthToken } from '@/lib/auth-token';
+import { parseHostRoll, parseRollRequest, rollDice, rollForAssistant } from '@/lib/dm-dice';
 import { loadApiKey } from '@/lib/api-keys';
 import {
   type AssistantBible,
@@ -12,11 +13,14 @@ import {
   type AssistantDraft,
   type AssistantLiveContext,
   type AssistantMode,
+  type AssistantPersona,
+  type DraftEdit,
   EMPTY_DRAFT,
   applyDraftEdits,
   DIGEST_SYSTEM_PROMPT,
   buildAssistantMessages,
   buildAssistantSystemPrompt,
+  buildWeavePrompt,
   buildDigestMessages,
   clearAssistantState,
   clearDigest,
@@ -27,6 +31,9 @@ import {
   loadAssistantModel,
   loadBrainstormModel,
   loadAssistantMode,
+  loadAssistantPersona,
+  loadRecentNpcs,
+  npcLineToStory,
   loadAssistantState,
   loadDigest,
   parseAssistantReply,
@@ -34,6 +41,9 @@ import {
   saveAssistantModel,
   saveBrainstormModel,
   saveAssistantMode,
+  saveAssistantPersona,
+  saveRecentNpc,
+  splitParagraphs,
   saveAssistantState,
   saveDigest,
   visibleWhileStreaming,
@@ -123,6 +133,12 @@ interface UndoStep {
 const MAX_UNDO = 10;
 const sameDraft = (x: AssistantDraft, y: AssistantDraft) => JSON.stringify(x) === JSON.stringify(y);
 
+/** An NPC rehearsal in progress: the assistant answers as this NPC. */
+export interface Rehearsal {
+  npc: string;
+  sceneId: string;
+}
+
 export type DigestStatus = 'none' | 'ready' | 'stale' | 'building' | 'error' | 'no-guides';
 
 interface UseDmAssistantOptions {
@@ -157,6 +173,12 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
   const [mode, setModeState] = useState<AssistantMode>(() => loadAssistantMode());
   const [lastChange, setLastChange] = useState<DraftChange | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [persona, setPersonaState] = useState<AssistantPersona>(() => loadAssistantPersona());
+  const [rehearsal, setRehearsalState] = useState<Rehearsal | null>(null);
+  const [recentNpcs, setRecentNpcs] = useState<string[]>(() => loadRecentNpcs());
+  // Read synchronously by send(), so ending a rehearsal and sending in the same tap works.
+  const rehearsalRef = useRef<Rehearsal | null>(null);
+  const sendRef = useRef<(text: string, modeOverride?: AssistantMode, opts?: { auto?: boolean }) => Promise<void>>();
 
   const abortRef = useRef<AbortController | null>(null);
   const messagesRef = useRef(messages);
@@ -176,6 +198,8 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
     setMessages(saved.messages);
     setDraft(saved.draft);
     setUndoStack([]);
+    rehearsalRef.current = null;
+    setRehearsalState(null);
   }, [partyId]);
 
   // Save the chat and draft on this phone whenever they change.
@@ -186,6 +210,31 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
   const setMode = useCallback((next: AssistantMode) => {
     setModeState(next);
     saveAssistantMode(next);
+  }, []);
+
+  const setPersona = useCallback((next: AssistantPersona) => {
+    setPersonaState(next);
+    saveAssistantPersona(next);
+  }, []);
+
+  const setRehearsal = useCallback((next: Rehearsal | null) => {
+    rehearsalRef.current = next;
+    setRehearsalState(next);
+  }, []);
+
+  /** Append messages and keep the ref in step, so an automatic follow-up sees them. */
+  const appendMessages = useCallback((added: AssistantChatMessage[]) => {
+    messagesRef.current = [...messagesRef.current, ...added];
+    setMessages(prev => [...prev, ...added]);
+  }, []);
+
+  /** A draft change made by the app itself (keeping a version, adding dialogue), with undo. */
+  const applyLocalChange = useCallback((next: AssistantDraft, note: string, paragraphs: number[]) => {
+    const before = draftRef.current;
+    draftRef.current = next;
+    setDraft(next);
+    setUndoStack(prev => [...prev, { before, after: next, note }].slice(-MAX_UNDO));
+    setLastChange({ kind: 'edit', paragraphs, whispers: [], at: Date.now() });
   }, []);
 
   const setModel = useCallback((forMode: AssistantMode, id: string) => {
@@ -236,18 +285,27 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
     }
   }, [partyId]);
 
-  const send = useCallback(async (rawText: string, modeOverride?: AssistantMode) => {
+  const send = useCallback(async (rawText: string, modeOverride?: AssistantMode, opts: { auto?: boolean } = {}) => {
     const text = rawText.trim();
     if (!text || abortRef.current) return;
     const modeAtSend = modeOverride ?? mode;
     if (modeOverride && modeOverride !== mode) setMode(modeOverride);
     // Edit numbers refer to the draft exactly as it was sent.
     const draftAtSend = draftRef.current;
+    const scene = rehearsalRef.current;
 
     const history = messagesRef.current;
-    const hostMsg: AssistantChatMessage = { id: newId(), role: 'host', text, createdAt: new Date().toISOString() };
-    setMessages(prev => [...prev, hostMsg]);
+    const hostMsg: AssistantChatMessage = {
+      id: newId(),
+      role: 'host',
+      text,
+      createdAt: new Date().toISOString(),
+      ...(scene ? { npc: scene.npc, sceneId: scene.sceneId } : {}),
+      ...(opts.auto ? { auto: true } : {}),
+    };
+    appendMessages([hostMsg]);
     setError(null);
+    let rolledSomething = false;
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -258,7 +316,8 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
     let partial = '';
     try {
       const ctx = getContextRef.current();
-      const chosen = models[modeAtSend];
+      // Rehearsal is quick back-and-forth, so it uses the fast Brainstorm model.
+      const chosen = scene ? models.brainstorm : models[modeAtSend];
       const modelId = resolveAssistantModel(chosen);
       if (modelId !== chosen) {
         toast.info('That model needs your own API key on this phone', { description: 'Using the default model for this message.' });
@@ -268,7 +327,7 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
         ? { mode: 'full', text: ctx.guides || '' }
         : await ensureBible(ctx.guides || '', modelId, controller.signal);
 
-      const handoff = buildAssistantSystemPrompt(ctx, bible, draftAtSend, modeAtSend);
+      const handoff = buildAssistantSystemPrompt(ctx, bible, draftAtSend, modeAtSend, { persona, npc: scene?.npc ?? null });
       const apiMessages = buildAssistantMessages(history, text);
       const sentChars = handoff.chars + apiMessages.reduce((n, m) => n + m.content.length, 0);
       setLastSendTokens(estimateTokens(sentChars));
@@ -289,13 +348,13 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
 
       setLastReplyTokens(estimateTokens(raw.length));
       const parsed = parseAssistantReply(raw);
-      if (!parsed.chatText && !parsed.draftText && !parsed.edits.length) {
+      if (!parsed.chatText && !parsed.draftText && !parsed.edits.length && !parsed.takes && !parsed.rolls.length) {
         throw new Error('The assistant sent back an empty reply. Try again, or pick another model.');
       }
 
       let draftNote: string | undefined;
       const wantsChange = !!parsed.draftText || parsed.edits.length > 0;
-      if (wantsChange && modeAtSend === 'brainstorm') {
+      if (wantsChange && (modeAtSend === 'brainstorm' || scene)) {
         toast.info('Brainstorm mode leaves the draft alone', { description: 'Switch to Draft mode to let the assistant change it.' });
       } else if (parsed.draftText) {
         const next = draftFromText(parsed.draftText);
@@ -316,15 +375,37 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
         }
       }
 
-      setMessages(prev => [...prev, {
+      // Alternate versions: remember the paragraph's text so "Keep" still finds it later.
+      let takes: AssistantChatMessage['takes'];
+      if (parsed.takes) {
+        const basis = splitParagraphs(draftAtSend.narrative)[parsed.takes.paragraph - 1];
+        if (basis) takes = { paragraph: parsed.takes.paragraph, basis, options: parsed.takes.options };
+        else toast.warning(`Those versions were for ¶${parsed.takes.paragraph}, which isn't in the draft.`);
+      }
+
+      const added: AssistantChatMessage[] = [{
         id: newId(),
         role: 'assistant',
-        text: parsed.chatText || (draftNote ? `${draftNote}.` : 'Done.'),
+        text: parsed.chatText || (draftNote ? `${draftNote}.` : takes ? 'Here are some versions.' : parsed.rolls.length ? 'Rolling…' : 'Done.'),
         draftUpdated: !!draftNote,
         draftNote,
         suggestions: parsed.suggestions.length ? parsed.suggestions : undefined,
+        takes,
         createdAt: new Date().toISOString(),
-      }]);
+        ...(scene ? { npc: scene.npc, sceneId: scene.sceneId, picked: true } : {}),
+      }];
+
+      // Dice the assistant asked for are rolled here, with real random numbers.
+      const unreadable: string[] = [];
+      for (const req of parsed.rolls) {
+        const r = parseRollRequest(req);
+        if (!r) { unreadable.push(req); continue; }
+        const roll = rollDice(r.label, r.expr, r.spec);
+        added.push({ id: newId(), role: 'host', text: rollForAssistant(roll), roll, createdAt: new Date().toISOString() });
+        rolledSomething = true;
+      }
+      if (unreadable.length) toast.warning(`Couldn't read a roll: ${unreadable.join(', ')}`);
+      appendMessages(added);
       // "Full Bible" is for one message only.
       if (fullBible) setFullBible(false);
     } catch (err) {
@@ -348,7 +429,94 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
       setWritingDraft(false);
       refreshDigestStatus();
     }
-  }, [models, mode, setMode, fullBible, ensureBible, refreshDigestStatus]);
+    // One automatic follow-up so the assistant can use the dice it asked for.
+    if (rolledSomething && !opts.auto) {
+      setTimeout(() => { void sendRef.current?.('Use the dice results above and continue.', undefined, { auto: true }); }, 0);
+    }
+  }, [models, mode, setMode, persona, fullBible, ensureBible, refreshDigestStatus, appendMessages]);
+  sendRef.current = send;
+
+  /** "roll 1d20+5 Grukk attack" is rolled by the app right away, with no AI call. Returns true if handled. */
+  const localRoll = useCallback((text: string): boolean => {
+    const parsed = parseHostRoll(text);
+    if (!parsed) return false;
+    const roll = rollDice(parsed.label, parsed.expr, parsed.spec);
+    appendMessages([{ id: newId(), role: 'host', text: rollForAssistant(roll), roll, createdAt: new Date().toISOString() }]);
+    return true;
+  }, [appendMessages]);
+
+  /** Put one of the offered versions into the draft. */
+  const keepTake = useCallback((messageId: string, index: number): boolean => {
+    const msg = messagesRef.current.find(m => m.id === messageId);
+    const takes = msg?.takes;
+    const option = takes?.options[index];
+    if (!takes || !option) return false;
+    const paras = splitParagraphs(draftRef.current.narrative);
+    const at = paras.findIndex(p => p === takes.basis);
+    if (at === -1) {
+      toast.warning('That paragraph changed since these versions were written', { description: 'Aim at it and ask for new versions.' });
+      return false;
+    }
+    const edit: DraftEdit = { op: 'replace', target: 'paragraph', index: at + 1, body: option, label: `REPLACE ¶${at + 1}` };
+    const result = applyDraftEdits(draftRef.current, [edit]);
+    applyLocalChange(result.draft, `Kept version ${index + 1} for ¶${at + 1}`, result.changedParagraphs);
+    // The kept text becomes the new basis, so the host can still switch versions.
+    const newBasis = splitParagraphs(result.draft.narrative)[at] ?? option;
+    const update = (m: AssistantChatMessage) => (m.id === messageId && m.takes ? { ...m, takes: { ...m.takes, basis: newBasis, kept: index } } : m);
+    messagesRef.current = messagesRef.current.map(update);
+    setMessages(prev => prev.map(update));
+    return true;
+  }, [applyLocalChange]);
+
+  // ── NPC rehearsal ──
+  const startRehearsal = useCallback((name: string) => {
+    const npc = name.trim().replace(/\s+/g, ' ').slice(0, 40);
+    if (!npc) return;
+    setRehearsal({ npc, sceneId: newId() });
+    setRecentNpcs(saveRecentNpc(npc));
+  }, [setRehearsal]);
+
+  const endRehearsal = useCallback(() => setRehearsal(null), [setRehearsal]);
+
+  /** Include or leave out one NPC line when it goes into the draft. */
+  const togglePick = useCallback((messageId: string) => {
+    const flip = (m: AssistantChatMessage) => (m.id === messageId ? { ...m, picked: !m.picked } : m);
+    messagesRef.current = messagesRef.current.map(flip);
+    setMessages(prev => prev.map(flip));
+  }, []);
+
+  /** Picked NPC lines of a scene, plus what the party said, in order. */
+  const sceneExchange = useCallback((sceneId: string) => {
+    const lines = messagesRef.current.filter(m => m.sceneId === sceneId && !m.auto && !m.roll && m.text.trim());
+    const npc = lines.find(m => m.npc)?.npc ?? '';
+    const picked = lines.filter(m => m.role === 'assistant' && m.picked);
+    const exchange = lines
+      .filter(m => m.role === 'host' || m.picked)
+      .map(m => ({ who: (m.role === 'assistant' ? 'npc' : 'party') as 'npc' | 'party', text: m.text }));
+    return { npc, picked, exchange };
+  }, []);
+
+  /** Add the picked NPC lines to the draft exactly as said: no AI call. */
+  const addSceneAsIs = useCallback((sceneId: string, afterParagraph: number | null): number => {
+    const { npc, picked } = sceneExchange(sceneId);
+    if (!npc || !picked.length) { toast.info('Pick at least one line first.'); return 0; }
+    const paras = splitParagraphs(draftRef.current.narrative);
+    const after = afterParagraph !== null && afterParagraph <= paras.length ? afterParagraph : paras.length;
+    const body = picked.map(m => npcLineToStory(npc, m.text)).filter(Boolean).join('\n\n');
+    const edit: DraftEdit = { op: 'insert', target: 'paragraph', index: after, body, label: `INSERT AFTER ¶${after}` };
+    const result = applyDraftEdits(draftRef.current, [edit]);
+    applyLocalChange(result.draft, `Added ${picked.length} line${picked.length === 1 ? '' : 's'} from ${npc}`, result.changedParagraphs);
+    toast.success(`Added ${npc}'s ${picked.length === 1 ? 'line' : 'lines'} to the draft`);
+    return picked.length;
+  }, [sceneExchange, applyLocalChange]);
+
+  /** Ask the assistant to work the exchange into the draft with narration. Ends the rehearsal. */
+  const weaveScene = useCallback((sceneId: string, afterParagraph: number | null) => {
+    const { npc, picked, exchange } = sceneExchange(sceneId);
+    if (!npc || !picked.length) { toast.info('Pick at least one line first.'); return; }
+    setRehearsal(null);
+    void send(buildWeavePrompt(npc, exchange, afterParagraph), 'draft');
+  }, [sceneExchange, setRehearsal, send]);
 
   /**
    * Put the draft back the way it was before the assistant's last change.
@@ -384,9 +552,11 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
     setDraft({ ...EMPTY_DRAFT, whispers: [] });
     setLastChange(null);
     setUndoStack([]);
+    setRehearsal(null);
     setError(null);
+    messagesRef.current = [];
     clearAssistantState(ownerRef.current);
-  }, []);
+  }, [setRehearsal]);
 
   /** Forget the saved digest so it is rebuilt on the next message. */
   const rebuildDigest = useCallback(() => {
@@ -408,6 +578,17 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
     undoNote: undoStack[undoStack.length - 1]?.note ?? null,
     mode,
     setMode,
+    persona,
+    setPersona,
+    rehearsal,
+    recentNpcs,
+    startRehearsal,
+    endRehearsal,
+    togglePick,
+    addSceneAsIs,
+    weaveScene,
+    localRoll,
+    keepTake,
     lastChange,
     fullBible,
     setFullBible,

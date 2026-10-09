@@ -15,6 +15,8 @@ import {
   draftToNumberedText,
   splitParagraphs,
   parseSuggestions,
+  npcLineToStory,
+  buildWeavePrompt,
   type AssistantChatMessage,
   type AssistantLiveContext,
 } from '@/lib/dm-assistant';
@@ -252,5 +254,57 @@ describe('tap-to-reply suggestions', () => {
   it('hides the list while streaming and skips junk lines', () => {
     expect(visibleWhileStreaming('Sure.\n[[NEXT]]\nGo').text).toBe('Sure.');
     expect(parseSuggestions('\n\n' + 'x'.repeat(90) + '\nok\nOK')).toEqual(['ok']);
+  });
+});
+
+describe('alternate versions and dice requests', () => {
+  it('reads a TAKES block and leaves the draft alone', () => {
+    const r = parseAssistantReply('Three ways.\n[[TAKES ¶2]]\nVersion 1: Grim.\n---\nVersion 2: Wry.\n---\nTender.\n[[/TAKES]]\n[[NEXT]]\nKeep the grim one\n[[/NEXT]]');
+    expect(r.takes).toEqual({ paragraph: 2, options: ['Grim.', 'Wry.', 'Tender.'] });
+    expect(r.edits).toHaveLength(0);
+    expect(r.draftText).toBeNull();
+    expect(r.chatText).toBe('Three ways.');
+    expect(r.suggestions).toEqual(['Keep the grim one']);
+  });
+
+  it('collects roll requests and hides them while streaming', () => {
+    const r = parseAssistantReply("Grukk swings.\n[[ROLL]]\nGrukk's attack: 1d20+5\nDamage: 2d8+3\n[[/ROLL]]");
+    expect(r.rolls).toEqual(["Grukk's attack: 1d20+5", 'Damage: 2d8+3']);
+    expect(r.chatText).toBe('Grukk swings.');
+    expect(visibleWhileStreaming('Grukk swings.\n[[ROLL]]\nGru').text).toBe('Grukk swings.');
+  });
+});
+
+describe('NPC rehearsal', () => {
+  it('turns a rehearsed line into tagged story text', () => {
+    expect(npcLineToStory('Grukk', '*backs away* "Who wakes Grukk?" *clutches the pup*'))
+      .toBe('Grukk backs away. [VOICE:Grukk]"Who wakes Grukk?"[/VOICE] Grukk clutches the pup.');
+    expect(npcLineToStory('Grukk', '*He sighs* Fine.')).toBe('He sighs. [VOICE:Grukk]"Fine."[/VOICE]');
+  });
+
+  it('asks to weave only what was picked, at the aimed spot', () => {
+    const p = buildWeavePrompt('Grukk', [{ who: 'party', text: 'Kaelen: easy, big guy' }, { who: 'npc', text: 'Go away!' }], 3);
+    expect(p).toContain('Insert it after ¶3.');
+    expect(p).toContain('Grukk: Go away!');
+    expect(p).toContain('Party: Kaelen: easy, big guy');
+  });
+
+  it('becomes the NPC in the brief and keeps persona last', () => {
+    const ctx: AssistantLiveContext = { roster: [], story: [], tableLines: [], sealedOrder: [], guides: '' };
+    const sp = buildAssistantSystemPrompt(ctx, { mode: 'none', text: '' }, { narrative: '', whispers: [] }, 'brainstorm', { npc: 'Grukk', persona: 'editor' }).systemPrompt;
+    expect(sp).toContain('MODE: NPC REHEARSAL WITH GRUKK');
+    expect(sp).not.toContain('MODE: BRAINSTORM');
+    expect(sp.trimEnd().endsWith('always say how to fix it.')).toBe(true);
+  });
+
+  it('labels rehearsal lines and dice results in the history', () => {
+    const out = buildAssistantMessages([
+      { id: 'a', role: 'host', text: 'Where is the pup?', npc: 'Grukk', createdAt: '' },
+      { id: 'b', role: 'assistant', text: 'Not telling!', npc: 'Grukk', createdAt: '' },
+      { id: 'c', role: 'host', text: '', roll: { label: 'Insight', expr: '1d20+3', spec: { count: 1, sides: 20, modifier: 3, mode: 'normal' }, rolls: [12], kept: [12], total: 15, crit: null }, createdAt: '' },
+    ], 'Continue.');
+    expect(out[0].content).toBe('[to Grukk] Where is the pup?');
+    expect(out[1].content).toBe('[as Grukk] Not telling!');
+    expect(out[2].content).toContain('Dice (rolled by the app): Insight: 1d20+3 → 12 + 3 = 15');
   });
 });
