@@ -7,29 +7,29 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import { WhisperEditor } from './WhisperEditor';
-import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
+import { DiceCard, NpcLine, TakesCard } from './DMAssistantCards';
+import { AimTools, AssistantSettings, NpcPicker, RehearsalBanner, SceneActions } from './DMAssistantControls';
+import { getModelLabel } from '@/lib/dm-models';
 import { serializeWhispers } from '@/lib/whisper-parser';
-import { useDmAssistant, type DigestStatus, type DraftChange } from '@/hooks/use-dm-assistant';
+import { useDmAssistant, type DraftChange } from '@/hooks/use-dm-assistant';
 import { useSpeechToText } from '@/hooks/use-speech-to-text';
 import {
   BRAINSTORM_PROMPTS,
   DRAFT_PROMPTS,
+  VERSIONS_PROMPT,
   draftCounts,
   draftIsEmpty,
-  modelNeedsMissingKey,
   splitParagraphs,
   type AssistantLiveContext,
-  type AssistantMode,
   type QuickPrompt,
 } from '@/lib/dm-assistant';
 import { cn } from '@/lib/utils';
 import {
   AlertTriangle,
-  BookOpen,
   Check,
   ChevronDown,
+  Drama,
   ChevronRight,
   ChevronUp,
   Loader2,
@@ -60,24 +60,6 @@ interface DMAssistantPanelProps {
   /** True while the AI DM is writing; Apply waits. */
   aiDmWriting: boolean;
 }
-
-const PROVIDER_LABEL: Record<string, string> = {
-  lovable: 'Built in',
-  anthropic: 'Claude',
-  'openai-direct': 'OpenAI (your key)',
-  perplexity: 'Perplexity (your key)',
-  'xai-direct': 'Grok (your key)',
-  venice: 'Venice',
-};
-
-const DIGEST_LABEL: Record<DigestStatus, string> = {
-  'no-guides': 'No guides enabled',
-  none: 'Bible digest builds on your first message',
-  stale: 'Guides changed: digest rebuilds on your next message',
-  building: 'Reading your World Bible once…',
-  ready: 'Bible digest ready',
-  error: 'Digest failed: full guides were sent',
-};
 
 const WHISPER_LABEL: Record<'action' | 'tactics' | 'whisper', string> = {
   action: 'Roll',
@@ -114,6 +96,8 @@ export function DMAssistantPanel({
   const [badge, setBadge] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [npcPicker, setNpcPicker] = useState(false);
+  const [npcName, setNpcName] = useState('');
   const listRef = useRef<HTMLDivElement>(null);
 
   // Voice input: spoken words are added to the message box, ready to edit or send.
@@ -178,28 +162,53 @@ export function DMAssistantPanel({
   const lastMessage = a.messages[a.messages.length - 1];
   const lastDraftChangeId = [...a.messages].reverse().find(m => m.draftUpdated)?.id;
   const suggestions = !a.isStreaming && lastMessage?.role === 'assistant' ? (lastMessage.suggestions || []) : [];
+  // Where each rehearsal scene ends, to show its "add to draft" actions there.
+  const sceneEnds = new Map<string, number>();
+  a.messages.forEach((m, i) => { if (m.sceneId) sceneEnds.set(m.sceneId, i); });
+  const pickedCount = (sceneId: string) => a.messages.filter(m => m.sceneId === sceneId && m.role === 'assistant' && m.picked).length;
+
   const prompts: QuickPrompt[] = a.mode === 'brainstorm'
     ? BRAINSTORM_PROMPTS
     : DRAFT_PROMPTS.map(q => (q.label === 'Draft it' && hasDraft ? { ...q, label: 'Redraft all' } : q));
-
-  const groups = Object.keys(PROVIDER_LABEL)
-    .map(provider => ({ provider, models: DM_MODELS.filter(m => m.provider === provider) }))
-    .filter(g => g.models.length > 0);
 
   const aimLabel = aim ? `${aim.kind === 'p' ? '¶' : 'W'}${aim.n}` : '';
   const aimPreview = aim
     ? forReading((aim.kind === 'p' ? paragraphs[aim.n - 1] : items[aim.n - 1]?.content) || '')
     : '';
 
-  const handleSend = (q?: QuickPrompt) => {
+  /** Send typed text or a quick button. Typed text and aimed buttons carry the aim (e.g. "[¶3] …"). */
+  const handleSend = (q?: QuickPrompt, opts: { aimed?: boolean } = {}) => {
     const typed = (q?.text ?? input).trim();
     if (!typed || a.isStreaming) return;
-    const text = aim && !q ? `[${aimLabel}] ${typed}` : typed;
     if (speech.isListening) speech.stop();
+    // "roll 1d20+5 Grukk attack" is rolled by the app on the spot: no AI call.
+    if (!q && a.localRoll(typed)) { setInput(''); return; }
+    const useAim = !!aim && (!q || opts.aimed);
+    const text = useAim ? `[${aimLabel}] ${typed}` : typed;
     setConfirming(false);
     setEditByHand(false);
     void a.send(text, q?.mode);
-    if (!q) { setInput(''); setAim(null); }
+    if (!q || opts.aimed) { setAim(null); }
+    if (!q) setInput('');
+  };
+
+  const startNpc = (name: string) => {
+    if (!name.trim()) return;
+    a.startRehearsal(name);
+    setNpcPicker(false);
+    setNpcName('');
+    setAim(null);
+    setDraftOpen(false);
+  };
+
+  /** Dialogue goes after the aimed paragraph when one is aimed, otherwise at the end. */
+  const insertAfter = aim?.kind === 'p' ? aim.n : null;
+  const addAsIs = (sceneId: string) => {
+    if (a.addSceneAsIs(sceneId, insertAfter)) { setAim(null); setBadge('Updated'); }
+  };
+  const weave = (sceneId: string) => {
+    a.weaveScene(sceneId, insertAfter);
+    setAim(null);
   };
 
   /** A suggestion starting with "Draft:" switches to Draft mode and asks for the change. */
@@ -315,56 +324,21 @@ export function DMAssistantPanel({
           </p>
 
           {settingsOpen && (
-            <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-2">
-              {(['brainstorm', 'draft'] as AssistantMode[]).map(m => (
-                <label key={m} className="block">
-                  <span className="block text-[11px] text-white/50 mb-1 px-0.5">
-                    {m === 'brainstorm' ? 'Brainstorm model (fast is best)' : 'Draft model (best writer)'}
-                  </span>
-                  <select
-                    value={a.models[m]}
-                    onChange={e => a.setModel(m, e.target.value)}
-                    aria-label={m === 'brainstorm' ? 'Brainstorm model' : 'Draft model'}
-                    className="w-full min-h-[40px] rounded-lg bg-white/5 border border-white/10 text-[13px] text-white/85 px-2"
-                  >
-                    {groups.map(g => (
-                      <optgroup key={g.provider} label={PROVIDER_LABEL[g.provider]}>
-                        {g.models.map(model => {
-                          const locked = modelNeedsMissingKey(model.id);
-                          return (
-                            <option key={model.id} value={model.id} disabled={locked}>
-                              {model.label}{locked ? ' (needs your key)' : ''}
-                            </option>
-                          );
-                        })}
-                      </optgroup>
-                    ))}
-                  </select>
-                </label>
-              ))}
-              <div className="flex items-center gap-2 text-[11px] text-white/50">
-                <BookOpen className="w-3.5 h-3.5 shrink-0 text-amber-300/70" />
-                <span className="truncate">{DIGEST_LABEL[a.digestStatus]}</span>
-                {(a.digestStatus === 'ready' || a.digestStatus === 'error' || a.digestStatus === 'stale') && (
-                  <button
-                    onClick={a.rebuildDigest}
-                    disabled={a.isStreaming}
-                    style={{ touchAction: 'manipulation' }}
-                    className="shrink-0 underline text-amber-300/80 disabled:opacity-40"
-                  >
-                    Rebuild
-                  </button>
-                )}
-                <label className="ml-auto shrink-0 flex items-center gap-1.5">
-                  <span>Full Bible</span>
-                  <Switch checked={a.fullBible} onCheckedChange={a.setFullBible} disabled={a.isStreaming} aria-label="Send the full guides with the next message" />
-                </label>
-              </div>
-            </div>
+            <AssistantSettings
+              models={a.models}
+              onModelChange={a.setModel}
+              persona={a.persona}
+              onPersonaChange={a.setPersona}
+              digestStatus={a.digestStatus}
+              onRebuildDigest={a.rebuildDigest}
+              fullBible={a.fullBible}
+              onFullBibleChange={a.setFullBible}
+              busy={a.isStreaming}
+            />
           )}
 
           <div className="text-[11px] text-white/40 px-1 truncate">
-            {getModelLabel(a.model)}
+            {getModelLabel(a.rehearsal ? a.models.brainstorm : a.model)}
             {' · '}
             {sealedCount > 0 ? `Answering ${plural(sealedCount, 'sealed line', 'sealed lines')}` : 'No sealed lines'}
             {a.lastSendTokens ? ` · Brief ~${kTokens(a.lastSendTokens)}` : ''}
@@ -380,42 +354,86 @@ export function DMAssistantPanel({
               <div className="text-[13px] text-white/55 leading-relaxed space-y-2 px-1">
                 <p>Throw ideas at me, or start with a quick button below. I can see the story summary, the latest DM post, the Live Table and your sealed lines.</p>
                 <p className="text-white/40 text-[12px]">When you&apos;re ready, switch to Draft and I&apos;ll write the post. After that, tap any paragraph in the draft to point me at just that part.</p>
+                <p className="text-white/40 text-[12px]">Tap &ldquo;Talk to an NPC&rdquo; to rehearse dialogue in character. Type &ldquo;roll 1d20+5 Grukk attack&rdquo; for real dice.</p>
               </div>
             )}
 
-            {a.messages.map(m => (
-              <div key={m.id} className={cn('flex', m.role === 'host' ? 'justify-end' : 'justify-start')}>
-                <div className={cn(
-                  'max-w-[88%] rounded-2xl px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap break-words',
-                  m.role === 'host'
-                    ? 'bg-amber-900/35 border border-amber-500/25 text-amber-50/90'
-                    : 'bg-white/5 border border-white/10 text-white/85',
-                )}>
-                  {m.text}
-                  {m.draftUpdated && (
-                    <span className="mt-1.5 flex items-center gap-3">
-                      <button
-                        onClick={() => setDraftOpen(true)}
-                        style={{ touchAction: 'manipulation' }}
-                        className="flex items-center gap-1 text-[11px] text-emerald-300/85"
-                      >
-                        <Check className="w-3 h-3" /> {m.draftNote || 'Draft updated'} · view
-                      </button>
-                      {m.id === lastDraftChangeId && a.canUndo && (
-                        <button
-                          onClick={handleUndo}
-                          disabled={a.isStreaming}
-                          style={{ touchAction: 'manipulation' }}
-                          className="flex items-center gap-1 text-[11px] text-amber-200/80 disabled:opacity-40"
-                        >
-                          <Undo2 className="w-3 h-3" /> Undo
-                        </button>
-                      )}
-                    </span>
+            {a.messages.map((m, i) => {
+              const prev = a.messages[i - 1];
+              const sceneStart = !!m.sceneId && prev?.sceneId !== m.sceneId;
+              const sceneEnd = !!m.sceneId && sceneEnds.get(m.sceneId) === i;
+              const sceneLive = !!m.sceneId && a.rehearsal?.sceneId === m.sceneId;
+              const picked = m.sceneId ? pickedCount(m.sceneId) : 0;
+              return (
+                <div key={m.id} className="space-y-2.5">
+                  {sceneStart && (
+                    <div className="flex items-center gap-2 text-[11px] text-amber-300/70 font-cinzel pt-1">
+                      <span className="h-px flex-1 bg-amber-400/20" />
+                      <Drama className="w-3.5 h-3.5" /> Talking to {m.npc}
+                      <span className="h-px flex-1 bg-amber-400/20" />
+                    </div>
+                  )}
+
+                  {m.roll ? (
+                    <DiceCard roll={m.roll} />
+                  ) : m.auto ? (
+                    <div className="text-center text-[11px] text-white/35">Continued with the dice results</div>
+                  ) : m.role === 'assistant' && m.npc ? (
+                    <NpcLine npc={m.npc} text={m.text} picked={!!m.picked} onTogglePick={() => a.togglePick(m.id)} />
+                  ) : (
+                    <div className={cn('flex', m.role === 'host' ? 'justify-end' : 'justify-start')}>
+                      <div className={cn(
+                        'max-w-[88%] rounded-2xl px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap break-words',
+                        m.role === 'host'
+                          ? 'bg-amber-900/35 border border-amber-500/25 text-amber-50/90'
+                          : 'bg-white/5 border border-white/10 text-white/85',
+                      )}>
+                        {m.role === 'host' && m.npc && (
+                          <span className="block text-[10px] uppercase tracking-wider text-amber-200/55 mb-0.5">To {m.npc}</span>
+                        )}
+                        {m.text}
+                        {m.draftUpdated && (
+                          <span className="mt-1.5 flex items-center gap-3">
+                            <button
+                              onClick={() => setDraftOpen(true)}
+                              style={{ touchAction: 'manipulation' }}
+                              className="flex items-center gap-1 text-[11px] text-emerald-300/85"
+                            >
+                              <Check className="w-3 h-3" /> {m.draftNote || 'Draft updated'} · view
+                            </button>
+                            {m.id === lastDraftChangeId && a.canUndo && (
+                              <button
+                                onClick={handleUndo}
+                                disabled={a.isStreaming}
+                                style={{ touchAction: 'manipulation' }}
+                                className="flex items-center gap-1 text-[11px] text-amber-200/80 disabled:opacity-40"
+                              >
+                                <Undo2 className="w-3 h-3" /> Undo
+                              </button>
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {m.takes && (
+                    <TakesCard takes={m.takes} disabled={a.isStreaming} onKeep={idx => { if (a.keepTake(m.id, idx)) setBadge('Updated'); }} />
+                  )}
+
+                  {sceneEnd && !sceneLive && picked > 0 && (
+                    <SceneActions
+                      npc={m.npc || ''}
+                      picked={picked}
+                      insertAfter={insertAfter}
+                      busy={a.isStreaming}
+                      onAddAsIs={() => addAsIs(m.sceneId!)}
+                      onWeave={() => weave(m.sceneId!)}
+                    />
                   )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {suggestions.length > 0 && (
               <div className="flex flex-wrap gap-1.5 pl-1">
@@ -641,7 +659,41 @@ export function DMAssistantPanel({
             </div>
           )}
 
-          <div className={cn('flex gap-1.5 overflow-x-auto scrollbar-hide', draftOpen && 'hidden')}>
+          {npcPicker && !a.rehearsal && (
+            <NpcPicker value={npcName} onChange={setNpcName} onStart={startNpc} onCancel={() => setNpcPicker(false)} recent={a.recentNpcs} />
+          )}
+
+          {a.rehearsal && (
+            <RehearsalBanner
+              npc={a.rehearsal.npc}
+              picked={pickedCount(a.rehearsal.sceneId)}
+              insertAfter={insertAfter}
+              busy={a.isStreaming}
+              onAddAsIs={() => addAsIs(a.rehearsal!.sceneId)}
+              onWeave={() => weave(a.rehearsal!.sceneId)}
+              onDone={a.endRehearsal}
+            />
+          )}
+
+          {aim?.kind === 'p' && !a.rehearsal && (
+            <AimTools
+              busy={a.isStreaming}
+              onVersions={() => handleSend({ label: '3 versions', text: VERSIONS_PROMPT }, { aimed: true })}
+              onTone={q => handleSend(q, { aimed: true })}
+            />
+          )}
+
+          <div className={cn('flex gap-1.5 overflow-x-auto scrollbar-hide', (draftOpen || a.rehearsal || aim?.kind === 'p') && 'hidden')}>
+            {!npcPicker && (
+              <button
+                onClick={() => setNpcPicker(true)}
+                disabled={a.isStreaming}
+                style={{ touchAction: 'manipulation' }}
+                className="shrink-0 min-h-[34px] px-3 rounded-full border border-amber-300/40 bg-[#2a2016] text-[12px] text-amber-100 flex items-center gap-1.5 disabled:opacity-40"
+              >
+                <Drama className="w-3.5 h-3.5" /> Talk to an NPC
+              </button>
+            )}
             {prompts.map(q => (
               <button
                 key={q.label}
@@ -685,7 +737,9 @@ export function DMAssistantPanel({
             <Textarea
               value={input}
               onChange={e => setInput(e.target.value)}
-              placeholder={aim
+              placeholder={a.rehearsal
+                ? `Say something to ${a.rehearsal.npc}… (e.g. Kaelen: where's the pup?)`
+                : aim
                 ? (a.mode === 'draft' ? `What should change in ${aimLabel}?` : `What about ${aimLabel}?`)
                 : (a.mode === 'draft' ? 'Ask for a draft or a change…' : 'Bounce an idea off your co-DM…')}
               rows={2}
