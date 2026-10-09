@@ -14,6 +14,7 @@ import {
   applyDraftEdits,
   draftToNumberedText,
   splitParagraphs,
+  parseSuggestions,
   type AssistantChatMessage,
   type AssistantLiveContext,
 } from '@/lib/dm-assistant';
@@ -227,9 +228,29 @@ describe('modes', () => {
   };
   it('puts the mode last and forbids drafting while brainstorming', () => {
     const b = buildAssistantSystemPrompt(ctx, { mode: 'none', text: '' }, { narrative: '', whispers: [] }, 'brainstorm').systemPrompt;
-    expect(b.trimEnd().endsWith('as an example of how something could read.')).toBe(true);
+    expect(b.trimEnd().endsWith('Tapping it switches to Draft mode.')).toBe(true);
     expect(b).toContain('MODE: BRAINSTORM');
     const d = buildAssistantSystemPrompt(ctx, { mode: 'none', text: '' }, { narrative: '', whispers: [] }, 'draft').systemPrompt;
     expect(d).toContain('REPLACE ¶n');
+  });
+});
+
+describe('tap-to-reply suggestions', () => {
+  it('pulls up to 3 suggestions out of the reply', () => {
+    const r = parseAssistantReply('Three ideas.\n[[NEXT]]\n- Go with option 2\n2. "Make it darker"\nDraft: go with 1\nOne too many\n[[/NEXT]]');
+    expect(r.chatText).toBe('Three ideas.');
+    expect(r.suggestions).toEqual(['Go with option 2', 'Make it darker', 'Draft: go with 1']);
+  });
+
+  it('works after edit blocks and when the closing marker is missing', () => {
+    const r = parseAssistantReply('Done.\n[[EDIT]]\nREPLACE ¶1\nNew.\n[[/EDIT]]\n[[NEXT]]\nShorten ¶2\nAdd a roll');
+    expect(r.edits).toHaveLength(1);
+    expect(r.suggestions).toEqual(['Shorten ¶2', 'Add a roll']);
+    expect(r.chatText).toBe('Done.');
+  });
+
+  it('hides the list while streaming and skips junk lines', () => {
+    expect(visibleWhileStreaming('Sure.\n[[NEXT]]\nGo').text).toBe('Sure.');
+    expect(parseSuggestions('\n\n' + 'x'.repeat(90) + '\nok\nOK')).toEqual(['ok']);
   });
 });

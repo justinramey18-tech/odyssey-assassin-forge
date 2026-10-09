@@ -34,6 +34,8 @@ export interface AssistantChatMessage {
   draftUpdated?: boolean;
   /** Short note of what changed, e.g. "New draft" or "Edited ¶3". */
   draftNote?: string;
+  /** Tap-to-reply suggestions the assistant offered at the end of this reply. */
+  suggestions?: string[];
   createdAt: string;
 }
 
@@ -180,6 +182,24 @@ export function saveAssistantModel(modelId: string): void {
   try { localStorage.setItem(MODEL_KEY, modelId); } catch { /* ignore */ }
 }
 
+const BRAINSTORM_MODEL_KEY = 'odyssey-dm-assistant-model-brainstorm';
+/** Brainstorm defaults to a fast model; drafting keeps the stronger writer. */
+export const DEFAULT_BRAINSTORM_MODEL = 'google/gemini-2.5-flash';
+
+/** The host's saved Brainstorm model, else a fast default, else the Draft model. */
+export function loadBrainstormModel(partyModel?: string | null): string {
+  try {
+    const saved = localStorage.getItem(BRAINSTORM_MODEL_KEY);
+    if (saved && DM_MODELS.some(m => m.id === saved)) return saved;
+  } catch { /* ignore */ }
+  if (DM_MODELS.some(m => m.id === DEFAULT_BRAINSTORM_MODEL)) return DEFAULT_BRAINSTORM_MODEL;
+  return loadAssistantModel(partyModel);
+}
+
+export function saveBrainstormModel(modelId: string): void {
+  try { localStorage.setItem(BRAINSTORM_MODEL_KEY, modelId); } catch { /* ignore */ }
+}
+
 const MODE_KEY = 'odyssey-dm-assistant-mode';
 
 export function loadAssistantMode(): AssistantMode {
@@ -305,8 +325,26 @@ const DRAFT_OPEN_RE = /\[\[\s*DRAFT\s*\]\]/i;
 const DRAFT_BLOCK_RE = /\[\[\s*DRAFT\s*\]\]([\s\S]*?)\[\[\s*\/\s*DRAFT\s*\]\]/gi;
 const EDIT_OPEN_RE = /\[\[\s*EDIT\s*\]\]/i;
 const EDIT_BLOCK_RE = /\[\[\s*EDIT\s*\]\]([\s\S]*?)\[\[\s*\/\s*EDIT\s*\]\]/gi;
-const ANY_OPEN_RE = /\[\[\s*(?:DRAFT|EDIT)\s*\]\]/i;
-const ANY_CLOSE_RE = /\[\[\s*\/\s*(?:DRAFT|EDIT)\s*\]\]/i;
+const NEXT_OPEN_RE = /\[\[\s*NEXT\s*\]\]/i;
+const NEXT_BLOCK_RE = /\[\[\s*NEXT\s*\]\]([\s\S]*?)\[\[\s*\/\s*NEXT\s*\]\]/gi;
+const ANY_OPEN_RE = /\[\[\s*(?:DRAFT|EDIT|NEXT)\s*\]\]/i;
+const ANY_CLOSE_RE = /\[\[\s*\/\s*(?:DRAFT|EDIT|NEXT)\s*\]\]/i;
+
+/** At most 3 short, distinct suggestion lines; list markers and quotes removed. */
+export function parseSuggestions(raw: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const line of stripFences(raw).split('\n')) {
+    const text = line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').replace(/^["'“]|["'”]$/g, '').trim();
+    if (!text || text.length > 80) continue;
+    const key = text.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(text);
+    if (out.length === 3) break;
+  }
+  return out;
+}
 
 /** One small change to the draft. Numbers are 1-based and refer to the draft as it was sent. */
 export interface DraftEdit {
@@ -326,6 +364,8 @@ export interface ParsedAssistantReply {
   draftText: string | null;
   /** Small edits, in the order written. Ignored when a full draft is present. */
   edits: DraftEdit[];
+  /** Tap-to-reply suggestions (0 to 3). */
+  suggestions: string[];
 }
 
 function stripFences(text: string): string {
@@ -367,9 +407,20 @@ export function parseEditBlock(raw: string): DraftEdit | null {
  * (the model ran out of room), everything after the opening marker is used.
  */
 export function parseAssistantReply(raw: string): ParsedAssistantReply {
-  const text = raw || '';
-  let draftText: string | null = null;
+  let text = raw || '';
+  let suggestions: string[] = [];
   let match: RegExpExecArray | null;
+  NEXT_BLOCK_RE.lastIndex = 0;
+  while ((match = NEXT_BLOCK_RE.exec(text)) !== null) suggestions = parseSuggestions(match[1]);
+  text = text.replace(NEXT_BLOCK_RE, '');
+  const nextOpen = text.search(NEXT_OPEN_RE);
+  if (nextOpen !== -1) {
+    // An unclosed list is always the last thing in a reply.
+    if (!suggestions.length) suggestions = parseSuggestions(text.slice(nextOpen).replace(NEXT_OPEN_RE, ''));
+    text = text.slice(0, nextOpen);
+  }
+
+  let draftText: string | null = null;
   DRAFT_BLOCK_RE.lastIndex = 0;
   while ((match = DRAFT_BLOCK_RE.exec(text)) !== null) {
     draftText = stripFences(match[1]);
@@ -400,7 +451,7 @@ export function parseAssistantReply(raw: string): ParsedAssistantReply {
   // Tidy fences left around a removed block.
   chat = chat.replace(/```[a-z]*\s*```/gi, '').replace(/\n{3,}/g, '\n\n').trim();
   if (draftText !== null && !draftText.trim()) draftText = null;
-  return { chatText: chat, draftText, edits };
+  return { chatText: chat, draftText, edits, suggestions };
 }
 
 /** What to show in the chat bubble while the reply is still streaming. */
@@ -590,6 +641,14 @@ const ASSISTANT_RULES = [
   '- Never repeat the draft back in chat.',
   '- A host message that starts with a target like [¶3] or [W2] is about that part of the CURRENT DRAFT.',
   '',
+  'TAP-TO-REPLY SUGGESTIONS',
+  'End EVERY reply with 2 or 3 short replies the host is likely to want next, written as the host speaking (under 7 words each, no numbering), one per line, in this block:',
+  '[[NEXT]]',
+  'Go with option 2',
+  'Make the ogre sympathetic',
+  '[[/NEXT]]',
+  'The host taps one instead of typing it, so make them specific to this moment, not generic. The block always comes last, after any draft or edit blocks.',
+  '',
   'THE DRAFT',
   'The draft is the post the host will apply to the table. It is shown under CURRENT DRAFT, numbered: ¶1, ¶2… are story paragraphs, and W1, W2… are roll requests, tips and whispers. Whether you may change it is set by the MODE at the very end of these instructions.',
   '',
@@ -701,6 +760,7 @@ const MODE_RULES: Record<AssistantMode, string> = {
     'MODE: BRAINSTORM',
     'Talk ideas through with the host. Do not write or change the draft in this mode: never output [[DRAFT]] or [[EDIT]] blocks, even if asked to change the draft. If the host asks for a change, discuss it and say they can switch to Draft mode to have you make it.',
     'You may quote a sentence or two as an example of how something could read.',
+    'A suggestion that would write or change the draft must start with "Draft: ", e.g. "Draft: go with option 2". Tapping it switches to Draft mode.',
   ].join('\n'),
   draft: [
     'MODE: DRAFT',
@@ -725,6 +785,7 @@ const MODE_RULES: Record<AssistantMode, string> = {
     '- DELETE Wn  (nothing follows)',
     'Numbers always refer to the CURRENT DRAFT exactly as shown above, even when you make several edits in one reply. Leave every part you were not asked to change exactly as it is.',
     'If the host edited the draft by hand, keep their edits unless they ask you to change them.',
+    'Suggestions in this mode are follow-up changes, e.g. "Shorten ¶2" or "Add a Stealth roll for Mira".',
   ].join('\n'),
 };
 
