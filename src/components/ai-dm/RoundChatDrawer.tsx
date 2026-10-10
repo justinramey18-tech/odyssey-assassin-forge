@@ -207,7 +207,7 @@ interface RoundChatDrawerProps {
   /** Every NPC on the party's roster (archived ones too, so their old lines keep a face). */
   npcs?: Array<{ id: string; name: string; portrait_url: string | null; on_stage: boolean; archived: boolean }>;
   /** NPC answers in progress, shown as "Grukk is thinking…". */
-  npcThinking?: Array<{ key: string; npcId: string; name: string; messageId: string; kind: 'answer' | 'regenerate' }>;
+  npcThinking?: Array<{ key: string; npcId: string; name: string; messageId: string; kind: 'answer' | 'regenerate' | 'spell' | 'roll' | 'banter' }>;
   /** Post an in-character line and ask these on-stage NPCs to answer it. Resolve false if the line was not posted. */
   onSendToNpcs?: (content: string, npcIds: string[]) => Promise<boolean>;
   /** Original host only: post a line as an on-stage NPC. Resolve false if it was not posted. */
