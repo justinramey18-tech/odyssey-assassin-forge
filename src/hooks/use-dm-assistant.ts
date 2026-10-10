@@ -363,7 +363,8 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
         systemPrompt: handoff.systemPrompt,
         messages: apiMessages,
         model: modelId,
-        maxTokens: 8000,
+        // Same room as an AI DM post (ai-dm's default), so a full draft of a long post is never cut off.
+        maxTokens: 16000,
         signal: controller.signal,
         onText: full => {
           partial = full;

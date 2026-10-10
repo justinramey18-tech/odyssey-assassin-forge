@@ -124,7 +124,7 @@ describe('buildAssistantSystemPrompt', () => {
     const { systemPrompt } = buildAssistantSystemPrompt(ctx, { mode: 'digest', text: 'digest' }, { narrative: '', whispers: [] });
     expect(systemPrompt).toContain('THE END');
     expect(systemPrompt).not.toContain('old post');
-    expect(systemPrompt.length).toBeLessThan(30_000);
+    expect(systemPrompt.length).toBeLessThan(45_000);
   });
 
   it('never includes private player whispers', () => {

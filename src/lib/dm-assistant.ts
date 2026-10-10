@@ -139,7 +139,8 @@ export const LIMITS = {
   quests: 3_000,
   worldState: 2_500,
   roster: 5_000,
-  latestPost: 16_000,
+  // Long posts reach about 30,000 characters; below this the assistant would only see the end of one.
+  latestPost: 32_000,
   beforeLatest: 3_000,
   tableLines: 30,
   tableLineChars: 600,
