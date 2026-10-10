@@ -10,8 +10,8 @@
 // the lines can be remembered on the next try.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { createModelCaller } from '../npc-reply/models.ts';
-import { tableText } from '../npc-reply/prompt.ts';
+import { createModelCaller } from './models.ts';
+import { tableText } from './prompt.ts';
 import { MAX_AI_NOTES, buildMemoryPrompt, parseMemoryUpdate, shiftAttitude } from './memory.ts';
 
 const corsHeaders = {
