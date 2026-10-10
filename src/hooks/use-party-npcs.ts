@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { NPC_DEFAULT_MODEL, cleanNpcName, readableFunctionError } from '@/lib/live-npcs';
+import { NPC_DEFAULT_MODEL, cleanNpcName, readableFunctionError, spellCastName } from '@/lib/live-npcs';
 
 /** One NPC on the party's roster (Live NPCs, D-22). Everyone at the table can read these. */
 export interface PartyNpc {
@@ -13,8 +13,32 @@ export interface PartyNpc {
   on_stage: boolean;
   archived: boolean;
   sort_order: number;
+  /** v2: false when the host switched spell reactions off for this NPC. */
+  reacts_to_spells: boolean;
   created_at: string;
   updated_at: string;
+}
+
+/** v2: how an NPC feels about one seated player's character. Players only load their own. */
+export interface NpcAttitudeRow {
+  npc_id: string;
+  party_id: string;
+  user_id: string;
+  character_name: string;
+  /** -2 Hostile, -1 Wary, 0 Neutral, 1 Friendly, 2 Loyal. */
+  score: number;
+  reason: string;
+  updated_by: 'ai' | 'host';
+  updated_at: string;
+}
+
+/** v2: one thing an NPC remembers (host only). */
+export interface NpcMemoryNote {
+  id: string;
+  npc_id: string;
+  note: string;
+  source: 'ai' | 'host';
+  created_at: string;
 }
 
 /** An NPC answer in progress, shown as "Grukk is thinking…". */
@@ -24,7 +48,7 @@ export interface NpcThinking {
   name: string;
   /** The line being answered, or the NPC line being rewritten. */
   messageId: string;
-  kind: 'answer' | 'regenerate';
+  kind: 'answer' | 'regenerate' | 'spell' | 'roll' | 'banter';
 }
 
 const sortNpcs = (list: PartyNpc[]) =>
@@ -52,6 +76,8 @@ export function usePartyNpcs(partyId: string | null) {
   const [loaded, setLoaded] = useState(false);
   const [localThinking, setLocalThinking] = useState<NpcThinking[]>([]);
   const [remoteThinking, setRemoteThinking] = useState<NpcThinking[]>([]);
+  const [attitudes, setAttitudes] = useState<NpcAttitudeRow[]>([]);
+  const [sceneRunning, setSceneRunning] = useState(false);
   const npcsRef = useRef<PartyNpc[]>([]);
   npcsRef.current = npcs;
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -70,6 +96,18 @@ export function usePartyNpcs(partyId: string | null) {
   }, [partyId]);
 
   useEffect(() => { setLoaded(false); void load(); }, [load]);
+
+  // v2: attitudes. The database returns every row to the host and only their own rows to a player.
+  const loadAttitudes = useCallback(async () => {
+    if (!partyId) { setAttitudes([]); return; }
+    const { data, error } = await (supabase.from('party_npc_attitudes') as any)
+      .select('*')
+      .eq('party_id', partyId);
+    if (error) console.error('[npcs] attitudes load failed:', error);
+    else setAttitudes((data || []) as NpcAttitudeRow[]);
+  }, [partyId]);
+
+  useEffect(() => { void loadAttitudes(); }, [loadAttitudes]);
 
   // Live roster updates, plus "thinking" notes from other phones (broadcast, never stored).
   useEffect(() => {
@@ -92,6 +130,21 @@ export function usePartyNpcs(partyId: string | null) {
         const row = payload.new as PartyNpc;
         if (!row?.id) return;
         setNpcs(prev => sortNpcs(prev.some(n => n.id === row.id) ? prev.map(n => (n.id === row.id ? row : n)) : [...prev, row]));
+      })
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'party_npc_attitudes', filter: `party_id=eq.${partyId}`,
+      }, (payload: any) => {
+        if (payload.eventType === 'DELETE') {
+          const old = payload.old as Partial<NpcAttitudeRow>;
+          setAttitudes(prev => prev.filter(a => !(a.npc_id === old?.npc_id && a.user_id === old?.user_id)));
+          return;
+        }
+        const row = payload.new as NpcAttitudeRow;
+        if (!row?.npc_id) return;
+        setAttitudes(prev => {
+          const others = prev.filter(a => !(a.npc_id === row.npc_id && a.user_id === row.user_id));
+          return [...others, row];
+        });
       })
       .on('broadcast', { event: 'npc-thinking' }, ({ payload }: { payload: NpcThinking }) => {
         if (!payload?.key || !payload.npcId) return;
@@ -124,7 +177,7 @@ export function usePartyNpcs(partyId: string | null) {
   // ── Host: the roster ──
 
   /** Changes one NPC row. Throws a plain-language Error when the save fails. */
-  const patchNpc = useCallback(async (id: string, patch: Partial<Pick<PartyNpc, 'name' | 'model' | 'portrait_url' | 'on_stage' | 'archived' | 'sort_order'>>) => {
+  const patchNpc = useCallback(async (id: string, patch: Partial<Pick<PartyNpc, 'name' | 'model' | 'portrait_url' | 'on_stage' | 'archived' | 'sort_order' | 'reacts_to_spells'>>) => {
     const before = npcsRef.current.find(n => n.id === id);
     if (before) setNpcs(prev => sortNpcs(prev.map(n => (n.id === id ? { ...n, ...patch } : n))));
     const { data, error } = await (supabase.from('party_npcs') as any)
@@ -199,6 +252,84 @@ export function usePartyNpcs(partyId: string | null) {
   const setOnStage = useCallback((id: string, on: boolean) => patchNpc(id, { on_stage: on }), [patchNpc]);
   const archiveNpc = useCallback((id: string) => patchNpc(id, { archived: true, on_stage: false }), [patchNpc]);
   const restoreNpc = useCallback((id: string) => patchNpc(id, { archived: false }), [patchNpc]);
+  const setReactsToSpells = useCallback((id: string, on: boolean) => patchNpc(id, { reacts_to_spells: on }), [patchNpc]);
+
+  // ── v2, host: memory and attitudes ──
+
+  /** Seated characters, for the attitude list. */
+  const loadSeats = useCallback(async (): Promise<Array<{ user_id: string; character_name: string }>> => {
+    if (!partyId) return [];
+    const { data, error } = await (supabase.from('party_members') as any)
+      .select('user_id, character_name')
+      .eq('party_id', partyId);
+    if (error) throw new Error(error.message || 'Could not load the party.');
+    return ((data || []) as Array<{ user_id: string; character_name: string | null }>)
+      .filter(s => (s.character_name || '').trim())
+      .map(s => ({ user_id: s.user_id, character_name: (s.character_name || '').trim() }));
+  }, [partyId]);
+
+  /** What an NPC remembers, oldest first (host only; the database refuses anyone else). */
+  const loadMemories = useCallback(async (npcId: string): Promise<NpcMemoryNote[]> => {
+    const { data, error } = await (supabase.from('party_npc_memories') as any)
+      .select('id, npc_id, note, source, created_at')
+      .eq('npc_id', npcId)
+      .order('created_at', { ascending: true });
+    if (error) throw new Error(rosterError(error));
+    return (data || []) as NpcMemoryNote[];
+  }, []);
+
+  const addMemory = useCallback(async (npcId: string, note: string): Promise<NpcMemoryNote> => {
+    if (!partyId) throw new Error('No party is open.');
+    const text = note.replace(/\s+/g, ' ').trim().slice(0, 300);
+    if (!text) throw new Error('Write the note first.');
+    const { data, error } = await (supabase.from('party_npc_memories') as any)
+      .insert({ npc_id: npcId, party_id: partyId, note: text, source: 'host' })
+      .select('id, npc_id, note, source, created_at')
+      .single();
+    if (error) throw new Error(rosterError(error));
+    return data as NpcMemoryNote;
+  }, [partyId]);
+
+  /** Editing a note makes it the host's own, so it never drops off. */
+  const updateMemory = useCallback(async (id: string, note: string) => {
+    const text = note.replace(/\s+/g, ' ').trim().slice(0, 300);
+    if (!text) throw new Error('A note cannot be empty. Delete it instead.');
+    const { error } = await (supabase.from('party_npc_memories') as any).update({ note: text, source: 'host' }).eq('id', id);
+    if (error) throw new Error(rosterError(error));
+  }, []);
+
+  const deleteMemory = useCallback(async (id: string) => {
+    const { error } = await (supabase.from('party_npc_memories') as any).delete().eq('id', id);
+    if (error) throw new Error(rosterError(error));
+  }, []);
+
+  /** Host: set how an NPC feels about a character (-2 … 2). */
+  const setAttitude = useCallback(async (npcId: string, userId: string, characterName: string, score: number) => {
+    if (!partyId) throw new Error('No party is open.');
+    const clamped = Math.max(-2, Math.min(2, Math.round(score)));
+    const { data, error } = await (supabase.from('party_npc_attitudes') as any)
+      .upsert({
+        npc_id: npcId,
+        party_id: partyId,
+        user_id: userId,
+        character_name: characterName,
+        score: clamped,
+        reason: 'Set by the host',
+        updated_by: 'host',
+      }, { onConflict: 'npc_id,user_id' })
+      .select('*')
+      .single();
+    if (error) throw new Error(rosterError(error));
+    const row = data as NpcAttitudeRow;
+    setAttitudes(prev => [...prev.filter(a => !(a.npc_id === npcId && a.user_id === userId)), row]);
+  }, [partyId]);
+
+  /** An NPC's attitude toward a player, or 0 (Neutral) when there is none. */
+  const attitudeFor = useCallback(
+    (npcId: string, userId: string | null | undefined) =>
+      attitudes.find(a => a.npc_id === npcId && a.user_id === userId)?.score ?? 0,
+    [attitudes],
+  );
 
   /** Uploads a portrait and returns its public address. Throws a plain-language Error on failure. */
   const uploadPortrait = useCallback(async (file: File): Promise<string> => {
@@ -228,10 +359,10 @@ export function usePartyNpcs(partyId: string | null) {
    * as a new Live Table line. Resolves true when the NPC answered; failures show a
    * message (with Retry when trying again can help) and resolve false.
    */
-  const askNpc = useCallback(async (messageId: string, npcId: string): Promise<boolean> => {
+  const askNpc = useCallback(async (messageId: string, npcId: string, kind: 'answer' | 'roll' = 'answer'): Promise<boolean> => {
     const name = npcsRef.current.find(n => n.id === npcId)?.name || 'The NPC';
     const key = `${messageId}:${npcId}`;
-    startThinking({ key, npcId, name, messageId, kind: 'answer' });
+    startThinking({ key, npcId, name, messageId, kind });
     try {
       const { error } = await supabase.functions.invoke('npc-reply', { body: { messageId, npcId } });
       if (!error) return true;
@@ -241,7 +372,7 @@ export function usePartyNpcs(partyId: string | null) {
       } else {
         toast.error(message, {
           duration: 15000,
-          action: { label: 'Retry', onClick: () => { void askRef.current(messageId, npcId); } },
+          action: { label: 'Retry', onClick: () => { void askRef.current(messageId, npcId, kind); } },
         });
       }
       return false;
@@ -273,6 +404,74 @@ export function usePartyNpcs(partyId: string | null) {
     }
   }, [startThinking, stopThinking]);
 
+  // ── v2: spells, scenes, memory ──
+
+  /**
+   * After a player posts a line: if it casts a spell and an on-stage NPC reacts to spells,
+   * the server lets up to 3 of them react (one after another). Does nothing otherwise.
+   */
+  const reactToSpell = useCallback(async (messageId: string, content: string): Promise<void> => {
+    if (!spellCastName(content)) return;
+    const reactors = npcsRef.current.filter(n => n.on_stage && !n.archived && n.reacts_to_spells !== false).slice(0, 3);
+    if (reactors.length === 0) return;
+    const keys = reactors.map(n => `spell:${messageId}:${n.id}`);
+    reactors.forEach((n, i) => startThinking({ key: keys[i], npcId: n.id, name: n.name, messageId, kind: 'spell' }));
+    try {
+      const { data, error } = await supabase.functions.invoke('npc-reply', { body: { action: 'spell', messageId } });
+      if (error) {
+        const { message, status } = await readableFunctionError(error, 'The NPCs could not react to that spell.');
+        if (status === 409 || status === 400) toast.info(message, { duration: 8000 });
+        else toast.error(message, { duration: 12000 });
+        return;
+      }
+      const failed = (data?.failed || []) as Array<{ npc: string }>;
+      if (failed.length) toast.info(`${failed.map(f => f.npc).join(' and ')} couldn't react to the spell.`, { duration: 8000 });
+    } finally {
+      keys.forEach(k => stopThinking(k));
+    }
+  }, [startThinking, stopThinking]);
+
+  /** Host only: 2 or 3 on-stage NPCs talk to each other for 2 to 4 lines. Any player line stops it. */
+  const runScene = useCallback(async (npcIds: string[], topic: string, turns: number): Promise<boolean> => {
+    if (!partyId || sceneRunning) return false;
+    const cast = npcIds.map(id => npcsRef.current.find(n => n.id === id)).filter((n): n is PartyNpc => !!n);
+    if (cast.length < 2) { toast.info('Pick 2 or 3 NPCs on stage.'); return false; }
+    const stamp = Date.now();
+    const keys = cast.map(n => `banter:${stamp}:${n.id}`);
+    setSceneRunning(true);
+    cast.forEach((n, i) => startThinking({ key: keys[i], npcId: n.id, name: n.name, messageId: '', kind: 'banter' }));
+    try {
+      const { data, error } = await supabase.functions.invoke('npc-reply', {
+        body: { action: 'banter', partyId, npcIds: cast.map(n => n.id), topic, turns },
+      });
+      if (error) {
+        const { message } = await readableFunctionError(error, 'The scene could not start. Try again.');
+        toast.error(message, { duration: 12000 });
+        return false;
+      }
+      if (data?.stopped) toast.info(String(data.stopped), { duration: 8000 });
+      return true;
+    } finally {
+      keys.forEach(k => stopThinking(k));
+      setSceneRunning(false);
+    }
+  }, [partyId, sceneRunning, startThinking, stopThinking]);
+
+  /**
+   * After a Send to DM: the NPCs in the handed-off lines remember the scene and may warm up
+   * or cool down toward the characters in it (server function npc-memory). Never blocks the
+   * hand-off; resolves with a plain message when it failed.
+   */
+  const rememberScene = useCallback(async (npcLineIds: string[]): Promise<{ ok: boolean; message?: string }> => {
+    const ids = Array.from(new Set(npcLineIds.filter(Boolean)));
+    if (ids.length === 0) return { ok: true };
+    const { error } = await supabase.functions.invoke('npc-memory', { body: { lineIds: ids } });
+    if (!error) return { ok: true };
+    const { message } = await readableFunctionError(error, 'NPC memory could not be updated.');
+    console.warn('[npcs] memory update failed:', message);
+    return { ok: false, message };
+  }, []);
+
   return {
     partyId,
     npcs,
@@ -293,6 +492,21 @@ export function usePartyNpcs(partyId: string | null) {
     askNpc,
     askNpcs,
     regenerateLine,
+    // v2
+    attitudes,
+    attitudeFor,
+    setAttitude,
+    reloadAttitudes: loadAttitudes,
+    setReactsToSpells,
+    loadSeats,
+    loadMemories,
+    addMemory,
+    updateMemory,
+    deleteMemory,
+    reactToSpell,
+    runScene,
+    sceneRunning,
+    rememberScene,
   };
 }
 

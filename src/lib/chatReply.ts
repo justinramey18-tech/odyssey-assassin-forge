@@ -36,7 +36,8 @@ export function stripReply(content: string): string {
 
 /** A one-line preview of a quoted message, for the composer bar and the bubble. */
 export function quotePreview(content: string, max = 90): string {
-  const body = stripReply(content).replace(/\s+/g, ' ').trim();
+  // Live NPCs v2: an NPC's roll request is not part of what it said.
+  const body = stripReply(content).replace(/⟪ROLL⟫[\s\S]*?⟪\/ROLL⟫/g, '').replace(/\s+/g, ' ').trim();
   const shown = body.replace(/^\[image:.*\]$/, '📷 Picture');
   return shown.length > max ? `${shown.slice(0, max)}…` : shown;
 }

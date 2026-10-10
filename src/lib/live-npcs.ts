@@ -3,6 +3,7 @@
 
 import { DM_MODELS } from '@/lib/dm-models';
 import { parseReply } from '@/lib/chatReply';
+import { encodeActionCard, parseActionCard } from '@/lib/roundChatActionCard';
 
 export const NPC_DEFAULT_MODEL = 'venice/qwen-3-6-plus';
 export const NPC_NAME_MAX = 40;
@@ -327,4 +328,187 @@ export function computeNpcScorecard(input: {
       costUsd: Math.round(cost * 1_000_000) / 1_000_000,
     };
   });
+}
+
+// ══ Live NPCs v2: attitudes, spells, roll requests ══
+
+// ── Attitudes ──
+
+export interface AttitudeLevel {
+  score: number;
+  label: string;
+  emoji: string;
+}
+
+/** How an NPC feels about a character, coldest to warmest. */
+export const NPC_ATTITUDES: AttitudeLevel[] = [
+  { score: -2, label: 'Hostile', emoji: '😠' },
+  { score: -1, label: 'Wary', emoji: '🤨' },
+  { score: 0, label: 'Neutral', emoji: '😐' },
+  { score: 1, label: 'Friendly', emoji: '🙂' },
+  { score: 2, label: 'Loyal', emoji: '🤝' },
+];
+
+/** The attitude for a score (anything out of range is clamped; missing is Neutral). */
+export function attitudeLevel(score: number | null | undefined): AttitudeLevel {
+  const s = Math.max(-2, Math.min(2, Math.round(Number(score) || 0)));
+  return NPC_ATTITUDES.find(a => a.score === s) ?? NPC_ATTITUDES[2];
+}
+
+// ── Spells ──
+
+const TYPED_CAST_RE = /\bcast(?:s|ing)?\s+((?:[A-Z][\p{L}'’-]*)(?:\s+(?:of|the|and|from|to|[A-Z][\p{L}'’-]*)){0,5})/u;
+
+/**
+ * The spell a Live Table line casts, or null. Same rule as the server (npc-reply
+ * prompt.ts spellCastOf): a spell card, a card that spent a slot, or typed text like
+ * "I cast Zone of Truth". The phone only uses it to decide whether to ask the server.
+ */
+export function spellCastName(content: string): string | null {
+  const { card, body } = parseActionCard(content || '');
+  if (card) {
+    const isSpell = card.kind === 'spell' || /slot was spent/i.test(card.note || '');
+    return isSpell && card.action.trim() ? card.action.trim() : null;
+  }
+  const m = TYPED_CAST_RE.exec(parseReply(body).body);
+  if (!m) return null;
+  const name = m[1].replace(/(?:\s+(?:of|the|and|from|to))+$/i, '').trim();
+  return name.length >= 3 ? name : null;
+}
+
+// ── Roll requests ──
+
+/** A roll an NPC asked a player for. The server writes it at the end of the NPC's line. */
+export interface NpcRollRequest {
+  /** The player who must roll. */
+  to: string;
+  /** Their character's name. */
+  name: string;
+  /** A skill ("Insight") or an ability ("Wisdom"). */
+  check: string;
+  /** True for a saving throw. */
+  save: boolean;
+  dc: number;
+}
+
+const ROLL_MARKER_RE = /\n?⟪ROLL⟫([\s\S]*?)⟪\/ROLL⟫/;
+
+/** An NPC line's words without the roll marker, and the roll it asks for (or null). */
+export function parseNpcRoll(text: string): { body: string; roll: NpcRollRequest | null } {
+  const raw = text || '';
+  const m = ROLL_MARKER_RE.exec(raw);
+  if (!m) return { body: raw, roll: null };
+  const body = raw.replace(ROLL_MARKER_RE, '').trimEnd();
+  try {
+    const r = JSON.parse(m[1]);
+    if (typeof r?.to !== 'string' || typeof r?.check !== 'string' || typeof r?.dc !== 'number') return { body, roll: null };
+    return { body, roll: { to: r.to, name: typeof r.name === 'string' ? r.name : 'A player', check: r.check, save: !!r.save, dc: r.dc } };
+  } catch {
+    return { body, roll: null };
+  }
+}
+
+/** After the host edits an NPC line's words, put its roll request (if any) back on the end. */
+export function keepNpcRoll(newText: string, originalText: string): string {
+  const m = ROLL_MARKER_RE.exec(originalText || '');
+  return m ? `${newText}\n${m[0].replace(/^\n/, '')}` : newText;
+}
+
+/** "Insight check", "Wisdom saving throw". */
+export function rollCheckName(r: Pick<NpcRollRequest, 'check' | 'save'>): string {
+  return r.save ? `${r.check} saving throw` : `${r.check} check`;
+}
+
+/** The button text: "Insight · DC 14", "Wisdom save · DC 13". */
+export function rollButtonLabel(r: NpcRollRequest): string {
+  return `${r.check}${r.save ? ' save' : ''} · DC ${r.dc}`;
+}
+
+/** An NPC line as the DM reads it: the roll marker becomes plain words. */
+export function npcLineForDm(text: string): string {
+  const { body, roll } = parseNpcRoll(text);
+  const words = body.trim();
+  return roll ? `${words} (asks ${roll.name} for a DC ${roll.dc} ${rollCheckName(roll)})`.trim() : words;
+}
+
+const ABILITY_KEYS = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const;
+type AbilityKey = typeof ABILITY_KEYS[number];
+
+const SKILL_ABILITY: Record<string, AbilityKey> = {
+  acrobatics: 'dexterity', 'animal handling': 'wisdom', arcana: 'intelligence', athletics: 'strength',
+  deception: 'charisma', history: 'intelligence', insight: 'wisdom', intimidation: 'charisma',
+  investigation: 'intelligence', medicine: 'wisdom', nature: 'intelligence', perception: 'wisdom',
+  performance: 'charisma', persuasion: 'charisma', religion: 'intelligence', 'sleight of hand': 'dexterity',
+  stealth: 'dexterity', survival: 'wisdom',
+};
+
+/** The parts of the player's own character sheet a roll needs (CharacterContext fits). */
+export interface RollSheet {
+  abilityScores?: Partial<Record<AbilityKey, { modifier?: number; final?: number } | undefined>>;
+  proficiencies?: { bonus?: number; skills?: string[]; saves?: string[]; expertise?: string[] };
+}
+
+const norm = (s: string) => (s || '').toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+/** The modifier for a requested roll, from the player's own sheet: ability modifier plus proficiency (doubled with expertise). */
+export function rollModifier(sheet: RollSheet | null | undefined, r: Pick<NpcRollRequest, 'check' | 'save'>): number {
+  const check = norm(r.check);
+  const ability: AbilityKey | undefined = (ABILITY_KEYS as readonly string[]).includes(check) ? (check as AbilityKey) : SKILL_ABILITY[check];
+  if (!ability) return 0;
+  const score = sheet?.abilityScores?.[ability];
+  const mod = typeof score?.modifier === 'number'
+    ? score.modifier
+    : typeof score?.final === 'number' ? Math.floor((score.final - 10) / 2) : 0;
+  const bonus = sheet?.proficiencies?.bonus ?? 0;
+  const has = (list: string[] | undefined, name: string) => (list || []).some(x => norm(x) === name);
+  let prof = 0;
+  if (r.save) {
+    if ((sheet?.proficiencies?.saves || []).some(x => norm(x) === ability || norm(x) === ability.slice(0, 3))) prof = bonus;
+  } else if (!(ABILITY_KEYS as readonly string[]).includes(check)) {
+    if (has(sheet?.proficiencies?.expertise, check)) prof = bonus * 2;
+    else if (has(sheet?.proficiencies?.skills, check)) prof = bonus;
+  }
+  return mod + prof;
+}
+
+/** The Live Table line that answers an NPC's roll request: a check card that points back at the NPC line. */
+export function buildRollAnswer(input: {
+  characterName: string;
+  npcName: string;
+  npcLineId: string;
+  request: NpcRollRequest;
+  /** The d20 face that counts. */
+  d20: number;
+  modifier: number;
+}): string {
+  const { request: r } = input;
+  const total = input.d20 + input.modifier;
+  const success = total >= r.dc;
+  const label = rollCheckName(r);
+  const sign = input.modifier >= 0 ? '+' : '-';
+  return encodeActionCard(
+    {
+      action: label,
+      kind: 'check',
+      d20: input.d20,
+      outcome: `${total} vs DC ${r.dc} · ${success ? 'success' : 'failure'}`,
+      note: `for ${input.npcName} (d20 ${sign} ${Math.abs(input.modifier)})`,
+      total,
+      dc: r.dc,
+      success,
+      replyTo: input.npcLineId,
+    },
+    `${input.characterName} rolls for ${input.npcName}: ${label}, ${total} against DC ${r.dc} (${success ? 'success' : 'failure'}).`,
+  );
+}
+
+/** NPC lines this player already answered with a roll. */
+export function rolledNpcLines(lines: Array<{ user_id: string; content: string; npc_id?: string | null }>, userId: string): Set<string> {
+  const done = new Set<string>();
+  for (const l of lines) {
+    if (l.npc_id || l.user_id !== userId) continue;
+    const { card } = parseActionCard(l.content || '');
+    if (card?.replyTo) done.add(card.replyTo);
+  }
+  return done;
 }
