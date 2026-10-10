@@ -25,6 +25,7 @@ import {
   type AssistantLiveContext,
   type QuickPrompt,
 } from '@/lib/dm-assistant';
+import { castLabel } from '@/lib/dm-assistant-scenes';
 import { cn } from '@/lib/utils';
 import {
   AlertTriangle,

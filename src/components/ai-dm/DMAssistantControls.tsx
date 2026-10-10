@@ -1,9 +1,9 @@
 // Controls for the Human DM Assistant panel: settings (models, personality,
-// World Bible), the NPC picker, the rehearsal banner, a finished scene's
+// World Bible), the NPC picker, the rehearsal banner (one or more NPCs), a finished scene's
 // "add to draft" actions, and the tone buttons for an aimed paragraph.
 
 import { Switch } from '@/components/ui/switch';
-import { BookOpen, X } from 'lucide-react';
+import { BookOpen, Plus, X } from 'lucide-react';
 import { ART, Medal } from './DMAssistantArt';
 import { DM_MODELS } from '@/lib/dm-models';
 import {
@@ -170,17 +170,26 @@ export function NpcPicker({
 
 export function RehearsalBanner({
   npc,
-  picked,
+  cast,
+  lines,
   insertAfter,
   busy,
+  onSpeaker,
+  onAddNpc,
   onAddAsIs,
   onWeave,
   onDone,
 }: {
+  /** Who answers next. */
   npc: string;
-  picked: number;
+  /** Everyone in the scene. */
+  cast: string[];
+  /** Lines that will go into the draft (everything said, plus the NPC lines still ticked). */
+  lines: number;
   insertAfter: number | null;
   busy: boolean;
+  onSpeaker: (name: string) => void;
+  onAddNpc: () => void;
   onAddAsIs: () => void;
   onWeave: () => void;
   onDone: () => void;
@@ -189,18 +198,34 @@ export function RehearsalBanner({
     <div className="rounded-lg border border-amber-400/40 bg-[#2a2016] px-2.5 py-2 space-y-1.5">
       <div className="flex items-center gap-2">
         <Medal src={ART.medalNpc} className="w-6 h-6" />
-        <span className="flex-1 min-w-0 truncate text-[13px] text-amber-100">
-          Talking to <b>{npc}</b>
-        </span>
+        <div className="flex-1 min-w-0 flex gap-1.5 overflow-x-auto scrollbar-hide">
+          {cast.map(name => (
+            <button key={name} onClick={() => onSpeaker(name)} disabled={busy} aria-pressed={name === npc} style={tap}
+              className={name === npc
+                ? 'shrink-0 min-h-[30px] px-2.5 rounded-full border border-amber-300/70 bg-amber-700/50 text-[12px] font-semibold text-amber-50 disabled:opacity-60'
+                : 'shrink-0 min-h-[30px] px-2.5 rounded-full border border-amber-400/25 bg-amber-950/40 text-[12px] text-amber-100/70 disabled:opacity-40'}>
+              {name}
+            </button>
+          ))}
+          <button onClick={onAddNpc} disabled={busy} aria-label="Add another NPC to this scene" style={tap}
+            className="shrink-0 min-h-[30px] px-2 rounded-full border border-dashed border-amber-400/40 text-[12px] text-amber-200/80 flex items-center gap-0.5 disabled:opacity-40">
+            <Plus className="w-3.5 h-3.5" /> NPC
+          </button>
+        </div>
         <button onClick={onDone} style={tap}
           className="shrink-0 min-h-[30px] px-2.5 rounded-md border border-white/15 bg-white/5 text-[12px] text-white/75 flex items-center gap-1">
           <X className="w-3.5 h-3.5" /> Done
         </button>
       </div>
-      {picked > 0 && (
+      {cast.length > 1 && (
+        <div className="text-[11px] text-amber-100/55 px-0.5">
+          <b className="text-amber-100/80">{npc}</b> answers next. Tap a name to switch.
+        </div>
+      )}
+      {lines > 0 && (
         <div className="flex items-center gap-2">
           <span className="flex-1 min-w-0 truncate text-[11px] text-amber-100/60">
-            {plural(picked, 'line', 'lines')} picked{insertAfter ? ` · after ¶${insertAfter}` : ''}
+            {plural(lines, 'line', 'lines')} ready{insertAfter ? ` · after ¶${insertAfter}` : ''}
           </span>
           <button onClick={onAddAsIs} disabled={busy} style={tap}
             className="shrink-0 min-h-[32px] px-2.5 rounded-md border border-white/15 bg-white/5 text-[12px] text-white/80 disabled:opacity-40">
@@ -218,14 +243,16 @@ export function RehearsalBanner({
 
 export function SceneActions({
   npc,
-  picked,
+  lines,
   insertAfter,
   busy,
   onAddAsIs,
   onWeave,
 }: {
+  /** The scene's cast, e.g. "Grukk and Mira". */
   npc: string;
-  picked: number;
+  /** Lines that will go into the draft, in order. */
+  lines: number;
   insertAfter: number | null;
   busy: boolean;
   onAddAsIs: () => void;
@@ -234,7 +261,7 @@ export function SceneActions({
   return (
     <div className="rounded-lg border border-amber-400/25 bg-amber-950/30 px-3 py-2 space-y-1.5">
       <div className="text-[11px] text-amber-100/70">
-        {npc} scene · {plural(picked, 'line', 'lines')} picked{insertAfter ? ` · goes after ¶${insertAfter}` : ''}
+        Scene with {npc} · {plural(lines, 'line', 'lines')}, word for word{insertAfter ? ` · goes after ¶${insertAfter}` : ''}
       </div>
       <div className="flex gap-2">
         <button onClick={onAddAsIs} disabled={busy} style={tap}
