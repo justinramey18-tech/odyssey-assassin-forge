@@ -453,7 +453,7 @@ export function usePartyNpcs(partyId: string | null) {
     let cancelled = false;
     const lastSpokeAt: Record<string, number> = {};
     let lastLineAt = Date.now();
-    void (async () => {
+    void (async () => { try {
       const { data } = await supabase.auth.getUser();
       me = data?.user?.id ?? null;
       const { data: party } = await (supabase.from('parties') as any).select('created_by').eq('id', partyId).maybeSingle();
