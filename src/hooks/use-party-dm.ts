@@ -2506,7 +2506,17 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           responseModePrompt,
         ].filter(Boolean).join('\n\n');
 
-        const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, partyContextStr, undefined, empyreanPersonaPrompt, currentRoundOocDirectives, liveTable);
+        let assistantContent: string;
+        try {
+          assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, partyContextStr, undefined, empyreanPersonaPrompt, currentRoundOocDirectives, liveTable);
+        } catch (err) {
+          if (!(err instanceof DmReplyCutOffError) || abortRef.current?.signal.aborted) throw err;
+          // One automatic retry. The players' and NPCs' story rows are already saved,
+          // so asking the DM again is safe and never duplicates them.
+          console.warn('[PartyDM] DM reply was cut off, asking again:', err.message);
+          toast.info('The DM got cut off. Asking again…', { duration: 5000 });
+          assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, partyContextStr, undefined, empyreanPersonaPrompt, currentRoundOocDirectives, liveTable);
+        }
 
         if (assistantContent?.trim()) {
           if (isApprovalMode) {
