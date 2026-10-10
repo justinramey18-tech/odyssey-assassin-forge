@@ -354,6 +354,8 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
                 <Plus className="w-4 h-4" /> New NPC
               </button>
 
+              <StandInPicker roster={roster} />
+
               {!roster.loaded ? (
                 <div className="flex items-center gap-2 py-6 justify-center text-[13px] text-white/50">
                   <Loader2 className="w-4 h-4 animate-spin" /> Loading the roster…
@@ -373,7 +375,7 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
                       <NpcPortrait url={npc.portrait_url} name={npc.name} className="w-12 h-12 text-lg" />
                       <div className="min-w-0 flex-1">
                         <p className="text-[14px] font-semibold text-white truncate">{npc.name}</p>
-                        <p className="text-[11px] text-white/45 truncate">{npcModelLabel(npc.model)}</p>
+                        <p className="text-[11px] text-white/45 truncate">{npc.player_user_id ? 'Player stand-in · ' : ''}{npcModelLabel(npc.model)}</p>
                         <div className="mt-1 flex items-center gap-1">
                           <button
                             onClick={() => startEdit(npc)}
@@ -462,5 +464,41 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
         />
       </SheetContent>
     </Sheet>
+  );
+}
+
+
+/** Host: put an away player's character on stage, played from their AFK guide. */
+function StandInPicker({ roster }: { roster: PartyNpcsApi }) {
+  const [seats, setSeats] = useState<Array<{ user_id: string; character_name: string }>>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  useEffect(() => { roster.loadSeats().then(setSeats).catch(() => setSeats([])); }, [roster.loadSeats]);
+  if (!seats.length) return null;
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-2">
+      <p className="text-[12px] text-white/60">Away players: put their character on stage. They talk like any NPC, using their AFK guide, and step down when the player comes back.</p>
+      {seats.map(seat => {
+        const live = roster.npcs.find(n => n.player_user_id === seat.user_id && n.on_stage && !n.archived);
+        return (
+          <div key={seat.user_id} className="flex items-center gap-2">
+            <span className="flex-1 min-w-0 truncate text-[13px] text-white/85">{seat.character_name}</span>
+            <button
+              disabled={busy === seat.user_id || !!live}
+              onClick={async () => {
+                setBusy(seat.user_id);
+                try { const npc = await roster.addStandIn(seat); toast.success(`${npc.name} is on stage.`); }
+                catch (err) { toast.error(err instanceof Error ? err.message : 'Could not add them.'); }
+                finally { setBusy(null); }
+              }}
+              style={{ touchAction: 'manipulation' }}
+              className="min-h-[44px] px-3 rounded-lg border border-amber-400/40 bg-amber-500/10 text-[12px] text-amber-100 flex items-center gap-1.5 disabled:opacity-50"
+            >
+              {busy === seat.user_id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Drama className="w-4 h-4" />}
+              {live ? 'On stage' : 'Add to stage'}
+            </button>
+          </div>
+        );
+      })}
+    </div>
   );
 }
