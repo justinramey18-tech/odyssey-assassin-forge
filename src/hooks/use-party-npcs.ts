@@ -458,7 +458,7 @@ export function usePartyNpcs(partyId: string | null) {
       me = data?.user?.id ?? null;
       const { data: party } = await (supabase.from('parties') as any).select('created_by').eq('id', partyId).maybeSingle();
       hostId = party?.created_by ?? null;
-    })();
+    } catch { /* not signed in */ } })();
     const standIns = () => npcsRef.current.filter(n => n.player_user_id && n.on_stage && !n.archived);
     const ch = supabase.channel(`npc-stand-in-wakes:${partyId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'party_round_chat', filter: `party_id=eq.${partyId}` }, ({ new: row }: any) => {
