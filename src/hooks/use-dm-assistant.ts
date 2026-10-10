@@ -18,10 +18,9 @@ import {
   EMPTY_DRAFT,
   applyDraftEdits,
   DIGEST_SYSTEM_PROMPT,
-  buildAssistantMessages,
   buildAssistantSystemPrompt,
-  buildWeavePrompt,
   buildDigestMessages,
+  buildSessionMessages,
   clearAssistantState,
   clearDigest,
   draftFromText,
@@ -33,7 +32,6 @@ import {
   loadAssistantMode,
   loadAssistantPersona,
   loadRecentNpcs,
-  npcLineToStory,
   loadAssistantState,
   loadDigest,
   parseAssistantReply,
@@ -48,6 +46,7 @@ import {
   saveDigest,
   visibleWhileStreaming,
 } from '@/lib/dm-assistant';
+import { buildSceneWeavePrompt, isOutOfCharacter, sceneToStory, type SceneLine } from '@/lib/dm-assistant-scenes';
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
 
@@ -133,10 +132,19 @@ interface UndoStep {
 const MAX_UNDO = 10;
 const sameDraft = (x: AssistantDraft, y: AssistantDraft) => JSON.stringify(x) === JSON.stringify(y);
 
-/** An NPC rehearsal in progress: the assistant answers as this NPC. */
+/** An NPC rehearsal in progress. A scene can hold several NPCs; the assistant answers as `npc`. */
 export interface Rehearsal {
+  /** The NPC who answers next. */
   npc: string;
+  /** Everyone in the scene, in the order they joined. */
+  cast: string[];
   sceneId: string;
+}
+
+/** A scene's lines, ready for the draft: everything the host said plus the NPC lines kept. */
+export interface SceneInfo {
+  cast: string[];
+  lines: SceneLine[];
 }
 
 export type DigestStatus = 'none' | 'ready' | 'stale' | 'building' | 'error' | 'no-guides';
@@ -176,6 +184,9 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
   const [persona, setPersonaState] = useState<AssistantPersona>(() => loadAssistantPersona());
   const [rehearsal, setRehearsalState] = useState<Rehearsal | null>(null);
   const [recentNpcs, setRecentNpcs] = useState<string[]>(() => loadRecentNpcs());
+  // Shown on screen when a session is too long to send whole (never trimmed silently).
+  const [memoryNotice, setMemoryNotice] = useState<string | null>(null);
+  const saveWarnedRef = useRef(false);
   // Read synchronously by send(), so ending a rehearsal and sending in the same tap works.
   const rehearsalRef = useRef<Rehearsal | null>(null);
   const sendRef = useRef<(text: string, modeOverride?: AssistantMode, opts?: { auto?: boolean }) => Promise<void>>();
@@ -204,7 +215,11 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
 
   // Save the chat and draft on this phone whenever they change.
   useEffect(() => {
-    saveAssistantState(ownerRef.current, { messages, draft });
+    const saved = saveAssistantState(ownerRef.current, { messages, draft });
+    if (!saved && !saveWarnedRef.current) {
+      saveWarnedRef.current = true;
+      toast.warning("Couldn't save this chat on the phone", { description: 'Storage is full or blocked. The chat still works, but closing the app would lose it.' });
+    }
   }, [messages, draft]);
 
   const setMode = useCallback((next: AssistantMode) => {
@@ -327,8 +342,20 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
         ? { mode: 'full', text: ctx.guides || '' }
         : await ensureBible(ctx.guides || '', modelId, controller.signal);
 
-      const handoff = buildAssistantSystemPrompt(ctx, bible, draftAtSend, modeAtSend, { persona, npc: scene?.npc ?? null });
-      const apiMessages = buildAssistantMessages(history, text);
+      const handoff = buildAssistantSystemPrompt(ctx, bible, draftAtSend, modeAtSend, { persona, npc: scene?.npc ?? null, cast: scene?.cast ?? [] });
+      // The whole chat since the last post goes with every message.
+      const session = buildSessionMessages(history, text);
+      const apiMessages = session.messages;
+      if (session.omittedTurns > 0) {
+        const notice = `This chat is very long: the oldest ${session.omittedTurns} turn${session.omittedTurns === 1 ? '' : 's'} didn't fit in this message.`;
+        setMemoryNotice(notice);
+        toast.warning('Some of the chat was left out', { description: notice });
+      } else {
+        setMemoryNotice(null);
+      }
+      if (handoff.draftTrimmed && modeAtSend === 'draft' && !scene) {
+        toast.warning('The draft is too long for the assistant to see whole', { description: 'It can only read the start. Edits to the end may be skipped.' });
+      }
       const sentChars = handoff.chars + apiMessages.reduce((n, m) => n + m.content.length, 0);
       setLastSendTokens(estimateTokens(sentChars));
 
@@ -348,7 +375,7 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
 
       setLastReplyTokens(estimateTokens(raw.length));
       const parsed = parseAssistantReply(raw);
-      if (!parsed.chatText && !parsed.draftText && !parsed.edits.length && !parsed.takes && !parsed.rolls.length) {
+      if (!parsed.chatText && !parsed.draftText && !parsed.edits.length && !parsed.takes && !parsed.rolls.length && !parsed.unreadableEdits.length) {
         throw new Error('The assistant sent back an empty reply. Try again, or pick another model.');
       }
 
@@ -371,8 +398,15 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
           setLastChange({ kind: 'edit', paragraphs: result.changedParagraphs, whispers: result.changedWhispers, at: Date.now() });
         }
         if (result.skipped.length) {
-          toast.warning(`Skipped ${result.skipped.join(', ')}`, { description: "That part of the draft doesn't exist. Everything else was applied." });
+          toast.warning(`Skipped ${result.skipped.join(', ')}`, { description: "It pointed at a part of the draft that doesn't exist, or one another edit in the same reply already changed. Everything else was applied." });
         }
+      }
+      // An edit the app couldn't read is reported, never dropped silently.
+      let unreadNote = '';
+      if (parsed.unreadableEdits.length && !parsed.draftText && !(modeAtSend === 'brainstorm' || scene)) {
+        const list = parsed.unreadableEdits.join('; ');
+        unreadNote = `(The app couldn't read ${parsed.unreadableEdits.length === 1 ? 'this edit' : 'these edits'}, so that part of the draft did not change: ${list})`;
+        toast.warning(`Couldn't apply ${parsed.unreadableEdits.length === 1 ? 'an edit' : `${parsed.unreadableEdits.length} edits`}`, { description: `${list}. Ask again, or tap Undo if the draft looks wrong.` });
       }
 
       // Alternate versions: remember the paragraph's text so "Keep" still finds it later.
@@ -386,7 +420,7 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
       const added: AssistantChatMessage[] = [{
         id: newId(),
         role: 'assistant',
-        text: parsed.chatText || (draftNote ? `${draftNote}.` : takes ? 'Here are some versions.' : parsed.rolls.length ? 'Rolling…' : 'Done.'),
+        text: [parsed.chatText || (draftNote ? `${draftNote}.` : takes ? 'Here are some versions.' : parsed.rolls.length ? 'Rolling…' : unreadNote ? '' : 'Done.'), unreadNote].filter(Boolean).join('\n\n'),
         draftUpdated: !!draftNote,
         draftNote,
         suggestions: parsed.suggestions.length ? parsed.suggestions : undefined,
@@ -469,11 +503,25 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
   }, [applyLocalChange]);
 
   // ── NPC rehearsal ──
+  /** Start a scene with this NPC, or add them to the scene already running (they answer next). */
   const startRehearsal = useCallback((name: string) => {
     const npc = name.trim().replace(/\s+/g, ' ').slice(0, 40);
     if (!npc) return;
-    setRehearsal({ npc, sceneId: newId() });
+    const current = rehearsalRef.current;
+    if (current) {
+      const known = current.cast.find(n => n.toLowerCase() === npc.toLowerCase());
+      setRehearsal({ ...current, npc: known ?? npc, cast: known ? current.cast : [...current.cast, npc] });
+    } else {
+      setRehearsal({ npc, cast: [npc], sceneId: newId() });
+    }
     setRecentNpcs(saveRecentNpc(npc));
+  }, [setRehearsal]);
+
+  /** Choose which NPC in the scene answers next. */
+  const setSpeaker = useCallback((name: string) => {
+    const current = rehearsalRef.current;
+    if (!current || !current.cast.includes(name)) return;
+    setRehearsal({ ...current, npc: name });
   }, [setRehearsal]);
 
   const endRehearsal = useCallback(() => setRehearsal(null), [setRehearsal]);
@@ -485,38 +533,42 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
     setMessages(prev => prev.map(flip));
   }, []);
 
-  /** Picked NPC lines of a scene, plus what the party said, in order. */
-  const sceneExchange = useCallback((sceneId: string) => {
-    const lines = messagesRef.current.filter(m => m.sceneId === sceneId && !m.auto && !m.roll && m.text.trim());
-    const npc = lines.find(m => m.npc)?.npc ?? '';
-    const picked = lines.filter(m => m.role === 'assistant' && m.picked);
-    const exchange = lines
-      .filter(m => m.role === 'host' || m.picked)
-      .map(m => ({ who: (m.role === 'assistant' ? 'npc' : 'party') as 'npc' | 'party', text: m.text }));
-    return { npc, picked, exchange };
+  /**
+   * A scene's lines in the order they were said: everything the host typed (minus
+   * notes like "(make him nervous)") and every NPC line still ticked.
+   */
+  const sceneInfo = useCallback((sceneId: string): SceneInfo => {
+    const said = messagesRef.current.filter(m => m.sceneId === sceneId && !m.auto && !m.roll && m.text.trim());
+    const cast: string[] = [];
+    for (const m of said) if (m.npc && !cast.includes(m.npc)) cast.push(m.npc);
+    const lines: SceneLine[] = said
+      .filter(m => (m.role === 'assistant' ? !!m.picked : !isOutOfCharacter(m.text)))
+      .map(m => ({ speaker: m.role === 'assistant' ? m.npc || '' : '', npc: m.role === 'assistant', text: m.text }));
+    return { cast, lines };
   }, []);
 
-  /** Add the picked NPC lines to the draft exactly as said: no AI call. */
+  /** Add the scene to the draft exactly as said, every line in order: no AI call. */
   const addSceneAsIs = useCallback((sceneId: string, afterParagraph: number | null): number => {
-    const { npc, picked } = sceneExchange(sceneId);
-    if (!npc || !picked.length) { toast.info('Pick at least one line first.'); return 0; }
+    const { cast, lines } = sceneInfo(sceneId);
+    const body = sceneToStory(lines);
+    if (!body) { toast.info('Nothing to add yet: say something, or tick an NPC line.'); return 0; }
     const paras = splitParagraphs(draftRef.current.narrative);
     const after = afterParagraph !== null && afterParagraph <= paras.length ? afterParagraph : paras.length;
-    const body = picked.map(m => npcLineToStory(npc, m.text)).filter(Boolean).join('\n\n');
     const edit: DraftEdit = { op: 'insert', target: 'paragraph', index: after, body, label: `INSERT AFTER ¶${after}` };
     const result = applyDraftEdits(draftRef.current, [edit]);
-    applyLocalChange(result.draft, `Added ${picked.length} line${picked.length === 1 ? '' : 's'} from ${npc}`, result.changedParagraphs);
-    toast.success(`Added ${npc}'s ${picked.length === 1 ? 'line' : 'lines'} to the draft`);
-    return picked.length;
-  }, [sceneExchange, applyLocalChange]);
+    const who = cast.join(' & ') || 'the scene';
+    applyLocalChange(result.draft, `Added ${lines.length} line${lines.length === 1 ? '' : 's'} with ${who}`, result.changedParagraphs);
+    toast.success(`Added the scene with ${who} to the draft`);
+    return lines.length;
+  }, [sceneInfo, applyLocalChange]);
 
-  /** Ask the assistant to work the exchange into the draft with narration. Ends the rehearsal. */
+  /** Ask the assistant to weave the scene in with light narration, keeping every line. Ends the rehearsal. */
   const weaveScene = useCallback((sceneId: string, afterParagraph: number | null) => {
-    const { npc, picked, exchange } = sceneExchange(sceneId);
-    if (!npc || !picked.length) { toast.info('Pick at least one line first.'); return; }
+    const { cast, lines } = sceneInfo(sceneId);
+    if (!lines.length) { toast.info('Nothing to weave yet: say something, or tick an NPC line.'); return; }
     setRehearsal(null);
-    void send(buildWeavePrompt(npc, exchange, afterParagraph), 'draft');
-  }, [sceneExchange, setRehearsal, send]);
+    void send(buildSceneWeavePrompt(cast, lines, afterParagraph), 'draft');
+  }, [sceneInfo, setRehearsal, send]);
 
   /**
    * Put the draft back the way it was before the assistant's last change.
@@ -554,6 +606,7 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
     setUndoStack([]);
     setRehearsal(null);
     setError(null);
+    setMemoryNotice(null);
     messagesRef.current = [];
     clearAssistantState(ownerRef.current);
   }, [setRehearsal]);
@@ -583,7 +636,10 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
     rehearsal,
     recentNpcs,
     startRehearsal,
+    setSpeaker,
     endRehearsal,
+    sceneInfo,
+    memoryNotice,
     togglePick,
     addSceneAsIs,
     weaveScene,
