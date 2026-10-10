@@ -166,7 +166,9 @@ export function DMAssistantPanel({
   // Where each rehearsal scene ends, to show its "add to draft" actions there.
   const sceneEnds = new Map<string, number>();
   a.messages.forEach((m, i) => { if (m.sceneId) sceneEnds.set(m.sceneId, i); });
-  const pickedCount = (sceneId: string) => a.messages.filter(m => m.sceneId === sceneId && m.role === 'assistant' && m.picked).length;
+  // Lines a scene puts in the draft: everything the host said plus the NPC lines still ticked.
+  const sceneLines = (sceneId: string) => a.sceneInfo(sceneId).lines.length;
+  const sceneCast = (sceneId: string, fallback?: string) => castLabel(a.sceneInfo(sceneId).cast) || fallback || 'the NPC';
 
   const prompts: QuickPrompt[] = a.mode === 'brainstorm'
     ? BRAINSTORM_PROMPTS
@@ -352,6 +354,12 @@ export function DMAssistantPanel({
             {a.lastReplyTokens ? ` · Reply ~${kTokens(a.lastReplyTokens)}` : ''}
             {a.fullBible ? ' · next message sends the full guides' : ''}
           </div>
+          {a.memoryNotice && (
+            <div className="flex items-center gap-1.5 text-[11px] text-amber-200/85 px-1">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              <span className="min-w-0">{a.memoryNotice}</span>
+            </div>
+          )}
         </div>
 
         {/* Body: the chat, with the draft opening over it */}
@@ -371,13 +379,13 @@ export function DMAssistantPanel({
               const sceneStart = !!m.sceneId && prev?.sceneId !== m.sceneId;
               const sceneEnd = !!m.sceneId && sceneEnds.get(m.sceneId) === i;
               const sceneLive = !!m.sceneId && a.rehearsal?.sceneId === m.sceneId;
-              const picked = m.sceneId ? pickedCount(m.sceneId) : 0;
+              const lineCount = sceneEnd && !sceneLive ? sceneLines(m.sceneId!) : 0;
               return (
                 <div key={m.id} className="space-y-2.5">
                   {sceneStart && (
                     <div className="flex items-center gap-2 text-[11px] text-amber-300/70 font-cinzel pt-1">
                       <span className="h-px flex-1 bg-amber-400/20" />
-                      <Medal src={ART.medalNpc} className="w-5 h-5" /> Talking to {m.npc}
+                      <Medal src={ART.medalNpc} className="w-5 h-5" /> Scene with {sceneCast(m.sceneId!, m.npc)}
                       <span className="h-px flex-1 bg-amber-400/20" />
                     </div>
                   )}
@@ -429,10 +437,10 @@ export function DMAssistantPanel({
                     <TakesCard takes={m.takes} disabled={a.isStreaming} onKeep={idx => { if (a.keepTake(m.id, idx)) setBadge('Updated'); }} />
                   )}
 
-                  {sceneEnd && !sceneLive && picked > 0 && (
+                  {sceneEnd && !sceneLive && lineCount > 0 && (
                     <SceneActions
-                      npc={m.npc || ''}
-                      picked={picked}
+                      npc={sceneCast(m.sceneId!, m.npc)}
+                      lines={lineCount}
                       insertAfter={insertAfter}
                       busy={a.isStreaming}
                       onAddAsIs={() => addAsIs(m.sceneId!)}
@@ -667,16 +675,19 @@ export function DMAssistantPanel({
             </div>
           )}
 
-          {npcPicker && !a.rehearsal && (
+          {npcPicker && (
             <NpcPicker value={npcName} onChange={setNpcName} onStart={startNpc} onCancel={() => setNpcPicker(false)} recent={a.recentNpcs} />
           )}
 
           {a.rehearsal && (
             <RehearsalBanner
               npc={a.rehearsal.npc}
-              picked={pickedCount(a.rehearsal.sceneId)}
+              cast={a.rehearsal.cast}
+              lines={sceneLines(a.rehearsal.sceneId)}
               insertAfter={insertAfter}
               busy={a.isStreaming}
+              onSpeaker={a.setSpeaker}
+              onAddNpc={() => setNpcPicker(true)}
               onAddAsIs={() => addAsIs(a.rehearsal!.sceneId)}
               onWeave={() => weave(a.rehearsal!.sceneId)}
               onDone={a.endRehearsal}
