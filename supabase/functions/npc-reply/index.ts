@@ -1,7 +1,10 @@
 // npc-reply: an on-stage NPC answers a player's Live Table line (DECISIONS D-22).
 // The NPC's guide and secrets are read here on the server and never sent to a phone.
 //
-// POST { messageId, npcId }                          a player asks an NPC (the line must be theirs)
+// POST { messageId, npcId }                          a player asks an NPC (the line must be theirs),
+//                                                    or shows it the roll it asked for
+// POST { action: "spell", messageId }               a player cast a spell: on-stage NPCs react (v2)
+// POST { action: "banter", partyId, npcIds, topic?, turns? }   the host starts an NPC scene (v2)
 // POST { action: "regenerate", replyMessageId }     the host asks for a new version of an NPC line
 //
 // The caller must be signed in. Replies are written with the server's keys; if the NPC's
@@ -11,7 +14,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createModelCaller } from './models.ts';
 import { createRepo } from './repo.ts';
-import { regenerate, speak, type Deps } from './handler.ts';
+import { banter, regenerate, speak, spell, type Deps } from './handler.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -60,7 +63,11 @@ Deno.serve(async (req) => {
   try {
     const result = body.action === 'regenerate'
       ? await regenerate({ userId, replyMessageId: body.replyMessageId }, deps)
-      : await speak({ userId, messageId: body.messageId, npcId: body.npcId }, deps);
+      : body.action === 'spell'
+        ? await spell({ userId, messageId: body.messageId }, deps)
+        : body.action === 'banter'
+          ? await banter({ userId, partyId: body.partyId, npcIds: body.npcIds, topic: body.topic, turns: body.turns }, deps)
+          : await speak({ userId, messageId: body.messageId, npcId: body.npcId }, deps);
     return json(result.status, result.body);
   } catch (err) {
     console.error('[npc-reply] failed:', err);

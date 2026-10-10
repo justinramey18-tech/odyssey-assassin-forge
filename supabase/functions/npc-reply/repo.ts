@@ -23,14 +23,26 @@ export interface NpcRow {
   model: string;
   on_stage: boolean;
   archived: boolean;
+  /** v2: false when the host switched spell reactions off. Missing means on. */
+  reacts_to_spells?: boolean;
 }
+
+export type ReplyKind = 'reply' | 'spell' | 'roll' | 'banter';
 
 export interface ReplyRecord {
   id: string;
   party_id: string;
   npc_id: string;
-  prompt_message_id: string;
+  /** Null only for the opening line of an NPC scene. */
+  prompt_message_id: string | null;
   reply_message_id: string | null;
+  kind?: ReplyKind;
+}
+
+/** v2: what one NPC remembers, and how it feels about each character. */
+export interface NpcMind {
+  memory: string[];
+  attitudes: Array<{ user_id: string; character_name: string; score: number }>;
 }
 
 export interface NpcContext {
@@ -38,9 +50,11 @@ export interface NpcContext {
   anchors: unknown;
   summary: string;
   latestPost: string;
-  roster: Array<{ character_name: string; character_status: Record<string, unknown> | null }>;
+  roster: Array<{ user_id?: string; character_name: string; character_status: Record<string, unknown> | null }>;
   /** Live Table lines, oldest first. */
   table: Array<Pick<RoundLine, 'id' | 'user_id' | 'character_name' | 'content' | 'in_character' | 'npc_id' | 'created_at'>>;
+  /** v2: filled when loadContext is given an NPC id. */
+  mind?: NpcMind;
 }
 
 export interface ClaimRow {
@@ -49,6 +63,8 @@ export interface ClaimRow {
   prompt_message_id: string;
   requested_by: string;
   model_requested: string;
+  /** v2: what kind of answer this is (default 'reply'). */
+  kind?: ReplyKind;
 }
 
 export interface FinishPatch {
@@ -68,19 +84,30 @@ export interface NpcRepo {
   getNpc(id: string): Promise<NpcRow | null>;
   getGuide(npcId: string): Promise<{ guide: string; secrets: string } | null>;
   listStageNames(partyId: string): Promise<string[]>;
-  loadContext(partyId: string, hostId: string, until?: string): Promise<NpcContext>;
+  loadContext(partyId: string, hostId: string, until?: string, npcId?: string): Promise<NpcContext>;
   /** Reserve the right to answer a line. "taken" when it was answered, or is being answered right now. */
   claim(row: ClaimRow, now: number): Promise<'claimed' | 'taken'>;
   insertNpcLine(row: Omit<RoundLine, 'id' | 'consumed' | 'created_at'>): Promise<string>;
   updateNpcLine(id: string, content: string): Promise<void>;
   finish(promptMessageId: string, npcId: string, patch: FinishPatch): Promise<void>;
   findReplyRecord(replyMessageId: string): Promise<ReplyRecord | null>;
+  // ── v2 (optional so older test doubles still work) ──
+  /** On-stage NPCs that react to spells, in roster order. */
+  listSpellReactors?(partyId: string): Promise<NpcRow[]>;
+  /** A reply record for a scene line (no claim race: each scene line is new). Returns its id. */
+  startRecord?(row: Omit<ClaimRow, 'prompt_message_id'> & { prompt_message_id: string | null; kind: ReplyKind }): Promise<string>;
+  finishRecord?(id: string, patch: FinishPatch): Promise<void>;
+  /** True when a player (not an NPC) posted an in-character line after this time. */
+  playerSpokeSince?(partyId: string, sinceIso: string): Promise<boolean>;
+  /** The newest line in the Live Table, for a scene's round id. */
+  latestLine?(partyId: string): Promise<RoundLine | null>;
 }
 
 /** A claim with no answer that hasn't changed in this long is treated as abandoned. */
 export const STALE_CLAIM_MS = 120_000;
 
 const LINE_COLUMNS = 'id, party_id, user_id, character_name, content, in_character, round_id, consumed, selected, created_at, npc_id';
+const NPC_COLUMNS = 'id, party_id, name, model, on_stage, archived, reacts_to_spells';
 
 // deno-lint-ignore no-explicit-any
 export function createRepo(db: any): NpcRepo {
@@ -108,7 +135,7 @@ export function createRepo(db: any): NpcRepo {
     },
 
     async getNpc(id) {
-      const { data, error } = await db.from('party_npcs').select('id, party_id, name, model, on_stage, archived').eq('id', id).maybeSingle();
+      const { data, error } = await db.from('party_npcs').select(NPC_COLUMNS).eq('id', id).maybeSingle();
       fail('read NPC', error);
       return data ?? null;
     },
@@ -127,8 +154,8 @@ export function createRepo(db: any): NpcRepo {
       return (data ?? []).map((r: { name: string }) => r.name);
     },
 
-    async loadContext(partyId, hostId, until) {
-      const [guides, anchors, session, posts, roster, table] = await Promise.all([
+    async loadContext(partyId, hostId, until, npcId) {
+      const [guides, anchors, session, posts, roster, table, memory, attitudes] = await Promise.all([
         db.from('gm_guides').select('name, content')
           .eq('user_id', hostId).eq('mode', 'party').eq('enabled', true)
           .order('created_at', { ascending: true }),
@@ -143,13 +170,20 @@ export function createRepo(db: any): NpcRepo {
         db.from('party_dm_messages').select('content, team, is_afk_marker')
           .eq('party_id', partyId).eq('role', 'assistant').eq('sender_name', 'DM')
           .order('created_at', { ascending: false }).limit(10),
-        db.from('party_members').select('character_name, character_status').eq('party_id', partyId),
+        db.from('party_members').select('user_id, character_name, character_status').eq('party_id', partyId),
         (until
           ? db.from('party_round_chat').select('id, user_id, character_name, content, in_character, npc_id, created_at')
             .eq('party_id', partyId).lte('created_at', until)
           : db.from('party_round_chat').select('id, user_id, character_name, content, in_character, npc_id, created_at')
             .eq('party_id', partyId)
         ).order('created_at', { ascending: false }).limit(40),
+        npcId
+          ? db.from('party_npc_memories').select('note, created_at').eq('npc_id', npcId)
+            .order('created_at', { ascending: false }).limit(40)
+          : Promise.resolve({ data: [], error: null }),
+        npcId
+          ? db.from('party_npc_attitudes').select('user_id, character_name, score').eq('npc_id', npcId)
+          : Promise.resolve({ data: [], error: null }),
       ]);
       fail('read guides', guides.error);
       fail('read memory anchors', anchors.error);
@@ -157,6 +191,8 @@ export function createRepo(db: any): NpcRepo {
       fail('read story', posts.error);
       fail('read roster', roster.error);
       fail('read table', table.error);
+      fail('read NPC memory', memory.error);
+      fail('read NPC attitudes', attitudes.error);
 
       const post = (posts.data ?? []).find((p: { team: string | null; is_afk_marker: boolean }) =>
         !p.is_afk_marker && !(p.team || '').startsWith('whisper:'));
@@ -168,6 +204,12 @@ export function createRepo(db: any): NpcRepo {
         latestPost: post?.content ?? '',
         roster: roster.data ?? [],
         table: [...(table.data ?? [])].reverse(),
+        mind: npcId
+          ? {
+            memory: [...(memory.data ?? [])].reverse().map((m: { note: string }) => m.note),
+            attitudes: (attitudes.data ?? []) as NpcMind['attitudes'],
+          }
+          : undefined,
       };
     },
 
@@ -194,6 +236,7 @@ export function createRepo(db: any): NpcRepo {
           fallback_reason: null,
           requested_by: row.requested_by,
           model_requested: row.model_requested,
+          ...(row.kind ? { kind: row.kind } : {}),
         })
         .eq('id', existing.id).eq('updated_at', existing.updated_at)
         .select('id');
@@ -220,10 +263,44 @@ export function createRepo(db: any): NpcRepo {
 
     async findReplyRecord(replyMessageId) {
       const { data, error } = await db.from('party_npc_replies')
-        .select('id, party_id, npc_id, prompt_message_id, reply_message_id')
+        .select('id, party_id, npc_id, prompt_message_id, reply_message_id, kind')
         .eq('reply_message_id', replyMessageId).maybeSingle();
       fail('read reply record', error);
       return data ?? null;
+    },
+
+    async listSpellReactors(partyId) {
+      const { data, error } = await db.from('party_npcs').select(NPC_COLUMNS)
+        .eq('party_id', partyId).eq('on_stage', true).eq('archived', false).eq('reacts_to_spells', true)
+        .order('sort_order', { ascending: true }).order('created_at', { ascending: true });
+      fail('read spell reactors', error);
+      return data ?? [];
+    },
+
+    async startRecord(row) {
+      const { data, error } = await db.from('party_npc_replies').insert(row).select('id').single();
+      fail('start scene record', error);
+      return data.id as string;
+    },
+
+    async finishRecord(id, patch) {
+      const { error } = await db.from('party_npc_replies').update(patch).eq('id', id);
+      fail('save scene record', error);
+    },
+
+    async playerSpokeSince(partyId, sinceIso) {
+      const { data, error } = await db.from('party_round_chat').select('id')
+        .eq('party_id', partyId).is('npc_id', null).eq('in_character', true).gt('created_at', sinceIso)
+        .limit(1);
+      fail('check for player lines', error);
+      return Array.isArray(data) && data.length > 0;
+    },
+
+    async latestLine(partyId) {
+      const { data, error } = await db.from('party_round_chat').select(LINE_COLUMNS)
+        .eq('party_id', partyId).order('created_at', { ascending: false }).limit(1);
+      fail('read latest line', error);
+      return data?.[0] ?? null;
     },
   };
 }

@@ -15,6 +15,7 @@ const json = (body: unknown, status = 200) =>
 function buildPreview(content: string): string {
   let t = String(content || '');
   t = t.replace(/⟪AC⟫[\s\S]*?⟪\/AC⟫/g, '');
+  t = t.replace(/⟪ROLL⟫[\s\S]*?⟪\/ROLL⟫/g, '');
   t = t.replace(/^\s*\[reply:[^\]]*\]/i, '');
   t = t.replace(/\s+/g, ' ').trim();
   if (t.length > 90) t = t.slice(0, 90).trimEnd() + '…';
