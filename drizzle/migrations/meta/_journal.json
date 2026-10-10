@@ -71,6 +71,13 @@
       "when": 1790554842087,
       "tag": "0009_add_intent_to_party_director_escalations",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791642514573,
+      "tag": "0010_live_npcs_database",
+      "breakpoints": true
     }
   ]
 }
