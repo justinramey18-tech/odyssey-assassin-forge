@@ -1,8 +1,10 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ChevronDown, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft, Stamp } from 'lucide-react';
+import { ChevronDown, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft, Stamp, RefreshCw, Drama } from 'lucide-react';
 import { AvatarCropDialog } from './AvatarCropDialog';
+import { NpcPortrait } from './NpcPortrait';
+import { npcsToAsk } from '@/lib/live-npcs';
 
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -157,7 +159,8 @@ interface RoundChatDrawerProps {
   sending: boolean;
   isGenerating: boolean;
   isHost: boolean;
-  onSend: (content: string, inCharacter: boolean) => void | Promise<void>;
+  /** Resolve false when the line was not posted: the words go back in the box. */
+  onSend: (content: string, inCharacter: boolean) => void | boolean | Promise<void | boolean>;
   onToggleReaction: (messageId: string, emoji: string) => void;
   onDeleteMessage: (messageId: string) => void;
   /** Host-only: delete every message in the table chat for everyone. */
@@ -199,6 +202,22 @@ interface RoundChatDrawerProps {
   readReceiptsLoaded?: boolean;
   /** Rendered to the left of the PLAY orb in the collapsed bottom dock (used for the Quick Recap button). */
   dockLeading?: ReactNode;
+
+  // ── Live NPCs (D-22) ──
+  /** Every NPC on the party's roster (archived ones too, so their old lines keep a face). */
+  npcs?: Array<{ id: string; name: string; portrait_url: string | null; on_stage: boolean; archived: boolean }>;
+  /** NPC answers in progress, shown as "Grukk is thinking…". */
+  npcThinking?: Array<{ key: string; npcId: string; name: string; messageId: string; kind: 'answer' | 'regenerate' }>;
+  /** Post an in-character line and ask these on-stage NPCs to answer it. Resolve false if the line was not posted. */
+  onSendToNpcs?: (content: string, npcIds: string[]) => Promise<boolean>;
+  /** Original host only: post a line as an on-stage NPC. Resolve false if it was not posted. */
+  onSpeakAsNpc?: (content: string, npcId: string) => Promise<boolean>;
+  /** Original host only: ask the NPC for a new version of one of its answers. */
+  onRegenerateNpcLine?: (messageId: string, npcId: string | null) => void;
+  /** Original host only: may edit and delete NPC lines. */
+  canManageNpcs?: boolean;
+  /** Original host only: opens the NPC Roster. */
+  onOpenNpcRoster?: () => void;
 }
 
 /** Small circular face beside a message. Tapping your own opens the picker. */
@@ -322,6 +341,13 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   presenceReady,
   readReceiptsLoaded = false,
   dockLeading,
+  npcs,
+  npcThinking,
+  onSendToNpcs,
+  onSpeakAsNpc,
+  onRegenerateNpcLine,
+  canManageNpcs = false,
+  onOpenNpcRoster,
 }, ref) {
   // Open/closed lives here, not in PartyDMScreen: toggling the table re-renders this
   // component only. The parent drives it through the ref handle below.
@@ -359,6 +385,23 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   const swipeStart = useRef<{ x: number; y: number; locked: boolean } | null>(null);
   const [revealedIds, setRevealedIds] = useState<Set<string>>(() => new Set());
   const revealTimers = useRef<Record<string, number>>({});
+
+  // ── Live NPCs ──
+  const npcById = useMemo(() => new Map((npcs || []).map(n => [n.id, n])), [npcs]);
+  const stageNpcs = useMemo(() => (npcs || []).filter(n => n.on_stage && !n.archived), [npcs]);
+  /** NPCs picked with the Talk to chips. They stay picked, so a conversation needs no extra taps. */
+  const [talkTo, setTalkTo] = useState<string[]>([]);
+  /** Host only: 'speak' turns the chips into "speak as this NPC". */
+  const [npcMode, setNpcMode] = useState<'talk' | 'speak'>('talk');
+  const [speakAsId, setSpeakAsId] = useState<string | null>(null);
+  // An NPC who leaves the stage drops out of the chips.
+  useEffect(() => {
+    setTalkTo(prev => {
+      const next = prev.filter(id => stageNpcs.some(n => n.id === id));
+      return next.length === prev.length ? prev : next;
+    });
+    setSpeakAsId(prev => (prev && !stageNpcs.some(n => n.id === prev) ? null : prev));
+  }, [stageNpcs]);
 
   useEffect(() => () => { Object.values(revealTimers.current).forEach(id => window.clearTimeout(id)); }, []);
 
@@ -435,7 +478,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   const myLastRead = currentUserId ? readReceipts?.[currentUserId] : undefined;
   const closedUnread = useMemo(() => {
     if (!readReceiptsLoaded || !currentUserId) return 0;
-    return messages.filter(m => m.user_id !== currentUserId && (!myLastRead || m.created_at > myLastRead)).length;
+    return messages.filter(m => (m.user_id !== currentUserId || !!m.npc_id) && (!myLastRead || m.created_at > myLastRead)).length;
   }, [messages, currentUserId, myLastRead, readReceiptsLoaded]);
 
   const jumpToMessage = useCallback((id: string) => {
@@ -572,6 +615,12 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
     }
   }, [messages.length, open]);
 
+  // An NPC starting to think shows at the bottom of the feed: follow it if the reader is there.
+  const thinkingCount = npcThinking?.length ?? 0;
+  useEffect(() => {
+    if (open && thinkingCount > 0 && pinnedRef.current) requestAnimationFrame(() => scrollToLatest('smooth'));
+  }, [thinkingCount, open]);
+
   // Opening the drawer always lands on the newest line — scrolled before the first
   // frame is painted, while the components are still under the curtain.
   useLayoutEffect(() => {
@@ -620,7 +669,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   const nudgeMessageId = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       const x = messages[i];
-      if (x.user_id === currentUserId && !x.consumed) return x.selected ? null : x.id;
+      if (x.user_id === currentUserId && !x.npc_id && !x.consumed) return x.selected ? null : x.id;
     }
     return null;
   }, [messages, currentUserId]);
@@ -642,14 +691,37 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
 
 
 
+  /** Host only, in character: the on-stage NPC the host is speaking as. */
+  const speakingAs = canManageNpcs && onSpeakAsNpc && inCharacter && npcMode === 'speak' && speakAsId
+    ? (stageNpcs.find(n => n.id === speakAsId) ?? null)
+    : null;
+  /** Which NPCs will answer the line being typed (most specific wins: @mention, then a reply, then the chips). */
+  const npcsAnswering = !speakingAs && inCharacter && onSendToNpcs
+    ? npcsToAsk({ text, onStage: stageNpcs, chosenIds: talkTo, replyToNpcId: replyTo?.npc_id ?? null })
+    : [];
+
   const handleSend = async () => {
     const trimmed = text.trim();
     if (!trimmed || sending) return;
+    const stored = formatReply(replyTo?.id ?? null, trimmed);
+    const asking = npcsAnswering.map(n => n.id);
+    const draftText = text;
+    const draftReply = replyTo;
     setText('');
     // Posting your own line always brings you back to the bottom.
     pinnedRef.current = true;
     setPinned(true);
-    await onSend(formatReply(replyTo?.id ?? null, trimmed), inCharacter);
+    const posted = speakingAs && onSpeakAsNpc
+      ? await onSpeakAsNpc(stored, speakingAs.id)
+      : asking.length > 0 && onSendToNpcs
+        ? await onSendToNpcs(stored, asking)
+        : await onSend(stored, inCharacter);
+    if (posted === false) {
+      // Nothing was posted: put the words back so they are not lost.
+      setText(prev => (prev.trim() ? prev : draftText));
+      setReplyTo(draftReply);
+      return;
+    }
     setReplyTo(null);
     requestAnimationFrame(() => scrollToLatest('smooth'));
   };
@@ -883,13 +955,17 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                     </p>
                   </div>
                 ) : messages.map((m, idx) => {
-                  const isSelf = m.user_id === currentUserId;
+                  const isNpc = !!m.npc_id;
+                  const npc = isNpc ? npcById.get(m.npc_id as string) : undefined;
+                  const isSelf = !isNpc && m.user_id === currentUserId;
                   const { card, body } = parseActionCard(m.content);
                   const parsedReply = parseReply(body);
                   const diceRoll = !card ? parseDiceRoll(parsedReply.body) : null;
                   const quoted = parsedReply.replyToId
                     ? messages.find(mm => mm.id === parsedReply.replyToId)
                     : null;
+                  const ownsLine = isSelf || (isNpc && !!quoted && !quoted.npc_id && quoted.user_id === currentUserId);
+                  const canChange = (isSelf || (isNpc && canManageNpcs)) && !m.consumed;
                   const imageMatch = parsedReply.body.match(CHAT_IMAGE_REGEX);
                   const imageUrl = imageMatch ? imageMatch[1] : null;
                   const msgReactions = reactionsByMessage.get(m.id) || [];
@@ -897,17 +973,19 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                     (acc[r.emoji] ||= []).push(r);
                     return acc;
                   }, {});
-                  const nameColor = m.in_character ? playerColor(m.user_id) : 'text-sky-300/90';
+                  const nameColor = isNpc ? 'text-amber-200' : m.in_character ? playerColor(m.user_id) : 'text-sky-300/90';
                   // Placement follows the mode, not the sender: every in-character
                   // line (yours included) sits on the right, every table-talk
-                  // line on the left.
-                  const alignRight = m.in_character;
-                  const avatarUrl = m.in_character
-                    ? avatars?.[m.user_id]?.ic
-                    : avatars?.[m.user_id]?.ooc;
+                  // line on the left. NPC lines sit on the left, facing the party.
+                  const alignRight = m.in_character && !isNpc;
+                  const avatarUrl = isNpc
+                    ? (npc?.portrait_url || undefined)
+                    : m.in_character
+                      ? avatars?.[m.user_id]?.ic
+                      : avatars?.[m.user_id]?.ooc;
                   const modeMatch = m.in_character === inCharacter;
                   const presenceInfo = onlineStatus[m.user_id];
-                  const presence = sharedReady
+                  const presence = isNpc ? undefined : sharedReady
                     ? (sharedIds.has(m.user_id) ? 'online' as const : 'offline' as const)
                     : presenceInfo
                       ? (presenceInfo.isOnline ? 'online' as const : 'offline' as const)
@@ -915,7 +993,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
 
                   // Alter-ego line: who is speaking, and who is playing them.
                   const icName = (m.character_name || 'Player').trim();
-                  const oocName = ((oocNames?.[m.user_id]) || '').trim();
+                  const oocName = isNpc ? '' : ((oocNames?.[m.user_id]) || '').trim();
                   const primaryName = m.in_character ? icName : (oocName || icName);
                   const secondaryName = m.in_character
                     ? (oocName && oocName.toLowerCase() !== icName.toLowerCase() ? oocName : '')
@@ -925,15 +1003,16 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                   const prev = idx > 0 ? messages[idx - 1] : null;
                   const stacked = !!prev
                     && prev.user_id === m.user_id
-                    && prev.in_character === m.in_character;
+                    && prev.in_character === m.in_character
+                    && (prev.npc_id ?? null) === (m.npc_id ?? null);
 
                   const selectable = !m.consumed;
                   const showActions = actionsFor === m.id;
-                  const sealedForOthers = !!m.selected && !m.consumed && !isSelf && !card && !diceRoll && editingMessageId !== m.id;
+                  const sealedForOthers = !!m.selected && !m.consumed && !ownsLine && !card && !diceRoll && editingMessageId !== m.id;
                   const veiled = sealedForOthers && !revealedIds.has(m.id);
                   const readerNames = showActions
                     ? (partyMembers || [])
-                        .filter(pm => pm.user_id !== m.user_id)
+                        .filter(pm => isNpc || pm.user_id !== m.user_id)
                         .filter(pm => {
                           const seenAt = readReceipts?.[pm.user_id];
                           return !!seenAt && seenAt >= m.created_at;
@@ -1002,6 +1081,11 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                                 table
                               </span>
                             )}
+                            {isNpc && (
+                              <span className="font-body text-[10px] px-1.5 py-[1px] rounded-full shrink-0 bg-amber-500/15 text-amber-200/90 border border-amber-400/30">
+                                NPC
+                              </span>
+                            )}
                           </div>
                         )}
 
@@ -1060,8 +1144,8 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                               <button
                                 onClick={async () => {
                                   const next = editDraft.trim();
-                                  if (!next || next === m.content) { setEditingMessageId(null); return; }
-                                  await onEditMessage?.(m.id, next);
+                                  if (!next || next === parsedReply.body.trim()) { setEditingMessageId(null); return; }
+                                  await onEditMessage?.(m.id, formatReply(parsedReply.replyToId, next));
                                   setEditingMessageId(null);
                                   setEditDraft('');
                                 }}
@@ -1082,7 +1166,9 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                             className={cn(
                               "relative isolate overflow-hidden text-left rounded-2xl border px-2.5 py-1.5 transition-colors max-w-full min-w-0",
                               alignRight ? "rounded-br-md" : "rounded-bl-md",
-                              m.in_character
+                              isNpc
+                                ? (modeMatch ? "bg-amber-950/50 border-amber-300/45" : "bg-amber-950/10 border-amber-300/10")
+                                : m.in_character
                                 ? (isSelf
                                     ? (modeMatch ? "bg-amber-500/25 border-amber-400/50" : "bg-amber-500/[0.06] border-amber-400/10")
                                     : (modeMatch ? "bg-white/[0.12] border-white/25" : "bg-white/[0.02] border-white/[0.05]"))
@@ -1117,7 +1203,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                                 className={cn(
                                   "absolute inset-0 -z-10 transition-opacity duration-200",
                                   modeMatch ? "opacity-20" : "opacity-[0.04]",
-                                  playerTint(m.user_id)
+                                  isNpc ? 'bg-amber-600' : playerTint(m.user_id)
                                 )}
                               />
                             ) : null}
@@ -1296,11 +1382,21 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                                 >
                                   <Smile className="w-4 h-4" />
                                 </button>
-                                {isSelf && !m.consumed && !card && onEditMessage && (
+                                {isNpc && canManageNpcs && !m.consumed && parsedReply.replyToId && onRegenerateNpcLine && (
+                                  <button
+                                    onClick={() => { onRegenerateNpcLine(m.id, m.npc_id ?? null); setActionsFor(null); }}
+                                    className="p-1 text-white/40 active:text-amber-300"
+                                    style={{ touchAction: 'manipulation' }}
+                                    aria-label={`Ask ${m.character_name || 'the NPC'} for a new answer`}
+                                  >
+                                    <RefreshCw className="w-4 h-4" />
+                                  </button>
+                                )}
+                                {canChange && !card && onEditMessage && (
                                   <button
                                     onClick={() => {
                                       setEditingMessageId(editingMessageId === m.id ? null : m.id);
-                                      setEditDraft(m.content);
+                                      setEditDraft(parsedReply.body);
                                       setActionsFor(null);
                                     }}
                                     className="p-1 text-white/40 active:text-emerald-300"
@@ -1310,7 +1406,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                                     <Pencil className="w-4 h-4" />
                                   </button>
                                 )}
-                                {isSelf && !m.consumed && (
+                                {canChange && (
                                   <button
                                     onClick={() => onDeleteMessage(m.id)}
                                     className="p-1 text-white/40 active:text-red-400"
@@ -1375,6 +1471,21 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                     </div>
                   );
                 })}
+                {(npcThinking || []).map(t => (
+                  <div key={t.key} className="mt-2 flex items-end gap-1.5" aria-live="polite">
+                    <NpcPortrait url={npcById.get(t.npcId)?.portrait_url} name={t.name} className="w-10 h-10 text-[13px]" />
+                    <div className="rounded-2xl rounded-bl-md border border-amber-300/30 bg-amber-950/40 px-3 py-2 flex items-center gap-2">
+                      <span aria-hidden className="flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-200/80 motion-safe:animate-bounce" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-200/80 motion-safe:animate-bounce [animation-delay:150ms]" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-200/80 motion-safe:animate-bounce [animation-delay:300ms]" />
+                      </span>
+                      <span className="font-body text-[12px] text-amber-100/85">
+                        {t.kind === 'regenerate' ? `${t.name} is rethinking…` : `${t.name} is thinking…`}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
               </div>
 
@@ -1545,6 +1656,75 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                 {/* The input field (reply chip, text box, picture + send, actions banner). */}
                 <div className="space-y-1.5">
 
+                {/* Live NPCs: pick who you are talking to. The host can also speak as an NPC. */}
+                {inCharacter && npcs && (stageNpcs.length > 0 || (canManageNpcs && onOpenNpcRoster)) && (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-0.5">
+                      {stageNpcs.length > 0 && (canManageNpcs && onSpeakAsNpc ? (
+                        <button
+                          onClick={() => setNpcMode(mode => (mode === 'talk' ? 'speak' : 'talk'))}
+                          aria-label={npcMode === 'talk' ? 'Talking to NPCs. Tap to speak as an NPC instead.' : 'Speaking as an NPC. Tap to talk to NPCs instead.'}
+                          style={{ touchAction: 'manipulation' }}
+                          className={cn(
+                            "shrink-0 min-h-[36px] px-2.5 rounded-full border font-cinzel text-[11px] transition-colors",
+                            npcMode === 'speak' ? "border-rose-400/60 bg-rose-500/15 text-rose-100" : "border-white/15 bg-black/50 text-white/70",
+                          )}
+                        >
+                          {npcMode === 'speak' ? 'Speak as' : 'Talk to'}
+                        </button>
+                      ) : (
+                        <span className="shrink-0 pl-1 font-cinzel text-[11px] text-white/55">Talk to</span>
+                      ))}
+                      {stageNpcs.map(n => {
+                        const voicing = npcMode === 'speak' && canManageNpcs && !!onSpeakAsNpc;
+                        const picked = voicing ? speakAsId === n.id : talkTo.includes(n.id);
+                        return (
+                          <button
+                            key={n.id}
+                            onClick={() => {
+                              if (voicing) setSpeakAsId(prev => (prev === n.id ? null : n.id));
+                              else setTalkTo(prev => (prev.includes(n.id) ? prev.filter(x => x !== n.id) : [...prev, n.id]));
+                            }}
+                            aria-pressed={picked}
+                            aria-label={voicing ? `Speak as ${n.name}` : `Talk to ${n.name}`}
+                            style={{ touchAction: 'manipulation' }}
+                            className={cn(
+                              "shrink-0 min-h-[36px] pl-0.5 pr-2.5 rounded-full border flex items-center gap-1.5 font-body text-[12px] transition-colors",
+                              picked
+                                ? (voicing ? "border-rose-300/80 bg-rose-500/25 text-white" : "border-amber-300/80 bg-amber-500/25 text-white shadow-[0_0_8px_rgba(245,158,11,0.45)]")
+                                : "border-white/15 bg-black/50 text-white/75",
+                            )}
+                          >
+                            <NpcPortrait url={n.portrait_url} name={n.name} className="w-8 h-8 text-[12px]" />
+                            <span className="max-w-[110px] truncate">{n.name}</span>
+                          </button>
+                        );
+                      })}
+                      {canManageNpcs && onOpenNpcRoster && (
+                        <button
+                          onClick={onOpenNpcRoster}
+                          style={{ touchAction: 'manipulation' }}
+                          className="shrink-0 min-h-[36px] px-2.5 rounded-full border border-dashed border-amber-400/40 font-body text-[11px] text-amber-200/80 flex items-center gap-1"
+                        >
+                          <Drama className="w-3.5 h-3.5" />
+                          {stageNpcs.length ? 'Roster' : 'NPC Roster: nobody on stage'}
+                        </button>
+                      )}
+                    </div>
+                    {speakingAs ? (
+                      <p className="px-1 font-body text-[10.5px] text-rose-200/80">You are speaking as {speakingAs.name}.</p>
+                    ) : npcsAnswering.length > 0 ? (
+                      <p className="px-1 font-body text-[10.5px] text-amber-200/80">
+                        {npcsAnswering.map(n => n.name).join(' and ')} will answer. Type @Name to ask someone else.
+                      </p>
+                    ) : stageNpcs.length > 0 ? (
+                      <p className="px-1 font-body text-[10.5px] text-white/45">
+                        {npcMode === 'speak' && canManageNpcs && onSpeakAsNpc ? 'Tap a name to speak as them.' : 'Tap a name to talk to them, or type @Name.'}
+                      </p>
+                    ) : null}
+                  </div>
+                )}
+
                 {replyTo && (
                   <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-amber-500/25 bg-amber-500/5">
                     <Reply className="w-3.5 h-3.5 shrink-0 text-amber-300/70" />
@@ -1592,7 +1772,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                           }
                         }
                       }}
-                      placeholder={inCharacter ? `Speak as ${characterName || 'your character'}...` : 'Speak as yourself...'}
+                      placeholder={speakingAs ? `Speak as ${speakingAs.name}...` : inCharacter ? `Speak as ${characterName || 'your character'}...` : 'Speak as yourself...'}
                       className="min-h-[24px] max-h-[116px] font-body text-[15px] px-1.5 py-1 resize-none bg-transparent border-0 shadow-none rounded-none text-stone-100 placeholder:text-amber-100/40 focus-visible:ring-0 focus-visible:ring-offset-0"
                       rows={1}
                     />

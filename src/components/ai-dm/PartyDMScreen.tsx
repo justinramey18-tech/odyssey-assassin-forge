@@ -2210,6 +2210,29 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   const openDmAssistant = useCallback(() => overlays.open('dmAssistant'), [overlays]);
   const openNpcRoster = useCallback(() => overlays.open('npcRoster'), [overlays]);
+  const npcRosterRef = useRef(npcRoster);
+  npcRosterRef.current = npcRoster;
+
+  const sendLineToNpcs = useCallback(async (content: string, npcIds: string[]): Promise<boolean> => {
+    const id = await roundChatRef.current.postLine(content, true);
+    if (!id) {
+      toast.error("Couldn't post to the table", { description: 'Your line is back in the box. Try again.' });
+      return false;
+    }
+    void npcRosterRef.current.askNpcs(id, npcIds);
+    return true;
+  }, []);
+
+  const speakAsNpc = useCallback(async (content: string, npcId: string): Promise<boolean> => {
+    const npc = npcRosterRef.current.byId.get(npcId);
+    if (!npc) return false;
+    const id = await roundChatRef.current.postLine(content, true, { npcId, name: npc.name });
+    if (!id) {
+      toast.error(`Couldn't post as ${npc.name}`, { description: 'Your line is back in the box. Try again.' });
+      return false;
+    }
+    return true;
+  }, []);
 
   // Posts the assistant's draft as the DM's reply to the sealed lines.
   // Resolves false (and keeps the draft and the sealed lines) if anything fails.
@@ -3792,7 +3815,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           sending={roundChat.sending}
           isGenerating={partyDm.isGenerating}
           isHost={isCreator}
-          onSend={(content, ic) => { void roundChat.sendMessage(content, ic); }}
+          onSend={async (content, ic) => {
+            const ok = await roundChat.sendMessage(content, ic);
+            if (!ok) toast.error("Couldn't post to the table", { description: 'Your line is back in the box. Try again.' });
+            return ok;
+          }}
           onToggleReaction={(id, emoji) => roundChat.toggleReaction(id, emoji, members.find(m => m.user_id === currentUserId)?.character_name || 'Player')}
           onDeleteMessage={roundChat.deleteMessage}
           onClearAll={async () => {
@@ -3860,6 +3887,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onOpenActionMenu={() => overlays.open('actionMenu')}
           presenceIds={partyPresence.onlineIds}
           presenceReady={partyPresence.ready}
+          npcs={npcRoster.npcs}
+          npcThinking={npcRoster.thinking}
+          onSendToNpcs={sendLineToNpcs}
+          onSpeakAsNpc={originalCreator ? speakAsNpc : undefined}
+          onRegenerateNpcLine={originalCreator ? npcRoster.regenerateLine : undefined}
+          canManageNpcs={originalCreator}
+          onOpenNpcRoster={originalCreator ? openNpcRoster : undefined}
         /></>
       )}
 
