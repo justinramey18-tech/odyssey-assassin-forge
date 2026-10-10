@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/
 import { Textarea } from '@/components/ui/textarea';
 import { WhisperEditor } from './WhisperEditor';
 import { DiceCard, NpcLine, TakesCard } from './DMAssistantCards';
+import { ART, AssistantBackdrop, AssistantCrest, Medal, SealStampOverlay, draftFrameStyle } from './DMAssistantArt';
 import { AimTools, AssistantSettings, NpcPicker, RehearsalBanner, SceneActions } from './DMAssistantControls';
 import { getModelLabel } from '@/lib/dm-models';
 import { serializeWhispers } from '@/lib/whisper-parser';
@@ -29,7 +30,6 @@ import {
   AlertTriangle,
   Check,
   ChevronDown,
-  Drama,
   ChevronRight,
   ChevronUp,
   Loader2,
@@ -40,7 +40,6 @@ import {
   RotateCcw,
   Send,
   Settings2,
-  Sparkles,
   Square,
   Undo2,
   X,
@@ -98,6 +97,7 @@ export function DMAssistantPanel({
   const [applying, setApplying] = useState(false);
   const [npcPicker, setNpcPicker] = useState(false);
   const [npcName, setNpcName] = useState('');
+  const [sealing, setSealing] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Voice input: spoken words are added to the message box, ready to edit or send.
@@ -243,11 +243,17 @@ export function DMAssistantPanel({
         setDraftOpen(false);
         setAim(null);
         setBadge(null);
-        onOpenChange(false);
+        // The wax seal stamps once, then the panel closes (see finishSeal).
+        setSealing(true);
       }
     } finally {
       setApplying(false);
     }
+  };
+
+  const finishSeal = () => {
+    setSealing(false);
+    onOpenChange(false);
   };
 
   const toggleAim = (next: Aim) => {
@@ -270,7 +276,7 @@ export function DMAssistantPanel({
         <div className="shrink-0 px-3 pt-3 pb-2 border-b border-white/10 space-y-2">
           <div className="pr-8 pl-1">
             <SheetTitle className="font-cinzel text-amber-300 text-[15px] flex items-center gap-2">
-              <Sparkles className="w-4 h-4" /> Human DM Assistant
+              <AssistantCrest busy={a.isStreaming} className="w-8 h-8" /> Human DM Assistant
             </SheetTitle>
             <SheetDescription className="sr-only">Your private co-DM. Players never see this chat.</SheetDescription>
           </div>
@@ -292,7 +298,7 @@ export function DMAssistantPanel({
                       : 'text-white/55 border border-transparent',
                   )}
                 >
-                  {m === 'brainstorm' ? <MessageCircle className="w-3.5 h-3.5" /> : <PenLine className="w-3.5 h-3.5" />}
+                  <Medal src={m === 'brainstorm' ? ART.medalBrainstorm : ART.medalDraft} className="w-5 h-5" />
                   {m === 'brainstorm' ? 'Brainstorm' : 'Draft'}
                 </button>
               ))}
@@ -349,6 +355,7 @@ export function DMAssistantPanel({
 
         {/* Body: the chat, with the draft opening over it */}
         <div className="relative flex-1 min-h-0">
+          <AssistantBackdrop stage={!!a.rehearsal} />
           <div ref={listRef} className="absolute inset-0 overflow-y-auto overscroll-contain px-3 py-3 space-y-2.5">
             {a.messages.length === 0 && !a.isStreaming && (
               <div className="text-[13px] text-white/55 leading-relaxed space-y-2 px-1">
@@ -369,7 +376,7 @@ export function DMAssistantPanel({
                   {sceneStart && (
                     <div className="flex items-center gap-2 text-[11px] text-amber-300/70 font-cinzel pt-1">
                       <span className="h-px flex-1 bg-amber-400/20" />
-                      <Drama className="w-3.5 h-3.5" /> Talking to {m.npc}
+                      <Medal src={ART.medalNpc} className="w-5 h-5" /> Talking to {m.npc}
                       <span className="h-px flex-1 bg-amber-400/20" />
                     </div>
                   )}
@@ -527,7 +534,7 @@ export function DMAssistantPanel({
                 </button>
               </div>
 
-              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pb-3 space-y-2">
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain mx-2 mb-2 px-1.5 py-1.5 space-y-2" style={draftFrameStyle}>
                 {editByHand ? (
                   <Textarea
                     value={a.draft.narrative}
@@ -691,7 +698,7 @@ export function DMAssistantPanel({
                 style={{ touchAction: 'manipulation' }}
                 className="shrink-0 min-h-[34px] px-3 rounded-full border border-amber-300/40 bg-[#2a2016] text-[12px] text-amber-100 flex items-center gap-1.5 disabled:opacity-40"
               >
-                <Drama className="w-3.5 h-3.5" /> Talk to an NPC
+                <Medal src={ART.medalNpc} className="w-5 h-5" /> Talk to an NPC
               </button>
             )}
             {prompts.map(q => (
@@ -771,11 +778,13 @@ export function DMAssistantPanel({
             <button
               onClick={() => setConfirming(true)}
               disabled={!canApply}
+              aria-label={aiDmWriting ? 'Wait: the AI DM is writing' : 'Apply to Table'}
               style={{ touchAction: 'manipulation' }}
-              className="w-full min-h-[44px] rounded-xl border border-emerald-500/40 bg-emerald-900/35 text-emerald-200 font-cinzel text-[13px] flex items-center justify-center gap-2 disabled:opacity-35"
+              className="w-full min-h-[44px] flex items-center justify-center transition-transform active:scale-[0.98] disabled:opacity-35"
             >
-              <Check className="w-4 h-4" />
-              {aiDmWriting ? 'Wait: the AI DM is writing' : 'Apply to Table'}
+              {aiDmWriting
+                ? <span className="font-cinzel text-[13px] text-emerald-200">Wait: the AI DM is writing</span>
+                : <img src={ART.applyButton} alt="" aria-hidden="true" draggable={false} className="h-11 w-auto max-w-full select-none" />}
             </button>
           ) : (
             <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/40 p-3 space-y-2">
@@ -810,6 +819,7 @@ export function DMAssistantPanel({
             </div>
           )}
         </div>
+        {sealing && <SealStampOverlay onDone={finishSeal} />}
       </SheetContent>
     </Sheet>
   );

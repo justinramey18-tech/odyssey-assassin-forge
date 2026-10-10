@@ -4,7 +4,8 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { ChevronUp, ChevronDown, ChevronRight, Zap, Loader2, Sparkles } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronRight, Zap, Loader2 } from 'lucide-react';
+import { ART } from './DMAssistantArt';
 import { playerColor } from './RoundChatDrawer';
 import { parseActionCard } from '@/lib/roundChatActionCard';
 
@@ -133,11 +134,17 @@ export function DMHandoffBar({
       {onOpenAssistant && (
         <button
           onClick={onOpenAssistant}
+          aria-label="Human DM Assistant"
           style={{ touchAction: 'manipulation' }}
-          className="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg border border-amber-500/25 bg-amber-900/15 text-amber-200/85 text-[12px] font-cinzel transition-colors active:bg-amber-900/35"
+          className="w-full flex items-center justify-center py-0.5 transition-transform active:scale-[0.98]"
         >
-          <Sparkles className="w-3.5 h-3.5" />
-          Human DM Assistant
+          <img
+            src={ART.assistantButton}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            className="h-10 w-auto max-w-full select-none drop-shadow-[0_0_6px_rgba(45,212,191,0.25)]"
+          />
         </button>
       )}
     </div>
