@@ -1753,14 +1753,25 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         if (line.startsWith(':') || line.trim() === '') continue;
         if (!line.startsWith('data: ')) continue;
         const jsonStr = line.slice(6).trim();
-        if (jsonStr === '[DONE]') break;
+        if (jsonStr === '[DONE]') { finished = true; break; }
         try {
           const parsed = JSON.parse(jsonStr);
+          if (parsed?.error) {
+            const e = parsed.error;
+            streamError = (typeof e === 'string' ? e : e?.message) || 'the AI reported an error';
+            continue;
+          }
           const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
           if (delta) assistantContent += delta;
+          if (parsed.choices?.[0]?.finish_reason) finished = true;
         } catch { /* skip */ }
       }
     }
+
+    if (!signal.aborted && isDmReplyCutOff(assistantContent, finished, streamError)) {
+      throw new DmReplyCutOffError(streamError || undefined);
+    }
+    if (!finished) console.warn('[PartyDM] the DM stream ended without an end signal; the reply looked complete, so it was kept.');
 
     // Consume director notes ONLY after a successful, non-aborted generation.
     // Only the exact rows injected this turn are touched, so notes written mid-stream survive.
