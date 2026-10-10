@@ -1,3 +1,4 @@
+import { pickWakes, STAND_IN_IDLE_MS } from '@/lib/stand-in-triggers';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -416,7 +417,7 @@ export function usePartyNpcs(partyId: string | null) {
    * as a new Live Table line. Resolves true when the NPC answered; failures show a
    * message (with Retry when trying again can help) and resolve false.
    */
-  const askNpc = useCallback(async (messageId: string, npcId: string, kind: 'answer' | 'roll' = 'answer'): Promise<boolean> => {
+  const askNpc = useCallback(async (messageId: string, npcId: string, kind: 'answer' | 'roll' = 'answer', silent = false): Promise<boolean> => {
     const name = npcsRef.current.find(n => n.id === npcId)?.name || 'The NPC';
     const key = `${messageId}:${npcId}`;
     startThinking({ key, npcId, name, messageId, kind });
@@ -424,6 +425,7 @@ export function usePartyNpcs(partyId: string | null) {
       const { error } = await supabase.functions.invoke('npc-reply', { body: { messageId, npcId } });
       if (!error) return true;
       const { message, status } = await readableFunctionError(error, `${name} couldn't answer. Check your connection and try again.`);
+      if (silent) { console.warn('[npcs] auto wake skipped:', message); return false; }
       if (status === 409 || status === 403 || status === 404) {
         toast.info(message, { duration: 8000 });
       } else {
@@ -439,6 +441,56 @@ export function usePartyNpcs(partyId: string | null) {
   }, [startThinking, stopThinking]);
   const askRef = useRef(askNpc);
   askRef.current = askNpc;
+
+  // ── Stand-in wake-ups: name, provocation, advice, skill moments, and quiet pauses ──
+  const thinkingRef = useRef<NpcThinking[]>([]);
+  thinkingRef.current = localThinking;
+  const runSceneRef = useRef<((ids: string[], topic?: string, turns?: number) => Promise<boolean>) | null>(null);
+  useEffect(() => {
+    if (!partyId) return;
+    let me: string | null = null;
+    let hostId: string | null = null;
+    let cancelled = false;
+    const lastSpokeAt: Record<string, number> = {};
+    let lastLineAt = Date.now();
+    void (async () => {
+      const { data } = await supabase.auth.getUser();
+      me = data?.user?.id ?? null;
+      const { data: party } = await (supabase.from('parties') as any).select('created_by').eq('id', partyId).maybeSingle();
+      hostId = party?.created_by ?? null;
+    })();
+    const standIns = () => npcsRef.current.filter(n => n.player_user_id && n.on_stage && !n.archived);
+    const ch = supabase.channel(`npc-stand-in-wakes:${partyId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'party_round_chat', filter: `party_id=eq.${partyId}` }, ({ new: row }: any) => {
+        lastLineAt = Date.now();
+        if (!row) return;
+        if (row.npc_id) { lastSpokeAt[row.npc_id] = Date.now(); return; }
+        // Only the author's phone may ask (the server checks this too).
+        if (!me || row.user_id !== me || !row.in_character) return;
+        const wakes = pickWakes(String(row.content || ''), standIns().map(n => ({ id: n.id, name: n.name })), lastSpokeAt, Date.now());
+        if (!wakes.length) return;
+        window.setTimeout(async () => {
+          if (cancelled || thinkingRef.current.some(t => t.messageId === row.id)) return;
+          for (const w of wakes) {
+            lastSpokeAt[w.npcId] = Date.now();
+            await askRef.current(row.id, w.npcId, 'answer', true);
+          }
+        }, 1500);
+      })
+      .subscribe();
+    // Quiet pause: the host's phone lets stand-ins fill a long silence with a short scene.
+    const idle = window.setInterval(() => {
+      if (!me || me !== hostId || Date.now() - lastLineAt < STAND_IN_IDLE_MS) return;
+      const ins = standIns();
+      if (!ins.length) return;
+      const others = npcsRef.current.filter(n => n.on_stage && !n.archived && !ins.includes(n));
+      const cast = [...ins, ...others].slice(0, 3);
+      if (cast.length < 2) return;
+      lastLineAt = Date.now();
+      void runSceneRef.current?.(cast.map(n => n.id), 'A quiet lull. Fill it with in-character habits, small talk or a passing remark.', 2);
+    }, 30_000);
+    return () => { cancelled = true; window.clearInterval(idle); supabase.removeChannel(ch); };
+  }, [partyId]);
 
   /** Ask several NPCs about the same line, one after another, so each can hear the one before. */
   const askNpcs = useCallback(async (messageId: string, npcIds: string[]) => {
@@ -528,6 +580,8 @@ export function usePartyNpcs(partyId: string | null) {
     console.warn('[npcs] memory update failed:', message);
     return { ok: false, message };
   }, []);
+
+  runSceneRef.current = runScene as any;
 
   return {
     addStandIn,
