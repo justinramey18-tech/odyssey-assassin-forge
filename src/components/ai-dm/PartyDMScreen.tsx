@@ -69,6 +69,7 @@ import { useRoundChat } from '@/hooks/use-round-chat';
 import { useChatAvatars } from '@/hooks/use-chat-avatars';
 import { usePartyNpcs } from '@/hooks/use-party-npcs';
 import { NpcRosterPanel } from './NpcRosterPanel';
+import { WhatIMissed } from './WhatIMissed';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { usePartyPresence } from '@/hooks/use-party-presence';
 import { RoundChatDrawer, type RoundChatDrawerHandle } from './RoundChatDrawer';
@@ -5218,6 +5219,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           <NpcRosterPanel open={open} onOpenChange={setOpen} roster={npcRoster} />
         )}</OverlaySlot>
       )}
+
+      {/* Player stand-ins: what your character did while you were away */}
+      {!originalCreator && currentUserId && <WhatIMissed roster={npcRoster} userId={currentUserId} />}
 
       {/* Dragon Telegram Scheduler (host only, empyrean mode) */}
       {isCreator && isEmpyrean && partyId && (

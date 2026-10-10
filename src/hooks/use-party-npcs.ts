@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { NPC_DEFAULT_MODEL, cleanNpcName, readableFunctionError, spellCastName } from '@/lib/live-npcs';
+import { NPC_DEFAULT_MODEL, NPC_GUIDE_MAX, cleanNpcName, readableFunctionError, spellCastName } from '@/lib/live-npcs';
 
 /** One NPC on the party's roster (Live NPCs, D-22). Everyone at the table can read these. */
 export interface PartyNpc {
@@ -15,6 +15,8 @@ export interface PartyNpc {
   sort_order: number;
   /** v2: false when the host switched spell reactions off for this NPC. */
   reacts_to_spells: boolean;
+  /** Set when this "NPC" is a player's character played by the AI while they are away. */
+  player_user_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -254,6 +256,61 @@ export function usePartyNpcs(partyId: string | null) {
   const restoreNpc = useCallback((id: string) => patchNpc(id, { archived: false }), [patchNpc]);
   const setReactsToSpells = useCallback((id: string, on: boolean) => patchNpc(id, { reacts_to_spells: on }), [patchNpc]);
 
+  // ── Player stand-ins: an away player's character played as a live NPC ──
+
+  /** Puts a seated player's character on stage, using their AFK guide as its personality guide. */
+  const addStandIn = useCallback(async (seat: { user_id: string; character_name: string }): Promise<PartyNpc> => {
+    if (!partyId) throw new Error('No party is open.');
+    const [{ data: member }, { data: avatar }] = await Promise.all([
+      (supabase.from('party_members') as any).select('character_status').eq('party_id', partyId).eq('user_id', seat.user_id).maybeSingle(),
+      (supabase.from('player_chat_avatars') as any).select('ic_url').eq('user_id', seat.user_id).maybeSingle(),
+    ]);
+    const afk = String(member?.character_status?.afkPersonalityGuide || '').trim();
+    const guide = (`You are ${seat.character_name}, a player character in this party, being played while their player is away. ` +
+      `Stay true to who they are and keep their goals; do not make big permanent choices for them (no deals, oaths, deaths or giving away their things).\n\n` +
+      (afk ? `THEIR PLAYER'S GUIDE:\n${afk}` : 'Their player left no guide; play them as the story so far shows them.')).slice(0, NPC_GUIDE_MAX);
+    const existing = npcsRef.current.find(n => n.player_user_id === seat.user_id);
+    if (existing) {
+      await patchNpc(existing.id, { on_stage: true, archived: false, portrait_url: existing.portrait_url || avatar?.ic_url || null });
+      await saveGuide(existing.id, guide, '');
+      return existing;
+    }
+    let name = cleanNpcName(seat.character_name);
+    if (npcsRef.current.some(n => n.name.toLowerCase() === name.toLowerCase())) name = cleanNpcName(`${name} (away)`);
+    const nextSort = npcsRef.current.reduce((max, n) => Math.max(max, n.sort_order), 0) + 1;
+    const { data, error } = await (supabase.from('party_npcs') as any)
+      .insert({ party_id: partyId, name, model: NPC_DEFAULT_MODEL, portrait_url: avatar?.ic_url ?? null, sort_order: nextSort, on_stage: true, player_user_id: seat.user_id })
+      .select('*').single();
+    if (error) throw new Error(rosterError(error, name));
+    const npc = data as PartyNpc;
+    setNpcs(prev => sortNpcs(prev.some(n => n.id === npc.id) ? prev : [...prev, npc]));
+    await saveGuide(npc.id, guide, '');
+    return npc;
+  }, [partyId, patchNpc, saveGuide]);
+
+  /** Steps a stand-in off stage when the real player speaks in the Live Table or readies up (host's device does the update). */
+  useEffect(() => {
+    if (!partyId) return;
+    const stepDown = async (userId: string) => {
+      const npc = npcsRef.current.find(n => n.player_user_id === userId && n.on_stage && !n.archived);
+      if (!npc) return;
+      const { data } = await (supabase.from('party_npcs') as any).update({ on_stage: false }).eq('id', npc.id).select('id');
+      if (data?.length) toast.info(`${npc.name}'s player is back, so their stand-in left the stage.`);
+    };
+    const ch = supabase.channel(`npc-stand-ins:${partyId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'party_round_chat', filter: `party_id=eq.${partyId}` }, ({ new: row }: any) => {
+        if (row?.user_id && !row.npc_id) void stepDown(row.user_id);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'party_dm_prompts', filter: `party_id=eq.${partyId}` }, ({ new: row }: any) => {
+        if (row?.user_id && row.is_ready) void stepDown(row.user_id);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [partyId]);
+
+  /** The signed-in player's own stand-in, if the host ever made one. */
+  const standInFor = useCallback((userId: string | null | undefined) => npcsRef.current.find(n => n.player_user_id === userId) ?? null, []);
+
   // ── v2, host: memory and attitudes ──
 
   /** Seated characters, for the attitude list. */
@@ -473,6 +530,8 @@ export function usePartyNpcs(partyId: string | null) {
   }, []);
 
   return {
+    addStandIn,
+    standInFor,
     partyId,
     npcs,
     active,

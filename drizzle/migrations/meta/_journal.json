@@ -85,6 +85,13 @@
       "when": 1791651564712,
       "tag": "0011_live_npcs_v2_database",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791660488630,
+      "tag": "0012_player_stand_ins",
+      "breakpoints": true
     }
   ]
 }
