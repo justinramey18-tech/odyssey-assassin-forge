@@ -117,7 +117,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { parseRollHint } from '@/lib/whisperRollHint';
 import { awaitLatestD20Reveal, rollD20 } from '@/lib/rollD20';
 import { resolveOddsForContext } from '@/lib/diceOdds';
-import { buildRollAnswer, isLiveNpcStoryRow, rollModifier, type NpcRollRequest, type RollSheet } from '@/lib/live-npcs';
+import { buildRollAnswer, rollModifier, type NpcRollRequest, type RollSheet } from '@/lib/live-npcs';
 import { resolveWhisperAutoRoll, performWhisperRoll } from '@/lib/whisperAutoRoll';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
 import { actionCardFromRoll, encodeActionCard, stripActionCard } from '@/lib/roundChatActionCard';
@@ -2400,8 +2400,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
    * sent to the DM, this only affects what the story shows.
    */
   const visibleMessages = useMemo(
-    // Live NPC lines stay saved in the story, but the feed hides them: the DM's post quotes them (D-22).
-    () => partyDm.messages.filter(m => (m as any).is_afk_marker !== true && !isLiveNpcStoryRow(m)),
+    () => partyDm.messages.filter(m => (m as any).is_afk_marker !== true),
     [partyDm.messages]
   );
 

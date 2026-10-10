@@ -188,20 +188,6 @@ export function npcStoryContent(name: string, text: string): string {
   return `**${(name || 'NPC').trim()}:** ${(text || '').trim()}`;
 }
 
-/**
- * True for an NPC line saved in the story by a Live Table hand-off (Send to DM or the
- * assistant's Apply): an assistant row not written by the DM, with no sender account,
- * whose text starts with "**Name:**" (npcStoryContent). The story feed hides these,
- * because the DM's post quotes the same words (D-22). Older Talk-to-NPC and NPC scene
- * rows store the NPC's words without that prefix, so they stay visible.
- */
-export function isLiveNpcStoryRow(m: { role: string; sender_name?: string | null; sender_user_id?: string | null; content?: string | null }): boolean {
-  if (m.role !== 'assistant' || m.sender_user_id) return false;
-  const name = (m.sender_name || '').trim();
-  if (!name || name === 'DM') return false;
-  return (m.content || '').startsWith(`**${name}:**`);
-}
-
 // ── Talking to the server ──
 
 /**
