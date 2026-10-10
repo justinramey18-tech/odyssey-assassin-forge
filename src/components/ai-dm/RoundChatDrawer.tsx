@@ -1,10 +1,10 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ChevronDown, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft, Stamp, RefreshCw, Drama } from 'lucide-react';
+import { ChevronDown, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft, Stamp, RefreshCw, Drama, Dices } from 'lucide-react';
 import { AvatarCropDialog } from './AvatarCropDialog';
 import { NpcPortrait } from './NpcPortrait';
-import { npcsToAsk } from '@/lib/live-npcs';
+import { attitudeLevel, keepNpcRoll, npcsToAsk, parseNpcRoll, rollButtonLabel, type NpcRollRequest } from '@/lib/live-npcs';
 
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -218,6 +218,15 @@ interface RoundChatDrawerProps {
   canManageNpcs?: boolean;
   /** Original host only: opens the NPC Roster. */
   onOpenNpcRoster?: () => void;
+  // ── Live NPCs v2 ──
+  /** How each NPC feels about this player's character (npc id → -2 … 2). Only NPCs with an opinion are listed. */
+  myNpcAttitudes?: Record<string, number>;
+  /** Roll the check an NPC asked this player for, then let the NPC react. */
+  onNpcRoll?: (npcLineId: string, npcId: string | null, request: NpcRollRequest) => Promise<void>;
+  /** Original host only: 2 or 3 on-stage NPCs talk to each other. Resolves false if it did not start. */
+  onStartScene?: (npcIds: string[], topic: string, turns: number) => Promise<boolean>;
+  /** True while an NPC scene is being written. */
+  sceneRunning?: boolean;
 }
 
 /** Small circular face beside a message. Tapping your own opens the picker. */
@@ -348,6 +357,10 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   onRegenerateNpcLine,
   canManageNpcs = false,
   onOpenNpcRoster,
+  myNpcAttitudes,
+  onNpcRoll,
+  onStartScene,
+  sceneRunning = false,
 }, ref) {
   // Open/closed lives here, not in PartyDMScreen: toggling the table re-renders this
   // component only. The parent drives it through the ref handle below.
@@ -394,6 +407,22 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   /** Host only: 'speak' turns the chips into "speak as this NPC". */
   const [npcMode, setNpcMode] = useState<'talk' | 'speak'>('talk');
   const [speakAsId, setSpeakAsId] = useState<string | null>(null);
+  // v2: NPC lines a player already answered with a roll (the roll card points back at them).
+  const rolledNpcLineIds = useMemo(() => {
+    const done = new Set<string>();
+    for (const l of messages) {
+      if (l.npc_id) continue;
+      const replyTo = parseActionCard(l.content).card?.replyTo;
+      if (replyTo) done.add(replyTo);
+    }
+    return done;
+  }, [messages]);
+  const [rollingLineId, setRollingLineId] = useState<string | null>(null);
+  // v2: the host's "Let them talk" panel.
+  const [sceneOpen, setSceneOpen] = useState(false);
+  const [scenePick, setScenePick] = useState<string[]>([]);
+  const [sceneTopic, setSceneTopic] = useState('');
+  const [sceneTurns, setSceneTurns] = useState(3);
   // An NPC who leaves the stage drops out of the chips.
   useEffect(() => {
     setTalkTo(prev => {
@@ -401,6 +430,11 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
       return next.length === prev.length ? prev : next;
     });
     setSpeakAsId(prev => (prev && !stageNpcs.some(n => n.id === prev) ? null : prev));
+    setScenePick(prev => {
+      const next = prev.filter(id => stageNpcs.some(n => n.id === id));
+      return next.length === prev.length ? prev : next;
+    });
+    if (stageNpcs.length < 2) setSceneOpen(false);
   }, [stageNpcs]);
 
   useEffect(() => () => { Object.values(revealTimers.current).forEach(id => window.clearTimeout(id)); }, []);
@@ -960,6 +994,8 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                   const isSelf = !isNpc && m.user_id === currentUserId;
                   const { card, body } = parseActionCard(m.content);
                   const parsedReply = parseReply(body);
+                  // v2: an NPC line may end with a roll request; it is shown as a button, not text.
+                  const npcRoll = isNpc && !card ? parseNpcRoll(parsedReply.body) : null;
                   const diceRoll = !card ? parseDiceRoll(parsedReply.body) : null;
                   const quoted = parsedReply.replyToId
                     ? messages.find(mm => mm.id === parsedReply.replyToId)
@@ -1144,8 +1180,10 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                               <button
                                 onClick={async () => {
                                   const next = editDraft.trim();
-                                  if (!next || next === parsedReply.body.trim()) { setEditingMessageId(null); return; }
-                                  await onEditMessage?.(m.id, formatReply(parsedReply.replyToId, next));
+                                  const shown = npcRoll ? npcRoll.body : parsedReply.body;
+                                  if (!next || next === shown.trim()) { setEditingMessageId(null); return; }
+                                  // v2: an NPC's roll request stays on the line when the host edits its words.
+                                  await onEditMessage?.(m.id, formatReply(parsedReply.replyToId, npcRoll ? keepNpcRoll(next, parsedReply.body) : next));
                                   setEditingMessageId(null);
                                   setEditDraft('');
                                 }}
@@ -1279,7 +1317,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                                   ...(modeMatch ? { WebkitTextStroke: '0.4px rgba(255,255,255,0.6)' } : {}),
                                 }}
                               >
-                                {parsedReply.body}
+                                {npcRoll ? npcRoll.body : parsedReply.body}
                               </p>
                             )}
 
@@ -1320,6 +1358,39 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                               )}
                             </div>
                           ) : bubble;
+                        })()}
+
+                        {/* v2: the roll this NPC asked for. Only the named player gets the button. */}
+                        {npcRoll?.roll && (() => {
+                          const request = npcRoll.roll;
+                          const mine = request.to === currentUserId;
+                          const rolled = rolledNpcLineIds.has(m.id);
+                          const label = rollButtonLabel(request);
+                          return (
+                            <div className="mt-1 px-1 flex">
+                              {mine && !rolled && !m.consumed && onNpcRoll ? (
+                                <button
+                                  type="button"
+                                  disabled={rollingLineId === m.id}
+                                  onClick={async () => {
+                                    setRollingLineId(m.id);
+                                    try { await onNpcRoll(m.id, m.npc_id ?? null, request); } finally { setRollingLineId(null); }
+                                  }}
+                                  aria-label={`Roll ${label} for ${m.character_name || 'the NPC'}`}
+                                  style={{ touchAction: 'manipulation' }}
+                                  className="inline-flex items-center gap-1.5 min-h-[40px] rounded-full border border-amber-400/60 bg-gradient-to-b from-amber-500/30 to-amber-700/30 px-3.5 font-cinzel text-[12px] font-bold tracking-wide text-amber-100 shadow-[0_0_8px_rgba(245,158,11,0.35)] active:scale-95 transition-transform disabled:opacity-50"
+                                >
+                                  {rollingLineId === m.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Dices className="w-4 h-4" />}
+                                  Roll {label}
+                                </button>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 min-h-[28px] rounded-full border border-white/10 bg-black/40 px-2.5 font-body text-[11px] text-white/60">
+                                  <Dices className="w-3.5 h-3.5 text-amber-300/70" />
+                                  {mine ? (rolled ? `You rolled ${label}` : label) : `${request.name}: ${label}${rolled ? ' · rolled' : ''}`}
+                                </span>
+                              )}
+                            </div>
+                          );
                         })()}
 
                         {(selectable || m.consumed || showActions) && (
@@ -1396,7 +1467,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                                   <button
                                     onClick={() => {
                                       setEditingMessageId(editingMessageId === m.id ? null : m.id);
-                                      setEditDraft(parsedReply.body);
+                                      setEditDraft(npcRoll ? npcRoll.body : parsedReply.body);
                                       setActionsFor(null);
                                     }}
                                     className="p-1 text-white/40 active:text-emerald-300"
@@ -1481,7 +1552,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-200/80 motion-safe:animate-bounce [animation-delay:300ms]" />
                       </span>
                       <span className="font-body text-[12px] text-amber-100/85">
-                        {t.kind === 'regenerate' ? `${t.name} is rethinking…` : `${t.name} is thinking…`}
+                        {t.kind === 'regenerate' ? `${t.name} is rethinking…` : t.kind === 'banter' ? `${t.name} is in the scene…` : t.kind === 'spell' ? `${t.name} saw the spell…` : `${t.name} is thinking…`}
                       </span>
                     </div>
                   </div>
@@ -1697,9 +1768,38 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                           >
                             <NpcPortrait url={n.portrait_url} name={n.name} className="w-8 h-8 text-[12px]" />
                             <span className="max-w-[110px] truncate">{n.name}</span>
+                            {!voicing && myNpcAttitudes && myNpcAttitudes[n.id] !== undefined && (() => {
+                              const level = attitudeLevel(myNpcAttitudes[n.id]);
+                              return (
+                                <span
+                                  className="shrink-0 rounded-full bg-black/50 px-1.5 py-0.5 text-[10px] text-white/75"
+                                  aria-label={`${n.name} feels ${level.label} toward you`}
+                                >
+                                  {level.emoji} {level.label}
+                                </span>
+                              );
+                            })()}
                           </button>
                         );
                       })}
+                      {canManageNpcs && onStartScene && stageNpcs.length >= 2 && (
+                        <button
+                          onClick={() => {
+                            setSceneOpen(open => !open);
+                            setScenePick(prev => (prev.length >= 2 ? prev : stageNpcs.slice(0, 3).map(n => n.id)));
+                          }}
+                          aria-expanded={sceneOpen}
+                          disabled={sceneRunning}
+                          style={{ touchAction: 'manipulation' }}
+                          className={cn(
+                            "shrink-0 min-h-[36px] px-2.5 rounded-full border font-body text-[11px] flex items-center gap-1 disabled:opacity-50",
+                            sceneOpen ? "border-amber-300/80 bg-amber-500/25 text-white" : "border-amber-400/40 bg-black/50 text-amber-200/85",
+                          )}
+                        >
+                          {sceneRunning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Drama className="w-3.5 h-3.5" />}
+                          {sceneRunning ? 'Scene running…' : 'Let them talk'}
+                        </button>
+                      )}
                       {canManageNpcs && onOpenNpcRoster && (
                         <button
                           onClick={onOpenNpcRoster}
@@ -1711,6 +1811,68 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                         </button>
                       )}
                     </div>
+                    {sceneOpen && canManageNpcs && onStartScene && stageNpcs.length >= 2 && (
+                      <div className="rounded-xl border border-amber-400/30 bg-black/70 p-2.5 space-y-2">
+                        <p className="font-body text-[11px] text-amber-100/80">
+                          Pick 2 or 3 NPCs. They talk to each other while everyone watches. Any player line stops the scene.
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {stageNpcs.map(n => {
+                            const on = scenePick.includes(n.id);
+                            return (
+                              <button
+                                key={n.id}
+                                onClick={() => setScenePick(prev => (on ? prev.filter(x => x !== n.id) : prev.length >= 3 ? prev : [...prev, n.id]))}
+                                aria-pressed={on}
+                                style={{ touchAction: 'manipulation' }}
+                                className={cn(
+                                  "min-h-[36px] pl-0.5 pr-2.5 rounded-full border flex items-center gap-1.5 font-body text-[12px]",
+                                  on ? "border-amber-300/80 bg-amber-500/25 text-white" : "border-white/15 bg-black/50 text-white/70",
+                                )}
+                              >
+                                <NpcPortrait url={n.portrait_url} name={n.name} className="w-7 h-7 text-[11px]" />
+                                <span className="max-w-[100px] truncate">{n.name}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <input
+                          value={sceneTopic}
+                          onChange={(e) => setSceneTopic(e.target.value)}
+                          maxLength={500}
+                          placeholder="What are they talking about? (optional)"
+                          className="w-full min-h-[40px] rounded-lg bg-black/50 border border-white/15 px-3 text-[14px] text-white/90 placeholder:text-white/35 outline-none focus:border-amber-400/60"
+                        />
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-body text-[11px] text-white/55">Lines</span>
+                          {[2, 3, 4].map(t => (
+                            <button
+                              key={t}
+                              onClick={() => setSceneTurns(t)}
+                              aria-pressed={sceneTurns === t}
+                              style={{ touchAction: 'manipulation' }}
+                              className={cn(
+                                "w-10 min-h-[36px] rounded-md border text-[13px]",
+                                sceneTurns === t ? "border-amber-300/80 bg-amber-500/25 text-white" : "border-white/15 text-white/60",
+                              )}
+                            >
+                              {t}
+                            </button>
+                          ))}
+                          <button
+                            onClick={async () => {
+                              const ok = await onStartScene(scenePick, sceneTopic.trim(), sceneTurns);
+                              if (ok) { setSceneOpen(false); setSceneTopic(''); }
+                            }}
+                            disabled={scenePick.length < 2 || sceneRunning}
+                            style={{ touchAction: 'manipulation' }}
+                            className="ml-auto min-h-[40px] px-4 rounded-lg border border-amber-400/60 bg-amber-500/25 font-cinzel text-[13px] text-amber-100 disabled:opacity-40"
+                          >
+                            Start
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     {speakingAs ? (
                       <p className="px-1 font-body text-[10.5px] text-rose-200/80">You are speaking as {speakingAs.name}.</p>
                     ) : npcsAnswering.length > 0 ? (
