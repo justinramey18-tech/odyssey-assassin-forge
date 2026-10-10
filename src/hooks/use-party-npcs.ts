@@ -530,6 +530,8 @@ export function usePartyNpcs(partyId: string | null) {
   }, []);
 
   return {
+    addStandIn,
+    standInFor,
     partyId,
     npcs,
     active,
