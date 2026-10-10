@@ -12,6 +12,12 @@ export interface TokenUsage {
 const PRICING: Record<string, { input: number; output: number }> = {
   'anthropic/claude-sonnet-4': { input: 3, output: 15 },
   'anthropic/claude-sonnet-4-5': { input: 3, output: 15 },
+  'anthropic/claude-sonnet-4-6': { input: 3, output: 15 },
+  'anthropic/claude-fable-5-1': { input: 10, output: 50 },
+  'anthropic/claude-opus-5-5': { input: 4, output: 20 },
+  'anthropic/claude-sonnet-5-5': { input: 2, output: 10 },
+  // Haiku 5.5 doubles to $0.50 / $2.50 when a prompt is over 100K tokens.
+  'anthropic/claude-haiku-5-5': { input: 0.1, output: 0.5 },
 };
 
 const DEFAULT_PRICING = { input: 3, output: 15 };

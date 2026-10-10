@@ -254,10 +254,16 @@ const LOVABLE_MODELS = new Set([
 
 // Models routed directly to Anthropic API
 const ANTHROPIC_MODELS: Record<string, string> = {
-  'anthropic/claude-sonnet-4': 'claude-sonnet-4-20250514',
-  'anthropic/claude-sonnet-4-5': 'claude-sonnet-4-5-20250929',
+  'anthropic/claude-fable-5-1': 'claude-fable-5-1',
+  'anthropic/claude-opus-5-5': 'claude-opus-5-5',
+  'anthropic/claude-sonnet-5-5': 'claude-sonnet-5-5',
+  'anthropic/claude-haiku-5-5': 'claude-haiku-5-5',
+  // Removed from the picker. Saved choices keep working: retired or retiring models go to
+  // their replacement; Sonnet 4.6 (active until at least Feb 2027) stays for older callers.
+  'anthropic/claude-sonnet-4': 'claude-sonnet-5-5',
+  'anthropic/claude-sonnet-4-5': 'claude-sonnet-5-5',
   'anthropic/claude-sonnet-4-6': 'claude-sonnet-4-6',
-  'anthropic/claude-haiku-4-5': 'claude-haiku-4-5-20251001',
+  'anthropic/claude-haiku-4-5': 'claude-haiku-5-5',
 };
 
 // Models routed directly to OpenAI API (user's own key)
@@ -835,6 +841,25 @@ Never tell the player their resource percentage. Show depletion through descript
   return prompt;
 }
 
+// Claude 5 models think before they write, and thinking counts toward max_tokens.
+// A short request (an NPC line capped at 200-300 tokens) asks for little or no
+// thinking so its budget goes to the words; longer requests keep each model's default.
+const CLAUDE_5_MODELS = new Set(['claude-fable-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5']);
+const SHORT_REQUEST_TOKENS = 2000;
+
+function claudeRequestOptions(anthropicModelId: string, tokenLimit?: number): { max_tokens: number; extra: Record<string, unknown> } {
+  const limit = tokenLimit || 16000;
+  if (!CLAUDE_5_MODELS.has(anthropicModelId) || limit >= SHORT_REQUEST_TOKENS) return { max_tokens: limit, extra: {} };
+  if (anthropicModelId === 'claude-sonnet-5-5') {
+    return { max_tokens: limit, extra: { output_config: { effort: 'low' }, thinking: { type: 'between_tools' } } };
+  }
+  if (anthropicModelId === 'claude-haiku-5-5') {
+    return { max_tokens: limit, extra: { output_config: { effort: 'low' }, thinking: { type: 'disabled' } } };
+  }
+  // Opus 5.5 always thinks (and Fable 5.1 may): low effort, plus room for a short think.
+  return { max_tokens: limit + 1024, extra: { output_config: { effort: 'low' } } };
+}
+
 // ── Anthropic Streaming Adapter ────────────────────────────────────────────────
 // Converts Anthropic's SSE format to OpenAI-compatible SSE so the client parser works unchanged.
 
@@ -851,6 +876,9 @@ async function callAnthropic(
   if (!ANTHROPIC_API_KEY) {
     throw { status: 500, message: "No Anthropic API key available. Add your key in Settings → API Keys, or configure the backend secret." };
   }
+  const claudeOptions = claudeRequestOptions(anthropicModelId, tokenLimit);
+
+
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -861,10 +889,11 @@ async function callAnthropic(
     },
     body: JSON.stringify({
       model: anthropicModelId,
-      max_tokens: tokenLimit || 16000,
+      max_tokens: claudeOptions.max_tokens,
       system: systemPrompt,
       messages,
       stream: true,
+      ...claudeOptions.extra,
     }),
   });
 
