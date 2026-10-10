@@ -7,7 +7,7 @@
 
 import { isClaudeEverywhereEnabled, isGPTEverywhereEnabled } from '@/lib/api-keys';
 
-export const CLAUDE_EVERYWHERE_MODEL_ID = 'anthropic/claude-sonnet-4-5';
+export const CLAUDE_EVERYWHERE_MODEL_ID = 'anthropic/claude-sonnet-5-5';
 export const GPT_EVERYWHERE_MODEL_ID = 'openai-direct/gpt-5';
 
 export interface DMAIModel {
@@ -25,10 +25,10 @@ export const DM_MODELS: DMAIModel[] = [
   { id: 'openai/gpt-5', label: 'GPT-5', provider: 'lovable', description: 'High accuracy, slower' },
   { id: 'openai/gpt-5-mini', label: 'GPT-5 Mini', provider: 'lovable', description: 'Good balance of cost/quality' },
   { id: 'openai/gpt-5.2', label: 'GPT-5.2', provider: 'lovable', description: 'Enhanced reasoning' },
-  { id: 'anthropic/claude-sonnet-4', label: 'Claude 4 Sonnet', provider: 'anthropic', description: 'Excellent narrative & reasoning (own key)' },
-  { id: 'anthropic/claude-sonnet-4-5', label: 'Claude 4.5 Sonnet', provider: 'anthropic', description: 'Strong creative writing (own key)' },
-  { id: 'anthropic/claude-sonnet-4-6', label: 'Claude 4.6 Sonnet', provider: 'anthropic', description: 'Best creative writing (own key)' },
-  { id: 'anthropic/claude-haiku-4-5', label: 'Claude Haiku 4.5', provider: 'anthropic', description: 'Fast & cheap creative AI (own key)' },
+  { id: 'anthropic/claude-fable-5-1', label: 'Claude Fable 5.1', provider: 'anthropic', description: 'Top-rated storyteller, most expensive; may soften very dark scenes' },
+  { id: 'anthropic/claude-opus-5-5', label: 'Claude Opus 5.5', provider: 'anthropic', description: 'Rich prose, follows long rule guides closely' },
+  { id: 'anthropic/claude-sonnet-5-5', label: 'Claude Sonnet 5.5', provider: 'anthropic', description: 'Great writing at half the Opus price' },
+  { id: 'anthropic/claude-haiku-5-5', label: 'Claude Haiku 5.5', provider: 'anthropic', description: 'Fast and very cheap' },
   { id: 'openai-direct/gpt-5', label: 'GPT-5 (own key)', provider: 'openai-direct', description: 'Full GPT-5 via your OpenAI key' },
   { id: 'openai-direct/gpt-4o', label: 'GPT-4o (own key)', provider: 'openai-direct', description: 'Fast multimodal (own key)' },
   { id: 'openai-direct/gpt-4o-mini', label: 'GPT-4o Mini (own key)', provider: 'openai-direct', description: 'Cheapest & fastest (own key)' },
@@ -58,13 +58,30 @@ export const DM_MODELS: DMAIModel[] = [
 
 export const DEFAULT_MODEL_ID = 'google/gemini-3-pro-preview';
 
+/**
+ * Claude models that were removed from the list, and what replaces them. A phone
+ * or party still set to an old one keeps working on its replacement.
+ */
+export const RETIRED_MODEL_IDS: Record<string, string> = {
+  'anthropic/claude-sonnet-4': 'anthropic/claude-sonnet-5-5',
+  'anthropic/claude-sonnet-4-5': 'anthropic/claude-sonnet-5-5',
+  'anthropic/claude-sonnet-4-6': 'anthropic/claude-sonnet-5-5',
+  'anthropic/claude-haiku-4-5': 'anthropic/claude-haiku-5-5',
+};
+
+/** The current id for a saved model id (old Claude ids become their replacement). */
+export function upgradeModelId(modelId: string): string {
+  return RETIRED_MODEL_IDS[modelId] ?? modelId;
+}
+
 const STORAGE_KEY = 'dnd-dm-ai-model';
 const EXPLICIT_KEY = 'dnd-dm-ai-model-explicit';
 
 export function loadSelectedModel(): string {
   try {
     const isExplicit = localStorage.getItem(EXPLICIT_KEY) === 'true';
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const saved = raw ? upgradeModelId(raw) : raw;
     if (isExplicit && saved && DM_MODELS.some(m => m.id === saved)) {
       return saved;
     }
@@ -72,7 +89,8 @@ export function loadSelectedModel(): string {
   if (isClaudeEverywhereEnabled()) return CLAUDE_EVERYWHERE_MODEL_ID;
   if (isGPTEverywhereEnabled()) return GPT_EVERYWHERE_MODEL_ID;
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const saved = raw ? upgradeModelId(raw) : raw;
     if (saved && DM_MODELS.some(m => m.id === saved)) return saved;
   } catch { /* ignore */ }
   return DEFAULT_MODEL_ID;
@@ -92,5 +110,6 @@ export function clearExplicitModel(): void {
 }
 
 export function getModelLabel(modelId: string): string {
-  return DM_MODELS.find(m => m.id === modelId)?.label ?? modelId;
+  const id = upgradeModelId(modelId);
+  return DM_MODELS.find(m => m.id === id)?.label ?? modelId;
 }
