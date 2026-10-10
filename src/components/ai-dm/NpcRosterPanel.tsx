@@ -5,11 +5,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
-import { Archive, ArchiveRestore, Drama, ImagePlus, Loader2, Pencil, Plus, X } from 'lucide-react';
+import { Archive, ArchiveRestore, Brain, Drama, ImagePlus, Loader2, Pencil, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AvatarCropDialog } from './AvatarCropDialog';
 import { NpcScorecard } from './NpcScorecard';
+import { NpcMindPanel } from './NpcMindPanel';
 import { NpcPortrait } from './NpcPortrait';
 import type { PartyNpc, PartyNpcsApi } from '@/hooks/use-party-npcs';
 import {
@@ -51,6 +52,8 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [view, setView] = useState<'roster' | 'scores'>('roster');
+  /** v2: the NPC whose memory and feelings are open. */
+  const [mindId, setMindId] = useState<string | null>(null);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -66,13 +69,14 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
   }, [choices]);
 
   // Closing the roster drops an unsaved edit.
-  useEffect(() => { if (!open) { setDraft(null); setCropFile(null); } }, [open]);
+  useEffect(() => { if (!open) { setDraft(null); setCropFile(null); setMindId(null); } }, [open]);
 
   const active = roster.active;
   const archived = roster.npcs.filter(n => n.archived);
   const onStageNames = roster.onStage.map(n => n.name);
   const nameProblem = draft ? npcNameProblem(draft.name, roster.npcs, draft.id) : null;
   const modelInfo = draft ? choices.find(c => c.id === draft.model) : undefined;
+  const mindNpc = mindId ? roster.npcs.find(n => n.id === mindId) ?? null : null;
 
   const loadGuideInto = async (npcId: string) => {
     setGuideState('loading');
@@ -164,7 +168,7 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
           <p className="mt-1.5 text-[12px] text-white/70">
             {onStageNames.length ? <>On stage now: <span className="text-amber-200">{onStageNames.join(', ')}</span></> : 'Nobody is on stage.'}
           </p>
-          {!draft && (
+          {!draft && !mindNpc && (
             <div role="tablist" aria-label="NPC Roster view" className="mt-2 grid grid-cols-2 rounded-lg border border-white/10 bg-white/5 p-0.5">
               {(['roster', 'scores'] as const).map(v => (
                 <button
@@ -186,7 +190,9 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3">
-          {draft ? (
+          {mindNpc && !draft ? (
+            <NpcMindPanel npc={mindNpc} roster={roster} onBack={() => setMindId(null)} />
+          ) : draft ? (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-cinzel text-[14px] text-amber-200">{draft.id ? `Edit ${draft.name || 'NPC'}` : 'New NPC'}</h3>
@@ -375,6 +381,13 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
                             className="min-h-[36px] px-2 rounded-md text-[12px] text-white/70 flex items-center gap-1 active:bg-white/10"
                           >
                             <Pencil className="w-3.5 h-3.5" /> Edit
+                          </button>
+                          <button
+                            onClick={() => setMindId(npc.id)}
+                            style={{ touchAction: 'manipulation' }}
+                            className="min-h-[36px] px-2 rounded-md text-[12px] text-amber-200/80 flex items-center gap-1 active:bg-white/10"
+                          >
+                            <Brain className="w-3.5 h-3.5" /> Mind
                           </button>
                           <button
                             onClick={() => { void run(npc, () => roster.archiveNpc(npc.id), `${npc.name} archived. Restore them any time.`); }}
