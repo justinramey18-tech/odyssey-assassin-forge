@@ -67,6 +67,8 @@ import { useQuestRewardSplit } from '@/hooks/use-quest-reward-split';
 import { usePartyNarrationStyle } from '@/hooks/use-party-narration-style';
 import { useRoundChat } from '@/hooks/use-round-chat';
 import { useChatAvatars } from '@/hooks/use-chat-avatars';
+import { usePartyNpcs } from '@/hooks/use-party-npcs';
+import { NpcRosterPanel } from './NpcRosterPanel';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { usePartyPresence } from '@/hooks/use-party-presence';
 import { RoundChatDrawer, type RoundChatDrawerHandle } from './RoundChatDrawer';
@@ -1285,6 +1287,7 @@ type PartyOverlays = {
   geraltWidget: undefined;
   quickRecap: undefined;
   dmAssistant: undefined;
+  npcRoster: undefined;
 };
 
 export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, onOpenDirector, hasPendingRedoRequest, onScanQuests, worldState = [] }: PartyDMScreenProps) {
@@ -1301,6 +1304,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     partyDm.sessionConfig?.currentRoundId,
   );
   const chatAvatars = useChatAvatars(partyId || null, currentUserId);
+  // Live NPCs (D-22): the party's NPC roster, with live updates.
+  const npcRoster = usePartyNpcs(partyId || null);
   const onlineMembers = useMemo(() => members.map(m => ({ user_id: m.user_id, updated_at: m.updated_at ?? '1970-01-01T00:00:00Z' })), [members]);
   const onlineStatus = useOnlineStatus(onlineMembers);
   const partyPresence = usePartyPresence(partyId, currentUserId);
@@ -2204,6 +2209,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   }, [members, memoryAnchorsContent, sheetQuests.quests, worldState, chatAvatars.oocNames, gmGuidesContent]);
 
   const openDmAssistant = useCallback(() => overlays.open('dmAssistant'), [overlays]);
+  const openNpcRoster = useCallback(() => overlays.open('npcRoster'), [overlays]);
 
   // Posts the assistant's draft as the DM's reply to the sealed lines.
   // Resolves false (and keeps the draft and the sealed lines) if anything fails.
@@ -3771,6 +3777,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onSendToDMNow={fireChatRound}
           oocNames={chatAvatars.oocNames}
           onOpenAssistant={originalCreator ? openDmAssistant : undefined}
+          onOpenNpcRoster={originalCreator ? openNpcRoster : undefined}
+          npcsOnStage={npcRoster.onStage.length}
         />
         <RoundChatDrawer
           ref={roundChatDrawerRef}
@@ -5101,6 +5109,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             onApply={handleAssistantApply}
             aiDmWriting={partyDm.isGenerating}
           />
+        )}</OverlaySlot>
+      )}
+
+      {/* Live NPCs roster (original host only, Live Table) */}
+      {originalCreator && chatRoundsOn && (
+        <OverlaySlot ganglion={overlays} name="npcRoster">{(open, setOpen) => (
+          <NpcRosterPanel open={open} onOpenChange={setOpen} roster={npcRoster} />
         )}</OverlaySlot>
       )}
 
