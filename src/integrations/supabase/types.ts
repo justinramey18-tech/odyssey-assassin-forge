@@ -1354,6 +1354,161 @@ export type Database = {
           },
         ]
       }
+      party_npc_guides: {
+        Row: {
+          guide: string
+          npc_id: string
+          party_id: string
+          secrets: string
+          updated_at: string
+        }
+        Insert: {
+          guide?: string
+          npc_id: string
+          party_id: string
+          secrets?: string
+          updated_at?: string
+        }
+        Update: {
+          guide?: string
+          npc_id?: string
+          party_id?: string
+          secrets?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_npc_guides_npc_fk"
+            columns: ["npc_id", "party_id"]
+            isOneToOne: false
+            referencedRelation: "party_npcs"
+            referencedColumns: ["id", "party_id"]
+          },
+        ]
+      }
+      party_npc_replies: {
+        Row: {
+          cost_usd: number | null
+          created_at: string
+          error: string | null
+          fallback_reason: string | null
+          fell_back: boolean
+          id: string
+          latency_ms: number | null
+          model_requested: string
+          model_used: string | null
+          npc_id: string
+          party_id: string
+          prompt_message_id: string
+          reply_message_id: string | null
+          requested_by: string
+          updated_at: string
+        }
+        Insert: {
+          cost_usd?: number | null
+          created_at?: string
+          error?: string | null
+          fallback_reason?: string | null
+          fell_back?: boolean
+          id?: string
+          latency_ms?: number | null
+          model_requested: string
+          model_used?: string | null
+          npc_id: string
+          party_id: string
+          prompt_message_id: string
+          reply_message_id?: string | null
+          requested_by: string
+          updated_at?: string
+        }
+        Update: {
+          cost_usd?: number | null
+          created_at?: string
+          error?: string | null
+          fallback_reason?: string | null
+          fell_back?: boolean
+          id?: string
+          latency_ms?: number | null
+          model_requested?: string
+          model_used?: string | null
+          npc_id?: string
+          party_id?: string
+          prompt_message_id?: string
+          reply_message_id?: string | null
+          requested_by?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_npc_replies_npc_fk"
+            columns: ["npc_id", "party_id"]
+            isOneToOne: false
+            referencedRelation: "party_npcs"
+            referencedColumns: ["id", "party_id"]
+          },
+          {
+            foreignKeyName: "party_npc_replies_prompt_message_id_fkey"
+            columns: ["prompt_message_id"]
+            isOneToOne: false
+            referencedRelation: "party_round_chat"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "party_npc_replies_reply_message_id_fkey"
+            columns: ["reply_message_id"]
+            isOneToOne: false
+            referencedRelation: "party_round_chat"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      party_npcs: {
+        Row: {
+          archived: boolean
+          created_at: string
+          id: string
+          model: string
+          name: string
+          on_stage: boolean
+          party_id: string
+          portrait_url: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          model?: string
+          name: string
+          on_stage?: boolean
+          party_id: string
+          portrait_url?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          model?: string
+          name?: string
+          on_stage?: boolean
+          party_id?: string
+          portrait_url?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_npcs_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       party_onboarding_requests: {
         Row: {
           created_at: string
@@ -1480,6 +1635,7 @@ export type Database = {
           created_at: string
           id: string
           in_character: boolean
+          npc_id: string | null
           party_id: string
           round_id: string
           selected: boolean
@@ -1492,6 +1648,7 @@ export type Database = {
           created_at?: string
           id?: string
           in_character?: boolean
+          npc_id?: string | null
           party_id: string
           round_id: string
           selected?: boolean
@@ -1504,12 +1661,20 @@ export type Database = {
           created_at?: string
           id?: string
           in_character?: boolean
+          npc_id?: string | null
           party_id?: string
           round_id?: string
           selected?: boolean
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "party_round_chat_npc_fk"
+            columns: ["npc_id", "party_id"]
+            isOneToOne: false
+            referencedRelation: "party_npcs"
+            referencedColumns: ["id", "party_id"]
+          },
           {
             foreignKeyName: "party_round_chat_party_id_fkey"
             columns: ["party_id"]
@@ -2295,6 +2460,10 @@ export type Database = {
         Returns: number
       }
       is_co_host_of: { Args: { _owner_id: string }; Returns: boolean }
+      is_party_host: {
+        Args: { _party_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_party_member: {
         Args: { _party_id: string; _user_id: string }
         Returns: boolean
