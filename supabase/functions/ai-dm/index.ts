@@ -229,6 +229,8 @@ interface DMRequest {
     chaosLevel?: number;
     hasTableTalk?: boolean;
     hasInCharacter?: boolean;
+    /** Live NPCs (D-22): some lines were already spoken at the table by an NPC. */
+    hasNpcLines?: boolean;
   };
 
 }
@@ -602,6 +604,9 @@ function buildLiveTableBlock(lt?: DMRequest['liveTable']): string {
     lines.push('This hand-off is table talk only — answer the table briefly and conversationally inside the [TABLE] block; do not force a scene beat.');
   } else {
     lines.push('Keep any table-side aside clearly separate, then deliver a proper scene beat driven only by the in-character actions.');
+  }
+  if (lt.hasNpcLines) {
+    lines.push('NPC LINES: lines labelled "(NPC)" were already spoken out loud at the table by that NPC (the host put the NPC on stage and an AI voiced it). Treat them as said: do not repeat, rewrite or contradict them, keep each NPC consistent with what it said, and narrate what happens next. An NPC\'s offer, promise or threat is not an outcome: you decide what actually happens.');
   }
   if (lt.mode === 'live') {
     lines.push('LIVE TABLE MODE: run this like a live tabletop game master — fast, warm, improv-minded, comfortable breaking for a joke and then snapping the table back into the fiction.');
