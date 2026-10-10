@@ -319,6 +319,35 @@ function resolvePartyModel(sharedModelId?: string): string {
   return candidate;
 }
 
+/**
+ * The DM's reply was cut off (see isDmReplyCutOff). The text that did arrive is never
+ * saved as a DM post.
+ */
+export class DmReplyCutOffError extends Error {
+  constructor(detail?: string) {
+    super(`The DM's reply was cut off before it finished${detail ? ` (${detail})` : ''}, so nothing was posted. Try again.`);
+    this.name = 'DmReplyCutOffError';
+  }
+}
+
+/**
+ * True when a streamed DM reply was cut off. Provider-proof: it never rejects a complete
+ * reply, whether or not the provider sends an end signal.
+ * - the AI reported an error part-way, or
+ * - a hidden block (TACTICS, ACTION, WHISPER) was opened and never closed, or
+ * - no end signal arrived and there is no visible story text at all.
+ */
+export function isDmReplyCutOff(text: string, finished: boolean, streamError: string): boolean {
+  if (streamError) return true;
+  const t = text || '';
+  const opened = new Map<string, number>();
+  for (const m of t.matchAll(/<!--(TACTICS|ACTION|WHISPER:[^>]+?)-->/g)) opened.set(m[1], (opened.get(m[1]) || 0) + 1);
+  for (const m of t.matchAll(/<!--\/(TACTICS|ACTION|WHISPER:[^>]+?)-->/g)) opened.set(m[1], (opened.get(m[1]) || 0) - 1);
+  if (Array.from(opened.values()).some(n => n > 0)) return true;
+  const visible = t.replace(/<!--(TACTICS|ACTION|WHISPER:[^>]+?)-->[\s\S]*?<!--\/\1-->/g, '').replace(/<!--[\s\S]*?-->/g, '').trim();
+  return !finished && !visible;
+}
+
 export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, worldStatePrompt, partyDragonConfigs, myDragonName, onBurnoutDetected, onBurnoutTickDetected, onBondStrainDetected, onBondGrowthDetected, onDragonMemoryDetected, onDragonBondFormed, isSoloEmpyrean }: UsePartyDmOptions) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
