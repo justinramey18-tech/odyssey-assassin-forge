@@ -3,7 +3,8 @@
 // "add to draft" actions, and the tone buttons for an aimed paragraph.
 
 import { Switch } from '@/components/ui/switch';
-import { BookOpen, Drama, Layers, X } from 'lucide-react';
+import { BookOpen, X } from 'lucide-react';
+import { ART, Medal } from './DMAssistantArt';
 import { DM_MODELS } from '@/lib/dm-models';
 import {
   PERSONAS,
@@ -187,7 +188,7 @@ export function RehearsalBanner({
   return (
     <div className="rounded-lg border border-amber-400/40 bg-[#2a2016] px-2.5 py-2 space-y-1.5">
       <div className="flex items-center gap-2">
-        <Drama className="w-4 h-4 shrink-0 text-amber-300" />
+        <Medal src={ART.medalNpc} className="w-6 h-6" />
         <span className="flex-1 min-w-0 truncate text-[13px] text-amber-100">
           Talking to <b>{npc}</b>
         </span>
@@ -263,7 +264,7 @@ export function AimTools({
     <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
       <button onClick={onVersions} disabled={busy} style={tap}
         className="shrink-0 min-h-[34px] px-3 rounded-full border border-teal-400/40 bg-teal-900/30 text-[12px] text-teal-100 flex items-center gap-1.5 disabled:opacity-40">
-        <Layers className="w-3.5 h-3.5" /> 3 versions
+        <Medal src={ART.medalVersions} className="w-5 h-5" /> 3 versions
       </button>
       {TONE_PROMPTS.map(q => (
         <button key={q.label} onClick={() => onTone(q)} disabled={busy} style={tap}

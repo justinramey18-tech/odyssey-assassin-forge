@@ -2,7 +2,8 @@
 // a swipeable set of alternate versions, and one rehearsed NPC line.
 
 import { cn } from '@/lib/utils';
-import { Check, Dices, Drama } from 'lucide-react';
+import { Check } from 'lucide-react';
+import { ART, Medal, npcFrameStyle } from './DMAssistantArt';
 import { describeRoll, type DiceRoll } from '@/lib/dm-dice';
 import type { AssistantTakes } from '@/lib/dm-assistant';
 
@@ -18,7 +19,7 @@ export function DiceCard({ roll }: { roll: DiceRoll }) {
           : roll.crit === 'nat1' ? 'border-red-400/50 bg-red-950/40'
           : 'border-white/15 bg-white/5',
       )}>
-        <Dices className="w-5 h-5 shrink-0 text-amber-300/80" />
+        <Medal src={ART.medalDice} className="w-8 h-8" />
         <div className="min-w-0 flex-1">
           <div className="text-[12px] text-white/80 truncate">{roll.label}</div>
           <div className="text-[11px] text-white/45 truncate">{roll.expr} · {describeRoll(roll)}</div>
@@ -47,7 +48,8 @@ export function TakesCard({
 }) {
   return (
     <div className="space-y-1">
-      <div className="text-[11px] text-white/40 px-1">
+      <div className="text-[11px] text-white/40 px-1 flex items-center gap-1.5">
+        <Medal src={ART.medalVersions} className="w-4 h-4" />
         Versions of ¶{takes.paragraph}{takes.options.length > 1 ? ' · swipe to compare' : ''}
       </div>
       <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-1 -mx-1 px-1">
@@ -111,12 +113,12 @@ export function NpcLine({
 }) {
   return (
     <div className="flex justify-start">
-      <div className={cn(
-        'max-w-[88%] rounded-2xl px-3 py-2 border',
-        picked ? 'border-amber-300/40 bg-[#2a2016]' : 'border-white/10 bg-white/[0.04] opacity-70',
-      )}>
+      <div
+        className={cn('max-w-[88%] px-1.5 py-0.5', picked ? 'bg-[#2a2016]' : 'bg-[#16130f] opacity-70')}
+        style={{ ...npcFrameStyle, backgroundClip: 'padding-box' }}
+      >
         <div className="flex items-center gap-1.5 text-[11px] font-cinzel text-amber-300/90 mb-0.5">
-          <Drama className="w-3.5 h-3.5" /> {npc}
+          <Medal src={ART.medalNpc} className="w-5 h-5" /> {npc}
         </div>
         <div className="text-[13.5px] leading-relaxed text-amber-50/90 whitespace-pre-wrap break-words">
           <SpokenLine text={text} />
