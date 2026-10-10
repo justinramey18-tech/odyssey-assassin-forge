@@ -115,7 +115,9 @@ import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-part
 import { DMDiceRoller, preloadDiceRollerArt } from './DMDiceRoller';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { parseRollHint } from '@/lib/whisperRollHint';
-import { awaitLatestD20Reveal } from '@/lib/rollD20';
+import { awaitLatestD20Reveal, rollD20 } from '@/lib/rollD20';
+import { resolveOddsForContext } from '@/lib/diceOdds';
+import { buildRollAnswer, rollModifier, type NpcRollRequest, type RollSheet } from '@/lib/live-npcs';
 import { resolveWhisperAutoRoll, performWhisperRoll } from '@/lib/whisperAutoRoll';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
 import { actionCardFromRoll, encodeActionCard, stripActionCard } from '@/lib/roundChatActionCard';
@@ -2119,6 +2121,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         liveTable,
       });
       await roundChatRef.current.consumePending();
+      // Live NPCs v2: the NPCs in this hand-off remember it (never blocks the story).
+      rememberNpcScene(npcLines.map(l => l.id));
     } catch (err) {
       chatRoundFiredRef.current = null;
       console.error('[chat-round] send to DM failed:', err);
@@ -2145,8 +2149,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     if (chatRoundsOnRef.current) {
       roundChatDrawerRef.current?.open();
       try {
-        const sent = await roundChatRef.current.sendMessage(text, true);
-        if (!sent) throw new Error('send returned false');
+        const lineId = await roundChatRef.current.postLine(text, true);
+        if (!lineId) throw new Error('send returned false');
+        // Live NPCs v2: on-stage NPCs react when this line casts a spell.
+        void npcRosterRef.current.reactToSpell(lineId, text);
       } catch (err) {
         console.error('[party-dm] table post failed:', err);
         toast.error("Couldn't post to the table", {
@@ -2219,9 +2225,61 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       toast.error("Couldn't post to the table", { description: 'Your line is back in the box. Try again.' });
       return false;
     }
-    void npcRosterRef.current.askNpcs(id, npcIds);
+    // The asked NPCs answer first; then, if the line casts a spell, the others on stage react.
+    void npcRosterRef.current.askNpcs(id, npcIds).then(() => npcRosterRef.current.reactToSpell(id, content));
     return true;
   }, []);
+
+  // ── Live NPCs v2 ──
+  /** Hands the NPC lines of a Send to DM to npc-memory. Failure only shows a note: the story is fine. */
+  function rememberNpcScene(npcLineIds: string[]) {
+    if (npcLineIds.length === 0) return;
+    void npcRosterRef.current.rememberScene(npcLineIds).then(result => {
+      if (!result.ok) toast.warning("NPC memory didn't update", { description: `${result.message || 'Unknown error.'} The story itself is fine.`, duration: 10000 });
+    });
+  }
+
+  /** This player rolls the check an NPC asked them for, from their own sheet; the NPC then reacts to the result. */
+  const rollForNpc = useCallback(async (npcLineId: string, npcId: string | null, request: NpcRollRequest) => {
+    if (!npcId) return;
+    const npcName = npcRosterRef.current.byId.get(npcId)?.name || 'the NPC';
+    const modifier = rollModifier(characterContext as unknown as RollSheet, request);
+    const context = request.save ? 'save' : 'skill';
+    const d20 = rollD20({ context });
+    let cinematic = false;
+    try { cinematic = await awaitLatestD20Reveal(); } catch { cinematic = false; }
+    if (!cinematic) {
+      await new Promise<void>(resolve => requestDiceRoll({
+        title: `${request.check}${request.save ? ' save' : ''} for ${npcName}`,
+        roll: {
+          kind: 'test',
+          rolls: d20.rolls,
+          kept: d20.kept,
+          die: 20,
+          modifier,
+          total: d20.kept + modifier,
+          rollMode: d20.mode,
+          mode: resolveOddsForContext(context),
+        },
+        onComplete: () => resolve(),
+      }));
+    }
+    const characterName = members.find(m => m.user_id === currentUserId)?.character_name || characterContext?.name || 'Player';
+    const content = buildRollAnswer({ characterName, npcName, npcLineId, request, d20: d20.kept, modifier });
+    const id = await roundChatRef.current.postLine(content, true);
+    if (!id) {
+      toast.error("Couldn't post your roll", { description: 'Tap the roll button again.' });
+      return;
+    }
+    void npcRosterRef.current.askNpc(id, npcId, 'roll');
+  }, [characterContext, members, currentUserId]);
+
+  /** How each NPC feels about this player's character (only NPCs with an opinion). */
+  const myNpcAttitudes = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const a of npcRoster.attitudes) if (a.user_id === currentUserId) out[a.npc_id] = a.score;
+    return out;
+  }, [npcRoster.attitudes, currentUserId]);
 
   const speakAsNpc = useCallback(async (content: string, npcId: string): Promise<boolean> => {
     const npc = npcRosterRef.current.byId.get(npcId);
@@ -2268,6 +2326,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       toast.error(err instanceof Error ? err.message : 'Could not post to the table. Your draft is still here.');
       return false;
     }
+    // Live NPCs v2: the NPCs in this hand-off remember it (never blocks the story).
+    rememberNpcScene(npcLines.map(l => l.id));
     if (participants.length > 0 || npcLines.length > 0) {
       try {
         await roundChatRef.current.consumePending();
@@ -3816,9 +3876,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           isGenerating={partyDm.isGenerating}
           isHost={isCreator}
           onSend={async (content, ic) => {
-            const ok = await roundChat.sendMessage(content, ic);
-            if (!ok) toast.error("Couldn't post to the table", { description: 'Your line is back in the box. Try again.' });
-            return ok;
+            const lineId = await roundChat.postLine(content, ic);
+            if (!lineId) toast.error("Couldn't post to the table", { description: 'Your line is back in the box. Try again.' });
+            // Live NPCs v2: on-stage NPCs react when an in-character line casts a spell.
+            else if (ic) void npcRosterRef.current.reactToSpell(lineId, content);
+            return !!lineId;
           }}
           onToggleReaction={(id, emoji) => roundChat.toggleReaction(id, emoji, members.find(m => m.user_id === currentUserId)?.character_name || 'Player')}
           onDeleteMessage={roundChat.deleteMessage}
@@ -3894,6 +3956,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onRegenerateNpcLine={originalCreator ? npcRoster.regenerateLine : undefined}
           canManageNpcs={originalCreator}
           onOpenNpcRoster={originalCreator ? openNpcRoster : undefined}
+          myNpcAttitudes={myNpcAttitudes}
+          onNpcRoll={rollForNpc}
+          onStartScene={originalCreator ? npcRoster.runScene : undefined}
+          sceneRunning={npcRoster.sceneRunning}
         /></>
       )}
 
