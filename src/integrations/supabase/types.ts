@@ -1585,6 +1585,7 @@ export type Database = {
           name: string
           on_stage: boolean
           party_id: string
+          player_user_id: string | null
           portrait_url: string | null
           reacts_to_spells: boolean
           sort_order: number
@@ -1598,6 +1599,7 @@ export type Database = {
           name: string
           on_stage?: boolean
           party_id: string
+          player_user_id?: string | null
           portrait_url?: string | null
           reacts_to_spells?: boolean
           sort_order?: number
@@ -1611,6 +1613,7 @@ export type Database = {
           name?: string
           on_stage?: boolean
           party_id?: string
+          player_user_id?: string | null
           portrait_url?: string | null
           reacts_to_spells?: boolean
           sort_order?: number
