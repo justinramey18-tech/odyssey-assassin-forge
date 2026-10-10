@@ -606,7 +606,7 @@ function buildLiveTableBlock(lt?: DMRequest['liveTable']): string {
     lines.push('Keep any table-side aside clearly separate, then deliver a proper scene beat driven only by the in-character actions.');
   }
   if (lt.hasNpcLines) {
-    lines.push('NPC LINES: lines labelled "(NPC)" were already spoken out loud at the table by that NPC (the host put the NPC on stage and an AI voiced it). Treat them as said: do not repeat, rewrite or contradict them, keep each NPC consistent with what it said, and narrate what happens next. An NPC\'s offer, promise or threat is not an outcome: you decide what actually happens.');
+    lines.push('NPC LINES: lines labelled "(NPC)" were spoken out loud at the table by that NPC (the host put the NPC on stage and an AI voiced it). Weave every one of them into your narration, in the order given, as that NPC\'s dialogue, written in the same dialogue format you use for every other character. Quote what each NPC said exactly, word for word: never shorten, paraphrase, skip, merge or contradict it, and never invent new lines for that NPC inside this exchange. Their *action beats* may be retold in your own narration voice. Build the action, reactions and atmosphere around the exchange together with the player lines the NPC was answering, then carry the story forward past the end of it. An NPC\'s offer, promise or demand is not an outcome: you decide what actually happens.');
   }
   if (lt.mode === 'live') {
     lines.push('LIVE TABLE MODE: run this like a live tabletop game master — fast, warm, improv-minded, comfortable breaking for a joke and then snapping the table back into the fiction.');
@@ -926,6 +926,9 @@ async function callAnthropic(
       while (true) {
         const { done, value } = await reader.read();
         if (done) {
+          // Claude's stream ended without message_stop: the reply was cut off. Say so, so the
+          // app never saves half a reply as if it were finished.
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: { message: 'the Claude reply stopped before it finished' } })}\n\n`));
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
           return;
