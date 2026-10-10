@@ -28,6 +28,12 @@ export interface ActionCard {
   outcome?: string;
   /** Extra line, e.g. "A level 3 slot was spent (1 left)." */
   note?: string;
+  /** Live NPCs v2, a roll an NPC asked for: the total, the NPC's DC, and whether it beat it. */
+  total?: number;
+  dc?: number;
+  success?: boolean;
+  /** Live NPCs v2: the NPC line that asked for this roll. */
+  replyTo?: string;
 }
 
 const OPEN = '\u27EAAC\u27EB';

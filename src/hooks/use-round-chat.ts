@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { stripActionCard } from '@/lib/roundChatActionCard';
 import { parseReply } from '@/lib/chatReply';
-import { exchangeIds, inCharacterBlock } from '@/lib/live-npcs';
+import { exchangeIds, inCharacterBlock, npcLineForDm } from '@/lib/live-npcs';
 import { supabase } from '@/integrations/supabase/client';
 
 const STYLE_STATE_TYPE = 'round_style';
@@ -479,7 +479,8 @@ export function useRoundChat(
         id: m.id,
         npcId: m.npc_id as string,
         name: m.character_name || 'NPC',
-        text: stripActionCard(parseReply(m.content).body).trim(),
+        // A roll the NPC asked for becomes plain words: "(asks Kaelen for a DC 14 Insight check)".
+        text: npcLineForDm(stripActionCard(parseReply(m.content).body).trim()),
       }))
       .filter(l => l.text),
     [orderedSelected],
@@ -496,7 +497,7 @@ export function useRoundChat(
   /** Ticked line as the DM should read it: token removed, reply target named. */
   const lineForDM = useCallback((m: RoundChatMessage): string => {
     const { replyToId, body } = parseReply(m.content);
-    const text = stripActionCard(body).trim();
+    const text = m.npc_id ? npcLineForDm(stripActionCard(body).trim()) : stripActionCard(body).trim();
     if (!replyToId) return text;
     const target = messages.find(mm => mm.id === replyToId);
     const name = target?.character_name;
