@@ -1354,6 +1354,50 @@ export type Database = {
           },
         ]
       }
+      party_npc_attitudes: {
+        Row: {
+          character_name: string
+          created_at: string
+          npc_id: string
+          party_id: string
+          reason: string
+          score: number
+          updated_at: string
+          updated_by: string
+          user_id: string
+        }
+        Insert: {
+          character_name?: string
+          created_at?: string
+          npc_id: string
+          party_id: string
+          reason?: string
+          score?: number
+          updated_at?: string
+          updated_by?: string
+          user_id: string
+        }
+        Update: {
+          character_name?: string
+          created_at?: string
+          npc_id?: string
+          party_id?: string
+          reason?: string
+          score?: number
+          updated_at?: string
+          updated_by?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_npc_attitudes_npc_fk"
+            columns: ["npc_id", "party_id"]
+            isOneToOne: false
+            referencedRelation: "party_npcs"
+            referencedColumns: ["id", "party_id"]
+          },
+        ]
+      }
       party_npc_guides: {
         Row: {
           guide: string
@@ -1386,6 +1430,73 @@ export type Database = {
           },
         ]
       }
+      party_npc_memories: {
+        Row: {
+          created_at: string
+          id: string
+          note: string
+          npc_id: string
+          party_id: string
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note: string
+          npc_id: string
+          party_id: string
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string
+          npc_id?: string
+          party_id?: string
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_npc_memories_npc_fk"
+            columns: ["npc_id", "party_id"]
+            isOneToOne: false
+            referencedRelation: "party_npcs"
+            referencedColumns: ["id", "party_id"]
+          },
+        ]
+      }
+      party_npc_memory_log: {
+        Row: {
+          created_at: string
+          line_id: string
+          npc_id: string
+          party_id: string
+        }
+        Insert: {
+          created_at?: string
+          line_id: string
+          npc_id: string
+          party_id: string
+        }
+        Update: {
+          created_at?: string
+          line_id?: string
+          npc_id?: string
+          party_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_npc_memory_log_npc_fk"
+            columns: ["npc_id", "party_id"]
+            isOneToOne: false
+            referencedRelation: "party_npcs"
+            referencedColumns: ["id", "party_id"]
+          },
+        ]
+      }
       party_npc_replies: {
         Row: {
           cost_usd: number | null
@@ -1394,12 +1505,13 @@ export type Database = {
           fallback_reason: string | null
           fell_back: boolean
           id: string
+          kind: string
           latency_ms: number | null
           model_requested: string
           model_used: string | null
           npc_id: string
           party_id: string
-          prompt_message_id: string
+          prompt_message_id: string | null
           reply_message_id: string | null
           requested_by: string
           updated_at: string
@@ -1411,12 +1523,13 @@ export type Database = {
           fallback_reason?: string | null
           fell_back?: boolean
           id?: string
+          kind?: string
           latency_ms?: number | null
           model_requested: string
           model_used?: string | null
           npc_id: string
           party_id: string
-          prompt_message_id: string
+          prompt_message_id?: string | null
           reply_message_id?: string | null
           requested_by: string
           updated_at?: string
@@ -1428,12 +1541,13 @@ export type Database = {
           fallback_reason?: string | null
           fell_back?: boolean
           id?: string
+          kind?: string
           latency_ms?: number | null
           model_requested?: string
           model_used?: string | null
           npc_id?: string
           party_id?: string
-          prompt_message_id?: string
+          prompt_message_id?: string | null
           reply_message_id?: string | null
           requested_by?: string
           updated_at?: string
@@ -1472,6 +1586,7 @@ export type Database = {
           on_stage: boolean
           party_id: string
           portrait_url: string | null
+          reacts_to_spells: boolean
           sort_order: number
           updated_at: string
         }
@@ -1484,6 +1599,7 @@ export type Database = {
           on_stage?: boolean
           party_id: string
           portrait_url?: string | null
+          reacts_to_spells?: boolean
           sort_order?: number
           updated_at?: string
         }
@@ -1496,6 +1612,7 @@ export type Database = {
           on_stage?: boolean
           party_id?: string
           portrait_url?: string | null
+          reacts_to_spells?: boolean
           sort_order?: number
           updated_at?: string
         }
