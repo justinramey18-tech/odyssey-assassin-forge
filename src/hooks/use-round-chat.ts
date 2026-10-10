@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { stripActionCard } from '@/lib/roundChatActionCard';
 import { parseReply } from '@/lib/chatReply';
+import { exchangeIds, inCharacterBlock } from '@/lib/live-npcs';
 import { supabase } from '@/integrations/supabase/client';
 
 const STYLE_STATE_TYPE = 'round_style';
@@ -41,6 +42,11 @@ export interface RoundChatMessage {
   /** Ticked by a player to be included in the next hand-off to the DM. */
   selected: boolean;
   created_at: string;
+  /**
+   * Set when an NPC spoke this line (Live NPCs, D-22). NPC lines are stored under the
+   * host's account, so never treat user_id as the speaker when this is set.
+   */
+  npc_id?: string | null;
 }
 
 export interface RoundChatReaction {
@@ -283,7 +289,15 @@ export function useRoundChat(
     return () => { supabase.removeChannel(channel); };
   }, [partyId]);
 
-  const sendMessage = useCallback(async (content: string, inCharacter: boolean): Promise<boolean> => {
+  /**
+   * Post a line and get its id back (null if it failed). `asNpc` posts it as that NPC
+   * instead of your character; the database allows that only for the party's host.
+   */
+  const postLine = useCallback(async (
+    content: string,
+    inCharacter: boolean,
+    asNpc?: { npcId: string; name: string },
+  ): Promise<string | null> => {
     const text = content.trim();
     // Before the host starts the session there is no round yet — keep the table
     // usable by tagging early lines with a local round id.
@@ -293,27 +307,32 @@ export function useRoundChat(
       console.warn('[round-chat] send skipped — missing:', {
         partyId: !!partyId, userId: !!userId, text: !!text, round: !!round,
       });
-      return false;
+      return null;
     }
     setSending(true);
     try {
-      const { error } = await (supabase.from('party_round_chat') as any).insert({
+      const { data, error } = await (supabase.from('party_round_chat') as any).insert({
         party_id: partyId,
         user_id: userId,
-        character_name: characterName || 'Player',
+        character_name: asNpc ? asNpc.name : (characterName || 'Player'),
         content: text,
-        in_character: inCharacter,
+        in_character: asNpc ? true : inCharacter,
         round_id: round,
-      });
+        ...(asNpc ? { npc_id: asNpc.npcId } : {}),
+      }).select('id').single();
       if (error) {
         console.error('[round-chat] send failed:', error);
-        return false;
+        return null;
       }
-      return true;
+      return (data?.id as string | undefined) ?? null;
     } finally {
       setSending(false);
     }
   }, [partyId, userId, characterName]);
+
+  const sendMessage = useCallback(async (content: string, inCharacter: boolean): Promise<boolean> => {
+    return (await postLine(content, inCharacter)) !== null;
+  }, [postLine]);
 
   const deleteMessage = useCallback(async (messageId: string) => {
     await (supabase.from('party_round_chat') as any).delete().eq('id', messageId);
@@ -397,13 +416,18 @@ export function useRoundChat(
     setOrderOverride(ids);
   }, []);
 
-  /** Tick / untick a line. Anyone at the table may do this. */
+  /**
+   * Tick / untick a line. Anyone at the table may do this. Sealing a line that is part
+   * of an NPC exchange seals the whole exchange (the player's line and every NPC answer
+   * to it); unsealing changes only the tapped line.
+   */
   const toggleSelected = useCallback(async (messageId: string) => {
     const msg = messages.find(m => m.id === messageId);
     if (!msg || msg.consumed) return;
     const next = !msg.selected;
-    setMessages(prev => prev.map(m => (m.id === messageId ? { ...m, selected: next } : m)));
-    await (supabase.from('party_round_chat') as any).update({ selected: next }).eq('id', messageId);
+    const ids = next ? exchangeIds(messages, messageId) : [messageId];
+    setMessages(prev => prev.map(m => (ids.includes(m.id) ? { ...m, selected: next } : m)));
+    await (supabase.from('party_round_chat') as any).update({ selected: next }).in('id', ids);
   }, [messages]);
 
   /** Tick every line that is still waiting. */
@@ -424,7 +448,7 @@ export function useRoundChat(
 
   /** Players whose lines are in this bundle — they must not be treated as absent. */
   const pendingUserIds = useMemo(
-    () => Array.from(new Set(selectedMessages.map(m => m.user_id))),
+    () => Array.from(new Set(selectedMessages.filter(m => !m.npc_id).map(m => m.user_id))),
     [selectedMessages],
   );
 
@@ -435,6 +459,8 @@ export function useRoundChat(
   const selectedParticipants = useMemo(() => {
     const map = new Map<string, { userId: string; characterName: string; text: string }>();
     for (const m of orderedSelected) {
+      // NPC lines are stored under the host's account; they go in selectedNpcLines instead.
+      if (m.npc_id) continue;
       const line = stripActionCard(m.content).trim();
       if (!line) continue;
       const entry = map.get(m.user_id);
@@ -445,11 +471,25 @@ export function useRoundChat(
     return Array.from(map.values());
   }, [orderedSelected]);
 
+  /** Sealed NPC lines in send order, each saved as that NPC's own story row on hand-off. */
+  const selectedNpcLines = useMemo(
+    () => orderedSelected
+      .filter(m => !!m.npc_id)
+      .map(m => ({
+        id: m.id,
+        npcId: m.npc_id as string,
+        name: m.character_name || 'NPC',
+        text: stripActionCard(parseReply(m.content).body).trim(),
+      }))
+      .filter(l => l.text),
+    [orderedSelected],
+  );
+
   /** How many lines are ticked and ready to be handed over. */
   const progress = useMemo(() => ({
     current: selectedMessages.length,
     waiting: pendingMessages.length,
-    speakers: new Set(selectedMessages.map(m => m.user_id)).size,
+    speakers: new Set(selectedMessages.map(m => (m.npc_id ? `npc:${m.npc_id}` : m.user_id))).size,
     met: selectedMessages.length > 0,
   }), [selectedMessages, pendingMessages]);
 
@@ -469,24 +509,18 @@ export function useRoundChat(
    * side so the visible transcript stays clean.
    */
   const buildRoundPrompt = useCallback(() => {
-    const order: string[] = [];
-    const grouped = new Map<string, string[]>();
-    for (const m of orderedSelected) {
-      if (!m.in_character) continue;
-      const key = m.character_name || 'Player';
-      if (!grouped.has(key)) { grouped.set(key, []); order.push(key); }
-      grouped.get(key)!.push(lineForDM(m));
-    }
-    const inCharacterBlock = order
-      .map(name => `[${name}]: ${grouped.get(name)!.join(' ')}`)
-      .join('\n');
+    const icBlock = inCharacterBlock(
+      orderedSelected
+        .filter(m => m.in_character)
+        .map(m => ({ name: m.character_name || 'Player', npc: !!m.npc_id, text: lineForDM(m) })),
+    );
 
     const banter = orderedSelected.filter(m => !m.in_character);
     const banterBlock = banter.length
       ? `\n\nTABLE TALK (out of character):\n${banter.map(m => `${m.character_name || 'Player'}: ${lineForDM(m)}`).join('\n')}`
       : '';
 
-    return `${inCharacterBlock}${banterBlock}`.trim();
+    return `${icBlock}${banterBlock}`.trim();
   }, [orderedSelected, lineForDM]);
 
   /** What the backend needs to apply the right table rules for this hand-off. */
@@ -495,6 +529,7 @@ export function useRoundChat(
     chaosLevel: style.chaosLevel,
     hasTableTalk: orderedSelected.some(m => !m.in_character),
     hasInCharacter: orderedSelected.some(m => m.in_character),
+    hasNpcLines: orderedSelected.some(m => !!m.npc_id),
   }), [isLive, style.chaosLevel, orderedSelected]);
 
 
@@ -513,7 +548,7 @@ export function useRoundChat(
     if (!userId) return 0;
     const lastRead = readReceipts[userId];
     if (!lastRead) return 0;
-    return messages.filter(m => m.user_id !== userId && m.created_at > lastRead).length;
+    return messages.filter(m => (m.user_id !== userId || !!m.npc_id) && m.created_at > lastRead).length;
   }, [messages, readReceipts, userId]);
 
   // Keep the app icon badge in step with what the player has actually read, and
@@ -559,6 +594,7 @@ export function useRoundChat(
     reactions,
     sending,
     sendMessage,
+    postLine,
     deleteMessage,
     editMessage,
     clearAllMessages,
@@ -569,6 +605,7 @@ export function useRoundChat(
     orderedSelected,
     setSelectedOrder,
     selectedParticipants,
+    selectedNpcLines,
     toggleSelected,
     selectAllPending,
     clearSelection,

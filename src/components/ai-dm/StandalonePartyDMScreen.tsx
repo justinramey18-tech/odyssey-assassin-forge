@@ -744,6 +744,8 @@ export function StandalonePartyDMScreen({
 
     const pending = msgs.filter(m =>
       m.role === 'assistant' &&
+      // Only the DM's own posts change sheets. NPC lines (saved under the NPC's name) never do (D-22).
+      m.sender_name === 'DM' &&
       !!m.content?.trim() &&
       !!m.created_at &&
       new Date(m.created_at).getTime() > watermarkMs &&
