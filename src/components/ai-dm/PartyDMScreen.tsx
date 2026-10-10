@@ -2097,6 +2097,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     chatRoundFiredRef.current = fireKey;
     roundChatDrawerRef.current?.close();
     const participants = roundChatRef.current.selectedParticipants;
+    // Live NPCs: sealed NPC lines are saved as the NPC's own story rows, never the host's.
+    const npcLines = roundChatRef.current.selectedNpcLines;
     const coveredUserIds = participants.map(p => p.userId);
     // Captured before the ticks are cleared — the backend applies the table
     // rules and the chaos tone from this.
@@ -2108,7 +2110,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     try {
       await pd.generateResponse({
         coveredUserIds,
-        directPrompt: { text: bundled, participants },
+        directPrompt: { text: bundled, participants, npcLines },
         liveTable,
       });
       await roundChatRef.current.consumePending();
@@ -2185,9 +2187,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       story: pd.messages,
       tableLines: rc.messages.map(m => ({
         id: m.id,
-        characterName: m.in_character
-          ? (m.character_name || 'Player')
-          : (chatAvatars.oocNames?.[m.user_id] || m.character_name || 'Player'),
+        characterName: m.npc_id
+          ? `${m.character_name || 'NPC'} (NPC)`
+          : m.in_character
+            ? (m.character_name || 'Player')
+            : (chatAvatars.oocNames?.[m.user_id] || m.character_name || 'Player'),
         content: m.content,
         inCharacter: m.in_character,
         sealed: !!m.selected && !m.consumed,
@@ -2227,14 +2231,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       }
     }
     const participants = roundChatRef.current.selectedParticipants;
+    const npcLines = roundChatRef.current.selectedNpcLines;
     try {
-      await pd.postAssistedDmResponse({ content, participants });
+      await pd.postAssistedDmResponse({ content, participants, npcLines });
     } catch (err) {
       console.error('[dm-assistant] apply failed:', err);
       toast.error(err instanceof Error ? err.message : 'Could not post to the table. Your draft is still here.');
       return false;
     }
-    if (participants.length > 0) {
+    if (participants.length > 0 || npcLines.length > 0) {
       try {
         await roundChatRef.current.consumePending();
       } catch (err) {

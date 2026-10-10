@@ -14,6 +14,7 @@ import { loadApiKey, isFeatureSkipped } from '@/lib/api-keys';
 import { buildNarrationStyleBlock } from '@/lib/narrationStyle';
 import { fetchPartyNarrationStyle } from '@/hooks/use-party-narration-style';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
+import { npcStoryContent } from '@/lib/live-npcs';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
 import { getAlignmentZone, type AlignmentScore } from '@/lib/alignmentSpectrum';
@@ -1557,7 +1558,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     responseModePrompt?: string,
     dmPersonaPrompt?: string,
     currentOocDirectives?: string[],
-    liveTable?: { mode: 'chat' | 'live'; chaosLevel: number; hasTableTalk: boolean; hasInCharacter: boolean },
+    liveTable?: { mode: 'chat' | 'live'; chaosLevel: number; hasTableTalk: boolean; hasInCharacter: boolean; hasNpcLines?: boolean },
   ): Promise<string> => {
 
     // Ensure strictly alternating roles before sending to AI
@@ -1951,6 +1952,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     directPrompt?: {
       text: string;
       participants: Array<{ userId: string; characterName: string; text: string }>;
+      /** Live NPCs (D-22): sealed NPC lines, each saved as that NPC's own story row. */
+      npcLines?: Array<{ name: string; text: string }>;
     };
     /** Chat Rounds / Live DM: table rules + chaos tone applied backend-side. */
     liveTable?: {
@@ -1958,6 +1961,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       chaosLevel: number;
       hasTableTalk: boolean;
       hasInCharacter: boolean;
+      hasNpcLines?: boolean;
     };
   }) => {
     const directPrompt = options?.directPrompt;
@@ -2413,6 +2417,18 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               content: formatPromptLine(p),
               sender_user_id: p.user_id,
               sender_name: p.character_name || 'Player',
+            });
+          }
+          // Live NPCs: each sealed NPC line becomes that NPC's own story row, after the players' rows.
+          for (const n of directPrompt?.npcLines || []) {
+            const npcText = (n.text || '').trim();
+            if (!npcText) continue;
+            await insertPartyMessage({
+              party_id: partyId,
+              role: 'assistant',
+              content: npcStoryContent(n.name, npcText),
+              sender_user_id: null,
+              sender_name: n.name || 'NPC',
             });
           }
           // Insert one row per AFK member
@@ -4217,6 +4233,8 @@ Rules:
   const postAssistedDmResponse = useCallback(async (input: {
     content: string;
     participants: Array<{ userId: string; characterName: string; text: string }>;
+    /** Live NPCs (D-22): sealed NPC lines, each saved as that NPC's own story row. */
+    npcLines?: Array<{ name: string; text: string }>;
   }) => {
     if (!partyId || !user || !sessionConfig) throw new Error('The session is not ready yet.');
     if (isGenerating || sessionConfig.isGenerating) throw new Error('The AI DM is writing right now.');
@@ -4238,6 +4256,22 @@ Rules:
         sender_name: name,
       });
       playerRows.push({ id: '', party_id: partyId, role: 'user', content: rowContent, sender_user_id: p.userId, sender_name: name, created_at: '' });
+    }
+
+    // 1b. Live NPCs: each sealed NPC line as that NPC's own story row.
+    for (const n of input.npcLines || []) {
+      const npcText = (n.text || '').trim();
+      if (!npcText) continue;
+      const npcName = n.name || 'NPC';
+      const npcContent = npcStoryContent(npcName, npcText);
+      await insertPartyMessageHelper(partyId, {
+        party_id: partyId,
+        role: 'assistant',
+        content: npcContent,
+        sender_user_id: null,
+        sender_name: npcName,
+      });
+      playerRows.push({ id: '', party_id: partyId, role: 'assistant', content: npcContent, sender_user_id: null, sender_name: npcName, created_at: '' });
     }
 
     // 2. The DM post.
