@@ -12,7 +12,8 @@
 //     active quests, world state and the roster.
 //   - Only the latest DM post (not the whole story), the Live Table lines,
 //     and the current draft.
-//   - The host/assistant chat, text only (old drafts are never re-sent).
+//   - The whole host/assistant chat since the last post, text only (old
+//     drafts are never re-sent). Apply starts a fresh chat.
 //
 // Pure functions only (no network, no React) so this file can be unit tested.
 
@@ -25,6 +26,7 @@ import {
   EMPTY_DRAFT,
   draftToNumberedText,
   draftToText,
+  editHeaderLine,
   parseEditBlock,
   splitParagraphs,
   stripFences,
@@ -141,9 +143,12 @@ export const LIMITS = {
   beforeLatest: 3_000,
   tableLines: 30,
   tableLineChars: 600,
-  draft: 20_000,
-  chatTurns: 16,
-  chatChars: 24_000,
+  draft: 32_000,
+  /**
+   * The whole chat since the last post is sent with every message (Justin's call).
+   * This ceiling only protects models with small windows; going over it is shown on screen.
+   */
+  sessionChars: 160_000,
 } as const;
 
 /** Rough token count for the size readout (about 4 characters per token). */
@@ -328,14 +333,18 @@ export function loadAssistantState(partyId: string | null): AssistantSavedState 
   }
 }
 
-export function saveAssistantState(partyId: string | null, state: AssistantSavedState): void {
-  if (!partyId) return;
+/** Saves the whole chat since the last post. Returns false when the phone refused (storage full or blocked). */
+export function saveAssistantState(partyId: string | null, state: AssistantSavedState): boolean {
+  if (!partyId) return true;
   try {
     localStorage.setItem(stateKey(partyId), JSON.stringify({
-      messages: state.messages.slice(-40),
+      messages: state.messages,
       draft: state.draft,
     }));
-  } catch { /* storage full or blocked: the chat still works this session */ }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function clearAssistantState(partyId: string | null): void {
@@ -454,6 +463,8 @@ export interface ParsedAssistantReply {
   takes: { paragraph: number; options: string[] } | null;
   /** Dice the assistant asked the app to roll, one request per line ("Grukk's attack: 1d20+5"). */
   rolls: string[];
+  /** Command lines of [[EDIT]] blocks the app could not read. Shown to the host, never dropped silently. */
+  unreadableEdits: string[];
 }
 
 /**
@@ -506,10 +517,12 @@ export function parseAssistantReply(raw: string): ParsedAssistantReply {
   let chat = text.replace(DRAFT_BLOCK_RE, '');
 
   const edits: DraftEdit[] = [];
+  const unreadableEdits: string[] = [];
   EDIT_BLOCK_RE.lastIndex = 0;
   while ((match = EDIT_BLOCK_RE.exec(chat)) !== null) {
     const edit = parseEditBlock(match[1]);
     if (edit) edits.push(edit);
+    else unreadableEdits.push(editHeaderLine(match[1]) || '(empty edit)');
   }
   chat = chat.replace(EDIT_BLOCK_RE, '');
 
@@ -521,15 +534,17 @@ export function parseAssistantReply(raw: string): ParsedAssistantReply {
   }
   const editOpen = chat.search(EDIT_OPEN_RE);
   if (editOpen !== -1) {
-    const edit = parseEditBlock(chat.slice(editOpen).replace(EDIT_OPEN_RE, ''));
+    const rawEdit = chat.slice(editOpen).replace(EDIT_OPEN_RE, '');
+    const edit = parseEditBlock(rawEdit);
     if (edit) edits.push(edit);
+    else if (rawEdit.trim()) unreadableEdits.push(editHeaderLine(rawEdit));
     chat = chat.slice(0, editOpen);
   }
 
   // Tidy fences left around a removed block.
   chat = chat.replace(/```[a-z]*\s*```/gi, '').replace(/\n{3,}/g, '\n\n').trim();
   if (draftText !== null && !draftText.trim()) draftText = null;
-  return { chatText: chat, draftText, edits, suggestions, takes, rolls };
+  return { chatText: chat, draftText, edits, suggestions, takes, rolls, unreadableEdits };
 }
 
 /** What to show in the chat bubble while the reply is still streaming. */
@@ -720,21 +735,26 @@ const MODE_RULES: Record<AssistantMode, string> = {
     '[[/EDIT]]',
     'Commands:',
     '- REPLACE ¶n  (new paragraph text follows; it may be more than one paragraph)',
+    '- REPLACE ¶n-¶m  (replaces paragraphs n to m with the new text that follows)',
     '- INSERT AFTER ¶n  (new paragraph text follows; use ¶0 for the very start)',
-    '- DELETE ¶n  (nothing follows)',
+    '- INSERT BEFORE ¶n  (new paragraph text follows)',
+    '- DELETE ¶n  or  DELETE ¶n-¶m  (nothing follows)',
+    '- MOVE ¶n AFTER ¶m  or  MOVE ¶n-¶k BEFORE ¶m  (nothing follows; use it to fix the order without retyping)',
     '- REPLACE Wn  (the full replacement tag block follows, e.g. <!--ACTION-->Kaelen: roll a DC 14 Perception check<!--/ACTION-->)',
     '- ADD W  (one or more new tag blocks follow)',
     '- DELETE Wn  (nothing follows)',
-    'Numbers always refer to the CURRENT DRAFT exactly as shown above, even when you make several edits in one reply. Leave every part you were not asked to change exactly as it is.',
+    'Numbers always refer to the CURRENT DRAFT exactly as shown above, even when you make several edits in one reply, and each paragraph may be changed by only one edit per reply. Put nothing on the command line except the command. Leave every part you were not asked to change exactly as it is.',
     'If the host edited the draft by hand, keep their edits unless they ask you to change them.',
     'Suggestions in this mode are follow-up changes, e.g. "Shorten ¶2" or "Add a Stealth roll for Mira".',
   ].join('\n'),
 };
 
 /** NPC rehearsal replaces the mode section: the assistant becomes the NPC. */
-export function rehearsalRules(npc: string): string {
+export function rehearsalRules(npc: string, cast: string[] = []): string {
+  const others = cast.filter(n => n.toLowerCase() !== npc.toLowerCase());
   return [
     `MODE: NPC REHEARSAL WITH ${npc.toUpperCase()}`,
+    ...(others.length ? [`This scene also has ${others.join(', ')}. Their earlier lines are marked [as Name] in the chat. ${npc} hears them and may react to them, but you speak ONLY as ${npc} this time; never write lines for ${others.join(' or ')}.`] : []),
     `The host is rehearsing dialogue with ${npc} to build natural lines for the scene. Reply ONLY as ${npc}, fully in character: what ${npc} says out loud, with at most one short action beat in *asterisks*. Usually under 70 words.`,
     `Host messages are what the party says or does to ${npc}; a message may name the speaker, e.g. "Kaelen: where is the pup?". Never speak or act for the party.`,
     `Stay consistent with everything the story, memory anchors and World Bible say about ${npc}: voice, knowledge, secrets and attitude. If ${npc} is new, give them a distinct voice that fits the scene. ${npc} only knows what they would plausibly know.`,
@@ -747,6 +767,8 @@ export interface BuiltHandoff {
   systemPrompt: string;
   chars: number;
   sealedCount: number;
+  /** True when the draft is longer than the assistant can read, so it can't see the end. */
+  draftTrimmed: boolean;
 }
 
 /** Build the lean handoff the assistant reads on every message. */
@@ -755,9 +777,10 @@ export function buildAssistantSystemPrompt(
   bible: AssistantBible,
   draft: AssistantDraft,
   mode: AssistantMode = 'draft',
-  extras: { persona?: AssistantPersona; npc?: string | null } = {},
+  extras: { persona?: AssistantPersona; npc?: string | null; cast?: string[] } = {},
 ): BuiltHandoff {
   const { latest, before } = latestStory(ctx.story || []);
+  const numberedDraft = draftToNumberedText(draft);
   const { table, sealed, sealedCount } = tableSection(ctx.tableLines || [], ctx.sealedOrder || []);
   const bibleText = bible.mode === 'full'
     ? capStart(bible.text.trim(), LIMITS.fullGuides)
@@ -774,7 +797,7 @@ export function buildAssistantSystemPrompt(
     ['LATEST DM POST (the scene the players are answering)', latest],
     ['LIVE TABLE (recent lines, oldest first)', table],
     ['SEALED LINES TO ANSWER (in this order)', sealed || '(none sealed — the host may be writing without player lines)'],
-    ['CURRENT DRAFT (numbered)', capStart(draftToNumberedText(draft), LIMITS.draft) || '(empty: no draft yet)'],
+    ['CURRENT DRAFT (numbered)', capStart(numberedDraft, LIMITS.draft) || '(empty: no draft yet)'],
   ];
 
   const body = sections
@@ -783,10 +806,10 @@ export function buildAssistantSystemPrompt(
     .join('\n\n');
 
   // The mode goes last, so the long, rarely-changing part of the brief stays identical between messages.
-  const tail = extras.npc ? rehearsalRules(extras.npc) : MODE_RULES[mode];
+  const tail = extras.npc ? rehearsalRules(extras.npc, extras.cast ?? []) : MODE_RULES[mode];
   const personaLine = PERSONAS[extras.persona ?? 'default']?.line;
   const systemPrompt = `${ASSISTANT_RULES}\n\n${body}\n\n=== ${tail}${personaLine ? `\n\n${personaLine}` : ''}`;
-  return { systemPrompt, chars: systemPrompt.length, sealedCount };
+  return { systemPrompt, chars: systemPrompt.length, sealedCount, draftTrimmed: numberedDraft.length > LIMITS.draft };
 }
 
 /** How one saved chat message is shown to the assistant later. */
@@ -802,14 +825,22 @@ function historyText(m: AssistantChatMessage): string {
   return text.trim();
 }
 
+export interface SessionMessages {
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  /** Oldest turns that did not fit under LIMITS.sessionChars (0 almost always). Shown on screen. */
+  omittedTurns: number;
+}
+
 /**
- * The chat history sent to the model: text only, newest turns, starting with
- * the host, no two turns in a row from the same side.
+ * The chat history sent to the model: the whole session since the last post,
+ * text only, starting with the host, no two turns in a row from the same side.
+ * Only a session past LIMITS.sessionChars loses its oldest turns, and that is counted.
  */
-export function buildAssistantMessages(
+export function buildSessionMessages(
   history: AssistantChatMessage[],
   newHostText: string,
-): Array<{ role: 'user' | 'assistant'; content: string }> {
+  maxChars: number = LIMITS.sessionChars,
+): SessionMessages {
   const turns = [
     ...history.map(m => ({
       role: (m.role === 'host' ? 'user' : 'assistant') as 'user' | 'assistant',
@@ -825,12 +856,22 @@ export function buildAssistantMessages(
     else merged.push({ ...t });
   }
 
-  let kept = merged.slice(-LIMITS.chatTurns);
-  while (kept.length > 1 && kept.reduce((n, t) => n + t.content.length, 0) > LIMITS.chatChars) {
+  let kept = merged;
+  let total = kept.reduce((n, t) => n + t.content.length, 0);
+  while (kept.length > 1 && total > maxChars) {
+    total -= kept[0].content.length;
     kept = kept.slice(1);
   }
   while (kept.length > 1 && kept[0].role !== 'user') kept = kept.slice(1);
-  return kept;
+  return { messages: kept, omittedTurns: merged.length - kept.length };
+}
+
+/** The chat history as a plain list (the whole session that fits). */
+export function buildAssistantMessages(
+  history: AssistantChatMessage[],
+  newHostText: string,
+): Array<{ role: 'user' | 'assistant'; content: string }> {
+  return buildSessionMessages(history, newHostText).messages;
 }
 
 // ─── Quick starts for the panel ───────────────────────────────────────────────
