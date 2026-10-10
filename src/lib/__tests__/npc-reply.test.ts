@@ -76,6 +76,15 @@ describe('what the NPC reads', () => {
     expect(um).toContain('Mira (NPC): Ask the smith.');
     expect(um).toContain('Now Kaelen says to Grukk: "where is the pup?"');
   });
+
+  it('repeats the guide as the last thing the NPC reads, so personality outweighs the scene', () => {
+    const um = buildNpcUserMessage(input());
+    const reminder = um.indexOf('STAY IN CHARACTER.');
+    expect(reminder).toBeGreaterThan(um.indexOf('Now Kaelen says to Grukk'));
+    expect(um.slice(reminder)).toContain('A gruff orc smith. Speaks in short growls.');
+    expect(um.endsWith("Answer as Grukk: in Grukk's own voice, 1 to 3 sentences, under 70 words.")).toBe(true);
+    expect(buildNpcUserMessage(input({ guide: '' }))).not.toContain('STAY IN CHARACTER');
+  });
 });
 
 describe('cleaning what the NPC says', () => {

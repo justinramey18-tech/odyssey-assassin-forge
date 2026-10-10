@@ -16,6 +16,8 @@ export const NPC_LIMITS = {
   tableLineChars: 500,
   playerLine: 2_000,
   reply: 1_500,
+  /** The guide repeated at the end, right before the line to answer. */
+  voiceReminder: 2_000,
 } as const;
 
 export interface NpcRosterEntry {
@@ -175,11 +177,15 @@ export function buildNpcUserMessage(input: NpcPromptInput): string {
   const name = input.npcName.trim();
   const recent = input.table.slice(-NPC_LIMITS.tableLines).map(l => tableLine(l, name)).filter(Boolean);
   const said = capStart(addressedText(input.line, name), NPC_LIMITS.playerLine);
+  const guide = capStart(input.guide, NPC_LIMITS.voiceReminder);
   return [
     recent.length ? `THE TABLE (most recent lines, oldest first)\n${recent.join('\n')}` : 'THE TABLE\n(nothing said yet)',
     `Now ${input.speakerName} says to ${name}: "${said}"`,
-    `Answer as ${name}.`,
-  ].join('\n\n');
+    guide
+      ? `STAY IN CHARACTER. This is who ${name} is, and it matters more than the mood of the scene. The scene tells you what is happening; this tells you how ${name} reacts to it:\n${guide}`
+      : '',
+    `Answer as ${name}: in ${name}'s own voice, 1 to 3 sentences, under 70 words.`,
+  ].filter(Boolean).join('\n\n');
 }
 
 /** Turn a model's raw answer into the line the NPC posts. Empty means "no usable answer". */
