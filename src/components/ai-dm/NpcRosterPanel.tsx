@@ -9,6 +9,7 @@ import { Archive, ArchiveRestore, Drama, ImagePlus, Loader2, Pencil, Plus, X } f
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AvatarCropDialog } from './AvatarCropDialog';
+import { NpcScorecard } from './NpcScorecard';
 import { NpcPortrait } from './NpcPortrait';
 import type { PartyNpc, PartyNpcsApi } from '@/hooks/use-party-npcs';
 import {
@@ -49,6 +50,7 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [view, setView] = useState<'roster' | 'scores'>('roster');
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -162,6 +164,25 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
           <p className="mt-1.5 text-[12px] text-white/70">
             {onStageNames.length ? <>On stage now: <span className="text-amber-200">{onStageNames.join(', ')}</span></> : 'Nobody is on stage.'}
           </p>
+          {!draft && (
+            <div role="tablist" aria-label="NPC Roster view" className="mt-2 grid grid-cols-2 rounded-lg border border-white/10 bg-white/5 p-0.5">
+              {(['roster', 'scores'] as const).map(v => (
+                <button
+                  key={v}
+                  role="tab"
+                  aria-selected={view === v}
+                  onClick={() => setView(v)}
+                  style={{ touchAction: 'manipulation' }}
+                  className={cn(
+                    'min-h-[38px] rounded-md text-[13px] transition-colors',
+                    view === v ? 'bg-amber-800/45 text-amber-100 border border-amber-400/40' : 'text-white/55 border border-transparent',
+                  )}
+                >
+                  {v === 'roster' ? 'Roster' : 'Scorecard'}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3">
@@ -315,6 +336,8 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
                 </button>
               </div>
             </div>
+          ) : view === 'scores' ? (
+            <NpcScorecard roster={roster} />
           ) : (
             <>
               <button
