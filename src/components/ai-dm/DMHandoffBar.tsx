@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { ChevronUp, ChevronDown, ChevronRight, Zap, Loader2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronRight, Zap, Loader2, Drama } from 'lucide-react';
 import { ART } from './DMAssistantArt';
 import { playerColor } from './RoundChatDrawer';
 import { parseActionCard } from '@/lib/roundChatActionCard';
@@ -28,6 +28,10 @@ interface DMHandoffBarProps {
   oocNames?: Record<string, string>;
   /** Host only: opens the Human DM Assistant. When set, the bar stays visible even with nothing sealed. */
   onOpenAssistant?: () => void;
+  /** Host only: opens the NPC Roster (Live NPCs). When set, the bar stays visible even with nothing sealed. */
+  onOpenNpcRoster?: () => void;
+  /** How many NPCs are on stage, shown on the NPC Roster button. */
+  npcsOnStage?: number;
 }
 
 export function DMHandoffBar({
@@ -39,6 +43,8 @@ export function DMHandoffBar({
   onSendToDMNow,
   oocNames,
   onOpenAssistant,
+  onOpenNpcRoster,
+  npcsOnStage = 0,
 }: DMHandoffBarProps) {
   const [orderOpen, setOrderOpen] = useState(false);
 
@@ -46,7 +52,7 @@ export function DMHandoffBar({
   // eat vertical space on the story screen when it has no job.
   if (!isHost) return null;
   const showSend = tickedCount > 0 || isGenerating;
-  if (!showSend && !onOpenAssistant) return null;
+  if (!showSend && !onOpenAssistant && !onOpenNpcRoster) return null;
 
   const showOrder = !!onReorderSelected && (orderedSelected?.length || 0) > 1;
 
@@ -131,21 +137,44 @@ export function DMHandoffBar({
       </button>
       )}
 
-      {onOpenAssistant && (
-        <button
-          onClick={onOpenAssistant}
-          aria-label="Human DM Assistant"
-          style={{ touchAction: 'manipulation' }}
-          className="w-full flex items-center justify-center py-0.5 transition-transform active:scale-[0.98]"
-        >
-          <img
-            src={ART.assistantButton}
-            alt=""
-            aria-hidden="true"
-            draggable={false}
-            className="h-10 w-auto max-w-full select-none drop-shadow-[0_0_6px_rgba(45,212,191,0.25)]"
-          />
-        </button>
+      {(onOpenAssistant || onOpenNpcRoster) && (
+        <div className="flex items-center gap-2">
+          {onOpenAssistant && (
+            <button
+              onClick={onOpenAssistant}
+              aria-label="Human DM Assistant"
+              style={{ touchAction: 'manipulation' }}
+              className="flex-1 min-w-0 flex items-center justify-center py-0.5 transition-transform active:scale-[0.98]"
+            >
+              <img
+                src={ART.assistantButton}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                className="h-10 w-auto max-w-full select-none drop-shadow-[0_0_6px_rgba(45,212,191,0.25)]"
+              />
+            </button>
+          )}
+          {onOpenNpcRoster && (
+            <button
+              onClick={onOpenNpcRoster}
+              aria-label={npcsOnStage > 0 ? `NPC Roster, ${npcsOnStage} on stage` : 'NPC Roster'}
+              style={{ touchAction: 'manipulation' }}
+              className={cn(
+                "shrink-0 h-10 px-3 rounded-lg border bg-black/40 font-cinzel text-[12px] flex items-center gap-1.5 transition-transform active:scale-[0.97]",
+                npcsOnStage > 0 ? "border-amber-400/60 text-amber-100 shadow-[0_0_8px_rgba(245,158,11,0.35)]" : "border-amber-500/30 text-amber-200/80",
+              )}
+            >
+              <Drama className="w-4 h-4" />
+              NPCs
+              {npcsOnStage > 0 && (
+                <span className="min-w-5 h-5 px-1 rounded-full bg-amber-500/80 text-black text-[11px] font-bold flex items-center justify-center">
+                  {npcsOnStage}
+                </span>
+              )}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
