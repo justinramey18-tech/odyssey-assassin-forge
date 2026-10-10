@@ -1736,6 +1736,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const decoder = new TextDecoder();
     let textBuffer = '';
     let assistantContent = '';
+    // Whether the stream said it finished ([DONE] or a finish_reason), and any error it
+    // reported part-way. isDmReplyCutOff decides whether the reply was cut off.
+    let finished = false;
+    let streamError = '';
 
     while (true) {
       const { done, value } = await reader.read();
