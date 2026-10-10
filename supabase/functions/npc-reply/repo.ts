@@ -139,8 +139,9 @@ export function createRepo(db: any): NpcRepo {
         db.from('party_shared_state').select('state_data')
           .eq('party_id', partyId).eq('state_type', 'dm_session')
           .order('updated_at', { ascending: false }).limit(1),
+        // The DM's own posts only: sealed NPC lines are saved as assistant rows too, under the NPC's name.
         db.from('party_dm_messages').select('content, team, is_afk_marker')
-          .eq('party_id', partyId).eq('role', 'assistant')
+          .eq('party_id', partyId).eq('role', 'assistant').eq('sender_name', 'DM')
           .order('created_at', { ascending: false }).limit(10),
         db.from('party_members').select('character_name, character_status').eq('party_id', partyId),
         (until
