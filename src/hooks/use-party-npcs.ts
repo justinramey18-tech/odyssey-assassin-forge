@@ -7,6 +7,12 @@ import { NPC_DEFAULT_MODEL, NPC_GUIDE_MAX, cleanNpcName, readableFunctionError, 
 export type NpcSpeed = 'trivial' | 'easy' | 'medium' | 'hard' | 'deadly';
 export interface NpcCombatStats { maxHp: number; ac: number; attackBonus: number; damage: string; speed: NpcSpeed }
 
+// NPC Quick Build
+export type NpcBuildRole = 'talker' | 'minion' | 'fighter' | 'boss';
+export type NpcBuildDifficulty = 'easy' | 'medium' | 'hard' | 'deadly';
+export interface NpcBuildDraft { name: string; guide: string; secrets: string; wants: string; levers: string; hardLines: string; moodRange: string; grudgeStyle: string; attack: string; combatStats: NpcCombatStats | null }
+export interface NpcTemplate { id: string; name: string; data: NpcBuildDraft; updated_at: string }
+
 /** One NPC on the party's roster (Live NPCs, D-22). Everyone at the table can read these. */
 export interface PartyNpc {
   id: string;
@@ -296,6 +302,66 @@ export function usePartyNpcs(partyId: string | null) {
   /** v3, host: set an NPC's mood by hand (the NPC's next line starts from it). */
   const setMood = useCallback((id: string, mood: string) => patchNpc(id, { mood }), [patchNpc]);
   const setCombatStats = useCallback((id: string, stats: NpcCombatStats | null) => patchNpc(id, { combat_stats: stats }), [patchNpc]);
+
+  // ── NPC Quick Build: drafts from the server, then a full NPC from a draft ──
+  const buildNpcs = useCallback(async (input: { description: string; useScene: boolean; count: number; role: NpcBuildRole; difficulty: NpcBuildDifficulty; fight: boolean }): Promise<NpcBuildDraft[]> => {
+    const { data, error } = await supabase.functions.invoke('npc-build', { body: { partyId, ...input } });
+    if (error) {
+      const { message } = await readableFunctionError(error, 'The NPC builder could not answer. Try again.');
+      throw new Error(message);
+    }
+    return Array.isArray(data?.drafts) ? (data.drafts as NpcBuildDraft[]) : [];
+  }, [partyId]);
+
+  const createFromDraft = useCallback(async (draft: NpcBuildDraft, opts: { onStage: boolean }): Promise<PartyNpc> => {
+    const guide = draft.attack.trim() ? `${draft.guide.trim()}\n\nIn a fight: ${draft.attack.trim()}.` : draft.guide.trim();
+    const npc = await addNpc({ name: draft.name });
+    const failed = (what: string) => new Error(`${npc.name} was added, but ${what} did not save. Open ${npc.name} and finish it there.`);
+    try {
+      await saveGuide(npc.id, guide, draft.secrets, {
+        wants: draft.wants, levers: draft.levers, hardLines: draft.hardLines, moodRange: draft.moodRange,
+        grudgeStyle: draft.grudgeStyle as NpcGuideFields['grudgeStyle'],
+      });
+    } catch { throw failed('the guide'); }
+    if (draft.combatStats) {
+      try { await setCombatStats(npc.id, draft.combatStats); } catch { throw failed('the fight stats'); }
+    }
+    if (opts.onStage) {
+      try { await setOnStage(npc.id, true); } catch { throw failed('putting it on stage'); }
+    }
+    return npc;
+  }, [addNpc, saveGuide, setCombatStats, setOnStage]);
+
+  const templateUserId = async (): Promise<string> => {
+    const { data } = await supabase.auth.getUser();
+    const id = data?.user?.id;
+    if (!id) throw new Error('Sign in to use templates.');
+    return id;
+  };
+
+  const listTemplates = useCallback(async (): Promise<NpcTemplate[]> => {
+    const userId = await templateUserId();
+    const { data, error } = await (supabase.from('npc_templates') as any)
+      .select('id, name, data, updated_at').eq('user_id', userId)
+      .order('updated_at', { ascending: false }).limit(50);
+    if (error) throw new Error(rosterError(error));
+    return (data ?? []) as NpcTemplate[];
+  }, []);
+
+  const saveTemplate = useCallback(async (draft: NpcBuildDraft): Promise<NpcTemplate> => {
+    const userId = await templateUserId();
+    const { data, error } = await (supabase.from('npc_templates') as any)
+      .insert({ user_id: userId, name: draft.name.slice(0, 60), data: draft })
+      .select('id, name, data, updated_at').single();
+    if (error) throw new Error(rosterError(error));
+    return data as NpcTemplate;
+  }, []);
+
+  const deleteTemplate = useCallback(async (id: string): Promise<void> => {
+    await templateUserId();
+    const { error } = await (supabase.from('npc_templates') as any).delete().eq('id', id);
+    if (error) throw new Error(rosterError(error));
+  }, []);
 
   // ── Player stand-ins: an away player's character played as a live NPC ──
 
@@ -636,6 +702,11 @@ export function usePartyNpcs(partyId: string | null) {
     reload: load,
     addNpc,
     updateNpc,
+    buildNpcs,
+    createFromDraft,
+    listTemplates,
+    saveTemplate,
+    deleteTemplate,
     setOnStage,
     archiveNpc,
     restoreNpc,
