@@ -1319,6 +1319,46 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   // Live NPCs (D-22): the party's NPC roster, with live updates.
   const npcRoster = usePartyNpcs(partyId || null);
   const npcCombat = useNpcCombat({ partyId: partyId || null, currentUserId: currentUserId || null, isHost: originalCreator, sheetHp: characterContext?.currentHP ?? null, onHPChange });
+  // Live NPC Combat: the server-rolled death-save screen (separate from burnout's).
+  const [combatDeathOpen, setCombatDeathOpen] = useState(false);
+  const [combatDeathOutcome, setCombatDeathOutcome] = useState<'none' | 'revived' | 'dead'>('none');
+  const myFightStatus = npcCombat.myFighter?.status ?? null;
+  const prevFightStatusRef = useRef<string | null>(null);
+  const myDeathSaveEvents = useMemo(
+    () => npcCombat.events.filter(e => e.target_user_id === currentUserId && (e.kind === 'death_save' || e.kind === 'death')),
+    [npcCombat.events, currentUserId],
+  );
+  useEffect(() => {
+    const prev = prevFightStatusRef.current;
+    prevFightStatusRef.current = myFightStatus;
+    if (myFightStatus === 'down' && prev !== 'down' && prev !== 'stable') {
+      setCombatDeathOutcome('none');
+      setCombatDeathOpen(true);
+      return;
+    }
+    if (!combatDeathOpen || combatDeathOutcome !== 'none') return;
+    if (myFightStatus === 'up') {
+      const revivedBySave = [...myDeathSaveEvents].reverse().find(e => e.kind === 'death_save' && e.hp_delta === 1);
+      const recent = revivedBySave && Date.now() - Date.parse(revivedBySave.created_at) < 60_000;
+      if (recent) setCombatDeathOutcome('revived');
+      else setCombatDeathOpen(false);
+    } else if (myFightStatus === 'dead') {
+      setCombatDeathOutcome('dead');
+    }
+  }, [myFightStatus, combatDeathOpen, combatDeathOutcome, myDeathSaveEvents]);
+  const combatDeathServer = useMemo(() => {
+    const f = npcCombat.myFighter;
+    const latest = myDeathSaveEvents[myDeathSaveEvents.length - 1];
+    return {
+      successes: f?.death_successes ?? 0,
+      failures: f?.death_failures ?? 0,
+      lastRoll: latest?.d20 ?? null,
+      rollKey: latest?.id ?? null,
+      nextSaveAt: f?.next_save_at ?? null,
+      stable: f?.status === 'stable',
+      outcome: combatDeathOutcome,
+    };
+  }, [npcCombat.myFighter, myDeathSaveEvents, combatDeathOutcome]);
   const onlineMembers = useMemo(() => members.map(m => ({ user_id: m.user_id, updated_at: m.updated_at ?? '1970-01-01T00:00:00Z' })), [members]);
   const onlineStatus = useOnlineStatus(onlineMembers);
   const partyPresence = usePartyPresence(partyId, currentUserId);
@@ -5385,6 +5425,21 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onBack();
             }
           }, 2000);
+        }}
+      />
+
+      {/* Live NPC Combat death saves: the server rolls; this only shows them. */}
+      <DeathSaveScreen
+        open={combatDeathOpen}
+        characterName={members.find(m => m.user_id === currentUserId)?.character_name || 'Rider'}
+        dragonName={dragonBonds.myDragon?.dragonName || 'your dragon'}
+        variant={isEmpyrean ? 'dragon' : 'plain'}
+        server={combatDeathServer}
+        onStabilize={() => { setCombatDeathOpen(false); }}
+        onDeath={() => {
+          setCombatDeathOpen(false);
+          const name = members.find(m => m.user_id === currentUserId)?.character_name || 'Your character';
+          toast(`${name} has fallen. The host can revive them.`);
         }}
       />
 
