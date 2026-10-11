@@ -3592,8 +3592,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           ) : (
             <AnimatePresence initial={false}>
               {visibleMessages.map((msg, idx) => {
-                // Hide the last assistant message while slideshow is playing
-                if (msg.role === 'assistant' && idx === visibleMessages.length - 1 && (showSlideshow || (partyDm.isGenerating && cinematicModeEnabled))) {
+                // Hide the last assistant message while slideshow is playing.
+                // A story scene (D-22) always shows: the table reads it while the DM writes.
+                if (msg.role === 'assistant' && msg.sender_name !== STORY_SCENE_SENDER && idx === visibleMessages.length - 1 && (showSlideshow || (partyDm.isGenerating && cinematicModeEnabled))) {
                   return null;
                 }
                 // Pre-compute AFK names from preceding user message
