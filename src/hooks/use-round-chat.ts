@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { stripActionCard } from '@/lib/roundChatActionCard';
 import { parseReply } from '@/lib/chatReply';
 import { exchangeIds, inCharacterBlock, npcLineForDm } from '@/lib/live-npcs';
+import type { StorySceneLine } from '@/lib/story-scene';
 import { supabase } from '@/integrations/supabase/client';
 
 const STYLE_STATE_TYPE = 'round_style';
@@ -486,6 +487,28 @@ export function useRoundChat(
       }))
       .filter(l => l.text),
     [orderedSelected],
+  );
+
+  /**
+   * Story scenes (D-22): the sealed in-character lines one by one, in send order,
+   * for the scene that is written into the story on hand-off. Table talk is left out.
+   */
+  const selectedSceneLines = useMemo<StorySceneLine[]>(
+    () => orderedSelected
+      .filter(m => m.in_character)
+      .map(m => {
+        const { replyToId, body } = parseReply(m.content);
+        const words = stripActionCard(body).trim();
+        const target = replyToId ? messages.find(mm => mm.id === replyToId) : undefined;
+        return {
+          name: m.character_name || (m.npc_id ? 'NPC' : 'Player'),
+          npc: !!m.npc_id,
+          text: m.npc_id ? npcLineForDm(words) : words,
+          replyTo: target?.character_name || null,
+        };
+      })
+      .filter(l => l.text),
+    [orderedSelected, messages],
   );
 
   /** How many lines are ticked and ready to be handed over. */
