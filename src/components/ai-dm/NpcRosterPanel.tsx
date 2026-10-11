@@ -15,7 +15,10 @@ import { NpcPortrait } from './NpcPortrait';
 import type { PartyNpc, PartyNpcsApi } from '@/hooks/use-party-npcs';
 import {
   NPC_DEFAULT_MODEL,
+  NPC_FIELD_MAX,
+  NPC_GRUDGE_STYLES,
   NPC_GUIDE_MAX,
+  NPC_MOOD_RANGE_MAX,
   NPC_NAME_MAX,
   NPC_SECRETS_MAX,
   cleanNpcName,
@@ -38,7 +41,21 @@ interface Draft {
   portraitUrl: string | null;
   guide: string;
   secrets: string;
+  /** v3 fields */
+  wants: string;
+  levers: string;
+  hardLines: string;
+  moodRange: string;
+  grudgeStyle: string;
 }
+
+/** v3: the guide fields shown in the editor. */
+const BEHAVIOR_FIELDS: Array<{ key: 'wants' | 'levers' | 'hardLines' | 'moodRange'; label: string; placeholder: string; max: number }> = [
+  { key: 'wants', label: 'Wants right now', placeholder: 'Keep his job. Get his men healed. Go home on time for once.', max: NPC_FIELD_MAX },
+  { key: 'levers', label: 'What works on them (not secret: they give ground to it)', placeholder: 'Bribes. A genuinely good joke. Respect for his rank.', max: NPC_FIELD_MAX },
+  { key: 'hardLines', label: 'Hard lines (never, whatever happens)', placeholder: 'Never betrays his crew. Never lowers the quarantine without orders.', max: NPC_FIELD_MAX },
+  { key: 'moodRange', label: 'Mood range', placeholder: 'Swings between weary Gandalf and gleeful Deadpool. Rarely scared.', max: NPC_MOOD_RANGE_MAX },
+];
 
 /** The guide of an NPC being edited: still loading, loaded, or failed (then it is never overwritten). */
 type GuideState = 'loading' | 'ready' | 'failed';
@@ -82,7 +99,16 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
     setGuideState('loading');
     try {
       const g = await roster.loadGuide(npcId);
-      setDraft(prev => (prev && prev.id === npcId ? { ...prev, guide: g.guide, secrets: g.secrets } : prev));
+      setDraft(prev => (prev && prev.id === npcId ? {
+        ...prev,
+        guide: g.guide,
+        secrets: g.secrets,
+        wants: g.wants,
+        levers: g.levers,
+        hardLines: g.hardLines,
+        moodRange: g.moodRange,
+        grudgeStyle: g.grudgeStyle,
+      } : prev));
       setGuideState('ready');
     } catch (err) {
       setGuideState('failed');
@@ -92,11 +118,11 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
 
   const startNew = () => {
     setGuideState('ready');
-    setDraft({ id: null, name: '', model: NPC_DEFAULT_MODEL, portraitUrl: null, guide: '', secrets: '' });
+    setDraft({ id: null, name: '', model: NPC_DEFAULT_MODEL, portraitUrl: null, guide: '', secrets: '', wants: '', levers: '', hardLines: '', moodRange: '', grudgeStyle: 'normal' });
   };
 
   const startEdit = (npc: PartyNpc) => {
-    setDraft({ id: npc.id, name: npc.name, model: npc.model, portraitUrl: npc.portrait_url, guide: '', secrets: '' });
+    setDraft({ id: npc.id, name: npc.name, model: npc.model, portraitUrl: npc.portrait_url, guide: '', secrets: '', wants: '', levers: '', hardLines: '', moodRange: '', grudgeStyle: 'normal' });
     void loadGuideInto(npc.id);
   };
 
@@ -112,11 +138,19 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
           guide: draft.guide,
           secrets: draft.secrets,
         });
+        const fields = { wants: draft.wants, levers: draft.levers, hardLines: draft.hardLines, moodRange: draft.moodRange, grudgeStyle: draft.grudgeStyle };
+        if (fields.wants.trim() || fields.levers.trim() || fields.hardLines.trim() || fields.moodRange.trim() || fields.grudgeStyle !== 'normal') {
+          await roster.saveGuide(npc.id, draft.guide, draft.secrets, fields);
+        }
         toast.success(`${npc.name} joined the roster. Turn on "On stage" when they enter the scene.`);
       } else {
         await roster.updateNpc(draft.id, { name: draft.name, model: draft.model, portrait_url: draft.portraitUrl });
         // A guide that failed to load is never saved, so it can't be wiped by accident.
-        if (guideState === 'ready') await roster.saveGuide(draft.id, draft.guide, draft.secrets);
+        if (guideState === 'ready') {
+          await roster.saveGuide(draft.id, draft.guide, draft.secrets, {
+            wants: draft.wants, levers: draft.levers, hardLines: draft.hardLines, moodRange: draft.moodRange, grudgeStyle: draft.grudgeStyle,
+          });
+        }
         toast.success(guideState === 'ready' ? `${cleanNpcName(draft.name)} saved` : `${cleanNpcName(draft.name)} saved (the guide was not loaded, so it was left as it was)`);
       }
       setDraft(null);
@@ -320,6 +354,38 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
                       className={cn(fieldClass, 'resize-y leading-snug')}
                     />
                   </label>
+
+                  {/* v3: how they behave. Only you and the server read these. */}
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
+                    <p className="text-[12px] text-white/60">How they behave (only you and the server read this)</p>
+                    {BEHAVIOR_FIELDS.map(fd => (
+                      <label key={fd.key} className="block space-y-1">
+                        <span className="flex justify-between text-[12px] text-white/60">
+                          <span>{fd.label}</span>
+                          {draft[fd.key].length > fd.max * 0.8 && <span className="text-amber-300">{draft[fd.key].length} / {fd.max}</span>}
+                        </span>
+                        <textarea
+                          value={draft[fd.key]}
+                          maxLength={fd.max}
+                          onChange={(e) => setDraft({ ...draft, [fd.key]: e.target.value })}
+                          rows={2}
+                          placeholder={fd.placeholder}
+                          className={cn(fieldClass, 'resize-y leading-snug')}
+                        />
+                      </label>
+                    ))}
+                    <label className="block space-y-1">
+                      <span className="text-[12px] text-white/60">Feelings over time</span>
+                      <select
+                        value={draft.grudgeStyle}
+                        onChange={(e) => setDraft({ ...draft, grudgeStyle: e.target.value })}
+                        className={cn(fieldClass, 'min-h-[44px]')}
+                      >
+                        {NPC_GRUDGE_STYLES.map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
+                      </select>
+                      <span className="block text-[11px] text-white/40">{NPC_GRUDGE_STYLES.find(g => g.id === draft.grudgeStyle)?.hint}</span>
+                    </label>
+                  </div>
                 </>
               )}
 

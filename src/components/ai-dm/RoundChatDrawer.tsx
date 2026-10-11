@@ -4,7 +4,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronDown, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft, Stamp, RefreshCw, Drama, Dices } from 'lucide-react';
 import { AvatarCropDialog } from './AvatarCropDialog';
 import { NpcPortrait } from './NpcPortrait';
-import { attitudeLevel, keepNpcRoll, npcsToAsk, parseNpcRoll, rollButtonLabel, type NpcRollRequest } from '@/lib/live-npcs';
+import { attitudeLevel, keepNpcRoll, npcMoodOf, npcsToAsk, parseNpcRoll, rollButtonLabel, type NpcRollRequest } from '@/lib/live-npcs';
 
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -1122,6 +1122,15 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                                 NPC
                               </span>
                             )}
+                            {/* Live NPCs v3: the mood this line was said in. */}
+                            {isNpc && (() => {
+                              const mood = npcMoodOf(m.npc_mood);
+                              return mood ? (
+                                <span className="shrink-0 text-[13px] leading-none" role="img" aria-label={`${m.character_name || 'The NPC'} looks ${mood.label.toLowerCase()}`} title={mood.label}>
+                                  {mood.emoji}
+                                </span>
+                              ) : null;
+                            })()}
                           </div>
                         )}
 
