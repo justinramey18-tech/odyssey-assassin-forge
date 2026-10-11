@@ -162,6 +162,7 @@ import { loadPendingDmItems } from '@/lib/pendingDmItems';
 import { DiceRollOverlay } from '@/components/ai-dm/DiceRollOverlay';
 import { stripTableTalkTags, type NarrationSegment } from '@/lib/tts-utils';
 import { useNpcCombat } from '@/hooks/use-npc-combat';
+import { NpcCombatOverlay } from '@/components/ai-dm/NpcCombatOverlay';
 
 function stripCinematicTagsFromDisplay(content: string): string {
   return stripTableTalkTags(content.replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, ''));
@@ -5359,6 +5360,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         />
       )}
 
+      <NpcCombatOverlay combat={npcCombat} roster={npcRoster} members={members} currentUserId={currentUserId || null} isHost={originalCreator} onUseConsumableByName={onUseConsumableByName} />
       {/* Death Save Screen */}
       <DeathSaveScreen
         open={showDeathSaves}
