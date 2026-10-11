@@ -8,8 +8,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import type {
-  NpcBuildDifficulty, NpcBuildDraft, NpcBuildRole, NpcCombatStats, NpcSpeed, NpcTemplate, PartyNpcsApi,
+  NpcBuildDifficulty, NpcBuildDraft, NpcBuildRole, NpcCombatStats, NpcSkill, NpcSkillType, NpcSpeed, NpcTemplate, PartyNpcsApi,
 } from '@/hooks/use-party-npcs';
+import { NPC_SKILL_INFO } from '@/hooks/use-party-npcs';
 
 const fieldClass = 'w-full rounded-lg bg-black/40 border border-white/15 px-3 py-2 text-[14px] text-white/90 placeholder:text-white/30 outline-none focus:border-amber-400/60';
 const labelClass = 'block text-[11px] uppercase tracking-wide text-white/50 mb-1';
@@ -340,6 +341,7 @@ function DraftCard({ draft, onChange, onStats, onRemove, onSaveTemplate }: {
               {SPEEDS.map(sp => <Chip key={sp} on={s.speed === sp} onClick={() => onStats({ speed: sp })} className="px-0 text-[11px] capitalize">{sp}</Chip>)}
             </div>
           </div>
+          <SkillsEditor skills={s.skills ?? []} onChange={skills => onStats({ skills })} />
         </div>
       )}
       <button type="button" onClick={() => setMore(v => !v)} style={tm} className="min-h-[44px] flex items-center gap-1 text-[13px] text-amber-200/80">
@@ -372,6 +374,78 @@ function DraftCard({ draft, onChange, onStats, onRemove, onSaveTemplate }: {
           {saving && <Loader2 className="w-3 h-3 animate-spin" />} Save as template
         </button>
       </div>
+    </div>
+  );
+}
+
+function SkillsEditor({ skills, onChange }: { skills: NpcSkill[]; onChange: (s: NpcSkill[]) => void }) {
+  const [editing, setEditing] = useState<number | null>(null);
+  const list = skills.slice(0, 4);
+  const set = (i: number, p: Partial<NpcSkill>) => onChange(list.map((k, j) => (j === i ? { ...k, ...p } : k)));
+  const types = Object.keys(NPC_SKILL_INFO) as NpcSkillType[];
+  const firstFree = types.find(t => !list.some(k => k.type === t));
+  return (
+    <div className="space-y-2">
+      <label className={labelClass}>Skills</label>
+      <div className="flex flex-wrap gap-1.5">
+        {list.map((k, i) => (
+          <button
+            key={`${k.type}-${i}`}
+            type="button"
+            style={tm}
+            onClick={() => setEditing(editing === i ? null : i)}
+            className={cn('min-h-[44px] rounded-full border px-3 text-[12px]',
+              editing === i ? 'border-amber-400/60 bg-amber-800/40 text-amber-100' : 'border-white/15 bg-white/5 text-white/80')}
+          >
+            {NPC_SKILL_INFO[k.type]?.label ?? k.type}{k.name ? ` · ${k.name}` : ''}
+          </button>
+        ))}
+        {list.length < 4 && firstFree && (
+          <button
+            type="button"
+            style={tm}
+            onClick={() => {
+              const type: NpcSkillType = list.some(k => k.type === 'strike') ? firstFree : 'strike';
+              onChange([...list, { type, name: '' }]);
+              setEditing(list.length);
+            }}
+            className="min-h-[44px] rounded-full border border-dashed border-white/25 px-3 text-[12px] text-white/70"
+          >
+            + Add skill
+          </button>
+        )}
+      </div>
+      {editing !== null && list[editing] && (
+        <div className="rounded-lg border border-white/10 bg-black/30 p-2 space-y-2">
+          <select
+            value={list[editing].type}
+            onChange={e => set(editing, { type: e.target.value as NpcSkillType })}
+            className={cn(fieldClass, 'min-h-[44px]')}
+            aria-label="Skill type"
+          >
+            {types.map(t => (
+              <option key={t} value={t} disabled={t !== list[editing].type && list.some(k => k.type === t)}>{NPC_SKILL_INFO[t].label}</option>
+            ))}
+          </select>
+          <p className="text-[11px] text-white/50">{NPC_SKILL_INFO[list[editing].type]?.hint}</p>
+          <input
+            value={list[editing].name}
+            maxLength={40}
+            onChange={e => set(editing, { name: e.target.value.slice(0, 40) })}
+            placeholder="Bayonet Lunge"
+            className={fieldClass}
+            aria-label="Skill name"
+          />
+          <button
+            type="button"
+            style={tm}
+            onClick={() => { onChange(list.filter((_, j) => j !== editing)); setEditing(null); }}
+            className="w-full min-h-[44px] rounded-lg border border-white/15 text-[13px] text-white/70 flex items-center justify-center gap-1"
+          >
+            <Trash2 className="w-4 h-4" /> Remove skill
+          </button>
+        </div>
+      )}
     </div>
   );
 }
