@@ -550,14 +550,21 @@ export function useRoundChat(
   }, [orderedSelected, lineForDM]);
 
   /** What the backend needs to apply the right table rules for this hand-off. */
-  const liveTableContext = useMemo(() => ({
+  const liveTableContext = useMemo(() => {
+    const combatLines = orderedSelected.filter(m => m.character_name === '⚔ Combat' || (m.content || '').trimStart().startsWith('⚔'));
+    const combatTimes = combatLines.map(m => m.created_at).filter((t): t is string => typeof t === 'string' && !!t).sort();
+    return {
     mode: isLive ? ('live' as const) : ('chat' as const),
     chaosLevel: style.chaosLevel,
     hasTableTalk: orderedSelected.some(m => !m.in_character),
     hasInCharacter: orderedSelected.some(m => m.in_character),
     hasNpcLines: orderedSelected.some(m => !!m.npc_id),
     hasCombat: orderedSelected.some(m => m.character_name === '⚔ Combat' || (m.content || '').trimStart().startsWith('⚔')),
-  }), [isLive, style.chaosLevel, orderedSelected]);
+    partyId: partyId || undefined,
+    combatSince: combatTimes[0] ?? undefined,
+    combatUntil: combatTimes[combatTimes.length - 1] ?? undefined,
+    };
+  }, [isLive, style.chaosLevel, orderedSelected, partyId]);
 
 
   /** Mark the ticked lines as sent. Unticked lines stay available for later. */

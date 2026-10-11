@@ -229,6 +229,8 @@ export interface DmSessionConfig {
   mode: 'shared' | 'private';
   currentRoundId: string;
   campaignSummary: string | null;
+  /** Host-chosen model for battle posts. Undefined = same as dmModel. */
+  battleModel?: string;
   dmModel?: string; // Host-chosen AI model id for the whole party. Undefined = fall back to this device's saved model.
   isGenerating: boolean;
   /** Set by loadCampaign. Assistant rows created at/before this instant are re-inserted history, not new rounds. */
@@ -1560,7 +1562,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     responseModePrompt?: string,
     dmPersonaPrompt?: string,
     currentOocDirectives?: string[],
-    liveTable?: { mode: 'chat' | 'live'; chaosLevel: number; hasTableTalk: boolean; hasInCharacter: boolean; hasNpcLines?: boolean; hasScene?: boolean; hasCombat?: boolean },
+    liveTable?: { mode: 'chat' | 'live'; chaosLevel: number; hasTableTalk: boolean; hasInCharacter: boolean; hasNpcLines?: boolean; hasScene?: boolean; hasCombat?: boolean; partyId?: string; combatSince?: string; combatUntil?: string },
   ): Promise<string> => {
 
     // Ensure strictly alternating roles before sending to AI
@@ -1675,7 +1677,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         responseModePrompt: responseModePrompt || undefined,
         dmPersonaPrompt: dmPersonaPrompt || undefined,
         directorPrivatesContext: directorPrivatesContext || undefined,
-        model: resolvePartyModel(sessionConfig?.dmModel),
+        model: liveTable?.hasCombat && sessionConfig?.battleModel ? resolvePartyModel(sessionConfig.battleModel) : resolvePartyModel(sessionConfig?.dmModel),
         user_api_key: loadApiKey('anthropic') || undefined,
         user_openai_key: loadApiKey('openai') || undefined,
         user_perplexity_key: loadApiKey('perplexity') || undefined,
@@ -1760,7 +1762,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
 
     return assistantContent;
-  }, [characterContext, sessionConfig?.campaignSummary, sessionConfig?.dmModel, memoryAnchorsContent, worldStatePrompt, mergeConsecutiveRoles, fetchRecentPartyChat, fetchRecentDragonChat, fetchRecentDragonNetwork, buildCanonGuardrailContext, partyId, partyMembers]);
+  }, [characterContext, sessionConfig?.campaignSummary, sessionConfig?.dmModel, sessionConfig?.battleModel, memoryAnchorsContent, worldStatePrompt, mergeConsecutiveRoles, fetchRecentPartyChat, fetchRecentDragonChat, fetchRecentDragonNetwork, buildCanonGuardrailContext, partyId, partyMembers]);
 
 
   // Build party members system prompt section
@@ -1967,6 +1969,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       hasInCharacter: boolean;
       hasNpcLines?: boolean;
       hasCombat?: boolean;
+      partyId?: string;
+      combatSince?: string;
+      combatUntil?: string;
     };
   }) => {
     const directPrompt = options?.directPrompt;
@@ -3561,6 +3566,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     await updateSessionConfig({ dmModel: modelId });
   }, [partyId, isCreator, updateSessionConfig]);
 
+  const setBattleModel = useCallback(async (modelId: string | null) => {
+    if (!partyId || !isCreator) return;
+    if (modelId && !DM_MODELS.some(m => m.id === modelId)) return;
+    await updateSessionConfig({ battleModel: modelId || undefined });
+  }, [partyId, isCreator, updateSessionConfig]);
+
   // Host-only: reclaim the current turn in Couples/turn-based mode so the host can go again.
   const reclaimTurn = useCallback(async () => {
     if (!partyId || !user || !isCreator) return;
@@ -4529,6 +4540,7 @@ Rules:
     regroupParty,
     updateSessionConfig,
     setPartyModel,
+    setBattleModel,
     reclaimTurn,
     redoLastRound,
     // Timer
@@ -4552,7 +4564,7 @@ Rules:
     generateResponse, sendManualDmMessage, postAssistedDmResponse, approveDraft, discardDraft,
     editMessage, deleteMessage, sendDialogueMessage, sendWhisper, callDM, voiceNPC, startNpcScene, stopNpcScene, submitNpcInterjection, generateDialogueRecap, regenerateMessage, regenerateWhispers,
     addMediaMessage, stopGeneration, applyOocCommand, initiateSplit, regroupParty,
-    updateSessionConfig, setPartyModel, reclaimTurn, redoLastRound, setTimerConfig, startTimer, pauseTimer, resumeTimer,
+    updateSessionConfig, setPartyModel, setBattleModel, reclaimTurn, redoLastRound, setTimerConfig, startTimer, pauseTimer, resumeTimer,
     cancelTimer, requestExtension, approveExtension, dismissExtensions,
     activeMoodPresetId, setActiveMoodPreset, initialLoadDone,
   ]);
