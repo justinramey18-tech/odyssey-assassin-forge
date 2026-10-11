@@ -1,7 +1,7 @@
-// Live NPCs v2 (DECISIONS D-22): one NPC's "mind", host only. What the NPC remembers
-// from earlier scenes, how it feels about each seated character, and whether it reacts
-// to spells. The AI updates memory and feelings after each Send to DM; the host can
-// change or delete anything here.
+// Live NPCs (DECISIONS D-22): one NPC's "mind", host only. Its mood right now, how it feels
+// about each seated character (and whether it knows their name), what it remembers (what
+// happened, unfinished business, what it said about itself), and whether it reacts to
+// spells. The AI updates these after each Send to DM; the host can change or delete anything.
 
 import { useCallback, useEffect, useState } from 'react';
 import { Switch } from '@/components/ui/switch';
@@ -9,7 +9,7 @@ import { ArrowLeft, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { NpcPortrait } from './NpcPortrait';
-import { NPC_ATTITUDES, attitudeLevel } from '@/lib/live-npcs';
+import { NPC_ATTITUDES, NPC_MEMORY_KINDS, NPC_MOODS, attitudeLevel, npcMoodOf } from '@/lib/live-npcs';
 import type { NpcMemoryNote, PartyNpc, PartyNpcsApi } from '@/hooks/use-party-npcs';
 
 interface NpcMindPanelProps {
@@ -18,13 +18,24 @@ interface NpcMindPanelProps {
   onBack: () => void;
 }
 
+type MemoryKind = 'event' | 'thread' | 'self';
+
 const fieldClass = 'w-full rounded-lg bg-black/40 border border-white/15 px-3 py-2 text-[14px] text-white/90 placeholder:text-white/30 outline-none focus:border-amber-400/60';
+
+/** "today", "yesterday", "4 days ago", or null when they never spoke. */
+function lastSeenText(iso: string | null | undefined): string | null {
+  const t = iso ? Date.parse(iso) : NaN;
+  if (!Number.isFinite(t)) return null;
+  const days = Math.floor((Date.now() - t) / 86_400_000);
+  return days <= 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
+}
 
 export function NpcMindPanel({ npc, roster, onBack }: NpcMindPanelProps) {
   const [seats, setSeats] = useState<Array<{ user_id: string; character_name: string }> | null>(null);
   const [notes, setNotes] = useState<NpcMemoryNote[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [newNote, setNewNote] = useState('');
+  const [newKind, setNewKind] = useState<MemoryKind>('event');
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -60,7 +71,8 @@ export function NpcMindPanel({ npc, roster, onBack }: NpcMindPanelProps) {
     }
   };
 
-  const aiNotes = (notes || []).filter(n => n.source === 'ai').length;
+  const aiNotes = (notes || []).filter(n => n.source === 'ai' && (n.kind || 'event') === 'event').length;
+  const currentMood = npcMoodOf(npc.mood) ?? npcMoodOf('calm');
 
   return (
     <div className="space-y-4 pb-6">
@@ -79,6 +91,35 @@ export function NpcMindPanel({ npc, roster, onBack }: NpcMindPanelProps) {
           <p className="text-[11px] text-white/45">Only you can see this. The AI updates it after each Send to DM.</p>
         </div>
       </div>
+
+      <section className="space-y-2">
+        <h4 className="font-cinzel text-[13px] text-amber-200/90">
+          Mood right now: {currentMood ? `${currentMood.emoji} ${currentMood.label}` : 'Calm'}
+        </h4>
+        <div className="grid grid-cols-4 gap-1" role="radiogroup" aria-label={`${npc.name}'s mood`}>
+          {NPC_MOODS.map(m => (
+            <button
+              key={m.id}
+              role="radio"
+              aria-checked={currentMood?.id === m.id}
+              disabled={busy === 'mood'}
+              onClick={() => {
+                if (currentMood?.id === m.id) return;
+                void act('mood', () => roster.setMood(npc.id, m.id));
+              }}
+              style={{ touchAction: 'manipulation' }}
+              className={cn(
+                'min-h-[44px] rounded-md border text-[12px] flex flex-col items-center justify-center gap-0.5 disabled:opacity-50',
+                currentMood?.id === m.id ? 'border-amber-300/80 bg-amber-500/25 text-white' : 'border-white/10 bg-black/30 text-white/60',
+              )}
+            >
+              <span className="text-[16px] leading-none">{m.emoji}</span>
+              <span>{m.label}</span>
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-white/35">Players see the mood as a small emoji on {npc.name}'s lines. It shifts as they talk; set it by hand to steer the next line.</p>
+      </section>
 
       <label className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
         <span className="min-w-0">
@@ -120,12 +161,18 @@ export function NpcMindPanel({ npc, roster, onBack }: NpcMindPanelProps) {
                   const row = roster.attitudes.find(a => a.npc_id === npc.id && a.user_id === seat.user_id);
                   const current = attitudeLevel(row?.score ?? 0);
                   const key = `att:${seat.user_id}`;
+                  const seen = lastSeenText(row?.last_seen_at);
                   return (
                     <li key={seat.user_id} className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5 space-y-1.5">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-[14px] text-white/90 truncate">{seat.character_name}</span>
                         <span className="shrink-0 text-[12px] text-amber-100/90">{current.emoji} {current.label}</span>
                       </div>
+                      <p className="text-[11px] text-white/45">
+                        {row?.knows_name ? 'Knows their name' : "Doesn't know their name yet"}
+                        {' · '}
+                        {seen ? `Last spoke ${seen}` : 'Never met'}
+                      </p>
                       <div className="grid grid-cols-5 gap-1" role="radiogroup" aria-label={`${npc.name}'s attitude toward ${seat.character_name}`}>
                         {NPC_ATTITUDES.map(level => (
                           <button
@@ -158,7 +205,7 @@ export function NpcMindPanel({ npc, roster, onBack }: NpcMindPanelProps) {
                 })}
               </ul>
             )}
-            <p className="text-[11px] text-white/35">Players see only their own feeling, as a badge on the Talk to chip. The AI moves it at most one step per Send to DM.</p>
+            <p className="text-[11px] text-white/35">Players see only their own feeling, as a badge on the Talk to chip. The AI moves it at most one step per Send to DM, and feelings fade over time apart (set how in the NPC's editor).</p>
           </section>
 
           <section className="space-y-2">
@@ -167,94 +214,118 @@ export function NpcMindPanel({ npc, roster, onBack }: NpcMindPanelProps) {
               <p className="text-[12px] text-white/45">Nothing yet. After a scene with {npc.name} goes to the DM, the important parts show up here.</p>
             ) : (
               <ul className="space-y-1.5">
-                {notes.map(n => (
-                  <li key={n.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-2.5">
-                    {editing?.id === n.id ? (
-                      <div className="space-y-1.5">
-                        <textarea
-                          value={editing.text}
-                          maxLength={300}
-                          onChange={(e) => setEditing({ id: n.id, text: e.target.value })}
-                          rows={3}
-                          autoFocus
-                          className={cn(fieldClass, 'resize-y leading-snug')}
-                        />
-                        <div className="flex justify-end gap-2">
+                {notes.map(n => {
+                  const kind = NPC_MEMORY_KINDS.find(k => k.id === (n.kind || 'event')) ?? NPC_MEMORY_KINDS[0];
+                  return (
+                    <li key={n.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-2.5">
+                      {editing?.id === n.id ? (
+                        <div className="space-y-1.5">
+                          <textarea
+                            value={editing.text}
+                            maxLength={300}
+                            onChange={(e) => setEditing({ id: n.id, text: e.target.value })}
+                            rows={3}
+                            autoFocus
+                            className={cn(fieldClass, 'resize-y leading-snug')}
+                          />
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => setEditing(null)}
+                              style={{ touchAction: 'manipulation' }}
+                              className="min-h-[40px] px-3 rounded-lg text-[13px] text-white/60"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              disabled={!editing.text.trim() || busy === n.id}
+                              onClick={() => {
+                                const text = editing.text;
+                                void act(n.id, async () => {
+                                  await roster.updateMemory(n.id, text);
+                                  setNotes(prev => (prev || []).map(x => (x.id === n.id ? { ...x, note: text.replace(/\s+/g, ' ').trim(), source: 'host' } : x)));
+                                  setEditing(null);
+                                });
+                              }}
+                              style={{ touchAction: 'manipulation' }}
+                              className="min-h-[40px] px-3 rounded-lg border border-amber-400/50 bg-amber-500/20 text-[13px] text-amber-100 disabled:opacity-40"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start gap-2">
+                          <p className="flex-1 min-w-0 text-[13px] leading-snug text-white/85">
+                            <span className={cn('mr-1.5 rounded px-1 py-px text-[9px] uppercase tracking-wider', n.source === 'host' ? 'bg-sky-500/20 text-sky-200' : 'bg-amber-500/15 text-amber-200/80')}>
+                              {n.source === 'host' ? 'You' : 'AI'}
+                            </span>
+                            <span className="mr-1.5 rounded px-1 py-px text-[9px] uppercase tracking-wider bg-white/10 text-white/60">
+                              {kind.label}
+                            </span>
+                            {n.note}
+                          </p>
                           <button
-                            onClick={() => setEditing(null)}
+                            onClick={() => setEditing({ id: n.id, text: n.note })}
+                            aria-label="Edit this memory"
                             style={{ touchAction: 'manipulation' }}
-                            className="min-h-[40px] px-3 rounded-lg text-[13px] text-white/60"
+                            className="w-9 h-9 shrink-0 flex items-center justify-center rounded-md text-white/50 active:bg-white/10"
                           >
-                            Cancel
+                            <Pencil className="w-4 h-4" />
                           </button>
                           <button
-                            disabled={!editing.text.trim() || busy === n.id}
                             onClick={() => {
-                              const text = editing.text;
                               void act(n.id, async () => {
-                                await roster.updateMemory(n.id, text);
-                                setNotes(prev => (prev || []).map(x => (x.id === n.id ? { ...x, note: text.replace(/\s+/g, ' ').trim(), source: 'host' } : x)));
-                                setEditing(null);
-                              });
+                                await roster.deleteMemory(n.id);
+                                setNotes(prev => (prev || []).filter(x => x.id !== n.id));
+                              }, kind.id === 'thread' ? 'Settled' : 'Forgotten');
                             }}
+                            disabled={busy === n.id}
+                            aria-label={kind.id === 'thread' ? 'Mark settled' : 'Forget this'}
                             style={{ touchAction: 'manipulation' }}
-                            className="min-h-[40px] px-3 rounded-lg border border-amber-400/50 bg-amber-500/20 text-[13px] text-amber-100 disabled:opacity-40"
+                            className="w-9 h-9 shrink-0 flex items-center justify-center rounded-md text-white/50 active:bg-white/10 disabled:opacity-40"
                           >
-                            Save
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-start gap-2">
-                        <p className="flex-1 min-w-0 text-[13px] leading-snug text-white/85">
-                          <span className={cn('mr-1.5 rounded px-1 py-px text-[9px] uppercase tracking-wider', n.source === 'host' ? 'bg-sky-500/20 text-sky-200' : 'bg-amber-500/15 text-amber-200/80')}>
-                            {n.source === 'host' ? 'You' : 'AI'}
-                          </span>
-                          {n.note}
-                        </p>
-                        <button
-                          onClick={() => setEditing({ id: n.id, text: n.note })}
-                          aria-label="Edit this memory"
-                          style={{ touchAction: 'manipulation' }}
-                          className="w-9 h-9 shrink-0 flex items-center justify-center rounded-md text-white/50 active:bg-white/10"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            void act(n.id, async () => {
-                              await roster.deleteMemory(n.id);
-                              setNotes(prev => (prev || []).filter(x => x.id !== n.id));
-                            }, 'Forgotten');
-                          }}
-                          disabled={busy === n.id}
-                          aria-label="Forget this"
-                          style={{ touchAction: 'manipulation' }}
-                          className="w-9 h-9 shrink-0 flex items-center justify-center rounded-md text-white/50 active:bg-white/10 disabled:opacity-40"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-                  </li>
-                ))}
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
 
+            <div className="flex gap-1" role="radiogroup" aria-label="Kind of memory to add">
+              {NPC_MEMORY_KINDS.map(k => (
+                <button
+                  key={k.id}
+                  role="radio"
+                  aria-checked={newKind === k.id}
+                  onClick={() => setNewKind(k.id)}
+                  style={{ touchAction: 'manipulation' }}
+                  className={cn(
+                    'flex-1 min-h-[36px] rounded-md border text-[12px]',
+                    newKind === k.id ? 'border-amber-300/80 bg-amber-500/25 text-white' : 'border-white/10 text-white/55',
+                  )}
+                >
+                  {k.label}
+                </button>
+              ))}
+            </div>
             <div className="flex gap-2">
               <input
                 value={newNote}
                 maxLength={300}
                 onChange={(e) => setNewNote(e.target.value)}
-                placeholder={`Something ${npc.name} should remember`}
+                placeholder={newKind === 'thread' ? `A question or promise still hanging` : newKind === 'self' ? `Something ${npc.name} said about itself` : `Something ${npc.name} should remember`}
                 className={cn(fieldClass, 'min-h-[44px]')}
               />
               <button
                 disabled={!newNote.trim() || busy === 'add'}
                 onClick={() => {
                   const text = newNote;
+                  const kind = newKind;
                   void act('add', async () => {
-                    const row = await roster.addMemory(npc.id, text);
+                    const row = await roster.addMemory(npc.id, text, kind);
                     setNotes(prev => [...(prev || []), row]);
                     setNewNote('');
                   });
@@ -267,7 +338,7 @@ export function NpcMindPanel({ npc, roster, onBack }: NpcMindPanelProps) {
               </button>
             </div>
             <p className="text-[11px] text-white/35">
-              {aiNotes} AI {aiNotes === 1 ? 'note' : 'notes'}. Past 40, the oldest AI notes drop off. Notes you write or edit never do.
+              {aiNotes} AI {aiNotes === 1 ? 'note' : 'notes'} about what happened. Past 40, the oldest AI notes drop off. Notes you write or edit never do. Unfinished business closes by itself when the story settles it.
             </p>
           </section>
         </>
