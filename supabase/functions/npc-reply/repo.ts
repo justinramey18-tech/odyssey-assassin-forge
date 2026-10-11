@@ -27,6 +27,7 @@ export interface NpcRow {
   archived: boolean;
   /** v2: false when the host switched spell reactions off. Missing means on. */
   reacts_to_spells?: boolean;
+  combat_state?: string | null;
   /** v3: the NPC's current mood. */
   mood?: string | null;
   /** v3: when it came on stage (it only knows what was said since). Null = no window. */
@@ -89,6 +90,7 @@ export interface NpcContext {
   mind?: NpcMind;
   /** v3: emoji reactions to this NPC's lines in the table above. */
   reactions?: Array<{ message_id: string; emoji: string }>;
+  fight?: { hp: number; maxHp: number } | null;
 }
 
 export interface ClaimRow {
@@ -143,7 +145,7 @@ export interface NpcRepo {
 export const STALE_CLAIM_MS = 120_000;
 
 const LINE_COLUMNS = 'id, party_id, user_id, character_name, content, in_character, round_id, consumed, selected, created_at, npc_id';
-const NPC_COLUMNS = 'id, party_id, name, model, on_stage, archived, reacts_to_spells, mood, on_stage_since, player_user_id';
+const NPC_COLUMNS = 'id, party_id, name, model, on_stage, archived, reacts_to_spells, mood, on_stage_since, player_user_id, combat_state';
 const GUIDE_COLUMNS = 'guide, secrets, wants, levers, hard_lines, mood_range, grudge_style';
 
 // deno-lint-ignore no-explicit-any
@@ -245,11 +247,22 @@ export function createRepo(db: any): NpcRepo {
         fail('read reactions', r.error);
         reactions = r.data ?? [];
       }
+      let fight: { hp: number; maxHp: number } | null = null;
+      if (npcId) {
+        try {
+          const f = await db.from('party_fight_combatants').select('hp, max_hp, status, party_fights!inner(status)')
+            .eq('npc_id', npcId).neq('party_fights.status', 'ended').limit(1);
+          if (f.error) console.warn('read fight', f.error.message);
+          const row = f.data?.[0];
+          if (row && row.status === 'up') fight = { hp: row.hp, maxHp: row.max_hp };
+        } catch (e) { console.warn('read fight', e); }
+      }
       return {
         guides: guides.data ?? [],
         anchors: anchors.data?.[0]?.state_data?.anchors ?? [],
         summary: typeof summary === 'string' ? summary : '',
         latestPost: post?.content ?? '',
+        fight,
         roster: roster.data ?? [],
         table: [...(table.data ?? [])].reverse(),
         mind: npcId
@@ -324,7 +337,7 @@ export function createRepo(db: any): NpcRepo {
 
     async listSpellReactors(partyId) {
       const { data, error } = await db.from('party_npcs').select(NPC_COLUMNS)
-        .eq('party_id', partyId).eq('on_stage', true).eq('archived', false).eq('reacts_to_spells', true)
+        .eq('party_id', partyId).eq('on_stage', true).eq('archived', false).eq('reacts_to_spells', true).is('combat_state', null)
         .order('sort_order', { ascending: true }).order('created_at', { ascending: true });
       fail('read spell reactors', error);
       return data ?? [];
