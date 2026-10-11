@@ -326,3 +326,85 @@ export function stagger(currentMs: number, speed: SpeedPreset, damage: number, n
   const delayMs = Math.round(baseIntervalMs(speed) * STAGGER_FACTOR * Math.max(0, damage) / Math.max(1, npcMaxHp));
   return { intervalMs: clampIntervalMs(currentMs + delayMs, speed), delayMs };
 }
+
+// ── Resolve, Second Wind, potions and perks ───────────────────────────────────
+
+/** A full Resolve bar pays for one Second Wind. Everyone starts a fight half full. */
+export const RESOLVE_MAX = 100;
+export const RESOLVE_START = 50;
+/** Resolve for landing a damaging hit or spell (Momentum doubles it). */
+export const RESOLVE_PER_HIT = 5;
+
+/** Perks bought with gold. A character equips at most 2 (3 with the extra slot). Keep in sync with src/lib/combat-perks.ts. */
+export const PERKS = {
+  iron_lungs: { name: 'Iron Lungs', cost: 3000 },
+  pain_fuel: { name: 'Pain Fuel', cost: 3000 },
+  momentum: { name: 'Momentum', cost: 3000 },
+  deep_breath: { name: 'Deep Breath', cost: 5000 },
+  battle_medic: { name: 'Battle Medic', cost: 5000 },
+  last_stand: { name: 'Last Stand', cost: 8000 },
+} as const;
+export type PerkId = keyof typeof PERKS;
+export const BASE_PERK_SLOTS = 2;
+export const MAX_PERK_SLOTS = 3;
+export const EXTRA_SLOT_COST = 10000;
+
+export const isPerkId = (v: unknown): v is PerkId => typeof v === 'string' && Object.prototype.hasOwnProperty.call(PERKS, v);
+
+/** Known perk ids only, no repeats. */
+export function cleanPerks(raw: unknown): PerkId[] {
+  return Array.isArray(raw) ? Array.from(new Set(raw.filter(isPerkId))) : [];
+}
+
+/** Resolve a healing potion adds: Healing 25, Greater 50, Superior 75, Supreme 100. 0 for anything else. */
+export function potionResolve(itemName: unknown): number {
+  const n = typeof itemName === 'string' ? itemName.toLowerCase() : '';
+  if (!/heal/.test(n) || !/potion|elixir|draught|philter/.test(n)) return 0;
+  if (/supreme/.test(n)) return 100;
+  if (/superior/.test(n)) return 75;
+  if (/greater/.test(n)) return 50;
+  return 25;
+}
+
+/** Resolve gained per second: 1, +10% per CON modifier point, x1.3 with Iron Lungs. Never below 0.5. */
+export function resolveRate(s: SheetSummary, perks: PerkId[]): number {
+  const con = abilityMod(scores(s).con);
+  const rate = (1 + 0.1 * con) * (perks.includes('iron_lungs') ? 1.3 : 1);
+  return Math.max(0.5, Math.round(rate * 100) / 100);
+}
+
+/** The bar right now: what was stored, plus time since then at the fill rate. Capped at 100. */
+export function resolveNow(stored: unknown, atIso: unknown, rate: unknown, nowMs: number): number {
+  const base = typeof stored === 'number' && Number.isFinite(stored) ? stored : 0;
+  const at = typeof atIso === 'string' ? Date.parse(atIso) : NaN;
+  const r = typeof rate === 'number' && Number.isFinite(rate) ? rate : 1;
+  const elapsed = Number.isFinite(at) ? Math.max(0, nowMs - at) / 1000 : 0;
+  return Math.min(RESOLVE_MAX, Math.max(0, base + r * elapsed));
+}
+
+/** Resolve for taking damage: 1 point per 1% of max HP lost (doubled by Pain Fuel). */
+export function damageResolve(lost: number, maxHp: number, perks: PerkId[]): number {
+  const pct = (100 * Math.max(0, lost)) / Math.max(1, maxHp);
+  return pct * (perks.includes('pain_fuel') ? 2 : 1);
+}
+
+/** Resolve for landing a damaging hit or spell. */
+export function hitResolve(perks: PerkId[]): number {
+  return RESOLVE_PER_HIT * (perks.includes('momentum') ? 2 : 1);
+}
+
+/** Hit die by class: d12 barbarian, d10 fighter/paladin/ranger, d6 wizard/sorcerer, d8 everyone else. */
+export function hitDieSides(className: unknown): number {
+  const c = typeof className === 'string' ? className.toLowerCase() : '';
+  if (/barbarian/.test(c)) return 12;
+  if (/fighter|paladin|ranger/.test(c)) return 10;
+  if (/wizard|sorcerer/.test(c)) return 6;
+  return 8;
+}
+
+/** Second Wind: one hit die (two with Deep Breath) + CON modifier + half level. */
+export function secondWindDice(s: SheetSummary & { className?: unknown }, perks: PerkId[]): Dice {
+  const con = abilityMod(scores(s).con);
+  const half = Math.floor(clampInt(s.level, 1, 20, 1) / 2);
+  return { count: perks.includes('deep_breath') ? 2 : 1, sides: hitDieSides(s.className), bonus: con + half };
+}
