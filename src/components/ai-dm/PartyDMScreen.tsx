@@ -2754,13 +2754,21 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   useEffect(() => registerTablePoster((text) => handleUsePrompt(text)), [handleUsePrompt]);
 
 
-  const handleHealingItemUsed = useHealingItemAction({
+  const handleHealingItemUsedBase = useHealingItemAction({
     characterName: characterContext?.name || 'The Adventurer',
     maxHP: characterContext?.maxHP ?? 0,
     getCurrentHP: () => characterContext?.currentHP ?? 0,
     onHPChange,
     onUseConsumableByName,
   });
+  const handleHealingItemUsed = useCallback((itemName: Parameters<typeof handleHealingItemUsedBase>[0], roll: Parameters<typeof handleHealingItemUsedBase>[1]) => {
+    const out = handleHealingItemUsedBase(itemName, roll);
+    const fightNow = npcCombatRef.current;
+    if (out !== null && fightNow.fight && !fightNow.isEnded && fightNow.myFighter && fightNow.myFighter.status !== 'dead') {
+      void fightNow.drinkPotion(itemName);
+    }
+    return out;
+  }, [handleHealingItemUsedBase]);
 
 
   // Geralt widget (momo easter egg) opens through the overlay ganglion.
