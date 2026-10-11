@@ -119,6 +119,7 @@ import { parseRollHint } from '@/lib/whisperRollHint';
 import { awaitLatestD20Reveal, rollD20 } from '@/lib/rollD20';
 import { resolveOddsForContext } from '@/lib/diceOdds';
 import { buildRollAnswer, rollModifier, type NpcRollRequest, type RollSheet } from '@/lib/live-npcs';
+import { STORY_SCENE_SENDER, rowsCoveredByScenes } from '@/lib/story-scene';
 import { resolveWhisperAutoRoll, performWhisperRoll } from '@/lib/whisperAutoRoll';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
 import { actionCardFromRoll, encodeActionCard, stripActionCard } from '@/lib/roundChatActionCard';
@@ -648,6 +649,8 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   const [showRegenNote, setShowRegenNote] = useState(false);
   const [regenNoteText, setRegenNoteText] = useState('');
   const isAssistant = message.role === 'assistant';
+  /** Story scenes (D-22): the table's exchange retold before the DM's post. Not a DM post, so it is never regenerated as one. */
+  const isScene = isAssistant && message.sender_name === STORY_SCENE_SENDER;
   const isMine = message.sender_user_id === currentUserId;
   const videoMatch = message.content.match(PARTY_VIDEO_REGEX);
   const imageMatch = !videoMatch ? message.content.match(PARTY_IMAGE_REGEX) : null;
@@ -694,7 +697,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
             <img src={dmSigil} alt="" draggable={false} className="w-9 h-9 shrink-0 mt-1.5" />
           ) : (
             <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
-              <MessageCircle className="w-3.5 h-3.5 text-amber-500" />
+              {isScene ? <Theater className="w-3.5 h-3.5 text-amber-500" /> : <MessageCircle className="w-3.5 h-3.5 text-amber-500" />}
             </div>
           )}
           <div className="relative flex-1 min-w-0">
@@ -705,8 +708,8 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
           >
             {message.sender_name !== 'DM' && (
               <div className="flex items-center gap-1.5 mb-1">
-                <p className="text-[11px] font-semibold text-amber-300">{message.sender_name}</p>
-                <span className="text-[9px] italic text-amber-400/50">NPC</span>
+                <p className="text-[11px] font-semibold text-amber-300">{isScene ? 'The scene' : message.sender_name}</p>
+                {!isScene && <span className="text-[9px] italic text-amber-400/50">NPC</span>}
               </div>
             )}
             {showTeamTag && message.team && (
@@ -928,27 +931,31 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
-                    <button
-                      onClick={() => { onRegenerate?.(message.id); setShowActions(false); }}
-                      className="p-1.5 rounded hover:bg-amber-900/30 text-amber-400/60 hover:text-amber-300 transition-colors"
-                      title="Regenerate"
-                    >
-                      <img src={dmGlyphRegenerate} alt="" draggable={false} className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => { setShowRegenNote(true); setShowActions(false); }}
-                      className="p-1.5 rounded hover:bg-amber-900/30 text-amber-400/60 hover:text-amber-300 transition-colors"
-                      title="Regenerate with a note"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => { onRegenerateWhispers?.(message.id); setShowActions(false); }}
-                      className="p-1.5 rounded hover:bg-emerald-900/30 text-emerald-400/60 hover:text-emerald-300 transition-colors"
-                      title="Regenerate Whisper Tray"
-                    >
-                      <Zap className="w-3.5 h-3.5" />
-                    </button>
+                    {!isScene && (
+                      <>
+                        <button
+                          onClick={() => { onRegenerate?.(message.id); setShowActions(false); }}
+                          className="p-1.5 rounded hover:bg-amber-900/30 text-amber-400/60 hover:text-amber-300 transition-colors"
+                          title="Regenerate"
+                        >
+                          <img src={dmGlyphRegenerate} alt="" draggable={false} className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => { setShowRegenNote(true); setShowActions(false); }}
+                          className="p-1.5 rounded hover:bg-amber-900/30 text-amber-400/60 hover:text-amber-300 transition-colors"
+                          title="Regenerate with a note"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => { onRegenerateWhispers?.(message.id); setShowActions(false); }}
+                          className="p-1.5 rounded hover:bg-emerald-900/30 text-emerald-400/60 hover:text-emerald-300 transition-colors"
+                          title="Regenerate Whisper Tray"
+                        >
+                          <Zap className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
                     <button
                       onClick={() => { onDelete?.(message.id); setShowActions(false); }}
                       className="p-1.5 rounded hover:bg-red-900/20 text-red-400/60 hover:text-red-400 transition-colors"
@@ -2107,6 +2114,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     const participants = roundChatRef.current.selectedParticipants;
     // Live NPCs: sealed NPC lines are saved as the NPC's own story rows, never the host's.
     const npcLines = roundChatRef.current.selectedNpcLines;
+    // Story scenes (D-22): the sealed in-character lines in order, retold as one scene before the DM's post.
+    const sceneLines = roundChatRef.current.selectedSceneLines;
     const coveredUserIds = participants.map(p => p.userId);
     // Captured before the ticks are cleared — the backend applies the table
     // rules and the chaos tone from this.
@@ -2118,7 +2127,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     try {
       await pd.generateResponse({
         coveredUserIds,
-        directPrompt: { text: bundled, participants, npcLines },
+        directPrompt: { text: bundled, participants, npcLines, sceneLines },
         liveTable,
       });
       await roundChatRef.current.consumePending();
@@ -2320,8 +2329,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
     const participants = roundChatRef.current.selectedParticipants;
     const npcLines = roundChatRef.current.selectedNpcLines;
+    const sceneLines = roundChatRef.current.selectedSceneLines;
     try {
-      await pd.postAssistedDmResponse({ content, participants, npcLines });
+      await pd.postAssistedDmResponse({ content, participants, npcLines, sceneLines });
     } catch (err) {
       console.error('[dm-assistant] apply failed:', err);
       toast.error(err instanceof Error ? err.message : 'Could not post to the table. Your draft is still here.');
@@ -2399,11 +2409,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
    * Story feed rows. Absent-player filler ("holds their action") and autopilot
    * stand-in lines are hidden from the reader — they are still stored and still
    * sent to the DM, this only affects what the story shows.
+   * Story scenes (D-22): the player and NPC rows a scene retells are hidden too,
+   * so each round reads as the scene and then the DM's post.
    */
-  const visibleMessages = useMemo(
-    () => partyDm.messages.filter(m => (m as any).is_afk_marker !== true),
-    [partyDm.messages]
-  );
+  const visibleMessages = useMemo(() => {
+    const shown = partyDm.messages.filter(m => (m as any).is_afk_marker !== true);
+    const covered = rowsCoveredByScenes(shown);
+    return covered.size > 0 ? shown.filter(m => !covered.has(m.id)) : shown;
+  }, [partyDm.messages]);
 
   // Story-mode masterwork pills (non-Empyrean party campaigns)
 
