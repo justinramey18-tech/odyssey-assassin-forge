@@ -929,7 +929,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                       className="p-1.5 rounded hover:bg-white/10 text-white/60 hover:text-white transition-colors"
                       title="Edit"
                     >
-                    <Pencil className="w-3.5 h-3.5" />
+                      <Pencil className="w-3.5 h-3.5" />
                     </button>
                     {!isScene && (
                       <>
