@@ -71,5 +71,8 @@ project_id = "sqvcszzbkyzidigsdqgk"
     verify_jwt = false
   [functions.npc-reply]
     verify_jwt = true
+
+  [functions.npc-combat]
+    verify_jwt = true
   [functions.npc-memory]
     verify_jwt = true
