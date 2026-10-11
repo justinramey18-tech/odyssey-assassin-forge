@@ -7,6 +7,7 @@
 // POST { action: "attack", fightId, targetId, weaponName?, finish? } attack an NPC in the fight
 // POST { action: "cast", fightId, targetId, spellName, spellLevel, intent } damage an NPC or heal an ally
 // POST { action: "stabilize", fightId, targetId }                    Medicine DC 10 on a downed ally
+// POST { action: "give_potion", fightId, targetId, itemName }         pour one of my healing potions into an ally
 // POST { action: "ping", fightId }                                   "I'm here"; also runs the clock
 // POST { action: "sync_hp", fightId, hp }                            my sheet's HP changed outside the fight
 // POST { action: "ack", eventIds }                                   these HP changes are on my sheet now
@@ -426,6 +427,16 @@ async function startAction(db: Db, fight: Fight, me: Fighter | null, now: number
   const ok = await claim(db, me, { last_action_at: iso(now), last_seen_at: iso(now) });
   if (!ok) refuse(409, 'Too fast. Try again.');
   return me;
+}
+
+/** Healing dice for a healing potion, from its name (5e): Healing 2d4+2, Greater 4d4+4, Superior 8d4+8, Supreme 10d4+20. Null when it isn't one. */
+function potionHealDice(itemName: string): R.Dice | null {
+  if (R.potionResolve(itemName) <= 0) return null;
+  const n = itemName.toLowerCase();
+  if (/supreme/.test(n)) return { count: 10, sides: 4, bonus: 20 };
+  if (/superior/.test(n)) return { count: 8, sides: 4, bonus: 8 };
+  if (/greater/.test(n)) return { count: 4, sides: 4, bonus: 4 };
+  return { count: 2, sides: 4, bonus: 2 };
 }
 
 type Finish = 'knockout' | 'kill';
@@ -1245,6 +1256,36 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     });
     if (r && r.before.status !== 'up' && r.after.status === 'up') {
       await postLine(db, fight.party_id, hostId, `${actor.name} hauls ${target.name} back to their feet!`);
+    }
+    await checkEnd(db, fight.id, hostId, now);
+    return { healed: gained, targetHp: r?.after.hp ?? target.hp };
+  }
+
+  if (action === 'give_potion') {
+    // A healing potion poured into an ally (downed, stable or standing). The giver's phone removes the potion
+    // from their inventory only after this succeeds. The server rolls the potion's healing from its name.
+    const itemName = typeof body.itemName === 'string' ? body.itemName.trim().slice(0, 80) : '';
+    const dice = potionHealDice(itemName) ?? refuse(400, 'Pick a healing potion.');
+    const target = await fighterById(db, needUuid(body.targetId, 'target'));
+    if (!target || target.fight_id !== fight.id || target.kind !== 'player') return refuse(404, 'That ally is not in this fight.');
+    if (target.user_id === userId) refuse(400, 'Drink it yourself from your inventory instead.');
+    if (target.status === 'dead') refuse(409, `${target.name} has fallen. Only the host can revive them.`);
+    const actor = await startAction(db, fight, me, now);
+    const amount = R.rollHealing(dice, roll);
+    const r = await mutate(db, target.id, f => {
+      if (f.status === 'dead') return null;
+      const { hp } = R.applyHealing(f.hp, f.max_hp, amount);
+      return hp > 0 && f.status !== 'up'
+        ? { hp, status: 'up', death_successes: 0, death_failures: 0, next_save_at: null }
+        : { hp };
+    });
+    const gained = r ? r.after.hp - r.before.hp : 0;
+    await addEvent(db, fight, {
+      kind: 'heal', actor_name: actor.name, target_name: target.name, target_user_id: target.user_id, hp_delta: gained,
+      detail: `${itemName} (given by ${actor.name}): +${gained} HP`,
+    });
+    if (r && r.before.status !== 'up' && r.after.status === 'up') {
+      await postLine(db, fight.party_id, hostId, `${actor.name} pours a potion down ${target.name}'s throat. ${target.name} is back on their feet!`);
     }
     await checkEnd(db, fight.id, hostId, now);
     return { healed: gained, targetHp: r?.after.hp ?? target.hp };
