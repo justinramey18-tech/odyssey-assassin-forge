@@ -1149,6 +1149,7 @@ export type Database = {
       party_fight_combatants: {
         Row: {
           ac: number
+          act_every_ms: number | null
           action_seq: number
           created_at: string
           death_failures: number
@@ -1172,6 +1173,7 @@ export type Database = {
         }
         Insert: {
           ac: number
+          act_every_ms?: number | null
           action_seq?: number
           created_at?: string
           death_failures?: number
@@ -1195,6 +1197,7 @@ export type Database = {
         }
         Update: {
           ac?: number
+          act_every_ms?: number | null
           action_seq?: number
           created_at?: string
           death_failures?: number
