@@ -102,7 +102,14 @@ export type NpcSituation =
 export type CombatMove =
   | { move: 'attack'; target: string; hit: boolean; crit: boolean; damage: number; downed: boolean }
   | { move: 'hit'; attacker: string; crit: boolean; damage: number }
-  | { move: 'beat' };
+  | { move: 'beat' }
+  | { move: 'intent'; skill: string; skillType: string; targets: string[] };
+
+/** Live NPC Combat v5: what each skill type means, for the NPC announcing it. */
+const INTENT_MEANING: Record<string, string> = {
+  strike: 'an attack', heavy: 'a slow, heavy blow', sweep: 'a sweeping attack at several people', signature: 'your signature move',
+  mend: 'healing', shield: 'a protective ward', rally: 'rallying your allies', pin: 'pinning someone down', retreat: 'escaping the fight',
+};
 
 /** A checked CombatMove, or null. */
 export function combatMoveOf(raw: unknown): CombatMove | null {
@@ -111,6 +118,10 @@ export function combatMoveOf(raw: unknown): CombatMove | null {
   const name = (v: unknown) => (typeof v === 'string' ? v.trim().slice(0, 80) : '');
   const dmg = Math.max(0, Math.min(999, Math.round(Number(r.damage) || 0)));
   if (r.move === 'beat') return { move: 'beat' };
+  if (r.move === 'intent' && name(r.skill) && typeof r.skillType === 'string' && r.skillType in INTENT_MEANING) {
+    const targets = Array.isArray(r.targets) ? r.targets.map(name).filter(Boolean).slice(0, 3) : [];
+    return { move: 'intent', skill: name(r.skill), skillType: r.skillType, targets };
+  }
   if (r.move === 'hit' && name(r.attacker)) return { move: 'hit', attacker: name(r.attacker), crit: r.crit === true, damage: dmg };
   if (r.move === 'attack' && name(r.target)) {
     const hit = r.hit === true;
@@ -689,6 +700,20 @@ export function buildNpcUserMessage(input: NpcPromptInput): string {
   }
 
   if (s?.kind === 'combat') {
+    if (s.move === 'intent') {
+      const who = s.targets.length ? s.targets.join(' and ') : '';
+      const aim = s.skillType === 'retreat' ? 'You are about to flee the fight.'
+        : s.skillType === 'rally' ? `You are about to use ${s.skill} (${INTENT_MEANING[s.skillType]}).`
+          : `You are about to use ${s.skill} (${INTENT_MEANING[s.skillType] || 'an attack'})${who ? ` on ${who}` : ''}.`;
+      return [
+        tableBlock,
+        `RIGHT NOW: ${aim} It has NOT happened yet.`,
+        ownBlock,
+        voice,
+        `Announce it as ${name}: one action beat in *asterisks* (under 15 words) showing you winding up, aiming or preparing, then at most one short spoken line. Under 35 words in total. Do NOT say whether it works, how much it hurts, or what happens next.`,
+        'No numbers or game terms in your words. Do not ask for rolls.',
+      ].filter(Boolean).join('\n\n');
+    }
     const what = s.move === 'attack'
       ? (s.hit
         ? `You attack ${s.target} and HIT${s.crit ? ' (a critical hit)' : ''} for ${s.damage} damage.${s.downed ? ` ${s.target} goes down.` : ''}`
