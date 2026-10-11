@@ -17,10 +17,10 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import * as R from './rules.ts';
-import { combatTurn } from '../npc-reply/handler.ts';
-import { createModelCaller } from '../npc-reply/models.ts';
-import { createRepo } from '../npc-reply/repo.ts';
-import type { CombatMove } from '../npc-reply/prompt.ts';
+import { combatTurn } from './npc-reply/handler.ts';
+import { createModelCaller } from './npc-reply/models.ts';
+import { createRepo } from './npc-reply/repo.ts';
+import type { CombatMove } from './npc-reply/prompt.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
