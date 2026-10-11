@@ -3032,7 +3032,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       if (isSplitActive && splitState && msgTeam) {
         // Split mode: filter history to only this team's messages
         historyMessages = messages.slice(0, msgIndex).filter(m => m.team === msgTeam);
-        apiMessages = historyMessages.filter(m => !isStorySceneRow(m)).map(m => ({ role: m.role, content: m.content }));
+        apiMessages = storyHistory(historyMessages);
 
         const teamName = msgTeam === 'alpha'
           ? (splitState.alphaName || 'Team Alpha')
@@ -3054,7 +3054,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       } else {
         // Normal mode
         historyMessages = messages.slice(0, msgIndex);
-        apiMessages = historyMessages.filter(m => !isStorySceneRow(m)).map(m => ({ role: m.role, content: m.content }));
+        apiMessages = storyHistory(historyMessages);
 
         const partyMembersSummary = buildPartyMembersGuide();
         regenPartyContext = [
@@ -3262,7 +3262,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     abortRef.current = new AbortController();
     try {
       // Build messages from chat history — do NOT insert a user message
-      const apiMessages = messages.filter(m => !isStorySceneRow(m)).map(m => ({ role: m.role, content: m.content }));
+      const apiMessages = storyHistory(messages);
 
       // Append the OOC command as a hidden "user" message so the API accepts it,
       // but it is NOT inserted into the party_dm_messages table.
@@ -3824,7 +3824,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         sender_name: 'DM',
       });
 
-      const contextMessages = messages.filter(m => !isStorySceneRow(m)).map(m => ({ role: m.role, content: m.content }));
+      const contextMessages = storyHistory(messages);
       const sceneMessages: Array<{ role: string; content: string }> = [];
       let messageCount = 0;
       let lastSpeaker: string | null = null;
@@ -4296,41 +4296,12 @@ Rules:
     const content = input.content.trim();
     if (!content) throw new Error('The draft is empty.');
 
-    // 1. One story row per player, under their own user id (same format as Send to DM).
+    // 1. Story scenes (D-22): the sealed exchange as one readable scene, saved before the post.
+    //    The scene is the story's record of the round, so the raw lines are not saved (they stay
+    //    in the Live Table). Not in private mode, where each player's lines stay their own.
     const playerRows: PartyDmMessage[] = [];
-    for (const p of input.participants) {
-      const line = (p.text || '').trim();
-      if (!line) continue;
-      const name = p.characterName || 'Player';
-      const rowContent = `[${name}]: ${line}`;
-      await insertPartyMessageHelper(partyId, {
-        party_id: partyId,
-        role: 'user',
-        content: rowContent,
-        sender_user_id: p.userId,
-        sender_name: name,
-      });
-      playerRows.push({ id: '', party_id: partyId, role: 'user', content: rowContent, sender_user_id: p.userId, sender_name: name, created_at: '' });
-    }
-
-    // 1b. Live NPCs: each sealed NPC line as that NPC's own story row.
-    for (const n of input.npcLines || []) {
-      const npcText = (n.text || '').trim();
-      if (!npcText) continue;
-      const npcName = n.name || 'NPC';
-      const npcContent = npcStoryContent(npcName, npcText);
-      await insertPartyMessageHelper(partyId, {
-        party_id: partyId,
-        role: 'assistant',
-        content: npcContent,
-        sender_user_id: null,
-        sender_name: npcName,
-      });
-      playerRows.push({ id: '', party_id: partyId, role: 'assistant', content: npcContent, sender_user_id: null, sender_name: npcName, created_at: '' });
-    }
-
-    // 1c. Story scenes (D-22): the sealed exchange as one readable scene, right before the post.
-    if (input.sceneLines && input.sceneLines.length > 0) {
+    let sceneSaved = false;
+    if (input.sceneLines && input.sceneLines.length > 0 && sessionConfig.mode !== 'private') {
       try {
         const scene = await writeStoryScene(input.sceneLines, sceneSetting(messages));
         if (scene?.text) {
@@ -4342,10 +4313,44 @@ Rules:
             sender_name: STORY_SCENE_SENDER,
           });
           playerRows.push({ id: '', party_id: partyId, role: 'assistant', content: scene.text, sender_user_id: null, sender_name: STORY_SCENE_SENDER, created_at: '' });
+          sceneSaved = true;
           if (scene.source === 'script') toast.info('The scene is shown as a script', { description: scene.reason, duration: 8000 });
         }
       } catch (err) {
-        console.warn('[PartyDM] Could not save the story scene:', err);
+        console.warn('[PartyDM] Could not save the story scene, saving the lines instead:', err);
+      }
+    }
+
+    // 1b. Without a scene: one story row per player, under their own user id (same format as Send to DM),
+    //     then each sealed NPC line as that NPC's own story row.
+    if (!sceneSaved) {
+      for (const p of input.participants) {
+        const line = (p.text || '').trim();
+        if (!line) continue;
+        const name = p.characterName || 'Player';
+        const rowContent = `[${name}]: ${line}`;
+        await insertPartyMessageHelper(partyId, {
+          party_id: partyId,
+          role: 'user',
+          content: rowContent,
+          sender_user_id: p.userId,
+          sender_name: name,
+        });
+        playerRows.push({ id: '', party_id: partyId, role: 'user', content: rowContent, sender_user_id: p.userId, sender_name: name, created_at: '' });
+      }
+      for (const n of input.npcLines || []) {
+        const npcText = (n.text || '').trim();
+        if (!npcText) continue;
+        const npcName = n.name || 'NPC';
+        const npcContent = npcStoryContent(npcName, npcText);
+        await insertPartyMessageHelper(partyId, {
+          party_id: partyId,
+          role: 'assistant',
+          content: npcContent,
+          sender_user_id: null,
+          sender_name: npcName,
+        });
+        playerRows.push({ id: '', party_id: partyId, role: 'assistant', content: npcContent, sender_user_id: null, sender_name: npcName, created_at: '' });
       }
     }
 
