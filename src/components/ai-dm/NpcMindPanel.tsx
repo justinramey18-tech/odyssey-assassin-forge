@@ -28,19 +28,25 @@ export function NpcMindPanel({ npc, roster, onBack }: NpcMindPanelProps) {
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
+  // Only the hook's stable loaders go in the dependency lists. The roster object itself is
+  // rebuilt on every render of the party screen, so depending on it re-ran this load
+  // forever (each attitude reload re-rendered the screen), flooding the database.
+  const { loadSeats, loadMemories, reloadAttitudes } = roster;
+
   const load = useCallback(async () => {
     setFailed(false);
     try {
-      const [s, n] = await Promise.all([roster.loadSeats(), roster.loadMemories(npc.id)]);
+      const [s, n] = await Promise.all([loadSeats(), loadMemories(npc.id)]);
       setSeats(s);
       setNotes(n);
     } catch (err) {
       setFailed(true);
       toast.error(err instanceof Error ? err.message : 'Could not load this NPC.');
     }
-  }, [roster, npc.id]);
+  }, [loadSeats, loadMemories, npc.id]);
 
-  useEffect(() => { void load(); void roster.reloadAttitudes(); }, [load]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Load once when the screen opens (and again only if a different NPC is opened).
+  useEffect(() => { void load(); void reloadAttitudes(); }, [load, reloadAttitudes]);
 
   const act = async (key: string, action: () => Promise<unknown>, done?: string) => {
     setBusy(key);
