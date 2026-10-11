@@ -149,6 +149,42 @@ export type Database = {
         }
         Relationships: []
       }
+      character_perks: {
+        Row: {
+          character_name: string
+          created_at: string
+          equipped: string[]
+          id: string
+          owned: string[]
+          slots: number
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          character_name: string
+          created_at?: string
+          equipped?: string[]
+          id?: string
+          owned?: string[]
+          slots?: number
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          character_name?: string
+          created_at?: string
+          equipped?: string[]
+          id?: string
+          owned?: string[]
+          slots?: number
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: []
+      }
       character_saves: {
         Row: {
           achievements_data: Json | null
@@ -1160,12 +1196,18 @@ export type Database = {
           kind: string
           last_action_at: string | null
           last_seen_at: string | null
+          last_stand_used: boolean
           max_hp: number
           name: string
           next_action_at: string | null
           next_save_at: string | null
           npc_id: string | null
           party_id: string
+          perks: string[]
+          resolve: number | null
+          resolve_at: string | null
+          resolve_rate: number | null
+          second_wind: string | null
           status: string
           threat: Json
           updated_at: string
@@ -1184,12 +1226,18 @@ export type Database = {
           kind: string
           last_action_at?: string | null
           last_seen_at?: string | null
+          last_stand_used?: boolean
           max_hp: number
           name: string
           next_action_at?: string | null
           next_save_at?: string | null
           npc_id?: string | null
           party_id: string
+          perks?: string[]
+          resolve?: number | null
+          resolve_at?: string | null
+          resolve_rate?: number | null
+          second_wind?: string | null
           status?: string
           threat?: Json
           updated_at?: string
@@ -1208,12 +1256,18 @@ export type Database = {
           kind?: string
           last_action_at?: string | null
           last_seen_at?: string | null
+          last_stand_used?: boolean
           max_hp?: number
           name?: string
           next_action_at?: string | null
           next_save_at?: string | null
           npc_id?: string | null
           party_id?: string
+          perks?: string[]
+          resolve?: number | null
+          resolve_at?: string | null
+          resolve_rate?: number | null
+          second_wind?: string | null
           status?: string
           threat?: Json
           updated_at?: string
