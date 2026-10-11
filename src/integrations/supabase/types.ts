@@ -1358,6 +1358,8 @@ export type Database = {
         Row: {
           character_name: string
           created_at: string
+          knows_name: boolean
+          last_seen_at: string | null
           npc_id: string
           party_id: string
           reason: string
@@ -1369,6 +1371,8 @@ export type Database = {
         Insert: {
           character_name?: string
           created_at?: string
+          knows_name?: boolean
+          last_seen_at?: string | null
           npc_id: string
           party_id: string
           reason?: string
@@ -1380,6 +1384,8 @@ export type Database = {
         Update: {
           character_name?: string
           created_at?: string
+          knows_name?: boolean
+          last_seen_at?: string | null
           npc_id?: string
           party_id?: string
           reason?: string
@@ -1400,25 +1406,40 @@ export type Database = {
       }
       party_npc_guides: {
         Row: {
+          grudge_style: string
           guide: string
+          hard_lines: string
+          levers: string
+          mood_range: string
           npc_id: string
           party_id: string
           secrets: string
           updated_at: string
+          wants: string
         }
         Insert: {
+          grudge_style?: string
           guide?: string
+          hard_lines?: string
+          levers?: string
+          mood_range?: string
           npc_id: string
           party_id: string
           secrets?: string
           updated_at?: string
+          wants?: string
         }
         Update: {
+          grudge_style?: string
           guide?: string
+          hard_lines?: string
+          levers?: string
+          mood_range?: string
           npc_id?: string
           party_id?: string
           secrets?: string
           updated_at?: string
+          wants?: string
         }
         Relationships: [
           {
@@ -1434,6 +1455,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          kind: string
           note: string
           npc_id: string
           party_id: string
@@ -1443,6 +1465,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          kind?: string
           note: string
           npc_id: string
           party_id: string
@@ -1452,6 +1475,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          kind?: string
           note?: string
           npc_id?: string
           party_id?: string
@@ -1582,8 +1606,10 @@ export type Database = {
           created_at: string
           id: string
           model: string
+          mood: string
           name: string
           on_stage: boolean
+          on_stage_since: string | null
           party_id: string
           player_user_id: string | null
           portrait_url: string | null
@@ -1596,8 +1622,10 @@ export type Database = {
           created_at?: string
           id?: string
           model?: string
+          mood?: string
           name: string
           on_stage?: boolean
+          on_stage_since?: string | null
           party_id: string
           player_user_id?: string | null
           portrait_url?: string | null
@@ -1610,8 +1638,10 @@ export type Database = {
           created_at?: string
           id?: string
           model?: string
+          mood?: string
           name?: string
           on_stage?: boolean
+          on_stage_since?: string | null
           party_id?: string
           player_user_id?: string | null
           portrait_url?: string | null
@@ -1756,6 +1786,7 @@ export type Database = {
           id: string
           in_character: boolean
           npc_id: string | null
+          npc_mood: string | null
           party_id: string
           round_id: string
           selected: boolean
@@ -1769,6 +1800,7 @@ export type Database = {
           id?: string
           in_character?: boolean
           npc_id?: string | null
+          npc_mood?: string | null
           party_id: string
           round_id: string
           selected?: boolean
@@ -1782,6 +1814,7 @@ export type Database = {
           id?: string
           in_character?: boolean
           npc_id?: string | null
+          npc_mood?: string | null
           party_id?: string
           round_id?: string
           selected?: boolean

@@ -92,6 +92,13 @@
       "when": 1791660488630,
       "tag": "0012_player_stand_ins",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791690708000,
+      "tag": "0013_live_npcs_v3_database",
+      "breakpoints": true
     }
   ]
 }
