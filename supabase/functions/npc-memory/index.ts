@@ -5,6 +5,10 @@
 //
 // POST { lineIds: string[] }   the NPC lines that were just handed to the DM (max 40)
 //
+// v3: also opens and closes unfinished business, saves what the NPC said about itself,
+// marks names it learned, records when it last spoke with each character, and lets
+// feelings fade without contact before applying new changes.
+//
 // The caller must be signed in and seated at the table (or be the host). Each NPC line is
 // remembered once: a retried hand-off is ignored. If the AI fails, nothing is saved and
 // the lines can be remembered on the next try.
@@ -12,7 +16,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createModelCaller } from './models.ts';
 import { tableText } from './prompt.ts';
-import { MAX_AI_NOTES, buildMemoryPrompt, parseMemoryUpdate, shiftAttitude } from './memory.ts';
+import { MAX_AI_NOTES, MAX_SELF_FACTS, MAX_THREADS, buildMemoryPrompt, fadeAttitude, parseMemoryUpdate, shiftAttitude } from './memory.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
