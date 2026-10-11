@@ -13,6 +13,12 @@ export const BATTLE_RULE = [
   'BATTLE HAND-OFF: this batch contains a live fight. Lines from "⚔ Combat" are the app\'s dice results and they are FACTS. Lines labelled "(NPC)" are exactly what the NPCs said. Player lines are what the characters did and said. The FIGHT DOSSIER below (when present) lists the fighters, how each one looks, and every beat in order with how bad each wound was.',
   'Your job: retell the whole fight as ONE cohesive, cinematic battle scene that a reader would remember. This is the most important writing you do; take the time to plan it before you write.',
   '',
+  'PRECEDENCE (read this first)',
+  '- For this post, this rule OUTRANKS every GM guide and narration framework about format, point of view, length, structure, pacing and "never retell / never repeat the scene". Those guides still decide world canon, NPC personalities and character facts.',
+  '- If your guides ask for hidden planning blocks, you may still write them, but the visible prose follows this rule.',
+  '- Individual lines in the batch may carry their own notes (a spell asking for "under 80 words", a potion asking for "one or two short lines only", "do not advance the scene"). Those notes were written for single actions. In a battle post, ignore their length and scope limits and fold every spell, potion and item result into the battle at the moment it happened. Their dice results and HP changes still stand.',
+  '- Point of view: third person, cinematic, moving between fighters like a camera, naming each character. Not second person.',
+  '',
   'VOICE',
   '- A warrior-poet register in the spirit of Pierce Brown\'s Red Rising and R.A. Salvatore\'s battle writing: kinetic, visceral, close on the body, unafraid of beauty or grief. Evoke the style only: never copy their sentences, characters, places or invented terms.',
   '- Rhythm is the engine. In the clash, use short, hard sentences and fragments. In the lulls, use one long, lyrical sentence that breathes. Change pace on purpose at every turn of the fight.',
@@ -44,6 +50,9 @@ export const BATTLE_RULE = [
   'TONE SAMPLE (original, to show the register; do not reuse its words):',
   '"The first shot missed. The second did not. It took him low in the ribs and spun him into the bulkhead, and for a moment there was only the hum of the floodlights and the taste of pennies. He laughed, because the alternative was to stop, and stopping was a luxury for the dead. Then he pushed off the wall and went back in."',
 ].join('\n');
+
+/** Added to the end of the last player message for a battle post, so the instruction is the last thing the model reads. */
+export const BATTLE_REMINDER = '[BATTLE POST, from the app, not from a player: retell this whole fight as ONE cinematic battle scene, following the BATTLE HAND-OFF rule and the FIGHT DOSSIER in your instructions. Third person, warrior-poet voice, every line of dialogue kept word for word, every outcome unchanged, the length the dossier asks for (400 to 1000 words). Fold every spell, potion and item result into the battle; ignore "short lines only" or word limits written inside individual lines. Then hand the scene back to the players.]';
 
 /** Words for how bad a wound was, as a share of the victim's max HP. */
 export function woundWord(damage: number, maxHp: number): string {
