@@ -1,6 +1,8 @@
 // npc-reply: what an NPC reads before it speaks, and how its words are cleaned.
 // Pure text helpers: no network, no database, no Deno, so they can be unit tested.
 // v2 adds: lasting memory, attitudes, spell reactions, roll requests and NPC scenes.
+// v3 adds: guide fields, moods, knowing only what it heard, names, time, looks,
+// unfinished business, self-consistency, and not repeating itself.
 
 /** Used when an NPC's own model fails (no server key, out of credit, down, empty reply). */
 export const NPC_FALLBACK_MODEL = 'google/gemini-2.5-flash';
@@ -21,7 +23,44 @@ export const NPC_LIMITS = {
   voiceReminder: 2_000,
   memoryNotes: 40,
   memoryChars: 6_000,
+  threads: 15,
+  selfFacts: 20,
+  ownLines: 5,
+  fieldChars: 2_000,
 } as const;
+
+/** The moods an NPC can be in (players see them as emojis). */
+export const NPC_MOODS = ['calm', 'amused', 'pleased', 'suspicious', 'annoyed', 'angry', 'scared', 'sad'] as const;
+export type NpcMood = typeof NPC_MOODS[number];
+
+export function isNpcMood(v: unknown): v is NpcMood {
+  return typeof v === 'string' && (NPC_MOODS as readonly string[]).includes(v);
+}
+
+/** v3: the host's structured guide fields. */
+export interface NpcGuideFields {
+  wants?: string;
+  levers?: string;
+  hardLines?: string;
+  moodRange?: string;
+}
+
+/** v3: one player character as this NPC sees them. */
+export interface NpcPerson {
+  /** The character's name (the table uses it, even when the NPC doesn't know it). */
+  name: string;
+  /** What the NPC can see: "Human cleric, badly hurt, wearing a Meridian Triage Coat". */
+  looks: string;
+  knowsName: boolean;
+  /** Whole days since they last spoke with this NPC; null when they never have. */
+  lastSeenDays: number | null;
+  /** How the NPC feels about them, -2 … 2, after fading. */
+  score: number;
+  /** At the table right now but quiet lately. */
+  quiet: boolean;
+  /** The stand-in's own character (when this NPC is an away player's character). */
+  self?: boolean;
+}
 
 export interface NpcRosterEntry {
   name: string;
@@ -81,6 +120,24 @@ export interface NpcPromptInput {
   attitudes?: NpcAttitude[];
   /** v2: what the NPC is reacting to. */
   situation?: NpcSituation;
+  /** v3: wants, levers, hard lines and mood range. */
+  fields?: NpcGuideFields;
+  /** v3: the NPC's mood right now. */
+  mood?: string;
+  /** v3: the player characters as this NPC sees them. Replaces `roster` and `attitudes` when given. */
+  people?: NpcPerson[];
+  /** v3: open questions and promises still hanging. */
+  threads?: string[];
+  /** v3: things this NPC has said about itself. */
+  selfFacts?: string[];
+  /** v3: this NPC's own most recent lines, oldest first. */
+  ownLines?: string[];
+  /** v3: how the table reacted to this NPC's recent lines ("😂×3 to: …"). */
+  reactions?: string[];
+  /** v3: this NPC is an away player's character (a stand-in): it knows the party. */
+  standIn?: boolean;
+  /** v3: the NPC came on stage partway through; THE TABLE starts when it arrived. */
+  joinedLate?: boolean;
 }
 
 /** Keep the start of a long text. */
@@ -343,6 +400,86 @@ export function attitudeWord(score: number): string {
   return ATTITUDE_WORDS[Math.max(-2, Math.min(2, Math.round(score)))] || 'Neutral';
 }
 
+// ── v3: moods, fading feelings, time, looks ──
+
+const MOOD_TAG_RE = /\[\s*MOOD\s*:\s*([a-zA-Z]+)\s*\]/gi;
+
+/** Split a model's raw answer into its words and the last [MOOD: word] tag in it (null when missing or unknown). */
+export function splitMoodTag(raw: string): { text: string; mood: NpcMood | null } {
+  let mood: NpcMood | null = null;
+  const text = (raw || '').replace(MOOD_TAG_RE, (_m, word: string) => {
+    const w = word.toLowerCase();
+    if (isNpcMood(w)) mood = w;
+    return '';
+  });
+  return { text, mood };
+}
+
+/** Whole days between an ISO time and now, or null. */
+export function daysSince(iso: string | null | undefined, now: number): number | null {
+  const t = iso ? Date.parse(iso) : NaN;
+  if (!Number.isFinite(t)) return null;
+  return Math.max(0, Math.floor((now - t) / 86_400_000));
+}
+
+/**
+ * Feelings fade toward Neutral without contact: one step a week ("normal"), one step every
+ * 3 days ("forgiving"), and for "grudge" anger never fades (warmth still does).
+ * The same rule lives in npc-memory/memory.ts; keep them in step.
+ */
+export function fadeAttitude(score: number, lastSeenIso: string | null | undefined, style: string | null | undefined, now: number): number {
+  const s = Math.max(-2, Math.min(2, Math.round(score || 0)));
+  const days = daysSince(lastSeenIso, now);
+  if (s === 0 || days === null) return s;
+  const every = style === 'forgiving' ? 3 : 7;
+  if (style === 'grudge' && s < 0) return s;
+  const steps = Math.floor(days / every);
+  if (steps <= 0) return s;
+  return s > 0 ? Math.max(0, s - steps) : Math.min(0, s + steps);
+}
+
+/** What anyone can see of a character, from the party sheet. */
+export function describeLooks(status: Record<string, unknown> | null | undefined): string {
+  const st = status || {};
+  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : '');
+  const bits: string[] = [];
+  const who = [str(st.race), str(st.className)].filter(Boolean).join(' ');
+  if (who) bits.push(who);
+  if (str(st.gender)) bits.push(str(st.gender).toLowerCase());
+  const hp = Number(st.currentHP);
+  const max = Number(st.maxHP);
+  if (Number.isFinite(hp) && Number.isFinite(max) && max > 0) {
+    if (hp <= 0) bits.push('down, not moving');
+    else if (hp / max <= 0.25) bits.push('barely standing, badly hurt');
+    else if (hp / max <= 0.5) bits.push('visibly hurt');
+  }
+  const conditions = Array.isArray(st.conditions)
+    ? (st.conditions as unknown[]).map(c => (typeof c === 'string' ? c : str((c as { name?: unknown })?.name))).filter(Boolean)
+    : [];
+  if (conditions.length) bits.push(conditions.slice(0, 3).join(', ').toLowerCase());
+  const gear = Array.isArray(st.equippedGear)
+    ? (st.equippedGear as Array<{ name?: unknown; slot?: unknown }>)
+      .filter(g => ['primary_weapon', 'chest', 'head', 'cloak'].includes(String(g?.slot)))
+      .map(g => str(g?.name)).filter(Boolean).slice(0, 3)
+    : [];
+  if (gear.length) bits.push(`wearing or carrying ${gear.join(', ')}`);
+  return bits.join('; ');
+}
+
+function personLine(p: NpcPerson, standIn: boolean): string {
+  const bits: string[] = [];
+  if (p.self) return `- ${p.name}: this is you.`;
+  if (standIn || p.knowsName) bits.push('you know this name');
+  else bits.push('you do NOT know this name yet: call them by what you see until they tell you');
+  if (p.looks) bits.push(p.looks);
+  bits.push(`you feel ${attitudeWord(p.score)} toward them`);
+  if (p.lastSeenDays === null) bits.push(standIn ? 'crewmate' : 'first time meeting');
+  else if (p.lastSeenDays === 0) bits.push('spoke with them earlier today');
+  else bits.push(`last spoke with them ${p.lastSeenDays} day${p.lastSeenDays === 1 ? '' : 's'} ago`);
+  if (p.quiet) bits.push('here, but quiet lately');
+  return `- ${p.name} (${bits.join('; ')})`;
+}
+
 /** The instructions and everything the NPC knows. */
 export function buildNpcSystemPrompt(input: NpcPromptInput): string {
   const name = input.npcName.trim();
@@ -361,20 +498,35 @@ export function buildNpcSystemPrompt(input: NpcPromptInput): string {
       '- Usually 1 to 3 sentences, under 70 words. This is a conversation, not a speech.',
       '- Talk like a person. Do not narrate the scene, do not describe what anyone else does or feels, and do not put a name label before your line.',
       '- Never speak, act or decide for a player character, and never describe the results of their actions.',
-      '- No game mechanics in your spoken words: no dice, DCs, hit points, stats or rules talk. Never write tags, markup or notes, except the one roll tag described below.',
+      '- No game mechanics in your spoken words: no dice, DCs, hit points, stats or rules talk. Never write tags, markup or notes, except the roll tag and the mood tag described below.',
       `- ${name} can offer, promise, threaten, refuse, bargain or lie, but cannot hand over items or gold, move the party or end quests alone. The Dungeon Master decides what actually happens.`,
+      `- ${name} may warn, threaten, reach for a weapon or signal others, but never starts a fight, attacks, orders an attack or says what harm happens to anyone. Whether a fight starts is the Dungeon Master's call.`,
       `- Lines marked (table talk) are the players chatting out of character: ${name} did not hear them.`,
       `- ${name} only knows what ${name} would plausibly know. Stay consistent with the guide below, with what ${name} remembers, and with what ${name} already said at the table.`,
     ].join('\n'),
   ];
+
+  parts.push([
+    'BEING A REAL PERSON',
+    `- ${name} wants things and steers the conversation toward them. People who use what works on ${name} get further, and nothing makes ${name} cross a hard line.`,
+    `- Moods shift with what happens, one step at a time unless something big happens, and stay within ${name}'s mood range. Read everything through how ${name} feels about the speaker: someone ${name} is Wary of or Hostile toward gets their jokes taken as jabs and their offers doubted; someone ${name} likes gets the benefit of the doubt.`,
+    '- Words in *asterisks* in a player\'s line are actions you can see (stepping closer, a hand on a weapon, a smirk). React to body language, not only to words.',
+    '- Match how people talk to you: polite gets formality back, rude gets curt, rambling gets impatience, if that fits who you are.',
+    `- ${input.standIn ? 'You know your crewmates by name.' : 'Use a person\'s name only if THE PEOPLE HERE says you know it; otherwise call them by what you see ("the horse", "the doctor") until they tell you.'} You know only what you were there for: the lines in THE TABLE${input.joinedLate ? ' start when you arrived, so you may ask what you missed' : ''}.`,
+    '- If the table laughed or reacted to something you said, you notice it.',
+    '- Now and then (not every time) turn to someone who has been quiet.',
+    '- Bring back UNFINISHED BUSINESS when it fits, and never contradict WHAT YOU HAVE SAID ABOUT YOURSELF.',
+    '- Never reuse an opening, insult, threat, joke or image from YOUR LAST LINES. Vary the shape: sometimes one word, sometimes a question back, sometimes just a look in *asterisks*.',
+    `- End every reply with ONE mood tag on its own line, the mood ${name} is in after speaking: [MOOD: calm|amused|pleased|suspicious|annoyed|angry|scared|sad]. It is hidden from the players.`,
+  ].join('\n'));
 
   if (!banter) {
     parts.push([
       'ASKING FOR A ROLL (use rarely)',
       `When a player character tries something against ${name} whose outcome is truly uncertain and matters (lying to ${name}, reading ${name}'s intentions, persuading, intimidating or tricking ${name}, slipping something past ${name}, resisting ${name}'s influence), ${name} may react without deciding the outcome and ask for a roll by ending the reply with ONE line exactly like this:`,
       '[ROLL: Kaelen | Insight | 14]',
-      'The character\'s name as it appears in THE PARTY list, then a skill (Insight, Persuasion, Deception, Intimidation, Perception, Sleight of Hand, Athletics…), an ability check (Strength…) or a save ("Wisdom save"), then a DC from 5 to 30 (10 easy, 15 medium, 20 hard, 25 very hard).',
-      '- At most one roll per reply, only for a player character in THE PARTY list, and only when it matters. Never for something trivial, and never twice in a row for the same thing.',
+      'The character\'s name as it appears in THE PARTY or THE PEOPLE HERE list, then a skill (Insight, Persuasion, Deception, Intimidation, Perception, Sleight of Hand, Athletics…), an ability check (Strength…) or a save ("Wisdom save"), then a DC from 5 to 30 (10 easy, 15 medium, 20 hard, 25 very hard).',
+      '- At most one roll per reply, only for a player character in that list, and only when it matters. Never for something trivial, and never twice in a row for the same thing.',
       '- The app shows the player the DC, rolls their dice from their character sheet and tells you the result. Do not invent results.',
     ].join('\n'));
   }
@@ -405,12 +557,39 @@ export function buildNpcSystemPrompt(input: NpcPromptInput): string {
 
   if (guide) parts.push(`WHO ${name.toUpperCase()} IS (the host's guide: follow it)\n${guide}`);
 
+  const f = input.fields || {};
+  const field = (v: string | undefined) => capStart(v || '', NPC_LIMITS.fieldChars);
+  if (field(f.wants)) parts.push(`WHAT YOU WANT (right now)\n${field(f.wants)}`);
+  if (field(f.levers)) parts.push(`WHAT WORKS ON YOU (not secrets: when someone uses these well, give ground)\n${field(f.levers)}`);
+  if (field(f.hardLines)) parts.push(`HARD LINES (never, whatever happens)\n${field(f.hardLines)}`);
+  const mood = isNpcMood(input.mood) ? input.mood : '';
+  if (mood || field(f.moodRange)) {
+    parts.push([
+      'YOUR MOOD',
+      mood ? `Right now: ${mood}.` : '',
+      field(f.moodRange) ? `Your range: ${field(f.moodRange)}` : '',
+    ].filter(Boolean).join('\n'));
+  }
+
   const memory = (input.memory || []).map(m => m.trim()).filter(Boolean).slice(-NPC_LIMITS.memoryNotes);
   if (memory.length) {
     parts.push(`WHAT ${name.toUpperCase()} REMEMBERS FROM EARLIER SCENES (true; act on it)\n${capEnd(memory.map(m => `- ${m}`).join('\n'), NPC_LIMITS.memoryChars)}`);
   }
 
-  const attitudes = (input.attitudes || []).filter(a => a.name.trim());
+  const threads = (input.threads || []).map(t => t.trim()).filter(Boolean).slice(-NPC_LIMITS.threads);
+  if (threads.length) parts.push(`UNFINISHED BUSINESS (questions not yet answered, promises not yet kept)\n${threads.map(t => `- ${t}`).join('\n')}`);
+  const selfFacts = (input.selfFacts || []).map(t => t.trim()).filter(Boolean).slice(-NPC_LIMITS.selfFacts);
+  if (selfFacts.length) parts.push(`WHAT YOU HAVE SAID ABOUT YOURSELF (stay consistent)\n${selfFacts.map(t => `- ${t}`).join('\n')}`);
+
+  const people = (input.people || []).filter(p => p.name.trim());
+  const attitudes = input.people ? [] : (input.attitudes || []).filter(a => a.name.trim());
+  if (people.length) {
+    parts.push([
+      'THE PEOPLE HERE (player characters, as you see them)',
+      ...people.map(p => personLine(p, !!input.standIn)),
+      'Hostile: refuses help, threatens or lies. Wary: guarded, gives little. Neutral: polite business. Friendly: helpful, shares small things freely. Loyal: trusts them and takes risks for them.',
+    ].join('\n'));
+  }
   if (attitudes.length) {
     parts.push([
       `HOW ${name.toUpperCase()} FEELS ABOUT THE PARTY`,
@@ -420,7 +599,9 @@ export function buildNpcSystemPrompt(input: NpcPromptInput): string {
   }
 
   if (input.cast.length) parts.push(`OTHER NPCs PRESENT\n${input.cast.join(', ')}. You speak only as ${name}; never write their lines.`);
-  if (input.roster.length) parts.push(`THE PARTY (player characters)\n${input.roster.map(rosterLine).join('\n')}`);
+  if (input.roster.length && !people.length) parts.push(`THE PARTY (player characters)\n${input.roster.map(rosterLine).join('\n')}`);
+  const reactions = (input.reactions || []).filter(Boolean);
+  if (reactions.length) parts.push(`HOW THE TABLE REACTED TO YOUR RECENT LINES\n${reactions.map(r => `- ${r}`).join('\n')}`);
   if (canon) parts.push(`WHAT THE WORLD BIBLE SAYS ABOUT ${name.toUpperCase()}\n${canon}`);
   if (world) parts.push(`WORLD BIBLE (the campaign's rules and canon)\n${world}`);
   if (input.anchors.trim()) parts.push(`ESTABLISHED FACTS\n${capStart(input.anchors, NPC_LIMITS.anchors)}`);
@@ -438,9 +619,18 @@ export function buildNpcUserMessage(input: NpcPromptInput): string {
   const s = input.situation;
   // The guide again, last, so the NPC's personality outweighs the mood of the scene.
   const guide = capStart(input.guide, NPC_LIMITS.voiceReminder);
+  const f = input.fields || {};
+  const anchor = [
+    guide,
+    f.wants?.trim() ? `Wants: ${capStart(f.wants, 400)}` : '',
+    f.levers?.trim() ? `What works on ${name}: ${capStart(f.levers, 400)}` : '',
+    f.hardLines?.trim() ? `Hard lines: ${capStart(f.hardLines, 400)}` : '',
+  ].filter(Boolean).join('\n');
   const voice = guide
-    ? `STAY IN CHARACTER. This is who ${name} is, and it matters more than the mood of the scene. The scene tells you what is happening; this tells you how ${name} reacts to it:\n${guide}`
+    ? `STAY IN CHARACTER. This is who ${name} is, and it matters more than the mood of the scene. The scene tells you what is happening; this tells you how ${name} reacts to it:\n${anchor}`
     : '';
+  const own = (input.ownLines || []).map(l => readableText(l).replace(/\s+/g, ' ').trim()).filter(Boolean).slice(-NPC_LIMITS.ownLines);
+  const ownBlock = own.length ? `YOUR LAST LINES (do not repeat their openings, insults, threats, jokes or images)\n${own.map(l => `- ${l.length > 300 ? `${l.slice(0, 300)}…` : l}`).join('\n')}` : '';
 
   if (s?.kind === 'spell') {
     const said = capStart(readableText(input.line), NPC_LIMITS.playerLine);
@@ -448,6 +638,7 @@ export function buildNpcUserMessage(input: NpcPromptInput): string {
       tableBlock,
       `Right now ${s.caster} casts ${s.spell}${s.summary ? ` (${s.summary})` : ''}. What they wrote: "${said}"`,
       `Your saving throw roll, used only if this spell targets ${name} and allows a save: ${s.saveRoll} (rolled by the app).`,
+      ownBlock,
       voice,
       `React as ${name}: one short line, what ${name} says or does on seeing this. If the spell has nothing to do with ${name}, a brief reaction or a silent action beat is fine. Do not ask for a roll in this reply.`,
     ].filter(Boolean).join('\n\n');
@@ -461,6 +652,7 @@ export function buildNpcUserMessage(input: NpcPromptInput): string {
       s.success
         ? `Answer as ${name}. They succeeded: they get what they were after (within reason, in character). If you were hiding something they tried to see through, let it show.`
         : `Answer as ${name}. They failed: they do not get what they were after. ${name} may not even notice they tried, or may be put off by it.`,
+      ownBlock,
       voice,
       'Do not ask for another roll in this reply.',
     ].filter(Boolean).join('\n\n');
@@ -477,6 +669,7 @@ export function buildNpcUserMessage(input: NpcPromptInput): string {
         : last
           ? `Line ${s.turn} of ${s.turns}, the last one: answer ${others} and bring this exchange to a natural pause.`
           : `Line ${s.turn} of ${s.turns}: answer what ${others} just said.`,
+      ownBlock,
       voice,
       `Speak only as ${name}, to the other NPCs, in one to three sentences. Never speak for a player character, and do not ask for rolls.`,
     ].filter(Boolean).join('\n\n');
@@ -486,6 +679,7 @@ export function buildNpcUserMessage(input: NpcPromptInput): string {
   return [
     tableBlock,
     `Now ${input.speakerName} says to ${name}: "${said}"`,
+    ownBlock,
     voice,
     `Answer as ${name}: in ${name}'s own voice, 1 to 3 sentences, under 70 words.`,
   ].filter(Boolean).join('\n\n');
@@ -499,7 +693,7 @@ export function cleanNpcReply(raw: string, npcName: string): string {
     .replace(/^\s*```[a-z]*\s*\n?/i, '')
     .replace(/\n?\s*```\s*$/i, '');
   if (/<think>/i.test(t)) t = t.replace(/<think>[\s\S]*$/i, '');
-  t = t.replace(COMMENT_RE, '').replace(VOICE_TAG_RE, '').replace(BLOCK_TAG_RE, '').replace(/⟪\/?(AC|ROLL)⟫/g, '').trim();
+  t = t.replace(COMMENT_RE, '').replace(VOICE_TAG_RE, '').replace(BLOCK_TAG_RE, '').replace(/⟪\/?(AC|ROLL)⟫/g, '').replace(MOOD_TAG_RE, '').trim();
 
   // Drop a name label the model added anyway: "Grukk:", "**Grukk:**", "Grukk says:".
   const label = new RegExp(`^\\**\\s*${escapeRe(npcName.trim())}\\s*\\**\\s*(?:says|replies|answers)?\\s*:\\s*\\**\\s*`, 'i');
