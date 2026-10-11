@@ -9,8 +9,9 @@ import { ArrowLeft, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { NpcPortrait } from './NpcPortrait';
-import { NPC_ATTITUDES, NPC_MEMORY_KINDS, NPC_MOODS, attitudeLevel, npcMoodOf } from '@/lib/live-npcs';
-import type { NpcMemoryNote, PartyNpc, PartyNpcsApi } from '@/hooks/use-party-npcs';
+import { NPC_ATTITUDES, NPC_MEMORY_KINDS, NPC_MOODS, attitudeLevel, npcMoodOf, readableFunctionError } from '@/lib/live-npcs';
+import type { NpcCombatStats, NpcMemoryNote, NpcSpeed, PartyNpc, PartyNpcsApi } from '@/hooks/use-party-npcs';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NpcMindPanelProps {
   npc: PartyNpc;
@@ -133,6 +134,15 @@ export function NpcMindPanel({ npc, roster, onBack }: NpcMindPanelProps) {
           aria-label={`${npc.name} reacts to spells`}
         />
       </label>
+
+      {!npc.player_user_id && (
+        <NpcCombatSection
+          npc={npc}
+          busy={busy === 'combat'}
+          onSave={(stats) => act('combat', () => roster.setCombatStats(npc.id, stats))}
+          onRevived={() => { void roster.reload(); }}
+        />
+      )}
 
       {failed ? (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 space-y-2">
@@ -344,5 +354,165 @@ export function NpcMindPanel({ npc, roster, onBack }: NpcMindPanelProps) {
         </>
       )}
     </div>
+  );
+}
+
+const DEFAULT_COMBAT: NpcCombatStats = { maxHp: 30, ac: 13, attackBonus: 4, damage: '1d8+2', speed: 'medium' };
+const SPEEDS: Array<{ id: NpcSpeed; label: string; every: string }> = [
+  { id: 'trivial', label: 'Trivial', every: '2 min' },
+  { id: 'easy', label: 'Easy', every: '90 s' },
+  { id: 'medium', label: 'Medium', every: '60 s' },
+  { id: 'hard', label: 'Hard', every: '40 s' },
+  { id: 'deadly', label: 'Deadly', every: '20 s' },
+];
+const DAMAGE_RE = /^\s*\d{1,2}\s*d\s*(2|3|4|6|8|10|12|20|100)\s*([+-]\s*\d{1,3})?\s*$/i;
+
+function wholeIn(raw: string, min: number, max: number): number | null {
+  if (!/^\s*-?\d+\s*$/.test(raw)) return null;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= min && n <= max ? n : null;
+}
+
+/** Host-only combat stat block for one NPC (Live NPC Combat). */
+function NpcCombatSection({ npc, busy, onSave, onRevived }: {
+  npc: PartyNpc;
+  busy: boolean;
+  onSave: (stats: NpcCombatStats | null) => Promise<void>;
+  onRevived: () => void;
+}) {
+  const saved = npc.combat_stats ?? null;
+  const [on, setOn] = useState(!!saved);
+  const [maxHp, setMaxHp] = useState(String((saved ?? DEFAULT_COMBAT).maxHp));
+  const [ac, setAc] = useState(String((saved ?? DEFAULT_COMBAT).ac));
+  const [attackBonus, setAttackBonus] = useState(String((saved ?? DEFAULT_COMBAT).attackBonus));
+  const [damage, setDamage] = useState((saved ?? DEFAULT_COMBAT).damage);
+  const [speed, setSpeed] = useState<NpcSpeed>((saved ?? DEFAULT_COMBAT).speed);
+  const [problem, setProblem] = useState('');
+  const [reviving, setReviving] = useState(false);
+
+  const fillFrom = (s: NpcCombatStats) => {
+    setMaxHp(String(s.maxHp)); setAc(String(s.ac)); setAttackBonus(String(s.attackBonus)); setDamage(s.damage); setSpeed(s.speed);
+  };
+
+  const toggle = (next: boolean) => {
+    setOn(next);
+    setProblem('');
+    if (next) fillFrom(saved ?? DEFAULT_COMBAT);
+    else void onSave(null);
+  };
+
+  const save = () => {
+    const hp = wholeIn(maxHp, 1, 999);
+    if (hp === null) return setProblem('Max HP must be a whole number from 1 to 999.');
+    const armor = wholeIn(ac, 5, 30);
+    if (armor === null) return setProblem('AC must be a whole number from 5 to 30.');
+    const bonus = wholeIn(attackBonus, -5, 20);
+    if (bonus === null) return setProblem('Attack bonus must be a whole number from -5 to 20.');
+    if (!DAMAGE_RE.test(damage)) return setProblem('Damage must look like 2d6+3 (dice: d2, d3, d4, d6, d8, d10, d12, d20 or d100).');
+    setProblem('');
+    void onSave({ maxHp: hp, ac: armor, attackBonus: bonus, damage: damage.replace(/\s+/g, ''), speed });
+  };
+
+  const revive = async () => {
+    setReviving(true);
+    try {
+      const { error } = await supabase.functions.invoke('npc-combat', { body: { action: 'revive', partyId: npc.party_id, npcId: npc.id } });
+      if (error) {
+        const { message } = await readableFunctionError(error, `${npc.name} could not be revived.`);
+        toast.error(message);
+        return;
+      }
+      onRevived();
+    } finally {
+      setReviving(false);
+    }
+  };
+
+  const numField = (label: string, value: string, set: (v: string) => void, min: number, max: number) => (
+    <label className="block space-y-1">
+      <span className="block text-[12px] text-white/60">{label}</span>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={min}
+        max={max}
+        value={value}
+        onChange={e => set(e.target.value)}
+        className={cn(fieldClass, 'min-h-[44px]')}
+      />
+    </label>
+  );
+
+  return (
+    <section className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
+      {(npc.combat_state === 'ko' || npc.combat_state === 'dead') && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-500/10 p-2">
+          <span className="text-[13px] text-red-200">{npc.combat_state === 'ko' ? 'Knocked out in a fight' : 'Killed in a fight'}</span>
+          <button
+            onClick={() => { void revive(); }}
+            disabled={reviving}
+            style={{ touchAction: 'manipulation' }}
+            className="min-h-[44px] px-4 rounded-lg border border-amber-400/50 bg-amber-500/20 text-[13px] text-amber-100 disabled:opacity-40 flex items-center gap-1.5"
+          >
+            {reviving && <Loader2 className="w-4 h-4 animate-spin" />}
+            Revive
+          </button>
+        </div>
+      )}
+
+      <label className="flex items-center justify-between gap-3">
+        <span className="min-w-0">
+          <span className="block font-cinzel text-[13px] text-amber-200/90">Combat</span>
+          <span className="block text-[14px] text-white/90">Can be fought</span>
+        </span>
+        <Switch checked={on} disabled={busy} onCheckedChange={toggle} aria-label={`${npc.name} can be fought`} />
+      </label>
+
+      {on && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            {numField('Max HP', maxHp, setMaxHp, 1, 999)}
+            {numField('AC', ac, setAc, 5, 30)}
+            {numField('Attack bonus', attackBonus, setAttackBonus, -5, 20)}
+          </div>
+          <label className="block space-y-1">
+            <span className="block text-[12px] text-white/60">Damage</span>
+            <input value={damage} onChange={e => setDamage(e.target.value)} placeholder="2d6+3" className={cn(fieldClass, 'min-h-[44px]')} />
+          </label>
+          <div className="space-y-1">
+            <span className="block text-[12px] text-white/60">Speed</span>
+            <div className="grid grid-cols-5 gap-1" role="radiogroup" aria-label={`${npc.name}'s speed`}>
+              {SPEEDS.map(s => (
+                <button
+                  key={s.id}
+                  role="radio"
+                  aria-checked={speed === s.id}
+                  onClick={() => setSpeed(s.id)}
+                  style={{ touchAction: 'manipulation' }}
+                  className={cn(
+                    'min-h-[44px] rounded-md border text-[11px] flex flex-col items-center justify-center leading-tight',
+                    speed === s.id ? 'border-amber-300/80 bg-amber-500/25 text-white' : 'border-white/10 bg-black/30 text-white/60',
+                  )}
+                >
+                  <span>{s.label}</span>
+                  <span className="text-[10px] opacity-70">{s.every}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          {problem && <p className="text-[12px] text-red-300">{problem}</p>}
+          <button
+            onClick={save}
+            disabled={busy}
+            style={{ touchAction: 'manipulation' }}
+            className="w-full min-h-[44px] rounded-lg border border-amber-400/50 bg-amber-500/20 text-[14px] text-amber-100 disabled:opacity-40 flex items-center justify-center gap-1.5"
+          >
+            {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+            Save
+          </button>
+        </div>
+      )}
+      <p className="text-[11px] text-white/45">Players can only start a fight by attacking. Once it starts, {npc.name} attacks on its own at this speed.</p>
+    </section>
   );
 }

@@ -4,6 +4,9 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { NPC_DEFAULT_MODEL, NPC_GUIDE_MAX, cleanNpcName, readableFunctionError, spellCastName } from '@/lib/live-npcs';
 
+export type NpcSpeed = 'trivial' | 'easy' | 'medium' | 'hard' | 'deadly';
+export interface NpcCombatStats { maxHp: number; ac: number; attackBonus: number; damage: string; speed: NpcSpeed }
+
 /** One NPC on the party's roster (Live NPCs, D-22). Everyone at the table can read these. */
 export interface PartyNpc {
   id: string;
@@ -22,6 +25,10 @@ export interface PartyNpc {
   mood?: string;
   /** v3: when it came on stage (set by the database). */
   on_stage_since?: string | null;
+  /** Live NPC Combat: the host's stat block (null = cannot be fought). */
+  combat_stats?: NpcCombatStats | null;
+  /** Live NPC Combat: knocked out or killed in a fight. */
+  combat_state?: 'ko' | 'dead' | null;
   created_at: string;
   updated_at: string;
 }
@@ -200,7 +207,7 @@ export function usePartyNpcs(partyId: string | null) {
   // ── Host: the roster ──
 
   /** Changes one NPC row. Throws a plain-language Error when the save fails. */
-  const patchNpc = useCallback(async (id: string, patch: Partial<Pick<PartyNpc, 'name' | 'model' | 'portrait_url' | 'on_stage' | 'archived' | 'sort_order' | 'reacts_to_spells' | 'mood'>>) => {
+  const patchNpc = useCallback(async (id: string, patch: Partial<Pick<PartyNpc, 'name' | 'model' | 'portrait_url' | 'on_stage' | 'archived' | 'sort_order' | 'reacts_to_spells' | 'mood' | 'combat_stats'>>) => {
     const before = npcsRef.current.find(n => n.id === id);
     if (before) setNpcs(prev => sortNpcs(prev.map(n => (n.id === id ? { ...n, ...patch } : n))));
     const { data, error } = await (supabase.from('party_npcs') as any)
@@ -288,6 +295,7 @@ export function usePartyNpcs(partyId: string | null) {
   const setReactsToSpells = useCallback((id: string, on: boolean) => patchNpc(id, { reacts_to_spells: on }), [patchNpc]);
   /** v3, host: set an NPC's mood by hand (the NPC's next line starts from it). */
   const setMood = useCallback((id: string, mood: string) => patchNpc(id, { mood }), [patchNpc]);
+  const setCombatStats = useCallback((id: string, stats: NpcCombatStats | null) => patchNpc(id, { combat_stats: stats }), [patchNpc]);
 
   // ── Player stand-ins: an away player's character played as a live NPC ──
 
@@ -644,6 +652,7 @@ export function usePartyNpcs(partyId: string | null) {
     reloadAttitudes: loadAttitudes,
     setReactsToSpells,
     setMood,
+    setCombatStats,
     loadSeats,
     loadMemories,
     addMemory,
