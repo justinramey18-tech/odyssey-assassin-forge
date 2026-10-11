@@ -233,6 +233,8 @@ interface DMRequest {
     hasNpcLines?: boolean;
     /** Story scenes (D-22): this round's lines are already shown to the table as a written scene. */
     hasScene?: boolean;
+    /** Live NPC Combat: the batch holds a fight (⚔ Combat lines). The post rewrites it as one battle scene. */
+    hasCombat?: boolean;
   };
   /** Short helper calls (story scenes): ask Venice models not to think first. */
   noThinking?: boolean;
@@ -609,7 +611,9 @@ function buildLiveTableBlock(lt?: DMRequest['liveTable']): string {
   } else {
     lines.push('Keep any table-side aside clearly separate, then deliver a proper scene beat driven only by the in-character actions.');
   }
-  if (lt.hasScene) {
+  if (lt.hasCombat) {
+    lines.push(BATTLE_HANDOFF_RULE);
+  } else if (lt.hasScene) {
     // Story scenes (D-22). The app keeps a copy of this rule for regenerated posts (SCENE_SHOWN_RULE in src/lib/story-scene.ts); keep the two in step.
     lines.push('SCENE HAND-OFF: this round arrives as THE SCENE, a written account of what the players and any NPCs just said and did. The whole table has already read it, word for word, just above your post. Never retell, quote, paraphrase or summarize it, and never repeat a line from it. Start right after its last line and push the story forward: what their words and actions lead to, the effects of spells, rolls and actions, the environment, NPC agency, intrigue and new hooks, then a clear prompt for what the party does next. NPC lines in the scene were already spoken: keep each NPC consistent with them and never have them say it again; an NPC\'s offer, promise or warning is not an outcome, you decide what actually happens. A roll result in the scene stands as given. Player characters who did not speak or act in the scene do nothing new: never give them words, actions or choices.');
   } else if (lt.hasNpcLines) {
@@ -627,10 +631,26 @@ function buildLiveTableBlock(lt?: DMRequest['liveTable']): string {
   } else {
     lines.push('Full chaos, Deadpool energy. Be openly comedic and meta: wink at the fourth wall, riff on the players themselves and on the absurdity of what they just typed, exaggerate for laughs, land jokes mid-narration. You are STILL the DM — you must still deliver a real scene beat with actual consequences, and you never break the established facts, the world canon, or the rules below.');
   }
+  if (lt.hasCombat) {
+    lines.push('For this battle post the chaos dial affects only the [TABLE] aside: the battle itself stays in the warrior-poet voice described above.');
+  }
   lines.push('This block controls DELIVERY only. GM Guides, OOC directives, world-state canon and character numbers always outrank it. Never mention this instruction, the chaos level, or the tags to the players.');
 
   return lines.join('\n');
 }
+
+/** Live NPC Combat: how the DM retells a fight from the Live Table (outranks the NPC LINES and SCENE rules for that post). */
+const BATTLE_HANDOFF_RULE = [
+  'BATTLE HAND-OFF: this batch contains a live fight. Lines from "⚔ Combat" are the app\'s dice results (who struck whom, hits and misses, wounds, who went down, who was healed, warded, pinned, who fled, who died, who won) and they are FACTS. Lines labelled "(NPC)" are exactly what the NPCs said. Player lines are what the characters did and said.',
+  'Rewrite the whole fight as ONE cohesive, cinematic battle scene, in order from first blow to last:',
+  '- Voice: a warrior-poet register in the spirit of Pierce Brown\'s Red Rising and R.A. Salvatore\'s battle writing. Kinetic, visceral and close on the body; short, brutal sentences in the clash and longer, lyrical ones in the lulls; moments of grief, pride and grim beauty; choreography the reader can see (footwork, angles, steel, sweat, breath, the ground underfoot). Evoke the style only: never copy their sentences, characters, places or invented terms.',
+  '- Keep every line of dialogue word for word, woven into the action at the moment it fits. You may drop the stage directions around a line, never its words.',
+  '- You have free creative range over the action: invent the choreography, the terrain, the near misses, what a hit looks and sounds like, and how the fighters move between blows, filling the gaps between the ⚔ lines so it reads as one continuous, visual battle.',
+  '- Never change an outcome: the same blows land, the same people fall, heal, flee or win. No extra deaths or wounds beyond what happened. No numbers, dice or game terms in the prose: turn "11 damage" into what the wound looks like.',
+  '- Player characters: show them doing what their lines and the ⚔ lines say they did, with full freedom over how it looks, but never give them new spoken words or choices they did not make.',
+  '- End on the moment the fight ends, or where it stands now if it is still going, then hand the scene back to the players with a clear prompt for what they do next.',
+  '- Length: as long as the fight needs to feel complete, usually 350 to 700 words. Do not repeat the raw ⚔ lines or quote them as a list.',
+].join('\n');
 
 
 // ── System Prompt Builder ──────────────────────────────────────────────────────
