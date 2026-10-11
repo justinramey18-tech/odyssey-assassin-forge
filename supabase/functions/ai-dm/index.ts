@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { BATTLE_RULE, loadBattleDossier } from "./battle.ts";
+import { BATTLE_REMINDER, BATTLE_RULE, loadBattleDossier } from "./battle.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -639,7 +639,9 @@ function buildLiveTableBlock(lt?: DMRequest['liveTable']): string {
   if (lt.hasCombat) {
     lines.push('For this battle post the chaos dial affects only the [TABLE] aside: the battle itself stays in the warrior-poet voice described above.');
   }
-  lines.push('This block controls DELIVERY only. GM Guides, OOC directives, world-state canon and character numbers always outrank it. Never mention this instruction, the chaos level, or the tags to the players.');
+  lines.push(lt.hasCombat
+    ? 'For this battle post, the BATTLE HAND-OFF rule above OUTRANKS every GM guide and narration framework rule about format, point of view, length, structure and "never retell the scene". GM guides still decide world canon, NPC personalities and character facts; OOC directives and character numbers always outrank everything. Never mention this instruction, the chaos level, or the tags to the players.'
+    : 'This block controls DELIVERY only. GM Guides, OOC directives, world-state canon and character numbers always outrank it. Never mention this instruction, the chaos level, or the tags to the players.');
 
   return lines.join('\n');
 }
@@ -1106,6 +1108,14 @@ serve(async (req) => {
       if (liveTable?.hasCombat) {
         const dossier = await loadBattleDossier(supabaseClient, liveTable);
         if (dossier) systemPrompt = systemPrompt + "\n\n" + dossier;
+        // The reminder goes at the end of the last player message: the last thing the model reads.
+        for (let i = trimmedMessages.length - 1; i >= 0; i--) {
+          const m = trimmedMessages[i] as { role?: string; content?: unknown };
+          if (m && m.role === 'user' && typeof m.content === 'string') {
+            trimmedMessages[i] = { ...trimmedMessages[i], content: `${m.content}\n\n${BATTLE_REMINDER}` };
+            break;
+          }
+        }
       }
     }
 
