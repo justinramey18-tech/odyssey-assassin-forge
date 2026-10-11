@@ -95,6 +95,7 @@ export type NpcSituation =
   | { kind: 'banter'; partners: string[]; topic: string; turn: number; turns: number };
 
 export interface NpcPromptInput {
+  fight?: { hp: number; maxHp: number };
   npcName: string;
   guide: string;
   secrets: string;
@@ -615,7 +616,8 @@ export function buildNpcSystemPrompt(input: NpcPromptInput): string {
 export function buildNpcUserMessage(input: NpcPromptInput): string {
   const name = input.npcName.trim();
   const recent = input.table.slice(-NPC_LIMITS.tableLines).map(l => tableLine(l, name)).filter(Boolean);
-  const tableBlock = recent.length ? `THE TABLE (most recent lines, oldest first)\n${recent.join('\n')}` : 'THE TABLE\n(nothing said yet)';
+  const baseTable = recent.length ? `THE TABLE (most recent lines, oldest first)\n${recent.join('\n')}` : 'THE TABLE\n(nothing said yet)';
+  const tableBlock = input.fight ? `${baseTable}\n\n${combatBlock(input.fight)}` : baseTable;
   const s = input.situation;
   // The guide again, last, so the NPC's personality outweighs the mood of the scene.
   const guide = capStart(input.guide, NPC_LIMITS.voiceReminder);
@@ -734,4 +736,15 @@ export function joinGuides(rows: Array<{ name?: string | null; content?: string 
   return rows
     .map(g => `### ${g.name || 'Untitled guide'}\n${g.content || ''}`.trim())
     .join('\n\n---\n\n');
+}
+
+function combatBlock(f: { hp: number; maxHp: number }): string {
+  const pct = f.maxHp > 0 ? f.hp / f.maxHp : 1;
+  const state = pct > 0.75 ? 'barely scratched' : pct > 0.5 ? 'hurt' : pct > 0.25 ? 'badly hurt' : 'close to collapse';
+  return [
+    'YOU ARE IN A FIGHT RIGHT NOW',
+    `Your health: ${f.hp} of ${f.maxHp} (${state}).`,
+    'Lines marked ⚔ in the table are real blows and real results. Speak like someone in the middle of a fight: short, urgent, physical.',
+    'Never say who gets hurt or by how much, and never describe a hit landing: the dice decide that. You can threaten, taunt, plead, bargain, call for help or try to talk your way out.',
+  ].join('\n');
 }

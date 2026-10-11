@@ -211,6 +211,7 @@ function promptInput(
       ? { wants: guide.wants ?? '', levers: guide.levers ?? '', hardLines: guide.hard_lines ?? '', moodRange: guide.mood_range ?? '' }
       : undefined,
     mood: npc.mood ?? undefined,
+    fight: ctx.fight ?? undefined,
     people,
     threads: ctx.mind?.threads ?? [],
     selfFacts: ctx.mind?.selfFacts ?? [],
@@ -297,6 +298,7 @@ export async function speak(req: { userId: string; messageId: unknown; npcId: un
   const npc = await repo.getNpc(req.npcId);
   if (!npc || npc.party_id !== line.party_id || npc.archived) return refuse(404, 'That NPC is not at this table.');
   if (!npc.on_stage) return refuse(409, `${npc.name} isn't on stage right now.`);
+  if (npc.combat_state) return refuse(409, npc.combat_state === 'ko' ? `${npc.name} is knocked out and can't answer.` : `${npc.name} is dead.`);
 
   const hostId = await repo.getPartyHost(line.party_id);
   if (!hostId) return refuse(404, 'Party not found.');
@@ -479,6 +481,7 @@ export async function banter(
     const npc = await repo.getNpc(id);
     if (!npc || npc.party_id !== req.partyId || npc.archived) return refuse(404, 'One of those NPCs is not at this table.');
     if (!npc.on_stage) return refuse(409, `${npc.name} isn't on stage right now.`);
+    if (npc.combat_state) return refuse(409, npc.combat_state === 'ko' ? `${npc.name} is knocked out and can't answer.` : `${npc.name} is dead.`);
     npcs.push(npc);
   }
 
@@ -569,6 +572,7 @@ export async function regenerate(req: { userId: string; replyMessageId: unknown 
   const [line, npc] = await Promise.all([repo.getLine(record.prompt_message_id), repo.getNpc(record.npc_id)]);
   if (!line) return refuse(404, 'The line it answered was deleted.');
   if (!npc || npc.archived) return refuse(404, 'That NPC is no longer at this table.');
+  if (npc.combat_state) return refuse(409, npc.combat_state === 'ko' ? `${npc.name} is knocked out and can't answer.` : `${npc.name} is dead.`);
 
   const kind: ReplyKind = record.kind ?? 'reply';
   let situation: NpcSituation | undefined;
