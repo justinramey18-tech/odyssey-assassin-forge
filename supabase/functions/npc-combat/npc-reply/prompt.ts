@@ -103,7 +103,8 @@ export type CombatMove =
   | { move: 'attack'; target: string; hit: boolean; crit: boolean; damage: number; downed: boolean }
   | { move: 'hit'; attacker: string; crit: boolean; damage: number }
   | { move: 'beat' }
-  | { move: 'intent'; skill: string; skillType: string; targets: string[] };
+  | { move: 'intent'; skill: string; skillType: string; targets: string[] }
+  | { move: 'fall'; attacker: string; killed: boolean };
 
 /** Live NPC Combat v5: what each skill type means, for the NPC announcing it. */
 const INTENT_MEANING: Record<string, string> = {
@@ -118,6 +119,7 @@ export function combatMoveOf(raw: unknown): CombatMove | null {
   const name = (v: unknown) => (typeof v === 'string' ? v.trim().slice(0, 80) : '');
   const dmg = Math.max(0, Math.min(999, Math.round(Number(r.damage) || 0)));
   if (r.move === 'beat') return { move: 'beat' };
+  if (r.move === 'fall' && name(r.attacker)) return { move: 'fall', attacker: name(r.attacker), killed: r.killed === true };
   if (r.move === 'intent' && name(r.skill) && typeof r.skillType === 'string' && r.skillType in INTENT_MEANING) {
     const targets = Array.isArray(r.targets) ? r.targets.map(name).filter(Boolean).slice(0, 3) : [];
     return { move: 'intent', skill: name(r.skill), skillType: r.skillType, targets };
@@ -700,6 +702,16 @@ export function buildNpcUserMessage(input: NpcPromptInput): string {
   }
 
   if (s?.kind === 'combat') {
+    if (s.move === 'fall') {
+      return [
+        tableBlock,
+        `RIGHT NOW: ${s.attacker} just ${s.killed ? 'dealt you a killing blow. These are your last words.' : 'knocked you out. You are going down.'}`,
+        ownBlock,
+        voice,
+        `Write ${name}'s final moment: one short action beat in *asterisks* and at most one short spoken line (a gasp, a curse, a plea, a warning or a last joke). Under 25 words. Stay true to who ${name} is.`,
+        'No numbers or game terms. Do not ask for rolls.',
+      ].filter(Boolean).join('\n\n');
+    }
     if (s.move === 'intent') {
       const who = s.targets.length ? s.targets.join(' and ') : '';
       const aim = s.skillType === 'retreat' ? 'You are about to flee the fight.'
@@ -822,7 +834,7 @@ function combatBlock(f: { hp: number; maxHp: number }, turn = false): string {
     `Your health: ${f.hp} of ${f.maxHp} (${state}).`,
     'Lines marked ⚔ in the table are real blows and real results. Speak like someone in the middle of a fight: short, urgent, physical.',
     turn
-      ? 'This line narrates a moment the app\'s dice already decided. Describe exactly that result, nothing more.'
+      ? 'This line narrates a moment the app\'s dice already decided. Describe exactly that result, nothing more. A name followed by (...) tells you how that person looks right now: taunt the weak, gloat, or worry about the strong, but never repeat the brackets.'
       : 'Never say who gets hurt or by how much, and never describe a hit landing: the dice decide that. You can threaten, taunt, plead, bargain, call for help or try to talk your way out.',
   ].join('\n');
 }
