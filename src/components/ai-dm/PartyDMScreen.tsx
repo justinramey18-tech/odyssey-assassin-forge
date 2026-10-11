@@ -118,11 +118,11 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { parseRollHint } from '@/lib/whisperRollHint';
 import { awaitLatestD20Reveal, rollD20 } from '@/lib/rollD20';
 import { resolveOddsForContext } from '@/lib/diceOdds';
-import { buildRollAnswer, rollModifier, type NpcRollRequest, type RollSheet } from '@/lib/live-npcs';
+import { buildRollAnswer, rollModifier, spellCastName, type NpcRollRequest, type RollSheet } from '@/lib/live-npcs';
 import { STORY_SCENE_SENDER, rowsCoveredByScenes } from '@/lib/story-scene';
 import { resolveWhisperAutoRoll, performWhisperRoll } from '@/lib/whisperAutoRoll';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
-import { actionCardFromRoll, encodeActionCard, stripActionCard } from '@/lib/roundChatActionCard';
+import { actionCardFromRoll, encodeActionCard, parseActionCard, stripActionCard, type ActionCard } from '@/lib/roundChatActionCard';
 import { getHealingDiceForItem } from '@/lib/consumables/healing';
 import { rollHealing } from '@/lib/promptAutoRoll';
 import { requestDiceRoll } from '@/lib/diceRollBus';
@@ -1319,6 +1319,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   // Live NPCs (D-22): the party's NPC roster, with live updates.
   const npcRoster = usePartyNpcs(partyId || null);
   const npcCombat = useNpcCombat({ partyId: partyId || null, currentUserId: currentUserId || null, isHost: originalCreator, sheetHp: characterContext?.currentHP ?? null, onHPChange });
+  const [pendingCombatCast, setPendingCombatCast] = useState<{ card: ActionCard; key: string } | null>(null);
+  const npcCombatRef = useRef(npcCombat);
+  npcCombatRef.current = npcCombat;
   // Live NPC Combat: the server-rolled death-save screen (separate from burnout's).
   const [combatDeathOpen, setCombatDeathOpen] = useState(false);
   const [combatDeathOutcome, setCombatDeathOutcome] = useState<'none' | 'revived' | 'dead'>('none');
@@ -2206,6 +2209,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         if (!lineId) throw new Error('send returned false');
         // Live NPCs v2: on-stage NPCs react when this line casts a spell.
         void npcRosterRef.current.reactToSpell(lineId, text);
+        const castCard = parseActionCard(text).card;
+        const fightNow = npcCombatRef.current;
+        if (castCard && spellCastName(text) && fightNow.isActive && fightNow.myFighter?.status === 'up'
+          && ((castCard.damageTotal ?? 0) > 0 || (castCard.amount ?? 0) > 0)) {
+          setPendingCombatCast({ card: castCard, key: lineId });
+        }
       } catch (err) {
         console.error('[party-dm] table post failed:', err);
         toast.error("Couldn't post to the table", {
@@ -5400,7 +5409,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         />
       )}
 
-      <NpcCombatOverlay combat={npcCombat} roster={npcRoster} members={members} currentUserId={currentUserId || null} isHost={originalCreator} onUseConsumableByName={onUseConsumableByName} />
+      <NpcCombatOverlay combat={npcCombat} roster={npcRoster} members={members} currentUserId={currentUserId || null} isHost={originalCreator} onUseConsumableByName={onUseConsumableByName} pendingCast={pendingCombatCast} onPendingCastDone={() => setPendingCombatCast(null)} onOpenSpells={() => overlays.open('quickActions', ['spells', 'cantrips'])} />
       {/* Death Save Screen */}
       <DeathSaveScreen
         open={showDeathSaves}
