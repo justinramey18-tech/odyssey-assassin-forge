@@ -4,6 +4,8 @@
 //   spell:      v2. A player cast a spell: every on-stage NPC that reacts to spells answers (at most 3).
 //   banter:     v2. The host starts a short scene: 2 or 3 on-stage NPCs talk to each other (2 to 4 lines).
 //   regenerate: the host asks for a new version of an NPC's answer.
+// v3: every answer also reads the NPC's guide fields, mood, memory kinds and what it knows
+// about each character, and ends with a hidden [MOOD: …] tag that is saved on the line.
 // Every permission check happens here, before anything is read or written.
 
 import {
@@ -16,16 +18,22 @@ import {
   formatReplyContent,
   formatRollMarker,
   joinGuides,
+  daysSince,
+  describeLooks,
+  fadeAttitude,
+  isNpcMood,
   rollRequestOf,
+  splitMoodTag,
   spellCastOf,
   splitRollTag,
   validateRollTag,
+  type NpcPerson,
   type NpcPromptInput,
   type NpcRollRequest,
   type NpcSituation,
 } from './prompt.ts';
 import type { CallModel } from './models.ts';
-import type { NpcContext, NpcRepo, NpcRow, ReplyKind, RoundLine } from './repo.ts';
+import type { NpcContext, NpcGuideRow, NpcRepo, NpcRow, ReplyKind, RoundLine } from './repo.ts';
 
 export interface Deps {
   repo: NpcRepo;
@@ -44,6 +52,8 @@ export interface HandlerResult {
 export const MAX_LINE_AGE_MS = 15 * 60_000;
 /** At most this many NPCs react to one spell. */
 export const MAX_SPELL_REACTORS = 3;
+/** A seated player whose phone checked in this recently is at the table. */
+export const PRESENT_MS = 3 * 60_000;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUuid = (v: unknown): v is string => typeof v === 'string' && UUID_RE.test(v);
@@ -71,6 +81,8 @@ export interface Generated {
   error?: string;
   /** v2: the [ROLL: …] tag the NPC wrote, not yet checked. */
   rollTag?: { name: string; check: string; dc: number } | null;
+  /** v3: the mood the NPC tagged its answer with, or null. */
+  mood?: string | null;
 }
 
 /** Ask the NPC's model; if it fails or says nothing usable, ask Gemini Flash instead. */
@@ -83,21 +95,22 @@ export async function generateWithFallback(
 ): Promise<Generated> {
   const read = (raw: string) => {
     const split = splitRollTag(raw);
-    return { text: cleanNpcReply(split.text, npcName), tag: split.tag };
+    const moodSplit = splitMoodTag(split.text);
+    return { text: cleanNpcReply(moodSplit.text, npcName), tag: split.tag, mood: moodSplit.mood as string | null };
   };
   const primary = (model || '').trim() || NPC_FALLBACK_MODEL;
   const first = await callModel(primary, system, user);
-  const firstOut = first.ok ? read(first.text || '') : { text: '', tag: null };
+  const firstOut = first.ok ? read(first.text || '') : { text: '', tag: null, mood: null };
   if (firstOut.text) {
-    return { ok: true, text: firstOut.text, rollTag: firstOut.tag, modelUsed: primary, fellBack: false, fallbackReason: null, costUsd: first.costUsd ?? null };
+    return { ok: true, text: firstOut.text, rollTag: firstOut.tag, mood: firstOut.mood, modelUsed: primary, fellBack: false, fallbackReason: null, costUsd: first.costUsd ?? null };
   }
   const reason = first.ok ? `${primary} gave an empty answer` : first.reason || `${primary} failed`;
   if (primary === NPC_FALLBACK_MODEL) return { ok: false, error: reason };
 
   const second = await callModel(NPC_FALLBACK_MODEL, system, user);
-  const secondOut = second.ok ? read(second.text || '') : { text: '', tag: null };
+  const secondOut = second.ok ? read(second.text || '') : { text: '', tag: null, mood: null };
   if (secondOut.text) {
-    return { ok: true, text: secondOut.text, rollTag: secondOut.tag, modelUsed: NPC_FALLBACK_MODEL, fellBack: true, fallbackReason: reason, costUsd: second.costUsd ?? null };
+    return { ok: true, text: secondOut.text, rollTag: secondOut.tag, mood: secondOut.mood, modelUsed: NPC_FALLBACK_MODEL, fellBack: true, fallbackReason: reason, costUsd: second.costUsd ?? null };
   }
   return { ok: false, error: `${reason}; the backup model also failed (${second.ok ? 'empty answer' : second.reason || 'no answer'})` };
 }
@@ -107,6 +120,7 @@ interface Answering {
   id: string;
   character_name: string;
   content: string;
+  user_id?: string;
 }
 
 /**
@@ -115,16 +129,56 @@ interface Answering {
  */
 function promptInput(
   npc: NpcRow,
-  guide: { guide: string; secrets: string } | null,
+  guide: NpcGuideRow | null,
   cast: string[],
   ctx: NpcContext,
   line: Answering,
   leaveOut: string[] = [],
   situation?: NpcSituation,
+  now: number = Date.now(),
 ): NpcPromptInput {
   const npcName = npc.name.trim().toLowerCase();
   const skip = new Set([line.id, ...leaveOut].filter(Boolean));
   const seats = new Map((ctx.roster || []).map(r => [r.user_id || '', r.character_name]));
+  const standIn = !!npc.player_user_id;
+  // v3: an NPC knows only what was said since it came on stage (a stand-in knows it all).
+  const since = !standIn && npc.on_stage_since ? Date.parse(npc.on_stage_since) - 1000 : NaN;
+  const heard = (l: { created_at: string }) => !Number.isFinite(since) || Date.parse(l.created_at) >= since;
+  const visible = ctx.table.filter(l => !skip.has(l.id) && heard(l));
+  const joinedLate = Number.isFinite(since) && ctx.table.some(l => !heard(l));
+  const own = ctx.table.filter(l => l.npc_id === npc.id && !skip.has(l.id)).slice(-5);
+
+  // v3: each character as this NPC sees them (only with a v3 context).
+  let people: NpcPerson[] | undefined;
+  if (ctx.mind) {
+    const feel = new Map((ctx.mind.attitudes ?? []).map(a => [a.user_id, a]));
+    const spokeLately = new Set(visible.slice(-12).filter(l => !l.npc_id && l.in_character).map(l => l.user_id));
+    people = ctx.roster.filter(r => r.character_name).map(r => {
+      const a = r.user_id ? feel.get(r.user_id) : undefined;
+      const present = !!r.updated_at && now - Date.parse(r.updated_at) < PRESENT_MS;
+      return {
+        name: r.character_name,
+        looks: describeLooks(r.character_status),
+        knowsName: !!a?.knows_name,
+        lastSeenDays: daysSince(a?.last_seen_at, now),
+        score: fadeAttitude(a?.score ?? 0, a?.last_seen_at ?? a?.updated_at, guide?.grudge_style, now),
+        quiet: present && !!r.user_id && r.user_id !== line.user_id && !spokeLately.has(r.user_id),
+        self: standIn && r.user_id === npc.player_user_id,
+      };
+    });
+  }
+
+  // v3: emoji reactions to this NPC's own recent lines.
+  const reactions: string[] = [];
+  for (const l of own) {
+    const counts = new Map<string, number>();
+    for (const r of ctx.reactions ?? []) if (r.message_id === l.id) counts.set(r.emoji, (counts.get(r.emoji) || 0) + 1);
+    if (!counts.size) continue;
+    const said = l.content.replace(/^\s*\[reply:[^\]]*\]\s*/, '').replace(/⟪ROLL⟫[\s\S]*?⟪\/ROLL⟫/g, '').replace(/\s+/g, ' ').trim();
+    const emojis = Array.from(counts.entries()).map(([e, n]) => (n > 1 ? `${e}×${n}` : e)).join(' ');
+    reactions.push(`${emojis} to: "${said.length > 80 ? `${said.slice(0, 80)}…` : said}"`);
+  }
+
   return {
     npcName: npc.name,
     guide: guide?.guide ?? '',
@@ -145,8 +199,7 @@ function promptInput(
         gender: str(s.gender),
       };
     }),
-    table: ctx.table
-      .filter(l => !skip.has(l.id))
+    table: visible
       .map(l => ({ speaker: l.character_name || 'Player', npc: !!l.npc_id, inCharacter: l.in_character, content: l.content })),
     speakerName: line.character_name || 'A player',
     line: line.content,
@@ -154,7 +207,28 @@ function promptInput(
     // A seated character's current name wins over the name saved with the attitude.
     attitudes: (ctx.mind?.attitudes ?? []).map(a => ({ name: seats.get(a.user_id) || a.character_name, score: a.score })),
     situation,
+    fields: guide
+      ? { wants: guide.wants ?? '', levers: guide.levers ?? '', hardLines: guide.hard_lines ?? '', moodRange: guide.mood_range ?? '' }
+      : undefined,
+    mood: npc.mood ?? undefined,
+    people,
+    threads: ctx.mind?.threads ?? [],
+    selfFacts: ctx.mind?.selfFacts ?? [],
+    ownLines: own.map(l => l.content),
+    reactions,
+    standIn,
+    joinedLate,
   };
+}
+
+/** v3: the mood to save with an answer (the tagged one, else the NPC's current one), and saves a change. */
+async function moodAfter(npc: NpcRow, tagged: string | null | undefined, repo: NpcRepo): Promise<string | null> {
+  if (isNpcMood(tagged)) {
+    if (tagged !== npc.mood) await repo.setNpcMood?.(npc.id, tagged);
+    npc.mood = tagged;
+    return tagged;
+  }
+  return isNpcMood(npc.mood) ? npc.mood : null;
 }
 
 /** Seats as the roll check needs them. */
@@ -247,7 +321,7 @@ export async function speak(req: { userId: string; messageId: unknown; npcId: un
       repo.listStageNames(line.party_id),
       repo.loadContext(line.party_id, hostId, undefined, npc.id),
     ]);
-    const input = promptInput(npc, guide, cast, ctx, line, [], situation ?? undefined);
+    const input = promptInput(npc, guide, cast, ctx, line, [], situation ?? undefined, deps.now());
     const result = await generateWithFallback(npc.model, buildNpcSystemPrompt(input), buildNpcUserMessage(input), npc.name, deps.callModel);
     if (!result.ok) {
       await repo.finish(line.id, npc.id, { error: result.error, latency_ms: deps.now() - started });
@@ -256,6 +330,7 @@ export async function speak(req: { userId: string; messageId: unknown; npcId: un
 
     // A roll request only counts in a normal answer, and only for a seated character.
     const request = kind === 'reply' ? validateRollTag(result.rollTag ?? null, seatsOf(ctx)) : null;
+    const mood = await moodAfter(npc, result.mood, repo);
     const replyId = await repo.insertNpcLine({
       party_id: line.party_id,
       user_id: hostId,
@@ -265,6 +340,7 @@ export async function speak(req: { userId: string; messageId: unknown; npcId: un
       round_id: line.round_id,
       selected: line.selected,
       npc_id: npc.id,
+      npc_mood: mood,
     });
     await repo.finish(line.id, npc.id, {
       reply_message_id: replyId,
@@ -336,13 +412,14 @@ export async function spell(req: { userId: string; messageId: unknown }, deps: D
         summary: cast.summary,
         saveRoll: d20(),
       };
-      const input = promptInput(npc, guide, stage, ctx, line, [], situation);
+      const input = promptInput(npc, guide, stage, ctx, line, [], situation, deps.now());
       const result = await generateWithFallback(npc.model, buildNpcSystemPrompt(input), buildNpcUserMessage(input), npc.name, deps.callModel);
       if (!result.ok) {
         await repo.finish(line.id, npc.id, { error: result.error, latency_ms: deps.now() - started });
         failed.push({ npc: npc.name, error: result.error || 'no answer' });
         continue;
       }
+      const mood = await moodAfter(npc, result.mood, repo);
       const replyId = await repo.insertNpcLine({
         party_id: line.party_id,
         user_id: hostId,
@@ -352,6 +429,7 @@ export async function spell(req: { userId: string; messageId: unknown }, deps: D
         round_id: line.round_id,
         selected: line.selected,
         npc_id: npc.id,
+        npc_mood: mood,
       });
       await repo.finish(line.id, npc.id, {
         reply_message_id: replyId,
@@ -435,13 +513,14 @@ export async function banter(
         repo.loadContext(req.partyId, hostId, undefined, npc.id),
       ]);
       const answering: Answering = previous ?? { id: '', character_name: 'The scene', content: '' };
-      const input = promptInput(npc, guide, stage, ctx, answering, [], { kind: 'banter', partners, topic, turn, turns });
+      const input = promptInput(npc, guide, stage, ctx, answering, [], { kind: 'banter', partners, topic, turn, turns }, deps.now());
       const result = await generateWithFallback(npc.model, buildNpcSystemPrompt(input), buildNpcUserMessage(input), npc.name, deps.callModel);
       if (!result.ok) {
         await repo.finishRecord(recordId, { error: result.error, latency_ms: deps.now() - started });
         stopped = `${npc.name} couldn't speak (${result.error}), so the scene stopped.`;
         break;
       }
+      const mood = await moodAfter(npc, result.mood, repo);
       const replyId = await repo.insertNpcLine({
         party_id: req.partyId,
         user_id: hostId,
@@ -451,6 +530,7 @@ export async function banter(
         round_id: latest.round_id,
         selected: false,
         npc_id: npc.id,
+        npc_mood: mood,
       });
       await repo.finishRecord(recordId, {
         reply_message_id: replyId,
@@ -507,14 +587,15 @@ export async function regenerate(req: { userId: string; replyMessageId: unknown 
     repo.listStageNames(line.party_id),
     repo.loadContext(line.party_id, hostId, line.created_at, npc.id),
   ]);
-  const input = promptInput(npc, guide, cast, ctx, line, [req.replyMessageId], situation);
+  const input = promptInput(npc, guide, cast, ctx, line, [req.replyMessageId], situation, deps.now());
   const result = await generateWithFallback(npc.model, buildNpcSystemPrompt(input), buildNpcUserMessage(input), npc.name, deps.callModel);
   if (!result.ok) {
     return refuse(502, `${npc.name} couldn't answer right now (${result.error}). The old line was kept.`);
   }
 
   const request = kind === 'reply' ? validateRollTag(result.rollTag ?? null, seatsOf(ctx)) : null;
-  await repo.updateNpcLine(req.replyMessageId, answerContent(line.id, result.text ?? '', request));
+  const mood = await moodAfter(npc, result.mood, repo);
+  await repo.updateNpcLine(req.replyMessageId, answerContent(line.id, result.text ?? '', request), mood);
   await repo.finish(line.id, npc.id, {
     model_used: result.modelUsed ?? null,
     fell_back: !!result.fellBack,

@@ -14,6 +14,8 @@ export interface RoundLine {
   selected: boolean;
   created_at: string;
   npc_id: string | null;
+  /** v3: the mood an NPC line was said in. */
+  npc_mood?: string | null;
 }
 
 export interface NpcRow {
@@ -25,6 +27,23 @@ export interface NpcRow {
   archived: boolean;
   /** v2: false when the host switched spell reactions off. Missing means on. */
   reacts_to_spells?: boolean;
+  /** v3: the NPC's current mood. */
+  mood?: string | null;
+  /** v3: when it came on stage (it only knows what was said since). Null = no window. */
+  on_stage_since?: string | null;
+  /** Set when this NPC is an away player's character (a stand-in). */
+  player_user_id?: string | null;
+}
+
+/** The host's guide for one NPC (v3 adds the structured fields). */
+export interface NpcGuideRow {
+  guide: string;
+  secrets: string;
+  wants?: string;
+  levers?: string;
+  hard_lines?: string;
+  mood_range?: string;
+  grudge_style?: string;
 }
 
 export type ReplyKind = 'reply' | 'spell' | 'roll' | 'banter';
@@ -41,8 +60,21 @@ export interface ReplyRecord {
 
 /** v2: what one NPC remembers, and how it feels about each character. */
 export interface NpcMind {
+  /** What happened (oldest first). */
   memory: string[];
-  attitudes: Array<{ user_id: string; character_name: string; score: number }>;
+  /** v3: unfinished business (oldest first). */
+  threads?: string[];
+  /** v3: facts it has said about itself (oldest first). */
+  selfFacts?: string[];
+  attitudes: Array<{
+    user_id: string;
+    character_name: string;
+    score: number;
+    /** v3 */
+    knows_name?: boolean;
+    last_seen_at?: string | null;
+    updated_at?: string | null;
+  }>;
 }
 
 export interface NpcContext {
@@ -50,11 +82,13 @@ export interface NpcContext {
   anchors: unknown;
   summary: string;
   latestPost: string;
-  roster: Array<{ user_id?: string; character_name: string; character_status: Record<string, unknown> | null }>;
+  roster: Array<{ user_id?: string; character_name: string; character_status: Record<string, unknown> | null; updated_at?: string | null }>;
   /** Live Table lines, oldest first. */
   table: Array<Pick<RoundLine, 'id' | 'user_id' | 'character_name' | 'content' | 'in_character' | 'npc_id' | 'created_at'>>;
   /** v2: filled when loadContext is given an NPC id. */
   mind?: NpcMind;
+  /** v3: emoji reactions to this NPC's lines in the table above. */
+  reactions?: Array<{ message_id: string; emoji: string }>;
 }
 
 export interface ClaimRow {
@@ -82,13 +116,13 @@ export interface NpcRepo {
   getPartyHost(partyId: string): Promise<string | null>;
   isMember(partyId: string, userId: string): Promise<boolean>;
   getNpc(id: string): Promise<NpcRow | null>;
-  getGuide(npcId: string): Promise<{ guide: string; secrets: string } | null>;
+  getGuide(npcId: string): Promise<NpcGuideRow | null>;
   listStageNames(partyId: string): Promise<string[]>;
   loadContext(partyId: string, hostId: string, until?: string, npcId?: string): Promise<NpcContext>;
   /** Reserve the right to answer a line. "taken" when it was answered, or is being answered right now. */
   claim(row: ClaimRow, now: number): Promise<'claimed' | 'taken'>;
   insertNpcLine(row: Omit<RoundLine, 'id' | 'consumed' | 'created_at'>): Promise<string>;
-  updateNpcLine(id: string, content: string): Promise<void>;
+  updateNpcLine(id: string, content: string, mood?: string | null): Promise<void>;
   finish(promptMessageId: string, npcId: string, patch: FinishPatch): Promise<void>;
   findReplyRecord(replyMessageId: string): Promise<ReplyRecord | null>;
   // ── v2 (optional so older test doubles still work) ──
@@ -101,13 +135,16 @@ export interface NpcRepo {
   playerSpokeSince?(partyId: string, sinceIso: string): Promise<boolean>;
   /** The newest line in the Live Table, for a scene's round id. */
   latestLine?(partyId: string): Promise<RoundLine | null>;
+  /** v3: save the NPC's mood after it speaks. */
+  setNpcMood?(npcId: string, mood: string): Promise<void>;
 }
 
 /** A claim with no answer that hasn't changed in this long is treated as abandoned. */
 export const STALE_CLAIM_MS = 120_000;
 
 const LINE_COLUMNS = 'id, party_id, user_id, character_name, content, in_character, round_id, consumed, selected, created_at, npc_id';
-const NPC_COLUMNS = 'id, party_id, name, model, on_stage, archived, reacts_to_spells';
+const NPC_COLUMNS = 'id, party_id, name, model, on_stage, archived, reacts_to_spells, mood, on_stage_since, player_user_id';
+const GUIDE_COLUMNS = 'guide, secrets, wants, levers, hard_lines, mood_range, grudge_style';
 
 // deno-lint-ignore no-explicit-any
 export function createRepo(db: any): NpcRepo {
@@ -141,7 +178,7 @@ export function createRepo(db: any): NpcRepo {
     },
 
     async getGuide(npcId) {
-      const { data, error } = await db.from('party_npc_guides').select('guide, secrets').eq('npc_id', npcId).maybeSingle();
+      const { data, error } = await db.from('party_npc_guides').select(GUIDE_COLUMNS).eq('npc_id', npcId).maybeSingle();
       fail('read NPC guide', error);
       return data ?? null;
     },
@@ -170,7 +207,7 @@ export function createRepo(db: any): NpcRepo {
         db.from('party_dm_messages').select('content, team, is_afk_marker')
           .eq('party_id', partyId).eq('role', 'assistant').eq('sender_name', 'DM')
           .order('created_at', { ascending: false }).limit(10),
-        db.from('party_members').select('user_id, character_name, character_status').eq('party_id', partyId),
+        db.from('party_members').select('user_id, character_name, character_status, updated_at').eq('party_id', partyId),
         (until
           ? db.from('party_round_chat').select('id, user_id, character_name, content, in_character, npc_id, created_at')
             .eq('party_id', partyId).lte('created_at', until)
@@ -178,11 +215,11 @@ export function createRepo(db: any): NpcRepo {
             .eq('party_id', partyId)
         ).order('created_at', { ascending: false }).limit(40),
         npcId
-          ? db.from('party_npc_memories').select('note, created_at').eq('npc_id', npcId)
-            .order('created_at', { ascending: false }).limit(40)
+          ? db.from('party_npc_memories').select('note, kind, created_at').eq('npc_id', npcId)
+            .order('created_at', { ascending: false }).limit(80)
           : Promise.resolve({ data: [], error: null }),
         npcId
-          ? db.from('party_npc_attitudes').select('user_id, character_name, score').eq('npc_id', npcId)
+          ? db.from('party_npc_attitudes').select('user_id, character_name, score, knows_name, last_seen_at, updated_at').eq('npc_id', npcId)
           : Promise.resolve({ data: [], error: null }),
       ]);
       fail('read guides', guides.error);
@@ -197,6 +234,17 @@ export function createRepo(db: any): NpcRepo {
       const post = (posts.data ?? []).find((p: { team: string | null; is_afk_marker: boolean }) =>
         !p.is_afk_marker && !(p.team || '').startsWith('whisper:'));
       const summary = session.data?.[0]?.state_data?.campaignSummary;
+      const notes = [...(memory.data ?? [])].reverse() as Array<{ note: string; kind?: string | null }>;
+      const ofKind = (k: string) => notes.filter(n => (n.kind || 'event') === k).map(n => n.note);
+
+      // v3: emoji reactions to this NPC's own recent lines.
+      let reactions: Array<{ message_id: string; emoji: string }> = [];
+      const ownIds = npcId ? (table.data ?? []).filter((l: { npc_id: string | null }) => l.npc_id === npcId).map((l: { id: string }) => l.id).slice(0, 10) : [];
+      if (ownIds.length) {
+        const r = await db.from('party_round_chat_reactions').select('message_id, emoji').in('message_id', ownIds).limit(200);
+        fail('read reactions', r.error);
+        reactions = r.data ?? [];
+      }
       return {
         guides: guides.data ?? [],
         anchors: anchors.data?.[0]?.state_data?.anchors ?? [],
@@ -206,10 +254,13 @@ export function createRepo(db: any): NpcRepo {
         table: [...(table.data ?? [])].reverse(),
         mind: npcId
           ? {
-            memory: [...(memory.data ?? [])].reverse().map((m: { note: string }) => m.note),
+            memory: ofKind('event'),
+            threads: ofKind('thread'),
+            selfFacts: ofKind('self'),
             attitudes: (attitudes.data ?? []) as NpcMind['attitudes'],
           }
           : undefined,
+        reactions,
       };
     },
 
@@ -250,8 +301,10 @@ export function createRepo(db: any): NpcRepo {
       return data.id as string;
     },
 
-    async updateNpcLine(id, content) {
-      const { error } = await db.from('party_round_chat').update({ content }).eq('id', id).not('npc_id', 'is', null);
+    async updateNpcLine(id, content, mood) {
+      const patch: Record<string, unknown> = { content };
+      if (mood !== undefined) patch.npc_mood = mood;
+      const { error } = await db.from('party_round_chat').update(patch).eq('id', id).not('npc_id', 'is', null);
       fail('rewrite NPC line', error);
     },
 
@@ -294,6 +347,11 @@ export function createRepo(db: any): NpcRepo {
         .limit(1);
       fail('check for player lines', error);
       return Array.isArray(data) && data.length > 0;
+    },
+
+    async setNpcMood(npcId, mood) {
+      const { error } = await db.from('party_npcs').update({ mood }).eq('id', npcId);
+      fail('save NPC mood', error);
     },
 
     async latestLine(partyId) {
