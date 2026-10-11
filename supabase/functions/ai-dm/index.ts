@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { BATTLE_RULE, loadBattleDossier } from "./battle.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -235,6 +236,10 @@ interface DMRequest {
     hasScene?: boolean;
     /** Live NPC Combat: the batch holds a fight (⚔ Combat lines). The post rewrites it as one battle scene. */
     hasCombat?: boolean;
+    /** Battle posts: the party and the time span of the handed-off ⚔ lines, for the Fight Dossier. */
+    partyId?: string;
+    combatSince?: string;
+    combatUntil?: string;
   };
   /** Short helper calls (story scenes): ask Venice models not to think first. */
   noThinking?: boolean;
@@ -639,18 +644,8 @@ function buildLiveTableBlock(lt?: DMRequest['liveTable']): string {
   return lines.join('\n');
 }
 
-/** Live NPC Combat: how the DM retells a fight from the Live Table (outranks the NPC LINES and SCENE rules for that post). */
-const BATTLE_HANDOFF_RULE = [
-  'BATTLE HAND-OFF: this batch contains a live fight. Lines from "⚔ Combat" are the app\'s dice results (who struck whom, hits and misses, wounds, who went down, who was healed, warded, pinned, who fled, who died, who won) and they are FACTS. Lines labelled "(NPC)" are exactly what the NPCs said. Player lines are what the characters did and said.',
-  'Rewrite the whole fight as ONE cohesive, cinematic battle scene, in order from first blow to last:',
-  '- Voice: a warrior-poet register in the spirit of Pierce Brown\'s Red Rising and R.A. Salvatore\'s battle writing. Kinetic, visceral and close on the body; short, brutal sentences in the clash and longer, lyrical ones in the lulls; moments of grief, pride and grim beauty; choreography the reader can see (footwork, angles, steel, sweat, breath, the ground underfoot). Evoke the style only: never copy their sentences, characters, places or invented terms.',
-  '- Keep every line of dialogue word for word, woven into the action at the moment it fits. You may drop the stage directions around a line, never its words.',
-  '- You have free creative range over the action: invent the choreography, the terrain, the near misses, what a hit looks and sounds like, and how the fighters move between blows, filling the gaps between the ⚔ lines so it reads as one continuous, visual battle.',
-  '- Never change an outcome: the same blows land, the same people fall, heal, flee or win. No extra deaths or wounds beyond what happened. No numbers, dice or game terms in the prose: turn "11 damage" into what the wound looks like.',
-  '- Player characters: show them doing what their lines and the ⚔ lines say they did, with full freedom over how it looks, but never give them new spoken words or choices they did not make.',
-  '- End on the moment the fight ends, or where it stands now if it is still going, then hand the scene back to the players with a clear prompt for what they do next.',
-  '- Length: as long as the fight needs to feel complete, usually 350 to 700 words. Do not repeat the raw ⚔ lines or quote them as a list.',
-].join('\n');
+/** Live NPC Combat: how the DM retells a fight from the Live Table (outranks the NPC LINES and SCENE rules for that post). The rules live in battle.ts. */
+const BATTLE_HANDOFF_RULE = BATTLE_RULE;
 
 
 // ── System Prompt Builder ──────────────────────────────────────────────────────
@@ -879,8 +874,10 @@ Never tell the player their resource percentage. Show depletion through descript
 const CLAUDE_5_MODELS = new Set(['claude-fable-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5']);
 const SHORT_REQUEST_TOKENS = 2000;
 
-function claudeRequestOptions(anthropicModelId: string, tokenLimit?: number): { max_tokens: number; extra: Record<string, unknown> } {
+function claudeRequestOptions(anthropicModelId: string, tokenLimit?: number, battle = false): { max_tokens: number; extra: Record<string, unknown> } {
   const limit = tokenLimit || 16000;
+  // Battle posts: the most important writing the DM does. Claude 5 plans the fight with high effort.
+  if (battle && CLAUDE_5_MODELS.has(anthropicModelId)) return { max_tokens: Math.max(limit, 16000), extra: { output_config: { effort: 'high' } } };
   if (!CLAUDE_5_MODELS.has(anthropicModelId) || limit >= SHORT_REQUEST_TOKENS) return { max_tokens: limit, extra: {} };
   if (anthropicModelId === 'claude-sonnet-5-5') {
     return { max_tokens: limit, extra: { output_config: { effort: 'low' }, thinking: { type: 'between_tools' } } };
@@ -901,6 +898,7 @@ async function callAnthropic(
   messages: Array<{ role: string; content: string }>,
   userApiKey?: string,
   tokenLimit?: number,
+  battle = false,
 ): Promise<Response> {
   const ANTHROPIC_API_KEY = (typeof userApiKey === 'string' && userApiKey.trim())
     ? userApiKey.trim()
@@ -908,7 +906,7 @@ async function callAnthropic(
   if (!ANTHROPIC_API_KEY) {
     throw { status: 500, message: "No Anthropic API key available. Add your key in Settings → API Keys, or configure the backend secret." };
   }
-  const claudeOptions = claudeRequestOptions(anthropicModelId, tokenLimit);
+  const claudeOptions = claudeRequestOptions(anthropicModelId, tokenLimit, battle);
 
 
 
@@ -1104,6 +1102,11 @@ serve(async (req) => {
       if (liveTableBlock) {
         systemPrompt = systemPrompt + "\n\n" + liveTableBlock;
       }
+      // Battle posts: a factual brief of the fight, read with the caller's own access.
+      if (liveTable?.hasCombat) {
+        const dossier = await loadBattleDossier(supabaseClient, liveTable);
+        if (dossier) systemPrompt = systemPrompt + "\n\n" + dossier;
+      }
     }
 
 
@@ -1115,7 +1118,7 @@ serve(async (req) => {
     if (anthropicModelId) {
       // ── Anthropic path ──
       try {
-        const anthropicResponse = await callAnthropic(anthropicModelId, systemPrompt, trimmedMessages, user_api_key, maxTokens);
+        const anthropicResponse = await callAnthropic(anthropicModelId, systemPrompt, trimmedMessages, user_api_key, maxTokens, !!liveTable?.hasCombat);
         return new Response(anthropicResponse.body, {
           headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
         });
@@ -1279,6 +1282,8 @@ serve(async (req) => {
             ...trimmedMessages,
           ],
           stream: true,
+          // Battle posts get a little more creative range.
+          ...(liveTable?.hasCombat ? { temperature: 0.9 } : {}),
           venice_parameters: {
             include_venice_system_prompt: false,
             strip_thinking_response: true,
