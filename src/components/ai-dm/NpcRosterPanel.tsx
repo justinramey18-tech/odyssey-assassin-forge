@@ -27,11 +27,14 @@ import {
   npcModelLabel,
   npcNameProblem,
 } from '@/lib/live-npcs';
+import { DM_MODELS } from '@/lib/dm-models';
 
 interface NpcRosterPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   roster: PartyNpcsApi;
+  battleModel?: string | null;
+  onBattleModelChange?: (id: string | null) => void;
 }
 
 interface Draft {
@@ -63,7 +66,7 @@ type GuideState = 'loading' | 'ready' | 'failed';
 
 const fieldClass = 'w-full rounded-lg bg-black/40 border border-white/15 px-3 py-2 text-[14px] text-white/90 placeholder:text-white/30 outline-none focus:border-amber-400/60';
 
-export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelProps) {
+export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBattleModelChange }: NpcRosterPanelProps) {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [guideState, setGuideState] = useState<GuideState>('ready');
   const [saving, setSaving] = useState(false);
@@ -415,6 +418,23 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
             <NpcScorecard roster={roster} />
           ) : (
             <>
+              {onBattleModelChange && (
+                <label className="block space-y-1 rounded-lg border border-white/10 bg-white/5 p-3">
+                  <span className="text-[12px] text-amber-200 font-cinzel">Battle narrator</span>
+                  <select
+                    value={battleModel ?? ''}
+                    onChange={(e) => onBattleModelChange(e.target.value || null)}
+                    style={{ touchAction: 'manipulation' }}
+                    className={cn(fieldClass, 'min-h-[44px]')}
+                  >
+                    <option value="">Same as the DM</option>
+                    {DM_MODELS.map(m => (
+                      <option key={m.id} value={m.id}>{m.description ? `${m.label} — ${m.description}` : m.label}</option>
+                    ))}
+                  </select>
+                  <span className="block text-[11px] text-white/50">Writes the battle scene when you send a fight to the DM. Pick your best prose model (for example Claude Opus 5.5); everyday turns stay on the DM model.</span>
+                </label>
+              )}
               <button
                 onClick={startNew}
                 style={{ touchAction: 'manipulation' }}
