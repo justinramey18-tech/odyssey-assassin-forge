@@ -69,8 +69,8 @@ project_id = "sqvcszzbkyzidigsdqgk"
     verify_jwt = false
   [functions.spell-forge]
     verify_jwt = false
-  [functions.npc-build]
-  verify_jwt = true
+[functions.npc-build]
+    verify_jwt = true
 
 [functions.npc-reply]
     verify_jwt = true
