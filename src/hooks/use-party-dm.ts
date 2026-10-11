@@ -1560,7 +1560,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     responseModePrompt?: string,
     dmPersonaPrompt?: string,
     currentOocDirectives?: string[],
-    liveTable?: { mode: 'chat' | 'live'; chaosLevel: number; hasTableTalk: boolean; hasInCharacter: boolean; hasNpcLines?: boolean; hasScene?: boolean },
+    liveTable?: { mode: 'chat' | 'live'; chaosLevel: number; hasTableTalk: boolean; hasInCharacter: boolean; hasNpcLines?: boolean; hasScene?: boolean; hasCombat?: boolean },
   ): Promise<string> => {
 
     // Ensure strictly alternating roles before sending to AI
@@ -1966,6 +1966,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       hasTableTalk: boolean;
       hasInCharacter: boolean;
       hasNpcLines?: boolean;
+      hasCombat?: boolean;
     };
   }) => {
     const directPrompt = options?.directPrompt;
