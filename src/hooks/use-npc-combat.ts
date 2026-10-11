@@ -59,6 +59,19 @@ function isCurrentFight(fight: FightRow | null, fighters: FighterRow[]): boolean
   return fight.outcome === 'defeat' && fighters.some(f => f.kind === 'player' && f.status === 'down');
 }
 
+/** A fighter's Resolve right now: the saved value plus what has filled since, kept between 0 and 100. */
+export function resolveOf(
+  f: { resolve?: number | null; resolve_at?: string | null; resolve_rate?: number | null } | null | undefined,
+  nowMs: number,
+): number {
+  if (!f) return 0;
+  const at = f.resolve_at ? Date.parse(f.resolve_at) : NaN;
+  const secs = Number.isFinite(at) ? Math.max(0, (nowMs - at) / 1000) : 0;
+  const base = Number.isFinite(f.resolve) ? Number(f.resolve) : 0;
+  const rate = Number.isFinite(f.resolve_rate) ? Number(f.resolve_rate) : 1;
+  return Math.min(100, Math.max(0, base + rate * secs));
+}
+
 export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChange }: UseNpcCombatOptions) {
   const [fight, setFight] = useState<FightRow | null>(null);
   const [fighters, setFighters] = useState<FighterRow[]>([]);
@@ -261,6 +274,22 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     fightId ? call({ action: 'cast_card', fightId, targetId, card, finish }, 'The spell did not land. Try again.') : Promise.resolve(null),
   [call, fightId]);
 
+  const secondWind = useCallback((targetId?: string) =>
+    fightId ? call({ action: 'second_wind', fightId, targetId }, 'Second Wind did not go through. Try again.') : Promise.resolve(null),
+  [call, fightId]);
+
+  const drinkPotion = useCallback(async (itemName: string) => {
+    if (!fightId) return null;
+    try {
+      const { data } = await supabase.functions.invoke('npc-combat', { body: { action: 'potion', fightId, itemName } });
+      if (data?.resolve > 0) toast.success(`+${data.resolve} Resolve`);
+      void reload();
+      return data ?? null;
+    } catch {
+      return null;
+    }
+  }, [fightId, reload]);
+
   const stabilize = useCallback((targetId: string) => {
     if (!fightId) return Promise.resolve(null);
     return call({ action: 'stabilize', fightId, targetId }, 'Could not stabilize them. Try again.');
@@ -294,6 +323,8 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     attack,
     cast,
     castFromCard,
+    secondWind,
+    drinkPotion,
     stabilize,
     pause,
     resume,
