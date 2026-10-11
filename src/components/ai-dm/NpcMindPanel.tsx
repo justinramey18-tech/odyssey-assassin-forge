@@ -10,7 +10,8 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { NpcPortrait } from './NpcPortrait';
 import { NPC_ATTITUDES, NPC_MEMORY_KINDS, NPC_MOODS, attitudeLevel, npcMoodOf, readableFunctionError } from '@/lib/live-npcs';
-import type { NpcCombatStats, NpcMemoryNote, NpcSpeed, PartyNpc, PartyNpcsApi } from '@/hooks/use-party-npcs';
+import type { NpcCombatStats, NpcMemoryNote, NpcSkill, NpcSkillType, NpcSpeed, PartyNpc, PartyNpcsApi } from '@/hooks/use-party-npcs';
+import { NPC_SKILL_INFO } from '@/hooks/use-party-npcs';
 import { supabase } from '@/integrations/supabase/client';
 
 interface NpcMindPanelProps {
@@ -389,6 +390,15 @@ function NpcCombatSection({ npc, busy, onSave, onRevived }: {
   const [speed, setSpeed] = useState<NpcSpeed>((saved ?? DEFAULT_COMBAT).speed);
   const [problem, setProblem] = useState('');
   const [reviving, setReviving] = useState(false);
+  type SkillRow = { key: number; type: NpcSkillType | ''; name: string; custom: boolean; bonus: string; damage: string; power: string };
+  const rowFrom = (k: NpcSkill, i: number): SkillRow => ({
+    key: i, type: k.type, name: k.name ?? '',
+    custom: k.bonus != null || !!k.damage || k.power != null,
+    bonus: k.bonus != null ? String(k.bonus) : '', damage: k.damage ?? '', power: k.power != null ? String(k.power) : '',
+  });
+  const [skills, setSkills] = useState<SkillRow[]>(() => (saved?.skills ?? []).slice(0, 4).map(rowFrom));
+  const [skillKey, setSkillKey] = useState(100);
+  const patchSkill = (key: number, p: Partial<SkillRow>) => setSkills(prev => prev.map(r => (r.key === key ? { ...r, ...p } : r)));
 
   const fillFrom = (s: NpcCombatStats) => {
     setMaxHp(String(s.maxHp)); setAc(String(s.ac)); setAttackBonus(String(s.attackBonus)); setDamage(s.damage); setSpeed(s.speed);
@@ -409,8 +419,31 @@ function NpcCombatSection({ npc, busy, onSave, onRevived }: {
     const bonus = wholeIn(attackBonus, -5, 20);
     if (bonus === null) return setProblem('Attack bonus must be a whole number from -5 to 20.');
     if (!DAMAGE_RE.test(damage)) return setProblem('Damage must look like 2d6+3 (dice: d2, d3, d4, d6, d8, d10, d12, d20 or d100).');
+    const cleanedSkills: NpcSkill[] = [];
+    for (const r of skills) {
+      if (!r.type) continue;
+      const name = r.name.trim().slice(0, 40) || NPC_SKILL_INFO[r.type].label;
+      const attacky = r.type === 'strike' || r.type === 'heavy' || r.type === 'sweep' || r.type === 'signature';
+      const powered = r.type === 'mend' || r.type === 'shield';
+      let sb: number | null = null; let sd: string | null = null; let sp: number | null = null;
+      if (r.custom && attacky) {
+        if (r.bonus.trim()) {
+          sb = wholeIn(r.bonus, -5, 20);
+          if (sb === null) return setProblem(`${name}: attack bonus must be a whole number from -5 to 20.`);
+        }
+        if (r.damage.trim()) {
+          if (!DAMAGE_RE.test(r.damage)) return setProblem(`${name}: damage must look like 2d6+3.`);
+          sd = r.damage.replace(/\s+/g, '');
+        }
+      }
+      if (r.custom && powered && r.power.trim()) {
+        sp = wholeIn(r.power, 1, 999);
+        if (sp === null) return setProblem(`${name}: power must be a whole number from 1 to 999.`);
+      }
+      cleanedSkills.push({ type: r.type, name, bonus: sb, damage: sd, power: sp });
+    }
     setProblem('');
-    void onSave({ maxHp: hp, ac: armor, attackBonus: bonus, damage: damage.replace(/\s+/g, ''), speed });
+    void onSave({ maxHp: hp, ac: armor, attackBonus: bonus, damage: damage.replace(/\s+/g, ''), speed, skills: cleanedSkills });
   };
 
   const revive = async () => {
@@ -499,6 +532,74 @@ function NpcCombatSection({ npc, busy, onSave, onRevived }: {
                 </button>
               ))}
             </div>
+          </div>
+          <div className="space-y-2">
+            <span className="block font-cinzel text-[13px] text-amber-200/90">Skills (up to 4)</span>
+            {skills.map(r => {
+              const used = new Set(skills.filter(o => o.key !== r.key).map(o => o.type));
+              const attacky = r.type === 'strike' || r.type === 'heavy' || r.type === 'sweep' || r.type === 'signature';
+              const powered = r.type === 'mend' || r.type === 'shield';
+              return (
+                <div key={r.key} className="rounded-lg border border-white/10 bg-black/30 p-2 space-y-2">
+                  <div className="flex gap-2">
+                    <select
+                      value={r.type}
+                      onChange={e => patchSkill(r.key, { type: e.target.value as NpcSkillType })}
+                      className={cn(fieldClass, 'min-h-[44px] flex-1')}
+                      aria-label="Skill type"
+                    >
+                      <option value="" disabled>Pick a type</option>
+                      {(Object.keys(NPC_SKILL_INFO) as NpcSkillType[]).map(t => (
+                        <option key={t} value={t} disabled={used.has(t)}>{NPC_SKILL_INFO[t].label}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => setSkills(prev => prev.filter(o => o.key !== r.key))}
+                      style={{ touchAction: 'manipulation' }}
+                      aria-label="Remove skill"
+                      className="min-h-[44px] min-w-[44px] rounded-lg border border-white/10 text-white/60 flex items-center justify-center"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {r.type && <p className="text-[11px] text-white/50">{NPC_SKILL_INFO[r.type].hint}</p>}
+                  <input
+                    value={r.name}
+                    maxLength={40}
+                    onChange={e => patchSkill(r.key, { name: e.target.value.slice(0, 40) })}
+                    placeholder="Bayonet Lunge"
+                    className={cn(fieldClass, 'min-h-[44px]')}
+                    aria-label="Skill name"
+                  />
+                  {(attacky || powered) && (
+                    <label className="flex items-center justify-between gap-3 min-h-[44px]">
+                      <span className="text-[13px] text-white/70">Custom numbers</span>
+                      <Switch checked={r.custom} onCheckedChange={v => patchSkill(r.key, { custom: v })} aria-label="Custom numbers" />
+                    </label>
+                  )}
+                  {r.custom && attacky && (
+                    <div className="grid grid-cols-2 gap-2">
+                      {numField('Attack bonus', r.bonus, v => patchSkill(r.key, { bonus: v }), -5, 20)}
+                      <label className="block space-y-1">
+                        <span className="block text-[12px] text-white/60">Damage</span>
+                        <input value={r.damage} onChange={e => patchSkill(r.key, { damage: e.target.value })} placeholder="2d8+3" className={cn(fieldClass, 'min-h-[44px]')} />
+                      </label>
+                    </div>
+                  )}
+                  {r.custom && powered && numField('Power', r.power, v => patchSkill(r.key, { power: v }), 1, 999)}
+                </div>
+              );
+            })}
+            {skills.length < 4 && (
+              <button
+                onClick={() => { setSkills(prev => [...prev, { key: skillKey, type: '', name: '', custom: false, bonus: '', damage: '', power: '' }]); setSkillKey(k => k + 1); }}
+                style={{ touchAction: 'manipulation' }}
+                className="w-full min-h-[44px] rounded-lg border border-dashed border-white/20 text-[13px] text-white/70 flex items-center justify-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" /> Add skill
+              </button>
+            )}
+            <p className="text-[11px] text-white/45">No skills = one plain attack. NPCs announce each skill a few seconds before it happens.</p>
           </div>
           {problem && <p className="text-[12px] text-red-300">{problem}</p>}
           <button

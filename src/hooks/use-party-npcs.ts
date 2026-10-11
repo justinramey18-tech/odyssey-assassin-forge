@@ -5,7 +5,20 @@ import { supabase } from '@/integrations/supabase/client';
 import { NPC_DEFAULT_MODEL, NPC_GUIDE_MAX, cleanNpcName, readableFunctionError, spellCastName } from '@/lib/live-npcs';
 
 export type NpcSpeed = 'trivial' | 'easy' | 'medium' | 'hard' | 'deadly';
-export interface NpcCombatStats { maxHp: number; ac: number; attackBonus: number; damage: string; speed: NpcSpeed }
+export type NpcSkillType = 'strike' | 'heavy' | 'sweep' | 'signature' | 'mend' | 'shield' | 'rally' | 'pin' | 'retreat';
+export interface NpcSkill { type: NpcSkillType; name: string; bonus?: number | null; damage?: string | null; power?: number | null }
+export interface NpcCombatStats { maxHp: number; ac: number; attackBonus: number; damage: string; speed: NpcSpeed; skills?: NpcSkill[] }
+export const NPC_SKILL_INFO: Record<NpcSkillType, { label: string; hint: string }> = {
+  strike: { label: 'Strike', hint: 'Standard attack' },
+  heavy: { label: 'Heavy Blow', hint: '-2 to hit, 1.6x damage, slow wind-up' },
+  sweep: { label: 'Sweep', hint: 'Hits up to 3 players for 0.6x damage' },
+  signature: { label: 'Signature', hint: '2x damage, once every 3 turns' },
+  mend: { label: 'Mend', hint: 'Heals itself or an ally for 15% of max HP' },
+  shield: { label: 'Shield', hint: 'A ward on itself or an ally absorbs 10% of max HP' },
+  rally: { label: 'Rally', hint: 'Allies act sooner' },
+  pin: { label: 'Pin', hint: "One player can't act for 6 seconds" },
+  retreat: { label: 'Retreat', hint: 'Flees below 20% HP (never if its hard lines forbid running)' },
+};
 
 // NPC Quick Build
 export type NpcBuildRole = 'talker' | 'minion' | 'fighter' | 'boss';
