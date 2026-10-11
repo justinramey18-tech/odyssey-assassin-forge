@@ -1230,15 +1230,22 @@ export type Database = {
           next_save_at: string | null
           npc_id: string | null
           party_id: string
+          pending: Json | null
           perks: string[]
+          pinned_until: string | null
           resolve: number | null
           resolve_at: string | null
           resolve_rate: number | null
           second_wind: string | null
+          signature_turn: number
           status: string
+          strike_at: string | null
           threat: Json
+          turn_no: number
           updated_at: string
           user_id: string | null
+          ward: number
+          ward_until: string | null
         }
         Insert: {
           ac: number
@@ -1260,15 +1267,22 @@ export type Database = {
           next_save_at?: string | null
           npc_id?: string | null
           party_id: string
+          pending?: Json | null
           perks?: string[]
+          pinned_until?: string | null
           resolve?: number | null
           resolve_at?: string | null
           resolve_rate?: number | null
           second_wind?: string | null
+          signature_turn?: number
           status?: string
+          strike_at?: string | null
           threat?: Json
+          turn_no?: number
           updated_at?: string
           user_id?: string | null
+          ward?: number
+          ward_until?: string | null
         }
         Update: {
           ac?: number
@@ -1290,15 +1304,22 @@ export type Database = {
           next_save_at?: string | null
           npc_id?: string | null
           party_id?: string
+          pending?: Json | null
           perks?: string[]
+          pinned_until?: string | null
           resolve?: number | null
           resolve_at?: string | null
           resolve_rate?: number | null
           second_wind?: string | null
+          signature_turn?: number
           status?: string
+          strike_at?: string | null
           threat?: Json
+          turn_no?: number
           updated_at?: string
           user_id?: string | null
+          ward?: number
+          ward_until?: string | null
         }
         Relationships: [
           {

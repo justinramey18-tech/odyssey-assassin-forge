@@ -127,6 +127,13 @@
       "when": 1791749165259,
       "tag": "0017_npc_templates",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791751056158,
+      "tag": "0018_npc_skills_1_of_7",
+      "breakpoints": true
     }
   ]
 }
