@@ -12,7 +12,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { NpcPortrait } from './NpcPortrait';
-import type { FighterRow, FightEventRow, NpcCombatApi } from '@/hooks/use-npc-combat';
+import { resolveOf, type FighterRow, type FightEventRow, type NpcCombatApi } from '@/hooks/use-npc-combat';
 import type { PartyNpc, PartyNpcsApi } from '@/hooks/use-party-npcs';
 import type { ActionCard } from '@/lib/roundChatActionCard';
 
@@ -106,6 +106,12 @@ function FinishToggle({ value, onChange }: { value: Finish; onChange: (f: Finish
   );
 }
 
+const PERK_LABELS: Record<string, string> = {
+  iron_lungs: 'Iron Lungs', pain_fuel: 'Pain Fuel', momentum: 'Momentum',
+  deep_breath: 'Deep Breath', battle_medic: 'Battle Medic', last_stand: 'Last Stand',
+};
+
+// Every event kind (including second_wind, potion and last_stand) shows its detail text.
 function eventLine(e: FightEventRow): string {
   const who = e.target_name ? `${e.actor_name || '?'} → ${e.target_name}` : e.actor_name;
   const roll = e.d20 != null ? ` (d20 ${e.d20}${e.total != null ? ` → ${e.total}` : ''})` : '';
@@ -137,6 +143,7 @@ type Step =
   | { kind: 'stabilize' }
   | { kind: 'host-add' }
   | { kind: 'card-target'; card: ActionCard; key: string }
+  | { kind: 'second-wind-target' }
   | null;
 
 export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHost, onUseConsumableByName, pendingCast, onPendingCastDone, onOpenSpells }: Props) {
@@ -421,6 +428,19 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
         <button style={tap} className={cn(btnPlain, 'w-full')} onClick={close}>No target</button>
       </div>
     );
+  } else if (step?.kind === 'second-wind-target') {
+    title = 'Second Wind: who?';
+    const allies = playerFighters.filter(f => f.status !== 'dead' && f.user_id !== currentUserId);
+    const go = async (id?: string) => {
+      const r = await combat.secondWind(id);
+      if (r) { close(); showResult(r); }
+    };
+    body = (
+      <div className="space-y-2">
+        <button style={tap} disabled={busy} className={cn(btnAmber, 'w-full')} onClick={() => { void go(); }}>Yourself</button>
+        {allies.map(f => fighterButton(f, () => { void go(f.id); }))}
+      </div>
+    );
   } else if (step?.kind === 'item') {
     title = 'Use an item';
     body = (
@@ -551,6 +571,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
   // ---------- B. fight running ----------
   const otherDown = playerFighters.some(f => f.status === 'down' && f.user_id !== currentUserId);
   const canAct = isActive && !busy && cooldownLeft <= 0;
+  const myResolve = resolveOf(myFighter, now);
   const recent = [...events].reverse().slice(0, 20);
 
   return (
@@ -643,6 +664,25 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
         <div className="fixed left-0 right-0 z-[56] px-2" style={{ bottom: 'calc(8px + env(safe-area-inset-bottom))' }}>
           <div className="rounded-xl border border-white/15 bg-black/85 backdrop-blur p-2 space-y-1">
             {cooldownLeft > 0 && <p className="text-[11px] text-center text-white/60">Ready in {cooldownLeft}s</p>}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className={myResolve >= 100 ? 'text-amber-200' : 'text-white/70'}>{myResolve >= 100 ? 'Resolve: ready' : 'Resolve'}</span>
+                <span className="text-white/70">{Math.round(myResolve)}</span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                <div className={cn('h-full bg-amber-400 transition-[width] duration-500', myResolve >= 100 && 'animate-pulse')} style={{ width: `${myResolve}%` }} />
+              </div>
+              {(myFighter.perks?.length ?? 0) > 0 && (
+                <div className="flex flex-wrap gap-1 pt-0.5">
+                  {myFighter.perks.map(p => (
+                    <span key={p} className={cn('rounded-full border border-amber-400/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-100',
+                      p === 'last_stand' && myFighter.last_stand_used && 'opacity-40 grayscale')}>
+                      {PERK_LABELS[p] ?? p}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className={cn('grid gap-2', otherDown ? 'grid-cols-4' : 'grid-cols-3')}>
               <button style={tap} disabled={!canAct || npcUp.length === 0} className={btnRed} onClick={() => {
                 setFinish('knockout');
@@ -650,7 +690,14 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                 else setStep({ kind: 'attack-target' });
               }}>Attack</button>
               <button style={tap} disabled={!canAct} className={btnAmber} onClick={() => { if (onOpenSpells) onOpenSpells(); else setStep({ kind: 'cast-spell' }); }}>Cast</button>
-              <button style={tap} disabled={!canAct} className={btnPlain} onClick={() => setStep({ kind: 'item' })}>Item</button>
+              <button style={tap} disabled={!canAct || myResolve < 100} className={cn(btnPlain, 'flex-col gap-0 leading-tight')} onClick={async () => {
+                if (myFighter.perks?.includes('battle_medic')) { setStep({ kind: 'second-wind-target' }); return; }
+                const r = await combat.secondWind();
+                if (r) { close(); showResult(r); }
+              }}>
+                <span>Second Wind</span>
+                {myFighter.second_wind && <span className="text-[11px] opacity-70">{myFighter.second_wind}</span>}
+              </button>
               {otherDown && <button style={tap} disabled={!canAct} className={btnPlain} onClick={() => setStep({ kind: 'stabilize' })}>Stabilize</button>}
             </div>
           </div>
