@@ -340,10 +340,14 @@ async function ensurePlayer(db: Db, fight: Fight, seat: Seat, now: number): Prom
   must('read my fighter', error);
   const existing = data?.[0] as Fighter | undefined;
   if (existing) {
-    const { error: seenError } = await db.from('party_fight_combatants')
-      .update({ last_seen_at: iso(now) }).eq('id', existing.id);
-    must('mark seen', seenError);
-    existing.last_seen_at = iso(now);
+    // Refresh "I'm here" at most every 20 s: every write wakes every phone's live update.
+    const seen = existing.last_seen_at ? Date.parse(existing.last_seen_at) : 0;
+    if (!Number.isFinite(seen) || now - seen >= 20_000) {
+      const { error: seenError } = await db.from('party_fight_combatants')
+        .update({ last_seen_at: iso(now) }).eq('id', existing.id);
+      must('mark seen', seenError);
+      existing.last_seen_at = iso(now);
+    }
     return existing;
   }
   if (fight.status === 'ended') return null;
@@ -822,16 +826,28 @@ async function tick(db: Db, fightId: string, hostId: string, now: number): Promi
     }
   }
 
-  if (fight.status === 'active') {
-    const now2 = await fightersOf(db, fight.id);
-    const npcs = now2.filter(f => f.kind === 'npc');
-    const pcs = now2.filter(f => f.kind === 'player');
-    if (npcs.length > 0 && npcs.every(f => f.status === 'ko' || f.status === 'dead' || f.status === 'fled')) {
-      await endFight(db, fight, hostId, 'victory', now);
-    } else if (pcs.length > 0 && pcs.every(f => f.status !== 'up')) {
-      await endFight(db, fight, hostId, 'defeat', now);
-    }
+  if (fight.status === 'active') await checkEnd(db, fight.id, hostId, now);
+}
+
+/** Ends the fight when every NPC is beaten or every player is down. Cheap (two reads), so player actions use it instead of the full clock. */
+async function checkEnd(db: Db, fightId: string, hostId: string, now: number): Promise<void> {
+  const fight = await getFight(db, fightId);
+  if (fight.status !== 'active') return;
+  const all = await fightersOf(db, fight.id);
+  const npcs = all.filter(f => f.kind === 'npc');
+  const pcs = all.filter(f => f.kind === 'player');
+  if (npcs.length > 0 && npcs.every(f => f.status === 'ko' || f.status === 'dead' || f.status === 'fled')) {
+    await endFight(db, fight, hostId, 'victory', now);
+  } else if (pcs.length > 0 && pcs.every(f => f.status !== 'up')) {
+    await endFight(db, fight, hostId, 'defeat', now);
   }
+}
+
+/** "The Pig (badly hurt)": how a fighter looks right now, for NPC combat lines. */
+function withLook(f: Pick<Fighter, 'name' | 'hp' | 'max_hp'>): string {
+  const pct = f.max_hp > 0 ? f.hp / f.max_hp : 1;
+  const look = pct > 0.75 ? 'barely scratched' : pct > 0.5 ? 'hurt' : pct > 0.25 ? 'badly hurt' : 'close to collapse';
+  return `${f.name} (${look})`;
 }
 
 async function endFight(db: Db, fight: Fight, hostId: string, outcome: 'victory' | 'defeat' | 'host_ended', now: number) {
@@ -896,7 +912,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     }
     if (target.status !== 'up') refuse(409, `${target.name} is already down.`);
     const result = await doAttack(db, fight, hostId, seat, me, target, body.weaponName, finishOf(body.finish), now);
-    await tick(db, fight.id, hostId, now);
+    await checkEnd(db, fight.id, hostId, now);
     return { fightId: fight.id, ...result };
   }
 
@@ -1045,7 +1061,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
   if (action === 'attack') {
     const target = await npcTarget(db, fight, body.targetId);
     const result = await doAttack(db, fight, hostId, seat, me, target, body.weaponName, finishOf(body.finish), now);
-    await tick(db, fight.id, hostId, now);
+    await checkEnd(db, fight.id, hostId, now);
     return result;
   }
 
@@ -1076,7 +1092,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
       if (r && r.before.status !== 'up' && r.after.status === 'up') {
         await postLine(db, fight.party_id, hostId, `${actor.name} brings ${target.name} back to their feet!`);
       }
-      await tick(db, fight.id, hostId, now);
+      await checkEnd(db, fight.id, hostId, now);
       return { healed: gained, targetHp: r?.after.hp ?? target.hp };
     }
     const target = await npcTarget(db, fight, body.targetId);
@@ -1090,7 +1106,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
       kind: 'spell', actor_name: actor.name, target_name: target.name, hp_delta: -out.lost, d20: a.d20, total: a.total,
       detail: a.hit ? `${spellName}: ${out.lost} damage${a.crit ? ' (critical!)' : ''}` : `${spellName}: miss`,
     });
-    await tick(db, fight.id, hostId, now);
+    await checkEnd(db, fight.id, hostId, now);
     return { hit: a.hit, crit: a.crit, d20: a.d20, total: a.total, damage: out.lost, targetHp: out.hp, defeated: out.defeated };
   }
 
@@ -1130,7 +1146,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
       if (r && r.before.status !== 'up' && r.after.status === 'up') {
         await postLine(db, fight.party_id, hostId, `${actor.name} brings ${target.name} back to their feet!`);
       }
-      await tick(db, fight.id, hostId, now);
+      await checkEnd(db, fight.id, hostId, now);
       return { healed: gained, targetHp: r?.after.hp ?? target.hp };
     }
 
@@ -1164,7 +1180,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
       kind: 'spell', actor_name: actor.name, target_name: target.name, hp_delta: -out.lost, d20, total: shown,
       detail: hit ? `${spellName}: ${out.lost} damage${crit ? ' (critical!)' : ''}${note}` : `${spellName}: miss`,
     });
-    await tick(db, fight.id, hostId, now);
+    await checkEnd(db, fight.id, hostId, now);
     return { hit, crit, d20, total: shown, damage: out.lost, targetHp: out.hp, defeated: out.defeated };
   }
 
@@ -1182,7 +1198,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
       kind: 'stabilize', actor_name: actor.name, target_name: target.name, target_user_id: target.user_id, d20, total,
       detail: success ? 'Stabilized' : 'Failed to stabilize',
     });
-    await tick(db, fight.id, hostId, now);
+    await checkEnd(db, fight.id, hostId, now);
     return { success, d20, total };
   }
 
@@ -1218,7 +1234,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     if (r && r.before.status !== 'up' && r.after.status === 'up') {
       await postLine(db, fight.party_id, hostId, `${actor.name} hauls ${target.name} back to their feet!`);
     }
-    await tick(db, fight.id, hostId, now);
+    await checkEnd(db, fight.id, hostId, now);
     return { healed: gained, targetHp: r?.after.hp ?? target.hp };
   }
 
