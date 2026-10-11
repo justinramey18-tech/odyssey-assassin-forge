@@ -17,6 +17,10 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import * as R from './rules.ts';
+import { combatTurn } from '../npc-reply/handler.ts';
+import { createModelCaller } from '../npc-reply/models.ts';
+import { createRepo } from '../npc-reply/repo.ts';
+import type { CombatMove } from '../npc-reply/prompt.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -249,6 +253,26 @@ async function postLine(db: Db, partyId: string, hostId: string, content: string
   }
 }
 
+// ── NPC lines in the chat ─────────────────────────────────────────────────────
+
+interface VoiceJob {
+  partyId: string;
+  hostId: string;
+  npcId: string;
+  turn: CombatMove;
+  /** Posted as a plain ⚔ line when the NPC's AI line fails. Null = stay quiet on failure. */
+  fallback: string | null;
+}
+
+/** Set in Deno.serve for each request: writes the NPC's line in the background. */
+let voiceLine: ((db: Db, job: VoiceJob) => void) | null = null;
+
+/** The NPC says or does something in the Live Table about this fight moment. Never blocks the fight. */
+function speak(db: Db, job: VoiceJob): void {
+  if (voiceLine) voiceLine(db, job);
+  else if (job.fallback) void postLine(db, job.partyId, job.hostId, job.fallback);
+}
+
 // ── Joining ───────────────────────────────────────────────────────────────────
 
 /** The caller's fighter in this fight, joining it from their sheet if needed. Null if their character has fallen. */
@@ -338,7 +362,7 @@ const finishOf = (v: unknown): Finish => (v === 'kill' ? 'kill' : 'knockout');
 
 /** Damage on an NPC. Knocks it out or kills it at 0 HP, as the attacker chose. */
 async function hitNpc(
-  db: Db, fight: Fight, hostId: string, me: Fighter, targetId: string, damage: number, finish: Finish,
+  db: Db, fight: Fight, hostId: string, me: Fighter, targetId: string, damage: number, finish: Finish, crit = false,
 ): Promise<{ lost: number; hp: number; defeated: boolean }> {
   const result = await mutate(db, targetId, f => {
     if (f.kind !== 'npc' || f.status !== 'up') return null;
@@ -359,6 +383,13 @@ async function hitNpc(
     must('mark NPC defeated', error);
     await addEvent(db, fight, { kind: 'defeat_npc', actor_name: me.name, target_name: after.name, detail: after.status === 'dead' ? 'killed' : 'knocked out' });
     await postLine(db, fight.party_id, hostId, `${me.name} ${after.status === 'dead' ? 'kills' : 'knocks out'} ${after.name}!`);
+  } else if (after.npc_id && before.hp > after.hp) {
+    // The NPC reacts to the hit (npc-reply allows one reaction per 20 seconds).
+    speak(db, {
+      partyId: fight.party_id, hostId, npcId: after.npc_id,
+      turn: { move: 'hit', attacker: me.name, crit, damage: before.hp - after.hp },
+      fallback: null,
+    });
   }
   return { lost: before.hp - after.hp, hp: after.hp, defeated };
 }
@@ -381,7 +412,7 @@ async function doAttack(
   let hp = target.hp;
   let defeated = false;
   if (a.hit) {
-    const out = await hitNpc(db, fight, hostId, actor, target.id, R.rollDamage(w.dice, roll, a.crit), finish);
+    const out = await hitNpc(db, fight, hostId, actor, target.id, R.rollDamage(w.dice, roll, a.crit), finish, a.crit);
     ({ lost, hp, defeated } = out);
   }
   await addEvent(db, fight, {
@@ -425,6 +456,11 @@ async function tick(db: Db, fightId: string, hostId: string, now: number): Promi
       })), roll);
       const target = players.find(p => p.id === targetId);
       if (!target || !dice) continue;
+      // About 1 turn in 5 the NPC talks instead of attacking (a taunt, a plea, an order).
+      if (roll(5) === 1) {
+        speak(db, { partyId: fight.party_id, hostId, npcId: npc.npc_id as string, turn: { move: 'beat' }, fallback: null });
+        continue;
+      }
       const a = R.resolveAttack(roll, stats.attackBonus, target.ac);
       let lost = 0;
       let downed = false;
@@ -450,8 +486,14 @@ async function tick(db: Db, fightId: string, hostId: string, now: number): Promi
       });
       if (downed) {
         await addEvent(db, fight, { kind: 'down', actor_name: npc.name, target_name: target.name, target_user_id: target.user_id });
-        await postLine(db, fight.party_id, hostId, `${npc.name} strikes ${target.name} down!`);
       }
+      speak(db, {
+        partyId: fight.party_id, hostId, npcId: npc.npc_id as string,
+        turn: { move: 'attack', target: target.name, hit: a.hit, crit: a.crit, damage: lost, downed },
+        fallback: downed
+          ? `${npc.name} strikes ${target.name} down!`
+          : a.hit ? `${npc.name} hits ${target.name}: ${lost} damage.` : `${npc.name} attacks ${target.name} and misses.`,
+      });
     }
   }
 
@@ -717,7 +759,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     const a = R.resolveAttack(roll, R.spellAttackBonus(sheet), target.ac);
     let out = { lost: 0, hp: target.hp, defeated: false };
     if (a.hit) {
-      out = await hitNpc(db, fight, hostId, actor, target.id, R.rollDamage(R.spellDamageDice(spellLevel, sheet.level), roll, a.crit), finishOf(body.finish));
+      out = await hitNpc(db, fight, hostId, actor, target.id, R.rollDamage(R.spellDamageDice(spellLevel, sheet.level), roll, a.crit), finishOf(body.finish), a.crit);
     }
     await addEvent(db, fight, {
       kind: 'spell', actor_name: actor.name, target_name: target.name, hp_delta: -out.lost, d20: a.d20, total: a.total,
@@ -770,6 +812,32 @@ Deno.serve(async (req) => {
   const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) return json(500, { error: 'Server configuration error.' });
   const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+
+  // NPC lines are written by npc-reply's own code, in the background, after this request answers.
+  const voiceDeps = {
+    repo: createRepo(db),
+    callModel: createModelCaller({
+      VENICE_API_KEY: Deno.env.get('VENICE_API_KEY'),
+      LOVABLE_API_KEY: Deno.env.get('LOVABLE_API_KEY'),
+      ANTHROPIC_API_KEY: Deno.env.get('ANTHROPIC_API_KEY'),
+    }),
+    now: () => Date.now(),
+  };
+  voiceLine = (lineDb, job) => {
+    const work = (async () => {
+      let ok = false;
+      try {
+        const result = await combatTurn({ partyId: job.partyId, npcId: job.npcId, turn: job.turn }, voiceDeps);
+        ok = result.status === 200;
+        if (!ok) console.warn('[npc-combat] NPC line failed:', result.body.error);
+      } catch (err) {
+        console.warn('[npc-combat] NPC line failed:', err);
+      }
+      if (!ok && job.fallback) await postLine(lineDb, job.partyId, job.hostId, job.fallback);
+    })();
+    const runtime = (globalThis as { EdgeRuntime?: { waitUntil(p: Promise<unknown>): void } }).EdgeRuntime;
+    if (runtime?.waitUntil) runtime.waitUntil(work);
+  };
 
   const authHeader = req.headers.get('Authorization') || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
