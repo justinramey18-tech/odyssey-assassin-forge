@@ -1,8 +1,10 @@
 // Story scenes (DECISIONS D-22, 2026-10-11). On Send to DM, and on the Human DM
 // Assistant's Apply, the table's sealed in-character lines are retold as one short,
-// readable scene that sits in the story right before the DM's post. The DM carries on
-// from it instead of retelling it, and the raw player and NPC rows it covers stay saved
-// (the DM's history and recaps still read them) but are hidden from the story feed.
+// readable scene. It is written FIRST and saved to the story at once, so the table reads
+// it while the DM writes; then the DM gets the scene as its input and carries on from
+// its last line. The scene is the story's record of the round: the raw player and NPC
+// lines are not saved to the story (they stay in the Live Table). Older rounds, where
+// the raw rows were saved before the scene, still hide those rows in the feed.
 // The AI writes the scene. The app checks that every spoken line made it in word for
 // word, and falls back to a plain script (no AI) when any line is missing.
 // Pure functions only (no network, no React) so they can be unit tested.
@@ -206,7 +208,40 @@ export function buildScenePrompt(lines: StorySceneLine[], setting: string): { sy
  * Send to DM (buildLiveTableBlock, liveTable.hasScene); the app adds this copy when
  * a post is regenerated. Keep the two in step.
  */
-export const SCENE_SHOWN_RULE = 'SCENE ALREADY SHOWN: the in-character lines of this round (the players\' and any NPCs\') are already shown to the whole table as a written scene just above your post, every spoken line word for word. Do not retell, quote or paraphrase that exchange, and do not describe again what the characters in it said or did. Start right after its last line and narrate what happens next: what their words and actions lead to, how the world and anyone who has not acted yet respond (absent characters still follow their AFK guides), and what the players face now. Keep each NPC consistent with what it said; an NPC\'s offer, promise or warning is not an outcome, you decide what actually happens. A roll result in the round stands as given.';
+export const SCENE_SHOWN_RULE = 'SCENE HAND-OFF: this round arrives as THE SCENE, a written account of what the players and any NPCs just said and did. The whole table has already read it, word for word, just above your post. Never retell, quote, paraphrase or summarize it, and never repeat a line from it. Start right after its last line and push the story forward: what their words and actions lead to, the effects of spells, rolls and actions, the environment, NPC agency, intrigue and new hooks, then a clear prompt for what the party does next. NPC lines in the scene were already spoken: keep each NPC consistent with them and never have them say it again; an NPC\'s offer, promise or warning is not an outcome, you decide what actually happens. A roll result in the scene stands as given. Player characters who did not speak or act in the scene do nothing new: never give them words, actions or choices.';
+
+/** The heading the DM reads the scene under (its input on Send to DM, and in its history). */
+export const SCENE_INPUT_HEADING = 'THE SCENE (already shown to the whole table, just above your post)';
+
+/** The out-of-character part of a Live Table hand-off ("TABLE TALK (out of character):" and its lines), or ''. */
+export function tableTalkPart(handoff: string): string {
+  const at = (handoff || '').indexOf('TABLE TALK (out of character):');
+  return at === -1 ? '' : handoff.slice(at).trim();
+}
+
+/** What the DM is sent on a Send to DM with a scene: the scene, then any table talk. */
+export function sceneHandoffText(scene: string, tableTalk: string): string {
+  return [`${SCENE_INPUT_HEADING}:\n${scene.trim()}`, tableTalk.trim()].filter(Boolean).join('\n\n');
+}
+
+/**
+ * The story as the DM's history. A scene becomes a user turn under SCENE_INPUT_HEADING,
+ * since it is what the table did. A scene from an older round, whose raw player and
+ * NPC rows were saved right before it, is left out (those rows already tell it).
+ */
+export function storyHistory<T extends StoryRow & { content: string }>(rows: T[]): Array<{ role: string; content: string }> {
+  const covered = rowsCoveredByScenes(rows);
+  const out: Array<{ role: string; content: string }> = [];
+  rows.forEach((m, i) => {
+    if (!isStorySceneRow(m)) {
+      out.push({ role: m.role, content: m.content });
+      return;
+    }
+    const coversOldRows = i > 0 && covered.has(rows[i - 1].id);
+    if (!coversOldRows) out.push({ role: 'user', content: `${SCENE_INPUT_HEADING}:\n${m.content}` });
+  });
+  return out;
+}
 
 /** True when the row at `index` comes right after a scene (AFK markers skipped). */
 export function followsStoryScene(rows: StoryRow[], index: number): boolean {

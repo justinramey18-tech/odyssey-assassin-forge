@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  SCENE_INPUT_HEADING,
   STORY_SCENE_SENDER,
   buildScenePrompt,
   cleanSceneText,
@@ -8,10 +9,13 @@ import {
   isStorySceneRow,
   missingSpokenLines,
   rowsCoveredByScenes,
+  sceneHandoffText,
   sceneRetryNote,
   sceneScript,
   sceneSetting,
   spokenParts,
+  storyHistory,
+  tableTalkPart,
   wordsOf,
   type StorySceneLine,
 } from '@/lib/story-scene';
@@ -151,5 +155,36 @@ describe('scene rows in the story', () => {
 describe('wordsOf', () => {
   it('keeps apostrophes inside words and ignores markup', () => {
     expect(wordsOf('**Don’t** [VOICE:A]"go"[/VOICE]...')).toEqual(["don't", 'voice', 'a', 'go', 'voice']);
+  });
+});
+
+describe('the scene as the DM\'s input', () => {
+  const bundled = '[Xeyle]: "Hi."\n[Hephaestus (NPC)]: Leave.\n\nTABLE TALK (out of character):\nXeyle: brb snacks';
+  it('keeps only the table talk from a hand-off', () => {
+    expect(tableTalkPart(bundled)).toBe('TABLE TALK (out of character):\nXeyle: brb snacks');
+    expect(tableTalkPart('[Xeyle]: "Hi."')).toBe('');
+  });
+  it('sends the scene under its heading, then the table talk', () => {
+    expect(sceneHandoffText(' Xeyle greets him. ', tableTalkPart(bundled))).toBe(`${SCENE_INPUT_HEADING}:\nXeyle greets him.\n\nTABLE TALK (out of character):\nXeyle: brb snacks`);
+    expect(sceneHandoffText('Xeyle greets him.', '')).toBe(`${SCENE_INPUT_HEADING}:\nXeyle greets him.`);
+  });
+  it('turns new scenes into what the table did, and leaves out old scenes whose raw rows were saved', () => {
+    const rows = [
+      { id: 'dm1', role: 'assistant', sender_name: 'DM', content: 'The welder hisses.' },
+      { id: 'p1', role: 'user', sender_name: 'Xeyle', content: '[Xeyle]: "Hi."' },
+      { id: 'n1', role: 'assistant', sender_name: 'Hephaestus', content: '**Hephaestus:** Leave.' },
+      { id: 's1', role: 'assistant', sender_name: STORY_SCENE_SENDER, content: 'Old scene.' },
+      { id: 'dm2', role: 'assistant', sender_name: 'DM', content: 'Sparks fly.' },
+      { id: 's2', role: 'assistant', sender_name: STORY_SCENE_SENDER, content: 'New scene.' },
+      { id: 'dm3', role: 'assistant', sender_name: 'DM', content: 'The door seals.' },
+    ];
+    expect(storyHistory(rows)).toEqual([
+      { role: 'assistant', content: 'The welder hisses.' },
+      { role: 'user', content: '[Xeyle]: "Hi."' },
+      { role: 'assistant', content: '**Hephaestus:** Leave.' },
+      { role: 'assistant', content: 'Sparks fly.' },
+      { role: 'user', content: `${SCENE_INPUT_HEADING}:\nNew scene.` },
+      { role: 'assistant', content: 'The door seals.' },
+    ]);
   });
 });
