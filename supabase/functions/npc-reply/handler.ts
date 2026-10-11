@@ -10,6 +10,7 @@
 
 import {
   NPC_FALLBACK_MODEL,
+  combatMoveOf,
   buildNpcSystemPrompt,
   buildNpcUserMessage,
   cardOf,
@@ -559,6 +560,57 @@ export async function banter(
 }
 
 /** The host asks for a new version of an NPC's answer. */
+/** A player's hit gets at most one reaction line per NPC in this window. */
+export const COMBAT_REACT_GAP_MS = 20_000;
+
+/**
+ * Live NPC Combat: one in-character line for an NPC's own fight moment (its attack, a hit it
+ * took, or a turn spent talking). Called only by the npc-combat server function, never by a phone,
+ * so the facts in `turn` come from the server's own dice. No reply record: lines can't be regenerated.
+ */
+export async function combatTurn(
+  req: { partyId: unknown; npcId: unknown; turn: unknown },
+  deps: Deps,
+): Promise<HandlerResult> {
+  const { repo } = deps;
+  if (!isUuid(req.partyId) || !isUuid(req.npcId)) return refuse(400, 'Missing partyId or npcId.');
+  const move = combatMoveOf(req.turn);
+  if (!move) return refuse(400, 'Missing or invalid combat turn.');
+  const npc = await repo.getNpc(req.npcId);
+  if (!npc || npc.party_id !== req.partyId || npc.archived) return refuse(404, 'That NPC is not at this table.');
+  // A knocked-out, dead, off-stage or stand-in NPC stays quiet. Not an error: the fight goes on.
+  if (!npc.on_stage || npc.combat_state || npc.player_user_id) return reply(200, { ok: true, skipped: 'quiet' });
+  if (move.move === 'hit' && repo.npcSpokeSince
+    && (await repo.npcSpokeSince(npc.id, new Date(deps.now() - COMBAT_REACT_GAP_MS).toISOString()))) {
+    return reply(200, { ok: true, skipped: 'spoke recently' });
+  }
+  const hostId = await repo.getPartyHost(req.partyId);
+  if (!hostId) return refuse(404, 'Party not found.');
+  const [guide, stage, ctx, latest] = await Promise.all([
+    repo.getGuide(npc.id),
+    repo.listStageNames(req.partyId),
+    repo.loadContext(req.partyId, hostId, undefined, npc.id),
+    repo.latestLine ? repo.latestLine(req.partyId) : Promise.resolve(null),
+  ]);
+  const answering: Answering = { id: '', character_name: 'The fight', content: '' };
+  const input = promptInput(npc, guide, stage, ctx, answering, [], { kind: 'combat', ...move }, deps.now());
+  const result = await generateWithFallback(npc.model, buildNpcSystemPrompt(input), buildNpcUserMessage(input), npc.name, deps.callModel);
+  if (!result.ok) return refuse(502, `${npc.name} couldn't speak (${result.error}).`);
+  const mood = await moodAfter(npc, result.mood, repo);
+  const replyId = await repo.insertNpcLine({
+    party_id: req.partyId,
+    user_id: hostId,
+    character_name: npc.name,
+    content: answerContent(null, result.text ?? '', null),
+    in_character: true,
+    round_id: latest?.round_id ?? crypto.randomUUID(),
+    selected: true,
+    npc_id: npc.id,
+    npc_mood: mood,
+  });
+  return reply(200, { ok: true, replyId });
+}
+
 export async function regenerate(req: { userId: string; replyMessageId: unknown }, deps: Deps): Promise<HandlerResult> {
   const { repo } = deps;
   if (!isUuid(req.replyMessageId)) return refuse(400, 'Missing or invalid replyMessageId.');

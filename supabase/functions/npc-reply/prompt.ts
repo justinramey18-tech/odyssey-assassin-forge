@@ -92,7 +92,32 @@ export type NpcSituation =
   | { kind: 'reply' }
   | { kind: 'spell'; caster: string; spell: string; summary: string; saveRoll: number }
   | { kind: 'roll'; roller: string; check: string; save: boolean; total: number; dc: number; success: boolean; natural: number | null }
-  | { kind: 'banter'; partners: string[]; topic: string; turn: number; turns: number };
+  | { kind: 'banter'; partners: string[]; topic: string; turn: number; turns: number }
+  | ({ kind: 'combat' } & CombatMove);
+
+/**
+ * Live NPC Combat: what just happened to this NPC, decided by the app's dice.
+ * attack = the NPC attacked someone; hit = a player hit the NPC; beat = a turn with no attack.
+ */
+export type CombatMove =
+  | { move: 'attack'; target: string; hit: boolean; crit: boolean; damage: number; downed: boolean }
+  | { move: 'hit'; attacker: string; crit: boolean; damage: number }
+  | { move: 'beat' };
+
+/** A checked CombatMove, or null. */
+export function combatMoveOf(raw: unknown): CombatMove | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const name = (v: unknown) => (typeof v === 'string' ? v.trim().slice(0, 80) : '');
+  const dmg = Math.max(0, Math.min(999, Math.round(Number(r.damage) || 0)));
+  if (r.move === 'beat') return { move: 'beat' };
+  if (r.move === 'hit' && name(r.attacker)) return { move: 'hit', attacker: name(r.attacker), crit: r.crit === true, damage: dmg };
+  if (r.move === 'attack' && name(r.target)) {
+    const hit = r.hit === true;
+    return { move: 'attack', target: name(r.target), hit, crit: hit && r.crit === true, damage: hit ? dmg : 0, downed: hit && r.downed === true };
+  }
+  return null;
+}
 
 export interface NpcPromptInput {
   fight?: { hp: number; maxHp: number };
@@ -490,6 +515,7 @@ export function buildNpcSystemPrompt(input: NpcPromptInput): string {
   const world = capStart(input.worldBible, NPC_LIMITS.worldBible);
   const post = capEnd(readableText(input.latestPost), NPC_LIMITS.latestPost);
   const banter = input.situation?.kind === 'banter';
+  const combatTurn = input.situation?.kind === 'combat';
 
   const parts: string[] = [
     `You are ${name}, a character in a tabletop fantasy roleplaying campaign, talking live with the players at their table. You are not the narrator or the Dungeon Master.`,
@@ -501,7 +527,9 @@ export function buildNpcSystemPrompt(input: NpcPromptInput): string {
       '- Never speak, act or decide for a player character, and never describe the results of their actions.',
       '- No game mechanics in your spoken words: no dice, DCs, hit points, stats or rules talk. Never write tags, markup or notes, except the roll tag and the mood tag described below.',
       `- ${name} can offer, promise, threaten, refuse, bargain or lie, but cannot hand over items or gold, move the party or end quests alone. The Dungeon Master decides what actually happens.`,
-      `- ${name} may warn, threaten, reach for a weapon or signal others, but never starts a fight, attacks, orders an attack or says what harm happens to anyone. Whether a fight starts is the Dungeon Master's call.`,
+      combatTurn
+        ? `- This is ${name}'s moment in a fight that is already on. The app's dice already decided what happens: describe exactly that result and nothing more.`
+        : `- ${name} may warn, threaten, reach for a weapon or signal others, but never starts a fight, attacks, orders an attack or says what harm happens to anyone. Whether a fight starts is the Dungeon Master's call.`,
       `- Lines marked (table talk) are the players chatting out of character: ${name} did not hear them.`,
       `- ${name} only knows what ${name} would plausibly know. Stay consistent with the guide below, with what ${name} remembers, and with what ${name} already said at the table.`,
     ].join('\n'),
@@ -617,8 +645,8 @@ export function buildNpcUserMessage(input: NpcPromptInput): string {
   const name = input.npcName.trim();
   const recent = input.table.slice(-NPC_LIMITS.tableLines).map(l => tableLine(l, name)).filter(Boolean);
   const baseTable = recent.length ? `THE TABLE (most recent lines, oldest first)\n${recent.join('\n')}` : 'THE TABLE\n(nothing said yet)';
-  const tableBlock = input.fight ? `${baseTable}\n\n${combatBlock(input.fight)}` : baseTable;
   const s = input.situation;
+  const tableBlock = input.fight ? `${baseTable}\n\n${combatBlock(input.fight, s?.kind === 'combat')}` : baseTable;
   // The guide again, last, so the NPC's personality outweighs the mood of the scene.
   const guide = capStart(input.guide, NPC_LIMITS.voiceReminder);
   const f = input.fields || {};
@@ -657,6 +685,29 @@ export function buildNpcUserMessage(input: NpcPromptInput): string {
       ownBlock,
       voice,
       'Do not ask for another roll in this reply.',
+    ].filter(Boolean).join('\n\n');
+  }
+
+  if (s?.kind === 'combat') {
+    const what = s.move === 'attack'
+      ? (s.hit
+        ? `You attack ${s.target} and HIT${s.crit ? ' (a critical hit)' : ''} for ${s.damage} damage.${s.downed ? ` ${s.target} goes down.` : ''}`
+        : `You attack ${s.target} and MISS.`)
+      : s.move === 'hit'
+        ? `${s.attacker} just hit you${s.crit ? ' hard (a critical hit)' : ''} for ${s.damage} damage.`
+        : 'This moment you do NOT attack. Instead you taunt, threaten, plead, bark an order, call for backup or reposition. Nobody is hurt.';
+    const how = s.move === 'attack'
+      ? `Write ${name}'s combat turn: start with one action beat in *asterisks* (under 20 words) that shows exactly this result, then at most one short spoken line. Under 45 words in total.`
+      : s.move === 'hit'
+        ? `React as ${name} to taking that blow: one short pained, furious or shaken line, with at most one action beat in *asterisks*. Under 30 words. Do not strike back in this line.`
+        : `Write ${name}'s moment: one action beat in *asterisks* (under 15 words) and one short spoken line. Under 40 words. Nobody gets hurt.`;
+    return [
+      tableBlock,
+      `RIGHT NOW (decided by the app's dice; do not change it): ${what}`,
+      ownBlock,
+      voice,
+      how,
+      'Never invent extra damage, extra hits, deaths or anyone else\'s actions. No numbers or game terms in your words. Do not ask for rolls.',
     ].filter(Boolean).join('\n\n');
   }
 
@@ -738,13 +789,15 @@ export function joinGuides(rows: Array<{ name?: string | null; content?: string 
     .join('\n\n---\n\n');
 }
 
-function combatBlock(f: { hp: number; maxHp: number }): string {
+function combatBlock(f: { hp: number; maxHp: number }, turn = false): string {
   const pct = f.maxHp > 0 ? f.hp / f.maxHp : 1;
   const state = pct > 0.75 ? 'barely scratched' : pct > 0.5 ? 'hurt' : pct > 0.25 ? 'badly hurt' : 'close to collapse';
   return [
     'YOU ARE IN A FIGHT RIGHT NOW',
     `Your health: ${f.hp} of ${f.maxHp} (${state}).`,
     'Lines marked ⚔ in the table are real blows and real results. Speak like someone in the middle of a fight: short, urgent, physical.',
-    'Never say who gets hurt or by how much, and never describe a hit landing: the dice decide that. You can threaten, taunt, plead, bargain, call for help or try to talk your way out.',
+    turn
+      ? 'This line narrates a moment the app\'s dice already decided. Describe exactly that result, nothing more.'
+      : 'Never say who gets hurt or by how much, and never describe a hit landing: the dice decide that. You can threaten, taunt, plead, bargain, call for help or try to talk your way out.',
   ].join('\n');
 }

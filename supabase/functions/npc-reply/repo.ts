@@ -135,6 +135,8 @@ export interface NpcRepo {
   finishRecord?(id: string, patch: FinishPatch): Promise<void>;
   /** True when a player (not an NPC) posted an in-character line after this time. */
   playerSpokeSince?(partyId: string, sinceIso: string): Promise<boolean>;
+  /** Live NPC Combat: true when this NPC posted a Live Table line after this time. */
+  npcSpokeSince?(npcId: string, sinceIso: string): Promise<boolean>;
   /** The newest line in the Live Table, for a scene's round id. */
   latestLine?(partyId: string): Promise<RoundLine | null>;
   /** v3: save the NPC's mood after it speaks. */
@@ -359,6 +361,14 @@ export function createRepo(db: any): NpcRepo {
         .eq('party_id', partyId).is('npc_id', null).eq('in_character', true).gt('created_at', sinceIso)
         .limit(1);
       fail('check for player lines', error);
+      return Array.isArray(data) && data.length > 0;
+    },
+
+    async npcSpokeSince(npcId, sinceIso) {
+      const { data, error } = await db.from('party_round_chat').select('id')
+        .eq('npc_id', npcId).gt('created_at', sinceIso)
+        .limit(1);
+      fail('check for NPC lines', error);
       return Array.isArray(data) && data.length > 0;
     },
 
