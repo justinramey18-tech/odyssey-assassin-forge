@@ -161,6 +161,7 @@ import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
 import { loadPendingDmItems } from '@/lib/pendingDmItems';
 import { DiceRollOverlay } from '@/components/ai-dm/DiceRollOverlay';
 import { stripTableTalkTags, type NarrationSegment } from '@/lib/tts-utils';
+import { useNpcCombat } from '@/hooks/use-npc-combat';
 
 function stripCinematicTagsFromDisplay(content: string): string {
   return stripTableTalkTags(content.replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, ''));
@@ -1316,6 +1317,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const chatAvatars = useChatAvatars(partyId || null, currentUserId);
   // Live NPCs (D-22): the party's NPC roster, with live updates.
   const npcRoster = usePartyNpcs(partyId || null);
+  const npcCombat = useNpcCombat({ partyId: partyId || null, currentUserId: currentUserId || null, isHost: originalCreator, sheetHp: characterContext?.currentHP ?? null, onHPChange });
   const onlineMembers = useMemo(() => members.map(m => ({ user_id: m.user_id, updated_at: m.updated_at ?? '1970-01-01T00:00:00Z' })), [members]);
   const onlineStatus = useOnlineStatus(onlineMembers);
   const partyPresence = usePartyPresence(partyId, currentUserId);
