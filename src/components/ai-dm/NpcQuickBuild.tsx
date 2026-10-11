@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, Loader2, Trash2, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';
@@ -62,7 +62,7 @@ export function NpcQuickBuild({ roster, onCreated }: { roster: PartyNpcsApi; onC
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<{ key: number; d: NpcBuildDraft }[]>([]);
-  const [nextKey, setNextKey] = useState(1);
+  const nextKey = useRef(1);
   const [onStage, setOnStage] = useState(true);
   const [creating, setCreating] = useState<string | null>(null);
 
@@ -80,7 +80,6 @@ export function NpcQuickBuild({ roster, onCreated }: { roster: PartyNpcsApi; onC
   };
 
   const addDrafts = (list: NpcBuildDraft[]) => {
-    let k = nextKey;
     setDrafts(prev => {
       const taken = new Set<string>([
         ...roster.npcs.map(n => n.name.toLowerCase()),
@@ -89,11 +88,10 @@ export function NpcQuickBuild({ roster, onCreated }: { roster: PartyNpcsApi; onC
       const added = list.map(d => {
         const name = uniqueName(d.name, taken);
         taken.add(name.toLowerCase());
-        return { key: k++, d: { ...d, name } };
+        return { key: nextKey.current++, d: { ...d, name } };
       });
       return [...prev, ...added];
     });
-    setNextKey(k + list.length);
   };
 
   const build = async () => {
