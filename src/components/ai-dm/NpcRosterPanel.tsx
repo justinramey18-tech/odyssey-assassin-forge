@@ -66,7 +66,7 @@ type GuideState = 'loading' | 'ready' | 'failed';
 
 const fieldClass = 'w-full rounded-lg bg-black/40 border border-white/15 px-3 py-2 text-[14px] text-white/90 placeholder:text-white/30 outline-none focus:border-amber-400/60';
 
-export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelProps) {
+export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBattleModelChange }: NpcRosterPanelProps) {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [guideState, setGuideState] = useState<GuideState>('ready');
   const [saving, setSaving] = useState(false);
