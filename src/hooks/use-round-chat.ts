@@ -47,6 +47,8 @@ export interface RoundChatMessage {
    * host's account, so never treat user_id as the speaker when this is set.
    */
   npc_id?: string | null;
+  /** Live NPCs v3: the mood an NPC line was said in (players see it as an emoji). */
+  npc_mood?: string | null;
 }
 
 export interface RoundChatReaction {
