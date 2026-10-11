@@ -512,3 +512,45 @@ export function rolledNpcLines(lines: Array<{ user_id: string; content: string; 
   }
   return done;
 }
+
+// ══ Live NPCs v3: moods and guide fields ══
+
+export interface NpcMoodInfo {
+  id: string;
+  emoji: string;
+  label: string;
+}
+
+/** The moods an NPC can be in. The server tags each NPC line with one; players see the emoji. */
+export const NPC_MOODS: NpcMoodInfo[] = [
+  { id: 'calm', emoji: '😌', label: 'Calm' },
+  { id: 'amused', emoji: '😏', label: 'Amused' },
+  { id: 'pleased', emoji: '😊', label: 'Pleased' },
+  { id: 'suspicious', emoji: '🤨', label: 'Suspicious' },
+  { id: 'annoyed', emoji: '😒', label: 'Annoyed' },
+  { id: 'angry', emoji: '😠', label: 'Angry' },
+  { id: 'scared', emoji: '😨', label: 'Scared' },
+  { id: 'sad', emoji: '😔', label: 'Sad' },
+];
+
+/** The mood for an id, or null when there is none (old lines, lines the host typed). */
+export function npcMoodOf(id: string | null | undefined): NpcMoodInfo | null {
+  return NPC_MOODS.find(m => m.id === id) ?? null;
+}
+
+export const NPC_FIELD_MAX = 2_000;
+export const NPC_MOOD_RANGE_MAX = 500;
+
+/** How feelings fade when the NPC hasn't seen someone for a while. */
+export const NPC_GRUDGE_STYLES: Array<{ id: string; label: string; hint: string }> = [
+  { id: 'forgiving', label: 'Forgiving', hint: 'Feelings drift back to neutral after a few days apart.' },
+  { id: 'normal', label: 'Normal', hint: 'Feelings drift back to neutral about once a week apart.' },
+  { id: 'grudge', label: 'Holds grudges', hint: 'Anger never fades on its own. Warmth still does.' },
+];
+
+/** What a memory note is. */
+export const NPC_MEMORY_KINDS: Array<{ id: 'event' | 'thread' | 'self'; label: string }> = [
+  { id: 'event', label: 'Happened' },
+  { id: 'thread', label: 'Unfinished' },
+  { id: 'self', label: 'About itself' },
+];

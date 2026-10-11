@@ -18,6 +18,10 @@ export interface PartyNpc {
   reacts_to_spells: boolean;
   /** Set when this "NPC" is a player's character played by the AI while they are away. */
   player_user_id?: string | null;
+  /** v3: the NPC's current mood (everyone sees it). */
+  mood?: string;
+  /** v3: when it came on stage (set by the database). */
+  on_stage_since?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -32,7 +36,21 @@ export interface NpcAttitudeRow {
   score: number;
   reason: string;
   updated_by: 'ai' | 'host';
+  /** v3: the NPC has learned this character's name. */
+  knows_name?: boolean;
+  /** v3: when they last spoke. */
+  last_seen_at?: string | null;
   updated_at: string;
+}
+
+/** v3: the host's structured guide fields (host and server only). */
+export interface NpcGuideFields {
+  wants: string;
+  levers: string;
+  hardLines: string;
+  moodRange: string;
+  /** 'forgiving' | 'normal' | 'grudge' */
+  grudgeStyle: string;
 }
 
 /** v2: one thing an NPC remembers (host only). */
@@ -41,6 +59,8 @@ export interface NpcMemoryNote {
   npc_id: string;
   note: string;
   source: 'ai' | 'host';
+  /** v3: what happened, unfinished business, or something the NPC said about itself. */
+  kind?: 'event' | 'thread' | 'self';
   created_at: string;
 }
 
@@ -62,7 +82,7 @@ function rosterError(error: { code?: string; message?: string } | null, name?: s
   if (!error) return 'Something went wrong. Try again.';
   if (error.code === '23505') return name ? `You already have an NPC called ${name}.` : 'Another NPC already has that name.';
   if (error.code === '42501') return "Only the party's host can change NPCs.";
-  if (error.code === '23514') return 'That is too long. Names can be up to 40 characters, guides 20,000 and secrets 10,000.';
+  if (error.code === '23514') return 'That is too long. Names can be up to 40 characters, guides 20,000, secrets 10,000, the other guide fields 2,000 and the mood range 500.';
   return error.message || 'Something went wrong. Try again.';
 }
 
@@ -180,7 +200,7 @@ export function usePartyNpcs(partyId: string | null) {
   // ── Host: the roster ──
 
   /** Changes one NPC row. Throws a plain-language Error when the save fails. */
-  const patchNpc = useCallback(async (id: string, patch: Partial<Pick<PartyNpc, 'name' | 'model' | 'portrait_url' | 'on_stage' | 'archived' | 'sort_order' | 'reacts_to_spells'>>) => {
+  const patchNpc = useCallback(async (id: string, patch: Partial<Pick<PartyNpc, 'name' | 'model' | 'portrait_url' | 'on_stage' | 'archived' | 'sort_order' | 'reacts_to_spells' | 'mood'>>) => {
     const before = npcsRef.current.find(n => n.id === id);
     if (before) setNpcs(prev => sortNpcs(prev.map(n => (n.id === id ? { ...n, ...patch } : n))));
     const { data, error } = await (supabase.from('party_npcs') as any)
@@ -198,25 +218,35 @@ export function usePartyNpcs(partyId: string | null) {
   }, []);
 
   /** Saves an NPC's guide and secrets (host only). Throws a plain-language Error on failure. */
-  const saveGuide = useCallback(async (npcId: string, guide: string, secrets: string) => {
+  const saveGuide = useCallback(async (npcId: string, guide: string, secrets: string, extra?: Partial<NpcGuideFields>) => {
     if (!partyId) throw new Error('No party is open.');
-    const { error } = await (supabase.from('party_npc_guides') as any).upsert({
-      npc_id: npcId,
-      party_id: partyId,
-      guide,
-      secrets,
-    }, { onConflict: 'npc_id' });
+    const row: Record<string, unknown> = { npc_id: npcId, party_id: partyId, guide, secrets };
+    // v3 fields are saved only when given, so older callers never wipe them.
+    if (extra?.wants !== undefined) row.wants = extra.wants;
+    if (extra?.levers !== undefined) row.levers = extra.levers;
+    if (extra?.hardLines !== undefined) row.hard_lines = extra.hardLines;
+    if (extra?.moodRange !== undefined) row.mood_range = extra.moodRange;
+    if (extra?.grudgeStyle !== undefined) row.grudge_style = extra.grudgeStyle;
+    const { error } = await (supabase.from('party_npc_guides') as any).upsert(row, { onConflict: 'npc_id' });
     if (error) throw new Error(rosterError(error));
   }, [partyId]);
 
-  /** Reads an NPC's guide and secrets (host only; the database refuses anyone else). */
-  const loadGuide = useCallback(async (npcId: string): Promise<{ guide: string; secrets: string }> => {
+  /** Reads an NPC's guide, secrets and v3 fields (host only; the database refuses anyone else). */
+  const loadGuide = useCallback(async (npcId: string): Promise<{ guide: string; secrets: string } & NpcGuideFields> => {
     const { data, error } = await (supabase.from('party_npc_guides') as any)
-      .select('guide, secrets')
+      .select('guide, secrets, wants, levers, hard_lines, mood_range, grudge_style')
       .eq('npc_id', npcId)
       .maybeSingle();
     if (error) throw new Error(rosterError(error));
-    return { guide: data?.guide ?? '', secrets: data?.secrets ?? '' };
+    return {
+      guide: data?.guide ?? '',
+      secrets: data?.secrets ?? '',
+      wants: data?.wants ?? '',
+      levers: data?.levers ?? '',
+      hardLines: data?.hard_lines ?? '',
+      moodRange: data?.mood_range ?? '',
+      grudgeStyle: data?.grudge_style ?? 'normal',
+    };
   }, []);
 
   /** Adds an NPC (off stage) and, when given, its guide. Throws a plain-language Error on failure. */
@@ -256,6 +286,8 @@ export function usePartyNpcs(partyId: string | null) {
   const archiveNpc = useCallback((id: string) => patchNpc(id, { archived: true, on_stage: false }), [patchNpc]);
   const restoreNpc = useCallback((id: string) => patchNpc(id, { archived: false }), [patchNpc]);
   const setReactsToSpells = useCallback((id: string, on: boolean) => patchNpc(id, { reacts_to_spells: on }), [patchNpc]);
+  /** v3, host: set an NPC's mood by hand (the NPC's next line starts from it). */
+  const setMood = useCallback((id: string, mood: string) => patchNpc(id, { mood }), [patchNpc]);
 
   // ── Player stand-ins: an away player's character played as a live NPC ──
 
@@ -329,20 +361,20 @@ export function usePartyNpcs(partyId: string | null) {
   /** What an NPC remembers, oldest first (host only; the database refuses anyone else). */
   const loadMemories = useCallback(async (npcId: string): Promise<NpcMemoryNote[]> => {
     const { data, error } = await (supabase.from('party_npc_memories') as any)
-      .select('id, npc_id, note, source, created_at')
+      .select('id, npc_id, note, source, kind, created_at')
       .eq('npc_id', npcId)
       .order('created_at', { ascending: true });
     if (error) throw new Error(rosterError(error));
     return (data || []) as NpcMemoryNote[];
   }, []);
 
-  const addMemory = useCallback(async (npcId: string, note: string): Promise<NpcMemoryNote> => {
+  const addMemory = useCallback(async (npcId: string, note: string, kind: 'event' | 'thread' | 'self' = 'event'): Promise<NpcMemoryNote> => {
     if (!partyId) throw new Error('No party is open.');
     const text = note.replace(/\s+/g, ' ').trim().slice(0, 300);
     if (!text) throw new Error('Write the note first.');
     const { data, error } = await (supabase.from('party_npc_memories') as any)
       .insert({ npc_id: npcId, party_id: partyId, note: text, source: 'host' })
-      .select('id, npc_id, note, source, created_at')
+      .select('id, npc_id, note, source, kind, created_at')
       .single();
     if (error) throw new Error(rosterError(error));
     return data as NpcMemoryNote;
