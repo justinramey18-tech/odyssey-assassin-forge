@@ -556,6 +556,7 @@ export function useRoundChat(
     hasTableTalk: orderedSelected.some(m => !m.in_character),
     hasInCharacter: orderedSelected.some(m => m.in_character),
     hasNpcLines: orderedSelected.some(m => !!m.npc_id),
+    hasCombat: orderedSelected.some(m => m.character_name === '⚔ Combat' || (m.content || '').trimStart().startsWith('⚔')),
   }), [isLive, style.chaosLevel, orderedSelected]);
 
 
