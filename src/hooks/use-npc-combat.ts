@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { readableFunctionError } from '@/lib/live-npcs';
 import { castSpellByName } from '@/lib/magic/castBus';
+import type { ActionCard } from '@/lib/roundChatActionCard';
 
 type Tables = Database['public']['Tables'];
 export type FightRow = Tables['party_fights']['Row'];
@@ -256,6 +257,10 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     return call({ action: 'cast', fightId, targetId, spellName: spell.name, spellLevel: spell.level, intent, finish }, 'The spell did not go through. Try again.');
   }, [call, fightId]);
 
+  const castFromCard = useCallback((targetId: string, card: ActionCard, finish?: Finish) =>
+    fightId ? call({ action: 'cast_card', fightId, targetId, card, finish }, 'The spell did not land. Try again.') : Promise.resolve(null),
+  [call, fightId]);
+
   const stabilize = useCallback((targetId: string) => {
     if (!fightId) return Promise.resolve(null);
     return call({ action: 'stabilize', fightId, targetId }, 'Could not stabilize them. Try again.');
@@ -288,6 +293,7 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     openFight,
     attack,
     cast,
+    castFromCard,
     stabilize,
     pause,
     resume,
