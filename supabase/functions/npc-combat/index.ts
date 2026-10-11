@@ -64,6 +64,14 @@ interface Fighter {
   last_action_at: string | null;
   /** NPCs: how often it acts right now, in ms (Rage and Stagger change it). Null = its Speed preset. */
   act_every_ms: number | null;
+  /** Players: the Resolve bar as stored at resolve_at, filling at resolve_rate per second. */
+  resolve: number | null;
+  resolve_at: string | null;
+  resolve_rate: number | null;
+  /** Players: perks equipped when they joined, Second Wind dice ("1d8+6"), and whether Last Stand was used. */
+  perks: string[] | null;
+  second_wind: string | null;
+  last_stand_used: boolean | null;
 }
 
 interface Seat {
@@ -85,7 +93,7 @@ interface NpcRow {
 
 const FIGHT_COLS = 'id, party_id, status, outcome, started_by';
 const FIGHTER_COLS =
-  'id, fight_id, party_id, kind, npc_id, user_id, name, hp, max_hp, ac, status, death_successes, death_failures, next_action_at, next_save_at, action_seq, threat, last_seen_at, last_action_at, act_every_ms';
+  'id, fight_id, party_id, kind, npc_id, user_id, name, hp, max_hp, ac, status, death_successes, death_failures, next_action_at, next_save_at, action_seq, threat, last_seen_at, last_action_at, act_every_ms, resolve, resolve_at, resolve_rate, perks, second_wind, last_stand_used';
 const NPC_COLS = 'id, party_id, name, on_stage, archived, player_user_id, combat_stats, combat_state';
 
 class Refusal extends Error {
@@ -275,6 +283,43 @@ function speak(db: Db, job: VoiceJob): void {
   else if (job.fallback) void postLine(db, job.partyId, job.hostId, job.fallback);
 }
 
+// ── Perks (bought with gold, per character) ───────────────────────────────────
+
+interface PerkRow {
+  id: string | null;
+  owned: R.PerkId[];
+  equipped: R.PerkId[];
+  slots: number;
+  version: number;
+}
+
+async function perksOf(db: Db, userId: string, characterName: string): Promise<PerkRow> {
+  const { data, error } = await db.from('character_perks').select('id, owned, equipped, slots, version')
+    .eq('user_id', userId).eq('character_name', characterName).limit(1);
+  must('read perks', error);
+  const row = data?.[0];
+  if (!row) return { id: null, owned: [], equipped: [], slots: R.BASE_PERK_SLOTS, version: 0 };
+  const owned = R.cleanPerks(row.owned);
+  const slots = Math.min(R.MAX_PERK_SLOTS, Math.max(R.BASE_PERK_SLOTS, Number(row.slots) || R.BASE_PERK_SLOTS));
+  return { id: row.id, owned, equipped: R.cleanPerks(row.equipped).filter(p => owned.includes(p)).slice(0, slots), slots, version: Number(row.version) || 0 };
+}
+
+/** Saves a perk change only if nobody changed the row since it was read, so a double tap can't buy twice. */
+async function savePerks(db: Db, userId: string, characterName: string, before: PerkRow, next: { owned: R.PerkId[]; equipped: R.PerkId[]; slots: number }): Promise<void> {
+  if (!before.id) {
+    const { error } = await db.from('character_perks').insert({ user_id: userId, character_name: characterName, ...next, version: 1 });
+    if (error?.code === '23505') refuse(409, 'That was already saved. Check your perks and try again.');
+    must('save perks', error);
+    return;
+  }
+  const { data, error } = await db.from('character_perks').update({ ...next, version: before.version + 1 })
+    .eq('id', before.id).eq('version', before.version).select('id');
+  must('save perks', error);
+  if (!Array.isArray(data) || data.length === 0) refuse(409, 'That was already saved. Check your perks and try again.');
+}
+
+const perkView = (p: { owned: R.PerkId[]; equipped: R.PerkId[]; slots: number }) => ({ owned: p.owned, equipped: p.equipped, slots: p.slots });
+
 // ── Joining ───────────────────────────────────────────────────────────────────
 
 /** The caller's fighter in this fight, joining it from their sheet if needed. Null if their character has fallen. */
@@ -294,6 +339,7 @@ async function ensurePlayer(db: Db, fight: Fight, seat: Seat, now: number): Prom
   if (await hasFallen(db, fight.party_id, seat.user_id)) return null;
   const sheet = seat.character_status ?? {};
   const hp = R.sheetCurrentHp(sheet);
+  const perks = (await perksOf(db, seat.user_id, seat.character_name)).equipped;
   const row = {
     fight_id: fight.id,
     party_id: fight.party_id,
@@ -306,6 +352,11 @@ async function ensurePlayer(db: Db, fight: Fight, seat: Seat, now: number): Prom
     status: hp > 0 ? 'up' : 'down',
     next_save_at: hp > 0 ? null : R.nextDeathSaveAt(now),
     last_seen_at: iso(now),
+    resolve: R.RESOLVE_START,
+    resolve_at: iso(now),
+    resolve_rate: R.resolveRate(sheet, perks),
+    perks,
+    second_wind: R.formatDice(R.secondWindDice(sheet as R.SheetSummary & { className?: unknown }, perks)),
   };
   const { data: inserted, error: insertError } = await db.from('party_fight_combatants').insert(row).select(FIGHTER_COLS);
   if (insertError?.code === '23505') return ensurePlayer(db, fight, seat, now);
@@ -400,6 +451,16 @@ async function hitNpc(
     must('mark NPC defeated', error);
     await addEvent(db, fight, { kind: 'defeat_npc', actor_name: me.name, target_name: after.name, detail: after.status === 'dead' ? 'killed' : 'knocked out' });
     await postLine(db, fight.party_id, hostId, `${me.name} ${after.status === 'dead' ? 'kills' : 'knocks out'} ${after.name}!`);
+  }
+  if (before.hp > after.hp) {
+    // Landing a hit fills the attacker's Resolve.
+    await mutate(db, me.id, f => (f.status === 'dead' ? null : {
+      resolve: Math.min(R.RESOLVE_MAX, R.resolveNow(f.resolve, f.resolve_at, f.resolve_rate, now) + R.hitResolve(R.cleanPerks(f.perks))),
+      resolve_at: iso(now),
+    }));
+  }
+  if (defeated) {
+    // Nothing more: a defeated NPC doesn't react.
   } else if (after.npc_id && before.hp > after.hp) {
     // The NPC reacts to the hit (npc-reply allows one reaction per 20 seconds).
     speak(db, {
@@ -482,19 +543,32 @@ async function tick(db: Db, fightId: string, hostId: string, now: number): Promi
       const a = R.resolveAttack(roll, stats.attackBonus, target.ac);
       let lost = 0;
       let downed = false;
+      let stoodHp = 0;
       if (a.hit) {
         const damage = R.rollDamage(dice, roll, a.crit);
+        let lastStandHp = 0;
         const result = await mutate(db, target.id, f => {
           if (f.status !== 'up') return null;
           const { hp } = R.applyDamage(f.hp, damage);
+          // Taking damage fills Resolve: 1 point per 1% of max HP lost.
+          const perks = R.cleanPerks(f.perks);
+          const resolve = Math.min(R.RESOLVE_MAX, R.resolveNow(f.resolve, f.resolve_at, f.resolve_rate, now) + R.damageResolve(f.hp - hp, f.max_hp, perks));
+          if (hp === 0 && perks.includes('last_stand') && !f.last_stand_used && resolve >= R.RESOLVE_MAX) {
+            // Last Stand: once per fight, a full bar turns the fall into a Second Wind.
+            lastStandHp = Math.min(f.max_hp, R.rollHealing(R.parseDice(f.second_wind) ?? { count: 1, sides: 8, bonus: 0 }, roll));
+            return { hp: lastStandHp, resolve: 0, resolve_at: iso(now), last_stand_used: true };
+          }
+          lastStandHp = 0;
           return hp === 0
-            ? { hp, status: 'down', death_successes: 0, death_failures: 0, next_save_at: R.nextDeathSaveAt(now) }
-            : { hp };
+            ? { hp, status: 'down', death_successes: 0, death_failures: 0, next_save_at: R.nextDeathSaveAt(now), resolve, resolve_at: iso(now) }
+            : { hp, resolve, resolve_at: iso(now) };
         });
         if (result) {
-          lost = result.before.hp - result.after.hp;
+          const stood = !!result.after.last_stand_used && !result.before.last_stand_used;
+          lost = stood ? result.before.hp : result.before.hp - result.after.hp;
           downed = result.after.status === 'down';
           Object.assign(target, result.after);
+          if (stood) stoodHp = lastStandHp;
         }
         if (lost > 0) {
           // Rage: the NPC acts sooner, starting with its next turn.
@@ -509,6 +583,14 @@ async function tick(db: Db, fightId: string, hostId: string, now: number): Promi
       });
       if (downed) {
         await addEvent(db, fight, { kind: 'down', actor_name: npc.name, target_name: target.name, target_user_id: target.user_id });
+      }
+      if (stoodHp > 0) {
+        // Logged after the hit, so phones apply the damage first and then the Last Stand healing.
+        await addEvent(db, fight, {
+          kind: 'last_stand', actor_name: target.name, target_name: target.name, target_user_id: target.user_id,
+          hp_delta: stoodHp, detail: `Last Stand: back up with ${stoodHp} HP`,
+        });
+        await postLine(db, fight.party_id, hostId, `${target.name} refuses to fall: Last Stand!`);
       }
       speak(db, {
         partyId: fight.party_id, hostId, npcId: npc.npc_id as string,
@@ -671,6 +753,36 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
       .in('id', ids).eq('target_user_id', userId).is('applied_at', null);
     must('mark applied', error);
     return { ok: true };
+  }
+
+  // Perks: buying and equipping work outside any fight, for the caller's own character.
+  if (action === 'perks' || action === 'buy_perk' || action === 'equip_perks') {
+    const characterName = typeof body.characterName === 'string' ? body.characterName.trim().slice(0, 120) : '';
+    if (!characterName) refuse(400, 'Missing character name.');
+    const current = await perksOf(db, userId, characterName);
+    if (action === 'perks') return perkView(current);
+    if (action === 'buy_perk') {
+      if (body.perk === 'slot') {
+        if (current.slots >= R.MAX_PERK_SLOTS) refuse(409, 'You already have the extra perk slot.');
+        const next = { owned: current.owned, equipped: current.equipped, slots: current.slots + 1 };
+        await savePerks(db, userId, characterName, current, next);
+        return { ok: true, cost: R.EXTRA_SLOT_COST, ...perkView(next) };
+      }
+      if (!R.isPerkId(body.perk)) refuse(400, 'Unknown perk.');
+      const perk = body.perk as R.PerkId;
+      if (current.owned.includes(perk)) refuse(409, `You already own ${R.PERKS[perk].name}.`);
+      const owned = [...current.owned, perk];
+      const equipped = current.equipped.length < current.slots ? [...current.equipped, perk] : current.equipped;
+      const next = { owned, equipped, slots: current.slots };
+      await savePerks(db, userId, characterName, current, next);
+      return { ok: true, cost: R.PERKS[perk].cost, ...perkView(next) };
+    }
+    const wanted = R.cleanPerks(body.equipped);
+    if (wanted.some(p => !current.owned.includes(p))) refuse(400, "You can only equip perks you own.");
+    if (wanted.length > current.slots) refuse(400, `You can equip ${current.slots} perks at a time.`);
+    const next = { owned: current.owned, equipped: wanted, slots: current.slots };
+    await savePerks(db, userId, characterName, current, next);
+    return { ok: true, ...perkView(next) };
   }
 
   // Everything else acts on one fight.
@@ -882,6 +994,55 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     });
     await tick(db, fight.id, hostId, now);
     return { success, d20, total };
+  }
+
+  if (action === 'second_wind') {
+    // Spend a full Resolve bar: heal yourself (or an ally, with Battle Medic) by your Second Wind dice.
+    if (!me) return refuse(409, 'Your character has fallen. The host can revive them.');
+    if (R.resolveNow(me.resolve, me.resolve_at, me.resolve_rate, now) < R.RESOLVE_MAX) refuse(409, 'Your Resolve is not full yet.');
+    const perks = R.cleanPerks(me.perks);
+    let target: Fighter = me;
+    if (isUuid(body.targetId) && body.targetId !== me.id) {
+      if (!perks.includes('battle_medic')) refuse(403, 'Healing an ally with Second Wind needs the Battle Medic perk.');
+      const ally = await fighterById(db, body.targetId);
+      if (!ally || ally.fight_id !== fight.id || ally.kind !== 'player') return refuse(404, 'That ally is not in this fight.');
+      if (ally.status === 'dead') refuse(409, `${ally.name} has fallen. Only the host can revive them.`);
+      target = ally;
+    }
+    const actor = await startAction(db, fight, me, now);
+    const amount = R.rollHealing(R.parseDice(actor.second_wind) ?? { count: 1, sides: 8, bonus: 0 }, roll);
+    const r = await mutate(db, target.id, f => {
+      if (f.status === 'dead') return null;
+      const { hp } = R.applyHealing(f.hp, f.max_hp, amount);
+      const reset = f.id === actor.id ? { resolve: 0, resolve_at: iso(now) } : {};
+      return hp > 0 && f.status !== 'up'
+        ? { hp, status: 'up', death_successes: 0, death_failures: 0, next_save_at: null, ...reset }
+        : { hp, ...reset };
+    });
+    if (target.id !== actor.id) await mutate(db, actor.id, () => ({ resolve: 0, resolve_at: iso(now) }));
+    const gained = r ? r.after.hp - r.before.hp : 0;
+    await addEvent(db, fight, {
+      kind: 'second_wind', actor_name: actor.name, target_name: target.name, target_user_id: target.user_id, hp_delta: gained,
+      detail: `Second Wind: +${gained} HP`,
+    });
+    if (r && r.before.status !== 'up' && r.after.status === 'up') {
+      await postLine(db, fight.party_id, hostId, `${actor.name} hauls ${target.name} back to their feet!`);
+    }
+    await tick(db, fight.id, hostId, now);
+    return { healed: gained, targetHp: r?.after.hp ?? target.hp };
+  }
+
+  if (action === 'potion') {
+    // A healing potion drunk during the fight (its healing already went on the sheet) also fills Resolve.
+    const gain = R.potionResolve(body.itemName);
+    if (!me || gain <= 0 || fight.status === 'ended') return { ok: true, resolve: 0 };
+    const itemName = typeof body.itemName === 'string' ? body.itemName.trim().slice(0, 80) : 'Potion';
+    const r = await mutate(db, me.id, f => (f.status === 'dead' ? null : {
+      resolve: Math.min(R.RESOLVE_MAX, R.resolveNow(f.resolve, f.resolve_at, f.resolve_rate, now) + gain),
+      resolve_at: iso(now),
+    }));
+    if (r) await addEvent(db, fight, { kind: 'potion', actor_name: me.name, target_name: me.name, detail: `${itemName}: +${gain} Resolve` });
+    return { ok: true, resolve: gain };
   }
 
   if (action === 'sync_hp') {
