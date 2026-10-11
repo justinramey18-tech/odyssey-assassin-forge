@@ -221,6 +221,20 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newest?.id]);
 
+  // NPC Skills: buzz once when an NPC starts aiming a skill at me.
+  const aimKeyRef = useRef<string | null>(null);
+  const aimKey = (() => {
+    if (!myFighter) return null;
+    const a = fighters.find(f => f.kind === 'npc' && f.status === 'up' && pendingOf(f)?.targets.includes(myFighter.id));
+    return a ? `${a.id}:${String((a as unknown as { strike_at?: unknown }).strike_at ?? '')}` : null;
+  })();
+  useEffect(() => {
+    if (aimKey && aimKey !== aimKeyRef.current) {
+      try { navigator.vibrate?.(80); } catch { /* not supported */ }
+    }
+    aimKeyRef.current = aimKey;
+  }, [aimKey]);
+
   const showResult = (r: Record<string, unknown> | null) => {
     const res = resultOf(r);
     if (!res) return;
@@ -656,6 +670,11 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                         </span>
                       </div>
                       <HpBar hp={f.hp} max={f.max_hp} />
+                      {pend && (
+                        <p className={cn('text-[11px] text-red-300 truncate', Number.isFinite(strikeLeft) && strikeLeft <= 2000 && 'animate-pulse text-red-200 font-semibold')}>
+                          → {pendTargets.length ? `${pendTargets.join(', ')}: ${pend.skill}` : pend.skill}
+                        </p>
+                      )}
                     </div>
                     {f.status === 'up' && (
                       <span className={cn('text-[11px] shrink-0', secs < preset ? 'text-red-300' : secs > preset ? 'text-sky-300' : 'text-white/60')}>
