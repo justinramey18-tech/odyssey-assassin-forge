@@ -373,7 +373,7 @@ export function usePartyNpcs(partyId: string | null) {
     const text = note.replace(/\s+/g, ' ').trim().slice(0, 300);
     if (!text) throw new Error('Write the note first.');
     const { data, error } = await (supabase.from('party_npc_memories') as any)
-      .insert({ npc_id: npcId, party_id: partyId, note: text, source: 'host' })
+      .insert({ npc_id: npcId, party_id: partyId, note: text, source: 'host', kind })
       .select('id, npc_id, note, source, kind, created_at')
       .single();
     if (error) throw new Error(rosterError(error));
@@ -643,6 +643,7 @@ export function usePartyNpcs(partyId: string | null) {
     setAttitude,
     reloadAttitudes: loadAttitudes,
     setReactsToSpells,
+    setMood,
     loadSeats,
     loadMemories,
     addMemory,
