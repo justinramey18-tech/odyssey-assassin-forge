@@ -128,7 +128,10 @@ Deno.serve(async (req) => {
     const stats = fight ? B.npcStats(partyNow, difficulty, role, drafts.length) : null;
     return json(200, {
       party: partyNow,
-      drafts: drafts.map(d => ({ ...d, combatStats: stats ? { ...stats } : null })),
+      drafts: drafts.map(({ skills, ...d }) => ({
+        ...d,
+        combatStats: stats ? { ...stats, skills: B.finalSkills(skills, role, d.attack) } : null,
+      })),
     });
   } catch (err) {
     console.error('[npc-build] failed:', err);

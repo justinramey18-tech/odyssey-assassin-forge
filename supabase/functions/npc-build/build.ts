@@ -58,6 +58,47 @@ export interface CombatStats {
   attackBonus: number;
   damage: string;
   speed: Speed;
+  /** v5: what the NPC can do in a fight (type + name). The fight engine sets each skill's numbers. */
+  skills?: Skill[];
+}
+
+// ── Skills (Live NPC Combat v5). Keep the types in sync with supabase/functions/npc-combat/skills.ts ──
+
+export type SkillType = 'strike' | 'heavy' | 'sweep' | 'signature' | 'mend' | 'shield' | 'rally' | 'pin' | 'retreat';
+export const SKILL_TYPES: SkillType[] = ['strike', 'heavy', 'sweep', 'signature', 'mend', 'shield', 'rally', 'pin', 'retreat'];
+const OFFENSE: SkillType[] = ['strike', 'heavy', 'sweep', 'signature'];
+export interface Skill { type: SkillType; name: string }
+
+/** What each type does, for the AI. */
+export const SKILL_GUIDE = [
+  'strike: their standard attack.',
+  'heavy: a slow, hard-hitting blow.',
+  'sweep: an attack that hits up to 3 people at once.',
+  'signature: their most dangerous move, usable every few turns.',
+  'mend: heals themself or an ally.',
+  'shield: a ward that protects themself or an ally.',
+  'rally: spurs their allies to act sooner.',
+  'pin: stops one enemy from acting for a few seconds.',
+  'retreat: flees the fight when badly hurt (only for NPCs who would run).',
+].join('\n');
+
+/** The skills an NPC fights with: known types only, no repeats, at most 4, and fighters always have an attack. */
+export function finalSkills(raw: unknown, role: Role, attackName: string): Skill[] {
+  const list = Array.isArray(raw) ? raw : [];
+  const out: Skill[] = [];
+  for (const item of list) {
+    const r = item && typeof item === 'object' ? (item as Record<string, unknown>) : null;
+    const type = r && typeof r.type === 'string' ? (r.type.trim().toLowerCase() as SkillType) : null;
+    if (!type || !SKILL_TYPES.includes(type) || out.some(s => s.type === type)) continue;
+    const name = typeof r!.name === 'string' && r!.name.trim() ? r!.name.trim().slice(0, 40) : '';
+    out.push({ type, name: name || type.charAt(0).toUpperCase() + type.slice(1) });
+    if (out.length >= 4) break;
+  }
+  if (role !== 'talker' && !out.some(s => OFFENSE.includes(s.type))) {
+    if (out.length >= 4) out.pop();
+    out.unshift({ type: 'strike', name: attackName.trim().slice(0, 40) || 'Attack' });
+  }
+  return out;
 }
 
 /** Fight stats for one NPC in a group of `count` with the same role and difficulty. */
@@ -113,13 +154,16 @@ export function buildUserMessage(req: BuildRequest): string {
   parts.push(`WHAT THE HOST WANTS: ${req.description.trim() || (req.scene.trim() ? 'the NPCs in the scene above' : 'a memorable NPC who fits the world')}`);
   parts.push(`Make exactly ${req.count} NPC${req.count === 1 ? '' : 's'}. Role: ${req.role}. Fight difficulty: ${req.difficulty}.`);
   parts.push([
-    'Return: {"npcs":[{"name":"","guide":"","secrets":"","wants":"","levers":"","hardLines":"","moodRange":"","grudgeStyle":"normal","attack":""}]}',
+    'Return: {"npcs":[{"name":"","guide":"","secrets":"","wants":"","levers":"","hardLines":"","moodRange":"","grudgeStyle":"normal","attack":"","skills":[{"type":"strike","name":""}]}]}',
     'name: their name as people would say it (under 40 characters).',
     'guide: 4 to 7 sentences in plain words: who they are, their job or place in the world, how they look, how they talk (word choice, tics, accent), and how they treat strangers.',
     'secrets: 1 to 3 things they hide, which can surface in play.',
     'wants: what they want right now. levers: what works on them (bribes, respect, fear, humour...). hardLines: what they will never do.',
     'moodRange: the moods they swing between, one sentence. grudgeStyle: exactly "forgiving", "normal" or "grudge".',
     'attack: a short name for how they fight, like "rifle burst" or "rusty cleaver".',
+    'skills: the 1 to 4 things this NPC does in a fight, chosen to fit who they are (a medic mends, a veteran shields allies, a brute uses heavy blows, a coward may retreat, a sniper pins). Give each a vivid in-world name. Allowed types, use each at most once:',
+    SKILL_GUIDE,
+    `Role guide: talker 0 to 1 skills; minion 1 to 2 (mostly strike); fighter 2 to 3 with at least one attack type; boss 3 to 4 including a signature.`,
     'If there are several NPCs, make them clearly different from each other.',
   ].join('\n'));
   return parts.join('\n\n');
@@ -135,6 +179,7 @@ export interface NpcDraft {
   moodRange: string;
   grudgeStyle: Grudge;
   attack: string;
+  skills: unknown;
 }
 
 const text = (v: unknown, max: number): string => (typeof v === 'string' ? v.replace(/\s+\n/g, '\n').trim().slice(0, max) : '');
@@ -170,6 +215,7 @@ export function parseDrafts(raw: string, count: number): NpcDraft[] {
       moodRange: text(r.moodRange, 300),
       grudgeStyle: g === 'forgiving' || g === 'grudge' ? g : 'normal',
       attack: text(r.attack, 60),
+      skills: r.skills,
     });
     if (drafts.length >= count) break;
   }
