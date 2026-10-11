@@ -203,13 +203,16 @@ Deno.serve(async (req) => {
             user_id: s.user_id,
             character_name: s.character_name.trim(),
             score: after,
-            reason: c.reason,
-            updated_by: 'ai',
-          }, { onConflict: 'npc_id,user_id' });
+          };
+          if (met) row.last_seen_at = nowIso;
+          if (learnedName) row.knows_name = true;
+          if (change && after !== before) { row.reason = change.reason; row.updated_by = 'ai'; }
+          if (!met && !learnedName && after === stored) continue;
+          const { error } = await db.from('party_npc_attitudes').upsert(row, { onConflict: 'npc_id,user_id' });
           if (error) throw new Error(`save attitude: ${error.message}`);
-          moved.push({ name: s.character_name.trim(), from: before, to: after });
+          if (after !== before) moved.push({ name: s.character_name.trim(), from: before, to: after });
         }
-        results.push({ npc: npc.name, notes: update.notes.length, attitudes: moved });
+        results.push({ npc: npc.name, notes: newRows.length, threadsClosed: closedIds.length, namesLearned: update.namesLearned, attitudes: moved });
       } catch (err) {
         await releaseLog();
         failed.push({ npc: npc.name, error: err instanceof Error ? err.message : 'unexpected error' });
