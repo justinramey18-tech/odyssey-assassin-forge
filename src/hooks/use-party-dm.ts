@@ -15,6 +15,8 @@ import { buildNarrationStyleBlock } from '@/lib/narrationStyle';
 import { fetchPartyNarrationStyle } from '@/hooks/use-party-narration-style';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { npcStoryContent } from '@/lib/live-npcs';
+import { STORY_SCENE_SENDER, SCENE_SHOWN_RULE, followsStoryScene, isStorySceneRow, sceneSetting, type StorySceneLine } from '@/lib/story-scene';
+import { writeStoryScene } from '@/lib/story-scene-writer';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
 import { getAlignmentZone, type AlignmentScore } from '@/lib/alignmentSpectrum';
@@ -1558,7 +1560,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     responseModePrompt?: string,
     dmPersonaPrompt?: string,
     currentOocDirectives?: string[],
-    liveTable?: { mode: 'chat' | 'live'; chaosLevel: number; hasTableTalk: boolean; hasInCharacter: boolean; hasNpcLines?: boolean },
+    liveTable?: { mode: 'chat' | 'live'; chaosLevel: number; hasTableTalk: boolean; hasInCharacter: boolean; hasNpcLines?: boolean; hasScene?: boolean },
   ): Promise<string> => {
 
     // Ensure strictly alternating roles before sending to AI
@@ -1954,6 +1956,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       participants: Array<{ userId: string; characterName: string; text: string }>;
       /** Live NPCs (D-22): sealed NPC lines, each saved as that NPC's own story row. */
       npcLines?: Array<{ name: string; text: string }>;
+      /** Story scenes (D-22): the sealed in-character lines in order, retold as one scene before the DM's post. */
+      sceneLines?: StorySceneLine[];
     };
     /** Chat Rounds / Live DM: table rules + chaos tone applied backend-side. */
     liveTable?: {
@@ -2406,6 +2410,16 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
         const isApprovalMode = (sessionConfig.dmMode || 'ai') === 'ai-approval';
 
+        // Story scenes (D-22): the sealed exchange is retold as one readable scene. It is
+        // written next to the DM's reply and saved right before it (not in approval mode).
+        const sceneLines = isApprovalMode ? [] : (directPrompt?.sceneLines || []);
+        const scenePromise = sceneLines.length > 0
+          ? writeStoryScene(sceneLines, sceneSetting(messages)).catch((err) => {
+              console.warn('[PartyDM] Story scene failed:', err);
+              return null;
+            })
+          : null;
+
         // In approval mode, don't insert user message yet — defer to approveDraft
         let insertedUserMsgId: string | null = null;
         if (!isApprovalMode) {
@@ -2447,7 +2461,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           insertedUserMsgId = null;
         }
 
-        const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
+        // Scenes retell rows the DM already has, so they are never sent back to it.
+        const apiMessages = messages.filter(m => !isStorySceneRow(m)).map(m => ({ role: m.role, content: m.content }));
         apiMessages.push({ role: 'user', content: combined });
 
         const responseModePrompt = resolveResponseModePrompt(sessionConfig.responseMode);
@@ -2462,7 +2477,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           responseModePrompt,
         ].filter(Boolean).join('\n\n');
 
-        const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, partyContextStr, undefined, empyreanPersonaPrompt, currentRoundOocDirectives, liveTable);
+        const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, partyContextStr, undefined, empyreanPersonaPrompt, currentRoundOocDirectives, scenePromise && liveTable ? { ...liveTable, hasScene: true } : liveTable);
 
         if (assistantContent?.trim()) {
           if (isApprovalMode) {
@@ -2472,6 +2487,24 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               userSenderName: 'Party',
             });
           } else {
+            // The scene goes in first, so the DM's post stays the latest row (auto-sync, cinematics).
+            if (scenePromise) {
+              try {
+                const scene = await scenePromise;
+                if (scene?.text) {
+                  await insertPartyMessage({
+                    party_id: partyId,
+                    role: 'assistant',
+                    content: scene.text,
+                    sender_user_id: null,
+                    sender_name: STORY_SCENE_SENDER,
+                  });
+                  if (scene.source === 'script') toast.info('The scene is shown as a script', { description: scene.reason, duration: 8000 });
+                }
+              } catch (err) {
+                console.warn('[PartyDM] Could not save the story scene:', err);
+              }
+            }
             await insertPartyMessage({
               party_id: partyId,
               role: 'assistant',
@@ -2735,7 +2768,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       });
 
       const partyMembersSummary = buildPartyMembersGuide();
-      const apiMessages = [...messages, {
+      const apiMessages = [...messages.filter(m => !isStorySceneRow(m)), {
         role: 'user' as const,
         content: '[System]: The players request the DM continue the narrative based on the dialogue above.',
       }].map(m => ({ role: m.role, content: m.content }));
@@ -2831,7 +2864,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
     abortRef.current = new AbortController();
     try {
-      const apiMessages = [...messages, {
+      const apiMessages = [...messages.filter(m => !isStorySceneRow(m)), {
         role: 'user' as const,
         content: formattedContent,
       }].map(m => ({ role: m.role, content: m.content }));
@@ -2981,7 +3014,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       if (isSplitActive && splitState && msgTeam) {
         // Split mode: filter history to only this team's messages
         historyMessages = messages.slice(0, msgIndex).filter(m => m.team === msgTeam);
-        apiMessages = historyMessages.map(m => ({ role: m.role, content: m.content }));
+        apiMessages = historyMessages.filter(m => !isStorySceneRow(m)).map(m => ({ role: m.role, content: m.content }));
 
         const teamName = msgTeam === 'alpha'
           ? (splitState.alphaName || 'Team Alpha')
@@ -3003,11 +3036,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       } else {
         // Normal mode
         historyMessages = messages.slice(0, msgIndex);
-        apiMessages = historyMessages.map(m => ({ role: m.role, content: m.content }));
+        apiMessages = historyMessages.filter(m => !isStorySceneRow(m)).map(m => ({ role: m.role, content: m.content }));
 
         const partyMembersSummary = buildPartyMembersGuide();
         regenPartyContext = [
           `## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
+          // Story scenes (D-22): a post that follows a scene carries on from it, as on Send to DM.
+          followsStoryScene(messages, msgIndex) ? SCENE_SHOWN_RULE : '',
         ].filter(Boolean).join('\n\n');
         guides = customGuidesContent || '';
       }
@@ -3209,7 +3244,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     abortRef.current = new AbortController();
     try {
       // Build messages from chat history — do NOT insert a user message
-      const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
+      const apiMessages = messages.filter(m => !isStorySceneRow(m)).map(m => ({ role: m.role, content: m.content }));
 
       // Append the OOC command as a hidden "user" message so the API accepts it,
       // but it is NOT inserted into the party_dm_messages table.
@@ -3771,7 +3806,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         sender_name: 'DM',
       });
 
-      const contextMessages = [...messages].map(m => ({ role: m.role, content: m.content }));
+      const contextMessages = messages.filter(m => !isStorySceneRow(m)).map(m => ({ role: m.role, content: m.content }));
       const sceneMessages: Array<{ role: string; content: string }> = [];
       let messageCount = 0;
       let lastSpeaker: string | null = null;
@@ -4235,6 +4270,8 @@ Rules:
     participants: Array<{ userId: string; characterName: string; text: string }>;
     /** Live NPCs (D-22): sealed NPC lines, each saved as that NPC's own story row. */
     npcLines?: Array<{ name: string; text: string }>;
+    /** Story scenes (D-22): the sealed in-character lines in order, retold as one scene before the post. */
+    sceneLines?: StorySceneLine[];
   }) => {
     if (!partyId || !user || !sessionConfig) throw new Error('The session is not ready yet.');
     if (isGenerating || sessionConfig.isGenerating) throw new Error('The AI DM is writing right now.');
@@ -4272,6 +4309,26 @@ Rules:
         sender_name: npcName,
       });
       playerRows.push({ id: '', party_id: partyId, role: 'assistant', content: npcContent, sender_user_id: null, sender_name: npcName, created_at: '' });
+    }
+
+    // 1c. Story scenes (D-22): the sealed exchange as one readable scene, right before the post.
+    if (input.sceneLines && input.sceneLines.length > 0) {
+      try {
+        const scene = await writeStoryScene(input.sceneLines, sceneSetting(messages));
+        if (scene?.text) {
+          await insertPartyMessageHelper(partyId, {
+            party_id: partyId,
+            role: 'assistant',
+            content: scene.text,
+            sender_user_id: null,
+            sender_name: STORY_SCENE_SENDER,
+          });
+          playerRows.push({ id: '', party_id: partyId, role: 'assistant', content: scene.text, sender_user_id: null, sender_name: STORY_SCENE_SENDER, created_at: '' });
+          if (scene.source === 'script') toast.info('The scene is shown as a script', { description: scene.reason, duration: 8000 });
+        }
+      } catch (err) {
+        console.warn('[PartyDM] Could not save the story scene:', err);
+      }
     }
 
     // 2. The DM post.
