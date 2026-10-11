@@ -5290,7 +5290,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       {/* Live NPCs roster (original host only, Live Table) */}
       {originalCreator && chatRoundsOn && (
         <OverlaySlot ganglion={overlays} name="npcRoster">{(open, setOpen) => (
-          <NpcRosterPanel open={open} onOpenChange={setOpen} roster={npcRoster} />
+          <NpcRosterPanel open={open} onOpenChange={setOpen} roster={npcRoster} battleModel={partyDm.sessionConfig?.battleModel ?? null} onBattleModelChange={(id) => { void partyDm.setBattleModel(id); toast.success(id ? `Battles now written by ${getModelLabel(id)}` : 'Battles use the DM model'); }} />
         )}</OverlaySlot>
       )}
 
