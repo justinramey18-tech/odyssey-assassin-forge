@@ -819,6 +819,54 @@ export type Database = {
           },
         ]
       }
+      party_character_deaths: {
+        Row: {
+          character_name: string
+          died_at: string
+          fight_id: string | null
+          id: string
+          party_id: string
+          revived_at: string | null
+          revived_by: string | null
+          user_id: string
+        }
+        Insert: {
+          character_name: string
+          died_at?: string
+          fight_id?: string | null
+          id?: string
+          party_id: string
+          revived_at?: string | null
+          revived_by?: string | null
+          user_id: string
+        }
+        Update: {
+          character_name?: string
+          died_at?: string
+          fight_id?: string | null
+          id?: string
+          party_id?: string
+          revived_at?: string | null
+          revived_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_character_deaths_fight_id_fkey"
+            columns: ["fight_id"]
+            isOneToOne: false
+            referencedRelation: "party_fights"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "party_character_deaths_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       party_combat_log: {
         Row: {
           action_type: string
@@ -1091,6 +1139,207 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "party_dm_prompts_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      party_fight_combatants: {
+        Row: {
+          ac: number
+          action_seq: number
+          created_at: string
+          death_failures: number
+          death_successes: number
+          fight_id: string
+          hp: number
+          id: string
+          kind: string
+          last_action_at: string | null
+          last_seen_at: string | null
+          max_hp: number
+          name: string
+          next_action_at: string | null
+          next_save_at: string | null
+          npc_id: string | null
+          party_id: string
+          status: string
+          threat: Json
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          ac: number
+          action_seq?: number
+          created_at?: string
+          death_failures?: number
+          death_successes?: number
+          fight_id: string
+          hp: number
+          id?: string
+          kind: string
+          last_action_at?: string | null
+          last_seen_at?: string | null
+          max_hp: number
+          name: string
+          next_action_at?: string | null
+          next_save_at?: string | null
+          npc_id?: string | null
+          party_id: string
+          status?: string
+          threat?: Json
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          ac?: number
+          action_seq?: number
+          created_at?: string
+          death_failures?: number
+          death_successes?: number
+          fight_id?: string
+          hp?: number
+          id?: string
+          kind?: string
+          last_action_at?: string | null
+          last_seen_at?: string | null
+          max_hp?: number
+          name?: string
+          next_action_at?: string | null
+          next_save_at?: string | null
+          npc_id?: string | null
+          party_id?: string
+          status?: string
+          threat?: Json
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_fight_combatants_fight_id_fkey"
+            columns: ["fight_id"]
+            isOneToOne: false
+            referencedRelation: "party_fights"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "party_fight_combatants_npc_id_fkey"
+            columns: ["npc_id"]
+            isOneToOne: false
+            referencedRelation: "party_npcs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "party_fight_combatants_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      party_fight_events: {
+        Row: {
+          actor_name: string
+          applied_at: string | null
+          created_at: string
+          d20: number | null
+          detail: string
+          fight_id: string
+          hp_delta: number
+          id: string
+          kind: string
+          party_id: string
+          target_name: string
+          target_user_id: string | null
+          total: number | null
+        }
+        Insert: {
+          actor_name?: string
+          applied_at?: string | null
+          created_at?: string
+          d20?: number | null
+          detail?: string
+          fight_id: string
+          hp_delta?: number
+          id?: string
+          kind: string
+          party_id: string
+          target_name?: string
+          target_user_id?: string | null
+          total?: number | null
+        }
+        Update: {
+          actor_name?: string
+          applied_at?: string | null
+          created_at?: string
+          d20?: number | null
+          detail?: string
+          fight_id?: string
+          hp_delta?: number
+          id?: string
+          kind?: string
+          party_id?: string
+          target_name?: string
+          target_user_id?: string | null
+          total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_fight_events_fight_id_fkey"
+            columns: ["fight_id"]
+            isOneToOne: false
+            referencedRelation: "party_fights"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "party_fight_events_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      party_fights: {
+        Row: {
+          ended_at: string | null
+          id: string
+          outcome: string | null
+          party_id: string
+          paused_at: string | null
+          started_at: string
+          started_by: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ended_at?: string | null
+          id?: string
+          outcome?: string | null
+          party_id: string
+          paused_at?: string | null
+          started_at?: string
+          started_by: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ended_at?: string | null
+          id?: string
+          outcome?: string | null
+          party_id?: string
+          paused_at?: string | null
+          started_at?: string
+          started_by?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_fights_party_id_fkey"
             columns: ["party_id"]
             isOneToOne: false
             referencedRelation: "parties"
@@ -1603,6 +1852,8 @@ export type Database = {
       party_npcs: {
         Row: {
           archived: boolean
+          combat_state: string | null
+          combat_stats: Json | null
           created_at: string
           id: string
           model: string
@@ -1619,6 +1870,8 @@ export type Database = {
         }
         Insert: {
           archived?: boolean
+          combat_state?: string | null
+          combat_stats?: Json | null
           created_at?: string
           id?: string
           model?: string
@@ -1635,6 +1888,8 @@ export type Database = {
         }
         Update: {
           archived?: boolean
+          combat_state?: string | null
+          combat_stats?: Json | null
           created_at?: string
           id?: string
           model?: string

@@ -99,6 +99,13 @@
       "when": 1791690708000,
       "tag": "0013_live_npcs_v3_database",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791738215406,
+      "tag": "0014_live_npc_combat_1_of_8",
+      "breakpoints": true
     }
   ]
 }
