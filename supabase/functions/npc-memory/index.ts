@@ -114,52 +114,90 @@ Deno.serve(async (req) => {
         const to = new Date(times[times.length - 1] + 1000).toISOString();
 
         const [scene, guide, notes, feelings] = await Promise.all([
-          db.from('party_round_chat').select('character_name, content, in_character, npc_id, created_at')
+          db.from('party_round_chat').select('user_id, character_name, content, in_character, npc_id, created_at')
             .eq('party_id', partyId).eq('in_character', true).gte('created_at', from).lte('created_at', to)
             .order('created_at', { ascending: true }).limit(60),
-          db.from('party_npc_guides').select('guide').eq('npc_id', npcId).maybeSingle(),
-          db.from('party_npc_memories').select('note').eq('npc_id', npcId).order('created_at', { ascending: false }).limit(MAX_AI_NOTES),
-          db.from('party_npc_attitudes').select('user_id, score').eq('npc_id', npcId),
+          db.from('party_npc_guides').select('guide, grudge_style').eq('npc_id', npcId).maybeSingle(),
+          db.from('party_npc_memories').select('id, note, kind').eq('npc_id', npcId).order('created_at', { ascending: false }).limit(120),
+          db.from('party_npc_attitudes').select('user_id, score, knows_name, last_seen_at, updated_at').eq('npc_id', npcId),
         ]);
         if (scene.error) throw new Error(`read scene: ${scene.error.message}`);
+        if (notes.error) throw new Error(`read notes: ${notes.error.message}`);
+        if (feelings.error) throw new Error(`read attitudes: ${feelings.error.message}`);
 
-        const transcript = (scene.data ?? []).map((l: { character_name: string; content: string; npc_id: string | null }) => {
+        const sceneRows = (scene.data ?? []) as Array<{ user_id: string; character_name: string; content: string; npc_id: string | null }>;
+        const transcript = sceneRows.map(l => {
           const who = l.npc_id === npcId ? `${npc.name} (you)` : l.npc_id ? `${l.character_name} (NPC)` : l.character_name;
           const text = tableText(l.content).replace(/\s+/g, ' ').trim().slice(0, 600);
           return text ? `${who}: ${text}` : '';
         }).filter(Boolean);
-        const memory = [...(notes.data ?? [])].reverse().map((n: { note: string }) => n.note);
-        const scoreOf = new Map<string, number>((feelings.data ?? []).map((f: { user_id: string; score: number }) => [f.user_id, f.score] as [string, number]));
-        const attitudes = seated.map(s => ({ name: s.character_name.trim(), score: scoreOf.get(s.user_id) ?? 0 }));
+        const allNotes = [...(notes.data ?? [])].reverse() as Array<{ id: string; note: string; kind: string | null }>;
+        const ofKind = (k: string) => allNotes.filter(n => (n.kind || 'event') === k);
+        const memory = ofKind('event').map(n => n.note);
+        const openThreads = ofKind('thread');
+        const selfFacts = ofKind('self').map(n => n.note);
+        type Feeling = { user_id: string; score: number; knows_name: boolean | null; last_seen_at: string | null; updated_at: string | null };
+        const feelingOf = new Map<string, Feeling>((feelings.data ?? []).map((f: Feeling) => [f.user_id, f] as [string, Feeling]));
+        const style = (guide.data?.grudge_style as string | undefined) ?? 'normal';
+        const now = Date.now();
+        // Feelings fade without contact (D-22 v3) before anything new happens.
+        const scoreNow = (userId: string) => {
+          const f = feelingOf.get(userId);
+          return f ? fadeAttitude(f.score, f.last_seen_at ?? f.updated_at, style, now) : 0;
+        };
+        const attitudes = seated.map(s => ({ name: s.character_name.trim(), score: scoreNow(s.user_id) }));
+        const knownNames = seated.filter(s => feelingOf.get(s.user_id)?.knows_name).map(s => s.character_name.trim());
 
-        const { system, user } = buildMemoryPrompt({ npcName: npc.name, guide: guide.data?.guide ?? '', transcript, memory, attitudes });
+        const { system, user } = buildMemoryPrompt({
+          npcName: npc.name, guide: guide.data?.guide ?? '', transcript, memory, attitudes,
+          threads: openThreads.map(t => t.note), selfFacts, knownNames,
+        });
+        const opts = { threads: openThreads.map(t => t.note), selfFacts, knownNames };
         let answer = await callModel(MEMORY_MODEL, system, user);
-        let update = answer.ok ? parseMemoryUpdate(answer.text || '', attitudes.map(a => a.name), memory) : null;
+        let update = answer.ok ? parseMemoryUpdate(answer.text || '', attitudes.map(a => a.name), memory, opts) : null;
         if (!answer.ok) {
           answer = await callModel(npc.model || MEMORY_BACKUP, system, user);
-          update = answer.ok ? parseMemoryUpdate(answer.text || '', attitudes.map(a => a.name), memory) : null;
+          update = answer.ok ? parseMemoryUpdate(answer.text || '', attitudes.map(a => a.name), memory, opts) : null;
         }
         if (!update) throw new Error(answer.reason || 'the memory model did not answer');
 
-        if (update.notes.length) {
-          const { error } = await db.from('party_npc_memories')
-            .insert(update.notes.map(note => ({ npc_id: npcId, party_id: partyId, note, source: 'ai' })));
+        const newRows = [
+          ...update.notes.map(note => ({ npc_id: npcId, party_id: partyId, note, source: 'ai', kind: 'event' })),
+          ...update.threadsOpened.map(note => ({ npc_id: npcId, party_id: partyId, note, source: 'ai', kind: 'thread' })),
+          ...update.selfFacts.map(note => ({ npc_id: npcId, party_id: partyId, note, source: 'ai', kind: 'self' })),
+        ];
+        if (newRows.length) {
+          const { error } = await db.from('party_npc_memories').insert(newRows);
           if (error) throw new Error(`save notes: ${error.message}`);
-          // Keep the newest AI notes; notes the host wrote are never dropped.
+        }
+        const closedIds = update.threadsClosed.map(i => openThreads[i]?.id).filter(Boolean);
+        if (closedIds.length) {
+          const { error } = await db.from('party_npc_memories').delete().in('id', closedIds);
+          if (error) throw new Error(`close threads: ${error.message}`);
+        }
+        // Keep the newest AI notes of each kind; notes the host wrote are never dropped.
+        for (const [kind, keep] of [['event', MAX_AI_NOTES], ['thread', MAX_THREADS], ['self', MAX_SELF_FACTS]] as Array<[string, number]>) {
           const { data: old } = await db.from('party_npc_memories').select('id')
-            .eq('npc_id', npcId).eq('source', 'ai').order('created_at', { ascending: false })
-            .range(MAX_AI_NOTES, MAX_AI_NOTES + 50);
+            .eq('npc_id', npcId).eq('source', 'ai').eq('kind', kind).order('created_at', { ascending: false })
+            .range(keep, keep + 50);
           if (old && old.length) await db.from('party_npc_memories').delete().in('id', old.map((o: { id: string }) => o.id));
         }
 
+        // Feelings, names learned and last contact, for everyone in the scene or named in the update.
+        const inScene = new Set(sceneRows.filter(l => !l.npc_id).map(l => l.user_id));
+        const learned = new Set(update.namesLearned.map(n => n.toLowerCase()));
+        const nowIso = new Date(now).toISOString();
         const moved: Array<{ name: string; from: number; to: number }> = [];
-        for (const c of update.changes) {
-          const s = seated.find(x => x.character_name.trim().toLowerCase() === c.name.toLowerCase());
-          if (!s) continue;
-          const before = scoreOf.get(s.user_id) ?? 0;
-          const after = shiftAttitude(before, c.change);
-          if (after === before) continue;
-          const { error } = await db.from('party_npc_attitudes').upsert({
+        for (const s of seated) {
+          const key = s.character_name.trim().toLowerCase();
+          const change = update.changes.find(c => c.name.toLowerCase() === key);
+          const met = inScene.has(s.user_id);
+          const learnedName = learned.has(key);
+          if (!change && !met && !learnedName) continue;
+          const before = scoreNow(s.user_id);
+          const after = change ? shiftAttitude(before, change.change) : before;
+          const stored = feelingOf.get(s.user_id)?.score ?? 0;
+          const row: Record<string, unknown> = {
             npc_id: npcId,
             party_id: partyId,
             user_id: s.user_id,
