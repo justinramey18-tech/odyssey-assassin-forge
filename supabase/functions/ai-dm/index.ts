@@ -231,7 +231,11 @@ interface DMRequest {
     hasInCharacter?: boolean;
     /** Live NPCs (D-22): some lines were already spoken at the table by an NPC. */
     hasNpcLines?: boolean;
+    /** Story scenes (D-22): this round's lines are already shown to the table as a written scene. */
+    hasScene?: boolean;
   };
+  /** Short helper calls (story scenes): ask Venice models not to think first. */
+  noThinking?: boolean;
 
 }
 
@@ -605,7 +609,10 @@ function buildLiveTableBlock(lt?: DMRequest['liveTable']): string {
   } else {
     lines.push('Keep any table-side aside clearly separate, then deliver a proper scene beat driven only by the in-character actions.');
   }
-  if (lt.hasNpcLines) {
+  if (lt.hasScene) {
+    // Story scenes (D-22). The app keeps a copy of this rule for regenerated posts (SCENE_SHOWN_RULE in src/lib/story-scene.ts); keep the two in step.
+    lines.push('SCENE ALREADY SHOWN: the in-character lines of this round (the players\' and any NPCs\') are already shown to the whole table as a written scene just above your post, every spoken line word for word. Do not retell, quote or paraphrase that exchange, and do not describe again what the characters in it said or did. Start right after its last line and narrate what happens next: what their words and actions lead to, how the world and anyone who has not acted yet respond (absent characters still follow their AFK guides), and what the players face now. Keep each NPC consistent with what it said; an NPC\'s offer, promise or warning is not an outcome, you decide what actually happens. A roll result in the round stands as given.');
+  } else if (lt.hasNpcLines) {
     lines.push('NPC LINES: lines labelled "(NPC)" were already spoken out loud at the table by that NPC (the host put the NPC on stage and an AI voiced it). Treat them as said: do not repeat, rewrite or contradict them, keep each NPC consistent with what it said, and narrate what happens next. An NPC\'s offer, promise or threat is not an outcome: you decide what actually happens.');
   }
   if (lt.mode === 'live') {
@@ -1014,7 +1021,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, user_venice_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, npcVoicingStrict, maxTokens, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt, liveTable, partyMode } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, user_perplexity_key, user_xai_key, user_venice_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext, npcVoicingContext, npcVoicingStrict, maxTokens, recentDragonChat, recentDragonNetwork, coreRulesInGuides, narrationStylePrompt, liveTable, partyMode, noThinking } = (await req.json()) as DMRequest;
 
     // Text of the latest player message, used to decide which custom (homebrew) spell
     // rules to inline this turn. Kept once so every path below agrees.
@@ -1255,6 +1262,7 @@ serve(async (req) => {
           venice_parameters: {
             include_venice_system_prompt: false,
             strip_thinking_response: true,
+            ...(noThinking ? { disable_thinking: true } : {}),
           },
         }),
       });
