@@ -17,6 +17,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import * as R from './rules.ts';
+import * as S from './skills.ts';
 import { combatTurn } from './npc-reply/handler.ts';
 import { createModelCaller } from './npc-reply/models.ts';
 import { createRepo } from './npc-reply/repo.ts';
@@ -53,7 +54,7 @@ interface Fighter {
   hp: number;
   max_hp: number;
   ac: number;
-  status: 'up' | 'down' | 'stable' | 'dead' | 'ko';
+  status: 'up' | 'down' | 'stable' | 'dead' | 'ko' | 'fled';
   death_successes: number;
   death_failures: number;
   next_action_at: string | null;
@@ -72,6 +73,16 @@ interface Fighter {
   perks: string[] | null;
   second_wind: string | null;
   last_stand_used: boolean | null;
+  /** NPCs (v5): the announced skill waiting to happen, and when it happens. */
+  pending: { skill: string; type: string; targets: string[] } | null;
+  strike_at: string | null;
+  turn_no: number | null;
+  signature_turn: number | null;
+  /** NPCs: a Shield ward that absorbs damage until it runs out or expires. */
+  ward: number | null;
+  ward_until: string | null;
+  /** Players: can't act until this time (an NPC's Pin). */
+  pinned_until: string | null;
 }
 
 interface Seat {
@@ -93,7 +104,7 @@ interface NpcRow {
 
 const FIGHT_COLS = 'id, party_id, status, outcome, started_by';
 const FIGHTER_COLS =
-  'id, fight_id, party_id, kind, npc_id, user_id, name, hp, max_hp, ac, status, death_successes, death_failures, next_action_at, next_save_at, action_seq, threat, last_seen_at, last_action_at, act_every_ms, resolve, resolve_at, resolve_rate, perks, second_wind, last_stand_used';
+  'id, fight_id, party_id, kind, npc_id, user_id, name, hp, max_hp, ac, status, death_successes, death_failures, next_action_at, next_save_at, action_seq, threat, last_seen_at, last_action_at, act_every_ms, resolve, resolve_at, resolve_rate, perks, second_wind, last_stand_used, pending, strike_at, turn_no, signature_turn, ward, ward_until, pinned_until';
 const NPC_COLS = 'id, party_id, name, on_stage, archived, player_user_id, combat_stats, combat_state';
 
 class Refusal extends Error {
@@ -403,6 +414,8 @@ async function startAction(db: Db, fight: Fight, me: Fighter | null, now: number
   if (fight.status === 'ended') refuse(409, 'This fight is over.');
   if (!me) return refuse(409, 'Your character has fallen. The host can revive them.');
   if (me.status !== 'up') refuse(409, 'You are down and cannot act.');
+  const pinnedFor = me.pinned_until ? Math.ceil((Date.parse(me.pinned_until) - now) / 1000) : 0;
+  if (pinnedFor > 0) refuse(429, `You're pinned down: ${pinnedFor}s.`);
   const last = me.last_action_at ? Date.parse(me.last_action_at) : 0;
   const wait = Math.ceil((last + R.PLAYER_ACTION_COOLDOWN_S * 1000 - now) / 1000);
   if (wait > 0) refuse(429, `Catch your breath: ${wait}s.`);
@@ -430,16 +443,25 @@ async function hitNpc(
   const speed = await speedOfNpc(db, current?.npc_id ?? null);
   const result = await mutate(db, targetId, f => {
     if (f.kind !== 'npc' || f.status !== 'up') return null;
-    const { hp } = R.applyDamage(f.hp, damage);
+    // A Shield ward soaks up damage first.
+    const wardLeft = f.ward_until && Date.parse(f.ward_until) > now ? Math.max(0, f.ward ?? 0) : 0;
+    const absorbed = Math.min(wardLeft, damage);
+    const { hp } = R.applyDamage(f.hp, damage - absorbed);
     const lost = f.hp - hp;
     const threat = { ...(f.threat ?? {}) };
     threat[me.user_id as string] = (threat[me.user_id as string] ?? 0) + lost;
-    if (hp === 0) return { hp, threat, status: finish === 'kill' ? 'dead' : 'ko', next_action_at: null };
-    // Stagger: the NPC acts later, and slower from now on.
+    const wardPatch = wardLeft > 0 ? { ward: wardLeft - absorbed } : {};
+    if (hp === 0) return { hp, threat, status: finish === 'kill' ? 'dead' : 'ko', next_action_at: null, pending: null, strike_at: null, ...wardPatch };
+    if (lost === 0) return { threat, ...wardPatch };
+    // Stagger: the NPC acts later, and slower from now on. Mid wind-up, the announced skill is pushed back instead.
     const s = R.stagger(R.currentIntervalMs(f.act_every_ms, speed), speed, lost, f.max_hp);
+    if (f.pending && f.strike_at) {
+      const strike = Math.min(Math.max(Date.parse(f.strike_at), now) + s.delayMs, now + s.intervalMs);
+      return { hp, threat, act_every_ms: s.intervalMs, strike_at: iso(strike), ...wardPatch };
+    }
     const next = f.next_action_at ? Date.parse(f.next_action_at) : now;
     const pushed = Math.min(Math.max(next, now) + s.delayMs, now + s.intervalMs);
-    return { hp, threat, act_every_ms: s.intervalMs, next_action_at: iso(pushed) };
+    return { hp, threat, act_every_ms: s.intervalMs, next_action_at: iso(pushed), ...wardPatch };
   });
   if (!result) return { lost: 0, hp: 0, defeated: false };
   const { before, after } = result;
@@ -503,6 +525,180 @@ async function doAttack(
 // ── The clock ─────────────────────────────────────────────────────────────────
 
 /** Runs whatever is due: NPC attacks, death saves, and the end of the fight. Safe to call from every phone. */
+// ── NPC skills (v5): announce, wind up, then act ──────────────────────────────
+
+const isPresent = (p: Fighter, now: number) =>
+  p.status === 'up' && !!p.last_seen_at && (now - Date.parse(p.last_seen_at)) / 1000 <= R.PRESENT_S;
+
+/** False when the NPC's hard lines say it would never run. */
+async function canRetreat(db: Db, npcId: string): Promise<boolean> {
+  const { data, error } = await db.from('party_npc_guides').select('hard_lines').eq('npc_id', npcId).maybeSingle();
+  if (error) return false;
+  return !S.forbidsRetreat(data?.hard_lines);
+}
+
+/**
+ * One NPC attack roll against one player, with Resolve, Last Stand, Rage and the inbox events.
+ * Returns what happened so the caller can write the ⚔ line.
+ */
+async function npcHitsPlayer(
+  db: Db, fight: Fight, hostId: string, npc: Fighter, target: Fighter, bonus: number, dice: R.Dice,
+  stats: R.NpcCombatStats, now: number,
+): Promise<{ hit: boolean; crit: boolean; lost: number; downed: boolean }> {
+  const a = R.resolveAttack(roll, bonus, target.ac);
+  let lost = 0;
+  let downed = false;
+  let stoodHp = 0;
+  if (a.hit) {
+    const damage = R.rollDamage(dice, roll, a.crit);
+    let lastStandHp = 0;
+    const result = await mutate(db, target.id, f => {
+      if (f.status !== 'up') return null;
+      const { hp } = R.applyDamage(f.hp, damage);
+      const perks = R.cleanPerks(f.perks);
+      const resolve = Math.min(R.RESOLVE_MAX, R.resolveNow(f.resolve, f.resolve_at, f.resolve_rate, now) + R.damageResolve(f.hp - hp, f.max_hp, perks));
+      if (hp === 0 && perks.includes('last_stand') && !f.last_stand_used && resolve >= R.RESOLVE_MAX) {
+        lastStandHp = Math.min(f.max_hp, R.rollHealing(R.parseDice(f.second_wind) ?? { count: 1, sides: 8, bonus: 0 }, roll));
+        return { hp: lastStandHp, resolve: 0, resolve_at: iso(now), last_stand_used: true };
+      }
+      lastStandHp = 0;
+      return hp === 0
+        ? { hp, status: 'down', death_successes: 0, death_failures: 0, next_save_at: R.nextDeathSaveAt(now), resolve, resolve_at: iso(now) }
+        : { hp, resolve, resolve_at: iso(now) };
+    });
+    if (result) {
+      const stood = !!result.after.last_stand_used && !result.before.last_stand_used;
+      lost = stood ? result.before.hp : result.before.hp - result.after.hp;
+      downed = result.after.status === 'down';
+      Object.assign(target, result.after);
+      if (stood) stoodHp = lastStandHp;
+    }
+    if (lost > 0) {
+      // Rage: the NPC speeds up. Its next turn is already scheduled; it moves closer with the new pace.
+      await mutate(db, npc.id, f => {
+        if (f.status !== 'up') return null;
+        const current = R.currentIntervalMs(f.act_every_ms, stats.speed);
+        const faster = R.rageIntervalMs(current, stats.speed, lost, target.max_hp);
+        const next = f.next_action_at ? Math.min(Date.parse(f.next_action_at), now + faster) : null;
+        return next === null ? { act_every_ms: faster } : { act_every_ms: faster, next_action_at: iso(next) };
+      });
+    }
+  }
+  await addEvent(db, fight, {
+    kind: 'attack', actor_name: npc.name, target_name: target.name, target_user_id: target.user_id,
+    hp_delta: -lost, d20: a.d20, total: a.total,
+    detail: a.hit ? `${lost} damage${a.crit ? ' (critical!)' : ''}` : 'miss',
+  });
+  if (downed) {
+    await addEvent(db, fight, { kind: 'down', actor_name: npc.name, target_name: target.name, target_user_id: target.user_id });
+  }
+  if (stoodHp > 0) {
+    // Logged after the hit, so phones apply the damage first and then the Last Stand healing.
+    await addEvent(db, fight, {
+      kind: 'last_stand', actor_name: target.name, target_name: target.name, target_user_id: target.user_id,
+      hp_delta: stoodHp, detail: `Last Stand: back up with ${stoodHp} HP`,
+    });
+    await postLine(db, fight.party_id, hostId, `${target.name} refuses to fall: Last Stand!`);
+  }
+  return { hit: a.hit, crit: a.crit, lost, downed };
+}
+
+/** The announced skill happens: one claim so only one phone's ping runs it, then its effect and a ⚔ line. */
+async function resolveSkill(
+  db: Db, fight: Fight, hostId: string, npc: Fighter, skills: S.Skill[], stats: R.NpcCombatStats,
+  fighters: Fighter[], now: number,
+): Promise<void> {
+  const p = npc.pending;
+  if (!p) return;
+  const interval = R.currentIntervalMs(npc.act_every_ms, stats.speed);
+  if (!(await claim(db, npc, { pending: null, strike_at: null, next_action_at: iso(now + interval) }))) return;
+  const sk = skills.find(k => k.name === p.skill && k.type === p.type) ?? skills.find(k => k.type === p.type) ?? skills[0];
+  const fresh = await fightersOf(db, fight.id);
+  const byId = new Map(fresh.map(f => [f.id, f]));
+  const players = fresh.filter(f => f.kind === 'player');
+  const present = players.filter(f => isPresent(f, now));
+  const line = (text: string) => postLine(db, fight.party_id, hostId, text);
+
+  if (S.OFFENSE.includes(sk.type)) {
+    let targets = p.targets.map(id => byId.get(id)).filter((f): f is Fighter => !!f && isPresent(f, now));
+    if (targets.length === 0) {
+      // The target went down or left during the wind-up: the NPC turns on someone else.
+      const id = R.pickTarget(present.map(f => ({ id: f.id, status: f.status, threat: npc.threat?.[f.user_id as string] ?? 0, idleSeconds: 0 })), roll);
+      const other = id ? byId.get(id) : undefined;
+      targets = other ? [other] : [];
+    }
+    if (targets.length === 0) {
+      await line(`${npc.name}'s ${sk.name} finds no one to hit.`);
+      return;
+    }
+    const parts: string[] = [];
+    for (const t of targets.slice(0, S.SWEEP_MAX)) {
+      const r = await npcHitsPlayer(db, fight, hostId, npc, t, sk.bonus, sk.dice, stats, now);
+      parts.push(r.hit
+        ? `${t.name} ${r.lost} damage${r.crit ? ' (critical!)' : ''}${r.downed ? ', and goes down' : ''}`
+        : `${t.name} dodges`);
+    }
+    await line(`${npc.name}'s ${sk.name}: ${parts.join('; ')}.`);
+    return;
+  }
+
+  if (sk.type === 'mend') {
+    const t = byId.get(p.targets[0]);
+    const target = t && t.kind === 'npc' && t.status === 'up' ? t : byId.get(npc.id);
+    if (!target || target.status !== 'up') return;
+    const r = await mutate(db, target.id, f => (f.status !== 'up' ? null : { hp: R.applyHealing(f.hp, f.max_hp, sk.power).hp }));
+    const gained = r ? r.after.hp - r.before.hp : 0;
+    await addEvent(db, fight, { kind: 'mend', actor_name: npc.name, target_name: target.name, hp_delta: gained, detail: `${sk.name}: +${gained} HP` });
+    await line(`${npc.name}'s ${sk.name} restores ${gained} HP to ${target.id === npc.id ? 'themself' : target.name}.`);
+    return;
+  }
+
+  if (sk.type === 'shield') {
+    const t = byId.get(p.targets[0]);
+    const target = t && t.kind === 'npc' && t.status === 'up' ? t : byId.get(npc.id);
+    if (!target || target.status !== 'up') return;
+    await mutate(db, target.id, f => (f.status !== 'up' ? null : { ward: sk.power, ward_until: iso(now + S.WARD_MS) }));
+    await addEvent(db, fight, { kind: 'shield', actor_name: npc.name, target_name: target.name, detail: `${sk.name}: absorbs ${sk.power}` });
+    await line(`${npc.name}'s ${sk.name} wards ${target.id === npc.id ? 'themself' : target.name} (absorbs ${sk.power}).`);
+    return;
+  }
+
+  if (sk.type === 'rally') {
+    const allies = fresh.filter(f => f.kind === 'npc' && f.status === 'up' && f.id !== npc.id && !f.pending && f.next_action_at);
+    for (const a of allies) {
+      await mutate(db, a.id, f => {
+        if (f.status !== 'up' || f.pending || !f.next_action_at) return null;
+        const left = Math.max(0, Date.parse(f.next_action_at) - now);
+        return { next_action_at: iso(now + Math.round(left * (1 - S.RALLY_SHARE))) };
+      });
+    }
+    await addEvent(db, fight, { kind: 'rally', actor_name: npc.name, target_name: allies.map(a => a.name).join(', '), detail: sk.name });
+    await line(`${npc.name}'s ${sk.name} spurs ${allies.length ? allies.map(a => a.name).join(' and ') : 'no one'} on!`);
+    return;
+  }
+
+  if (sk.type === 'pin') {
+    const t = byId.get(p.targets[0]);
+    const target = t && isPresent(t, now) ? t : present[0];
+    if (!target) return;
+    await mutate(db, target.id, f => (f.status !== 'up' ? null : { pinned_until: iso(now + S.PIN_MS) }));
+    await addEvent(db, fight, { kind: 'pin', actor_name: npc.name, target_name: target.name, target_user_id: target.user_id, detail: `${sk.name}: pinned ${S.PIN_MS / 1000}s` });
+    await line(`${npc.name}'s ${sk.name} pins ${target.name} down for ${S.PIN_MS / 1000} seconds!`);
+    return;
+  }
+
+  if (sk.type === 'retreat') {
+    const r = await mutate(db, npc.id, f => (f.status !== 'up' ? null : { status: 'fled', next_action_at: null, pending: null, strike_at: null }));
+    if (!r) return;
+    if (npc.npc_id) {
+      const { error } = await db.from('party_npcs').update({ combat_state: 'fled', on_stage: false }).eq('id', npc.npc_id);
+      must('mark NPC fled', error);
+    }
+    await addEvent(db, fight, { kind: 'retreat', actor_name: npc.name, detail: sk.name });
+    await line(`${npc.name} flees the fight!`);
+  }
+}
+
 async function tick(db: Db, fightId: string, hostId: string, now: number): Promise<void> {
   const fight = await getFight(db, fightId);
   if (fight.status === 'paused') return;
@@ -520,84 +716,75 @@ async function tick(db: Db, fightId: string, hostId: string, now: number): Promi
         if (s) statsById.set(row.id, s);
       }
     }
+    const rawById = new Map<string, unknown>();
+    if (npcIds.length) {
+      const { data, error } = await db.from('party_npcs').select('id, combat_stats').in('id', npcIds);
+      must('read NPC skills', error);
+      for (const row of data || []) rawById.set(row.id, row.combat_stats);
+    }
     for (const npc of fighters) {
-      if (npc.kind !== 'npc' || npc.status !== 'up' || !due(npc.next_action_at, now)) continue;
+      if (npc.kind !== 'npc' || npc.status !== 'up') continue;
       const stats = statsById.get(npc.npc_id as string);
-      const interval = stats ? R.currentIntervalMs(npc.act_every_ms, stats.speed) : R.baseIntervalMs('trivial');
-      const nextAt = iso(now + interval);
-      if (!(await claim(db, npc, { next_action_at: nextAt })) || !stats) continue;
-      const dice = R.parseDice(stats.damage);
-      const targetId = R.pickTarget(players.map(p => ({
-        id: p.id,
-        status: p.status,
-        threat: npc.threat?.[p.user_id as string] ?? 0,
-        idleSeconds: p.last_seen_at ? (now - Date.parse(p.last_seen_at)) / 1000 : Infinity,
-      })), roll);
-      const target = players.find(p => p.id === targetId);
-      if (!target || !dice) continue;
-      // About 1 turn in 5 the NPC talks instead of attacking (a taunt, a plea, an order).
-      if (roll(5) === 1) {
-        speak(db, { partyId: fight.party_id, hostId, npcId: npc.npc_id as string, turn: { move: 'beat' }, fallback: null });
+      if (!stats) {
+        if (due(npc.next_action_at, now)) await claim(db, npc, { next_action_at: iso(now + R.baseIntervalMs('trivial')) });
         continue;
       }
-      const a = R.resolveAttack(roll, stats.attackBonus, target.ac);
-      let lost = 0;
-      let downed = false;
-      let stoodHp = 0;
-      if (a.hit) {
-        const damage = R.rollDamage(dice, roll, a.crit);
-        let lastStandHp = 0;
-        const result = await mutate(db, target.id, f => {
-          if (f.status !== 'up') return null;
-          const { hp } = R.applyDamage(f.hp, damage);
-          // Taking damage fills Resolve: 1 point per 1% of max HP lost.
-          const perks = R.cleanPerks(f.perks);
-          const resolve = Math.min(R.RESOLVE_MAX, R.resolveNow(f.resolve, f.resolve_at, f.resolve_rate, now) + R.damageResolve(f.hp - hp, f.max_hp, perks));
-          if (hp === 0 && perks.includes('last_stand') && !f.last_stand_used && resolve >= R.RESOLVE_MAX) {
-            // Last Stand: once per fight, a full bar turns the fall into a Second Wind.
-            lastStandHp = Math.min(f.max_hp, R.rollHealing(R.parseDice(f.second_wind) ?? { count: 1, sides: 8, bonus: 0 }, roll));
-            return { hp: lastStandHp, resolve: 0, resolve_at: iso(now), last_stand_used: true };
-          }
-          lastStandHp = 0;
-          return hp === 0
-            ? { hp, status: 'down', death_successes: 0, death_failures: 0, next_save_at: R.nextDeathSaveAt(now), resolve, resolve_at: iso(now) }
-            : { hp, resolve, resolve_at: iso(now) };
-        });
-        if (result) {
-          const stood = !!result.after.last_stand_used && !result.before.last_stand_used;
-          lost = stood ? result.before.hp : result.before.hp - result.after.hp;
-          downed = result.after.status === 'down';
-          Object.assign(target, result.after);
-          if (stood) stoodHp = lastStandHp;
-        }
-        if (lost > 0) {
-          // Rage: the NPC acts sooner, starting with its next turn.
-          const faster = R.rageIntervalMs(interval, stats.speed, lost, target.max_hp);
-          await mutate(db, npc.id, f => (f.status === 'up' ? { act_every_ms: faster, next_action_at: iso(now + faster) } : null));
-        }
+      const skills = S.skillsOf(rawById.get(npc.npc_id as string), stats);
+      const interval = R.currentIntervalMs(npc.act_every_ms, stats.speed);
+
+      // 1. An announced skill whose wind-up is over happens now.
+      if (npc.pending) {
+        if (due(npc.strike_at, now)) await resolveSkill(db, fight, hostId, npc, skills, stats, fighters, now);
+        continue;
       }
-      await addEvent(db, fight, {
-        kind: 'attack', actor_name: npc.name, target_name: target.name, target_user_id: target.user_id,
-        hp_delta: -lost, d20: a.d20, total: a.total,
-        detail: a.hit ? `${lost} damage${a.crit ? ' (critical!)' : ''}` : 'miss',
+      if (!due(npc.next_action_at, now)) continue;
+
+      // 2. Otherwise, when its timer is up, the NPC picks a skill and announces it.
+      const turnNo = (npc.turn_no ?? 0) + 1;
+      const choice = S.chooseSkill({
+        skills,
+        selfId: npc.id,
+        turnNo,
+        signatureTurn: npc.signature_turn ?? -99,
+        canRetreat: skills.some(k => k.type === 'retreat') ? await canRetreat(db, npc.npc_id as string) : false,
+        npcs: fighters.filter(f => f.kind === 'npc').map(f => ({
+          id: f.id, hp: f.hp, maxHp: f.max_hp, status: f.status,
+          ward: f.ward_until && Date.parse(f.ward_until) > now ? (f.ward ?? 0) : 0,
+        })),
+        players: players.map(p => ({ id: p.id, status: p.status, present: isPresent(p, now), threat: npc.threat?.[p.user_id as string] ?? 0 })),
+      }, roll);
+      if (choice.kind === 'idle') {
+        await claim(db, npc, { next_action_at: iso(now + interval) });
+        continue;
+      }
+      if (choice.kind === 'beat') {
+        // A turn spent talking: a taunt, a plea, an order.
+        if (await claim(db, npc, { next_action_at: iso(now + interval), turn_no: turnNo })) {
+          speak(db, { partyId: fight.party_id, hostId, npcId: npc.npc_id as string, turn: { move: 'beat' }, fallback: null });
+        }
+        continue;
+      }
+      const sk = choice.skill;
+      const claimed = await claim(db, npc, {
+        pending: { skill: sk.name, type: sk.type, targets: choice.targetIds },
+        strike_at: iso(now + sk.windupMs),
+        next_action_at: null,
+        turn_no: turnNo,
+        ...(sk.type === 'signature' ? { signature_turn: turnNo } : {}),
       });
-      if (downed) {
-        await addEvent(db, fight, { kind: 'down', actor_name: npc.name, target_name: target.name, target_user_id: target.user_id });
-      }
-      if (stoodHp > 0) {
-        // Logged after the hit, so phones apply the damage first and then the Last Stand healing.
-        await addEvent(db, fight, {
-          kind: 'last_stand', actor_name: target.name, target_name: target.name, target_user_id: target.user_id,
-          hp_delta: stoodHp, detail: `Last Stand: back up with ${stoodHp} HP`,
-        });
-        await postLine(db, fight.party_id, hostId, `${target.name} refuses to fall: Last Stand!`);
-      }
+      if (!claimed) continue;
+      const names = choice.targetIds
+        .filter(id => id !== npc.id)
+        .map(id => fighters.find(f => f.id === id)?.name)
+        .filter((n): n is string => !!n);
+      await addEvent(db, fight, {
+        kind: 'intent', actor_name: npc.name, target_name: names.join(', '),
+        detail: `${sk.name} (${S.SKILL_LABEL[sk.type]}) in ${Math.round(sk.windupMs / 1000)}s`,
+      });
       speak(db, {
         partyId: fight.party_id, hostId, npcId: npc.npc_id as string,
-        turn: { move: 'attack', target: target.name, hit: a.hit, crit: a.crit, damage: lost, downed },
-        fallback: downed
-          ? `${npc.name} strikes ${target.name} down!`
-          : a.hit ? `${npc.name} hits ${target.name}: ${lost} damage.` : `${npc.name} attacks ${target.name} and misses.`,
+        turn: { move: 'intent', skill: sk.name, skillType: sk.type, targets: names },
+        fallback: `${npc.name} readies ${sk.name}${names.length ? ` against ${names.join(' and ')}` : ''}!`,
       });
     }
   }
@@ -639,7 +826,7 @@ async function tick(db: Db, fightId: string, hostId: string, now: number): Promi
     const now2 = await fightersOf(db, fight.id);
     const npcs = now2.filter(f => f.kind === 'npc');
     const pcs = now2.filter(f => f.kind === 'player');
-    if (npcs.length > 0 && npcs.every(f => f.status === 'ko' || f.status === 'dead')) {
+    if (npcs.length > 0 && npcs.every(f => f.status === 'ko' || f.status === 'dead' || f.status === 'fled')) {
       await endFight(db, fight, hostId, 'victory', now);
     } else if (pcs.length > 0 && pcs.every(f => f.status !== 'up')) {
       await endFight(db, fight, hostId, 'defeat', now);
@@ -824,7 +1011,10 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
       for (const row of npcRows || []) speedOf.set(row.id, R.cleanCombatStats(row.combat_stats)?.speed ?? 'trivial');
       for (const f of fighters) {
         if (f.kind === 'npc' && f.status === 'up') {
-          await mutate(db, f.id, x => ({ next_action_at: iso(now + R.currentIntervalMs(x.act_every_ms, speedOf.get(f.npc_id as string) ?? 'trivial')) }));
+          // An announced skill gets a short fresh wind-up; everything else restarts its countdown.
+          await mutate(db, f.id, x => (x.pending
+            ? { strike_at: iso(now + 3000) }
+            : { next_action_at: iso(now + R.currentIntervalMs(x.act_every_ms, speedOf.get(f.npc_id as string) ?? 'trivial')) }));
         } else if (f.kind === 'player' && f.status === 'down') {
           await mutate(db, f.id, x => (x.status === 'down' ? { next_save_at: R.nextDeathSaveAt(now) } : null));
         }
