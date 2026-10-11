@@ -160,6 +160,8 @@ type Step =
   | { kind: 'cast-finish'; spell: QSpell; target: FighterRow }
   | { kind: 'item' }
   | { kind: 'stabilize' }
+  | { kind: 'aid' }
+  | { kind: 'aid-ally'; target: FighterRow }
   | { kind: 'host-add' }
   | { kind: 'card-target'; card: ActionCard; key: string }
   | { kind: 'second-wind-target' }
@@ -500,6 +502,52 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
         }))}
       </div>
     );
+  } else if (step?.kind === 'aid') {
+    title = 'Aid who?';
+    const allies = playerFighters.filter(f => f.status !== 'dead' && f.user_id !== currentUserId);
+    body = (
+      <div className="space-y-2">
+        {allies.length === 0 && <p className="text-[13px] text-white/50">No allies to aid.</p>}
+        {allies.map(f => (
+          <div key={f.id} className="space-y-0.5">
+            {fighterButton(f, () => setStep({ kind: 'aid-ally', target: f }))}
+            {f.status === 'down' && <p className="text-[11px] text-red-300 pl-1">DOWN, making death saves</p>}
+            {f.status === 'stable' && <p className="text-[11px] text-sky-300 pl-1">STABLE at 0 HP</p>}
+          </div>
+        ))}
+      </div>
+    );
+  } else if (step?.kind === 'aid-ally') {
+    const live = playerFighters.find(f => f.id === step.target.id) ?? step.target;
+    const potions = qa.items.filter(i => /heal/i.test(i.name) && /potion|elixir|draught|philter/i.test(i.name));
+    const waiting = cooldownLeft > 0 || busy;
+    title = `Aid ${live.name}`;
+    body = (
+      <div className="space-y-2">
+        {waiting && <p className="text-[11px] text-white/60">{busy ? 'Working…' : `Ready in ${cooldownLeft}s`}</p>}
+        {live.status === 'dead' && <p className="text-[13px] text-white/60">{live.name} has fallen. Only the host can revive them.</p>}
+        {live.status === 'down' && (
+          <button style={tap} disabled={waiting} className={cn(btnPlain, 'w-full')} onClick={async () => {
+            const r = await combat.stabilize(live.id);
+            if (r) close();
+          }}>Stabilize (Medicine, DC 10)</button>
+        )}
+        {live.status !== 'dead' && potions.map(i => (
+          <button key={i.name} style={tap} disabled={waiting} className={cn(btnAmber, 'w-full justify-start')} onClick={async () => {
+            const r = await combat.givePotion(live.id, i.name);
+            if (!r) return;
+            const removed = onUseConsumableByName?.(i.name, 1) ?? false;
+            if (!removed) toast.warning(`${i.name} healed ${live.name}, but it couldn't be removed from your inventory.`);
+            close();
+            showResult(r);
+          }}>
+            <span className="truncate">Give {i.name}</span>
+          </button>
+        ))}
+        {live.status !== 'dead' && potions.length === 0 && <p className="text-[13px] text-white/50">No healing potions on your sheet.</p>}
+        <button style={tap} className={cn(btnPlain, 'w-full')} onClick={() => setStep({ kind: 'aid' })}>Back</button>
+      </div>
+    );
   } else if (step?.kind === 'host-add') {
     title = 'Add an NPC to the fight';
     const inFight = new Set(npcFighters.map(f => f.npc_id));
@@ -608,7 +656,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
   const aimingAtMe = myFighter
     ? npcFighters.map(f => ({ f, p: pendingOf(f) })).find(x => x.f.status === 'up' && x.p?.targets.includes(myFighter.id)) ?? null
     : null;
-  const otherDown = playerFighters.some(f => f.status === 'down' && f.user_id !== currentUserId);
+  const hasAllies = playerFighters.some(f => f.status !== 'dead' && f.user_id !== currentUserId);
   const canAct = isActive && !busy && cooldownLeft <= 0 && !amPinned;
   const myResolve = resolveOf(myFighter, now);
   const recent = [...events].reverse().slice(0, 20);
@@ -742,7 +790,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                 </div>
               )}
             </div>
-            <div className={cn('grid gap-2', otherDown ? 'grid-cols-4' : 'grid-cols-3')}>
+            <div className={cn('grid gap-2', hasAllies ? 'grid-cols-4' : 'grid-cols-3')}>
               <button style={tap} disabled={!canAct || npcUp.length === 0} className={btnRed} onClick={() => {
                 setFinish('knockout');
                 if (npcUp.length === 1) setStep({ kind: 'attack', target: npcUp[0] });
@@ -757,7 +805,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                 <span>Second Wind</span>
                 {myFighter.second_wind && <span className="text-[11px] opacity-70">{myFighter.second_wind}</span>}
               </button>
-              {otherDown && <button style={tap} disabled={!canAct} className={btnPlain} onClick={() => setStep({ kind: 'stabilize' })}>Stabilize</button>}
+              {hasAllies && <button style={tap} disabled={!canAct} className={btnPlain} onClick={() => setStep({ kind: 'aid' })}>Aid Ally</button>}
             </div>
           </div>
         </div>

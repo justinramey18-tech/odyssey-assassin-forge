@@ -295,6 +295,12 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     return call({ action: 'stabilize', fightId, targetId }, 'Could not stabilize them. Try again.');
   }, [call, fightId]);
 
+  // Pour one of my healing potions into an ally. The server rolls the healing; the caller removes the potion after success.
+  const givePotion = useCallback((targetId: string, itemName: string) => {
+    if (!fightId) return Promise.resolve(null);
+    return call({ action: 'give_potion', fightId, targetId, itemName }, 'The potion did not reach them. Try again.');
+  }, [call, fightId]);
+
   const hostCall = useCallback((body: Record<string, unknown>, fallback: string) => {
     if (!isHost) return Promise.resolve(null);
     return call(body, fallback);
@@ -326,6 +332,7 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     secondWind,
     drinkPotion,
     stabilize,
+    givePotion,
     pause,
     resume,
     endFight,

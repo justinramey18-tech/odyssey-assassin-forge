@@ -1326,6 +1326,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [combatDeathOpen, setCombatDeathOpen] = useState(false);
   const [combatDeathOutcome, setCombatDeathOutcome] = useState<'none' | 'revived' | 'dead'>('none');
   const myFightStatus = npcCombat.myFighter?.status ?? null;
+  const combatEnded = npcCombat.isEnded;
   const prevFightStatusRef = useRef<string | null>(null);
   const myDeathSaveEvents = useMemo(
     () => npcCombat.events.filter(e => e.target_user_id === currentUserId && (e.kind === 'death_save' || e.kind === 'death')),
@@ -1340,6 +1341,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       return;
     }
     if (!combatDeathOpen || combatDeathOutcome !== 'none') return;
+    if (myFightStatus === 'stable' && combatEnded) {
+      // The fight is over and I'm stable: nothing can kill me now, so free the screen. Healing happens on the sheet.
+      setCombatDeathOpen(false);
+      toast("You're stable. Heal up to get back on your feet.");
+      return;
+    }
     if (myFightStatus === 'up') {
       const revivedBySave = [...myDeathSaveEvents].reverse().find(e => e.kind === 'death_save' && e.hp_delta === 1);
       const recent = revivedBySave && Date.now() - Date.parse(revivedBySave.created_at) < 60_000;
@@ -1348,7 +1355,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     } else if (myFightStatus === 'dead') {
       setCombatDeathOutcome('dead');
     }
-  }, [myFightStatus, combatDeathOpen, combatDeathOutcome, myDeathSaveEvents]);
+  }, [myFightStatus, combatEnded, combatDeathOpen, combatDeathOutcome, myDeathSaveEvents]);
   const combatDeathServer = useMemo(() => {
     const f = npcCombat.myFighter;
     const latest = myDeathSaveEvents[myDeathSaveEvents.length - 1];
