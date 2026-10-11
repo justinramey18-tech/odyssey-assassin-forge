@@ -632,6 +632,7 @@ export function useRoundChat(
     setSelectedOrder,
     selectedParticipants,
     selectedNpcLines,
+    selectedSceneLines,
     toggleSelected,
     selectAllPending,
     clearSelection,
