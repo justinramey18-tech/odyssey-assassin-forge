@@ -106,6 +106,13 @@
       "when": 1791738215406,
       "tag": "0014_live_npc_combat_1_of_8",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1791744086985,
+      "tag": "0015_live_npc_combat_v3_act_every_ms",
+      "breakpoints": true
     }
   ]
 }
