@@ -127,7 +127,7 @@ const DeathSaveScreen: React.FC<DeathSaveScreenProps> = ({
       setShowRestoredText(false);
       setWaitingForTap(false);
 
-      const t = setTimeout(() => setPhase('intro'), 1800);
+      const t = setTimeout(() => setPhase(p => (p === 'blackout' ? 'intro' : p)), 1800);
       return () => clearTimeout(t);
     }
   }, [open]);
@@ -142,7 +142,7 @@ const DeathSaveScreen: React.FC<DeathSaveScreenProps> = ({
         if (introIndex < introLines.length - 1) {
           setIntroIndex(prev => prev + 1);
         } else {
-          setPhase('rolls');
+          setPhase(p => (p === 'intro' ? 'rolls' : p));
         }
       }, 600);
       return () => clearTimeout(nextTimer);
@@ -157,7 +157,7 @@ const DeathSaveScreen: React.FC<DeathSaveScreenProps> = ({
       if (introIndex < introLines.length - 1) {
         setIntroIndex(prev => prev + 1);
       } else {
-        setPhase('rolls');
+        setPhase(p => (p === 'intro' ? 'rolls' : p));
       }
     }, 150);
   }, [phase, introIndex, introLines.length]);
