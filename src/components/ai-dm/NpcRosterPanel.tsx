@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AvatarCropDialog } from './AvatarCropDialog';
 import { NpcScorecard } from './NpcScorecard';
+import { NpcQuickBuild } from './NpcQuickBuild';
 import { NpcMindPanel } from './NpcMindPanel';
 import { NpcPortrait } from './NpcPortrait';
 import type { PartyNpc, PartyNpcsApi } from '@/hooks/use-party-npcs';
@@ -68,7 +69,7 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
-  const [view, setView] = useState<'roster' | 'scores'>('roster');
+  const [view, setView] = useState<'roster' | 'scores' | 'build'>('roster');
   /** v2: the NPC whose memory and feelings are open. */
   const [mindId, setMindId] = useState<string | null>(null);
   const [cropFile, setCropFile] = useState<File | null>(null);
@@ -203,8 +204,8 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
             {onStageNames.length ? <>On stage now: <span className="text-amber-200">{onStageNames.join(', ')}</span></> : 'Nobody is on stage.'}
           </p>
           {!draft && !mindNpc && (
-            <div role="tablist" aria-label="NPC Roster view" className="mt-2 grid grid-cols-2 rounded-lg border border-white/10 bg-white/5 p-0.5">
-              {(['roster', 'scores'] as const).map(v => (
+            <div role="tablist" aria-label="NPC Roster view" className="mt-2 grid grid-cols-3 rounded-lg border border-white/10 bg-white/5 p-0.5">
+              {(['roster', 'scores', 'build'] as const).map(v => (
                 <button
                   key={v}
                   role="tab"
@@ -216,7 +217,7 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
                     view === v ? 'bg-amber-800/45 text-amber-100 border border-amber-400/40' : 'text-white/55 border border-transparent',
                   )}
                 >
-                  {v === 'roster' ? 'Roster' : 'Scorecard'}
+                  {v === 'roster' ? 'Roster' : v === 'scores' ? 'Scorecard' : 'Quick Build'}
                 </button>
               ))}
             </div>
@@ -408,6 +409,8 @@ export function NpcRosterPanel({ open, onOpenChange, roster }: NpcRosterPanelPro
                 </button>
               </div>
             </div>
+          ) : view === 'build' ? (
+            <NpcQuickBuild roster={roster} onCreated={() => setView('roster')} />
           ) : view === 'scores' ? (
             <NpcScorecard roster={roster} />
           ) : (
