@@ -8,6 +8,20 @@ interface DeathSaveScreenProps {
   dragonName: string;
   onStabilize: () => void;
   onDeath: () => void;
+  /** 'plain' uses neutral words (no dragon) with the same visuals. Default 'dragon'. */
+  variant?: 'dragon' | 'plain';
+  /** Live NPC Combat: the server rolls the saves; the screen only shows them. */
+  server?: DeathSaveServerState;
+}
+
+export interface DeathSaveServerState {
+  successes: number;
+  failures: number;
+  lastRoll: number | null;
+  rollKey: string | null;
+  nextSaveAt: string | null;
+  stable: boolean;
+  outcome: 'none' | 'revived' | 'dead';
 }
 
 type Phase = 'blackout' | 'intro' | 'rolls' | 'stabilize' | 'death';
@@ -19,6 +33,13 @@ const INTRO_LINES: { text: string; style: string }[] = [
   { text: 'HP HAS REACHED ZERO.', style: 'uppercase font-mono text-[#c94444] text-sm tracking-[0.3em]' },
 ];
 
+const PLAIN_INTRO_LINES: { text: string; style: string }[] = [
+  { text: 'The blow lands.', style: 'italic text-[#e8e0d4] text-xl' },
+  { text: 'The world tilts.', style: 'italic text-[#e8e0d4] text-xl' },
+  { text: 'You hit the ground.', style: 'italic text-[#e8e0d4] text-xl' },
+  { text: 'HP HAS REACHED ZERO.', style: 'uppercase font-mono text-[#c94444] text-sm tracking-[0.3em]' },
+];
+
 const SUCCESS_LINES = [
   'You cling to the edge.',
   'Something holds you here.',
@@ -27,6 +48,8 @@ const SUCCESS_LINES = [
   'You hear a voice — distant, desperate.',
   'Your fingers find purchase in the dark.',
 ];
+
+const PLAIN_WAKE_LINE = ['You', 'gasp', 'awake.'];
 
 const FAILURE_LINES = [
   'You slip further.',
@@ -43,7 +66,11 @@ const DeathSaveScreen: React.FC<DeathSaveScreenProps> = ({
   dragonName,
   onStabilize,
   onDeath,
+  variant = 'dragon',
+  server,
 }) => {
+  const plain = variant === 'plain';
+  const introLines = plain ? PLAIN_INTRO_LINES : INTRO_LINES;
   const [phase, setPhase] = useState<Phase>('blackout');
   const [introIndex, setIntroIndex] = useState(0);
   const [introVisible, setIntroVisible] = useState(false);
@@ -100,7 +127,7 @@ const DeathSaveScreen: React.FC<DeathSaveScreenProps> = ({
       setShowRestoredText(false);
       setWaitingForTap(false);
 
-      const t = setTimeout(() => setPhase('intro'), 1800);
+      const t = setTimeout(() => setPhase(p => (p === 'blackout' ? 'intro' : p)), 1800);
       return () => clearTimeout(t);
     }
   }, [open]);
@@ -112,28 +139,28 @@ const DeathSaveScreen: React.FC<DeathSaveScreenProps> = ({
     const holdTimer = setTimeout(() => {
       setIntroVisible(false);
       const nextTimer = setTimeout(() => {
-        if (introIndex < INTRO_LINES.length - 1) {
+        if (introIndex < introLines.length - 1) {
           setIntroIndex(prev => prev + 1);
         } else {
-          setPhase('rolls');
+          setPhase(p => (p === 'intro' ? 'rolls' : p));
         }
       }, 600);
       return () => clearTimeout(nextTimer);
     }, 2200);
     return () => clearTimeout(holdTimer);
-  }, [phase, introIndex]);
+  }, [phase, introIndex, introLines.length]);
 
   const skipIntro = useCallback(() => {
     if (phase !== 'intro') return;
     setIntroVisible(false);
     setTimeout(() => {
-      if (introIndex < INTRO_LINES.length - 1) {
+      if (introIndex < introLines.length - 1) {
         setIntroIndex(prev => prev + 1);
       } else {
-        setPhase('rolls');
+        setPhase(p => (p === 'intro' ? 'rolls' : p));
       }
     }, 150);
-  }, [phase, introIndex]);
+  }, [phase, introIndex, introLines.length]);
 
   // Roll handler
   const handleRoll = useCallback(() => {
@@ -200,6 +227,41 @@ const DeathSaveScreen: React.FC<DeathSaveScreenProps> = ({
     }, 70);
   }, [rolling]);
 
+  // Server-rolled saves (Live NPC Combat): show each new roll, never roll locally.
+  const lastKeyRef = useRef<string | null>(null);
+  useEffect(() => { if (open) lastKeyRef.current = server?.rollKey ?? null; }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!open || !server || !server.rollKey || server.rollKey === lastKeyRef.current) return;
+    lastKeyRef.current = server.rollKey;
+    const roll = server.lastRoll;
+    if (roll === null || !Number.isFinite(roll)) return;
+    setDisplayNumber(roll);
+    setLastRoll(roll);
+    const ok = roll >= 10;
+    if (roll === 20) setFlavorText('Light breaks through. You gasp awake.');
+    else if (roll === 1) setFlavorText('The darkness doubles its grip.');
+    else if (ok) setFlavorText(SUCCESS_LINES[Math.min(Math.max(server.successes, 1) - 1, SUCCESS_LINES.length - 1)]);
+    else setFlavorText(FAILURE_LINES[Math.min(Math.max(server.failures, 1) - 1, FAILURE_LINES.length - 1)]);
+    setRollHistory(prev => [...prev, { value: roll, success: ok }]);
+  }, [open, server]);
+  useEffect(() => {
+    if (!open || !server) return;
+    if (server.outcome === 'revived') setPhase(p => (p === 'stabilize' ? p : 'stabilize'));
+    else if (server.outcome === 'dead') setPhase(p => (p === 'death' ? p : 'death'));
+  }, [open, server?.outcome]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => {
+    if (!open || !server || server.stable || phase !== 'rolls') return;
+    const t = setInterval(() => setClock(Date.now()), 500);
+    return () => clearInterval(t);
+  }, [open, server, phase]);
+  const nextSaveMs = server?.nextSaveAt ? Date.parse(server.nextSaveAt) - clock : NaN;
+  const countdown = Number.isFinite(nextSaveMs)
+    ? (nextSaveMs <= 0 ? 'Rolling…' : `Next save in ${Math.floor(nextSaveMs / 60000)}:${String(Math.floor((nextSaveMs % 60000) / 1000)).padStart(2, '0')}`)
+    : 'Rolling…';
+  const shownSuccesses = server ? server.successes : successes;
+  const shownFailures = server ? server.failures : failures;
+
   // Stabilize sequence
   const ROAR_LINE = ['Your', 'dragon', 'ROARS', 'in', 'absolute', 'denial'];
   const FOLLOW_LINE = ['you', 'follow', 'the', 'sound'];
@@ -217,6 +279,39 @@ const DeathSaveScreen: React.FC<DeathSaveScreenProps> = ({
 
   const startStabilizeSequence = useCallback(() => {
     setWaitingForTap(false);
+    if (plain) {
+      // "You gasp awake." word by word, then the tunnel of light.
+      setStabPhase(1);
+      setStabFade(false);
+      let fIdx = 0;
+      const fTimer = setInterval(() => {
+        fIdx++;
+        setFollowWords(fIdx);
+        if (fIdx >= PLAIN_WAKE_LINE.length) {
+          clearInterval(fTimer);
+          setTimeout(() => {
+            setStabFade(true);
+            setTimeout(() => {
+              setStabPhase(2);
+              setStabFade(false);
+              let t = 0;
+              const tunnelTimer = setInterval(() => {
+                t += 0.02;
+                const eased = t * t * t;
+                setTunnelScale(Math.min(1, eased * 8));
+                if (t >= 1) {
+                  clearInterval(tunnelTimer);
+                  setStabPhase(3);
+                  setTimeout(() => setShowRestoredText(true), 1500);
+                  setTimeout(() => onStabilize(), 3500);
+                }
+              }, 50);
+            }, 800);
+          }, 1800);
+        }
+      }, 280);
+      return;
+    }
     // Play audio
     if (audioRef.current) {
       try { audioRef.current.currentTime = 0; audioRef.current.play().catch(() => {}); } catch { /* */ }
@@ -269,7 +364,7 @@ const DeathSaveScreen: React.FC<DeathSaveScreenProps> = ({
         }, 1800);
       }
     }, wordIdx === 0 ? 400 : 280);
-  }, [onStabilize]);
+  }, [onStabilize, plain]);
 
   if (!open) return null;
 
@@ -298,9 +393,9 @@ const DeathSaveScreen: React.FC<DeathSaveScreenProps> = ({
           <div
             className={`font-cinzel text-center transition-opacity duration-500 ${
               introVisible ? 'opacity-100' : 'opacity-0'
-            } ${INTRO_LINES[introIndex].style}`}
+            } ${introLines[introIndex].style}`}
           >
-            {INTRO_LINES[introIndex].text}
+            {introLines[introIndex].text}
           </div>
           <button
             onClick={skipIntro}
@@ -332,9 +427,9 @@ const DeathSaveScreen: React.FC<DeathSaveScreenProps> = ({
                     key={`s${i}`}
                     className="w-5 h-5 rounded-full border-2 transition-all duration-500"
                     style={{
-                      borderColor: i < successes ? '#7ab36a' : '#3a322a',
-                      backgroundColor: i < successes ? '#7ab36a' : 'transparent',
-                      boxShadow: i < successes ? '0 0 8px rgba(122,179,106,0.5)' : 'none',
+                      borderColor: i < shownSuccesses ? '#7ab36a' : '#3a322a',
+                      backgroundColor: i < shownSuccesses ? '#7ab36a' : 'transparent',
+                      boxShadow: i < shownSuccesses ? '0 0 8px rgba(122,179,106,0.5)' : 'none',
                     }}
                   />
                 ))}
@@ -348,9 +443,9 @@ const DeathSaveScreen: React.FC<DeathSaveScreenProps> = ({
                     key={`f${i}`}
                     className="w-5 h-5 rounded-full border-2 transition-all duration-500"
                     style={{
-                      borderColor: i < failures ? '#c94444' : '#3a322a',
-                      backgroundColor: i < failures ? '#c94444' : 'transparent',
-                      boxShadow: i < failures ? '0 0 8px rgba(201,68,68,0.5)' : 'none',
+                      borderColor: i < shownFailures ? '#c94444' : '#3a322a',
+                      backgroundColor: i < shownFailures ? '#c94444' : 'transparent',
+                      boxShadow: i < shownFailures ? '0 0 8px rgba(201,68,68,0.5)' : 'none',
                     }}
                   />
                 ))}
@@ -382,8 +477,15 @@ const DeathSaveScreen: React.FC<DeathSaveScreenProps> = ({
             )}
           </div>
 
+          {/* Server-rolled saves: status instead of a button */}
+          {server && (
+            <p className="font-cinzel text-sm text-[#e8e0d4]/70 text-center max-w-[280px]">
+              {server.stable ? "Stabilized. You're out of danger until someone heals you." : countdown}
+            </p>
+          )}
+
           {/* Roll button */}
-          {successes < 3 && failures < 3 && (
+          {!server && successes < 3 && failures < 3 && (
             <button
               onClick={handleRoll}
               disabled={rolling}
@@ -479,7 +581,7 @@ const DeathSaveScreen: React.FC<DeathSaveScreenProps> = ({
                 stabFade ? 'opacity-0' : 'opacity-100'
               }`}
             >
-              {FOLLOW_LINE.map((word, i) => (
+              {(plain ? PLAIN_WAKE_LINE : FOLLOW_LINE).map((word, i) => (
                 <span
                   key={i}
                   className="font-cinzel italic text-[22px]"
@@ -552,15 +654,15 @@ const DeathSaveScreen: React.FC<DeathSaveScreenProps> = ({
           <div className="w-48 h-px" style={{ background: 'linear-gradient(90deg, transparent, #c94444, transparent)' }} />
 
           <p className="font-cinzel text-xl text-[#c94444] text-center">
-            The bond breaks.
+            {plain ? 'You have fallen.' : 'The bond breaks.'}
           </p>
 
           <div className="flex flex-col items-center gap-3 max-w-[300px]">
             <p className="font-cinzel italic text-sm text-[#6b5c4d] text-center leading-relaxed">
-              The silence that follows is the loudest thing you've ever heard.
+              {plain ? 'The noise of the fight fades.' : "The silence that follows is the loudest thing you've ever heard."}
             </p>
             <p className="font-cinzel italic text-sm text-[#6b5c4d] text-center leading-relaxed">
-              You and your dragon have fallen.
+              {plain ? 'Your friends will remember.' : 'You and your dragon have fallen.'}
             </p>
           </div>
 
