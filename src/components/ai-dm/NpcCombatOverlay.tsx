@@ -14,6 +14,7 @@ import {
 import { NpcPortrait } from './NpcPortrait';
 import type { FighterRow, FightEventRow, NpcCombatApi } from '@/hooks/use-npc-combat';
 import type { PartyNpc, PartyNpcsApi } from '@/hooks/use-party-npcs';
+import type { ActionCard } from '@/lib/roundChatActionCard';
 
 type Member = { user_id: string; character_name: string; character_status?: Record<string, unknown>; updated_at?: string };
 type Finish = 'knockout' | 'kill';
@@ -25,6 +26,9 @@ interface Props {
   currentUserId: string | null;
   isHost: boolean;
   onUseConsumableByName?: (name: string, quantity?: number) => boolean;
+  pendingCast?: { card: ActionCard; key: string } | null;
+  onPendingCastDone?: () => void;
+  onOpenSpells?: () => void;
 }
 
 const SPEED_SECONDS: Record<string, number> = { trivial: 120, easy: 90, medium: 60, hard: 40, deadly: 20 };
@@ -132,15 +136,17 @@ type Step =
   | { kind: 'item' }
   | { kind: 'stabilize' }
   | { kind: 'host-add' }
+  | { kind: 'card-target'; card: ActionCard; key: string }
   | null;
 
-export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHost, onUseConsumableByName }: Props) {
+export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHost, onUseConsumableByName, pendingCast, onPendingCastDone, onOpenSpells }: Props) {
   const { fight, fighters, events, fallen, myFighter, iHaveFallen, isActive, isPaused, isEnded, busy, cooldownLeft } = combat;
   const me = members.find(m => m.user_id === currentUserId);
   const qa = useMemo(() => quickActionsOf(me), [me]);
   const [step, setStep] = useState<Step>(null);
   const [weapon, setWeapon] = useState<string | null>(null);
   const [finish, setFinish] = useState<Finish>('knockout');
+  const [finishTarget, setFinishTarget] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const [hostMenu, setHostMenu] = useState(false);
@@ -196,7 +202,26 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
     setTimeout(() => setResult(null), 2000);
   };
 
-  const close = () => setStep(null);
+  const close = () => {
+    const wasCard = step?.kind === 'card-target';
+    setStep(null);
+    setFinishTarget(null);
+    if (wasCard) onPendingCastDone?.();
+  };
+
+  // A spell card posted from Quick Actions during a fight: ask who it lands on (once per card).
+  const handledCastRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!pendingCast || handledCastRef.current === pendingCast.key) return;
+    handledCastRef.current = pendingCast.key;
+    if (isActive && myFighter?.status === 'up') {
+      setFinish('knockout');
+      setStep({ kind: 'card-target', card: pendingCast.card, key: pendingCast.key });
+    } else {
+      onPendingCastDone?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingCast?.key]);
   const pickWeapon = weapon && qa.weapons.some(w => w.name === weapon) ? weapon : qa.weapons[0]?.name ?? null;
 
   // ---------- sheet body ----------
@@ -347,6 +372,53 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
         }}>
           {busy && <Loader2 className="w-4 h-4 animate-spin" />}Cast
         </button>
+      </div>
+    );
+  } else if (step?.kind === 'card-target') {
+    const card = step.card;
+    const dmg = Number(card.damageTotal);
+    const amt = Number(card.amount);
+    const isHeal = card.kind === 'heal' || (Number.isFinite(amt) && amt > 0 && !(Number.isFinite(dmg) && dmg > 0));
+    const waiting = cooldownLeft > 0 || busy;
+    const rollLine = isHeal
+      ? `Heals ${Number.isFinite(amt) ? amt : 0}`
+      : card.d20 != null
+        ? `d20 ${card.d20} → ${card.attackTotal ?? '?'} · ${Number.isFinite(dmg) ? dmg : 0} damage`
+        : `${Number.isFinite(dmg) ? dmg : 0} damage (they make a saving throw)`;
+    const targets = isHeal
+      ? playerFighters.filter(f => f.status !== 'dead')
+      : (Number.isFinite(dmg) && dmg > 0 ? npcUp : []);
+    const pick = async (t: FighterRow, fin?: Finish) => {
+      const r = await combat.castFromCard(t.id, card, fin);
+      if (r) { showResult(r); close(); }
+    };
+    const chosenLow = finishTarget && targets.find(t => t.id === finishTarget);
+    title = `Target for ${card.action}`;
+    body = (
+      <div className="space-y-2">
+        <p className="text-[13px] text-white/75">{rollLine}</p>
+        {waiting && <p className="text-[11px] text-white/60">{busy ? 'Working…' : `Ready in ${cooldownLeft}s`}</p>}
+        {chosenLow ? (
+          <div className="space-y-3">
+            <p className="text-[13px] text-white/85">{chosenLow.name}</p>
+            <FinishToggle value={finish} onChange={setFinish} />
+            <button style={tap} disabled={waiting} className={cn(btnRed, 'w-full')} onClick={() => { void pick(chosenLow, finish); }}>
+              {busy && <Loader2 className="w-4 h-4 animate-spin" />}Cast
+            </button>
+          </div>
+        ) : (
+          targets.map(f => (
+            <div key={f.id} className={cn(waiting && 'opacity-50 pointer-events-none')} aria-disabled={waiting}>
+              {fighterButton(f, () => {
+                if (waiting) return;
+                if (!isHeal && f.hp <= f.max_hp * 0.25) { setFinish('knockout'); setFinishTarget(f.id); }
+                else void pick(f);
+              })}
+            </div>
+          ))
+        )}
+        {targets.length === 0 && <p className="text-[13px] text-white/50">No one to target.</p>}
+        <button style={tap} className={cn(btnPlain, 'w-full')} onClick={close}>No target</button>
       </div>
     );
   } else if (step?.kind === 'item') {
@@ -512,7 +584,9 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
             <div className="px-3 pb-3 space-y-2">
               {npcFighters.map(f => {
                 const npc = f.npc_id ? roster.byId.get(f.npc_id) : undefined;
-                const secs = SPEED_SECONDS[npc?.combat_stats?.speed ?? 'medium'] ?? 60;
+                const preset = SPEED_SECONDS[npc?.combat_stats?.speed ?? 'medium'] ?? 60;
+                const paceMs = Number(f.act_every_ms);
+                const secs = (Number.isFinite(paceMs) && paceMs > 0 ? paceMs : preset * 1000) / 1000;
                 const next = f.next_action_at ? Date.parse(f.next_action_at) : NaN;
                 const progress = Number.isFinite(next) ? Math.max(0, Math.min(1, 1 - (next - now) / (secs * 1000))) : 0;
                 const out = f.status === 'ko' || f.status === 'dead';
@@ -528,6 +602,11 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                       </div>
                       <HpBar hp={f.hp} max={f.max_hp} />
                     </div>
+                    {f.status === 'up' && (
+                      <span className={cn('text-[11px] shrink-0', secs < preset ? 'text-red-300' : secs > preset ? 'text-sky-300' : 'text-white/60')}>
+                        {secs < preset ? '⚡ ' : secs > preset ? '🐢 ' : ''}every {Math.round(secs)}s
+                      </span>
+                    )}
                     {!isPaused && f.status === 'up' && <Ring progress={progress} />}
                   </div>
                 );
@@ -570,7 +649,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                 if (npcUp.length === 1) setStep({ kind: 'attack', target: npcUp[0] });
                 else setStep({ kind: 'attack-target' });
               }}>Attack</button>
-              <button style={tap} disabled={!canAct} className={btnAmber} onClick={() => setStep({ kind: 'cast-spell' })}>Cast</button>
+              <button style={tap} disabled={!canAct} className={btnAmber} onClick={() => { if (onOpenSpells) onOpenSpells(); else setStep({ kind: 'cast-spell' }); }}>Cast</button>
               <button style={tap} disabled={!canAct} className={btnPlain} onClick={() => setStep({ kind: 'item' })}>Item</button>
               {otherDown && <button style={tap} disabled={!canAct} className={btnPlain} onClick={() => setStep({ kind: 'stabilize' })}>Stabilize</button>}
             </div>
