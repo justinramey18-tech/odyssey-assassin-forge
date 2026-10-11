@@ -15,7 +15,7 @@ import { buildNarrationStyleBlock } from '@/lib/narrationStyle';
 import { fetchPartyNarrationStyle } from '@/hooks/use-party-narration-style';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { npcStoryContent } from '@/lib/live-npcs';
-import { STORY_SCENE_SENDER, SCENE_SHOWN_RULE, followsStoryScene, isStorySceneRow, sceneSetting, type StorySceneLine } from '@/lib/story-scene';
+import { STORY_SCENE_SENDER, SCENE_SHOWN_RULE, followsStoryScene, isStorySceneRow, sceneHandoffText, sceneSetting, storyHistory, tableTalkPart, type StorySceneLine } from '@/lib/story-scene';
 import { writeStoryScene } from '@/lib/story-scene-writer';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
@@ -2398,31 +2398,60 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
       } else {
         // === NORMAL MODE ===
-        const { guidesSection: afkGuidesSection, promptSection: afkPromptSection, consumedCascades: normalConsumed, afkEntries: normalAfkEntries } = suppressAfkGuides
+        // A Live Table hand-off (Send to DM) never sends AFK guides: they power the
+        // player stand-ins at the table only (D-04, D-22, 2026-10-11).
+        const skipAfkGuides = suppressAfkGuides || !!directPrompt;
+        const { guidesSection: afkGuidesSection, promptSection: afkPromptSection, consumedCascades: normalConsumed, afkEntries: normalAfkEntries } = skipAfkGuides
           ? { guidesSection: '', promptSection: '', consumedCascades: [], afkEntries: [] as Array<{ userId: string; characterName: string; content: string }> }
           : buildAfkGuidesContext(readyPrompts, isTurnBased && sessionConfig.turnUserId ? [sessionConfig.turnUserId] : undefined, coveredUserIds);
-        const rawCombined = (directPrompt
-          ? directPrompt.text.trim()
-          : readyPrompts.map(formatPromptLineForAI).join('\n')) + afkPromptSection;
-
-
-        const combined = rawCombined;
 
         const isApprovalMode = (sessionConfig.dmMode || 'ai') === 'ai-approval';
 
-        // Story scenes (D-22): the sealed exchange is retold as one readable scene. It is
-        // written next to the DM's reply and saved right before it (not in approval mode).
-        const sceneLines = isApprovalMode ? [] : (directPrompt?.sceneLines || []);
-        const scenePromise = sceneLines.length > 0
-          ? writeStoryScene(sceneLines, sceneSetting(messages)).catch((err) => {
+        // Story scenes (D-22): the sealed exchange is written as one readable scene FIRST and
+        // saved to the story at once, so the table reads it while the DM writes. The DM then
+        // gets the scene as its input. Not in approval mode, and not in private mode (the
+        // scene is shared, while private rounds keep each player's lines to themselves).
+        const sceneLines = isApprovalMode || sessionConfig.mode === 'private' ? [] : (directPrompt?.sceneLines || []);
+        const scene = sceneLines.length > 0
+          ? await writeStoryScene(sceneLines, sceneSetting(messages)).catch((err) => {
               console.warn('[PartyDM] Story scene failed:', err);
               return null;
             })
           : null;
 
+        const rawCombined = scene && directPrompt
+          ? sceneHandoffText(scene.text, tableTalkPart(directPrompt.text))
+          : (directPrompt
+            ? directPrompt.text.trim()
+            : readyPrompts.map(formatPromptLineForAI).join('\n')) + afkPromptSection;
+
+
+        const combined = rawCombined;
+
         // In approval mode, don't insert user message yet — defer to approveDraft
         let insertedUserMsgId: string | null = null;
-        if (!isApprovalMode) {
+        let sceneRowId: string | null = null;
+        // If the DM call fails, the sealed lines stay sealed for another Send to DM, so the
+        // scene comes back out of the story and the retry doesn't show it twice.
+        const dropUnansweredScene = async () => {
+          if (!sceneRowId) return;
+          const id = sceneRowId;
+          sceneRowId = null;
+          await (supabase.from('party_dm_messages') as any).delete().eq('id', id).eq('party_id', partyId);
+          setMessages(prev => prev.filter(m => m.id !== id));
+        };
+        if (!isApprovalMode && scene) {
+          // The scene is the story's record of this round; the raw lines stay in the Live Table.
+          const sceneRow = await insertPartyMessage({
+            party_id: partyId,
+            role: 'assistant',
+            content: scene.text,
+            sender_user_id: null,
+            sender_name: STORY_SCENE_SENDER,
+          });
+          sceneRowId = sceneRow?.id ?? null;
+          if (scene.source === 'script') toast.info('The scene is shown as a script', { description: scene.reason, duration: 8000 });
+        } else if (!isApprovalMode) {
           // Insert one row per ready player (privacy: each row carries player's own user_id)
           for (const p of readyPrompts) {
             await insertPartyMessage({
@@ -2461,8 +2490,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           insertedUserMsgId = null;
         }
 
-        // Scenes retell rows the DM already has, so they are never sent back to it.
-        const apiMessages = messages.filter(m => !isStorySceneRow(m)).map(m => ({ role: m.role, content: m.content }));
+        // Scenes reach the DM as what the table did (storyHistory).
+        const apiMessages = storyHistory(messages);
         apiMessages.push({ role: 'user', content: combined });
 
         const responseModePrompt = resolveResponseModePrompt(sessionConfig.responseMode);
@@ -2477,7 +2506,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           responseModePrompt,
         ].filter(Boolean).join('\n\n');
 
-        const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, partyContextStr, undefined, empyreanPersonaPrompt, currentRoundOocDirectives, scenePromise && liveTable ? { ...liveTable, hasScene: true } : liveTable);
+        let assistantContent: string;
+        try {
+          assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, partyContextStr, undefined, empyreanPersonaPrompt, currentRoundOocDirectives, scene && liveTable ? { ...liveTable, hasScene: true } : liveTable);
+        } catch (err) {
+          await dropUnansweredScene().catch(() => {});
+          throw err;
+        }
 
         if (assistantContent?.trim()) {
           if (isApprovalMode) {
@@ -2487,24 +2522,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               userSenderName: 'Party',
             });
           } else {
-            // The scene goes in first, so the DM's post stays the latest row (auto-sync, cinematics).
-            if (scenePromise) {
-              try {
-                const scene = await scenePromise;
-                if (scene?.text) {
-                  await insertPartyMessage({
-                    party_id: partyId,
-                    role: 'assistant',
-                    content: scene.text,
-                    sender_user_id: null,
-                    sender_name: STORY_SCENE_SENDER,
-                  });
-                  if (scene.source === 'script') toast.info('The scene is shown as a script', { description: scene.reason, duration: 8000 });
-                }
-              } catch (err) {
-                console.warn('[PartyDM] Could not save the story scene:', err);
-              }
-            }
             await insertPartyMessage({
               party_id: partyId,
               role: 'assistant',
@@ -2768,10 +2785,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       });
 
       const partyMembersSummary = buildPartyMembersGuide();
-      const apiMessages = [...messages.filter(m => !isStorySceneRow(m)), {
-        role: 'user' as const,
+      const apiMessages = [...storyHistory(messages), {
+        role: 'user',
         content: '[System]: The players request the DM continue the narrative based on the dialogue above.',
-      }].map(m => ({ role: m.role, content: m.content }));
+      }];
 
       const responseModePrompt = resolveResponseModePrompt(sessionConfig.responseMode);
       const campaignIntro = sessionConfig.campaignType === 'empyrean'
@@ -2864,10 +2881,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
     abortRef.current = new AbortController();
     try {
-      const apiMessages = [...messages.filter(m => !isStorySceneRow(m)), {
-        role: 'user' as const,
+      const apiMessages = [...storyHistory(messages), {
+        role: 'user',
         content: formattedContent,
-      }].map(m => ({ role: m.role, content: m.content }));
+      }];
 
       const npcContext = names.length === 1
         ? `## NPC VOICING MODE — DIALOGUE ONLY\nYou ARE ${names[0]}. Respond with ONLY:\n1. One brief italicized body-language beat (gesture, expression, or micro-reaction — 10 words max, present tense).\n2. One line of spoken dialogue, prefixed with **${names[0]}:**\n\nRules:\n- NO prose, NO narration, NO scene-setting, NO describing what the player does.\n- NO mechanical info (dice, DCs, stats).\n- Keep the total response under 40 words.\n- Stay consistent with how this NPC has been portrayed so far.\n- This is a CONVERSATION, not a story. Write like a person talking, not a narrator describing.`
@@ -2984,7 +3001,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const originalMsg = messages[msgIndex];
     const msgTeam = originalMsg?.team || null;
 
-    const precedingUserMsg = messages.slice(0, msgIndex).reverse().find(m => m.role === 'user');
+    // A story scene is what the table did, so it counts as the prompt too (D-22).
+    const precedingUserMsg = messages.slice(0, msgIndex).reverse().find(m => m.role === 'user' || isStorySceneRow(m));
     if (!precedingUserMsg) {
       toast.error('No preceding prompt found to regenerate from');
       return;
