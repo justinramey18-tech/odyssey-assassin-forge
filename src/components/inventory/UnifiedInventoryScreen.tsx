@@ -10,6 +10,7 @@ import { SellItemDrawer, getConsumableSellPrice, getEquipmentSellPrice, getMiscS
 import { ConsumablesInventoryWidget, AddConsumableDrawer } from '@/components/consumables';
 import { LootScreen } from '@/components/loot/LootScreen';
 import { ShopScreen } from '@/components/shop/ShopScreen';
+import { CombatPerksPanel } from './CombatPerksPanel';
 import { CharacterEquipment, EquipmentItem } from '@/lib/inventory/types';
 import { Achievement } from '@/lib/achievements';
 import { InventoryItem, Consumable } from '@/lib/consumables/types';
@@ -339,6 +340,8 @@ export function UnifiedInventoryScreen({
         )}
 
         {currentTab === 'shop' && (
+          <>
+          <CombatPerksPanel characterName={characterName} currentGold={currentGold} onSpendGold={(amount) => onAdjustGold(-amount)} />
           <ShopScreen
             currentGold={currentGold}
             shopItems={shopItems}
@@ -351,6 +354,7 @@ export function UnifiedInventoryScreen({
             onClearShop={onClearShop}
             onPurchaseCatalogItem={onPurchaseCatalogItem}
           />
+          </>
         )}
       </div>
 
