@@ -579,7 +579,9 @@ export async function combatTurn(
   const npc = await repo.getNpc(req.npcId);
   if (!npc || npc.party_id !== req.partyId || npc.archived) return refuse(404, 'That NPC is not at this table.');
   // A knocked-out, dead, off-stage or stand-in NPC stays quiet. Not an error: the fight goes on.
-  if (!npc.on_stage || npc.combat_state || npc.player_user_id) return reply(200, { ok: true, skipped: 'quiet' });
+  // A knocked-out or killed NPC still gets its final words (move 'fall'); otherwise it stays quiet.
+  if (npc.player_user_id) return reply(200, { ok: true, skipped: 'quiet' });
+  if (move.move !== 'fall' && (!npc.on_stage || npc.combat_state)) return reply(200, { ok: true, skipped: 'quiet' });
   if (move.move === 'hit' && repo.npcSpokeSince
     && (await repo.npcSpokeSince(npc.id, new Date(deps.now() - COMBAT_REACT_GAP_MS).toISOString()))) {
     return reply(200, { ok: true, skipped: 'spoke recently' });

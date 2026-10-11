@@ -477,6 +477,12 @@ async function hitNpc(
     must('mark NPC defeated', error);
     await addEvent(db, fight, { kind: 'defeat_npc', actor_name: me.name, target_name: after.name, detail: after.status === 'dead' ? 'killed' : 'knocked out' });
     await postLine(db, fight.party_id, hostId, `${me.name} ${after.status === 'dead' ? 'kills' : 'knocks out'} ${after.name}!`);
+    // The NPC's final words as it goes down.
+    speak(db, {
+      partyId: fight.party_id, hostId, npcId: after.npc_id,
+      turn: { move: 'fall', attacker: me.name, killed: after.status === 'dead' },
+      fallback: null,
+    });
   }
   if (before.hp > after.hp) {
     // Landing a hit fills the attacker's Resolve.
@@ -491,7 +497,7 @@ async function hitNpc(
     // The NPC reacts to the hit (npc-reply allows one reaction per 20 seconds).
     speak(db, {
       partyId: fight.party_id, hostId, npcId: after.npc_id,
-      turn: { move: 'hit', attacker: me.name, crit, damage: before.hp - after.hp },
+      turn: { move: 'hit', attacker: withLook(me), crit, damage: before.hp - after.hp },
       fallback: null,
     });
   }
@@ -787,7 +793,13 @@ async function tick(db: Db, fightId: string, hostId: string, now: number): Promi
       });
       speak(db, {
         partyId: fight.party_id, hostId, npcId: npc.npc_id as string,
-        turn: { move: 'intent', skill: sk.name, skillType: sk.type, targets: names },
+        turn: {
+          move: 'intent', skill: sk.name, skillType: sk.type,
+          targets: choice.targetIds.filter(id => id !== npc.id)
+            .map(id => fighters.find(x => x.id === id))
+            .filter((x): x is Fighter => !!x)
+            .map(x => (x.kind === 'player' ? withLook(x) : x.name)),
+        },
         fallback: `${npc.name} readies ${sk.name}${names.length ? ` against ${names.join(' and ')}` : ''}!`,
       });
     }
