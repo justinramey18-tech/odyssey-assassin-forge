@@ -74,14 +74,14 @@ function HpBar({ hp, max, color = 'bg-red-500', thin }: { hp: number; max: numbe
   );
 }
 
-function Ring({ progress }: { progress: number }) {
+function Ring({ progress, urgent }: { progress: number; urgent?: boolean }) {
   const r = 9;
   const c = 2 * Math.PI * r;
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" className="shrink-0" aria-label="Next attack">
       <circle cx="12" cy="12" r={r} fill="none" stroke="hsl(0 0% 100% / 0.12)" strokeWidth="3" />
       <circle
-        cx="12" cy="12" r={r} fill="none" stroke="hsl(0 84% 60%)" strokeWidth="3" strokeLinecap="round"
+        cx="12" cy="12" r={r} fill="none" stroke={urgent ? 'hsl(0 90% 55%)' : 'hsl(0 84% 60%)'} strokeWidth={urgent ? 4 : 3} strokeLinecap="round"
         strokeDasharray={c} strokeDashoffset={c * (1 - progress)} transform="rotate(-90 12 12)"
       />
     </svg>
@@ -112,10 +112,29 @@ const PERK_LABELS: Record<string, string> = {
 };
 
 // Every event kind (including second_wind, potion and last_stand) shows its detail text.
+const SKILL_EVENT_ICON: Record<string, string> = { intent: '⚠', mend: '✚', shield: '🛡', rally: '📯', pin: '📌', retreat: '🏃' };
 function eventLine(e: FightEventRow): string {
+  const icon = SKILL_EVENT_ICON[e.kind];
+  if (icon) {
+    const who = e.target_name && e.target_name !== e.actor_name ? `${e.actor_name || '?'} → ${e.target_name}` : (e.actor_name || '?');
+    return `${icon} ${who}${e.detail ? `: ${e.detail}` : ''}`;
+  }
   const who = e.target_name ? `${e.actor_name || '?'} → ${e.target_name}` : e.actor_name;
   const roll = e.d20 != null ? ` (d20 ${e.d20}${e.total != null ? ` → ${e.total}` : ''})` : '';
   return [who, roll, e.detail ? `: ${e.detail}` : ''].join('').trim() || e.kind;
+}
+
+// NPC Skills: the announced skill on a fighter row (pending), parsed safely.
+type PendingSkill = { skill: string; type: string; targets: string[] };
+function pendingOf(f: FighterRow): PendingSkill | null {
+  const p = (f as unknown as { pending?: unknown }).pending as Record<string, unknown> | null | undefined;
+  if (!p || typeof p !== 'object' || typeof p.skill !== 'string') return null;
+  const targets = Array.isArray(p.targets) ? p.targets.filter((t): t is string => typeof t === 'string') : [];
+  return { skill: p.skill, type: typeof p.type === 'string' ? p.type : '', targets };
+}
+function timeOf(v: unknown): number {
+  const t = typeof v === 'string' ? Date.parse(v) : NaN;
+  return Number.isFinite(t) ? t : NaN;
 }
 
 type Result = { lines: string[] } | null;
@@ -569,8 +588,14 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
   }
 
   // ---------- B. fight running ----------
+  const pinnedUntil = timeOf((myFighter as unknown as { pinned_until?: unknown })?.pinned_until);
+  const pinnedLeft = Number.isFinite(pinnedUntil) ? Math.ceil((pinnedUntil - now) / 1000) : 0;
+  const amPinned = pinnedLeft > 0;
+  const aimingAtMe = myFighter
+    ? npcFighters.map(f => ({ f, p: pendingOf(f) })).find(x => x.f.status === 'up' && x.p?.targets.includes(myFighter.id)) ?? null
+    : null;
   const otherDown = playerFighters.some(f => f.status === 'down' && f.user_id !== currentUserId);
-  const canAct = isActive && !busy && cooldownLeft <= 0;
+  const canAct = isActive && !busy && cooldownLeft <= 0 && !amPinned;
   const myResolve = resolveOf(myFighter, now);
   const recent = [...events].reverse().slice(0, 20);
 
@@ -610,7 +635,15 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                 const secs = (Number.isFinite(paceMs) && paceMs > 0 ? paceMs : preset * 1000) / 1000;
                 const next = f.next_action_at ? Date.parse(f.next_action_at) : NaN;
                 const progress = Number.isFinite(next) ? Math.max(0, Math.min(1, 1 - (next - now) / (secs * 1000))) : 0;
-                const out = f.status === 'ko' || f.status === 'dead';
+                const out = f.status === 'ko' || f.status === 'dead' || f.status === 'fled';
+                const pend = f.status === 'up' ? pendingOf(f) : null;
+                const strikeAt = timeOf((f as unknown as { strike_at?: unknown }).strike_at);
+                const strikeLeft = Number.isFinite(strikeAt) ? strikeAt - now : NaN;
+                const strikeProgress = Number.isFinite(strikeLeft) ? Math.max(0, Math.min(1, 1 - strikeLeft / 8000)) : 0;
+                const wardAmt = Number((f as unknown as { ward?: unknown }).ward);
+                const wardUntil = timeOf((f as unknown as { ward_until?: unknown }).ward_until);
+                const warded = Number.isFinite(wardAmt) && wardAmt > 0 && Number.isFinite(wardUntil) && wardUntil > now;
+                const pendTargets = pend ? pend.targets.filter(t => t !== f.id).map(t => fighters.find(x => x.id === t)?.name).filter(Boolean) as string[] : [];
                 return (
                   <div key={f.id} className={cn('flex items-center gap-2', out && 'opacity-50 grayscale')}>
                     {npc ? <NpcPortrait url={npc.portrait_url} name={npc.name} className="w-8 h-8 text-sm" /> : <span className="w-8 h-8" />}
@@ -618,7 +651,8 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-[13px] text-white/90 truncate">{f.name}</span>
                         <span className="text-[11px] text-white/60 shrink-0">
-                          {f.status === 'ko' ? '💤 Knocked out' : f.status === 'dead' ? '💀 Dead' : `${f.hp}/${f.max_hp}`}
+                          {warded && <span className="mr-1 text-sky-200">🛡 {Math.round(wardAmt)}</span>}
+                          {f.status === 'ko' ? '💤 Knocked out' : f.status === 'dead' ? '💀 Dead' : f.status === 'fled' ? '🏃 Fled' : `${f.hp}/${f.max_hp}`}
                         </span>
                       </div>
                       <HpBar hp={f.hp} max={f.max_hp} />
@@ -628,23 +662,23 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                         {secs < preset ? '⚡ ' : secs > preset ? '🐢 ' : ''}every {Math.round(secs)}s
                       </span>
                     )}
-                    {!isPaused && f.status === 'up' && <Ring progress={progress} />}
+                    {!isPaused && f.status === 'up' && (pend ? <Ring progress={strikeProgress} urgent /> : <Ring progress={progress} />)}
                   </div>
                 );
               })}
 
               <div className="flex flex-wrap gap-1.5 pt-1">
-                {playerFighters.map(f => (
+                {playerFighters.map(f => { const pinT = timeOf((f as unknown as { pinned_until?: unknown }).pinned_until); return (
                   <div key={f.id} className="min-w-[96px] flex-1 max-w-[50%] rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1">
                     <div className="flex items-center justify-between gap-1">
-                      <span className="text-[11px] text-white/85 truncate">{f.name}</span>
+                      <span className="text-[11px] text-white/85 truncate">{Number.isFinite(pinT) && pinT > now ? '📌 ' : ''}{f.name}</span>
                       {f.status === 'down' && <span className="text-[11px] text-red-300 flex items-center">DOWN<Dots ok={f.death_successes} bad={f.death_failures} /></span>}
                       {f.status === 'stable' && <span className="text-[11px] text-sky-300">STABLE</span>}
                       {f.status === 'dead' && <span className="text-[11px]">💀</span>}
                     </div>
                     <HpBar hp={f.hp} max={f.max_hp} color="bg-green-500" thin />
                   </div>
-                ))}
+                ); })}
               </div>
 
               {npcLine && <p className="text-[12px] text-red-200">{npcLine}</p>}
@@ -663,6 +697,12 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
       {myFighter?.status === 'up' && (
         <div className="fixed left-0 right-0 z-[56] px-2" style={{ bottom: 'calc(8px + env(safe-area-inset-bottom))' }}>
           <div className="rounded-xl border border-white/15 bg-black/85 backdrop-blur p-2 space-y-1">
+            {aimingAtMe?.p && (
+              <p className="rounded-md border border-red-500/50 bg-red-950/70 px-2 py-1 text-[12px] text-center text-red-100 animate-pulse">
+                ⚠ {aimingAtMe.f.name} is aiming {aimingAtMe.p.skill} at you!
+              </p>
+            )}
+            {amPinned && <p className="text-[12px] text-center text-amber-200">📌 Pinned: {pinnedLeft}s</p>}
             {cooldownLeft > 0 && <p className="text-[11px] text-center text-white/60">Ready in {cooldownLeft}s</p>}
             <div className="space-y-1">
               <div className="flex items-center justify-between text-[11px]">
@@ -717,6 +757,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
         </AlertDialogContent>
       </AlertDialog>
 
+      {aimingAtMe && <div aria-hidden className="fixed inset-0 z-[57] pointer-events-none" style={{ boxShadow: 'inset 0 0 60px 12px hsl(0 84% 50% / 0.55)' }} />}
       {resultCard}
       {flashLayer}
       {sheet}
