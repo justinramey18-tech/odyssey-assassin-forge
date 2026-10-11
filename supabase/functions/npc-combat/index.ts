@@ -62,6 +62,8 @@ interface Fighter {
   threat: Record<string, number> | null;
   last_seen_at: string | null;
   last_action_at: string | null;
+  /** NPCs: how often it acts right now, in ms (Rage and Stagger change it). Null = its Speed preset. */
+  act_every_ms: number | null;
 }
 
 interface Seat {
@@ -83,7 +85,7 @@ interface NpcRow {
 
 const FIGHT_COLS = 'id, party_id, status, outcome, started_by';
 const FIGHTER_COLS =
-  'id, fight_id, party_id, kind, npc_id, user_id, name, hp, max_hp, ac, status, death_successes, death_failures, next_action_at, next_save_at, action_seq, threat, last_seen_at, last_action_at';
+  'id, fight_id, party_id, kind, npc_id, user_id, name, hp, max_hp, ac, status, death_successes, death_failures, next_action_at, next_save_at, action_seq, threat, last_seen_at, last_action_at, act_every_ms';
 const NPC_COLS = 'id, party_id, name, on_stage, archived, player_user_id, combat_stats, combat_state';
 
 class Refusal extends Error {
@@ -334,6 +336,7 @@ async function ensureNpc(db: Db, fight: Fight, npc: NpcRow, now: number): Promis
     ac: stats.ac,
     status: 'up',
     next_action_at: R.nextActionAt(now, stats.speed),
+    act_every_ms: R.baseIntervalMs(stats.speed),
   };
   const { data: inserted, error: insertError } = await db.from('party_fight_combatants').insert(row).select(FIGHTER_COLS);
   if (insertError?.code === '23505') return ensureNpc(db, fight, npc, now);
@@ -360,18 +363,32 @@ async function startAction(db: Db, fight: Fight, me: Fighter | null, now: number
 type Finish = 'knockout' | 'kill';
 const finishOf = (v: unknown): Finish => (v === 'kill' ? 'kill' : 'knockout');
 
-/** Damage on an NPC. Knocks it out or kills it at 0 HP, as the attacker chose. */
+/** An NPC's Speed preset (for Rage and Stagger), or 'medium' when it has no usable stats. */
+async function speedOfNpc(db: Db, npcId: string | null): Promise<R.SpeedPreset> {
+  if (!npcId) return 'medium';
+  const { data, error } = await db.from('party_npcs').select('combat_stats').eq('id', npcId).maybeSingle();
+  must('read NPC speed', error);
+  return R.cleanCombatStats(data?.combat_stats)?.speed ?? 'medium';
+}
+
+/** Damage on an NPC. Knocks it out or kills it at 0 HP, as the attacker chose. Otherwise it is staggered. */
 async function hitNpc(
-  db: Db, fight: Fight, hostId: string, me: Fighter, targetId: string, damage: number, finish: Finish, crit = false,
+  db: Db, fight: Fight, hostId: string, me: Fighter, targetId: string, damage: number, finish: Finish, crit = false, now = Date.now(),
 ): Promise<{ lost: number; hp: number; defeated: boolean }> {
+  const current = await fighterById(db, targetId);
+  const speed = await speedOfNpc(db, current?.npc_id ?? null);
   const result = await mutate(db, targetId, f => {
     if (f.kind !== 'npc' || f.status !== 'up') return null;
     const { hp } = R.applyDamage(f.hp, damage);
+    const lost = f.hp - hp;
     const threat = { ...(f.threat ?? {}) };
-    threat[me.user_id as string] = (threat[me.user_id as string] ?? 0) + (f.hp - hp);
-    return hp === 0
-      ? { hp, threat, status: finish === 'kill' ? 'dead' : 'ko', next_action_at: null }
-      : { hp, threat };
+    threat[me.user_id as string] = (threat[me.user_id as string] ?? 0) + lost;
+    if (hp === 0) return { hp, threat, status: finish === 'kill' ? 'dead' : 'ko', next_action_at: null };
+    // Stagger: the NPC acts later, and slower from now on.
+    const s = R.stagger(R.currentIntervalMs(f.act_every_ms, speed), speed, lost, f.max_hp);
+    const next = f.next_action_at ? Date.parse(f.next_action_at) : now;
+    const pushed = Math.min(Math.max(next, now) + s.delayMs, now + s.intervalMs);
+    return { hp, threat, act_every_ms: s.intervalMs, next_action_at: iso(pushed) };
   });
   if (!result) return { lost: 0, hp: 0, defeated: false };
   const { before, after } = result;
@@ -412,7 +429,7 @@ async function doAttack(
   let hp = target.hp;
   let defeated = false;
   if (a.hit) {
-    const out = await hitNpc(db, fight, hostId, actor, target.id, R.rollDamage(w.dice, roll, a.crit), finish, a.crit);
+    const out = await hitNpc(db, fight, hostId, actor, target.id, R.rollDamage(w.dice, roll, a.crit), finish, a.crit, now);
     ({ lost, hp, defeated } = out);
   }
   await addEvent(db, fight, {
@@ -445,7 +462,8 @@ async function tick(db: Db, fightId: string, hostId: string, now: number): Promi
     for (const npc of fighters) {
       if (npc.kind !== 'npc' || npc.status !== 'up' || !due(npc.next_action_at, now)) continue;
       const stats = statsById.get(npc.npc_id as string);
-      const nextAt = R.nextActionAt(now, stats?.speed ?? 'trivial');
+      const interval = stats ? R.currentIntervalMs(npc.act_every_ms, stats.speed) : R.baseIntervalMs('trivial');
+      const nextAt = iso(now + interval);
       if (!(await claim(db, npc, { next_action_at: nextAt })) || !stats) continue;
       const dice = R.parseDice(stats.damage);
       const targetId = R.pickTarget(players.map(p => ({
@@ -477,6 +495,11 @@ async function tick(db: Db, fightId: string, hostId: string, now: number): Promi
           lost = result.before.hp - result.after.hp;
           downed = result.after.status === 'down';
           Object.assign(target, result.after);
+        }
+        if (lost > 0) {
+          // Rage: the NPC acts sooner, starting with its next turn.
+          const faster = R.rageIntervalMs(interval, stats.speed, lost, target.max_hp);
+          await mutate(db, npc.id, f => (f.status === 'up' ? { act_every_ms: faster, next_action_at: iso(now + faster) } : null));
         }
       }
       await addEvent(db, fight, {
@@ -689,7 +712,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
       for (const row of npcRows || []) speedOf.set(row.id, R.cleanCombatStats(row.combat_stats)?.speed ?? 'trivial');
       for (const f of fighters) {
         if (f.kind === 'npc' && f.status === 'up') {
-          await mutate(db, f.id, () => ({ next_action_at: R.nextActionAt(now, speedOf.get(f.npc_id as string) ?? 'trivial') }));
+          await mutate(db, f.id, x => ({ next_action_at: iso(now + R.currentIntervalMs(x.act_every_ms, speedOf.get(f.npc_id as string) ?? 'trivial')) }));
         } else if (f.kind === 'player' && f.status === 'down') {
           await mutate(db, f.id, x => (x.status === 'down' ? { next_save_at: R.nextDeathSaveAt(now) } : null));
         }
@@ -759,7 +782,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     const a = R.resolveAttack(roll, R.spellAttackBonus(sheet), target.ac);
     let out = { lost: 0, hp: target.hp, defeated: false };
     if (a.hit) {
-      out = await hitNpc(db, fight, hostId, actor, target.id, R.rollDamage(R.spellDamageDice(spellLevel, sheet.level), roll, a.crit), finishOf(body.finish), a.crit);
+      out = await hitNpc(db, fight, hostId, actor, target.id, R.rollDamage(R.spellDamageDice(spellLevel, sheet.level), roll, a.crit), finishOf(body.finish), a.crit, now);
     }
     await addEvent(db, fight, {
       kind: 'spell', actor_name: actor.name, target_name: target.name, hp_delta: -out.lost, d20: a.d20, total: a.total,
@@ -767,6 +790,80 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     });
     await tick(db, fight.id, hostId, now);
     return { hit: a.hit, crit: a.crit, d20: a.d20, total: a.total, damage: out.lost, targetHp: out.hp, defeated: out.defeated };
+  }
+
+  if (action === 'cast_card') {
+    // A spell cast from Quick Actions: its card already holds the player's own roll (attack total
+    // and damage, or the healing amount) and the slot is already spent. Capped so nothing impossible lands.
+    const card = body.card && typeof body.card === 'object' ? (body.card as Record<string, unknown>) : null;
+    const spellName = card && typeof card.action === 'string' ? card.action.trim().slice(0, 80) : '';
+    if (!card || !spellName) refuse(400, 'Missing spell card.');
+    const num = (v: unknown, max: number): number | null => {
+      const n = Number(v);
+      return v === null || v === undefined || v === '' || !Number.isFinite(n) ? null : Math.max(0, Math.min(max, Math.round(n)));
+    };
+    const damage = num(card!.damageTotal, 200) ?? 0;
+    const amount = num(card!.amount, 200) ?? 0;
+    const d20 = num(card!.d20, 20);
+    const attackTotal = num(card!.attackTotal, 60);
+    const target = await fighterById(db, needUuid(body.targetId, 'target'));
+    if (!target || target.fight_id !== fight.id) return refuse(404, 'That target is not in this fight.');
+
+    if (target.kind === 'player') {
+      if (amount < 1) refuse(400, `${spellName} has no healing to give.`);
+      if (target.status === 'dead') refuse(409, `${target.name} has fallen. Only the host can revive them.`);
+      const actor = await startAction(db, fight, me, now);
+      const r = await mutate(db, target.id, f => {
+        if (f.status === 'dead') return null;
+        const { hp } = R.applyHealing(f.hp, f.max_hp, amount);
+        return hp > 0 && f.status !== 'up'
+          ? { hp, status: 'up', death_successes: 0, death_failures: 0, next_save_at: null }
+          : { hp };
+      });
+      const gained = r ? r.after.hp - r.before.hp : 0;
+      await addEvent(db, fight, {
+        kind: 'heal', actor_name: actor.name, target_name: target.name, target_user_id: target.user_id, hp_delta: gained,
+        detail: `${spellName}: +${gained} HP`,
+      });
+      if (r && r.before.status !== 'up' && r.after.status === 'up') {
+        await postLine(db, fight.party_id, hostId, `${actor.name} brings ${target.name} back to their feet!`);
+      }
+      await tick(db, fight.id, hostId, now);
+      return { healed: gained, targetHp: r?.after.hp ?? target.hp };
+    }
+
+    if (damage < 1) refuse(400, `${spellName} has no damage to deal.`);
+    if (target.status !== 'up') refuse(409, `${target.name} is already down.`);
+    const actor = await startAction(db, fight, me, now);
+    const sheet = seat.character_status ?? {};
+    let hit = true;
+    let crit = false;
+    let dealt = damage;
+    let shown: number | null = null;
+    let note = '';
+    if (d20 !== null && d20 >= 1) {
+      // Spell attack: the card's own roll against the NPC's AC.
+      crit = d20 === 20;
+      shown = attackTotal ?? d20;
+      hit = crit || (d20 !== 1 && shown >= target.ac);
+    } else {
+      // Saving-throw spell: the NPC saves against the caster's spell DC; a success halves the damage.
+      const save = roll(20);
+      const dc = 8 + R.proficiency(sheet.level) + R.castingMod(sheet);
+      shown = save;
+      if (save >= dc) {
+        dealt = Math.floor(damage / 2);
+        note = ` (${target.name} saved, half damage)`;
+      }
+    }
+    let out = { lost: 0, hp: target.hp, defeated: false };
+    if (hit && dealt > 0) out = await hitNpc(db, fight, hostId, actor, target.id, dealt, finishOf(body.finish), crit, now);
+    await addEvent(db, fight, {
+      kind: 'spell', actor_name: actor.name, target_name: target.name, hp_delta: -out.lost, d20, total: shown,
+      detail: hit ? `${spellName}: ${out.lost} damage${crit ? ' (critical!)' : ''}${note}` : `${spellName}: miss`,
+    });
+    await tick(db, fight.id, hostId, now);
+    return { hit, crit, d20, total: shown, damage: out.lost, targetHp: out.hp, defeated: out.defeated };
   }
 
   if (action === 'stabilize') {

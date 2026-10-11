@@ -286,3 +286,43 @@ export function nextActionAt(nowMs: number, speed: SpeedPreset): string {
 export function nextDeathSaveAt(nowMs: number): string {
   return new Date(nowMs + DEATH_SAVE_INTERVAL_S * 1000).toISOString();
 }
+
+// ── Rage and Stagger: an NPC's pace changes with the damage it deals and takes ──
+
+/** Rage: an NPC that hurts a player acts sooner. Stagger: an NPC that gets hurt acts later. */
+export const RAGE_FACTOR = 0.5;
+export const STAGGER_FACTOR = 0.5;
+
+/** The Speed preset in milliseconds. */
+export const baseIntervalMs = (speed: SpeedPreset): number => SPEED_PRESETS[speed] * 1000;
+
+/** An NPC's interval is kept between half and double its Speed preset. */
+export function clampIntervalMs(ms: number, speed: SpeedPreset): number {
+  const base = baseIntervalMs(speed);
+  const n = Number.isFinite(ms) ? ms : base;
+  return Math.round(Math.min(base * 2, Math.max(base * 0.5, n)));
+}
+
+/** The interval an NPC acts on right now (its stored value, or its Speed preset). */
+export function currentIntervalMs(actEveryMs: number | null | undefined, speed: SpeedPreset): number {
+  return clampIntervalMs(typeof actEveryMs === 'number' ? actEveryMs : baseIntervalMs(speed), speed);
+}
+
+/**
+ * Rage: the NPC dealt `damage` to a player with `targetMaxHp`.
+ * New interval = current - base x RAGE_FACTOR x (damage / player's max HP), never below half the base.
+ */
+export function rageIntervalMs(currentMs: number, speed: SpeedPreset, damage: number, targetMaxHp: number): number {
+  const cut = baseIntervalMs(speed) * RAGE_FACTOR * Math.max(0, damage) / Math.max(1, targetMaxHp);
+  return clampIntervalMs(currentMs - cut, speed);
+}
+
+/**
+ * Stagger: a player dealt `damage` to an NPC with `npcMaxHp`.
+ * Delay = base x STAGGER_FACTOR x (damage / NPC's max HP). The interval grows by it (never above double
+ * the base) and the NPC's current countdown is pushed back by the same delay.
+ */
+export function stagger(currentMs: number, speed: SpeedPreset, damage: number, npcMaxHp: number): { intervalMs: number; delayMs: number } {
+  const delayMs = Math.round(baseIntervalMs(speed) * STAGGER_FACTOR * Math.max(0, damage) / Math.max(1, npcMaxHp));
+  return { intervalMs: clampIntervalMs(currentMs + delayMs, speed), delayMs };
+}
