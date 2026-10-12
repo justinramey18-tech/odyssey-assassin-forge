@@ -158,6 +158,9 @@ function resultOf(r: Record<string, unknown> | null): Result {
   if (typeof r.healed === 'number') lines.push(`+${r.healed} HP`);
   else if (r.hit === true) lines.push(`${r.crit ? 'Critical! ' : ''}Hit! ${Number(r.damage) || 0} damage`);
   else if (r.hit === false) lines.push('Miss');
+  // Spells: several targets (area) and how many made their save.
+  if (typeof r.targets === 'number' && r.targets > 1) lines.push(`${r.targets} targets`);
+  if (typeof r.saved === 'number' && r.saved > 0) lines.push(`${r.saved} saved (half damage)`);
   return lines.length ? { lines } : null;
 }
 
@@ -191,6 +194,8 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
   const [weapon, setWeapon] = useState<string | null>(null);
   const [finish, setFinish] = useState<Finish>('knockout');
   const [finishTarget, setFinishTarget] = useState<string | null>(null);
+  // Area spell cards: the targets picked so far (up to 3).
+  const [picked, setPicked] = useState<string[]>([]);
   const [collapsed, setCollapsed] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const [hostMenu, setHostMenu] = useState(false);
@@ -267,6 +272,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
     const wasCard = step?.kind === 'card-target';
     setStep(null);
     setFinishTarget(null);
+    setPicked([]);
     if (wasCard) onPendingCastDone?.();
   };
 
@@ -286,14 +292,15 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
         const amt = Number(card.amount);
         const heals = card.kind === 'heal' || (Number.isFinite(amt) && amt > 0 && !(Number.isFinite(dmg) && dmg > 0));
         const fits = heals ? pre.kind === 'player' && pre.status !== 'dead' : pre.kind === 'npc' && pre.status === 'up';
-        if (fits && cooldownLeft <= 0 && !busy) {
+        if (fits && card.area) setPicked([pre.id]);
+        if (fits && !card.area && cooldownLeft <= 0 && !busy) {
           void combat.castFromCard(pre.id, card, heals ? undefined : fin).then(r => {
             if (r) showResult(r);
             onPendingCastDone?.();
           });
           return;
         }
-        if (fits) setFinishTarget(pre.id);
+        if (fits && !card.area) setFinishTarget(pre.id);
         else toast(`${card.action} can't land on ${pre.name}. Pick a target.`);
       }
       setStep({ kind: 'card-target', card, key: pendingCast.key });
@@ -460,11 +467,15 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
     const amt = Number(card.amount);
     const isHeal = card.kind === 'heal' || (Number.isFinite(amt) && amt > 0 && !(Number.isFinite(dmg) && dmg > 0));
     const waiting = cooldownLeft > 0 || busy;
+    const area = card.area === true;
+    const dmgText = `${Number.isFinite(dmg) ? dmg : 0} damage`;
     const rollLine = isHeal
-      ? `Heals ${Number.isFinite(amt) ? amt : 0}`
-      : card.d20 != null
-        ? `d20 ${card.d20} → ${card.attackTotal ?? '?'} · ${Number.isFinite(dmg) ? dmg : 0} damage`
-        : `${Number.isFinite(dmg) ? dmg : 0} damage (they make a saving throw)`;
+      ? `Heals ${Number.isFinite(amt) ? amt : 0}${area ? ' · up to 3 allies' : ''}`
+      : card.resolve === 'auto'
+        ? `${dmgText} · hits automatically${area ? ' · up to 3 enemies' : ''}`
+        : card.resolve === 'save' || card.d20 == null
+          ? `${dmgText} · ${card.saveStat ?? 'DEX'} save DC ${card.saveDC ?? '?'}, half on a save${area ? ' · up to 3 enemies' : ''}`
+          : `d20 ${card.d20} → ${card.attackTotal ?? '?'} · ${dmgText}${area ? ' · up to 3 enemies' : ''}`;
     const targets = isHeal
       ? playerFighters.filter(f => f.status !== 'dead')
       : (Number.isFinite(dmg) && dmg > 0 ? npcUp : []);
@@ -473,12 +484,30 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
       if (r) { showResult(r); close(); }
     };
     const chosenLow = finishTarget && targets.find(t => t.id === finishTarget);
-    title = `Target for ${card.action}`;
+    const pickedLive = picked.filter(id => targets.some(t => t.id === id));
+    const toggle = (id: string) => setPicked(prev => (prev.includes(id) ? prev.filter(x => x !== id) : prev.length >= 3 ? prev : [...prev, id]));
+    title = `Target${area ? 's' : ''} for ${card.action}`;
     body = (
       <div className="space-y-2">
         <p className="text-[13px] text-white/75">{rollLine}</p>
         {waiting && <p className="text-[11px] text-white/60">{busy ? 'Working…' : `Ready in ${cooldownLeft}s`}</p>}
-        {chosenLow ? (
+        {area ? (
+          <div className="space-y-2">
+            <p className="text-[12px] text-white/55">Tap up to 3 {isHeal ? 'allies' : 'enemies'} ({pickedLive.length} picked)</p>
+            {targets.map(f => (
+              <div key={f.id} className={cn('rounded-lg', pickedLive.includes(f.id) && 'ring-2 ring-amber-400')}>
+                {fighterButton(f, () => toggle(f.id))}
+              </div>
+            ))}
+            {!isHeal && pickedLive.length > 0 && <FinishToggle value={finish} onChange={setFinish} />}
+            <button style={tap} disabled={waiting || pickedLive.length === 0} className={cn(isHeal ? btnAmber : btnRed, 'w-full')} onClick={async () => {
+              const r = await combat.castFromCard(pickedLive[0], card, isHeal ? undefined : finish, pickedLive.slice(1));
+              if (r) { showResult(r); close(); }
+            }}>
+              {busy && <Loader2 className="w-4 h-4 animate-spin" />}Cast{pickedLive.length > 1 ? ` at ${pickedLive.length}` : ''}
+            </button>
+          </div>
+        ) : chosenLow ? (
           <div className="space-y-3">
             <p className="text-[13px] text-white/85">{chosenLow.name}</p>
             {!isHeal && <FinishToggle value={finish} onChange={setFinish} />}

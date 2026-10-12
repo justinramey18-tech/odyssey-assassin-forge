@@ -279,8 +279,9 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     return call({ action: 'cast', fightId, targetId, spellName: spell.name, spellLevel: spell.level, intent, finish }, 'The spell did not go through. Try again.');
   }, [call, fightId]);
 
-  const castFromCard = useCallback((targetId: string, card: ActionCard, finish?: Finish) =>
-    fightId ? call({ action: 'cast_card', fightId, targetId, card, finish }, 'The spell did not land. Try again.') : Promise.resolve(null),
+  // extraTargetIds: more targets for an area spell card (card.area), up to 3 in all.
+  const castFromCard = useCallback((targetId: string, card: ActionCard, finish?: Finish, extraTargetIds?: string[]) =>
+    fightId ? call({ action: 'cast_card', fightId, targetId, targetIds: extraTargetIds?.length ? extraTargetIds : undefined, card, finish }, 'The spell did not land. Try again.') : Promise.resolve(null),
   [call, fightId]);
 
   const secondWind = useCallback((targetId?: string) =>
