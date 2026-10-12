@@ -223,7 +223,8 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
   const [flash, setFlash] = useState(false);
   const [npcLine, setNpcLine] = useState<string | null>(null);
   const [hiddenEnd, setHiddenEnd] = useState<string | null>(null);
-  const [now, setNow] = useState(() => Date.now());
+  // Countdowns run on the server's clock (combat.clockOffset), so they reach zero when the server acts.
+  const [now, setNow] = useState(() => Date.now() + combat.clockOffset);
 
   const open = !!fight && !isEnded;
   const npcFighters = fighters.filter(f => f.kind === 'npc');
@@ -237,11 +238,23 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
 
   // Countdowns tick every 500 ms while a wind-up or huddle is counting down, otherwise once a second (lighter on the phone).
   const fastTick = combat.pauseKind === 'huddle' || npcUp.some(f => !!pendingOf(f));
+  const offset = combat.clockOffset;
   useEffect(() => {
     if (!isActive && !isPaused) return;
-    const t = setInterval(() => setNow(Date.now()), fastTick ? 500 : 1000);
+    setNow(Date.now() + offset);
+    const t = setInterval(() => setNow(Date.now() + offset), fastTick ? 500 : 1000);
     return () => clearInterval(t);
-  }, [isActive, isPaused, fastTick]);
+  }, [isActive, isPaused, fastTick, offset]);
+  // Speed: one extra redraw at the exact moment the next NPC attack lands, so its countdown hits zero on time.
+  const nextStrikeAt = npcUp.reduce((soonest, f) => {
+    const at = pendingOf(f) ? timeOf((f as unknown as { strike_at?: unknown }).strike_at) : NaN;
+    return Number.isFinite(at) && !(at >= soonest) ? at : soonest;
+  }, NaN);
+  useEffect(() => {
+    if (!isActive || !Number.isFinite(nextStrikeAt)) return;
+    const t = setTimeout(() => setNow(Date.now() + offset), Math.max(0, nextStrikeAt - (Date.now() + offset)));
+    return () => clearTimeout(t);
+  }, [isActive, nextStrikeAt, offset]);
 
   // Speed: a short buzz the moment an action starts rolling.
   const rolling = combat.rolling;
@@ -891,7 +904,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                       {pend && (
                         <p className={cn('text-[11px] text-red-300 truncate', Number.isFinite(strikeLeft) && strikeLeft <= 2000 && 'animate-pulse text-red-200 font-semibold')}>
                           → {pendTargets.length ? `${pendTargets.join(', ')}: ${pend.skill}` : pend.skill}
-                          {!isPaused && Number.isFinite(strikeLeft) && strikeLeft > 0 ? ` · ${Math.ceil(strikeLeft / 1000)}s` : ''}
+                          {!isPaused && Number.isFinite(strikeLeft) ? (strikeLeft > 0 ? ` · ${Math.ceil(strikeLeft / 1000)}s` : ' · 💥') : ''}
                         </p>
                       )}
                     </div>
@@ -946,7 +959,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                 <div className={cn('rounded-md border border-red-500/60 bg-red-950/80 px-2 py-1.5 space-y-1', leftMs <= 2000 && !isPaused && 'animate-pulse')}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[13px] text-red-100 truncate">⚠ {aimingAtMe.f.name}: {p.skill}{label && label !== p.skill ? ` (${label})` : ''}</span>
-                    <span className="font-cinzel text-[16px] text-red-200 tabular-nums shrink-0">{isPaused ? '⏸' : `${Math.ceil(leftMs / 1000)}s`}</span>
+                    <span className="font-cinzel text-[16px] text-red-200 tabular-nums shrink-0">{isPaused ? '⏸' : leftMs <= 0 ? '💥' : `${Math.ceil(leftMs / 1000)}s`}</span>
                   </div>
                   <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
                     <div className="h-full bg-red-500 transition-[width] duration-500" style={{ width: `${share * 100}%` }} />
@@ -955,7 +968,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                 </div>
               );
             })()}
-            {preTarget && now - preTarget.at < 60_000 && (
+            {preTarget && now - offset - preTarget.at < 60_000 && (
               <div className="flex items-center justify-between gap-2 rounded-md border border-amber-400/40 bg-amber-500/10 px-2">
                 <span className="text-[12px] text-amber-100 truncate">🎯 Casting at {preTarget.targetName}: pick a spell</span>
                 <button style={tap} className="min-h-[44px] px-2 text-[12px] text-white/70" onClick={() => onClearPreTarget?.()}>Cancel</button>

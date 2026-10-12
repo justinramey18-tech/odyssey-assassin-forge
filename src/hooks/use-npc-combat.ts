@@ -28,8 +28,10 @@ export interface UseNpcCombatOptions {
 
 const ENDED_GRACE_MS = 3 * 60_000;
 const PING_MS = 5_000;
-/** Speed: a check-in lands this long after an NPC turn, wind-up, death save or huddle end is due. */
-const DUE_PING_SLACK_MS = 250;
+/** Speed: check in this long before an NPC turn, wind-up, death save or huddle end is due; the server waits for the exact moment. */
+const EARLY_PING_MS = 500;
+/** Speed: if nothing changed this long after it was due, check in once more (a lost check-in, or a phone clock far off). */
+const RETRY_PING_MS = 1_200;
 /** Speed: live changes update the screen at once; a full reload follows this long after a burst, as a safety net. */
 const SAFETY_RELOAD_MS = 2_000;
 /** Speed: a full reload at least this often while a fight is open, in case a live message was missed. */
@@ -89,6 +91,31 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
   const [busy, setBusy] = useState(false);
   const [rolling, setRolling] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+
+  // Speed: the server's clock. Phones' clocks can be seconds off, which would make countdowns end early or late.
+  // Each check-in returns serverNow; the reply with the shortest round trip gives the best estimate of the gap.
+  const clockOffsetRef = useRef(0);
+  const bestRoundTripRef = useRef(Number.POSITIVE_INFINITY);
+  const [clockOffset, setClockOffset] = useState(0);
+  const serverTime = useCallback(() => Date.now() + clockOffsetRef.current, []);
+  const noteServerTime = useCallback((sentAt: number, data: unknown) => {
+    const serverNow = Number((data as { serverNow?: unknown } | null)?.serverNow);
+    const receivedAt = Date.now();
+    const roundTrip = receivedAt - sentAt;
+    if (!Number.isFinite(serverNow) || roundTrip < 0 || roundTrip > 3_000 || roundTrip > bestRoundTripRef.current) return;
+    bestRoundTripRef.current = roundTrip;
+    const offset = Math.round(serverNow - (sentAt + receivedAt) / 2);
+    if (Math.abs(offset - clockOffsetRef.current) < 30) return;
+    clockOffsetRef.current = offset;
+    setClockOffset(offset);
+  }, []);
+  /** "I'm here": runs the fight clock on the server, and measures the server's clock on the way back. */
+  const checkIn = useCallback((id: string) => {
+    const sentAt = Date.now();
+    supabase.functions.invoke('npc-combat', { body: { action: 'ping', fightId: id } })
+      .then(({ data }) => noteServerTime(sentAt, data))
+      .catch(() => {});
+  }, [noteServerTime]);
 
   const enabled = !!partyId && !!currentUserId;
   const reloadSeq = useRef(0);
@@ -201,8 +228,8 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
         const row = (p as unknown as Change).new as { npc_id?: string | null; created_at?: string };
         const npcId = row?.npc_id;
         if (npcId) {
-          const at = row.created_at ? Date.parse(row.created_at) : Date.now();
-          setLastLineAt(prev => ({ ...prev, [npcId]: Number.isFinite(at) ? at : Date.now() }));
+          const at = row.created_at ? Date.parse(row.created_at) : NaN;
+          setLastLineAt(prev => ({ ...prev, [npcId]: Number.isFinite(at) ? at : serverTime() }));
         }
       })
       .subscribe(status => {
@@ -222,7 +249,10 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     window.addEventListener('offline', onOffline);
     window.addEventListener('online', onOnline);
     // Speed: wake the fight function up now, so the first attack doesn't wait for it to start.
-    supabase.functions.invoke('npc-combat', { body: { action: 'warm' } }).catch(() => {});
+    const warmSentAt = Date.now();
+    supabase.functions.invoke('npc-combat', { body: { action: 'warm' } })
+      .then(({ data }) => noteServerTime(warmSentAt, data))
+      .catch(() => {});
     return () => {
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('offline', onOffline);
@@ -230,7 +260,7 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
       if (debounceRef.current) clearTimeout(debounceRef.current);
       supabase.removeChannel(channel);
     };
-  }, [enabled, partyId, reload, scheduleReload, onFightChange, onFighterChange, onEventChange]);
+  }, [enabled, partyId, reload, scheduleReload, onFightChange, onFighterChange, onEventChange, noteServerTime, serverTime]);
 
   const myFighter = useMemo(
     () => fighters.find(f => f.user_id === currentUserId) ?? null,
@@ -255,14 +285,14 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
   fightIdRef.current = fightId;
   useEffect(() => {
     if (!needsClock || !visible || !fightId) return;
-    const ping = () => { supabase.functions.invoke('npc-combat', { body: { action: 'ping', fightId } }).catch(() => {}); };
+    const ping = () => checkIn(fightId);
     ping();
     const timer = setInterval(ping, PING_MS);
     return () => clearInterval(timer);
-  }, [needsClock, visible, fightId]);
+  }, [needsClock, visible, fightId, checkIn]);
 
-  // Speed: also check in right when the next thing is due (an NPC turn or wind-up, a death save, a huddle's end),
-  // so NPC hits land as the countdown reaches zero instead of up to 5 s later.
+  // Speed: also check in just before the next thing is due (an NPC turn or wind-up, a death save, a huddle's end).
+  // The server waits for the exact moment, so NPC hits land as the countdown reaches zero.
   const nextDueAt = useMemo(() => {
     if (!fight || fight.status === 'ended') return NaN;
     const times: number[] = [];
@@ -285,13 +315,13 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
   }, [fight, fighters]);
   useEffect(() => {
     if (!needsClock || !visible || !fightId || !Number.isFinite(nextDueAt)) return;
-    const wait = nextDueAt - Date.now() + DUE_PING_SLACK_MS;
-    if (wait > PING_MS + 1000) return; // the regular check-in gets there first
-    const timer = setTimeout(() => {
-      supabase.functions.invoke('npc-combat', { body: { action: 'ping', fightId } }).catch(() => {});
-    }, Math.max(0, wait));
-    return () => clearTimeout(timer);
-  }, [needsClock, visible, fightId, nextDueAt]);
+    const untilDue = nextDueAt - serverTime();
+    if (untilDue > PING_MS + 1000) return; // the regular check-in gets there first
+    const early = setTimeout(() => checkIn(fightId), Math.max(0, untilDue - EARLY_PING_MS));
+    // Still not moved on a little after it was due (this effect re-runs when it does): check in once more.
+    const retry = setTimeout(() => checkIn(fightId), Math.max(0, untilDue + RETRY_PING_MS));
+    return () => { clearTimeout(early); clearTimeout(retry); };
+  }, [needsClock, visible, fightId, nextDueAt, serverTime, checkIn]);
 
   // Speed: a quiet full reload every 30 s while a fight is open, in case a live message was missed.
   useEffect(() => {
@@ -358,15 +388,15 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
   const readyAt = Number.isFinite(lastActionAt) ? lastActionAt + ACTION_COOLDOWN_MS : 0;
   const cooldownLeft = readyAt > fightClock ? Math.ceil((readyAt - fightClock) / 1000) : 0;
   useEffect(() => {
-    if (readyAt <= Date.now()) return;
+    if (readyAt <= serverTime()) return;
     const timer = setInterval(() => {
-      const t = Date.now();
+      const t = serverTime();
       setNow(t);
       if (t >= readyAt) clearInterval(timer);
     }, 1000);
-    setNow(Date.now());
+    setNow(serverTime());
     return () => clearInterval(timer);
-  }, [readyAt]);
+  }, [readyAt, serverTime]);
 
   const call = useCallback(async (body: Record<string, unknown>, fallback: string): Promise<any | null> => {
     setBusy(true);
@@ -467,6 +497,7 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     isEnded,
     busy,
     rolling,
+    clockOffset,
     connection,
     lastLineAt,
     cooldownLeft,
