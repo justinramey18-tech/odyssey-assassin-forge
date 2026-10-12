@@ -460,6 +460,31 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     }
   }, [fightId, reload]);
 
+  // Mini-games. Parry and pin taps are quiet (no busy lock, no rolling card) so they never block other buttons.
+  const quiet = useCallback(async (body: Record<string, unknown>): Promise<any | null> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('npc-combat', { body });
+      if (error) return null;
+      return data ?? null;
+    } catch {
+      return null;
+    }
+  }, []);
+  // Parry duel: tapAt is the tap moment on the server's clock, so slow connections aren't punished.
+  const parry = useCallback((npcFighterId: string, tapAt: number) =>
+    fightId ? quiet({ action: 'parry', fightId, npcId: npcFighterId, tapAt: Math.round(tapAt) }) : Promise.resolve(null),
+  [quiet, fightId]);
+  const breakPin = useCallback(async (taps: number) => {
+    if (!fightId) return null;
+    const r = await quiet({ action: 'break_pin', fightId, taps });
+    if (r?.free) void reload();
+    return r;
+  }, [quiet, fightId, reload]);
+  // Counter clash: first player to tap after a perfect parry lands a free critical hit.
+  const counter = useCallback((targetId: string) =>
+    fightId ? call({ action: 'counter', fightId, targetId }, 'Too late, the opening closed.') : Promise.resolve(null),
+  [call, fightId]);
+
   const stabilize = useCallback((targetId: string) => {
     if (!fightId) return Promise.resolve(null);
     return call({ action: 'stabilize', fightId, targetId }, 'Could not stabilize them. Try again.');
@@ -511,6 +536,10 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     cast,
     castFromCard,
     secondWind,
+    parry,
+    breakPin,
+    counter,
+    serverTime,
     drinkPotion,
     stabilize,
     givePotion,
