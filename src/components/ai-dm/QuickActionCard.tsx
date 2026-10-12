@@ -48,6 +48,10 @@ export function QuickActionLine({ card, actorName, nameClass, alignRight, classN
     );
   }
   if (card.outcome) bits.push(card.outcome);
+  // Spells that don't roll to hit say how they land.
+  if (card.resolve === 'save') bits.push(`${card.saveStat ?? 'DEX'} save DC ${card.saveDC ?? '?'}`);
+  if (card.resolve === 'auto') bits.push('auto-hit');
+  if (card.area) bits.push('area');
   if (typeof card.damageTotal === 'number' && !nat1) {
     bits.push(`${card.damageTotal} damage${card.damageFormula ? ` (${card.damageFormula})` : ''}`);
   }
