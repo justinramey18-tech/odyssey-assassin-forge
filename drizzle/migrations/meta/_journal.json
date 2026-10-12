@@ -134,6 +134,13 @@
       "when": 1791751056158,
       "tag": "0018_npc_skills_1_of_7",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791805628577,
+      "tag": "0019_live_npc_combat_v2_1_of_6",
+      "breakpoints": true
     }
   ]
 }
