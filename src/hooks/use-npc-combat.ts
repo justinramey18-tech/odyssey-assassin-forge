@@ -28,6 +28,15 @@ export interface UseNpcCombatOptions {
 
 const ENDED_GRACE_MS = 3 * 60_000;
 const PING_MS = 5_000;
+/** Speed: a check-in lands this long after an NPC turn, wind-up, death save or huddle end is due. */
+const DUE_PING_SLACK_MS = 250;
+/** Speed: live changes update the screen at once; a full reload follows this long after a burst, as a safety net. */
+const SAFETY_RELOAD_MS = 2_000;
+/** Speed: a full reload at least this often while a fight is open, in case a live message was missed. */
+const RESYNC_MS = 30_000;
+const EVENTS_KEPT = 60;
+/** Speed: actions that roll dice, so the fight bar can show dice tumbling while the server answers. */
+const ROLL_ACTIONS = new Set(['open', 'attack', 'cast', 'cast_card', 'second_wind', 'stabilize', 'give_potion']);
 const SYNC_WAIT_MS = 3_000;
 const ACTION_COOLDOWN_MS = 8_000;
 const APPLIED_KEEP = 300;
@@ -78,6 +87,7 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
   const [events, setEvents] = useState<FightEventRow[]>([]);
   const [fallen, setFallen] = useState<FallenRow[]>([]);
   const [busy, setBusy] = useState(false);
+  const [rolling, setRolling] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
   const enabled = !!partyId && !!currentUserId;
@@ -115,10 +125,63 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     setFallen((fallenRows as FallenRow[] | null) ?? []);
   }, [partyId, currentUserId]);
 
-  const scheduleReload = useCallback(() => {
+  const scheduleReload = useCallback((delay = 300) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => { void reload(); }, 300);
+    debounceRef.current = setTimeout(() => { void reload(); }, delay);
   }, [reload]);
+
+  // Speed: apply each live change to the screen the moment it arrives, then a quiet full reload as a safety net.
+  const fightIdRef = useRef<string | null>(null);
+  type Change = { eventType: 'INSERT' | 'UPDATE' | 'DELETE'; new: Record<string, unknown>; old: Record<string, unknown> };
+  const onFighterChange = useCallback((c: Change) => {
+    const row = c.new as unknown as FighterRow;
+    const oldId = (c.old as { id?: string }).id;
+    if (c.eventType === 'DELETE') {
+      if (oldId) setFighters(prev => prev.filter(f => f.id !== oldId));
+    } else if (row?.id && row.fight_id === fightIdRef.current) {
+      setFighters(prev => {
+        const i = prev.findIndex(f => f.id === row.id);
+        if (i === -1) return [...prev, row];
+        const next = prev.slice();
+        next[i] = { ...prev[i], ...row };
+        return next;
+      });
+    }
+    scheduleReload(SAFETY_RELOAD_MS);
+  }, [scheduleReload]);
+  const onEventChange = useCallback((c: Change) => {
+    const row = c.new as unknown as FightEventRow;
+    if (c.eventType !== 'DELETE' && row?.id && row.fight_id === fightIdRef.current) {
+      setEvents(prev => {
+        const i = prev.findIndex(e => e.id === row.id);
+        if (i !== -1) {
+          const next = prev.slice();
+          next[i] = { ...prev[i], ...row };
+          return next;
+        }
+        const next = [...prev, row].sort((a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0));
+        return next.length > EVENTS_KEPT ? next.slice(next.length - EVENTS_KEPT) : next;
+      });
+    }
+    scheduleReload(SAFETY_RELOAD_MS);
+  }, [scheduleReload]);
+  const onFightChange = useCallback((c: Change) => {
+    const row = c.new as unknown as FightRow;
+    // The same fight changed (paused, resumed, ended): show it now. A new fight: load it properly.
+    if (c.eventType === 'UPDATE' && row?.id && row.id === fightIdRef.current) {
+      setFight(prev => (prev && prev.id === row.id ? { ...prev, ...row } : prev));
+      scheduleReload(SAFETY_RELOAD_MS);
+    } else {
+      scheduleReload();
+    }
+  }, [scheduleReload]);
+
+  // Speed: whether live updates are flowing (a "Reconnecting…" chip shows when they aren't).
+  const [connection, setConnection] = useState<'live' | 'reconnecting'>('live');
+  const wasDownRef = useRef(false);
+
+  // NPC lines in the Live Table: when each NPC (by npc_id) last spoke, so the fight bar can show "typing…" until the line arrives.
+  const [lastLineAt, setLastLineAt] = useState<Record<string, number>>({});
 
   // Load, live changes, and coming back to the page.
   useEffect(() => {
@@ -130,19 +193,44 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     const filter = `party_id=eq.${partyId}`;
     const channel = supabase
       .channel(`npc-combat-${partyId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'party_fights', filter }, scheduleReload)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'party_fight_combatants', filter }, scheduleReload)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'party_fight_events', filter }, scheduleReload)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'party_character_deaths', filter }, scheduleReload)
-      .subscribe();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'party_fights', filter }, p => onFightChange(p as unknown as Change))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'party_fight_combatants', filter }, p => onFighterChange(p as unknown as Change))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'party_fight_events', filter }, p => onEventChange(p as unknown as Change))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'party_character_deaths', filter }, () => scheduleReload())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'party_round_chat', filter }, p => {
+        const row = (p as unknown as Change).new as { npc_id?: string | null; created_at?: string };
+        const npcId = row?.npc_id;
+        if (npcId) {
+          const at = row.created_at ? Date.parse(row.created_at) : Date.now();
+          setLastLineAt(prev => ({ ...prev, [npcId]: Number.isFinite(at) ? at : Date.now() }));
+        }
+      })
+      .subscribe(status => {
+        if (status === 'SUBSCRIBED') {
+          setConnection('live');
+          // Back after a drop: catch up on anything missed.
+          if (wasDownRef.current) { wasDownRef.current = false; scheduleReload(); }
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          wasDownRef.current = true;
+          setConnection('reconnecting');
+        }
+      });
     const onVisible = () => { if (document.visibilityState === 'visible') scheduleReload(); };
+    const onOffline = () => { wasDownRef.current = true; setConnection('reconnecting'); };
+    const onOnline = () => { setConnection('live'); scheduleReload(); };
     document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('offline', onOffline);
+    window.addEventListener('online', onOnline);
+    // Speed: wake the fight function up now, so the first attack doesn't wait for it to start.
+    supabase.functions.invoke('npc-combat', { body: { action: 'warm' } }).catch(() => {});
     return () => {
       document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('offline', onOffline);
+      window.removeEventListener('online', onOnline);
       if (debounceRef.current) clearTimeout(debounceRef.current);
       supabase.removeChannel(channel);
     };
-  }, [enabled, partyId, reload, scheduleReload]);
+  }, [enabled, partyId, reload, scheduleReload, onFightChange, onFighterChange, onEventChange]);
 
   const myFighter = useMemo(
     () => fighters.find(f => f.user_id === currentUserId) ?? null,
@@ -164,6 +252,7 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
   const fightId = fight?.id ?? null;
+  fightIdRef.current = fightId;
   useEffect(() => {
     if (!needsClock || !visible || !fightId) return;
     const ping = () => { supabase.functions.invoke('npc-combat', { body: { action: 'ping', fightId } }).catch(() => {}); };
@@ -171,6 +260,45 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     const timer = setInterval(ping, PING_MS);
     return () => clearInterval(timer);
   }, [needsClock, visible, fightId]);
+
+  // Speed: also check in right when the next thing is due (an NPC turn or wind-up, a death save, a huddle's end),
+  // so NPC hits land as the countdown reaches zero instead of up to 5 s later.
+  const nextDueAt = useMemo(() => {
+    if (!fight || fight.status === 'ended') return NaN;
+    const times: number[] = [];
+    const at = (v: unknown) => (typeof v === 'string' ? Date.parse(v) : NaN);
+    const pause = fight as unknown as { pause_kind?: string | null; paused_until?: string | null };
+    if (fight.status === 'paused') {
+      if (pause.pause_kind === 'huddle') times.push(at(pause.paused_until));
+    } else {
+      for (const f of fighters) {
+        if (f.kind === 'npc' && f.status === 'up') {
+          const pending = (f as unknown as { pending?: unknown }).pending;
+          times.push(at(pending ? (f as unknown as { strike_at?: unknown }).strike_at : f.next_action_at));
+        } else if (f.kind === 'player' && f.status === 'down') {
+          times.push(at(f.next_save_at));
+        }
+      }
+    }
+    const valid = times.filter(t => Number.isFinite(t));
+    return valid.length ? Math.min(...valid) : NaN;
+  }, [fight, fighters]);
+  useEffect(() => {
+    if (!needsClock || !visible || !fightId || !Number.isFinite(nextDueAt)) return;
+    const wait = nextDueAt - Date.now() + DUE_PING_SLACK_MS;
+    if (wait > PING_MS + 1000) return; // the regular check-in gets there first
+    const timer = setTimeout(() => {
+      supabase.functions.invoke('npc-combat', { body: { action: 'ping', fightId } }).catch(() => {});
+    }, Math.max(0, wait));
+    return () => clearTimeout(timer);
+  }, [needsClock, visible, fightId, nextDueAt]);
+
+  // Speed: a quiet full reload every 30 s while a fight is open, in case a live message was missed.
+  useEffect(() => {
+    if (!fightId || isEnded || !visible) return;
+    const timer = setInterval(() => { void reload(); }, RESYNC_MS);
+    return () => clearInterval(timer);
+  }, [fightId, isEnded, visible, reload]);
 
   // HP inbox: each hit or heal aimed at me lands on my sheet exactly once.
   const inbox = useMemo(
@@ -242,6 +370,7 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
 
   const call = useCallback(async (body: Record<string, unknown>, fallback: string): Promise<any | null> => {
     setBusy(true);
+    setRolling(ROLL_ACTIONS.has(String(body.action)));
     try {
       const { data, error } = await supabase.functions.invoke('npc-combat', { body });
       if (error) {
@@ -249,15 +378,16 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
         toast.error(message);
         return null;
       }
-      void reload();
+      scheduleReload(SAFETY_RELOAD_MS);
       return data ?? {};
     } catch {
       toast.error(fallback);
       return null;
     } finally {
       setBusy(false);
+      setRolling(false);
     }
-  }, [reload]);
+  }, [scheduleReload]);
 
   const openFight = useCallback((npcId: string, opts?: { weaponName?: string; finish?: Finish }) => {
     if (!partyId) return Promise.resolve(null);
@@ -336,6 +466,9 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     isPaused: fight?.status === 'paused',
     isEnded,
     busy,
+    rolling,
+    connection,
+    lastLineAt,
     cooldownLeft,
     pauseKind,
     pausedAtMs,
