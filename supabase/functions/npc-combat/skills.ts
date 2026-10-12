@@ -34,6 +34,21 @@ export const RETREAT_AT = 0.2;
 export const SWEEP_MAX = 3;
 export const SIGNATURE_EVERY = 3;
 
+/** v2: seconds before a skill type can be used again (0 = any time). A skill row can override it with `cooldown`. */
+export const COOLDOWN_S: Record<SkillType, number> = {
+  strike: 0, heavy: 30, sweep: 45, signature: 0, mend: 60, shield: 75, rally: 90, pin: 45, retreat: 0,
+};
+/** v2: most times a skill type can be used in one fight. */
+export const MAX_USES: Partial<Record<SkillType, number>> = { mend: 2, retreat: 1 };
+
+/** v2: an NPC fighter's skill timers (party_fight_combatants.cooldowns). Keyed by skill type: an NPC has each type once. */
+export interface Cooldowns {
+  ready?: Partial<Record<SkillType, string>>;
+  uses?: Partial<Record<SkillType, number>>;
+  /** The player its last Pin went to, so it never pins the same player twice in a row. */
+  lastPinned?: string | null;
+}
+
 export interface Skill {
   type: SkillType;
   name: string;
@@ -44,6 +59,8 @@ export interface Skill {
   /** HP healed (mend) or absorbed (shield). */
   power: number;
   windupMs: number;
+  /** v2: time before this skill can be used again. */
+  cooldownMs: number;
 }
 
 const isType = (v: unknown): v is SkillType => typeof v === 'string' && (SKILL_TYPES as string[]).includes(v);
@@ -90,6 +107,7 @@ export function skillsOf(raw: unknown, stats: R.NpcCombatStats): Skill[] {
     const name = typeof r.name === 'string' && r.name.trim() ? r.name.trim().slice(0, 40) : SKILL_LABEL[r.type];
     const bonus = Number(r.bonus);
     const power = Number(r.power);
+    const cooldown = Number(r.cooldown);
     out.push({
       type: r.type,
       name,
@@ -97,13 +115,73 @@ export function skillsOf(raw: unknown, stats: R.NpcCombatStats): Skill[] {
       dice: R.parseDice(r.damage) ?? n.dice,
       power: Number.isFinite(power) && power > 0 ? Math.min(999, Math.round(power)) : n.power,
       windupMs: WINDUP_S[r.type] * 1000,
+      cooldownMs: (Number.isFinite(cooldown) && r.cooldown !== null && r.cooldown !== '' ? Math.max(0, Math.min(600, Math.round(cooldown))) : COOLDOWN_S[r.type]) * 1000,
     });
     if (out.length >= MAX_SKILLS) break;
   }
-  if (out.length === 0) {
-    out.push({ type: 'strike', name: 'Attack', bonus: stats.attackBonus, dice: base, power: 0, windupMs: WINDUP_S.strike * 1000 });
-  }
+  if (out.length === 0) out.push(basicStrike(stats));
   return out;
+}
+
+/** A plain attack from the NPC's base stats: used when it has no skills, or when every attack it has is cooling down. */
+export function basicStrike(stats: R.NpcCombatStats): Skill {
+  const base = R.parseDice(stats.damage) ?? { count: 1, sides: 6, bonus: 0 };
+  return { type: 'strike', name: 'Attack', bonus: stats.attackBonus, dice: base, power: 0, windupMs: WINDUP_S.strike * 1000, cooldownMs: 0 };
+}
+
+/** A checked copy of a fighter's stored cooldowns. */
+export function cleanCooldowns(raw: unknown): Cooldowns {
+  if (!raw || typeof raw !== 'object') return {};
+  const r = raw as Record<string, unknown>;
+  const ready: Partial<Record<SkillType, string>> = {};
+  const uses: Partial<Record<SkillType, number>> = {};
+  if (r.ready && typeof r.ready === 'object') {
+    for (const [k, v] of Object.entries(r.ready as Record<string, unknown>)) {
+      if (isType(k) && typeof v === 'string' && Number.isFinite(Date.parse(v))) ready[k] = v;
+    }
+  }
+  if (r.uses && typeof r.uses === 'object') {
+    for (const [k, v] of Object.entries(r.uses as Record<string, unknown>)) {
+      const n = Number(v);
+      if (isType(k) && Number.isFinite(n) && n > 0) uses[k] = Math.round(n);
+    }
+  }
+  return { ready, uses, lastPinned: typeof r.lastPinned === 'string' ? r.lastPinned : null };
+}
+
+/**
+ * The skills the NPC can use right now: off cooldown and under their per-fight limit. If it has attacks
+ * but all of them are cooling down, it falls back to a plain attack, so a fighter never stands idle.
+ */
+export function readySkills(skills: Skill[], cd: Cooldowns, nowMs: number, stats: R.NpcCombatStats): Skill[] {
+  const ready = skills.filter(s => {
+    const at = cd.ready?.[s.type];
+    if (at && Date.parse(at) > nowMs) return false;
+    const max = MAX_USES[s.type];
+    return !(max !== undefined && (cd.uses?.[s.type] ?? 0) >= max);
+  });
+  const hasOffense = skills.some(s => OFFENSE.includes(s.type));
+  if (hasOffense && !ready.some(s => s.type !== 'signature' && OFFENSE.includes(s.type))) ready.push(basicStrike(stats));
+  return ready;
+}
+
+/** Cooldowns after the NPC announces `skill` against `targetIds`. */
+export function afterUse(cd: Cooldowns, skill: Skill, nowMs: number, targetIds: string[]): Cooldowns {
+  const ready = { ...(cd.ready ?? {}) };
+  const uses = { ...(cd.uses ?? {}) };
+  if (skill.cooldownMs > 0) ready[skill.type] = new Date(nowMs + skill.cooldownMs).toISOString();
+  if (MAX_USES[skill.type] !== undefined) uses[skill.type] = (uses[skill.type] ?? 0) + 1;
+  return { ready, uses, lastPinned: skill.type === 'pin' ? (targetIds[0] ?? null) : (cd.lastPinned ?? null) };
+}
+
+/** Cooldowns moved later by the length of a pause. */
+export function shiftCooldowns(cd: Cooldowns, byMs: number): Cooldowns {
+  const ready: Partial<Record<SkillType, string>> = {};
+  for (const [k, v] of Object.entries(cd.ready ?? {})) {
+    const moved = R.shiftIso(v, byMs);
+    if (moved) ready[k as SkillType] = moved;
+  }
+  return { ...cd, ready };
 }
 
 /** True when an NPC's hard lines say it would never run, so Retreat is never used. */
@@ -121,6 +199,8 @@ export interface ChoiceContext {
   npcs: Array<{ id: string; hp: number; maxHp: number; status: string; ward: number }>;
   /** Player fighters; `present` = their phone is in the fight. */
   players: Array<{ id: string; status: string; present: boolean; threat: number }>;
+  /** v2: the player this NPC pinned last time (never pinned twice in a row). */
+  lastPinned?: string | null;
 }
 
 export type Choice =
@@ -152,7 +232,9 @@ export function chooseSkill(ctx: ChoiceContext, roll: R.Roller): Choice {
     if (hurt.length) return { kind: 'skill', skill: mend, targetIds: [hurt[0].id] };
   }
   const shield = has('shield');
-  if (shield && roll(2) === 1) {
+  // v2: at most one live ward for every two standing NPCs, and never on an ally that already has one.
+  const wardsLive = allies.filter(n => n.ward > 0).length;
+  if (shield && wardsLive < Math.max(1, Math.floor(allies.length / 2)) && roll(2) === 1) {
     const focused = allies.filter(n => ratio(n) < 0.75 && n.ward <= 0).sort((a, b) => ratio(a) - ratio(b));
     if (focused.length) return { kind: 'skill', skill: shield, targetIds: [focused[0].id] };
   }
@@ -172,9 +254,10 @@ export function chooseSkill(ctx: ChoiceContext, roll: R.Roller): Choice {
     return { kind: 'skill', skill: signature, targetIds: single() };
   }
   const pin = has('pin');
-  if (pin && roll(5) === 1) {
-    const top = Math.max(...present.map(p => p.threat));
-    const pool = present.filter(p => p.threat === top);
+  const pinnable = present.filter(p => p.id !== ctx.lastPinned);
+  if (pin && pinnable.length && roll(5) === 1) {
+    const top = Math.max(...pinnable.map(p => p.threat));
+    const pool = pinnable.filter(p => p.threat === top);
     return { kind: 'skill', skill: pin, targetIds: [pool[roll(pool.length) - 1].id] };
   }
 
