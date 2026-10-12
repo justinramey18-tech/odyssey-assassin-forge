@@ -44,6 +44,7 @@ import CinematicSlideshow from '@/components/empyrean/CinematicSlideshow';
 import EmpyreanContextualActions from '@/components/empyrean/EmpyreanContextualActions';
 import { setIsUnbonded } from '@/lib/dragonBondState';
 import DeathSaveScreen from '@/components/empyrean/DeathSaveScreen';
+import { HealTargetSheet } from '@/components/ai-dm/HealTargetSheet';
 import MemorialScreen from '@/components/empyrean/MemorialScreen';
 import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
 
@@ -1324,6 +1325,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [combatPreTarget, setCombatPreTarget] = useState<{ targetId: string; targetName: string; finish: 'knockout' | 'kill'; at: number } | null>(null);
   const combatPreTargetRef = useRef(combatPreTarget);
   combatPreTargetRef.current = combatPreTarget;
+  // Outside a fight: a healing spell just cast, waiting for its caster to pick who it heals.
+  const [healPick, setHealPick] = useState<{ spellName: string; amount: number; area: boolean } | null>(null);
   const npcCombatRef = useRef(npcCombat);
   npcCombatRef.current = npcCombat;
   // Live NPC Combat: the server-rolled death-save screen (separate from burnout's).
@@ -2211,6 +2214,42 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const roundChatRef = useRef(roundChat);
   roundChatRef.current = roundChat;
 
+  /**
+   * Outside a fight: apply a healing spell to the picked characters. Yourself: straight onto your sheet.
+   * An ally: a heal_spell party action marked autoApply, which their phone applies as soon as it arrives.
+   */
+  const applyHealPick = useCallback(async (userIds: string[]) => {
+    const pick = healPick;
+    if (!pick || !partyId || !currentUserId) { setHealPick(null); return; }
+    const myName = characterContext?.name || 'An ally';
+    const healed: string[] = [];
+    for (const id of userIds) {
+      const name = members.find(m => m.user_id === id)?.character_name || 'an ally';
+      if (id === currentUserId) {
+        onHPChange?.(pick.amount, 'healing');
+        healed.push(name);
+        continue;
+      }
+      const { error } = await (supabase.from('party_actions') as any).insert({
+        party_id: partyId,
+        sender_user_id: currentUserId,
+        target_user_id: id,
+        action_type: 'heal_spell',
+        action_data: { senderName: myName, spellName: pick.spellName, hpHealed: pick.amount, autoApply: true },
+      });
+      if (error) toast.error(`Couldn't heal ${name}. Try again.`);
+      else healed.push(name);
+    }
+    setHealPick(null);
+    if (healed.length === 0) return;
+    toast.success(`${pick.spellName}: +${pick.amount} HP to ${healed.join(', ')}`);
+    if (chatRoundsOnRef.current) {
+      try {
+        await roundChatRef.current.postLine(`🩹 ${pick.spellName} heals ${healed.join(', ')} for ${pick.amount} HP${healed.length > 1 ? ' each' : ''}. (Already applied to their sheets: do not change HP again.)`, true);
+      } catch { /* the heal itself already landed */ }
+    }
+  }, [healPick, partyId, currentUserId, characterContext?.name, members, onHPChange]);
+
   const dispatchPrompt = useCallback(async (text: string, intensity?: number): Promise<boolean> => {
     if (!text || !text.trim()) return false;
     if (chatRoundsOnRef.current) {
@@ -2232,6 +2271,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         if (castCard && spellCastName(text) && fightNow.isActive && fightNow.myFighter?.status === 'up'
           && ((castCard.damageTotal ?? 0) > 0 || (castCard.amount ?? 0) > 0)) {
           setPendingCombatCast({ card: castCard, key: lineId, targetId: preFresh?.targetId, finish: preFresh?.finish });
+        } else if (castCard?.kind === 'heal' && (castCard.amount ?? 0) > 0 && spellCastName(text) && !fightNow.isActive) {
+          // Outside a fight, a healing spell asks who it heals.
+          setHealPick({ spellName: castCard.action, amount: castCard.amount ?? 0, area: castCard.area === true });
         }
       } catch (err) {
         console.error('[party-dm] table post failed:', err);
@@ -2246,6 +2288,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
     try {
       partyDmRef.current?.submitPrompt(stripActionCard(text), intensity);
+      const healCard = parseActionCard(text).card;
+      if (healCard?.kind === 'heal' && (healCard.amount ?? 0) > 0 && spellCastName(text) && !npcCombatRef.current.isActive) {
+        setHealPick({ spellName: healCard.action, amount: healCard.amount ?? 0, area: healCard.area === true });
+      }
       return true;
     } catch (err) {
       console.error('[party-dm] prompt submit failed:', err);
@@ -5435,6 +5481,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         />
       )}
 
+      <HealTargetSheet
+        open={!!healPick}
+        spellName={healPick?.spellName ?? ''}
+        amount={healPick?.amount ?? 0}
+        area={healPick?.area ?? false}
+        members={members.map(m => ({ user_id: m.user_id, character_name: m.character_name, character_status: (m as { character_status?: Record<string, unknown> | null }).character_status ?? null }))}
+        currentUserId={currentUserId || null}
+        onConfirm={applyHealPick}
+        onClose={() => setHealPick(null)}
+      />
       <NpcCombatOverlay combat={npcCombat} roster={npcRoster} members={members} currentUserId={currentUserId || null} isHost={originalCreator} onUseConsumableByName={onUseConsumableByName} pendingCast={pendingCombatCast} onPendingCastDone={() => setPendingCombatCast(null)} onOpenSpells={(pre) => { setCombatPreTarget(pre ? { ...pre, at: Date.now() } : null); overlays.open('quickActions', ['spells', 'cantrips']); }} preTarget={combatPreTarget} onClearPreTarget={() => setCombatPreTarget(null)} />
       {/* Death Save Screen */}
       <DeathSaveScreen
