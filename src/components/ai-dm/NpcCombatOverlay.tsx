@@ -38,7 +38,7 @@ interface Props {
 
 const SPEED_SECONDS: Record<string, number> = { trivial: 120, easy: 90, medium: 60, hard: 40, deadly: 20 };
 const tap = { touchAction: 'manipulation' as const };
-const btn = 'min-h-[44px] rounded-lg border text-[13px] px-3 flex items-center justify-center gap-1.5 disabled:opacity-40';
+const btn = 'min-h-[44px] rounded-lg border text-[13px] px-3 flex items-center justify-center gap-1.5 disabled:opacity-40 active:scale-[0.97] transition-transform';
 const btnPlain = cn(btn, 'border-white/15 bg-white/[0.04] text-white/85 active:bg-white/10');
 const btnAmber = cn(btn, 'border-amber-400/50 bg-amber-500/20 text-amber-100');
 const btnRed = cn(btn, 'border-red-500/50 bg-red-500/20 text-red-100');
@@ -74,7 +74,26 @@ function HpBar({ hp, max, color = 'bg-red-500', thin }: { hp: number; max: numbe
   const pct = max > 0 ? Math.max(0, Math.min(100, (hp / max) * 100)) : 0;
   return (
     <div className={cn('w-full rounded-full bg-white/10 overflow-hidden', thin ? 'h-1' : 'h-2')}>
-      <div className={cn('h-full transition-all', color)} style={{ width: `${pct}%` }} />
+      <div className={cn('h-full transition-[width] duration-500 ease-out', color)} style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
+/** Speed: dice tumbling while the server answers an action, so a tap feels instant. */
+function RollingCard() {
+  // eslint-disable-next-line no-restricted-syntax -- animation only: the real roll happens on the server
+  const [n, setN] = useState(() => 1 + Math.floor(Math.random() * 20));
+  useEffect(() => {
+    // eslint-disable-next-line no-restricted-syntax -- animation only: the real roll happens on the server
+    const t = setInterval(() => setN(1 + Math.floor(Math.random() * 20)), 90);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div className="fixed inset-0 z-[58] flex items-center justify-center pointer-events-none">
+      <div className="rounded-2xl border border-white/15 bg-black/90 px-6 py-4 text-center space-y-1">
+        <p className="text-[13px] text-white/60">🎲 Rolling…</p>
+        <p className="font-cinzel text-[28px] text-white tabular-nums">{n}</p>
+      </div>
     </div>
   );
 }
@@ -216,12 +235,20 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
     [roster.onStage],
   );
 
-  // Countdown rings tick every 500 ms while a fight is running (and during a huddle, for its countdown).
+  // Countdowns tick every 500 ms while a wind-up or huddle is counting down, otherwise once a second (lighter on the phone).
+  const fastTick = combat.pauseKind === 'huddle' || npcUp.some(f => !!pendingOf(f));
   useEffect(() => {
     if (!isActive && !isPaused) return;
-    const t = setInterval(() => setNow(Date.now()), 500);
+    const t = setInterval(() => setNow(Date.now()), fastTick ? 500 : 1000);
     return () => clearInterval(t);
-  }, [isActive, isPaused]);
+  }, [isActive, isPaused, fastTick]);
+
+  // Speed: a short buzz the moment an action starts rolling.
+  const rolling = combat.rolling;
+  useEffect(() => {
+    if (!rolling) return;
+    try { navigator.vibrate?.(12); } catch { /* not supported */ }
+  }, [rolling]);
 
   // New events: a hit on me flashes the screen; an NPC attack shows a line for 4 s.
   const seenRef = useRef<Set<string> | null>(null);
@@ -693,7 +720,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
 
   const resultCard = result && (
     <div className="fixed inset-0 z-[58] flex items-center justify-center pointer-events-none">
-      <div className="rounded-2xl border border-white/15 bg-black/80 backdrop-blur px-6 py-4 text-center space-y-1">
+      <div className="rounded-2xl border border-white/15 bg-black/90 px-6 py-4 text-center space-y-1">
         {result.lines.map((l, i) => <p key={i} className={cn(i === 0 ? 'text-[13px] text-white/60' : 'font-cinzel text-[20px] text-white')}>{l}</p>)}
       </div>
     </div>
@@ -709,7 +736,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
     const tone = fight.outcome === 'victory' ? 'border-green-500/40 text-green-200' : fight.outcome === 'defeat' ? 'border-red-500/40 text-red-200' : 'border-white/15 text-white/70';
     return (
       <>
-        <div className={cn('fixed left-2 right-2 top-16 z-[56] rounded-xl border bg-black/80 backdrop-blur p-3 space-y-2', tone)}>
+        <div className={cn('fixed left-2 right-2 top-16 z-[56] rounded-xl border bg-black/90 p-3 space-y-2', tone)}>
           <div className="flex items-center justify-between gap-2">
             <span className="font-cinzel text-[15px]">{label}</span>
             <button style={tap} aria-label="Hide" className="w-11 h-11 flex items-center justify-center text-white/60" onClick={() => setHiddenEnd(fight.id)}><X className="w-5 h-5" /></button>
@@ -734,14 +761,14 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
     return (
       <>
         {iHaveFallen && me && (
-          <div className="fixed left-3 z-[55] max-w-[calc(100%-24px)] rounded-full border border-white/15 bg-black/75 backdrop-blur px-3 py-2 text-[12px] text-white/75" style={{ bottom: 150 }}>
+          <div className="fixed left-3 z-[55] max-w-[calc(100%-24px)] rounded-full border border-white/15 bg-black/90 px-3 py-2 text-[12px] text-white/75" style={{ bottom: 150 }}>
             💀 {me.character_name} has fallen. The host can revive them.
           </div>
         )}
         {showPill && !iHaveFallen && (
           <button
             style={{ ...tap, bottom: 150 }}
-            className="fixed left-3 z-[55] min-h-[44px] px-4 rounded-full border border-red-500/50 bg-red-950/80 backdrop-blur text-[14px] text-red-100 shadow-lg"
+            className="fixed left-3 z-[55] min-h-[44px] px-4 rounded-full border border-red-500/50 bg-red-950/95 text-[14px] text-red-100 shadow-lg"
             onClick={() => setStep({ kind: 'start-list' })}
           >
             ⚔ Fight
@@ -750,7 +777,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
         {iHaveFallen && isHost && fallen.length > 0 && (
           <button
             style={{ ...tap, bottom: 200 }}
-            className="fixed left-3 z-[55] min-h-[44px] px-4 rounded-full border border-red-500/50 bg-red-950/80 backdrop-blur text-[14px] text-red-100 shadow-lg"
+            className="fixed left-3 z-[55] min-h-[44px] px-4 rounded-full border border-red-500/50 bg-red-950/95 text-[14px] text-red-100 shadow-lg"
             onClick={() => setStep({ kind: 'start-list' })}
           >
             ⚔ Fight
@@ -781,9 +808,10 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
   return (
     <>
       <div className="fixed left-0 right-0 top-14 z-[56] px-2 pointer-events-none">
-        <div className="pointer-events-auto rounded-xl border border-red-500/30 bg-black/80 backdrop-blur max-h-[45vh] overflow-y-auto">
+        <div className="pointer-events-auto rounded-xl border border-red-500/30 bg-black/90 max-h-[45vh] overflow-y-auto">
           <div className="flex items-center gap-2 px-3 py-1">
             <span className={cn('font-cinzel text-[14px] flex-1', isPaused ? 'text-amber-300' : 'text-red-300')}>{isPaused ? (isHuddle ? '🤝 HUDDLE' : '⏸ PAUSED') : '⚔ COMBAT'}</span>
+            {combat.connection !== 'live' && <span className="text-[11px] text-amber-300 animate-pulse">📶 Reconnecting…</span>}
             {canHuddle && (
               <button style={tap} className="min-h-[44px] px-2 text-[12px] text-amber-200" onClick={() => setStep({ kind: 'huddle-confirm' })}>🤝 Huddle</button>
             )}
@@ -844,12 +872,16 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                 const wardUntil = timeOf((f as unknown as { ward_until?: unknown }).ward_until);
                 const warded = Number.isFinite(wardAmt) && wardAmt > 0 && Number.isFinite(wardUntil) && wardUntil > now;
                 const pendTargets = pend ? pend.targets.filter(t => t !== f.id).map(t => fighters.find(x => x.id === t)?.name).filter(Boolean) as string[] : [];
+                // Speed: "typing…" from the NPC's warning until its line reaches the Live Table (up to 8 s).
+                const lastIntent = f.status === 'up' ? [...events].reverse().find(e => e.kind === 'intent' && e.actor_name === f.name) : undefined;
+                const intentAt = lastIntent ? timeOf(lastIntent.created_at) : NaN;
+                const typing = Number.isFinite(intentAt) && now - intentAt < 8000 && (combat.lastLineAt[f.npc_id ?? ''] ?? 0) < intentAt;
                 return (
                   <div key={f.id} className={cn('flex items-center gap-2', out && 'opacity-50 grayscale')}>
                     {npc ? <NpcPortrait url={npc.portrait_url} name={npc.name} className="w-8 h-8 text-sm" /> : <span className="w-8 h-8" />}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[13px] text-white/90 truncate">{f.name}</span>
+                        <span className="text-[13px] text-white/90 truncate">{f.name}{typing && <span className="ml-1.5 text-[11px] text-white/60 animate-pulse">💬 typing…</span>}</span>
                         <span className="text-[11px] text-white/60 shrink-0">
                           {warded && <span className="mr-1 text-sky-200">🛡 {Math.round(wardAmt)}</span>}
                           {f.status === 'ko' ? '💤 Knocked out' : f.status === 'dead' ? '💀 Dead' : f.status === 'fled' ? '🏃 Fled' : `${f.hp}/${f.max_hp}`}
@@ -902,7 +934,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
 
       {myFighter?.status === 'up' && (
         <div className="fixed left-0 right-0 z-[56] px-2" style={{ bottom: 'calc(8px + env(safe-area-inset-bottom))' }}>
-          <div className="rounded-xl border border-white/15 bg-black/85 backdrop-blur p-2 space-y-1">
+          <div className="rounded-xl border border-white/15 bg-black/95 p-2 space-y-1">
             {aimingAtMe?.p && (() => {
               // Combat v2: the incoming card, with the attack's real countdown and what you can do about it.
               const p = aimingAtMe.p;
@@ -985,6 +1017,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
       </AlertDialog>
 
       {aimingAtMe && <div aria-hidden className="fixed inset-0 z-[57] pointer-events-none" style={{ boxShadow: 'inset 0 0 60px 12px hsl(0 84% 50% / 0.55)' }} />}
+      {rolling && !result && <RollingCard />}
       {resultCard}
       {flashLayer}
       {sheet}
