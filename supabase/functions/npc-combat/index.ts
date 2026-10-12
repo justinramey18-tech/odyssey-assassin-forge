@@ -726,6 +726,7 @@ async function resolveSkill(
   const p = npc.pending;
   if (!p) return;
   const interval = R.currentIntervalMs(npc.act_every_ms, stats.speed);
+  const strikeAt = npc.strike_at;
   if (!(await claim(db, npc, { pending: null, strike_at: null, next_action_at: iso(now + interval) }))) return;
   const sk = skills.find(k => k.name === p.skill && k.type === p.type) ?? skills.find(k => k.type === p.type)
     ?? (p.type === 'strike' ? S.basicStrike(stats) : skills[0]);
@@ -751,7 +752,7 @@ async function resolveSkill(
     let staggered = false;
     for (const t of targets.slice(0, S.SWEEP_MAX)) {
       // Parry duel: the target's tap on this exact strike decides the hit.
-      const parry = parryOf(t, npc.id, npc.strike_at);
+      const parry = parryOf(t, npc.id, strikeAt);
       if (parry === 'perfect') {
         parts.push(`${t.name} parries perfectly`);
         await addEvent(db, fight, { kind: 'attack', actor_name: npc.name, target_name: t.name, target_user_id: t.user_id, hp_delta: 0, detail: 'Perfect parry!' });
