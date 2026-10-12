@@ -1319,7 +1319,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   // Live NPCs (D-22): the party's NPC roster, with live updates.
   const npcRoster = usePartyNpcs(partyId || null);
   const npcCombat = useNpcCombat({ partyId: partyId || null, currentUserId: currentUserId || null, isHost: originalCreator, sheetHp: characterContext?.currentHP ?? null, onHPChange });
-  const [pendingCombatCast, setPendingCombatCast] = useState<{ card: ActionCard; key: string } | null>(null);
+  const [pendingCombatCast, setPendingCombatCast] = useState<{ card: ActionCard; key: string; targetId?: string; finish?: 'knockout' | 'kill' } | null>(null);
+  // Target-first casting: the target picked in the fight bar before choosing a spell (good for 60 s).
+  const [combatPreTarget, setCombatPreTarget] = useState<{ targetId: string; targetName: string; finish: 'knockout' | 'kill'; at: number } | null>(null);
+  const combatPreTargetRef = useRef(combatPreTarget);
+  combatPreTargetRef.current = combatPreTarget;
   const npcCombatRef = useRef(npcCombat);
   npcCombatRef.current = npcCombat;
   // Live NPC Combat: the server-rolled death-save screen (separate from burnout's).
@@ -2218,9 +2222,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         void npcRosterRef.current.reactToSpell(lineId, text);
         const castCard = parseActionCard(text).card;
         const fightNow = npcCombatRef.current;
+        // Target-first casting: a cast uses up the target picked for it (if still fresh).
+        const pre = combatPreTargetRef.current;
+        const preFresh = pre && Date.now() - pre.at < 60_000 ? pre : null;
+        if (spellCastName(text) && pre) {
+          combatPreTargetRef.current = null;
+          setCombatPreTarget(null);
+        }
         if (castCard && spellCastName(text) && fightNow.isActive && fightNow.myFighter?.status === 'up'
           && ((castCard.damageTotal ?? 0) > 0 || (castCard.amount ?? 0) > 0)) {
-          setPendingCombatCast({ card: castCard, key: lineId });
+          setPendingCombatCast({ card: castCard, key: lineId, targetId: preFresh?.targetId, finish: preFresh?.finish });
         }
       } catch (err) {
         console.error('[party-dm] table post failed:', err);
@@ -5424,7 +5435,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         />
       )}
 
-      <NpcCombatOverlay combat={npcCombat} roster={npcRoster} members={members} currentUserId={currentUserId || null} isHost={originalCreator} onUseConsumableByName={onUseConsumableByName} pendingCast={pendingCombatCast} onPendingCastDone={() => setPendingCombatCast(null)} onOpenSpells={() => overlays.open('quickActions', ['spells', 'cantrips'])} />
+      <NpcCombatOverlay combat={npcCombat} roster={npcRoster} members={members} currentUserId={currentUserId || null} isHost={originalCreator} onUseConsumableByName={onUseConsumableByName} pendingCast={pendingCombatCast} onPendingCastDone={() => setPendingCombatCast(null)} onOpenSpells={(pre) => { setCombatPreTarget(pre ? { ...pre, at: Date.now() } : null); overlays.open('quickActions', ['spells', 'cantrips']); }} preTarget={combatPreTarget} onClearPreTarget={() => setCombatPreTarget(null)} />
       {/* Death Save Screen */}
       <DeathSaveScreen
         open={showDeathSaves}
