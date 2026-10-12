@@ -233,9 +233,11 @@ async function mutate(
   db: Db,
   fighterId: string,
   change: (f: Fighter) => Partial<Fighter> | null,
+  known?: Fighter | null,
 ): Promise<{ before: Fighter; after: Fighter } | null> {
   for (let attempt = 0; attempt < 4; attempt++) {
-    const before = await fighterById(db, fighterId);
+    // Speed: a row just read by the caller saves the first read. If it changed since, the write misses and we re-read.
+    const before = attempt === 0 && known && known.id === fighterId ? known : await fighterById(db, fighterId);
     if (!before) return null;
     const patch = change(before);
     if (!patch) return null;
@@ -528,9 +530,11 @@ async function speedOfNpc(db: Db, npcId: string | null): Promise<R.SpeedPreset> 
 /** Damage on an NPC. Knocks it out or kills it at 0 HP, as the attacker chose. Otherwise it is staggered. */
 async function hitNpc(
   db: Db, fight: Fight, hostId: string, me: Fighter, targetId: string, damage: number, finish: Finish, crit = false, now = Date.now(),
+  pre?: { target?: Fighter; speed?: R.SpeedPreset },
 ): Promise<{ lost: number; hp: number; defeated: boolean }> {
-  const current = await fighterById(db, targetId);
-  const speed = await speedOfNpc(db, current?.npc_id ?? null);
+  // Speed: callers that already read the target (and its Speed) pass them in, saving two reads.
+  const current = pre?.target && pre.target.id === targetId ? pre.target : await fighterById(db, targetId);
+  const speed = pre?.speed ?? await speedOfNpc(db, current?.npc_id ?? null);
   const result = await mutate(db, targetId, f => {
     if (f.kind !== 'npc' || f.status !== 'up') return null;
     // A Shield ward soaks up damage first.
@@ -552,11 +556,22 @@ async function hitNpc(
     const next = f.next_action_at ? Date.parse(f.next_action_at) : now;
     const pushed = Math.min(Math.max(next, now) + s.delayMs, now + s.intervalMs);
     return { hp, threat, act_every_ms: s.intervalMs, next_action_at: iso(pushed), ...wardPatch };
-  });
+  }, current);
   if (!result) return { lost: 0, hp: 0, defeated: false };
   const { before, after } = result;
   const defeated = after.status !== 'up';
-  if (defeated && after.npc_id) {
+  // Speed: the attacker's Resolve and the knockout's writes don't depend on each other, so they run side by side.
+  const fillResolve = async () => {
+    if (before.hp <= after.hp) return;
+    // Landing a hit fills the attacker's Resolve.
+    const r = await mutate(db, me.id, f => (f.status === 'dead' ? null : {
+      resolve: Math.min(R.RESOLVE_MAX, R.resolveNow(f.resolve, f.resolve_at, f.resolve_rate, now) + R.hitResolve(R.cleanPerks(f.perks))),
+      resolve_at: iso(now),
+    }), me);
+    if (r) Object.assign(me, r.after);
+  };
+  const markDefeated = async () => {
+    if (!(defeated && after.npc_id)) return;
     const patch: Record<string, unknown> = { combat_state: after.status === 'dead' ? 'dead' : 'ko' };
     if (after.status === 'dead') patch.on_stage = false;
     const { error } = await db.from('party_npcs').update(patch).eq('id', after.npc_id);
@@ -569,14 +584,8 @@ async function hitNpc(
       turn: { move: 'fall', attacker: me.name, killed: after.status === 'dead' },
       fallback: null,
     });
-  }
-  if (before.hp > after.hp) {
-    // Landing a hit fills the attacker's Resolve.
-    await mutate(db, me.id, f => (f.status === 'dead' ? null : {
-      resolve: Math.min(R.RESOLVE_MAX, R.resolveNow(f.resolve, f.resolve_at, f.resolve_rate, now) + R.hitResolve(R.cleanPerks(f.perks))),
-      resolve_at: iso(now),
-    }));
-  }
+  };
+  await Promise.all([markDefeated(), fillResolve()]);
   if (defeated) {
     // Nothing more: a defeated NPC doesn't react.
   } else if (after.npc_id && before.hp > after.hp) {
@@ -590,9 +599,10 @@ async function hitNpc(
   return { lost: before.hp - after.hp, hp: after.hp, defeated };
 }
 
-async function npcTarget(db: Db, fight: Fight, targetId: unknown): Promise<Fighter> {
-  const t = await fighterById(db, needUuid(targetId, 'target'));
-  if (!t || t.fight_id !== fight.id || t.kind !== 'npc') return refuse(404, 'That target is not an NPC in this fight.');
+async function npcTarget(db: Db, fight: Fight, targetId: unknown, early?: Promise<Fighter | null>): Promise<Fighter> {
+  const id = needUuid(targetId, 'target');
+  const t = (early ? await early : null) ?? await fighterById(db, id);
+  if (!t || t.id !== id || t.fight_id !== fight.id || t.kind !== 'npc') return refuse(404, 'That target is not an NPC in this fight.');
   if (t.status !== 'up') refuse(409, `${t.name} is already down.`);
   return t;
 }
@@ -601,14 +611,15 @@ async function doAttack(
   db: Db, fight: Fight, hostId: string, seat: Seat, me: Fighter | null, target: Fighter,
   weaponName: unknown, finish: Finish, now: number,
 ) {
-  const actor = await startAction(db, fight, me, now);
+  // Speed: claiming my turn and reading the target's Speed don't depend on each other.
+  const [actor, speed] = await Promise.all([startAction(db, fight, me, now), speedOfNpc(db, target.npc_id)]);
   const w = R.weaponAttack(seat.character_status ?? {}, weaponName);
   const a = R.resolveAttack(roll, w.bonus, target.ac);
   let lost = 0;
   let hp = target.hp;
   let defeated = false;
   if (a.hit) {
-    const out = await hitNpc(db, fight, hostId, actor, target.id, R.rollDamage(w.dice, roll, a.crit), finish, a.crit, now);
+    const out = await hitNpc(db, fight, hostId, actor, target.id, R.rollDamage(w.dice, roll, a.crit), finish, a.crit, now, { target, speed });
     ({ lost, hp, defeated } = out);
   }
   await addEvent(db, fight, {
@@ -1204,6 +1215,10 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
 
   // Player actions below need a seat.
   if (!seat) return refuse(403, 'Only players seated at this table can fight.');
+  // Speed: an attack or spell reads its target at the same time as my own fighter row.
+  const earlyTarget = (action === 'attack' || action === 'cast' || action === 'cast_card') && isUuid(body.targetId)
+    ? fighterById(db, body.targetId as string).catch(() => null)
+    : undefined;
   const me = await ensurePlayer(db, fight, seat, now);
 
   if (action === 'huddle') {
@@ -1225,9 +1240,10 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
   }
 
   if (action === 'attack') {
-    const target = await npcTarget(db, fight, body.targetId);
+    const target = await npcTarget(db, fight, body.targetId, earlyTarget);
     const result = await doAttack(db, fight, hostId, seat, me, target, body.weaponName, finishOf(body.finish), now);
-    await checkEnd(db, fight.id, hostId, now);
+    // Speed: a player's attack can only end the fight by downing an NPC.
+    if (result.defeated) await checkEnd(db, fight.id, hostId, now);
     return result;
   }
 
@@ -1261,18 +1277,18 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
       await checkEnd(db, fight.id, hostId, now);
       return { healed: gained, targetHp: r?.after.hp ?? target.hp };
     }
-    const target = await npcTarget(db, fight, body.targetId);
-    const actor = await startAction(db, fight, me, now);
+    const target = await npcTarget(db, fight, body.targetId, earlyTarget);
+    const [actor, speed] = await Promise.all([startAction(db, fight, me, now), speedOfNpc(db, target.npc_id)]);
     const a = R.resolveAttack(roll, R.spellAttackBonus(sheet), target.ac);
     let out = { lost: 0, hp: target.hp, defeated: false };
     if (a.hit) {
-      out = await hitNpc(db, fight, hostId, actor, target.id, R.rollDamage(R.spellDamageDice(spellLevel, sheet.level), roll, a.crit), finishOf(body.finish), a.crit, now);
+      out = await hitNpc(db, fight, hostId, actor, target.id, R.rollDamage(R.spellDamageDice(spellLevel, sheet.level), roll, a.crit), finishOf(body.finish), a.crit, now, { target, speed });
     }
     await addEvent(db, fight, {
       kind: 'spell', actor_name: actor.name, target_name: target.name, hp_delta: -out.lost, d20: a.d20, total: a.total,
       detail: a.hit ? `${spellName}: ${out.lost} damage${a.crit ? ' (critical!)' : ''}` : `${spellName}: miss`,
     });
-    await checkEnd(db, fight.id, hostId, now);
+    if (out.defeated) await checkEnd(db, fight.id, hostId, now);
     return { hit: a.hit, crit: a.crit, d20: a.d20, total: a.total, damage: out.lost, targetHp: out.hp, defeated: out.defeated };
   }
 
@@ -1300,7 +1316,10 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     const area = card!.area === true;
     const wanted = [needUuid(body.targetId, 'target'), ...(area && Array.isArray(body.targetIds) ? body.targetIds.filter(isUuid) : [])];
     const ids = [...new Set(wanted)].slice(0, area ? AREA_MAX_TARGETS : 1);
-    const targets = (await Promise.all(ids.map(id => fighterById(db, id)))).filter((t): t is Fighter => !!t && t.fight_id === fight.id);
+    const targets = (await Promise.all(ids.map(async (id, k) => {
+      const early = k === 0 && earlyTarget ? await earlyTarget : null;
+      return early && early.id === id ? early : fighterById(db, id);
+    }))).filter((t): t is Fighter => !!t && t.fight_id === fight.id);
     if (targets.length === 0) return refuse(404, 'That target is not in this fight.');
     const heals = targets[0].kind === 'player';
     if (targets.some(t => (t.kind === 'player') !== heals)) refuse(400, 'Pick only allies for a heal, or only enemies for an attack.');
@@ -1338,7 +1357,11 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     if (damage < 1) refuse(400, `${spellName} has no damage to deal.`);
     const standing = targets.filter(t => t.status === 'up');
     if (standing.length === 0) refuse(409, `${targets[0].name} is already down.`);
-    const actor = await startAction(db, fight, me, now);
+    // Speed: claim my turn while reading each target's Speed.
+    const [actor, speeds] = await Promise.all([
+      startAction(db, fight, me, now),
+      Promise.all(standing.map(t => speedOfNpc(db, t.npc_id))),
+    ]);
     const sheet = seat.character_status ?? {};
     const mode: 'attack' | 'save' | 'auto' = resolve === 'attack' || resolve === 'save' || resolve === 'auto'
       ? resolve
@@ -1352,7 +1375,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     let saved = 0;
     let firstShown: number | null = null;
     let firstHp: number | null = null;
-    for (const target of standing) {
+    for (const [i, target] of standing.entries()) {
       let hit = true;
       let dealt = damage;
       let shown: number | null = null;
@@ -1376,7 +1399,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
         note = ' (automatic hit)';
       }
       let out = { lost: 0, hp: target.hp, defeated: false };
-      if (hit && dealt > 0) out = await hitNpc(db, fight, hostId, actor, target.id, dealt, finishOf(body.finish), crit, now);
+      if (hit && dealt > 0) out = await hitNpc(db, fight, hostId, actor, target.id, dealt, finishOf(body.finish), crit, now, { target, speed: speeds[i] });
       lost += out.lost;
       anyHit = anyHit || hit;
       anyDefeated = anyDefeated || out.defeated;
@@ -1388,7 +1411,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
         detail: hit ? `${spellName}: ${out.lost} damage${crit ? ' (critical!)' : ''}${note}` : `${spellName}: miss`,
       });
     }
-    await checkEnd(db, fight.id, hostId, now);
+    if (anyDefeated) await checkEnd(db, fight.id, hostId, now);
     return {
       hit: anyHit, crit, d20: mode === 'attack' ? d20 : null, total: mode === 'attack' ? firstShown : null,
       damage: lost, targetHp: firstHp ?? standing[0].hp, defeated: anyDefeated, targets: standing.length, saved, mode,
