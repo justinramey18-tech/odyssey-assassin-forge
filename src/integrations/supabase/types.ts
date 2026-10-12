@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
@@ -1214,6 +1214,7 @@ export type Database = {
           ac: number
           act_every_ms: number | null
           action_seq: number
+          cooldowns: Json
           created_at: string
           death_failures: number
           death_successes: number
@@ -1251,6 +1252,7 @@ export type Database = {
           ac: number
           act_every_ms?: number | null
           action_seq?: number
+          cooldowns?: Json
           created_at?: string
           death_failures?: number
           death_successes?: number
@@ -1288,6 +1290,7 @@ export type Database = {
           ac?: number
           act_every_ms?: number | null
           action_seq?: number
+          cooldowns?: Json
           created_at?: string
           death_failures?: number
           death_successes?: number
@@ -1411,10 +1414,13 @@ export type Database = {
       party_fights: {
         Row: {
           ended_at: string | null
+          huddles_used: Json
           id: string
           outcome: string | null
           party_id: string
+          pause_kind: string | null
           paused_at: string | null
+          paused_until: string | null
           started_at: string
           started_by: string
           status: string
@@ -1422,10 +1428,13 @@ export type Database = {
         }
         Insert: {
           ended_at?: string | null
+          huddles_used?: Json
           id?: string
           outcome?: string | null
           party_id: string
+          pause_kind?: string | null
           paused_at?: string | null
+          paused_until?: string | null
           started_at?: string
           started_by: string
           status?: string
@@ -1433,10 +1442,13 @@ export type Database = {
         }
         Update: {
           ended_at?: string | null
+          huddles_used?: Json
           id?: string
           outcome?: string | null
           party_id?: string
+          pause_kind?: string | null
           paused_at?: string | null
+          paused_until?: string | null
           started_at?: string
           started_by?: string
           status?: string
