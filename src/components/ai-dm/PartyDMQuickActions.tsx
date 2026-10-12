@@ -3,7 +3,7 @@ import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import { Sword, Sparkles, BookOpen, FlaskConical, Star, ChevronDown, ChevronRight, Flame, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { awaitLatestD20Reveal } from '@/lib/rollD20';
+import { awaitLatestD20Reveal, rollD20 } from '@/lib/rollD20';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
@@ -14,6 +14,8 @@ import { getHealingDiceForItem, type HealingDice } from '@/lib/consumables/heali
 import { requestDiceRoll } from '@/lib/diceRollBus';
 import { castSpellByName, describeSlotSpend, getMagicResources } from '@/lib/magic/castBus';
 import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic/castResolver';
+import { HEAL_APPLIED_NOTE, autoSpellText, isAreaSpell, saveSpellText, saveStatOf, spellDice, spellModeOf, spellcastingMod, utilitySpellText, type SpellMode } from '@/lib/spellResolve';
+import type { ActionCard } from '@/lib/roundChatActionCard';
 import { RollPreviewSheet, type RollPreviewChoice } from '@/components/magic/RollPreviewSheet';
 import { COST_META, resolveActionCost, type ActionCost } from '@/lib/combat/actionCost';
 import { parseRollTable } from '@/lib/magic/parseRollTable';
@@ -189,6 +191,10 @@ interface QuickActionItem {
   saveStat?: string;
   attackType?: string;
   rulesText?: string;
+  /** Spells: the range text ("Self (60-foot line)"), used to spot area spells. */
+  spellRange?: string;
+  /** Spells: the caster's level, for the spellcasting modifier in "1d8+mod" formulas. */
+  casterLevel?: number;
   spellSchool?: string;
   /** What tapping this costs on your turn. */
   actionCost?: ActionCost;
@@ -293,6 +299,30 @@ interface SpellRulesDetailsProps {
   item: QuickActionItem;
   expanded: boolean;
   onExpandedChange: (expanded: boolean) => void;
+}
+
+/** How a Quick Actions spell resolves (attack, save, auto-hit, heal or utility), from its own fields. */
+function spellModeOfItem(item: QuickActionItem): SpellMode {
+  return spellModeOf({
+    attackType: item.attackType, damageFormula: item.damageFormula, healingFormula: item.healingFormula,
+    saveStat: item.saveStat, description: item.rulesText,
+  });
+}
+
+/** The caster's spellcasting modifier, for "mod" in damage and healing formulas. */
+function modForItem(item: QuickActionItem): number {
+  return spellcastingMod(item.casterLevel, getMagicResources()?.spellAttackBonus);
+}
+
+/** What the roll-preview sheet needs to show a non-attack spell correctly. */
+function previewFor(item: QuickActionItem): { mode: SpellMode; saveStat?: string; saveDC?: number; area: boolean; formula?: string } {
+  const mode = item.rollKind === 'spell' ? spellModeOfItem(item) : 'attack';
+  const area = isAreaSpell({ range: item.spellRange, description: item.rulesText });
+  const mod = modForItem(item);
+  if (mode === 'heal') return { mode, area, formula: spellDice(item.healingFormula, mod)?.label };
+  if (mode === 'save') return { mode, area, saveStat: saveStatOf({ saveStat: item.saveStat, description: item.rulesText }), saveDC: getMagicResources()?.spellSaveDC, formula: spellDice(item.damageFormula, mod)?.label };
+  if (mode === 'auto') return { mode, area, formula: spellDice(item.damageFormula, mod)?.label };
+  return { mode, area };
 }
 
 function SpellRulesDetails({ item, expanded, onExpandedChange }: SpellRulesDetailsProps) {
@@ -410,6 +440,13 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
         if (spend) toast.success(`${item.name} cast`, { description: spend });
       }
     }
+    // Saving-throw, automatic-hit, healing and utility spells don't roll to hit: each rolls what it really
+    // needs and says so on its card, so the DM and a Live NPC fight resolve it the right way.
+    const mode: SpellMode = item.rollKind === 'spell' ? spellModeOfItem(item) : 'attack';
+    if (item.rollKind === 'spell' && mode !== 'attack') {
+      castNonAttackSpell(item, mode, spentSlotLevel, slotNote);
+      return;
+    }
     // Scale the damage dice for the slot actually spent, so an
     // upcast Fireball rolls the bigger die pool.
     let damageFormula = item.damageFormula;
@@ -452,6 +489,73 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
     try { cinematic = await reveal; } catch { cinematic = false; }
     if (cinematic) { complete(); return; }
     requestDiceRoll({ title: item.name, roll, onComplete: complete });
+  };
+
+  /** The spell's prompt, rebuilt with the table row for a d20 when the spell has a d20 table. */
+  const spellPromptFor = (item: QuickActionItem, d20?: number): string => {
+    if (typeof d20 !== 'number' || !item.spellPromptArgs || !item.rulesText) return item.prompt;
+    if (!parseRollTable(item.rulesText).table) return item.prompt;
+    return generateSpellPrompt(
+      item.spellPromptArgs.name,
+      item.spellPromptArgs.characterName,
+      item.spellPromptArgs.isCantrip,
+      { ...item.spellPromptArgs.detail, tableRoll: d20, rowGuide: getRowGuide(item.spellId ?? item.spellPromptArgs.name, d20) },
+    );
+  };
+
+  /** Casts a spell that doesn't roll to hit (the slot is already spent). */
+  const castNonAttackSpell = (item: QuickActionItem, mode: SpellMode, spentSlotLevel: number | undefined, slotNote: string) => {
+    const hasTable = !!(item.rulesText && parseRollTable(item.rulesText).table);
+    // A spell with a d20 table still rolls the d20 that picks its row.
+    const tableD20 = hasTable ? rollD20({ context: 'other' }).kept : undefined;
+    if (typeof tableD20 === 'number') lastSpellRolls.set(item.name, tableD20);
+    const castPrompt = spellPromptFor(item, tableD20);
+    const area = isAreaSpell({ range: item.spellRange, description: item.rulesText });
+    const mod = modForItem(item);
+    const tableNote = typeof tableD20 === 'number' ? ` Table roll: d20 ${tableD20}.` : '';
+    onCloseDrawer?.();
+    const send = (card: ActionCard, text: string) => {
+      onUse(encodeActionCard(card, text));
+      toast.success('Prompt added to input', tableNote ? { description: tableNote.trim() } : undefined);
+    };
+
+    if (mode === 'heal') {
+      const d = spellDice(item.healingFormula, mod, item.spellLevel, spentSlotLevel);
+      if (!d) { send({ action: item.name, kind: 'spell', resolve: 'utility', note: slotNote || undefined }, castPrompt + utilitySpellText(tableD20) + slotNote); return; }
+      const heal = rollHealing(d.count, d.die, d.bonus);
+      const card: ActionCard = { ...actionCardFromRoll(item.name, heal, slotNote), area: area || undefined };
+      requestDiceRoll({ title: item.name, roll: heal, onComplete: () => send(card, castPrompt + rollSuffix(heal) + HEAL_APPLIED_NOTE + slotNote) });
+      return;
+    }
+
+    if (mode === 'save' || mode === 'auto') {
+      const d = spellDice(item.damageFormula, mod, item.spellLevel, spentSlotLevel);
+      if (d) {
+        const dmg = d.count > 0 ? rollEffect('Damage', d.count, d.die, d.bonus) : null;
+        const rolls = dmg ? dmg.rolls : [];
+        const total = Math.max(0, dmg ? dmg.total : d.bonus);
+        const card: ActionCard = {
+          action: item.name, kind: 'spell', resolve: mode, note: slotNote || undefined,
+          damageTotal: total, damageFormula: d.label, damageRolls: rolls, area: area || undefined,
+        };
+        let text: string;
+        if (mode === 'save') {
+          const saveStat = saveStatOf({ saveStat: item.saveStat, description: item.rulesText });
+          const saveDC = getMagicResources()?.spellSaveDC ?? 8 + Math.ceil(Math.max(1, item.casterLevel ?? 1) / 4) + 1 + mod;
+          card.saveStat = saveStat;
+          card.saveDC = saveDC;
+          text = castPrompt + saveSpellText({ saveStat, dc: saveDC, damageLabel: d.label, rolls, total, area }) + slotNote;
+        } else {
+          text = castPrompt + autoSpellText({ damageLabel: d.label, rolls, total, area }) + slotNote;
+        }
+        if (dmg) requestDiceRoll({ title: item.name, roll: dmg, onComplete: () => send(card, text) });
+        else send(card, text);
+        return;
+      }
+    }
+
+    // Utility: no damage and no healing. The DM narrates it from the rules text.
+    send({ action: item.name, kind: 'spell', resolve: 'utility', d20: tableD20, note: slotNote || undefined }, castPrompt + utilitySpellText(tableD20) + slotNote);
   };
 
   const handleItemUse = (item: QuickActionItem) => {
@@ -702,6 +806,7 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
           spellLevel: pending.spellLevel,
           damageFormula: pending.damageFormula,
           damageType: pending.damageType,
+          spell: pending.rollKind === 'spell' ? previewFor(pending) : undefined,
           saveStat: pending.saveStat,
           attackType: pending.attackType,
           attackBonus: pending.attackBonus,
@@ -936,6 +1041,8 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         saveStat: full.saveStat,
         attackType: full.attackType,
         rulesText: full.description,
+        spellRange: typeof (full as { range?: unknown }).range === 'string' ? (full as { range: string }).range : undefined,
+        casterLevel: characterContext.level,
         spellSchool: full.school,
         actionCost: resolveActionCost({ kind: full.isHomebrew ? 'homebrew-spell' : isCantrip ? 'cantrip' : 'spell', castingTime: (full as any).castingTime }),
       };
