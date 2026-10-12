@@ -650,14 +650,14 @@ async function canRetreat(db: Db, npcId: string): Promise<boolean> {
  */
 async function npcHitsPlayer(
   db: Db, fight: Fight, hostId: string, npc: Fighter, target: Fighter, bonus: number, dice: R.Dice,
-  stats: R.NpcCombatStats, now: number,
+  stats: R.NpcCombatStats, now: number, scale = 1,
 ): Promise<{ hit: boolean; crit: boolean; lost: number; downed: boolean }> {
   const a = R.resolveAttack(roll, bonus, target.ac);
   let lost = 0;
   let downed = false;
   let stoodHp = 0;
   if (a.hit) {
-    const damage = R.rollDamage(dice, roll, a.crit);
+    const damage = Math.max(scale < 1 ? 0 : 1, Math.floor(R.rollDamage(dice, roll, a.crit) * scale));
     let lastStandHp = 0;
     const result = await mutate(db, target.id, f => {
       if (f.status !== 'up') return null;
@@ -710,6 +710,14 @@ async function npcHitsPlayer(
   return { hit: a.hit, crit: a.crit, lost, downed };
 }
 
+type ParryQuality = 'perfect' | 'good' | 'miss';
+/** A player's parry tap on one NPC strike, if any. */
+function parryOf(p: Fighter, npcId: string, strike: string | null): ParryQuality | null {
+  const raw = (p.cooldowns as unknown as Record<string, unknown> | null)?.parry as { npc?: unknown; strike?: unknown; q?: unknown } | undefined;
+  if (!raw || raw.npc !== npcId || !strike || raw.strike !== strike) return null;
+  return raw.q === 'perfect' || raw.q === 'good' || raw.q === 'miss' ? raw.q : null;
+}
+
 /** The announced skill happens: one claim so only one phone's ping runs it, then its effect and a ⚔ line. */
 async function resolveSkill(
   db: Db, fight: Fight, hostId: string, npc: Fighter, skills: S.Skill[], stats: R.NpcCombatStats,
@@ -740,13 +748,29 @@ async function resolveSkill(
       return;
     }
     const parts: string[] = [];
+    let staggered = false;
     for (const t of targets.slice(0, S.SWEEP_MAX)) {
-      const r = await npcHitsPlayer(db, fight, hostId, npc, t, sk.bonus, sk.dice, stats, now);
+      // Parry duel: the target's tap on this exact strike decides the hit.
+      const parry = parryOf(t, npc.id, npc.strike_at);
+      if (parry === 'perfect') {
+        parts.push(`${t.name} parries perfectly`);
+        await addEvent(db, fight, { kind: 'attack', actor_name: npc.name, target_name: t.name, target_user_id: t.user_id, hp_delta: 0, detail: 'Perfect parry!' });
+        if (!staggered) {
+          staggered = true;
+          // The NPC reels: it skips its next attack, and a counter window opens for the whole party.
+          await mutate(db, npc.id, f => (f.status !== 'up' ? null : {
+            next_action_at: iso(now + interval * 2),
+            cooldowns: { ...(f.cooldowns ?? {}), counter: { until: now + S.COUNTER_WINDOW_MS, by: t.id } } as unknown as S.Cooldowns,
+          }));
+        }
+        continue;
+      }
+      const r = await npcHitsPlayer(db, fight, hostId, npc, t, sk.bonus, sk.dice, stats, now, parry === 'good' ? 0.5 : 1);
       parts.push(r.hit
-        ? `${t.name} ${r.lost} damage${r.crit ? ' (critical!)' : ''}${r.downed ? ', and goes down' : ''}`
+        ? `${t.name} ${r.lost} damage${parry === 'good' ? ' (half, parried)' : ''}${r.crit ? ' (critical!)' : ''}${r.downed ? ', and goes down' : ''}`
         : `${t.name} dodges`);
     }
-    await line(`${npc.name}'s ${sk.name}: ${parts.join('; ')}.`);
+    await line(`${npc.name}'s ${sk.name}: ${parts.join('; ')}.${staggered ? ` ${npc.name} staggers! COUNTER!` : ''}`);
     return;
   }
 
@@ -1216,7 +1240,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
   // Player actions below need a seat.
   if (!seat) return refuse(403, 'Only players seated at this table can fight.');
   // Speed: an attack or spell reads its target at the same time as my own fighter row.
-  const earlyTarget = (action === 'attack' || action === 'cast' || action === 'cast_card') && isUuid(body.targetId)
+  const earlyTarget = (action === 'attack' || action === 'counter' || action === 'cast' || action === 'cast_card') && isUuid(body.targetId)
     ? fighterById(db, body.targetId as string).catch(() => null)
     : undefined;
   const me = await ensurePlayer(db, fight, seat, now);
@@ -1237,6 +1261,65 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     await addEvent(db, fight, { kind: 'huddle', actor_name: me.name, detail: `${me.name} calls a ${R.HUDDLE_MS / 1000}-second huddle` });
     await postLine(db, fight.party_id, hostId, `${me.name} calls a huddle! The fight freezes for ${R.HUDDLE_MS / 1000} seconds.`);
     return { ok: true, pausedUntil: iso(until) };
+  }
+
+  if (action === 'parry') {
+    // Parry duel: one tap per strike, judged against the server's strike time.
+    if (fight.status !== 'active') refuse(409, 'The fight is not running.');
+    if (!me || me.status !== 'up') return refuse(409, 'You are down and cannot parry.');
+    const npc = await fighterById(db, needUuid(body.npcId, 'npc'));
+    if (!npc || npc.fight_id !== fight.id || npc.kind !== 'npc' || npc.status !== 'up' || !npc.pending || !npc.strike_at) refuse(409, 'Nothing to parry.');
+    if (!S.OFFENSE.includes(npc!.pending!.type as S.SkillType) || !npc!.pending!.targets.includes(me.id)) refuse(409, "That attack isn't aimed at you.");
+    if (parryOf(me, npc!.id, npc!.strike_at)) refuse(409, 'You already committed to this parry.');
+    const tapRaw = Number(body.tapAt);
+    const tapAt = Number.isFinite(tapRaw) && tapRaw <= now && tapRaw >= now - 1500 ? tapRaw : now;
+    const off = Math.abs(Date.parse(npc!.strike_at as string) - tapAt);
+    const q: ParryQuality = off <= S.PARRY_PERFECT_MS ? 'perfect' : off <= S.PARRY_GOOD_MS ? 'good' : 'miss';
+    const r = await mutate(db, me.id, f => (parryOf(f, npc!.id, npc!.strike_at) ? null : {
+      cooldowns: { ...(f.cooldowns ?? {}), parry: { npc: npc!.id, strike: npc!.strike_at, q } } as unknown as S.Cooldowns,
+    }), me);
+    if (!r) refuse(409, 'You already committed to this parry.');
+    return { ok: true, quality: q, offMs: Math.round(off) };
+  }
+
+  if (action === 'counter') {
+    // Counter clash: after a perfect parry, the first player to tap lands a free critical hit.
+    if (fight.status !== 'active') refuse(409, 'The fight is not running.');
+    if (!me || me.status !== 'up') return refuse(409, 'You are down and cannot counter.');
+    const target = await npcTarget(db, fight, body.targetId, earlyTarget);
+    const open = (f: Fighter) => {
+      const c = (f.cooldowns as unknown as Record<string, unknown> | null)?.counter as { until?: unknown } | undefined;
+      return !!c && typeof c.until === 'number' && c.until >= now;
+    };
+    if (!open(target)) refuse(409, 'Too late, the opening closed.');
+    const won = await mutate(db, target.id, f => {
+      if (!open(f)) return null;
+      const { counter: _gone, ...rest } = (f.cooldowns ?? {}) as unknown as Record<string, unknown>;
+      return { cooldowns: rest as unknown as S.Cooldowns };
+    }, target);
+    if (!won) refuse(409, 'Someone beat you to it!');
+    const w = R.weaponAttack(seat.character_status ?? {}, body.weaponName);
+    const out = await hitNpc(db, fight, hostId, me, target.id, R.rollDamage(w.dice, roll, true), finishOf(body.finish), true, now);
+    await addEvent(db, fight, { kind: 'attack', actor_name: me.name, target_name: target.name, hp_delta: -out.lost, detail: `Counter clash! ${w.name}: ${out.lost} damage` });
+    await postLine(db, fight.party_id, hostId, `${me.name} seizes the opening: COUNTER CLASH on ${target.name} for ${out.lost}!`);
+    if (out.defeated) await checkEnd(db, fight.id, hostId, now);
+    return { ok: true, damage: out.lost, targetHp: out.hp, defeated: out.defeated, weapon: w.name };
+  }
+
+  if (action === 'break_pin') {
+    // Pin escape: hammer the button to break free before the 30 seconds run out.
+    if (!me || me.status !== 'up') return refuse(409, 'You are down.');
+    const until = me.pinned_until ? Date.parse(me.pinned_until) : 0;
+    if (until <= now) return { ok: true, free: true };
+    const taps = Number(body.taps);
+    if (!Number.isFinite(taps) || taps < S.PIN_BREAK_TAPS) refuse(400, 'Keep struggling!');
+    if (now - (until - S.PIN_MS) < S.PIN_MIN_HOLD_MS) refuse(429, 'Keep struggling!');
+    const r = await mutate(db, me.id, f => (f.pinned_until && Date.parse(f.pinned_until) > now ? { pinned_until: null } : null), me);
+    if (r) {
+      await addEvent(db, fight, { kind: 'pin', actor_name: me.name, target_name: me.name, target_user_id: me.user_id, detail: 'Broke free!' });
+      await postLine(db, fight.party_id, hostId, `${me.name} wrenches free of the pin!`);
+    }
+    return { ok: true, free: true };
   }
 
   if (action === 'attack') {
