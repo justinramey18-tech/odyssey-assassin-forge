@@ -60,6 +60,8 @@ export interface CombatStats {
   speed: Speed;
   /** v5: what the NPC can do in a fight (type + name). The fight engine sets each skill's numbers. */
   skills?: Skill[];
+  /** Combat v2: how many players these stats were built for. The fight scales HP to the players actually there. */
+  designedFor?: number;
 }
 
 // ── Skills (Live NPC Combat v5). Keep the types in sync with supabase/functions/npc-combat/skills.ts ──
@@ -123,6 +125,7 @@ export function npcStats(party: PartyStats, difficulty: Difficulty, role: Role, 
     attackBonus: clamp(proficiency + d.atk + r.atk, -5, 20),
     damage: `${dice}d${r.die}${bonus > 0 ? `+${bonus}` : ''}`,
     speed: d.speed,
+    designedFor: clamp(Math.round(party.size), 1, 12),
   };
 }
 
