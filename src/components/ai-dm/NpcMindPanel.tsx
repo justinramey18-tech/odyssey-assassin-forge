@@ -388,13 +388,15 @@ function NpcCombatSection({ npc, busy, onSave, onRevived }: {
   const [attackBonus, setAttackBonus] = useState(String((saved ?? DEFAULT_COMBAT).attackBonus));
   const [damage, setDamage] = useState((saved ?? DEFAULT_COMBAT).damage);
   const [speed, setSpeed] = useState<NpcSpeed>((saved ?? DEFAULT_COMBAT).speed);
+  const [designedFor, setDesignedFor] = useState(String(saved?.designedFor ?? 4));
   const [problem, setProblem] = useState('');
   const [reviving, setReviving] = useState(false);
-  type SkillRow = { key: number; type: NpcSkillType | ''; name: string; custom: boolean; bonus: string; damage: string; power: string };
+  type SkillRow = { key: number; type: NpcSkillType | ''; name: string; custom: boolean; bonus: string; damage: string; power: string; cooldown: string };
   const rowFrom = (k: NpcSkill, i: number): SkillRow => ({
     key: i, type: k.type, name: k.name ?? '',
-    custom: k.bonus != null || !!k.damage || k.power != null,
+    custom: k.bonus != null || !!k.damage || k.power != null || k.cooldown != null,
     bonus: k.bonus != null ? String(k.bonus) : '', damage: k.damage ?? '', power: k.power != null ? String(k.power) : '',
+    cooldown: k.cooldown != null ? String(k.cooldown) : '',
   });
   const [skills, setSkills] = useState<SkillRow[]>(() => (saved?.skills ?? []).slice(0, 4).map(rowFrom));
   const [skillKey, setSkillKey] = useState(100);
@@ -402,6 +404,7 @@ function NpcCombatSection({ npc, busy, onSave, onRevived }: {
 
   const fillFrom = (s: NpcCombatStats) => {
     setMaxHp(String(s.maxHp)); setAc(String(s.ac)); setAttackBonus(String(s.attackBonus)); setDamage(s.damage); setSpeed(s.speed);
+    setDesignedFor(String(s.designedFor ?? 4));
   };
 
   const toggle = (next: boolean) => {
@@ -419,6 +422,8 @@ function NpcCombatSection({ npc, busy, onSave, onRevived }: {
     const bonus = wholeIn(attackBonus, -5, 20);
     if (bonus === null) return setProblem('Attack bonus must be a whole number from -5 to 20.');
     if (!DAMAGE_RE.test(damage)) return setProblem('Damage must look like 2d6+3 (dice: d2, d3, d4, d6, d8, d10, d12, d20 or d100).');
+    const builtFor = wholeIn(designedFor, 1, 12);
+    if (builtFor === null) return setProblem('Built for must be a whole number of players from 1 to 12.');
     const cleanedSkills: NpcSkill[] = [];
     for (const r of skills) {
       if (!r.type) continue;
@@ -440,10 +445,15 @@ function NpcCombatSection({ npc, busy, onSave, onRevived }: {
         sp = wholeIn(r.power, 1, 999);
         if (sp === null) return setProblem(`${name}: power must be a whole number from 1 to 999.`);
       }
-      cleanedSkills.push({ type: r.type, name, bonus: sb, damage: sd, power: sp });
+      let sc: number | null = null;
+      if (r.custom && r.cooldown.trim()) {
+        sc = wholeIn(r.cooldown, 0, 600);
+        if (sc === null) return setProblem(`${name}: cooldown must be a whole number of seconds from 0 to 600.`);
+      }
+      cleanedSkills.push({ type: r.type, name, bonus: sb, damage: sd, power: sp, cooldown: sc });
     }
     setProblem('');
-    void onSave({ maxHp: hp, ac: armor, attackBonus: bonus, damage: damage.replace(/\s+/g, ''), speed, skills: cleanedSkills });
+    void onSave({ maxHp: hp, ac: armor, attackBonus: bonus, damage: damage.replace(/\s+/g, ''), speed, skills: cleanedSkills, designedFor: builtFor });
   };
 
   const revive = async () => {
@@ -508,10 +518,14 @@ function NpcCombatSection({ npc, busy, onSave, onRevived }: {
             {numField('AC', ac, setAc, 5, 30)}
             {numField('Attack bonus', attackBonus, setAttackBonus, -5, 20)}
           </div>
-          <label className="block space-y-1">
-            <span className="block text-[12px] text-white/60">Damage</span>
-            <input value={damage} onChange={e => setDamage(e.target.value)} placeholder="2d6+3" className={cn(fieldClass, 'min-h-[44px]')} />
-          </label>
+          <div className="grid grid-cols-3 gap-2">
+            <label className="block space-y-1 col-span-2">
+              <span className="block text-[12px] text-white/60">Damage</span>
+              <input value={damage} onChange={e => setDamage(e.target.value)} placeholder="2d6+3" className={cn(fieldClass, 'min-h-[44px]')} />
+            </label>
+            {numField('Built for (players)', designedFor, setDesignedFor, 1, 12)}
+          </div>
+          <p className="text-[11px] text-white/45">In a fight, Max HP scales to the players actually there: fewer players, less HP (down to 35%), more players, more HP (up to 150%).</p>
           <div className="space-y-1">
             <span className="block text-[12px] text-white/60">Speed</span>
             <div className="grid grid-cols-5 gap-1" role="radiogroup" aria-label={`${npc.name}'s speed`}>
@@ -571,7 +585,7 @@ function NpcCombatSection({ npc, busy, onSave, onRevived }: {
                     className={cn(fieldClass, 'min-h-[44px]')}
                     aria-label="Skill name"
                   />
-                  {(attacky || powered) && (
+                  {r.type && r.type !== 'retreat' && (
                     <label className="flex items-center justify-between gap-3 min-h-[44px]">
                       <span className="text-[13px] text-white/70">Custom numbers</span>
                       <Switch checked={r.custom} onCheckedChange={v => patchSkill(r.key, { custom: v })} aria-label="Custom numbers" />
@@ -587,12 +601,27 @@ function NpcCombatSection({ npc, busy, onSave, onRevived }: {
                     </div>
                   )}
                   {r.custom && powered && numField('Power', r.power, v => patchSkill(r.key, { power: v }), 1, 999)}
+                  {r.custom && r.type && r.type !== 'retreat' && (
+                    <label className="block space-y-1">
+                      <span className="block text-[12px] text-white/60">Cooldown (seconds, blank = {NPC_SKILL_INFO[r.type].cooldownS})</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={600}
+                        value={r.cooldown}
+                        onChange={e => patchSkill(r.key, { cooldown: e.target.value })}
+                        placeholder={String(NPC_SKILL_INFO[r.type].cooldownS)}
+                        className={cn(fieldClass, 'min-h-[44px]')}
+                      />
+                    </label>
+                  )}
                 </div>
               );
             })}
             {skills.length < 4 && (
               <button
-                onClick={() => { setSkills(prev => [...prev, { key: skillKey, type: '', name: '', custom: false, bonus: '', damage: '', power: '' }]); setSkillKey(k => k + 1); }}
+                onClick={() => { setSkills(prev => [...prev, { key: skillKey, type: '', name: '', custom: false, bonus: '', damage: '', power: '', cooldown: '' }]); setSkillKey(k => k + 1); }}
                 style={{ touchAction: 'manipulation' }}
                 className="w-full min-h-[44px] rounded-lg border border-dashed border-white/20 text-[13px] text-white/70 flex items-center justify-center gap-1.5"
               >
