@@ -34,6 +34,15 @@ export interface ActionCard {
   success?: boolean;
   /** Live NPCs v2: the NPC line that asked for this roll. */
   replyTo?: string;
+  /**
+   * Spells: how this spell resolves. 'attack' = d20 to hit vs AC (the default when missing), 'save' = each
+   * target saves vs saveDC (half damage on a success), 'auto' = always hits, 'utility' = no damage or healing.
+   */
+  resolve?: 'attack' | 'save' | 'auto' | 'utility';
+  saveStat?: string;
+  saveDC?: number;
+  /** Spells: hits an area, so in a Live NPC fight it can land on up to 3 enemies. */
+  area?: boolean;
 }
 
 const OPEN = '\u27EAAC\u27EB';
