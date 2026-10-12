@@ -27,6 +27,8 @@ export interface NpcCombatStats {
   attackBonus: number;
   damage: string;
   speed: SpeedPreset;
+  /** v2 scaling: how many players this NPC was built for (Quick Build writes it). Default 4. */
+  designedFor: number;
 }
 
 const clampInt = (v: unknown, min: number, max: number, fallback: number): number => {
@@ -52,6 +54,7 @@ export function cleanCombatStats(raw: unknown): NpcCombatStats | null {
     attackBonus: clampInt(r.attackBonus, -5, 20, 3),
     damage: formatDice(dice),
     speed,
+    designedFor: clampInt(r.designedFor, 1, 12, DEFAULT_DESIGNED_FOR),
   };
 }
 
@@ -407,4 +410,40 @@ export function secondWindDice(s: SheetSummary & { className?: unknown }, perks:
   const con = abilityMod(scores(s).con);
   const half = Math.floor(clampInt(s.level, 1, 20, 1) / 2);
   return { count: perks.includes('deep_breath') ? 2 : 1, sides: hitDieSides(s.className), bonus: con + half };
+}
+
+// ── v2: party scaling and pause clocks ───────────────────────────────────────
+
+/** NPCs with no "built for" number are treated as built for this many players. */
+export const DEFAULT_DESIGNED_FOR = 4;
+export const SCALE_MIN = 0.35;
+export const SCALE_MAX = 1.5;
+/** A huddle freezes the fight this long. */
+export const HUDDLE_MS = 20_000;
+
+/** HP multiplier for an NPC built for `designedFor` players when `players` are in the fight. */
+export function hpScale(players: number, designedFor: number): number {
+  const p = Math.max(1, Math.round(Number.isFinite(players) ? players : 1));
+  const d = Math.max(1, Math.round(Number.isFinite(designedFor) ? designedFor : DEFAULT_DESIGNED_FOR));
+  return Math.min(SCALE_MAX, Math.max(SCALE_MIN, (p + 1) / (d + 1)));
+}
+
+/** An NPC's max HP for this many players, always worked out from its base stat block (never compounds). */
+export function scaledMaxHp(baseMaxHp: number, players: number, designedFor: number): number {
+  return Math.max(1, Math.min(1500, Math.round(baseMaxHp * hpScale(players, designedFor))));
+}
+
+/** HP after max HP changes, keeping the same share of health. Someone alive stays at 1 or more. */
+export function rescaledHp(hp: number, maxHp: number, newMaxHp: number): number {
+  if (hp <= 0) return 0;
+  return Math.max(1, Math.min(newMaxHp, Math.round((hp / Math.max(1, maxHp)) * newMaxHp)));
+}
+
+/** A timestamp moved later by `byMs` (the length of a pause), and never earlier than `notBeforeMs`. */
+export function shiftIso(at: string | null | undefined, byMs: number, notBeforeMs?: number): string | null {
+  if (!at) return null;
+  const t = Date.parse(at);
+  if (!Number.isFinite(t)) return null;
+  const moved = t + Math.max(0, byMs);
+  return new Date(notBeforeMs === undefined ? moved : Math.max(moved, notBeforeMs)).toISOString();
 }
