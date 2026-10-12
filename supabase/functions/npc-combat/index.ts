@@ -11,7 +11,7 @@
 // POST { action: "huddle", fightId }                                  freeze the fight 20 s to plan (once per player per fight)
 // POST { action: "give_potion", fightId, targetId, itemName }         pour one of my healing potions into an ally
 // POST { action: "ping", fightId }                                   "I'm here"; also runs the clock
-// POST { action: "warm" }                                             wake the function up (no work)
+// POST { action: "warm" }                                             wake the function up (no work); returns serverNow
 // POST { action: "sync_hp", fightId, hp }                            my sheet's HP changed outside the fight
 // POST { action: "ack", eventIds }                                   these HP changes are on my sheet now
 // Host only:
@@ -136,6 +136,30 @@ const must = (what: string, error: { message?: string } | null) => {
 };
 const iso = (ms: number) => new Date(ms).toISOString();
 const due = (at: string | null, now: number) => !!at && Date.parse(at) <= now;
+/** Speed: a check-in this early waits for the moment something is due, so NPC hits and death saves happen on time. */
+const EARLY_WINDOW_MS = 800;
+const ON_TIME_MARGIN_MS = 15;
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+/** Wait until a moment (plus a small margin) and return the clock after the wait. */
+async function waitUntil(at: number, now: number): Promise<number> {
+  const wait = at - now + ON_TIME_MARGIN_MS;
+  const startedAt = Date.now();
+  await sleep(wait);
+  return now + Math.max(wait, Date.now() - startedAt);
+}
+/** The soonest moment anything in the fight is due (an NPC strike or turn, a death save); NaN when nothing is scheduled. */
+function nextDueAt(fight: Fight, fighters: Fighter[]): number {
+  let soonest = NaN;
+  const consider = (at: string | null) => {
+    const t = at ? Date.parse(at) : NaN;
+    if (Number.isFinite(t) && !(t >= soonest)) soonest = t;
+  };
+  for (const f of fighters) {
+    if (f.kind === 'npc' && f.status === 'up' && fight.status === 'active') consider(f.pending ? f.strike_at : f.next_action_at);
+    else if (f.kind === 'player' && f.status === 'down') consider(f.next_save_at);
+  }
+  return soonest;
+}
 const roll = R.cryptoRoll;
 /** Most targets an area spell card can land on. */
 const AREA_MAX_TARGETS = 3;
@@ -774,17 +798,31 @@ async function resolveSkill(
 
 async function tick(db: Db, fightId: string, hostId: string, now: number, known?: Fight): Promise<void> {
   let fight = known ?? await getFight(db, fightId);
+  // Speed: a check-in just before a huddle's end waits for it (then re-reads, in case the host held it).
+  if (fight.status === 'paused' && fight.pause_kind === 'huddle' && fight.paused_until) {
+    const endsAt = Date.parse(fight.paused_until);
+    if (endsAt > now && endsAt - now <= EARLY_WINDOW_MS) {
+      now = await waitUntil(endsAt, now);
+      fight = await getFight(db, fightId);
+    }
+  }
   // v2: a huddle ends by itself when its 20 seconds are up.
   if (fight.status === 'paused' && fight.pause_kind === 'huddle' && due(fight.paused_until, now)) {
     if (await resumeFight(db, fight, hostId, now)) fight = await getFight(db, fightId);
   }
   if (fight.status === 'paused') return;
-  const fighters = await fightersOf(db, fight.id);
+  let fighters = await fightersOf(db, fight.id);
   // Speed: most check-ins find nothing due (no NPC turn, wind-up or death save), so they stop here.
-  const anythingDue = fighters.some(f =>
-    (f.kind === 'npc' && f.status === 'up' && (f.pending ? due(f.strike_at, now) : due(f.next_action_at, now)))
-    || (f.kind === 'player' && f.status === 'down' && due(f.next_save_at, now)));
-  if (!anythingDue) return;
+  const soonest = nextDueAt(fight, fighters);
+  if (!Number.isFinite(soonest) || soonest - now > EARLY_WINDOW_MS) return;
+  if (soonest > now) {
+    // Speed: phones check in just before something is due. Wait for that exact moment, then re-read the fight
+    // (a player may have pushed the NPC back or paused meanwhile), so the hit lands when the countdown reaches zero.
+    now = await waitUntil(soonest, now);
+    fight = await getFight(db, fightId);
+    if (fight.status === 'paused') return;
+    fighters = await fightersOf(db, fight.id);
+  }
   const players = fighters.filter(f => f.kind === 'player');
 
   if (fight.status === 'active') {
@@ -1006,7 +1044,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
   const action = typeof body.action === 'string' ? body.action : '';
 
   // Speed: phones call this when the fight bar opens, so the function is already running when the first attack comes.
-  if (action === 'warm') return { ok: true };
+  if (action === 'warm') return { ok: true, serverNow: Date.now() };
 
   if (action === 'open') {
     const partyId = needUuid(body.partyId, 'party');
@@ -1123,7 +1161,8 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
   if (action === 'ping') {
     if (seat) await ensurePlayer(db, fight, seat, now);
     await tick(db, fight.id, hostId, now, fight);
-    return { ok: true };
+    // Speed: the server's clock, so phones can line their countdowns up with it.
+    return { ok: true, serverNow: Date.now() };
   }
 
   if (['pause', 'resume', 'end', 'add_npc'].includes(action) && !isHost) refuse(403, 'Only the host can do that.');
