@@ -7,6 +7,7 @@
 // POST { action: "attack", fightId, targetId, weaponName?, finish? } attack an NPC in the fight
 // POST { action: "cast", fightId, targetId, spellName, spellLevel, intent } damage an NPC or heal an ally
 // POST { action: "stabilize", fightId, targetId }                    Medicine DC 10 on a downed ally
+// POST { action: "huddle", fightId }                                  freeze the fight 20 s to plan (once per player per fight)
 // POST { action: "give_potion", fightId, targetId, itemName }         pour one of my healing potions into an ally
 // POST { action: "ping", fightId }                                   "I'm here"; also runs the clock
 // POST { action: "sync_hp", fightId, hp }                            my sheet's HP changed outside the fight
@@ -42,6 +43,12 @@ interface Fight {
   status: 'active' | 'paused' | 'ended';
   outcome: string | null;
   started_by: string;
+  /** v2: when the current pause began, who paused it, and when a huddle ends by itself. */
+  paused_at: string | null;
+  pause_kind: 'host' | 'huddle' | null;
+  paused_until: string | null;
+  /** v2: players who already called their one huddle this fight ({ userId: when }). */
+  huddles_used: Record<string, string> | null;
 }
 
 interface Fighter {
@@ -75,7 +82,7 @@ interface Fighter {
   second_wind: string | null;
   last_stand_used: boolean | null;
   /** NPCs (v5): the announced skill waiting to happen, and when it happens. */
-  pending: { skill: string; type: string; targets: string[] } | null;
+  pending: { skill: string; type: string; targets: string[]; windup_ms?: number } | null;
   strike_at: string | null;
   turn_no: number | null;
   signature_turn: number | null;
@@ -84,6 +91,8 @@ interface Fighter {
   ward_until: string | null;
   /** Players: can't act until this time (an NPC's Pin). */
   pinned_until: string | null;
+  /** v2 NPCs: when each skill can be used again, uses per fight, last pinned player. */
+  cooldowns: S.Cooldowns | null;
 }
 
 interface Seat {
@@ -103,9 +112,9 @@ interface NpcRow {
   combat_state: string | null;
 }
 
-const FIGHT_COLS = 'id, party_id, status, outcome, started_by';
+const FIGHT_COLS = 'id, party_id, status, outcome, started_by, paused_at, pause_kind, paused_until, huddles_used';
 const FIGHTER_COLS =
-  'id, fight_id, party_id, kind, npc_id, user_id, name, hp, max_hp, ac, status, death_successes, death_failures, next_action_at, next_save_at, action_seq, threat, last_seen_at, last_action_at, act_every_ms, resolve, resolve_at, resolve_rate, perks, second_wind, last_stand_used, pending, strike_at, turn_no, signature_turn, ward, ward_until, pinned_until';
+  'id, fight_id, party_id, kind, npc_id, user_id, name, hp, max_hp, ac, status, death_successes, death_failures, next_action_at, next_save_at, action_seq, threat, last_seen_at, last_action_at, act_every_ms, resolve, resolve_at, resolve_rate, perks, second_wind, last_stand_used, pending, strike_at, turn_no, signature_turn, ward, ward_until, pinned_until, cooldowns';
 const NPC_COLS = 'id, party_id, name, on_stage, archived, player_user_id, combat_stats, combat_state';
 
 class Refusal extends Error {
@@ -377,7 +386,42 @@ async function ensurePlayer(db: Db, fight: Fight, seat: Seat, now: number): Prom
   const { data: inserted, error: insertError } = await db.from('party_fight_combatants').insert(row).select(FIGHTER_COLS);
   if (insertError?.code === '23505') return ensurePlayer(db, fight, seat, now);
   must('join fight', insertError);
+  await rescaleNpcs(db, fight, row.name);
   return inserted[0] as Fighter;
+}
+
+/**
+ * v2: NPC max HP follows how many players are in the fight, worked out from each NPC's own stat block
+ * (built for `designedFor` players). It only grows mid-fight, never shrinks, and keeps each NPC's share of health.
+ */
+async function rescaleNpcs(db: Db, fight: Fight, joinerName: string): Promise<void> {
+  if (fight.status === 'ended') return;
+  const fighters = await fightersOf(db, fight.id);
+  const players = fighters.filter(f => f.kind === 'player').length;
+  const npcs = fighters.filter(f => f.kind === 'npc' && f.status === 'up' && f.npc_id);
+  if (npcs.length === 0) return;
+  const { data, error } = await db.from('party_npcs').select('id, combat_stats').in('id', npcs.map(f => f.npc_id as string));
+  must('read NPC stats for scaling', error);
+  const statsById = new Map<string, R.NpcCombatStats>();
+  for (const r of data || []) {
+    const st = R.cleanCombatStats(r.combat_stats);
+    if (st) statsById.set(r.id, st);
+  }
+  let grew = 0;
+  for (const f of npcs) {
+    const st = statsById.get(f.npc_id as string);
+    if (!st) continue;
+    const target = R.scaledMaxHp(st.maxHp, players, st.designedFor);
+    const r = await mutate(db, f.id, x => (x.status !== 'up' || target <= x.max_hp
+      ? null
+      : { max_hp: target, hp: R.rescaledHp(x.hp, x.max_hp, target) }));
+    if (r) grew += 1;
+  }
+  if (grew > 0) {
+    await addEvent(db, fight, { kind: 'scale', actor_name: joinerName, detail: `${joinerName} joins: the enemy scales up for ${players} fighters` });
+    const hostId = await hostOf(db, fight.party_id);
+    await postLine(db, fight.party_id, hostId, `The enemy steels itself as ${joinerName} joins the fight!`);
+  }
 }
 
 /** Checks an NPC can fight and puts it in the fight. Returns its fighter and whether it just joined. */
@@ -392,14 +436,17 @@ async function ensureNpc(db: Db, fight: Fight, npc: NpcRow, now: number): Promis
   if (npc.combat_state) refuse(409, `${npc.name} is already ${npc.combat_state === 'dead' ? 'dead' : 'knocked out'}.`);
   const stats = R.cleanCombatStats(npc.combat_stats) ??
     refuse(409, `${npc.name} has no combat stats yet. The host can add them on its Mind screen.`);
+  // v2: sized for the players already in the fight (at least 1: the attacker joins right after).
+  const playersIn = (await fightersOf(db, fight.id)).filter(f => f.kind === 'player').length;
+  const startHp = R.scaledMaxHp(stats.maxHp, playersIn, stats.designedFor);
   const row = {
     fight_id: fight.id,
     party_id: fight.party_id,
     kind: 'npc',
     npc_id: npc.id,
     name: npc.name,
-    hp: stats.maxHp,
-    max_hp: stats.maxHp,
+    hp: startHp,
+    max_hp: startHp,
     ac: stats.ac,
     status: 'up',
     next_action_at: R.nextActionAt(now, stats.speed),
@@ -415,7 +462,7 @@ async function ensureNpc(db: Db, fight: Fight, npc: NpcRow, now: number): Promis
 
 /** The fight is running, you are up, and your last action was long enough ago. Claims your action. */
 async function startAction(db: Db, fight: Fight, me: Fighter | null, now: number): Promise<Fighter> {
-  if (fight.status === 'paused') refuse(409, 'The host paused the fight.');
+  if (fight.status === 'paused') refuse(409, fight.pause_kind === 'huddle' ? 'Huddle in progress. Plan your move!' : 'The host paused the fight.');
   if (fight.status === 'ended') refuse(409, 'This fight is over.');
   if (!me) return refuse(409, 'Your character has fallen. The host can revive them.');
   if (me.status !== 'up') refuse(409, 'You are down and cannot act.');
@@ -633,7 +680,8 @@ async function resolveSkill(
   if (!p) return;
   const interval = R.currentIntervalMs(npc.act_every_ms, stats.speed);
   if (!(await claim(db, npc, { pending: null, strike_at: null, next_action_at: iso(now + interval) }))) return;
-  const sk = skills.find(k => k.name === p.skill && k.type === p.type) ?? skills.find(k => k.type === p.type) ?? skills[0];
+  const sk = skills.find(k => k.name === p.skill && k.type === p.type) ?? skills.find(k => k.type === p.type)
+    ?? (p.type === 'strike' ? S.basicStrike(stats) : skills[0]);
   const fresh = await fightersOf(db, fight.id);
   const byId = new Map(fresh.map(f => [f.id, f]));
   const players = fresh.filter(f => f.kind === 'player');
@@ -721,7 +769,11 @@ async function resolveSkill(
 }
 
 async function tick(db: Db, fightId: string, hostId: string, now: number): Promise<void> {
-  const fight = await getFight(db, fightId);
+  let fight = await getFight(db, fightId);
+  // v2: a huddle ends by itself when its 20 seconds are up.
+  if (fight.status === 'paused' && fight.pause_kind === 'huddle' && due(fight.paused_until, now)) {
+    if (await resumeFight(db, fight, hostId, now)) fight = await getFight(db, fightId);
+  }
   if (fight.status === 'paused') return;
   const fighters = await fightersOf(db, fight.id);
   const players = fighters.filter(f => f.kind === 'player');
@@ -761,13 +813,17 @@ async function tick(db: Db, fightId: string, hostId: string, now: number): Promi
       if (!due(npc.next_action_at, now)) continue;
 
       // 2. Otherwise, when its timer is up, the NPC picks a skill and announces it.
+      // v2: only skills that are off cooldown and under their per-fight limit.
+      const cd = S.cleanCooldowns(npc.cooldowns);
+      const ready = S.readySkills(skills, cd, now, stats);
       const turnNo = (npc.turn_no ?? 0) + 1;
       const choice = S.chooseSkill({
-        skills,
+        skills: ready,
         selfId: npc.id,
         turnNo,
         signatureTurn: npc.signature_turn ?? -99,
-        canRetreat: skills.some(k => k.type === 'retreat') ? await canRetreat(db, npc.npc_id as string) : false,
+        lastPinned: cd.lastPinned ?? null,
+        canRetreat: ready.some(k => k.type === 'retreat') ? await canRetreat(db, npc.npc_id as string) : false,
         npcs: fighters.filter(f => f.kind === 'npc').map(f => ({
           id: f.id, hp: f.hp, maxHp: f.max_hp, status: f.status,
           ward: f.ward_until && Date.parse(f.ward_until) > now ? (f.ward ?? 0) : 0,
@@ -787,9 +843,10 @@ async function tick(db: Db, fightId: string, hostId: string, now: number): Promi
       }
       const sk = choice.skill;
       const claimed = await claim(db, npc, {
-        pending: { skill: sk.name, type: sk.type, targets: choice.targetIds },
+        pending: { skill: sk.name, type: sk.type, targets: choice.targetIds, windup_ms: sk.windupMs },
         strike_at: iso(now + sk.windupMs),
         next_action_at: null,
+        cooldowns: S.afterUse(cd, sk, now, choice.targetIds),
         turn_no: turnNo,
         ...(sk.type === 'signature' ? { signature_turn: turnNo } : {}),
       });
@@ -850,6 +907,43 @@ async function tick(db: Db, fightId: string, hostId: string, now: number): Promi
   }
 
   if (fight.status === 'active') await checkEnd(db, fight.id, hostId, now);
+}
+
+/**
+ * v2: ends a pause (host or huddle). Every clock moves later by exactly how long the fight was paused, so
+ * nothing is gained or lost: NPC turns and wind-ups, wards, cooldowns, pins, player cooldowns, Resolve
+ * and death saves. Anything due within 3 s waits until then, so nothing fires the instant the fight resumes.
+ */
+async function resumeFight(db: Db, fight: Fight, hostId: string, now: number): Promise<boolean> {
+  const { data, error } = await db.from('party_fights')
+    .update({ status: 'active', paused_at: null, pause_kind: null, paused_until: null })
+    .eq('id', fight.id).eq('status', 'paused').select('id');
+  must('resume fight', error);
+  if (!data?.length) return false;
+  const pausedAt = fight.paused_at ? Date.parse(fight.paused_at) : NaN;
+  const by = Number.isFinite(pausedAt) ? Math.max(0, now - pausedAt) : 0;
+  const soon = now + 3000;
+  for (const f of await fightersOf(db, fight.id)) {
+    await mutate(db, f.id, x => {
+      const patch: Partial<Fighter> = {};
+      if (x.kind === 'npc') {
+        if (x.status === 'up' && x.pending && x.strike_at) patch.strike_at = R.shiftIso(x.strike_at, by, soon);
+        else if (x.status === 'up' && x.next_action_at) patch.next_action_at = R.shiftIso(x.next_action_at, by, soon);
+        if (x.ward_until) patch.ward_until = R.shiftIso(x.ward_until, by);
+        if (x.cooldowns) patch.cooldowns = S.shiftCooldowns(S.cleanCooldowns(x.cooldowns), by);
+      } else {
+        if (x.pinned_until) patch.pinned_until = R.shiftIso(x.pinned_until, by);
+        if (x.resolve_at) patch.resolve_at = R.shiftIso(x.resolve_at, by);
+        if (x.last_action_at) patch.last_action_at = R.shiftIso(x.last_action_at, by);
+        if (x.status === 'down' && x.next_save_at) patch.next_save_at = R.shiftIso(x.next_save_at, by, now + 5000);
+      }
+      return Object.keys(patch).length ? patch : null;
+    });
+  }
+  const huddle = fight.pause_kind === 'huddle';
+  await addEvent(db, fight, { kind: 'resume', detail: huddle ? 'The huddle ends' : 'The fight resumes' });
+  await postLine(db, fight.party_id, hostId, huddle ? 'The huddle breaks. Back to the fight!' : 'The fight resumes!');
+  return true;
 }
 
 /** Ends the fight when every NPC is beaten or every player is down. Cheap (two reads), so player actions use it instead of the full clock. */
@@ -924,7 +1018,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
       }
     }
     if (!fight) return refuse(409, 'Could not start the fight. Try again.');
-    if (fight.status === 'paused') refuse(409, 'The host paused the fight.');
+    if (fight.status === 'paused') refuse(409, fight.pause_kind === 'huddle' ? 'Huddle in progress. Plan your move!' : 'The host paused the fight.');
     const { fighter: target, joined } = await ensureNpc(db, fight, npc, now);
     const me = await ensurePlayer(db, fight, seat, now);
     if (created) {
@@ -1027,40 +1121,24 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
   if (['pause', 'resume', 'end', 'add_npc'].includes(action) && !isHost) refuse(403, 'Only the host can do that.');
 
   if (action === 'pause') {
-    const { data, error } = await db.from('party_fights').update({ status: 'paused', paused_at: iso(now) })
+    const { data, error } = await db.from('party_fights').update({ status: 'paused', paused_at: iso(now), pause_kind: 'host', paused_until: null })
       .eq('id', fight.id).eq('status', 'active').select('id');
     must('pause fight', error);
     if (data?.length) {
       await addEvent(db, fight, { kind: 'pause', detail: 'The host paused the fight' });
       await postLine(db, fight.party_id, hostId, 'The host pauses the fight.');
+    } else if (fight.status === 'paused' && fight.pause_kind === 'huddle') {
+      // The host can hold a huddle open: it becomes a normal pause that only the host ends.
+      const { error: holdError } = await db.from('party_fights').update({ pause_kind: 'host', paused_until: null })
+        .eq('id', fight.id).eq('status', 'paused').eq('pause_kind', 'huddle');
+      must('hold huddle', holdError);
+      await addEvent(db, fight, { kind: 'pause', detail: 'The host holds the huddle' });
     }
     return { ok: true };
   }
 
   if (action === 'resume') {
-    const { data, error } = await db.from('party_fights').update({ status: 'active', paused_at: null })
-      .eq('id', fight.id).eq('status', 'paused').select('id');
-    must('resume fight', error);
-    if (data?.length) {
-      // Every clock restarts from now, so nothing fires the instant the fight resumes.
-      const fighters = await fightersOf(db, fight.id);
-      const { data: npcRows } = await db.from('party_npcs').select('id, combat_stats')
-        .in('id', fighters.filter(f => f.npc_id).map(f => f.npc_id as string));
-      const speedOf = new Map<string, R.SpeedPreset>();
-      for (const row of npcRows || []) speedOf.set(row.id, R.cleanCombatStats(row.combat_stats)?.speed ?? 'trivial');
-      for (const f of fighters) {
-        if (f.kind === 'npc' && f.status === 'up') {
-          // An announced skill gets a short fresh wind-up; everything else restarts its countdown.
-          await mutate(db, f.id, x => (x.pending
-            ? { strike_at: iso(now + 3000) }
-            : { next_action_at: iso(now + R.currentIntervalMs(x.act_every_ms, speedOf.get(f.npc_id as string) ?? 'trivial')) }));
-        } else if (f.kind === 'player' && f.status === 'down') {
-          await mutate(db, f.id, x => (x.status === 'down' ? { next_save_at: R.nextDeathSaveAt(now) } : null));
-        }
-      }
-      await addEvent(db, fight, { kind: 'resume', detail: 'The fight resumes' });
-      await postLine(db, fight.party_id, hostId, 'The fight resumes!');
-    }
+    await resumeFight(db, fight, hostId, now);
     return { ok: true };
   }
 
@@ -1080,6 +1158,24 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
   // Player actions below need a seat.
   if (!seat) return refuse(403, 'Only players seated at this table can fight.');
   const me = await ensurePlayer(db, fight, seat, now);
+
+  if (action === 'huddle') {
+    // v2: any player can freeze the fight for 20 s to plan, once per fight.
+    if (fight.status === 'paused') refuse(409, 'The fight is already paused.');
+    if (fight.status === 'ended') refuse(409, 'This fight is over.');
+    if (!me) return refuse(409, 'Your character has fallen. The host can revive them.');
+    if (fight.huddles_used?.[userId]) refuse(409, "You've already called your huddle this fight.");
+    const until = now + R.HUDDLE_MS;
+    const { data, error } = await db.from('party_fights').update({
+      status: 'paused', paused_at: iso(now), pause_kind: 'huddle', paused_until: iso(until),
+      huddles_used: { ...(fight.huddles_used ?? {}), [userId]: iso(now) },
+    }).eq('id', fight.id).eq('status', 'active').select('id');
+    must('call huddle', error);
+    if (!data?.length) refuse(409, 'The fight just changed. Try again.');
+    await addEvent(db, fight, { kind: 'huddle', actor_name: me.name, detail: `${me.name} calls a ${R.HUDDLE_MS / 1000}-second huddle` });
+    await postLine(db, fight.party_id, hostId, `${me.name} calls a huddle! The fight freezes for ${R.HUDDLE_MS / 1000} seconds.`);
+    return { ok: true, pausedUntil: iso(until) };
+  }
 
   if (action === 'attack') {
     const target = await npcTarget(db, fight, body.targetId);
