@@ -216,10 +216,19 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     return () => clearTimeout(timer);
   }, [canSync, fightId, sheetHp]);
 
-  // Cooldown between my actions.
+  // Combat v2: pauses and huddles. While paused, the fight's clock stands still at paused_at.
+  const pauseInfo = fight as unknown as { paused_at?: string | null; pause_kind?: string | null; paused_until?: string | null; huddles_used?: Record<string, unknown> | null } | null;
+  const isPausedNow = fight?.status === 'paused';
+  const pauseKind: 'host' | 'huddle' | null = isPausedNow ? (pauseInfo?.pause_kind === 'huddle' ? 'huddle' : 'host') : null;
+  const pausedAtMs = isPausedNow && pauseInfo?.paused_at ? Date.parse(pauseInfo.paused_at) : NaN;
+  const huddleUntilMs = pauseKind === 'huddle' && pauseInfo?.paused_until ? Date.parse(pauseInfo.paused_until) : NaN;
+  const myHuddleUsed = !!currentUserId && !!pauseInfo?.huddles_used?.[currentUserId];
+  const fightClock = Number.isFinite(pausedAtMs) ? pausedAtMs : now;
+
+  // Cooldown between my actions (frozen while the fight is paused).
   const lastActionAt = myFighter?.last_action_at ? Date.parse(myFighter.last_action_at) : NaN;
   const readyAt = Number.isFinite(lastActionAt) ? lastActionAt + ACTION_COOLDOWN_MS : 0;
-  const cooldownLeft = readyAt > now ? Math.ceil((readyAt - now) / 1000) : 0;
+  const cooldownLeft = readyAt > fightClock ? Math.ceil((readyAt - fightClock) / 1000) : 0;
   useEffect(() => {
     if (readyAt <= Date.now()) return;
     const timer = setInterval(() => {
@@ -307,6 +316,8 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
   }, [call, isHost]);
 
   const pause = useCallback(() => fightId ? hostCall({ action: 'pause', fightId }, 'The fight could not be paused.') : Promise.resolve(null), [hostCall, fightId]);
+  // Combat v2: any player can freeze the fight for 20 s to plan, once per fight.
+  const huddle = useCallback(() => fightId ? call({ action: 'huddle', fightId }, 'The huddle could not start. Try again.') : Promise.resolve(null), [call, fightId]);
   const resume = useCallback(() => fightId ? hostCall({ action: 'resume', fightId }, 'The fight could not be resumed.') : Promise.resolve(null), [hostCall, fightId]);
   const endFight = useCallback(() => fightId ? hostCall({ action: 'end', fightId }, 'The fight could not be ended.') : Promise.resolve(null), [hostCall, fightId]);
   const addNpc = useCallback((npcId: string) => fightId ? hostCall({ action: 'add_npc', fightId, npcId }, 'That NPC could not join the fight.') : Promise.resolve(null), [hostCall, fightId]);
@@ -325,6 +336,11 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     isEnded,
     busy,
     cooldownLeft,
+    pauseKind,
+    pausedAtMs,
+    huddleUntilMs,
+    myHuddleUsed,
+    huddle,
     openFight,
     attack,
     cast,
