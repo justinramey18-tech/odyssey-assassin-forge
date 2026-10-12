@@ -6,6 +6,7 @@
 // POST { action: "open", partyId, npcId, weaponName?, finish? }      start a fight by attacking an NPC
 // POST { action: "attack", fightId, targetId, weaponName?, finish? } attack an NPC in the fight
 // POST { action: "cast", fightId, targetId, spellName, spellLevel, intent } damage an NPC or heal an ally
+// POST { action: "cast_card", fightId, targetId, targetIds?, card, finish? }  a Quick Actions spell card (attack, save, auto-hit or heal; area = up to 3 targets)
 // POST { action: "stabilize", fightId, targetId }                    Medicine DC 10 on a downed ally
 // POST { action: "huddle", fightId }                                  freeze the fight 20 s to plan (once per player per fight)
 // POST { action: "give_potion", fightId, targetId, itemName }         pour one of my healing potions into an ally
@@ -135,6 +136,8 @@ const must = (what: string, error: { message?: string } | null) => {
 const iso = (ms: number) => new Date(ms).toISOString();
 const due = (at: string | null, now: number) => !!at && Date.parse(at) <= now;
 const roll = R.cryptoRoll;
+/** Most targets an area spell card can land on. */
+const AREA_MAX_TARGETS = 3;
 
 // ── Reads ─────────────────────────────────────────────────────────────────────
 
@@ -1230,8 +1233,11 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
   }
 
   if (action === 'cast_card') {
-    // A spell cast from Quick Actions: its card already holds the player's own roll (attack total
-    // and damage, or the healing amount) and the slot is already spent. Capped so nothing impossible lands.
+    // A spell cast from Quick Actions: its card already holds the player's own roll and the slot is already
+    // spent. card.resolve says how it lands: 'attack' (d20 vs AC), 'save' (each enemy saves vs card.saveDC,
+    // half damage on a success), 'auto' (always hits) or 'utility' (nothing to land). Older cards without it:
+    // a d20 means an attack, no d20 means a save. An area card (card.area) lands on up to 3 targets
+    // (body.targetId plus body.targetIds). Numbers are capped so nothing impossible lands.
     const card = body.card && typeof body.card === 'object' ? (body.card as Record<string, unknown>) : null;
     const spellName = card && typeof card.action === 'string' ? card.action.trim().slice(0, 80) : '';
     if (!card || !spellName) refuse(400, 'Missing spell card.');
@@ -1243,64 +1249,106 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     const amount = num(card!.amount, 200) ?? 0;
     const d20 = num(card!.d20, 20);
     const attackTotal = num(card!.attackTotal, 60);
-    const target = await fighterById(db, needUuid(body.targetId, 'target'));
-    if (!target || target.fight_id !== fight.id) return refuse(404, 'That target is not in this fight.');
+    const resolve = card!.resolve === 'attack' || card!.resolve === 'save' || card!.resolve === 'auto' || card!.resolve === 'utility'
+      ? card!.resolve as 'attack' | 'save' | 'auto' | 'utility'
+      : null;
+    if (resolve === 'utility') refuse(400, `${spellName} has no damage or healing to land. The DM narrates it.`);
+    const area = card!.area === true;
+    const wanted = [needUuid(body.targetId, 'target'), ...(area && Array.isArray(body.targetIds) ? body.targetIds.filter(isUuid) : [])];
+    const ids = [...new Set(wanted)].slice(0, area ? AREA_MAX_TARGETS : 1);
+    const targets = (await Promise.all(ids.map(id => fighterById(db, id)))).filter((t): t is Fighter => !!t && t.fight_id === fight.id);
+    if (targets.length === 0) return refuse(404, 'That target is not in this fight.');
+    const heals = targets[0].kind === 'player';
+    if (targets.some(t => (t.kind === 'player') !== heals)) refuse(400, 'Pick only allies for a heal, or only enemies for an attack.');
 
-    if (target.kind === 'player') {
+    if (heals) {
       if (amount < 1) refuse(400, `${spellName} has no healing to give.`);
-      if (target.status === 'dead') refuse(409, `${target.name} has fallen. Only the host can revive them.`);
+      const living = targets.filter(t => t.status !== 'dead');
+      if (living.length === 0) refuse(409, `${targets[0].name} has fallen. Only the host can revive them.`);
       const actor = await startAction(db, fight, me, now);
-      const r = await mutate(db, target.id, f => {
-        if (f.status === 'dead') return null;
-        const { hp } = R.applyHealing(f.hp, f.max_hp, amount);
-        return hp > 0 && f.status !== 'up'
-          ? { hp, status: 'up', death_successes: 0, death_failures: 0, next_save_at: null }
-          : { hp };
-      });
-      const gained = r ? r.after.hp - r.before.hp : 0;
-      await addEvent(db, fight, {
-        kind: 'heal', actor_name: actor.name, target_name: target.name, target_user_id: target.user_id, hp_delta: gained,
-        detail: `${spellName}: +${gained} HP`,
-      });
-      if (r && r.before.status !== 'up' && r.after.status === 'up') {
-        await postLine(db, fight.party_id, hostId, `${actor.name} brings ${target.name} back to their feet!`);
+      let healed = 0;
+      let firstHp: number | null = null;
+      for (const target of living) {
+        const r = await mutate(db, target.id, f => {
+          if (f.status === 'dead') return null;
+          const { hp } = R.applyHealing(f.hp, f.max_hp, amount);
+          return hp > 0 && f.status !== 'up'
+            ? { hp, status: 'up', death_successes: 0, death_failures: 0, next_save_at: null }
+            : { hp };
+        });
+        const gained = r ? r.after.hp - r.before.hp : 0;
+        healed += gained;
+        if (firstHp === null) firstHp = r?.after.hp ?? target.hp;
+        await addEvent(db, fight, {
+          kind: 'heal', actor_name: actor.name, target_name: target.name, target_user_id: target.user_id, hp_delta: gained,
+          detail: `${spellName}: +${gained} HP`,
+        });
+        if (r && r.before.status !== 'up' && r.after.status === 'up') {
+          await postLine(db, fight.party_id, hostId, `${actor.name} brings ${target.name} back to their feet!`);
+        }
       }
       await checkEnd(db, fight.id, hostId, now);
-      return { healed: gained, targetHp: r?.after.hp ?? target.hp };
+      return { healed, targetHp: firstHp ?? living[0].hp, targets: living.length };
     }
 
     if (damage < 1) refuse(400, `${spellName} has no damage to deal.`);
-    if (target.status !== 'up') refuse(409, `${target.name} is already down.`);
+    const standing = targets.filter(t => t.status === 'up');
+    if (standing.length === 0) refuse(409, `${targets[0].name} is already down.`);
     const actor = await startAction(db, fight, me, now);
     const sheet = seat.character_status ?? {};
-    let hit = true;
-    let crit = false;
-    let dealt = damage;
-    let shown: number | null = null;
-    let note = '';
-    if (d20 !== null && d20 >= 1) {
-      // Spell attack: the card's own roll against the NPC's AC.
-      crit = d20 === 20;
-      shown = attackTotal ?? d20;
-      hit = crit || (d20 !== 1 && shown >= target.ac);
-    } else {
-      // Saving-throw spell: the NPC saves against the caster's spell DC; a success halves the damage.
-      const save = roll(20);
-      const dc = 8 + R.proficiency(sheet.level) + R.castingMod(sheet);
-      shown = save;
-      if (save >= dc) {
-        dealt = Math.floor(damage / 2);
-        note = ` (${target.name} saved, half damage)`;
+    const mode: 'attack' | 'save' | 'auto' = resolve === 'attack' || resolve === 'save' || resolve === 'auto'
+      ? resolve
+      : (d20 !== null && d20 >= 1 ? 'attack' : 'save');
+    const cardDc = num(card!.saveDC, 30);
+    const dc = cardDc !== null && cardDc >= 5 ? cardDc : 8 + R.proficiency(sheet.level) + R.castingMod(sheet);
+    const crit = mode === 'attack' && d20 === 20;
+    let lost = 0;
+    let anyHit = false;
+    let anyDefeated = false;
+    let saved = 0;
+    let firstShown: number | null = null;
+    let firstHp: number | null = null;
+    for (const target of standing) {
+      let hit = true;
+      let dealt = damage;
+      let shown: number | null = null;
+      let note = '';
+      if (mode === 'attack') {
+        // Spell attack: the card's own roll against each target's AC.
+        shown = attackTotal ?? d20;
+        hit = crit || (d20 !== null && d20 !== 1 && (shown ?? 0) >= target.ac);
+      } else if (mode === 'save') {
+        // Saving-throw spell: each target saves against the caster's spell DC; a success halves the damage.
+        const save = roll(20);
+        shown = save;
+        if (save >= dc) {
+          dealt = Math.floor(damage / 2);
+          saved += 1;
+          note = ` (${target.name} saved vs DC ${dc}, half damage)`;
+        } else {
+          note = ` (${target.name} failed the DC ${dc} save)`;
+        }
+      } else {
+        note = ' (automatic hit)';
       }
+      let out = { lost: 0, hp: target.hp, defeated: false };
+      if (hit && dealt > 0) out = await hitNpc(db, fight, hostId, actor, target.id, dealt, finishOf(body.finish), crit, now);
+      lost += out.lost;
+      anyHit = anyHit || hit;
+      anyDefeated = anyDefeated || out.defeated;
+      if (firstShown === null) firstShown = shown;
+      if (firstHp === null) firstHp = out.hp;
+      await addEvent(db, fight, {
+        kind: 'spell', actor_name: actor.name, target_name: target.name, hp_delta: -out.lost,
+        d20: mode === 'attack' ? d20 : shown, total: shown,
+        detail: hit ? `${spellName}: ${out.lost} damage${crit ? ' (critical!)' : ''}${note}` : `${spellName}: miss`,
+      });
     }
-    let out = { lost: 0, hp: target.hp, defeated: false };
-    if (hit && dealt > 0) out = await hitNpc(db, fight, hostId, actor, target.id, dealt, finishOf(body.finish), crit, now);
-    await addEvent(db, fight, {
-      kind: 'spell', actor_name: actor.name, target_name: target.name, hp_delta: -out.lost, d20, total: shown,
-      detail: hit ? `${spellName}: ${out.lost} damage${crit ? ' (critical!)' : ''}${note}` : `${spellName}: miss`,
-    });
     await checkEnd(db, fight.id, hostId, now);
-    return { hit, crit, d20, total: shown, damage: out.lost, targetHp: out.hp, defeated: out.defeated };
+    return {
+      hit: anyHit, crit, d20: mode === 'attack' ? d20 : null, total: mode === 'attack' ? firstShown : null,
+      damage: lost, targetHp: firstHp ?? standing[0].hp, defeated: anyDefeated, targets: standing.length, saved, mode,
+    };
   }
 
   if (action === 'stabilize') {
