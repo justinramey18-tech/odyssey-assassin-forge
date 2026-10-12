@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Shield, X } from 'lucide-react';
+import { Heart, Shield, Sparkles, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getCastOptions, getMagicResources, type CastOption } from '@/lib/magic/castBus';
 import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic/castResolver';
@@ -32,6 +32,11 @@ export interface RollPreviewTarget {
   attackBonus?: number;
   /** Rules text so the player can check the maths against the spell. */
   rulesText?: string;
+  /**
+   * Spells: how it resolves. Missing or mode 'attack' shows to-hit and damage as before. formula is the damage
+   * (save/auto) or healing (heal) dice with the modifier already added, at the spell's own level.
+   */
+  spell?: { mode: 'attack' | 'save' | 'auto' | 'heal' | 'utility'; saveStat?: string; saveDC?: number; area?: boolean; formula?: string };
 }
 
 export interface RollPreviewChoice {
@@ -83,6 +88,20 @@ export function RollPreviewSheet({ target, onCancel, onConfirm }: RollPreviewShe
   const upcastExtra = parsedDamage && scaledDamage ? scaledDamage.count - parsedDamage.count : 0;
 
   const blocked = isSpell && !isCantrip && options.length === 0;
+
+  // Non-attack spells: their own dice, scaled for an upcast slot, and how they land.
+  const spellMode = isSpell ? target.spell?.mode ?? 'attack' : 'attack';
+  const parsedOwn = parseDiceFormula(target.spell?.formula);
+  const scaledOwn = parsedOwn && baseLevel > 0 ? scaleForUpcast(parsedOwn, baseLevel, castLevel) : parsedOwn;
+  const ownLabel = scaledOwn ? formatDiceFormula(scaledOwn) : target.spell?.formula ?? '';
+  const ownUpcast = parsedOwn && scaledOwn && scaledOwn.count > parsedOwn.count
+    ? ` (base ${formatDiceFormula(parsedOwn)} + ${scaledOwn.count - parsedOwn.count} die for casting at level ${castLevel})`
+    : '';
+  const area = !!target.spell?.area;
+  const MODE_NAME: Record<string, string> = {
+    attack: 'Spell attack (d20 to hit)', save: 'Saving throw (no roll to hit)', auto: 'Automatic hit (no roll to hit, no save)',
+    heal: 'Healing', utility: 'Effect only (no damage, no healing)',
+  };
 
   return (
     <div className="fixed inset-0 z-[86] flex items-end justify-center bg-black/70 backdrop-blur-sm" onClick={onCancel}>
@@ -150,6 +169,49 @@ export function RollPreviewSheet({ target, onCancel, onConfirm }: RollPreviewShe
         )}
 
         <div style={PANEL_FRAME} className="px-2.5 py-1.5 space-y-2 text-xs text-white/70">
+          {isSpell && (
+            <p className="text-[11px] text-white/45">
+              Rolls as: <span className="text-violet-200/90">{MODE_NAME[spellMode]}</span>{area ? ' · area' : ''}
+            </p>
+          )}
+          {spellMode === 'heal' && (
+            <p className="flex items-start gap-2">
+              <Heart className="w-3.5 h-3.5 mt-0.5 text-emerald-300/80 shrink-0" />
+              <span>
+                <span className="text-white/45">Healing: </span>
+                {ownLabel} HP<span className="text-amber-300/80">{ownUpcast}</span>
+                <span className="text-white/40"> In a fight you pick {area ? 'up to 3 allies (you included)' : 'who it heals: you or an ally'}.</span>
+              </span>
+            </p>
+          )}
+          {(spellMode === 'save' || spellMode === 'auto') && (
+            <p className="flex items-start gap-2">
+              {spellMode === 'save'
+                ? <Shield className="w-3.5 h-3.5 mt-0.5 text-sky-300/80 shrink-0" />
+                : <img src={glyphBolt} alt="" className="w-4 h-4 mt-0.5 shrink-0" />}
+              <span>
+                {spellMode === 'save' && (
+                  <><span className="text-white/45">Save: </span>{target.spell?.saveStat ?? 'DEX'} vs DC {target.spell?.saveDC ?? resources?.spellSaveDC ?? '—'}. </>
+                )}
+                <span className="text-white/45">Damage: </span>
+                {ownLabel}{target.damageType ? ` ${target.damageType}` : ''}<span className="text-amber-300/80">{ownUpcast}</span>
+                <span className="text-white/40">
+                  {spellMode === 'save' ? ', half on a successful save.' : ', it always lands.'}
+                  {area ? ' In a fight you pick up to 3 enemies.' : ''}
+                </span>
+              </span>
+            </p>
+          )}
+          {spellMode === 'utility' && (
+            <p className="flex items-start gap-2">
+              <Sparkles className="w-3.5 h-3.5 mt-0.5 text-violet-300/80 shrink-0" />
+              <span className="text-white/60">No roll to hit, no damage and no healing. The DM narrates the effect from the rules text.</span>
+            </p>
+          )}
+          {isSpell && spellMode !== 'attack' && (
+            <p className="text-[11px] text-white/35">Looks wrong? Fix the spell's fields with Edit Spell in your spellbook.</p>
+          )}
+          {spellMode === 'attack' && (<>
           <p className="flex items-start gap-2">
             <img src={glyphTarget} alt="" className="w-4 h-4 mt-0.5 shrink-0" />
             <span>
@@ -173,8 +235,9 @@ export function RollPreviewSheet({ target, onCancel, onConfirm }: RollPreviewShe
               )}
             </span>
           </p>
+          </>)}
 
-          {target.saveStat && (
+          {spellMode === 'attack' && target.saveStat && (
             <p className="flex items-start gap-2">
               <Shield className="w-3.5 h-3.5 mt-0.5 text-sky-300/80 shrink-0" />
               <span>
