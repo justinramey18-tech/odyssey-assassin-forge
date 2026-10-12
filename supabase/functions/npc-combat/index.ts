@@ -11,6 +11,7 @@
 // POST { action: "huddle", fightId }                                  freeze the fight 20 s to plan (once per player per fight)
 // POST { action: "give_potion", fightId, targetId, itemName }         pour one of my healing potions into an ally
 // POST { action: "ping", fightId }                                   "I'm here"; also runs the clock
+// POST { action: "warm" }                                             wake the function up (no work)
 // POST { action: "sync_hp", fightId, hp }                            my sheet's HP changed outside the fight
 // POST { action: "ack", eventIds }                                   these HP changes are on my sheet now
 // Host only:
@@ -771,32 +772,34 @@ async function resolveSkill(
   }
 }
 
-async function tick(db: Db, fightId: string, hostId: string, now: number): Promise<void> {
-  let fight = await getFight(db, fightId);
+async function tick(db: Db, fightId: string, hostId: string, now: number, known?: Fight): Promise<void> {
+  let fight = known ?? await getFight(db, fightId);
   // v2: a huddle ends by itself when its 20 seconds are up.
   if (fight.status === 'paused' && fight.pause_kind === 'huddle' && due(fight.paused_until, now)) {
     if (await resumeFight(db, fight, hostId, now)) fight = await getFight(db, fightId);
   }
   if (fight.status === 'paused') return;
   const fighters = await fightersOf(db, fight.id);
+  // Speed: most check-ins find nothing due (no NPC turn, wind-up or death save), so they stop here.
+  const anythingDue = fighters.some(f =>
+    (f.kind === 'npc' && f.status === 'up' && (f.pending ? due(f.strike_at, now) : due(f.next_action_at, now)))
+    || (f.kind === 'player' && f.status === 'down' && due(f.next_save_at, now)));
+  if (!anythingDue) return;
   const players = fighters.filter(f => f.kind === 'player');
 
   if (fight.status === 'active') {
     const npcIds = fighters.filter(f => f.kind === 'npc' && f.npc_id).map(f => f.npc_id as string);
+    // One read for every NPC's stat block and skills.
     const statsById = new Map<string, R.NpcCombatStats>();
+    const rawById = new Map<string, unknown>();
     if (npcIds.length) {
       const { data, error } = await db.from('party_npcs').select('id, combat_stats').in('id', npcIds);
       must('read NPC stats', error);
       for (const row of data || []) {
+        rawById.set(row.id, row.combat_stats);
         const s = R.cleanCombatStats(row.combat_stats);
         if (s) statsById.set(row.id, s);
       }
-    }
-    const rawById = new Map<string, unknown>();
-    if (npcIds.length) {
-      const { data, error } = await db.from('party_npcs').select('id, combat_stats').in('id', npcIds);
-      must('read NPC skills', error);
-      for (const row of data || []) rawById.set(row.id, row.combat_stats);
     }
     for (const npc of fighters) {
       if (npc.kind !== 'npc' || npc.status !== 'up') continue;
@@ -1002,6 +1005,9 @@ async function endFight(db: Db, fight: Fight, hostId: string, outcome: 'victory'
 async function handle(db: Db, userId: string, body: Record<string, unknown>, now: number): Promise<Record<string, unknown>> {
   const action = typeof body.action === 'string' ? body.action : '';
 
+  // Speed: phones call this when the fight bar opens, so the function is already running when the first attack comes.
+  if (action === 'warm') return { ok: true };
+
   if (action === 'open') {
     const partyId = needUuid(body.partyId, 'party');
     const hostId = await hostOf(db, partyId);
@@ -1110,14 +1116,13 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
 
   // Everything else acts on one fight.
   const fight = await getFight(db, needUuid(body.fightId, 'fight'));
-  const hostId = await hostOf(db, fight.party_id);
+  const [hostId, seat] = await Promise.all([hostOf(db, fight.party_id), seatOf(db, fight.party_id, userId)]);
   const isHost = hostId === userId;
-  const seat = await seatOf(db, fight.party_id, userId);
   if (!seat && !isHost) refuse(403, 'Only players seated at this table can fight.');
 
   if (action === 'ping') {
     if (seat) await ensurePlayer(db, fight, seat, now);
-    await tick(db, fight.id, hostId, now);
+    await tick(db, fight.id, hostId, now, fight);
     return { ok: true };
   }
 
