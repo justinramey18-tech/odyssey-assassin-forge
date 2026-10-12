@@ -631,6 +631,34 @@ export function usePartySync(): UsePartySyncReturn {
     };
     document.addEventListener('visibilitychange', onMembersVisible);
 
+    // Auto-applied heals (healing spells cast at the Party DM table): claim the row first, so a heal
+    // lands exactly once even with the app open on two devices, then add the HP to my sheet.
+    const autoApplyHeal = async (actionId: string, hpHealed: number, senderName: string, source: string) => {
+      if (!onIncomingHeal.current) return; // sheet not ready: it stays pending and is picked up next time
+      const amount = Math.max(0, Math.min(200, Math.round(hpHealed)));
+      if (amount < 1) return;
+      const { data, error } = await (supabase.from('party_actions') as any)
+        .update({ applied: true, status: 'accepted' })
+        .eq('id', actionId).eq('status', 'pending')
+        .select('id');
+      if (error || !Array.isArray(data) || data.length === 0) return;
+      onIncomingHeal.current?.(amount, senderName, source);
+      toast.success(`${senderName}'s ${source} heals you: +${amount} HP`);
+    };
+
+    // Heals sent while this phone was closed: apply them now.
+    void (async () => {
+      const { data } = await (supabase.from('party_actions') as any)
+        .select('id, action_type, action_data')
+        .eq('party_id', party.partyId).eq('target_user_id', user.id)
+        .eq('status', 'pending').eq('action_type', 'heal_spell')
+        .order('created_at', { ascending: true }).limit(10);
+      for (const row of (data ?? []) as Array<{ id: string; action_data: { autoApply?: boolean; hpHealed?: number; senderName?: string; spellName?: string } }>) {
+        if (row.action_data?.autoApply !== true) continue;
+        await autoApplyHeal(row.id, row.action_data.hpHealed || 0, row.action_data.senderName || 'A party member', row.action_data.spellName || 'a spell');
+      }
+    })();
+
     // Subscribe to incoming heal actions
     const actionsChannel = supabase
       .channel(`party-actions-${party.partyId}`)
@@ -668,6 +696,12 @@ export function usePartySync(): UsePartySyncReturn {
           const hpHealed = action.action_data.hpHealed || 0;
           const senderName = action.action_data.senderName || 'A party member';
           const source = action.action_data.spellName || action.action_data.itemName || 'unknown';
+
+          // A healing spell cast on me at the Party DM table lands right away (no Accept step).
+          if (hpHealed > 0 && action.action_type === 'heal_spell' && (action.action_data as { autoApply?: boolean }).autoApply === true) {
+            void autoApplyHeal(action.id, hpHealed, senderName, source);
+            return;
+          }
 
           if (hpHealed > 0) {
             setPendingHeals(prev => [...prev, { id: action.id, senderName, source, hpHealed }]);
