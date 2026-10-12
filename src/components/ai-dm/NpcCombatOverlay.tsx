@@ -26,9 +26,14 @@ interface Props {
   currentUserId: string | null;
   isHost: boolean;
   onUseConsumableByName?: (name: string, quantity?: number) => boolean;
-  pendingCast?: { card: ActionCard; key: string } | null;
+  /** A spell card just cast from Quick Actions. targetId/finish are set when the player picked the target first. */
+  pendingCast?: { card: ActionCard; key: string; targetId?: string; finish?: Finish } | null;
   onPendingCastDone?: () => void;
-  onOpenSpells?: () => void;
+  /** Opens the spell list. Called with the target the player picked first (target-first casting). */
+  onOpenSpells?: (pre?: { targetId: string; targetName: string; finish: Finish }) => void;
+  /** The target picked before choosing a spell, while it is still waiting for a cast. */
+  preTarget?: { targetId: string; targetName: string; at: number } | null;
+  onClearPreTarget?: () => void;
 }
 
 const SPEED_SECONDS: Record<string, number> = { trivial: 120, easy: 90, medium: 60, hard: 40, deadly: 20 };
@@ -174,9 +179,11 @@ type Step =
   | { kind: 'card-target'; card: ActionCard; key: string }
   | { kind: 'second-wind-target' }
   | { kind: 'huddle-confirm' }
+  | { kind: 'cast-first' }
+  | { kind: 'cast-first-finish'; target: FighterRow }
   | null;
 
-export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHost, onUseConsumableByName, pendingCast, onPendingCastDone, onOpenSpells }: Props) {
+export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHost, onUseConsumableByName, pendingCast, onPendingCastDone, onOpenSpells, preTarget, onClearPreTarget }: Props) {
   const { fight, fighters, events, fallen, myFighter, iHaveFallen, isActive, isPaused, isEnded, busy, cooldownLeft } = combat;
   const me = members.find(m => m.user_id === currentUserId);
   const qa = useMemo(() => quickActionsOf(me), [me]);
@@ -269,8 +276,27 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
     if (!pendingCast || handledCastRef.current === pendingCast.key) return;
     handledCastRef.current = pendingCast.key;
     if (isActive && myFighter?.status === 'up') {
-      setFinish('knockout');
-      setStep({ kind: 'card-target', card: pendingCast.card, key: pendingCast.key });
+      const card = pendingCast.card;
+      const fin = pendingCast.finish ?? 'knockout';
+      setFinish(fin);
+      // Target-first casting: the player already picked who this lands on, so cast straight at them.
+      const pre = pendingCast.targetId ? fighters.find(f => f.id === pendingCast.targetId) : undefined;
+      if (pre) {
+        const dmg = Number(card.damageTotal);
+        const amt = Number(card.amount);
+        const heals = card.kind === 'heal' || (Number.isFinite(amt) && amt > 0 && !(Number.isFinite(dmg) && dmg > 0));
+        const fits = heals ? pre.kind === 'player' && pre.status !== 'dead' : pre.kind === 'npc' && pre.status === 'up';
+        if (fits && cooldownLeft <= 0 && !busy) {
+          void combat.castFromCard(pre.id, card, heals ? undefined : fin).then(r => {
+            if (r) showResult(r);
+            onPendingCastDone?.();
+          });
+          return;
+        }
+        if (fits) setFinishTarget(pre.id);
+        else toast(`${card.action} can't land on ${pre.name}. Pick a target.`);
+      }
+      setStep({ kind: 'card-target', card, key: pendingCast.key });
     } else {
       onPendingCastDone?.();
     }
@@ -455,7 +481,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
         {chosenLow ? (
           <div className="space-y-3">
             <p className="text-[13px] text-white/85">{chosenLow.name}</p>
-            <FinishToggle value={finish} onChange={setFinish} />
+            {!isHeal && <FinishToggle value={finish} onChange={setFinish} />}
             <button style={tap} disabled={waiting} className={cn(btnRed, 'w-full')} onClick={() => { void pick(chosenLow, finish); }}>
               {busy && <Loader2 className="w-4 h-4 animate-spin" />}Cast
             </button>
@@ -558,6 +584,37 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
         ))}
         {live.status !== 'dead' && potions.length === 0 && <p className="text-[13px] text-white/50">No healing potions on your sheet.</p>}
         <button style={tap} className={cn(btnPlain, 'w-full')} onClick={() => setStep({ kind: 'aid' })}>Back</button>
+      </div>
+    );
+  } else if (step?.kind === 'cast-first') {
+    // Target-first casting: pick who the spell lands on, then pick the spell in Quick Actions.
+    title = 'Cast at who?';
+    const allies = playerFighters.filter(f => f.status !== 'dead');
+    const begin = (t: FighterRow, fin: Finish) => {
+      close();
+      onOpenSpells?.({ targetId: t.id, targetName: t.name, finish: fin });
+    };
+    body = (
+      <div className="space-y-2">
+        {npcUp.length > 0 && <p className="text-[12px] text-white/55">Enemies (damage spells)</p>}
+        {npcUp.map(f => fighterButton(f, () => {
+          if (f.hp <= f.max_hp * 0.25) { setFinish('knockout'); setStep({ kind: 'cast-first-finish', target: f }); }
+          else begin(f, 'knockout');
+        }))}
+        {allies.length > 0 && <p className="text-[12px] text-white/55 pt-1">Allies (healing spells)</p>}
+        {allies.map(f => fighterButton(f, () => begin(f, 'knockout')))}
+        <button style={tap} className={cn(btnPlain, 'w-full')} onClick={() => { close(); onOpenSpells?.(); }}>Pick the spell first</button>
+      </div>
+    );
+  } else if (step?.kind === 'cast-first-finish') {
+    title = `Cast at ${step.target.name}`;
+    const t = step.target;
+    body = (
+      <div className="space-y-3">
+        <FinishToggle value={finish} onChange={setFinish} />
+        <button style={tap} className={cn(btnAmber, 'w-full')} onClick={() => { const fin = finish; close(); onOpenSpells?.({ targetId: t.id, targetName: t.name, finish: fin }); }}>
+          Pick a spell
+        </button>
       </div>
     );
   } else if (step?.kind === 'huddle-confirm') {
@@ -837,6 +894,12 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                 </div>
               );
             })()}
+            {preTarget && now - preTarget.at < 60_000 && (
+              <div className="flex items-center justify-between gap-2 rounded-md border border-amber-400/40 bg-amber-500/10 px-2">
+                <span className="text-[12px] text-amber-100 truncate">🎯 Casting at {preTarget.targetName}: pick a spell</span>
+                <button style={tap} className="min-h-[44px] px-2 text-[12px] text-white/70" onClick={() => onClearPreTarget?.()}>Cancel</button>
+              </div>
+            )}
             {amPinned && <p className="text-[12px] text-center text-amber-200">📌 Pinned: {pinnedLeft}s</p>}
             {cooldownLeft > 0 && <p className="text-[11px] text-center text-white/60">Ready in {cooldownLeft}s</p>}
             <div className="space-y-1">
@@ -864,7 +927,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                 if (npcUp.length === 1) setStep({ kind: 'attack', target: npcUp[0] });
                 else setStep({ kind: 'attack-target' });
               }}>Attack</button>
-              <button style={tap} disabled={!canAct} className={btnAmber} onClick={() => { if (onOpenSpells) onOpenSpells(); else setStep({ kind: 'cast-spell' }); }}>Cast</button>
+              <button style={tap} disabled={!canAct} className={btnAmber} onClick={() => setStep({ kind: onOpenSpells ? 'cast-first' : 'cast-spell' })}>Cast</button>
               <button style={tap} disabled={!canAct || myResolve < 100} className={cn(btnPlain, 'flex-col gap-0 leading-tight')} onClick={async () => {
                 if (myFighter.perks?.includes('battle_medic')) { setStep({ kind: 'second-wind-target' }); return; }
                 const r = await combat.secondWind();
