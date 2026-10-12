@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { NpcPortrait } from './NpcPortrait';
 import { resolveOf, type FighterRow, type FightEventRow, type NpcCombatApi } from '@/hooks/use-npc-combat';
-import type { PartyNpc, PartyNpcsApi } from '@/hooks/use-party-npcs';
+import { NPC_SKILL_INFO, type NpcSkillType, type PartyNpc, type PartyNpcsApi } from '@/hooks/use-party-npcs';
 import type { ActionCard } from '@/lib/roundChatActionCard';
 
 type Member = { user_id: string; character_name: string; character_status?: Record<string, unknown>; updated_at?: string };
@@ -112,7 +112,7 @@ const PERK_LABELS: Record<string, string> = {
 };
 
 // Every event kind (including second_wind, potion and last_stand) shows its detail text.
-const SKILL_EVENT_ICON: Record<string, string> = { intent: '⚠', mend: '✚', shield: '🛡', rally: '📯', pin: '📌', retreat: '🏃' };
+const SKILL_EVENT_ICON: Record<string, string> = { intent: '⚠', mend: '✚', shield: '🛡', rally: '📯', pin: '📌', retreat: '🏃', huddle: '🤝', scale: '⚔' };
 function eventLine(e: FightEventRow): string {
   const icon = SKILL_EVENT_ICON[e.kind];
   if (icon) {
@@ -125,12 +125,20 @@ function eventLine(e: FightEventRow): string {
 }
 
 // NPC Skills: the announced skill on a fighter row (pending), parsed safely.
-type PendingSkill = { skill: string; type: string; targets: string[] };
+type PendingSkill = { skill: string; type: string; targets: string[]; windupMs: number };
 function pendingOf(f: FighterRow): PendingSkill | null {
   const p = (f as unknown as { pending?: unknown }).pending as Record<string, unknown> | null | undefined;
   if (!p || typeof p !== 'object' || typeof p.skill !== 'string') return null;
   const targets = Array.isArray(p.targets) ? p.targets.filter((t): t is string => typeof t === 'string') : [];
-  return { skill: p.skill, type: typeof p.type === 'string' ? p.type : '', targets };
+  // Combat v2: the real wind-up length (older fights without it assume 8 s).
+  const w = Number(p.windup_ms);
+  return { skill: p.skill, type: typeof p.type === 'string' ? p.type : '', targets, windupMs: Number.isFinite(w) && w > 0 ? w : 8000 };
+}
+/** Combat v2: what the player can do about an attack coming their way. */
+function incomingHint(type: string, npcName: string): string {
+  if (type === 'sweep') return `Hits up to 3 of you. Hit ${npcName} to push it back.`;
+  if (type === 'pin') return `You'll be pinned for 6 s. Hit ${npcName} to push it back.`;
+  return `Hit ${npcName} to push it back.`;
 }
 function timeOf(v: unknown): number {
   const t = typeof v === 'string' ? Date.parse(v) : NaN;
@@ -165,6 +173,7 @@ type Step =
   | { kind: 'host-add' }
   | { kind: 'card-target'; card: ActionCard; key: string }
   | { kind: 'second-wind-target' }
+  | { kind: 'huddle-confirm' }
   | null;
 
 export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHost, onUseConsumableByName, pendingCast, onPendingCastDone, onOpenSpells }: Props) {
@@ -195,12 +204,12 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
     [roster.onStage],
   );
 
-  // Countdown rings tick every 500 ms while a fight is running.
+  // Countdown rings tick every 500 ms while a fight is running (and during a huddle, for its countdown).
   useEffect(() => {
-    if (!isActive) return;
+    if (!isActive && !isPaused) return;
     const t = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(t);
-  }, [isActive]);
+  }, [isActive, isPaused]);
 
   // New events: a hit on me flashes the screen; an NPC attack shows a line for 4 s.
   const seenRef = useRef<Set<string> | null>(null);
@@ -213,6 +222,9 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
       setTimeout(() => setFlash(false), 400);
       try { navigator.vibrate?.(150); } catch { /* not supported */ }
     }
+    // Combat v2: someone joined and the enemies grew to match.
+    const scaled = fresh.find(e => e.kind === 'scale');
+    if (scaled) toast(`⚔ The enemy steels itself: ${scaled.actor_name || 'a new fighter'} joins the fight`);
   }, [events, currentUserId]);
   const newest = events[events.length - 1];
   useEffect(() => {
@@ -548,6 +560,20 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
         <button style={tap} className={cn(btnPlain, 'w-full')} onClick={() => setStep({ kind: 'aid' })}>Back</button>
       </div>
     );
+  } else if (step?.kind === 'huddle-confirm') {
+    title = 'Call a huddle?';
+    body = (
+      <div className="space-y-3">
+        <p className="text-[13px] text-white/75">The whole fight freezes for 20 seconds so the party can plan. Nobody can act until it ends. You get one huddle per fight.</p>
+        <button style={tap} disabled={busy} className={cn(btnAmber, 'w-full')} onClick={async () => {
+          const r = await combat.huddle();
+          if (r) close();
+        }}>
+          {busy && <Loader2 className="w-4 h-4 animate-spin" />}🤝 Call huddle
+        </button>
+        <button style={tap} className={cn(btnPlain, 'w-full')} onClick={close}>Not now</button>
+      </div>
+    );
   } else if (step?.kind === 'host-add') {
     title = 'Add an NPC to the fight';
     const inFight = new Set(npcFighters.map(f => f.npc_id));
@@ -650,15 +676,20 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
   }
 
   // ---------- B. fight running ----------
+  // Combat v2: while paused, every countdown stands still at the moment of the pause.
+  const clock = isPaused && Number.isFinite(combat.pausedAtMs) ? combat.pausedAtMs : now;
+  const isHuddle = combat.pauseKind === 'huddle';
+  const huddleLeft = isHuddle && Number.isFinite(combat.huddleUntilMs) ? Math.max(0, Math.ceil((combat.huddleUntilMs - now) / 1000)) : 0;
+  const canHuddle = isActive && !!myFighter && myFighter.status !== 'dead' && !combat.myHuddleUsed;
   const pinnedUntil = timeOf((myFighter as unknown as { pinned_until?: unknown })?.pinned_until);
-  const pinnedLeft = Number.isFinite(pinnedUntil) ? Math.ceil((pinnedUntil - now) / 1000) : 0;
+  const pinnedLeft = Number.isFinite(pinnedUntil) ? Math.ceil((pinnedUntil - clock) / 1000) : 0;
   const amPinned = pinnedLeft > 0;
   const aimingAtMe = myFighter
     ? npcFighters.map(f => ({ f, p: pendingOf(f) })).find(x => x.f.status === 'up' && x.p?.targets.includes(myFighter.id)) ?? null
     : null;
   const hasAllies = playerFighters.some(f => f.status !== 'dead' && f.user_id !== currentUserId);
   const canAct = isActive && !busy && cooldownLeft <= 0 && !amPinned;
-  const myResolve = resolveOf(myFighter, now);
+  const myResolve = resolveOf(myFighter, clock);
   const recent = [...events].reverse().slice(0, 20);
 
   return (
@@ -666,7 +697,10 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
       <div className="fixed left-0 right-0 top-14 z-[56] px-2 pointer-events-none">
         <div className="pointer-events-auto rounded-xl border border-red-500/30 bg-black/80 backdrop-blur max-h-[45vh] overflow-y-auto">
           <div className="flex items-center gap-2 px-3 py-1">
-            <span className={cn('font-cinzel text-[14px] flex-1', isPaused ? 'text-amber-300' : 'text-red-300')}>{isPaused ? '⏸ PAUSED' : '⚔ COMBAT'}</span>
+            <span className={cn('font-cinzel text-[14px] flex-1', isPaused ? 'text-amber-300' : 'text-red-300')}>{isPaused ? (isHuddle ? '🤝 HUDDLE' : '⏸ PAUSED') : '⚔ COMBAT'}</span>
+            {canHuddle && (
+              <button style={tap} className="min-h-[44px] px-2 text-[12px] text-amber-200" onClick={() => setStep({ kind: 'huddle-confirm' })}>🤝 Huddle</button>
+            )}
             <button style={tap} className="min-h-[44px] px-2 text-[12px] text-white/60" onClick={() => setShowLog(v => !v)}>Log</button>
             {isHost && (
               <button style={tap} aria-label="Host controls" className="w-11 h-11 flex items-center justify-center text-white/70" onClick={() => setHostMenu(v => !v)}>
@@ -677,6 +711,24 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
               {collapsed ? <ChevronDown className="w-5 h-5" /> : <ChevronUp className="w-5 h-5" />}
             </button>
           </div>
+
+          {isHuddle && (
+            <div className="mx-3 mb-2 rounded-lg border border-amber-400/50 bg-amber-500/15 p-2 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] text-amber-100">Plan your move. Actions unlock when it ends.</span>
+                <span className="font-cinzel text-[18px] text-amber-200 tabular-nums">0:{String(huddleLeft).padStart(2, '0')}</span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                <div className="h-full bg-amber-400 transition-[width] duration-500" style={{ width: `${Math.min(100, (huddleLeft / 20) * 100)}%` }} />
+              </div>
+              {isHost && (
+                <div className="grid grid-cols-2 gap-2">
+                  <button style={tap} disabled={busy} className={btnPlain} onClick={() => { void combat.pause(); }}>Hold</button>
+                  <button style={tap} disabled={busy} className={btnAmber} onClick={() => { void combat.resume(); }}>End huddle</button>
+                </div>
+              )}
+            </div>
+          )}
 
           {isHost && hostMenu && (
             <div className="grid grid-cols-3 gap-2 px-3 pb-2">
@@ -701,7 +753,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                 const pend = f.status === 'up' ? pendingOf(f) : null;
                 const strikeAt = timeOf((f as unknown as { strike_at?: unknown }).strike_at);
                 const strikeLeft = Number.isFinite(strikeAt) ? strikeAt - now : NaN;
-                const strikeProgress = Number.isFinite(strikeLeft) ? Math.max(0, Math.min(1, 1 - strikeLeft / 8000)) : 0;
+                const strikeProgress = Number.isFinite(strikeLeft) && pend ? Math.max(0, Math.min(1, 1 - strikeLeft / pend.windupMs)) : 0;
                 const wardAmt = Number((f as unknown as { ward?: unknown }).ward);
                 const wardUntil = timeOf((f as unknown as { ward_until?: unknown }).ward_until);
                 const warded = Number.isFinite(wardAmt) && wardAmt > 0 && Number.isFinite(wardUntil) && wardUntil > now;
@@ -721,6 +773,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                       {pend && (
                         <p className={cn('text-[11px] text-red-300 truncate', Number.isFinite(strikeLeft) && strikeLeft <= 2000 && 'animate-pulse text-red-200 font-semibold')}>
                           → {pendTargets.length ? `${pendTargets.join(', ')}: ${pend.skill}` : pend.skill}
+                          {!isPaused && Number.isFinite(strikeLeft) && strikeLeft > 0 ? ` · ${Math.ceil(strikeLeft / 1000)}s` : ''}
                         </p>
                       )}
                     </div>
@@ -764,11 +817,26 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
       {myFighter?.status === 'up' && (
         <div className="fixed left-0 right-0 z-[56] px-2" style={{ bottom: 'calc(8px + env(safe-area-inset-bottom))' }}>
           <div className="rounded-xl border border-white/15 bg-black/85 backdrop-blur p-2 space-y-1">
-            {aimingAtMe?.p && (
-              <p className="rounded-md border border-red-500/50 bg-red-950/70 px-2 py-1 text-[12px] text-center text-red-100 animate-pulse">
-                ⚠ {aimingAtMe.f.name} is aiming {aimingAtMe.p.skill} at you!
-              </p>
-            )}
+            {aimingAtMe?.p && (() => {
+              // Combat v2: the incoming card, with the attack's real countdown and what you can do about it.
+              const p = aimingAtMe.p;
+              const at = timeOf((aimingAtMe.f as unknown as { strike_at?: unknown }).strike_at);
+              const leftMs = Number.isFinite(at) ? Math.max(0, at - clock) : 0;
+              const share = Math.max(0, Math.min(1, leftMs / p.windupMs));
+              const label = NPC_SKILL_INFO[p.type as NpcSkillType]?.label;
+              return (
+                <div className={cn('rounded-md border border-red-500/60 bg-red-950/80 px-2 py-1.5 space-y-1', leftMs <= 2000 && !isPaused && 'animate-pulse')}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[13px] text-red-100 truncate">⚠ {aimingAtMe.f.name}: {p.skill}{label && label !== p.skill ? ` (${label})` : ''}</span>
+                    <span className="font-cinzel text-[16px] text-red-200 tabular-nums shrink-0">{isPaused ? '⏸' : `${Math.ceil(leftMs / 1000)}s`}</span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                    <div className="h-full bg-red-500 transition-[width] duration-500" style={{ width: `${share * 100}%` }} />
+                  </div>
+                  <p className="text-[11px] text-red-200/80">{incomingHint(p.type, aimingAtMe.f.name)}</p>
+                </div>
+              );
+            })()}
             {amPinned && <p className="text-[12px] text-center text-amber-200">📌 Pinned: {pinnedLeft}s</p>}
             {cooldownLeft > 0 && <p className="text-[11px] text-center text-white/60">Ready in {cooldownLeft}s</p>}
             <div className="space-y-1">
