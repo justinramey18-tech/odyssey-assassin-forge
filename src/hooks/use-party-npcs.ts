@@ -6,18 +6,21 @@ import { NPC_DEFAULT_MODEL, NPC_GUIDE_MAX, cleanNpcName, readableFunctionError, 
 
 export type NpcSpeed = 'trivial' | 'easy' | 'medium' | 'hard' | 'deadly';
 export type NpcSkillType = 'strike' | 'heavy' | 'sweep' | 'signature' | 'mend' | 'shield' | 'rally' | 'pin' | 'retreat';
-export interface NpcSkill { type: NpcSkillType; name: string; bonus?: number | null; damage?: string | null; power?: number | null }
-export interface NpcCombatStats { maxHp: number; ac: number; attackBonus: number; damage: string; speed: NpcSpeed; skills?: NpcSkill[] }
-export const NPC_SKILL_INFO: Record<NpcSkillType, { label: string; hint: string }> = {
-  strike: { label: 'Strike', hint: 'Standard attack' },
-  heavy: { label: 'Heavy Blow', hint: '-2 to hit, 1.6x damage, slow wind-up' },
-  sweep: { label: 'Sweep', hint: 'Hits up to 3 players for 0.6x damage' },
-  signature: { label: 'Signature', hint: '2x damage, once every 3 turns' },
-  mend: { label: 'Mend', hint: 'Heals itself or an ally for 15% of max HP' },
-  shield: { label: 'Shield', hint: 'A ward on itself or an ally absorbs 10% of max HP' },
-  rally: { label: 'Rally', hint: 'Allies act sooner' },
-  pin: { label: 'Pin', hint: "One player can't act for 6 seconds" },
-  retreat: { label: 'Retreat', hint: 'Flees below 20% HP (never if its hard lines forbid running)' },
+/** `cooldown`: seconds before the NPC can use this skill again (null = the default for its type). */
+export interface NpcSkill { type: NpcSkillType; name: string; bonus?: number | null; damage?: string | null; power?: number | null; cooldown?: number | null }
+/** `designedFor`: players these stats were built for (default 4). In a fight, HP scales to the players actually there. */
+export interface NpcCombatStats { maxHp: number; ac: number; attackBonus: number; damage: string; speed: NpcSpeed; skills?: NpcSkill[]; designedFor?: number }
+/** `cooldownS` must match COOLDOWN_S in supabase/functions/npc-combat/skills.ts. */
+export const NPC_SKILL_INFO: Record<NpcSkillType, { label: string; hint: string; cooldownS: number }> = {
+  strike: { label: 'Strike', hint: 'Standard attack', cooldownS: 0 },
+  heavy: { label: 'Heavy Blow', hint: '-2 to hit, 1.6x damage, slow wind-up. Every 30 s at most', cooldownS: 30 },
+  sweep: { label: 'Sweep', hint: 'Hits up to 3 players for 0.6x damage. Every 45 s at most', cooldownS: 45 },
+  signature: { label: 'Signature', hint: '2x damage, once every 3 turns', cooldownS: 0 },
+  mend: { label: 'Mend', hint: 'Heals itself or an ally for 15% of max HP. Every 60 s, twice per fight', cooldownS: 60 },
+  shield: { label: 'Shield', hint: 'A ward on itself or an ally absorbs 10% of max HP. Every 75 s at most', cooldownS: 75 },
+  rally: { label: 'Rally', hint: 'Allies act sooner. Every 90 s at most', cooldownS: 90 },
+  pin: { label: 'Pin', hint: "One player can't act for 6 seconds. Every 45 s, never the same player twice in a row", cooldownS: 45 },
+  retreat: { label: 'Retreat', hint: 'Flees below 20% HP, once (never if its hard lines forbid running)', cooldownS: 0 },
 };
 
 // NPC Quick Build
