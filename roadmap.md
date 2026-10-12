@@ -11,3 +11,5 @@
 - [x] Add local invisible-ink reveals and ornate framing for sealed party lines.
 - [x] Replace remaining player-facing chat “tick” wording with “seal” wording.
 - [x] Verify both changes by reading the edited code and checking TypeScript.
+- [x] Live NPC Combat v2 1/6: add skill-cooldown, huddle-pause and scaling columns plus the two new fight event kinds.
+- [ ] Live NPC Combat v2 2/6 through 6/6: awaiting the remaining supplied prompts.
