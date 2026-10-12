@@ -10,6 +10,7 @@
 
 import {
   NPC_FALLBACK_MODEL,
+  NPC_FIGHT_VOICE_MODEL,
   combatMoveOf,
   buildNpcSystemPrompt,
   buildNpcUserMessage,
@@ -596,7 +597,8 @@ export async function combatTurn(
   ]);
   const answering: Answering = { id: '', character_name: 'The fight', content: '' };
   const input = promptInput(npc, guide, stage, ctx, answering, [], { kind: 'combat', ...move }, deps.now());
-  const result = await generateWithFallback(npc.model, buildNpcSystemPrompt(input), buildNpcUserMessage(input), npc.name, deps.callModel);
+  // Fight lines use a fast model (with the usual fallback) so the NPC's warning reaches the table before its hit.
+  const result = await generateWithFallback(NPC_FIGHT_VOICE_MODEL, buildNpcSystemPrompt(input), buildNpcUserMessage(input), npc.name, deps.callModel);
   if (!result.ok) return refuse(502, `${npc.name} couldn't speak (${result.error}).`);
   const mood = await moodAfter(npc, result.mood, repo);
   const replyId = await repo.insertNpcLine({

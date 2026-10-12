@@ -6,6 +6,8 @@
 
 /** Used when an NPC's own model fails (no server key, out of credit, down, empty reply). */
 export const NPC_FALLBACK_MODEL = 'google/gemini-2.5-flash';
+/** Lines NPCs say during a Live NPC fight: a fast model, so the warning lands before the hit. Falls back to NPC_FALLBACK_MODEL. */
+export const NPC_FIGHT_VOICE_MODEL = 'google/gemini-2.5-flash-lite';
 
 export const NPC_LIMITS = {
   guide: 20_000,
@@ -21,6 +23,8 @@ export const NPC_LIMITS = {
   reply: 1_500,
   /** The guide repeated at the end, right before the line to answer. */
   voiceReminder: 2_000,
+  /** A fight line reads a slim prompt (speed): the guide up to this, and no world bible, story or scene post. */
+  fightGuide: 4_000,
   memoryNotes: 40,
   memoryChars: 6_000,
   threads: 15,
@@ -522,13 +526,15 @@ function personLine(p: NpcPerson, standIn: boolean): string {
 /** The instructions and everything the NPC knows. */
 export function buildNpcSystemPrompt(input: NpcPromptInput): string {
   const name = input.npcName.trim();
-  const guide = capStart(input.guide, NPC_LIMITS.guide);
-  const secrets = capStart(input.secrets, NPC_LIMITS.secrets);
-  const canon = paragraphsAbout(input.worldBible, name, NPC_LIMITS.canonAboutNpc);
-  const world = capStart(input.worldBible, NPC_LIMITS.worldBible);
-  const post = capEnd(readableText(input.latestPost), NPC_LIMITS.latestPost);
-  const banter = input.situation?.kind === 'banter';
+  // A line during a Live NPC fight reads a slim prompt so it is written fast: who the NPC is and the fight,
+  // not the world bible, the story so far or the latest scene post.
   const combatTurn = input.situation?.kind === 'combat';
+  const guide = capStart(input.guide, combatTurn ? NPC_LIMITS.fightGuide : NPC_LIMITS.guide);
+  const secrets = capStart(input.secrets, NPC_LIMITS.secrets);
+  const canon = combatTurn ? '' : paragraphsAbout(input.worldBible, name, NPC_LIMITS.canonAboutNpc);
+  const world = combatTurn ? '' : capStart(input.worldBible, NPC_LIMITS.worldBible);
+  const post = combatTurn ? '' : capEnd(readableText(input.latestPost), NPC_LIMITS.latestPost);
+  const banter = input.situation?.kind === 'banter';
 
   const parts: string[] = [
     `You are ${name}, a character in a tabletop fantasy roleplaying campaign, talking live with the players at their table. You are not the narrator or the Dungeon Master.`,
@@ -647,7 +653,7 @@ export function buildNpcSystemPrompt(input: NpcPromptInput): string {
   if (canon) parts.push(`WHAT THE WORLD BIBLE SAYS ABOUT ${name.toUpperCase()}\n${canon}`);
   if (world) parts.push(`WORLD BIBLE (the campaign's rules and canon)\n${world}`);
   if (input.anchors.trim()) parts.push(`ESTABLISHED FACTS\n${capStart(input.anchors, NPC_LIMITS.anchors)}`);
-  if (input.summary.trim()) parts.push(`STORY SO FAR\n${capEnd(input.summary, NPC_LIMITS.summary)}`);
+  if (input.summary.trim() && !combatTurn) parts.push(`STORY SO FAR\n${capEnd(input.summary, NPC_LIMITS.summary)}`);
   if (post) parts.push(`THE SCENE RIGHT NOW (latest Dungeon Master post)\n${post}`);
 
   return parts.join('\n\n');
