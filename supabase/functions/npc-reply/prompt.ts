@@ -95,7 +95,7 @@ export interface NpcAttitude {
 export type NpcSituation =
   | { kind: 'reply' }
   | { kind: 'spell'; caster: string; spell: string; summary: string; saveRoll: number }
-  | { kind: 'roll'; roller: string; check: string; save: boolean; total: number; dc: number; success: boolean; natural: number | null }
+  | { kind: 'roll'; roller: string; check: string; save: boolean; total: number; dc: number; success: boolean; natural: number | null; objective?: string; context?: string }
   | { kind: 'banter'; partners: string[]; topic: string; turn: number; turns: number }
   | ({ kind: 'combat' } & CombatMove);
 
@@ -735,6 +735,39 @@ export function buildNpcSystemPrompt(input: NpcPromptInput): string {
   return parts.join('\n\n');
 }
 
+const NO_MECHANICS = 'Never mention dice, DCs, Persuasion, Intimidation, Deception, Insight, success, failure or any game mechanic in the spoken words. Do not ask for another roll for the same goal. Hard lines and what is physically and actually within your power still hold; a roll never rewrites the world, hands over gold or items, completes quests, moves characters or does anything only the Dungeon Master can decide.';
+
+/** How to answer once the roll you asked for is in: skill-specific for social checks, generic otherwise. */
+function socialResolution(s: Extract<NpcSituation, { kind: 'roll' }>, name: string): string[] {
+  const social = !s.save && (SOCIAL_CHECKS as readonly string[]).includes(s.check);
+  if (!social) {
+    return [s.success
+      ? `Answer as ${name}. They succeeded: they get what they were after (within reason, in character). If you were hiding something they tried to see through, let it show.`
+      : `Answer as ${name}. They failed: they do not get what they were after. ${name} may not even notice they tried, or may be put off by it.`];
+  }
+  const goal = s.objective ? `THE GOAL: ${s.objective}.` : s.context ? `What they said or did when you asked for the roll: "${s.context}". Treat what they were clearly after as the goal; do not invent a new one.` : '';
+  const rules: Record<string, [string, string]> = {
+    Persuasion: [
+      `They persuaded you. If the goal is reasonable, within ${name}'s power and not a hard line, make that concession or decision NOW and make it visible: agree, permit, promise, reveal, stand aside or change course. Do not just praise the argument or stay vague. You may haggle over minor details, but never quietly cancel the goal.`,
+      `They did not persuade you. The concession does not happen. Answer with a concrete refusal, hesitation or counter-demand, in character. Do not act as if it worked.`,
+    ],
+    Intimidation: [
+      `The threat worked. Comply with the reasonable demand now, visibly. ${name} may be frightened, angry, resentful or defiant while doing it. This does not mean ${name} likes or trusts them.`,
+      `The threat did not work. ${name} does not comply because of it: call the bluff, harden, get angry or refuse, as fits ${name}.`,
+    ],
+    Deception: [
+      `${name} believes the specific false claim. Answer and act as someone who currently believes it is true. Do not hint that ${name} secretly knows it is a lie. This changes what ${name} believes, not what is actually true in the world.`,
+      `${name} does not accept the lie: doubt it, challenge it or notice an inconsistency. Do not reveal unrelated secrets.`,
+    ],
+    Insight: [
+      `They read you. Without saying anything like "you can tell" or acknowledging being read, let ONE concrete, useful cue show that fits the goal: a tell, a hesitation, a contradiction, an emotional truth, a subject ${name} guards, a visible motive. A short action beat in *asterisks* plus natural dialogue works well. This reveals; it does not force ${name} to change behavior or comply.`,
+      `They could not read you. Give no reliable hidden truth: stay unreadable or simply carry on the conversation. Do not feed them false facts as punishment.`,
+    ],
+  };
+  const [win, lose] = rules[s.check];
+  return [goal, `Answer as ${name}. ${s.success ? win : lose}`, NO_MECHANICS].filter(Boolean);
+}
+
 /** The recent table, then what to answer. */
 export function buildNpcUserMessage(input: NpcPromptInput): string {
   const name = input.npcName.trim();
@@ -774,11 +807,7 @@ export function buildNpcUserMessage(input: NpcPromptInput): string {
     return [
       tableBlock,
       `${s.roller} made the roll you asked for: ${checkLabel(s.check, s.save)}, ${s.total} against DC ${s.dc}${nat}. Result: ${s.success ? 'SUCCESS' : 'FAILURE'}.`,
-      s.success
-        ? `Answer as ${name}. They succeeded: they get what they were after (within reason, in character). If you were hiding something they tried to see through, let it show.`
-        : `Answer as ${name}. They failed: they do not get what they were after. ${name} may not even notice they tried, or may be put off by it.`,
-      ownBlock,
-      voice,
+      ...socialResolution(s, name),
       'Do not ask for another roll in this reply.',
     ].filter(Boolean).join('\n\n');
   }
