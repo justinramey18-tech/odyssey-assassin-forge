@@ -48,7 +48,7 @@ export async function openArenaRoom(partyId: string, userId: string): Promise<Ar
   if (existing) return { ...existing, state: parseState(existing.state, ARENA_BOSSES[0]) } as ArenaRoom;
   const { data: created, error } = await supabase
     .from('arena_rooms')
-    .insert({ party_id: partyId, host_user_id: userId, state: { boss: ARENA_BOSSES[0], members: {} } })
+    .insert([{ party_id: partyId, host_user_id: userId, state: { boss: ARENA_BOSSES[0], members: {} } as unknown as Json }])
     .select('*')
     .single();
   if (error || !created) {
