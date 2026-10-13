@@ -91,7 +91,8 @@ function feltTexture(): THREE.CanvasTexture {
 }
 
 const DIE_COLOR: Record<DieThrow['role'], string> = { test: '#7a1420', damage: '#3a2a5e', heal: '#145a3a', effect: '#5a4214' };
-const UP = new THREE.Vector3(0, 1, 0);
+// The face the player sees best: pointing at the camera, not straight up.
+const UP = new THREE.Vector3(0, 8.5, 3.2).normalize();
 
 function Die({ d, index, onSettled }: { d: DieThrow; index: number; onSettled: (i: number) => void }) {
   const shape = useMemo(() => buildShape(d.sides), [d.sides]);
