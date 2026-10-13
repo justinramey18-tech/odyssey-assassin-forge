@@ -6,12 +6,15 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 type Call = { table: string; op: string; args: unknown[]; filters: Array<[string, unknown]> };
 const calls: Call[] = [];
 let table: Array<Record<string, unknown>> = [];
+let readError = false;
 
 function query(tableName: string) {
   const call: Call = { table: tableName, op: 'select', args: [], filters: [] };
   const result = () => {
     if (call.op === 'insert') return { data: { id: 'new-line-id' }, error: null };
-    if (tableName === 'party_round_chat' && call.op === 'select') return { data: [...table].reverse(), error: null };
+    if (tableName === 'party_round_chat' && call.op === 'select') return readError
+      ? { data: null, error: { message: 'offline' } }
+      : { data: [...table].reverse(), error: null };
     return { data: [], error: null };
   };
   const builder: any = {
@@ -46,6 +49,8 @@ vi.mock('@/integrations/supabase/client', () => {
 });
 
 import { useRoundChat } from '@/hooks/use-round-chat';
+import { liveTableCacheKey, readLiveTableCache, writeLiveTableCache } from '@/lib/live-table-cache';
+import type { RoundChatMessage } from '@/hooks/use-round-chat';
 
 const HOST = 'host-user';
 const KAEL = 'kael-user';
@@ -60,6 +65,8 @@ const line = (id: string, over: Record<string, unknown>) => ({
 });
 
 beforeEach(() => {
+  localStorage.clear();
+  readError = false;
   calls.length = 0;
   table = [
     line(P1, { user_id: KAEL, character_name: 'Kaelen', content: 'Where is the pup?', selected: true }),
@@ -76,6 +83,38 @@ async function render(userId = KAEL) {
 }
 
 describe('Live Table with NPC lines', () => {
+  it('shows cached lines immediately and retains them when refresh fails', async () => {
+    const rows = table as unknown as RoundChatMessage[];
+    const key = liveTableCacheKey(KAEL, 'party');
+    writeLiveTableCache(key, rows);
+    readError = true;
+    const { result } = renderHook(() => useRoundChat('party', KAEL, 'Kaelen', 'round', HOST));
+    expect(result.current.messages).toEqual(rows);
+    await act(async () => { await result.current.reload(); });
+    expect(result.current.messages).toEqual(rows);
+    expect(readLiveTableCache(key)).toEqual(rows);
+    readError = false;
+    table = [];
+    await act(async () => { await result.current.reload(); });
+    expect(result.current.messages).toEqual([]);
+    expect(readLiveTableCache(key)).toEqual([]);
+  });
+
+  it('does not show another account or party conversation during a failed refresh', async () => {
+    writeLiveTableCache(liveTableCacheKey(KAEL, 'party'), table as unknown as RoundChatMessage[]);
+    readError = true;
+    const { result, rerender } = renderHook(({ user, party }) => useRoundChat(party, user, 'Player', 'round', HOST), {
+      initialProps: { user: KAEL, party: 'party' },
+    });
+    expect(result.current.messages).toHaveLength(4);
+    rerender({ user: HOST, party: 'party' });
+    expect(result.current.messages).toEqual([]);
+    rerender({ user: KAEL, party: 'other' });
+    expect(result.current.messages).toEqual([]);
+    await act(async () => { await result.current.reload(); });
+    expect(readLiveTableCache(liveTableCacheKey(KAEL, 'party'))).toHaveLength(4);
+  });
+
   it("never credits an NPC's sealed line to the host's character", async () => {
     const { result } = await render();
     expect(result.current.selectedParticipants).toEqual([{ userId: KAEL, characterName: 'Kaelen', text: 'Where is the pup?' }]);
