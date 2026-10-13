@@ -9,6 +9,7 @@
 // POST { action: "cast_card", fightId, targetId, targetIds?, card, finish? }  a Quick Actions spell card (attack, save, auto-hit or heal; area = up to 3 targets)
 // POST { action: "stabilize", fightId, targetId }                    Medicine DC 10 on a downed ally
 // POST { action: "huddle", fightId }                                  freeze the fight 20 s to plan (once per player per fight)
+// POST { action: "clash", fightId, npcId, side, tapAt }               Counter Clash: one tap on the ring against a big NPC move (free)
 // POST { action: "give_potion", fightId, targetId, itemName }         pour one of my healing potions into an ally
 // POST { action: "ping", fightId }                                   "I'm here"; also runs the clock
 // POST { action: "warm" }                                             wake the function up (no work); returns serverNow
@@ -22,6 +23,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import * as R from './rules.ts';
 import * as S from './skills.ts';
+import * as M from './minigames.ts';
 import { combatTurn } from './npc-reply/handler.ts';
 import { createModelCaller } from './npc-reply/models.ts';
 import { createRepo } from './npc-reply/repo.ts';
@@ -84,7 +86,7 @@ interface Fighter {
   second_wind: string | null;
   last_stand_used: boolean | null;
   /** NPCs (v5): the announced skill waiting to happen, and when it happens. */
-  pending: { skill: string; type: string; targets: string[]; windup_ms?: number } | null;
+  pending: { skill: string; type: string; targets: string[]; windup_ms?: number; clash?: unknown } | null;
   strike_at: string | null;
   turn_no: number | null;
   signature_turn: number | null;
@@ -95,6 +97,8 @@ interface Fighter {
   pinned_until: string | null;
   /** v2 NPCs: when each skill can be used again, uses per fight, last pinned player. */
   cooldowns: S.Cooldowns | null;
+  /** v6 mini-games. Players: { clash: this chain's taps, clashStreak: perfect chains in a row }. */
+  minigame: Record<string, unknown> | null;
 }
 
 interface Seat {
@@ -116,7 +120,7 @@ interface NpcRow {
 
 const FIGHT_COLS = 'id, party_id, status, outcome, started_by, paused_at, pause_kind, paused_until, huddles_used';
 const FIGHTER_COLS =
-  'id, fight_id, party_id, kind, npc_id, user_id, name, hp, max_hp, ac, status, death_successes, death_failures, next_action_at, next_save_at, action_seq, threat, last_seen_at, last_action_at, act_every_ms, resolve, resolve_at, resolve_rate, perks, second_wind, last_stand_used, pending, strike_at, turn_no, signature_turn, ward, ward_until, pinned_until, cooldowns';
+  'id, fight_id, party_id, kind, npc_id, user_id, name, hp, max_hp, ac, status, death_successes, death_failures, next_action_at, next_save_at, action_seq, threat, last_seen_at, last_action_at, act_every_ms, resolve, resolve_at, resolve_rate, perks, second_wind, last_stand_used, pending, strike_at, turn_no, signature_turn, ward, ward_until, pinned_until, cooldowns, minigame';
 const NPC_COLS = 'id, party_id, name, on_stage, archived, player_user_id, combat_stats, combat_state';
 
 class Refusal extends Error {
@@ -550,6 +554,9 @@ async function hitNpc(
     // Stagger: the NPC acts later, and slower from now on. Mid wind-up, the announced skill is pushed back instead.
     const s = R.stagger(R.currentIntervalMs(f.act_every_ms, speed), speed, lost, f.max_hp);
     if (f.pending && f.strike_at) {
+      // Counter Clash: once the first circle is on the ring, the chain can't be pushed back (taps are timed to it).
+      const chain = M.cleanClash(f.pending.clash);
+      if (chain && M.clashUnderWay(chain, Date.parse(f.strike_at), now)) return { hp, threat, act_every_ms: s.intervalMs, ...wardPatch };
       const strike = Math.min(Math.max(Date.parse(f.strike_at), now) + s.delayMs, now + s.intervalMs);
       return { hp, threat, act_every_ms: s.intervalMs, strike_at: iso(strike), ...wardPatch };
     }
@@ -710,12 +717,53 @@ async function npcHitsPlayer(
   return { hit: a.hit, crit: a.crit, lost, downed };
 }
 
-type ParryQuality = 'perfect' | 'good' | 'miss';
-/** A player's parry tap on one NPC strike, if any. */
-function parryOf(p: Fighter, npcId: string, strike: string | null): ParryQuality | null {
-  const raw = (p.cooldowns as unknown as Record<string, unknown> | null)?.parry as { npc?: unknown; strike?: unknown; q?: unknown } | undefined;
-  if (!raw || raw.npc !== npcId || !strike || raw.strike !== strike) return null;
-  return raw.q === 'perfect' || raw.q === 'good' || raw.q === 'miss' ? raw.q : null;
+// ── Counter Clash (v6) ────────────────────────────────────────────────────────
+
+const isPinned = (f: Fighter, now: number) => !!f.pinned_until && Date.parse(f.pinned_until) > now;
+
+/**
+ * A target's Counter Clash on this chain, read from their taps: how much of the hit still lands, whether every
+ * swing was perfect, and whether this perfect chain is a Riposte. Saves their new perfect-chain count.
+ */
+async function settleClash(db: Db, t: Fighter, chain: M.Clash): Promise<{ perfect: boolean; riposte: boolean; scale: number }> {
+  const results = M.clashResultsOf(t.minigame, chain.id);
+  const perfect = M.chainPerfect(chain, results);
+  const scale = M.chainScale(chain, results);
+  const before = Number((t.minigame ?? {}).clashStreak) || 0;
+  const { streak, riposte } = M.nextClashStreak(before, perfect);
+  if (results.length > 0 || before !== streak) {
+    const r = await mutate(db, t.id, f => {
+      const { clash: _done, ...rest } = (f.minigame ?? {}) as Record<string, unknown>;
+      return { minigame: { ...rest, clashStreak: streak } };
+    }, t);
+    if (r) Object.assign(t, r.after);
+  }
+  return { perfect, riposte, scale };
+}
+
+/** A perfect chain's free counter: weapon damage x1.5 (x2 against a signature move); a Riposte makes it critical. */
+async function landCounter(
+  db: Db, fight: Fight, hostId: string, npc: Fighter, player: Fighter, move: M.ClashMove, riposte: boolean, now: number,
+): Promise<number> {
+  const seat = player.user_id ? await seatOf(db, fight.party_id, player.user_id) : null;
+  const w = R.weaponAttack(seat?.character_status ?? {}, undefined);
+  const damage = M.counterDamage(R.rollDamage(w.dice, roll, riposte), move);
+  const out = await hitNpc(db, fight, hostId, player, npc.id, damage, 'knockout', riposte, now);
+  // Logged as an attack; phones spot a counter by the "Counter Clash!" detail.
+  await addEvent(db, fight, {
+    kind: 'attack', actor_name: player.name, target_name: npc.name, hp_delta: -out.lost,
+    detail: `Counter Clash! ${w.name}: ${out.lost} damage${riposte ? ' (RIPOSTE!)' : ''}`,
+  });
+  return out.lost;
+}
+
+/** A perfect clash staggers the NPC: its next turn waits at least two of its intervals. */
+async function staggerNpc(db: Db, npcId: string, now: number, interval: number): Promise<void> {
+  await mutate(db, npcId, f => {
+    if (f.status !== 'up' || f.pending) return null;
+    const next = f.next_action_at ? Date.parse(f.next_action_at) : 0;
+    return { next_action_at: iso(Math.max(now + interval * 2, Number.isFinite(next) ? next : 0)) };
+  });
 }
 
 /** The announced skill happens: one claim so only one phone's ping runs it, then its effect and a ⚔ line. */
@@ -726,7 +774,6 @@ async function resolveSkill(
   const p = npc.pending;
   if (!p) return;
   const interval = R.currentIntervalMs(npc.act_every_ms, stats.speed);
-  const strikeAt = npc.strike_at;
   if (!(await claim(db, npc, { pending: null, strike_at: null, next_action_at: iso(now + interval) }))) return;
   const sk = skills.find(k => k.name === p.skill && k.type === p.type) ?? skills.find(k => k.type === p.type)
     ?? (p.type === 'strike' ? S.basicStrike(stats) : skills[0]);
@@ -750,28 +797,26 @@ async function resolveSkill(
     }
     const parts: string[] = [];
     let staggered = false;
+    // Counter Clash (heavy, signature, sweep): each target's own taps on the chain decide how much lands.
+    const chain = M.cleanClash(p.clash);
     for (const t of targets.slice(0, S.SWEEP_MAX)) {
-      // Parry duel: the target's tap on this exact strike decides the hit.
-      const parry = parryOf(t, npc.id, strikeAt);
-      if (parry === 'perfect') {
-        parts.push(`${t.name} parries perfectly`);
-        await addEvent(db, fight, { kind: 'attack', actor_name: npc.name, target_name: t.name, target_user_id: t.user_id, hp_delta: 0, detail: 'Perfect parry!' });
-        if (!staggered) {
-          staggered = true;
-          // The NPC reels: it skips its next attack, and a counter window opens for the whole party.
-          await mutate(db, npc.id, f => (f.status !== 'up' ? null : {
-            next_action_at: iso(now + interval * 2),
-            cooldowns: { ...(f.cooldowns ?? {}), counter: { until: now + S.COUNTER_WINDOW_MS, by: t.id } } as unknown as S.Cooldowns,
-          }));
-        }
+      // A pinned player can't clash: they take the normal hit.
+      const c = chain && !isPinned(t, now) ? await settleClash(db, t, chain) : null;
+      if (chain && c?.perfect) {
+        const dealt = await landCounter(db, fight, hostId, npc, t, chain.move, c.riposte, now);
+        parts.push(`${t.name} clashes perfectly${chain.swings.length > 1 ? ` x${chain.swings.length}` : ''} and counters for ${dealt}${c.riposte ? ' (RIPOSTE!)' : ''}`);
+        staggered = true;
         continue;
       }
-      const r = await npcHitsPlayer(db, fight, hostId, npc, t, sk.bonus, sk.dice, stats, now, parry === 'good' ? 0.5 : 1);
+      const scale = c ? c.scale : 1;
+      const r = await npcHitsPlayer(db, fight, hostId, npc, t, sk.bonus, sk.dice, stats, now, scale);
+      const note = scale < 1 ? ` (${Math.round((1 - scale) * 100)}% blocked)` : '';
       parts.push(r.hit
-        ? `${t.name} ${r.lost} damage${parry === 'good' ? ' (half, parried)' : ''}${r.crit ? ' (critical!)' : ''}${r.downed ? ', and goes down' : ''}`
+        ? `${t.name} ${r.lost} damage${note}${r.crit ? ' (critical!)' : ''}${r.downed ? ', and goes down' : ''}`
         : `${t.name} dodges`);
     }
-    await line(`${npc.name}'s ${sk.name}: ${parts.join('; ')}.${staggered ? ` ${npc.name} staggers! COUNTER!` : ''}`);
+    if (staggered) await staggerNpc(db, npc.id, now, interval);
+    await line(`${npc.name}'s ${sk.name}: ${parts.join('; ')}.${staggered ? ` ${npc.name} staggers!` : ''}`);
     return;
   }
 
@@ -923,7 +968,11 @@ async function tick(db: Db, fightId: string, hostId: string, now: number, known?
       }
       const sk = choice.skill;
       const claimed = await claim(db, npc, {
-        pending: { skill: sk.name, type: sk.type, targets: choice.targetIds, windup_ms: sk.windupMs },
+        pending: {
+          skill: sk.name, type: sk.type, targets: choice.targetIds, windup_ms: sk.windupMs,
+          // Counter Clash: big moves come as a chain of swings the target can tap (timed back from the hit).
+          ...(M.isClashMove(sk.type) ? { clash: M.buildClash(crypto.randomUUID(), sk.type, roll) } : {}),
+        },
         strike_at: iso(now + sk.windupMs),
         next_action_at: null,
         cooldowns: S.afterUse(cd, sk, now, choice.targetIds),
@@ -1007,7 +1056,12 @@ async function resumeFight(db: Db, fight: Fight, hostId: string, now: number): P
     await mutate(db, f.id, x => {
       const patch: Partial<Fighter> = {};
       if (x.kind === 'npc') {
-        if (x.status === 'up' && x.pending && x.strike_at) patch.strike_at = R.shiftIso(x.strike_at, by, soon);
+        if (x.status === 'up' && x.pending && x.strike_at) {
+          // Counter Clash: the first circle starts at least 1.5 s after the fight resumes.
+          const chain = M.cleanClash(x.pending.clash);
+          const lead = chain ? Date.parse(x.strike_at) - M.clashStartsAt(chain, Date.parse(x.strike_at)) : 0;
+          patch.strike_at = R.shiftIso(x.strike_at, by, Math.max(soon, now + 1500 + lead));
+        }
         else if (x.status === 'up' && x.next_action_at) patch.next_action_at = R.shiftIso(x.next_action_at, by, soon);
         if (x.ward_until) patch.ward_until = R.shiftIso(x.ward_until, by);
         if (x.cooldowns) patch.cooldowns = S.shiftCooldowns(S.cleanCooldowns(x.cooldowns), by);
@@ -1241,7 +1295,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
   // Player actions below need a seat.
   if (!seat) return refuse(403, 'Only players seated at this table can fight.');
   // Speed: an attack or spell reads its target at the same time as my own fighter row.
-  const earlyTarget = (action === 'attack' || action === 'counter' || action === 'cast' || action === 'cast_card') && isUuid(body.targetId)
+  const earlyTarget = (action === 'attack' || action === 'cast' || action === 'cast_card') && isUuid(body.targetId)
     ? fighterById(db, body.targetId as string).catch(() => null)
     : undefined;
   const me = await ensurePlayer(db, fight, seat, now);
@@ -1264,63 +1318,32 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     return { ok: true, pausedUntil: iso(until) };
   }
 
-  if (action === 'parry') {
-    // Parry duel: one tap per strike, judged against the server's strike time.
+  if (action === 'clash') {
+    // Counter Clash: one tap on the ring, judged against the chain on the server's clock. Free: never uses the action timer.
     if (fight.status !== 'active') refuse(409, 'The fight is not running.');
-    if (!me || me.status !== 'up') return refuse(409, 'You are down and cannot parry.');
-    const npc = await fighterById(db, needUuid(body.npcId, 'npc'));
-    if (!npc || npc.fight_id !== fight.id || npc.kind !== 'npc' || npc.status !== 'up' || !npc.pending || !npc.strike_at) refuse(409, 'Nothing to parry.');
-    if (!S.OFFENSE.includes(npc!.pending!.type as S.SkillType) || !npc!.pending!.targets.includes(me.id)) refuse(409, "That attack isn't aimed at you.");
-    if (parryOf(me, npc!.id, npc!.strike_at)) refuse(409, 'You already committed to this parry.');
+    if (!me || me.status !== 'up') return refuse(409, 'You are down and cannot clash.');
+    if (isPinned(me, now)) refuse(409, "You're pinned and can't clash.");
+    const npc = await fighterById(db, needUuid(body.npcId, 'NPC'));
+    const chain = npc && npc.fight_id === fight.id && npc.kind === 'npc' && npc.status === 'up' && npc.strike_at && npc.pending
+      ? M.cleanClash(npc.pending.clash) : null;
+    if (!npc || !chain || !npc.strike_at) return refuse(409, 'Nothing to clash.');
+    if (!npc.pending?.targets.includes(me.id)) refuse(409, "That move isn't aimed at you.");
+    const side = body.side === 'left' || body.side === 'top' || body.side === 'right' ? body.side : refuse(400, 'Missing side.');
     const tapRaw = Number(body.tapAt);
     const tapAt = Number.isFinite(tapRaw) && tapRaw <= now && tapRaw >= now - 1500 ? tapRaw : now;
-    const off = Math.abs(Date.parse(npc!.strike_at as string) - tapAt);
-    const q: ParryQuality = off <= S.PARRY_PERFECT_MS ? 'perfect' : off <= S.PARRY_GOOD_MS ? 'good' : 'miss';
-    const r = await mutate(db, me.id, f => (parryOf(f, npc!.id, npc!.strike_at) ? null : {
-      cooldowns: { ...(f.cooldowns ?? {}), parry: { npc: npc!.id, strike: npc!.strike_at, q } } as unknown as S.Cooldowns,
-    }), me);
-    if (!r) refuse(409, 'You already committed to this parry.');
-    return { ok: true, quality: q, offMs: Math.round(off) };
-  }
-
-  if (action === 'counter') {
-    // Counter clash: after a perfect parry, the first player to tap lands a free critical hit.
-    if (fight.status !== 'active') refuse(409, 'The fight is not running.');
-    if (!me || me.status !== 'up') return refuse(409, 'You are down and cannot counter.');
-    const target = await npcTarget(db, fight, body.targetId, earlyTarget);
-    const open = (f: Fighter) => {
-      const c = (f.cooldowns as unknown as Record<string, unknown> | null)?.counter as { until?: unknown } | undefined;
-      return !!c && typeof c.until === 'number' && c.until >= now;
-    };
-    if (!open(target)) refuse(409, 'Too late, the opening closed.');
-    const won = await mutate(db, target.id, f => {
-      if (!open(f)) return null;
-      const { counter: _gone, ...rest } = (f.cooldowns ?? {}) as unknown as Record<string, unknown>;
-      return { cooldowns: rest as unknown as S.Cooldowns };
-    }, target);
-    if (!won) refuse(409, 'Someone beat you to it!');
-    const w = R.weaponAttack(seat.character_status ?? {}, body.weaponName);
-    const out = await hitNpc(db, fight, hostId, me, target.id, R.rollDamage(w.dice, roll, true), finishOf(body.finish), true, now);
-    await addEvent(db, fight, { kind: 'attack', actor_name: me.name, target_name: target.name, hp_delta: -out.lost, detail: `Counter clash! ${w.name}: ${out.lost} damage` });
-    await postLine(db, fight.party_id, hostId, `${me.name} seizes the opening: COUNTER CLASH on ${target.name} for ${out.lost}!`);
-    if (out.defeated) await checkEnd(db, fight.id, hostId, now);
-    return { ok: true, damage: out.lost, targetHp: out.hp, defeated: out.defeated, weapon: w.name };
-  }
-
-  if (action === 'break_pin') {
-    // Pin escape: hammer the button to break free before the 30 seconds run out.
-    if (!me || me.status !== 'up') return refuse(409, 'You are down.');
-    const until = me.pinned_until ? Date.parse(me.pinned_until) : 0;
-    if (until <= now) return { ok: true, free: true };
-    const taps = Number(body.taps);
-    if (!Number.isFinite(taps) || taps < S.PIN_BREAK_TAPS) refuse(400, 'Keep struggling!');
-    if (now - (until - S.PIN_MS) < S.PIN_MIN_HOLD_MS) refuse(429, 'Keep struggling!');
-    const r = await mutate(db, me.id, f => (f.pinned_until && Date.parse(f.pinned_until) > now ? { pinned_until: null } : null), me);
-    if (r) {
-      await addEvent(db, fight, { kind: 'pin', actor_name: me.name, target_name: me.name, target_user_id: me.user_id, detail: 'Broke free!' });
-      await postLine(db, fight.party_id, hostId, `${me.name} wrenches free of the pin!`);
-    }
-    return { ok: true, free: true };
+    const hitAt = Date.parse(npc.strike_at);
+    let judged: { index: number; q: M.ClashQ } | null = null;
+    const saved = await mutate(db, me.id, f => {
+      const results = M.clashResultsOf(f.minigame, chain.id);
+      judged = M.judgeClash(chain, hitAt, tapAt, side, results);
+      if (!judged) return null;
+      const r = [...results];
+      while (r.length < chain.swings.length) r.push(null);
+      r[judged.index] = judged.q;
+      return { minigame: { ...(f.minigame ?? {}), clash: { id: chain.id, r } } };
+    }, me);
+    const j = judged as { index: number; q: M.ClashQ } | null;
+    return saved && j ? { ok: true, index: j.index, quality: j.q } : { ok: false };
   }
 
   if (action === 'attack') {
