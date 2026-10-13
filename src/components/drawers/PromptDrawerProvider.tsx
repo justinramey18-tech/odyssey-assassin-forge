@@ -17,7 +17,7 @@ import { QuickActionsDrawer } from './QuickActionsDrawer';
 import { OracleDrawer } from '@/components/oracle';
 import { ConditionDrawer } from '@/components/conditions';
 import { AIDMScreen } from '@/components/ai-dm';
-import { StandalonePartyDMScreen } from '@/components/ai-dm/StandalonePartyDMScreen';
+import { LazyStandalonePartyDMScreen as StandalonePartyDMScreen } from '@/components/ai-dm/LazyStandalonePartyDMScreen';
 import { PersonalityTestWizard } from '@/components/ai-dm/PersonalityTestWizard';
 import { PersonalityResultsScreen } from '@/components/ai-dm/PersonalityResultsScreen';
 import { ReturnToSheetButton } from '@/components/ai-dm/ReturnToSheetButton';

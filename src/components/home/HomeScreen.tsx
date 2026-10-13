@@ -65,7 +65,7 @@ import { ChroniclerHomeView } from './ChroniclerHomeView';
 import { EmpyreanDualHPBars } from '@/components/empyrean/EmpyreanDualHPBars';
 import { EmpyreanDMContainer } from '@/components/empyrean/EmpyreanDMContainer';
 import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
-import { StandalonePartyDMScreen } from '@/components/ai-dm/StandalonePartyDMScreen';
+import { LazyStandalonePartyDMScreen as StandalonePartyDMScreen } from '@/components/ai-dm/LazyStandalonePartyDMScreen';
 import { getSoloHP, getPartyHP } from '@/lib/dragonBondState';
 
 import homeBackground from '@/assets/home-background-mobile.jpg';
