@@ -363,6 +363,7 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
 
   // The opponent's turn, a huddle's end and big-move landings, all on the local clock.
   useEffect(() => {
+    if (isMember) return; // the host's phone runs the opponents
     const f = fight;
     if (!f) return;
     if (f.status === 'paused') {
@@ -370,16 +371,17 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
       return;
     }
     if (f.status !== 'active') return;
-    const p = fighters.find((r) => r.id === PR());
+    const players = fighters.filter((r) => isPlayerRow(r.id) && r.status === 'up');
     const ups = fighters.filter((r) => isNpcRow(r.id) && r.status === 'up');
-    if (!p || p.status !== 'up' || ups.length === 0) return;
-    if (DU.cleanDuel(objOf(p.minigame).duel)) return; // a duel holds every opponent
-    // Pin expired without escape.
-    if (p.pinned_until && now > Date.parse(p.pinned_until)) {
+    if (players.length === 0 || ups.length === 0) return;
+    if (players.some((p) => DU.cleanDuel(objOf(p.minigame).duel))) return; // a duel holds every opponent
+    const as = (p: FighterRow, fn: () => void) => { const prev = actorRef.current; actorRef.current = p.user_id || me; try { fn(); } finally { actorRef.current = prev; } };
+    // A pin that ran out without escape.
+    const held = players.find((p) => p.pinned_until && now > Date.parse(p.pinned_until));
+    if (held) {
       const pinner = ups.find((r) => r.id === pinnerRef.current) ?? ups[0];
       const pf = foeAt(pinner.id);
-      patch(PR(), () => ({ pinned_until: null }));
-      hurt(PR(), pf.damageAvg * 1.5, pinner.name, 'npc_attack', 'The pin held.');
+      as(held, () => { patch(held.id, () => ({ pinned_until: null })); hurt(held.id, pf.damageAvg * 1.5, pinner.name, 'npc_attack', 'The pin held.'); });
       return;
     }
     // A wind-up in progress holds everyone else until it lands.
@@ -390,39 +392,46 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
       const chain = M.cleanClash(pend.clash)!;
       const hitAt = Date.parse(npc.strike_at!);
       if (now <= hitAt + M.CLASH_HOLD_MS + 300) return;
+      const tid = Array.isArray(pend.targets) ? String(pend.targets[0]) : '';
+      const p = players.find((r) => r.id === tid);
+      patch(npc.id, () => ({ pending: null, strike_at: null, turn_no: npc.turn_no + 1, next_action_at: iso(now + GAP[foe.speed]) }));
+      if (!p) return;
       const results = M.clashResultsOf(p.minigame, chain.id);
       const perfect = M.chainPerfect(chain, results);
-      patch(npc.id, () => ({ pending: null, strike_at: null, turn_no: npc.turn_no + 1, next_action_at: iso(now + GAP[foe.speed]) }));
-      if (perfect) {
-        const d = M.counterDamage(roll(8) + 3, chain.move);
-        hurt(npc.id, d, p.name, 'attack', `Counter Clash! Perfect chain — ${d} damage.`);
-      } else if (chain.move === 'pin') {
-        const t0 = now;
-        pinnerRef.current = npc.id;
-        patch(PR(), (r) => ({ pinned_until: iso(t0 + PIN_MS), minigame: asJson({ ...objOf(r.minigame), struggle: M.newStruggle(Math.floor(Math.random() * 1e9), t0) }) }));
-        event({ kind: 'pin', actor_name: npc.name, target_name: p.name, target_user_id: p.user_id, detail: `${npc.name} pins ${p.name}!` });
-        say('table', `${npc.name} grabs you — Pinned! Break free.`);
-      } else {
-        const scale = M.chainScale(chain, results);
-        hurt(PR(), scale * foe.damageAvg * (chain.move === 'signature' ? 2 : 1.3), npc.name, 'npc_attack', `${String(pend.skill || 'Big move')} lands.`);
-      }
+      as(p, () => {
+        if (perfect) {
+          const d = M.counterDamage(roll(8) + 3, chain.move);
+          hurt(npc.id, d, p.name, 'attack', `Counter Clash! ${p.name}'s perfect chain — ${d} damage.`);
+        } else if (chain.move === 'pin') {
+          const t0 = now;
+          pinnerRef.current = npc.id;
+          patch(p.id, (r) => ({ pinned_until: iso(t0 + PIN_MS), minigame: asJson({ ...objOf(r.minigame), struggle: M.newStruggle(Math.floor(Math.random() * 1e9), t0) }) }));
+          event({ kind: 'pin', actor_name: npc.name, target_name: p.name, target_user_id: p.user_id, detail: `${npc.name} pins ${p.name}!` });
+          say('table', `${npc.name} grabs ${p.name} — Pinned! Break free.`);
+        } else {
+          const scale = M.chainScale(chain, results);
+          hurt(p.id, scale * foe.damageAvg * (chain.move === 'signature' ? 2 : 1.3), npc.name, 'npc_attack', `${String(pend.skill || 'Big move')} lands on ${p.name}.`);
+        }
+      });
       return;
     }
-    if (p.pinned_until) return;
+    const free = players.filter((r) => !r.pinned_until);
+    if (free.length === 0) return;
     const npc = ups.find((r) => { const d = r.next_action_at ? Date.parse(r.next_action_at) : NaN; return Number.isFinite(d) && now >= d; });
     if (!npc) return;
     const foe = foeAt(npc.id);
     if (foe.attackBonus <= -10) { patch(npc.id, () => ({ next_action_at: iso(now + GAP[foe.speed]) })); return; } // a dummy never swings
+    const p = pick(free);
     const r = Math.random();
     if (r < 0.6) void speak(pick(TAUNTS), true, npc.id);
-    if (r < 0.45 || r < 0.6) {
+    if (r < 0.6) {
       const move: M.ClashMove = r < 0.45 ? pick<M.ClashMove>(['heavy', 'signature', 'sweep']) : 'pin';
       const c = M.buildClash(`c${now}`, move, roll);
       const windup = 1200 + Math.max(0, -M.clashStartsAt(c, 0));
       const skill = move === 'pin' ? 'Pin' : move === 'signature' ? 'Signature' : move === 'sweep' ? 'Sweep' : 'Heavy Blow';
-      patch(npc.id, () => ({ pending: asJson({ skill, type: move, targets: [PR()], windup_ms: windup, clash: c }), strike_at: iso(now + windup) }));
-      event({ kind: 'intent', actor_name: npc.name, target_name: p.name, target_user_id: p.user_id, detail: `${npc.name} winds up ${skill}!` });
-      say('table', `⚠ ${npc.name} winds up ${skill} — Counter Clash!`);
+      patch(npc.id, () => ({ pending: asJson({ skill, type: move, targets: [p.id], windup_ms: windup, clash: c }), strike_at: iso(now + windup) }));
+      event({ kind: 'intent', actor_name: npc.name, target_name: p.name, target_user_id: p.user_id, detail: `${npc.name} winds up ${skill} at ${p.name}!` });
+      say('table', `⚠ ${npc.name} winds up ${skill} at ${p.name} — Counter Clash!`);
       return;
     }
     const d20 = roll(20);
@@ -430,13 +439,13 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
     patch(npc.id, () => ({ turn_no: npc.turn_no + 1, last_action_at: iso(now), next_action_at: iso(now + GAP[foe.speed]) }));
     if (d20 !== 1 && (d20 === 20 || atk >= p.ac)) {
       const dmg = Math.max(1, Math.round(foe.damageAvg * (0.6 + Math.random() * 0.8)));
-      hurt(PR(), dmg, npc.name, 'npc_attack', `${npc.name} hits (${atk} vs AC ${p.ac}).`, d20, atk);
-      say('table', `${npc.name} hits — ${atk} vs your AC ${p.ac}, ${dmg} damage.`);
+      as(p, () => hurt(p.id, dmg, npc.name, 'npc_attack', `${npc.name} hits ${p.name} (${atk} vs AC ${p.ac}).`, d20, atk));
+      say('table', `${npc.name} hits ${p.name} — ${atk} vs AC ${p.ac}, ${dmg} damage.`);
     } else {
-      event({ kind: 'npc_attack', actor_name: npc.name, target_name: p.name, target_user_id: p.user_id, detail: `${npc.name} misses (${atk} vs AC ${p.ac}).`, d20, total: atk });
-      say('table', `${npc.name} swings — ${atk} vs your AC ${p.ac}, miss.`);
+      event({ kind: 'npc_attack', actor_name: npc.name, target_name: p.name, target_user_id: p.user_id, detail: `${npc.name} misses ${p.name} (${atk} vs AC ${p.ac}).`, d20, total: atk });
+      say('table', `${npc.name} swings at ${p.name} — ${atk} vs AC ${p.ac}, miss.`);
     }
-  }, [now, fight, fighters, foeAt, patch, hurt, event, say, speak, resume]);
+  }, [isMember, me, now, fight, fighters, foeAt, patch, hurt, event, say, speak, resume]);
 
   const myFighter = fighters.find((r) => r.user_id === me) ?? null;
   const isPausedNow = fight?.status === 'paused';
