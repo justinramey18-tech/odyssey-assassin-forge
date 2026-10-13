@@ -3,6 +3,7 @@ import { Swords, Infinity as InfinityIcon, Users, X, ShieldCheck, ArrowLeft, Tro
 import { toast } from 'sonner';
 import { takeArenaSnapshot, restoreArenaSnapshot } from '@/lib/arena/arenaSnapshot';
 import { ArenaPractice, OPPONENTS, emptyStats, type ArenaStats, type Opponent, type Foe } from './ArenaPractice';
+import { PartyArena } from './PartyArena';
 import { supabase } from '@/integrations/supabase/client';
 import { foeFromNpc } from '@/lib/arena/arenaFoe';
 import { getScopedItem, setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
@@ -26,7 +27,7 @@ function loadBests(): ArenaBests | null {
   try { return JSON.parse(getScopedItem(BESTS_KEY) ?? 'null'); } catch { return null; }
 }
 
-type View = 'menu' | 'opponents' | { opponent: Opponent; foe?: Foe } | 'scorecard';
+type View = 'menu' | 'opponents' | { opponent: Opponent; foe?: Foe } | 'scorecard' | 'party';
 
 export function ArenaScreen({ open, onClose }: ArenaScreenProps) {
   const [view, setView] = useState<View>('menu');
@@ -111,7 +112,7 @@ export function ArenaScreen({ open, onClose }: ArenaScreenProps) {
               <button
                 key={m.id}
                 type="button"
-                onClick={() => (m.id === 'solo' ? setView('opponents') : m.id === 'gauntlet' ? setView({ opponent: 'gauntlet' }) : toast('Party Arena is coming in a later step'))}
+                onClick={() => (m.id === 'solo' ? setView('opponents') : m.id === 'gauntlet' ? setView({ opponent: 'gauntlet' }) : (partyId ? setView('party') : toast('Join a party first to use Party Arena')))}
                 style={{ touchAction: 'manipulation' }}
                 className="flex min-h-[72px] w-full items-center gap-3 rounded-xl border border-border bg-card p-4 text-left active:scale-[0.98]"
               >
