@@ -325,9 +325,15 @@ export function useRoundChat(
           }
         }
       })
-      .subscribe();
-    return () => { active = false; supabase.removeChannel(channel); };
-  }, [partyId, userId, cacheKey, setMessages]);
+      .subscribe((status: string) => {
+        // Connected or reconnected: catch up on anything missed while the link was down.
+        if (active && status === 'SUBSCRIBED') void loadMessages();
+      });
+    // Back in the foreground: a read-only repair of the conversation.
+    const onVisible = () => { if (active && document.visibilityState === 'visible') void loadMessages(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { active = false; document.removeEventListener('visibilitychange', onVisible); supabase.removeChannel(channel); };
+  }, [partyId, userId, cacheKey, setMessages, loadMessages]);
 
   /**
    * Post a line and get its id back (null if it failed). `asNpc` posts it as that NPC
@@ -359,16 +365,21 @@ export function useRoundChat(
         in_character: asNpc ? true : inCharacter,
         round_id: round,
         ...(asNpc ? { npc_id: asNpc.npcId } : {}),
-      }).select('id').single();
+      }).select('*').single();
       if (error) {
         console.error('[round-chat] send failed:', error);
         return null;
       }
-      return (data?.id as string | undefined) ?? null;
+      const saved = data as RoundChatMessage | null;
+      // Show the saved line right away; Realtime may echo it later (deduped by id) or never.
+      if (saved?.id && scopeRef.current === cacheKey) {
+        setMessages(prev => (prev.some(m => m.id === saved.id) ? prev : orderTableLines([...prev, saved])));
+      }
+      return saved?.id ?? null;
     } finally {
       setSending(false);
     }
-  }, [partyId, userId, characterName]);
+  }, [partyId, userId, characterName, cacheKey, setMessages]);
 
   const sendMessage = useCallback(async (content: string, inCharacter: boolean): Promise<boolean> => {
     return (await postLine(content, inCharacter)) !== null;
