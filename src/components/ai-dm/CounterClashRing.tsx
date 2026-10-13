@@ -23,7 +23,8 @@ const SIDE_LABEL: Record<M.Side, string> = { left: '◀ LEFT', top: '▲ TOP', r
 export function ArtFx({ image, clip, className, style }: { image: string | null; clip?: string | null; className?: string; style?: React.CSSProperties }) {
   const playable = clipOrNull(clip ?? null);
   if (playable) {
-    return <video src={playable} autoPlay muted playsInline className={cn('pointer-events-none', className)} style={{ mixBlendMode: 'screen', ...style }} />;
+    // The still shows as the poster while the clip loads (or if it can't play).
+    return <video src={playable} poster={image ?? undefined} autoPlay muted playsInline className={cn('pointer-events-none', className)} style={{ mixBlendMode: 'screen', ...style }} />;
   }
   if (image) return <img src={image} alt="" draggable={false} className={cn('pointer-events-none select-none', className)} style={{ mixBlendMode: 'screen', ...style }} />;
   return null;
