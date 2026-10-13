@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { requestRoundChatRefresh } from '@/lib/round-chat-refresh';
 import { supabase } from '@/integrations/supabase/client';
-import { NPC_DEFAULT_MODEL, NPC_GUIDE_MAX, cleanNpcName, readableFunctionError, spellCastName } from '@/lib/live-npcs';
+import { NPC_DEFAULT_MODEL, NPC_GUIDE_MAX, cleanNpcName, readableFunctionError, spellCastName, sanitizeNpcSocialStats, quickBuildSocialStats, type NpcSocialStats } from '@/lib/live-npcs';
 
 export type NpcSpeed = 'trivial' | 'easy' | 'medium' | 'hard' | 'deadly';
 export type NpcSkillType = 'strike' | 'heavy' | 'sweep' | 'signature' | 'mend' | 'shield' | 'rally' | 'pin' | 'retreat';
@@ -27,7 +27,7 @@ export const NPC_SKILL_INFO: Record<NpcSkillType, { label: string; hint: string;
 // NPC Quick Build
 export type NpcBuildRole = 'talker' | 'minion' | 'fighter' | 'boss';
 export type NpcBuildDifficulty = 'easy' | 'medium' | 'hard' | 'deadly';
-export interface NpcBuildDraft { name: string; guide: string; secrets: string; wants: string; levers: string; hardLines: string; moodRange: string; grudgeStyle: string; attack: string; combatStats: NpcCombatStats | null }
+export interface NpcBuildDraft { name: string; guide: string; secrets: string; wants: string; levers: string; hardLines: string; moodRange: string; grudgeStyle: string; attack: string; combatStats: NpcCombatStats | null; socialStats?: NpcSocialStats }
 export interface NpcTemplate { id: string; name: string; data: NpcBuildDraft; updated_at: string }
 
 /** One NPC on the party's roster (Live NPCs, D-22). Everyone at the table can read these. */
@@ -52,6 +52,8 @@ export interface PartyNpc {
   combat_stats?: NpcCombatStats | null;
   /** Live NPC Combat: knocked out or killed in a fight. */
   combat_state?: 'ko' | 'dead' | null;
+  /** Persistent social opposition modifiers (always sanitized on the phone). */
+  social_stats: NpcSocialStats;
   created_at: string;
   updated_at: string;
 }
@@ -104,8 +106,9 @@ export interface NpcThinking {
   kind: 'answer' | 'regenerate' | 'spell' | 'roll' | 'banter';
 }
 
+// Every row passes through here, so old or odd social_stats can never crash the screen.
 const sortNpcs = (list: PartyNpc[]) =>
-  [...list].sort((a, b) => a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at));
+  list.map(n => ({ ...n, social_stats: sanitizeNpcSocialStats(n.social_stats) })).sort((a, b) => a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at));
 
 /** Plain words for a failed roster save. */
 function rosterError(error: { code?: string; message?: string } | null, name?: string): string {
@@ -231,7 +234,7 @@ export function usePartyNpcs(partyId: string | null) {
   // ── Host: the roster ──
 
   /** Changes one NPC row. Throws a plain-language Error when the save fails. */
-  const patchNpc = useCallback(async (id: string, patch: Partial<Pick<PartyNpc, 'name' | 'model' | 'portrait_url' | 'on_stage' | 'archived' | 'sort_order' | 'reacts_to_spells' | 'mood' | 'combat_stats'>>) => {
+  const patchNpc = useCallback(async (id: string, patch: Partial<Pick<PartyNpc, 'name' | 'model' | 'portrait_url' | 'on_stage' | 'archived' | 'sort_order' | 'reacts_to_spells' | 'mood' | 'combat_stats' | 'social_stats'>>) => {
     const before = npcsRef.current.find(n => n.id === id);
     if (before) setNpcs(prev => sortNpcs(prev.map(n => (n.id === id ? { ...n, ...patch } : n))));
     const { data, error } = await (supabase.from('party_npcs') as any)
@@ -320,6 +323,7 @@ export function usePartyNpcs(partyId: string | null) {
   /** v3, host: set an NPC's mood by hand (the NPC's next line starts from it). */
   const setMood = useCallback((id: string, mood: string) => patchNpc(id, { mood }), [patchNpc]);
   const setCombatStats = useCallback((id: string, stats: NpcCombatStats | null) => patchNpc(id, { combat_stats: stats }), [patchNpc]);
+  const setSocialStats = useCallback((id: string, stats: Partial<NpcSocialStats> | NpcSocialStats) => patchNpc(id, { social_stats: sanitizeNpcSocialStats(stats) }), [patchNpc]);
 
   // ── NPC Quick Build: drafts from the server, then a full NPC from a draft ──
   const buildNpcs = useCallback(async (input: { description: string; useScene: boolean; count: number; role: NpcBuildRole; difficulty: NpcBuildDifficulty; fight: boolean }): Promise<NpcBuildDraft[]> => {
@@ -328,7 +332,8 @@ export function usePartyNpcs(partyId: string | null) {
       const { message } = await readableFunctionError(error, 'The NPC builder could not answer. Try again.');
       throw new Error(message);
     }
-    return Array.isArray(data?.drafts) ? (data.drafts as NpcBuildDraft[]) : [];
+    const social = quickBuildSocialStats(input.role, input.difficulty);
+    return Array.isArray(data?.drafts) ? (data.drafts as NpcBuildDraft[]).map(d => ({ ...d, socialStats: { ...social } })) : [];
   }, [partyId]);
 
   const createFromDraft = useCallback(async (draft: NpcBuildDraft, opts: { onStage: boolean }): Promise<PartyNpc> => {
@@ -344,11 +349,14 @@ export function usePartyNpcs(partyId: string | null) {
     if (draft.combatStats) {
       try { await setCombatStats(npc.id, draft.combatStats); } catch { throw failed('the fight stats'); }
     }
+    if (draft.socialStats) {
+      try { await setSocialStats(npc.id, draft.socialStats); } catch { throw failed('the social stats'); }
+    }
     if (opts.onStage) {
       try { await setOnStage(npc.id, true); } catch { throw failed('putting it on stage'); }
     }
     return npc;
-  }, [addNpc, saveGuide, setCombatStats, setOnStage]);
+  }, [addNpc, saveGuide, setCombatStats, setSocialStats, setOnStage]);
 
   const templateUserId = async (): Promise<string> => {
     const { data } = await supabase.auth.getUser();
@@ -744,6 +752,7 @@ export function usePartyNpcs(partyId: string | null) {
     setReactsToSpells,
     setMood,
     setCombatStats,
+    setSocialStats,
     loadSeats,
     loadMemories,
     addMemory,

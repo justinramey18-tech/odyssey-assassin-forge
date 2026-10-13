@@ -554,3 +554,51 @@ export const NPC_MEMORY_KINDS: Array<{ id: 'event' | 'thread' | 'self'; label: s
   { id: 'thread', label: 'Unfinished' },
   { id: 'self', label: 'About itself' },
 ];
+
+
+// ── Live NPC social stats: persistent opposition modifiers ──
+
+export interface NpcSocialStats { wisdom: number; charisma: number; insight: number; deception: number; perception: number; wisdomSave: number }
+export const DEFAULT_NPC_SOCIAL_STATS: NpcSocialStats = Object.freeze({ wisdom: 0, charisma: 0, insight: 0, deception: 0, perception: 0, wisdomSave: 0 }) as NpcSocialStats;
+const SOCIAL_KEYS = ['wisdom', 'charisma', 'insight', 'deception', 'perception', 'wisdomSave'] as const;
+export const NPC_SOCIAL_MIN = -10;
+export const NPC_SOCIAL_MAX = 20;
+
+/** Any input → a full, safe stat set: rounded, clamped to -10..20, missing/invalid values = 0. */
+export function sanitizeNpcSocialStats(raw: unknown): NpcSocialStats {
+  const src = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  const out = { ...DEFAULT_NPC_SOCIAL_STATS };
+  for (const k of SOCIAL_KEYS) {
+    const n = Number(src[k]);
+    if (src[k] === null || src[k] === '' || !Number.isFinite(n)) continue;
+    out[k] = Math.min(NPC_SOCIAL_MAX, Math.max(NPC_SOCIAL_MIN, Math.round(n)));
+  }
+  return out;
+}
+
+export type LiveSocialSkill = 'persuasion' | 'deception' | 'insight' | 'intimidation';
+
+/** What the NPC rolls against a player's social skill, and its modifier. */
+export function npcSocialOpposition(stats: unknown, skill: LiveSocialSkill): { label: 'Insight' | 'Deception' | 'Wisdom Save'; modifier: number } {
+  const s = sanitizeNpcSocialStats(stats);
+  if (skill === 'insight') return { label: 'Deception', modifier: s.deception };
+  if (skill === 'intimidation') return { label: 'Wisdom Save', modifier: s.wisdomSave };
+  return { label: 'Insight', modifier: s.insight };
+}
+
+const ROLE_SOCIAL: Record<'talker' | 'minion' | 'fighter' | 'boss', NpcSocialStats> = {
+  talker: { wisdom: 2, charisma: 3, insight: 4, deception: 4, perception: 2, wisdomSave: 2 },
+  minion: { wisdom: 0, charisma: -1, insight: 0, deception: -1, perception: 1, wisdomSave: 0 },
+  fighter: { wisdom: 1, charisma: 0, insight: 1, deception: 0, perception: 2, wisdomSave: 2 },
+  boss: { wisdom: 3, charisma: 3, insight: 4, deception: 4, perception: 4, wisdomSave: 4 },
+};
+const DIFFICULTY_SOCIAL: Record<'easy' | 'medium' | 'hard' | 'deadly', number> = { easy: -1, medium: 0, hard: 1, deadly: 2 };
+
+/** Quick Build starting social stats from role and difficulty. */
+export function quickBuildSocialStats(role: string, difficulty: string): NpcSocialStats {
+  const base = ROLE_SOCIAL[role as keyof typeof ROLE_SOCIAL] ?? ROLE_SOCIAL.fighter;
+  const adj = DIFFICULTY_SOCIAL[difficulty as keyof typeof DIFFICULTY_SOCIAL] ?? 0;
+  const out = {} as Record<string, number>;
+  for (const k of SOCIAL_KEYS) out[k] = base[k] + adj;
+  return sanitizeNpcSocialStats(out);
+}
