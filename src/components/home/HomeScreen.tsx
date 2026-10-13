@@ -1543,7 +1543,7 @@ export function HomeScreen({
       )}
 
 
-      <ArenaScreen open={showArena} onClose={() => setShowArena(false)} />
+      <ArenaScreen open={showArena} onClose={() => setShowArena(false)} characterContext={drawerContext?.characterContext} />
 
       {/* Empyrean Campaign Screen */}
       <EmpyreanScreen
