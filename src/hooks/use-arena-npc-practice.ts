@@ -93,7 +93,7 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
   const gauntlet = mode === 'gauntlet';
   const [wave, setWave] = useState(1);
   const waveRef = useRef(wave); waveRef.current = wave;
-  const foes = useMemo(() => (gauntlet ? [gauntletFoe(wave)] : isMember ? remoteFoes : manyFoes && manyFoes.length ? manyFoes : oneFoe ? [oneFoe] : []).slice(0, 6), [gauntlet, wave, isMember, remoteFoes, manyFoes, oneFoe]);
+  const foes = useMemo(() => (gauntlet ? [gauntletFoe(wave) as Foe & { persona?: string }] : isMember ? remoteFoes : manyFoes && manyFoes.length ? manyFoes : oneFoe ? [oneFoe] : []).slice(0, 6), [gauntlet, wave, isMember, remoteFoes, manyFoes, oneFoe]);
   const foeAt = useCallback((rowId: string) => foes[Math.max(0, Number(rowId.slice(NPC_PREFIX.length)) || 0)] ?? foes[0], [foes]);
   const baseCombat = useNpcCombat({ partyId: null, currentUserId, isHost: true, sheetHp: null });
   const baseRoster = usePartyNpcs(null);
