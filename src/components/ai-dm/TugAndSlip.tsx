@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import * as M from '@/lib/combatMinigames';
 import { COMBAT_ART } from '@/lib/combatArt';
-import { ArtFx } from './CounterClashRing';
+import { ArtFx, MinigameStage } from './CounterClashRing';
 
 const FEEDBACK_MS = 700;
 
@@ -84,12 +84,10 @@ export function TugAndSlip({ npcName, pinnedUntil, struggle, serverTime, frozenA
   };
 
   const secsLeft = Math.max(0, Math.ceil((pinnedUntil - t) / 1000));
+  const title = `📌 ${npcName ? `${npcName} has you pinned!` : 'Pinned!'}`;
+  const timer = <span className="font-cinzel text-[22px] text-amber-100 tabular-nums">{frozenAt !== null ? '⏸' : `${secsLeft}s`}</span>;
   if (!local) {
-    return (
-      <div className="rounded-lg border border-amber-400/50 bg-amber-500/10 p-3 text-center text-[13px] text-amber-100">
-        📌 Pinned: {secsLeft}s
-      </div>
-    );
+    return <MinigameStage tone="pin" title={title} right={timer}><p className="text-center text-[15px] text-amber-100">Getting a grip…</p></MinigameStage>;
   }
   const p = M.struggleAt(local, t);
   const locked = t < local.lockUntil;
