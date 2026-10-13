@@ -9,6 +9,7 @@ import { useArenaRoundChat } from '@/hooks/use-arena-round-chat';
 import { useArenaPartyDm } from '@/hooks/use-arena-party-dm';
 import { useArenaNpcPractice } from '@/hooks/use-arena-npc-practice';
 import type { Foe } from './ArenaPractice';
+import type { SparringNet } from '@/lib/arena/sparringNet';
 
 type AutoSyncCallbacks = ComponentProps<typeof StandalonePartyDMScreen>['autoSyncCallbacks'];
 
@@ -28,9 +29,11 @@ interface Props {
   onManualLevelUp?: () => void;
   /** Opponent's real AI voice (default on). */
   aiVoice?: boolean;
+  /** Party Sparring link (host or member), when fighting together. */
+  net?: SparringNet | null;
 }
 
-export function ArenaPartyDMScreen({ characterContext, foe, foes, onBack, currentUserId, member, autoSyncCallbacks, currentXP, onManualLevelUp, aiVoice = true }: Props) {
+export function ArenaPartyDMScreen({ characterContext, foe, foes, onBack, currentUserId, member, autoSyncCallbacks, currentXP, onManualLevelUp, aiVoice = true, net = null }: Props) {
   const userId = currentUserId || LOCAL_ARENA_USER;
   const name = member?.character_name || characterContext.name || 'Player';
 
@@ -41,8 +44,33 @@ export function ArenaPartyDMScreen({ characterContext, foe, foes, onBack, curren
 
   const partyDm = useArenaPartyDm({ characterName: name, characterContext, userId });
   const roundId = partyDm.sessionConfig?.currentRoundId || 'arena-round';
-  const roundChat = useArenaRoundChat(userId, name, roundId);
-  const { combat, roster } = useArenaNpcPractice({ ctx: characterContext, foe, foes, currentUserId: userId, appendLine: roundChat.appendLine, aiVoice });
+  const localChat = useArenaRoundChat(userId, name, roundId);
+  // Fighting together: everyone's typed lines reach every phone.
+  const { appendLine } = localChat;
+  useEffect(() => {
+    if (!net) return;
+    return net.on('chat', (p) => {
+      if (typeof p.content !== 'string' || typeof p.userId !== 'string') return;
+      appendLine({ content: p.content.slice(0, 2000), characterName: String(p.characterName ?? 'Adventurer').slice(0, 60), inCharacter: p.inCharacter !== false, userId: p.userId });
+    });
+  }, [net, appendLine]);
+  const roundChat = useMemo(() => {
+    if (!net) return localChat;
+    const share = (content: string, inCharacter: boolean) => net.send('chat', { content, inCharacter, userId, characterName: name });
+    return {
+      ...localChat,
+      postLine: async (...a: Parameters<typeof localChat.postLine>) => { const id = await localChat.postLine(...a); if (id && !a[2]) share(a[0], a[1]); return id; },
+      sendMessage: async (...a: Parameters<typeof localChat.sendMessage>) => { const ok = await localChat.sendMessage(...a); if (ok) share(a[0], a[1]); return ok; },
+    };
+  }, [localChat, net, userId, name]);
+  const { combat, roster } = useArenaNpcPractice({ ctx: characterContext, foe, foes, currentUserId: userId, appendLine, aiVoice: aiVoice && net?.role !== 'member', net });
+
+  // Everyone in the ring shows up as a table member.
+  const ringMembers = useMemo(() => {
+    const others = combat.fighters.filter((f) => f.kind === 'player' && f.user_id && f.user_id !== userId)
+      .map((f) => ({ user_id: f.user_id as string, character_name: f.name, character_status: { hp: f.hp, maxHp: f.max_hp }, updated_at: f.updated_at }));
+    return [...members, ...others];
+  }, [combat.fighters, members, userId]);
 
   // Keep the session in fight mode so the real fight bar is there from the start.
   const forced = useRef(false);
@@ -60,11 +88,11 @@ export function ArenaPartyDMScreen({ characterContext, foe, foes, onBack, curren
       onBack={onBack}
       partyId={null}
       partyDm={partyDm}
-      isCreator
-      isOriginalCreator
+      isCreator={net?.role !== 'member'}
+      isOriginalCreator={net?.role !== 'member'}
       currentUserId={userId}
-      memberCount={1}
-      members={members}
+      memberCount={ringMembers.length}
+      members={ringMembers}
       characterContext={characterContext}
       currentXP={currentXP}
       onManualLevelUp={onManualLevelUp}
