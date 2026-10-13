@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 
 export interface ArenaBoss { name: string; hp: number; maxHp: number; ac: number }
 export interface ArenaMemberScore { name: string; damage: number; hits: number }
@@ -64,7 +65,7 @@ export async function updateArenaRoom(roomId: string, mutate: (state: ArenaRoomS
   if (!row) return null;
   const state = parseState(row.state, ARENA_BOSSES[0]);
   mutate(state);
-  const { error } = await supabase.from('arena_rooms').update({ state, updated_at: new Date().toISOString() }).eq('id', roomId);
+  const { error } = await supabase.from('arena_rooms').update({ state: state as unknown as Json, updated_at: new Date().toISOString() }).eq('id', roomId);
   return error ? null : state;
 }
 
