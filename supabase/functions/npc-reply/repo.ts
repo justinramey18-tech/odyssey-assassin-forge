@@ -34,6 +34,24 @@ export interface NpcRow {
   on_stage_since?: string | null;
   /** Set when this NPC is an away player's character (a stand-in). */
   player_user_id?: string | null;
+  /** Persistent social opposition modifiers (may be missing or malformed on old rows). */
+  social_stats?: unknown;
+}
+
+export interface NpcSocialStats { wisdom: number; charisma: number; insight: number; deception: number; perception: number; wisdomSave: number }
+const SOCIAL_STAT_KEYS = ['wisdom', 'charisma', 'insight', 'deception', 'perception', 'wisdomSave'] as const;
+
+/** Any stored value → six whole-number modifiers, clamped -10..20; missing or bad values are 0. */
+export function normalizeSocialStats(raw: unknown): NpcSocialStats {
+  const src = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  const out: NpcSocialStats = { wisdom: 0, charisma: 0, insight: 0, deception: 0, perception: 0, wisdomSave: 0 };
+  for (const k of SOCIAL_STAT_KEYS) {
+    const v = src[k];
+    const n = Number(v);
+    if (v === null || v === '' || typeof v === 'boolean' || !Number.isFinite(n)) continue;
+    out[k] = Math.min(20, Math.max(-10, Math.round(n)));
+  }
+  return out;
 }
 
 /** The host's guide for one NPC (v3 adds the structured fields). */
@@ -149,7 +167,7 @@ export interface NpcRepo {
 export const STALE_CLAIM_MS = 120_000;
 
 const LINE_COLUMNS = 'id, party_id, user_id, character_name, content, in_character, round_id, consumed, selected, created_at, npc_id';
-const NPC_COLUMNS = 'id, party_id, name, model, on_stage, archived, reacts_to_spells, mood, on_stage_since, player_user_id, combat_state';
+const NPC_COLUMNS = 'id, party_id, name, model, on_stage, archived, reacts_to_spells, mood, on_stage_since, player_user_id, combat_state, social_stats';
 const GUIDE_COLUMNS = 'guide, secrets, wants, levers, hard_lines, mood_range, grudge_style';
 
 // deno-lint-ignore no-explicit-any
