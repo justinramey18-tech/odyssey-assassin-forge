@@ -210,4 +210,20 @@ describe('Live Table with NPC lines', () => {
     await act(async () => { rt.status?.('SUBSCRIBED'); await Promise.resolve(); });
     await waitFor(() => expect(calls.filter(c => c.table === 'party_round_chat' && c.op === 'select').length).toBeGreaterThan(before));
   });
+
+  it('an NPC-reply refresh request for this party re-reads the chat and shows the new NPC line once', async () => {
+    const { result } = await render();
+    table = [...table, line('aaaaaaaa-0000-4000-8000-000000000005', { user_id: HOST, character_name: 'Grukk', npc_id: 'npc-grukk', content: 'Fine.' })];
+    await act(async () => { window.dispatchEvent(new CustomEvent('odyssey-round-chat-refresh', { detail: { partyId: 'party' } })); });
+    await waitFor(() => expect(result.current.messages).toHaveLength(5));
+    await act(async () => { window.dispatchEvent(new CustomEvent('odyssey-round-chat-refresh', { detail: { partyId: 'party' } })); });
+    await waitFor(() => expect(result.current.messages.filter(m => m.content === 'Fine.')).toHaveLength(1));
+  });
+
+  it('ignores refresh requests for another party', async () => {
+    await render();
+    const before = calls.filter(c => c.table === 'party_round_chat' && c.op === 'select').length;
+    await act(async () => { window.dispatchEvent(new CustomEvent('odyssey-round-chat-refresh', { detail: { partyId: 'other' } })); });
+    expect(calls.filter(c => c.table === 'party_round_chat' && c.op === 'select').length).toBe(before);
+  });
 });

@@ -1,6 +1,7 @@
 import { pickWakes, STAND_IN_IDLE_MS } from '@/lib/stand-in-triggers';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { requestRoundChatRefresh } from '@/lib/round-chat-refresh';
 import { supabase } from '@/integrations/supabase/client';
 import { NPC_DEFAULT_MODEL, NPC_GUIDE_MAX, cleanNpcName, readableFunctionError, spellCastName } from '@/lib/live-npcs';
 
@@ -124,6 +125,7 @@ const REMOTE_THINKING_MS = 90_000;
  * secrets are read only by the host here and by the server; players never load them.
  */
 export function usePartyNpcs(partyId: string | null) {
+  const partyIdRef = useRef(partyId); partyIdRef.current = partyId;
   const [npcs, setNpcs] = useState<PartyNpc[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [localThinking, setLocalThinking] = useState<NpcThinking[]>([]);
@@ -545,7 +547,7 @@ export function usePartyNpcs(partyId: string | null) {
     startThinking({ key, npcId, name, messageId, kind });
     try {
       const { error } = await supabase.functions.invoke('npc-reply', { body: { messageId, npcId } });
-      if (!error) return true;
+      if (!error) { requestRoundChatRefresh(partyIdRef.current); return true; }
       const { message, status } = await readableFunctionError(error, `${name} couldn't answer. Check your connection and try again.`);
       if (silent) { console.warn('[npcs] auto wake skipped:', message); return false; }
       if (status === 409 || status === 403 || status === 404) {
@@ -626,7 +628,7 @@ export function usePartyNpcs(partyId: string | null) {
     startThinking({ key, npcId: npcId || '', name, messageId: replyMessageId, kind: 'regenerate' });
     try {
       const { error } = await supabase.functions.invoke('npc-reply', { body: { action: 'regenerate', replyMessageId } });
-      if (!error) return true;
+      if (!error) { requestRoundChatRefresh(partyIdRef.current); return true; }
       const { message } = await readableFunctionError(error, `${name} couldn't answer again. The old line was kept.`);
       toast.error(message, { duration: 12000 });
       return false;
@@ -655,6 +657,7 @@ export function usePartyNpcs(partyId: string | null) {
         else toast.error(message, { duration: 12000 });
         return;
       }
+      requestRoundChatRefresh(partyIdRef.current);
       const failed = (data?.failed || []) as Array<{ npc: string }>;
       if (failed.length) toast.info(`${failed.map(f => f.npc).join(' and ')} couldn't react to the spell.`, { duration: 8000 });
     } finally {
@@ -680,6 +683,7 @@ export function usePartyNpcs(partyId: string | null) {
         toast.error(message, { duration: 12000 });
         return false;
       }
+      requestRoundChatRefresh(partyId);
       if (data?.stopped) toast.info(String(data.stopped), { duration: 8000 });
       return true;
     } finally {
