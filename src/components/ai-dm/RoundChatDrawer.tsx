@@ -4,6 +4,9 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronDown, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft, Stamp, RefreshCw, Drama, Dices } from 'lucide-react';
 import { AvatarCropDialog } from './AvatarCropDialog';
 import { NpcPortrait } from './NpcPortrait';
+import { NpcSocialCheckToolbar } from './NpcSocialCheckToolbar';
+import type { SocialCheckResult } from '@/lib/npcSocialChecks';
+import type { CharacterContext } from '@/components/oracle/types';
 import { attitudeLevel, keepNpcRoll, npcMoodOf, npcsToAsk, parseNpcRoll, rollButtonLabel, type NpcRollRequest } from '@/lib/live-npcs';
 
 import { Textarea } from '@/components/ui/textarea';
@@ -206,7 +209,11 @@ interface RoundChatDrawerProps {
 
   // ── Live NPCs (D-22) ──
   /** Every NPC on the party's roster (archived ones too, so their old lines keep a face). */
-  npcs?: Array<{ id: string; name: string; portrait_url: string | null; on_stage: boolean; archived: boolean }>;
+  npcs?: Array<{ id: string; name: string; portrait_url: string | null; on_stage: boolean; archived: boolean; social_stats?: import('@/lib/live-npcs').NpcSocialStats }>;
+  /** Live social rolls: this player's character (for their skill modifiers). */
+  characterContext?: CharacterContext;
+  /** Live social rolls: post the line with its resolved roll and let that one NPC answer. Resolve false if the line was not posted. */
+  onNpcSocialCheck?: (content: string, npcId: string, result: SocialCheckResult) => Promise<boolean>;
   /** NPC answers in progress, shown as "Grukk is thinking…". */
   npcThinking?: Array<{ key: string; npcId: string; name: string; messageId: string; kind: 'answer' | 'regenerate' | 'spell' | 'roll' | 'banter' }>;
   /** Post an in-character line and ask these on-stage NPCs to answer it. Resolve false if the line was not posted. */
@@ -355,6 +362,8 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   npcs,
   npcThinking,
   onSendToNpcs,
+  characterContext,
+  onNpcSocialCheck,
   onSpeakAsNpc,
   onRegenerateNpcLine,
   canManageNpcs = false,
@@ -728,9 +737,50 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
     ? npcsToAsk({ text, onStage: stageNpcs, chosenIds: talkTo, replyToNpcId: replyTo?.npc_id ?? null })
     : [];
 
+  // ── Live social rolls: exactly one NPC target (same precedence as npcsAnswering) ──
+  const socialTarget = !speakingAs && inCharacter && characterContext && onNpcSocialCheck
+    ? (() => {
+      const targets = npcsToAsk({ text, onStage: stageNpcs, chosenIds: talkTo, replyToNpcId: replyTo?.npc_id ?? null });
+      return targets.length === 1 ? targets[0] : null;
+    })()
+    : null;
+  const [socialBusy, setSocialBusy] = useState(false);
+  const socialSnapRef = useRef<{ text: string; replyTo: RoundChatMessage | null; npcId: string } | null>(null);
+
+  const startSocialCheck = () => {
+    if (!socialTarget || socialBusy || !text.trim()) return;
+    socialSnapRef.current = { text, replyTo, npcId: socialTarget.id };
+    setSocialBusy(true);
+  };
+
+  const finishSocialCheck = async (result: SocialCheckResult) => {
+    const snap = socialSnapRef.current;
+    socialSnapRef.current = null;
+    if (!snap || !onNpcSocialCheck) { setSocialBusy(false); return; }
+    const stored = formatReply(snap.replyTo?.id ?? null, snap.text.trim());
+    let posted = false;
+    try {
+      posted = await onNpcSocialCheck(stored, snap.npcId, result);
+    } catch {
+      posted = false;
+    } finally {
+      setSocialBusy(false);
+    }
+    if (!posted) {
+      setText(snap.text);
+      setReplyTo(snap.replyTo);
+      return;
+    }
+    setText(prev => (prev === snap.text ? '' : prev));
+    setReplyTo(null);
+    pinnedRef.current = true;
+    setPinned(true);
+    requestAnimationFrame(() => scrollToLatest('smooth'));
+  };
+
   const handleSend = async () => {
     const trimmed = text.trim();
-    if (!trimmed || sending) return;
+    if (!trimmed || sending || socialBusy) return;
     const stored = formatReply(replyTo?.id ?? null, trimmed);
     const asking = npcsAnswering.map(n => n.id);
     const draftText = text;
@@ -1871,6 +1921,19 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                   </div>
                 )}
 
+                {socialTarget && characterContext && (
+                  <NpcSocialCheckToolbar
+                    visible
+                    npcName={socialTarget.name}
+                    npcSocialStats={socialTarget.social_stats ?? null}
+                    ready={!!text.trim()}
+                    characterContext={characterContext}
+                    disabled={sending || socialBusy}
+                    onSkillTap={startSocialCheck}
+                    onResolved={(r) => { void finishSocialCheck(r); }}
+                  />
+                )}
+
                 {replyTo && (
                   <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-amber-500/25 bg-amber-500/5">
                     <Reply className="w-3.5 h-3.5 shrink-0 text-amber-300/70" />
@@ -1900,6 +1963,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                   >
                     <Textarea
                       value={text}
+                      readOnly={socialBusy}
                       onChange={(e) => setText(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
@@ -1950,7 +2014,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                   )}
                   <button
                     onClick={handleSend}
-                    disabled={!text.trim() || sending}
+                    disabled={!text.trim() || sending || socialBusy}
                     className="relative shrink-0 w-11 h-11 active:scale-95 transition-transform disabled:opacity-40"
                     style={{ touchAction: 'manipulation' }}
                     aria-label="Send round chat message"

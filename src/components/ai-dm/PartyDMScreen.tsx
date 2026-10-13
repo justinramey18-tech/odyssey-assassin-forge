@@ -104,6 +104,7 @@ import { resolveOddsForContext } from '@/lib/diceOdds';
 import { buildRollAnswer, rollModifier, spellCastName, type NpcRollRequest, type RollSheet } from '@/lib/live-npcs';
 import { STORY_SCENE_SENDER, rowsCoveredByScenes } from '@/lib/story-scene';
 import { resolveWhisperAutoRoll, performWhisperRoll } from '@/lib/whisperAutoRoll';
+import type { SocialCheckResult } from '@/lib/npcSocialChecks';
 import { actionCardFromRoll, encodeActionCard, parseActionCard, stripActionCard, type ActionCard } from '@/lib/roundChatActionCard';
 import { getHealingDiceForItem } from '@/lib/consumables/healing';
 import { rollHealing } from '@/lib/promptAutoRoll';
@@ -2392,6 +2393,26 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
   const npcRosterRef = useRef(npcRoster);
   npcRosterRef.current = npcRoster;
 
+  /** Live social roll: post the player's words once with a compact check card, then let that one NPC answer. */
+  const sendSocialToNpc = useCallback(async (content: string, npcId: string, result: SocialCheckResult): Promise<boolean> => {
+    const npcName = npcRosterRef.current.npcs.find(n => n.id === npcId)?.name || 'the NPC';
+    const card: ActionCard = {
+      action: result.skillLabel,
+      kind: 'check',
+      d20: result.playerRoll.die,
+      outcome: `${result.playerRoll.total} vs ${result.npcRoll.total} · ${result.outcome}`,
+      note: `vs ${npcName} ${result.opposingSkillLabel}`,
+    };
+    const id = await roundChatRef.current.postLine(encodeActionCard(card, content), true);
+    if (!id) {
+      toast.error("Couldn't post to the table", { description: 'Your line is back in the box. Try again.' });
+      return false;
+    }
+    // The line is posted: from here, failures are retried by the NPC tools with the SAME roll.
+    void npcRosterRef.current.resolveSocialCheck(id, npcId, result);
+    return true;
+  }, []);
+
   const sendLineToNpcs = useCallback(async (content: string, npcIds: string[]): Promise<boolean> => {
     const id = await roundChatRef.current.postLine(content, true);
     if (!id) {
@@ -4139,6 +4160,8 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
           npcs={npcRoster.npcs}
           npcThinking={npcRoster.thinking}
           onSendToNpcs={sendLineToNpcs}
+          characterContext={characterContext}
+          onNpcSocialCheck={sendSocialToNpc}
           onSpeakAsNpc={originalCreator ? speakAsNpc : undefined}
           onRegenerateNpcLine={originalCreator ? npcRoster.regenerateLine : undefined}
           canManageNpcs={originalCreator}
