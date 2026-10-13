@@ -26,6 +26,9 @@ import {
   npcModelChoices,
   npcModelLabel,
   npcNameProblem,
+  DEFAULT_NPC_SOCIAL_STATS,
+  sanitizeNpcSocialStats,
+  type NpcSocialStats,
 } from '@/lib/live-npcs';
 import { DM_MODELS } from '@/lib/dm-models';
 
@@ -51,6 +54,46 @@ interface Draft {
   hardLines: string;
   moodRange: string;
   grudgeStyle: string;
+  socialStats: NpcSocialStats;
+}
+
+const SOCIAL_FIELDS: { key: keyof NpcSocialStats; label: string }[] = [
+  { key: 'wisdom', label: 'Wisdom' },
+  { key: 'charisma', label: 'Charisma' },
+  { key: 'insight', label: 'Insight' },
+  { key: 'deception', label: 'Deception' },
+  { key: 'perception', label: 'Perception' },
+  { key: 'wisdomSave', label: 'Wisdom Save' },
+];
+const signed = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
+
+/** One whole-number modifier box, clamped -10..+20 as it changes and when you leave it. */
+function SocialModInput({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
+  const [text, setText] = useState(signed(value));
+  useEffect(() => { setText(prev => (Number(prev) === value ? prev : signed(value))); }, [value]);
+  const commit = (raw: string) => {
+    const n = sanitizeNpcSocialStats({ wisdom: parseInt(raw, 10) }).wisdom;
+    onChange(n);
+    return n;
+  };
+  return (
+    <label className="block space-y-1">
+      <span className="text-[12px] text-white/60">{label}</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={text}
+        onChange={(e) => {
+          const raw = e.target.value.replace(/[^0-9+-]/g, '').slice(0, 4);
+          setText(raw);
+          if (/^[+-]?\d+$/.test(raw)) commit(raw);
+        }}
+        onBlur={() => setText(signed(commit(text)))}
+        className="w-full min-h-[44px] rounded-lg border border-white/15 bg-black/30 px-3 text-center text-base font-semibold text-white focus:outline-none focus:border-amber-400/60"
+        style={{ touchAction: 'manipulation' }}
+      />
+    </label>
+  );
 }
 
 /** v3: the guide fields shown in the editor. */
@@ -146,9 +189,12 @@ export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBatt
         if (fields.wants.trim() || fields.levers.trim() || fields.hardLines.trim() || fields.moodRange.trim() || fields.grudgeStyle !== 'normal') {
           await roster.saveGuide(npc.id, draft.guide, draft.secrets, fields);
         }
+        await roster.setSocialStats(npc.id, draft.socialStats);
         toast.success(`${npc.name} joined the roster. Turn on "On stage" when they enter the scene.`);
       } else {
         await roster.updateNpc(draft.id, { name: draft.name, model: draft.model, portrait_url: draft.portraitUrl });
+        // Social stats are roster data, so they save even when the guide did not load.
+        await roster.setSocialStats(draft.id, draft.socialStats);
         // A guide that failed to load is never saved, so it can't be wiped by accident.
         if (guideState === 'ready') {
           await roster.saveGuide(draft.id, draft.guide, draft.secrets, {
@@ -392,6 +438,25 @@ export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBatt
                   </div>
                 </>
               )}
+
+              {/* Social rolls: what this NPC rolls against players' social checks. */}
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
+                <p className="text-[12px] text-white/60">Social rolls</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {SOCIAL_FIELDS.map(fd => (
+                    <SocialModInput
+                      key={fd.key}
+                      label={fd.label}
+                      value={draft.socialStats[fd.key]}
+                      onChange={(n) => setDraft(prev => (prev ? { ...prev, socialStats: { ...prev.socialStats, [fd.key]: n } } : prev))}
+                    />
+                  ))}
+                </div>
+                <p className="text-[11px] leading-snug text-white/40">
+                  Persuasion and Deception oppose Insight. Insight opposes Deception. Intimidation opposes Wisdom Save.
+                  Perception, Wisdom and Charisma are stored for future NPC checks.
+                </p>
+              </div>
 
               <div className="flex gap-2 pt-1 pb-4">
                 <button
