@@ -155,6 +155,13 @@
       "when": 1791908050673,
       "tag": "0021_duel_1_of_4",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791920240305,
+      "tag": "0022_party_arena_rooms",
+      "breakpoints": true
     }
   ]
 }

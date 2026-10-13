@@ -74,6 +74,41 @@ export type Database = {
         }
         Relationships: []
       }
+      arena_rooms: {
+        Row: {
+          created_at: string
+          host_user_id: string
+          id: string
+          party_id: string
+          state: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          host_user_id: string
+          id?: string
+          party_id: string
+          state?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          host_user_id?: string
+          id?: string
+          party_id?: string
+          state?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arena_rooms_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: true
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_analytics: {
         Row: {
           created_at: string
