@@ -10,6 +10,7 @@
 // POST { action: "stabilize", fightId, targetId }                    Medicine DC 10 on a downed ally
 // POST { action: "huddle", fightId }                                  freeze the fight 20 s to plan (once per player per fight)
 // POST { action: "clash", fightId, npcId, side, tapAt }               Counter Clash: one tap on the ring against a big NPC move (free)
+// POST { action: "heave", fightId, tapAt }                            Tug & Slip: one tap on Heave while pinned (free)
 // POST { action: "give_potion", fightId, targetId, itemName }         pour one of my healing potions into an ally
 // POST { action: "ping", fightId }                                   "I'm here"; also runs the clock
 // POST { action: "warm" }                                             wake the function up (no work); returns serverNow
@@ -859,9 +860,27 @@ async function resolveSkill(
     const t = byId.get(p.targets[0]);
     const target = t && isPresent(t, now) ? t : present[0];
     if (!target) return;
-    await mutate(db, target.id, f => (f.status !== 'up' ? null : { pinned_until: iso(now + S.PIN_MS) }));
-    await addEvent(db, fight, { kind: 'pin', actor_name: npc.name, target_name: target.name, target_user_id: target.user_id, detail: `${sk.name}: pinned ${S.PIN_MS / 1000}s` });
-    await line(`${npc.name}'s ${sk.name} pins ${target.name} down for ${S.PIN_MS / 1000} seconds!`);
+    // Pins don't stack: a player already pinned stays on their current struggle.
+    if (isPinned(target, now)) {
+      await line(`${npc.name}'s ${sk.name} can't get a grip: ${target.name} is already pinned.`);
+      return;
+    }
+    // Counter Clash on a Pin (only for the player it was aimed at): perfect slips it and counters; a block gives a head start.
+    const chain = M.cleanClash(p.clash);
+    const c = chain && target.id === p.targets[0] ? await settleClash(db, target, chain) : null;
+    if (chain && c?.perfect) {
+      const dealt = await landCounter(db, fight, hostId, npc, target, chain.move, c.riposte, now);
+      await staggerNpc(db, npc.id, now, interval);
+      await addEvent(db, fight, { kind: 'pin', actor_name: npc.name, target_name: target.name, target_user_id: target.user_id, detail: `${sk.name}: slipped with a perfect clash` });
+      await line(`${target.name} slips ${npc.name}'s ${sk.name} with a perfect clash and counters for ${dealt}${c.riposte ? ' (RIPOSTE!)' : ''}. ${npc.name} staggers!`);
+      return;
+    }
+    const blocked = !!c && c.scale < 1;
+    // Tug & Slip: the struggle starts now, from a random seed both the phone and this referee replay.
+    const struggle = M.newStruggle(crypto.getRandomValues(new Uint32Array(1))[0], now, blocked ? M.BLOCKED_PIN_KNOT : M.TUG.startKnot);
+    await mutate(db, target.id, f => (f.status !== 'up' ? null : { pinned_until: iso(now + S.PIN_MS), minigame: { ...(f.minigame ?? {}), struggle } }));
+    await addEvent(db, fight, { kind: 'pin', actor_name: npc.name, target_name: target.name, target_user_id: target.user_id, detail: `${sk.name}: pinned ${S.PIN_MS / 1000}s${blocked ? ' (half-blocked: head start)' : ''}` });
+    await line(`${npc.name}'s ${sk.name} pins ${target.name} down for ${S.PIN_MS / 1000} seconds!${blocked ? ` ${target.name} half-blocks it and gets a hand free.` : ''}`);
     return;
   }
 
@@ -1066,7 +1085,12 @@ async function resumeFight(db: Db, fight: Fight, hostId: string, now: number): P
         if (x.ward_until) patch.ward_until = R.shiftIso(x.ward_until, by);
         if (x.cooldowns) patch.cooldowns = S.shiftCooldowns(S.cleanCooldowns(x.cooldowns), by);
       } else {
-        if (x.pinned_until) patch.pinned_until = R.shiftIso(x.pinned_until, by);
+        if (x.pinned_until) {
+          patch.pinned_until = R.shiftIso(x.pinned_until, by);
+          // Tug & Slip: the needle, the gap and the enemy's pull stand still during the pause too.
+          const struggle = M.cleanStruggle((x.minigame ?? {}).struggle);
+          if (struggle) patch.minigame = { ...(x.minigame ?? {}), struggle: M.shiftStruggle(struggle, by) };
+        }
         if (x.resolve_at) patch.resolve_at = R.shiftIso(x.resolve_at, by);
         if (x.last_action_at) patch.last_action_at = R.shiftIso(x.last_action_at, by);
         if (x.status === 'down' && x.next_save_at) patch.next_save_at = R.shiftIso(x.next_save_at, by, now + 5000);
@@ -1344,6 +1368,32 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     }, me);
     const j = judged as { index: number; q: M.ClashQ } | null;
     return saved && j ? { ok: true, index: j.index, quality: j.q } : { ok: false };
+  }
+
+  if (action === 'heave') {
+    // Tug & Slip: one tap on Heave while pinned, judged against the replayed needle and gap. Free: a pinned player can't act anyway.
+    if (fight.status !== 'active') refuse(409, 'The fight is not running.');
+    if (!me || me.status !== 'up') return refuse(409, 'You are down.');
+    if (!isPinned(me, now)) return { ok: true, free: true };
+    const tapRaw = Number(body.tapAt);
+    const tapAt = Number.isFinite(tapRaw) && tapRaw <= now && tapRaw >= now - 1500 ? tapRaw : now;
+    let out: ReturnType<typeof M.heave> = null;
+    const saved = await mutate(db, me.id, f => {
+      out = null;
+      const s = M.cleanStruggle((f.minigame ?? {}).struggle);
+      if (!s || !isPinned(f, now)) return null;
+      out = M.heave(s, tapAt);
+      if (!out) return null;
+      return { minigame: { ...(f.minigame ?? {}), struggle: out.state }, ...(out.free ? { pinned_until: null } : {}) };
+    }, me);
+    const o = out as ReturnType<typeof M.heave>;
+    // Not counted (during the lockout, or older than the last tap): send back the struggle as it stands.
+    if (!saved || !o) return { ok: false, struggle: M.cleanStruggle((me.minigame ?? {}).struggle) };
+    if (o.free) {
+      await addEvent(db, fight, { kind: 'pin', actor_name: me.name, target_name: me.name, target_user_id: me.user_id, detail: 'Broke free!' });
+      await postLine(db, fight.party_id, hostId, `${me.name} wrenches free of the pin!`);
+    }
+    return { ok: true, outcome: o.outcome, amount: o.amount, free: o.free, struggle: o.state };
   }
 
   if (action === 'attack') {
