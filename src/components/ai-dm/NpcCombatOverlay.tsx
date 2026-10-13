@@ -14,9 +14,11 @@ import {
 import { NpcPortrait } from './NpcPortrait';
 import { CombatBurst, CounterClashRing } from './CounterClashRing';
 import { TugAndSlip } from './TugAndSlip';
+import { DuelWheel, type DuelVerdict } from './DuelWheel';
 import * as M from '@/lib/combatMinigames';
+import * as DU from '@/lib/combatDuel';
 import { preloadCombatArt } from '@/lib/combatArt';
-import { resolveOf, type FighterRow, type FightEventRow, type NpcCombatApi } from '@/hooks/use-npc-combat';
+import { duelChargeOf, resolveOf, type FighterRow, type FightEventRow, type NpcCombatApi } from '@/hooks/use-npc-combat';
 import { NPC_SKILL_INFO, type NpcSkillType, type PartyNpc, type PartyNpcsApi } from '@/hooks/use-party-npcs';
 import type { ActionCard } from '@/lib/roundChatActionCard';
 
@@ -140,7 +142,7 @@ const PERK_LABELS: Record<string, string> = {
 };
 
 // Every event kind (including second_wind, potion and last_stand) shows its detail text.
-const SKILL_EVENT_ICON: Record<string, string> = { intent: '⚠', mend: '✚', shield: '🛡', rally: '📯', pin: '📌', retreat: '🏃', huddle: '🤝', scale: '⚔' };
+const SKILL_EVENT_ICON: Record<string, string> = { intent: '⚠', mend: '✚', shield: '🛡', rally: '📯', pin: '📌', retreat: '🏃', huddle: '🤝', scale: '⚔', duel: '🤺' };
 function eventLine(e: FightEventRow): string {
   const icon = SKILL_EVENT_ICON[e.kind];
   if (icon) {
@@ -170,6 +172,17 @@ function incomingHint(type: string, npcName: string, clash: boolean): string {
   if (type === 'pin') return `A pin holds you until you break free. Hit ${npcName} to push it back.${ring}`;
   return `Hit ${npcName} to push it back.${ring}`;
 }
+/** v7 Duel: the duel stored on a player's fighter row (minigame.duel), or null. */
+function duelOfRow(f: FighterRow | null | undefined): DU.Duel | null {
+  return DU.cleanDuel(((f as unknown as { minigame?: Record<string, unknown> | null } | null | undefined)?.minigame ?? {}).duel);
+}
+/** Average roll of a damage text like "2d8+4" (0 when it can't be read). */
+function diceAverage(text: unknown): number {
+  const m = typeof text === 'string' ? /(\d+)\s*d\s*(\d+)\s*([+-]\s*\d+)?/i.exec(text) : null;
+  if (!m) return 0;
+  return (Number(m[1]) * (Number(m[2]) + 1)) / 2 + (m[3] ? Number(m[3].replace(/\s/g, '')) : 0);
+}
+
 function timeOf(v: unknown): number {
   const t = typeof v === 'string' ? Date.parse(v) : NaN;
   return Number.isFinite(t) ? t : NaN;
@@ -209,6 +222,8 @@ type Step =
   | { kind: 'huddle-confirm' }
   | { kind: 'cast-first' }
   | { kind: 'cast-first-finish'; target: FighterRow }
+  | { kind: 'duel-target' }
+  | { kind: 'duel-confirm'; target: FighterRow }
   | null;
 
 export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHost, onUseConsumableByName, pendingCast, onPendingCastDone, onOpenSpells, preTarget, onClearPreTarget }: Props) {
@@ -236,6 +251,25 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
     const t = setTimeout(() => setBurst(null), 1400);
     return () => clearTimeout(t);
   }, [burst]);
+  // v7 Duel: the duel on screen (kept until its result is closed), the last one closed, and the Combat assist pick.
+  const [liveDuel, setLiveDuel] = useState<DU.Duel | null>(null);
+  const [closedDuel, setClosedDuel] = useState<string | null>(null);
+  const [duelFeel, setDuelFeel] = useState<DU.DuelFeel>(() => {
+    try {
+      const v = localStorage.getItem('duel-feel');
+      return DU.isDuelFeel(v) ? v : 'standard';
+    } catch { return 'standard'; }
+  });
+  const pickFeel = (f: DU.DuelFeel) => {
+    setDuelFeel(f);
+    try { localStorage.setItem('duel-feel', f); } catch { /* storage blocked */ }
+  };
+  // A duel on my row that this phone didn't start (another tab, or a reload mid-duel) opens too.
+  const rowDuel = duelOfRow(myFighter);
+  useEffect(() => {
+    if (rowDuel && rowDuel.id !== closedDuel && liveDuel?.id !== rowDuel.id && !liveDuel) setLiveDuel(rowDuel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowDuel?.id]);
   // Countdowns run on the server's clock (combat.clockOffset), so they reach zero when the server acts.
   const [now, setNow] = useState(() => Date.now() + combat.clockOffset);
 
@@ -727,6 +761,64 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
         <button style={tap} className={cn(btnPlain, 'w-full')} onClick={close}>Not now</button>
       </div>
     );
+  } else if (step?.kind === 'duel-target') {
+    // v7 Duel: pick the NPC to duel (not one already dueling someone else).
+    title = 'Duel who?';
+    const taken = new Set(playerFighters.filter(f => f.id !== myFighter?.id).map(f => duelOfRow(f)?.npcId).filter(Boolean));
+    const free = npcUp.filter(f => !taken.has(f.id));
+    body = (
+      <div className="space-y-2">
+        {free.length === 0 && <p className="text-[13px] text-white/50">Every enemy is already in a duel.</p>}
+        {free.map(f => fighterButton(f, () => { setFinish('knockout'); setStep({ kind: 'duel-confirm', target: f }); }))}
+      </div>
+    );
+  } else if (step?.kind === 'duel-confirm') {
+    // v7 Duel: what this duel will be like. Both fighters' stats set it; the server works it out again when it starts.
+    const t = fighters.find(f => f.id === step.target.id) ?? step.target;
+    const npcStats = (t.npc_id ? roster.byId.get(t.npc_id)?.combat_stats : null) as Record<string, unknown> | null | undefined;
+    const sheet = (me?.character_status ?? {}) as { level?: unknown; abilityScores?: Record<string, unknown> | null };
+    const preview = DU.deriveDuel({
+      level: Number(sheet.level) || 1,
+      dex: Number(sheet.abilityScores?.dex) || 10,
+      ac: myFighter?.ac ?? 10,
+      maxHp: myFighter?.max_hp ?? 10,
+      npcAttack: Number(npcStats?.attackBonus) || 0,
+      npcDamageAvg: diceAverage(npcStats?.damage) || 4,
+      npcSpeed: typeof npcStats?.speed === 'string' ? npcStats.speed : 'medium',
+      feel: duelFeel,
+    });
+    const st = DU.DUEL_STYLES[preview.style];
+    title = `Duel ${t.name}?`;
+    body = (
+      <div className="space-y-3">
+        <div className="rounded-lg border border-red-500/30 bg-red-950/40 p-2.5 space-y-1">
+          <p className="text-[14px] text-red-100"><b className="font-cinzel">{st.name}</b>: {st.tag}</p>
+          <p className="text-[12px] text-white/70">
+            About {preview.strikes} strikes. Green window ±{preview.perfect} ms. A plain block still lets {Math.round(preview.block * 100)}% through. Counter window {preview.riposteMs} ms.
+          </p>
+          <p className="text-[12px] text-white/60">
+            Your duel bar empties. {t.name} drops whatever it was winding up. Every counter hits back, and every strike perfect lands a finishing blow. Leave the duel screen and every strike lands.
+          </p>
+        </div>
+        {weaponRow}
+        <FinishToggle value={finish} onChange={setFinish} />
+        <div className="space-y-1">
+          <span className="block text-[12px] text-white/60">Combat assist</span>
+          <div className="grid grid-cols-3 gap-2">
+            {(['relaxed', 'standard', 'tough'] as const).map(f => (
+              <button key={f} style={tap} className={chip(duelFeel === f)} onClick={() => pickFeel(f)}>{DU.DUEL_FEEL[f].name}</button>
+            ))}
+          </div>
+        </div>
+        <button style={tap} disabled={busy || !isActive} className={cn(btnRed, 'w-full')} onClick={async () => {
+          const r = await combat.duelStart(t.id, { weaponName: qa.weapons.length ? pickWeapon ?? undefined : undefined, finish, feel: duelFeel });
+          const d = DU.cleanDuel((r as { duel?: unknown } | null)?.duel);
+          if (d) { close(); setLiveDuel(d); }
+        }}>
+          {busy && <Loader2 className="w-4 h-4 animate-spin" />}🤺 Start the duel
+        </button>
+      </div>
+    );
   } else if (step?.kind === 'host-add') {
     title = 'Add an NPC to the fight';
     const inFight = new Set(npcFighters.map(f => f.npc_id));
@@ -766,11 +858,22 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
     </div>
   );
 
+  // v7 Duel: the wheel covers the chat window. It stays up through the result, even if the duel ends the fight.
+  const duelLayer = liveDuel && (
+    <DuelWheel
+      key={liveDuel.id}
+      duel={liveDuel}
+      serverTime={combat.serverTime}
+      onFinish={inputs => combat.duelEnd(liveDuel.id, inputs) as Promise<DuelVerdict | null>}
+      onClose={() => { setClosedDuel(liveDuel.id); setLiveDuel(null); }}
+    />
+  );
+
   const flashLayer = flash && <div className="fixed inset-0 z-[58] pointer-events-none" style={{ boxShadow: 'inset 0 0 60px 12px hsl(0 84% 50% / 0.65)' }} />;
 
   // ---------- D. just ended ----------
   if (fight && isEnded) {
-    if (hiddenEnd === fight.id) return <>{sheet}</>;
+    if (hiddenEnd === fight.id) return <>{sheet}{duelLayer}</>;
     const endEv = [...events].reverse().find(e => e.kind === 'end');
     const label = fight.outcome === 'victory' ? 'Victory' : fight.outcome === 'defeat' ? 'Defeat' : 'Fight ended';
     const tone = fight.outcome === 'victory' ? 'border-green-500/40 text-green-200' : fight.outcome === 'defeat' ? 'border-red-500/40 text-red-200' : 'border-white/15 text-white/70';
@@ -790,6 +893,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
           ))}
         </div>
         {sheet}
+        {duelLayer}
       </>
     );
   }
@@ -843,6 +947,10 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
   const hasAllies = playerFighters.some(f => f.status !== 'dead' && f.user_id !== currentUserId);
   const canAct = isActive && !busy && cooldownLeft <= 0 && !amPinned;
   const myResolve = resolveOf(myFighter, clock);
+  // v7 Duel bar: full = the Duel button. Free (no action timer), but not while pinned or already dueling.
+  const myDuelCharge = duelChargeOf(myFighter);
+  const duelReady = myDuelCharge >= DU.DUEL_CHARGE.max;
+  const canDuel = isActive && !busy && !amPinned && !liveDuel && !rowDuel && npcUp.length > 0;
   const recent = [...events].reverse().slice(0, 20);
 
   return (
@@ -1010,6 +1118,13 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
               <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
                 <div className={cn('h-full bg-amber-400 transition-[width] duration-500', myResolve >= 100 && 'animate-pulse')} style={{ width: `${myResolve}%` }} />
               </div>
+              <div className="flex items-center justify-between text-[11px] pt-0.5">
+                <span className={duelReady ? 'text-red-200' : 'text-white/70'}>{duelReady ? 'Duel: ready' : 'Duel'}</span>
+                <span className="text-white/70">{Math.round(myDuelCharge)}</span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                <div className={cn('h-full bg-red-500 transition-[width] duration-500', duelReady && 'animate-pulse')} style={{ width: `${myDuelCharge}%` }} />
+              </div>
               {(myFighter.perks?.length ?? 0) > 0 && (
                 <div className="flex flex-wrap gap-1 pt-0.5">
                   {myFighter.perks.map(p => (
@@ -1021,6 +1136,13 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                 </div>
               )}
             </div>}
+            {!amPinned && duelReady && (
+              <button style={tap} disabled={!canDuel} className={cn(btnRed, 'w-full font-cinzel tracking-wider animate-pulse disabled:animate-none')} onClick={() => {
+                setFinish('knockout');
+                if (npcUp.length === 1) setStep({ kind: 'duel-confirm', target: npcUp[0] });
+                else setStep({ kind: 'duel-target' });
+              }}>🤺 Duel!</button>
+            )}
             {!amPinned && <div className={cn('grid gap-2', hasAllies ? 'grid-cols-4' : 'grid-cols-3')}>
               <button style={tap} disabled={!canAct || npcUp.length === 0} className={btnRed} onClick={() => {
                 setFinish('knockout');
@@ -1076,7 +1198,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
       })()}
       {(() => {
         // v6 Counter Clash: the ring for a big move aimed at me. Floats above any sheet; a pinned player can't clash.
-        if (!aimingAtMe?.p || !myFighter || myFighter.status !== 'up' || amPinned || (!isActive && !isPaused)) return null;
+        if (!aimingAtMe?.p || !myFighter || myFighter.status !== 'up' || amPinned || liveDuel || (!isActive && !isPaused)) return null;
         const chain = M.cleanClash((aimingAtMe.f as unknown as { pending?: { clash?: unknown } }).pending?.clash);
         const hitAt = timeOf((aimingAtMe.f as unknown as { strike_at?: unknown }).strike_at);
         if (!chain || !Number.isFinite(hitAt)) return null;
@@ -1095,6 +1217,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
           />
         );
       })()}
+      {duelLayer}
       {burst && <CombatBurst key={burst.key} kind={burst.kind} sub={burst.sub} />}
       {rolling && !result && <RollingCard />}
       {resultCard}
