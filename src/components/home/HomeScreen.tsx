@@ -361,7 +361,7 @@ export function HomeScreen({
   const [showArena, setShowArena] = useState(false);
   // Crash recovery: an arena session left unfinished is undone on next open.
   useEffect(() => {
-    if (restoreArenaSnapshot()) toast('Arena practice undone — your character is back to normal.');
+    if (restoreArenaSnapshot()) arenaToast('Arena practice undone — your character is back to normal.');
   }, []);
   const [showEmpyreanDMContainer, setShowEmpyreanDMContainer] = useState(false);
   const [enterStoryActive, setEnterStoryActive] = useState(false);
