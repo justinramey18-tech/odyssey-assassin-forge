@@ -134,7 +134,7 @@ import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
 import { loadPendingDmItems } from '@/lib/pendingDmItems';
 import { DiceRollOverlay } from '@/components/ai-dm/DiceRollOverlay';
 import { stripTableTalkTags, type NarrationSegment } from '@/lib/tts-utils';
-import { useNpcCombat } from '@/hooks/use-npc-combat';
+import { useNpcCombat, type NpcCombatApi } from '@/hooks/use-npc-combat';
 import { NpcCombatOverlay } from '@/components/ai-dm/NpcCombatOverlay';
 import { lazyPanel } from '@/lib/lazyPanel';
 
@@ -210,8 +210,18 @@ function partyMemberDiceContext(member?: { character_status?: Record<string, unk
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
 
+/** Arena/practice use only: swap in local runtimes so the real screen never touches a real party. */
+export interface PartyDMRuntimeOverrides {
+  /** Safety flag: when true, nothing on this screen writes to, notifies or changes a real party. */
+  practiceMode?: boolean;
+  roundChat?: ReturnType<typeof useRoundChat>;
+  npcCombat?: NpcCombatApi;
+  npcCombatRoster?: ReturnType<typeof usePartyNpcs>;
+}
+
 interface PartyDMScreenProps {
   initialLiveTableOpen?: boolean;
+  runtimeOverrides?: PartyDMRuntimeOverrides;
   onBack: () => void;
   /** Re-read the DM's latest response and pull quests out of it. */
   onScanQuests?: () => void;
@@ -1320,14 +1330,18 @@ type PartyOverlays = {
   npcRoster: undefined;
 };
 
-export function PartyDMScreen({ initialLiveTableOpen = false, onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, onOpenDirector, hasPendingRedoRequest, onScanQuests, worldState = [] }: PartyDMScreenProps) {
+export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, onBack, partyId: partyIdProp, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, onOpenDirector, hasPendingRedoRequest, onScanQuests, worldState = [] }: PartyDMScreenProps) {
+  const practiceMode = runtimeOverrides?.practiceMode === true;
+  // In practice mode there is no real party: every party read/write/notify below
+  // already does nothing without a party id, so withholding it keeps the real party safe.
+  const partyId = practiceMode ? null : partyIdProp;
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   // Shared party quest board, also shown inside each player's character sheet.
   const sheetQuests = usePartyQuests(partyId, currentUserId);
   const questRewardSplit = useQuestRewardSplit(partyId, currentUserId);
   const partyNarrationStyle = usePartyNarrationStyle(partyId, currentUserId || '');
   // Chat Rounds: mini party-chat feed that drives the DM instead of ready-up.
-  const roundChat = useRoundChat(
+  const liveRoundChat = useRoundChat(
     partyId || null,
     currentUserId,
     members.find(m => m.user_id === currentUserId)?.character_name || characterContext?.name || 'Player',
@@ -1336,7 +1350,10 @@ export function PartyDMScreen({ initialLiveTableOpen = false, onBack, partyId, p
   const chatAvatars = useChatAvatars(partyId || null, currentUserId);
   // Live NPCs (D-22): the party's NPC roster, with live updates.
   const npcRoster = usePartyNpcs(partyId || null);
-  const npcCombat = useNpcCombat({ partyId: partyId || null, currentUserId: currentUserId || null, isHost: originalCreator, sheetHp: characterContext?.currentHP ?? null, onHPChange });
+  const liveNpcCombat = useNpcCombat({ partyId: partyId || null, currentUserId: currentUserId || null, isHost: originalCreator, sheetHp: characterContext?.currentHP ?? null, onHPChange });
+  const roundChat = runtimeOverrides?.roundChat ?? liveRoundChat;
+  const npcCombat = runtimeOverrides?.npcCombat ?? liveNpcCombat;
+  const npcCombatRoster = runtimeOverrides?.npcCombatRoster ?? npcRoster;
   const [pendingCombatCast, setPendingCombatCast] = useState<{ card: ActionCard; key: string; targetId?: string; finish?: 'knockout' | 'kill' } | null>(null);
   // Target-first casting: the target picked in the fight bar before choosing a spell (good for 60 s).
   const [combatPreTarget, setCombatPreTarget] = useState<{ targetId: string; targetName: string; finish: 'knockout' | 'kill'; at: number } | null>(null);
@@ -3107,7 +3124,7 @@ export function PartyDMScreen({ initialLiveTableOpen = false, onBack, partyId, p
                 const wasDialogue = partyDm.sessionConfig?.dmMode === 'dialogue';
                 partyDm.updateSessionConfig({ dmMode: newMode });
 
-                if (newMode === 'dialogue') {
+                if (newMode === 'dialogue' && !practiceMode) {
                   sendTelegramNotification({
                     type: 'custom',
                     partyId,
@@ -3117,7 +3134,7 @@ export function PartyDMScreen({ initialLiveTableOpen = false, onBack, partyId, p
                   });
                 }
 
-                if (wasDialogue && newMode !== 'dialogue') {
+                if (wasDialogue && newMode !== 'dialogue' && !practiceMode) {
                   sendTelegramNotification({
                     type: 'custom',
                     partyId,
@@ -5517,7 +5534,7 @@ export function PartyDMScreen({ initialLiveTableOpen = false, onBack, partyId, p
         onConfirm={applyHealPick}
         onClose={() => setHealPick(null)}
       />
-      <NpcCombatOverlay combat={npcCombat} roster={npcRoster} members={members} currentUserId={currentUserId || null} isHost={originalCreator} onUseConsumableByName={onUseConsumableByName} pendingCast={pendingCombatCast} onPendingCastDone={() => setPendingCombatCast(null)} onOpenSpells={(pre) => { setCombatPreTarget(pre ? { ...pre, at: Date.now() } : null); overlays.open('quickActions', ['spells', 'cantrips']); }} preTarget={combatPreTarget} onClearPreTarget={() => setCombatPreTarget(null)} />
+      <NpcCombatOverlay combat={npcCombat} roster={npcCombatRoster} members={members} currentUserId={currentUserId || null} isHost={originalCreator} onUseConsumableByName={onUseConsumableByName} pendingCast={pendingCombatCast} onPendingCastDone={() => setPendingCombatCast(null)} onOpenSpells={(pre) => { setCombatPreTarget(pre ? { ...pre, at: Date.now() } : null); overlays.open('quickActions', ['spells', 'cantrips']); }} preTarget={combatPreTarget} onClearPreTarget={() => setCombatPreTarget(null)} />
       {/* Death Save Screen */}
       <DeathSaveScreen
         open={showDeathSaves}
