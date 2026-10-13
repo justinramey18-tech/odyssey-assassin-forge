@@ -19,6 +19,7 @@ export type ArenaPracticeConfig =
 type AutoSyncCallbacks = ComponentProps<typeof StandalonePartyDMScreen>['autoSyncCallbacks'];
 
 const LOCAL_ARENA_USER = 'arena-player';
+const GAUNTLET_START = gauntletFoe(1);
 
 interface Props {
   characterContext: CharacterContext;
@@ -77,7 +78,7 @@ export function ArenaPartyDMScreen({ characterContext, practice, onStatsChange, 
     enabled: true,
     mode: practice?.mode === 'gauntlet' ? 'gauntlet' : 'single',
     drillKind: practice?.mode === 'solo' ? practice.drillKind : 'standard',
-    foe: practice?.mode === 'solo' ? practice.foe : practice?.mode === 'gauntlet' ? gauntletFoe(1) : foe,
+    foe: practice?.mode === 'solo' ? practice.foe : practice?.mode === 'gauntlet' ? GAUNTLET_START : foe,
     foes: practice ? undefined : foes,
     onStatsChange,
     currentUserId: userId, appendLine, aiVoice: aiVoice && net?.role !== 'member', net });
