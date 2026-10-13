@@ -6,6 +6,7 @@ import { DEFAULT_XP_THRESHOLDS } from './xpSystem';
 const ALL_STORAGE_KEYS = [
   // Core character data
   'odyssey-character-autosave',
+  'odyssey-arena-snapshot',
   'odyssey-consumables-inventory',
   'odyssey-ability-scores',
   'odyssey-hp-state',

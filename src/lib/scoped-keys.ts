@@ -109,4 +109,6 @@ export const SCOPED_KEYS = [
   // captured into the cloud save.
   'odyssey-cosmic-chef',
   'odyssey-cosmic-chef-gear-version',
+  // Arena: pre-practice copy of the character, restored on exit
+  'odyssey-arena-snapshot',
 ] as const;
