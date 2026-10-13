@@ -122,11 +122,11 @@ export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBatt
 
   const startNew = () => {
     setGuideState('ready');
-    setDraft({ id: null, name: '', model: NPC_DEFAULT_MODEL, portraitUrl: null, guide: '', secrets: '', wants: '', levers: '', hardLines: '', moodRange: '', grudgeStyle: 'normal' });
+    setDraft({ id: null, name: '', model: NPC_DEFAULT_MODEL, portraitUrl: null, guide: '', secrets: '', wants: '', levers: '', hardLines: '', moodRange: '', grudgeStyle: 'normal', socialStats: { ...DEFAULT_NPC_SOCIAL_STATS } });
   };
 
   const startEdit = (npc: PartyNpc) => {
-    setDraft({ id: npc.id, name: npc.name, model: npc.model, portraitUrl: npc.portrait_url, guide: '', secrets: '', wants: '', levers: '', hardLines: '', moodRange: '', grudgeStyle: 'normal' });
+    setDraft({ id: npc.id, name: npc.name, model: npc.model, portraitUrl: npc.portrait_url, guide: '', secrets: '', wants: '', levers: '', hardLines: '', moodRange: '', grudgeStyle: 'normal', socialStats: sanitizeNpcSocialStats(npc.social_stats) });
     void loadGuideInto(npc.id);
   };
 
