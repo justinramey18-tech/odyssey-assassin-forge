@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { NpcPortrait } from './NpcPortrait';
 import { CombatBurst, CounterClashRing } from './CounterClashRing';
+import { TugAndSlip } from './TugAndSlip';
 import * as M from '@/lib/combatMinigames';
 import { preloadCombatArt } from '@/lib/combatArt';
 import { resolveOf, type FighterRow, type FightEventRow, type NpcCombatApi } from '@/hooks/use-npc-combat';
@@ -296,6 +297,9 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
       setBurst({ kind: 'counter', sub: `${/RIPOSTE/.test(counter.detail ?? '') ? 'RIPOSTE! ' : ''}${Math.abs(counter.hp_delta)} damage to ${counter.target_name}`, key: counter.id });
       try { navigator.vibrate?.([30, 40, 30, 40, 80]); } catch { /* not supported */ }
     }
+    // v6: I broke free of a pin (the struggle screen may already have shown it).
+    const freed = fresh.find(e => e.kind === 'pin' && e.target_user_id === currentUserId && e.detail === 'Broke free!');
+    if (freed) setBurst(prev => (prev?.kind === 'free' ? prev : { kind: 'free', key: freed.id }));
   }, [events, currentUserId, myName]);
 
   // v6: fetch the mini-game art once a fight is on, so the first clash shows it without a delay.
@@ -997,9 +1001,23 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                 <button style={tap} className="min-h-[44px] px-2 text-[12px] text-white/70" onClick={() => onClearPreTarget?.()}>Cancel</button>
               </div>
             )}
-            {amPinned && <p className="text-[12px] text-center text-amber-200">📌 Pinned: {pinnedLeft}s</p>}
-            {cooldownLeft > 0 && <p className="text-[11px] text-center text-white/60">Ready in {cooldownLeft}s</p>}
-            <div className="space-y-1">
+            {amPinned && (() => {
+              // v6 Tug & Slip: while pinned, the struggle takes the place of the action buttons.
+              const pinEvent = [...events].reverse().find(e => e.kind === 'pin' && e.target_user_id === currentUserId && e.actor_name !== myFighter.name);
+              return (
+                <TugAndSlip
+                  npcName={pinEvent?.actor_name || null}
+                  pinnedUntil={pinnedUntil}
+                  struggle={M.cleanStruggle(((myFighter as unknown as { minigame?: Record<string, unknown> | null }).minigame ?? {}).struggle)}
+                  serverTime={combat.serverTime}
+                  frozenAt={isPaused && Number.isFinite(combat.pausedAtMs) ? combat.pausedAtMs : null}
+                  onHeave={tapAt => combat.heave(tapAt)}
+                  onFree={() => setBurst({ kind: 'free', key: `local-${pinnedUntil}` })}
+                />
+              );
+            })()}
+            {!amPinned && cooldownLeft > 0 && <p className="text-[11px] text-center text-white/60">Ready in {cooldownLeft}s</p>}
+            {!amPinned && <div className="space-y-1">
               <div className="flex items-center justify-between text-[11px]">
                 <span className={myResolve >= 100 ? 'text-amber-200' : 'text-white/70'}>{myResolve >= 100 ? 'Resolve: ready' : 'Resolve'}</span>
                 <span className="text-white/70">{Math.round(myResolve)}</span>
@@ -1017,8 +1035,8 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                   ))}
                 </div>
               )}
-            </div>
-            <div className={cn('grid gap-2', hasAllies ? 'grid-cols-4' : 'grid-cols-3')}>
+            </div>}
+            {!amPinned && <div className={cn('grid gap-2', hasAllies ? 'grid-cols-4' : 'grid-cols-3')}>
               <button style={tap} disabled={!canAct || npcUp.length === 0} className={btnRed} onClick={() => {
                 setFinish('knockout');
                 if (npcUp.length === 1) setStep({ kind: 'attack', target: npcUp[0] });
@@ -1034,7 +1052,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                 {myFighter.second_wind && <span className="text-[11px] opacity-70">{myFighter.second_wind}</span>}
               </button>
               {hasAllies && <button style={tap} disabled={!canAct} className={btnPlain} onClick={() => setStep({ kind: 'aid' })}>Aid Ally</button>}
-            </div>
+            </div>}
           </div>
         </div>
       )}

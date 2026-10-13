@@ -27,8 +27,8 @@ export const WINDUP_S: Record<SkillType, number> = {
   strike: 3, heavy: 6, sweep: 6, signature: 8, mend: 3, shield: 3, rally: 4, pin: 4, retreat: 3,
 };
 
-/** How long a Pin holds a player (no action) unless they break free. */
-export const PIN_MS = 6000;
+/** How long a Pin holds a player (no action) unless they break free in Tug & Slip. */
+export const PIN_MS = 30000;
 export const WARD_MS = 60_000;
 export const RALLY_SHARE = 0.2;
 export const RETREAT_AT = 0.2;
