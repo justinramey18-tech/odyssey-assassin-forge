@@ -9,6 +9,7 @@ import { ArenaPartyDMScreen } from './ArenaPartyDMScreen';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { PartyMember } from '@/hooks/use-party-sync';
 import { cn } from '@/lib/utils';
+import type { SparringNet } from '@/lib/arena/sparringNet';
 
 type Props = {
   onClose: () => void;
@@ -18,17 +19,36 @@ type Props = {
   currentXP?: number;
   onManualLevelUp?: () => void;
   autoSyncCallbacks?: ComponentProps<typeof ArenaPartyDMScreen>['autoSyncCallbacks'];
+  /** Fighting together: the host's link, or a member joining the host's ring. */
+  net?: SparringNet | null;
+  hostName?: string;
 };
 
-export default function PartySparring({ onClose, characterContext, currentUserId, member, currentXP, onManualLevelUp, autoSyncCallbacks }: Props) {
+export default function PartySparring({ onClose, characterContext, currentUserId, member, currentXP, onManualLevelUp, autoSyncCallbacks, net = null, hostName }: Props) {
+  const isMember = net?.role === 'member';
   const [counts, setCounts] = useState<Record<string, number>>({});
-  const [started, setStarted] = useState(0);
+  const [started, setStarted] = useState(() => (isMember ? 1 : 0));
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const foes = useMemo(() => buildSparringFoes(counts), [counts]);
   const groups = useMemo(() => [...new Set(SPARRING_ROSTER.map((r) => r.group))], []);
 
   useEffect(() => { takeArenaSnapshot(); }, []);
-  const close = () => { restoreArenaSnapshot(); onClose(); };
+  const close = () => { if (net?.role === 'host') net.send('end', {}); restoreArenaSnapshot(); onClose(); };
+  // Host: keep inviting the party while the ring is open.
+  useEffect(() => {
+    if (net?.role !== 'host') return;
+    const ping = () => net.send('invite', { hostId: net.me, hostName: characterContext.name || 'The host' });
+    ping();
+    const t = setInterval(ping, 3000);
+    return () => clearInterval(t);
+  }, [net, characterContext.name]);
+  // Member: the host closed the ring.
+  const [ended, setEnded] = useState(false);
+  useEffect(() => {
+    if (net?.role !== 'member') return;
+    return net.on('end', () => setEnded(true));
+  }, [net]);
+  useEffect(() => { if (ended) { restoreArenaSnapshot(); onClose(); } }, [ended, onClose]);
   const bump = (id: string, d: number) => setCounts((c) => {
     const next = Math.max(0, Math.min(MAX_SPARRING_FOES, (c[id] ?? 0) + d));
     if (d > 0 && total >= MAX_SPARRING_FOES) return c;
@@ -38,14 +58,14 @@ export default function PartySparring({ onClose, characterContext, currentUserId
   return (
     <div role="dialog" aria-modal="true" aria-label="Party Sparring" className="fixed inset-0 z-[62] flex flex-col bg-background">
       <div className="flex items-center justify-between px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
-        <h1 className="font-cinzel text-lg font-bold uppercase tracking-[0.15em] text-primary">Party Sparring</h1>
-        <button type="button" onClick={close} aria-label="End sparring" style={{ touchAction: 'manipulation' }} className="flex h-12 w-12 items-center justify-center rounded-full border border-border bg-card text-foreground active:scale-95">
+        <h1 className="font-cinzel text-lg font-bold uppercase tracking-[0.15em] text-primary">{isMember ? `Sparring with ${hostName || "the host"}` : "Party Sparring"}</h1>
+        <button type="button" onClick={close} aria-label={isMember ? "Leave sparring" : "End sparring"} style={{ touchAction: 'manipulation' }} className="flex h-12 w-12 items-center justify-center rounded-full border border-border bg-card text-foreground active:scale-95">
           <X className="h-5 w-5" />
         </button>
       </div>
 
       {started > 0 ? (
-        <ArenaPartyDMScreen key={started} characterContext={characterContext} foes={foes} onBack={() => setStarted(0)} currentUserId={currentUserId} member={member} autoSyncCallbacks={autoSyncCallbacks} currentXP={currentXP} onManualLevelUp={onManualLevelUp} />
+        <ArenaPartyDMScreen key={started} characterContext={characterContext} foes={foes} net={net} onBack={() => (isMember ? close() : setStarted(0))} currentUserId={currentUserId} member={member} autoSyncCallbacks={autoSyncCallbacks} currentXP={currentXP} onManualLevelUp={onManualLevelUp} />
       ) : (
         <>
           <div className="mx-4 mb-3 flex items-start gap-2 rounded-lg border border-border bg-card/60 p-3 text-xs text-muted-foreground">
