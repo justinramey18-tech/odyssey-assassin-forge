@@ -1,4 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { dice3dEnabled, diceForRoll } from '@/lib/dice3d';
+
+const Dice3DPopup = lazy(() => import('@/components/dice3d/Dice3DPopup'));
+const canWebGL = (() => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } })();
 import { createPortal } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -89,13 +93,15 @@ export function DiceRollOverlay() {
   const [req, setReq] = useState<DiceRollRequest | null>(null);
   const [phase, setPhase] = useState<'rolling' | 'done'>('rolling');
   const lingerTimer = useRef<number>(0);
+  const [reqId, setReqId] = useState(0);
   const reduceMotion = useReducedMotion();
 
   useEffect(() => subscribeDiceRolls(r => {
     if (lingerTimer.current) clearTimeout(lingerTimer.current);
     setReq(r);
+    setReqId((n) => n + 1);
     setPhase('rolling');
-    playDiceRattle(D20_MS);
+    if (!(canWebGL && dice3dEnabled() && diceForRoll(r.roll))) playDiceRattle(D20_MS);
   }), []);
 
   useEffect(() => () => { if (lingerTimer.current) clearTimeout(lingerTimer.current); }, []);
@@ -112,6 +118,21 @@ export function DiceRollOverlay() {
     setReq(null);
     done.onComplete();
   };
+
+  const dice3d = canWebGL && dice3dEnabled() ? diceForRoll(roll) : null;
+  if (dice3d) {
+    const total = 'total' in roll ? roll.total : roll.kind === 'check' ? roll.d20 : (roll as { attackTotal?: number }).attackTotal ?? roll.d20;
+    const d20v = roll.kind === 'test' ? (roll.die === 20 ? roll.kept : null) : roll.kind === 'heal' || roll.kind === 'effect' ? null : roll.d20;
+    const summary = roll.kind === 'check' ? roll.outcome.toUpperCase()
+      : roll.kind === 'heal' ? `+${roll.total} HP`
+      : roll.kind === 'attack' || roll.kind === 'spell' ? `${total} to hit · ${roll.damageTotal} dmg`
+      : `${total}`;
+    return (
+      <Suspense fallback={null}>
+        <Dice3DPopup key={reqId} title={req.title} dice={dice3d} summary={summary} crit={d20v === 20 ? 'high' : d20v === 1 ? 'low' : null} onDone={finish} />
+      </Suspense>
+    );
+  }
 
   const handleAllLanded = () => {
     setPhase('done');
