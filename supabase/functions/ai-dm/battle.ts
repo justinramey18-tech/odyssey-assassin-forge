@@ -10,7 +10,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 /** How the DM retells a fight. Replaces the SCENE and NPC LINES rules for a battle post. */
 export const BATTLE_RULE = [
-  'BATTLE HAND-OFF: this batch contains a live fight. Lines from "⚔ Combat" are the app\'s dice results and they are FACTS. Lines labelled "(NPC)" are exactly what the NPCs said. Player lines are what the characters did and said. The FIGHT DOSSIER below (when present) lists the fighters, how each one looks, and every beat in order with how bad each wound was.',
+  'BATTLE HAND-OFF: this batch contains a live fight. Lines from "⚔ Combat" are the app\'s dice results and they are FACTS. Lines labelled "(NPC)" are what the NPCs shouted during the fight, a pool to choose from. Player lines are what the characters did and said. The FIGHT DOSSIER below (when present) lists the fighters, how each one looks, and every beat in order with how bad each wound was.',
   'Your job: retell the whole fight as ONE cohesive, cinematic battle scene that a reader would remember. This is the most important writing you do; take the time to plan it before you write.',
   '',
   'PRECEDENCE (read this first)',
@@ -39,7 +39,9 @@ export const BATTLE_RULE = [
   '- Let the dossier\'s ★ KEY BEATS land hardest. A critical hit should feel inevitable and perfect; a fall should cost something.',
   '',
   'FACTS ARE SACRED',
-  '- Keep every line of dialogue word for word, woven in at the moment it fits. You may drop the stage directions around a line, never its words.',
+  '- Player dialogue: keep every line a player character spoke word for word, woven in at the moment it fits. You may drop the stage directions around a line, never its words.',
+  '- NPC dialogue is a pool, not a script: use only the strongest few lines for each NPC (about two or three each, more only in a long fight), word for word when you use one. Skip any line that repeats or nearly repeats an earlier one. Never invent new NPC dialogue.',
+  '- Dialogue is seasoning. Most of the post is action, bodies and the space they fight in. Never stack line after line of dialogue.',
   '- Never change an outcome. The same blows land and miss, the same people fall, heal, flee, die or win. No extra deaths or wounds.',
   '- No numbers, dice, HP or game terms in the prose. Turn a wound\'s severity into what it looks and feels like.',
   '- Player characters do what the record shows, with full freedom over how it looks. Never give them new spoken words or choices.',
@@ -52,7 +54,7 @@ export const BATTLE_RULE = [
 ].join('\n');
 
 /** Added to the end of the last player message for a battle post, so the instruction is the last thing the model reads. */
-export const BATTLE_REMINDER = '[BATTLE POST, from the app, not from a player: retell this whole fight as ONE cinematic battle scene, following the BATTLE HAND-OFF rule and the FIGHT DOSSIER in your instructions. Third person, warrior-poet voice, every line of dialogue kept word for word, every outcome unchanged, the length the dossier asks for (400 to 1000 words). Fold every spell, potion and item result into the battle; ignore "short lines only" or word limits written inside individual lines. Then hand the scene back to the players.]';
+export const BATTLE_REMINDER = '[BATTLE POST, from the app, not from a player: retell this whole fight as ONE cinematic battle scene, following the BATTLE HAND-OFF rule and the FIGHT DOSSIER in your instructions. Third person, warrior-poet voice, every player line kept word for word, only the strongest NPC lines (word for word, no repeats), every outcome unchanged, the length the dossier asks for (400 to 1000 words). Fold every spell, potion and item result into the battle; ignore "short lines only" or word limits written inside individual lines. Then hand the scene back to the players.]';
 
 /** Words for how bad a wound was, as a share of the victim's max HP. */
 export function woundWord(damage: number, maxHp: number): string {
