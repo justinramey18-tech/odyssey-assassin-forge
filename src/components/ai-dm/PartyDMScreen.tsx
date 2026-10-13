@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { firePendingNat20Fanfare } from '@/lib/critSound';
 import { registerTablePoster } from '@/lib/tablePostBus';
 
@@ -141,6 +141,7 @@ import { lazyPanel } from '@/lib/lazyPanel';
 // Panels that load on demand, so the story feed and the Live Table appear first.
 // Each one draws nothing until its code arrives (usually a split second). The ones players
 // open most are fetched in the background shortly after the screen opens (see PRELOAD_AFTER_OPEN).
+const PartySparring = lazy(() => import('@/components/arena/PartySparring'));
 const PartyToolsScreen = lazyPanel(() => import('./PartyToolsScreen').then(m => m.PartyToolsScreen));
 const PartyDMAudioRecorder = lazyPanel(() => import('./PartyDMAudioRecorder').then(m => m.PartyDMAudioRecorder));
 const CinematicSlideshow = lazyPanel(() => import('@/components/empyrean/CinematicSlideshow').then(m => m.default));
@@ -1332,6 +1333,7 @@ type PartyOverlays = {
 
 export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, onBack, partyId: partyIdProp, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, onOpenDirector, hasPendingRedoRequest, onScanQuests, worldState = [] }: PartyDMScreenProps) {
   const practiceMode = runtimeOverrides?.practiceMode === true;
+  const [sparringOpen, setSparringOpen] = useState(false);
   // In practice mode there is no real party: every party read/write/notify below
   // already does nothing without a party id, so withholding it keeps the real party safe.
   const partyId = practiceMode ? null : partyIdProp;
@@ -5208,6 +5210,15 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
         <PartyToolsScreen open={open} onClose={() => setOpen(false)}>
           {open ? (
             <>
+              {isCreator && !practiceMode && characterContext && (
+                <>
+                  <ToolsGroupHeader title="Sparring" />
+                  <button type="button" onClick={() => { setOpen(false); setSparringOpen(true); }} style={{ touchAction: 'manipulation' }} className="mb-3 flex min-h-[56px] w-full items-center gap-3 rounded-xl border border-border bg-card p-3 text-left active:scale-[0.98]">
+                    <Swords className="h-5 w-5 shrink-0 text-primary" />
+                    <span className="flex flex-col"><span className="font-cinzel text-sm font-bold">Start Sparring</span><span className="text-xs text-muted-foreground">Practice fight with quick-add opponents. No effect on the story.</span></span>
+                  </button>
+                </>
+              )}
               <ToolsGroupHeader title="Character" />
               {renderCharacterDrawer()}
               <div className="h-3" />
@@ -5235,6 +5246,11 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
         />
       )}</OverlaySlot>
       <DiceRollOverlay />
+      {sparringOpen && characterContext && (
+        <Suspense fallback={null}>
+          <PartySparring onClose={() => setSparringOpen(false)} characterContext={characterContext} currentUserId={currentUserId} currentXP={currentXP} onManualLevelUp={onManualLevelUp} autoSyncCallbacks={{ onHPChange, onRestOccurred, onUseConsumableByName } as never} />
+        </Suspense>
+      )}
       {/* Infinity Stone DM Drawer */}
       <OverlaySlot ganglion={overlays} name="stoneDrawer">{(open, setOpen) => (
         <InfinityStoneDMDrawer

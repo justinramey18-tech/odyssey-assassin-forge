@@ -16,7 +16,9 @@ const LOCAL_ARENA_USER = 'arena-player';
 
 interface Props {
   characterContext: CharacterContext;
-  foe: Foe & { persona?: string };
+  foe?: Foe & { persona?: string };
+  /** Several opponents at once (Party Sparring). */
+  foes?: Array<Foe & { persona?: string }>;
   onBack: () => void;
   currentUserId?: string | null;
   /** The player's real party row for the same user, when there is one. */
@@ -28,7 +30,7 @@ interface Props {
   aiVoice?: boolean;
 }
 
-export function ArenaPartyDMScreen({ characterContext, foe, onBack, currentUserId, member, autoSyncCallbacks, currentXP, onManualLevelUp, aiVoice = true }: Props) {
+export function ArenaPartyDMScreen({ characterContext, foe, foes, onBack, currentUserId, member, autoSyncCallbacks, currentXP, onManualLevelUp, aiVoice = true }: Props) {
   const userId = currentUserId || LOCAL_ARENA_USER;
   const name = member?.character_name || characterContext.name || 'Player';
 
@@ -40,7 +42,7 @@ export function ArenaPartyDMScreen({ characterContext, foe, onBack, currentUserI
   const partyDm = useArenaPartyDm({ characterName: name, characterContext, userId });
   const roundId = partyDm.sessionConfig?.currentRoundId || 'arena-round';
   const roundChat = useArenaRoundChat(userId, name, roundId);
-  const { combat, roster } = useArenaNpcPractice({ ctx: characterContext, foe, currentUserId: userId, appendLine: roundChat.appendLine, aiVoice });
+  const { combat, roster } = useArenaNpcPractice({ ctx: characterContext, foe, foes, currentUserId: userId, appendLine: roundChat.appendLine, aiVoice });
 
   // Keep the session in fight mode so the real fight bar is there from the start.
   const forced = useRef(false);
