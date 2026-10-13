@@ -30,6 +30,10 @@ import {
   spellCastOf,
   splitRollTag,
   validateRollTag,
+  SOCIAL_CHECKS,
+  socialIntentOf,
+  replyTargetOf,
+  capStart,
   type NpcPerson,
   type NpcPromptInput,
   type NpcRollRequest,
@@ -253,7 +257,23 @@ async function rollSituationFor(line: RoundLine, npcId: string, repo: NpcRepo): 
   if (!asked || asked.npc_id !== npcId || asked.party_id !== line.party_id) return null;
   const request = rollRequestOf(asked.content);
   if (!request || request.to !== line.user_id) return null;
+  // The goal comes only from the NPC's own hidden request, never from the phone's card.
+  let objective = request.objective;
+  let context: string | undefined;
+  if (!objective && !request.save && (SOCIAL_CHECKS as readonly string[]).includes(request.check)) {
+    // Older request with no goal: recover it from the player line the NPC was answering.
+    const originId = replyTargetOf(asked.content);
+    const origin = originId && isUuid(originId) ? await repo.getLine(originId) : null;
+    if (origin && origin.party_id === line.party_id && !origin.npc_id) {
+      const said = readableText(origin.content).replace(/\s+/g, ' ').trim();
+      const intent = socialIntentOf(said);
+      if (intent) objective = intent.objective;
+      else if (said) context = capStart(said, 240);
+    }
+  }
   return {
+    ...(objective ? { objective } : {}),
+    ...(context ? { context } : {}),
     kind: 'roll',
     roller: line.character_name || request.name,
     check: request.check,
