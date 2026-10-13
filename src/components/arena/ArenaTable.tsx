@@ -16,6 +16,7 @@ import * as DU from '@/lib/combatDuel';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { Foe } from './ArenaPractice';
 import { cn } from '@/lib/utils';
+import { sparLine, buildSparPrompt } from '@/lib/arena/arenaAi';
 
 interface Line { id: string; who: 'you' | 'foe' | 'table'; text: string; card?: ActionCard | null }
 type Live =
@@ -31,7 +32,7 @@ const HURT = ['Ngh — a fair hit.', 'Better!', 'That one stung.', 'You are lear
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 const finite = (n: unknown, f: number) => (Number.isFinite(Number(n)) ? Number(n) : f);
 
-interface Props { ctx: CharacterContext; foe: Foe; onBack: () => void }
+interface Props { ctx: CharacterContext; foe: Foe & { persona?: string }; onBack: () => void }
 
 export function ArenaTable({ ctx, foe, onBack }: Props) {
   const maxHp = Math.max(1, finite(ctx.maxHP, 30));
@@ -48,10 +49,28 @@ export function ArenaTable({ ctx, foe, onBack }: Props) {
   const [over, setOver] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
   const now = useCallback(() => Date.now(), []);
+  const [aiOn, setAiOn] = useState(true);
+  const linesRef = useRef<Line[]>([]);
+  const busyRef = useRef(false);
+  const lastAiRef = useRef(0);
+  useEffect(() => { linesRef.current = lines; }, [lines]);
 
   const post = useCallback((who: Line['who'], text: string, card?: ActionCard | null) => {
     setLines((l) => [...l.slice(-199), { id: `${Date.now()}-${Math.random()}`, who, text, card }]);
   }, []);
+
+  // Real AI voice for the opponent; falls back to a stock line if the call fails.
+  const foeSpeak = useCallback(async (fallback: string | null, force = false) => {
+    if (!aiOn) { if (fallback) post('foe', `${foe.name}: ${fallback}`); return; }
+    if (busyRef.current || (!force && Date.now() - lastAiRef.current < 4000)) return;
+    busyRef.current = true; lastAiRef.current = Date.now();
+    const sys = buildSparPrompt({ foeName: foe.name, foePersona: foe.persona, playerName: ctx.name || 'the challenger', foeHp: foeHpRef.current, foeMax: foe.maxHp, myHp: myHpRef.current, myMax: maxHp });
+    const hist = linesRef.current.map((l) => ({ who: l.who, text: l.card ? `${l.card.action}${l.card.outcome ? ` — ${l.card.outcome}` : ''}` : l.text.replace(`${foe.name}: `, '') }));
+    const text = await sparLine(sys, hist);
+    busyRef.current = false;
+    if (text) post('foe', `${foe.name}: ${text}`);
+    else if (fallback) post('foe', `${foe.name}: ${fallback}`);
+  }, [aiOn, foe.name, foe.persona, foe.maxHp, ctx.name, maxHp, post]);
 
   useEffect(() => { feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: 'smooth' }); }, [lines.length]);
 
@@ -68,8 +87,8 @@ export function ArenaTable({ ctx, foe, onBack }: Props) {
     const hp = Math.max(0, foeHpRef.current - Math.round(n));
     foeHpRef.current = hp; setFoeHp(hp);
     if (hp === 0) { setOver(true); setLive(null); post('table', `${foe.name} is beaten! Victory.`); }
-    else if (Math.random() < 0.5) post('foe', `${foe.name}: ${pick(HURT)}`);
-  }, [foe.name, post]);
+    else if (Math.random() < 0.5) setTimeout(() => void foeSpeak(pick(HURT)), 50);
+  }, [foe.name, post, foeSpeak]);
 
   // Resolve whatever the Quick Actions / composer sends, exactly as the referee would.
   const onSend = useCallback((raw: string) => {
@@ -77,7 +96,7 @@ export function ArenaTable({ ctx, foe, onBack }: Props) {
     const { card, body } = parseActionCard(raw);
     const text = body.split('\n')[0].slice(0, 240);
     post('you', card ? '' : text, card);
-    if (!card) return;
+    if (!card) { setTimeout(() => void foeSpeak(pick(TAUNTS), true), 50); return; }
     const dmg = finite(card.damageTotal, 0);
     if (card.kind === 'heal' || (card.kind === 'spell' && finite(card.amount, 0) > 0 && !dmg)) {
       const amt = finite(card.amount, 0);
@@ -103,14 +122,14 @@ export function ArenaTable({ ctx, foe, onBack }: Props) {
     }
     if (dmg > 0) { post('table', `${card.action} lands for ${dmg}.`); hurtFoe(dmg); }
     else post('table', `${card.action} — noted. (No effect on a practice opponent.)`);
-  }, [over, post, foe.ac, foe.name, maxHp, hurtFoe]);
+  }, [over, post, foe.ac, foe.name, maxHp, hurtFoe, foeSpeak]);
 
   // The opponent's turn: a big move (Clash or Pin) or a plain swing.
   useEffect(() => {
     if (live || over) return;
     const t = setTimeout(() => {
       const r = Math.random();
-      post('foe', `${foe.name}: ${pick(TAUNTS)}`);
+      if (r < 0.6) void foeSpeak(pick(TAUNTS), true);
       if (r < 0.45) {
         const moves: M.ClashMove[] = ['heavy', 'signature', 'sweep'];
         const c = M.buildClash(`c${Date.now()}`, pick(moves), roll);
@@ -127,7 +146,7 @@ export function ArenaTable({ ctx, foe, onBack }: Props) {
       }
     }, GAP[foe.speed]);
     return () => clearTimeout(t);
-  }, [live, over, foe, myAc, now, post, hurtMe]);
+  }, [live, over, foe, myAc, now, post, hurtMe, foeSpeak]);
 
   useEffect(() => {
     if (live?.kind !== 'clash') return;
@@ -193,7 +212,7 @@ export function ArenaTable({ ctx, foe, onBack }: Props) {
         <div className="mb-2 flex items-center justify-between">
           <button type="button" onClick={onBack} aria-label="Back to opponents" style={{ touchAction: 'manipulation' }} className="flex h-12 w-12 items-center justify-center rounded-full text-muted-foreground"><ArrowLeft className="h-5 w-5" /></button>
           <span className="font-cinzel text-sm font-bold uppercase tracking-wider text-foreground">{foe.name}</span>
-          <span className="w-12 text-right text-xs text-muted-foreground">AC {foe.ac}</span>
+          <button type="button" onClick={() => setAiOn((v) => !v)} aria-pressed={aiOn} style={{ touchAction: 'manipulation' }} className={cn('min-h-[48px] rounded-full border px-3 text-[10px] font-bold uppercase tracking-wider', aiOn ? 'border-primary text-primary' : 'border-border text-muted-foreground')}>{aiOn ? 'Live AI' : 'Offline'} · AC {foe.ac}</button>
         </div>
         <div className="h-2.5 overflow-hidden rounded-full bg-muted"><div className="h-full bg-destructive transition-all" style={{ width: `${(foeHp / foe.maxHp) * 100}%` }} /></div>
         <div className="mt-2 mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{ctx.name} · {myHp}/{maxHp}</div>
