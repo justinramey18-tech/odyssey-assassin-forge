@@ -157,6 +157,15 @@ function stripOocDirectivesForNarrative(content: string): string {
     .trim();
 }
 
+/**
+ * A Live Table batch with a fight in it (a "⚔ Combat" line). A fight gets no story scene:
+ * the DM's battle post is the story's record of the fight (CL-054). Same test as
+ * liveTableContext.hasCombat in use-round-chat.ts.
+ */
+function hasFightLines(lines?: StorySceneLine[]): boolean {
+  return (lines || []).some(l => l.name === '⚔ Combat' || (l.text || '').trimStart().startsWith('⚔'));
+}
+
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
 
 const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-summarize`;
@@ -2100,6 +2109,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (!lockClaimed) {
       console.log('[PartyDM] Another device is already narrating this round, skipping');
       setIsGenerating(false);
+      // A hand-off that did not start keeps its lines sealed (CL-054).
+      if (directPrompt) throw new Error('Another device is already writing this round.');
       return;
     }
 
@@ -2123,6 +2134,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         .eq('round_id', lockRoundId)
         .eq('holder_user_id', user.id);
       setIsGenerating(false);
+      if (directPrompt) throw new Error('The DM is already writing on another device.');
       return;
     }
 
@@ -2182,6 +2194,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }).join('\n');
 
     abortRef.current = new AbortController();
+    // A Live Table hand-off counts as taken once the DM's answer is saved (or held as a draft).
+    // Until then a failure is passed back to the caller, which keeps the lines sealed (CL-054).
+    let handoffTaken = false;
     try {
       if (isSplitActive && splitState && !directPrompt) {
         let allConsumedCascades: { userId: string; remainingCascade: string[] }[] = [];
@@ -2417,7 +2432,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         // saved to the story at once, so the table reads it while the DM writes. The DM then
         // gets the scene as its input. Not in approval mode, and not in private mode (the
         // scene is shared, while private rounds keep each player's lines to themselves).
-        const sceneLines = isApprovalMode || sessionConfig.mode === 'private' ? [] : (directPrompt?.sceneLines || []);
+        // Not for a fight either: the DM gets the raw batch with the battle rule and the fight
+        // dossier, and its battle post is the story's record of the fight (CL-054).
+        const isFight = !!liveTable?.hasCombat || hasFightLines(directPrompt?.sceneLines);
+        const sceneLines = isApprovalMode || sessionConfig.mode === 'private' || isFight ? [] : (directPrompt?.sceneLines || []);
         const scene = sceneLines.length > 0
           ? await writeStoryScene(sceneLines, sceneSetting(messages)).catch((err) => {
               console.warn('[PartyDM] Story scene failed:', err);
@@ -2457,7 +2475,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           });
           sceneRowId = sceneRow?.id ?? null;
           if (scene.source === 'script') toast.info('The scene is shown as a script', { description: scene.reason, duration: 8000 });
-        } else if (!isApprovalMode) {
+        } else if (!isApprovalMode && !isFight) {
           // Insert one row per ready player (privacy: each row carries player's own user_id)
           for (const p of readyPrompts) {
             await insertPartyMessage({
@@ -2527,6 +2545,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               userContent: combined,
               userSenderName: 'Party',
             });
+            handoffTaken = true;
           } else {
             await insertPartyMessage({
               party_id: partyId,
@@ -2535,6 +2554,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               sender_user_id: null,
               sender_name: 'DM',
             });
+            handoffTaken = true;
 
             sendTelegramNotification({
               type: 'custom',
@@ -2551,6 +2571,11 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             triggerSummaryIfNeeded(updatedMessages);
             silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
           }
+        } else if (directPrompt) {
+          // An empty answer to a Live Table hand-off: take the scene back out and keep the
+          // lines sealed, so the next Send to DM starts clean (CL-054).
+          await dropUnansweredScene().catch(() => {});
+          throw new Error('The DM sent back an empty answer.');
         } else if (insertedUserMsgId) {
           // AI returned empty — roll back the orphaned user message to prevent
           // consecutive same-role messages from snowballing future failures
@@ -2660,15 +2685,19 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
     } catch (error) {
       const isAbort = error instanceof Error && error.name === 'AbortError';
+      // A hand-off the DM never took goes back to the caller, which keeps the lines sealed
+      // and shows its own message (CL-054).
+      const handBack = !!directPrompt && !handoffTaken;
       if (!isAbort) {
         console.error('Party DM generation error:', error);
-        toast.error(error instanceof Error ? error.message : 'Generation failed');
+        if (!handBack) toast.error(error instanceof Error ? error.message : 'Generation failed');
       }
 
       await (supabase.from('party_shared_state') as any)
         .update({ state_data: { ...sessionConfig, isGenerating: false } })
         .eq('party_id', partyId)
         .eq('state_type', 'dm_session');
+      if (handBack) throw error;
     } finally {
       // Release the DB-level per-round claim ticket so the next round starts clean.
       try {
@@ -4311,9 +4340,11 @@ Rules:
     // 1. Story scenes (D-22): the sealed exchange as one readable scene, saved before the post.
     //    The scene is the story's record of the round, so the raw lines are not saved (they stay
     //    in the Live Table). Not in private mode, where each player's lines stay their own.
+    //    Not for a fight: the DM's post is the story's record of a fight, so nothing else is saved (CL-054).
     const playerRows: PartyDmMessage[] = [];
+    const isFight = hasFightLines(input.sceneLines);
     let sceneSaved = false;
-    if (input.sceneLines && input.sceneLines.length > 0 && sessionConfig.mode !== 'private') {
+    if (!isFight && input.sceneLines && input.sceneLines.length > 0 && sessionConfig.mode !== 'private') {
       try {
         const scene = await writeStoryScene(input.sceneLines, sceneSetting(messages));
         if (scene?.text) {
@@ -4335,7 +4366,7 @@ Rules:
 
     // 1b. Without a scene: one story row per player, under their own user id (same format as Send to DM),
     //     then each sealed NPC line as that NPC's own story row.
-    if (!sceneSaved) {
+    if (!sceneSaved && !isFight) {
       for (const p of input.participants) {
         const line = (p.text || '').trim();
         if (!line) continue;
