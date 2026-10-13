@@ -12,6 +12,9 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { NpcPortrait } from './NpcPortrait';
+import { CombatBurst, CounterClashRing } from './CounterClashRing';
+import * as M from '@/lib/combatMinigames';
+import { preloadCombatArt } from '@/lib/combatArt';
 import { resolveOf, type FighterRow, type FightEventRow, type NpcCombatApi } from '@/hooks/use-npc-combat';
 import { NPC_SKILL_INFO, type NpcSkillType, type PartyNpc, type PartyNpcsApi } from '@/hooks/use-party-npcs';
 import type { ActionCard } from '@/lib/roundChatActionCard';
@@ -159,10 +162,12 @@ function pendingOf(f: FighterRow): PendingSkill | null {
   return { skill: p.skill, type: typeof p.type === 'string' ? p.type : '', targets, windupMs: Number.isFinite(w) && w > 0 ? w : 8000 };
 }
 /** Combat v2: what the player can do about an attack coming their way. */
-function incomingHint(type: string, npcName: string): string {
-  if (type === 'sweep') return `Hits up to 3 of you. Hit ${npcName} to push it back.`;
-  if (type === 'pin') return `You'll be pinned for 6 s. Hit ${npcName} to push it back.`;
-  return `Hit ${npcName} to push it back.`;
+function incomingHint(type: string, npcName: string, clash: boolean): string {
+  // v6: big moves can be met with a Counter Clash on the ring (free, no action used).
+  const ring = clash ? ' Then Counter Clash: tap the lit side of the ring as the circle lands.' : '';
+  if (type === 'sweep') return `Hits up to 3 of you. Hit ${npcName} to push it back.${ring}`;
+  if (type === 'pin') return `A pin holds you until you break free. Hit ${npcName} to push it back.${ring}`;
+  return `Hit ${npcName} to push it back.${ring}`;
 }
 function timeOf(v: unknown): number {
   const t = typeof v === 'string' ? Date.parse(v) : NaN;
@@ -223,6 +228,13 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
   const [flash, setFlash] = useState(false);
   const [npcLine, setNpcLine] = useState<string | null>(null);
   const [hiddenEnd, setHiddenEnd] = useState<string | null>(null);
+  // v6: COUNTER! / BREAK FREE! across the screen for a moment.
+  const [burst, setBurst] = useState<{ kind: 'counter' | 'free'; sub?: string; key: string } | null>(null);
+  useEffect(() => {
+    if (!burst) return;
+    const t = setTimeout(() => setBurst(null), 1400);
+    return () => clearTimeout(t);
+  }, [burst]);
   // Countdowns run on the server's clock (combat.clockOffset), so they reach zero when the server acts.
   const [now, setNow] = useState(() => Date.now() + combat.clockOffset);
 
@@ -264,6 +276,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
   }, [rolling]);
 
   // New events: a hit on me flashes the screen; an NPC attack shows a line for 4 s.
+  const myName = myFighter?.name;
   const seenRef = useRef<Set<string> | null>(null);
   useEffect(() => {
     if (seenRef.current === null) { seenRef.current = new Set(events.map(e => e.id)); return; }
@@ -277,7 +290,17 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
     // Combat v2: someone joined and the enemies grew to match.
     const scaled = fresh.find(e => e.kind === 'scale');
     if (scaled) toast(`⚔ The enemy steels itself: ${scaled.actor_name || 'a new fighter'} joins the fight`);
-  }, [events, currentUserId]);
+    // v6: my perfect Counter Clash landed its free counter.
+    const counter = myName ? fresh.find(e => e.kind === 'attack' && e.actor_name === myName && (e.detail ?? '').startsWith('Counter Clash!')) : undefined;
+    if (counter) {
+      setBurst({ kind: 'counter', sub: `${/RIPOSTE/.test(counter.detail ?? '') ? 'RIPOSTE! ' : ''}${Math.abs(counter.hp_delta)} damage to ${counter.target_name}`, key: counter.id });
+      try { navigator.vibrate?.([30, 40, 30, 40, 80]); } catch { /* not supported */ }
+    }
+  }, [events, currentUserId, myName]);
+
+  // v6: fetch the mini-game art once a fight is on, so the first clash shows it without a delay.
+  const fightOn = !!fight && !isEnded;
+  useEffect(() => { if (fightOn) preloadCombatArt(); }, [fightOn]);
   const newest = events[events.length - 1];
   useEffect(() => {
     if (!newest || newest.kind !== 'attack' || !npcFighters.some(f => f.name === newest.actor_name)) return;
@@ -964,7 +987,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                   <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
                     <div className="h-full bg-red-500 transition-[width] duration-500" style={{ width: `${share * 100}%` }} />
                   </div>
-                  <p className="text-[11px] text-red-200/80">{incomingHint(p.type, aimingAtMe.f.name)}</p>
+                  <p className="text-[11px] text-red-200/80">{incomingHint(p.type, aimingAtMe.f.name, !!M.cleanClash((aimingAtMe.f as unknown as { pending?: { clash?: unknown } }).pending?.clash) && !amPinned)}</p>
                 </div>
               );
             })()}
@@ -1030,6 +1053,29 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
       </AlertDialog>
 
       {aimingAtMe && <div aria-hidden className="fixed inset-0 z-[57] pointer-events-none" style={{ boxShadow: 'inset 0 0 60px 12px hsl(0 84% 50% / 0.55)' }} />}
+      {(() => {
+        // v6 Counter Clash: the ring for a big move aimed at me. Floats above any sheet; a pinned player can't clash.
+        if (!aimingAtMe?.p || !myFighter || myFighter.status !== 'up' || amPinned || (!isActive && !isPaused)) return null;
+        const chain = M.cleanClash((aimingAtMe.f as unknown as { pending?: { clash?: unknown } }).pending?.clash);
+        const hitAt = timeOf((aimingAtMe.f as unknown as { strike_at?: unknown }).strike_at);
+        if (!chain || !Number.isFinite(hitAt)) return null;
+        const npcId = aimingAtMe.f.id;
+        return (
+          <CounterClashRing
+            key={chain.id}
+            skillName={aimingAtMe.p.skill}
+            npcName={aimingAtMe.f.name}
+            clash={chain}
+            hitAt={hitAt}
+            results={M.clashResultsOf((myFighter as unknown as { minigame?: unknown }).minigame, chain.id)}
+            serverTime={combat.serverTime}
+            frozenAt={isPaused && Number.isFinite(combat.pausedAtMs) ? combat.pausedAtMs : null}
+            compact={!!step}
+            onTap={(side, tapAt) => combat.clash(npcId, side, tapAt)}
+          />
+        );
+      })()}
+      {burst && <CombatBurst key={burst.key} kind={burst.kind} sub={burst.sub} />}
       {rolling && !result && <RollingCard />}
       {resultCard}
       {flashLayer}
