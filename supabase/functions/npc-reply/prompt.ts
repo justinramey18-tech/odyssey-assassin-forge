@@ -322,6 +322,64 @@ export interface NpcRollRequest {
   /** True for a saving throw. */
   save: boolean;
   dc: number;
+  /** Social checks only: the concrete in-world outcome the character is after. */
+  objective?: string;
+}
+
+/** Social skills that may carry an objective. */
+export const SOCIAL_CHECKS = ['Persuasion', 'Intimidation', 'Deception', 'Insight'] as const;
+export type SocialCheck = typeof SOCIAL_CHECKS[number];
+const OBJECTIVE_MAX = 240;
+
+/** Trim, collapse whitespace and cap an objective; empty or mechanics-only → undefined. */
+export function cleanObjective(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const t = raw.replace(/[\u27EA\u27EB\[\]]/g, '').replace(/\s+/g, ' ').trim().slice(0, OBJECTIVE_MAX).trim();
+  if (!t) return undefined;
+  if (/^(make|roll|do)\s+(a|an)?\s*(persuasion|intimidation|deception|insight)?\s*(check|roll)\b/i.test(t)) return undefined;
+  return t;
+}
+
+export interface SocialIntent { skill: SocialCheck; objective: string }
+
+const SOCIAL_VERBS: Array<[RegExp, SocialCheck]> = [
+  [/^(persuade|convince|talk)\b/i, 'Persuasion'],
+  [/^(intimidate|threaten|scare)\b/i, 'Intimidation'],
+  [/^(deceive|lie|trick|bluff)\b/i, 'Deception'],
+  [/^(insight|read|sense)\b/i, 'Insight'],
+];
+
+/**
+ * A clearly meta first-person declaration ("I want to persuade them to…", "I try to intimidate…",
+ * "I lie to them that…", "I make an insight check…") → the skill and what is wanted. Ordinary
+ * in-character dialogue (quoted speech, or anything not opening with such a declaration) → null.
+ */
+export function socialIntentOf(raw: string): SocialIntent | null {
+  const t = (raw || '').replace(/\s+/g, ' ').trim();
+  if (!t || /^["“'‘]/.test(t)) return null;
+  // Opening: "I", optionally "want to / try to / attempt to / am going to / make (a|an)".
+  const m = /^\*?\s*I\s+(?:(?:want|try|attempt|am trying|am going|would like|'d like|wanna)\s+(?:to\s+)?|(?:make|roll|do)\s+(?:a|an)\s+)?(.*)$/i.exec(t);
+  if (!m) return null;
+  const rest = m[1].trim();
+  const viaCheck = /^(persuasion|intimidation|deception|insight)\s+(check|roll)\b\s*(.*)$/i.exec(rest);
+  if (viaCheck) {
+    const skill = SOCIAL_CHECKS.find(s => s.toLowerCase() === viaCheck[1].toLowerCase())!;
+    const obj = viaCheck[3].replace(/^(on|against|to see|to tell|to figure out|to read|if|whether)\s*/i, '').trim();
+    return { skill, objective: cleanObjective(obj) || (skill === 'Insight' ? 'read their true intentions' : 'get what they are after') };
+  }
+  const insightCheck = /^insight\s+check\b\s*(.*)$/i.exec(rest);
+  if (insightCheck) return { skill: 'Insight', objective: cleanObjective(insightCheck[1]) || 'read their true intentions' };
+  for (const [re, skill] of SOCIAL_VERBS) {
+    if (!re.test(rest)) continue;
+    // "talk" / "read" / "sense" only count with a clear social object.
+    if (/^talk\b/i.test(rest) && !/^talk\s+\S+(\s+\S+)?\s+(into|out of)\b/i.test(rest)) return null;
+    if (/^(read|sense)\b/i.test(rest) && !/\b(intent|intention|motive|lying|truth|honest|mood|feel)/i.test(rest)) return null;
+    // Only first-person meta: a bare "I lie" without an object reads as dialogue/action, keep it ordinary.
+    if (rest.split(' ').length < 2) return null;
+    const obj = rest.replace(re, '').trim();
+    return { skill, objective: cleanObjective(obj) || 'get what they are after' };
+  }
+  return null;
 }
 
 /** "Insight", "Wisdom save", "WIS saving throw", "Strength check" → a known check, or null. */
@@ -337,13 +395,17 @@ export function normalizeCheck(raw: string): { check: string; save: boolean } | 
   return null;
 }
 
-const ROLL_TAG_RE = /\[\s*ROLL\s*:\s*([^|\]]{1,60})\|\s*([^|\]]{1,40})\|\s*(\d{1,2})\s*\]/gi;
+const ROLL_TAG_RE = /\[\s*ROLL\s*:\s*([^|\]]{1,60})\|\s*([^|\]]{1,40})\|\s*(\d{1,2})\s*(?:\|\s*([^\]]{0,400}))?\]/gi;
 
 /** Split a model's raw answer into its words and the first [ROLL: Name | Check | DC] tag in it. */
-export function splitRollTag(raw: string): { text: string; tag: { name: string; check: string; dc: number } | null } {
-  let tag: { name: string; check: string; dc: number } | null = null;
-  const text = (raw || '').replace(ROLL_TAG_RE, (_m, name: string, check: string, dc: string) => {
-    if (!tag) tag = { name: name.trim(), check: check.trim(), dc: parseInt(dc, 10) };
+export function splitRollTag(raw: string): { text: string; tag: { name: string; check: string; dc: number; objective?: string } | null } {
+  let tag: { name: string; check: string; dc: number; objective?: string } | null = null;
+  const text = (raw || '').replace(ROLL_TAG_RE, (_m, name: string, check: string, dc: string, objective?: string) => {
+    if (!tag) {
+      tag = { name: name.trim(), check: check.trim(), dc: parseInt(dc, 10) };
+      const o = cleanObjective(objective);
+      if (o) tag.objective = o;
+    }
     return '';
   });
   return { text, tag };
@@ -354,7 +416,7 @@ export function splitRollTag(raw: string): { text: string; tag: { name: string; 
  * a known skill, ability or save, and a DC from 5 to 30 are allowed.
  */
 export function validateRollTag(
-  tag: { name: string; check: string; dc: number } | null,
+  tag: { name: string; check: string; dc: number; objective?: string } | null,
   seats: Array<{ user_id: string; character_name: string }>,
 ): NpcRollRequest | null {
   if (!tag) return null;
@@ -365,12 +427,16 @@ export function validateRollTag(
   if (!seat) return null;
   const check = normalizeCheck(tag.check);
   if (!check) return null;
-  return { to: seat.user_id, name: seat.character_name.trim(), check: check.check, save: check.save, dc: Math.round(tag.dc) };
+  const out: NpcRollRequest = { to: seat.user_id, name: seat.character_name.trim(), check: check.check, save: check.save, dc: Math.round(tag.dc) };
+  const objective = !check.save && (SOCIAL_CHECKS as readonly string[]).includes(check.check) ? cleanObjective(tag.objective) : undefined;
+  if (objective) out.objective = objective;
+  return out;
 }
 
 /** The marker stored at the end of an NPC line that asks for a roll. */
 export function formatRollMarker(r: NpcRollRequest): string {
-  return `\n⟪ROLL⟫${JSON.stringify({ to: r.to, name: r.name, check: r.check, save: r.save, dc: r.dc })}⟪/ROLL⟫`;
+  const objective = cleanObjective(r.objective);
+  return `\n⟪ROLL⟫${JSON.stringify({ to: r.to, name: r.name, check: r.check, save: r.save, dc: r.dc, ...(objective ? { objective } : {}) })}⟪/ROLL⟫`;
 }
 
 /** The roll request stored in an NPC line, or null. */
@@ -380,7 +446,10 @@ export function rollRequestOf(stored: string): NpcRollRequest | null {
   try {
     const r = JSON.parse(m[1]);
     if (typeof r?.to !== 'string' || typeof r?.check !== 'string' || typeof r?.dc !== 'number') return null;
-    return { to: r.to, name: typeof r.name === 'string' ? r.name : 'A player', check: r.check, save: !!r.save, dc: r.dc };
+    const out: NpcRollRequest = { to: r.to, name: typeof r.name === 'string' ? r.name : 'A player', check: r.check, save: !!r.save, dc: r.dc };
+    const objective = cleanObjective(r.objective);
+    if (objective) out.objective = objective;
+    return out;
   } catch {
     return null;
   }
@@ -574,6 +643,13 @@ export function buildNpcSystemPrompt(input: NpcPromptInput): string {
       `When a player character tries something against ${name} whose outcome is truly uncertain and matters (lying to ${name}, reading ${name}'s intentions, persuading, intimidating or tricking ${name}, slipping something past ${name}, resisting ${name}'s influence), ${name} may react without deciding the outcome and ask for a roll by ending the reply with ONE line exactly like this:`,
       '[ROLL: Kaelen | Insight | 14]',
       'The character\'s name as it appears in THE PARTY or THE PEOPLE HERE list, then a skill (Insight, Persuasion, Deception, Intimidation, Perception, Sleight of Hand, Athletics…), an ability check (Strength…) or a save ("Wisdom save"), then a DC from 5 to 30 (10 easy, 15 medium, 20 hard, 25 very hard).',
+      'For Persuasion, Intimidation, Deception or Insight, add a fourth part: the concrete in-world outcome the character is after, in plain words (never "make a check"). Example: [ROLL: Kaelen | Persuasion | 15 | let the party through the east gate]',
+      'What each social skill means:',
+      `- Persuasion: ${name} may make a reasonable concession or decision. Never mind control.`,
+      `- Intimidation: ${name} complies because the threat worked, and may fear or resent the character for it.`,
+      `- Deception: ${name} believes one specific false claim and acts on it until credible evidence overturns it.`,
+      `- Insight: the character reads ${name}. It reveals what shows, but does not force ${name} to change behavior.`,
+      `- No roll ever makes ${name} cross a HARD LINE or do something outside ${name}'s actual power. If what they want is impossible, refuse in character without asking for a roll.`,
       '- At most one roll per reply, only for a player character in that list, and only when it matters. Never for something trivial, and never twice in a row for the same thing.',
       '- The app shows the player the DC, rolls their dice from their character sheet and tells you the result. Do not invent results.',
     ].join('\n'));
@@ -772,6 +848,19 @@ export function buildNpcUserMessage(input: NpcPromptInput): string {
   }
 
   const said = capStart(addressedText(input.line, name), NPC_LIMITS.playerLine);
+  const intent = socialIntentOf(said);
+  if (intent) {
+    const verb = intent.skill === 'Persuasion' ? 'tries to persuade' : intent.skill === 'Intimidation' ? 'tries to intimidate' : intent.skill === 'Deception' ? 'tries to deceive' : 'tries to read';
+    return [
+      tableBlock,
+      `PLAYER INTENT (this is NOT spoken aloud; it describes what ${input.speakerName} attempts in the world): ${input.speakerName} ${verb} ${name}. What they want: ${intent.objective}.`,
+      `Respond only to the in-world attempt: the words, manner, look or pressure ${name} would actually notice. Never say or paraphrase "you want to persuade/intimidate/deceive/read me", and never mention checks, rolls, DCs, skills or any game language.`,
+      `If the outcome is truly uncertain and matters, react without deciding it and end with [ROLL: ${input.speakerName} | ${intent.skill} | DC | ${intent.objective}] — the fourth part is required here and must be the specific outcome they want. If it is impossible, outside ${name}'s power, or crosses a HARD LINE, refuse in character and do not ask for a roll.`,
+      ownBlock,
+      voice,
+      `Answer as ${name}: in ${name}'s own voice, 1 to 3 sentences, under 70 words.`,
+    ].filter(Boolean).join('\n\n');
+  }
   return [
     tableBlock,
     `Now ${input.speakerName} says to ${name}: "${said}"`,
