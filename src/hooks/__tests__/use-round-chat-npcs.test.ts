@@ -11,7 +11,10 @@ let readError = false;
 function query(tableName: string) {
   const call: Call = { table: tableName, op: 'select', args: [], filters: [] };
   const result = () => {
-    if (call.op === 'insert') return { data: { id: 'new-line-id' }, error: null };
+    if (call.op === 'insert') {
+      const ins = call.args[0] as Record<string, unknown>;
+      return { data: { id: 'new-line-id', npc_id: null, ...ins, consumed: false, selected: false, created_at: '2026-10-10T12:00:09Z' }, error: null };
+    }
     if (tableName === 'party_round_chat' && call.op === 'select') return readError
       ? { data: null, error: { message: 'offline' } }
       : { data: [...table].reverse(), error: null };
@@ -37,8 +40,12 @@ function query(tableName: string) {
   return builder;
 }
 
+const rt: { handlers: Array<(p: unknown) => void>; status: ((s: string) => void) | null } = { handlers: [], status: null };
 vi.mock('@/integrations/supabase/client', () => {
-  const channel: any = { on: () => channel, subscribe: () => channel };
+  const channel: any = {
+    on: (_e: string, opts: { table?: string }, cb: (p: unknown) => void) => { if (opts?.table === 'party_round_chat') rt.handlers.push(cb); return channel; },
+    subscribe: (cb?: (s: string) => void) => { rt.status = cb ?? null; return channel; },
+  };
   return {
     supabase: {
       from: (t: string) => query(t),
@@ -176,5 +183,31 @@ describe('Live Table with NPC lines', () => {
     expect(ok).toBe(true);
     const insert = calls.filter(c => c.op === 'insert').pop()!;
     expect(insert.args[0]).toEqual({ party_id: 'party', user_id: KAEL, character_name: 'Kaelen', content: 'Hello', in_character: false, round_id: 'round' });
+  });
+
+  it('a sent line shows at once without any live update, and a later echo does not duplicate it', async () => {
+    const { result } = await render();
+    await act(async () => { await result.current.sendMessage('Hello', false); });
+    const mine = result.current.messages.filter(m => m.id === 'new-line-id');
+    expect(result.current.messages).toHaveLength(5);
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toMatchObject({ content: 'Hello', user_id: KAEL, character_name: 'Kaelen', in_character: false, npc_id: null });
+    act(() => { rt.handlers.forEach(h => h({ eventType: 'INSERT', new: { ...mine[0] } })); });
+    expect(result.current.messages.filter(m => m.id === 'new-line-id')).toHaveLength(1);
+  });
+
+  it('an NPC line shows at once with its NPC marker', async () => {
+    const { result } = await render(HOST);
+    await act(async () => { await result.current.postLine('Back off.', true, { npcId: 'npc-grukk', name: 'Grukk' }); });
+    const row = result.current.messages.filter(m => m.id === 'new-line-id');
+    expect(row).toHaveLength(1);
+    expect(row[0]).toMatchObject({ npc_id: 'npc-grukk', character_name: 'Grukk' });
+  });
+
+  it('reconnecting re-reads the conversation from the server', async () => {
+    await render();
+    const before = calls.filter(c => c.table === 'party_round_chat' && c.op === 'select').length;
+    await act(async () => { rt.status?.('SUBSCRIBED'); await Promise.resolve(); });
+    await waitFor(() => expect(calls.filter(c => c.table === 'party_round_chat' && c.op === 'select').length).toBeGreaterThan(before));
   });
 });
