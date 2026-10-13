@@ -24,7 +24,7 @@ interface Face { center: THREE.Vector3; normal: THREE.Vector3; size: number }
 interface Shape { geo: THREE.BufferGeometry; hull: Float32Array; faces: Face[] }
 
 function buildShape(sides: Die3D): Shape {
-  const r = 0.5;
+  const r = 0.68;
   let g: THREE.BufferGeometry =
     sides === 4 ? new THREE.TetrahedronGeometry(r * 1.25)
     : sides === 6 ? new THREE.BoxGeometry(r * 1.4, r * 1.4, r * 1.4).toNonIndexed()
@@ -47,6 +47,7 @@ function buildShape(sides: Die3D): Shape {
   const faces: Face[] = [...groups.values()].map(({ n, pts }) => {
     const uniq = pts.filter((p, i) => pts.findIndex((q) => q.distanceTo(p) < 1e-4) === i);
     const center = uniq.reduce((s, p) => s.add(p), new THREE.Vector3()).divideScalar(uniq.length);
+    if (n.dot(center) < 0) n.negate();
     const inr = Math.min(...uniq.map((p) => p.distanceTo(center)));
     return { center, normal: n, size: inr * (sides === 6 ? 1.1 : sides === 4 ? 0.9 : 1.15) };
   });
@@ -213,12 +214,12 @@ export default function Dice3DPopup({ title, dice, summary, crit, onDone }: Dice
       <div className="relative h-[62vh] max-h-[560px] w-[92vw] max-w-[420px] overflow-hidden rounded-2xl border border-amber-900/50 shadow-2xl">
         <Canvas shadows dpr={[1, 1.75]} camera={{ position: [0, 8.5, 3.2], fov: 45 }} onCreated={({ camera }) => camera.lookAt(0, 0, 0.2)}>
           <color attach="background" args={['#120c08']} />
-          <ambientLight intensity={0.45} />
+          <ambientLight intensity={0.25} />
           <directionalLight position={[3, 9, 4]} intensity={1.6} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} shadow-camera-left={-4} shadow-camera-right={4} shadow-camera-top={4} shadow-camera-bottom={-4} />
           <pointLight position={[-2, 3, -2]} intensity={6} color="#ffb070" />
           <Environment resolution={64}>
-            <Lightformer intensity={2} position={[0, 5, 0]} scale={[10, 10, 1]} rotation-x={Math.PI / 2} />
-            <Lightformer intensity={1} color="#ffcc99" position={[-5, 1, -1]} rotation-y={Math.PI / 2} scale={[20, 1, 1]} />
+            <Lightformer intensity={0.8} position={[0, 5, 0]} scale={[10, 10, 1]} rotation-x={Math.PI / 2} />
+            <Lightformer intensity={0.5} color="#ffcc99" position={[-5, 1, -1]} rotation-y={Math.PI / 2} scale={[20, 1, 1]} />
           </Environment>
           <Physics gravity={[0, -28, 0]} key={rollKey}>
             <Tray />
