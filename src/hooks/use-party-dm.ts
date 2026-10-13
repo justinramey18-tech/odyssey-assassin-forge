@@ -22,6 +22,7 @@ import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
 import { getAlignmentZone, type AlignmentScore } from '@/lib/alignmentSpectrum';
 import { buildEmpyreanDMPersona } from '@/lib/empyreanDMPersona';
 import { getBondDescriptor } from '@/lib/dragonBondState';
+import { readPartyChatCache, writePartyChatCache, clearPartyChatCache } from '@/lib/party-chat-cache';
 
 /** D&D ability modifier for a raw score. */
 function abilityMod(score: number): string {
@@ -465,7 +466,17 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [messagesLoaded, setMessagesLoaded] = useState(false);
   useEffect(() => {
     setSessionConfigLoaded(false);
-    setMessagesLoaded(false);
+    // Show the party's cached chat instantly on open; the server fetch below
+    // replaces it with fresh messages once it arrives. With a warm cache the
+    // chat is never on a loading state.
+    const cached = partyId ? readPartyChatCache(partyId) : [];
+    if (cached.length > 0) {
+      setMessages(cached as PartyDmMessage[]);
+      setMessagesLoaded(true);
+    } else {
+      setMessages([]);
+      setMessagesLoaded(false);
+    }
   }, [partyId]);
 
   const isActive = sessionConfig?.active === true;
