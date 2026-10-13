@@ -1056,6 +1056,24 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
       </AlertDialog>
 
       {aimingAtMe && <div aria-hidden className="fixed inset-0 z-[57] pointer-events-none" style={{ boxShadow: 'inset 0 0 60px 12px hsl(0 84% 50% / 0.55)' }} />}
+      {amPinned && myFighter?.status === 'up' && (() => {
+        // v6 Tug & Slip: the struggle stage lives at the top level of the fragment so it covers the whole chat window
+        // (the dock is its own fixed layer, so anything inside it could never rise above the combat top panel).
+        const me = myFighter;
+        if (!me) return null;
+        const pinEvent = [...events].reverse().find(e => e.kind === 'pin' && e.target_user_id === currentUserId && e.actor_name !== me.name);
+        return (
+          <TugAndSlip
+            npcName={pinEvent?.actor_name || null}
+            pinnedUntil={pinnedUntil}
+            struggle={M.cleanStruggle(((me as unknown as { minigame?: Record<string, unknown> | null }).minigame ?? {}).struggle)}
+            serverTime={combat.serverTime}
+            frozenAt={isPaused && Number.isFinite(combat.pausedAtMs) ? combat.pausedAtMs : null}
+            onHeave={tapAt => combat.heave(tapAt)}
+            onFree={() => setBurst({ kind: 'free', key: `local-${pinnedUntil}` })}
+          />
+        );
+      })()}
       {(() => {
         // v6 Counter Clash: the ring for a big move aimed at me. Floats above any sheet; a pinned player can't clash.
         if (!aimingAtMe?.p || !myFighter || myFighter.status !== 'up' || amPinned || (!isActive && !isPaused)) return null;
