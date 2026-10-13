@@ -81,6 +81,7 @@ export function ArenaPractice({ opponent, stats, onStats, onBack, foe: givenFoe 
   const meta = OPPONENTS.find((o) => o.id === opponent) ?? { id: opponent, name: foe?.name ?? 'Opponent', blurb: opponent === 'gauntlet' ? `Wave ${wave}. Your health carries over.` : 'Your campaign NPC, for practice.', icon: Swords };
   const [myHp, setMyHp] = useState(PLAYER_MAX_HP);
   const [over, setOver] = useState(false);
+  const myHpRef = useRef(PLAYER_MAX_HP);
   const [speed, setSpeed] = useState(1);
   const [live, setLive] = useState<Live>(null);
   const [hp, setHp] = useState(100);
@@ -169,17 +170,16 @@ export function ArenaPractice({ opponent, stats, onStats, onBack, foe: givenFoe 
 
   const takeHit = (amount: number) => {
     if (!foe || amount <= 0) return;
-    setMyHp((h) => {
-      const n = Math.max(0, h - amount);
-      if (n === 0) {
-        setOver(true);
-        setFeedback(opponent === 'gauntlet' ? `You fell on wave ${wave}.` : `${foe.name} wins this round.`);
-      }
-      return n;
-    });
+    const n = Math.max(0, myHpRef.current - amount);
+    myHpRef.current = n;
+    setMyHp(n);
+    if (n === 0) {
+      setOver(true);
+      setFeedback(opponent === 'gauntlet' ? `You fell on wave ${wave}.` : `${foe.name} wins this round.`);
+    }
   };
 
-  const restart = () => { setMyHp(PLAYER_MAX_HP); setHp(100); setWave(1); setOver(false); setFeedback(null); setLive(null); };
+  const restart = () => { myHpRef.current = PLAYER_MAX_HP; setMyHp(PLAYER_MAX_HP); setHp(100); setWave(1); setOver(false); setFeedback(null); setLive(null); };
 
   const attack = () => {
     if (over) return;
@@ -187,15 +187,15 @@ export function ArenaPractice({ opponent, stats, onStats, onBack, foe: givenFoe 
     const dmg = roll(8) + 3;
     if (foe) {
       const pct = (dmg / foe.maxHp) * 100;
-      setHp((h) => {
-        if (h - pct > 0) return h - pct;
+      if (hp - pct > 0) setHp(hp - pct);
+      else {
         if (opponent === 'gauntlet') {
           setFeedback(`Wave ${wave} cleared!`);
           bump({ bestWave: Math.max(statsRef.current.bestWave, wave) });
           setWave((w) => w + 1);
         } else setFeedback(`${foe.name} is beaten!`);
-        return 100;
-      });
+        setHp(100);
+      }
     } else setHp((h) => (h - dmg <= 0 ? 100 : h - dmg));
     setFloater({ text: `-${dmg}`, at: Date.now() });
     bump({ hits: statsRef.current.hits + 1, damage: statsRef.current.damage + dmg });
