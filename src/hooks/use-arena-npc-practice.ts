@@ -21,9 +21,11 @@ type Finish = 'knockout' | 'kill';
 
 const PARTY = 'arena-practice';
 const FIGHT_ID = 'arena-fight';
-const NPC_ROW = 'arena-npc';
+const NPC_PREFIX = 'arena-npc-';
+const npcRow = (i: number) => `${NPC_PREFIX}${i}`;
+const npcIdOf = (i: number) => `arena-foe-${i}`;
+const isNpcRow = (id: string) => id.startsWith(NPC_PREFIX);
 const PLAYER_ROW = 'arena-player';
-const FOE_NPC_ID = 'arena-foe';
 const ACTION_COOLDOWN_MS = 8000;
 const PIN_MS = 30000;
 const GAP: Record<DU.DuelSpeed, number> = { trivial: 16000, easy: 14000, medium: 12000, hard: 10000, deadly: 8000 };
@@ -39,7 +41,9 @@ const objOf = (v: Json | null | undefined): Record<string, unknown> => (v && typ
 
 export interface ArenaPracticeOptions {
   ctx: CharacterContext;
-  foe: Foe & { persona?: string };
+  /** One opponent (legacy) or several. */
+  foe?: Foe & { persona?: string };
+  foes?: Array<Foe & { persona?: string }>;
   currentUserId: string | null;
   /** From use-arena-round-chat: puts opponent speech and fight results in the Live Table. */
   appendLine: (line: ArenaAppendLine) => string;
@@ -62,7 +66,9 @@ function baseRow(now: number, over: Partial<FighterRow>): FighterRow {
   };
 }
 
-export function useArenaNpcPractice({ ctx, foe, currentUserId, appendLine, aiVoice = true, onPracticeHp }: ArenaPracticeOptions): ArenaPracticeApi {
+export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentUserId, appendLine, aiVoice = true, onPracticeHp }: ArenaPracticeOptions): ArenaPracticeApi {
+  const foes = useMemo(() => (manyFoes && manyFoes.length ? manyFoes : oneFoe ? [oneFoe] : []).slice(0, 6), [manyFoes, oneFoe]);
+  const foeAt = useCallback((rowId: string) => foes[Math.max(0, Number(rowId.slice(NPC_PREFIX.length)) || 0)] ?? foes[0], [foes]);
   const baseCombat = useNpcCombat({ partyId: null, currentUserId, isHost: true, sheetHp: null });
   const baseRoster = usePartyNpcs(null);
   const me = currentUserId || 'arena-player';
@@ -86,25 +92,28 @@ export function useArenaNpcPractice({ ctx, foe, currentUserId, appendLine, aiVoi
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 200); return () => clearInterval(t); }, []);
   const serverTime = useCallback(() => Date.now(), []);
 
-  const say = useCallback((who: 'foe' | 'table', text: string) => {
+  const say = useCallback((who: 'foe' | 'table', text: string, rowId: string = npcRow(0)) => {
     history.current = [...history.current.slice(-19), { who, text }];
     if (who === 'foe') {
-      appendLine({ content: text, characterName: foe.name, npcId: FOE_NPC_ID, inCharacter: true });
-      setLastLineAt((m) => ({ ...m, [FOE_NPC_ID]: Date.now() }));
+      const i = Math.max(0, Number(rowId.slice(NPC_PREFIX.length)) || 0);
+      appendLine({ content: text, characterName: foeAt(rowId)?.name ?? 'Opponent', npcId: npcIdOf(i), inCharacter: true });
+      setLastLineAt((m) => ({ ...m, [npcIdOf(i)]: Date.now() }));
     } else appendLine({ content: `⚔ ${text}`, characterName: '⚔ Combat', inCharacter: false });
-  }, [appendLine, foe.name]);
+  }, [appendLine, foeAt]);
 
-  const speak = useCallback(async (fallback: string, force = false) => {
-    if (!aiVoice) { say('foe', fallback); return; }
+  const speak = useCallback(async (fallback: string, force = false, rowId: string = npcRow(0)) => {
+    if (!aiVoice) { say('foe', fallback, rowId); return; }
     if (speechBusy.current || (!force && Date.now() - lastSpeech.current < 4000)) return;
     speechBusy.current = true; lastSpeech.current = Date.now();
     const rows = rowsRef.current;
-    const p = rows.find((r) => r.id === PLAYER_ROW); const n = rows.find((r) => r.id === NPC_ROW);
+    const foe = foeAt(rowId);
+    if (!foe) { speechBusy.current = false; return; }
+    const p = rows.find((r) => r.id === PLAYER_ROW); const n = rows.find((r) => r.id === rowId);
     const sys = buildSparPrompt({ foeName: foe.name, foePersona: foe.persona, playerName: ctx.name || 'the challenger', foeHp: n?.hp ?? foe.maxHp, foeMax: foe.maxHp, myHp: p?.hp ?? maxHp, myMax: maxHp });
     const text = await sparLine(sys, history.current);
     speechBusy.current = false;
-    say('foe', text || fallback);
-  }, [aiVoice, say, foe.name, foe.persona, foe.maxHp, ctx.name, maxHp]);
+    say('foe', text || fallback, rowId);
+  }, [aiVoice, say, foeAt, ctx.name, maxHp]);
 
   const event = useCallback((e: Partial<FightEventRow> & { kind: string; detail: string }) => {
     const row: FightEventRow = { actor_name: '', applied_at: null, created_at: iso(Date.now()), d20: null, fight_id: FIGHT_ID, hp_delta: 0, id: crypto.randomUUID(), party_id: PARTY, target_name: '', target_user_id: null, total: null, ...e };
@@ -121,7 +130,7 @@ export function useArenaNpcPractice({ ctx, foe, currentUserId, appendLine, aiVoi
 
   const endWith = useCallback((outcome: 'victory' | 'defeat' | 'ended', detail: string) => {
     setFight((f) => (f ? { ...f, status: 'ended', outcome, ended_at: iso(Date.now()) } : f));
-    patch(NPC_ROW, () => ({ pending: null, strike_at: null }));
+    setFighters((rows) => { const next = rows.map((r) => (isNpcRow(r.id) ? { ...r, pending: null, strike_at: null } : r)); rowsRef.current = next; return next; });
     event({ kind: 'end', detail });
     say('table', detail);
   }, [patch, event, say]);
@@ -135,15 +144,17 @@ export function useArenaNpcPractice({ ctx, foe, currentUserId, appendLine, aiVoi
     const hp = Math.max(0, row.hp - n);
     const gain = DU.duelChargeGain(n, row.max_hp);
     patch(id, (r) => ({ hp, status: hp === 0 ? 'down' : r.status, duel_charge: Math.min(DU.DUEL_CHARGE.max, r.duel_charge + gain) }));
-    const other = id === PLAYER_ROW ? NPC_ROW : PLAYER_ROW;
-    patch(other, (r) => ({ duel_charge: Math.min(DU.DUEL_CHARGE.max, r.duel_charge + gain) }));
+    if (isNpcRow(id)) patch(PLAYER_ROW, (r) => ({ duel_charge: Math.min(DU.DUEL_CHARGE.max, r.duel_charge + gain) }));
     event({ kind, actor_name: by, target_name: row.name, target_user_id: row.user_id, hp_delta: -n, detail, d20: d20 ?? null, total: total ?? null });
     if (id === PLAYER_ROW) onPracticeHp?.(hp, maxHp);
     if (hp === 0) {
-      if (id === NPC_ROW) endWith('victory', `${foe.name} is beaten! Victory.`);
-      else { void speak('Yield! Dust yourself off and go again.', true); endWith('defeat', `${ctx.name || 'You'} went down. Practice over — nothing lost.`); }
-    } else if (id === NPC_ROW && Math.random() < 0.5) void speak(pick(HURT));
-  }, [patch, event, endWith, speak, onPracticeHp, maxHp, foe.name, ctx.name]);
+      if (isNpcRow(id)) {
+        const standing = rowsRef.current.filter((r) => isNpcRow(r.id) && r.status === 'up');
+        if (standing.length === 0) endWith('victory', rowsRef.current.filter((r) => isNpcRow(r.id)).length > 1 ? 'Every opponent is beaten! Victory.' : `${row.name} is beaten! Victory.`);
+        else say('table', `${row.name} is down! ${standing.length} still standing.`);
+      } else { const s = rowsRef.current.find((r) => isNpcRow(r.id) && r.status === 'up'); if (s) void speak('Yield! Dust yourself off and go again.', true, s.id); endWith('defeat', `${ctx.name || 'You'} went down. Practice over — nothing lost.`); }
+    } else if (isNpcRow(id) && Math.random() < 0.5) void speak(pick(HURT), false, id);
+  }, [patch, event, endWith, speak, say, onPracticeHp, maxHp, ctx.name]);
 
   const heal = useCallback((id: string, amount: number, label: string) => {
     const n = Math.round(amount);
@@ -163,34 +174,38 @@ export function useArenaNpcPractice({ ctx, foe, currentUserId, appendLine, aiVoi
   const openFight = useCallback(async (_npcId: string, _opts?: { weaponName?: string; finish?: Finish }) => {
     const t = Date.now();
     const player = baseRow(t, { id: PLAYER_ROW, kind: 'player', user_id: me, name: ctx.name || 'You', hp: maxHp, max_hp: maxHp, ac: myAc });
-    const npc = baseRow(t, { id: NPC_ROW, kind: 'npc', npc_id: FOE_NPC_ID, name: foe.name, hp: foe.maxHp, max_hp: foe.maxHp, ac: foe.ac, act_every_ms: GAP[foe.speed], next_action_at: iso(t + GAP[foe.speed]) });
-    rowsRef.current = [player, npc];
-    setFighters([player, npc]);
+    const npcs = foes.map((foe, i) => baseRow(t, { id: npcRow(i), kind: 'npc', npc_id: npcIdOf(i), name: foe.name, hp: foe.maxHp, max_hp: foe.maxHp, ac: foe.ac, act_every_ms: GAP[foe.speed], next_action_at: iso(t + GAP[foe.speed] + i * 1700) }));
+    rowsRef.current = [player, ...npcs];
+    setFighters([player, ...npcs]);
     setEvents([]);
     setFight({ id: FIGHT_ID, party_id: PARTY, status: 'active', outcome: null, started_at: iso(t), started_by: me, ended_at: null, huddles_used: {}, pause_kind: null, paused_at: null, paused_until: null, updated_at: iso(t) });
-    say('table', `${foe.name} steps into the ring. Nothing here counts.`);
-    void speak(pick(TAUNTS), true);
+    say('table', `${foes.map((f) => f.name).join(', ')} ${foes.length > 1 ? 'step' : 'steps'} into the ring. Nothing here counts.`);
+    void speak(pick(TAUNTS), true, npcRow(0));
     return { ok: true };
-  }, [me, ctx.name, maxHp, myAc, foe, say, speak]);
+  }, [me, ctx.name, maxHp, myAc, foes, say, speak]);
 
   /** One player strike against the practice opponent. */
-  const strike = useCallback((label: string, d20: number, total: number, dmg: number) => {
-    const npc = rowsRef.current.find((r) => r.id === NPC_ROW);
+  const targetOf = (id?: string) => {
+    const ups = rowsRef.current.filter((r) => isNpcRow(r.id) && r.status === 'up');
+    return ups.find((r) => r.id === id) ?? ups[0] ?? null;
+  };
+  const strike = useCallback((targetId: string, label: string, d20: number, total: number, dmg: number) => {
+    const npc = targetOf(targetId);
     if (!npc) return null;
     const crit = d20 === 20;
     const hit = d20 !== 1 && (crit || total >= npc.ac);
     const damage = hit ? Math.max(1, Math.round(crit ? dmg * 2 : dmg)) : 0;
-    if (hit) hurt(NPC_ROW, damage, ctx.name || 'You', 'attack', `${label}: ${crit ? 'critical ' : ''}hit for ${damage}.`, d20, total);
+    if (hit) hurt(npc.id, damage, ctx.name || 'You', 'attack', `${label}: ${crit ? 'critical ' : ''}hit for ${damage}.`, d20, total);
     else event({ kind: 'attack', actor_name: ctx.name || 'You', target_name: npc.name, detail: `${label}: ${total} vs AC ${npc.ac}, miss.`, d20, total });
-    say('table', hit ? `${label} — ${total} vs AC ${npc.ac}, ${crit ? 'critical! ' : ''}${damage} damage.` : `${label} — ${total} vs AC ${npc.ac}, miss.`);
+    say('table', hit ? `${label} → ${npc.name} — ${total} vs AC ${npc.ac}, ${crit ? 'critical! ' : ''}${damage} damage.` : `${label} — ${total} vs AC ${npc.ac}, miss.`);
     return { ok: true, d20, total, hit, crit, damage };
   }, [hurt, event, say, ctx.name]);
 
-  const attack = useCallback(async (_targetId: string, opts?: { weaponName?: string; finish?: Finish }) => {
+  const attack = useCallback(async (targetId: string, opts?: { weaponName?: string; finish?: Finish }) => {
     if (!live()) return null;
     spendAction();
     const d20 = roll(20);
-    return strike(opts?.weaponName || 'Attack', d20, d20 + atkBonus, roll(8) + 3);
+    return strike(targetId, opts?.weaponName || 'Attack', d20, d20 + atkBonus, roll(8) + 3);
   }, [spendAction, strike, atkBonus]);
 
   const cast = useCallback(async (targetId: string, spell: { name: string; level: number }, intent: 'damage' | 'heal', _finish?: Finish) => {
@@ -198,9 +213,9 @@ export function useArenaNpcPractice({ ctx, foe, currentUserId, appendLine, aiVoi
     spendAction();
     const dice = Math.max(1, spell.level + 1);
     let amt = 0; for (let i = 0; i < dice; i++) amt += roll(8);
-    if (intent === 'heal') return { ok: true, healed: heal(targetId === NPC_ROW ? NPC_ROW : PLAYER_ROW, amt + 3, `${spell.name}: +${amt + 3} HP`) };
+    if (intent === 'heal') return { ok: true, healed: heal(isNpcRow(targetId) ? targetId : PLAYER_ROW, amt + 3, `${spell.name}: +${amt + 3} HP`) };
     const d20 = roll(20);
-    return strike(spell.name, d20, d20 + atkBonus, amt);
+    return strike(targetId, spell.name, d20, d20 + atkBonus, amt);
   }, [spendAction, heal, strike, atkBonus]);
 
   const castFromCard = useCallback(async (targetId: string, card: ActionCard, _finish?: Finish, _extra?: string[]) => {
@@ -208,18 +223,20 @@ export function useArenaNpcPractice({ ctx, foe, currentUserId, appendLine, aiVoi
     spendAction();
     const dmg = num(card.damageTotal, 0);
     const amount = num(card.amount, 0);
-    if (card.kind === 'heal' || (amount > 0 && !dmg)) return { ok: true, healed: heal(targetId === NPC_ROW ? NPC_ROW : PLAYER_ROW, amount, `${card.action}: +${amount} HP`) };
+    if (card.kind === 'heal' || (amount > 0 && !dmg)) return { ok: true, healed: heal(isNpcRow(targetId) ? targetId : PLAYER_ROW, amount, `${card.action}: +${amount} HP`) };
     if (card.resolve === 'save') {
+      const tgt = targetOf(targetId);
+      if (!tgt) return null;
       const save = roll(20) + 2;
       const dc = num(card.saveDC, 13);
       const d = save >= dc ? Math.floor(dmg / 2) : dmg;
-      if (d > 0) hurt(NPC_ROW, d, ctx.name || 'You', 'attack', `${card.action}: ${foe.name} rolls ${save} vs DC ${dc}.`);
-      say('table', `${card.action} — ${foe.name} rolls ${save} vs DC ${dc}: ${save >= dc ? 'saves, half' : 'fails'}, ${d} damage.`);
+      if (d > 0) hurt(tgt.id, d, ctx.name || 'You', 'attack', `${card.action}: ${tgt.name} rolls ${save} vs DC ${dc}.`);
+      say('table', `${card.action} — ${tgt.name} rolls ${save} vs DC ${dc}: ${save >= dc ? 'saves, half' : 'fails'}, ${d} damage.`);
       return { ok: true, hit: d > 0, damage: d, saved: save >= dc ? 1 : 0 };
     }
     const d20 = num(card.d20, roll(20));
-    return strike(card.action, d20, num(card.attackTotal, d20 + atkBonus), dmg);
-  }, [spendAction, heal, hurt, strike, say, ctx.name, foe.name, atkBonus]);
+    return strike(targetId, card.action, d20, num(card.attackTotal, d20 + atkBonus), dmg);
+  }, [spendAction, heal, hurt, strike, say, ctx.name, atkBonus]);
 
   const secondWind = useCallback(async (targetId?: string) => {
     if (!live()) return null;
@@ -238,8 +255,8 @@ export function useArenaNpcPractice({ ctx, foe, currentUserId, appendLine, aiVoi
   }, [heal]);
 
   // Counter Clash: judge one tap against the opponent's chain and store it on my row.
-  const clash = useCallback(async (_npcFighterId: string, side: 'left' | 'top' | 'right', tapAt: number) => {
-    const npc = rowsRef.current.find((r) => r.id === NPC_ROW);
+  const clash = useCallback(async (npcFighterId: string, side: 'left' | 'top' | 'right', tapAt: number) => {
+    const npc = rowsRef.current.find((r) => r.id === npcFighterId) ?? rowsRef.current.find((r) => isNpcRow(r.id) && r.strike_at);
     const me_ = rowsRef.current.find((r) => r.id === PLAYER_ROW);
     const chain = M.cleanClash(objOf(npc?.pending ?? null).clash);
     const hitAt = npc?.strike_at ? Date.parse(npc.strike_at) : NaN;
@@ -268,31 +285,36 @@ export function useArenaNpcPractice({ ctx, foe, currentUserId, appendLine, aiVoi
     return { ok: true, free: r.free, struggle: r.state };
   }, [patch, event, say]);
 
-  const duelStart = useCallback(async (_npcFighterId: string, opts?: { weaponName?: string; finish?: Finish; feel?: DU.DuelFeel }) => {
+  const duelStart = useCallback(async (npcFighterId: string, opts?: { weaponName?: string; finish?: Finish; feel?: DU.DuelFeel }) => {
     if (!live()) return null;
+    const tgt = targetOf(npcFighterId);
+    if (!tgt) return null;
+    const foe = foeAt(tgt.id);
     const P = DU.deriveDuel({ level, dex: 14, ac: myAc, maxHp, npcAttack: foe.attackBonus, npcDamageAvg: foe.damageAvg, npcSpeed: foe.speed });
-    const duel = DU.newDuel({ id: `d${Date.now()}`, npcId: NPC_ROW, npcName: foe.name, startAt: Date.now() + DU.DUEL_LEAD_MS, finish: opts?.finish ?? 'knockout', weapon: opts?.weaponName ?? null }, P, Math.random);
+    const duel = DU.newDuel({ id: `d${Date.now()}`, npcId: tgt.id, npcName: tgt.name, startAt: Date.now() + DU.DUEL_LEAD_MS, finish: opts?.finish ?? 'knockout', weapon: opts?.weaponName ?? null }, P, Math.random);
     patch(PLAYER_ROW, (r) => ({ duel_charge: 0, minigame: asJson({ ...objOf(r.minigame), duel }) }));
-    patch(NPC_ROW, () => ({ pending: null, strike_at: null }));
-    say('table', `🤺 You call ${foe.name} out — Duel!`);
+    patch(tgt.id, () => ({ pending: null, strike_at: null }));
+    say('table', `🤺 You call ${tgt.name} out — Duel!`);
     return { ok: true, duel };
-  }, [patch, say, level, myAc, maxHp, foe]);
+  }, [patch, say, level, myAc, maxHp, foeAt]);
 
   const duelEnd = useCallback(async (duelId: string, inputs: DU.DuelInput[]): Promise<DuelVerdict | null> => {
     const me_ = rowsRef.current.find((r) => r.id === PLAYER_ROW);
     const duel = DU.cleanDuel(objOf(me_?.minigame ?? null).duel);
     if (!me_ || !duel || duel.id !== duelId) return null;
     const out = DU.replayDuel(duel, inputs);
-    const npc = rowsRef.current.find((r) => r.id === NPC_ROW);
+    const npc = rowsRef.current.find((r) => r.id === duel.npcId) ?? targetOf();
+    if (!npc) return null;
+    const foe = foeAt(npc.id);
     const won = out.hits <= out.perfect;
     const taken = won ? 0 : Math.round(out.hits * foe.damageAvg * 0.6);
     const dealt = won ? (npc?.hp ?? 0) : 0;
     patch(PLAYER_ROW, (r) => { const m = { ...objOf(r.minigame) }; delete m.duel; return { minigame: asJson(m) }; });
-    patch(NPC_ROW, () => ({ next_action_at: iso(Date.now() + GAP[foe.speed]) }));
-    if (won) hurt(NPC_ROW, dealt, me_.name, 'attack', 'Won the duel.');
-    else hurt(PLAYER_ROW, taken, foe.name, 'attack', 'Lost the duel.');
-    return { ok: true, perfect: out.perfect, block: out.block, hits: out.hits, ripostes: out.ripostes, allPerfect: out.allPerfect, dealt, taken, defeated: won, npcName: foe.name };
-  }, [patch, hurt, foe]);
+    patch(npc.id, () => ({ next_action_at: iso(Date.now() + GAP[foe.speed]) }));
+    if (won) hurt(npc.id, dealt, me_.name, 'attack', 'Won the duel.');
+    else hurt(PLAYER_ROW, taken, npc.name, 'attack', 'Lost the duel.');
+    return { ok: true, perfect: out.perfect, block: out.block, hits: out.hits, ripostes: out.ripostes, allPerfect: out.allPerfect, dealt, taken, defeated: won, npcName: npc.name };
+  }, [patch, hurt, foeAt]);
 
   const stabilize = useCallback(async (_targetId: string) => null, []);
   const givePotion = useCallback(async (_targetId: string, _itemName: string) => null, []);
