@@ -58,6 +58,50 @@ export function CombatBurst({ kind, sub }: { kind: 'counter' | 'free'; sub?: str
   );
 }
 
+/** The full-screen stage a mini-game plays in: it covers the live chat window, holds the title and blocks taps underneath. */
+export function MinigameStage({ tone, title, subtitle, right, children, footer }: {
+  tone: 'clash' | 'pin';
+  title: string;
+  subtitle?: string;
+  right?: React.ReactNode;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[78] flex flex-col animate-in fade-in duration-150"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      style={{
+        touchAction: 'none',
+        overscrollBehavior: 'contain',
+        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+      }}
+    >
+      {/* The backdrop dims the chat; the glow matches the game's mood. It never takes taps itself. */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        aria-hidden
+        style={{
+          background: 'hsl(240 10% 4% / 0.94)',
+          boxShadow: tone === 'clash' ? 'inset 0 0 80px 18px hsl(0 84% 50% / 0.45)' : 'inset 0 0 80px 18px hsl(43 96% 50% / 0.40)',
+        }}
+      />
+      <div className="relative px-4 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <span className={cn('block font-cinzel text-[18px] font-bold truncate', tone === 'clash' ? 'text-red-100' : 'text-amber-100')}>{title}</span>
+          {subtitle && <p className="text-[12px] text-white/70">{subtitle}</p>}
+        </div>
+        {right && <div className="shrink-0">{right}</div>}
+      </div>
+      <div className="relative flex-1 min-h-0 flex items-center justify-center px-4">{children}</div>
+      {footer && <div className="relative px-4 pt-2">{footer}</div>}
+    </div>
+  );
+}
+
 /** An annular sector from angle a0 to a1 (degrees, 0 = right, 90 = down) between radii r0 and r1. */
 function sector(a0: number, a1: number, r0: number, r1: number): string {
   const rad = (d: number) => (d * Math.PI) / 180;
@@ -77,12 +121,10 @@ interface Props {
   serverTime: () => number;
   /** While the fight is paused everything stands still at this moment. */
   frozenAt: number | null;
-  /** Smaller and higher up while a sheet is open. */
-  compact: boolean;
   onTap: (side: M.Side, tapAt: number) => Promise<{ ok?: boolean; index?: number; quality?: M.ClashQ } | null>;
 }
 
-export function CounterClashRing({ skillName, npcName, clash, hitAt, results, serverTime, frozenAt, compact, onTap }: Props) {
+export function CounterClashRing({ skillName, npcName, clash, hitAt, results, serverTime, frozenAt, onTap }: Props) {
   const [t, setT] = useState(() => frozenAt ?? serverTime());
   const [local, setLocal] = useState<Array<M.ClashQ | null>>([]);
   const [flash, setFlash] = useState<{ q: M.ClashQ; at: number } | null>(null);
@@ -137,7 +179,6 @@ export function CounterClashRing({ skillName, npcName, clash, hitAt, results, se
     });
   };
 
-  const size = compact ? 184 : 264;
   const flashOn = flash && t - flash.at < FLASH_MS ? flash : null;
   const flashArt = flashOn
     ? flashOn.q === 'perfect' ? { image: COMBAT_ART.clashPerfect, clip: COMBAT_ART.clashPerfectClip }
