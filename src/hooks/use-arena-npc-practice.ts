@@ -1,4 +1,4 @@
-import { DEFAULT_NPC_SOCIAL_STATS } from "@/lib/live-npcs";
+import { DEFAULT_NPC_SOCIAL_STATS, sanitizeNpcSocialStats } from "@/lib/live-npcs";
 // Arena practice: a local fight that drives the real NpcCombatOverlay.
 // The real useNpcCombat / usePartyNpcs run with no party (inert) and supply the
 // exact return types; local fight rows, timers and rules are layered on top.
@@ -769,6 +769,8 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
     uploadPortrait: async (file: File) => URL.createObjectURL(file),
     askNpc: async () => false,
     askNpcs: async () => {},
+    resolveSocialCheck: async () => false,
+    setSocialStats: (id, stats) => editBuilt(id, { social_stats: sanitizeNpcSocialStats(stats) }),
     regenerateLine: async () => false,
     attitudes,
     attitudeFor: (npcId, userId) => attitudes.find((a) => a.npc_id === npcId && a.user_id === userId)?.score ?? 0,
