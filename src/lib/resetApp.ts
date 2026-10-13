@@ -7,6 +7,7 @@ const ALL_STORAGE_KEYS = [
   // Core character data
   'odyssey-character-autosave',
   'odyssey-arena-snapshot',
+  'odyssey-arena-bests',
   'odyssey-consumables-inventory',
   'odyssey-ability-scores',
   'odyssey-hp-state',
