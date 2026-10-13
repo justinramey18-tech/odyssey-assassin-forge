@@ -189,19 +189,22 @@ export function CounterClashRing({ skillName, npcName, clash, hitAt, results, se
   const landing = clash.swings.findIndex((s, i) => t >= times[i].zero && t <= times[i].zero + 220 && merged[i] !== 'perfect' && merged[i] !== 'block');
 
   return (
-    <div
-      className={cn('fixed left-1/2 -translate-x-1/2 z-[80] pointer-events-none flex flex-col items-center', compact ? 'top-16' : 'top-[22vh]')}
-      style={{ width: size }}
+    <MinigameStage
+      tone="clash"
+      title={`⚔ ${npcName}: ${skillName}`}
+      subtitle="Tap the lit side as the circle hits the ring"
+      right={frozenAt !== null ? <span className="font-cinzel text-[22px] text-amber-200">⏸</span> : undefined}
+      footer={clash.swings.length > 1 ? (
+        <p className="text-center text-[13px] text-white/70">
+          Swing {active >= 0 ? active + 1 : clash.swings.length} of {clash.swings.length}
+        </p>
+      ) : undefined}
     >
-      <div className="mb-1 rounded-full border border-red-500/50 bg-black/85 px-3 py-0.5 text-[12px] text-red-100 truncate max-w-full">
-        ⚔ {npcName}: {skillName}
-      </div>
-      <div className="relative" style={{ width: size, height: size }}>
+      {/* The ring scales with the screen: big on a phone, capped so it always fits between the header and the bottom. */}
+      <div className="relative" style={{ width: 'min(90vw, 60dvh, 480px)', aspectRatio: '1 / 1' }}>
         <svg
           viewBox="-150 -150 300 300"
-          width={size}
-          height={size}
-          className="absolute inset-0 touch-none select-none"
+          className="absolute inset-0 w-full h-full touch-none select-none"
           style={{ pointerEvents: 'auto', touchAction: 'none' }}
           onPointerDown={tap}
           role="button"
@@ -274,7 +277,7 @@ export function CounterClashRing({ skillName, npcName, clash, hitAt, results, se
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             {flashArt && <ArtFx image={flashArt.image} clip={flashArt.clip} className="absolute w-[70%] h-[70%] object-contain" />}
             <span
-              className="relative font-cinzel text-[20px] font-bold animate-in zoom-in-75 duration-150"
+              className="relative font-cinzel text-[clamp(22px,7vw,34px)] font-bold animate-in zoom-in-75 duration-150"
               style={{ color: Q_COLOR[flashOn.q], textShadow: '0 2px 0 #000, 0 0 10px #000' }}
             >
               {M.CLASH_LABEL[flashOn.q]}
@@ -282,11 +285,6 @@ export function CounterClashRing({ skillName, npcName, clash, hitAt, results, se
           </div>
         )}
       </div>
-      {!compact && (
-        <p className="mt-1 rounded-full bg-black/80 px-3 py-0.5 text-[11px] text-white/75">
-          Tap the lit side as the circle hits the ring
-        </p>
-      )}
-    </div>
+    </MinigameStage>
   );
 }
