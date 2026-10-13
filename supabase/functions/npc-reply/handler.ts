@@ -40,7 +40,7 @@ import {
   type NpcSituation,
 } from './prompt.ts';
 import type { CallModel } from './models.ts';
-import type { NpcContext, NpcGuideRow, NpcRepo, NpcRow, ReplyKind, RoundLine } from './repo.ts';
+import { normalizeSocialStats, type NpcContext, type NpcGuideRow, type NpcRepo, type NpcRow, type ReplyKind, type RoundLine } from './repo.ts';
 
 export interface Deps {
   repo: NpcRepo;
@@ -406,6 +406,162 @@ export async function speak(req: { userId: string; messageId: unknown; npcId: un
       fellBack: result.fellBack,
       fallbackReason: result.fallbackReason,
       rollRequest: request ? { name: request.name, check: request.check, save: request.save, dc: request.dc } : null,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'unexpected error';
+    await repo.finish(line.id, npc.id, { error: message, latency_ms: deps.now() - started }).catch(() => {});
+    throw err;
+  }
+}
+
+// ── Direct opposed social checks (Live NPC social rolls) ──
+
+const DIRECT_SOCIAL: Record<string, { skill: 'Persuasion' | 'Intimidation' | 'Deception' | 'Insight'; opposing: 'Insight' | 'Deception' | 'Wisdom Save'; stat: 'insight' | 'deception' | 'wisdomSave' }> = {
+  persuasion: { skill: 'Persuasion', opposing: 'Insight', stat: 'insight' },
+  deception: { skill: 'Deception', opposing: 'Insight', stat: 'insight' },
+  insight: { skill: 'Insight', opposing: 'Deception', stat: 'deception' },
+  intimidation: { skill: 'Intimidation', opposing: 'Wisdom Save', stat: 'wisdomSave' },
+};
+
+/** A checked roll { die 1..20, whole modifier, total = die + modifier }, or null. */
+function rollOf(raw: unknown): { die: number; modifier: number; total: number } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const die = r.die, modifier = r.modifier, total = r.total;
+  if (typeof die !== 'number' || typeof modifier !== 'number' || typeof total !== 'number') return null;
+  if (!Number.isInteger(die) || die < 1 || die > 20) return null;
+  if (!Number.isInteger(modifier) || modifier < -30 || modifier > 40) return null;
+  if (!Number.isInteger(total) || total !== die + modifier) return null;
+  return { die, modifier, total };
+}
+
+const clip = (v: string, max: number) => {
+  const t = v.replace(/\s+/g, ' ').trim();
+  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+};
+
+/**
+ * A lasting memory for a won direct Persuasion, Intimidation or Deception check, built from what the
+ * player said and what the NPC answered. Null for Insight, ties and failures. No game terms.
+ */
+export function directSocialNote(situation: NpcSituation | null | undefined, npcName: string, npcReply: string): string | null {
+  if (!situation || situation.kind !== 'social' || situation.outcome !== 'success') return null;
+  const who = clip(situation.roller || 'A character', 40);
+  const npc = clip(npcName || 'The NPC', 40);
+  const said = clip(situation.objective || situation.said || '', 90);
+  const answered = clip(readableText(npcReply), 90);
+  if (!said) return null;
+  let note: string;
+  if (situation.skill === 'Persuasion') note = `${who} talked ${npc} round ("${said}"). ${npc} agreed: "${answered}". ${npc} honors that decision unless circumstances truly change.`;
+  else if (situation.skill === 'Intimidation') note = `${who} threatened ${npc} ("${said}"), and ${npc} complied: "${answered}". ${npc} remembers being threatened.`;
+  else if (situation.skill === 'Deception') note = `${npc}'s BELIEF (not world fact): ${who} told ${npc} "${said}" and ${npc} believes it, until credible evidence says otherwise.`;
+  else return null;
+  return note.slice(0, 300);
+}
+
+/** A player rolled a social skill against an on-stage NPC; the server checks the dice and the NPC plays it out. */
+export async function socialCheck(
+  req: { userId: string; messageId: unknown; npcId: unknown; skill: unknown; playerRoll: unknown; npcRoll: unknown },
+  deps: Deps,
+): Promise<HandlerResult> {
+  const { repo } = deps;
+  if (!isUuid(req.messageId) || !isUuid(req.npcId)) return refuse(400, 'Missing or invalid messageId or npcId.');
+  const spec = typeof req.skill === 'string' ? DIRECT_SOCIAL[req.skill.trim().toLowerCase()] : undefined;
+  if (!spec) return refuse(400, 'Use Persuasion, Intimidation, Deception or Insight.');
+  const playerRoll = rollOf(req.playerRoll);
+  const npcRoll = rollOf(req.npcRoll);
+  if (!playerRoll || !npcRoll) return refuse(400, 'The rolls are not valid. Roll again.');
+
+  const checked = await checkPlayerLine(req.userId, req.messageId, deps);
+  if (isRefusal(checked)) return checked;
+  const line = checked;
+
+  const npc = await repo.getNpc(req.npcId);
+  if (!npc || npc.party_id !== line.party_id || npc.archived) return refuse(404, 'That NPC is not at this table.');
+  if (!npc.on_stage) return refuse(409, `${npc.name} isn't on stage right now.`);
+  if (npc.combat_state) return refuse(409, npc.combat_state === 'ko' ? `${npc.name} is knocked out and can't answer.` : `${npc.name} is dead.`);
+
+  const expected = normalizeSocialStats(npc.social_stats)[spec.stat];
+  if (npcRoll.modifier !== expected) return refuse(409, "That NPC's social stats changed. Try the check again.");
+  const outcome: 'success' | 'failure' | 'tie' = playerRoll.total > npcRoll.total ? 'success' : playerRoll.total < npcRoll.total ? 'failure' : 'tie';
+
+  const hostId = await repo.getPartyHost(line.party_id);
+  if (!hostId) return refuse(404, 'Party not found.');
+
+  const said = capStart(readableText(line.content).replace(/\s+/g, ' ').trim(), 240);
+  const intent = socialIntentOf(said);
+  const situation: NpcSituation = {
+    kind: 'social',
+    roller: line.character_name || 'A player',
+    skill: spec.skill,
+    player: playerRoll,
+    opposingLabel: spec.opposing,
+    npcRoll,
+    outcome,
+    said,
+    ...(intent?.objective ? { objective: intent.objective } : {}),
+  };
+
+  const claimed = await repo.claim({
+    party_id: line.party_id,
+    npc_id: npc.id,
+    prompt_message_id: line.id,
+    requested_by: req.userId,
+    model_requested: npc.model,
+    kind: 'roll',
+  }, deps.now());
+  if (claimed === 'taken') return refuse(409, `${npc.name} already answered that line (or is answering it now).`);
+
+  const started = deps.now();
+  try {
+    const [guide, cast, ctx] = await Promise.all([
+      repo.getGuide(npc.id),
+      repo.listStageNames(line.party_id),
+      repo.loadContext(line.party_id, hostId, undefined, npc.id),
+    ]);
+    const input = promptInput(npc, guide, cast, ctx, line, [], situation, deps.now());
+    const result = await generateWithFallback(npc.model, buildNpcSystemPrompt(input), buildNpcUserMessage(input), npc.name, deps.callModel);
+    if (!result.ok) {
+      await repo.finish(line.id, npc.id, { error: result.error, latency_ms: deps.now() - started });
+      return refuse(502, `${npc.name} couldn't answer right now (${result.error}). Try again in a moment.`);
+    }
+    const text = result.text ?? '';
+    const mood = await moodAfter(npc, result.mood, repo);
+    // A won check is remembered BEFORE the answer is posted; if this fails, the whole attempt fails and can be retried.
+    const note = directSocialNote(situation, npc.name, text);
+    if (note && repo.ensureEventMemory) await repo.ensureEventMemory(npc.id, line.party_id, note);
+    const replyId = await repo.insertNpcLine({
+      party_id: line.party_id,
+      user_id: hostId,
+      character_name: npc.name,
+      content: answerContent(line.id, text, null),
+      in_character: true,
+      round_id: line.round_id,
+      selected: line.selected,
+      npc_id: npc.id,
+      npc_mood: mood,
+    });
+    await repo.finish(line.id, npc.id, {
+      reply_message_id: replyId,
+      model_used: result.modelUsed ?? null,
+      fell_back: !!result.fellBack,
+      fallback_reason: result.fallbackReason ?? null,
+      error: null,
+      latency_ms: deps.now() - started,
+      cost_usd: result.costUsd ?? null,
+    });
+    return reply(200, {
+      ok: true,
+      replyId,
+      npc: npc.name,
+      modelUsed: result.modelUsed,
+      fellBack: result.fellBack,
+      fallbackReason: result.fallbackReason,
+      skill: spec.skill,
+      opposingLabel: spec.opposing,
+      playerRoll,
+      npcRoll,
+      outcome,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'unexpected error';
