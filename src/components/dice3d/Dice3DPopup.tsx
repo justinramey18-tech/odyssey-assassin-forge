@@ -118,14 +118,13 @@ function Die({ d, index, onSettled }: { d: DieThrow; index: number; onSettled: (
     const v = rb.linvel(), w = rb.angvel();
     const moving = Math.hypot(v.x, v.y, v.z) + Math.hypot(w.x, w.y, w.z);
     still.current = moving < 0.08 ? still.current + Math.min(dt, 0.05) : 0;
-    if (done.current) return;
-    if (still.current > 0.35 || rb.isSleeping() || age.current * 1000 > SETTLE_MAX_MS) {
+    if (done.current) { if (moving > 0.6) { done.current = false; setGlow(false); } return; }
+    if ((still.current > 0.45 && age.current > 1.2) || age.current * 1000 > SETTLE_MAX_MS) {
       done.current = true;
       const q = rb.rotation();
       const quat = new THREE.Quaternion(q.x, q.y, q.z, q.w);
       let top = 0, best = -2;
       shape.faces.forEach((f, i) => { const y = f.normal.clone().applyQuaternion(quat).dot(UP); if (y > best) { best = y; top = i; } });
-      console.log('[dice3d] settle', d.sides, d.value, top, best.toFixed(2), age.current.toFixed(2));
       setLabels((l) => relabelForTop(l, top, d.value));
       setGlow(true);
       onSettled(index);
