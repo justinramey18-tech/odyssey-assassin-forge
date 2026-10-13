@@ -9,6 +9,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { readableFunctionError } from '@/lib/live-npcs';
 import { castSpellByName } from '@/lib/magic/castBus';
 import type { ActionCard } from '@/lib/roundChatActionCard';
+import { duelChargeNow, type DuelFeel, type DuelInput } from '@/lib/combatDuel';
 
 type Tables = Database['public']['Tables'];
 export type FightRow = Tables['party_fights']['Row'];
@@ -81,6 +82,11 @@ export function resolveOf(
   const base = Number.isFinite(f.resolve) ? Number(f.resolve) : 0;
   const rate = Number.isFinite(f.resolve_rate) ? Number(f.resolve_rate) : 1;
   return Math.min(100, Math.max(0, base + rate * secs));
+}
+
+/** v7: a fighter's Duel bar (0-100). It fills with damage dealt and taken, and empties when a duel starts. */
+export function duelChargeOf(f: object | null | undefined): number {
+  return duelChargeNow((f as { duel_charge?: unknown } | null | undefined)?.duel_charge);
 }
 
 export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChange }: UseNpcCombatOptions) {
@@ -497,6 +503,20 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     });
   }, [quiet, fightId, scheduleReload]);
 
+  // v7 Duel: spend a full Duel bar to duel one NPC (its fighter row id). Answers { duel } for the wheel to play.
+  const duelStart = useCallback((npcFighterId: string, opts?: { weaponName?: string; finish?: Finish; feel?: DuelFeel }) =>
+    fightId
+      ? call({ action: 'duel_start', fightId, npcId: npcFighterId, weaponName: opts?.weaponName, finish: opts?.finish, feel: opts?.feel }, 'The duel could not start. Try again.')
+      : Promise.resolve(null),
+  [call, fightId]);
+  // v7 Duel: every tap of the duel once it's over. The server replays them and deals the damage (answers the verdict).
+  const duelEnd = useCallback(async (duelId: string, inputs: DuelInput[]) => {
+    if (!fightId) return null;
+    const r = await quiet({ action: 'duel_end', fightId, duelId, inputs });
+    scheduleReload(300);
+    return r;
+  }, [quiet, fightId, scheduleReload]);
+
   const stabilize = useCallback((targetId: string) => {
     if (!fightId) return Promise.resolve(null);
     return call({ action: 'stabilize', fightId, targetId }, 'Could not stabilize them. Try again.');
@@ -550,6 +570,8 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     secondWind,
     clash,
     heave,
+    duelStart,
+    duelEnd,
     serverTime,
     drinkPotion,
     stabilize,
