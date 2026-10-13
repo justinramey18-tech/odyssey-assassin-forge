@@ -85,6 +85,21 @@ async function render() {
 }
 
 describe('NPC roster and asking NPCs', () => {
+  it('a successful NPC answer asks the Live Table to refresh; a failed one does not', async () => {
+    const seen: unknown[] = [];
+    const on = (e: Event) => seen.push((e as CustomEvent).detail);
+    window.addEventListener('odyssey-round-chat-refresh', on);
+    try {
+      const { result } = await render();
+      await act(async () => { await result.current.askNpc('line-1', 'npc-grukk'); });
+      expect(seen).toEqual([{ partyId: 'party' }]);
+      seen.length = 0;
+      invokeResult = failure(502, 'nope');
+      await act(async () => { await result.current.askNpc('line-1', 'npc-grukk'); });
+      expect(seen).toEqual([]);
+    } finally { window.removeEventListener('odyssey-round-chat-refresh', on); }
+  });
+
   it('loads the roster and knows who is on stage', async () => {
     const { result } = await render();
     expect(result.current.npcs.map(n => n.name)).toEqual(['Grukk', 'Mira']);
