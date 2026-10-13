@@ -211,6 +211,7 @@ function partyMemberDiceContext(member?: { character_status?: Record<string, unk
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
 
 interface PartyDMScreenProps {
+  initialLiveTableOpen?: boolean;
   onBack: () => void;
   /** Re-read the DM's latest response and pull quests out of it. */
   onScanQuests?: () => void;
@@ -1319,7 +1320,7 @@ type PartyOverlays = {
   npcRoster: undefined;
 };
 
-export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, onOpenDirector, hasPendingRedoRequest, onScanQuests, worldState = [] }: PartyDMScreenProps) {
+export function PartyDMScreen({ initialLiveTableOpen = false, onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, onOpenDirector, hasPendingRedoRequest, onScanQuests, worldState = [] }: PartyDMScreenProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   // Shared party quest board, also shown inside each player's character sheet.
   const sheetQuests = usePartyQuests(partyId, currentUserId);
@@ -4013,7 +4014,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       {/* Chat Rounds: mini party chat that drives the DM.
           Shown whenever the table is in chat/live mode — it must not vanish just
           because the session config hasn't loaded or the host hasn't started yet. */}
-      {chatRoundsOn && (<>
+      {(chatRoundsOn || initialLiveTableOpen) && (<>
         <DMHandoffBar
           isHost={isCreator}
           isGenerating={partyDm.isGenerating}
@@ -4027,6 +4028,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           npcsOnStage={npcRoster.onStage.length}
         />
         <RoundChatDrawer
+          initialOpen={initialLiveTableOpen}
           ref={roundChatDrawerRef}
           partyId={partyId}
           messages={roundChat.messages}

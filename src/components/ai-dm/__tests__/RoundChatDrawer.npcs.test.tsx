@@ -69,14 +69,26 @@ function open(props: Partial<React.ComponentProps<typeof RoundChatDrawer>> = {})
       {...props}
     />,
   );
-  act(() => { ref.current?.open(); });
-  return { ...utils, onSend, onSendToNpcs, onSpeakAsNpc, onRegenerateNpcLine };
+  if (!props.initialOpen) act(() => { ref.current?.open(); });
+  return { ...utils, ref, onSend, onSendToNpcs, onSpeakAsNpc, onRegenerateNpcLine };
 }
 
 const box = () => screen.getByRole('textbox') as HTMLTextAreaElement;
 const send = () => fireEvent.click(screen.getByRole('button', { name: 'Send round chat message' }));
 
 describe('Live Table with NPCs', () => {
+  it('starts expanded on app launch and stays closed after Return to Story', () => {
+    const { ref } = open({ initialOpen: true });
+    expect(document.body.classList.contains('round-chat-expanded')).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Return to story: close the Live DM Table' }));
+    expect(document.body.classList.contains('round-chat-expanded')).toBe(false);
+    // Receiving further messages does not reopen it.
+    act(() => { window.dispatchEvent(new Event('online')); });
+    expect(document.body.classList.contains('round-chat-expanded')).toBe(false);
+    act(() => { ref.current?.open(); });
+    expect(document.body.classList.contains('round-chat-expanded')).toBe(true);
+  });
+
   it("shows the NPC's line as the NPC's, with a badge, never as the host's", () => {
     open();
     expect(screen.getAllByText('Grukk').length).toBeGreaterThan(0);

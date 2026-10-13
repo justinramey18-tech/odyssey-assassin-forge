@@ -12,4 +12,7 @@
 - [x] Replace remaining player-facing chat “tick” wording with “seal” wording.
 - [x] Verify both changes by reading the edited code and checking TypeScript.
 - [x] Live NPC Combat v2 1/6: add skill-cooldown, huddle-pause and scaling columns plus the two new fight event kinds.
-- [ ] Live NPC Combat v2 2/6 through 6/6: awaiting the remaining supplied prompts.
+- [x] Live NPC Combat v2 2/6 through 6/6: completed in the supplied prompt sequence.
+- [x] Open the expanded Live Table on party app launch without reopening after Return to Story.
+- [x] Cache Live Table lines separately by account and party; preserve them on failed refreshes.
+- [x] Check launch, cache isolation, refresh failures, and the latest preview build (37 tests passed; isolated phone-screen opening/closing verified; real-party cold launch untested without signing in).

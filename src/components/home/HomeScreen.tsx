@@ -617,7 +617,7 @@ export function HomeScreen({
   // Auto-open Party DM when selected from onboarding
   useEffect(() => {
     if (autoOpenPartyDM && drawerContext) {
-      drawerContext.openPartyDMScreen();
+      drawerContext.openPartyDMScreen({ initialLiveTableOpen: true });
       onAutoOpenPartyDMHandled?.();
     }
   }, [autoOpenPartyDM, drawerContext, onAutoOpenPartyDMHandled]);
