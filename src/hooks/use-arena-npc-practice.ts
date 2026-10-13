@@ -1,3 +1,4 @@
+import { DEFAULT_NPC_SOCIAL_STATS } from "@/lib/live-npcs";
 // Arena practice: a local fight that drives the real NpcCombatOverlay.
 // The real useNpcCombat / usePartyNpcs run with no party (inert) and supply the
 // exact return types; local fight rows, timers and rules are layered on top.
@@ -696,7 +697,7 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
     id: npcIdOf(i), party_id: PARTY, name: foe.name, portrait_url: null, model: 'arena', on_stage: true, archived: false, sort_order: i,
     reacts_to_spells: false, player_user_id: null, mood: 'focused', on_stage_since: null,
     combat_stats: picked && i === 0 && !gauntlet ? picked.stats : { maxHp: foe.maxHp, ac: foe.ac, attackBonus: foe.attackBonus, damage: `${Math.max(1, Math.round(foe.damageAvg))}d1`, speed: foe.speed, skills: [], designedFor: 1 },
-    combat_state: null, created_at: iso(0), updated_at: iso(0),
+    combat_state: null, social_stats: { ...DEFAULT_NPC_SOCIAL_STATS }, created_at: iso(0), updated_at: iso(0),
   })), [foes, picked, gauntlet]);
 
   // ---- Local roster: Arena-only NPCs, guides, memories and attitudes (never saved) ----
@@ -718,7 +719,7 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
   const loadGuide = useCallback(async (npcId: string) => guidesRef.current[npcId] ?? { guide: '', secrets: '', wants: '', levers: '', hardLines: '', moodRange: '', grudgeStyle: 'normal' }, []);
   const addLocalNpc = useCallback(async (input: { name: string; model?: string; portraitUrl?: string | null; guide?: string; secrets?: string }) => {
     const t = iso(Date.now());
-    const npc: PartyNpc = { id: crypto.randomUUID(), party_id: PARTY, name: cleanNpcName(input.name), portrait_url: input.portraitUrl ?? null, model: input.model || 'arena', on_stage: false, archived: false, sort_order: builtRef.current.length + 10, reacts_to_spells: false, player_user_id: null, mood: 'focused', on_stage_since: null, combat_stats: null, combat_state: null, created_at: t, updated_at: t };
+    const npc: PartyNpc = { id: crypto.randomUUID(), party_id: PARTY, name: cleanNpcName(input.name), portrait_url: input.portraitUrl ?? null, model: input.model || 'arena', on_stage: false, archived: false, sort_order: builtRef.current.length + 10, reacts_to_spells: false, player_user_id: null, mood: 'focused', on_stage_since: null, combat_stats: null, combat_state: null, social_stats: { ...DEFAULT_NPC_SOCIAL_STATS }, created_at: t, updated_at: t };
     builtRef.current = [...builtRef.current, npc];
     setBuilt(builtRef.current);
     if ((input.guide || '').trim() || (input.secrets || '').trim()) await saveGuide(npc.id, input.guide || '', input.secrets || '');
