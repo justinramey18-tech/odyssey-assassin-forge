@@ -2,12 +2,14 @@ export interface ArenaBests {
   bestChain: number;
   bestEscapeMs: number | null;
   mostDamage: number;
+  bestWave: number;
 }
 
 interface SessionLike {
   bestChain: number;
   bestEscapeMs: number | null;
   damage: number;
+  bestWave?: number;
 }
 
 const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : d);
@@ -20,5 +22,6 @@ export function mergeBests(prev: Partial<ArenaBests> | null, s: SessionLike): Ar
     bestChain: Math.max(num(prev?.bestChain, 0), num(s.bestChain, 0)),
     bestEscapeMs: pEsc === null ? sEsc : sEsc === null ? pEsc : Math.min(pEsc, sEsc),
     mostDamage: Math.max(num(prev?.mostDamage, 0), num(s.damage, 0)),
+    bestWave: Math.max(num(prev?.bestWave, 0), num(s.bestWave, 0)),
   };
 }

@@ -10,7 +10,20 @@ import * as M from '@/lib/combatMinigames';
 import * as DU from '@/lib/combatDuel';
 import { cn } from '@/lib/utils';
 
-export type Opponent = 'dummy' | 'sparring' | 'clash' | 'pin' | 'duel';
+export type Opponent = 'dummy' | 'sparring' | 'clash' | 'pin' | 'duel' | 'npc' | 'gauntlet';
+
+/** A practice enemy that fights back. */
+export interface Foe { name: string; maxHp: number; ac: number; attackBonus: number; damageAvg: number; speed: DU.DuelSpeed }
+
+/** Gauntlet wave n (1-based): each wave is tougher than the last. */
+export function gauntletFoe(wave: number): Foe {
+  const w = Math.max(1, Math.floor(wave));
+  const speeds: DU.DuelSpeed[] = ['trivial', 'easy', 'medium', 'hard', 'deadly'];
+  return { name: `Wave ${w} Challenger`, maxHp: 20 + 12 * w, ac: Math.min(20, 10 + Math.floor(w / 2)), attackBonus: Math.min(12, 2 + w), damageAvg: 4 + 2 * w, speed: speeds[Math.min(4, Math.floor((w - 1) / 2))] };
+}
+
+const PLAYER_MAX_HP = 60;
+const ATTACK_GAP_MS: Record<DU.DuelSpeed, number> = { trivial: 9000, easy: 8000, medium: 7000, hard: 6000, deadly: 5000 };
 
 export const OPPONENTS: Array<{ id: Opponent; name: string; blurb: string; icon: typeof Swords }> = [
   { id: 'dummy', name: 'Wooden Dummy', blurb: 'Never hits back. Practise your swings.', icon: Target },
@@ -30,10 +43,11 @@ export interface ArenaStats {
   bestEscapeMs: number | null;
   duelsWon: number;
   duels: number;
+  bestWave: number;
 }
 
 export const emptyStats = (): ArenaStats => ({
-  hits: 0, damage: 0, taps: 0, perfects: 0, bestChain: 0, pinEscapes: 0, bestEscapeMs: null, duelsWon: 0, duels: 0,
+  hits: 0, damage: 0, taps: 0, perfects: 0, bestChain: 0, pinEscapes: 0, bestEscapeMs: null, duelsWon: 0, duels: 0, bestWave: 0,
 });
 
 type Live =
@@ -56,10 +70,18 @@ interface Props {
   stats: ArenaStats;
   onStats: (s: ArenaStats) => void;
   onBack: () => void;
+  /** For 'npc': the saved campaign NPC to fight. */
+  foe?: Foe;
 }
 
-export function ArenaPractice({ opponent, stats, onStats, onBack }: Props) {
-  const meta = OPPONENTS.find((o) => o.id === opponent)!;
+export function ArenaPractice({ opponent, stats, onStats, onBack, foe: givenFoe }: Props) {
+  const [wave, setWave] = useState(1);
+  const foe: Foe | null = opponent === 'gauntlet' ? gauntletFoe(wave) : opponent === 'npc' ? givenFoe ?? null : null;
+  const fights = !!foe;
+  const meta = OPPONENTS.find((o) => o.id === opponent) ?? { id: opponent, name: foe?.name ?? 'Opponent', blurb: opponent === 'gauntlet' ? `Wave ${wave}. Your health carries over.` : 'Your campaign NPC, for practice.', icon: Swords };
+  const [myHp, setMyHp] = useState(PLAYER_MAX_HP);
+  const [over, setOver] = useState(false);
+  const myHpRef = useRef(PLAYER_MAX_HP);
   const [speed, setSpeed] = useState(1);
   const [live, setLive] = useState<Live>(null);
   const [hp, setHp] = useState(100);
@@ -96,7 +118,7 @@ export function ArenaPractice({ opponent, stats, onStats, onBack }: Props) {
   }, [now]);
 
   const startDuel = useCallback(() => {
-    const P = DU.deriveDuel({ level: 5, dex: 14, ac: 15, maxHp: 40, npcAttack: 5, npcDamageAvg: 8, npcSpeed: 'medium' });
+    const P = DU.deriveDuel({ level: 5, dex: 14, ac: 15, maxHp: 40, npcAttack: foe?.attackBonus ?? 5, npcDamageAvg: foe?.damageAvg ?? 8, npcSpeed: foe?.speed ?? 'medium' });
     setLive({
       kind: 'duel',
       duel: DU.newDuel(
@@ -104,7 +126,7 @@ export function ArenaPractice({ opponent, stats, onStats, onBack }: Props) {
         P, Math.random,
       ),
     });
-  }, [now, meta.name]);
+  }, [now, meta.name, foe?.attackBonus, foe?.damageAvg, foe?.speed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Drill masters start their drill right away and again after each one.
   useEffect(() => {
@@ -123,6 +145,7 @@ export function ArenaPractice({ opponent, stats, onStats, onBack }: Props) {
     const id = setInterval(() => {
       if (now() > live.hitAt + 600) {
         const perfect = M.chainPerfect(live.clash, live.results);
+        if (foe) takeHit(Math.round(live.clash.swings.reduce((a, _s, i) => a + M.clashFactor(live.results[i]), 0) * foe.damageAvg / live.clash.swings.length * (live.clash.move === 'signature' ? 2 : 1.3)));
         chainRef.current = perfect ? chainRef.current + 1 : 0;
         bump({ bestChain: Math.max(statsRef.current.bestChain, chainRef.current) });
         setLive(null);
@@ -134,16 +157,49 @@ export function ArenaPractice({ opponent, stats, onStats, onBack }: Props) {
   // A pin that runs out counts as not escaped.
   useEffect(() => {
     if (live?.kind !== 'pin') return;
-    const id = setInterval(() => { if (now() > live.until) { setFeedback('The pin held. Try again.'); setLive(null); } }, 200);
+    const id = setInterval(() => { if (now() > live.until) { setFeedback('The pin held. Try again.'); if (foe) takeHit(Math.round(foe.damageAvg * 1.5)); setLive(null); } }, 200);
     return () => clearInterval(id);
   }, [live, now]);
 
+  // Fighting foes strike on their own: a Counter Clash, sometimes a Pin.
+  useEffect(() => {
+    if (!foe || live || over) return;
+    const t = setTimeout(() => (Math.random() < 0.8 ? startClash() : startPin()), ATTACK_GAP_MS[foe.speed] / speed);
+    return () => clearTimeout(t);
+  }, [foe?.speed, live, over, speed, startClash, startPin]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const takeHit = (amount: number) => {
+    if (!foe || amount <= 0) return;
+    const n = Math.max(0, myHpRef.current - amount);
+    myHpRef.current = n;
+    setMyHp(n);
+    if (n === 0) {
+      setOver(true);
+      setFeedback(opponent === 'gauntlet' ? `You fell on wave ${wave}.` : `${foe.name} wins this round.`);
+    }
+  };
+
+  const restart = () => { myHpRef.current = PLAYER_MAX_HP; setMyHp(PLAYER_MAX_HP); setHp(100); setWave(1); setOver(false); setFeedback(null); setLive(null); };
+
   const attack = () => {
+    if (over) return;
+    if (foe && roll(20) + 5 < foe.ac) { setFloater({ text: 'Miss', at: Date.now() }); return; }
     const dmg = roll(8) + 3;
-    setHp((h) => (h - dmg <= 0 ? 100 : h - dmg));
+    if (foe) {
+      const pct = (dmg / foe.maxHp) * 100;
+      if (hp - pct > 0) setHp(hp - pct);
+      else {
+        if (opponent === 'gauntlet') {
+          setFeedback(`Wave ${wave} cleared!`);
+          bump({ bestWave: Math.max(statsRef.current.bestWave, wave) });
+          setWave((w) => w + 1);
+        } else setFeedback(`${foe.name} is beaten!`);
+        setHp(100);
+      }
+    } else setHp((h) => (h - dmg <= 0 ? 100 : h - dmg));
     setFloater({ text: `-${dmg}`, at: Date.now() });
     bump({ hits: statsRef.current.hits + 1, damage: statsRef.current.damage + dmg });
-    if (opponent === 'sparring' && Math.random() < 0.3) setTimeout(() => (Math.random() < 0.6 ? startClash() : startPin()), 600);
+    if (!fights && opponent === 'sparring' && Math.random() < 0.3) setTimeout(() => (Math.random() < 0.6 ? startClash() : startPin()), 600);
   };
 
   const onClashTap = async (side: M.Side, tapAt: number) => {
@@ -181,11 +237,12 @@ export function ArenaPractice({ opponent, stats, onStats, onBack }: Props) {
     for (const i of inputs) DU.inputRun(run, i);
     const out = DU.finishRun(run);
     const won = out.hits <= out.perfect;
+    if (foe) { if (won) setHp(1); else takeHit(Math.round(out.hits * foe.damageAvg * 0.6)); }
     bump({ duels: statsRef.current.duels + 1, duelsWon: statsRef.current.duelsWon + (won ? 1 : 0) });
     return { ok: true, perfect: out.perfect, block: out.block, hits: out.hits, ripostes: out.ripostes, allPerfect: out.allPerfect, defeated: won, npcName: meta.name };
   };
 
-  const canAttack = opponent === 'dummy' || opponent === 'sparring';
+  const canAttack = opponent === 'dummy' || opponent === 'sparring' || fights;
   const showFloater = floater && Date.now() - floater.at < 900;
   const speedLabel = useMemo(() => `${speed.toFixed(2).replace(/0$/, '')}x`, [speed]);
 
@@ -209,11 +266,24 @@ export function ArenaPractice({ opponent, stats, onStats, onBack }: Props) {
             <div className="h-full bg-primary transition-all" style={{ width: `${hp}%` }} />
           </div>
         )}
+        {fights && (
+          <div className="mt-3 text-left">
+            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">You · {myHp}/{PLAYER_MAX_HP}</div>
+            <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
+              <div className="h-full bg-accent transition-all" style={{ width: `${(myHp / PLAYER_MAX_HP) * 100}%` }} />
+            </div>
+          </div>
+        )}
         {showFloater && <div className="mt-2 font-cinzel text-2xl font-bold text-destructive">{floater!.text}</div>}
         {feedback && <div className="mt-2 text-sm font-semibold text-primary">{feedback}</div>}
       </div>
 
-      {canAttack && (
+      {over && (
+        <button type="button" onClick={restart} style={{ touchAction: 'manipulation' }} className="min-h-[56px] w-full rounded-xl border border-primary font-cinzel font-bold uppercase tracking-wider text-primary">
+          Try again
+        </button>
+      )}
+      {canAttack && !over && (
         <button
           type="button"
           onClick={attack}

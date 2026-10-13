@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Swords, Infinity as InfinityIcon, Users, X, ShieldCheck, ArrowLeft, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 import { takeArenaSnapshot, restoreArenaSnapshot } from '@/lib/arena/arenaSnapshot';
-import { ArenaPractice, OPPONENTS, emptyStats, type ArenaStats, type Opponent } from './ArenaPractice';
+import { ArenaPractice, OPPONENTS, emptyStats, type ArenaStats, type Opponent, type Foe } from './ArenaPractice';
+import { supabase } from '@/integrations/supabase/client';
+import { foeFromNpc } from '@/lib/arena/arenaFoe';
 import { getScopedItem, setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
 import { mergeBests, type ArenaBests } from '@/lib/arena/arenaBests';
 
@@ -14,7 +16,7 @@ interface ArenaScreenProps {
 const BESTS_KEY = 'odyssey-arena-bests';
 
 const MODES = [
-  { id: 'solo', label: 'Solo Training', blurb: 'Dummy, sparring partner and drill masters.', icon: Swords },
+  { id: 'solo', label: 'Solo Training', blurb: 'Dummy, sparring partner, drill masters and your campaign NPCs.', icon: Swords },
   { id: 'gauntlet', label: 'Endless Gauntlet', blurb: 'Waves that get tougher until you fall.', icon: InfinityIcon },
   { id: 'party', label: 'Party Arena', blurb: 'Train with your party or spar each other.', icon: Users },
 ] as const;
@@ -24,12 +26,27 @@ function loadBests(): ArenaBests | null {
   try { return JSON.parse(getScopedItem(BESTS_KEY) ?? 'null'); } catch { return null; }
 }
 
-type View = 'menu' | 'opponents' | { opponent: Opponent } | 'scorecard';
+type View = 'menu' | 'opponents' | { opponent: Opponent; foe?: Foe } | 'scorecard';
 
 export function ArenaScreen({ open, onClose }: ArenaScreenProps) {
   const [view, setView] = useState<View>('menu');
   const [stats, setStats] = useState<ArenaStats>(emptyStats);
   const [bests, setBests] = useState<ArenaBests | null>(null);
+  const [npcFoes, setNpcFoes] = useState<Foe[]>([]);
+
+  // Saved party NPCs with fight stats become practice opponents (read only).
+  useEffect(() => {
+    if (!open) return;
+    const partyId = localStorage.getItem('odyssey-active-party-id');
+    if (!partyId) { setNpcFoes([]); return; }
+    let alive = true;
+    supabase.from('party_npcs').select('name, combat_stats').eq('party_id', partyId).eq('archived', false).order('sort_order')
+      .then(({ data }) => {
+        if (!alive || !data) return;
+        setNpcFoes(data.map((n) => foeFromNpc(n.name, n.combat_stats)).filter((f): f is Foe => !!f).slice(0, 30));
+      });
+    return () => { alive = false; };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -65,6 +82,7 @@ export function ArenaScreen({ open, onClose }: ArenaScreenProps) {
     ['Pins escaped', String(stats.pinEscapes)],
     ['Fastest escape', stats.bestEscapeMs === null ? '—' : `${(stats.bestEscapeMs / 1000).toFixed(1)}s`],
     ['Duels won', `${stats.duelsWon} of ${stats.duels}`],
+    ['Gauntlet waves cleared', String(stats.bestWave)],
   ];
 
   return (
@@ -93,7 +111,7 @@ export function ArenaScreen({ open, onClose }: ArenaScreenProps) {
               <button
                 key={m.id}
                 type="button"
-                onClick={() => (m.id === 'solo' ? setView('opponents') : toast('Coming in a later arena step'))}
+                onClick={() => (m.id === 'solo' ? setView('opponents') : m.id === 'gauntlet' ? setView({ opponent: 'gauntlet' }) : toast('Party Arena is coming in a later step'))}
                 style={{ touchAction: 'manipulation' }}
                 className="flex min-h-[72px] w-full items-center gap-3 rounded-xl border border-border bg-card p-4 text-left active:scale-[0.98]"
               >
@@ -128,12 +146,28 @@ export function ArenaScreen({ open, onClose }: ArenaScreenProps) {
               </span>
             </button>
           ))}
+          {npcFoes.length > 0 && <div className="mt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Your campaign NPCs</div>}
+          {npcFoes.map((f, i) => (
+            <button
+              key={`${f.name}-${i}`}
+              type="button"
+              onClick={() => setView({ opponent: 'npc', foe: f })}
+              style={{ touchAction: 'manipulation' }}
+              className="flex min-h-[64px] w-full items-center gap-3 rounded-xl border border-border bg-card p-4 text-left active:scale-[0.98]"
+            >
+              <Swords className="h-5 w-5 shrink-0 text-primary" />
+              <span className="flex flex-col">
+                <span className="font-cinzel text-sm font-bold uppercase tracking-wider text-foreground">{f.name}</span>
+                <span className="text-xs text-muted-foreground">{f.maxHp} HP · AC {f.ac}</span>
+              </span>
+            </button>
+          ))}
         </div>
       )}
 
       {typeof view === 'object' && (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <ArenaPractice opponent={view.opponent} stats={stats} onStats={setStats} onBack={() => setView('opponents')} />
+          <ArenaPractice key={view.opponent + (view.foe?.name ?? '')} opponent={view.opponent} foe={view.foe} stats={stats} onStats={setStats} onBack={() => setView(view.opponent === 'gauntlet' ? 'menu' : 'opponents')} />
         </div>
       )}
 
@@ -156,6 +190,7 @@ export function ArenaScreen({ open, onClose }: ArenaScreenProps) {
               <div className="flex justify-between py-1"><span className="text-muted-foreground">Best perfect chain</span><span>{bests.bestChain}</span></div>
               <div className="flex justify-between py-1"><span className="text-muted-foreground">Fastest escape</span><span>{bests.bestEscapeMs === null ? '—' : `${(bests.bestEscapeMs / 1000).toFixed(1)}s`}</span></div>
               <div className="flex justify-between py-1"><span className="text-muted-foreground">Most damage in a session</span><span>{bests.mostDamage}</span></div>
+              <div className="flex justify-between py-1"><span className="text-muted-foreground">Best Gauntlet wave</span><span>{bests.bestWave ?? 0}</span></div>
             </div>
           )}
           <button type="button" onClick={finish} style={{ touchAction: 'manipulation' }} className="min-h-[56px] w-full rounded-xl bg-primary font-cinzel font-bold uppercase tracking-wider text-primary-foreground">
