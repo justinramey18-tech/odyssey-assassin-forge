@@ -1336,7 +1336,7 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
   const practiceMode = runtimeOverrides?.practiceMode === true;
   const [sparringOpen, setSparringOpen] = useState<null | 'host' | { sessionId: string; hostName: string }>(null);
   const sparringLink = useSparringLink(practiceMode ? null : partyIdProp, currentUserId);
-  const sparringNet = useMemo(() => (sparringOpen === 'host' ? sparringLink.makeNet('host', `s-${currentUserId}`) : sparringOpen ? sparringLink.makeNet('member', sparringOpen.sessionId) : null), [sparringOpen, sparringLink, currentUserId]);
+  const sparringNet = useMemo(() => (sparringOpen === 'host' ? sparringLink.makeNet('host', `s-${currentUserId}`) : sparringOpen ? sparringLink.makeNet('member', sparringOpen.sessionId) : null), [sparringOpen, sparringLink.makeNet, currentUserId]);
   // In practice mode there is no real party: every party read/write/notify below
   // already does nothing without a party id, so withholding it keeps the real party safe.
   const partyId = practiceMode ? null : partyIdProp;
