@@ -27,15 +27,8 @@ export const WINDUP_S: Record<SkillType, number> = {
   strike: 3, heavy: 6, sweep: 6, signature: 8, mend: 3, shield: 3, rally: 4, pin: 4, retreat: 3,
 };
 
-export const PIN_MS = 30000;
-/** Pin escape: taps needed to break free, and the shortest hold before breaking free counts. */
-export const PIN_BREAK_TAPS = 30;
-export const PIN_MIN_HOLD_MS = 3000;
-/** Parry duel: how close to the strike a tap must land (ms). Perfect = no damage + stagger; good = half damage. */
-export const PARRY_PERFECT_MS = 200;
-export const PARRY_GOOD_MS = 500;
-/** Counter clash: how long after a perfect parry any player can tap for a free hit. */
-export const COUNTER_WINDOW_MS = 3000;
+/** How long a Pin holds a player (no action) unless they break free. */
+export const PIN_MS = 6000;
 export const WARD_MS = 60_000;
 export const RALLY_SHARE = 0.2;
 export const RETREAT_AT = 0.2;
