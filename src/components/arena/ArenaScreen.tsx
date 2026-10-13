@@ -34,6 +34,11 @@ export function ArenaScreen({ open, onClose }: ArenaScreenProps) {
   const [stats, setStats] = useState<ArenaStats>(emptyStats);
   const [bests, setBests] = useState<ArenaBests | null>(null);
   const [npcFoes, setNpcFoes] = useState<Foe[]>([]);
+  const [partyId, setPartyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) setPartyId(localStorage.getItem('odyssey-active-party-id'));
+  }, [open]);
 
   // Saved party NPCs with fight stats become practice opponents (read only).
   useEffect(() => {
@@ -164,6 +169,10 @@ export function ArenaScreen({ open, onClose }: ArenaScreenProps) {
             </button>
           ))}
         </div>
+      )}
+
+      {view === 'party' && partyId && (
+        <PartyArena partyId={partyId} onBack={() => setView('menu')} />
       )}
 
       {typeof view === 'object' && (
