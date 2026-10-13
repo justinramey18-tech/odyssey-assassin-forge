@@ -1543,7 +1543,7 @@ export function HomeScreen({
       )}
 
 
-      <ArenaScreen open={showArena} onClose={() => setShowArena(false)} characterContext={drawerContext?.characterContext} />
+      <ArenaScreen open={showArena} onClose={() => setShowArena(false)} characterContext={drawerContext?.characterContext} userId={userId} currentXP={currentXP} onManualLevelUp={onManualLevelUp} autoSyncCallbacks={autoSyncCallbacks} member={partySync?.party?.members?.find(m => m.user_id === userId) ?? null} />
 
       {/* Empyrean Campaign Screen */}
       <EmpyreanScreen

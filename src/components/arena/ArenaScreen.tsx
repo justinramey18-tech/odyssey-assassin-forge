@@ -4,7 +4,9 @@ import { toast } from 'sonner';
 import { takeArenaSnapshot, restoreArenaSnapshot } from '@/lib/arena/arenaSnapshot';
 import { ArenaPractice, OPPONENTS, emptyStats, type ArenaStats, type Opponent, type Foe } from './ArenaPractice';
 import { PartyArena } from './PartyArena';
-import { ArenaTable } from './ArenaTable';
+import { ArenaPartyDMScreen } from './ArenaPartyDMScreen';
+import type { PartyMember } from '@/hooks/use-party-sync';
+import type { ComponentProps } from 'react';
 import { gauntletFoe } from './ArenaPractice';
 import type { CharacterContext } from '@/components/oracle/types';
 import { MessagesSquare } from 'lucide-react';
@@ -18,12 +20,18 @@ interface ArenaScreenProps {
   onClose: () => void;
   /** The player's real character, so the sparring table shows their own attacks, spells and sheet. */
   characterContext?: CharacterContext;
+  userId?: string | null;
+  currentXP?: number;
+  onManualLevelUp?: () => void;
+  autoSyncCallbacks?: ComponentProps<typeof ArenaPartyDMScreen>['autoSyncCallbacks'];
+  /** The player's real party row, when they're in a party. */
+  member?: PartyMember | null;
 }
 
 const BESTS_KEY = 'odyssey-arena-bests';
 
 const MODES = [
-  { id: 'table', label: 'Live Table Sparring', blurb: 'The real game screen — chat, Actions, spells, sheet — with no DM.', icon: MessagesSquare },
+  { id: 'table', label: 'Live Table Sparring', blurb: 'The real party game screen and fight bar, running in a safe sandbox — nothing reaches your party.', icon: MessagesSquare },
   { id: 'solo', label: 'Solo Training', blurb: 'Dummy, sparring partner, drill masters and your campaign NPCs.', icon: Swords },
   { id: 'gauntlet', label: 'Endless Gauntlet', blurb: 'Waves that get tougher until you fall.', icon: InfinityIcon },
   { id: 'party', label: 'Party Arena', blurb: 'Train with your party or spar each other.', icon: Users },
@@ -36,7 +44,7 @@ function loadBests(): ArenaBests | null {
 
 type View = 'menu' | 'opponents' | { opponent: Opponent; foe?: Foe } | 'scorecard' | 'party' | { table: Foe };
 
-export function ArenaScreen({ open, onClose, characterContext }: ArenaScreenProps) {
+export function ArenaScreen({ open, onClose, characterContext, userId, currentXP, onManualLevelUp, autoSyncCallbacks, member }: ArenaScreenProps) {
   const [tableMode, setTableMode] = useState(false);
   const [view, setView] = useState<View>('menu');
   const [stats, setStats] = useState<ArenaStats>(emptyStats);
@@ -184,7 +192,7 @@ export function ArenaScreen({ open, onClose, characterContext }: ArenaScreenProp
       )}
 
       {typeof view === 'object' && 'table' in view && characterContext && (
-        <ArenaTable key={view.table.name} ctx={characterContext} foe={view.table} onBack={() => setView('opponents')} />
+        <ArenaPartyDMScreen key={view.table.name} characterContext={characterContext} foe={view.table} onBack={() => setView('opponents')} currentUserId={userId} member={member} autoSyncCallbacks={autoSyncCallbacks} currentXP={currentXP} onManualLevelUp={onManualLevelUp} />
       )}
 
       {typeof view === 'object' && 'opponent' in view && (
