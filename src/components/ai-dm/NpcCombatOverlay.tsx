@@ -775,7 +775,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
   } else if (step?.kind === 'duel-confirm') {
     // v7 Duel: what this duel will be like. Both fighters' stats set it; the server works it out again when it starts.
     const t = fighters.find(f => f.id === step.target.id) ?? step.target;
-    const npcStats = (t.npc_id ? roster.byId.get(t.npc_id)?.combat_stats : null) as Record<string, unknown> | null | undefined;
+    const npcStats = (t.npc_id ? roster.byId.get(t.npc_id)?.combat_stats : null) as unknown as Record<string, unknown> | null | undefined;
     const sheet = (me?.character_status ?? {}) as { level?: unknown; abilityScores?: Record<string, unknown> | null };
     const preview = DU.deriveDuel({
       level: Number(sheet.level) || 1,
