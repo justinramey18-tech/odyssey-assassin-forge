@@ -4,6 +4,7 @@ import { parseReply } from '@/lib/chatReply';
 import { exchangeIds, inCharacterBlock, npcLineForDm } from '@/lib/live-npcs';
 import type { StorySceneLine } from '@/lib/story-scene';
 import { supabase } from '@/integrations/supabase/client';
+import { liveTableCacheKey, orderTableLines, readLiveTableCache, reconcileTableLines, writeLiveTableCache } from '@/lib/live-table-cache';
 
 const STYLE_STATE_TYPE = 'round_style';
 const READ_STATE_TYPE = 'round_chat_read';
@@ -114,7 +115,33 @@ export function useRoundChat(
   const [style, setStyle] = useState<RoundStyle>(DEFAULT_ROUND_STYLE);
   /** False until the table's saved round style has been fetched for this party. */
   const [styleLoaded, setStyleLoaded] = useState(false);
-  const [messages, setMessages] = useState<RoundChatMessage[]>([]);
+  const cacheKey = liveTableCacheKey(userId, partyId);
+  const [messageState, setMessageState] = useState(() => ({ key: cacheKey, lines: readLiveTableCache(cacheKey) }));
+  const cachedLines = useMemo(() => readLiveTableCache(cacheKey), [cacheKey]);
+  const messages = messageState.key === cacheKey ? messageState.lines : cachedLines;
+  const scopeRef = useRef(cacheKey);
+  scopeRef.current = cacheKey;
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  const requestRef = useRef(0);
+  const setMessages = useCallback((update: RoundChatMessage[] | ((prev: RoundChatMessage[]) => RoundChatMessage[])) => {
+    if (scopeRef.current !== cacheKey) return;
+    setMessageState(prev => {
+      if (scopeRef.current !== cacheKey) return prev;
+      const lines = prev.key === cacheKey ? prev.lines : cachedLines;
+      return { key: cacheKey, lines: typeof update === 'function' ? update(lines) : update };
+    });
+  }, [cacheKey, cachedLines]);
+  useEffect(() => {
+    writeLiveTableCache(cacheKey, messages);
+    const persist = () => writeLiveTableCache(cacheKey, messagesRef.current);
+    window.addEventListener('pagehide', persist);
+    document.addEventListener('visibilitychange', persist);
+    return () => {
+      window.removeEventListener('pagehide', persist);
+      document.removeEventListener('visibilitychange', persist);
+    };
+  }, [cacheKey, messages]);
   const [reactions, setReactions] = useState<RoundChatReaction[]>([]);
   const [sending, setSending] = useState(false);
   /** userId -> ISO timestamp of the newest message that player has seen. */
@@ -209,7 +236,10 @@ export function useRoundChat(
 
   // ── Messages ──
   const loadMessages = useCallback(async () => {
-    if (!partyId) return;
+    if (!partyId || !userId) return;
+    const request = ++requestRef.current;
+    const before = messagesRef.current;
+    try {
     // Newest 200 lines (fetched newest-first, then flipped back into reading order),
     // with their reactions fetched at the same time instead of afterwards.
     const [msgRes, rxRes] = await Promise.all([
@@ -225,35 +255,37 @@ export function useRoundChat(
         .limit(1000),
     ]);
 
+    if (scopeRef.current !== cacheKey || request !== requestRef.current || msgRes.error) return;
     const loaded = ([...((msgRes.data || []) as RoundChatMessage[])]).reverse();
     const loadedIds = new Set(loaded.map(m => m.id));
-    // Keep any line that arrived over realtime while this fetch was in flight.
-    setMessages(prev => {
-      const newest = loaded.length ? loaded[loaded.length - 1].created_at : '';
-      const lateArrivals = prev.filter(m => !loadedIds.has(m.id) && m.created_at > newest);
-      return lateArrivals.length ? [...loaded, ...lateArrivals] : loaded;
-    });
-    setReactions(prev => {
+    setMessages(prev => reconcileTableLines(loaded, before, prev));
+    if (!rxRes.error) setReactions(prev => {
       const fetched = ((rxRes.data || []) as RoundChatReaction[]).filter(r => loadedIds.has(r.message_id));
       const fetchedIds = new Set(fetched.map(r => r.id));
-      const lateArrivals = prev.filter(r => !fetchedIds.has(r.id));
+      const lateArrivals = prev.filter(r => !fetchedIds.has(r.id) && loadedIds.has(r.message_id));
       return lateArrivals.length ? [...fetched, ...lateArrivals] : fetched;
     });
-  }, [partyId]);
+    } catch {
+      // Offline or failed read: retain the visible conversation and its cache.
+    }
+  }, [partyId, userId, cacheKey, setMessages]);
 
+  useEffect(() => { setReactions([]); }, [cacheKey]);
   useEffect(() => { loadMessages(); }, [loadMessages]);
 
   useEffect(() => {
-    if (!partyId) return;
+    if (!partyId || !userId) return;
+    let active = true;
     const channel = supabase
-      .channel(`round-chat-${partyId}`)
+      .channel(`round-chat-${partyId}-${crypto.randomUUID()}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'party_round_chat',
         filter: `party_id=eq.${partyId}`,
       }, (payload: any) => {
+        if (!active || scopeRef.current !== cacheKey) return;
         if (payload.eventType === 'INSERT') {
           const row = payload.new as RoundChatMessage;
-          setMessages(prev => (prev.some(m => m.id === row.id) ? prev : [...prev, row]));
+          setMessages(prev => (prev.some(m => m.id === row.id) ? prev : orderTableLines([...prev, row])));
         } else if (payload.eventType === 'UPDATE') {
           const row = payload.new as RoundChatMessage;
           setMessages(prev => prev.map(m => (m.id === row.id ? row : m)));
@@ -266,6 +298,7 @@ export function useRoundChat(
         event: '*', schema: 'public', table: 'party_round_chat_reactions',
         filter: `party_id=eq.${partyId}`,
       }, (payload: any) => {
+        if (!active || scopeRef.current !== cacheKey) return;
         if (payload.eventType === 'INSERT') {
           const row = payload.new as RoundChatReaction;
           setReactions(prev => (prev.some(r => r.id === row.id) ? prev : [...prev, row]));
@@ -278,6 +311,7 @@ export function useRoundChat(
         event: '*', schema: 'public', table: 'party_shared_state',
         filter: `party_id=eq.${partyId}`,
       }, (payload: any) => {
+        if (!active || scopeRef.current !== cacheKey) return;
         const row = payload.new as any;
         if (row?.state_type === STYLE_STATE_TYPE) {
           setStyle(parseStyle(row.state_data));
@@ -289,8 +323,8 @@ export function useRoundChat(
         }
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [partyId]);
+    return () => { active = false; supabase.removeChannel(channel); };
+  }, [partyId, userId, cacheKey, setMessages]);
 
   /**
    * Post a line and get its id back (null if it failed). `asNpc` posts it as that NPC
@@ -340,21 +374,22 @@ export function useRoundChat(
   const deleteMessage = useCallback(async (messageId: string) => {
     await (supabase.from('party_round_chat') as any).delete().eq('id', messageId);
     setMessages(prev => prev.filter(m => m.id !== messageId));
-  }, []);
+  }, [setMessages]);
 
   /** Host-only: wipe the whole table chat for everyone. Reactions cascade with their messages. */
   const clearAllMessages = useCallback(async () => {
     if (!partyId) return;
-    setMessages([]);
-    setReactions([]);
-    setOrderOverride([]);
     const { error } = await (supabase.from('party_round_chat') as any).delete().eq('party_id', partyId);
     if (error) {
       console.error('[round-chat] clear all failed:', error);
       await loadMessages();
       throw error;
     }
-  }, [partyId, loadMessages]);
+    setMessages([]);
+    setReactions([]);
+    setOrderOverride([]);
+    writeLiveTableCache(cacheKey, []);
+  }, [partyId, loadMessages, setMessages, cacheKey]);
 
   /** Edit the text of a line you already sent (only before it goes to the DM). */
   const editMessage = useCallback(async (messageId: string, content: string) => {
