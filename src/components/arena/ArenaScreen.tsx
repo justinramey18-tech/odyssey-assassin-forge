@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import { takeArenaSnapshot, restoreArenaSnapshot } from '@/lib/arena/arenaSnapshot';
 import { OPPONENTS, emptyStats, type ArenaStats, type Opponent, type Foe } from './ArenaPractice';
 import type { ArenaDrillKind } from '@/hooks/use-arena-npc-practice';
-import { PartyArena } from './PartyArena';
 import { ArenaPartyDMScreen } from './ArenaPartyDMScreen';
 import type { PartyMember } from '@/hooks/use-party-sync';
 import type { ComponentProps } from 'react';
@@ -36,7 +35,7 @@ const DRILL_OF: Record<Exclude<Opponent, 'npc' | 'gauntlet'>, ArenaDrillKind> = 
 const MODES = [
   { id: 'solo', label: 'Solo Training', blurb: 'Dummy, sparring partner, drill masters and your campaign NPCs.', icon: Swords },
   { id: 'gauntlet', label: 'Endless Gauntlet', blurb: 'Waves that get tougher until you fall.', icon: InfinityIcon },
-  { id: 'party', label: 'Party Arena', blurb: 'Train with your party or spar each other.', icon: Users },
+  { id: 'party', label: 'Party Arena', blurb: 'Take down a shared training boss with your party.', icon: Users },
 ] as const;
 
 function loadBests(): ArenaBests | null {
@@ -135,7 +134,7 @@ export function ArenaScreen({ open, onClose, characterContext, userId, currentXP
               <button
                 key={m.id}
                 type="button"
-                onClick={() => (m.id === 'party' ? (partyId ? setView('party') : toast('Join a party first to use Party Arena')) : !characterContext ? toast('Open your character first') : setView(m.id === 'solo' ? 'opponents' : 'gauntlet'))}
+                onClick={() => (m.id === 'party' ? (!partyId ? toast('Join a party first to use Party Arena') : !characterContext ? toast('Open your character first') : !userId ? toast('Sign in to use Party Arena') : setView('party')) : !characterContext ? toast('Open your character first') : setView(m.id === 'solo' ? 'opponents' : 'gauntlet'))}
                 style={{ touchAction: 'manipulation' }}
                 className="flex min-h-[72px] w-full items-center gap-3 rounded-xl border border-border bg-card p-4 text-left active:scale-[0.98]"
               >
@@ -190,7 +189,7 @@ export function ArenaScreen({ open, onClose, characterContext, userId, currentXP
       )}
 
       {view === 'party' && partyId && (
-        <PartyArena partyId={partyId} onBack={() => setView('menu')} />
+        characterContext ? <ArenaPartyDMScreen key={`party-${partyId}`} practice={{ mode: 'party', partyId }} characterContext={characterContext} onBack={() => setView('menu')} currentUserId={userId} member={member} autoSyncCallbacks={autoSyncCallbacks} currentXP={currentXP} onManualLevelUp={onManualLevelUp} /> : null
       )}
 
       {typeof view === 'object' && 'solo' in view && characterContext && (
