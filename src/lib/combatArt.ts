@@ -5,6 +5,21 @@
 // disappears and only the glow shows. Images: WebP or PNG. Clips: short MP4/WebM. Phones set to reduce motion get the
 // still image instead of the clip.
 
+import clashRingAsset from '@/assets/combat/clash-ring.webp.asset.json';
+import clashPerfectAsset from '@/assets/combat/clash-perfect.webp.asset.json';
+import clashPerfectClipAsset from '@/assets/combat/clash-perfect.mp4.asset.json';
+import clashBlockAsset from '@/assets/combat/clash-block.webp.asset.json';
+import clashBaitAsset from '@/assets/combat/clash-bait.webp.asset.json';
+import clashSlashAsset from '@/assets/combat/clash-slash.webp.asset.json';
+import clashCounterAsset from '@/assets/combat/clash-counter.webp.asset.json';
+import clashCounterClipAsset from '@/assets/combat/clash-counter.mp4.asset.json';
+import tugRopeAsset from '@/assets/combat/tug-rope.webp.asset.json';
+import tugKnotAsset from '@/assets/combat/tug-knot.webp.asset.json';
+import tugNeedleAsset from '@/assets/combat/tug-needle.webp.asset.json';
+import tugFreeAsset from '@/assets/combat/tug-free.webp.asset.json';
+import tugFreeClipAsset from '@/assets/combat/tug-free.mp4.asset.json';
+import tugFumbleAsset from '@/assets/combat/tug-fumble.webp.asset.json';
+
 export interface CombatArt {
   /** Counter Clash: the target ring (square, empty middle). */
   clashRing: string | null;
@@ -35,21 +50,21 @@ export interface CombatArt {
 }
 
 export const COMBAT_ART: CombatArt = {
-  clashRing: null,
-  clashPerfect: null,
-  clashPerfectClip: null,
-  clashBlock: null,
-  clashBait: null,
-  clashSlash: null,
+  clashRing: clashRingAsset.url,
+  clashPerfect: clashPerfectAsset.url,
+  clashPerfectClip: clashPerfectClipAsset.url,
+  clashBlock: clashBlockAsset.url,
+  clashBait: clashBaitAsset.url,
+  clashSlash: clashSlashAsset.url,
   clashSlashClip: null,
-  clashCounter: null,
-  clashCounterClip: null,
-  tugRope: null,
-  tugKnot: null,
-  tugNeedle: null,
-  tugFree: null,
-  tugFreeClip: null,
-  tugFumble: null,
+  clashCounter: clashCounterAsset.url,
+  clashCounterClip: clashCounterClipAsset.url,
+  tugRope: tugRopeAsset.url,
+  tugKnot: tugKnotAsset.url,
+  tugNeedle: tugNeedleAsset.url,
+  tugFree: tugFreeAsset.url,
+  tugFreeClip: tugFreeClipAsset.url,
+  tugFumble: tugFumbleAsset.url,
 };
 
 /** True when the phone asks for less motion: show still images, not clips. */
