@@ -5,7 +5,10 @@
 // Clash, Pin, Duel, AI voice). Nothing here calls the server or writes a row.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNpcCombat, type NpcCombatApi, type FightRow, type FighterRow, type FightEventRow } from '@/hooks/use-npc-combat';
-import { usePartyNpcs, type PartyNpc } from '@/hooks/use-party-npcs';
+import { usePartyNpcs, type PartyNpc, type NpcBuildDraft, type NpcGuideFields, type NpcMemoryNote, type NpcAttitudeRow, type NpcCombatStats } from '@/hooks/use-party-npcs';
+import { supabase } from '@/integrations/supabase/client';
+import { readableFunctionError, cleanNpcName } from '@/lib/live-npcs';
+import { foeFromNpc } from '@/lib/arena/arenaFoe';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { ActionCard } from '@/lib/roundChatActionCard';
 import type { DuelVerdict } from '@/components/ai-dm/DuelWheel';
@@ -72,6 +75,8 @@ export interface ArenaPracticeOptions {
   onStatsChange?: (stats: ArenaStats) => void;
   /** single (default): one fight ends at zero HP. gauntlet: endless waves from gauntletFoe. */
   mode?: 'single' | 'gauntlet';
+  /** Arena-local scene text for Quick Build's "use the scene" (never campaign history). */
+  getPracticeScene?: () => string;
 }
 
 export interface ArenaPracticeApi { combat: NpcCombatApi; roster: NpcRosterApi; reset: () => void; stats: ArenaStats; currentFoe: (Foe & { persona?: string }) | null; wave: number }
@@ -87,13 +92,17 @@ function baseRow(now: number, over: Partial<FighterRow>): FighterRow {
   };
 }
 
-export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentUserId, appendLine, aiVoice = true, onPracticeHp, net = null, enabled = true, drillKind = 'standard', onStatsChange, mode = 'single' }: ArenaPracticeOptions): ArenaPracticeApi {
+export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentUserId, appendLine, aiVoice = true, onPracticeHp, net = null, enabled = true, drillKind = 'standard', onStatsChange, mode = 'single', getPracticeScene }: ArenaPracticeOptions): ArenaPracticeApi {
   const isMember = net?.role === 'member';
   const [remoteFoes, setRemoteFoes] = useState<Array<Foe & { persona?: string }>>([]);
   const gauntlet = mode === 'gauntlet';
   const [wave, setWave] = useState(1);
   const waveRef = useRef(wave); waveRef.current = wave;
-  const foes = useMemo(() => (gauntlet ? [gauntletFoe(wave) as Foe & { persona?: string }] : isMember ? remoteFoes : manyFoes && manyFoes.length ? manyFoes : oneFoe ? [oneFoe] : []).slice(0, 6), [gauntlet, wave, isMember, remoteFoes, manyFoes, oneFoe]);
+  // Arena-built NPCs live only here; picking one to fight replaces the single opponent.
+  const [built, setBuilt] = useState<PartyNpc[]>([]);
+  const builtRef = useRef(built); builtRef.current = built;
+  const [picked, setPicked] = useState<{ foe: Foe & { persona?: string }; stats: NpcCombatStats } | null>(null);
+  const foes = useMemo(() => (gauntlet ? [gauntletFoe(wave) as Foe & { persona?: string }] : isMember ? remoteFoes : picked ? [picked.foe] : manyFoes && manyFoes.length ? manyFoes : oneFoe ? [oneFoe] : []).slice(0, 6), [gauntlet, wave, isMember, remoteFoes, picked, manyFoes, oneFoe]);
   const foeAt = useCallback((rowId: string) => foes[Math.max(0, Number(rowId.slice(NPC_PREFIX.length)) || 0)] ?? foes[0], [foes]);
   const baseCombat = useNpcCombat({ partyId: null, currentUserId, isHost: true, sheetHp: null });
   const baseRoster = usePartyNpcs(null);
@@ -246,19 +255,30 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
   const spendAction = useCallback(() => patch(PR(), () => ({ last_action_at: iso(Date.now()) })), [patch]);
   const live = () => fightRef.current?.status === 'active';
 
-  const openFight = useCallback(async (_npcId: string, _opts?: { weaponName?: string; finish?: Finish }) => {
+  const openFight = useCallback(async (npcId: string, _opts?: { weaponName?: string; finish?: Finish }) => {
     if (!enabled) return null;
     const t = Date.now();
     const players = Object.keys(statsRef.current).map((uid) => playerRow(uid, t));
-    const npcs = foes.map((foe, i) => baseRow(t, { id: npcRow(i), kind: 'npc', npc_id: npcIdOf(i), name: foe.name, hp: foe.maxHp, max_hp: foe.maxHp, ac: foe.ac, act_every_ms: GAP[foe.speed], next_action_at: iso(t + GAP[foe.speed] + i * 1700) }));
+    // An Arena-built NPC becomes the opponent for every combat path.
+    let useFoes = foes;
+    const b = builtRef.current.find((n) => n.id === npcId);
+    if (b && !gauntlet) {
+      const f = b.combat_stats ? foeFromNpc(b.name, b.combat_stats) : null;
+      if (!f) return { ok: false, error: `${b.name} has no fight stats.` };
+      setPicked({ foe: f, stats: b.combat_stats! });
+      useFoes = [f];
+    }
+    pinnerRef.current = null;
+    const foesNow = useFoes;
+    const npcs = foesNow.map((foe, i) => baseRow(t, { id: npcRow(i), kind: 'npc', npc_id: npcIdOf(i), name: foe.name, hp: foe.maxHp, max_hp: foe.maxHp, ac: foe.ac, act_every_ms: GAP[foe.speed], next_action_at: iso(t + GAP[foe.speed] + i * 1700) }));
     rowsRef.current = [...players, ...npcs];
     setFighters([...players, ...npcs]);
     setEvents([]);
     setFight({ id: FIGHT_ID, party_id: PARTY, status: 'active', outcome: null, started_at: iso(t), started_by: me, ended_at: null, huddles_used: {}, pause_kind: null, paused_at: null, paused_until: null, updated_at: iso(t) });
-    say('table', `${foes.map((f) => f.name).join(', ')} ${foes.length > 1 ? 'step' : 'steps'} into the ring. Nothing here counts.`);
+    say('table', `${foesNow.map((f) => f.name).join(', ')} ${foesNow.length > 1 ? 'step' : 'steps'} into the ring. Nothing here counts.`);
     void speak(pick(TAUNTS), true, npcRow(0));
     return { ok: true };
-  }, [enabled, me, foes, say, speak]);
+  }, [enabled, me, foes, gauntlet, say, speak]);
 
   /** One player strike against the practice opponent. */
   const targetOf = (id?: string) => {
@@ -675,17 +695,103 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
   const foeNpcs = useMemo<PartyNpc[]>(() => foes.map((foe, i) => ({
     id: npcIdOf(i), party_id: PARTY, name: foe.name, portrait_url: null, model: 'arena', on_stage: true, archived: false, sort_order: i,
     reacts_to_spells: false, player_user_id: null, mood: 'focused', on_stage_since: null,
-    combat_stats: { maxHp: foe.maxHp, ac: foe.ac, attackBonus: foe.attackBonus, damage: `${Math.max(1, Math.round(foe.damageAvg))}d1`, speed: foe.speed, skills: [], designedFor: 1 },
+    combat_stats: picked && i === 0 && !gauntlet ? picked.stats : { maxHp: foe.maxHp, ac: foe.ac, attackBonus: foe.attackBonus, damage: `${Math.max(1, Math.round(foe.damageAvg))}d1`, speed: foe.speed, skills: [], designedFor: 1 },
     combat_state: null, created_at: iso(0), updated_at: iso(0),
-  })), [foes]);
+  })), [foes, picked, gauntlet]);
+
+  // ---- Local roster: Arena-only NPCs, guides, memories and attitudes (never saved) ----
+  const [guides, setGuides] = useState<Record<string, { guide: string; secrets: string } & NpcGuideFields>>({});
+  const [memories, setMemories] = useState<NpcMemoryNote[]>([]);
+  const [attitudes, setAttitudes] = useState<NpcAttitudeRow[]>([]);
+  const editBuilt = useCallback(async (id: string, p: Partial<PartyNpc>) => {
+    setBuilt((list) => list.map((n) => (n.id === id ? { ...n, ...p, updated_at: iso(Date.now()) } : n)));
+  }, []);
+  const saveGuide = useCallback(async (npcId: string, guide: string, secrets: string, extra?: Partial<NpcGuideFields>) => {
+    setGuides((g) => ({ ...g, [npcId]: { wants: '', levers: '', hardLines: '', moodRange: '', grudgeStyle: 'normal', ...g[npcId], ...extra, guide, secrets } }));
+  }, []);
+  const guidesRef = useRef(guides); guidesRef.current = guides;
+  const loadGuide = useCallback(async (npcId: string) => guidesRef.current[npcId] ?? { guide: '', secrets: '', wants: '', levers: '', hardLines: '', moodRange: '', grudgeStyle: 'normal' }, []);
+  const addLocalNpc = useCallback(async (input: { name: string; model?: string; portraitUrl?: string | null; guide?: string; secrets?: string }) => {
+    const t = iso(Date.now());
+    const npc: PartyNpc = { id: crypto.randomUUID(), party_id: PARTY, name: cleanNpcName(input.name), portrait_url: input.portraitUrl ?? null, model: input.model || 'arena', on_stage: false, archived: false, sort_order: builtRef.current.length + 10, reacts_to_spells: false, player_user_id: null, mood: 'focused', on_stage_since: null, combat_stats: null, combat_state: null, created_at: t, updated_at: t };
+    builtRef.current = [...builtRef.current, npc];
+    setBuilt(builtRef.current);
+    if ((input.guide || '').trim() || (input.secrets || '').trim()) await saveGuide(npc.id, input.guide || '', input.secrets || '');
+    return npc;
+  }, [saveGuide]);
+  const buildNpcs = useCallback(async (input: { description: string; useScene: boolean; count: number; role: Parameters<NpcRosterApi['buildNpcs']>[0]['role']; difficulty: Parameters<NpcRosterApi['buildNpcs']>[0]['difficulty']; fight: boolean }): Promise<NpcBuildDraft[]> => {
+    const scene = input.useScene ? (getPracticeScene?.() ?? history.current.map((h) => h.text).join('\n')).slice(-5000) : '';
+    const { data, error } = await supabase.functions.invoke('npc-build', { body: {
+      ...input, practiceMode: true, practiceScene: scene,
+      practiceCharacter: { name: ctx.name, level, ac: myAc, maxHP: maxHp },
+      practiceTakenNames: [...foes.map((f) => f.name), ...builtRef.current.map((n) => n.name)].slice(0, 60),
+    } });
+    if (error) { const { message } = await readableFunctionError(error, 'The NPC builder could not answer. Try again.'); throw new Error(message); }
+    return Array.isArray(data?.drafts) ? (data.drafts as NpcBuildDraft[]) : [];
+  }, [getPracticeScene, ctx.name, level, myAc, maxHp, foes]);
+  const createFromDraft = useCallback(async (draft: NpcBuildDraft, opts: { onStage: boolean }): Promise<PartyNpc> => {
+    const guide = draft.attack.trim() ? `${draft.guide.trim()}\n\nIn a fight: ${draft.attack.trim()}.` : draft.guide.trim();
+    const npc = await addLocalNpc({ name: draft.name });
+    await saveGuide(npc.id, guide, draft.secrets, { wants: draft.wants, levers: draft.levers, hardLines: draft.hardLines, moodRange: draft.moodRange, grudgeStyle: draft.grudgeStyle });
+    const full: PartyNpc = { ...npc, combat_stats: draft.combatStats, on_stage: opts.onStage };
+    builtRef.current = builtRef.current.map((n) => (n.id === npc.id ? full : n));
+    setBuilt(builtRef.current);
+    return full;
+  }, [addLocalNpc, saveGuide]);
+  const attitudesRef = useRef(attitudes); attitudesRef.current = attitudes;
+
+  const allNpcs = useMemo(() => [...foeNpcs, ...built], [foeNpcs, built]);
   const roster: NpcRosterApi = useMemo(() => ({
     ...baseRoster,
-    npcs: foeNpcs,
-    active: foeNpcs,
-    onStage: foeNpcs,
-    byId: new Map(foeNpcs.map((n) => [n.id, n])),
+    partyId: null,
+    npcs: allNpcs,
+    active: allNpcs.filter((n) => !n.archived),
+    onStage: allNpcs.filter((n) => n.on_stage && !n.archived),
+    byId: new Map(allNpcs.map((n) => [n.id, n])),
     loaded: true,
-  }), [baseRoster, foeNpcs]);
+    thinking: [],
+    reload: async () => {},
+    addNpc: addLocalNpc,
+    updateNpc: (id, p) => editBuilt(id, p.name !== undefined ? { ...p, name: cleanNpcName(p.name) } : p),
+    buildNpcs,
+    createFromDraft,
+    setOnStage: (id, on) => editBuilt(id, { on_stage: on }),
+    archiveNpc: (id) => editBuilt(id, { archived: true, on_stage: false }),
+    restoreNpc: (id) => editBuilt(id, { archived: false }),
+    loadGuide,
+    saveGuide,
+    uploadPortrait: async (file: File) => URL.createObjectURL(file),
+    askNpc: async () => false,
+    askNpcs: async () => {},
+    regenerateLine: async () => {},
+    attitudes,
+    attitudeFor: (npcId, userId) => attitudes.find((a) => a.npc_id === npcId && a.user_id === userId)?.score ?? 0,
+    setAttitude: async (npcId, userId, characterName, score) => {
+      const row: NpcAttitudeRow = { npc_id: npcId, party_id: PARTY, user_id: userId, character_name: characterName, score: Math.max(-2, Math.min(2, Math.round(score))), reason: 'Set by the host', updated_by: 'host', updated_at: iso(Date.now()) };
+      setAttitudes((prev) => [...prev.filter((a) => !(a.npc_id === npcId && a.user_id === userId)), row]);
+    },
+    reloadAttitudes: async () => {},
+    setReactsToSpells: (id, on) => editBuilt(id, { reacts_to_spells: on }),
+    setMood: (id, mood) => editBuilt(id, { mood }),
+    setCombatStats: (id, stats) => editBuilt(id, { combat_stats: stats }),
+    loadSeats: async () => [{ user_id: me, character_name: ctx.name || 'You' }],
+    loadMemories: async (npcId) => memories.filter((m) => m.npc_id === npcId),
+    addMemory: async (npcId, note, kind = 'event') => {
+      const text = note.replace(/\s+/g, ' ').trim().slice(0, 300);
+      if (!text) throw new Error('Write the note first.');
+      const m: NpcMemoryNote = { id: crypto.randomUUID(), npc_id: npcId, note: text, source: 'host', kind, created_at: iso(Date.now()) };
+      setMemories((prev) => [...prev, m]);
+      return m;
+    },
+    updateMemory: async (id, note) => { const text = note.replace(/\s+/g, ' ').trim().slice(0, 300); if (!text) throw new Error('A note cannot be empty. Delete it instead.'); setMemories((prev) => prev.map((m) => (m.id === id ? { ...m, note: text, source: 'host' } : m))); },
+    deleteMemory: async (id) => { setMemories((prev) => prev.filter((m) => m.id !== id)); },
+    reactToSpell: async () => {},
+    runScene: async () => false,
+    sceneRunning: false,
+    rememberScene: async () => ({ ok: false, message: 'Practice scenes are not remembered.' }),
+    addStandIn: async () => { throw new Error('Stand-ins are not available in practice.'); },
+    standInFor: () => null,
+  }), [baseRoster, allNpcs, addLocalNpc, editBuilt, buildNpcs, createFromDraft, loadGuide, saveGuide, attitudes, memories, me, ctx.name]);
 
   return { combat, roster, reset, stats, currentFoe: foes[0] ?? null, wave };
 }
