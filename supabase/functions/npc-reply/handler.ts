@@ -286,6 +286,24 @@ async function rollSituationFor(line: RoundLine, npcId: string, repo: NpcRepo): 
   };
 }
 
+/**
+ * A lasting memory for a successful Persuasion, Intimidation or Deception roll with a known goal.
+ * Null for everything else (Insight, other checks, failures, no goal). No mechanics in the words.
+ */
+export function socialOutcomeNote(situation: NpcSituation | null | undefined, npcName: string): string | null {
+  if (!situation || situation.kind !== 'roll' || !situation.success || situation.save) return null;
+  const goal = (situation.objective || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+  if (!goal) return null;
+  const who = (situation.roller || 'A character').trim().slice(0, 40);
+  const npc = (npcName || 'The NPC').trim().slice(0, 40);
+  let note: string;
+  if (situation.check === 'Persuasion') note = `${who} talked ${npc} round: ${npc} agreed to ${goal}. ${npc} keeps to that agreement unless circumstances truly change.`;
+  else if (situation.check === 'Intimidation') note = `${who} threatened ${npc} into it: ${npc} gave in on ${goal}. ${npc} remembers the threat and keeps to that compliance unless circumstances truly change.`;
+  else if (situation.check === 'Deception') note = `${npc}'s BELIEF (not necessarily true): ${who} convinced ${npc} of this: ${goal}. ${npc} acts on that belief until credible evidence disproves it.`;
+  else return null;
+  return note.slice(0, 300);
+}
+
 /** The stored content of an NPC answer, with its roll request (if any) at the end. */
 function answerContent(replyToId: string | null, text: string, request: NpcRollRequest | null): string {
   const body = replyToId ? formatReplyContent(replyToId, text) : text;
@@ -356,6 +374,10 @@ export async function speak(req: { userId: string; messageId: unknown; npcId: un
     // A roll request only counts in a normal answer, and only for a seated character.
     const request = kind === 'reply' ? validateRollTag(result.rollTag ?? null, seatsOf(ctx)) : null;
     const mood = await moodAfter(npc, result.mood, repo);
+    // A won social roll is remembered BEFORE the answer is posted, so later turns can't forget it.
+    // If this write fails, the attempt fails and can be retried (the write is idempotent).
+    const outcome = kind === 'roll' ? socialOutcomeNote(situation, npc.name) : null;
+    if (outcome && repo.ensureEventMemory) await repo.ensureEventMemory(npc.id, line.party_id, outcome);
     const replyId = await repo.insertNpcLine({
       party_id: line.party_id,
       user_id: hostId,

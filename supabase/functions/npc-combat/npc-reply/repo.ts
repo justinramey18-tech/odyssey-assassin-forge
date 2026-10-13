@@ -126,6 +126,8 @@ export interface NpcRepo {
   insertNpcLine(row: Omit<RoundLine, 'id' | 'consumed' | 'created_at'>): Promise<string>;
   updateNpcLine(id: string, content: string, mood?: string | null): Promise<void>;
   finish(promptMessageId: string, npcId: string, patch: FinishPatch): Promise<void>;
+  /** Make sure one AI event memory with exactly this note exists for the NPC (idempotent). Optional for older test doubles. */
+  ensureEventMemory?(npcId: string, partyId: string, note: string): Promise<void>;
   findReplyRecord(replyMessageId: string): Promise<ReplyRecord | null>;
   // ── v2 (optional so older test doubles still work) ──
   /** On-stage NPCs that react to spells, in roster order. */
@@ -321,6 +323,17 @@ export function createRepo(db: any): NpcRepo {
       if (mood !== undefined) patch.npc_mood = mood;
       const { error } = await db.from('party_round_chat').update(patch).eq('id', id).not('npc_id', 'is', null);
       fail('rewrite NPC line', error);
+    },
+
+    async ensureEventMemory(npcId, partyId, note) {
+      const text = note.replace(/\s+/g, ' ').trim().slice(0, 300);
+      if (!text) return;
+      const { data, error } = await db.from('party_npc_memories').select('id')
+        .eq('npc_id', npcId).eq('party_id', partyId).eq('source', 'ai').eq('kind', 'event').eq('note', text).limit(1);
+      fail('check NPC memory', error);
+      if (Array.isArray(data) && data.length > 0) return;
+      const { error: insErr } = await db.from('party_npc_memories').insert({ npc_id: npcId, party_id: partyId, note: text, source: 'ai', kind: 'event' });
+      fail('save NPC memory', insErr);
     },
 
     async finish(promptMessageId, npcId, patch) {
