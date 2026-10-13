@@ -1,4 +1,3 @@
-=== START OF src/lib/__tests__/combat-duel.test.ts ===
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import * as D from '@/lib/combatDuel';

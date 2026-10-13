@@ -12,5 +12,3 @@ ALTER TABLE public.party_fight_events
     'sync', 'pause', 'resume', 'end', 'second_wind', 'potion', 'last_stand', 'intent', 'mend', 'shield', 'rally',
     'pin', 'retreat', 'huddle', 'scale', 'duel'
   ));
-
-Also save the same SQL as a new file drizzle/migrations/0021_duel_1_of_4.sql (next to 0020_combat_minigames_1_of_8.sql).
