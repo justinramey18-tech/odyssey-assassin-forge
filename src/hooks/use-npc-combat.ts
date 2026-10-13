@@ -460,7 +460,7 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     }
   }, [fightId, reload]);
 
-  // Mini-games. Parry and pin taps are quiet (no busy lock, no rolling card) so they never block other buttons.
+  // Mini-games (v6). Taps are quiet (no busy lock, no rolling card, no toast) so they never block other buttons.
   const quiet = useCallback(async (body: Record<string, unknown>): Promise<any | null> => {
     try {
       const { data, error } = await supabase.functions.invoke('npc-combat', { body });
@@ -470,20 +470,21 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
       return null;
     }
   }, []);
-  // Parry duel: tapAt is the tap moment on the server's clock, so slow connections aren't punished.
-  const parry = useCallback((npcFighterId: string, tapAt: number) =>
-    fightId ? quiet({ action: 'parry', fightId, npcId: npcFighterId, tapAt: Math.round(tapAt) }) : Promise.resolve(null),
+  // Counter Clash: one tap on the ring. tapAt is the tap moment on the server's clock (whole ms), so slow connections aren't punished.
+  const clash = useCallback((npcFighterId: string, side: 'left' | 'top' | 'right', tapAt: number) =>
+    fightId ? quiet({ action: 'clash', fightId, npcId: npcFighterId, side, tapAt: Math.round(tapAt) }) : Promise.resolve(null),
   [quiet, fightId]);
-  const breakPin = useCallback(async (taps: number) => {
-    if (!fightId) return null;
-    const r = await quiet({ action: 'break_pin', fightId, taps });
-    if (r?.free) void reload();
-    return r;
-  }, [quiet, fightId, reload]);
-  // Counter clash: first player to tap after a perfect parry lands a free critical hit.
-  const counter = useCallback((targetId: string) =>
-    fightId ? call({ action: 'counter', fightId, targetId }, 'Too late, the opening closed.') : Promise.resolve(null),
-  [call, fightId]);
+  // Tug & Slip: one tap on Heave while pinned. Sent one after another in tap order, so the referee counts them in order.
+  const heaveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  const heave = useCallback((tapAt: number) => {
+    if (!fightId) return Promise.resolve(null);
+    const run = heaveQueueRef.current.then(() => quiet({ action: 'heave', fightId, tapAt: Math.round(tapAt) }));
+    heaveQueueRef.current = run.catch(() => null);
+    return run.then(r => {
+      if (r?.free) scheduleReload(300);
+      return r;
+    });
+  }, [quiet, fightId, scheduleReload]);
 
   const stabilize = useCallback((targetId: string) => {
     if (!fightId) return Promise.resolve(null);
@@ -536,9 +537,8 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     cast,
     castFromCard,
     secondWind,
-    parry,
-    breakPin,
-    counter,
+    clash,
+    heave,
     serverTime,
     drinkPotion,
     stabilize,
