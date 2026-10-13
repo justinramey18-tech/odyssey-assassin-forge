@@ -577,6 +577,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       const msgs = msgsRes.data ? [...msgsRes.data].reverse() : [];
       setMessages(msgs);
       setMessagesLoaded(true);
+      writePartyChatCache(partyId, msgs);
       if (promptsRes.data) {
         // Dedupe per user: prefer a real (non-blank) prompt over a blank placeholder;
         // among rows of equal "realness", prefer the newest. Guards against legacy dupes.
@@ -799,6 +800,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             setSessionConfig(null);
             setMessages([]);
             setCurrentPrompts([]);
+            if (partyId) clearPartyChatCache(partyId);
           }
           if (old.state_type === 'dm_split') {
             setSplitState(null);
