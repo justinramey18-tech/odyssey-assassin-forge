@@ -97,6 +97,7 @@ import { PrestigeTreeScreen } from '@/components/prestigeTree';
 import { usePrestigeTree } from '@/hooks/use-prestige-tree';
 import { getPrestigeAbilityById } from '@/lib/prestigeTree/abilities';
 import { resetAllAppData, repairXPData } from '@/lib/resetApp';
+import { shouldLandInPartyTable, readLastPartyId } from '@/lib/party-landing';
 import { readPendingAiCharacter, clearPendingAiCharacter, setWizardOpen } from '@/lib/creation-guard';
 import { calculateMaxHP } from '@/lib/hpCalculation';
 import { scoreToModifier } from '@/lib/abilityScores/types';
@@ -1045,6 +1046,24 @@ const Index = () => {
   }, [rosterState, routerNavigate]);
   const partySync = usePartySync();
   const { playMode, setPlayMode, isSoloMode, isPartyMode } = usePlayMode();
+
+  // ── Land directly in the live party table on app open ──
+  // When the player opens the app while in a party, skip Home and the Enter
+  // Story cinematic: open the table through the same path as tapping Play.
+  // One attempt per app open; every other case keeps today's Home landing.
+  const partyLandingAttemptedRef = useRef(false);
+  useEffect(() => {
+    if (authLoading) return;
+    if (partyLandingAttemptedRef.current) return;
+    partyLandingAttemptedRef.current = true;
+    const open = shouldLandInPartyTable({
+      partyMode: isPartyMode,
+      signedIn: isAuthenticated,
+      lastPartyId: readLastPartyId(),
+      modeSelectionShowing: showIntroSplash,
+    });
+    if (open) setAutoOpenPartyDM(true);
+  }, [authLoading, isAuthenticated, isPartyMode, showIntroSplash]);
 
   // HP change handler with localStorage persistence, concentration check, and Wild Shape routing
   const handleHPChange = useCallback((current: number, max: number, temp: number) => {
