@@ -1088,7 +1088,6 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
             results={M.clashResultsOf((myFighter as unknown as { minigame?: unknown }).minigame, chain.id)}
             serverTime={combat.serverTime}
             frozenAt={isPaused && Number.isFinite(combat.pausedAtMs) ? combat.pausedAtMs : null}
-            compact={!!step}
             onTap={(side, tapAt) => combat.clash(npcId, side, tapAt)}
           />
         );
