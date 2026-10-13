@@ -22,6 +22,7 @@ import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
 import { getAlignmentZone, type AlignmentScore } from '@/lib/alignmentSpectrum';
 import { buildEmpyreanDMPersona } from '@/lib/empyreanDMPersona';
 import { getBondDescriptor } from '@/lib/dragonBondState';
+import { readPartyChatCache, writePartyChatCache, clearPartyChatCache } from '@/lib/party-chat-cache';
 
 /** D&D ability modifier for a raw score. */
 function abilityMod(score: number): string {
@@ -465,8 +466,26 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [messagesLoaded, setMessagesLoaded] = useState(false);
   useEffect(() => {
     setSessionConfigLoaded(false);
-    setMessagesLoaded(false);
+    // Show the party's cached chat instantly on open; the server fetch below
+    // replaces it with fresh messages once it arrives. With a warm cache the
+    // chat is never on a loading state.
+    const cached = partyId ? readPartyChatCache(partyId) : [];
+    if (cached.length > 0) {
+      setMessages(cached as PartyDmMessage[]);
+      setMessagesLoaded(true);
+    } else {
+      setMessages([]);
+      setMessagesLoaded(false);
+    }
   }, [partyId]);
+
+  // Keep the phone's chat cache fresh as messages arrive, so the next app open
+  // shows the latest conversation instantly. Debounced: realtime bursts write once.
+  useEffect(() => {
+    if (!partyId || messages.length === 0) return;
+    const t = window.setTimeout(() => writePartyChatCache(partyId, messages), 1500);
+    return () => window.clearTimeout(t);
+  }, [partyId, messages]);
 
   const isActive = sessionConfig?.active === true;
 
@@ -566,6 +585,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       const msgs = msgsRes.data ? [...msgsRes.data].reverse() : [];
       setMessages(msgs);
       setMessagesLoaded(true);
+      writePartyChatCache(partyId, msgs);
       if (promptsRes.data) {
         // Dedupe per user: prefer a real (non-blank) prompt over a blank placeholder;
         // among rows of equal "realness", prefer the newest. Guards against legacy dupes.
@@ -788,6 +808,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             setSessionConfig(null);
             setMessages([]);
             setCurrentPrompts([]);
+            if (partyId) clearPartyChatCache(partyId);
           }
           if (old.state_type === 'dm_split') {
             setSplitState(null);
@@ -855,6 +876,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     setSplitState(null);
     setMessages([]);
     setCurrentPrompts([]);
+    if (partyId) clearPartyChatCache(partyId);
     toast.info('Party DM session ended');
   }, [partyId, user]);
 
@@ -982,6 +1004,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     setMessages([]);
     setCurrentPrompts([]);
     setActiveCampaignId(null);
+    if (partyId) clearPartyChatCache(partyId);
     toast.success(campaignName ? `"${campaignName}" started!` : 'New campaign started!');
   }, [partyId, user, isCreator, sessionConfig]);
 
