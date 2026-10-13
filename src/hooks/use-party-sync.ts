@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { getScopedItem, removeScopedItem } from '@/lib/scoped-storage';
+import { writeLastPartyId } from '@/lib/party-landing';
 import { toast } from 'sonner';
 import type { PendingHealAction } from '@/components/party/IncomingHealNotification';
 import type { PendingTradeAction } from '@/components/party/IncomingTradeNotification';
@@ -460,6 +461,14 @@ export function usePartySync(): UsePartySyncReturn {
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [user, authLoading, resolveParty]);
+
+  // Mirror the connected party into the account-level "last party" note used to
+  // land straight in the live table on app open. Waits until the lookup has
+  // finished so the cold-start null never wipes the note before resolution.
+  useEffect(() => {
+    if (!hasResolvedParty) return;
+    writeLastPartyId(user && party.partyId ? party.partyId : null);
+  }, [user, party.partyId, hasResolvedParty]);
 
 
   // Load existing data when joining a party
