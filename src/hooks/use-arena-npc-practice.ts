@@ -703,8 +703,13 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
   const [guides, setGuides] = useState<Record<string, { guide: string; secrets: string } & NpcGuideFields>>({});
   const [memories, setMemories] = useState<NpcMemoryNote[]>([]);
   const [attitudes, setAttitudes] = useState<NpcAttitudeRow[]>([]);
-  const editBuilt = useCallback(async (id: string, p: Partial<PartyNpc>) => {
-    setBuilt((list) => list.map((n) => (n.id === id ? { ...n, ...p, updated_at: iso(Date.now()) } : n)));
+  const editBuilt = useCallback(async (id: string, p: Partial<PartyNpc>): Promise<PartyNpc> => {
+    const cur = builtRef.current.find((n) => n.id === id);
+    if (!cur) throw new Error('Practice opponents cannot be edited here.');
+    const next = { ...cur, ...p, updated_at: iso(Date.now()) };
+    builtRef.current = builtRef.current.map((n) => (n.id === id ? next : n));
+    setBuilt(builtRef.current);
+    return next;
   }, []);
   const saveGuide = useCallback(async (npcId: string, guide: string, secrets: string, extra?: Partial<NpcGuideFields>) => {
     setGuides((g) => ({ ...g, [npcId]: { wants: '', levers: '', hardLines: '', moodRange: '', grudgeStyle: 'normal', ...g[npcId], ...extra, guide, secrets } }));
@@ -763,7 +768,7 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
     uploadPortrait: async (file: File) => URL.createObjectURL(file),
     askNpc: async () => false,
     askNpcs: async () => {},
-    regenerateLine: async () => {},
+    regenerateLine: async () => false,
     attitudes,
     attitudeFor: (npcId, userId) => attitudes.find((a) => a.npc_id === npcId && a.user_id === userId)?.score ?? 0,
     setAttitude: async (npcId, userId, characterName, score) => {
