@@ -1256,6 +1256,20 @@ export function HomeScreen({
                 )}
               </motion.div>
 
+              {/* Training Grounds (Arena) */}
+              <div className="px-4">
+                <button
+                  type="button"
+                  onClick={() => { triggerHaptic('light'); setShowArena(true); }}
+                  className="w-full flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-border bg-card/40 backdrop-blur-sm active:scale-[0.97] transition-all"
+                  style={{ touchAction: 'manipulation' }}
+                  aria-label="Open the Training Grounds"
+                >
+                  <Swords className="w-4 h-4 text-primary" />
+                  <span className="text-xs font-cinzel font-bold uppercase tracking-[0.2em] text-primary">Training Grounds</span>
+                </button>
+              </div>
+
               {/* Host Campaign Architect shortcut */}
               {partySync?.party?.isCreator && playMode === 'party' && (
                 <motion.div
