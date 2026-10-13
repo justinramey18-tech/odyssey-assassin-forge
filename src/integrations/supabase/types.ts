@@ -2023,6 +2023,7 @@ export type Database = {
           player_user_id: string | null
           portrait_url: string | null
           reacts_to_spells: boolean
+          social_stats: Json
           sort_order: number
           updated_at: string
         }
@@ -2041,6 +2042,7 @@ export type Database = {
           player_user_id?: string | null
           portrait_url?: string | null
           reacts_to_spells?: boolean
+          social_stats?: Json
           sort_order?: number
           updated_at?: string
         }
@@ -2059,6 +2061,7 @@ export type Database = {
           player_user_id?: string | null
           portrait_url?: string | null
           reacts_to_spells?: boolean
+          social_stats?: Json
           sort_order?: number
           updated_at?: string
         }

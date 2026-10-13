@@ -162,6 +162,13 @@
       "when": 1791920240305,
       "tag": "0022_party_arena_rooms",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791934889807,
+      "tag": "0023_party_npcs_social_stats",
+      "breakpoints": true
     }
   ]
 }
