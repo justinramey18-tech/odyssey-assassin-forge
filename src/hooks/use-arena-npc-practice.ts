@@ -10,7 +10,7 @@ import type { CharacterContext } from '@/components/oracle/types';
 import type { ActionCard } from '@/lib/roundChatActionCard';
 import type { DuelVerdict } from '@/components/ai-dm/DuelWheel';
 import type { Json } from '@/integrations/supabase/types';
-import type { Foe } from '@/components/arena/ArenaPractice';
+import { emptyStats, type Foe, type ArenaStats } from '@/components/arena/ArenaPractice';
 import * as M from '@/lib/combatMinigames';
 import * as DU from '@/lib/combatDuel';
 import { buildSparPrompt, sparLine, type SparTurn } from '@/lib/arena/arenaAi';
@@ -41,6 +41,15 @@ const iso = (ms: number) => new Date(ms).toISOString();
 const asJson = (v: object): Json => JSON.parse(JSON.stringify(v)) as Json;
 const objOf = (v: Json | null | undefined): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 
+/** How the practice opponent behaves. */
+export type ArenaDrillKind = 'standard' | 'dummy' | 'sparring' | 'clash' | 'pin' | 'duel';
+
+const DRILL_LINES: Partial<Record<ArenaDrillKind, string[]>> = {
+  clash: ['Again — watch the swing.', 'Read it. Counter it.', 'Here it comes!'],
+  pin: ['Break this hold!', 'Pull! Pull harder!', 'You are caught again.'],
+  duel: ['Steel to steel. Again.', 'Ready your blade.', 'Once more.'],
+};
+
 export interface ArenaPracticeOptions {
   ctx: CharacterContext;
   /** One opponent (legacy) or several. */
@@ -55,9 +64,15 @@ export interface ArenaPracticeOptions {
   onPracticeHp?: (hp: number, maxHp: number) => void;
   /** Party Sparring link: host runs the fight, members mirror it and send actions. */
   net?: SparringNet | null;
+  /** Off: base hooks still run, but no timers, speech or fights start. Default true. */
+  enabled?: boolean;
+  /** Drill behavior for the opponent. Default standard. */
+  drillKind?: ArenaDrillKind;
+  /** Practice scorecard updates. */
+  onStatsChange?: (stats: ArenaStats) => void;
 }
 
-export interface ArenaPracticeApi { combat: NpcCombatApi; roster: NpcRosterApi; reset: () => void }
+export interface ArenaPracticeApi { combat: NpcCombatApi; roster: NpcRosterApi; reset: () => void; stats: ArenaStats }
 
 function baseRow(now: number, over: Partial<FighterRow>): FighterRow {
   return {
@@ -70,7 +85,7 @@ function baseRow(now: number, over: Partial<FighterRow>): FighterRow {
   };
 }
 
-export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentUserId, appendLine, aiVoice = true, onPracticeHp, net = null }: ArenaPracticeOptions): ArenaPracticeApi {
+export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentUserId, appendLine, aiVoice = true, onPracticeHp, net = null, enabled = true, drillKind = 'standard', onStatsChange }: ArenaPracticeOptions): ArenaPracticeApi {
   const isMember = net?.role === 'member';
   const [remoteFoes, setRemoteFoes] = useState<Array<Foe & { persona?: string }>>([]);
   const foes = useMemo(() => (isMember ? remoteFoes : manyFoes && manyFoes.length ? manyFoes : oneFoe ? [oneFoe] : []).slice(0, 6), [isMember, remoteFoes, manyFoes, oneFoe]);
@@ -104,7 +119,13 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
   const pinnerRef = useRef<string | null>(null);
 
   // A local clock that always moves, so no countdown can freeze.
-  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 200); return () => clearInterval(t); }, []);
+  useEffect(() => { if (!enabled) return; const t = setInterval(() => setNow(Date.now()), 200); return () => clearInterval(t); }, [enabled]);
+  const isDrill = drillKind === 'dummy' || drillKind === 'clash' || drillKind === 'pin' || drillKind === 'duel';
+  // Practice scorecard (moved from the old Solo Training screen).
+  const [stats, setStats] = useState<ArenaStats>(emptyStats);
+  const bumpStats = useCallback((fn: (s: ArenaStats) => Partial<ArenaStats>) => setStats((s) => ({ ...s, ...fn(s) })), []);
+  const statsCb = useRef(onStatsChange); statsCb.current = onStatsChange;
+  useEffect(() => { statsCb.current?.(stats); }, [stats]);
   const serverTime = useCallback(() => Date.now(), []);
 
   const say = useCallback((who: 'foe' | 'table', text: string, rowId: string = npcRow(0)) => {
@@ -123,6 +144,8 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
   }, [appendLine, foeAt]);
 
   const speak = useCallback(async (fallback: string, force = false, rowId: string = npcRow(0)) => {
+    if (!enabled || drillKind === 'dummy') return;
+    if (isDrill) { if (force || Date.now() - lastSpeech.current > 4000) { lastSpeech.current = Date.now(); say('foe', pick(DRILL_LINES[drillKind] ?? [fallback]), rowId); } return; }
     if (!aiVoice) { say('foe', fallback, rowId); return; }
     if (speechBusy.current || (!force && Date.now() - lastSpeech.current < 4000)) return;
     speechBusy.current = true; lastSpeech.current = Date.now();
@@ -134,7 +157,7 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
     const text = await sparLine(sys, history.current);
     speechBusy.current = false;
     say('foe', text || fallback, rowId);
-  }, [aiVoice, say, foeAt, ctx.name, maxHp]);
+  }, [enabled, drillKind, isDrill, aiVoice, say, foeAt, maxHp]);
 
   const event = useCallback((e: Partial<FightEventRow> & { kind: string; detail: string }) => {
     const row: FightEventRow = { actor_name: '', applied_at: null, created_at: iso(Date.now()), d20: null, fight_id: FIGHT_ID, hp_delta: 0, id: crypto.randomUUID(), party_id: PARTY, target_name: '', target_user_id: null, total: null, ...e };
@@ -167,6 +190,7 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
     patch(id, (r) => ({ hp, status: hp === 0 ? 'down' : r.status, duel_charge: Math.min(DU.DUEL_CHARGE.max, r.duel_charge + gain) }));
     if (isNpcRow(id) && isPlayerRow(PR())) patch(PR(), (r) => ({ duel_charge: Math.min(DU.DUEL_CHARGE.max, r.duel_charge + gain) }));
     event({ kind, actor_name: by, target_name: row.name, target_user_id: row.user_id, hp_delta: -n, detail, d20: d20 ?? null, total: total ?? null });
+    if (isNpcRow(id) && kind === 'attack') bumpStats((s) => ({ hits: s.hits + 1, damage: s.damage + Math.min(n, row.hp) }));
     if (id === prow(me)) onPracticeHp?.(hp, maxHp);
     if (hp === 0) {
       if (isNpcRow(id)) {
@@ -198,6 +222,7 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
   const live = () => fightRef.current?.status === 'active';
 
   const openFight = useCallback(async (_npcId: string, _opts?: { weaponName?: string; finish?: Finish }) => {
+    if (!enabled) return null;
     const t = Date.now();
     const players = Object.keys(statsRef.current).map((uid) => playerRow(uid, t));
     const npcs = foes.map((foe, i) => baseRow(t, { id: npcRow(i), kind: 'npc', npc_id: npcIdOf(i), name: foe.name, hp: foe.maxHp, max_hp: foe.maxHp, ac: foe.ac, act_every_ms: GAP[foe.speed], next_action_at: iso(t + GAP[foe.speed] + i * 1700) }));
@@ -208,7 +233,7 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
     say('table', `${foes.map((f) => f.name).join(', ')} ${foes.length > 1 ? 'step' : 'steps'} into the ring. Nothing here counts.`);
     void speak(pick(TAUNTS), true, npcRow(0));
     return { ok: true };
-  }, [me, foes, say, speak]);
+  }, [enabled, me, foes, say, speak]);
 
   /** One player strike against the practice opponent. */
   const targetOf = (id?: string) => {
@@ -292,8 +317,10 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
     if (!j) return null;
     const r = [...results]; r[j.index] = j.q;
     patch(PR(), (row) => ({ minigame: asJson({ ...objOf(row.minigame), clash: { id: chain.id, r } }) }));
+    let run = 0, best = 0; for (const q of r) { run = q === 'perfect' ? run + 1 : 0; best = Math.max(best, run); }
+    bumpStats((s) => ({ taps: s.taps + 1, perfects: s.perfects + (j.q === 'perfect' ? 1 : 0), bestChain: Math.max(s.bestChain, best) }));
     return { ok: true, index: j.index, quality: j.q };
-  }, [patch]);
+  }, [patch, bumpStats]);
 
   // Pin: one HEAVE on the rope.
   const heave = useCallback(async (tapAt: number) => {
@@ -307,9 +334,11 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
       const started = me_.pinned_until ? Date.parse(me_.pinned_until) - PIN_MS : tapAt;
       event({ kind: 'pin', actor_name: me_.name, target_name: me_.name, target_user_id: me_.user_id, detail: 'Broke free!' });
       say('table', `${me_.name} broke free in ${((tapAt - started) / 1000).toFixed(1)}s.`);
+      const took = tapAt - started;
+      if (Number.isFinite(took) && took >= 0) bumpStats((s) => ({ pinEscapes: s.pinEscapes + 1, bestEscapeMs: s.bestEscapeMs === null ? took : Math.min(s.bestEscapeMs, took) }));
     }
     return { ok: true, free: r.free, struggle: r.state };
-  }, [patch, event, say]);
+  }, [patch, event, say, bumpStats]);
 
   const duelStart = useCallback(async (npcFighterId: string, opts?: { weaponName?: string; finish?: Finish; feel?: DU.DuelFeel }) => {
     if (!live()) return null;
@@ -337,10 +366,19 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
     const dealt = won ? (npc?.hp ?? 0) : 0;
     patch(PR(), (r) => { const m = { ...objOf(r.minigame) }; delete m.duel; return { minigame: asJson(m) }; });
     patch(npc.id, () => ({ next_action_at: iso(Date.now() + GAP[foe.speed]) }));
+    bumpStats((s) => ({ duels: s.duels + 1, duelsWon: s.duelsWon + (won ? 1 : 0) }));
+    if (drillKind === 'duel') {
+      // Drill: no knockout, no damage — refill so the next duel is ready.
+      event({ kind: 'attack', actor_name: me_.name, target_name: npc.name, detail: won ? 'Won the drill duel.' : 'Lost the drill duel.' });
+      say('table', won ? `Duel won against ${npc.name}! Go again.` : `${npc.name} took that duel. Go again.`);
+      patch(npc.id, (r) => ({ hp: r.max_hp, status: 'up' }));
+      patch(PR(), () => ({ duel_charge: DU.DUEL_CHARGE.max }));
+      return { ok: true, perfect: out.perfect, block: out.block, hits: out.hits, ripostes: out.ripostes, allPerfect: out.allPerfect, dealt: 0, taken: 0, defeated: false, npcName: npc.name };
+    }
     if (won) hurt(npc.id, dealt, me_.name, 'attack', 'Won the duel.');
     else hurt(PR(), taken, npc.name, 'attack', 'Lost the duel.');
     return { ok: true, perfect: out.perfect, block: out.block, hits: out.hits, ripostes: out.ripostes, allPerfect: out.allPerfect, dealt, taken, defeated: won, npcName: npc.name };
-  }, [patch, hurt, foeAt]);
+  }, [patch, hurt, foeAt, drillKind, bumpStats, event, say]);
 
   const stabilize = useCallback(async (_targetId: string) => null, []);
   const givePotion = useCallback(async (_targetId: string, _itemName: string) => null, []);
@@ -364,13 +402,13 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
   }, []);
   const endFight = useCallback(async () => { endWith('ended', 'Practice stopped.'); return { ok: true }; }, [endWith]);
   const addNpc = useCallback(async (_npcId: string) => null, []);
-  const reset = useCallback(() => { setFight(null); setFighters([]); setEvents([]); }, []);
+  const reset = useCallback(() => { setFight(null); setFighters([]); setEvents([]); setStats(emptyStats()); }, []);
   const revivePlayer = useCallback(async (_userId: string) => { reset(); return { ok: true }; }, [reset]);
   const reviveNpc = useCallback(async (_npcId: string) => { reset(); return { ok: true }; }, [reset]);
 
   // The opponent's turn, a huddle's end and big-move landings, all on the local clock.
   useEffect(() => {
-    if (isMember) return; // the host's phone runs the opponents
+    if (!enabled || isMember) return; // the host's phone runs the opponents
     const f = fight;
     if (!f) return;
     if (f.status === 'paused') {
@@ -427,12 +465,29 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
     const npc = ups.find((r) => { const d = r.next_action_at ? Date.parse(r.next_action_at) : NaN; return Number.isFinite(d) && now >= d; });
     if (!npc) return;
     const foe = foeAt(npc.id);
-    if (foe.attackBonus <= -10) { patch(npc.id, () => ({ next_action_at: iso(now + GAP[foe.speed]) })); return; } // a dummy never swings
+    if (drillKind === 'dummy' || foe.attackBonus <= -10) { patch(npc.id, () => ({ next_action_at: iso(now + GAP[foe.speed]) })); return; } // a dummy never swings
     const p = pick(free);
-    const r = Math.random();
+    if (drillKind === 'duel') {
+      // Drill: keep the Duel ready instead of attacking.
+      patch(npc.id, () => ({ next_action_at: iso(now + GAP[foe.speed]) }));
+      if (DU.duelChargeNow(p.duel_charge) < DU.DUEL_CHARGE.max) { patch(p.id, () => ({ duel_charge: DU.DUEL_CHARGE.max })); void speak('Ready?', true, npc.id); }
+      return;
+    }
+    if (drillKind === 'pin') {
+      // Drill: straight into a real Pin.
+      const t0 = now;
+      pinnerRef.current = npc.id;
+      patch(npc.id, () => ({ turn_no: npc.turn_no + 1, next_action_at: iso(now + GAP[foe.speed]) }));
+      patch(p.id, (row) => ({ pinned_until: iso(t0 + PIN_MS), minigame: asJson({ ...objOf(row.minigame), struggle: M.newStruggle(Math.floor(Math.random() * 1e9), t0) }) }));
+      event({ kind: 'pin', actor_name: npc.name, target_name: p.name, target_user_id: p.user_id, detail: `${npc.name} pins ${p.name}!` });
+      say('table', `${npc.name} grabs ${p.name} — Pinned! Break free.`);
+      void speak('Break this hold!', true, npc.id);
+      return;
+    }
+    const r = drillKind === 'clash' ? 0 : Math.random();
     if (r < 0.6) void speak(pick(TAUNTS), true, npc.id);
     if (r < 0.6) {
-      const move: M.ClashMove = r < 0.45 ? pick<M.ClashMove>(['heavy', 'signature', 'sweep']) : 'pin';
+      const move: M.ClashMove = drillKind === 'clash' ? pick<M.ClashMove>(['heavy', 'signature', 'sweep']) : r < 0.45 ? pick<M.ClashMove>(['heavy', 'signature', 'sweep']) : 'pin';
       const c = M.buildClash(`c${now}`, move, roll);
       const windup = 1200 + Math.max(0, -M.clashStartsAt(c, 0));
       const skill = move === 'pin' ? 'Pin' : move === 'signature' ? 'Signature' : move === 'sweep' ? 'Sweep' : 'Heavy Blow';
@@ -452,7 +507,7 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
       event({ kind: 'npc_attack', actor_name: npc.name, target_name: p.name, target_user_id: p.user_id, detail: `${npc.name} misses ${p.name} (${atk} vs AC ${p.ac}).`, d20, total: atk });
       say('table', `${npc.name} swings at ${p.name} — ${atk} vs AC ${p.ac}, miss.`);
     }
-  }, [isMember, me, now, fight, fighters, foeAt, patch, hurt, event, say, speak, resume]);
+  }, [enabled, drillKind, isMember, me, now, fight, fighters, foeAt, patch, hurt, event, say, speak, resume]);
 
   // ---- Party Sparring link ----
   const local = { openFight, attack, cast, castFromCard, secondWind, drinkPotion, clash, heave, duelStart, duelEnd, huddle, pause, resume, endFight, stabilize, givePotion, revivePlayer, reviveNpc };
@@ -607,5 +662,5 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
     loaded: true,
   }), [baseRoster, foeNpcs]);
 
-  return { combat, roster, reset };
+  return { combat, roster, reset, stats };
 }
