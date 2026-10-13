@@ -5,7 +5,7 @@
 //                                                    or shows it the roll it asked for
 // POST { action: "spell", messageId }               a player cast a spell: on-stage NPCs react (v2)
 // POST { action: "banter", partyId, npcIds, topic?, turns? }   the host starts an NPC scene (v2)
-// POST { action: "social_check", messageId, npcId, skill, playerRoll, npcRoll }  a direct opposed social roll
+// POST { action: "social", messageId, npcId, skill, playerRoll, npcRoll }  a direct opposed social roll
 // POST { action: "regenerate", replyMessageId }     the host asks for a new version of an NPC line
 //
 // The caller must be signed in. Replies are written with the server's keys; if the NPC's
@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
         ? await spell({ userId, messageId: body.messageId }, deps)
         : body.action === 'banter'
           ? await banter({ userId, partyId: body.partyId, npcIds: body.npcIds, topic: body.topic, turns: body.turns }, deps)
-          : body.action === 'social_check'
+          : (body.action === 'social' || body.action === 'social_check')
             ? await socialCheck({ userId, messageId: body.messageId, npcId: body.npcId, skill: body.skill, playerRoll: body.playerRoll, npcRoll: body.npcRoll }, deps)
             : await speak({ userId, messageId: body.messageId, npcId: body.npcId }, deps);
     return json(result.status, result.body);

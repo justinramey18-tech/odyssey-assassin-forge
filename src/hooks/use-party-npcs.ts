@@ -2,6 +2,7 @@ import { pickWakes, STAND_IN_IDLE_MS } from '@/lib/stand-in-triggers';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { requestRoundChatRefresh } from '@/lib/round-chat-refresh';
+import type { SocialCheckResult } from '@/lib/npcSocialChecks';
 import { supabase } from '@/integrations/supabase/client';
 import { NPC_DEFAULT_MODEL, NPC_GUIDE_MAX, cleanNpcName, readableFunctionError, spellCastName, sanitizeNpcSocialStats, quickBuildSocialStats, type NpcSocialStats } from '@/lib/live-npcs';
 
@@ -574,6 +575,44 @@ export function usePartyNpcs(partyId: string | null) {
   const askRef = useRef(askNpc);
   askRef.current = askNpc;
 
+  /**
+   * A player's opposed social roll against an on-stage NPC, already rolled once by the toolbar.
+   * The server re-checks the dice and decides the outcome; Retry resends the SAME rolls (never rerolls).
+   */
+  const resolveSocialCheck = useCallback(async (messageId: string, npcId: string, result: SocialCheckResult): Promise<boolean> => {
+    const name = npcsRef.current.find(n => n.id === npcId)?.name || 'The NPC';
+    const key = `${messageId}:${npcId}`;
+    startThinking({ key, npcId, name, messageId, kind: 'roll' });
+    const roll = (r: SocialCheckResult['playerRoll']) => ({ die: r.die, modifier: r.modifier, total: r.total });
+    try {
+      const { data, error } = await supabase.functions.invoke('npc-reply', {
+        body: { action: 'social', messageId, npcId, skill: result.skill, playerRoll: roll(result.playerRoll), npcRoll: roll(result.npcRoll) },
+      });
+      if (!error) {
+        requestRoundChatRefresh(partyIdRef.current);
+        const server = data?.outcome;
+        if ((server === 'success' || server === 'failure' || server === 'tie') && server !== result.outcome) {
+          toast.info(`${name}'s answer follows the table's result: ${server === 'tie' ? 'a tie' : server}.`);
+        }
+        return true;
+      }
+      const { message, status } = await readableFunctionError(error, `${name} couldn't answer. Check your connection and try again.`);
+      if (status === 409 || status === 403 || status === 404) {
+        toast.info(message, { duration: 8000 });
+      } else {
+        toast.error(message, {
+          duration: 15000,
+          action: { label: 'Retry', onClick: () => { void socialRef.current(messageId, npcId, result); } },
+        });
+      }
+      return false;
+    } finally {
+      stopThinking(key);
+    }
+  }, [startThinking, stopThinking]);
+  const socialRef = useRef(resolveSocialCheck);
+  socialRef.current = resolveSocialCheck;
+
   // ── Stand-in wake-ups: name, provocation, advice, skill moments, and quiet pauses ──
   const thinkingRef = useRef<NpcThinking[]>([]);
   thinkingRef.current = localThinking;
@@ -743,6 +782,7 @@ export function usePartyNpcs(partyId: string | null) {
     uploadPortrait,
     askNpc,
     askNpcs,
+    resolveSocialCheck,
     regenerateLine,
     // v2
     attitudes,
