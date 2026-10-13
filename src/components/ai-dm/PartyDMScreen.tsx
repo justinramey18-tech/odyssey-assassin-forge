@@ -8,9 +8,7 @@ import { useDmPolls } from '@/hooks/use-dm-polls';
 import { useNPCAutocomplete } from '@/hooks/use-npc-autocomplete';
 import { PartyDMInput, type PartyDMInputHandle } from './PartyDMInput';
 import { PartySessionRecovery } from './PartySessionRecovery';
-import { PartyToolsScreen } from './PartyToolsScreen';
 
-import { PartyDMAudioRecorder } from './PartyDMAudioRecorder';
 import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import empyreanSpeaksImg from '@/assets/empyrean-speaks.jpg';
 import empyreanDmBg from '@/assets/empyrean-dm-bg.jpg';
@@ -40,53 +38,38 @@ const dmGlyphBookmark = dmGlyphBookmarkAsset.url;
 const dmGlyphExpand = dmGlyphExpandAsset.url;
 const dmGlyphRegenerate = dmGlyphRegenerateAsset.url;
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
-import CinematicSlideshow from '@/components/empyrean/CinematicSlideshow';
 import EmpyreanContextualActions from '@/components/empyrean/EmpyreanContextualActions';
 import { setIsUnbonded } from '@/lib/dragonBondState';
 import DeathSaveScreen from '@/components/empyrean/DeathSaveScreen';
 import { HealTargetSheet } from '@/components/ai-dm/HealTargetSheet';
-import MemorialScreen from '@/components/empyrean/MemorialScreen';
 import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
 
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
-import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, MoreVertical, Film, Image as ImageIcon, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, ChevronRight, Timer, Ghost, Lock, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause, MessageCircle, SmilePlus, Theater, Megaphone, Swords } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
-import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer, PreSplitChatViewer } from './PartySplitUI';
-import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { WhisperTray } from './WhisperTray';
-import { OraclePanel } from '@/components/oracle/OraclePanel';
-import { PartyDMSettings, ToolsGroupHeader } from './PartyDMSettings';
 import { QuickRecapDrawer, QuickRecapButton, type QuickRecapContext } from './QuickRecapDrawer';
 import { usePartyChatBackground } from '@/hooks/use-party-chat-background';
-import { PartyMemoryAnchorsPanel } from './PartyMemoryAnchorsPanel';
-import { PartyQuestsPanel } from './PartyQuestsPanel';
 import { usePartyQuests } from '@/hooks/use-party-quests';
 import { useQuestRewardSplit } from '@/hooks/use-quest-reward-split';
 import { usePartyNarrationStyle } from '@/hooks/use-party-narration-style';
 import { useRoundChat } from '@/hooks/use-round-chat';
 import { useChatAvatars } from '@/hooks/use-chat-avatars';
 import { usePartyNpcs } from '@/hooks/use-party-npcs';
-import { NpcRosterPanel } from './NpcRosterPanel';
-import { WhatIMissed } from './WhatIMissed';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { usePartyPresence } from '@/hooks/use-party-presence';
 import { RoundChatDrawer, type RoundChatDrawerHandle } from './RoundChatDrawer';
 import { OverlaySlot, useOverlayChange, useOverlayGanglion } from '@/hooks/use-overlay-ganglion';
-import { ActionMenuSheet, type ActionMenuChoice } from './ActionMenuSheet';
+import type { ActionMenuChoice } from './ActionMenuSheet';
 import { DMHandoffBar } from './DMHandoffBar';
-import { DMAssistantPanel } from './DMAssistantPanel';
 import type { AssistantLiveContext } from '@/lib/dm-assistant';
 import { narrationStyleLine } from '@/lib/narrationStyle';
 import { withQuestEvent, WorldStateEntry, buildQuestKickoffPrompt } from '@/lib/quests';
 
 import { DMComposePanel } from './DMComposePanel';
 import { DraftReviewPanel } from './DraftReviewPanel';
-import { NpcSceneDialog } from './NpcSceneDialog';
-import { DevAssistantChat } from '@/components/settings/DevAssistantChat';
-import { StoryMasterworkActions } from './StoryMasterworkActions';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
@@ -114,7 +97,6 @@ import { useAuth } from '@/hooks/use-auth';
 import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-models';
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-party-dm';
-import { DMDiceRoller, preloadDiceRollerArt } from './DMDiceRoller';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { parseRollHint } from '@/lib/whisperRollHint';
 import { awaitLatestD20Reveal, rollD20 } from '@/lib/rollD20';
@@ -122,7 +104,6 @@ import { resolveOddsForContext } from '@/lib/diceOdds';
 import { buildRollAnswer, rollModifier, spellCastName, type NpcRollRequest, type RollSheet } from '@/lib/live-npcs';
 import { STORY_SCENE_SENDER, rowsCoveredByScenes } from '@/lib/story-scene';
 import { resolveWhisperAutoRoll, performWhisperRoll } from '@/lib/whisperAutoRoll';
-import { PartyDMQuickActions } from './PartyDMQuickActions';
 import { actionCardFromRoll, encodeActionCard, parseActionCard, stripActionCard, type ActionCard } from '@/lib/roundChatActionCard';
 import { getHealingDiceForItem } from '@/lib/consumables/healing';
 import { rollHealing } from '@/lib/promptAutoRoll';
@@ -130,8 +111,6 @@ import { requestDiceRoll } from '@/lib/diceRollBus';
 import { parseReply } from '@/lib/chatReply';
 import { useHealingItemAction } from '@/hooks/use-healing-item';
 import { RoundTimer, TimerSettings } from './RoundTimer';
-import { AfkPersonalityGuide } from './AfkPersonalityGuide';
-import { ScheduledEventsSheet } from './ScheduledEventsSheet';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { CampaignSession } from '@/hooks/use-campaign-sessions';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
@@ -143,27 +122,64 @@ import { useBroadcastPlaylist } from '@/hooks/use-broadcast-playlist';
 import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { WildShapeSection } from '@/components/drawers/QuickActionsDrawer';
 import { usePartyDragonBonds } from '@/hooks/use-party-dragon-bonds';
-import { DragonRiderSetupSheet } from './DragonRiderSetupSheet';
-import PartyDragonChat from './PartyDragonChat';
-import DragonTelegramScheduler from './DragonTelegramScheduler';
 import { Flame } from 'lucide-react';
 import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 
 import { parseWhispers } from '@/lib/whisper-parser';
 import { formatForReadingMode, type FormattedReading } from '@/lib/reading-mode-formatter';
-import { SoloCharacterSheet, type SheetTab } from '@/components/ai-dm/SoloCharacterSheet';
-import { BagStatsScreen } from '@/components/ai-dm/BagStatsScreen';
-import { ActiveQuestScreen } from '@/components/ai-dm/ActiveQuestScreen';
-import { TableGuide } from '@/components/help/TableGuide';
+import type { SheetTab } from '@/components/ai-dm/SoloCharacterSheet';
 
 import { CharacterSheetStrip } from '@/components/ai-dm/CharacterSheetStrip';
-import { PartyMemberSheets } from '@/components/party/PartyMemberSheets';
 import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
 import { loadPendingDmItems } from '@/lib/pendingDmItems';
 import { DiceRollOverlay } from '@/components/ai-dm/DiceRollOverlay';
 import { stripTableTalkTags, type NarrationSegment } from '@/lib/tts-utils';
 import { useNpcCombat } from '@/hooks/use-npc-combat';
 import { NpcCombatOverlay } from '@/components/ai-dm/NpcCombatOverlay';
+import { lazyPanel } from '@/lib/lazyPanel';
+
+// Panels that load on demand, so the story feed and the Live Table appear first.
+// Each one draws nothing until its code arrives (usually a split second). The ones players
+// open most are fetched in the background shortly after the screen opens (see PRELOAD_AFTER_OPEN).
+const PartyToolsScreen = lazyPanel(() => import('./PartyToolsScreen').then(m => m.PartyToolsScreen));
+const PartyDMAudioRecorder = lazyPanel(() => import('./PartyDMAudioRecorder').then(m => m.PartyDMAudioRecorder));
+const CinematicSlideshow = lazyPanel(() => import('@/components/empyrean/CinematicSlideshow').then(m => m.default));
+const MemorialScreen = lazyPanel(() => import('@/components/empyrean/MemorialScreen').then(m => m.default));
+const GeraltGameplayWidget = lazyPanel(() => import('./GeraltGameplayWidget').then(m => m.GeraltGameplayWidget));
+const SplitInitiator = lazyPanel(() => import('./PartySplitUI').then(m => m.SplitInitiator));
+const SplitBanner = lazyPanel(() => import('./PartySplitUI').then(m => m.SplitBanner));
+const RegroupDialog = lazyPanel(() => import('./PartySplitUI').then(m => m.RegroupDialog));
+const SplitSummariesViewer = lazyPanel(() => import('./PartySplitUI').then(m => m.SplitSummariesViewer));
+const PreSplitChatViewer = lazyPanel(() => import('./PartySplitUI').then(m => m.PreSplitChatViewer));
+const InfinityStoneDMDrawer = lazyPanel(() => import('./InfinityStoneDMDrawer').then(m => m.InfinityStoneDMDrawer));
+const OraclePanel = lazyPanel(() => import('@/components/oracle/OraclePanel').then(m => m.OraclePanel));
+const PartyDMSettings = lazyPanel(() => import('./PartyDMSettings').then(m => m.PartyDMSettings));
+const ToolsGroupHeader = lazyPanel(() => import('./PartyDMSettings').then(m => m.ToolsGroupHeader));
+const PartyMemoryAnchorsPanel = lazyPanel(() => import('./PartyMemoryAnchorsPanel').then(m => m.PartyMemoryAnchorsPanel));
+const PartyQuestsPanel = lazyPanel(() => import('./PartyQuestsPanel').then(m => m.PartyQuestsPanel));
+const NpcRosterPanel = lazyPanel(() => import('./NpcRosterPanel').then(m => m.NpcRosterPanel));
+const WhatIMissed = lazyPanel(() => import('./WhatIMissed').then(m => m.WhatIMissed));
+const ActionMenuSheet = lazyPanel(() => import('./ActionMenuSheet').then(m => m.ActionMenuSheet));
+const DMAssistantPanel = lazyPanel(() => import('./DMAssistantPanel').then(m => m.DMAssistantPanel));
+const NpcSceneDialog = lazyPanel(() => import('./NpcSceneDialog').then(m => m.NpcSceneDialog));
+const DevAssistantChat = lazyPanel(() => import('@/components/settings/DevAssistantChat').then(m => m.DevAssistantChat));
+const StoryMasterworkActions = lazyPanel(() => import('./StoryMasterworkActions').then(m => m.StoryMasterworkActions));
+const DMDiceRoller = lazyPanel(() => import('./DMDiceRoller').then(m => m.DMDiceRoller));
+const PartyDMQuickActions = lazyPanel(() => import('./PartyDMQuickActions').then(m => m.PartyDMQuickActions));
+const AfkPersonalityGuide = lazyPanel(() => import('./AfkPersonalityGuide').then(m => m.AfkPersonalityGuide));
+const ScheduledEventsSheet = lazyPanel(() => import('./ScheduledEventsSheet').then(m => m.ScheduledEventsSheet));
+const DragonRiderSetupSheet = lazyPanel(() => import('./DragonRiderSetupSheet').then(m => m.DragonRiderSetupSheet));
+const PartyDragonChat = lazyPanel(() => import('./PartyDragonChat').then(m => m.default));
+const DragonTelegramScheduler = lazyPanel(() => import('./DragonTelegramScheduler').then(m => m.default));
+const SoloCharacterSheet = lazyPanel(() => import('@/components/ai-dm/SoloCharacterSheet').then(m => m.SoloCharacterSheet));
+const BagStatsScreen = lazyPanel(() => import('@/components/ai-dm/BagStatsScreen').then(m => m.BagStatsScreen));
+const ActiveQuestScreen = lazyPanel(() => import('@/components/ai-dm/ActiveQuestScreen').then(m => m.ActiveQuestScreen));
+const TableGuide = lazyPanel(() => import('@/components/help/TableGuide').then(m => m.TableGuide));
+const PartyMemberSheets = lazyPanel(() => import('@/components/party/PartyMemberSheets').then(m => m.PartyMemberSheets));
+
+/** Panels players reach for during play: fetched in the background soon after the screen opens. */
+const PRELOAD_AFTER_OPEN = [ActionMenuSheet, PartyDMQuickActions, DMDiceRoller, SoloCharacterSheet, PartyMemberSheets, BagStatsScreen, ActiveQuestScreen, PartyToolsScreen, PartyDMSettings];
+const PRELOAD_DELAY_MS = 2000;
 
 function stripCinematicTagsFromDisplay(content: string): string {
   return stripTableTalkTags(content.replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, ''));
@@ -1406,8 +1422,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   // While the Action Menu is up, start loading the dice roller's art and its fire
   // background, so choosing "Roll the dice" opens a sheet that's already painted.
   useOverlayChange(overlays, 'actionMenu', (open) => {
-    if (open) preloadDiceRollerArt([diceBg.url]);
+    if (open) {
+      DMDiceRoller.preload();
+      import('./DMDiceRoller').then(m => m.preloadDiceRollerArt([diceBg.url])).catch(() => {});
+    }
   });
+  // Once the story and the Live Table are up, fetch the panels players open most, in the background.
+  useEffect(() => {
+    const t = window.setTimeout(() => PRELOAD_AFTER_OPEN.forEach(panel => panel.preload()), PRELOAD_DELAY_MS);
+    return () => window.clearTimeout(t);
+  }, []);
   const narrator = useNarrator();
   const spotify = useSpotify();
   const drawerContext = usePromptDrawers();
