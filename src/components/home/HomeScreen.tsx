@@ -17,6 +17,9 @@ import {
   Swords, Wand2, ListChecks, Users, User, Film,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ArenaScreen } from '@/components/arena/ArenaScreen';
+import { restoreArenaSnapshot } from '@/lib/arena/arenaSnapshot';
+import { toast as arenaToast } from 'sonner';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -355,6 +358,11 @@ export function HomeScreen({
   const [showFAQDrawer, setShowFAQDrawer] = useState(false);
   const [showSoloConfirm, setShowSoloConfirm] = useState(false);
   const [showEmpyreanScreen, setShowEmpyreanScreen] = useState(false);
+  const [showArena, setShowArena] = useState(false);
+  // Crash recovery: an arena session left unfinished is undone on next open.
+  useEffect(() => {
+    if (restoreArenaSnapshot()) toast('Arena practice undone — your character is back to normal.');
+  }, []);
   const [showEmpyreanDMContainer, setShowEmpyreanDMContainer] = useState(false);
   const [enterStoryActive, setEnterStoryActive] = useState(false);
   const [enterStoryRevealing, setEnterStoryRevealing] = useState(false);
@@ -1060,6 +1068,18 @@ export function HomeScreen({
                     The Empyrean Awaits
                   </span>
                 </motion.button>
+
+                {/* Training Grounds (Arena) */}
+                <button
+                  type="button"
+                  onClick={() => { triggerHaptic('light'); setShowArena(true); }}
+                  className="w-full flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-border bg-card/40 backdrop-blur-sm active:scale-[0.97] transition-all"
+                  style={{ touchAction: 'manipulation' }}
+                  aria-label="Open the Training Grounds"
+                >
+                  <Swords className="w-4 h-4 text-primary" />
+                  <span className="text-xs font-cinzel font-bold uppercase tracking-[0.2em] text-primary">Training Grounds</span>
+                </button>
               </div>
 
               {/* SPACER — dragon art fills the middle */}
@@ -1508,6 +1528,8 @@ export function HomeScreen({
         />
       )}
 
+
+      <ArenaScreen open={showArena} onClose={() => setShowArena(false)} />
 
       {/* Empyrean Campaign Screen */}
       <EmpyreanScreen

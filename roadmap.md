@@ -16,3 +16,9 @@
 - [x] Open the expanded Live Table on party app launch without reopening after Return to Story.
 - [x] Cache Live Table lines separately by account and party; preserve them on failed refreshes.
 - [x] Check launch, cache isolation, refresh failures, and the latest preview build (37 tests passed; isolated phone-screen opening/closing verified; real-party cold launch untested without signing in).
+- [x] Arena step 1: Training Grounds button, arena menu, safe snapshot/restore with crash recovery.
+- [ ] Arena step 2: solo practice fights (dummy, sparring partner, drill masters, campaign NPCs).
+- [ ] Arena step 3: move triggers, speed slider, timing feedback.
+- [ ] Arena step 4: scorecard and personal bests.
+- [ ] Arena step 5: Endless Gauntlet.
+- [ ] Arena step 6–7: Party Arena (server storage + screens).
