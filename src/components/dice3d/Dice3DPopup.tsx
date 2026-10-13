@@ -99,7 +99,7 @@ function Die({ d, index, onSettled }: { d: DieThrow; index: number; onSettled: (
   const [labels, setLabels] = useState(() => Array.from({ length: shape.faces.length }, (_, i) => i + 1));
   const [glow, setGlow] = useState(false);
   const still = useRef(0);
-  const born = useRef(performance.now());
+  const age = useRef(0);
   const done = useRef(false);
 
   useEffect(() => {
@@ -112,11 +112,13 @@ function Die({ d, index, onSettled }: { d: DieThrow; index: number; onSettled: (
 
   useFrame((_, dt) => {
     const rb = body.current;
-    if (!rb || done.current) return;
+    if (!rb) return;
+    age.current += Math.min(dt, 0.05);
     const v = rb.linvel(), w = rb.angvel();
     const moving = Math.hypot(v.x, v.y, v.z) + Math.hypot(w.x, w.y, w.z);
     still.current = moving < 0.08 ? still.current + Math.min(dt, 0.05) : 0;
-    if (still.current > 0.35 || rb.isSleeping() || performance.now() - born.current > SETTLE_MAX_MS) {
+    if (done.current) return;
+    if (still.current > 0.35 || rb.isSleeping() || age.current * 1000 > SETTLE_MAX_MS) {
       done.current = true;
       const q = rb.rotation();
       const quat = new THREE.Quaternion(q.x, q.y, q.z, q.w);
