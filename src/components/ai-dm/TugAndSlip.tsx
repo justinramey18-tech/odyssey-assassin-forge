@@ -96,69 +96,65 @@ export function TugAndSlip({ npcName, pinnedUntil, struggle, serverTime, frozenA
   const gapLeft = p.gap - p.width / 2;
 
   return (
-    <div className="space-y-2 select-none">
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-cinzel text-[14px] text-amber-200 truncate">📌 {npcName ? `${npcName} has you pinned!` : 'Pinned!'}</span>
-        <span className="font-cinzel text-[18px] text-amber-100 tabular-nums shrink-0">{frozenAt !== null ? '⏸' : `${secsLeft}s`}</span>
-      </div>
+    <MinigameStage tone="pin" title={title} subtitle="Heave when the needle is in the green. Misses slip and lock you for a moment." right={timer}>
+      <div className="w-full max-w-md space-y-4 select-none">
 
-      {/* The rope: the knot slides toward the enemy; drag it past FREE. */}
-      <div className="relative h-9 rounded-md border border-white/15 bg-black overflow-hidden" aria-label={`Knot at ${Math.round(knotPct)} percent`}>
-        <div
-          className="absolute left-0 right-0"
-          style={COMBAT_ART.tugRope
-            ? { top: '20%', bottom: '20%', backgroundImage: `url(${COMBAT_ART.tugRope})`, backgroundSize: 'auto 100%', backgroundRepeat: 'repeat-x', mixBlendMode: 'screen' }
-            : { top: '36%', bottom: '36%', background: 'repeating-linear-gradient(115deg, #8a6a3d 0 6px, #6b4f2a 6px 12px)' }}
-        />
-        <div className="absolute inset-y-0 left-0 bg-red-600/25" style={{ width: '18%' }} />
-        <div className="absolute inset-y-0 border-l-2 border-dashed border-green-400/80" style={{ left: `${M.TUG.freeAt}%` }} />
-        <span className="absolute right-1 top-0.5 text-[10px] font-semibold text-green-300">FREE</span>
-        <span className="absolute left-1 top-0.5 text-[10px] text-red-200/80">{npcName ?? 'Enemy'}</span>
-        <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 transition-[left] duration-75" style={{ left: `${knotPct}%` }}>
-          {COMBAT_ART.tugKnot
-            ? <img src={COMBAT_ART.tugKnot} alt="" draggable={false} className="w-8 h-8 object-contain" style={{ mixBlendMode: 'screen' }} />
-            : <div className="w-6 h-6 rounded-full border-2 border-amber-200 bg-amber-600 shadow-[0_0_8px_rgba(251,191,36,0.8)]" />}
-        </div>
-      </div>
-
-      {/* The needle bar: red edges, green gap, needle. */}
-      <div className="relative h-11 rounded-md border border-white/15 bg-black overflow-hidden">
-        <div className="absolute inset-y-0 bg-red-500/45" style={{ left: `${gapLeft - M.TUG.trap}%`, width: `${M.TUG.trap}%` }} />
-        <div className="absolute inset-y-0 bg-green-500/70 shadow-[0_0_10px_rgba(34,197,94,0.7)]" style={{ left: `${gapLeft}%`, width: `${p.width}%` }} />
-        <div className="absolute inset-y-0 bg-red-500/45" style={{ left: `${gapLeft + p.width}%`, width: `${M.TUG.trap}%` }} />
-        {COMBAT_ART.tugNeedle
-          ? <img src={COMBAT_ART.tugNeedle} alt="" draggable={false} className="absolute inset-y-0 h-full w-4 -translate-x-1/2 object-contain" style={{ left: `${p.needle}%`, mixBlendMode: 'screen' }} />
-          : <div className="absolute inset-y-0 w-1 -translate-x-1/2 bg-white shadow-[0_0_6px_white]" style={{ left: `${p.needle}%` }} />}
-      </div>
-
-      <div className="relative">
-        <button
-          type="button"
-          onPointerDown={heave}
-          disabled={frozenAt !== null}
-          style={{ touchAction: 'manipulation' }}
-          className={cn(
-            'w-full min-h-[64px] rounded-xl border-2 font-cinzel text-[22px] tracking-wider transition-transform active:scale-[0.97]',
-            locked ? 'border-red-500/60 bg-red-950/80 text-red-200' : 'border-amber-300/80 bg-amber-500/25 text-amber-100',
-          )}
-        >
-          {locked ? 'Fumbled…' : 'HEAVE'}
-        </button>
-        {fb && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            {fb.tone !== 'good' && <ArtFx image={COMBAT_ART.tugFumble} className="absolute h-[140%] object-contain" />}
-            <span
-              className={cn('relative -translate-y-9 rounded-full bg-black/85 px-3 py-0.5 text-[15px] font-bold animate-in fade-in zoom-in-75 duration-100',
-                fb.tone === 'good' ? 'text-green-300' : 'text-red-300')}
-            >
-              {fb.text}
-            </span>
+        {/* The rope: the knot slides toward the enemy; drag it past FREE. */}
+        <div className="relative h-16 rounded-md border border-white/15 bg-black overflow-hidden" aria-label={`Knot at ${Math.round(knotPct)} percent`}>
+          <div
+            className="absolute left-0 right-0"
+            style={COMBAT_ART.tugRope
+              ? { top: '20%', bottom: '20%', backgroundImage: `url(${COMBAT_ART.tugRope})`, backgroundSize: 'auto 100%', backgroundRepeat: 'repeat-x', mixBlendMode: 'screen' }
+              : { top: '36%', bottom: '36%', background: 'repeating-linear-gradient(115deg, #8a6a3d 0 6px, #6b4f2a 6px 12px)' }}
+          />
+          <div className="absolute inset-y-0 left-0 bg-red-600/25" style={{ width: '18%' }} />
+          <div className="absolute inset-y-0 border-l-2 border-dashed border-green-400/80" style={{ left: `${M.TUG.freeAt}%` }} />
+          <span className="absolute right-1 top-0.5 text-[12px] font-semibold text-green-300">FREE</span>
+          <span className="absolute left-1 top-0.5 text-[12px] text-red-200/80">{npcName ?? 'Enemy'}</span>
+          <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 transition-[left] duration-75" style={{ left: `${knotPct}%` }}>
+            {COMBAT_ART.tugKnot
+              ? <img src={COMBAT_ART.tugKnot} alt="" draggable={false} className="w-12 h-12 object-contain" style={{ mixBlendMode: 'screen' }} />
+              : <div className="w-9 h-9 rounded-full border-2 border-amber-200 bg-amber-600 shadow-[0_0_8px_rgba(251,191,36,0.8)]" />}
           </div>
-        )}
+        </div>
+
+        {/* The needle bar: red edges, green gap, needle. */}
+        <div className="relative h-20 rounded-md border border-white/15 bg-black overflow-hidden">
+          <div className="absolute inset-y-0 bg-red-500/45" style={{ left: `${gapLeft - M.TUG.trap}%`, width: `${M.TUG.trap}%` }} />
+          <div className="absolute inset-y-0 bg-green-500/70 shadow-[0_0_10px_rgba(34,197,94,0.7)]" style={{ left: `${gapLeft}%`, width: `${p.width}%` }} />
+          <div className="absolute inset-y-0 bg-red-500/45" style={{ left: `${gapLeft + p.width}%`, width: `${M.TUG.trap}%` }} />
+          {COMBAT_ART.tugNeedle
+            ? <img src={COMBAT_ART.tugNeedle} alt="" draggable={false} className="absolute inset-y-0 h-full w-6 -translate-x-1/2 object-contain" style={{ left: `${p.needle}%`, mixBlendMode: 'screen' }} />
+            : <div className="absolute inset-y-0 w-1.5 -translate-x-1/2 bg-white shadow-[0_0_6px_white]" style={{ left: `${p.needle}%` }} />}
+        </div>
+
+        <div className="relative">
+          <button
+            type="button"
+            onPointerDown={heave}
+            disabled={frozenAt !== null}
+            style={{ touchAction: 'manipulation' }}
+            className={cn(
+              'w-full min-h-[96px] rounded-xl border-2 font-cinzel text-[30px] tracking-wider transition-transform active:scale-[0.97]',
+              locked ? 'border-red-500/60 bg-red-950/80 text-red-200' : 'border-amber-300/80 bg-amber-500/25 text-amber-100',
+            )}
+          >
+            {locked ? 'Fumbled…' : 'HEAVE'}
+          </button>
+          {fb && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              {fb.tone !== 'good' && <ArtFx image={COMBAT_ART.tugFumble} className="absolute h-[140%] object-contain" />}
+              <span
+                className={cn('relative -translate-y-14 rounded-full bg-black/85 px-3 py-0.5 text-[18px] font-bold animate-in fade-in zoom-in-75 duration-100',
+                  fb.tone === 'good' ? 'text-green-300' : 'text-red-300')}
+              >
+                {fb.text}
+              </span>
+            </div>
+          )}
+        </div>
+        {local.hit > 1 && <p className="text-center text-[14px] text-amber-200">🔥 {local.hit} in a row</p>}
       </div>
-      <p className="text-center text-[11px] text-white/60">
-        {local.hit > 1 ? `🔥 ${local.hit} in a row · ` : ''}Heave when the needle is in the green. Misses slip and lock you for a moment.
-      </p>
-    </div>
+    </MinigameStage>
   );
 }
