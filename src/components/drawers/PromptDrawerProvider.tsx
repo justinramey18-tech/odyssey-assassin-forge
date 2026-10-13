@@ -344,7 +344,7 @@ export function PromptDrawerProvider({
   }, []);
 
   // Open a DM mode after making sure its bound character is the active one.
-  const openModeWithCharacter = useCallback(async (mode: DMMode, open: () => void) => {
+  const openModeWithCharacter = useCallback(async (mode: DMMode, open: () => void, initialLiveTableOpen = false) => {
     const target = ensureBinding(mode, activeCloudSaveId ?? null);
     // No binding possible (guest, or no cloud saves): behave exactly as before.
     if (!target || target === activeCloudSaveId || !onSwitchCharacterSave) {
@@ -355,7 +355,7 @@ export function PromptDrawerProvider({
     setPendingMode(mode);
     // The switch below remounts this provider (Index swaps in a full-screen overlay),
     // so remember what to open and let the fresh instance do it.
-    try { sessionStorage.setItem(REOPEN_AFTER_SWITCH_KEY, JSON.stringify({ mode, at: Date.now() })); } catch { /* ignore */ }
+    try { sessionStorage.setItem(REOPEN_AFTER_SWITCH_KEY, JSON.stringify({ mode, at: Date.now(), initialLiveTableOpen })); } catch { /* ignore */ }
     try {
       const ok = await onSwitchCharacterSave(target);
       if (!ok) {
@@ -393,9 +393,12 @@ export function PromptDrawerProvider({
       const raw = sessionStorage.getItem(REOPEN_AFTER_SWITCH_KEY);
       if (!raw) return;
       sessionStorage.removeItem(REOPEN_AFTER_SWITCH_KEY);
-      const { mode, at } = JSON.parse(raw) as { mode?: string; at?: number };
+      const { mode, at, initialLiveTableOpen } = JSON.parse(raw) as { mode?: string; at?: number; initialLiveTableOpen?: boolean };
       if (!at || Date.now() - at > 15000) return;
-      if (mode === 'party') setPartyDMOpen(true);
+      if (mode === 'party') {
+        setPartyInitialLiveTableOpen(initialLiveTableOpen === true);
+        setPartyDMOpen(true);
+      }
       else if (mode === 'solo') setAiDMOpen(true);
     } catch { /* ignore */ }
   }, []);
@@ -996,7 +999,7 @@ export function PromptDrawerProvider({
     openPartyDMScreen: useCallback((options?: { initialLiveTableOpen?: boolean }) => {
       closeAllDrawers();
       setPartyInitialLiveTableOpen(options?.initialLiveTableOpen ?? false);
-      void openModeWithCharacter('party', () => setPartyDMOpen(true));
+      void openModeWithCharacter('party', () => setPartyDMOpen(true), options?.initialLiveTableOpen ?? false);
     }, [closeAllDrawers, openModeWithCharacter]),
     partyDMOpen,
     openPartyDMCampaignBuilder: useCallback(() => {

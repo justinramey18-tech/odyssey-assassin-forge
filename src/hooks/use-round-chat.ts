@@ -271,7 +271,10 @@ export function useRoundChat(
   }, [partyId, userId, cacheKey, setMessages]);
 
   useEffect(() => { setReactions([]); }, [cacheKey]);
-  useEffect(() => { loadMessages(); }, [loadMessages]);
+  useEffect(() => {
+    void loadMessages();
+    return () => { requestRef.current += 1; };
+  }, [loadMessages]);
 
   useEffect(() => {
     if (!partyId || !userId) return;
