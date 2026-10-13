@@ -1218,6 +1218,7 @@ export type Database = {
           created_at: string
           death_failures: number
           death_successes: number
+          duel_charge: number
           fight_id: string
           hp: number
           id: string
@@ -1257,6 +1258,7 @@ export type Database = {
           created_at?: string
           death_failures?: number
           death_successes?: number
+          duel_charge?: number
           fight_id: string
           hp: number
           id?: string
@@ -1296,6 +1298,7 @@ export type Database = {
           created_at?: string
           death_failures?: number
           death_successes?: number
+          duel_charge?: number
           fight_id?: string
           hp?: number
           id?: string

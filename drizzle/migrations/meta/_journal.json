@@ -148,6 +148,13 @@
       "when": 1791851745526,
       "tag": "0020_combat_minigames_1_of_8",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791908050673,
+      "tag": "0021_duel_1_of_4",
+      "breakpoints": true
     }
   ]
 }
