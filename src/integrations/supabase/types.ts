@@ -1226,6 +1226,7 @@ export type Database = {
           last_seen_at: string | null
           last_stand_used: boolean
           max_hp: number
+          minigame: Json
           name: string
           next_action_at: string | null
           next_save_at: string | null
@@ -1264,6 +1265,7 @@ export type Database = {
           last_seen_at?: string | null
           last_stand_used?: boolean
           max_hp: number
+          minigame?: Json
           name: string
           next_action_at?: string | null
           next_save_at?: string | null
@@ -1302,6 +1304,7 @@ export type Database = {
           last_seen_at?: string | null
           last_stand_used?: boolean
           max_hp?: number
+          minigame?: Json
           name?: string
           next_action_at?: string | null
           next_save_at?: string | null
