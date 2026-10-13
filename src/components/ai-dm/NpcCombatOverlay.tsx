@@ -1001,21 +1001,6 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                 <button style={tap} className="min-h-[44px] px-2 text-[12px] text-white/70" onClick={() => onClearPreTarget?.()}>Cancel</button>
               </div>
             )}
-            {amPinned && (() => {
-              // v6 Tug & Slip: while pinned, the struggle takes the place of the action buttons.
-              const pinEvent = [...events].reverse().find(e => e.kind === 'pin' && e.target_user_id === currentUserId && e.actor_name !== myFighter.name);
-              return (
-                <TugAndSlip
-                  npcName={pinEvent?.actor_name || null}
-                  pinnedUntil={pinnedUntil}
-                  struggle={M.cleanStruggle(((myFighter as unknown as { minigame?: Record<string, unknown> | null }).minigame ?? {}).struggle)}
-                  serverTime={combat.serverTime}
-                  frozenAt={isPaused && Number.isFinite(combat.pausedAtMs) ? combat.pausedAtMs : null}
-                  onHeave={tapAt => combat.heave(tapAt)}
-                  onFree={() => setBurst({ kind: 'free', key: `local-${pinnedUntil}` })}
-                />
-              );
-            })()}
             {!amPinned && cooldownLeft > 0 && <p className="text-[11px] text-center text-white/60">Ready in {cooldownLeft}s</p>}
             {!amPinned && <div className="space-y-1">
               <div className="flex items-center justify-between text-[11px]">
