@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { firePendingNat20Fanfare } from '@/lib/critSound';
 import { registerTablePoster } from '@/lib/tablePostBus';
 
