@@ -876,6 +876,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     setSplitState(null);
     setMessages([]);
     setCurrentPrompts([]);
+    if (partyId) clearPartyChatCache(partyId);
     toast.info('Party DM session ended');
   }, [partyId, user]);
 
@@ -1003,6 +1004,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     setMessages([]);
     setCurrentPrompts([]);
     setActiveCampaignId(null);
+    if (partyId) clearPartyChatCache(partyId);
     toast.success(campaignName ? `"${campaignName}" started!` : 'New campaign started!');
   }, [partyId, user, isCreator, sessionConfig]);
 
