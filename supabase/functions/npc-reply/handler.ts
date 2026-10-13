@@ -298,7 +298,7 @@ export function socialOutcomeNote(situation: NpcSituation | null | undefined, np
   const npc = (npcName || 'The NPC').trim().slice(0, 40);
   let note: string;
   if (situation.check === 'Persuasion') note = `${who} talked ${npc} round: ${npc} agreed to ${goal}. ${npc} keeps to that agreement unless circumstances truly change.`;
-  else if (situation.check === 'Intimidation') note = `${who} threatened ${npc} into it: ${npc} gave in on ${goal}. ${npc} remembers the threat and keeps to that compliance unless circumstances truly change.`;
+  else if (situation.check === 'Intimidation') note = `${who} threatened ${npc}, and ${npc} gave in to the demand: ${goal}. ${npc} remembers the threat and keeps to that compliance unless circumstances truly change.`;
   else if (situation.check === 'Deception') note = `${npc}'s BELIEF (not necessarily true): ${who} convinced ${npc} of this: ${goal}. ${npc} acts on that belief until credible evidence disproves it.`;
   else return null;
   return note.slice(0, 300);
