@@ -7,9 +7,14 @@ import type { PartyMember } from '@/hooks/use-party-sync';
 import type { CharacterContext } from '@/components/oracle/types';
 import { useArenaRoundChat } from '@/hooks/use-arena-round-chat';
 import { useArenaPartyDm } from '@/hooks/use-arena-party-dm';
-import { useArenaNpcPractice } from '@/hooks/use-arena-npc-practice';
-import type { Foe } from './ArenaPractice';
+import { useArenaNpcPractice, type ArenaDrillKind } from '@/hooks/use-arena-npc-practice';
+import { gauntletFoe, type Foe, type ArenaStats } from './ArenaPractice';
 import type { SparringNet } from '@/lib/arena/sparringNet';
+
+/** What the local practice table runs. */
+export type ArenaPracticeConfig =
+  | { mode: 'solo'; foe: Foe & { persona?: string }; drillKind: ArenaDrillKind }
+  | { mode: 'gauntlet' };
 
 type AutoSyncCallbacks = ComponentProps<typeof StandalonePartyDMScreen>['autoSyncCallbacks'];
 
@@ -17,6 +22,10 @@ const LOCAL_ARENA_USER = 'arena-player';
 
 interface Props {
   characterContext: CharacterContext;
+  /** Solo drill or Endless Gauntlet. Without it, the legacy foe/foes props run a standard fight. */
+  practice?: ArenaPracticeConfig;
+  /** Practice scorecard updates. */
+  onStatsChange?: (stats: ArenaStats) => void;
   foe?: Foe & { persona?: string };
   /** Several opponents at once (Party Sparring). */
   foes?: Array<Foe & { persona?: string }>;
@@ -33,7 +42,7 @@ interface Props {
   net?: SparringNet | null;
 }
 
-export function ArenaPartyDMScreen({ characterContext, foe, foes, onBack, currentUserId, member, autoSyncCallbacks, currentXP, onManualLevelUp, aiVoice = true, net = null }: Props) {
+export function ArenaPartyDMScreen({ characterContext, practice, onStatsChange, foe, foes, onBack, currentUserId, member, autoSyncCallbacks, currentXP, onManualLevelUp, aiVoice = true, net = null }: Props) {
   const userId = currentUserId || LOCAL_ARENA_USER;
   const name = member?.character_name || characterContext.name || 'Player';
 
@@ -63,7 +72,15 @@ export function ArenaPartyDMScreen({ characterContext, foe, foes, onBack, curren
       sendMessage: async (...a: Parameters<typeof localChat.sendMessage>) => { const ok = await localChat.sendMessage(...a); if (ok) share(a[0], a[1]); return ok; },
     };
   }, [localChat, net, userId, name]);
-  const { combat, roster } = useArenaNpcPractice({ ctx: characterContext, foe, foes, currentUserId: userId, appendLine, aiVoice: aiVoice && net?.role !== 'member', net });
+  const { combat, roster } = useArenaNpcPractice({
+    ctx: characterContext,
+    enabled: true,
+    mode: practice?.mode === 'gauntlet' ? 'gauntlet' : 'single',
+    drillKind: practice?.mode === 'solo' ? practice.drillKind : 'standard',
+    foe: practice?.mode === 'solo' ? practice.foe : practice?.mode === 'gauntlet' ? gauntletFoe(1) : foe,
+    foes: practice ? undefined : foes,
+    onStatsChange,
+    currentUserId: userId, appendLine, aiVoice: aiVoice && net?.role !== 'member', net });
 
   // Everyone in the ring shows up as a table member.
   const ringMembers = useMemo(() => {
