@@ -4,6 +4,7 @@ import { parseReply } from '@/lib/chatReply';
 import { exchangeIds, inCharacterBlock, npcLineForDm } from '@/lib/live-npcs';
 import type { StorySceneLine } from '@/lib/story-scene';
 import { supabase } from '@/integrations/supabase/client';
+import { ROUND_CHAT_REFRESH_EVENT } from '@/lib/round-chat-refresh';
 import { liveTableCacheKey, orderTableLines, readLiveTableCache, reconcileTableLines, writeLiveTableCache } from '@/lib/live-table-cache';
 
 const STYLE_STATE_TYPE = 'round_style';
@@ -332,7 +333,10 @@ export function useRoundChat(
     // Back in the foreground: a read-only repair of the conversation.
     const onVisible = () => { if (active && document.visibilityState === 'visible') void loadMessages(); };
     document.addEventListener('visibilitychange', onVisible);
-    return () => { active = false; document.removeEventListener('visibilitychange', onVisible); supabase.removeChannel(channel); };
+    // An NPC reply was saved by the server: read it in even if the live update never comes.
+    const onRefresh = (e: Event) => { if (active && (e as CustomEvent<{ partyId?: string }>).detail?.partyId === partyId) void loadMessages(); };
+    window.addEventListener(ROUND_CHAT_REFRESH_EVENT, onRefresh);
+    return () => { active = false; document.removeEventListener('visibilitychange', onVisible); window.removeEventListener(ROUND_CHAT_REFRESH_EVENT, onRefresh); supabase.removeChannel(channel); };
   }, [partyId, userId, cacheKey, setMessages, loadMessages]);
 
   /**
