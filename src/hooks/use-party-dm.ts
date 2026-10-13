@@ -479,6 +479,14 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId]);
 
+  // Keep the phone's chat cache fresh as messages arrive, so the next app open
+  // shows the latest conversation instantly. Debounced: realtime bursts write once.
+  useEffect(() => {
+    if (!partyId || messages.length === 0) return;
+    const t = window.setTimeout(() => writePartyChatCache(partyId, messages), 1500);
+    return () => window.clearTimeout(t);
+  }, [partyId, messages]);
+
   const isActive = sessionConfig?.active === true;
 
   // Safety net: never leave the story on a loading state if the message fetch stalls.
