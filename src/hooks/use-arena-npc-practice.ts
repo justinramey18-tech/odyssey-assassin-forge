@@ -15,7 +15,7 @@ import * as M from '@/lib/combatMinigames';
 import * as DU from '@/lib/combatDuel';
 import { buildSparPrompt, sparLine, type SparTurn } from '@/lib/arena/arenaAi';
 import type { ArenaAppendLine } from '@/hooks/use-arena-round-chat';
-import type { SparringNet, SparringPlayer } from '@/lib/arena/sparringNet';
+import { cleanPlayer, type SparringNet, type SparringPlayer } from '@/lib/arena/sparringNet';
 
 export type NpcRosterApi = ReturnType<typeof usePartyNpcs>;
 type Finish = 'knockout' | 'kill';
@@ -88,6 +88,7 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
   statsRef.current[me] = { userId: me, name: ctx.name || 'You', maxHp, ac: myAc, level, atk: atkBonus };
   const st = () => statsRef.current[actorRef.current] ?? statsRef.current[me];
   const PR = () => prow(actorRef.current);
+  const netRef = useRef(net); netRef.current = net;
   const playerRow = (uid: string, t: number) => { const s0 = statsRef.current[uid]; return baseRow(t, { id: prow(uid), kind: 'player', user_id: uid, name: s0.name, hp: s0.maxHp, max_hp: s0.maxHp, ac: s0.ac }); };
 
   const [now, setNow] = useState(() => Date.now());
@@ -110,9 +111,15 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
     history.current = [...history.current.slice(-19), { who, text }];
     if (who === 'foe') {
       const i = Math.max(0, Number(rowId.slice(NPC_PREFIX.length)) || 0);
-      appendLine({ content: text, characterName: foeAt(rowId)?.name ?? 'Opponent', npcId: npcIdOf(i), inCharacter: true });
+      const l = { content: text, characterName: foeAt(rowId)?.name ?? 'Opponent', npcId: npcIdOf(i), inCharacter: true };
+      appendLine(l);
+      if (netRef.current?.role === 'host') netRef.current.send('line', l);
       setLastLineAt((m) => ({ ...m, [npcIdOf(i)]: Date.now() }));
-    } else appendLine({ content: `⚔ ${text}`, characterName: '⚔ Combat', inCharacter: false });
+    } else {
+      const l = { content: `⚔ ${text}`, characterName: '⚔ Combat', inCharacter: false };
+      appendLine(l);
+      if (netRef.current?.role === 'host') netRef.current.send('line', l);
+    }
   }, [appendLine, foeAt]);
 
   const speak = useCallback(async (fallback: string, force = false, rowId: string = npcRow(0)) => {
@@ -447,6 +454,92 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
     }
   }, [isMember, me, now, fight, fighters, foeAt, patch, hurt, event, say, speak, resume]);
 
+  // ---- Party Sparring link ----
+  const local = { openFight, attack, cast, castFromCard, secondWind, drinkPotion, clash, heave, duelStart, duelEnd, huddle, pause, resume, endFight, stabilize, givePotion, revivePlayer, reviveNpc };
+  type LocalApi = typeof local;
+  const localRef = useRef(local); localRef.current = local;
+  const pendingRpc = useRef(new Map<string, (v: unknown) => void>());
+
+  // Host: share the fight a few times a second.
+  const [shareTick, setShareTick] = useState(0);
+  useEffect(() => {
+    if (net?.role !== 'host') return;
+    const t = setTimeout(() => net.send('state', { fight, fighters, events: events.slice(-20), foes }), 120);
+    return () => clearTimeout(t);
+  }, [net, fight, fighters, events, foes, shareTick]);
+
+  // Host: members join and send actions.
+  useEffect(() => {
+    if (net?.role !== 'host') return;
+    const offJoin = net.on('join', (p) => {
+      const pl = cleanPlayer(p.player);
+      if (!pl || pl.userId === me) return;
+      const known = !!statsRef.current[pl.userId];
+      statsRef.current[pl.userId] = pl;
+      const f = fightRef.current;
+      if (f && f.status !== 'ended' && !rowsRef.current.some((r) => r.id === prow(pl.userId))) {
+        const next = [...rowsRef.current, playerRow(pl.userId, Date.now())];
+        rowsRef.current = next; setFighters(next);
+      }
+      if (!known) say('table', `${pl.name} joins the sparring ring.`);
+      setShareTick((n) => n + 1);
+    });
+    const offAct = net.on('act', (p) => {
+      const uid = typeof p.uid === 'string' ? p.uid : '';
+      const type = String(p.type) as keyof LocalApi;
+      const args = Array.isArray(p.args) ? p.args : [];
+      const fn = localRef.current[type] as ((...a: unknown[]) => Promise<unknown>) | undefined;
+      if (!uid || !statsRef.current[uid] || !fn) { net.send('res', { reqId: p.reqId, to: uid, result: null }); return; }
+      const prev = actorRef.current;
+      actorRef.current = uid;
+      let out: Promise<unknown>;
+      try { out = fn(...args); } finally { actorRef.current = prev; }
+      void out.then((result) => net.send('res', { reqId: p.reqId, to: uid, result: result ?? null }), () => net.send('res', { reqId: p.reqId, to: uid, result: null }));
+    });
+    return () => { offJoin(); offAct(); };
+  }, [net, me, say]);
+
+  // Member: mirror the host and keep announcing ourselves.
+  useEffect(() => {
+    if (net?.role !== 'member') return;
+    const offState = net.on('state', (p) => {
+      const rows = Array.isArray(p.fighters) ? (p.fighters as FighterRow[]) : [];
+      rowsRef.current = rows; setFighters(rows);
+      setFight((p.fight as FightRow | null) ?? null);
+      setEvents(Array.isArray(p.events) ? (p.events as FightEventRow[]) : []);
+      if (Array.isArray(p.foes)) setRemoteFoes((p.foes as Array<Foe & { persona?: string }>).slice(0, 6));
+    });
+    const offLine = net.on('line', (p) => {
+      if (typeof p.content !== 'string') return;
+      appendLine({ content: p.content.slice(0, 2000), characterName: String(p.characterName ?? '⚔ Combat').slice(0, 60), inCharacter: p.inCharacter !== false, npcId: typeof p.npcId === 'string' ? p.npcId : null });
+      if (typeof p.npcId === 'string') setLastLineAt((m) => ({ ...m, [p.npcId as string]: Date.now() }));
+    });
+    const offRes = net.on('res', (p) => {
+      if (p.to !== me || typeof p.reqId !== 'string') return;
+      const done = pendingRpc.current.get(p.reqId);
+      if (done) { pendingRpc.current.delete(p.reqId); done(p.result ?? null); }
+    });
+    const join = () => net.send('join', { player: statsRef.current[me] });
+    join();
+    const t = setInterval(join, 4000);
+    return () => { offState(); offLine(); offRes(); clearInterval(t); };
+  }, [net, me, appendLine]);
+
+  const rpc = useCallback((type: keyof LocalApi) => (...args: unknown[]) => new Promise<unknown>((resolve) => {
+    const n = netRef.current;
+    if (!n) { resolve(null); return; }
+    const reqId = crypto.randomUUID();
+    pendingRpc.current.set(reqId, resolve);
+    n.send('act', { reqId, uid: me, type, args: JSON.parse(JSON.stringify(args)) });
+    setTimeout(() => { if (pendingRpc.current.delete(reqId)) resolve(null); }, 6000);
+  }), [me]);
+  const remote = useMemo(() => {
+    if (!isMember) return null;
+    const keys = Object.keys(localRef.current) as Array<keyof LocalApi>;
+    return Object.fromEntries(keys.map((k) => [k, rpc(k)])) as unknown as LocalApi;
+  }, [isMember, rpc]);
+  const actions: LocalApi = remote ?? local;
+
   const myFighter = fighters.find((r) => r.user_id === me) ?? null;
   const isPausedNow = fight?.status === 'paused';
   const pauseKind: NpcCombatApi['pauseKind'] = isPausedNow ? (fight?.pause_kind === 'huddle' ? 'huddle' : 'host') : null;
@@ -477,26 +570,26 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
     pausedAtMs,
     huddleUntilMs,
     myHuddleUsed: !!objOf(fight?.huddles_used ?? null)[me],
-    huddle,
-    openFight,
-    attack,
-    cast,
-    castFromCard,
-    secondWind,
-    clash,
-    heave,
-    duelStart,
-    duelEnd,
+    huddle: actions.huddle,
+    openFight: actions.openFight,
+    attack: actions.attack,
+    cast: actions.cast,
+    castFromCard: actions.castFromCard,
+    secondWind: actions.secondWind,
+    clash: actions.clash,
+    heave: actions.heave,
+    duelStart: actions.duelStart,
+    duelEnd: actions.duelEnd,
     serverTime,
-    drinkPotion,
-    stabilize,
-    givePotion,
-    pause,
-    resume,
-    endFight,
+    drinkPotion: actions.drinkPotion,
+    stabilize: actions.stabilize,
+    givePotion: actions.givePotion,
+    pause: actions.pause,
+    resume: actions.resume,
+    endFight: actions.endFight,
     addNpc,
-    revivePlayer,
-    reviveNpc,
+    revivePlayer: actions.revivePlayer,
+    reviveNpc: actions.reviveNpc,
   };
 
   const foeNpcs = useMemo<PartyNpc[]>(() => foes.map((foe, i) => ({
