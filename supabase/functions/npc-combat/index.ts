@@ -11,6 +11,8 @@
 // POST { action: "huddle", fightId }                                  freeze the fight 20 s to plan (once per player per fight)
 // POST { action: "clash", fightId, npcId, side, tapAt }               Counter Clash: one tap on the ring against a big NPC move (free)
 // POST { action: "heave", fightId, tapAt }                            Tug & Slip: one tap on Heave while pinned (free)
+// POST { action: "duel_start", fightId, npcId, weaponName?, finish?, feel? }  Duel: spend a full Duel bar to duel one NPC on the wheel
+// POST { action: "duel_end", fightId, duelId, inputs }                Duel: the taps; the referee replays them and deals the damage
 // POST { action: "give_potion", fightId, targetId, itemName }         pour one of my healing potions into an ally
 // POST { action: "ping", fightId }                                   "I'm here"; also runs the clock
 // POST { action: "warm" }                                             wake the function up (no work); returns serverNow
@@ -25,6 +27,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import * as R from './rules.ts';
 import * as S from './skills.ts';
 import * as M from './minigames.ts';
+import * as DU from './duel.ts';
 import { combatTurn } from './npc-reply/handler.ts';
 import { createModelCaller } from './npc-reply/models.ts';
 import { createRepo } from './npc-reply/repo.ts';
@@ -100,6 +103,8 @@ interface Fighter {
   cooldowns: S.Cooldowns | null;
   /** v6 mini-games. Players: { clash: this chain's taps, clashStreak: perfect chains in a row }. */
   minigame: Record<string, unknown> | null;
+  /** v7 Players: the Duel bar (0-100), filled by damage dealt and taken. Emptied when a duel starts. */
+  duel_charge: number | null;
 }
 
 interface Seat {
@@ -121,7 +126,7 @@ interface NpcRow {
 
 const FIGHT_COLS = 'id, party_id, status, outcome, started_by, paused_at, pause_kind, paused_until, huddles_used';
 const FIGHTER_COLS =
-  'id, fight_id, party_id, kind, npc_id, user_id, name, hp, max_hp, ac, status, death_successes, death_failures, next_action_at, next_save_at, action_seq, threat, last_seen_at, last_action_at, act_every_ms, resolve, resolve_at, resolve_rate, perks, second_wind, last_stand_used, pending, strike_at, turn_no, signature_turn, ward, ward_until, pinned_until, cooldowns, minigame';
+  'id, fight_id, party_id, kind, npc_id, user_id, name, hp, max_hp, ac, status, death_successes, death_failures, next_action_at, next_save_at, action_seq, threat, last_seen_at, last_action_at, act_every_ms, resolve, resolve_at, resolve_rate, perks, second_wind, last_stand_used, pending, strike_at, turn_no, signature_turn, ward, ward_until, pinned_until, cooldowns, minigame, duel_charge';
 const NPC_COLS = 'id, party_id, name, on_stage, archived, player_user_id, combat_stats, combat_state';
 
 class Refusal extends Error {
@@ -503,6 +508,7 @@ async function startAction(db: Db, fight: Fight, me: Fighter | null, now: number
   if (me.status !== 'up') refuse(409, 'You are down and cannot act.');
   const pinnedFor = me.pinned_until ? Math.ceil((Date.parse(me.pinned_until) - now) / 1000) : 0;
   if (pinnedFor > 0) refuse(429, `You're pinned down: ${pinnedFor}s.`);
+  if (duelOf(me)) refuse(409, "You're in a duel.");
   const last = me.last_action_at ? Date.parse(me.last_action_at) : 0;
   const wait = Math.ceil((last + R.PLAYER_ACTION_COOLDOWN_S * 1000 - now) / 1000);
   if (wait > 0) refuse(429, `Catch your breath: ${wait}s.`);
@@ -535,7 +541,7 @@ async function speedOfNpc(db: Db, npcId: string | null): Promise<R.SpeedPreset> 
 /** Damage on an NPC. Knocks it out or kills it at 0 HP, as the attacker chose. Otherwise it is staggered. */
 async function hitNpc(
   db: Db, fight: Fight, hostId: string, me: Fighter, targetId: string, damage: number, finish: Finish, crit = false, now = Date.now(),
-  pre?: { target?: Fighter; speed?: R.SpeedPreset },
+  pre?: { target?: Fighter; speed?: R.SpeedPreset; noCharge?: boolean },
 ): Promise<{ lost: number; hp: number; defeated: boolean }> {
   // Speed: callers that already read the target (and its Speed) pass them in, saving two reads.
   const current = pre?.target && pre.target.id === targetId ? pre.target : await fighterById(db, targetId);
@@ -571,10 +577,12 @@ async function hitNpc(
   // Speed: the attacker's Resolve and the knockout's writes don't depend on each other, so they run side by side.
   const fillResolve = async () => {
     if (before.hp <= after.hp) return;
-    // Landing a hit fills the attacker's Resolve.
+    // Landing a hit fills the attacker's Resolve, and (v7) their Duel bar by the share of the NPC's HP it took.
+    const charge = pre?.noCharge ? 0 : DU.duelChargeGain(before.hp - after.hp, after.max_hp);
     const r = await mutate(db, me.id, f => (f.status === 'dead' ? null : {
       resolve: Math.min(R.RESOLVE_MAX, R.resolveNow(f.resolve, f.resolve_at, f.resolve_rate, now) + R.hitResolve(R.cleanPerks(f.perks))),
       resolve_at: iso(now),
+      ...(charge > 0 && f.kind === 'player' && !duelOf(f) ? { duel_charge: Math.min(DU.DUEL_CHARGE.max, DU.duelChargeNow(f.duel_charge) + charge) } : {}),
     }), me);
     if (r) Object.assign(me, r.after);
   };
@@ -642,8 +650,9 @@ async function doAttack(
 /** Runs whatever is due: NPC attacks, death saves, and the end of the fight. Safe to call from every phone. */
 // ── NPC skills (v5): announce, wind up, then act ──────────────────────────────
 
+// v7: a player in a duel is busy with their NPC: other NPCs don't pick them (or hit them) until it ends.
 const isPresent = (p: Fighter, now: number) =>
-  p.status === 'up' && !!p.last_seen_at && (now - Date.parse(p.last_seen_at)) / 1000 <= R.PRESENT_S;
+  p.status === 'up' && !duelOf(p) && !!p.last_seen_at && (now - Date.parse(p.last_seen_at)) / 1000 <= R.PRESENT_S;
 
 /** False when the NPC's hard lines say it would never run. */
 async function canRetreat(db: Db, npcId: string): Promise<boolean> {
@@ -666,28 +675,7 @@ async function npcHitsPlayer(
   let stoodHp = 0;
   if (a.hit) {
     const damage = Math.max(scale < 1 ? 0 : 1, Math.floor(R.rollDamage(dice, roll, a.crit) * scale));
-    let lastStandHp = 0;
-    const result = await mutate(db, target.id, f => {
-      if (f.status !== 'up') return null;
-      const { hp } = R.applyDamage(f.hp, damage);
-      const perks = R.cleanPerks(f.perks);
-      const resolve = Math.min(R.RESOLVE_MAX, R.resolveNow(f.resolve, f.resolve_at, f.resolve_rate, now) + R.damageResolve(f.hp - hp, f.max_hp, perks));
-      if (hp === 0 && perks.includes('last_stand') && !f.last_stand_used && resolve >= R.RESOLVE_MAX) {
-        lastStandHp = Math.min(f.max_hp, R.rollHealing(R.parseDice(f.second_wind) ?? { count: 1, sides: 8, bonus: 0 }, roll));
-        return { hp: lastStandHp, resolve: 0, resolve_at: iso(now), last_stand_used: true };
-      }
-      lastStandHp = 0;
-      return hp === 0
-        ? { hp, status: 'down', death_successes: 0, death_failures: 0, next_save_at: R.nextDeathSaveAt(now), resolve, resolve_at: iso(now) }
-        : { hp, resolve, resolve_at: iso(now) };
-    });
-    if (result) {
-      const stood = !!result.after.last_stand_used && !result.before.last_stand_used;
-      lost = stood ? result.before.hp : result.before.hp - result.after.hp;
-      downed = result.after.status === 'down';
-      Object.assign(target, result.after);
-      if (stood) stoodHp = lastStandHp;
-    }
+    ({ lost, downed, stoodHp } = await damagePlayer(db, target, damage, now, true));
     if (lost > 0) {
       // Rage: the NPC speeds up. Its next turn is already scheduled; it moves closer with the new pace.
       await mutate(db, npc.id, f => {
@@ -699,23 +687,68 @@ async function npcHitsPlayer(
       });
     }
   }
-  await addEvent(db, fight, {
-    kind: 'attack', actor_name: npc.name, target_name: target.name, target_user_id: target.user_id,
-    hp_delta: -lost, d20: a.d20, total: a.total,
-    detail: a.hit ? `${lost} damage${a.crit ? ' (critical!)' : ''}` : 'miss',
+  await reportPlayerHit(db, fight, hostId, npc.name, target, { lost, downed, stoodHp }, {
+    d20: a.d20, total: a.total, detail: a.hit ? `${lost} damage${a.crit ? ' (critical!)' : ''}` : 'miss',
   });
-  if (downed) {
-    await addEvent(db, fight, { kind: 'down', actor_name: npc.name, target_name: target.name, target_user_id: target.user_id });
+  return { hit: a.hit, crit: a.crit, lost, downed };
+}
+
+/**
+ * Damage on a player, with Resolve, Last Stand and (v7) the Duel bar. `charge` = false for the duel's own damage.
+ * Returns the HP lost, whether they went down, and the Last Stand healing (0 if it didn't fire).
+ */
+async function damagePlayer(
+  db: Db, target: Fighter, damage: number, now: number, charge: boolean,
+): Promise<{ lost: number; downed: boolean; stoodHp: number }> {
+  let lastStandHp = 0;
+  const result = await mutate(db, target.id, f => {
+    if (f.status !== 'up') return null;
+    const { hp } = R.applyDamage(f.hp, damage);
+    const perks = R.cleanPerks(f.perks);
+    const resolve = Math.min(R.RESOLVE_MAX, R.resolveNow(f.resolve, f.resolve_at, f.resolve_rate, now) + R.damageResolve(f.hp - hp, f.max_hp, perks));
+    // v7: taking damage fills the Duel bar by the share of max HP lost (not during a duel, and not from the duel itself).
+    const bar = charge && !duelOf(f)
+      ? { duel_charge: Math.min(DU.DUEL_CHARGE.max, DU.duelChargeNow(f.duel_charge) + DU.duelChargeGain(f.hp - hp, f.max_hp)) }
+      : {};
+    if (hp === 0 && perks.includes('last_stand') && !f.last_stand_used && resolve >= R.RESOLVE_MAX) {
+      lastStandHp = Math.min(f.max_hp, R.rollHealing(R.parseDice(f.second_wind) ?? { count: 1, sides: 8, bonus: 0 }, roll));
+      return { hp: lastStandHp, resolve: 0, resolve_at: iso(now), last_stand_used: true, ...bar };
+    }
+    lastStandHp = 0;
+    return hp === 0
+      ? { hp, status: 'down', death_successes: 0, death_failures: 0, next_save_at: R.nextDeathSaveAt(now), resolve, resolve_at: iso(now), ...bar }
+      : { hp, resolve, resolve_at: iso(now), ...bar };
+  });
+  if (!result) return { lost: 0, downed: false, stoodHp: 0 };
+  const stood = !!result.after.last_stand_used && !result.before.last_stand_used;
+  Object.assign(target, result.after);
+  return {
+    lost: stood ? result.before.hp : result.before.hp - result.after.hp,
+    downed: result.after.status === 'down',
+    stoodHp: stood ? lastStandHp : 0,
+  };
+}
+
+/** The ⚔ attack event for a hit on a player (phones apply its HP change), then Down and Last Stand if they happened. */
+async function reportPlayerHit(
+  db: Db, fight: Fight, hostId: string, npcName: string, target: Fighter,
+  hit: { lost: number; downed: boolean; stoodHp: number }, e: { d20?: number | null; total?: number | null; detail: string },
+): Promise<void> {
+  await addEvent(db, fight, {
+    kind: 'attack', actor_name: npcName, target_name: target.name, target_user_id: target.user_id,
+    hp_delta: -hit.lost, d20: e.d20 ?? null, total: e.total ?? null, detail: e.detail,
+  });
+  if (hit.downed) {
+    await addEvent(db, fight, { kind: 'down', actor_name: npcName, target_name: target.name, target_user_id: target.user_id });
   }
-  if (stoodHp > 0) {
+  if (hit.stoodHp > 0) {
     // Logged after the hit, so phones apply the damage first and then the Last Stand healing.
     await addEvent(db, fight, {
       kind: 'last_stand', actor_name: target.name, target_name: target.name, target_user_id: target.user_id,
-      hp_delta: stoodHp, detail: `Last Stand: back up with ${stoodHp} HP`,
+      hp_delta: hit.stoodHp, detail: `Last Stand: back up with ${hit.stoodHp} HP`,
     });
     await postLine(db, fight.party_id, hostId, `${target.name} refuses to fall: Last Stand!`);
   }
-  return { hit: a.hit, crit: a.crit, lost, downed };
 }
 
 // ── Counter Clash (v6) ────────────────────────────────────────────────────────
@@ -765,6 +798,98 @@ async function staggerNpc(db: Db, npcId: string, now: number, interval: number):
     const next = f.next_action_at ? Date.parse(f.next_action_at) : 0;
     return { next_action_at: iso(Math.max(now + interval * 2, Number.isFinite(next) ? next : 0)) };
   });
+}
+
+// ── Duel (v7) ─────────────────────────────────────────────────────────────────
+// A full Duel bar lets a player duel one NPC on the Flurry Parry wheel. The NPC's move is cancelled and it waits;
+// the phone plays the duel and sends its taps back; the same rules (duel.ts) replay them here, and the damage is
+// rolled per strike that got through (to the player) and per counter (to the NPC).
+
+/** The duel this player is in right now, or null. */
+const duelOf = (f: Pick<Fighter, 'minigame'> | null | undefined): DU.Duel | null => DU.cleanDuel((f?.minigame ?? {}).duel);
+/** A random number from 0 to 1, from the server's secure random source. */
+const duelRandom: DU.DuelRandom = () => crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296;
+/** Average roll of a dice expression ("2d6+3" = 10). */
+const diceAverage = (d: R.Dice) => (d.count * (d.sides + 1)) / 2 + d.bonus;
+
+/**
+ * Ends a duel: replays the taps (none = the player walked away, so every strike lands) and deals the damage.
+ * The duel is taken off the player's row first, so a late send and the clock can never both settle it.
+ */
+async function settleDuel(
+  db: Db, fight: Fight, hostId: string, playerId: string, duelId: string, inputs: unknown, now: number,
+): Promise<Record<string, unknown> | null> {
+  let taken: DU.Duel | null = null;
+  const took = await mutate(db, playerId, f => {
+    const d = duelOf(f);
+    if (!d || d.id !== duelId) return null;
+    taken = d;
+    const { duel: _done, ...rest } = (f.minigame ?? {}) as Record<string, unknown>;
+    return { minigame: rest };
+  });
+  const duel = taken as DU.Duel | null;
+  if (!took || !duel) return null;
+  const player = took.after;
+  const out = DU.replayDuel(duel, inputs);
+  const npc = await fighterById(db, duel.npcId);
+  const live = fight.status !== 'ended' && !!npc && npc.fight_id === fight.id && npc.status === 'up';
+  let stats: R.NpcCombatStats | null = null;
+  if (live && npc?.npc_id) {
+    const { data, error } = await db.from('party_npcs').select('combat_stats').eq('id', npc.npc_id).maybeSingle();
+    must('read NPC stats', error);
+    stats = R.cleanCombatStats(data?.combat_stats);
+  }
+
+  // The player's side: each counter is half a weapon roll; every strike perfect adds a finishing blow.
+  let dealt = 0;
+  let npcHp = npc?.hp ?? 0;
+  let defeated = false;
+  if (live && npc && (out.ripostes > 0 || out.allPerfect)) {
+    const seat = player.user_id ? await seatOf(db, fight.party_id, player.user_id) : null;
+    const w = R.weaponAttack(seat?.character_status ?? {}, duel.weapon ?? undefined);
+    let sum = 0;
+    for (let k = 0; k < out.ripostes; k++) sum += R.rollDamage(w.dice, roll) * DU.DUEL_DAMAGE.riposteMult;
+    if (out.allPerfect) sum += R.rollDamage(w.dice, roll) * DU.DUEL_DAMAGE.finisherMult;
+    const hit = await hitNpc(db, fight, hostId, player, npc.id, Math.max(1, Math.round(sum)), duel.finish, out.allPerfect, now, { target: npc, noCharge: true });
+    dealt = hit.lost;
+    npcHp = hit.hp;
+    defeated = hit.defeated;
+  }
+
+  // The NPC's side: one roll of its damage for each strike that got through, times that strike's share of the flurry.
+  let hurt = { lost: 0, downed: false, stoodHp: 0 };
+  const dice = stats ? R.parseDice(stats.damage) : null;
+  if (live && npc && !defeated && dice && player.status === 'up') {
+    const shares = DU.strikeShares(duel);
+    let sum = 0;
+    out.through.forEach((t, i) => { if (t > 0) sum += R.rollDamage(dice, roll) * DU.DUEL_DAMAGE.npcMult * shares[i] * t; });
+    const damage = sum > 0 ? Math.max(1, Math.round(sum)) : 0;
+    if (damage > 0) hurt = await damagePlayer(db, player, damage, now, false);
+  }
+
+  const real = duel.strikes.filter(s => !s.feint).length;
+  const summary = `${out.perfect}/${real} perfect, ${out.block} blocked, ${out.hits} hit, ${out.ripostes} counter${out.ripostes === 1 ? '' : 's'}`;
+  const npcName = npc?.name ?? duel.npcName;
+  await addEvent(db, fight, {
+    kind: 'duel', actor_name: player.name, target_name: npcName, hp_delta: -dealt,
+    detail: `Duel over: ${summary}. ${player.name} deals ${dealt}${out.allPerfect ? ' (finishing blow!)' : ''}, takes ${hurt.lost}.`,
+  });
+  if (hurt.lost > 0 || hurt.downed || hurt.stoodHp > 0) {
+    await reportPlayerHit(db, fight, hostId, npcName, player, hurt, { detail: `Duel: ${hurt.lost} damage` });
+  }
+  if (live && npc && !defeated) {
+    // The NPC steps back from the duel and acts again soon.
+    await mutate(db, npc.id, f => (f.status !== 'up' || f.pending ? null : { next_action_at: iso(now + 3000) }));
+  }
+  const how = out.allPerfect ? 'answers every strike' : out.hits === 0 ? 'holds the line' : out.hits * 2 > real ? 'is battered' : 'weathers it';
+  await postLine(db, fight.party_id, hostId,
+    `${player.name} ${how} in the duel with ${npcName}: ${dealt} damage dealt, ${hurt.lost} taken.${defeated ? ` ${npcName} falls!` : ''}${hurt.downed ? ` ${player.name} goes down.` : ''}`);
+  await checkEnd(db, fight.id, hostId, now);
+  return {
+    ok: true, duelId: duel.id, results: out.results, perfect: out.perfect, block: out.block, hits: out.hits,
+    ripostes: out.ripostes, allPerfect: out.allPerfect, dealt, taken: hurt.lost, npcHp, myHp: player.hp,
+    defeated, downed: hurt.downed, npcName,
+  };
 }
 
 /** The announced skill happens: one claim so only one phone's ping runs it, then its effect and a ⚔ line. */
@@ -912,6 +1037,14 @@ async function tick(db: Db, fightId: string, hostId: string, now: number, known?
   }
   if (fight.status === 'paused') return;
   let fighters = await fightersOf(db, fight.id);
+  // v7 Duel: a duel nobody sent back (the player walked away) settles as if every strike landed.
+  for (const p of fighters) {
+    const d = p.kind === 'player' ? duelOf(p) : null;
+    if (d && now > d.startAt + d.endMs + DU.DUEL_GRACE_MS) {
+      await settleDuel(db, fight, hostId, p.id, d.id, [], now);
+      fighters = await fightersOf(db, fight.id);
+    }
+  }
   // Speed: most check-ins find nothing due (no NPC turn, wind-up or death save), so they stop here.
   const soonest = nextDueAt(fight, fighters);
   if (!Number.isFinite(soonest) || soonest - now > EARLY_WINDOW_MS) return;
@@ -1091,6 +1224,9 @@ async function resumeFight(db: Db, fight: Fight, hostId: string, now: number): P
           const struggle = M.cleanStruggle((x.minigame ?? {}).struggle);
           if (struggle) patch.minigame = { ...(x.minigame ?? {}), struggle: M.shiftStruggle(struggle, by) };
         }
+        // v7 Duel: a duel in progress keeps its own time, but its walk-away deadline moves with the pause.
+        const duel = duelOf(x);
+        if (duel) patch.minigame = { ...((patch.minigame as Record<string, unknown> | undefined) ?? x.minigame ?? {}), duel: { ...duel, startAt: duel.startAt + by } };
         if (x.resolve_at) patch.resolve_at = R.shiftIso(x.resolve_at, by);
         if (x.last_action_at) patch.last_action_at = R.shiftIso(x.last_action_at, by);
         if (x.status === 'down' && x.next_save_at) patch.next_save_at = R.shiftIso(x.next_save_at, by, now + 5000);
@@ -1347,6 +1483,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     if (fight.status !== 'active') refuse(409, 'The fight is not running.');
     if (!me || me.status !== 'up') return refuse(409, 'You are down and cannot clash.');
     if (isPinned(me, now)) refuse(409, "You're pinned and can't clash.");
+    if (duelOf(me)) refuse(409, "You're in a duel.");
     const npc = await fighterById(db, needUuid(body.npcId, 'NPC'));
     const chain = npc && npc.fight_id === fight.id && npc.kind === 'npc' && npc.status === 'up' && npc.strike_at && npc.pending
       ? M.cleanClash(npc.pending.clash) : null;
@@ -1394,6 +1531,63 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
       await postLine(db, fight.party_id, hostId, `${me.name} wrenches free of the pin!`);
     }
     return { ok: true, outcome: o.outcome, amount: o.amount, free: o.free, struggle: o.state };
+  }
+
+  if (action === 'duel_start') {
+    // v7 Duel: spend a full Duel bar to duel one NPC. Free: it never uses the action timer.
+    if (fight.status !== 'active') refuse(409, fight.status === 'paused' ? 'The fight is paused.' : 'This fight is over.');
+    if (!me || me.status !== 'up') return refuse(409, 'You are down and cannot duel.');
+    if (isPinned(me, now)) refuse(409, "You're pinned and can't duel.");
+    if (duelOf(me)) refuse(409, "You're already in a duel.");
+    if (DU.duelChargeNow(me.duel_charge) < DU.DUEL_CHARGE.max) refuse(409, 'Your Duel bar is not full yet.');
+    const npc = await npcTarget(db, fight, body.npcId);
+    const rival = (await fightersOf(db, fight.id)).find(f => f.kind === 'player' && f.id !== me.id && duelOf(f)?.npcId === npc.id);
+    if (rival) refuse(409, `${npc.name} is already dueling ${rival.name}.`);
+    const { data: npcRow, error: npcError } = await db.from('party_npcs').select('combat_stats').eq('id', npc.npc_id).maybeSingle();
+    must('read NPC stats', npcError);
+    const stats = R.cleanCombatStats(npcRow?.combat_stats) ?? refuse(409, `${npc.name} has no fighting stats to duel with.`);
+    const sheet = seat.character_status ?? {};
+    const w = R.weaponAttack(sheet, body.weaponName);
+    // Both fighters' stats shape the duel: the player's level, DEX, AC and HP; the NPC's attack, damage and Speed.
+    const params = DU.deriveDuel({
+      level: Number(sheet.level) || 1,
+      dex: Number((sheet.abilityScores ?? {}).dex) || 10,
+      ac: me.ac,
+      maxHp: me.max_hp,
+      npcAttack: stats.attackBonus,
+      npcDamageAvg: diceAverage(R.parseDice(stats.damage) ?? { count: 1, sides: 6, bonus: 0 }),
+      npcSpeed: stats.speed,
+      feel: DU.isDuelFeel(body.feel) ? body.feel : 'standard',
+    });
+    const duel = DU.newDuel({
+      id: crypto.randomUUID(), npcId: npc.id, npcName: npc.name, startAt: now + DU.DUEL_LEAD_MS,
+      finish: finishOf(body.finish), weapon: w.name,
+    }, params, duelRandom);
+    // Spend the bar and start the duel in one write, so a double tap can't start two.
+    const started = await mutate(db, me.id, f => (
+      f.status !== 'up' || duelOf(f) || DU.duelChargeNow(f.duel_charge) < DU.DUEL_CHARGE.max
+        ? null
+        : { duel_charge: 0, minigame: { ...(f.minigame ?? {}), duel } }
+    ), me);
+    if (!started) refuse(409, 'Too fast. Try again.');
+    // The NPC turns to face you: the move it was winding up is cancelled, and it waits until the duel is settled.
+    const cancelled = npc.pending?.skill ?? null;
+    const holdUntil = duel.startAt + duel.endMs + DU.DUEL_GRACE_MS;
+    await mutate(db, npc.id, f => (f.status !== 'up' ? null : { pending: null, strike_at: null, next_action_at: iso(holdUntil) }), npc);
+    await addEvent(db, fight, {
+      kind: 'duel', actor_name: me.name, target_name: npc.name,
+      detail: `Duel! ${DU.DUEL_STYLES[duel.style].name} style${cancelled ? `. ${cancelled} is cancelled` : ''}`,
+    });
+    await postLine(db, fight.party_id, hostId, `${me.name} challenges ${npc.name} to a duel!${cancelled ? ` ${npc.name}'s ${cancelled} is cut short.` : ''}`);
+    return { ok: true, duel };
+  }
+
+  if (action === 'duel_end') {
+    // v7 Duel: the phone's taps for the whole duel. The referee replays them with the same rules.
+    if (!me) return refuse(409, 'Your character has fallen. The host can revive them.');
+    const d = duelOf(me);
+    if (!d || d.id !== body.duelId) return { ok: false, settled: true };
+    return (await settleDuel(db, fight, hostId, me.id, d.id, body.inputs, now)) ?? { ok: false, settled: true };
   }
 
   if (action === 'attack') {
