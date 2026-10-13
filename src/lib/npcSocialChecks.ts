@@ -3,6 +3,7 @@ import type { CharacterContext } from '@/components/oracle/types';
 import { getProficiencyBonus } from '@/lib/magic/calculations';
 import { getScopedItem } from '@/lib/scoped-storage';
 import { resolveOddsForContext, type DiceOddsMode } from '@/lib/diceOdds';
+import { npcSocialOpposition, type NpcSocialStats } from '@/lib/live-npcs';
 
 
 export type SocialSkillId = 'persuasion' | 'intimidation' | 'insight' | 'deception';
@@ -107,12 +108,25 @@ export function rollNpcOpposingCheck(
   return { die, modifier, total: die + modifier };
 }
 
-export function resolveSocialCheck(ctx: CharacterContext, npcName: string, skillId: SocialSkillId): SocialCheckResult {
+/** Live NPCs: same mirrored d20, but the NPC's saved modifier for this matchup (never random). */
+export function rollNpcOpposingCheckWithStats(
+  stats: NpcSocialStats,
+  skillId: SocialSkillId,
+  playerOddsMode: DiceOddsMode = resolveOddsForContext('skill')
+): SocialRollResult {
+  const die = rollD20({ context: 'other', odds: OPPOSING_ODDS_MODE[playerOddsMode] ?? 'fair' }).kept;
+  const modifier = npcSocialOpposition(stats, skillId).modifier;
+  return { die, modifier, total: die + modifier };
+}
+
+export function resolveSocialCheck(ctx: CharacterContext, npcName: string, skillId: SocialSkillId, npcSocialStats?: NpcSocialStats | null): SocialCheckResult {
   const config = SOCIAL_SKILLS.find((s) => s.id === skillId)!;
   // Player's EFFECTIVE mode for this context; the NPC mirrors that.
   const oddsMode = resolveOddsForContext('skill');
   const playerRoll = rollPlayerSocialCheck(ctx, skillId, oddsMode);
-  const npcRoll = rollNpcOpposingCheck(ctx, oddsMode);
+  const npcRoll = npcSocialStats
+    ? rollNpcOpposingCheckWithStats(npcSocialStats, skillId, oddsMode)
+    : rollNpcOpposingCheck(ctx, oddsMode);
   const outcome: 'success' | 'failure' | 'tie' =
     playerRoll.total > npcRoll.total ? 'success' : playerRoll.total < npcRoll.total ? 'failure' : 'tie';
 

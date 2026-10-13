@@ -11,11 +11,14 @@ import {
   type SocialSkillId,
   type SocialCheckResult,
 } from '@/lib/npcSocialChecks';
+import type { NpcSocialStats } from '@/lib/live-npcs';
 import { playDiceRattle, playDiceThud } from '@/lib/diceSounds';
 
 export interface NpcSocialCheckToolbarProps {
   visible: boolean;
   npcName: string | null;
+  /** Live NPCs: the NPC's saved social modifiers. Omit for Solo's random NPC bonus. */
+  npcSocialStats?: NpcSocialStats | null;
   ready: boolean;
   characterContext: CharacterContext;
   disabled?: boolean;
@@ -36,6 +39,7 @@ function formatModifier(mod: number): string {
 export function NpcSocialCheckToolbar({
   visible,
   npcName,
+  npcSocialStats,
   ready,
   characterContext,
   disabled = false,
@@ -74,7 +78,7 @@ export function NpcSocialCheckToolbar({
       }
 
       // Lock in both dice rolls synchronously, before any animation or state update.
-      const result = resolveSocialCheck(characterContext, npcName, skillId);
+      const result = resolveSocialCheck(characterContext, npcName, skillId, npcSocialStats);
       resultRef.current = result;
 
       onSkillTap?.();
@@ -113,7 +117,7 @@ export function NpcSocialCheckToolbar({
         resultRef.current = null;
       }, PHASE_PLAYER_MS + PHASE_NPC_MS + PHASE_REVEALED_MS);
     },
-    [characterContext, disabled, npcName, onSkillTap, onResolved, phase, ready, schedule]
+    [characterContext, disabled, npcName, npcSocialStats, onSkillTap, onResolved, phase, ready, schedule]
   );
 
   const isResolving = phase !== 'idle';
