@@ -141,6 +141,13 @@
       "when": 1791805628577,
       "tag": "0019_live_npc_combat_v2_1_of_6",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791851745526,
+      "tag": "0020_combat_minigames_1_of_8",
+      "breakpoints": true
     }
   ]
 }
