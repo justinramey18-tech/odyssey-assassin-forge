@@ -6,3 +6,4 @@
 - npc-combat carries identical copies of npc-reply's handler/models/repo/prompt in npc-combat/npc-reply/, because each server function deploys only its own folder; a test fails if the copies drift, so re-copy after editing npc-reply.
 - Automatic party launch passes an explicit initial Live Table choice through the existing screen chain; drawer state remains locally owned so Return to Story cannot trigger automatic reopening.
 - Cache Live Table rows separately from DM narration by account and party; successful server reads replace stale cached rows while in-flight live changes survive, and failed reads must retain the visible conversation.
+- Arena Live Table Sparring renders the real PartyDMScreen through runtimeOverrides with local Arena hooks; never rebuild a separate mock table, because a second copy drifts from the live game.
