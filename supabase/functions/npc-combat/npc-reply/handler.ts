@@ -24,6 +24,7 @@ import {
   describeLooks,
   fadeAttitude,
   isNpcMood,
+  readableText,
   rollRequestOf,
   splitMoodTag,
   spellCastOf,
@@ -564,6 +565,49 @@ export async function banter(
 /** A player's hit gets at most one reaction line per NPC in this window. */
 export const COMBAT_REACT_GAP_MS = 20_000;
 
+/** The spoken words of an NPC line, lowercased: *beats*, (notes), tags and punctuation removed. */
+function spokenWords(stored: string): string[] {
+  const said = readableText(stored).replace(/\*[^*]*\*|\([^)]*\)/g, ' ');
+  return said.toLowerCase().replace(/[’‘`´]/g, "'").match(/[\p{L}\p{N}]+(?:'[\p{L}\p{N}]+)*/gu) || [];
+}
+
+/** How many words in a row two lines may share before the second counts as a repeat. */
+export const REPEAT_RUN_WORDS = 4;
+
+/**
+ * True when `line` says nearly what one of `earlier` already said: the same words, one line
+ * inside the other (2 words or more), or a run of REPEAT_RUN_WORDS words in a row in common.
+ * A line with no spoken words (only an action) never counts as a repeat.
+ */
+export function repeatsEarlierLine(line: string, earlier: string[]): boolean {
+  const words = spokenWords(line);
+  if (words.length === 0) return false;
+  const text = ` ${words.join(' ')} `;
+  const runs = new Set<string>();
+  for (let i = 0; i + REPEAT_RUN_WORDS <= words.length; i++) runs.add(words.slice(i, i + REPEAT_RUN_WORDS).join(' '));
+  return earlier.some((e) => {
+    const old = spokenWords(e);
+    if (old.length === 0) return false;
+    const oldText = ` ${old.join(' ')} `;
+    if (oldText === text) return true;
+    if (old.length >= 2 && text.includes(oldText)) return true;
+    if (words.length >= 2 && oldText.includes(text)) return true;
+    for (let i = 0; i + REPEAT_RUN_WORDS <= old.length; i++) {
+      if (runs.has(old.slice(i, i + REPEAT_RUN_WORDS).join(' '))) return true;
+    }
+    return false;
+  });
+}
+
+/** Added to the request when a fight line came back as a repeat of the NPC's own earlier line. */
+export function repeatRetryNote(earlier: string[]): string {
+  const said = earlier.map(e => readableText(e).replace(/\s+/g, ' ').trim()).filter(Boolean).slice(-8);
+  return [
+    'You already said these lines in this fight. Your answer repeated one of them. Say something new in completely different words, or answer with only an action in *asterisks*:',
+    ...said.map(s => `- ${s.length > 200 ? `${s.slice(0, 200)}…` : s}`),
+  ].join('\n');
+}
+
 /**
  * Live NPC Combat: one in-character line for an NPC's own fight moment (its attack, a hit it
  * took, or a turn spent talking). Called only by the npc-combat server function, never by a phone,
@@ -598,8 +642,23 @@ export async function combatTurn(
   const answering: Answering = { id: '', character_name: 'The fight', content: '' };
   const input = promptInput(npc, guide, stage, ctx, answering, [], { kind: 'combat', ...move }, deps.now());
   // Fight lines use a fast model (with the usual fallback) so the NPC's warning reaches the table before its hit.
-  const result = await generateWithFallback(NPC_FIGHT_VOICE_MODEL, buildNpcSystemPrompt(input), buildNpcUserMessage(input), npc.name, deps.callModel);
+  const system = buildNpcSystemPrompt(input);
+  const user = buildNpcUserMessage(input);
+  let result = await generateWithFallback(NPC_FIGHT_VOICE_MODEL, system, user, npc.name, deps.callModel);
   if (!result.ok) return refuse(502, `${npc.name} couldn't speak (${result.error}).`);
+  // The fast fight voice repeats itself (CL-054). A near-repeat of this NPC's own recent line
+  // gets one new try; if that repeats too, the NPC stays quiet this time (the fight goes on).
+  // A skill wind-up still has to warn the table, so it fails instead and npc-combat posts its plain warning.
+  const earlier = ctx.table.filter(l => l.npc_id === npc.id).map(l => l.content);
+  if (repeatsEarlierLine(result.text ?? '', earlier)) {
+    const retry = await generateWithFallback(NPC_FIGHT_VOICE_MODEL, system, `${user}\n\n${repeatRetryNote(earlier)}`, npc.name, deps.callModel);
+    if (!retry.ok || repeatsEarlierLine(retry.text ?? '', earlier)) {
+      return move.move === 'intent'
+        ? refuse(409, `${npc.name} only repeated an earlier line.`)
+        : reply(200, { ok: true, skipped: 'repeat' });
+    }
+    result = retry;
+  }
   const mood = await moodAfter(npc, result.mood, repo);
   const replyId = await repo.insertNpcLine({
     party_id: req.partyId,
