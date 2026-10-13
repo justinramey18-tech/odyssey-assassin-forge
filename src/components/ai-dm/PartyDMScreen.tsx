@@ -2995,7 +2995,7 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
   const showDiceContent = activeNavTab === 'dice' && characterContext && !partyDm.isGenerating;
 
   // Loading guard — self-recovers instead of spinning forever
-  if (!currentUserId || !partyId) {
+  if (!currentUserId || (!partyId && !practiceMode)) {
     return <PartySessionRecovery onBack={onBack} />;
   }
 
