@@ -97,6 +97,18 @@ export type NpcSituation =
   | { kind: 'spell'; caster: string; spell: string; summary: string; saveRoll: number }
   | { kind: 'roll'; roller: string; check: string; save: boolean; total: number; dc: number; success: boolean; natural: number | null; objective?: string; context?: string }
   | { kind: 'banter'; partners: string[]; topic: string; turn: number; turns: number }
+  /** A player-declared opposed social check, already rolled and checked by the server. */
+  | {
+      kind: 'social';
+      roller: string;
+      skill: SocialCheck;
+      player: { die: number; modifier: number; total: number };
+      opposingLabel: 'Insight' | 'Deception' | 'Wisdom Save';
+      npcRoll: { die: number; modifier: number; total: number };
+      outcome: 'success' | 'failure' | 'tie';
+      said: string;
+      objective?: string;
+    }
   | ({ kind: 'combat' } & CombatMove);
 
 /**
@@ -746,7 +758,13 @@ function socialResolution(s: Extract<NpcSituation, { kind: 'roll' }>, name: stri
       : `Answer as ${name}. They failed: they do not get what they were after. ${name} may not even notice they tried, or may be put off by it.`];
   }
   const goal = s.objective ? `THE GOAL: ${s.objective}.` : s.context ? `What they said or did when you asked for the roll: "${s.context}". Treat what they were clearly after as the goal; do not invent a new one.` : '';
-  const rules: Record<string, [string, string]> = {
+  const [win, lose] = socialRules(name)[s.check];
+  return [goal, `Answer as ${name}. ${s.success ? win : lose}`, NO_MECHANICS].filter(Boolean);
+}
+
+/** The one meaning of each social skill's win and loss, shared by asked-for rolls and direct checks. */
+function socialRules(name: string): Record<string, [string, string]> {
+  return {
     Persuasion: [
       `They persuaded you. If the goal is reasonable, within ${name}'s power and not a hard line, make that concession or decision NOW and make it visible: agree, permit, promise, reveal, stand aside or change course. Do not just praise the argument or stay vague. You may haggle over minor details, but never quietly cancel the goal.`,
       `They did not persuade you. The concession does not happen. Answer with a concrete refusal, hesitation or counter-demand, in character. Do not act as if it worked.`,
@@ -764,8 +782,30 @@ function socialResolution(s: Extract<NpcSituation, { kind: 'roll' }>, name: stri
       `They could not read you. Give no reliable hidden truth: stay unreadable or simply carry on the conversation. Do not feed them false facts as punishment.`,
     ],
   };
-  const [win, lose] = rules[s.check];
-  return [goal, `Answer as ${name}. ${s.success ? win : lose}`, NO_MECHANICS].filter(Boolean);
+}
+
+/** Ties: nothing is fully won or lost yet. */
+function socialTie(skill: string, name: string): string {
+  if (skill === 'Insight') return `It is inconclusive. ${name} gives away no reliable hidden truth: carry on naturally, neither unreadable on purpose nor revealing. Do not feed them false facts.`;
+  if (skill === 'Intimidation') return `It is a standoff. ${name} does not fully comply yet, but is shaken: waver, stall, bargain, make a counter-demand or refuse guardedly. Do not act as if the threat fully worked or fully failed.`;
+  if (skill === 'Deception') return `${name} is not convinced yet, but does not reject it outright either: hesitate, ask a probing question or ask for proof. Do not accept the lie as true yet.`;
+  return `${name} is not won over yet, but is not closed off either: hesitate, stall, haggle or name a condition. The full concession does not happen yet.`;
+}
+
+/** How to answer a player's direct opposed social check (decided by the app's dice). */
+function directSocialResolution(s: Extract<NpcSituation, { kind: 'social' }>, name: string): string[] {
+  const goal = s.objective
+    ? `THE GOAL: ${s.objective}.`
+    : `What ${s.roller} said or did: "${s.said}". Treat what they were clearly after as the goal; do not invent a new one.`;
+  const [win, lose] = socialRules(name)[s.skill];
+  const verb = s.skill === 'Persuasion' ? 'tried to persuade you' : s.skill === 'Intimidation' ? 'tried to intimidate you' : s.skill === 'Deception' ? 'tried to deceive you' : 'tried to read you';
+  const result = s.outcome === 'success' ? win : s.outcome === 'failure' ? lose : socialTie(s.skill, name);
+  return [
+    `${s.roller} ${verb}. The app has already decided the outcome; you only play it out.`,
+    goal,
+    `Answer as ${name}. ${result}`,
+    NO_MECHANICS,
+  ];
 }
 
 /** The recent table, then what to answer. */
@@ -799,6 +839,16 @@ export function buildNpcUserMessage(input: NpcPromptInput): string {
       ownBlock,
       voice,
       `React as ${name}: one short line, what ${name} says or does on seeing this. If the spell has nothing to do with ${name}, a brief reaction or a silent action beat is fine. Do not ask for a roll in this reply.`,
+    ].filter(Boolean).join('\n\n');
+  }
+
+  if (s?.kind === 'social') {
+    return [
+      tableBlock,
+      ...directSocialResolution(s, name),
+      ownBlock,
+      voice,
+      'Do not ask for a roll in this reply.',
     ].filter(Boolean).join('\n\n');
   }
 

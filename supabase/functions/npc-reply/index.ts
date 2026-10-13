@@ -5,6 +5,7 @@
 //                                                    or shows it the roll it asked for
 // POST { action: "spell", messageId }               a player cast a spell: on-stage NPCs react (v2)
 // POST { action: "banter", partyId, npcIds, topic?, turns? }   the host starts an NPC scene (v2)
+// POST { action: "social_check", messageId, npcId, skill, playerRoll, npcRoll }  a direct opposed social roll
 // POST { action: "regenerate", replyMessageId }     the host asks for a new version of an NPC line
 //
 // The caller must be signed in. Replies are written with the server's keys; if the NPC's
@@ -14,7 +15,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createModelCaller } from './models.ts';
 import { createRepo } from './repo.ts';
-import { banter, regenerate, speak, spell, type Deps } from './handler.ts';
+import { banter, regenerate, socialCheck, speak, spell, type Deps } from './handler.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -67,7 +68,9 @@ Deno.serve(async (req) => {
         ? await spell({ userId, messageId: body.messageId }, deps)
         : body.action === 'banter'
           ? await banter({ userId, partyId: body.partyId, npcIds: body.npcIds, topic: body.topic, turns: body.turns }, deps)
-          : await speak({ userId, messageId: body.messageId, npcId: body.npcId }, deps);
+          : body.action === 'social_check'
+            ? await socialCheck({ userId, messageId: body.messageId, npcId: body.npcId, skill: body.skill, playerRoll: body.playerRoll, npcRoll: body.npcRoll }, deps)
+            : await speak({ userId, messageId: body.messageId, npcId: body.npcId }, deps);
     return json(result.status, result.body);
   } catch (err) {
     console.error('[npc-reply] failed:', err);
