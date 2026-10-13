@@ -10,7 +10,7 @@ import type { CharacterContext } from '@/components/oracle/types';
 import type { ActionCard } from '@/lib/roundChatActionCard';
 import type { DuelVerdict } from '@/components/ai-dm/DuelWheel';
 import type { Json } from '@/integrations/supabase/types';
-import { emptyStats, type Foe, type ArenaStats } from '@/components/arena/ArenaPractice';
+import { emptyStats, gauntletFoe, type Foe, type ArenaStats } from '@/components/arena/ArenaPractice';
 import * as M from '@/lib/combatMinigames';
 import * as DU from '@/lib/combatDuel';
 import { buildSparPrompt, sparLine, type SparTurn } from '@/lib/arena/arenaAi';
@@ -70,9 +70,11 @@ export interface ArenaPracticeOptions {
   drillKind?: ArenaDrillKind;
   /** Practice scorecard updates. */
   onStatsChange?: (stats: ArenaStats) => void;
+  /** single (default): one fight ends at zero HP. gauntlet: endless waves from gauntletFoe. */
+  mode?: 'single' | 'gauntlet';
 }
 
-export interface ArenaPracticeApi { combat: NpcCombatApi; roster: NpcRosterApi; reset: () => void; stats: ArenaStats }
+export interface ArenaPracticeApi { combat: NpcCombatApi; roster: NpcRosterApi; reset: () => void; stats: ArenaStats; currentFoe: (Foe & { persona?: string }) | null; wave: number }
 
 function baseRow(now: number, over: Partial<FighterRow>): FighterRow {
   return {
@@ -85,10 +87,13 @@ function baseRow(now: number, over: Partial<FighterRow>): FighterRow {
   };
 }
 
-export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentUserId, appendLine, aiVoice = true, onPracticeHp, net = null, enabled = true, drillKind = 'standard', onStatsChange }: ArenaPracticeOptions): ArenaPracticeApi {
+export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentUserId, appendLine, aiVoice = true, onPracticeHp, net = null, enabled = true, drillKind = 'standard', onStatsChange, mode = 'single' }: ArenaPracticeOptions): ArenaPracticeApi {
   const isMember = net?.role === 'member';
   const [remoteFoes, setRemoteFoes] = useState<Array<Foe & { persona?: string }>>([]);
-  const foes = useMemo(() => (isMember ? remoteFoes : manyFoes && manyFoes.length ? manyFoes : oneFoe ? [oneFoe] : []).slice(0, 6), [isMember, remoteFoes, manyFoes, oneFoe]);
+  const gauntlet = mode === 'gauntlet';
+  const [wave, setWave] = useState(1);
+  const waveRef = useRef(wave); waveRef.current = wave;
+  const foes = useMemo(() => (gauntlet ? [gauntletFoe(wave)] : isMember ? remoteFoes : manyFoes && manyFoes.length ? manyFoes : oneFoe ? [oneFoe] : []).slice(0, 6), [gauntlet, wave, isMember, remoteFoes, manyFoes, oneFoe]);
   const foeAt = useCallback((rowId: string) => foes[Math.max(0, Number(rowId.slice(NPC_PREFIX.length)) || 0)] ?? foes[0], [foes]);
   const baseCombat = useNpcCombat({ partyId: null, currentUserId, isHost: true, sheetHp: null });
   const baseRoster = usePartyNpcs(null);
@@ -195,16 +200,36 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
     if (hp === 0) {
       if (isNpcRow(id)) {
         const standing = rowsRef.current.filter((r) => isNpcRow(r.id) && r.status === 'up');
+        if (standing.length === 0 && gauntlet) {
+          // Wave cleared: bring in the next challenger, keep the player's practice HP.
+          const cleared = waveRef.current;
+          const next = gauntletFoe(cleared + 1);
+          waveRef.current = cleared + 1;
+          setWave(cleared + 1);
+          bumpStats((s) => ({ bestWave: Math.max(s.bestWave, cleared) }));
+          const t = Date.now();
+          setFighters((rows) => {
+            const out = rows.map((r) => {
+              if (isNpcRow(r.id)) return baseRow(t, { id: npcRow(0), kind: 'npc', npc_id: npcIdOf(0), name: next.name, hp: next.maxHp, max_hp: next.maxHp, ac: next.ac, act_every_ms: GAP[next.speed], next_action_at: iso(t + GAP[next.speed]) });
+              const m = { ...objOf(r.minigame) }; delete m.clash; delete m.duel;
+              return { ...r, minigame: asJson(m), pinned_until: null, updated_at: iso(t) };
+            });
+            rowsRef.current = out; return out;
+          });
+          say('table', `Wave ${cleared} cleared! ${next.name} steps in.`);
+          return;
+        }
         if (standing.length === 0) endWith('victory', rowsRef.current.filter((r) => isNpcRow(r.id)).length > 1 ? 'Every opponent is beaten! Victory.' : `${row.name} is beaten! Victory.`);
         else say('table', `${row.name} is down! ${standing.length} still standing.`);
       } else {
         const s = rowsRef.current.find((r) => isNpcRow(r.id) && r.status === 'up');
         const standing = rowsRef.current.filter((r) => isPlayerRow(r.id) && r.status === 'up');
         if (standing.length > 0) say('table', `${row.name} is down! ${standing.length} still fighting.`);
+        else if (gauntlet) { endWith('defeat', `${row.name} fell on wave ${waveRef.current}. Gauntlet over — nothing lost.`); }
         else { if (s) void speak('Yield! Dust yourself off and go again.', true, s.id); endWith('defeat', standing.length === 0 && rowsRef.current.filter((r) => isPlayerRow(r.id)).length > 1 ? 'The whole party is down. Practice over — nothing lost.' : `${row.name} went down. Practice over — nothing lost.`); }
       }
     } else if (isNpcRow(id) && Math.random() < 0.5) void speak(pick(HURT), false, id);
-  }, [patch, event, endWith, speak, say, onPracticeHp, maxHp, ctx.name]);
+  }, [patch, event, endWith, speak, say, onPracticeHp, maxHp, gauntlet, bumpStats]);
 
   const heal = useCallback((id: string, amount: number, label: string) => {
     const n = Math.round(amount);
@@ -402,7 +427,7 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
   }, []);
   const endFight = useCallback(async () => { endWith('ended', 'Practice stopped.'); return { ok: true }; }, [endWith]);
   const addNpc = useCallback(async (_npcId: string) => null, []);
-  const reset = useCallback(() => { setFight(null); setFighters([]); setEvents([]); setStats(emptyStats()); }, []);
+  const reset = useCallback(() => { setFight(null); setFighters([]); setEvents([]); setStats(emptyStats()); waveRef.current = 1; setWave(1); }, []);
   const revivePlayer = useCallback(async (_userId: string) => { reset(); return { ok: true }; }, [reset]);
   const reviveNpc = useCallback(async (_npcId: string) => { reset(); return { ok: true }; }, [reset]);
 
@@ -662,5 +687,5 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
     loaded: true,
   }), [baseRoster, foeNpcs]);
 
-  return { combat, roster, reset, stats };
+  return { combat, roster, reset, stats, currentFoe: foes[0] ?? null, wave };
 }
