@@ -125,6 +125,7 @@ function Die({ d, index, onSettled }: { d: DieThrow; index: number; onSettled: (
       const quat = new THREE.Quaternion(q.x, q.y, q.z, q.w);
       let top = 0, best = -2;
       shape.faces.forEach((f, i) => { const y = f.normal.clone().applyQuaternion(quat).dot(UP); if (y > best) { best = y; top = i; } });
+      console.log('[dice3d] settle', d.sides, d.value, top, best.toFixed(2), age.current.toFixed(2));
       setLabels((l) => relabelForTop(l, top, d.value));
       setGlow(true);
       onSettled(index);
