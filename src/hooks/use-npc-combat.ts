@@ -218,8 +218,9 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     }
     void reload();
     const filter = `party_id=eq.${partyId}`;
+    let removed = false;
     const channel = supabase
-      .channel(`npc-combat-${partyId}`)
+      .channel(`npc-combat-${partyId}-${Math.random().toString(36).slice(2, 10)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'party_fights', filter }, p => onFightChange(p as unknown as Change))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'party_fight_combatants', filter }, p => onFighterChange(p as unknown as Change))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'party_fight_events', filter }, p => onEventChange(p as unknown as Change))
@@ -233,6 +234,7 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
         }
       })
       .subscribe(status => {
+        if (removed) return;
         if (status === 'SUBSCRIBED') {
           setConnection('live');
           // Back after a drop: catch up on anything missed.
@@ -254,6 +256,7 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
       .then(({ data }) => noteServerTime(warmSentAt, data))
       .catch(() => {});
     return () => {
+      removed = true;
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('offline', onOffline);
       window.removeEventListener('online', onOnline);
@@ -323,6 +326,13 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     return () => { clearTimeout(early); clearTimeout(retry); };
   }, [needsClock, visible, fightId, nextDueAt, serverTime, checkIn]);
 
+  // While live updates are down, reload every 5 s so HP bars, countdowns and NPC turns still show up.
+  useEffect(() => {
+    if (connection === 'live' || !fightId || isEnded || !visible) return;
+    const timer = setInterval(() => { void reload(); }, PING_MS);
+    return () => clearInterval(timer);
+  }, [connection, fightId, isEnded, visible, reload]);
+
   // Speed: a quiet full reload every 30 s while a fight is open, in case a live message was missed.
   useEffect(() => {
     if (!fightId || isEnded || !visible) return;
@@ -388,6 +398,7 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
   const readyAt = Number.isFinite(lastActionAt) ? lastActionAt + ACTION_COOLDOWN_MS : 0;
   const cooldownLeft = readyAt > fightClock ? Math.ceil((readyAt - fightClock) / 1000) : 0;
   useEffect(() => {
+    setNow(serverTime());
     if (readyAt <= serverTime()) return;
     const timer = setInterval(() => {
       const t = serverTime();
