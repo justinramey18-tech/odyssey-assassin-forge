@@ -73,7 +73,7 @@ interface PromptDrawerContextValue {
   openAddConditionSheet: () => void;
   openQuickActionsDrawer: () => void;
   openAIDMScreen: () => void;
-  openPartyDMScreen: () => void;
+  openPartyDMScreen: (options?: { initialLiveTableOpen?: boolean }) => void;
   /** Whether the Party DM screen is currently open (HomeScreen watches this to restore after return). */
   partyDMOpen: boolean;
   openPartyDMCampaignBuilder: () => void;
@@ -272,6 +272,7 @@ export function PromptDrawerProvider({
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [aiDMOpen, setAiDMOpen] = useState(false);
   const [partyDMOpen, setPartyDMOpen] = useState(false);
+  const [partyInitialLiveTableOpen, setPartyInitialLiveTableOpen] = useState(false);
   const [partyDMBuilderAutoOpen, setPartyDMBuilderAutoOpen] = useState(false);
 
   // Which mode is currently resolving its bound character, if any.
@@ -992,13 +993,15 @@ export function PromptDrawerProvider({
       closeAllDrawers();
       void openModeWithCharacter('solo', () => setAiDMOpen(true));
     }, [closeAllDrawers, openModeWithCharacter]),
-    openPartyDMScreen: useCallback(() => {
+    openPartyDMScreen: useCallback((options?: { initialLiveTableOpen?: boolean }) => {
       closeAllDrawers();
+      setPartyInitialLiveTableOpen(options?.initialLiveTableOpen ?? false);
       void openModeWithCharacter('party', () => setPartyDMOpen(true));
     }, [closeAllDrawers, openModeWithCharacter]),
     partyDMOpen,
     openPartyDMCampaignBuilder: useCallback(() => {
       closeAllDrawers();
+      setPartyInitialLiveTableOpen(false);
       void openModeWithCharacter('party', () => { setPartyDMOpen(true); setPartyDMBuilderAutoOpen(true); });
     }, [closeAllDrawers, openModeWithCharacter]),
     openModeCharacterPicker: useCallback((mode: DMMode) => setPickerMode(mode), []),
@@ -1275,6 +1278,7 @@ export function PromptDrawerProvider({
           {/* Standalone Party DM Full-Screen Overlay */}
           {partyDMOpen && (
             <StandalonePartyDMScreen
+              initialLiveTableOpen={partyInitialLiveTableOpen}
               onBack={() => { setPartyDMOpen(false); setPartyDMBuilderAutoOpen(false); }}
               characterContext={aiDMCharacterContext}
               partyId={partyId ?? null}

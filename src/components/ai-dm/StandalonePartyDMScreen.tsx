@@ -53,6 +53,7 @@ const NOOP_TWO_ARG = () => {};
 const NOOP_RETURN_ZERO = () => 0;
 
 interface StandalonePartyDMScreenProps {
+  initialLiveTableOpen?: boolean;
   onBack: () => void;
   characterContext: CharacterContext;
   partyId: string | null;
@@ -89,6 +90,7 @@ interface StandalonePartyDMScreenProps {
 }
 
 export function StandalonePartyDMScreen({
+  initialLiveTableOpen = false,
   onBack,
   characterContext,
   partyId,
@@ -965,6 +967,7 @@ ${truncated}`);
         </button>
       )}
       <PartyDMScreen
+        initialLiveTableOpen={initialLiveTableOpen}
         onBack={onBack}
         partyId={partyId}
         partyDm={partyDm}

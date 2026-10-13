@@ -397,7 +397,7 @@ export function useRoundChat(
     if (!text) return;
     setMessages(prev => prev.map(m => (m.id === messageId ? { ...m, content: text } : m)));
     await (supabase.from('party_round_chat') as any).update({ content: text }).eq('id', messageId);
-  }, []);
+  }, [setMessages]);
 
 
   const toggleReaction = useCallback(async (messageId: string, emoji: string, senderName: string) => {
@@ -466,7 +466,7 @@ export function useRoundChat(
     const ids = next ? exchangeIds(messages, messageId) : [messageId];
     setMessages(prev => prev.map(m => (ids.includes(m.id) ? { ...m, selected: next } : m)));
     await (supabase.from('party_round_chat') as any).update({ selected: next }).in('id', ids);
-  }, [messages]);
+  }, [messages, setMessages]);
 
   /** Tick every line that is still waiting. */
   const selectAllPending = useCallback(async () => {
@@ -474,7 +474,7 @@ export function useRoundChat(
     if (ids.length === 0) return;
     setMessages(prev => prev.map(m => (ids.includes(m.id) ? { ...m, selected: true } : m)));
     await (supabase.from('party_round_chat') as any).update({ selected: true }).in('id', ids);
-  }, [pendingMessages]);
+  }, [pendingMessages, setMessages]);
 
   /** Untick everything currently ticked. */
   const clearSelection = useCallback(async () => {
@@ -482,7 +482,7 @@ export function useRoundChat(
     if (ids.length === 0) return;
     setMessages(prev => prev.map(m => (ids.includes(m.id) ? { ...m, selected: false } : m)));
     await (supabase.from('party_round_chat') as any).update({ selected: false }).in('id', ids);
-  }, [selectedMessages]);
+  }, [selectedMessages, setMessages]);
 
   /** Players whose lines are in this bundle — they must not be treated as absent. */
   const pendingUserIds = useMemo(
@@ -562,7 +562,7 @@ export function useRoundChat(
     const target = messages.find(mm => mm.id === replyToId);
     const name = target?.character_name;
     return name ? `(replying to ${name}) ${text}` : text;
-  }, [messages]);
+  }, [messages, setMessages]);
 
   /**
    * Bundle the ticked lines for the DM. Player text only — every behavioural
@@ -609,7 +609,7 @@ export function useRoundChat(
     setMessages(prev => prev.map(m => (ids.includes(m.id) ? { ...m, consumed: true, selected: false } : m)));
     setOrderOverride([]);
     await (supabase.from('party_round_chat') as any).update({ consumed: true, selected: false }).in('id', ids);
-  }, [partyId, selectedMessages]);
+  }, [partyId, selectedMessages, setMessages]);
 
   // ── Unread badge (app icon dot / number) ──
   /** Lines in the table this player has not seen yet (anyone else's, newer than their read marker). */

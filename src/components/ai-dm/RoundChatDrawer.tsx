@@ -148,6 +148,8 @@ export interface RoundChatDrawerHandle {
 }
 
 interface RoundChatDrawerProps {
+  /** App launch only: start expanded, without the manual-opening curtain. */
+  initialOpen?: boolean;
   partyId?: string | null;
   messages: RoundChatMessage[];
   reactions: RoundChatReaction[];
@@ -312,6 +314,7 @@ function ChatAvatar({
 
 
 export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawerProps>(function RoundChatDrawer({
+  initialOpen = false,
   partyId,
   messages,
   reactions,
@@ -363,8 +366,12 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
 }, ref) {
   // Open/closed lives here, not in PartyDMScreen: toggling the table re-renders this
   // component only. The parent drives it through the ref handle below.
-  const [open, setOpen] = useState(false);
-  const onOpenChange = setOpen;
+  const [open, setOpen] = useState(initialOpen);
+  const launchRevealRef = useRef(initialOpen);
+  const onOpenChange = (next: boolean) => {
+    if (!next) launchRevealRef.current = false;
+    setOpen(next);
+  };
 
   const [editingOocName, setEditingOocName] = useState(false);
   const [oocNameDraft, setOocNameDraft] = useState('');
@@ -555,12 +562,12 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   // removed, which only uncovers what is already drawn: nothing has to be painted on
   // the reveal frame, so there is no blank flash and no stall.
   const prefersReducedMotion = useReducedMotion();
-  const [contentShown, setContentShown] = useState(false);
+  const [contentShown, setContentShown] = useState(initialOpen);
   const revealTimerRef = useRef<number | undefined>(undefined);
   useLayoutEffect(() => {
     window.clearTimeout(revealTimerRef.current);
     if (!open) { setContentShown(false); return; }
-    if (prefersReducedMotion) { setContentShown(true); return; }
+    if (prefersReducedMotion || launchRevealRef.current) { setContentShown(true); return; }
     // Safety net: never leave the curtain down if the fade never starts (fade + 1.5 s).
     const t = window.setTimeout(() => setContentShown(true), (BACKGROUND_FADE_S + 1.5) * 1000);
     return () => window.clearTimeout(t);
@@ -595,7 +602,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   // the player can edit before sending.
   useImperativeHandle(ref, () => ({
     open: () => setOpen(true),
-    close: () => setOpen(false),
+    close: () => { launchRevealRef.current = false; setOpen(false); },
     openWithDraft: (draft: string) => {
       if (draft) {
         setText(prev => (prev.trim() ? `${prev.trim()} ${draft}` : draft));
