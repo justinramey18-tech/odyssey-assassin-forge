@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Swords, Infinity as InfinityIcon, Users, X, ShieldCheck, ArrowLeft, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 import { takeArenaSnapshot, restoreArenaSnapshot } from '@/lib/arena/arenaSnapshot';
-import { ArenaPractice, OPPONENTS, emptyStats, type ArenaStats, type Opponent, type Foe } from './ArenaPractice';
+import { OPPONENTS, emptyStats, type ArenaStats, type Opponent, type Foe } from './ArenaPractice';
+import type { ArenaDrillKind } from '@/hooks/use-arena-npc-practice';
 import { PartyArena } from './PartyArena';
 import { ArenaPartyDMScreen } from './ArenaPartyDMScreen';
 import type { PartyMember } from '@/hooks/use-party-sync';
@@ -30,8 +31,9 @@ interface ArenaScreenProps {
 
 const BESTS_KEY = 'odyssey-arena-bests';
 
+const DRILL_OF: Record<Exclude<Opponent, 'npc' | 'gauntlet'>, ArenaDrillKind> = { dummy: 'dummy', sparring: 'sparring', clash: 'clash', pin: 'pin', duel: 'duel' };
+
 const MODES = [
-  { id: 'table', label: 'Live Table Sparring', blurb: 'The real party game screen and fight bar, running in a safe sandbox — nothing reaches your party.', icon: MessagesSquare },
   { id: 'solo', label: 'Solo Training', blurb: 'Dummy, sparring partner, drill masters and your campaign NPCs.', icon: Swords },
   { id: 'gauntlet', label: 'Endless Gauntlet', blurb: 'Waves that get tougher until you fall.', icon: InfinityIcon },
   { id: 'party', label: 'Party Arena', blurb: 'Train with your party or spar each other.', icon: Users },
@@ -42,10 +44,9 @@ function loadBests(): ArenaBests | null {
   try { return JSON.parse(getScopedItem(BESTS_KEY) ?? 'null'); } catch { return null; }
 }
 
-type View = 'menu' | 'opponents' | { opponent: Opponent; foe?: Foe } | 'scorecard' | 'party' | { table: Foe };
+type View = 'menu' | 'opponents' | 'scorecard' | 'party' | 'gauntlet' | { solo: Foe; drill: ArenaDrillKind };
 
 export function ArenaScreen({ open, onClose, characterContext, userId, currentXP, onManualLevelUp, autoSyncCallbacks, member }: ArenaScreenProps) {
-  const [tableMode, setTableMode] = useState(false);
   const [view, setView] = useState<View>('menu');
   const [stats, setStats] = useState<ArenaStats>(emptyStats);
   const [bests, setBests] = useState<ArenaBests | null>(null);
@@ -129,11 +130,12 @@ export function ArenaScreen({ open, onClose, characterContext, userId, currentXP
             <span>Practice is free. Health, potions, spells and gold go back to exactly how they were when you leave.</span>
           </div>
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><MessagesSquare className="h-4 w-4" /> Live Table Sparring</div>
             {MODES.map((m) => (
               <button
                 key={m.id}
                 type="button"
-                onClick={() => (m.id === 'table' ? (characterContext ? (setTableMode(true), setView('opponents')) : toast('Open your character first')) : m.id === 'solo' ? (setTableMode(false), setView('opponents')) : m.id === 'gauntlet' ? setView({ opponent: 'gauntlet' }) : (partyId ? setView('party') : toast('Join a party first to use Party Arena')))}
+                onClick={() => (m.id === 'party' ? (partyId ? setView('party') : toast('Join a party first to use Party Arena')) : !characterContext ? toast('Open your character first') : setView(m.id === 'solo' ? 'opponents' : 'gauntlet'))}
                 style={{ touchAction: 'manipulation' }}
                 className="flex min-h-[72px] w-full items-center gap-3 rounded-xl border border-border bg-card p-4 text-left active:scale-[0.98]"
               >
@@ -157,7 +159,7 @@ export function ArenaScreen({ open, onClose, characterContext, userId, currentXP
             <button
               key={o.id}
               type="button"
-              onClick={() => setView(tableMode ? { table: { ...gauntletFoe(o.id === 'dummy' ? 1 : 3), name: o.name, ...(o.id === 'dummy' ? { attackBonus: -20 } : {}) } } : { opponent: o.id })}
+              onClick={() => o.id !== 'npc' && o.id !== 'gauntlet' && setView({ solo: { ...gauntletFoe(o.id === 'dummy' ? 1 : 3), name: o.name, ...(o.id === 'dummy' ? { attackBonus: -20 } : {}) }, drill: DRILL_OF[o.id] })}
               style={{ touchAction: 'manipulation' }}
               className="flex min-h-[72px] w-full items-center gap-3 rounded-xl border border-border bg-card p-4 text-left active:scale-[0.98]"
             >
@@ -173,7 +175,7 @@ export function ArenaScreen({ open, onClose, characterContext, userId, currentXP
             <button
               key={`${f.name}-${i}`}
               type="button"
-              onClick={() => setView(tableMode ? { table: f } : { opponent: 'npc', foe: f })}
+              onClick={() => setView({ solo: f, drill: 'standard' })}
               style={{ touchAction: 'manipulation' }}
               className="flex min-h-[64px] w-full items-center gap-3 rounded-xl border border-border bg-card p-4 text-left active:scale-[0.98]"
             >
@@ -191,14 +193,12 @@ export function ArenaScreen({ open, onClose, characterContext, userId, currentXP
         <PartyArena partyId={partyId} onBack={() => setView('menu')} />
       )}
 
-      {typeof view === 'object' && 'table' in view && characterContext && (
-        <ArenaPartyDMScreen key={view.table.name} characterContext={characterContext} foe={view.table} onBack={() => setView('opponents')} currentUserId={userId} member={member} autoSyncCallbacks={autoSyncCallbacks} currentXP={currentXP} onManualLevelUp={onManualLevelUp} />
+      {typeof view === 'object' && 'solo' in view && characterContext && (
+        <ArenaPartyDMScreen key={`${view.drill}-${view.solo.name}`} practice={{ mode: 'solo', foe: view.solo, drillKind: view.drill }} onStatsChange={setStats} characterContext={characterContext} onBack={() => setView('opponents')} currentUserId={userId} member={member} autoSyncCallbacks={autoSyncCallbacks} currentXP={currentXP} onManualLevelUp={onManualLevelUp} />
       )}
 
-      {typeof view === 'object' && 'opponent' in view && (
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <ArenaPractice key={view.opponent + (view.foe?.name ?? '')} opponent={view.opponent} foe={view.foe} stats={stats} onStats={setStats} onBack={() => setView(view.opponent === 'gauntlet' ? 'menu' : 'opponents')} />
-        </div>
+      {view === 'gauntlet' && characterContext && (
+        <ArenaPartyDMScreen key="gauntlet" practice={{ mode: 'gauntlet' }} onStatsChange={setStats} characterContext={characterContext} onBack={() => setView('menu')} currentUserId={userId} member={member} autoSyncCallbacks={autoSyncCallbacks} currentXP={currentXP} onManualLevelUp={onManualLevelUp} />
       )}
 
       {view === 'scorecard' && (
