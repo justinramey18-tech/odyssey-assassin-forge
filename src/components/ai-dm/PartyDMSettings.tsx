@@ -5,7 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Heart, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Theater, Megaphone, Film, RefreshCw, Code2, Image as ImageIcon, Trash2, Undo2, RotateCcw, Download, UserPlus, Lock, HelpCircle } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Heart, Cpu, Brain, Palette, BookmarkX, ScrollText, Sword, Theater, Megaphone, Film, RefreshCw, Code2, Image as ImageIcon, Trash2, Undo2, RotateCcw, Download, UserPlus, Lock, HelpCircle, ArrowLeft } from 'lucide-react';
 import { Fragment, useRef, useState } from 'react';
 import iconSavesAsset from '@/assets/tools/icon-saves.png.asset.json';
 import iconNewCampaignAsset from '@/assets/tools/icon-new-campaign.png.asset.json';
@@ -362,6 +362,8 @@ export function PartyDMSettings({
   const bgFileInputRef = useRef<HTMLInputElement>(null);
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   const [exportingStory, setExportingStory] = useState(false);
+  // Tools screen can open the full settings list in place; 'settings' callers always see it directly.
+  const [showFullSettings, setShowFullSettings] = useState(false);
   const [exportingGuides, setExportingGuides] = useState(false);
 
   const handleDownloadStory = async () => {
@@ -587,11 +589,18 @@ export function PartyDMSettings({
     },
   ];
 
-  if (layout === 'toolsScreen') {
+  if (layout === 'toolsScreen' && !showFullSettings) {
     const visible = toolEntries.filter(e => e.show && e.screen !== false);
     return (
       <div className="flex flex-col gap-2 pt-1">
         {chatBgFileInput}
+        <OrnateToolRow entry={{
+          id: 'full-settings', group: TOOL_GROUPS[0].id, show: true,
+          icon: <ClipboardList className="w-4 h-4" />,
+          label: 'Full Party DM Settings',
+          description: 'Open all table, round, DM, narration and host settings.',
+          onClick: () => setShowFullSettings(true),
+        }} />
         {/* AI Storyteller — shared party model, host picks, players see read-only */}
         <ToolsGroupHeader title="AI Storyteller" />
         <div className="mx-1 shrink-0 rounded-lg border border-amber-700/30 bg-black/55 px-3 py-2.5">
@@ -676,6 +685,13 @@ export function PartyDMSettings({
 
   return (
     <div className="px-3 py-3 space-y-2.5 w-full">
+      {layout === 'toolsScreen' && (
+        <button type="button" onClick={() => setShowFullSettings(false)}
+          className="flex min-h-[48px] w-full items-center gap-2 rounded-lg border border-amber-700/40 bg-black/55 px-3 text-sm font-cinzel text-amber-200 active:scale-[0.98]"
+          style={{ touchAction: 'manipulation' }}>
+          <ArrowLeft className="w-4 h-4" /> Back to Tools
+        </button>
+      )}
       {/* Session Controls */}
       {/* Campaign Type (creator only) */}
       <SettingsSection title="Session Controls" icon={<ClipboardList className="w-4 h-4 text-amber-400" />}>
