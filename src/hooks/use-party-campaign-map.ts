@@ -111,16 +111,16 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   }, [partyId, hostUserId, fetchState]);
 
   // ── host writes: one upsert, returns the server's updated_at ──
-  const write = useCallback(async (next: CampaignMapState): Promise<{ ok: true; updatedAt: number } | { ok: false; error: string }> => {
-    if (!partyId || !currentUserId || !canWrite) return { ok: false, error: 'Only the party host can change the campaign map.' };
+  const write = useCallback(async (next: CampaignMapState): Promise<{ ok: boolean; updatedAt: number; error: string }> => {
+    if (!partyId || !currentUserId || !canWrite) return { ok: false, updatedAt: 0, error: "Only the party host can change the campaign map." };
     const { data, error } = await (supabase.from('party_shared_state') as any)
       .upsert({ party_id: partyId, user_id: currentUserId, state_type: CAMPAIGN_MAP_STATE_TYPE, state_data: next }, { onConflict: 'party_id,user_id,state_type' })
       .select('updated_at').single();
-    if (error) return { ok: false, error: error.message || 'The map could not be saved.' };
+    if (error) return { ok: false, updatedAt: 0, error: error.message || "The map could not be saved." };
     const updatedAt = Date.parse((data as { updated_at?: string })?.updated_at || '');
     if (Number.isFinite(updatedAt)) skewRef.current = updatedAt - Date.now();
     setRawState(next);
-    return { ok: true, updatedAt: Number.isFinite(updatedAt) ? updatedAt : serverNow() };
+    return { ok: true, updatedAt: Number.isFinite(updatedAt) ? updatedAt : serverNow(), error: "" };
   }, [partyId, currentUserId, canWrite, serverNow]);
 
   /** A leg that is finished (by server time) folded into the saved state. */
