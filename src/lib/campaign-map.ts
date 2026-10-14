@@ -98,6 +98,36 @@ export interface ActiveTravel {
   startCampaignMinute: number;
   /** Fraction of this leg already done when paused (0..1). */
   pausedFraction?: number;
+  /**
+   * Multi-road travel day: the roads this one timed tranche covers, in order. When present the
+   * top-level routeId/reversed/startProgress/endProgress mirror the FIRST segment. Missing = single road.
+   */
+  segments?: TravelSegment[];
+}
+
+/** One road inside a timed travel-day tranche. Progress is in the travel direction (0..1). */
+export interface TravelSegment {
+  routeId: string;
+  reversed: boolean;
+  startProgress: number;
+  endProgress: number;
+  distanceMiles: number;
+  gameMinutes: number;
+  /** Which JourneyPlan leg this segment belongs to. */
+  legIndex?: number;
+}
+
+export interface JourneyLeg { routeId: string; fromLocationId: string; toLocationId: string; reversed: boolean }
+
+export interface JourneyPlan {
+  destinationLocationId: string;
+  pace: TravelPace;
+  legs: JourneyLeg[];
+  currentLegIndex: number;
+  /** Miles of the whole journey when planned (for overall progress). */
+  totalMiles?: number;
+  /** The last tranche stopped because the 8-hour travel day ended. */
+  dayComplete?: boolean;
 }
 
 export interface CampaignMapState {
@@ -115,6 +145,8 @@ export interface CampaignMapState {
   realMinutesPerGameHour: number;
   defaultPace: TravelPace;
   activeTravel?: ActiveTravel;
+  /** Multi-road journey in progress (optional; older saves have none). */
+  journeyPlan?: JourneyPlan;
 }
 
 // ── small guards ──
