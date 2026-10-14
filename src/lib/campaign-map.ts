@@ -859,3 +859,20 @@ export function journeyLocks(s: CampaignMapState): { routeIds: Set<string>; loca
   if (s.activeTravel) { routeIds.add(s.activeTravel.routeId); s.activeTravel.segments?.forEach(x => routeIds.add(x.routeId)); }
   return { routeIds, locationIds };
 }
+
+export interface ReachableDestination { location: CampaignMapLocation; plan: JourneyPlan; summary: JourneySummary }
+
+/** Every discovered, pinned world place the party can reach by known roads from its exact position, fastest first. */
+export function listReachableDestinations(state: CampaignMapState, pace: TravelPace = state.defaultPace): ReachableDestination[] {
+  if (state.activeTravel) return [];
+  return state.locations.filter(l => l.discovered && l.x !== null && l.y !== null && l.id !== state.currentLocationId).flatMap(l => {
+    const plan = planJourneyRoute(state, l.id, pace);
+    const summary = plan && summarizeJourney(state, plan);
+    return plan && summary ? [{ location: l, plan, summary }] : [];
+  }).sort((a, b) => a.summary.remainingMinutes - b.summary.remainingMinutes || a.location.id.localeCompare(b.location.id));
+}
+
+/** Roads still ahead on a journey, in order (current road first). */
+export function remainingJourneyRouteIds(plan: JourneyPlan, fromLegIndex = plan.currentLegIndex): string[] {
+  return plan.legs.slice(Math.max(0, fromLegIndex)).map(l => l.routeId);
+}
