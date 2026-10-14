@@ -307,6 +307,10 @@ interface UsePartyDmOptions {
   worldStatePrompt?: string;
   /** Fresh Campaign Map facts, read at request time (empty when no map). */
   campaignMapContext?: () => string;
+  /** Paused Campaign Map snapshot for saves (null when no map). */
+  getCampaignMapSaveSnapshot?: () => unknown;
+  restoreCampaignMapSaveSnapshot?: (snapshot: unknown) => Promise<{ ok: boolean }>;
+  clearCampaignMapState?: () => Promise<{ ok: boolean }>;
   partyDragonConfigs?: Array<{ userId: string; characterName: string; config: { dragonName: string; signetType: string; bond: number; trust: number; mood: string; burnout: number } }>;
   myDragonName?: string;
   onBurnoutDetected?: (level: number) => void;
@@ -335,9 +339,17 @@ function resolvePartyModel(sharedModelId?: string): string {
   return candidate;
 }
 
-export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, worldStatePrompt, campaignMapContext, partyDragonConfigs, myDragonName, onBurnoutDetected, onBurnoutTickDetected, onBondStrainDetected, onBondGrowthDetected, onDragonMemoryDetected, onDragonBondFormed, isSoloEmpyrean }: UsePartyDmOptions) {
+export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, worldStatePrompt, campaignMapContext, getCampaignMapSaveSnapshot, restoreCampaignMapSaveSnapshot, clearCampaignMapState, partyDragonConfigs, myDragonName, onBurnoutDetected, onBurnoutTickDetected, onBondStrainDetected, onBondGrowthDetected, onDragonMemoryDetected, onDragonBondFormed, isSoloEmpyrean }: UsePartyDmOptions) {
   const campaignMapContextRef = useRef(campaignMapContext);
   campaignMapContextRef.current = campaignMapContext;
+  const mapSaveRef = useRef({ get: getCampaignMapSaveSnapshot, restore: restoreCampaignMapSaveSnapshot, clear: clearCampaignMapState });
+  mapSaveRef.current = { get: getCampaignMapSaveSnapshot, restore: restoreCampaignMapSaveSnapshot, clear: clearCampaignMapState };
+  /** { map_state } only when the map feature is wired; frozen (paused) at save time. */
+  const mapStateField = (): { map_state?: unknown } => {
+    const get = mapSaveRef.current.get;
+    if (!get) return {};
+    try { return { map_state: get() ?? null }; } catch { return {}; }
+  };
   const { user } = useAuth();
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
   const [currentPrompts, setCurrentPrompts] = useState<PartyDmPrompt[]>([]);
@@ -937,7 +949,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           .update({
             messages: serializedMessages as any,
             campaign_summary: summary,
-          })
+            ...mapStateField(),
+          } as any)
           .eq('id', currentCampaignId)
           .eq('user_id', user.id);
       } else {
@@ -949,6 +962,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             messages: serializedMessages as any,
             campaign_summary: summary,
             mode: isSoloEmpyrean ? 'solo-empyrean' : 'party',
+            ...mapStateField(),
           } as any)
           .select('id')
           .single();
@@ -980,7 +994,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     await (supabase.from('party_shared_state') as any)
       .delete()
       .eq('party_id', partyId)
-      .in('state_type', ['quest_flags', 'party_memory_anchors', 'dm_poll', 'initiative', 'focus_target', 'map_markers']);
+      .in('state_type', ['quest_flags', 'party_memory_anchors', 'dm_poll', 'initiative', 'focus_target', 'map_markers', 'campaign_map']);
+    // New campaigns start with no Campaign Map until the host sets one up.
+    if (mapSaveRef.current.clear) { try { await mapSaveRef.current.clear(); } catch { /* row already removed above */ } }
     setSplitState(null);
     setPendingDraft(null);
 
@@ -1034,7 +1050,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             name,
             messages: serializedMessages as any,
             campaign_summary: sessionConfig?.campaignSummary || null,
-          })
+            ...mapStateField(),
+          } as any)
           .eq('id', existingId)
           .eq('user_id', user.id);
         if (error) throw error;
@@ -1051,6 +1068,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             messages: serializedMessages as any,
             campaign_summary: sessionConfig?.campaignSummary || null,
             mode: isSoloEmpyrean ? 'solo-empyrean' : 'party',
+            ...mapStateField(),
           } as any)
           .select('id')
           .single();
@@ -1105,6 +1123,16 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         sender_name: msg.sender_name || (msg.role === 'assistant' ? 'DM' : 'Party'),
         created_at: originalCreatedAt ?? new Date(loadStamp.getTime() - (campaignMessages.length - i) * 1000).toISOString(),
       });
+    }
+
+    // 3. Campaign Map belongs to this campaign: restore it paused, or clear it for older saves.
+    if (mapSaveRef.current.restore || mapSaveRef.current.clear) {
+      try {
+        const { data: row } = await (supabase.from('ai_dm_campaigns') as any).select('map_state').eq('id', campaignId).maybeSingle();
+        const snap = (row as { map_state?: unknown } | null)?.map_state ?? null;
+        const r = snap && mapSaveRef.current.restore ? await mapSaveRef.current.restore(snap) : mapSaveRef.current.clear ? await mapSaveRef.current.clear() : { ok: true };
+        if (!r.ok) toast.warning('The campaign loaded, but its map could not be switched.');
+      } catch { toast.warning('The campaign loaded, but its map could not be switched.'); }
     }
 
     setActiveCampaignId(campaignId);
