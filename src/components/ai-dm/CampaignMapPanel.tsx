@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { Compass, Download, Map as MapIcon, MapPin, Pause, Play, Route as RouteIcon, Sparkles, Square, Trash2, Upload, FastForward, Crosshair } from 'lucide-react';
+import { Compass, Download, Map as MapIcon, MapPin, Pause, Play, Route as RouteIcon, Square, Trash2, Upload, FastForward, Crosshair } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import type { PartyCampaignMapApi } from '@/hooks/use-party-campaign-map';
+import { MapPackAssistant, type MapPackUndo } from './MapPackAssistant';
 import {
   LOCATION_KINDS, TIME_COMPRESSION_PRESETS, TRAVEL_PACE_MPH,
   activeCalibration, createCalibration, effectiveRouteMiles, formatCampaignTime, maxLegalLeg, gameToRealMs,
@@ -71,8 +72,9 @@ export interface CampaignMapPanelProps {
   onInstallGuide?: (name: string, content: string, customId?: string) => boolean;
 }
 
-export function CampaignMapPanel({ open, onOpenChange, map }: CampaignMapPanelProps) {
+export function CampaignMapPanel({ open, onOpenChange, map, onInstallGuide }: CampaignMapPanelProps) {
   const [tab, setTab] = useState<'play' | 'setup'>('play');
+  const [packUndo, setPackUndo] = useState<MapPackUndo | null>(null);
   const [, setTick] = useState(0);
   const state = map.rawState;
   const host = map.canWrite;
@@ -114,7 +116,7 @@ export function CampaignMapPanel({ open, onOpenChange, map }: CampaignMapPanelPr
           {map.loading && !state ? (
             <p className="text-white/50 text-sm">Loading the map…</p>
           ) : tab === 'setup' && host ? (
-            <HostSetup map={map} state={state} />
+            <HostSetup map={map} state={state} onInstallGuide={onInstallGuide} packUndo={packUndo} setPackUndo={setPackUndo} />
           ) : (
             <PlayView map={map} state={state} onSetup={host ? () => setTab('setup') : undefined} />
           )}
@@ -330,7 +332,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function HostSetup({ map, state }: { map: PartyCampaignMapApi; state: CampaignMapState | null }) {
+function HostSetup({ map, state, onInstallGuide, packUndo, setPackUndo }: { map: PartyCampaignMapApi; state: CampaignMapState | null; onInstallGuide?: CampaignMapPanelProps['onInstallGuide']; packUndo: MapPackUndo | null; setPackUndo: (u: MapPackUndo | null) => void }) {
   const [mode, setMode] = useState<Mode>({ kind: 'none' });
   const [calMiles, setCalMiles] = useState('');
   const [busy, setBusy] = useState(false);
@@ -399,6 +401,7 @@ function HostSetup({ map, state }: { map: PartyCampaignMapApi; state: CampaignMa
       <div className="text-center py-10 space-y-3">
         <p className="text-white/70 text-sm">Start a campaign map for this party.</p>
         <Button className="min-h-[48px]" style={TOUCH} onClick={async () => report(await map.initialize())}>Create map</Button>
+        <div className="text-left pt-4"><Section title="Or install a Map Pack"><MapPackAssistant map={map} current={null} onInstallGuide={onInstallGuide} undo={packUndo} setUndo={setPackUndo} /></Section></div>
       </div>
     );
   }
@@ -484,7 +487,7 @@ function HostSetup({ map, state }: { map: PartyCampaignMapApi; state: CampaignMa
       </Section>
 
       <Section title="Map Pack Assistant">
-        <Button disabled variant="outline" className="w-full min-h-[48px]"><Sparkles className="w-4 h-4 mr-2" />Map Pack Assistant (coming soon)</Button>
+        <MapPackAssistant map={map} current={s} onInstallGuide={onInstallGuide} undo={packUndo} setUndo={setPackUndo} />
       </Section>
     </div>
   );

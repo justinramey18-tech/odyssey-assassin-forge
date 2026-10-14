@@ -198,6 +198,18 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   const initialize = useCallback(() => mutate(() => emptyCampaignMapState()), [mutate]);
   const reset = initialize;
 
+  /** Upload an image only (no map change). Used by Map Pack install before replacing state. */
+  const uploadImageFile = useCallback(async (file: Blob, type: string): Promise<{ ok: true; url: string } | { ok: false; error: string }> => {
+    if (!canWrite || !partyId || !currentUserId) return { ok: false, error: 'Only the party host can change the map.' };
+    if (!IMAGE_TYPES.includes(type)) return { ok: false, error: 'Use a PNG, JPG, WebP or GIF image.' };
+    if (file.size > MAX_IMAGE_BYTES) return { ok: false, error: 'That image is too big (15 MB at most).' };
+    const ext = (type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+    const path = `${currentUserId}/${partyId}/campaign-map/${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabase.storage.from('party-chat-images').upload(path, file, { contentType: type });
+    if (error) return { ok: false, error: error.message || 'Upload failed.' };
+    return { ok: true, url: supabase.storage.from('party-chat-images').getPublicUrl(path).data.publicUrl };
+  }, [canWrite, partyId, currentUserId]);
+
   const uploadMapImage = useCallback(async (file: File): Promise<Result> => {
     if (!canWrite || !partyId || !currentUserId) return fail('Only the party host can change the map.');
     if (!IMAGE_TYPES.includes(file.type)) return fail('Use a PNG, JPG, WebP or GIF image.');
@@ -393,13 +405,13 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   const getPromptContext = useCallback((): string => (rawState ? buildGeographicContext(rawState, serverNow()) : ''), [rawState, serverNow]);
 
   return useMemo(() => ({
-    rawState, loading, hostUserId, canWrite, getViewState,
+    rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile,
     initialize, reset, uploadMapImage, replaceMapImage: uploadMapImage, replaceLocationsAndRoutes,
     addLocation, editLocation, removeLocation, addRoute, editRoute, removeRoute,
     setDiscovered, setCampaignClock, setTimeCompression, setDefaultPace, setCalibration, setCurrentLocation,
     startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow, reconcileTravelIfComplete,
     exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext,
-  }), [rawState, loading, hostUserId, canWrite, getViewState, initialize, reset, uploadMapImage, replaceLocationsAndRoutes,
+  }), [rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile, initialize, reset, uploadMapImage, replaceLocationsAndRoutes,
     addLocation, editLocation, removeLocation, addRoute, editRoute, removeRoute, setDiscovered, setCampaignClock,
     setTimeCompression, setDefaultPace, setCalibration, setCurrentLocation, startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow,
     reconcileTravelIfComplete, exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext]);
