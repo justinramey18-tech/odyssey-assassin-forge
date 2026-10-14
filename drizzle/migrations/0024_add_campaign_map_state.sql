@@ -1,0 +1,1 @@
+ALTER TABLE public.ai_dm_campaigns ADD COLUMN IF NOT EXISTS map_state jsonb;

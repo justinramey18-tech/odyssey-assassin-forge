@@ -169,6 +169,13 @@
       "when": 1791934889807,
       "tag": "0023_party_npcs_social_stats",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792000656836,
+      "tag": "0024_add_campaign_map_state",
+      "breakpoints": true
     }
   ]
 }

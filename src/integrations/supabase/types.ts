@@ -41,6 +41,7 @@ export type Database = {
           created_at: string
           gm_guide_ids: string[] | null
           id: string
+          map_state: Json | null
           memory_anchors: Json
           messages: Json
           mode: string
@@ -53,6 +54,7 @@ export type Database = {
           created_at?: string
           gm_guide_ids?: string[] | null
           id?: string
+          map_state?: Json | null
           memory_anchors?: Json
           messages?: Json
           mode?: string
@@ -65,6 +67,7 @@ export type Database = {
           created_at?: string
           gm_guide_ids?: string[] | null
           id?: string
+          map_state?: Json | null
           memory_anchors?: Json
           messages?: Json
           mode?: string
