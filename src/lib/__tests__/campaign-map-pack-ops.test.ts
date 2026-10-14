@@ -66,7 +66,7 @@ describe('staged display settings', () => {
   });
   it('invalid display values are pack errors', () => {
     const v = validateMapData({ locations: [{ id: 'a', name: 'A', overlayMode: 'x' }, { id: 'b', name: 'B' }],
-      routes: [{ id: 'r', fromLocationId: 'a', toLocationId: 'b', distanceSource: 'manual', distanceMiles: 3, overlayMode: 'pin' }] });
+      routes: [{ id: 'r', fromLocationId: 'a', toLocationId: 'b', distanceSource: 'manual', distanceMiles: 3, overlayMode: 'pin' }] }, null, null);
     expect(v.errors.filter((e: string) => e.includes('overlayMode'))).toHaveLength(2);
   });
 });
