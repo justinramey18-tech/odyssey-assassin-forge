@@ -147,6 +147,7 @@ export function validateMapData(raw: unknown, imageWidth: number | null, imageHe
     if (hasX !== hasY) errors.push(`Location "${l.id}" has only one coordinate.`);
     else if (hasX && (!in01(l.x) || !in01(l.y))) errors.push(`Location "${l.id}" coordinates must be between 0 and 1.`);
     if (l.kind !== undefined && !(LOCATION_KINDS as readonly string[]).includes(l.kind as string)) warnings.push(`Location "${l.id}" has an unknown kind; it will show as "other".`);
+    if (l.overlayMode !== undefined && l.overlayMode !== 'full' && l.overlayMode !== 'pin' && l.overlayMode !== 'background') errors.push(`Location "${l.id}" overlayMode must be "full", "pin" or "background".`);
   });
   (locs ?? []).forEach((l) => {
     if (!isObj(l) || l.parentLocationId === undefined || l.parentLocationId === null) return;
@@ -161,6 +162,7 @@ export function validateMapData(raw: unknown, imageWidth: number | null, imageHe
     else if (r.fromLocationId === r.toLocationId) errors.push(`Road "${r.id}" starts and ends at the same place.`);
     if (r.path !== undefined && (!Array.isArray(r.path) || r.path.some(p => !isObj(p) || !in01(p.x) || !in01(p.y)))) errors.push(`Road "${r.id}" has a point outside the map.`);
     if (r.terrainFactor !== undefined && (!fin(r.terrainFactor) || r.terrainFactor <= 0 || r.terrainFactor > 10)) errors.push(`Road "${r.id}" terrain must be above 0 and at most 10.`);
+    if (r.overlayMode !== undefined && r.overlayMode !== 'full' && r.overlayMode !== 'background') errors.push(`Road "${r.id}" overlayMode must be "full" or "background".`);
     const src = r.distanceSource;
     if (src !== 'manual' && src !== 'calibrated') errors.push(`Road "${r.id}" distanceSource must be "manual" or "calibrated".`);
     if (src === 'manual' && !(fin(r.distanceMiles) && r.distanceMiles > 0)) errors.push(`Road "${r.id}" uses typed miles but has no positive distance.`);

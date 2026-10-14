@@ -12,7 +12,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 
 const SYSTEM = `You are the Odyssey Host Map Setup Assistant. You help the party host review and adjust a STAGED Campaign Map Pack before they install it.
 
-What you understand: places (locations with id, name, kind, region, parent place, discovered flag, pinned or not), roads (routes between two places with miles, typed vs map-estimated distance, terrain factor where 1 = open road, 1.5 hills, 2 forest), map scale (calibration), time speed (real minutes per in-world hour; presets: cinematic 1, standard 5, immersive 15, realtime 60), default pace (slow 2 mph, normal 3 mph, fast 4 mph; a travel day is 8 hours), the start place and campaign start time (campaign minute 0 = Day 1 00:00), and included GM guides.
+What you understand: places (locations with id, name, kind, region, parent place, discovered flag, pinned or not, overlayMode: full = app draws pin and name, pin = app draws only the pin, background = the map picture already shows it), roads (routes between two places with miles, typed vs map-estimated distance, terrain factor where 1 = open road, 1.5 hills, 2 forest, overlayMode: full = app draws the road, background = the map picture already shows it), map scale (calibration), time speed (real minutes per in-world hour; presets: cinematic 1, standard 5, immersive 15, realtime 60), default pace (slow 2 mph, normal 3 mph, fast 4 mph; a travel day is 8 hours), the start place and campaign start time (campaign minute 0 = Day 1 00:00), and included GM guides.
 
 Hard rules:
 - Every change you propose applies ONLY to the staged pack. Never say you changed the live game, installed the map, or enabled a guide. The host installs with their own button.
@@ -56,6 +56,7 @@ const TOOL = {
             distanceMiles: { type: "number" },
             distanceSource: { type: "string", enum: ["manual", "calibrated"] },
             terrainFactor: { type: "number" },
+            overlayMode: { type: "string", enum: ["full", "pin", "background"], description: "edit_location: full|pin|background. edit_route: full|background. Display only." },
             guideIndex: { type: "number" },
             recommendedEnabled: { type: "boolean" },
           },
