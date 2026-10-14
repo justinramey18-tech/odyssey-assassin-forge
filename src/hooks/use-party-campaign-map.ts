@@ -27,7 +27,6 @@ import {
   pointAlong,
   replaceMapImage,
   sanitizeCampaignMapState,
-  travelNow,
   validRealMinutesPerGameHour,
   withRoutePath,
   type ActiveTravel,
@@ -317,6 +316,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     };
     const staged: CampaignMapState = { ...base, activeTravel: travel, currentLocationId: null };
     delete staged.currentRoutePosition;
+    delete staged.journeyPlan; // a manual one-road trip replaces any planned journey
     // 1) write to get the server's clock, 2) anchor the leg to it.
     const first = await write(staged);
     if (!first.ok) return fail(first.error);
@@ -355,11 +355,12 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   const cancelTravel = useCallback(async (): Promise<Result> => {
     const s = stateRef.current;
     if (!canWrite) return fail('Only the party host can stop travel.');
+    if (!s?.activeTravel && s?.journeyPlan) { const n = { ...s }; delete n.journeyPlan; return (await write(n)).ok ? OK : fail('The map could not be saved.'); }
     if (!s?.activeTravel) return fail('The party is not traveling.');
     const touch = await write(s);
     if (!touch.ok) return fail(touch.error);
     const settled = settleTravel(s, touch.updatedAt);
-    if (!settled.activeTravel) return (await write(settled)).ok ? OK : fail('The map could not be saved.');
+    if (!settled.activeTravel) { const n = { ...settled }; delete n.journeyPlan; return (await write(n)).ok ? OK : fail('The map could not be saved.'); }
     const live = travelDetail(s.activeTravel, touch.updatedAt);
     const next: CampaignMapState = { ...s, campaignMinute: live.campaignMinute, currentLocationId: null, currentRoutePosition: { routeId: live.routeId, progress: live.forwardProgress } };
     delete next.activeTravel;
