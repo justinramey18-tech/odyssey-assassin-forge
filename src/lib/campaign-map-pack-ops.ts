@@ -2,7 +2,7 @@
 // They change only an in-memory copy; every result is re-checked by the pack validator.
 // Nothing here can set the image, timers, user ids or live travel.
 
-import { LOCATION_KINDS, TIME_COMPRESSION_PRESETS, sanitizeCampaignMapState, validRealMinutesPerGameHour, type CampaignMapLocation, type CampaignMapState, type LocationKind, type TravelPace } from '@/lib/campaign-map';
+import { LOCATION_KINDS, TIME_COMPRESSION_PRESETS, sanitizeCampaignMapState, locationOverlayMode, routeOverlayMode, validRealMinutesPerGameHour, type CampaignMapLocation, type CampaignMapState, type LocationKind, type TravelPace } from '@/lib/campaign-map';
 import { validateMapData, type MapPackGuide } from '@/lib/campaign-map-pack';
 
 export type StagedOp =
