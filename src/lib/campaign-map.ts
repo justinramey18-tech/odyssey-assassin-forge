@@ -66,7 +66,8 @@ export interface CampaignMapRoute {
 }
 
 /** Stopped somewhere along a route (0 = at its start, 1 = at its end). */
-export interface RoutePosition { routeId: string; progress: number; reversed?: boolean }
+/** progress is measured from the route's fromLocation (0) to its toLocation (1). dayComplete = stopped by the 8-hour travel day. */
+export interface RoutePosition { routeId: string; progress: number; reversed?: boolean; dayComplete?: boolean }
 
 export interface ActiveTravel {
   routeId: string;
@@ -387,7 +388,7 @@ export function sanitizeCampaignMapState(raw: unknown): CampaignMapState {
 
   const pos = r.currentRoutePosition as Record<string, unknown> | undefined;
   if (pos && typeof pos === 'object' && routeIds.has(pos.routeId as string) && fin(pos.progress)) {
-    state.currentRoutePosition = { routeId: pos.routeId as string, progress: clamp01(pos.progress), ...(pos.reversed === true ? { reversed: true } : {}) };
+    state.currentRoutePosition = { routeId: pos.routeId as string, progress: clamp01(pos.progress), ...(pos.reversed === true ? { reversed: true } : {}), ...(pos.dayComplete === true ? { dayComplete: true } : {}) };
   }
   const travel = travelOf(r.activeTravel, routeIds);
   if (travel) state.activeTravel = travel;
