@@ -518,6 +518,7 @@ export function StandalonePartyDMScreen({
     partyMembers: stablePartyMembers,
     customGuidesContent: gmGuides.enabledContent,
     memoryAnchorsContent: memoryAnchors.formattedForOracle,
+    campaignMapContext: campaignMap.getPromptContext,
     worldStatePrompt: weatherWorldState,
     partyDragonConfigs,
     myDragonName: dragonBonds.myDragon?.dragonName,
