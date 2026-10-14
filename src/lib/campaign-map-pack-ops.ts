@@ -2,7 +2,7 @@
 // They change only an in-memory copy; every result is re-checked by the pack validator.
 // Nothing here can set the image, timers, user ids or live travel.
 
-import { LOCATION_KINDS, TIME_COMPRESSION_PRESETS, sanitizeCampaignMapState, validRealMinutesPerGameHour, type CampaignMapLocation, type CampaignMapState, type LocationKind, type TravelPace } from '@/lib/campaign-map';
+import { LOCATION_KINDS, TIME_COMPRESSION_PRESETS, sanitizeCampaignMapState, locationOverlayMode, routeOverlayMode, validRealMinutesPerGameHour, type CampaignMapLocation, type CampaignMapState, type LocationKind, type TravelPace } from '@/lib/campaign-map';
 import { validateMapData, type MapPackGuide } from '@/lib/campaign-map-pack';
 
 export type StagedOp =
@@ -10,10 +10,10 @@ export type StagedOp =
   | { op: 'set_time_compression'; preset?: string; realMinutesPerGameHour?: number }
   | { op: 'set_campaign_minute'; minute: number }
   | { op: 'set_discovered'; locationId: string; discovered: boolean }
-  | { op: 'edit_location'; locationId: string; name?: string; description?: string; region?: string; kind?: string; parentLocationId?: string | null }
+  | { op: 'edit_location'; locationId: string; name?: string; description?: string; region?: string; kind?: string; parentLocationId?: string | null; overlayMode?: 'full' | 'pin' | 'background' }
   | { op: 'add_location'; id: string; name: string; kind?: string; description?: string; region?: string; parentLocationId?: string | null; discovered?: boolean }
   | { op: 'remove_location'; locationId: string }
-  | { op: 'edit_route'; routeId: string; description?: string; terrainFactor?: number; distanceSource?: 'manual' | 'calibrated'; distanceMiles?: number }
+  | { op: 'edit_route'; routeId: string; description?: string; terrainFactor?: number; distanceSource?: 'manual' | 'calibrated'; distanceMiles?: number; overlayMode?: 'full' | 'background' }
   | { op: 'add_route'; id: string; fromLocationId: string; toLocationId: string; distanceMiles: number; terrainFactor?: number; description?: string }
   | { op: 'remove_route'; routeId: string }
   | { op: 'set_start_location'; locationId: string | null }
@@ -65,6 +65,7 @@ function applyOne(s: CampaignMapState, guides: MapPackGuide[], o: Record<string,
       if (o.description !== undefined) next.description = str(o.description, 600) || undefined;
       if (o.region !== undefined) next.region = str(o.region, 80) || undefined;
       if (o.kind !== undefined) { if (!(LOCATION_KINDS as readonly string[]).includes(o.kind as string)) return 'Unknown place type.'; next.kind = o.kind as LocationKind; }
+      if (o.overlayMode !== undefined) { if (o.overlayMode !== 'full' && o.overlayMode !== 'pin' && o.overlayMode !== 'background') return 'Place display must be full, pin or background.'; next.overlayMode = o.overlayMode; }
       if (o.parentLocationId !== undefined) {
         if (o.parentLocationId === null) delete next.parentLocationId;
         else if (!loc(o.parentLocationId) || o.parentLocationId === l.id) return 'That parent place does not exist.';
@@ -98,6 +99,7 @@ function applyOne(s: CampaignMapState, guides: MapPackGuide[], o: Record<string,
       const next = { ...r };
       if (o.description !== undefined) next.description = str(o.description, 400) || undefined;
       if (o.terrainFactor !== undefined) { if (typeof o.terrainFactor !== 'number' || !(o.terrainFactor > 0 && o.terrainFactor <= 10)) return 'Terrain must be above 0 and at most 10.'; next.terrainFactor = o.terrainFactor; }
+      if (o.overlayMode !== undefined) { if (o.overlayMode !== 'full' && o.overlayMode !== 'background') return 'Road display must be full or background.'; next.overlayMode = o.overlayMode; }
       if (o.distanceMiles !== undefined) { if (typeof o.distanceMiles !== 'number' || !(o.distanceMiles > 0)) return 'Miles must be above 0.'; next.distanceMiles = o.distanceMiles; }
       if (o.distanceSource !== undefined) { if (o.distanceSource !== 'manual' && o.distanceSource !== 'calibrated') return 'Distance must be manual or calibrated.'; next.distanceSource = o.distanceSource; }
       return { state: { ...s, routes: s.routes.map(x => (x.id === r.id ? next : x)) }, guides };
@@ -166,8 +168,8 @@ export function stagedPackForAssistant(state: CampaignMapState, guides: MapPackG
     campaignMinute: state.campaignMinute,
     startLocationId: state.currentLocationId,
     hasPausedTrip: !!state.activeTravel,
-    locations: state.locations.slice(0, 200).map(l => ({ id: l.id, name: l.name, kind: l.kind, discovered: l.discovered, pinned: l.x !== null && l.y !== null, ...(l.region ? { region: l.region } : {}), ...(l.parentLocationId ? { parentLocationId: l.parentLocationId } : {}), ...(l.description ? { description: l.description.slice(0, 300) } : {}) })),
-    routes: state.routes.slice(0, 300).map(r => ({ id: r.id, from: r.fromLocationId, to: r.toLocationId, distanceSource: r.distanceSource, distanceMiles: Math.round(r.distanceMiles * 10) / 10, terrainFactor: r.terrainFactor, traced: r.path.length >= 2, ...(r.description ? { description: r.description.slice(0, 200) } : {}) })),
+    locations: state.locations.slice(0, 200).map(l => ({ id: l.id, name: l.name, kind: l.kind, discovered: l.discovered, pinned: l.x !== null && l.y !== null, ...(l.region ? { region: l.region } : {}), ...(l.parentLocationId ? { parentLocationId: l.parentLocationId } : {}), ...(l.description ? { description: l.description.slice(0, 300) } : {}), overlayMode: locationOverlayMode(l) })),
+    routes: state.routes.slice(0, 300).map(r => ({ id: r.id, from: r.fromLocationId, to: r.toLocationId, distanceSource: r.distanceSource, distanceMiles: Math.round(r.distanceMiles * 10) / 10, terrainFactor: r.terrainFactor, traced: r.path.length >= 2, ...(r.description ? { description: r.description.slice(0, 200) } : {}), overlayMode: routeOverlayMode(r) })),
     guides: guides.map((g, i) => ({ index: i, name: g.name, chars: g.content.length, recommendedEnabled: !!g.recommendedEnabled, preview: g.content.slice(0, 400) })),
   };
 }
