@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { PartyCampaignMapApi } from '@/hooks/use-party-campaign-map';
 import type { CampaignMapState } from '@/lib/campaign-map';
-import { parseMapPack, revokeMapPackPreview, type MapPackPreview } from '@/lib/campaign-map-pack';
+import { parseMapPack, revokeMapPackPreview, validateMapData, type MapPackGuide, type MapPackPreview } from '@/lib/campaign-map-pack';
+import { MapSetupChat } from './MapSetupChat';
 
 const TOUCH = { touchAction: 'manipulation' as const };
 
@@ -26,13 +27,15 @@ export function MapPackAssistant({ map, current, onInstallGuide, undo, setUndo }
   const [reading, setReading] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  /** Assistant edits live only on this copy until Install. */
+  const [staged, setStaged] = useState<{ state: CampaignMapState; guides: MapPackGuide[]; applied: string[] } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<MapPackPreview | null>(null);
   previewRef.current = preview;
 
   useEffect(() => () => revokeMapPackPreview(previewRef.current), []);
 
-  const discard = () => { revokeMapPackPreview(preview); setPreview(null); setApproved({}); setConfirming(false); };
+  const discard = () => { revokeMapPackPreview(preview); setPreview(null); setApproved({}); setConfirming(false); setStaged(null); };
 
   const read = async (file: File | undefined) => {
     if (!file) return;
@@ -43,8 +46,10 @@ export function MapPackAssistant({ map, current, onInstallGuide, undo, setUndo }
   };
 
   const install = async () => {
-    const p = preview;
-    if (!p?.installable || !p.state || !p.image || !p.imageType || !map.canWrite) return;
+    const base = preview;
+    if (!base?.installable || !base.state || !base.image || !base.imageType || !map.canWrite) return;
+    const p = { ...base, state: staged?.state ?? base.state, guides: staged?.guides ?? base.guides };
+    if (validateMapData(p.state, base.imageWidth, base.imageHeight).errors.length) { toast.error('The staged changes no longer pass the safety check. Reset to the uploaded pack.'); return; }
     setInstalling(true);
     try {
       // 1) remember the current map for Undo
@@ -77,8 +82,11 @@ export function MapPackAssistant({ map, current, onInstallGuide, undo, setUndo }
     setUndo(null);
   };
 
-  const p = preview;
-  const s = p?.summary;
+  const p = preview ? { ...preview, state: staged?.state ?? preview.state, guides: staged?.guides ?? preview.guides } : null;
+  const st = p?.state;
+  const s = p && st ? { ...p.summary, locations: st.locations.length, routes: st.routes.length, discovered: st.locations.filter(l => l.discovered).length,
+    unpinned: st.locations.filter(l => l.x === null || l.y === null).length, startingLocation: st.currentLocationId ? st.locations.find(l => l.id === st.currentLocationId)?.name ?? null : null,
+    realMinutesPerGameHour: st.realMinutesPerGameHour, defaultPace: st.defaultPace } : p?.summary;
   return (
     <div className="space-y-2">
       <input ref={fileRef} type="file" accept=".zip,application/zip" className="hidden" onChange={(e) => { void read(e.target.files?.[0]); e.target.value = ''; }} />
@@ -137,6 +145,19 @@ export function MapPackAssistant({ map, current, onInstallGuide, undo, setUndo }
                 </label>
               ))}
             </div>
+          )}
+          {staged && staged.applied.length > 0 && (
+            <div className="rounded bg-violet-500/10 border border-violet-400/30 p-2 space-y-1">
+              <p className="text-[12px] text-violet-100 font-semibold">Staged changes (not installed yet)</p>
+              {staged.applied.slice(-10).map((a, i) => <p key={i} className="text-[11px] text-violet-100/80">• {a}</p>)}
+              {staged.applied.length > 10 && <p className="text-[11px] text-violet-100/60">(+{staged.applied.length - 10} more)</p>}
+              <Button size="sm" variant="outline" className="min-h-[44px]" style={TOUCH} onClick={() => setStaged(null)}>Reset to uploaded pack</Button>
+            </div>
+          )}
+          {p.installable && p.state && map.canWrite && (
+            <MapSetupChat key={p.manifest?.id ?? 'pack'} state={p.state} guides={p.guides} imageWidth={p.imageWidth ?? 0} imageHeight={p.imageHeight ?? 0}
+              packName={p.manifest?.name} packDescription={p.manifest?.description}
+              onStaged={(r) => setStaged(prev => ({ state: r.state, guides: r.guides, applied: [...(prev?.applied ?? []), ...r.applied] }))} />
           )}
           {confirming && p.installable ? (
             <div className="rounded bg-sky-500/10 border border-sky-400/30 p-2 space-y-2">
