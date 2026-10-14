@@ -75,11 +75,11 @@ describe('journey travel days', () => {
   });
   it('pause freezes the whole schedule; resume continues it', () => {
     const s = start(three(), 'd');
-    const frozen = freezeTravel(s.activeTravel!, 2 * 60_000);
+    const frozen = freezeTravel(s.activeTravel!, 90_000);
     expect(frozen.segments).toHaveLength(3);
     expect(travelDetail(frozen, 999 * 60_000).routeId).toBe('ab');
     const resumed = { ...frozen, startedAt: 1_000_000 };
-    expect(travelNow(resumed, 1_000_000).campaignMinute).toBeCloseTo(120);
+    expect(travelNow(resumed, 1_000_000).campaignMinute).toBeCloseTo(90);
     expect(travelDetail(resumed, 1_000_000 + 60_000).routeId).toBe('bc');
   });
   it('a save keeps the journey and the schedule', () => {
