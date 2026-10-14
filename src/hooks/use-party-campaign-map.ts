@@ -9,6 +9,7 @@ import {
   activeCalibration,
   buildDmLogisticsContext,
   buildJourneyTranche,
+  listReachableDestinations,
   finishJourneyState,
   foldTravelToPosition,
   journeyLocks,
@@ -397,13 +398,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
 
   const getReachableDestinations = useCallback((pace?: TravelPace) => {
     const base = settleTravel(stateRef.current ?? emptyCampaignMapState(), serverNow());
-    if (base.activeTravel) return [];
-    const usePace = pace ?? base.defaultPace;
-    return base.locations.filter(l => l.discovered && l.id !== base.currentLocationId).flatMap(l => {
-      const plan = planJourneyRoute(base, l.id, usePace);
-      const summary = plan && summarizeJourney(base, plan);
-      return plan && summary ? [{ location: l, plan, summary }] : [];
-    }).sort((a, b) => a.summary.remainingMinutes - b.summary.remainingMinutes || a.location.id.localeCompare(b.location.id));
+    return listReachableDestinations(base, pace ?? base.defaultPace);
   }, [settleTravel, serverNow, rawState]);
 
   /** Write the tranche, then anchor it to the server's returned time (never this phone's clock). */
