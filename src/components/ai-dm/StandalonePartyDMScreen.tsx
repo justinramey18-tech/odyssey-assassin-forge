@@ -530,6 +530,23 @@ export function StandalonePartyDMScreen({
     isSoloEmpyrean,
   });
 
+  // Combat interrupts travel: when combat starts while the party is moving, the original host pauses the trip once.
+  // It is never resumed automatically.
+  const combatModeNow = !!partyDm.sessionConfig?.combatMode;
+  const prevCombatRef = useRef(combatModeNow);
+  const campaignMapRef = useRef(campaignMap);
+  campaignMapRef.current = campaignMap;
+  useEffect(() => {
+    const was = prevCombatRef.current;
+    prevCombatRef.current = combatModeNow;
+    if (was || !combatModeNow) return;
+    const m = campaignMapRef.current;
+    if (!isPartyCreator || !m.canWrite) return;
+    const t = m.rawState?.activeTravel;
+    if (!t || t.startedAt === null) return;
+    void m.pauseTravel().then(r => { if (r.ok) toast.info('Combat! The journey is paused on the Campaign Map.'); });
+  }, [combatModeNow, isPartyCreator]);
+
   const directorCampaignContext = useMemo(() => [
     gmGuides.enabledContent ? `## GM GUIDES (CAMPAIGN WORLD BIBLE — ABSOLUTE CANON)\n${gmGuides.enabledContent}` : '',
     memoryAnchors.formattedForOracle ? `## MEMORY ANCHORS (ESTABLISHED FACTS)\n${memoryAnchors.formattedForOracle}` : '',
