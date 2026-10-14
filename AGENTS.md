@@ -8,3 +8,4 @@
 - Cache Live Table rows separately from DM narration by account and party; successful server reads replace stale cached rows while in-flight live changes survive, and failed reads must retain the visible conversation.
 - Arena Live Table Sparring renders the real PartyDMScreen through runtimeOverrides with local Arena hooks; never rebuild a separate mock table, because a second copy drifts from the live game.
 - Party Sparring runs on the host's phone and is shared over a live broadcast channel (no database rows); members mirror the host's fight and send actions to it, because campaign tables and the fight referee must never see practice fights.
+- Campaign Map world geography lives in ai_dm_campaigns.map_state with all math in src/lib/campaign-map.ts; never reuse the combat map_markers state, because tactical positioning and world travel have different rules.
