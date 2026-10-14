@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   activeCalibration,
-  buildGeographicContext,
+  buildDmLogisticsContext,
   effectiveRouteMiles,
   emptyCampaignMapState,
   freezeTravel,
@@ -402,7 +402,8 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     return OK;
   }, [partyId, currentUserId, canWrite]);
 
-  const getPromptContext = useCallback((): string => (rawState ? buildGeographicContext(rawState, serverNow()) : ''), [rawState, serverNow]);
+  /** Reads the latest map at call time, so a moving dot is current even without a re-render. */
+  const getPromptContext = useCallback((): string => { const st = stateRef.current; return st && (st.imageUrl || st.locations.length) ? buildDmLogisticsContext(st, serverNow()) : ''; }, [serverNow]);
 
   return useMemo(() => ({
     rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile,

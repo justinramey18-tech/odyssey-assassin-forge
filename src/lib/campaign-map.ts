@@ -439,3 +439,49 @@ export function buildGeographicContext(state: CampaignMapState, nowMs: number = 
   }
   return lines.join(' ');
 }
+
+/** App-owned, factual travel facts for the Party DM. Concise; no registry, no coordinates. */
+export function buildDmLogisticsContext(state: CampaignMapState, nowMs: number = Date.now()): string {
+  const byId = new Map(state.locations.map(l => [l.id, l]));
+  const cal = activeCalibration(state);
+  const name = (id: string | null | undefined) => (id && byId.get(id)?.name) || 'an unnamed place';
+  const lines: string[] = ['[CAMPAIGN MAP — AUTHORITATIVE FACTS, set by the app. Do not contradict, move the party, or start/finish journeys yourself; the host controls travel.]'];
+  const t = state.activeTravel;
+  let minute = state.campaignMinute;
+  if (t) {
+    const route = state.routes.find(r => r.id === t.routeId);
+    const now = travelNow(t, nowMs);
+    minute = now.campaignMinute;
+    const from = route ? name(t.reversed ? route.toLocationId : route.fromLocationId) : 'somewhere';
+    const to = route ? name(t.reversed ? route.fromLocationId : route.toLocationId) : 'somewhere';
+    const miles = route ? effectiveRouteMiles(route, cal) : null;
+    const status = t.startedAt === null ? 'PAUSED on the road' : now.done ? 'leg just finished (awaiting host update)' : 'MOVING';
+    lines.push(`Status: en route from ${from} to ${to} — ${status}.`);
+    lines.push(`Progress: ${Math.round(now.progress * 100)}% of the road${miles !== null ? ` (${Math.round(miles * now.progress)} mi traveled, ${Math.round(routeMilesRemaining(miles, now.progress))} mi remaining)` : ''}.`);
+    lines.push(`Pace: ${t.pace}; terrain ×${route?.terrainFactor ?? 1}${route?.description ? `; road: ${route.description.slice(0, 160)}` : ''}.`);
+    if (t.endProgress < 1) lines.push(`This leg stops partway when the 8-hour travel day ends; the party will NOT reach ${to} today.`);
+    const arrived = now.done && t.endProgress >= 1;
+    lines.push(arrived ? `Arrival at ${to} is allowed.` : `Arrival at ${to} is NOT allowed yet — narrate the roadside position only.`);
+  } else if (state.currentRoutePosition) {
+    const p = state.currentRoutePosition;
+    const route = state.routes.find(r => r.id === p.routeId);
+    const miles = route ? effectiveRouteMiles(route, cal) : null;
+    lines.push(`Status: stopped on the road between ${route ? name(route.fromLocationId) : '?'} and ${route ? name(route.toLocationId) : '?'}${p.dayComplete ? ' — the 8-hour travel day has ended' : ''}.`);
+    if (miles !== null) lines.push(`Position: ${Math.round(miles * p.progress)} mi from ${route ? name(route.fromLocationId) : '?'}, ${Math.round(miles * (1 - p.progress))} mi from ${route ? name(route.toLocationId) : '?'}.`);
+    lines.push('Arrival at either end is NOT allowed until the host continues travel.');
+  } else if (state.currentLocationId && byId.get(state.currentLocationId)) {
+    const here = byId.get(state.currentLocationId)!;
+    lines.push(`Status: at ${here.name}${here.region ? ` (${here.region})` : ''}. Not traveling.`);
+    const known = state.routes.filter(r => r.fromLocationId === here.id || r.toLocationId === here.id).slice(0, 8).map(r => {
+      const other = byId.get(r.fromLocationId === here.id ? r.toLocationId : r.fromLocationId);
+      if (!other?.discovered) return null;
+      const m = effectiveRouteMiles(r, cal);
+      return m !== null ? `${other.name} (~${Math.round(m)} mi)` : other.name;
+    }).filter(Boolean);
+    if (known.length) lines.push(`Known roads lead to: ${known.join(', ')}. Reaching them requires the host to start travel.`);
+  } else {
+    lines.push('Status: party location not set on the map.');
+  }
+  lines.splice(1, 0, `Campaign time: ${formatCampaignTime(minute)}.`);
+  return lines.join('\n');
+}

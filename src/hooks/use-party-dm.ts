@@ -305,6 +305,8 @@ interface UsePartyDmOptions {
   customGuidesContent?: string;
   memoryAnchorsContent?: string;
   worldStatePrompt?: string;
+  /** Fresh Campaign Map facts, read at request time (empty when no map). */
+  campaignMapContext?: () => string;
   partyDragonConfigs?: Array<{ userId: string; characterName: string; config: { dragonName: string; signetType: string; bond: number; trust: number; mood: string; burnout: number } }>;
   myDragonName?: string;
   onBurnoutDetected?: (level: number) => void;
@@ -333,7 +335,9 @@ function resolvePartyModel(sharedModelId?: string): string {
   return candidate;
 }
 
-export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, worldStatePrompt, partyDragonConfigs, myDragonName, onBurnoutDetected, onBurnoutTickDetected, onBondStrainDetected, onBondGrowthDetected, onDragonMemoryDetected, onDragonBondFormed, isSoloEmpyrean }: UsePartyDmOptions) {
+export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, worldStatePrompt, campaignMapContext, partyDragonConfigs, myDragonName, onBurnoutDetected, onBurnoutTickDetected, onBondStrainDetected, onBondGrowthDetected, onDragonMemoryDetected, onDragonBondFormed, isSoloEmpyrean }: UsePartyDmOptions) {
+  const campaignMapContextRef = useRef(campaignMapContext);
+  campaignMapContextRef.current = campaignMapContext;
   const { user } = useAuth();
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
   const [currentPrompts, setCurrentPrompts] = useState<PartyDmPrompt[]>([]);
@@ -1684,7 +1688,11 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       'Example: [VOICE:Kaelen]"You should not have come here."[/VOICE]',
       'Only spoken words go inside the tags — narration, action, and description stay outside them. Never tag a block of prose, never nest tags, and never mention the tags to the players.',
     ].join('\n');
-    const enhancedPartyContext = [canonGuardrailsContext, voiceTagDirective, partyContext, directorPrivatesContext].filter(Boolean).join('\n\n') || undefined;
+    let mapFacts = '';
+    try { mapFacts = campaignMapContextRef.current?.() || ''; } catch { mapFacts = ''; }
+    // Map facts lead the party context so later trimming of party context can't drop them.
+    const partyContextWithMap = [mapFacts, partyContext].filter(Boolean).join('\n\n') || undefined;
+    const enhancedPartyContext = [canonGuardrailsContext, voiceTagDirective, partyContextWithMap, directorPrivatesContext].filter(Boolean).join('\n\n') || undefined;
 
     const narrationStyleBlock = buildNarrationStyleBlock(await fetchPartyNarrationStyle(partyId));
 
