@@ -17,7 +17,7 @@ import { MapPackAssistant, type MapPackUndo } from './MapPackAssistant';
 import {
   LOCATION_KINDS, TIME_COMPRESSION_PRESETS, TRAVEL_PACE_MPH,
   activeCalibration, createCalibration, effectiveRouteMiles, formatCampaignTime, maxLegalLeg, gameToRealMs,
-  polylineMiles, sanitizeCampaignMapState, travelNow, withRoutePath,
+  polylineMiles, sanitizeCampaignMapState, locationOverlayMode, routeOverlayMode, travelNow, withRoutePath,
   type CampaignMapLocation, type CampaignMapRoute, type CampaignMapState, type LocationKind, type MapPoint, type TravelPace,
 } from '@/lib/campaign-map';
 
@@ -90,19 +90,23 @@ export function CampaignMapPanel({ open, onOpenChange, map, onInstallGuide }: Ca
   }, [open, traveling]);
 
   useEffect(() => { if (!host && tab === 'setup') setTab('play'); }, [host, tab]);
+  // Every fresh open starts on Play View; switching tabs during an open session is kept.
+  useEffect(() => { if (open) setTab('play'); }, [open]);
+  const landscape = usePhoneLandscape();
+  const playLandscape = landscape && tab !== 'setup';
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" data-vaul-no-drag className="h-[92vh] p-0 bg-[#0b0b10] border-t border-amber-500/30 rounded-t-2xl overflow-hidden flex flex-col">
-        <div className="shrink-0 px-4 pt-3 pb-2 border-b border-white/10">
+      <SheetContent side="bottom" data-vaul-no-drag className={cn('p-0 bg-[#0b0b10] overflow-hidden flex flex-col', landscape ? 'h-[100dvh] max-h-[100dvh] rounded-none border-t-0' : 'h-[92vh] border-t border-amber-500/30 rounded-t-2xl')}>
+        <div className={cn('shrink-0 border-b border-white/10', landscape ? 'px-3 pt-1.5 pb-1.5 flex items-center gap-3 pr-12' : 'px-4 pt-3 pb-2')}>
           <SheetTitle className="font-cinzel text-amber-300 text-[15px] flex items-center gap-2 pr-8">
             <MapIcon className="w-5 h-5" /> Campaign Map
           </SheetTitle>
-          <SheetDescription className="text-[12px] text-white/50 mt-0.5">
+          <SheetDescription className={cn('text-[12px] text-white/50 mt-0.5', landscape && 'sr-only')}>
             {host ? 'Where the party is, and where the road leads.' : 'Where the party is. The host controls travel.'}
           </SheetDescription>
           {host && (
-            <div className="mt-2 grid grid-cols-2 gap-2">
+            <div className={cn('grid grid-cols-2 gap-2', landscape ? 'ml-auto w-[260px]' : 'mt-2')}>
               {(['play', 'setup'] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)} style={TOUCH}
                   className={cn('min-h-[44px] rounded-lg text-[13px] font-semibold border', tab === t ? 'bg-amber-500/20 border-amber-400/50 text-amber-200' : 'bg-white/5 border-white/10 text-white/60')}>
@@ -112,13 +116,13 @@ export function CampaignMapPanel({ open, onOpenChange, map, onInstallGuide }: Ca
             </div>
           )}
         </div>
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3">
+        <div className={cn('flex-1 min-h-0 overflow-x-hidden', playLandscape ? 'overflow-hidden px-3 py-2' : 'overflow-y-auto px-4 py-3')}>
           {map.loading && !state ? (
             <p className="text-white/50 text-sm">Loading the map…</p>
           ) : tab === 'setup' && host ? (
             <HostSetup map={map} state={state} onInstallGuide={onInstallGuide} packUndo={packUndo} setPackUndo={setPackUndo} />
           ) : (
-            <PlayView map={map} state={state} onSetup={host ? () => setTab('setup') : undefined} />
+            <PlayView map={map} state={state} landscape={playLandscape} onSetup={host ? () => setTab('setup') : undefined} />
           )}
         </div>
       </SheetContent>
@@ -126,11 +130,30 @@ export function CampaignMapPanel({ open, onOpenChange, map, onInstallGuide }: Ca
   );
 }
 
+// Phone held sideways: wide and short. Scoped to this panel only; never locks orientation.
+const PHONE_LANDSCAPE_QUERY = '(orientation: landscape) and (max-height: 540px)';
+function usePhoneLandscape(): boolean {
+  const [on, setOn] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(PHONE_LANDSCAPE_QUERY).matches);
+  useEffect(() => {
+    const mq = window.matchMedia?.(PHONE_LANDSCAPE_QUERY);
+    if (!mq) return;
+    const fn = () => setOn(mq.matches);
+    fn();
+    mq.addEventListener?.('change', fn);
+    return () => mq.removeEventListener?.('change', fn);
+  }, []);
+  return on;
+}
+
 // ───────────────────────── map canvas ─────────────────────────
 
-function MapCanvas({ state, showAll, partyDot, selectedId, onTapPin, onTapMap, highlightRouteId, extraPoints, children }: {
+function MapCanvas({ state, showAll, editor = false, fitHeight, partyDot, selectedId, onTapPin, onTapMap, highlightRouteId, extraPoints, children }: {
   state: CampaignMapState;
   showAll: boolean;
+  /** Host Setup: atlas-background places and roads stay visible so they can be edited. */
+  editor?: boolean;
+  /** Landscape: shrink the map width so the whole picture fits this CSS height, keeping its shape. */
+  fitHeight?: string;
   partyDot: MapPoint | null;
   selectedId?: string | null;
   onTapPin?: (id: string) => void;
@@ -148,15 +171,22 @@ function MapCanvas({ state, showAll, partyDot, selectedId, onTapPin, onTapMap, h
     const r = ref.current.getBoundingClientRect();
     onTapMap({ x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) });
   };
+  const ar = state.imageNaturalWidth && state.imageNaturalHeight ? state.imageNaturalWidth / state.imageNaturalHeight : null;
   if (!state.imageUrl) return null;
   return (
-    <div ref={ref} className={cn('relative w-full rounded-xl overflow-hidden border border-white/10 select-none', onTapMap && 'cursor-crosshair')} onPointerUp={tap} style={TOUCH} data-vaul-no-drag>
+    <div ref={ref} className={cn('relative w-full rounded-xl overflow-hidden border border-white/10 select-none', fitHeight && 'mx-auto', onTapMap && 'cursor-crosshair')} onPointerUp={tap}
+      style={{ ...TOUCH, ...(fitHeight && ar ? { width: `min(100%, calc(${fitHeight} * ${ar}))` } : {}) }} data-vaul-no-drag>
       <img src={state.imageUrl} alt="Campaign map" className="block w-full h-auto pointer-events-none" draggable={false} />
       <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
         {routes.map(r => {
           const pts = routePath(r, byId);
           if (pts.length < 2) return null;
           const hi = r.id === highlightRouteId;
+          const bg = routeOverlayMode(r) === 'background';
+          // Atlas roads are already painted on the picture; only draw them when chosen/active, or for the host editor.
+          if (bg && !hi && !editor) return null;
+          if (bg && !hi) return <polyline key={r.id} points={pts.map(p => `${p.x * 100},${p.y * 100}`).join(' ')} fill="none"
+            stroke="rgba(125,211,252,0.6)" strokeDasharray="0.6 1.2" vectorEffect="non-scaling-stroke" style={{ strokeWidth: 2 }} />;
           return <polyline key={r.id} points={pts.map(p => `${p.x * 100},${p.y * 100}`).join(' ')} fill="none"
             stroke={hi ? 'rgb(252 211 77)' : 'rgba(255,255,255,0.55)'} strokeWidth={hi ? 0.9 : 0.5} strokeDasharray={hi ? undefined : '1.5 1'} vectorEffect="non-scaling-stroke" style={{ strokeWidth: hi ? 3 : 2 }} />;
         })}
@@ -164,14 +194,26 @@ function MapCanvas({ state, showAll, partyDot, selectedId, onTapPin, onTapMap, h
       {extraPoints?.map((p, i) => (
         <span key={i} className="absolute w-3 h-3 -ml-1.5 -mt-1.5 rounded-full bg-sky-400 border border-white pointer-events-none" style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }} />
       ))}
-      {visible.map(l => (
+      {visible.map(l => {
+        const mode = locationOverlayMode(l);
+        if (mode === 'background' && !editor) {
+          // Printed on the atlas: no visible marker, just a tappable spot over it.
+          if (!onTapPin) return null;
+          return (
+            <button key={l.id} type="button" aria-label={l.name} style={{ left: `${l.x! * 100}%`, top: `${l.y! * 100}%`, ...TOUCH }}
+              onPointerUp={(e) => { e.stopPropagation(); onTapPin(l.id); }}
+              className={cn('absolute -translate-x-1/2 -translate-y-1/2 w-11 h-11 rounded-full', selectedId === l.id && 'ring-2 ring-amber-300 bg-amber-300/15')} />
+          );
+        }
+        return (
         <button key={l.id} type="button" style={{ left: `${l.x! * 100}%`, top: `${l.y! * 100}%`, ...TOUCH }}
           onPointerUp={(e) => { if (onTapPin) { e.stopPropagation(); onTapPin(l.id); } }}
           className={cn('absolute -translate-x-1/2 -translate-y-full flex flex-col items-center min-w-[44px] min-h-[44px] justify-end', !onTapPin && 'pointer-events-none')}>
-          <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap max-w-[120px] truncate', selectedId === l.id ? 'bg-amber-400 text-black' : 'bg-black/70 text-white', !l.discovered && 'opacity-60 italic')}>{l.name}</span>
-          <MapPin className={cn('w-5 h-5 drop-shadow', selectedId === l.id ? 'text-amber-300' : 'text-rose-400')} />
+          {(mode === 'full' || editor) && <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap max-w-[120px] truncate', selectedId === l.id ? 'bg-amber-400 text-black' : 'bg-black/70 text-white', !l.discovered && 'opacity-60 italic', editor && mode === 'background' && 'border border-dashed border-sky-300/70')}>{l.name}</span>}
+          <MapPin className={cn('w-5 h-5 drop-shadow', selectedId === l.id ? 'text-amber-300' : editor && mode === 'background' ? 'text-sky-300 opacity-80' : 'text-rose-400')} />
         </button>
-      ))}
+        );
+      })}
       {partyDot && (
         <div className="absolute pointer-events-none -translate-x-1/2 -translate-y-1/2 flex flex-col items-center" style={{ left: `${partyDot.x * 100}%`, top: `${partyDot.y * 100}%` }}>
           <span className="relative flex w-4 h-4">
@@ -195,7 +237,7 @@ function partyPoint(map: PartyCampaignMapApi, state: CampaignMapState): MapPoint
 
 // ───────────────────────── play view ─────────────────────────
 
-function PlayView({ map, state, onSetup }: { map: PartyCampaignMapApi; state: CampaignMapState | null; onSetup?: () => void }) {
+function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampaignMapApi; state: CampaignMapState | null; onSetup?: () => void; landscape?: boolean }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [pace, setPace] = useState<TravelPace | null>(null);
   const [busy, setBusy] = useState(false);
@@ -304,19 +346,25 @@ function PlayView({ map, state, onSetup }: { map: PartyCampaignMapApi; state: Ca
     );
   }
 
+  // Same element tree in both orientations so rotating never resets the chosen road or the countdown.
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between text-[12px] text-white/70">
+    <div className={cn(landscape ? 'grid h-full gap-3 grid-cols-[minmax(0,1fr)_minmax(230px,36%)] grid-rows-[auto_minmax(0,1fr)]' : 'flex flex-col gap-3')}
+      style={landscape ? { gridTemplateAreas: '"map head" "map info"' } : undefined}>
+      <div style={landscape ? { gridArea: 'head' } : undefined} className="flex items-center justify-between gap-2 text-[12px] text-white/70">
         <span className="font-cinzel text-amber-200 text-[13px]">{formatCampaignTime(view?.campaignMinute ?? state.campaignMinute)}</span>
         <span>{here ? byId.get(here)?.name : onRoad ? (onRoad.dayComplete ? 'Camped on the road' : 'On the road') : t ? 'Traveling' : 'Location unknown'}</span>
       </div>
-      {onRoad?.dayComplete && !t && <p className="text-[12px] rounded-lg bg-sky-500/10 border border-sky-400/30 text-sky-200 px-3 py-2">The travel day is over. The party stopped partway along the road.</p>}
-      <MapCanvas state={state} showAll={host} partyDot={partyPoint(map, state)} selectedId={selected}
+      <div style={landscape ? { gridArea: 'map' } : undefined} className={cn('min-w-0', landscape ? 'order-none flex items-start justify-center overflow-hidden' : 'order-2')}>
+      <MapCanvas state={state} showAll={host} fitHeight={landscape ? 'calc(100dvh - 4.25rem)' : undefined} partyDot={partyPoint(map, state)} selectedId={selected}
         highlightRouteId={t?.routeId ?? choice?.route.id ?? onRoad?.routeId ?? null}
         onTapPin={(id) => setSelected(options.some(o => o.to === id) ? id : null)} />
+      </div>
+      <div style={landscape ? { gridArea: 'info' } : undefined} className={cn('space-y-3 min-h-0', landscape ? 'overflow-y-auto overflow-x-hidden pb-2 pr-0.5' : 'order-3')}>
+      {onRoad?.dayComplete && !t && <p className="text-[12px] rounded-lg bg-sky-500/10 border border-sky-400/30 text-sky-200 px-3 py-2">The travel day is over. The party stopped partway along the road.</p>}
       {travelBox}
       {routeBox}
       {!t && !choice && options.length > 0 && <p className="text-[12px] text-white/50">Tap a connected place on the map to see the road{host ? ' and set out' : ''}.</p>}
+      </div>
     </div>
   );
 }
@@ -423,7 +471,7 @@ function HostSetup({ map, state, onInstallGuide, packUndo, setPackUndo }: { map:
               <Button size="sm" variant="ghost" className="min-h-[44px]" style={TOUCH} onClick={() => setMode({ kind: 'none' })}>Done</Button>
             </div>
           )}
-          <MapCanvas state={s} showAll partyDot={partyPoint(map, s)} onTapMap={mode.kind === 'none' || mode.kind === 'calibMiles' ? undefined : tapMap}
+          <MapCanvas state={s} showAll editor partyDot={partyPoint(map, s)} onTapMap={mode.kind === 'none' || mode.kind === 'calibMiles' ? undefined : tapMap}
             highlightRouteId={pathRoute?.id ?? null}
             extraPoints={mode.kind === 'calibB' ? [mode.a] : mode.kind === 'calibMiles' ? [mode.a, mode.b] : pathRoute ? routePath(pathRoute, byId).slice(1, -1) : undefined} />
           {pathRoute && cal && <p className="text-[12px] text-white/60">Traced length: {miles(polylineMiles(routePath(pathRoute, byId), cal) ?? 0)}</p>}
@@ -561,6 +609,16 @@ function LocationCard({ loc, state, map, pinning, onPin }: { loc: CampaignMapLoc
           </SelectContent>
         </Select>
       </div>
+      <label className="block text-[11px] text-white/50">Display on map
+        <Select value={locationOverlayMode(loc)} onValueChange={(v) => edit({ overlayMode: v as CampaignMapLocation['overlayMode'] })}>
+          <SelectTrigger className="min-h-[44px] mt-1"><SelectValue /></SelectTrigger>
+          <SelectContent className="z-[200]">
+            <SelectItem value="full">Full (pin and name)</SelectItem>
+            <SelectItem value="pin">Pin only</SelectItem>
+            <SelectItem value="background">Atlas background (printed on the map)</SelectItem>
+          </SelectContent>
+        </Select>
+      </label>
       <Input placeholder="Region" value={region} maxLength={80} onChange={(e) => setRegion(e.target.value)} onBlur={() => region !== (loc.region ?? '') && edit({ region: region.trim() || undefined })} className="min-h-[44px]" />
       <div>
         <Textarea placeholder="Description" value={desc} maxLength={600} onChange={(e) => setDesc(e.target.value)} onBlur={() => desc !== (loc.description ?? '') && edit({ description: desc.trim() || undefined })} className="min-h-[64px] text-[13px]" />
@@ -614,6 +672,15 @@ function RouteCard({ route, state, map, editingPath, onEditPath }: { route: Camp
       <label className="block text-[11px] text-white/50">Terrain (1 = open road, 1.5 hills, 2 forest)
         <Input inputMode="decimal" value={terrain} onChange={(e) => setTerrain(e.target.value)}
           onBlur={() => { const n = Number(terrain); if (Number.isFinite(n) && n > 0 && n <= 10 && n !== route.terrainFactor) void edit({ terrainFactor: n }); }} className="min-h-[44px] mt-1" />
+      </label>
+      <label className="block text-[11px] text-white/50">Display on map
+        <Select value={routeOverlayMode(route)} onValueChange={(v) => edit({ overlayMode: v as CampaignMapRoute['overlayMode'] })}>
+          <SelectTrigger className="min-h-[44px] mt-1"><SelectValue /></SelectTrigger>
+          <SelectContent className="z-[200]">
+            <SelectItem value="full">Full (draw the road)</SelectItem>
+            <SelectItem value="background">Atlas background (only show when chosen)</SelectItem>
+          </SelectContent>
+        </Select>
       </label>
       <Textarea placeholder="Road description" value={desc} maxLength={400} onChange={(e) => setDesc(e.target.value)}
         onBlur={() => desc !== (route.description ?? '') && edit({ description: desc.trim() || undefined })} className="min-h-[56px] text-[13px]" />
