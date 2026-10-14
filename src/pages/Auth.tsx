@@ -12,6 +12,7 @@ import { generateRecoveryCode } from '@/lib/recovery-code';
 import { isThistlepigUsername } from '@/lib/thistlepig';
 import { unlockThistlepig } from '@/lib/thistlepig-unlock';
 import { toast } from 'sonner';
+import { oauthReturnPath } from '@/lib/oauth-return-path';
 
 const usernameSchema = z
   .string()
@@ -34,6 +35,8 @@ function toAuthEmail(usernameOrEmail: string): string {
 export default function Auth() {
   const navigate = useNavigate();
   const { signIn, signUp, loading: authLoading } = useAuth();
+  const rawNext = new URLSearchParams(window.location.search).get('next');
+  const nextPath = rawNext ? (() => { const p = oauthReturnPath(rawNext); return p === '/' ? null : p; })() : null;
 
   const [view, setView] = useState<AuthView>('login');
   const [username, setUsername] = useState('');
@@ -87,6 +90,8 @@ export default function Auth() {
         setError(error.message.includes('Invalid login credentials')
           ? 'Username or password is incorrect.'
           : error.message);
+      } else if (nextPath) {
+        navigate(nextPath);
       } else {
         navigate('/roster', { state: { autoLoad: true } });
       }
@@ -101,7 +106,7 @@ export default function Auth() {
     setError(null); setLoading(true);
     try {
       const { error } = await lovable.auth.signInWithOAuth('google', {
-        redirect_uri: window.location.origin,
+        redirect_uri: nextPath ? new URL(nextPath, window.location.origin).href : window.location.origin,
       });
       if (error) { setError(error.message || 'Google sign-in failed.'); setLoading(false); }
     } catch {

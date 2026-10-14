@@ -18,6 +18,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const Features = lazy(() => import("./pages/Features"));
 const CharacterRoster = lazy(() => import("./pages/CharacterRoster"));
 const AICreationAssistant = lazy(() => import("./pages/AICreationAssistant"));
+const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 
 const queryClient = new QueryClient();
 
@@ -66,6 +67,7 @@ const App = () => {
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/recover-account" element={<RecoverAccount />} />
+                <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
