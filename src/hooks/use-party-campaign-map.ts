@@ -378,7 +378,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   // ── campaign saves ──
   /** A save-safe copy: travel in progress is frozen at this moment. */
   const exportSaveSnapshot = useCallback((): CampaignMapState | null => {
-    const s = rawState;
+    const s = stateRef.current;
     if (!s) return null;
     const settled = settleTravel(s, serverNow());
     return settled.activeTravel && settled.activeTravel.startedAt !== null
