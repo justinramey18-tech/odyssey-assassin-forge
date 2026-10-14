@@ -323,23 +323,57 @@ Deno.serve(async (req) => {
   // connectors send the header differently. Never logs either value.
   // Two independent keys are accepted (Claude's and ChatGPT's); each only
   // counts when configured.
+  const url = new URL(req.url);
+  const projectRef = (Deno.env.get('SUPABASE_URL') ?? '').match(/https:\/\/([a-z0-9]+)\./)?.[1] ?? 'sqvcszzbkyzidigsdqgk';
+  const issuer = `https://${projectRef}.supabase.co/auth/v1`;
+  const resourceUrl = `https://${projectRef}.supabase.co/functions/v1/claude-bridge`;
+  const metadataUrl = `${resourceUrl}/.well-known/oauth-protected-resource`;
+
+  // OAuth protected-resource metadata (RFC 9728) so ChatGPT can discover the
+  // login server. Public and contains no secrets.
+  if (req.method === 'GET' && url.pathname.endsWith('/.well-known/oauth-protected-resource')) {
+    return json({ resource: resourceUrl, authorization_servers: [issuer], bearer_methods_supported: ['header'] });
+  }
+
   const auth = req.headers.get('Authorization') ?? '';
   const validKeys = [
     Deno.env.get('CLAUDE_BRIDGE_KEY') ?? '',
     Deno.env.get('CHATGPT_BRIDGE_KEY') ?? '',
   ].filter((k) => k.length > 0);
-  const presented = /^bearer /i.test(auth) ? auth.slice(7) : auth;
-  const keyOk =
-    validKeys.length > 0 &&
-    validKeys.some((k) => presented === k || auth === k);
-  if (!keyOk) {
-    const shape = authShape(auth);
-    if (validKeys.length === 0) {
-      logOutcome(500, 'bridge-key-not-configured');
-      return json({ error: 'Server not configured' }, 500);
+  const presented = /^bearer /i.test(auth) ? auth.slice(7).trim() : auth;
+  let keyOk = validKeys.some((k) => presented === k || auth === k);
+
+  // OAuth path: a token issued by the app's login server through the approval
+  // screen. Must carry a client_id (copied app sessions are refused) and must
+  // belong to an approved owner account.
+  if (!keyOk && presented.split('.').length === 3) {
+    try {
+      const res = await fetch(`${issuer}/.well-known/jwks.json`);
+      const { createRemoteJWKSet, jwtVerify } = await import('npm:jose@5.9.6');
+      void res;
+      const jwks = createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks.json`));
+      const { payload } = await jwtVerify(presented, jwks, { issuer, audience: 'authenticated' });
+      const owners = (Deno.env.get('BRIDGE_OWNER_USER_IDS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+      const sub = String(payload.sub ?? '');
+      if (!payload.client_id) {
+        logOutcome(401, 'oauth-no-client-id');
+      } else if (!owners.includes(sub)) {
+        logOutcome(403, `oauth-not-owner user=${sub}`);
+        return json({ error: 'This account is not allowed to use the bridge.' }, 403);
+      } else {
+        keyOk = true;
+      }
+    } catch (e) {
+      logOutcome(401, `oauth-verify-failed ${(e as Error)?.name ?? ''}`);
     }
-    logOutcome(401, `bad-key auth-shape=${shape}`);
-    return json({ error: 'Unauthorized' }, 401);
+  }
+
+  if (!keyOk) {
+    logOutcome(401, `bad-key auth-shape=${authShape(auth)}`);
+    return json({ error: 'Unauthorized' }, 401, {
+      'WWW-Authenticate': `Bearer resource_metadata="${metadataUrl}"`,
+      'Access-Control-Expose-Headers': 'WWW-Authenticate, Mcp-Session-Id',
+    });
   }
 
   const requestSession = req.headers.get('mcp-session-id') ?? undefined;
