@@ -16,8 +16,9 @@ import type { PartyCampaignMapApi } from '@/hooks/use-party-campaign-map';
 import { MapPackAssistant, type MapPackUndo } from './MapPackAssistant';
 import {
   LOCATION_KINDS, TIME_COMPRESSION_PRESETS, TRAVEL_PACE_MPH,
-  activeCalibration, createCalibration, effectiveRouteMiles, formatCampaignTime, maxLegalLeg, gameToRealMs,
-  polylineMiles, sanitizeCampaignMapState, locationOverlayMode, routeOverlayMode, travelNow, withRoutePath,
+  activeCalibration, createCalibration, effectiveRouteMiles, formatCampaignTime, gameToRealMs, TRAVEL_DAY_MINUTES,
+  polylineMiles, sanitizeCampaignMapState, locationOverlayMode, routeOverlayMode, travelDetail, withRoutePath,
+  listReachableDestinations, summarizeJourney, remainingJourneyRouteIds, foldTravelToPosition,
   type CampaignMapLocation, type CampaignMapRoute, type CampaignMapState, type LocationKind, type MapPoint, type TravelPace,
 } from '@/lib/campaign-map';
 
@@ -147,7 +148,7 @@ function usePhoneLandscape(): boolean {
 
 // ───────────────────────── map canvas ─────────────────────────
 
-function MapCanvas({ state, showAll, editor = false, fitHeight, partyDot, selectedId, onTapPin, onTapMap, highlightRouteId, extraPoints, children }: {
+function MapCanvas({ state, showAll, editor = false, fitHeight, partyDot, selectedId, onTapPin, onTapMap, highlightRouteId, highlightRouteIds, extraPoints, children }: {
   state: CampaignMapState;
   showAll: boolean;
   /** Host Setup: atlas-background places and roads stay visible so they can be edited. */
@@ -158,7 +159,10 @@ function MapCanvas({ state, showAll, editor = false, fitHeight, partyDot, select
   selectedId?: string | null;
   onTapPin?: (id: string) => void;
   onTapMap?: (p: MapPoint) => void;
+  /** Strongest highlight (current/selected road). */
   highlightRouteId?: string | null;
+  /** Ordered roads of a planned/active journey; drawn highlighted but lighter than highlightRouteId. */
+  highlightRouteIds?: string[];
   extraPoints?: MapPoint[];
   children?: ReactNode;
 }) {
@@ -181,14 +185,15 @@ function MapCanvas({ state, showAll, editor = false, fitHeight, partyDot, select
         {routes.map(r => {
           const pts = routePath(r, byId);
           if (pts.length < 2) return null;
-          const hi = r.id === highlightRouteId;
+          const strong = r.id === highlightRouteId;
+          const hi = strong || !!highlightRouteIds?.includes(r.id);
           const bg = routeOverlayMode(r) === 'background';
           // Atlas roads are already painted on the picture; only draw them when chosen/active, or for the host editor.
           if (bg && !hi && !editor) return null;
           if (bg && !hi) return <polyline key={r.id} points={pts.map(p => `${p.x * 100},${p.y * 100}`).join(' ')} fill="none"
             stroke="rgba(125,211,252,0.6)" strokeDasharray="0.6 1.2" vectorEffect="non-scaling-stroke" style={{ strokeWidth: 2 }} />;
           return <polyline key={r.id} points={pts.map(p => `${p.x * 100},${p.y * 100}`).join(' ')} fill="none"
-            stroke={hi ? 'rgb(252 211 77)' : 'rgba(255,255,255,0.55)'} strokeWidth={hi ? 0.9 : 0.5} strokeDasharray={hi ? undefined : '1.5 1'} vectorEffect="non-scaling-stroke" style={{ strokeWidth: hi ? 3 : 2 }} />;
+            stroke={strong ? 'rgb(252 211 77)' : hi ? 'rgba(252,211,77,0.6)' : 'rgba(255,255,255,0.55)'} strokeWidth={hi ? 0.9 : 0.5} strokeDasharray={hi ? undefined : '1.5 1'} vectorEffect="non-scaling-stroke" style={{ strokeWidth: strong ? 3.5 : hi ? 2.5 : 2 }} />;
         })}
       </svg>
       {extraPoints?.map((p, i) => (
@@ -253,61 +258,74 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
   const host = map.canWrite;
   const byId = new Map(state.locations.map(l => [l.id, l]));
   const view = map.getViewState();
-  const cal = activeCalibration(state);
   const t = state.activeTravel;
+  const plan = state.journeyPlan;
+  const nameOf = (id: string | undefined | null) => (id && byId.get(id)?.name) || '?';
   const run = async (fn: () => Promise<{ ok: boolean; error?: string }>, okMsg?: string) => {
     setBusy(true);
     const r = await fn();
     setBusy(false);
     if (!r.ok) toast.error((r as { error: string }).error); else if (okMsg) toast.success(okMsg);
+    return r.ok;
   };
 
-  // Roads leaving where the party is now.
   const here = state.currentLocationId;
   const onRoad = state.currentRoutePosition;
-  const options = state.routes.flatMap(r => {
-    if (t) return [];
-    if (onRoad) return onRoad.routeId === r.id ? [{ route: r, to: r.fromLocationId }, { route: r, to: r.toLocationId }] : [];
-    if (here === r.fromLocationId) return [{ route: r, to: r.toLocationId }];
-    if (here === r.toLocationId) return [{ route: r, to: r.fromLocationId }];
-    return [];
-  }).filter(o => host || byId.get(o.to)?.discovered);
-  const choice = options.find(o => o.to === selected);
-  const usePace = pace ?? state.defaultPace;
+  const usePace = pace ?? plan?.pace ?? state.defaultPace;
+  // Whole discovered map: any reachable place, however many roads away. Only when not on a trip.
+  const reachable = !t && !plan ? listReachableDestinations(state, usePace) : [];
+  const reachableIds = new Set(reachable.map(r => r.location.id));
+  const preview = selected ? reachable.find(r => r.location.id === selected) ?? null : null;
+  const selectedUnreachable = !!selected && !preview && !t && !plan;
 
-  let travelBox: ReactNode = null;
-  if (t && view) {
-    const route = state.routes.find(r => r.id === t.routeId);
-    const total = route ? effectiveRouteMiles(route, cal) ?? 0 : 0;
-    const live = travelNow(t, Date.now());
-    const originId = route ? (t.reversed ? route.toLocationId : route.fromLocationId) : '';
-    const destId = route ? (t.reversed ? route.fromLocationId : route.toLocationId) : '';
-    const paused = t.startedAt === null;
-    travelBox = (
+  // ── active / paused / day-complete journey ──
+  let journeyBox: ReactNode = null;
+  if ((t || plan) && view) {
+    const live = t ? travelDetail(t, Date.now()) : null;
+    const stopped = t ? foldTravelToPosition(state, Date.now()) : state;
+    const sum = plan ? summarizeJourney(stopped, plan) : null;
+    const curRoute = state.routes.find(r => r.id === (live?.routeId ?? onRoad?.routeId));
+    const total = plan?.totalMiles ?? (sum ? sum.remainingMiles : 0);
+    const done = sum ? Math.max(0, total - sum.remainingMiles) : 0;
+    const pct = sum ? Math.round(sum.completedFraction * 100) : live ? Math.round(live.progress * 100) : 0;
+    const paused = !!t && t.startedAt === null;
+    const dayOver = !t && !!plan;
+    const legIdx = live?.legIndex ?? plan?.currentLegIndex ?? 0;
+    const ahead = plan ? plan.legs.slice(legIdx).map(l => nameOf(l.toLocationId)) : [];
+    const destName = plan ? nameOf(plan.destinationLocationId) : curRoute ? nameOf(live?.reversed ? curRoute.fromLocationId : curRoute.toLocationId) : '?';
+    journeyBox = (
       <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-amber-200 text-sm font-semibold truncate">{byId.get(originId)?.name ?? '?'} → {byId.get(destId)?.name ?? '?'}</p>
-          <span className={cn('text-[11px] px-2 py-0.5 rounded-full', paused ? 'bg-white/10 text-white/70' : view.legDone ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-200')}>
-            {paused ? 'Paused' : view.legDone ? 'Arrived' : 'On the road'}
+          <p className="text-amber-200 text-sm font-semibold truncate">Bound for {destName}</p>
+          <span className={cn('text-[11px] px-2 py-0.5 rounded-full shrink-0', dayOver ? 'bg-sky-500/20 text-sky-200' : paused ? 'bg-white/10 text-white/70' : view.legDone ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-200')}>
+            {dayOver ? 'Day complete' : paused ? 'Paused' : view.legDone ? 'Day ended' : 'On the road'}
           </span>
         </div>
-        <div className="h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-amber-400" style={{ width: `${Math.round(live.progress * 100)}%` }} /></div>
+        <div className="h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-amber-400" style={{ width: `${pct}%` }} /></div>
         <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[12px] text-white/70">
-          <span>Traveled: {miles(total * live.progress)}</span>
-          <span>Left: {miles(total * (1 - live.progress))}</span>
-          <span>Progress: {Math.round(live.progress * 100)}%</span>
-          <span>Real time left: {paused ? '—' : fmtMs((1 - live.fraction) * t.realDurationMs)}</span>
-          <span>In-world so far: {fmtGameMin(t.gameMinutes * live.fraction)}</span>
-          <span>Pace: {PACE_LABEL[t.pace]}</span>
-          <span>Terrain: ×{route?.terrainFactor ?? 1}</span>
-          <span>{t.endProgress < 1 ? 'Stops at day’s end' : 'Through to arrival'}</span>
+          {curRoute && <span className="col-span-2 truncate">Road: {nameOf(curRoute.fromLocationId)} – {nameOf(curRoute.toLocationId)}</span>}
+          <span>Traveled: {miles(done)}</span>
+          <span>Left: {sum ? miles(sum.remainingMiles) : '—'}</span>
+          <span>Journey: {pct}%</span>
+          <span>Day left: {t && !paused ? fmtMs((1 - (live?.fraction ?? 0)) * t.realDurationMs) : '—'}</span>
+          <span>Pace: {PACE_LABEL[t?.pace ?? plan?.pace ?? usePace]}</span>
+          <span>Terrain: ×{curRoute?.terrainFactor ?? 1}</span>
+          {sum && <span className="col-span-2">In-world travel left: {fmtGameMin(sum.remainingMinutes)}</span>}
         </div>
+        {ahead.length > 0 && <p className="text-[12px] text-white/60">Ahead: {ahead.join(' → ')}</p>}
+        {dayOver && (
+          <p className="text-[12px] rounded-lg bg-sky-500/10 border border-sky-400/30 text-sky-200 px-3 py-2">
+            The travel day is over. {host ? 'Continue Journey starts the next travel day. It does not rest or heal anyone; handle rests at the table.' : 'The host decides when the party presses on.'}
+          </p>
+        )}
         {host && (
           <div className="grid grid-cols-3 gap-2 pt-1">
-            {paused
-              ? <Button disabled={busy} onClick={() => run(map.resumeTravel)} className="min-h-[44px]" style={TOUCH}><Play className="w-4 h-4 mr-1" />Resume</Button>
-              : <Button disabled={busy} variant="secondary" onClick={() => run(map.pauseTravel)} className="min-h-[44px]" style={TOUCH}><Pause className="w-4 h-4 mr-1" />Pause</Button>}
-            <Button disabled={busy} variant="outline" onClick={() => run(map.cancelTravel, 'The party stops on the road.')} className="min-h-[44px]" style={TOUCH}><Square className="w-4 h-4 mr-1" />Stop</Button>
+            {dayOver
+              ? <Button disabled={busy} onClick={() => run(map.continueJourney, 'The party presses on.')} className="min-h-[44px]" style={TOUCH}><Play className="w-4 h-4 mr-1" />Continue</Button>
+              : paused
+                ? <Button disabled={busy} onClick={() => run(map.resumeTravel)} className="min-h-[44px]" style={TOUCH}><Play className="w-4 h-4 mr-1" />Resume</Button>
+                : <Button disabled={busy} variant="secondary" onClick={() => run(map.pauseTravel)} className="min-h-[44px]" style={TOUCH}><Pause className="w-4 h-4 mr-1" />Pause</Button>}
+            <Button disabled={busy} variant="outline" onClick={() => run(plan ? map.cancelJourney : map.cancelTravel, 'The party stops where it is.')} className="min-h-[44px]" style={TOUCH}><Square className="w-4 h-4 mr-1" />Stop</Button>
             <Button disabled={busy} variant="outline" onClick={() => run(map.finishTravelNow)} className="min-h-[44px]" style={TOUCH}><FastForward className="w-4 h-4 mr-1" />Finish</Button>
           </div>
         )}
@@ -315,38 +333,40 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
     );
   }
 
+  // ── preview before departure ──
   let routeBox: ReactNode = null;
-  if (choice) {
-    const total = effectiveRouteMiles(choice.route, cal);
-    const reversed = choice.route.fromLocationId === choice.to;
-    const fwd = onRoad ? onRoad.progress : reversed ? 1 : 0;
-    const startP = reversed ? 1 - fwd : fwd;
-    const leg = total ? maxLegalLeg(total, startP, usePace, choice.route.terrainFactor, 0) : null;
+  if (preview) {
+    const s = preview.summary;
+    const multiDay = s.remainingMinutes > TRAVEL_DAY_MINUTES + 1e-6;
     routeBox = (
       <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
-        <p className="text-white text-sm font-semibold flex items-center gap-1.5"><RouteIcon className="w-4 h-4 text-amber-300" />To {byId.get(choice.to)?.name}</p>
-        {choice.route.description && <p className="text-[12px] text-white/60">{choice.route.description}</p>}
-        {total === null ? <p className="text-[12px] text-rose-300">This road has no distance yet.</p> : leg && (
-          <p className="text-[12px] text-white/70">
-            {miles(total * (1 - startP))} to go · terrain ×{choice.route.terrainFactor} · {fmtGameMin(leg.gameMinutes)} in-world
-            ({fmtMs(gameToRealMs(leg.gameMinutes, state.realMinutesPerGameHour))} real){!leg.reachesEnd && ' · stops partway at the end of the travel day'}
-          </p>
-        )}
-        {host && (
+        <p className="text-white text-sm font-semibold flex items-center gap-1.5"><RouteIcon className="w-4 h-4 text-amber-300" />To {preview.location.name}</p>
+        <p className="text-[12px] text-white/60">Via {s.locationNames.join(' → ')}</p>
+        <p className="text-[12px] text-white/70">
+          {preview.plan.legs.length} road{preview.plan.legs.length === 1 ? '' : 's'} · {miles(s.remainingMiles)} · {fmtGameMin(s.remainingMinutes)} in-world travel at {PACE_LABEL[usePace].toLowerCase()} pace
+          ({fmtMs(gameToRealMs(s.remainingMinutes, state.realMinutesPerGameHour))} real travel time)
+        </p>
+        {multiDay && <p className="text-[12px] text-sky-200">Odyssey will stop the journey when the travel day ends. Continue after the party rests/chooses to press on.</p>}
+        {host ? (
           <div className="flex gap-2">
             <Select value={usePace} onValueChange={(v) => setPace(v as TravelPace)}>
               <SelectTrigger className="min-h-[44px] flex-1"><SelectValue /></SelectTrigger>
               <SelectContent className="z-[200]">{PACES.map(p => <SelectItem key={p} value={p}>{PACE_LABEL[p]} ({TRAVEL_PACE_MPH[p]} mph)</SelectItem>)}</SelectContent>
             </Select>
-            <Button disabled={busy || total === null} className="min-h-[44px] flex-1" style={TOUCH}
-              onClick={() => run(() => map.startTravel(choice.route.id, choice.to, usePace), 'The party sets out.').then(() => setSelected(null))}>Start travel</Button>
+            <Button disabled={busy} className="min-h-[44px] flex-1" style={TOUCH}
+              onClick={() => run(() => map.startJourney(preview.location.id, usePace), 'The party sets out.').then(ok => { if (ok) setSelected(null); })}>Begin Journey</Button>
           </div>
-        )}
+        ) : <p className="text-[11px] text-white/50">The host starts the journey.</p>}
       </div>
     );
   }
 
-  // Same element tree in both orientations so rotating never resets the chosen road or the countdown.
+  const highlight = plan
+    ? remainingJourneyRouteIds(plan, (t ? travelDetail(t, Date.now()).legIndex : undefined) ?? plan.currentLegIndex)
+    : preview ? preview.plan.legs.map(l => l.routeId) : undefined;
+  const strong = t ? travelDetail(t, Date.now()).routeId : onRoad?.routeId ?? null;
+
+  // Same element tree in both orientations so rotating never resets the chosen place or the countdown.
   return (
     <div className={cn(landscape ? 'grid h-full gap-3 grid-cols-[minmax(0,1fr)_minmax(230px,36%)] grid-rows-[auto_minmax(0,1fr)]' : 'flex flex-col gap-3')}
       style={landscape ? { gridTemplateAreas: '"map head" "map info"' } : undefined}>
@@ -356,14 +376,33 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
       </div>
       <div style={landscape ? { gridArea: 'map' } : undefined} className={cn('min-w-0', landscape ? 'order-none flex items-start justify-center overflow-hidden' : 'order-2')}>
       <MapCanvas state={state} showAll={host} fitHeight={landscape ? 'calc(100dvh - 4.25rem)' : undefined} partyDot={partyPoint(map, state)} selectedId={selected}
-        highlightRouteId={t?.routeId ?? choice?.route.id ?? onRoad?.routeId ?? null}
-        onTapPin={(id) => setSelected(options.some(o => o.to === id) ? id : null)} />
+        highlightRouteId={strong} highlightRouteIds={highlight}
+        onTapPin={(id) => {
+          if (t || plan) return;
+          const l = byId.get(id);
+          if (reachableIds.has(id) || (host && l)) setSelected(id); else setSelected(null);
+        }} />
       </div>
       <div style={landscape ? { gridArea: 'info' } : undefined} className={cn('space-y-3 min-h-0', landscape ? 'overflow-y-auto overflow-x-hidden pb-2 pr-0.5' : 'order-3')}>
-      {onRoad?.dayComplete && !t && <p className="text-[12px] rounded-lg bg-sky-500/10 border border-sky-400/30 text-sky-200 px-3 py-2">The travel day is over. The party stopped partway along the road.</p>}
-      {travelBox}
+      {onRoad?.dayComplete && !t && !plan && <p className="text-[12px] rounded-lg bg-sky-500/10 border border-sky-400/30 text-sky-200 px-3 py-2">The travel day is over. The party stopped partway along the road.</p>}
+      {journeyBox}
       {routeBox}
-      {!t && !choice && options.length > 0 && <p className="text-[12px] text-white/50">Tap a connected place on the map to see the road{host ? ' and set out' : ''}.</p>}
+      {selectedUnreachable && <p className="text-[12px] rounded-lg bg-white/5 border border-white/10 text-white/70 px-3 py-2">{nameOf(selected)}: No known route.</p>}
+      {!t && !plan && reachable.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-[12px] text-white/50">Destinations — tap one{host ? ' to see the route and set out' : ' to see the route'}.</p>
+          <div className="flex flex-wrap gap-2">
+            {reachable.map(r => (
+              <button key={r.location.id} type="button" onClick={() => setSelected(r.location.id)} style={TOUCH}
+                className={cn('min-h-[44px] px-3 rounded-lg border text-[12px] text-left', selected === r.location.id ? 'bg-amber-500/20 border-amber-400/50 text-amber-100' : 'bg-white/5 border-white/10 text-white/80')}>
+                <span className="font-semibold">{r.location.name}</span>
+                <span className="block text-[11px] text-white/50">{miles(r.summary.remainingMiles)} · {r.plan.legs.length} road{r.plan.legs.length === 1 ? '' : 's'}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {!t && !plan && reachable.length === 0 && (here || onRoad) && <p className="text-[12px] text-white/50">No known roads lead anywhere from here yet.</p>}
       </div>
     </div>
   );
