@@ -321,16 +321,20 @@ Deno.serve(async (req) => {
   // Private-key gate: every request must carry the bridge key. Accepts the
   // "Bearer <key>" form (case-insensitive scheme) or the bare key, since some
   // connectors send the header differently. Never logs either value.
+  // Two independent keys are accepted (Claude's and ChatGPT's); each only
+  // counts when configured.
   const auth = req.headers.get('Authorization') ?? '';
-  const expected = Deno.env.get('CLAUDE_BRIDGE_KEY') ?? '';
+  const validKeys = [
+    Deno.env.get('CLAUDE_BRIDGE_KEY') ?? '',
+    Deno.env.get('CHATGPT_BRIDGE_KEY') ?? '',
+  ].filter((k) => k.length > 0);
+  const presented = /^bearer /i.test(auth) ? auth.slice(7) : auth;
   const keyOk =
-    !!expected &&
-    (auth === `Bearer ${expected}` ||
-      auth.toLowerCase() === `bearer ${expected}` ||
-      auth === expected);
+    validKeys.length > 0 &&
+    validKeys.some((k) => presented === k || auth === k);
   if (!keyOk) {
     const shape = authShape(auth);
-    if (!expected) {
+    if (validKeys.length === 0) {
       logOutcome(500, 'bridge-key-not-configured');
       return json({ error: 'Server not configured' }, 500);
     }
