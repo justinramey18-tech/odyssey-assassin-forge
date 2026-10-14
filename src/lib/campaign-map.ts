@@ -592,20 +592,33 @@ export function buildDmLogisticsContext(state: CampaignMapState, nowMs: number =
   const lines: string[] = ['[CAMPAIGN MAP — AUTHORITATIVE FACTS, set by the app. Do not contradict, move the party, or start/finish journeys yourself; the host controls travel.]'];
   const t = state.activeTravel;
   let minute = state.campaignMinute;
+  const plan = state.journeyPlan;
+  if (plan) {
+    const sum = summarizeJourney(t ? foldTravelToPosition(state, nowMs) : state);
+    const dest = name(plan.destinationLocationId);
+    lines.push(`Journey: the party is bound for ${dest} (final destination) at a ${plan.pace} pace, via ${sum?.locationNames.join(' → ') ?? dest}.`);
+    if (sum) lines.push(`Journey progress: ${Math.round(sum.completedFraction * 100)}% overall; about ${Math.round(sum.remainingMiles)} mi and ${Math.round(sum.remainingMinutes / 60 * 10) / 10} in-world travel hours remain.`);
+    lines.push(`Arrival at ${dest} is NOT allowed until the app reports the party has reached it. Intermediate towns are passed through, not stopped at, unless the host stops the journey.`);
+  }
   if (t) {
-    const route = state.routes.find(r => r.id === t.routeId);
-    const now = travelNow(t, nowMs);
+    const now = travelDetail(t, nowMs);
+    const route = state.routes.find(r => r.id === now.routeId);
     minute = now.campaignMinute;
-    const from = route ? name(t.reversed ? route.toLocationId : route.fromLocationId) : 'somewhere';
-    const to = route ? name(t.reversed ? route.fromLocationId : route.toLocationId) : 'somewhere';
+    const from = route ? name(now.reversed ? route.toLocationId : route.fromLocationId) : 'somewhere';
+    const to = route ? name(now.reversed ? route.fromLocationId : route.toLocationId) : 'somewhere';
     const miles = route ? effectiveRouteMiles(route, cal) : null;
     const status = t.startedAt === null ? 'PAUSED on the road' : now.done ? 'leg just finished (awaiting host update)' : 'MOVING';
-    lines.push(`Status: en route from ${from} to ${to} — ${status}.`);
+    lines.push(`Status: en route from ${from} to ${to}${t.segments && t.segments.length > 1 ? ` (road ${now.segmentIndex + 1} of ${t.segments.length} today)` : ''} — ${status}.`);
     lines.push(`Progress: ${Math.round(now.progress * 100)}% of the road${miles !== null ? ` (${Math.round(miles * now.progress)} mi traveled, ${Math.round(routeMilesRemaining(miles, now.progress))} mi remaining)` : ''}.`);
     lines.push(`Pace: ${t.pace}; terrain ×${route?.terrainFactor ?? 1}${route?.description ? `; road: ${route.description.slice(0, 160)}` : ''}.`);
-    if (t.endProgress < 1) lines.push(`This leg stops partway when the 8-hour travel day ends; the party will NOT reach ${to} today.`);
-    const arrived = now.done && t.endProgress >= 1;
-    lines.push(arrived ? `Arrival at ${to} is allowed.` : `Arrival at ${to} is NOT allowed yet — narrate the roadside position only.`);
+    const last = t.segments?.length ? t.segments[t.segments.length - 1] : t;
+    const lastRoute = state.routes.find(r => r.id === (t.segments?.length ? t.segments[t.segments.length - 1].routeId : t.routeId));
+    const dayEnd = lastRoute ? name(last.reversed ? lastRoute.fromLocationId : lastRoute.toLocationId) : to;
+    const reachesFinal = !plan || (last.endProgress >= 1 && dayEnd === name(plan.destinationLocationId));
+    if (last.endProgress < 1) lines.push(`This travel day stops partway when the 8-hour travel day ends; the party will NOT reach ${plan ? name(plan.destinationLocationId) : dayEnd} today.`);
+    const arrived = now.done && last.endProgress >= 1 && reachesFinal;
+    const target = plan ? name(plan.destinationLocationId) : to;
+    lines.push(arrived ? `Arrival at ${target} is allowed.` : `Arrival at ${target} is NOT allowed yet — narrate the road only.`);
   } else if (state.currentRoutePosition) {
     const p = state.currentRoutePosition;
     const route = state.routes.find(r => r.id === p.routeId);
@@ -613,9 +626,11 @@ export function buildDmLogisticsContext(state: CampaignMapState, nowMs: number =
     lines.push(`Status: stopped on the road between ${route ? name(route.fromLocationId) : '?'} and ${route ? name(route.toLocationId) : '?'}${p.dayComplete ? ' — the 8-hour travel day has ended' : ''}.`);
     if (miles !== null) lines.push(`Position: ${Math.round(miles * p.progress)} mi from ${route ? name(route.fromLocationId) : '?'}, ${Math.round(miles * (1 - p.progress))} mi from ${route ? name(route.toLocationId) : '?'}.`);
     lines.push('Arrival at either end is NOT allowed until the host continues travel.');
+    if (plan) lines.push(`The party is still en route to ${name(plan.destinationLocationId)}; the journey continues when the host continues it.`);
   } else if (state.currentLocationId && byId.get(state.currentLocationId)) {
     const here = byId.get(state.currentLocationId)!;
-    lines.push(`Status: at ${here.name}${here.region ? ` (${here.region})` : ''}. Not traveling.`);
+    lines.push(plan ? `Status: stopped at ${here.name}${plan.dayComplete ? ' — the 8-hour travel day has ended' : ''}; still en route to ${name(plan.destinationLocationId)}.`
+      : `Status: at ${here.name}${here.region ? ` (${here.region})` : ''}. Not traveling.`);
     const known = state.routes.filter(r => r.fromLocationId === here.id || r.toLocationId === here.id).slice(0, 8).map(r => {
       const other = byId.get(r.fromLocationId === here.id ? r.toLocationId : r.fromLocationId);
       if (!other?.discovered) return null;
@@ -628,4 +643,219 @@ export function buildDmLogisticsContext(state: CampaignMapState, nowMs: number =
   }
   lines.splice(1, 0, `Campaign time: ${formatCampaignTime(minute)}.`);
   return lines.join('\n');
+}
+
+
+// ── multi-road journeys ──
+
+const EPS = 1e-6;
+const HERE = '__here__';
+
+/** Location ids where the party may start/continue: from a town, or from a point on a road. */
+function journeyStartProgress(state: CampaignMapState, leg: JourneyLeg): number {
+  const p = state.currentRoutePosition;
+  if (p && p.routeId === leg.routeId) return clamp01(leg.reversed ? 1 - p.progress : p.progress);
+  return 0;
+}
+
+interface PathLabel { minutes: number; miles: number; key: string; prev: string | null; via: JourneyLeg | null }
+const better = (a: { minutes: number; miles: number; key: string }, b: { minutes: number; miles: number; key: string }) =>
+  a.minutes < b.minutes - EPS || (Math.abs(a.minutes - b.minutes) <= EPS && (a.miles < b.miles - EPS || (Math.abs(a.miles - b.miles) <= EPS && a.key < b.key)));
+
+/**
+ * Fastest discovered-road plan from the party's exact position to a discovered destination.
+ * Cost = in-world travel minutes at this pace (terrain included); ties → fewer miles → stable ids. Null = unreachable.
+ */
+export function planJourneyRoute(state: CampaignMapState, destinationLocationId: string, pace: TravelPace = state.defaultPace): JourneyPlan | null {
+  if (state.activeTravel) return null;
+  const byId = new Map(state.locations.map(l => [l.id, l]));
+  const dest = byId.get(destinationLocationId);
+  if (!dest || !dest.discovered) return null;
+  const pos = state.currentRoutePosition;
+  const startNode = pos ? HERE : state.currentLocationId;
+  if (!startNode || (!pos && !byId.has(startNode))) return null;
+  if (!pos && destinationLocationId === state.currentLocationId) return null;
+  const cal = activeCalibration(state);
+  const usable = (id: string) => (byId.get(id)?.discovered ?? false) || id === state.currentLocationId;
+
+  // Undirected graph of roads with a known distance between usable endpoints.
+  type Edge = { to: string; minutes: number; miles: number; leg: JourneyLeg };
+  const adj = new Map<string, Edge[]>();
+  const add = (from: string, e: Edge) => { const l = adj.get(from) ?? []; l.push(e); adj.set(from, l); };
+  for (const r of [...state.routes].sort((a, b) => a.id.localeCompare(b.id))) {
+    const miles = effectiveRouteMiles(r, cal);
+    if (miles === null) continue;
+    const minutes = travelGameMinutes(miles, pace, r.terrainFactor);
+    if (pos && r.id === pos.routeId) {
+      // Virtual start on this road: partial distance to either end, never a jump to an endpoint.
+      const toB = 1 - pos.progress, toA = pos.progress;
+      if (usable(r.toLocationId) && toB > EPS) add(HERE, { to: r.toLocationId, minutes: minutes * toB, miles: miles * toB, leg: { routeId: r.id, fromLocationId: r.fromLocationId, toLocationId: r.toLocationId, reversed: false } });
+      if (usable(r.fromLocationId) && toA > EPS) add(HERE, { to: r.fromLocationId, minutes: minutes * toA, miles: miles * toA, leg: { routeId: r.id, fromLocationId: r.toLocationId, toLocationId: r.fromLocationId, reversed: true } });
+      continue;
+    }
+    if (!usable(r.fromLocationId) || !usable(r.toLocationId)) continue;
+    add(r.fromLocationId, { to: r.toLocationId, minutes, miles, leg: { routeId: r.id, fromLocationId: r.fromLocationId, toLocationId: r.toLocationId, reversed: false } });
+    add(r.toLocationId, { to: r.fromLocationId, minutes, miles, leg: { routeId: r.id, fromLocationId: r.toLocationId, toLocationId: r.fromLocationId, reversed: true } });
+  }
+
+  const labels = new Map<string, PathLabel>([[startNode, { minutes: 0, miles: 0, key: '', prev: null, via: null }]]);
+  const done = new Set<string>();
+  for (;;) {
+    let cur: string | null = null;
+    for (const [id, l] of labels) if (!done.has(id) && (cur === null || better(l, labels.get(cur)!))) cur = id;
+    if (cur === null) break;
+    if (cur === destinationLocationId) break;
+    done.add(cur);
+    const here = labels.get(cur)!;
+    for (const e of adj.get(cur) ?? []) {
+      if (done.has(e.to) || e.to === startNode) continue;
+      const cand = { minutes: here.minutes + e.minutes, miles: here.miles + e.miles, key: `${here.key}|${e.leg.routeId}>${e.to}`, prev: cur, via: e.leg };
+      const old = labels.get(e.to);
+      if (!old || better(cand, old)) labels.set(e.to, cand);
+    }
+  }
+  const end = labels.get(destinationLocationId);
+  if (!end || !end.via) return null;
+  const legs: JourneyLeg[] = [];
+  for (let n: string | null = destinationLocationId; n && labels.get(n)?.via; n = labels.get(n)!.prev) legs.unshift(labels.get(n)!.via!);
+  return { destinationLocationId, pace, legs, currentLegIndex: 0, totalMiles: end.miles };
+}
+
+export interface JourneySummary {
+  remainingMiles: number;
+  remainingMinutes: number;
+  locationNames: string[];
+  roadIds: string[];
+  completedFraction: number;
+}
+
+/** Remaining distance/time from the state's stopped position (fold running travel first). Null if a road lost its distance. */
+export function summarizeJourney(state: CampaignMapState, plan: JourneyPlan | undefined = state.journeyPlan): JourneySummary | null {
+  if (!plan) return null;
+  const byId = new Map(state.locations.map(l => [l.id, l]));
+  const routes = new Map(state.routes.map(r => [r.id, r]));
+  const cal = activeCalibration(state);
+  let miles = 0, minutes = 0;
+  for (let i = plan.currentLegIndex; i < plan.legs.length; i++) {
+    const leg = plan.legs[i], route = routes.get(leg.routeId);
+    const m = route ? effectiveRouteMiles(route, cal) : null;
+    if (!route || m === null) return null;
+    const left = routeMilesRemaining(m, i === plan.currentLegIndex ? journeyStartProgress(state, leg) : 0);
+    miles += left; minutes += travelGameMinutes(left, plan.pace, route.terrainFactor);
+  }
+  const names = [plan.legs[0].fromLocationId, ...plan.legs.map(l => l.toLocationId)].map(id => byId.get(id)?.name ?? '?');
+  const total = plan.totalMiles && plan.totalMiles > 0 ? plan.totalMiles : miles;
+  return { remainingMiles: miles, remainingMinutes: minutes, locationNames: names, roadIds: plan.legs.map(l => l.routeId),
+    completedFraction: total > 0 ? clamp01(1 - miles / total) : 1 };
+}
+
+export interface JourneyTranche { segments: TravelSegment[]; gameMinutes: number; miles: number; reachesDestination: boolean }
+
+/** The next legal travel day: consecutive roads until the destination or the 8-hour cap. Null if a road has no distance. */
+export function buildJourneyTranche(state: CampaignMapState, plan: JourneyPlan): JourneyTranche | null {
+  const routes = new Map(state.routes.map(r => [r.id, r]));
+  const cal = activeCalibration(state);
+  const segments: TravelSegment[] = [];
+  let used = 0, miles = 0, reaches = false;
+  for (let i = plan.currentLegIndex; i < plan.legs.length; i++) {
+    const leg = plan.legs[i], route = routes.get(leg.routeId);
+    const total = route ? effectiveRouteMiles(route, cal) : null;
+    if (!route || total === null) return null;
+    const start = i === plan.currentLegIndex ? journeyStartProgress(state, leg) : 0;
+    const l = maxLegalLeg(total, start, plan.pace, route.terrainFactor, used);
+    if (l.gameMinutes > 0) {
+      segments.push({ routeId: leg.routeId, reversed: leg.reversed, startProgress: start, endProgress: l.endProgress, distanceMiles: l.miles, gameMinutes: l.gameMinutes, legIndex: i });
+      used += l.gameMinutes; miles += l.miles;
+    }
+    if (!l.reachesEnd) break;
+    if (i === plan.legs.length - 1) reaches = true;
+  }
+  return { segments, gameMinutes: used, miles, reachesDestination: reaches };
+}
+
+/** An unanchored ActiveTravel for a tranche (startedAt null until the server stamps it). */
+export function trancheToTravel(tr: JourneyTranche, pace: TravelPace, campaignMinute: number, realMinutesPerGameHour: number): ActiveTravel {
+  const first = tr.segments[0];
+  return {
+    routeId: first.routeId, reversed: first.reversed, pace, startProgress: first.startProgress, endProgress: first.endProgress,
+    startedAt: null, pausedFraction: 0, realDurationMs: gameToRealMs(tr.gameMinutes, realMinutesPerGameHour),
+    gameMinutes: tr.gameMinutes, startCampaignMinute: campaignMinute, segments: tr.segments,
+  };
+}
+
+/** Put the party exactly where a travel detail says (town at a road end, otherwise on the road). */
+function placeAt(next: CampaignMapState, route: CampaignMapRoute | undefined, d: { forwardProgress: number; progress: number; reversed: boolean }, dayComplete: boolean) {
+  delete next.currentRoutePosition;
+  if (!route) return;
+  if (d.progress >= 1 - EPS) { next.currentLocationId = d.reversed ? route.fromLocationId : route.toLocationId; return; }
+  next.currentLocationId = null;
+  next.currentRoutePosition = { routeId: route.id, progress: clamp01(d.forwardProgress), ...(dayComplete ? { dayComplete: true } : {}) };
+}
+
+/** Running/paused travel folded into a stopped position at this time (journey plan kept and advanced). */
+export function foldTravelToPosition(state: CampaignMapState, nowMs: number, dayComplete = false): CampaignMapState {
+  const t = state.activeTravel;
+  if (!t) return state;
+  const d = travelDetail(t, nowMs);
+  const next: CampaignMapState = { ...state, campaignMinute: d.campaignMinute };
+  delete next.activeTravel;
+  placeAt(next, state.routes.find(r => r.id === d.routeId), d, dayComplete);
+  const plan = state.journeyPlan;
+  if (plan) {
+    let idx = d.legIndex ?? plan.currentLegIndex;
+    if (d.progress >= 1 - EPS) idx += 1;
+    if (idx >= plan.legs.length || next.currentLocationId === plan.destinationLocationId) {
+      delete next.journeyPlan;
+      next.currentLocationId = plan.destinationLocationId;
+      delete next.currentRoutePosition;
+    } else {
+      next.journeyPlan = { ...plan, currentLegIndex: idx, ...(dayComplete ? { dayComplete: true } : {}) };
+    }
+  }
+  return next;
+}
+
+/** A finished tranche (by server time) saved into the state. Old single-road travel behaves as before. */
+export function settleTravelState(s: CampaignMapState, now: number): CampaignMapState {
+  const t = s.activeTravel;
+  if (!t) return s;
+  const live = travelNow(t, now);
+  if (!live.done) return s;
+  if (t.segments?.length) {
+    const finished: CampaignMapState = { ...s, activeTravel: { ...t, startedAt: null, pausedFraction: 1 } };
+    const last = t.segments[t.segments.length - 1];
+    return foldTravelToPosition(finished, now, last.endProgress < 1 - EPS || !!s.journeyPlan);
+  }
+  const route = s.routes.find(r => r.id === t.routeId);
+  const next: CampaignMapState = { ...s, campaignMinute: t.startCampaignMinute + t.gameMinutes };
+  delete next.activeTravel;
+  if (!route) return next;
+  if (t.endProgress >= 1) {
+    next.currentLocationId = t.reversed ? route.fromLocationId : route.toLocationId;
+    delete next.currentRoutePosition;
+  } else {
+    next.currentLocationId = null;
+    next.currentRoutePosition = { routeId: route.id, progress: t.reversed ? 1 - t.endProgress : t.endProgress, dayComplete: true };
+  }
+  return next;
+}
+
+/** Host override: the whole remaining journey completes; the clock advances by all remaining travel time. No rests or resources. */
+export function finishJourneyState(s: CampaignMapState, now: number): CampaignMapState | string {
+  const stopped = foldTravelToPosition(s, now);
+  const plan = stopped.journeyPlan;
+  if (!plan) return stopped;
+  const sum = summarizeJourney(stopped, plan);
+  if (!sum) return 'A road on this journey has no distance. Set its miles first.';
+  const next: CampaignMapState = { ...stopped, campaignMinute: stopped.campaignMinute + sum.remainingMinutes, currentLocationId: plan.destinationLocationId };
+  delete next.currentRoutePosition; delete next.journeyPlan; delete next.activeTravel;
+  return next;
+}
+
+/** Roads and places a journey (or the active trip) depends on, for edit guards. */
+export function journeyLocks(s: CampaignMapState): { routeIds: Set<string>; locationIds: Set<string> } {
+  const routeIds = new Set<string>(), locationIds = new Set<string>();
+  for (const l of s.journeyPlan?.legs ?? []) { routeIds.add(l.routeId); locationIds.add(l.fromLocationId); locationIds.add(l.toLocationId); }
+  if (s.activeTravel) { routeIds.add(s.activeTravel.routeId); s.activeTravel.segments?.forEach(x => routeIds.add(x.routeId)); }
+  return { routeIds, locationIds };
 }
