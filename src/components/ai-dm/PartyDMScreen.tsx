@@ -61,6 +61,7 @@ import { usePartyNpcs } from '@/hooks/use-party-npcs';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { usePartyPresence } from '@/hooks/use-party-presence';
 import { RoundChatDrawer, type RoundChatDrawerHandle } from './RoundChatDrawer';
+import type { PartyCampaignMapApi } from '@/hooks/use-party-campaign-map';
 import { OverlaySlot, useOverlayChange, useOverlayGanglion } from '@/hooks/use-overlay-ganglion';
 import type { ActionMenuChoice } from './ActionMenuSheet';
 import { DMHandoffBar } from './DMHandoffBar';
@@ -156,6 +157,7 @@ const SplitSummariesViewer = lazyPanel(() => import('./PartySplitUI').then(m => 
 const PreSplitChatViewer = lazyPanel(() => import('./PartySplitUI').then(m => m.PreSplitChatViewer));
 const InfinityStoneDMDrawer = lazyPanel(() => import('./InfinityStoneDMDrawer').then(m => m.InfinityStoneDMDrawer));
 const OraclePanel = lazyPanel(() => import('@/components/oracle/OraclePanel').then(m => m.OraclePanel));
+const CampaignMapPanel = lazyPanel(() => import('./CampaignMapPanel').then(m => m.CampaignMapPanel));
 const PartyDMSettings = lazyPanel(() => import('./PartyDMSettings').then(m => m.PartyDMSettings));
 const ToolsGroupHeader = lazyPanel(() => import('./PartyDMSettings').then(m => m.ToolsGroupHeader));
 const PartyMemoryAnchorsPanel = lazyPanel(() => import('./PartyMemoryAnchorsPanel').then(m => m.PartyMemoryAnchorsPanel));
@@ -225,6 +227,10 @@ export interface PartyDMRuntimeOverrides {
 interface PartyDMScreenProps {
   initialLiveTableOpen?: boolean;
   runtimeOverrides?: PartyDMRuntimeOverrides;
+  /** Shared world map (absent in practice). */
+  campaignMap?: PartyCampaignMapApi;
+  /** Original host only; called only after explicit approval (Map Pack). */
+  onInstallCampaignMapGuide?: (name: string, content: string, customId?: string) => boolean;
   onBack: () => void;
   /** Re-read the DM's latest response and pull quests out of it. */
   onScanQuests?: () => void;
@@ -1331,9 +1337,10 @@ type PartyOverlays = {
   quickRecap: undefined;
   dmAssistant: undefined;
   npcRoster: undefined;
+  campaignMap: undefined;
 };
 
-export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, onBack, partyId: partyIdProp, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, onOpenDirector, hasPendingRedoRequest, onScanQuests, worldState = [] }: PartyDMScreenProps) {
+export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, campaignMap, onInstallCampaignMapGuide, onBack, partyId: partyIdProp, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, onOpenDirector, hasPendingRedoRequest, onScanQuests, worldState = [] }: PartyDMScreenProps) {
   const practiceMode = runtimeOverrides?.practiceMode === true;
   const [sparringOpen, setSparringOpen] = useState<null | 'host' | { sessionId: string; hostName: string }>(null);
   const sparringLink = useSparringLink(practiceMode ? null : partyIdProp, currentUserId);
@@ -3029,6 +3036,7 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
   const renderPartySettings = (layout: 'settings' | 'toolsScreen' = 'settings') => (
             <PartyDMSettings
               layout={layout}
+              onShowMap={campaignMap && !practiceMode ? () => overlays.open('campaignMap') : undefined}
               offlineNarration={{
                 count: messageNarration.offlineCount,
                 total: messageNarration.totalClips,
@@ -5440,6 +5448,13 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
             onApply={handleAssistantApply}
             aiDmWriting={partyDm.isGenerating}
           />
+        )}</OverlaySlot>
+      )}
+
+      {/* Campaign Map (everyone views; original host edits) */}
+      {campaignMap && !practiceMode && (
+        <OverlaySlot ganglion={overlays} name="campaignMap">{(open, setOpen) => (
+          <CampaignMapPanel open={open} onOpenChange={setOpen} map={campaignMap} onInstallGuide={campaignMap.canWrite ? onInstallCampaignMapGuide : undefined} />
         )}</OverlaySlot>
       )}
 

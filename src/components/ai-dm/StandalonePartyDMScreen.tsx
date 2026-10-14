@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useGMGuides } from '@/hooks/use-gm-guides';
+import { usePartyCampaignMap } from '@/hooks/use-party-campaign-map';
 import { usePartyMemoryAnchors } from '@/hooks/use-party-memory-anchors';
 import { usePartyMemoryExtraction } from '@/hooks/use-party-memory-extraction';
 import { usePartyDm } from '@/hooks/use-party-dm';
@@ -291,6 +292,14 @@ export function StandalonePartyDMScreen({
   // GM Guides — co-hosts load the host's guides via ownerUserId
   const gmGuidesOwner = isCoHost && partyCreatorId ? partyCreatorId : undefined;
   const gmGuides = useGMGuides(gmGuidesOwner, sessionMode);
+  const campaignMap = usePartyCampaignMap(partyId, userId);
+  const addGuideRef = useRef(gmGuides.addGuide);
+  addGuideRef.current = gmGuides.addGuide;
+  // Host-only, explicit-approval install for Map Pack guides. Never called automatically.
+  const onInstallCampaignMapGuide = useCallback((name: string, content: string, customId?: string): boolean => {
+    if (!isPartyCreator || !campaignMap.canWrite) return false;
+    return addGuideRef.current(name, content, customId);
+  }, [isPartyCreator, campaignMap.canWrite]);
 
   const oocDmChat = useOocDmChat({
     characterContext,
@@ -970,6 +979,8 @@ ${truncated}`);
         initialLiveTableOpen={initialLiveTableOpen}
         onBack={onBack}
         partyId={partyId}
+        campaignMap={campaignMap}
+        onInstallCampaignMapGuide={isPartyCreator ? onInstallCampaignMapGuide : undefined}
         partyDm={partyDm}
         isCreator={isHost}
         isOriginalCreator={isPartyCreator}

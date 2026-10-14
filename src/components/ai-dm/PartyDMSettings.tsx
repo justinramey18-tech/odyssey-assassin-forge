@@ -451,7 +451,7 @@ export function PartyDMSettings({
   const toolEntries: ToolEntry[] = [
     {
       id: 'battle-map', group: 'campaign', show: !!onShowMap, medallion: iconBattleMap,
-      icon: <Map className="w-4 h-4" />, label: 'Battle Map', description: 'View the tactical map', onClick: onShowMap,
+      icon: <Map className="w-4 h-4" />, label: 'Campaign Map', description: 'Track world travel and location', onClick: onShowMap,
     },
     {
       id: 'saves', group: 'campaign', show: !!onShowSaves, medallion: iconSaves,
