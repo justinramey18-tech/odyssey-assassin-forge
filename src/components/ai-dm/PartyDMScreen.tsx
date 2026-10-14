@@ -5451,13 +5451,15 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
         )}</OverlaySlot>
       )}
 
+      {/* Campaign Map (everyone views; original host edits) */}
+      {campaignMap && !practiceMode && (
+        <OverlaySlot ganglion={overlays} name="campaignMap">{(open, setOpen) => (
+          <CampaignMapPanel open={open} onOpenChange={setOpen} map={campaignMap} onInstallGuide={campaignMap.canWrite ? onInstallCampaignMapGuide : undefined} />
+        )}</OverlaySlot>
+      )}
+
       {/* Live NPCs roster (original host only, Live Table) */}
       {originalCreator && chatRoundsOn && (
-        {campaignMap && !practiceMode && (
-          <OverlaySlot ganglion={overlays} name="campaignMap">{(open, setOpen) => (
-            <CampaignMapPanel open={open} onOpenChange={setOpen} map={campaignMap} onInstallGuide={campaignMap.canWrite ? onInstallCampaignMapGuide : undefined} />
-          )}</OverlaySlot>
-        )}
         <OverlaySlot ganglion={overlays} name="npcRoster">{(open, setOpen) => (
           <NpcRosterPanel open={open} onOpenChange={setOpen} roster={npcRoster} battleModel={partyDm.sessionConfig?.battleModel ?? null} onBattleModelChange={(id) => { void partyDm.setBattleModel(id); toast.success(id ? `Battles now written by ${getModelLabel(id)}` : 'Battles use the DM model'); }} />
         )}</OverlaySlot>
