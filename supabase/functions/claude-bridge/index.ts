@@ -348,9 +348,7 @@ Deno.serve(async (req) => {
   // belong to an approved owner account.
   if (!keyOk && presented.split('.').length === 3) {
     try {
-      const res = await fetch(`${issuer}/.well-known/jwks.json`);
       const { createRemoteJWKSet, jwtVerify } = await import('npm:jose@5.9.6');
-      void res;
       const jwks = createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks.json`));
       const { payload } = await jwtVerify(presented, jwks, { issuer, audience: 'authenticated' });
       const owners = (Deno.env.get('BRIDGE_OWNER_USER_IDS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
