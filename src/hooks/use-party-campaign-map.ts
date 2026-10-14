@@ -18,7 +18,9 @@ import {
   sanitizeCampaignMapState,
   travelNow,
   validRealMinutesPerGameHour,
+  withRoutePath,
   type ActiveTravel,
+  type CampaignMapCalibration,
   type CampaignMapLocation,
   type CampaignMapRoute,
   type CampaignMapState,
@@ -251,6 +253,21 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
       if (s.activeTravel?.startedAt != null) return 'Pause the travel before changing how fast time runs.';
       return { ...s, realMinutesPerGameHour: v };
     }), [mutate]);
+  const setCalibration = useCallback((calibration: CampaignMapCalibration | null) => mutate(s => {
+    const next: CampaignMapState = { ...s };
+    if (calibration) next.mapCalibration = calibration; else delete next.mapCalibration;
+    // Map-estimated roads pick up the new scale; manual roads keep the host's number.
+    next.routes = s.routes.map(r => withRoutePath(r, r.path, calibration));
+    return next;
+  }), [mutate]);
+  /** Place the party at a location (setup only, not while traveling). */
+  const setCurrentLocation = useCallback((id: string | null) => mutate(s => {
+    if (s.activeTravel) return 'Stop the travel before moving the party.';
+    if (id && !s.locations.some(l => l.id === id)) return 'That place no longer exists.';
+    const next: CampaignMapState = { ...s, currentLocationId: id };
+    delete next.currentRoutePosition;
+    return next;
+  }), [mutate]);
   const setDefaultPace = useCallback((pace: TravelPace) => mutate(s => ({ ...s, defaultPace: pace })), [mutate]);
 
   // ── travel ──
@@ -379,12 +396,12 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     rawState, loading, hostUserId, canWrite, getViewState,
     initialize, reset, uploadMapImage, replaceMapImage: uploadMapImage, replaceLocationsAndRoutes,
     addLocation, editLocation, removeLocation, addRoute, editRoute, removeRoute,
-    setDiscovered, setCampaignClock, setTimeCompression, setDefaultPace,
+    setDiscovered, setCampaignClock, setTimeCompression, setDefaultPace, setCalibration, setCurrentLocation,
     startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow, reconcileTravelIfComplete,
     exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext,
   }), [rawState, loading, hostUserId, canWrite, getViewState, initialize, reset, uploadMapImage, replaceLocationsAndRoutes,
     addLocation, editLocation, removeLocation, addRoute, editRoute, removeRoute, setDiscovered, setCampaignClock,
-    setTimeCompression, setDefaultPace, startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow,
+    setTimeCompression, setDefaultPace, setCalibration, setCurrentLocation, startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow,
     reconcileTravelIfComplete, exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext]);
 }
 
