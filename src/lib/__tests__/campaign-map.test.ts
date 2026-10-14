@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   TRAVEL_PACE_MPH, TRAVEL_DAY_MINUTES, TIME_COMPRESSION_PRESETS, createCalibration, effectiveRouteMiles,
   gameToRealMs, maxLegalLeg, polylineMiles, replaceMapImage, sanitizeCampaignMapState, travelGameMinutes,
-  formatCampaignTime, freezeTravel, travelNow, type CampaignMapRoute,
+  formatCampaignTime, freezeTravel, travelNow, locationOverlayMode, routeOverlayMode, type CampaignMapRoute,
 } from '@/lib/campaign-map';
 
 const route = (over: Partial<CampaignMapRoute> = {}): CampaignMapRoute => ({
@@ -48,4 +48,23 @@ describe('campaign map rules', () => {
     expect(travelNow(frozen, 99_999).progress).toBeCloseTo(0.5);
   });
   it('garbage import becomes an empty map', () => expect(sanitizeCampaignMapState('nope').locations).toEqual([]));
+});
+
+describe('map overlay modes', () => {
+  const base = (loc: object, rt: object) => sanitizeCampaignMapState({
+    locations: [{ id: 'a', name: 'A', x: 0, y: 0, ...loc }, { id: 'b', name: 'B', x: 1, y: 1 }],
+    routes: [{ id: 'r', fromLocationId: 'a', toLocationId: 'b', path: [], ...rt }],
+  });
+  it('valid modes survive sanitizing', () => {
+    const s = base({ overlayMode: 'background' }, { overlayMode: 'background' });
+    expect(s.locations[0].overlayMode).toBe('background');
+    expect(s.routes[0].overlayMode).toBe('background');
+    expect(base({ overlayMode: 'pin' }, {}).locations[0].overlayMode).toBe('pin');
+  });
+  it('invalid or missing modes act as full', () => {
+    const s = base({ overlayMode: 'weird' }, { overlayMode: 'pin' });
+    expect(locationOverlayMode(s.locations[0])).toBe('full');
+    expect(routeOverlayMode(s.routes[0])).toBe('full');
+    expect('overlayMode' in s.locations[1]).toBe(false);
+  });
 });

@@ -37,7 +37,16 @@ export interface CampaignMapLocation {
   y: number | null;
   discovered: boolean;
   kind: LocationKind;
+  /** Presentation only: 'full' = pin + label, 'pin' = pin only, 'background' = art already shows it. Missing/invalid = 'full'. */
+  overlayMode?: LocationOverlayMode;
 }
+
+export type LocationOverlayMode = 'full' | 'pin' | 'background';
+export type RouteOverlayMode = 'full' | 'background';
+export const locationOverlayMode = (l: Pick<CampaignMapLocation, 'overlayMode'>): LocationOverlayMode =>
+  l.overlayMode === 'pin' || l.overlayMode === 'background' ? l.overlayMode : 'full';
+export const routeOverlayMode = (r: Pick<CampaignMapRoute, 'overlayMode'>): RouteOverlayMode =>
+  r.overlayMode === 'background' ? 'background' : 'full';
 
 export interface CampaignMapCalibration {
   /** The intrinsic pixel size of the exact image this calibration belongs to. */
@@ -63,6 +72,8 @@ export interface CampaignMapRoute {
   description?: string;
   /** Normalized polyline from the start location to the end, with any waypoints between. */
   path: MapPoint[];
+  /** Presentation only. 'background' = the atlas art already shows this road. Missing/invalid = 'full'. */
+  overlayMode?: RouteOverlayMode;
 }
 
 /** Stopped somewhere along a route (0 = at its start, 1 = at its end). */
@@ -308,7 +319,7 @@ function locationOf(raw: unknown): CampaignMapLocation | null {
   const id = str(r.id, 80), name = str(r.name, 80);
   if (!id || !name) return null;
   const pinned = fin(r.x) && fin(r.y);
-  return {
+  const loc: CampaignMapLocation = {
     id, name,
     description: optStr(r.description, 1000),
     region: optStr(r.region, 80),
@@ -318,6 +329,8 @@ function locationOf(raw: unknown): CampaignMapLocation | null {
     discovered: r.discovered === true,
     kind: (LOCATION_KINDS as readonly string[]).includes(r.kind as string) ? (r.kind as LocationKind) : 'other',
   };
+  if (r.overlayMode === 'full' || r.overlayMode === 'pin' || r.overlayMode === 'background') loc.overlayMode = r.overlayMode;
+  return loc;
 }
 
 function routeOf(raw: unknown, ids: Set<string>): CampaignMapRoute | null {
@@ -333,6 +346,7 @@ function routeOf(raw: unknown, ids: Set<string>): CampaignMapRoute | null {
   if (fin(r.calibratedDistanceMiles) && r.calibratedDistanceMiles > 0) route.calibratedDistanceMiles = r.calibratedDistanceMiles;
   const d = optStr(r.description, 1000);
   if (d) route.description = d;
+  if (r.overlayMode === 'full' || r.overlayMode === 'background') route.overlayMode = r.overlayMode;
   return route;
 }
 
