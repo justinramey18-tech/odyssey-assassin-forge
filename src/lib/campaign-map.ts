@@ -296,6 +296,10 @@ export function travelFraction(travel: ActiveTravel, nowMs: number): number {
 /** Route progress and campaign minute right now. */
 export function travelNow(travel: ActiveTravel, nowMs: number): { fraction: number; progress: number; campaignMinute: number; done: boolean } {
   const f = travelFraction(travel, nowMs);
+  if (travel.segments?.length) {
+    const d = travelDetailAt(travel, f);
+    return { fraction: f, progress: d.progress, campaignMinute: d.campaignMinute, done: d.done };
+  }
   return {
     fraction: f,
     progress: travel.startProgress + (travel.endProgress - travel.startProgress) * f,
@@ -303,6 +307,48 @@ export function travelNow(travel: ActiveTravel, nowMs: number): { fraction: numb
     done: f >= 1,
   };
 }
+
+export interface TravelDetail {
+  fraction: number;
+  segmentIndex: number;
+  routeId: string;
+  reversed: boolean;
+  /** Progress on the current road in the travel direction. */
+  progress: number;
+  /** Progress on the current road measured from its fromLocation. */
+  forwardProgress: number;
+  campaignMinute: number;
+  milesCompleted: number;
+  legIndex?: number;
+  done: boolean;
+}
+
+/** Where a (segmented or single-road) tranche is at this whole-tranche fraction. */
+export function travelDetailAt(travel: ActiveTravel, fraction: number): TravelDetail {
+  const f = clamp01(fraction);
+  const segs = travel.segments;
+  if (!segs?.length) {
+    const progress = travel.startProgress + (travel.endProgress - travel.startProgress) * f;
+    return { fraction: f, segmentIndex: 0, routeId: travel.routeId, reversed: travel.reversed, progress,
+      forwardProgress: travel.reversed ? 1 - progress : progress, campaignMinute: travel.startCampaignMinute + travel.gameMinutes * f,
+      milesCompleted: 0, done: f >= 1 };
+  }
+  const total = segs.reduce((n, x) => n + x.gameMinutes, 0);
+  let want = total * f, miles = 0, i = 0;
+  for (; i < segs.length - 1; i++) {
+    if (want < segs[i].gameMinutes) break;
+    want -= segs[i].gameMinutes; miles += segs[i].distanceMiles;
+  }
+  const seg = segs[i];
+  const k = seg.gameMinutes > 0 ? Math.min(1, want / seg.gameMinutes) : 1;
+  const progress = seg.startProgress + (seg.endProgress - seg.startProgress) * k;
+  miles += seg.distanceMiles * k;
+  return { fraction: f, segmentIndex: i, routeId: seg.routeId, reversed: seg.reversed, progress,
+    forwardProgress: seg.reversed ? 1 - progress : progress, campaignMinute: travel.startCampaignMinute + total * f,
+    milesCompleted: miles, legIndex: seg.legIndex, done: f >= 1 };
+}
+
+export const travelDetail = (travel: ActiveTravel, nowMs: number) => travelDetailAt(travel, travelFraction(travel, nowMs));
 
 /** A save-safe snapshot: no running clock, just how far the leg got. */
 export function freezeTravel(travel: ActiveTravel, nowMs: number): ActiveTravel {
@@ -388,6 +434,8 @@ function travelOf(raw: unknown, routeIds: Set<string>): ActiveTravel | undefined
   const routeId = str(r.routeId, 80);
   if (!routeIds.has(routeId) || !isPace(r.pace)) return undefined;
   if (!fin(r.startProgress) || !fin(r.endProgress) || !fin(r.realDurationMs) || !fin(r.gameMinutes) || !fin(r.startCampaignMinute)) return undefined;
+  const segments = segmentsOf(r.segments, routeIds);
+  if (segments === null) return undefined; // a broken schedule is dropped, never half-kept
   return {
     routeId, reversed: r.reversed === true, pace: r.pace,
     startProgress: clamp01(r.startProgress), endProgress: clamp01(r.endProgress),
@@ -395,7 +443,52 @@ function travelOf(raw: unknown, routeIds: Set<string>): ActiveTravel | undefined
     realDurationMs: Math.max(0, r.realDurationMs), gameMinutes: Math.max(0, r.gameMinutes),
     startCampaignMinute: Math.max(0, r.startCampaignMinute),
     ...(fin(r.pausedFraction) ? { pausedFraction: clamp01(r.pausedFraction) } : {}),
+    ...(segments ? { segments } : {}),
   };
+}
+
+function segmentsOf(raw: unknown, routeIds: Set<string>): TravelSegment[] | null | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 100) return null;
+  const out: TravelSegment[] = [];
+  for (const x of raw) {
+    if (!x || typeof x !== 'object') return null;
+    const r = x as Record<string, unknown>;
+    const routeId = str(r.routeId, 80);
+    if (!routeIds.has(routeId) || !fin(r.startProgress) || !fin(r.endProgress) || !fin(r.distanceMiles) || !fin(r.gameMinutes)) return null;
+    const seg: TravelSegment = { routeId, reversed: r.reversed === true, startProgress: clamp01(r.startProgress), endProgress: clamp01(r.endProgress),
+      distanceMiles: Math.max(0, r.distanceMiles), gameMinutes: Math.max(0, r.gameMinutes) };
+    if (fin(r.legIndex) && Number.isInteger(r.legIndex) && r.legIndex >= 0) seg.legIndex = r.legIndex;
+    out.push(seg);
+  }
+  return out;
+}
+
+function journeyPlanOf(raw: unknown, routes: CampaignMapRoute[], ids: Set<string>): JourneyPlan | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  const dest = str(r.destinationLocationId, 80);
+  if (!ids.has(dest) || !isPace(r.pace) || !Array.isArray(r.legs) || r.legs.length === 0 || r.legs.length > 200) return undefined;
+  const byId = new Map(routes.map(x => [x.id, x]));
+  const legs: JourneyLeg[] = [];
+  for (const x of r.legs) {
+    if (!x || typeof x !== 'object') return undefined;
+    const l = x as Record<string, unknown>;
+    const route = byId.get(str(l.routeId, 80));
+    if (!route) return undefined;
+    const reversed = l.reversed === true;
+    const from = reversed ? route.toLocationId : route.fromLocationId, to = reversed ? route.fromLocationId : route.toLocationId;
+    if (l.fromLocationId !== from || l.toLocationId !== to) return undefined;
+    if (legs.length && legs[legs.length - 1].toLocationId !== from) return undefined;
+    legs.push({ routeId: route.id, fromLocationId: from, toLocationId: to, reversed });
+  }
+  if (legs[legs.length - 1].toLocationId !== dest) return undefined;
+  const idx = fin(r.currentLegIndex) && Number.isInteger(r.currentLegIndex) ? r.currentLegIndex : 0;
+  if (idx < 0 || idx >= legs.length) return undefined;
+  const plan: JourneyPlan = { destinationLocationId: dest, pace: r.pace, legs, currentLegIndex: idx };
+  if (fin(r.totalMiles) && r.totalMiles > 0) plan.totalMiles = r.totalMiles;
+  if (r.dayComplete === true) plan.dayComplete = true;
+  return plan;
 }
 
 /** Any stored or imported value → a safe CampaignMapState (null/garbage → empty map). */
@@ -438,6 +531,11 @@ export function sanitizeCampaignMapState(raw: unknown): CampaignMapState {
   }
   const travel = travelOf(r.activeTravel, routeIds);
   if (travel) state.activeTravel = travel;
+  const plan = journeyPlanOf(r.journeyPlan, routes, ids);
+  if (plan) {
+    state.journeyPlan = plan;
+    if (travel?.segments?.some(x => x.legIndex !== undefined && (x.legIndex >= plan.legs.length || plan.legs[x.legIndex].routeId !== x.routeId))) delete state.journeyPlan;
+  }
   return state;
 }
 
