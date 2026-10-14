@@ -51,6 +51,10 @@ import { Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loa
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { WhisperTray } from './WhisperTray';
 import { QuickRecapDrawer, QuickRecapButton, type QuickRecapContext } from './QuickRecapDrawer';
+import { CampaignMapDockButton } from './CampaignMapDockButton';
+
+/** RECAP and MAP shrink together on narrow phones so RECAP · MAP · PLAY fit; never below 44px. */
+const DOCK_SIDE_ORB = 'h-[76px] w-[76px] min-[380px]:h-[88px] min-[380px]:w-[88px] min-[430px]:h-[100px] min-[430px]:w-[100px]';
 import { usePartyChatBackground } from '@/hooks/use-party-chat-background';
 import { usePartyQuests } from '@/hooks/use-party-quests';
 import { useQuestRewardSplit } from '@/hooks/use-quest-reward-split';
@@ -4153,7 +4157,12 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
             }
           }}
 
-          dockLeading={!combatModeOn && !isFullscreen ? <QuickRecapButton onClick={() => overlays.open('quickRecap')} /> : undefined}
+          dockLeading={!isFullscreen && (!combatModeOn || (campaignMap && !practiceMode)) ? (
+            <>
+              {!combatModeOn && <QuickRecapButton onClick={() => overlays.open('quickRecap')} className={DOCK_SIDE_ORB} />}
+              {campaignMap && !practiceMode && <CampaignMapDockButton onClick={() => overlays.open('campaignMap')} className={DOCK_SIDE_ORB} />}
+            </>
+          ) : undefined}
           readReceipts={roundChat.readReceipts}
           readReceiptsLoaded={roundChat.readReceiptsLoaded}
           partyMembers={members.map(m => ({
