@@ -8,6 +8,17 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   activeCalibration,
   buildDmLogisticsContext,
+  buildJourneyTranche,
+  finishJourneyState,
+  foldTravelToPosition,
+  journeyLocks,
+  planJourneyRoute,
+  settleTravelState,
+  summarizeJourney,
+  trancheToTravel,
+  travelDetail,
+  type JourneyPlan,
+  type JourneySummary,
   effectiveRouteMiles,
   emptyCampaignMapState,
   freezeTravel,
@@ -44,6 +55,9 @@ export interface CampaignMapView {
   legFraction: number;
   /** True when the leg has finished but the host has not saved it yet. */
   legDone: boolean;
+  /** Road the party is on right now (segment-aware), when traveling. */
+  currentRouteId?: string;
+  journey?: { plan: JourneyPlan; summary: JourneySummary | null };
 }
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -125,25 +139,8 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     return { ok: true, updatedAt: Number.isFinite(updatedAt) ? updatedAt : serverNow(), error: "" };
   }, [partyId, currentUserId, canWrite, serverNow]);
 
-  /** A leg that is finished (by server time) folded into the saved state. */
-  const settleTravel = useCallback((s: CampaignMapState, now: number): CampaignMapState => {
-    const t = s.activeTravel;
-    if (!t) return s;
-    const live = travelNow(t, now);
-    if (!live.done) return s;
-    const route = s.routes.find(r => r.id === t.routeId);
-    const next: CampaignMapState = { ...s, campaignMinute: t.startCampaignMinute + t.gameMinutes };
-    delete next.activeTravel;
-    if (!route) return next;
-    if (t.endProgress >= 1) {
-      next.currentLocationId = t.reversed ? route.fromLocationId : route.toLocationId;
-      delete next.currentRoutePosition;
-    } else {
-      next.currentLocationId = null;
-      next.currentRoutePosition = { routeId: route.id, progress: dirProgress(t.endProgress, t.reversed), dayComplete: true };
-    }
-    return next;
-  }, []);
+  /** A tranche that is finished (by server time) folded into the saved state. */
+  const settleTravel = useCallback((st: CampaignMapState, now: number): CampaignMapState => settleTravelState(st, now), []);
 
   /** Every host change runs on a settled state, so a finished leg is never lost. */
   const mutate = useCallback(async (fn: (s: CampaignMapState) => CampaignMapState | string): Promise<Result> => {
@@ -181,17 +178,19 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
       return pointAlong(path, forward);
     };
     const t = s.activeTravel;
+    const journey = s.journeyPlan ? { plan: s.journeyPlan, summary: summarizeJourney(t ? foldTravelToPosition(s, now) : s) } : undefined;
     if (t) {
-      const live = travelNow(t, now);
-      const route = s.routes.find(r => r.id === t.routeId);
+      const live = travelDetail(t, now);
+      const route = s.routes.find(r => r.id === live.routeId);
       return {
-        state: s, position: routePoint(route, dirProgress(live.progress, t.reversed)), campaignMinute: live.campaignMinute,
+        state: s, position: routePoint(route, live.forwardProgress), campaignMinute: live.campaignMinute,
         traveling: !live.done && t.startedAt !== null, paused: t.startedAt === null, legFraction: live.fraction, legDone: live.done,
+        currentRouteId: live.routeId, ...(journey ? { journey } : {}),
       };
     }
     const pos = s.currentRoutePosition;
     const position = pos ? routePoint(s.routes.find(r => r.id === pos.routeId), pos.progress) : pinned(s.currentLocationId);
-    return { state: s, position, campaignMinute: s.campaignMinute, traveling: false, paused: false, legFraction: 0, legDone: false };
+    return { state: s, position, campaignMinute: s.campaignMinute, traveling: false, paused: false, legFraction: 0, legDone: false, ...(journey ? { journey } : {}) };
   }, [rawState, serverNow]);
 
   // ── setup ──
@@ -236,8 +235,9 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   const addLocation = useCallback((loc: CampaignMapLocation) =>
     mutate(s => (s.locations.some(l => l.id === loc.id) ? 'A place with that id already exists.' : { ...s, locations: [...s.locations, loc] })), [mutate]);
   const editLocation = useCallback((id: string, patch: Partial<Omit<CampaignMapLocation, 'id'>>) =>
-    mutate(s => (s.locations.some(l => l.id === id) ? { ...s, locations: s.locations.map(l => (l.id === id ? { ...l, ...patch } : l)) } : 'That place no longer exists.')), [mutate]);
+    mutate(s => (s.journeyPlan && journeyLocks(s).locationIds.has(id) && patch.discovered === false ? 'The current journey goes through that place. Cancel the journey first.' : s.locations.some(l => l.id === id) ? { ...s, locations: s.locations.map(l => (l.id === id ? { ...l, ...patch } : l)) } : 'That place no longer exists.')), [mutate]);
   const removeLocation = useCallback((id: string) => mutate(s => {
+    if (journeyLocks(s).locationIds.has(id)) return 'The current journey goes through that place. Cancel the journey first.';
     if (s.activeTravel && s.routes.some(r => r.id === s.activeTravel!.routeId && (r.fromLocationId === id || r.toLocationId === id))) return 'The party is traveling on a road to that place. Stop the travel first.';
     return { ...s, locations: s.locations.filter(l => l.id !== id), routes: s.routes.filter(r => r.fromLocationId !== id && r.toLocationId !== id), currentLocationId: s.currentLocationId === id ? null : s.currentLocationId };
   }), [mutate]);
@@ -247,10 +247,12 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   const editRoute = useCallback((id: string, patch: Partial<Omit<CampaignMapRoute, 'id'>>) =>
     mutate(s => {
       if (s.activeTravel?.routeId === id) return 'The party is on this road. Stop the travel before changing it.';
+      if (journeyLocks(s).routeIds.has(id)) return 'The current journey uses this road. Cancel the journey first.';
       return s.routes.some(r => r.id === id) ? { ...s, routes: s.routes.map(r => (r.id === id ? { ...r, ...patch } : r)) } : 'That road no longer exists.';
     }), [mutate]);
   const removeRoute = useCallback((id: string) => mutate(s => {
     if (s.activeTravel?.routeId === id || s.currentRoutePosition?.routeId === id) return 'The party is on this road. Move them off it first.';
+    if (journeyLocks(s).routeIds.has(id)) return 'The current journey uses this road. Cancel the journey first.';
     return { ...s, routes: s.routes.filter(r => r.id !== id) };
   }), [mutate]);
 
@@ -275,6 +277,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   /** Place the party at a location (setup only, not while traveling). */
   const setCurrentLocation = useCallback((id: string | null) => mutate(s => {
     if (s.activeTravel) return 'Stop the travel before moving the party.';
+    if (s.journeyPlan) return 'Cancel the journey before moving the party.';
     if (id && !s.locations.some(l => l.id === id)) return 'That place no longer exists.';
     const next: CampaignMapState = { ...s, currentLocationId: id };
     delete next.currentRoutePosition;
@@ -330,8 +333,8 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     const settled = settleTravel(s, touch.updatedAt);
     if (!settled.activeTravel) return (await write(settled)).ok ? OK : fail('The map could not be saved.');
     const frozen = freezeTravel(s.activeTravel, touch.updatedAt);
-    const live = travelNow(frozen, touch.updatedAt);
-    const next: CampaignMapState = { ...s, activeTravel: frozen, currentRoutePosition: { routeId: frozen.routeId, progress: dirProgress(live.progress, frozen.reversed) } };
+    const live = travelDetail(frozen, touch.updatedAt);
+    const next: CampaignMapState = { ...s, activeTravel: frozen, currentRoutePosition: { routeId: live.routeId, progress: live.forwardProgress } };
     const res = await write(next);
     return res.ok ? OK : fail(res.error);
   }, [canWrite, settleTravel, write]);
@@ -357,10 +360,10 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     if (!touch.ok) return fail(touch.error);
     const settled = settleTravel(s, touch.updatedAt);
     if (!settled.activeTravel) return (await write(settled)).ok ? OK : fail('The map could not be saved.');
-    const t = s.activeTravel;
-    const live = travelNow(t, touch.updatedAt);
-    const next: CampaignMapState = { ...s, campaignMinute: live.campaignMinute, currentRoutePosition: { routeId: t.routeId, progress: dirProgress(live.progress, t.reversed) } };
+    const live = travelDetail(s.activeTravel, touch.updatedAt);
+    const next: CampaignMapState = { ...s, campaignMinute: live.campaignMinute, currentLocationId: null, currentRoutePosition: { routeId: live.routeId, progress: live.forwardProgress } };
     delete next.activeTravel;
+    delete next.journeyPlan; // a stopped trip never resumes by surprise
     const res = await write(next);
     return res.ok ? OK : fail(res.error);
   }, [canWrite, settleTravel, write]);
@@ -369,9 +372,85 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   const finishTravelNow = useCallback(async (): Promise<Result> => {
     const s = stateRef.current;
     if (!canWrite) return fail('Only the party host can finish travel.');
+    if (s?.journeyPlan) {
+      const done = finishJourneyState(s, serverNow());
+      if (typeof done === 'string') return fail(done);
+      const r = await write(done);
+      return r.ok ? OK : fail(r.error);
+    }
     if (!s?.activeTravel) return fail('The party is not traveling.');
     const done = settleTravel({ ...s, activeTravel: { ...s.activeTravel, startedAt: null, pausedFraction: 1 } }, serverNow());
     const res = await write(done);
+    return res.ok ? OK : fail(res.error);
+  }, [canWrite, settleTravel, serverNow, write]);
+
+  // ── multi-road journeys ──
+  const planJourney = useCallback((destinationLocationId: string, pace?: TravelPace): { ok: true; plan: JourneyPlan; summary: JourneySummary } | { ok: false; error: string } => {
+    const base = settleTravel(stateRef.current ?? emptyCampaignMapState(), serverNow());
+    if (base.activeTravel) return { ok: false, error: 'The party is already traveling.' };
+    if (destinationLocationId === base.currentLocationId) return { ok: false, error: 'The party is already there.' };
+    const plan = planJourneyRoute(base, destinationLocationId, pace ?? base.defaultPace);
+    const summary = plan && summarizeJourney(base, plan);
+    return plan && summary ? { ok: true, plan, summary } : { ok: false, error: "There's no known road there yet." };
+  }, [settleTravel, serverNow, rawState]);
+
+  const getReachableDestinations = useCallback((pace?: TravelPace) => {
+    const base = settleTravel(stateRef.current ?? emptyCampaignMapState(), serverNow());
+    if (base.activeTravel) return [];
+    const usePace = pace ?? base.defaultPace;
+    return base.locations.filter(l => l.discovered && l.id !== base.currentLocationId).flatMap(l => {
+      const plan = planJourneyRoute(base, l.id, usePace);
+      const summary = plan && summarizeJourney(base, plan);
+      return plan && summary ? [{ location: l, plan, summary }] : [];
+    }).sort((a, b) => a.summary.remainingMinutes - b.summary.remainingMinutes || a.location.id.localeCompare(b.location.id));
+  }, [settleTravel, serverNow, rawState]);
+
+  /** Write the tranche, then anchor it to the server's returned time (never this phone's clock). */
+  const launchTranche = useCallback(async (base: CampaignMapState, plan: JourneyPlan): Promise<Result> => {
+    const tranche = buildJourneyTranche(base, plan);
+    if (!tranche) return fail('A road on this journey has no distance yet. Set its miles (or calibrate the map) first.');
+    if (!tranche.segments.length) return fail('The party is already there.');
+    const travel = trancheToTravel(tranche, plan.pace, base.campaignMinute, base.realMinutesPerGameHour);
+    const cleanPlan: JourneyPlan = { ...plan }; delete cleanPlan.dayComplete;
+    const staged: CampaignMapState = { ...base, journeyPlan: cleanPlan, activeTravel: travel, currentLocationId: null };
+    delete staged.currentRoutePosition;
+    const first = await write(staged);
+    if (!first.ok) return fail(first.error);
+    const anchored = await write({ ...staged, activeTravel: { ...travel, startedAt: first.updatedAt } });
+    return anchored.ok ? OK : fail(anchored.error);
+  }, [write]);
+
+  const startJourney = useCallback(async (destinationLocationId: string, pace?: TravelPace): Promise<Result> => {
+    if (!canWrite) return fail('Only the party host can start travel.');
+    const base = settleTravel(stateRef.current ?? emptyCampaignMapState(), serverNow());
+    if (base.activeTravel) return fail('The party is already traveling.');
+    if (destinationLocationId === base.currentLocationId) return fail('The party is already there.');
+    const plan = planJourneyRoute(base, destinationLocationId, pace ?? base.defaultPace);
+    if (!plan) return fail("There's no known road there yet.");
+    return launchTranche(base, plan);
+  }, [canWrite, settleTravel, serverNow, launchTranche]);
+
+  /** Next travel day from the exact saved spot. Does not rest, heal, or change anything on the characters. */
+  const continueJourney = useCallback(async (): Promise<Result> => {
+    if (!canWrite) return fail('Only the party host can continue travel.');
+    const base = settleTravel(stateRef.current ?? emptyCampaignMapState(), serverNow());
+    if (base.activeTravel) return fail('The party is already traveling.');
+    if (!base.journeyPlan) return fail('There is no journey to continue.');
+    return launchTranche(base, base.journeyPlan);
+  }, [canWrite, settleTravel, serverNow, launchTranche]);
+
+  /** Stop the journey where the party stands right now (no jump to a town). */
+  const cancelJourney = useCallback(async (): Promise<Result> => {
+    const s = stateRef.current;
+    if (!canWrite) return fail('Only the party host can stop travel.');
+    if (!s?.journeyPlan && !s?.activeTravel) return fail('There is no journey to stop.');
+    let now = serverNow();
+    if (s.activeTravel) { const touch = await write(s); if (!touch.ok) return fail(touch.error); now = touch.updatedAt; }
+    const settled = settleTravel(s, now);
+    const next = foldTravelToPosition(settled, now);
+    if (next.currentRoutePosition) delete next.currentRoutePosition.dayComplete;
+    delete next.journeyPlan;
+    const res = await write(next);
     return res.ok ? OK : fail(res.error);
   }, [canWrite, settleTravel, serverNow, write]);
 
@@ -411,11 +490,12 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     addLocation, editLocation, removeLocation, addRoute, editRoute, removeRoute,
     setDiscovered, setCampaignClock, setTimeCompression, setDefaultPace, setCalibration, setCurrentLocation,
     startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow, reconcileTravelIfComplete,
+    planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney,
     exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext,
   }), [rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile, initialize, reset, uploadMapImage, replaceLocationsAndRoutes,
     addLocation, editLocation, removeLocation, addRoute, editRoute, removeRoute, setDiscovered, setCampaignClock,
     setTimeCompression, setDefaultPace, setCalibration, setCurrentLocation, startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow,
-    reconcileTravelIfComplete, exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext]);
+    reconcileTravelIfComplete, planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney, exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext]);
 }
 
 export type PartyCampaignMapApi = ReturnType<typeof usePartyCampaignMap>;
