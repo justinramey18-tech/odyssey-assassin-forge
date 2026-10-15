@@ -3,7 +3,8 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { CAMPAIGN_MAP_STATE_TYPE, buildDmLogisticsContext } from '@/lib/campaign-map';
+import { buildDmLogisticsContext } from '@/lib/campaign-map';
+import { CAMPAIGN_MAP_STATE_TYPE } from '@/hooks/use-party-campaign-map';
 import { isAtlasEnvelope, parseAtlas, projectActive, resolveAtlasAt, type CampaignAtlas } from '@/lib/campaign-atlas';
 import {
   checkGuideBudget, combineGuides, composeLocationGuides, resolveGuideScopes, type LocationGuideRow,
