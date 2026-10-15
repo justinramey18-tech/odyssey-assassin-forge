@@ -123,7 +123,7 @@ export default function JoinParty() {
           ) : (
             <div className="space-y-3">
               <Input value={code} onChange={e => setCode(normalizePartyCode(e.target.value))} placeholder="Party code (6 characters)"
-                inputMode="text" autoCapitalize="characters" autoComplete="off" maxLength={6}
+                inputMode="text" autoCapitalize="characters" autoComplete="off"
                 className="w-full h-12 text-lg tracking-[0.3em] text-center font-mono" aria-label="Party code" />
               <p className="text-xs text-muted-foreground text-right">{code.length}/6</p>
               {user ? (

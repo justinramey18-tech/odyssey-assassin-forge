@@ -354,7 +354,7 @@ export default function Auth() {
                   <div className={iconBoxClass}><User className={iconClass} /></div>
                   <input
                     type="text" placeholder="Party code (6 characters)" value={partyCode}
-                    onChange={(e) => setPartyCode(normalizePartyCode(e.target.value))} required maxLength={6}
+                    onChange={(e) => setPartyCode(normalizePartyCode(e.target.value))} required
                     autoComplete="off" autoCapitalize="characters" aria-label="Party code" className={inputClass}
                   />
                 </div>
