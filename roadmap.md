@@ -24,3 +24,6 @@
 - [ ] Arena step 6–7: Party Arena (server storage + screens).
 - [x] Campaign Map Play View: tapping any discovered place shows a brief description card.
 - [x] Write and install private DM guides for the 12 Arabel places that have none.
+
+- [x] Party signup 4/5: confirmed save + Live Table hand-off
+- [ ] Party signup 5/5: waiting on prompt

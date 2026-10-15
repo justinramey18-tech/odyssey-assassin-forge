@@ -39,7 +39,7 @@ const ACTIVE_SPELLS_KEY = 'odyssey-active-spells';
 // DEFAULT STATE
 // ============================================
 
-function getDefaultState(): SpellcastingState {
+export function getDefaultState(): SpellcastingState {
   return {
     path: null,
     pathUnlocked: false,

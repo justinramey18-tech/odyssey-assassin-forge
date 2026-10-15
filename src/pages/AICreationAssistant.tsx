@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { usePartyCreation } from '@/hooks/use-party-creation';
 import { validateAgainstRules } from '@/lib/ai-creation/party-creation-state';
+import { preparePartySave, writeReceipt, type PartyCreationReceipt } from '@/lib/ai-creation/party-build-save';
 import { PartyPreparing, PartyBriefCard, PartyBuildReview } from '@/components/ai-creation/PartyCreationPanels';
 import { ArrowLeft, Send, Sparkles, Loader2, AlertTriangle, Paperclip, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -46,6 +47,30 @@ export default function AICreationAssistant() {
   const partyReady = isParty && party.phase === 'ready';
   const buildStale = isParty && !!buildData && buildRevRef.current != null && party.contextRevision != null && buildRevRef.current !== party.contextRevision;
   const partyIssues = useMemo(() => isParty ? validateAgainstRules(buildData, party.rules) : [], [isParty, buildData, party.rules]);
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const joiningRef = useRef(false);
+  const openAdventure = useCallback((receipt: PartyCreationReceipt) => {
+    writeReceipt({ ...receipt, consumed: false });
+    navigate('/', { replace: true, state: { partyCreationReceipt: receipt } });
+  }, [navigate]);
+  const handleJoin = useCallback(async () => {
+    if (joiningRef.current || !creationSession) return;
+    const prepared = preparePartySave(buildData, party.rules, creationSession);
+    if (prepared.ok === false) { setJoinError(prepared.issues[0]); return; }
+    joiningRef.current = true; setJoining(true); setJoinError(null);
+    try {
+      const res = await party.finalize(prepared.payload);
+      if (res.ok === true) { openAdventure(res.receipt); return; }
+      if (res.ok !== false) return;
+      setJoinError(res.message);
+      if (res.reload) party.reloadFromServer();
+    } catch {
+      setJoinError('We couldn’t confirm your join. Your character is safe — try again.');
+    } finally {
+      joiningRef.current = false; setJoining(false);
+    }
+  }, [creationSession, buildData, party, openAdventure]);
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -303,7 +328,15 @@ export default function AICreationAssistant() {
         {/* Messages — only this area scrolls */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0 px-4 py-4 space-y-4">
           {isParty && party.phase === 'unavailable' && (
-            <div className="rounded-lg border border-border/50 bg-black/60 p-4 text-sm">{party.message}</div>
+            <div className="rounded-lg border border-border/50 bg-black/60 p-4 text-sm space-y-3">
+              <p>{party.message}</p>
+              {party.completedSaveId && party.partyId && party.userId && creationSession && (
+                <Button className="w-full min-h-12" style={{ touchAction: 'manipulation' }}
+                  onClick={() => openAdventure({ sessionId: creationSession, partyId: party.partyId!, saveId: party.completedSaveId!, userId: party.userId! })}>
+                  Open the adventure
+                </Button>
+              )}
+            </div>
           )}
           {isParty && ['loading', 'auth', 'preparing', 'updating', 'error'].includes(party.phase) && (
             <PartyPreparing phase={party.phase} message={party.message} onRetry={party.retry} />
@@ -400,7 +433,9 @@ export default function AICreationAssistant() {
         {/* Apply button */}
         {isParty && buildData && (
           <div className="shrink-0 px-4 py-2 border-t border-border/50 bg-black/60 backdrop-blur-md max-h-[45vh] overflow-y-auto">
-            <PartyBuildReview build={buildData} rules={party.rules} issues={partyIssues} stale={buildStale} />
+            <PartyBuildReview build={buildData} rules={party.rules} issues={partyIssues} stale={buildStale}
+              canJoin={partyReady && !buildStale && !partyIssues.length && !party.draftConflict && !isLoading}
+              joining={joining} joinError={joinError} onJoin={handleJoin} />
           </div>
         )}
         {!isParty && buildData && (
