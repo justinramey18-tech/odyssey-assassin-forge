@@ -472,14 +472,15 @@ function HostSetup({ map, state, onInstallGuide, packUndo, setPackUndo }: { map:
     if (!snap) return;
     const blob = new Blob([JSON.stringify(snap, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = 'campaign-map.json'; a.click();
+    a.href = URL.createObjectURL(blob); a.download = map.isAtlasMode ? 'campaign-map-collection.json' : 'campaign-map.json'; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
   const importJson = async (file: File | undefined) => {
     if (!file) return;
     try {
-      const parsed = sanitizeCampaignMapState(JSON.parse(await file.text()));
-      report(await map.restoreSaveSnapshot(parsed), 'Map imported.');
+      // Validated inside restore before anything changes; files always get fresh map ids.
+      const parsed: unknown = JSON.parse(await file.text());
+      report(await map.restoreSaveSnapshot(parsed, 'portable'), 'Map imported.');
     } catch { toast.error('That file is not a campaign map.'); }
   };
 
@@ -567,10 +568,12 @@ function HostSetup({ map, state, onInstallGuide, packUndo, setPackUndo }: { map:
       <Section title="Import and export">
         <input ref={importRef} type="file" accept="application/json,.json" className="hidden" onChange={(e) => { void importJson(e.target.files?.[0]); e.target.value = ''; }} />
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" className="min-h-[44px]" style={TOUCH} onClick={exportJson}><Download className="w-4 h-4 mr-1" />Export</Button>
+          <Button variant="outline" className="min-h-[44px]" style={TOUCH} onClick={exportJson}><Download className="w-4 h-4 mr-1" />{map.isAtlasMode ? 'Export full collection' : 'Export'}</Button>
           <Button variant="outline" className="min-h-[44px]" style={TOUCH} onClick={() => importRef.current?.click()}><Upload className="w-4 h-4 mr-1" />Import</Button>
         </div>
-        <p className="text-[11px] text-white/45">Imported places keep their pins only if the file has them. Travel comes back paused.</p>
+        <p className="text-[11px] text-white/45">{map.isAtlasMode
+          ? 'Export saves every map in the collection. Importing a full collection backup replaces all of them; single-map files cannot be imported into a collection yet. Travel comes back paused.'
+          : 'Imported places keep their pins only if the file has them. Travel comes back paused.'}</p>
       </Section>
 
       <Section title="Map Pack Assistant">

@@ -295,3 +295,47 @@ export function resolveAtlasAt(a: CampaignAtlas, nowMs: number): CampaignAtlas {
   const patched = patchMap(a, a.activeMapId, settled);
   return typeof patched === 'string' ? a : applyArrivalEntry(active, patched);
 }
+
+// ── save / load helpers ──
+
+export type SnapshotKind = 'null' | 'legacy' | 'atlas' | 'unknown';
+/** Strict recognition. Anything that is neither a single v1 map nor an atlas is 'unknown' (never turned into an empty map). */
+export function classifySnapshot(raw: unknown): SnapshotKind {
+  if (raw === null || raw === undefined) return 'null';
+  if (isAtlasEnvelope(raw)) return 'atlas';
+  if (typeof raw !== 'object' || Array.isArray(raw)) return 'unknown';
+  const r = raw as Record<string, unknown>;
+  if ('format' in r || 'maps' in r) return 'unknown';
+  if (r.version !== undefined && r.version !== 1) return 'unknown';
+  if (r.locations !== undefined && !Array.isArray(r.locations)) return 'unknown';
+  if (r.routes !== undefined && !Array.isArray(r.routes)) return 'unknown';
+  if (!('locations' in r) && !('imageUrl' in r) && !('routes' in r)) return 'unknown';
+  return 'legacy';
+}
+
+/** A single legacy map: sanity-limited before the sanitizer can trim. */
+export function parseLegacyMap(raw: unknown): AtlasResult<CampaignMapState> {
+  if (classifySnapshot(raw) !== 'legacy') return bad('That file is not a campaign map.');
+  const r = raw as Record<string, unknown>;
+  if (Array.isArray(r.locations) && r.locations.length > MAX_LOCATIONS) return bad(`Too many places (${MAX_LOCATIONS} at most).`);
+  if (Array.isArray(r.routes) && r.routes.length > MAX_ROUTES) return bad(`Too many roads (${MAX_ROUTES} at most).`);
+  if (atlasByteSize(raw) > ATLAS_MAX_BYTES) return bad('That map is too large (8 MB of map data at most).');
+  return { ok: true, value: sanitizeCampaignMapState(raw) };
+}
+
+/** Fresh node ids with every root/active/parent link remapped. Place ids inside maps are kept (they are per-map). */
+export function remapAtlasIds(a: CampaignAtlas, partyId: string, makeId: () => string = () => crypto.randomUUID()): CampaignAtlas {
+  const ids = new Map(a.maps.map(m => [m.id, makeId()]));
+  return {
+    ...a, sourcePartyId: partyId, rootMapId: ids.get(a.rootMapId)!, activeMapId: ids.get(a.activeMapId)!,
+    maps: a.maps.map(m => ({ ...m, id: ids.get(m.id)!, parentMapId: m.parentMapId ? ids.get(m.parentMapId)! : null })),
+  };
+}
+
+/** Travel on the active map comes back paused; no auto-resume, auto-complete or descent. */
+export function pauseAtlasTravel(a: CampaignAtlas): CampaignAtlas {
+  const st = projectActive(a);
+  const t = st.activeTravel;
+  if (!t || t.startedAt === null) return a;
+  return { ...a, maps: a.maps.map(m => (m.id === a.activeMapId ? { ...m, state: { ...m.state, activeTravel: { ...t, startedAt: null, pausedFraction: t.pausedFraction ?? 0 } } } : m)) };
+}

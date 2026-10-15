@@ -41,7 +41,7 @@ import {
 import {
   applyArrivalEntry, breadcrumbs, convertLegacyToAtlas, createChildMap as createChildMapOp, enterChild as enterChildOp,
   exitToParent as exitToParentOp, getNode, isAtlasEnvelope, moveLocal as moveLocalOp, parseAtlas, patchMap, projectActive,
-  projectMapState, resolveAtlasAt, setNodeMeta, validateAtlasGraph,
+  projectMapState, resolveAtlasAt, setNodeMeta, validateAtlasGraph, classifySnapshot, parseLegacyMap, remapAtlasIds, pauseAtlasTravel,
   type AtlasMapNode, type CampaignAtlas, type NavigationMode,
 } from '@/lib/campaign-atlas';
 
@@ -77,6 +77,8 @@ type Stored =
   | { kind: 'legacy'; state: CampaignMapState; updatedAt: string | null }
   | { kind: 'atlas'; atlas: CampaignAtlas; updatedAt: string }
   | { kind: 'invalid'; error: string; updatedAt: string | null };
+
+export type RestoreMode = 'campaign' | 'undo' | 'portable';
 
 const CONFLICT_MSG = 'The map changed on another screen. It has been refreshed — please try again.';
 
@@ -551,22 +553,42 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     return s ? freeze(s) : null;
   }, [rawState, settleTravel, serverNow]);
 
-  /** Load a saved map. Travel comes back paused; the host resumes it. A collection is never replaced by one map. */
-  const restoreSaveSnapshot = useCallback(async (snapshot: unknown): Promise<Result> => {
+  /**
+   * Full-collection restore. Travel comes back paused; never auto-resumes, completes or descends.
+   * - 'campaign': trusted saved campaign. Same-party atlases keep their ids; foreign ones get fresh ids.
+   * - 'undo': internal Undo. Keeps ids and requires the current revision to match the snapshot's.
+   * - 'portable': JSON file import. Always fresh ids.
+   * A legacy single map over a collection is wrapped as a NEW one-root collection with fresh ids.
+   * Nothing is written unless the snapshot is recognized and valid.
+   */
+  const restoreSaveSnapshot = useCallback(async (snapshot: unknown, mode: RestoreMode = 'campaign'): Promise<Result> => {
     if (!partyId || !canWrite) return fail('Only the party host can change the campaign map.');
     const stored = storedRef.current;
+    const persistedRev = stored?.kind === 'atlas' ? stored.atlas.revision : 0;
     const pause = (st: CampaignMapState): CampaignMapState =>
       st.activeTravel && st.activeTravel.startedAt !== null ? { ...st, activeTravel: { ...st.activeTravel, startedAt: null, pausedFraction: st.activeTravel.pausedFraction ?? 0 } } : st;
-    if (isAtlasEnvelope(snapshot)) {
+    const kind = classifySnapshot(snapshot);
+    if (kind === 'null') return fail('There is no saved map to restore.');
+    if (kind === 'unknown') return fail('That saved map is in a format this app does not recognize. Nothing was changed.');
+    if (kind === 'atlas') {
       const parsed = parseAtlas(snapshot);
-      if (parsed.ok === false) return fail((parsed as { error: string }).error);
-      const a = parsed.value;
-      const restored = patchMap({ ...a, sourcePartyId: partyId }, a.activeMapId, pause(projectActive(a)));
-      if (typeof restored === 'string') return fail(restored);
-      return commitAtlas(restored, stored?.kind === 'atlas' ? stored.atlas.revision : 0);
+      if (parsed.ok === false) return fail(`${(parsed as { error: string }).error} Nothing was changed.`);
+      let a = parsed.value;
+      if (mode === 'undo') {
+        if (stored?.kind !== 'atlas' || stored.atlas.revision !== a.revision) return fail('The map has changed since then, so Undo is no longer safe. Nothing was changed.');
+      }
+      const keepIds = mode !== 'portable' && a.sourcePartyId === partyId;
+      a = pauseAtlasTravel(keepIds ? a : remapAtlasIds(a, partyId));
+      return commitAtlas(a, persistedRev);
     }
-    if (stored?.kind === 'atlas') return fail('This party uses nested maps. A single saved map cannot replace them.');
-    const s = pause(sanitizeCampaignMapState(snapshot));
+    const legacy = parseLegacyMap(snapshot);
+    if (legacy.ok === false) return fail(`${(legacy as { error: string }).error} Nothing was changed.`);
+    const s = pause(legacy.value);
+    if (stored?.kind === 'atlas' || stored?.kind === 'invalid') {
+      if (mode === 'undo') return fail('The map has changed since then, so Undo is no longer safe. Nothing was changed.');
+      if (mode === 'portable') return fail('This party uses nested maps. Importing a single map into them is not ready yet. Nothing was changed.');
+      return commitAtlas(convertLegacyToAtlas(s, partyId), persistedRev);
+    }
     const mid = activeMapIdRef.current;
     return write(mid, s).then(r => (r.ok ? OK : fail(r.error)));
   }, [partyId, canWrite, write, commitAtlas]);

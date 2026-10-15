@@ -106,3 +106,39 @@ describe('campaign atlas', () => {
     expect(typeof moveLocal(withChild(), 'keep')).toBe('string'); // root is regional
   });
 });
+
+import { classifySnapshot, parseLegacyMap, remapAtlasIds, pauseAtlasTravel } from '@/lib/campaign-atlas';
+
+describe('atlas save and load', () => {
+  it('recognizes null, legacy, atlas and unknown snapshots strictly', () => {
+    expect(classifySnapshot(null)).toBe('null');
+    expect(classifySnapshot(world())).toBe('legacy');
+    expect(classifySnapshot(JSON.parse(JSON.stringify(withChild())))).toBe('atlas');
+    expect(classifySnapshot({ format: 'something-else', maps: [] })).toBe('unknown');
+    expect(classifySnapshot({ version: 7, locations: [] })).toBe('unknown');
+    expect(classifySnapshot('nope')).toBe('unknown');
+    expect(parseLegacyMap({ hello: 1 }).ok).toBe(false);
+  });
+
+  it('a foreign collection gets fresh map ids with every link remapped', () => {
+    const a = enterChild(withChild(), CHILD) as CampaignAtlas;
+    const other = '00000000-0000-4000-8000-000000000002';
+    const r = remapAtlasIds(a, other);
+    expect(r.sourcePartyId).toBe(other);
+    expect(r.maps.map(m => m.id)).not.toContain(ROOT);
+    expect(r.maps.map(m => m.id)).not.toContain(CHILD);
+    const child = r.maps.find(m => m.parentMapId)!;
+    expect(child.parentMapId).toBe(r.rootMapId);
+    expect(r.activeMapId).toBe(child.id);
+    expect(parseAtlas(JSON.parse(JSON.stringify(r))).ok).toBe(true);
+  });
+
+  it('restored travel comes back paused', () => {
+    const a = withChild();
+    const travel = { routeId: 'r', reversed: false, pace: 'normal' as const, startProgress: 0, endProgress: 1, startedAt: 1000, realDurationMs: 1000, gameMinutes: 60, startCampaignMinute: 600, pausedFraction: 0.4 };
+    const moving = patchMap(a, ROOT, { ...projectActive(a), currentLocationId: null, activeTravel: travel }) as CampaignAtlas;
+    const p = pauseAtlasTravel(moving);
+    expect(projectActive(p).activeTravel?.startedAt).toBeNull();
+    expect(p.activeMapId).toBe(ROOT);
+  });
+});
