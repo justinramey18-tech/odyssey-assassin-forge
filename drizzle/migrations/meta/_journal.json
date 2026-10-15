@@ -204,6 +204,13 @@
       "when": 1792084844481,
       "tag": "0028_fix_campaign_atlas_is_envelope_null",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792084894679,
+      "tag": "0029_fix_bridge_install_guide_alias",
+      "breakpoints": true
     }
   ]
 }
