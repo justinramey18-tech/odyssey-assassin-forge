@@ -1,11 +1,14 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { usePartyCreation } from '@/hooks/use-party-creation';
+import { validateAgainstRules } from '@/lib/ai-creation/party-creation-state';
+import { PartyPreparing, PartyBriefCard, PartyBuildReview } from '@/components/ai-creation/PartyCreationPanels';
 import { ArrowLeft, Send, Sparkles, Loader2, AlertTriangle, Paperclip, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { readCampaignFile } from '@/lib/ai-creation/readCampaignFile';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { useAICreationChat, buildDataToWizardState, CharacterBuildData } from '@/hooks/use-ai-creation-chat';
+import { useAICreationChat, buildDataToWizardState, CharacterBuildData, type ChatMessage } from '@/hooks/use-ai-creation-chat';
 import { presetToEquipment, getPresetById } from '@/components/wizard/presets/equipment-presets';
 import ReactMarkdown from 'react-markdown';
 import { setScopedItem } from '@/lib/scoped-storage';
@@ -18,7 +21,31 @@ import { saveBondState, DEFAULT_BOND, DEFAULT_TRUST, setIsUnbonded } from '@/lib
 
 export default function AICreationAssistant() {
   const navigate = useNavigate();
-  const { messages, isLoading, buildData, error, suggestions, campaign, attachCampaign, sendMessage, reset } = useAICreationChat();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const creationSession = searchParams.get('creationSession');
+  const isParty = !!creationSession;
+  const party = usePartyCreation(creationSession);
+  const partyRef = useRef(party); partyRef.current = party;
+  const buildRevRef = useRef<number | null>(null);
+  const goSignIn = useCallback(() => {
+    navigate(`/auth?next=${encodeURIComponent(location.pathname + location.search)}`);
+  }, [navigate, location.pathname, location.search]);
+  const partyConfig = useMemo(() => isParty && creationSession ? {
+    sessionId: creationSession,
+    initialDraft: party.initialDraft,
+    onPersist: (msgs: ChatMessage[], build: CharacterBuildData | null) => {
+      if (build) buildRevRef.current = partyRef.current.contextRevision;
+      partyRef.current.saveDraft({ messages: msgs, buildData: build, buildContextRevision: build ? buildRevRef.current : null });
+    },
+    onAuthLost: goSignIn,
+  } : null, [isParty, creationSession, party.initialDraft, goSignIn]);
+  const { messages, isLoading, buildData, error, suggestions, campaign, attachCampaign, sendMessage, reset } = useAICreationChat(partyConfig);
+  useEffect(() => { if (party.initialDraft) buildRevRef.current = party.initialDraft.buildContextRevision; }, [party.initialDraft]);
+  useEffect(() => { if (isParty && party.phase === 'auth') goSignIn(); }, [isParty, party.phase, goSignIn]);
+  const partyReady = isParty && party.phase === 'ready';
+  const buildStale = isParty && !!buildData && buildRevRef.current != null && party.contextRevision != null && buildRevRef.current !== party.contextRevision;
+  const partyIssues = useMemo(() => isParty ? validateAgainstRules(buildData, party.rules) : [], [isParty, buildData, party.rules]);
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -55,11 +82,17 @@ export default function AICreationAssistant() {
   }, [messages, campaign]);
 
   useEffect(() => {
-    if (!hasSentGreeting.current && messages.length === 0) {
+    if (hasSentGreeting.current || messages.length > 0) return;
+    if (isParty) {
+      // Wait for sign-in, the server draft and the prepared campaign before greeting.
+      if (!partyReady || !party.initialDraft || party.initialDraft.messages.length > 0) return;
       hasSentGreeting.current = true;
-      sendMessage('Hello, I want to create a character.');
+      sendMessage('Hello, I am joining this party and want to create a character for this campaign.');
+      return;
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    hasSentGreeting.current = true;
+    sendMessage('Hello, I want to create a character.');
+  }, [isParty, partyReady, party.initialDraft]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -72,10 +105,10 @@ export default function AICreationAssistant() {
 
   const handleSend = useCallback(() => {
     const text = input.trim();
-    if (!text || isLoading) return;
+    if (!text || isLoading || (isParty && (!partyReady || party.draftConflict))) return;
     setInput('');
     sendMessage(text);
-  }, [input, isLoading, sendMessage]);
+  }, [input, isLoading, sendMessage, isParty, partyReady, party.draftConflict]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -85,7 +118,7 @@ export default function AICreationAssistant() {
   };
 
   const handleApply = useCallback(() => {
-    if (!buildData) return;
+    if (!buildData || isParty) return; // party sessions never write local character data
     
     // Save identity fields to scoped storage
     if (buildData.gender) {
@@ -207,7 +240,7 @@ export default function AICreationAssistant() {
         aiCreatedCharacter: wizardState,
       } 
     });
-  }, [buildData, navigate]);
+  }, [buildData, navigate, isParty]);
 
   const handleBack = useCallback(() => {
     reset();
@@ -269,6 +302,21 @@ export default function AICreationAssistant() {
 
         {/* Messages — only this area scrolls */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0 px-4 py-4 space-y-4">
+          {isParty && party.phase === 'unavailable' && (
+            <div className="rounded-lg border border-border/50 bg-black/60 p-4 text-sm">{party.message}</div>
+          )}
+          {isParty && ['loading', 'auth', 'preparing', 'updating', 'error'].includes(party.phase) && (
+            <PartyPreparing phase={party.phase} message={party.message} onRetry={party.retry} />
+          )}
+          {isParty && party.brief && party.phase !== 'unavailable' && (
+            <PartyBriefCard label={party.campaignLabel} brief={party.brief} rules={party.rules} roster={party.roster} />
+          )}
+          {isParty && party.draftConflict && (
+            <div className="rounded-lg border border-amber-400/40 bg-black/60 p-3 text-sm space-y-2">
+              <p className="text-amber-400">This character was changed on another device. Load the newer version to keep going.</p>
+              <Button onClick={() => { hasSentGreeting.current = true; party.reloadFromServer(); }} variant="outline" className="w-full min-h-12" style={{ touchAction: 'manipulation' }}>Load newer version</Button>
+            </div>
+          )}
           {messages.map((msg, i) => (
             <div
               key={i}
@@ -335,7 +383,7 @@ export default function AICreationAssistant() {
                 <button
                   key={i}
                   onClick={() => {
-                    if (/upload|zip/i.test(s)) { fileInputRef.current?.click(); return; }
+                    if (!isParty && /upload|zip/i.test(s)) { fileInputRef.current?.click(); return; }
                     setInput('');
                     sendMessage(s);
                   }}
@@ -350,7 +398,12 @@ export default function AICreationAssistant() {
         </div>
 
         {/* Apply button */}
-        {buildData && (
+        {isParty && buildData && (
+          <div className="shrink-0 px-4 py-2 border-t border-border/50 bg-black/60 backdrop-blur-md max-h-[45vh] overflow-y-auto">
+            <PartyBuildReview build={buildData} rules={party.rules} issues={partyIssues} stale={buildStale} />
+          </div>
+        )}
+        {!isParty && buildData && (
           <div className="shrink-0 px-4 py-2 border-t border-border/50 bg-black/60 backdrop-blur-md">
             <Button
               onClick={handleApply}
@@ -364,7 +417,7 @@ export default function AICreationAssistant() {
 
         {/* Input — fixed at bottom */}
         <div className="shrink-0 px-4 py-3 border-t border-border/50 bg-black/60 backdrop-blur-md">
-          {campaign && (
+          {!isParty && campaign && (
             <div className="flex items-center gap-2 mb-2 rounded-full border border-primary/40 bg-black/50 px-3 py-1.5 text-xs">
               <span className="truncate flex-1 text-primary font-display">📦 {campaign.name} · {campaign.fileCount} files · {Math.round(campaign.text.length / 1000)}k chars{campaign.truncated ? ' (trimmed)' : ''}</span>
               <button
@@ -379,7 +432,7 @@ export default function AICreationAssistant() {
             </div>
           )}
           <div className="flex items-end gap-2">
-            <Button
+            {!isParty && <Button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isLoading || readingCampaign}
@@ -390,7 +443,7 @@ export default function AICreationAssistant() {
               style={{ touchAction: 'manipulation' }}
             >
               {readingCampaign ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
-            </Button>
+            </Button>}
             <textarea
               ref={inputRef}
               value={input}
@@ -399,11 +452,11 @@ export default function AICreationAssistant() {
               placeholder={campaign ? `Describe a character for ${campaign.name}...` : 'Describe your character...'}
               rows={1}
               className="flex-1 resize-none bg-black/40 border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 max-h-24 backdrop-blur-sm"
-              disabled={isLoading}
+              disabled={isLoading || (isParty && (!partyReady || party.draftConflict))}
             />
             <Button
               onClick={handleSend}
-              disabled={!input.trim() || isLoading}
+              disabled={!input.trim() || isLoading || (isParty && (!partyReady || party.draftConflict))}
               size="icon"
               variant="ghost"
               className="shrink-0 text-primary hover:bg-primary/10"
