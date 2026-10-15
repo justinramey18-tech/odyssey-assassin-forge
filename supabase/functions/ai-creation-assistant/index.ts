@@ -1,4 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { authorizeSession, resolveCreationContext, creatorPromptBlock } from "../_shared/party-creation-context.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -283,10 +285,33 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, appMode, campaignContext } = await req.json();
+    const reqBody = await req.json();
+    const { messages, partyCreationSessionId } = reqBody;
+    let { appMode, campaignContext } = reqBody;
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
 
+    // Opt-in party onboarding branch: identity, party, mode, setting and rules
+    // come only from the server resolver; client overrides are ignored.
+    let partyBlock = "";
+    if (partyCreationSessionId !== undefined) {
+      const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+      const { data: { user } } = token ? await db.auth.getUser(token) : { data: { user: null } };
+      if (!user) return new Response(JSON.stringify({ error: "Please sign in first." }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const auth = await authorizeSession(db, user.id, partyCreationSessionId);
+      if ("error" in auth) return new Response(JSON.stringify({ error: auth.error }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const ctx = await resolveCreationContext(db, auth.party);
+      if (ctx.status !== "ready") {
+        return new Response(JSON.stringify({ error: ctx.status === "preparing" ? "Preparing your campaign…" : (ctx.message || "Campaign not ready"), status: ctx.status }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      partyBlock = creatorPromptBlock(ctx);
+      appMode = auth.party.campaign_type === "empyrean" ? "empyrean" : "dnd";
+      campaignContext = undefined;
+    }
+
+    if (!Array.isArray(messages)) throw new Error("messages must be a list");
     // Anthropic Messages API requires system prompt separate from messages
     const userMessages = messages.map((m: { role: string; content: string }) => ({
       role: m.role,
@@ -294,10 +319,12 @@ serve(async (req) => {
     }));
 
     // Only include the Empyrean addendum when it's relevant, and attach an uploaded campaign block when present
-    const wantsEmpyrean = appMode === "empyrean" || userMessages.some((m: { role: string; content: string }) => m.role === "user" && /empyrean|dragon rider|fourth wing|basgiath/i.test(m.content));
+    const wantsEmpyrean = partyCreationSessionId !== undefined
+      ? appMode === "empyrean"
+      : (appMode === "empyrean" || userMessages.some((m: { role: string; content: string }) => m.role === "user" && /empyrean|dragon rider|fourth wing|basgiath/i.test(m.content)));
     const campaignName = typeof campaignContext?.name === "string" ? campaignContext.name.trim().slice(0, 80) : "";
     const campaignText = typeof campaignContext?.text === "string" ? campaignContext.text.slice(0, CAMPAIGN_CONTEXT_MAX_CHARS) : "";
-    const campaignBlock = campaignText ? buildCampaignBlock(campaignName || "Uploaded campaign", campaignText) : "";
+    const campaignBlock = partyBlock || (campaignText ? buildCampaignBlock(campaignName || "Uploaded campaign", campaignText) : "");
     const effectiveSystemPrompt = SYSTEM_PROMPT + (wantsEmpyrean ? EMPYREAN_ADDENDUM : "") + campaignBlock;
     const totalInputChars = effectiveSystemPrompt.length + userMessages.reduce((sum: number, m: { content: string }) => sum + m.content.length, 0);
     const estimatedTokens = Math.ceil(totalInputChars / 3.5); // ~3.5 chars per token for mixed content

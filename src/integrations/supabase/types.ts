@@ -1074,6 +1074,10 @@ export type Database = {
       }
       party_creation_contexts: {
         Row: {
+          build_fingerprint: string | null
+          build_lease_id: string | null
+          build_lease_until: string | null
+          last_error: string | null
           party_id: string
           player_context: Json
           private_source_manifest: Json
@@ -1084,6 +1088,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          build_fingerprint?: string | null
+          build_lease_id?: string | null
+          build_lease_until?: string | null
+          last_error?: string | null
           party_id: string
           player_context?: Json
           private_source_manifest?: Json
@@ -1094,6 +1102,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          build_fingerprint?: string | null
+          build_lease_id?: string | null
+          build_lease_until?: string | null
+          last_error?: string | null
           party_id?: string
           player_context?: Json
           private_source_manifest?: Json
@@ -3327,6 +3339,26 @@ export type Database = {
       onboarding_begin: {
         Args: { _link_code: string; _user_id: string }
         Returns: Json
+      }
+      onboarding_context_acquire: {
+        Args: { _fingerprint: string; _force: boolean; _party_id: string }
+        Returns: Json
+      }
+      onboarding_context_complete: {
+        Args: {
+          _expected_revision: number
+          _lease_id: string
+          _manifest: Json
+          _party_id: string
+          _player_context: Json
+          _source_fingerprint: string
+          _starting_rules: Json
+        }
+        Returns: Json
+      }
+      onboarding_context_fail: {
+        Args: { _error: string; _lease_id: string; _party_id: string }
+        Returns: undefined
       }
       onboarding_context_state: { Args: { _party_id: string }; Returns: string }
       onboarding_context_update: {
