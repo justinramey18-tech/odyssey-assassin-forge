@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import type { CompanionRig } from '@/lib/companion-rig';
+import { Behavior, freshFeelings, gapAfter, makeBehavior, narrate, notifyAlert, notifyTouch, notifyTreat, pickNextBehavior, poseFor, tickFeelings, Pose } from '@/lib/companion-idle';
 
 // A procedurally animated 2D companion at a night campfire.
 // Everything is drawn in code each frame; the loop stops when hidden.
@@ -57,6 +58,8 @@ export const CompanionCanvas = forwardRef<CompanionCanvasHandle, Props>(function
     vigilance: 0.5, affection: 0.3, stress: 0.1, purr: 0, recoil: 0,
     idle: 0, sleep: 0, sleeping: false, sneeze: 0, kick: 0,
     treat: null as null | { x: number; y: number; vx: number; vy: number },
+    feel: freshFeelings(), beh: null as null | Behavior, behT: 0, nextBeh: 2, pendingLook: false,
+    pose: poseFor(null, 0, 0) as Pose,
     particles: [] as Particle[], lastBondAt: 0, stroke: 0,
     pointer: { down: false, x: 0, y: 0, lx: 0, ly: 0, downAt: 0, moved: 0, lastTap: 0, zone: '' as string },
     geo: { headX: 0, headY: 0, headR: 20, bodyX: 0, bodyY: 0, bodyL: 100, bodyH: 40, mouthX: 0, mouthY: 0, s: 1, W: 0, H: 0, fireX: 0, ground: 0 },
@@ -71,7 +74,7 @@ export const CompanionCanvas = forwardRef<CompanionCanvasHandle, Props>(function
   };
   const wakeUp = () => {
     const S = sim.current;
-    if (S.sleeping) { S.sleeping = false; S.idle = 0; S.ear = 0.6; react(`${rigRef.current.name} cracks one eye open and stretches.`); }
+    if (S.sleeping) { S.sleeping = false; S.idle = 0; S.ear = 0.6; S.beh = makeBehavior('stretch', rigRef.current); S.behT = 0; react(`${rigRef.current.name} cracks one eye open and stretches.`); }
     S.idle = 0;
   };
 
@@ -101,7 +104,11 @@ export const CompanionCanvas = forwardRef<CompanionCanvasHandle, Props>(function
       const S = sim.current; const p = pos(e);
       c.setPointerCapture?.(e.pointerId);
       Object.assign(S.pointer, { down: true, x: p.x, y: p.y, lx: p.x, ly: p.y, downAt: S.t, moved: 0, zone: zoneAt(p.x, p.y) });
-      S.gx = p.x; S.gy = p.y; S.hasGaze = true; S.idle = 0;
+      S.feel = notifyTouch(S.feel); S.idle = 0;
+      // polite interruption: big moments finish before it looks at you
+      if (S.beh && !S.sleeping && S.behT / S.beh.duration < S.beh.finishBefore) { S.pendingLook = true; S.gx = p.x; S.gy = p.y; return; }
+      if (S.beh && S.beh.kind !== 'stretch') S.beh = null;
+      S.gx = p.x; S.gy = p.y; S.hasGaze = true;
       if (S.sleeping) { wakeUp(); return; }
     };
     const move = (e: PointerEvent) => {
@@ -191,9 +198,40 @@ export const CompanionCanvas = forwardRef<CompanionCanvasHandle, Props>(function
       S.vigilance = lerp(S.vigilance, S.hasGaze ? 0.65 : 0.4, dt * 0.3);
       S.affection = lerp(S.affection, R.bond / 100, dt * 0.05);
       if (S.idle > 4) S.hasGaze = false;
-      // fall asleep after a quiet spell (sooner when it trusts you)
-      const sleepAfter = 30 - R.bond * 0.15;
-      if (!S.sleeping && S.idle > sleepAfter && !S.treat) { S.sleeping = true; react(`${R.name} circles twice and curls up by the fire.`); }
+      // ---------- idle director ----------
+      S.feel = tickFeelings(S.feel, dt * (1 + R.bond / 200), R.temperament, S.idle, S.sleeping);
+      if (S.beh) {
+        S.behT += dt;
+        if (S.behT >= S.beh.duration) {
+          const done = S.beh; S.beh = null; S.nextBeh = gapAfter(R.temperament, Math.random);
+          if (done.kind === 'alert') react(`${R.name} decides the camp is safe and settles again.`);
+          if (S.pendingLook) { S.pendingLook = false; S.beh = makeBehavior('glance', R); S.behT = 0; S.hasGaze = true; }
+        }
+      } else if (!S.sleeping && !S.treat && !S.pointer.down) {
+        S.nextBeh -= dt;
+        if (S.nextBeh <= 0 && S.idle > 2) {
+          const d = pickNextBehavior(S.feel, R, S.idle, Math.random);
+          if (d === 'sleep') {
+            S.sleeping = true; react(R.head === 'visor' ? `${R.name} folds down by the fire and powers down.` : `${R.name} circles twice and curls up by the fire.`);
+          } else if (d) {
+            S.beh = d; S.behT = 0; S.hasGaze = false;
+            if (d.kind === 'alert') S.feel = notifyAlert(S.feel);
+            const line = narrate(d, R.name); if (line && Math.random() < 0.6) react(line);
+          }
+          S.nextBeh = gapAfter(R.temperament, Math.random);
+        }
+      }
+      S.pose = poseFor(S.beh, S.beh ? S.behT / S.beh.duration : 0, S.t);
+      if (S.pose.earKick) S.earV += S.pose.earKick * dt * 12;
+      // where the eyes go during a behaviour
+      if (!S.hasGaze && S.beh) {
+        const G0 = S.geo; const g = S.pose.gaze;
+        if (g === 'fire') { S.gx = G0.fireX; S.gy = G0.ground - 20; }
+        else if (g === 'treeline') { S.gx = G0.W * 0.95; S.gy = G0.ground - G0.H * 0.3; }
+        else if (g === 'ground') { S.gx = G0.headX + 40; S.gy = G0.ground; }
+        else if (g === 'player') { S.gx = G0.W * 0.5; S.gy = G0.H * 0.95; }
+        else if (g === 'spark') { const e = S.particles.find(p => p.kind === 'ember' && p.life > 0.3); if (e) { S.gx = e.x; S.gy = e.y; } }
+      }
       S.sleep = lerp(S.sleep, S.sleeping ? 1 : 0, dt * (S.sleeping ? 0.8 : 3));
       // blinking
       S.nextBlink -= dt;
@@ -203,7 +241,7 @@ export const CompanionCanvas = forwardRef<CompanionCanvasHandle, Props>(function
       const earF = -S.ear * 60 - S.earV * 6; S.earV += earF * dt; S.ear += S.earV * dt;
       if (Math.random() < dt * 0.15) S.earV += (Math.random() - 0.5) * 4;
       // jaw
-      S.jaw = lerp(S.jaw, S.jawTarget, dt * 12);
+      S.jaw = lerp(S.jaw, Math.max(S.jawTarget, S.pose.jaw), dt * 12);
       // treat physics
       const G = S.geo;
       if (S.treat) {
@@ -272,8 +310,8 @@ export const CompanionCanvas = forwardRef<CompanionCanvasHandle, Props>(function
       const tt = C.tick ? Math.floor(S.t * C.tick) / C.tick : S.t;
       const ph = tt * Math.PI * 2 * breathHz * C.hz;
       const breath = Math.sin(ph) + 0.25 * Math.sin(ph * 2 + 0.7);
-      const bx = W * 0.6 - S.recoil * 10 * s + Math.sin(S.t * 0.9) * C.sway * s;
-      const by = ground - legL - bodyH * 0.35 + breath * C.amp * s + sleepK * bodyH * 0.05;
+      const bx = W * 0.6 - S.recoil * 10 * s + Math.sin(S.t * 0.9) * C.sway * s + S.pose.shakeX * s;
+      const by = ground - legL - bodyH * 0.35 + breath * C.amp * s + sleepK * bodyH * 0.05 + S.pose.crouch * bodyH * 0.15;
       const chest = 1 + breath * 0.035;
       const G = S.geo; Object.assign(G, { bodyX: bx, bodyY: by, bodyL, bodyH, s, W, H, fireX, ground });
 
@@ -403,7 +441,9 @@ export const CompanionCanvas = forwardRef<CompanionCanvasHandle, Props>(function
       const neckLen = (C.neck * s + headR) * (1 - sleepK * 0.35);
       const restA = S.sleeping ? 0.35 : -0.55;
       let want = restA;
-      if (S.hasGaze && !S.sleeping) want = clamp(Math.atan2(S.gy - nby, S.gx - nbx), -1.25, 0.45);
+      const lookAt = S.hasGaze || (S.beh && S.pose.gaze !== 'none');
+      if (lookAt && !S.sleeping) want = clamp(Math.atan2(S.gy - nby, S.gx - nbx), -1.25, 0.45);
+      if (!S.sleeping) want = clamp(want + S.pose.headDelta, -1.4, 0.9);
       if (S.purr > 0.3) want = Math.min(want, -0.8);
       const eased = lerp(S.headAng, want, Math.min(1, (T.gazeLazy * 60) * (1 / 60) * 2.2));
       S.headAng = eased + Math.sin(S.sneeze * 20) * 0.3 * S.sneeze;
@@ -537,9 +577,9 @@ export const CompanionCanvas = forwardRef<CompanionCanvasHandle, Props>(function
       if (R.scars.muzzle) { ctx.strokeStyle = shade(pelt, 0.5); ctx.lineWidth = 1.6 * s; ctx.beginPath(); ctx.moveTo(snout * 0.55, -headR * 0.5); ctx.lineTo(snout * 0.85, headR * 0.05); ctx.stroke(); }
       // eyes
       let lx = 0, ly = 0;
-      if (S.hasGaze) { const dx = S.gx - hx, dy = S.gy - hy; const ca = Math.cos(-S.headAng), sa = Math.sin(-S.headAng); lx = dx * ca - dy * sa; ly = dx * sa + dy * ca; const d = Math.hypot(lx, ly) || 1; lx = lx / d * er * 0.4; ly = ly / d * er * 0.4; }
+      if (S.hasGaze || S.beh) { const dx = S.gx - hx, dy = S.gy - hy; const ca = Math.cos(-S.headAng), sa = Math.sin(-S.headAng); lx = dx * ca - dy * sa; ly = dx * sa + dy * ca; const d = Math.hypot(lx, ly) || 1; lx = lx / d * er * 0.4; ly = ly / d * er * 0.4; }
       S.pupilX = lerp(S.pupilX, lx, 0.45); S.pupilY = lerp(S.pupilY, ly, 0.45);
-      const lid = Math.max(S.blink, sleepK, S.purr > 0.5 ? 0.55 : 0, R.temperament === 'cunning' ? 0.3 : 0);
+      const lid = Math.max(S.blink, sleepK, S.pose.lidMin, S.purr > 0.5 ? 0.55 : 0, R.temperament === 'cunning' ? 0.3 : 0);
       const blindEye = R.scars.eye;
       if (HS === 'visor') {
         const vx = -headR * 0.2, vy = -headR * 0.35, vw = headR * 0.95, vh = headR * 0.2 * (1 - lid * 0.9);
