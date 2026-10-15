@@ -5466,7 +5466,7 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
       {/* Campaign Map (everyone views; original host edits) */}
       {campaignMap && !practiceMode && (
         <OverlaySlot ganglion={overlays} name="campaignMap">{(open, setOpen) => (
-          <CampaignMapPanel open={open} onOpenChange={setOpen} map={campaignMap} onInstallGuide={campaignMap.canWrite ? onInstallCampaignMapGuide : undefined} />
+          <CampaignMapPanel open={open} onOpenChange={setOpen} map={campaignMap} partyId={partyId} onInstallGuide={campaignMap.canWrite ? onInstallCampaignMapGuide : undefined} />
         )}</OverlaySlot>
       )}
 

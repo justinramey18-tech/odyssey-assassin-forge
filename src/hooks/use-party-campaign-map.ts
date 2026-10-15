@@ -644,6 +644,53 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   const editMapMeta = useCallback((mapId: string, patch: Partial<Pick<AtlasMapNode, 'name' | 'entryLocationId' | 'navigationMode'>>) =>
     runAtlasOp(a => setNodeMeta(a, mapId, patch)), [runAtlasOp]);
 
+  /** Upload + decode a map picture (same types/size as the main map). Nothing is saved to the map here. */
+  const uploadDecodedImage = useCallback(async (file: File): Promise<{ ok: true; url: string; w: number; h: number } | { ok: false; error: string }> => {
+    if (!canWrite || !partyId || !currentUserId) return { ok: false, error: 'Only the party host can change the map.' };
+    if (!IMAGE_TYPES.includes(file.type)) return { ok: false, error: 'Use a PNG, JPG, WebP or GIF image.' };
+    if (file.size > MAX_IMAGE_BYTES) return { ok: false, error: 'That image is too big (15 MB at most).' };
+    const size = await new Promise<{ w: number; h: number } | null>((resolve) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => { resolve({ w: img.naturalWidth, h: img.naturalHeight }); URL.revokeObjectURL(url); };
+      img.onerror = () => { resolve(null); URL.revokeObjectURL(url); };
+      img.src = url;
+    });
+    if (!size) return { ok: false, error: 'That file could not be read as an image.' };
+    const up = await uploadImageFile(file, file.type);
+    if (!up.ok) return { ok: false, error: (up as { error: string }).error };
+    return { ok: true, url: up.url, w: size.w, h: size.h };
+  }, [canWrite, partyId, currentUserId, uploadImageFile]);
+
+  /**
+   * Upload an area map for one place on one map. A single map is converted to a collection in the
+   * SAME save. Never moves the party and never changes the parent map's picture.
+   */
+  const addAreaMap = useCallback(async (parentMapId: string | null, parentLocationId: string, file: File, name: string): Promise<Result> => {
+    if (!partyId || !canWrite) return fail('Only the party host can change the campaign map.');
+    const img = await uploadDecodedImage(file);
+    if (!img.ok) return fail((img as { error: string }).error);
+    const childState = replaceMapImage(sanitizeCampaignMapState({}), img.url, img.w, img.h);
+    const cur = storedRef.current;
+    if (cur?.kind === 'invalid') return fail('The saved maps are damaged, so nothing was changed.');
+    if (cur?.kind !== 'atlas') {
+      const base = settleTravel(stateRef.current ?? emptyCampaignMapState(), serverNow());
+      if (!base.locations.some(l => l.id === parentLocationId)) return fail('That place no longer exists.');
+      const a = convertLegacyToAtlas(base, partyId);
+      const next = createChildMapOp(a, a.rootMapId, parentLocationId, { name, navigationMode: 'local', state: childState });
+      if (typeof next === 'string') return fail(next);
+      return commitAtlas(next, 0);
+    }
+    return runAtlasOp(a => createChildMapOp(a, parentMapId ?? a.activeMapId, parentLocationId, { name, navigationMode: 'local', state: childState }));
+  }, [partyId, canWrite, uploadDecodedImage, settleTravel, serverNow, commitAtlas, runAtlasOp]);
+
+  /** New picture for one map. Keeps its id, places, child maps, guide links and discoveries; clears calibration. */
+  const replaceAreaImage = useCallback(async (mapId: string, file: File): Promise<Result> => {
+    const img = await uploadDecodedImage(file);
+    if (!img.ok) return fail((img as { error: string }).error);
+    return editMap(mapId, st => replaceMapImage(st, img.url, img.w, img.h));
+  }, [uploadDecodedImage, editMap]);
+
   const activeMapId = atlas?.activeMapId ?? null;
   const [viewedMapIdRaw, setViewedMapId] = useState<string | null>(null);
   // Local browse only. Never written, never changes party position or GM context.
@@ -658,13 +705,13 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     setDiscovered, setCampaignClock, setTimeCompression, setDefaultPace, setCalibration, setCurrentLocation,
     startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow, reconcileTravelIfComplete,
     planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney,
-    exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext, serverNow,
+    exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext, serverNow, addAreaMap, replaceAreaImage,
     atlas, isAtlasMode, activeMapId, viewedMapId, setViewedMapId, getMapState, getBreadcrumbs,
     convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta,
   }), [rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile, initialize, reset, uploadMapImage, replaceLocationsAndRoutes,
     addLocation, editLocation, removeLocation, addRoute, editRoute, removeRoute, setDiscovered, setCampaignClock,
     setTimeCompression, setDefaultPace, setCalibration, setCurrentLocation, startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow,
-    reconcileTravelIfComplete, planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney, exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext, serverNow,
+    reconcileTravelIfComplete, planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney, exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext, serverNow, addAreaMap, replaceAreaImage,
     atlas, isAtlasMode, activeMapId, viewedMapId, getMapState, getBreadcrumbs,
     convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta]);
 }
