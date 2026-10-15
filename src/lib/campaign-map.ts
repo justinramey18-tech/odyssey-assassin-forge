@@ -647,6 +647,9 @@ export function buildDmLogisticsContext(state: CampaignMapState, nowMs: number =
   const cal = activeCalibration(state);
   const name = (id: string | null | undefined) => (id && byId.get(id)?.name) || 'an unnamed place';
   const lines: string[] = ['[CAMPAIGN MAP — AUTHORITATIVE FACTS, set by the app. Do not contradict, move the party, or start/finish journeys yourself; the host controls travel.]'];
+  const city = isCityScale(state);
+  const dist = (m: number) => formatTravelDistance(m, city);
+  if (city) lines.push('Scale: CITY. The party moves on foot through streets; trips take minutes, not days. There are no travel days, camps or overland roads on this map.');
   const t = state.activeTravel;
   let minute = state.campaignMinute;
   const plan = state.journeyPlan;
@@ -654,7 +657,7 @@ export function buildDmLogisticsContext(state: CampaignMapState, nowMs: number =
     const sum = summarizeJourney(t ? foldTravelToPosition(state, nowMs) : state);
     const dest = name(plan.destinationLocationId);
     lines.push(`Journey: the party is bound for ${dest} (final destination) at a ${plan.pace} pace, via ${sum?.locationNames.join(' → ') ?? dest}.`);
-    if (sum) lines.push(`Journey progress: ${Math.round(sum.completedFraction * 100)}% overall; about ${Math.round(sum.remainingMiles)} mi and ${Math.round(sum.remainingMinutes / 60 * 10) / 10} in-world travel hours remain.`);
+    if (sum) lines.push(`Journey progress: ${Math.round(sum.completedFraction * 100)}% overall; about ${dist(sum.remainingMiles)} and ${city ? `${Math.max(1, Math.round(sum.remainingMinutes))} in-world minutes` : `${Math.round(sum.remainingMinutes / 60 * 10) / 10} in-world travel hours`} remain.`);
     lines.push(`Arrival at ${dest} is NOT allowed until the app reports the party has reached it. Intermediate towns are passed through, not stopped at, unless the host stops the journey.`);
   }
   if (t) {
@@ -666,16 +669,16 @@ export function buildDmLogisticsContext(state: CampaignMapState, nowMs: number =
     const miles = route ? effectiveRouteMiles(route, cal) : null;
     const status = t.startedAt === null ? 'PAUSED on the road' : now.done ? 'leg just finished (awaiting host update)' : 'MOVING';
     lines.push(`Status: en route from ${from} to ${to}${t.segments && t.segments.length > 1 ? ` (road ${now.segmentIndex + 1} of ${t.segments.length} today)` : ''} — ${status}.`);
-    lines.push(`Progress: ${Math.round(now.progress * 100)}% of the road${miles !== null ? ` (${Math.round(miles * now.progress)} mi traveled, ${Math.round(routeMilesRemaining(miles, now.progress))} mi remaining)` : ''}.`);
+    lines.push(`Progress: ${Math.round(now.progress * 100)}% of the ${city ? 'street' : 'road'}${miles !== null ? ` (${city ? dist(miles * now.progress) : `${Math.round(miles * now.progress)} mi`} traveled, ${city ? dist(routeMilesRemaining(miles, now.progress)) : `${Math.round(routeMilesRemaining(miles, now.progress))} mi`} remaining)` : ''}.`);
     lines.push(`Pace: ${t.pace}; terrain ×${route?.terrainFactor ?? 1}${route?.description ? `; road: ${route.description.slice(0, 160)}` : ''}.`);
     const last = t.segments?.length ? t.segments[t.segments.length - 1] : t;
     const lastRoute = state.routes.find(r => r.id === (t.segments?.length ? t.segments[t.segments.length - 1].routeId : t.routeId));
     const dayEnd = lastRoute ? name(last.reversed ? lastRoute.fromLocationId : lastRoute.toLocationId) : to;
     const reachesFinal = !plan || (last.endProgress >= 1 && dayEnd === name(plan.destinationLocationId));
-    if (last.endProgress < 1) lines.push(`This travel day stops partway when the 8-hour travel day ends; the party will NOT reach ${plan ? name(plan.destinationLocationId) : dayEnd} today.`);
+    if (!city && last.endProgress < 1) lines.push(`This travel day stops partway when the 8-hour travel day ends; the party will NOT reach ${plan ? name(plan.destinationLocationId) : dayEnd} today.`);
     const arrived = now.done && last.endProgress >= 1 && reachesFinal;
     const target = plan ? name(plan.destinationLocationId) : to;
-    lines.push(arrived ? `Arrival at ${target} is allowed.` : `Arrival at ${target} is NOT allowed yet — narrate the road only.`);
+    lines.push(arrived ? `Arrival at ${target} is allowed.` : `Arrival at ${target} is NOT allowed yet — narrate the ${city ? 'streets' : 'road'} only.`);
   } else if (state.currentRoutePosition) {
     const p = state.currentRoutePosition;
     const route = state.routes.find(r => r.id === p.routeId);
