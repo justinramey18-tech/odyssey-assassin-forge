@@ -40,7 +40,7 @@ describe('staged Map Pack edits', () => {
   });
 
   it('only changes guide recommendation metadata', () => {
-    const g = [{ name: 'Lore', file: 'guides/l.md', content: 'x', tooLarge: false }];
+    const g = [{ name: 'Lore', file: 'guides/l.md', content: 'x', tooLarge: false, scope: 'campaign' as const }];
     const r = applyStagedOperations(base(), g, [{ op: 'set_guide_recommendation', guideIndex: 0, recommendedEnabled: true }], 1000, 500);
     expect(r.guides[0].recommendedEnabled).toBe(true);
     expect(r.guides[0].content).toBe('x');
