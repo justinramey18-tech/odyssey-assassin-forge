@@ -460,7 +460,7 @@ async function loadAndCheck(n: NormInput, actor: Actor, deps: InstallDeps, verif
   const row = await deps.readMap(n.party_id, party.hostId);
   if (!row) return { error: 'This party has no campaign map yet. Create one in the app first.' } as const;
   const an = analyzeTarget(n, row);
-  if (!an.ok) return { error: an.error } as const;
+  if (!an.ok) return { error: (an as { error: string }).error } as const;
   const t = an.t;
   const mapIds = t.legacy ? [] : t.path.map(p => p.id);
   const [core, area] = await Promise.all([deps.readCoreGuides(party.hostId), deps.readAreaGuides(n.party_id, mapIds)]);
