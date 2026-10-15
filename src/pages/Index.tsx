@@ -16,6 +16,8 @@ import { buildThistlepigEquipment } from '@/lib/thistlepig-unlock';
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { Character, CharacterAbility, getAbilityPointsForLevel, getTotalPointsSpent, getActiveSlotsByLevel } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
+import { readReceipt, markReceiptConsumed, type PartyCreationReceipt } from '@/lib/ai-creation/party-build-save';
+import { setBoundSaveId } from '@/lib/modeCharacterBinding';
 import { achievementCategories, Achievement } from '@/lib/achievements';
 import { 
   XPPreset, 
@@ -221,7 +223,15 @@ const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   
   // Roster navigation state: saveData/saveId from character selection, newCharacter flag, or AI-created character
-  const rosterState = location.state as { saveData?: SaveData; saveId?: string; newCharacter?: boolean; aiCreatedCharacter?: WizardState } | null;
+  const rosterState = location.state as { saveData?: SaveData; saveId?: string; newCharacter?: boolean; aiCreatedCharacter?: WizardState; partyCreationReceipt?: PartyCreationReceipt } | null;
+  // Party signup hand-off: an unconsumed receipt blocks every generic restore path
+  // until this exact committed save has loaded.
+  const partyReceiptRef = useRef<PartyCreationReceipt | null>(undefined as unknown as null);
+  if (partyReceiptRef.current === (undefined as unknown as null)) {
+    const fromState = rosterState?.partyCreationReceipt;
+    const stored = readReceipt();
+    partyReceiptRef.current = fromState ?? (stored && !stored.consumed ? stored : null);
+  }
 
   // Set when the player deliberately chose "Create New Hero". The startup cloud
   // auto-restore below fires on showWizard becoming true, and would otherwise
@@ -1055,6 +1065,7 @@ const Index = () => {
   useEffect(() => {
     if (authLoading || !partySync.hasResolvedParty || showIntroSplash) return;
     if (partyLandingAttemptedRef.current) return;
+    if (partyReceiptRef.current) return; // the signup hand-off opens the table itself
     partyLandingAttemptedRef.current = true;
     const open = shouldLandInPartyTable({
       partyMode: isPartyMode,
@@ -1887,10 +1898,78 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     }
   }, [activeCloudSaveId, loadFromCloud, handleLoadCloudSave]);
 
+  // ── Party signup hand-off: load the exact committed save, then open Live Table once ──
+  const [partyHandoff, setPartyHandoff] = useState<'idle' | 'loading' | 'waiting' | 'failed'>(partyReceiptRef.current ? 'loading' : 'idle');
+  const [partyHandoffError, setPartyHandoffError] = useState<string | null>(null);
+  const partyHandoffRunning = useRef(false);
+  const runPartyHandoff = useCallback(async () => {
+    const r = partyReceiptRef.current;
+    if (!r || partyHandoffRunning.current) return;
+    if (!user || user.id !== r.userId) { setPartyHandoff('failed'); setPartyHandoffError('Sign in with the account that made this character.'); return; }
+    partyHandoffRunning.current = true;
+    setPartyHandoff('loading'); setPartyHandoffError(null);
+    try {
+      // Re-check the server receipt; never trust names or local guesses.
+      const { data: res } = await supabase.functions.invoke('party-link', { body: { action: 'onboarding_resume', sessionId: r.sessionId } });
+      if (res?.status !== 'complete' || res.partyId !== r.partyId || res.completedSaveId !== r.saveId) {
+        throw new Error('We couldn’t confirm your new seat yet.');
+      }
+      if (activeCloudSaveId !== r.saveId) {
+        // Preserve the current character through its own save first; surface failures.
+        if (activeCloudSaveId && character.name?.trim()) {
+          await autoSync.pendingFlush();
+          const pre = await saveToCloud(saveData, character.name, activeCloudSaveId);
+          if (pre?.error) throw new Error('We couldn’t save your current character before switching.');
+        }
+        const data = await loadFromCloud(r.saveId);
+        if (!data) throw new Error('We couldn’t load your new character.');
+        if (data.partyId !== r.partyId) throw new Error('Your new character isn’t linked to this party.');
+        await handleLoadCloudSave(data, r.saveId, { skipPreSave: true });
+      } else {
+        void partySync.reconnectToParty(r.partyId);
+      }
+      setPlayMode('party');
+      setBoundSaveId('party', r.saveId);
+      setShowHomeScreen(true);
+      setPartyHandoff('waiting');
+    } catch (e) {
+      setPartyHandoff('failed');
+      setPartyHandoffError(e instanceof Error ? e.message : 'We couldn’t open your adventure.');
+    } finally {
+      partyHandoffRunning.current = false;
+    }
+  }, [user, activeCloudSaveId, character.name, autoSync, saveToCloud, saveData, loadFromCloud, handleLoadCloudSave, partySync, setPlayMode]);
+  useEffect(() => {
+    if (partyHandoff !== 'loading' || authLoading || !partyReceiptRef.current) return;
+    if (!isAuthenticated) { setPartyHandoff('failed'); setPartyHandoffError('Sign in to open your adventure.'); return; }
+    if (rosterState?.partyCreationReceipt) routerNavigate('/', { replace: true, state: null });
+    void runPartyHandoff();
+  }, [partyHandoff, authLoading, isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Consume the one-shot receipt only once the matching character AND seat have loaded.
+  useEffect(() => {
+    const r = partyReceiptRef.current;
+    if (partyHandoff !== 'waiting' || !r) return;
+    if (activeCloudSaveId !== r.saveId || partySync.party.partyId !== r.partyId) return;
+    markReceiptConsumed(r.sessionId);
+    partyReceiptRef.current = null;
+    partyLandingAttemptedRef.current = true;
+    setPartyHandoff('idle');
+    setAutoOpenPartyDM(true);
+  }, [partyHandoff, activeCloudSaveId, partySync.party.partyId]);
+  useEffect(() => {
+    if (partyHandoff !== 'waiting') return;
+    const t = window.setTimeout(() => {
+      setPartyHandoff(h => h === 'waiting' ? 'failed' : h);
+      setPartyHandoffError('Your character loaded, but the party table didn’t connect.');
+    }, 20000);
+    return () => window.clearTimeout(t);
+  }, [partyHandoff]);
+
   // ── Hydrate from roster selection (runs once after handleLoadCloudSave is defined) ──
   const hasHydratedFromRoster = useRef(false);
   useEffect(() => {
     if (hasHydratedFromRoster.current) return;
+    if (partyReceiptRef.current) return;
     if (!rosterState?.saveData || !rosterState?.saveId) return;
     hasHydratedFromRoster.current = true;
 
@@ -1907,6 +1986,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   const hasCheckedCloudNewer = useRef(false);
   useEffect(() => {
     if (hasHydratedFromRoster.current) return; // Roster already handled it
+    if (partyReceiptRef.current) return; // party signup hand-off owns this load
     // The player asked for a NEW character. Restoring the most recent save here
     // would silently cancel that and drop them back into their old character.
     if (isCreatingNewCharacter.current) return;
@@ -2184,6 +2264,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   const hasAppliedAICharacter = useRef(false);
   useEffect(() => {
     if (hasAppliedAICharacter.current) return;
+    if (partyReceiptRef.current) return; // never apply an old pending AI character during the party hand-off
     const wizardState = rosterState?.aiCreatedCharacter ?? readPendingAiCharacter()?.wizardState as WizardState | undefined;
     if (!wizardState) return;
     hasAppliedAICharacter.current = true;
