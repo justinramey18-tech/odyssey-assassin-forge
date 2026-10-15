@@ -11,11 +11,29 @@ export type Temperament = 'feral' | 'sentinel' | 'reckless' | 'cunning';
 export type Collar = 'none' | 'leather' | 'spiked' | 'pendant';
 export type Armor = 'none' | 'leather' | 'chain' | 'plate';
 export type PawGear = 'none' | 'wraps' | 'blades';
+export type HeadShape = 'canid' | 'feline' | 'ursine' | 'beaked' | 'reptile' | 'visor';
+export type FeetStyle = 'paws' | 'talons' | 'hooves' | 'pads';
+export type BackFeature = 'none' | 'mane' | 'wings' | 'spines' | 'shell';
+
+export const HEADS = ['canid', 'feline', 'ursine', 'beaked', 'reptile', 'visor'] as const;
+export const FEET = ['paws', 'talons', 'hooves', 'pads'] as const;
+export const BACKS = ['none', 'mane', 'wings', 'spines', 'shell'] as const;
+
+/** The anatomy each body family is born with; players can override any part. */
+export const CHASSIS_ANATOMY: Record<Chassis, { head: HeadShape; feet: FeetStyle; back: BackFeature }> = {
+  prowler: { head: 'canid', feet: 'paws', back: 'none' },
+  behemoth: { head: 'ursine', feet: 'pads', back: 'none' },
+  drake: { head: 'reptile', feet: 'talons', back: 'wings' },
+  automaton: { head: 'visor', feet: 'hooves', back: 'spines' },
+};
 
 export interface CompanionRig {
   name: string;
   title: string;
   chassis: Chassis;
+  head: HeadShape;
+  feet: FeetStyle;
+  back: BackFeature;
   build: number;   // 0 lithe .. 1 massive
   muzzle: number;  // 0 blunt .. 1 long
   ears: EarStyle;
@@ -41,6 +59,9 @@ export const DEFAULT_RIG: CompanionRig = {
   name: 'Grimjaw',
   title: 'the Ash Wolf',
   chassis: 'prowler',
+  head: 'canid',
+  feet: 'paws',
+  back: 'none',
   build: 0.45,
   muzzle: 0.6,
   ears: 'pricked',
@@ -79,10 +100,15 @@ export function sanitizeRig(raw: unknown): CompanionRig {
   const d = DEFAULT_RIG;
   const bondN = Number(r.bond);
   const s = (r.scars && typeof r.scars === 'object' ? r.scars : {}) as Record<string, unknown>;
+  const chassis = pick(r.chassis, ['prowler', 'behemoth', 'drake', 'automaton'] as const, d.chassis);
+  const anat = CHASSIS_ANATOMY[chassis];
   return {
     name: text(r.name, NAME_MAX, d.name),
     title: text(r.title, TITLE_MAX, d.title),
-    chassis: pick(r.chassis, ['prowler', 'behemoth', 'drake', 'automaton'] as const, d.chassis),
+    chassis,
+    head: pick(r.head, HEADS, anat.head),
+    feet: pick(r.feet, FEET, anat.feet),
+    back: pick(r.back, BACKS, anat.back),
     build: unit(r.build, d.build),
     muzzle: unit(r.muzzle, d.muzzle),
     ears: pick(r.ears, ['pricked', 'tufted', 'horns', 'frills', 'none'] as const, d.ears),

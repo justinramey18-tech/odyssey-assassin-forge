@@ -24,3 +24,16 @@ describe('companion rig', () => {
     expect(sanitizeRig({ muzzle: -2 }).muzzle).toBe(0);
   });
 });
+
+import { sanitizeRig as sr2 } from '../companion-rig';
+import { describe as d2, it as i2, expect as e2 } from 'vitest';
+d2('companion anatomy', () => {
+  i2('old saves get the anatomy of their body family', () => {
+    const r = sr2({ chassis: 'drake' });
+    e2([r.head, r.feet, r.back]).toEqual(['reptile', 'talons', 'wings']);
+  });
+  i2('player overrides survive and bad values fall back', () => {
+    const r = sr2({ chassis: 'behemoth', head: 'beaked', feet: 'nope' });
+    e2(r.head).toBe('beaked'); e2(r.feet).toBe('pads');
+  });
+});

@@ -19,10 +19,11 @@ interface Props {
 type Particle = { x: number; y: number; vx: number; vy: number; life: number; max: number; kind: 'ember' | 'heart' | 'dust' | 'z' | 'crumb' };
 
 const CHASSIS = {
-  prowler:   { len: 118, h: 44, leg: 58, head: 21, neck: 26, legW: 11 },
-  behemoth:  { len: 128, h: 64, leg: 48, head: 27, neck: 16, legW: 17 },
-  drake:     { len: 124, h: 48, leg: 50, head: 21, neck: 34, legW: 12 },
-  automaton: { len: 118, h: 52, leg: 56, head: 23, neck: 22, legW: 13 },
+  // amp = how far the chest rises; sway = sideways sinuous drift; tick = mechanical stepping
+  prowler:   { len: 118, h: 44, leg: 58, head: 21, neck: 26, legW: 11, amp: 1.3, sway: 0, tick: 0, hz: 1 },
+  behemoth:  { len: 128, h: 64, leg: 48, head: 27, neck: 16, legW: 17, amp: 3.0, sway: 0, tick: 0, hz: 0.6 },
+  drake:     { len: 124, h: 48, leg: 50, head: 21, neck: 34, legW: 12, amp: 1.5, sway: 3, tick: 0, hz: 0.8 },
+  automaton: { len: 118, h: 52, leg: 56, head: 23, neck: 22, legW: 13, amp: 1.0, sway: 0, tick: 6, hz: 1.2 },
 } as const;
 
 const TEMPER = {
@@ -268,10 +269,11 @@ export const CompanionCanvas = forwardRef<CompanionCanvasHandle, Props>(function
       const legW = C.legW * s * (0.8 + R.build * 0.45);
       const headR = C.head * s * (0.92 + R.build * 0.15);
       const breathHz = (S.stress > 0.6 ? 1.2 : T.breath) * (S.sleeping ? 0.7 : 1);
-      const ph = S.t * Math.PI * 2 * breathHz;
+      const tt = C.tick ? Math.floor(S.t * C.tick) / C.tick : S.t;
+      const ph = tt * Math.PI * 2 * breathHz * C.hz;
       const breath = Math.sin(ph) + 0.25 * Math.sin(ph * 2 + 0.7);
-      const bx = W * 0.6 - S.recoil * 10 * s;
-      const by = ground - legL - bodyH * 0.35 + breath * 1.4 * s + sleepK * bodyH * 0.05;
+      const bx = W * 0.6 - S.recoil * 10 * s + Math.sin(S.t * 0.9) * C.sway * s;
+      const by = ground - legL - bodyH * 0.35 + breath * C.amp * s + sleepK * bodyH * 0.05;
       const chest = 1 + breath * 0.035;
       const G = S.geo; Object.assign(G, { bodyX: bx, bodyY: by, bodyL, bodyH, s, W, H, fireX, ground });
 
@@ -290,7 +292,11 @@ export const CompanionCanvas = forwardRef<CompanionCanvasHandle, Props>(function
         ctx.strokeStyle = col; ctx.lineWidth = legW; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
         ctx.beginPath(); ctx.moveTo(x, legTop); ctx.lineTo(kx, ky); ctx.lineTo(footX + (sleepK * (front ? 14 : -10) * s), fy - legW * 0.3); ctx.stroke();
         // paw
-        ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(footX + (front ? 4 : 2) * s + sleepK * (front ? 14 : -10) * s, fy - legW * 0.35, legW * 0.75, legW * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+        const fx = footX + (front ? 4 : 2) * s + sleepK * (front ? 14 : -10) * s;
+        if (R.feet === 'paws') { ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(fx, fy - legW * 0.35, legW * 0.75, legW * 0.42, 0, 0, Math.PI * 2); ctx.fill(); }
+        else if (R.feet === 'pads') { ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(fx + legW * 0.2, fy - legW * 0.3, legW * 1.05, legW * 0.38, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,0.35)'; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(fx + legW * (0.5 + i * 0.25), fy - legW * 0.12, legW * 0.12, 0, Math.PI * 2); ctx.fill(); } }
+        else if (R.feet === 'hooves') { ctx.fillStyle = '#1c1917'; ctx.beginPath(); ctx.moveTo(fx - legW * 0.45, fy - legW * 0.9); ctx.lineTo(fx + legW * 0.45, fy - legW * 0.9); ctx.lineTo(fx + legW * 0.65, fy); ctx.lineTo(fx - legW * 0.6, fy); ctx.closePath(); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.moveTo(fx, fy - legW * 0.85); ctx.lineTo(fx + legW * 0.1, fy); ctx.stroke(); }
+        else { ctx.strokeStyle = shade(R.belly, -0.3); ctx.lineWidth = Math.max(1.5 * s, legW * 0.22); ctx.lineCap = 'round'; for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(fx, fy - legW * 0.4); ctx.quadraticCurveTo(fx + legW * (0.4 + i * 0.5), fy - legW * 0.5, fx + legW * (0.9 + i * 0.6), fy); ctx.stroke(); } ctx.beginPath(); ctx.moveTo(fx, fy - legW * 0.4); ctx.lineTo(fx - legW * 0.8, fy); ctx.stroke(); }
         if (metal) { ctx.fillStyle = shade(R.accent, -0.2); ctx.beginPath(); ctx.arc(kx, ky, legW * 0.45, 0, Math.PI * 2); ctx.fill(); }
         if (!front || R.paws === 'none') return;
         const px = footX + 4 * s + sleepK * 14 * s;
@@ -359,11 +365,25 @@ export const CompanionCanvas = forwardRef<CompanionCanvasHandle, Props>(function
       if (R.scars.ribs) { ctx.strokeStyle = shade(pelt, 0.45); ctx.lineWidth = 1.6 * s; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(bx - bodyL * 0.05 + i * 6 * s, by - bodyH * 0.25); ctx.lineTo(bx + bodyL * 0.08 + i * 6 * s, by + bodyH * 0.1); ctx.stroke(); } }
       ctx.restore();
 
-      // drake wing / spine spikes
-      if (R.chassis === 'drake') {
-        ctx.fillStyle = shade(pelt, -0.25);
-        ctx.beginPath(); ctx.moveTo(bx + bodyL * 0.2, by - bodyH * 0.35); ctx.lineTo(bx - bodyL * 0.35, by - bodyH * (0.75 + breath * 0.03)); ctx.lineTo(bx - bodyL * 0.2, by - bodyH * 0.3); ctx.lineTo(bx - bodyL * 0.4, by - bodyH * 0.35); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = R.accent; for (let i = 0; i < 6; i++) { const x = bx - bodyL * 0.4 + i * bodyL * 0.13; ctx.beginPath(); ctx.moveTo(x - 4 * s, by - bodyH * 0.47); ctx.lineTo(x, by - bodyH * 0.62); ctx.lineTo(x + 4 * s, by - bodyH * 0.47); ctx.fill(); }
+      // back feature: wings, spines, shell (mane is drawn at the neck)
+      if (R.back === 'wings') {
+        const flap = Math.sin(ph) * 0.04 + (S.stress > 0.6 ? 0.12 : 0);
+        const wx = bx + bodyL * 0.15, wy = by - bodyH * 0.35;
+        const tipX = bx - bodyL * 0.45, tipY = by - bodyH * (0.95 + flap);
+        ctx.fillStyle = shade(pelt, -0.3); ctx.globalAlpha = 0.92;
+        ctx.beginPath(); ctx.moveTo(wx, wy); ctx.lineTo(tipX, tipY);
+        for (let i = 0; i < 3; i++) { const k = (i + 1) / 3; ctx.quadraticCurveTo(lerp(tipX, wx, k) - 6 * s, lerp(tipY, wy, k) + bodyH * 0.3, lerp(tipX, wx - bodyL * 0.1, k), lerp(tipY, wy, k) + bodyH * 0.12); }
+        ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+        ctx.strokeStyle = shade(pelt, -0.5); ctx.lineWidth = 2.2 * s; ctx.beginPath(); ctx.moveTo(wx, wy); ctx.lineTo(tipX, tipY); ctx.stroke();
+      }
+      if (R.back === 'spines') {
+        ctx.fillStyle = R.accent; for (let i = 0; i < 7; i++) { const x = bx - bodyL * 0.42 + i * bodyL * 0.12, h = (8 + (i % 3) * 3) * s; ctx.beginPath(); ctx.moveTo(x - 4 * s, by - bodyH * 0.46); ctx.lineTo(x - 1 * s, by - bodyH * 0.46 - h); ctx.lineTo(x + 4 * s, by - bodyH * 0.46); ctx.fill(); }
+      }
+      if (R.back === 'shell') {
+        const sc = shade(R.accent, -0.45);
+        ctx.fillStyle = sc; ctx.strokeStyle = shade(R.accent, -0.7); ctx.lineWidth = 1.8 * s;
+        ctx.beginPath(); ctx.ellipse(bx - bodyL * 0.05, by - bodyH * 0.12, bodyL * 0.5, bodyH * 0.55 * chest, 0, Math.PI, Math.PI * 2); ctx.closePath(); ctx.fill(); ctx.stroke();
+        for (let i = 0; i < 4; i++) { const x = bx - bodyL * 0.4 + i * bodyL * 0.24; ctx.beginPath(); ctx.moveTo(x, by - bodyH * 0.12); ctx.lineTo(x + bodyL * 0.06, by - bodyH * 0.5); ctx.lineTo(x + bodyL * 0.18, by - bodyH * 0.5); ctx.lineTo(x + bodyL * 0.24, by - bodyH * 0.12); ctx.stroke(); }
       }
       // armor
       if (R.armor !== 'none') {
@@ -391,6 +411,11 @@ export const CompanionCanvas = forwardRef<CompanionCanvasHandle, Props>(function
       const hx = nbx + Math.cos(neckA) * neckLen, hy = nby + Math.sin(neckA) * neckLen;
       ctx.strokeStyle = pelt; ctx.lineWidth = headR * (R.chassis === 'behemoth' ? 1.6 : 1.25); ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(nbx - 6 * s, nby + 4 * s); ctx.lineTo(hx, hy); ctx.stroke();
+      if (R.back === 'mane') {
+        ctx.fillStyle = shade(pelt, -0.3);
+        for (let i = 0; i < 9; i++) { const k = i / 8; const mx = lerp(nbx - bodyL * 0.15, hx, k), my = lerp(nby - 2 * s, hy, k); const a = neckA - Math.PI / 2 + Math.sin(S.t * 1.5 + i) * 0.08; const len = headR * (0.9 - k * 0.3) * (1 + R.build * 0.4);
+          ctx.beginPath(); ctx.moveTo(mx - 5 * s, my); ctx.lineTo(mx + Math.cos(a - 0.4) * len, my + Math.sin(a - 0.4) * len); ctx.lineTo(mx + 5 * s, my); ctx.fill(); }
+      }
       // collar
       if (R.collar !== 'none') {
         const cx = lerp(nbx, hx, 0.35), cy = lerp(nby, hy, 0.35);
@@ -421,46 +446,127 @@ export const CompanionCanvas = forwardRef<CompanionCanvasHandle, Props>(function
         ctx.restore();
       };
       if (R.ears !== 'none') { drawEar(-4 * s, 0.85, far); drawEar(0, 1, earCol); }
-      // skull
-      ctx.fillStyle = pelt;
-      ctx.beginPath(); if (metal) ctx.rect(-headR, -headR * 0.85, headR * 1.8, headR * 1.6); else ctx.ellipse(0, 0, headR, headR * 0.86, 0, 0, Math.PI * 2); ctx.fill();
-      // upper muzzle
-      ctx.beginPath(); ctx.moveTo(headR * 0.3, -headR * 0.55); ctx.lineTo(headR * 0.3 + mLen, -headR * 0.12); ctx.lineTo(headR * 0.3 + mLen, headR * 0.12); ctx.lineTo(headR * 0.2, headR * 0.25); ctx.closePath(); ctx.fill();
-      // nose
-      ctx.fillStyle = metal ? R.accent : '#111'; ctx.beginPath(); ctx.arc(headR * 0.3 + mLen, -headR * 0.05, headR * 0.15, 0, Math.PI * 2); ctx.fill();
-      // jaw (hinged)
+      // ---------- head: each shape is built differently ----------
+      const HS = R.head; const k = R.muzzle;
       const jawA = S.jaw * 0.45 + (S.stress > 0.6 ? 0.12 : 0);
-      ctx.save(); ctx.translate(headR * 0.1, headR * 0.3); ctx.rotate(jawA);
-      ctx.fillStyle = shade(pelt, -0.1); ctx.beginPath(); ctx.moveTo(0, -headR * 0.1); ctx.lineTo(mLen * 0.95, -headR * 0.05); ctx.lineTo(mLen * 0.85, headR * 0.2); ctx.lineTo(0, headR * 0.3); ctx.closePath(); ctx.fill();
-      if (jawA > 0.08) { ctx.fillStyle = '#f1f5f9'; for (let i = 0; i < 4; i++) { const x = mLen * (0.35 + i * 0.15); ctx.beginPath(); ctx.moveTo(x - 2 * s, -headR * 0.08); ctx.lineTo(x, -headR * 0.28); ctx.lineTo(x + 2 * s, -headR * 0.08); ctx.fill(); } }
-      ctx.restore();
-      if (jawA > 0.08) { ctx.fillStyle = '#3b0d12'; ctx.beginPath(); ctx.moveTo(headR * 0.2, headR * 0.22); ctx.lineTo(headR * 0.25 + mLen * 0.9, headR * 0.12); ctx.lineTo(headR * 0.2 + mLen * 0.8, headR * 0.12 + jawA * mLen * 0.8); ctx.fill(); }
-      if (R.scars.muzzle) { ctx.strokeStyle = shade(pelt, 0.5); ctx.lineWidth = 1.6 * s; ctx.beginPath(); ctx.moveTo(headR * 0.5, -headR * 0.5); ctx.lineTo(headR * 0.9, headR * 0.05); ctx.stroke(); }
-      // eye
-      const ex = headR * 0.32, ey = -headR * 0.28, er = headR * 0.24;
-      // pupil target in head-local space
+      let snout = headR * 0.3 + mLen;
+      let ex = headR * 0.32, ey = -headR * 0.28, er = headR * 0.24;
+      let slit = R.chassis === 'prowler' || R.chassis === 'drake';
+      const mouthDark = '#3b0d12';
+      const teeth = (x0: number, x1: number, y: number, n: number, up = true) => { ctx.fillStyle = '#f1f5f9'; for (let i = 0; i < n; i++) { const x = lerp(x0, x1, (i + 0.5) / n); ctx.beginPath(); ctx.moveTo(x - 1.8 * s, y); ctx.lineTo(x, y + (up ? -1 : 1) * 4.5 * s); ctx.lineTo(x + 1.8 * s, y); ctx.fill(); } };
+      if (HS === 'canid') {
+        ctx.fillStyle = pelt; ctx.beginPath(); ctx.ellipse(0, 0, headR, headR * 0.86, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(headR * 0.3, -headR * 0.55); ctx.lineTo(headR * 0.3 + mLen, -headR * 0.12); ctx.lineTo(headR * 0.3 + mLen, headR * 0.12); ctx.lineTo(headR * 0.2, headR * 0.25); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(headR * 0.3 + mLen, -headR * 0.05, headR * 0.15, 0, Math.PI * 2); ctx.fill();
+        ctx.save(); ctx.translate(headR * 0.1, headR * 0.3); ctx.rotate(jawA);
+        ctx.fillStyle = shade(pelt, -0.1); ctx.beginPath(); ctx.moveTo(0, -headR * 0.1); ctx.lineTo(mLen * 0.95, -headR * 0.05); ctx.lineTo(mLen * 0.85, headR * 0.2); ctx.lineTo(0, headR * 0.3); ctx.closePath(); ctx.fill();
+        if (jawA > 0.08) teeth(mLen * 0.3, mLen * 0.85, -headR * 0.08, 4);
+        ctx.restore();
+        if (jawA > 0.08) { ctx.fillStyle = mouthDark; ctx.beginPath(); ctx.moveTo(headR * 0.2, headR * 0.22); ctx.lineTo(headR * 0.25 + mLen * 0.9, headR * 0.12); ctx.lineTo(headR * 0.2 + mLen * 0.8, headR * 0.12 + jawA * mLen * 0.8); ctx.fill(); }
+      } else if (HS === 'feline') {
+        // round skull, flat face, tiny muzzle pad, whiskers
+        const mw = headR * (0.32 + k * 0.22);
+        snout = headR * 0.72 + mw;
+        ctx.fillStyle = pelt; ctx.beginPath(); ctx.ellipse(0, -headR * 0.05, headR * 1.02, headR * 0.92, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = shade(belly, -0.05); ctx.beginPath(); ctx.ellipse(headR * 0.72, headR * 0.22, mw, headR * 0.36, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#c0707a'; ctx.beginPath(); ctx.moveTo(headR * 0.72 + mw * 0.6, headR * 0.02); ctx.lineTo(headR * 0.72 + mw * 1.05, headR * 0.02); ctx.lineTo(headR * 0.72 + mw * 0.85, headR * 0.18); ctx.fill();
+        ctx.save(); ctx.translate(headR * 0.55, headR * 0.45); ctx.rotate(jawA * 0.9);
+        ctx.fillStyle = shade(belly, -0.15); ctx.beginPath(); ctx.ellipse(mw * 0.5, 0, mw * 0.75, headR * 0.16, 0, 0, Math.PI * 2); ctx.fill();
+        if (jawA > 0.08) teeth(mw * 0.1, mw * 0.9, -headR * 0.1, 2);
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(240,240,230,0.55)'; ctx.lineWidth = 0.9 * s;
+        for (let i = -1; i <= 1; i++) { const wy = headR * (0.2 + i * 0.08); ctx.beginPath(); ctx.moveTo(headR * 0.8 + mw * 0.5, wy); ctx.quadraticCurveTo(headR * 1.4 + mw, wy + i * 3 * s - 2 * s + Math.sin(S.t * 2 + i) * s, headR * 1.8 + mw, wy + i * 7 * s); ctx.stroke(); }
+        ex = headR * 0.42; ey = -headR * 0.18; er = headR * 0.3; slit = true;
+      } else if (HS === 'ursine') {
+        // broad heavy skull, boxy blunt muzzle, small deep-set eyes, jowls
+        const ml = headR * (0.45 + k * 0.6);
+        snout = headR * 0.45 + ml;
+        ctx.fillStyle = pelt; ctx.beginPath(); ctx.ellipse(-headR * 0.05, -headR * 0.05, headR * 1.1, headR * 0.98, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = shade(belly, -0.2); ctx.beginPath(); ctx.roundRect?.(headR * 0.4, -headR * 0.35, ml, headR * 0.62, headR * 0.25); ctx.fill();
+        ctx.fillStyle = shade(pelt, -0.15); ctx.beginPath(); ctx.ellipse(headR * 0.55, headR * 0.35, headR * 0.45, headR * 0.28, 0.2, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#0d0d0d'; ctx.beginPath(); ctx.roundRect?.(headR * 0.4 + ml - headR * 0.32, -headR * 0.4, headR * 0.36, headR * 0.26, headR * 0.1); ctx.fill();
+        ctx.save(); ctx.translate(headR * 0.45, headR * 0.27); ctx.rotate(jawA * 0.8);
+        ctx.fillStyle = shade(pelt, -0.2); ctx.beginPath(); ctx.roundRect?.(0, 0, ml * 0.9, headR * 0.28, headR * 0.12); ctx.fill();
+        if (jawA > 0.08) teeth(ml * 0.15, ml * 0.8, 0, 3);
+        ctx.restore();
+        ex = headR * 0.22; ey = -headR * 0.42; er = headR * 0.15; slit = false;
+      } else if (HS === 'beaked') {
+        // feathered facial disc with a hooked raptor beak (owlbear)
+        const bl = headR * (0.45 + k * 0.5);
+        snout = headR * 0.5 + bl * 0.8;
+        ctx.fillStyle = pelt; ctx.beginPath(); ctx.ellipse(-headR * 0.05, 0, headR * 1.05, headR * 0.95, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = shade(belly, 0.05);
+        ctx.beginPath(); for (let i = 0; i <= 16; i++) { const a = (i / 16) * Math.PI * 2; const r = headR * (0.72 + (i % 2) * 0.08); const x = headR * 0.2 + Math.cos(a) * r * 0.9, y = Math.sin(a) * r; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = shade(belly, -0.25); ctx.lineWidth = 1 * s; for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(headR * 0.2, 0, headR * (0.35 + i * 0.08), -0.9, 0.9); ctx.stroke(); }
+        ctx.save(); ctx.translate(headR * 0.55, headR * 0.15); ctx.rotate(jawA * 0.7);
+        ctx.fillStyle = '#8a7350'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(bl * 0.55, headR * 0.05); ctx.lineTo(0, headR * 0.22); ctx.fill();
+        ctx.restore();
+        ctx.fillStyle = '#d4b878'; ctx.beginPath(); ctx.moveTo(headR * 0.5, -headR * 0.32); ctx.quadraticCurveTo(headR * 0.55 + bl, -headR * 0.35, headR * 0.5 + bl * 0.85, headR * 0.28); ctx.quadraticCurveTo(headR * 0.5 + bl * 0.55, headR * 0.02, headR * 0.5, headR * 0.15); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.beginPath(); ctx.moveTo(headR * 0.55, -headR * 0.28); ctx.quadraticCurveTo(headR * 0.5 + bl * 0.7, -headR * 0.3, headR * 0.5 + bl * 0.8, headR * 0.05); ctx.lineTo(headR * 0.55, -headR * 0.2); ctx.fill();
+        ex = headR * 0.3; ey = -headR * 0.32; er = headR * 0.28; slit = false;
+        ctx.fillStyle = shade(pelt, -0.45); ctx.beginPath(); ctx.arc(ex, ey, er * 1.35, 0, Math.PI * 2); ctx.fill();
+      } else if (HS === 'reptile') {
+        // long flat wedge, heavy brow ridge, always-visible teeth, nostril bump
+        const ml = headR * (0.7 + k * 1.1);
+        snout = headR * 0.2 + ml;
+        ctx.fillStyle = pelt; ctx.beginPath();
+        ctx.moveTo(-headR * 0.9, -headR * 0.25); ctx.quadraticCurveTo(-headR * 0.4, -headR * 0.78, headR * 0.3, -headR * 0.55);
+        ctx.lineTo(headR * 0.2 + ml, -headR * 0.18); ctx.quadraticCurveTo(headR * 0.3 + ml, -headR * 0.02, headR * 0.15 + ml, headR * 0.06);
+        ctx.lineTo(-headR * 0.4, headR * 0.35); ctx.quadraticCurveTo(-headR * 0.9, headR * 0.3, -headR * 0.9, -headR * 0.25); ctx.fill();
+        ctx.fillStyle = shade(pelt, -0.35); ctx.beginPath(); ctx.moveTo(-headR * 0.2, -headR * 0.6); ctx.quadraticCurveTo(headR * 0.25, -headR * 0.85, headR * 0.55, -headR * 0.48); ctx.lineTo(headR * 0.1, -headR * 0.45); ctx.fill();
+        ctx.fillStyle = '#0a0a0a'; ctx.beginPath(); ctx.ellipse(headR * 0.05 + ml, -headR * 0.16, headR * 0.08, headR * 0.05, -0.3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.25)'; for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.arc(headR * 0.1 + i * ml * 0.14, -headR * 0.3, 1.4 * s, 0, Math.PI * 2); ctx.fill(); }
+        teeth(headR * 0.3, headR * 0.1 + ml * 0.95, headR * 0.06, 5, false);
+        ctx.save(); ctx.translate(-headR * 0.3, headR * 0.28); ctx.rotate(jawA * 1.1);
+        ctx.fillStyle = shade(belly, -0.25); ctx.beginPath(); ctx.moveTo(0, -headR * 0.1); ctx.lineTo(ml * 1.25, -headR * 0.18); ctx.lineTo(ml * 1.05, headR * 0.05); ctx.lineTo(0, headR * 0.2); ctx.closePath(); ctx.fill();
+        if (jawA > 0.06) teeth(ml * 0.4, ml * 1.15, -headR * 0.14, 4);
+        ctx.restore();
+        ex = headR * 0.12; ey = -headR * 0.38; er = headR * 0.2; slit = true;
+      } else {
+        // visor: armoured helm with a glowing sensor slit and grille jaw
+        const ml = headR * (0.3 + k * 0.6);
+        snout = headR * 0.8 + ml * 0.5;
+        ctx.fillStyle = shade(pelt, 0.05); ctx.beginPath(); ctx.moveTo(-headR, -headR * 0.8); ctx.lineTo(headR * 0.55, -headR * 0.85); ctx.lineTo(headR * 0.8 + ml * 0.5, -headR * 0.15); ctx.lineTo(headR * 0.65 + ml * 0.5, headR * 0.35); ctx.lineTo(-headR, headR * 0.6); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1.4 * s; ctx.stroke();
+        ctx.fillStyle = shade(R.accent, -0.15); for (const [rx, ry] of [[-headR * 0.7, -headR * 0.55], [-headR * 0.7, headR * 0.35], [headR * 0.35, -headR * 0.6]]) { ctx.beginPath(); ctx.arc(rx, ry, 1.8 * s, 0, Math.PI * 2); ctx.fill(); }
+        ctx.save(); ctx.translate(headR * 0.1, headR * 0.35); ctx.rotate(jawA * 0.6);
+        ctx.fillStyle = shade(pelt, -0.3); ctx.fillRect(0, 0, headR * 0.5 + ml * 0.5, headR * 0.3);
+        ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1 * s; for (let i = 1; i < 5; i++) { const x = (headR * 0.5 + ml * 0.5) * i / 5; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, headR * 0.3); ctx.stroke(); }
+        ctx.restore();
+      }
+      if (R.scars.muzzle) { ctx.strokeStyle = shade(pelt, 0.5); ctx.lineWidth = 1.6 * s; ctx.beginPath(); ctx.moveTo(snout * 0.55, -headR * 0.5); ctx.lineTo(snout * 0.85, headR * 0.05); ctx.stroke(); }
+      // eyes
       let lx = 0, ly = 0;
       if (S.hasGaze) { const dx = S.gx - hx, dy = S.gy - hy; const ca = Math.cos(-S.headAng), sa = Math.sin(-S.headAng); lx = dx * ca - dy * sa; ly = dx * sa + dy * ca; const d = Math.hypot(lx, ly) || 1; lx = lx / d * er * 0.4; ly = ly / d * er * 0.4; }
       S.pupilX = lerp(S.pupilX, lx, 0.45); S.pupilY = lerp(S.pupilY, ly, 0.45);
       const lid = Math.max(S.blink, sleepK, S.purr > 0.5 ? 0.55 : 0, R.temperament === 'cunning' ? 0.3 : 0);
       const blindEye = R.scars.eye;
-      ctx.fillStyle = metal ? '#0a0a0a' : '#120d08'; ctx.beginPath(); ctx.arc(ex, ey, er, 0, Math.PI * 2); ctx.fill();
-      if (R.glowEyes && !blindEye) { ctx.shadowColor = R.eye; ctx.shadowBlur = 12 * s * (1 - lid); }
-      ctx.fillStyle = blindEye ? '#cbd5e1' : R.eye; ctx.beginPath(); ctx.arc(ex, ey, er * 0.82, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
-      if (!blindEye) {
-        // pupil dilates when hunting / alert, slits toward the fire
-        const dil = S.treat ? 0.6 : 0.25 + S.vigilance * 0.2;
-        ctx.fillStyle = '#050505'; ctx.beginPath();
-        if (R.chassis === 'prowler' || R.chassis === 'drake') ctx.ellipse(ex + S.pupilX, ey + S.pupilY, er * dil * 0.6, er * 0.7, 0, 0, Math.PI * 2);
-        else ctx.arc(ex + S.pupilX, ey + S.pupilY, er * dil, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.beginPath(); ctx.arc(ex + S.pupilX - er * 0.25, ey + S.pupilY - er * 0.3, er * 0.16, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = 'rgba(255,200,140,0.5)'; ctx.beginPath(); ctx.arc(ex + S.pupilX + er * 0.2, ey + S.pupilY + er * 0.2, er * 0.08, 0, Math.PI * 2); ctx.fill();
-      } else { ctx.strokeStyle = shade(pelt, 0.5); ctx.lineWidth = 1.8 * s; ctx.beginPath(); ctx.moveTo(ex - er * 1.3, ey - er * 1.4); ctx.lineTo(ex + er * 1.1, ey + er * 1.4); ctx.stroke(); }
-      if (lid > 0.02) { ctx.fillStyle = pelt; ctx.beginPath(); ctx.rect(ex - er * 1.1, ey - er * 1.1, er * 2.2, er * 2.2 * lid); ctx.fill(); }
+      if (HS === 'visor') {
+        const vx = -headR * 0.2, vy = -headR * 0.35, vw = headR * 0.95, vh = headR * 0.2 * (1 - lid * 0.9);
+        ctx.fillStyle = '#050505'; ctx.fillRect(vx, vy - headR * 0.12, vw, headR * 0.24);
+        if (R.glowEyes && !blindEye) { ctx.shadowColor = R.eye; ctx.shadowBlur = 14 * s * (1 - lid); }
+        ctx.fillStyle = blindEye ? '#475569' : R.eye; ctx.globalAlpha = 0.55; ctx.fillRect(vx, vy - vh / 2, vw, vh); ctx.globalAlpha = 1;
+        if (!blindEye && lid < 0.9) { const dot = clamp(vx + vw * 0.6 + S.pupilX * 3, vx + 3 * s, vx + vw - 3 * s); ctx.fillStyle = '#ffffff'; ctx.fillRect(dot - 3 * s, vy - vh / 2, 6 * s, vh); }
+        ctx.shadowBlur = 0;
+        if (blindEye) { ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1.2 * s; ctx.beginPath(); ctx.moveTo(vx + vw * 0.3, vy - headR * 0.3); ctx.lineTo(vx + vw * 0.5, vy); ctx.lineTo(vx + vw * 0.4, vy + headR * 0.25); ctx.stroke(); }
+      } else {
+        ctx.fillStyle = '#120d08'; ctx.beginPath(); ctx.arc(ex, ey, er, 0, Math.PI * 2); ctx.fill();
+        if (R.glowEyes && !blindEye) { ctx.shadowColor = R.eye; ctx.shadowBlur = 12 * s * (1 - lid); }
+        ctx.fillStyle = blindEye ? '#cbd5e1' : R.eye; ctx.beginPath(); ctx.arc(ex, ey, er * 0.82, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+        if (!blindEye) {
+          const dil = S.treat ? 0.6 : 0.25 + S.vigilance * 0.2;
+          ctx.fillStyle = '#050505'; ctx.beginPath();
+          if (slit) ctx.ellipse(ex + S.pupilX, ey + S.pupilY, er * dil * 0.6, er * 0.7, 0, 0, Math.PI * 2);
+          else ctx.arc(ex + S.pupilX, ey + S.pupilY, er * dil * (HS === 'beaked' ? 1.6 : 1), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.beginPath(); ctx.arc(ex + S.pupilX - er * 0.25, ey + S.pupilY - er * 0.3, er * 0.16, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = 'rgba(255,200,140,0.5)'; ctx.beginPath(); ctx.arc(ex + S.pupilX + er * 0.2, ey + S.pupilY + er * 0.2, er * 0.08, 0, Math.PI * 2); ctx.fill();
+        } else { ctx.strokeStyle = shade(pelt, 0.5); ctx.lineWidth = 1.8 * s; ctx.beginPath(); ctx.moveTo(ex - er * 1.3, ey - er * 1.4); ctx.lineTo(ex + er * 1.1, ey + er * 1.4); ctx.stroke(); }
+        if (lid > 0.02) { ctx.fillStyle = HS === 'beaked' ? shade(pelt, -0.45) : pelt; ctx.beginPath(); ctx.rect(ex - er * 1.1, ey - er * 1.1, er * 2.2, er * 2.2 * lid); ctx.fill(); }
+      }
       ctx.restore();
 
-      Object.assign(G, { headX: hx, headY: hy, headR, mouthX: hx + Math.cos(S.headAng) * (headR * 0.3 + mLen), mouthY: hy + Math.sin(S.headAng) * (headR * 0.3 + mLen) });
+      Object.assign(G, { headX: hx, headY: hy, headR, mouthX: hx + Math.cos(S.headAng) * snout, mouthY: hy + Math.sin(S.headAng) * snout });
 
       // firelight wash over everything
       ctx.globalCompositeOperation = 'lighter';

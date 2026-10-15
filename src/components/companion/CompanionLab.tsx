@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { useCompanionRig } from '@/hooks/use-companion-rig';
 import {
   ACCENT_SWATCHES, BELLY_SWATCHES, EYE_SWATCHES, PELT_SWATCHES, NAME_MAX, TITLE_MAX,
-  addBond, bondLabel, CompanionRig,
+  addBond, bondLabel, CompanionRig, CHASSIS_ANATOMY,
 } from '@/lib/companion-rig';
 import { CompanionCanvas, CompanionCanvasHandle } from './CompanionCanvas';
 
@@ -23,6 +23,13 @@ const CHASSIS: Opt<CompanionRig['chassis']>[] = [
   { v: 'prowler', l: 'Prowler (wolf / panther)' }, { v: 'behemoth', l: 'Behemoth (bear / owlbear)' },
   { v: 'drake', l: 'Drake (scaled wyrmling)' }, { v: 'automaton', l: 'Automaton (clockwork)' },
 ];
+const HEADS: Opt<CompanionRig['head']>[] = [
+  { v: 'canid', l: 'Hound — long snout' }, { v: 'feline', l: 'Cat — round face, whiskers' },
+  { v: 'ursine', l: 'Bear — broad, blunt muzzle' }, { v: 'beaked', l: 'Owlbear — feather disc, hooked beak' },
+  { v: 'reptile', l: 'Drake — flat wedge, toothy' }, { v: 'visor', l: 'Construct — armoured visor' },
+];
+const FEET: Opt<CompanionRig['feet']>[] = [{ v: 'paws', l: 'Paws' }, { v: 'pads', l: 'Heavy bear pads' }, { v: 'talons', l: 'Raptor talons' }, { v: 'hooves', l: 'Hooves' }];
+const BACKS: Opt<CompanionRig['back']>[] = [{ v: 'none', l: 'None' }, { v: 'mane', l: 'Shaggy mane' }, { v: 'wings', l: 'Leathery wings' }, { v: 'spines', l: 'Spine ridge' }, { v: 'shell', l: 'Armoured shell' }];
 const EARS: Opt<CompanionRig['ears']>[] = [{ v: 'pricked', l: 'Pricked ears' }, { v: 'tufted', l: 'Lynx tufts' }, { v: 'horns', l: 'Ram horns' }, { v: 'frills', l: 'Drake frills' }, { v: 'none', l: 'None' }];
 const TAILS: Opt<CompanionRig['tail']>[] = [{ v: 'plume', l: 'Plume' }, { v: 'whip', l: 'Whip' }, { v: 'club', l: 'Spiked club' }, { v: 'chain', l: 'Segmented' }];
 const PATTERNS: Opt<CompanionRig['pattern']>[] = [{ v: 'solid', l: 'Solid' }, { v: 'stripes', l: 'Stripes' }, { v: 'spots', l: 'Spots' }, { v: 'cracks', l: 'Molten cracks' }, { v: 'runes', l: 'Glowing runes' }];
@@ -123,9 +130,12 @@ export function CompanionLab({ open, onClose }: Props) {
         </TabsList>
         <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-8 pt-3">
           <TabsContent value="form" className="mt-0 space-y-4">
-            <Pick label="Body" value={rig.chassis} options={CHASSIS} onChange={v => update({ chassis: v })} />
+            <Pick label="Body" value={rig.chassis} options={CHASSIS} onChange={v => update({ chassis: v, ...CHASSIS_ANATOMY[v] })} />
+            <Pick label="Head" value={rig.head} options={HEADS} onChange={v => update({ head: v })} />
+            <Pick label="Back" value={rig.back} options={BACKS} onChange={v => update({ back: v })} />
+            <Pick label="Feet" value={rig.feet} options={FEET} onChange={v => update({ feet: v })} />
             <div className="space-y-2"><Label>Build — lithe to massive</Label><Slider value={[rig.build * 100]} onValueChange={([v]) => update({ build: v / 100 })} /></div>
-            <div className="space-y-2"><Label>Muzzle — blunt to long</Label><Slider value={[rig.muzzle * 100]} onValueChange={([v]) => update({ muzzle: v / 100 })} /></div>
+            <div className="space-y-2"><Label>Snout / beak — short to long</Label><Slider value={[rig.muzzle * 100]} onValueChange={([v]) => update({ muzzle: v / 100 })} /></div>
             <Pick label="Ears / horns" value={rig.ears} options={EARS} onChange={v => update({ ears: v })} />
             <Pick label="Tail" value={rig.tail} options={TAILS} onChange={v => update({ tail: v })} />
           </TabsContent>
