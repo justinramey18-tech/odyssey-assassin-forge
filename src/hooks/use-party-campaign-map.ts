@@ -648,6 +648,16 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   /** Edit one specific map (captured id). Other maps are untouched; inactive maps can never get travel. */
   const editMap = useCallback((mapId: string, fn: (s: CampaignMapState) => CampaignMapState | string) =>
     runAtlasOp(a => { const st = projectMapState(a, mapId); if (!st) return 'That map no longer exists.'; const n = fn(st); return typeof n === 'string' ? n : patchMap(a, mapId, sanitizeCampaignMapState(n)); }), [runAtlasOp]);
+  /** One save: how the party moves on a map (rooms / city streets / regional roads). */
+  const setMapTravelStyle = useCallback((mapId: string, style: 'local' | 'city' | 'regional') =>
+    runAtlasOp(a => {
+      const st = projectMapState(a, mapId); if (!st) return 'That map no longer exists.';
+      if (st.activeTravel || st.journeyPlan) return 'Finish or stop the current trip before changing the travel style.';
+      const meta = setNodeMeta(a, mapId, { navigationMode: style === 'local' ? 'local' : 'regional' });
+      if (typeof meta === 'string') return meta;
+      const next: CampaignMapState = { ...st }; if (style === 'city') next.travelScale = 'city'; else delete next.travelScale;
+      return patchMap(meta, mapId, sanitizeCampaignMapState(next));
+    }), [runAtlasOp]);
   const editMapMeta = useCallback((mapId: string, patch: Partial<Pick<AtlasMapNode, 'name' | 'entryLocationId' | 'navigationMode'>>) =>
     runAtlasOp(a => setNodeMeta(a, mapId, patch)), [runAtlasOp]);
 
@@ -780,13 +790,13 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney,
     exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext, serverNow, addAreaMap, replaceAreaImage, installAreaPack, undoAtlasInstall,
     atlas, isAtlasMode, activeMapId, viewedMapId, setViewedMapId, getMapState, getBreadcrumbs,
-    convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta,
+    convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta, setMapTravelStyle,
   }), [rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile, initialize, reset, uploadMapImage, replaceLocationsAndRoutes,
     addLocation, editLocation, removeLocation, addRoute, editRoute, removeRoute, setDiscovered, setCampaignClock,
     setTimeCompression, setDefaultPace, setTravelScale, setCalibration, setCurrentLocation, startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow,
     reconcileTravelIfComplete, planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney, exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext, serverNow, addAreaMap, replaceAreaImage, installAreaPack, undoAtlasInstall,
     atlas, isAtlasMode, activeMapId, viewedMapId, getMapState, getBreadcrumbs,
-    convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta]);
+    convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta, setMapTravelStyle]);
 }
 
 export type PartyCampaignMapApi = ReturnType<typeof usePartyCampaignMap>;

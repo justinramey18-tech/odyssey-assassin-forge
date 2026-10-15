@@ -145,15 +145,7 @@ export function AreaMapEditor({ map, partyId }: { map: PartyCampaignMapApi; part
           <div className="grid grid-cols-1 gap-2">
             <label className="text-[13px] text-white/70">How the party moves here</label>
             <Select value={viewedNode.navigationMode === 'local' ? 'local' : state.travelScale === 'city' ? 'city' : 'regional'}
-              onValueChange={v => void run(async () => {
-                const id = viewedNode.id;
-                const mode = v === 'local' ? 'local' : 'regional';
-                if (viewedNode.navigationMode !== mode) { const r = await map.editMapMeta(id, { navigationMode: mode }); if (!r.ok) return r; }
-                return map.editMap(id, st => {
-                  if (st.activeTravel || st.journeyPlan) return 'Finish or stop the current trip before changing the travel style.';
-                  const next = { ...st }; if (v === 'city') next.travelScale = 'city'; else delete next.travelScale; return next;
-                });
-              }, v === 'city' ? 'City streets: trips take minutes, no travel days.' : undefined)}>
+              onValueChange={v => void run(() => map.setMapTravelStyle(viewedNode.id, v as 'local' | 'city' | 'regional'), v === 'city' ? 'City streets: trips take minutes, no travel days.' : undefined)}>
               <SelectTrigger className="min-h-[48px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="local">Local area (walk between rooms, no travel time)</SelectItem>
