@@ -40,7 +40,7 @@ import { CharacterQuickSwitcher } from '@/components/navigation/CharacterQuickSw
 import { EmpyreanScreen } from '@/components/empyrean/EmpyreanScreen';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { loadEmpyreanDMConfig } from '@/lib/empyreanDMPersona';
-import { GeraltCompanionScreen } from '@/components/companion';
+import { GeraltCompanionScreen, CompanionLab } from '@/components/companion';
 // New redesigned components
 import { CharacterNamePlaque } from './CharacterNamePlaque';
 
@@ -359,6 +359,7 @@ export function HomeScreen({
   const [showSoloConfirm, setShowSoloConfirm] = useState(false);
   const [showEmpyreanScreen, setShowEmpyreanScreen] = useState(false);
   const [showArena, setShowArena] = useState(false);
+  const [showCompanionLab, setShowCompanionLab] = useState(false);
   // Crash recovery: an arena session left unfinished is undone on next open.
   useEffect(() => {
     if (restoreArenaSnapshot()) arenaToast('Arena practice undone — your character is back to normal.');
@@ -1080,6 +1081,16 @@ export function HomeScreen({
                   <Swords className="w-4 h-4 text-primary" />
                   <span className="text-xs font-cinzel font-bold uppercase tracking-[0.2em] text-primary">Training Grounds</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => { triggerHaptic('light'); setShowCompanionLab(true); }}
+                  className="w-full flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-border bg-card/40 backdrop-blur-sm active:scale-[0.97] transition-all"
+                  style={{ touchAction: 'manipulation' }}
+                  aria-label="Open your companion"
+                >
+                  <PawPrint className="w-4 h-4 text-primary" />
+                  <span className="text-xs font-cinzel font-bold uppercase tracking-[0.2em] text-primary">Companion</span>
+                </button>
               </div>
 
               {/* SPACER — dragon art fills the middle */}
@@ -1267,6 +1278,16 @@ export function HomeScreen({
                 >
                   <Swords className="w-4 h-4 text-primary" />
                   <span className="text-xs font-cinzel font-bold uppercase tracking-[0.2em] text-primary">Training Grounds</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { triggerHaptic('light'); setShowCompanionLab(true); }}
+                  className="w-full flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-border bg-card/40 backdrop-blur-sm active:scale-[0.97] transition-all"
+                  style={{ touchAction: 'manipulation' }}
+                  aria-label="Open your companion"
+                >
+                  <PawPrint className="w-4 h-4 text-primary" />
+                  <span className="text-xs font-cinzel font-bold uppercase tracking-[0.2em] text-primary">Companion</span>
                 </button>
               </div>
 
@@ -1543,6 +1564,7 @@ export function HomeScreen({
       )}
 
 
+      <CompanionLab open={showCompanionLab} onClose={() => setShowCompanionLab(false)} />
       <ArenaScreen open={showArena} onClose={() => setShowArena(false)} characterContext={drawerContext?.characterContext} userId={userId} currentXP={currentXP} onManualLevelUp={onManualLevelUp} autoSyncCallbacks={autoSyncCallbacks} member={partySync?.party?.members?.find(m => m.user_id === userId) ?? null} />
 
       {/* Empyrean Campaign Screen */}

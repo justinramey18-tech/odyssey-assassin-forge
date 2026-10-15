@@ -112,4 +112,6 @@ export const SCOPED_KEYS = [
   // Arena: pre-practice copy of the character, restored on exit
   'odyssey-arena-snapshot',
   'odyssey-arena-bests',
+  // Custom battle companion (appearance + bond)
+  'odyssey-companion-rig',
 ] as const;
