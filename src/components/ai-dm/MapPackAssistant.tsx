@@ -175,9 +175,10 @@ export function MapPackAssistant({ map, current, onInstallGuide, undo, setUndo }
           ) : (
             <div className="grid grid-cols-2 gap-2">
               <Button variant="outline" className="min-h-[44px]" style={TOUCH} onClick={discard}>Discard</Button>
-              <Button disabled={!p.installable} className="min-h-[44px]" style={TOUCH} onClick={() => setConfirming(true)}>Install Map Pack</Button>
+              <Button disabled={!p.installable || map.isAtlasMode} className="min-h-[44px]" style={TOUCH} onClick={() => setConfirming(true)}>Install Map Pack</Button>
             </div>
           )}
+          {map.isAtlasMode && <p className="text-[11px] text-amber-200/80">This party uses nested maps. Installing a pack into an area is not ready yet, so it can't replace your world.</p>}
         </div>
       )}
     </div>
