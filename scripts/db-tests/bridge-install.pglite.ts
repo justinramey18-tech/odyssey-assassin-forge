@@ -9,10 +9,10 @@
 // Concurrency safety rests on the party row lock + receipt uniqueness (see docs/bridge-campaign-install.md).
 
 import { PGlite } from '@electric-sql/pglite';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-const ROOT = join(import.meta.dir, '..', '..');
+const ROOT = process.env.REPO_ROOT ?? join(import.meta.dir, '..', '..');
 const mig = (f: string) => readFileSync(join(ROOT, 'drizzle', 'migrations', f), 'utf8');
 
 const HOST = '11111111-1111-4111-8111-111111111111';
@@ -54,9 +54,10 @@ async function setup() {
       AS $$ SELECT EXISTS (SELECT 1 FROM public.parties WHERE id = _party_id AND created_by = _user_id) $$;
     CREATE FUNCTION public.safe_uuid(txt text) RETURNS uuid LANGUAGE plpgsql IMMUTABLE AS $$ BEGIN RETURN txt::uuid; EXCEPTION WHEN others THEN RETURN NULL; END $$;
   `);
-  await db.exec(mig('0025_nested_map_storage_foundation.sql'));
-  await db.exec(mig('0026_atlas_time_compression_range.sql'));
-  await db.exec(mig('0027_bridge_campaign_area_installer.sql'));
+  // Every migration from the nested-map foundation onward, in order (includes later fixes).
+  for (const f of readdirSync(join(ROOT, 'drizzle', 'migrations')).filter(f => /^\d{4}_.*\.sql$/.test(f) && f >= '0025').sort()) {
+    await db.exec(mig(f));
+  }
 }
 
 const world = () => ({
