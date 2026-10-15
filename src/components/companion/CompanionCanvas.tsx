@@ -80,7 +80,7 @@ export const CompanionCanvas = forwardRef<CompanionCanvasHandle, Props>(function
 
   useImperativeHandle(ref, () => ({
     tossTreat: () => {
-      const S = sim.current; const G = S.geo;
+      const S = sim.current; S.feel = notifyTreat(S.feel); S.beh = null; S.pendingLook = false; const G = S.geo;
       wakeUp();
       S.treat = { x: G.W * 0.08, y: G.H * 0.85, vx: G.W * 0.55 + Math.random() * 40, vy: -G.H * 1.05 };
       S.vigilance = 1;
@@ -615,6 +615,9 @@ export const CompanionCanvas = forwardRef<CompanionCanvasHandle, Props>(function
       ctx.fillStyle = fl; ctx.fillRect(0, 0, W, H);
       ctx.globalCompositeOperation = 'source-over';
 
+      // tongue flick (reptiles) and sensor sweep (constructs) during idles
+      if (S.pose.tongue > 0.05) { ctx.strokeStyle = '#be123c'; ctx.lineWidth = 1.6 * s; ctx.beginPath(); const tl = 14 * s * S.pose.tongue; ctx.moveTo(G.mouthX, G.mouthY); ctx.lineTo(G.mouthX + tl, G.mouthY + tl * 0.2); ctx.lineTo(G.mouthX + tl + 3 * s, G.mouthY - 2 * s); ctx.moveTo(G.mouthX + tl, G.mouthY + tl * 0.2); ctx.lineTo(G.mouthX + tl + 3 * s, G.mouthY + 3 * s); ctx.stroke(); }
+      if (S.pose.scan !== 0 && R.head === 'visor') { ctx.save(); ctx.globalAlpha = 0.18; ctx.fillStyle = R.eye; ctx.beginPath(); ctx.moveTo(G.mouthX, G.headY); ctx.lineTo(G.mouthX + 60 * s, ground + S.pose.scan * 14 * s - 6 * s); ctx.lineTo(G.mouthX + 60 * s, ground + S.pose.scan * 14 * s + 6 * s); ctx.fill(); ctx.restore(); }
       // treat
       if (S.treat) { ctx.fillStyle = '#9a3412'; ctx.save(); ctx.translate(S.treat.x, S.treat.y); ctx.rotate(S.t * 8); ctx.fillRect(-6 * s, -3 * s, 12 * s, 6 * s); ctx.fillStyle = '#f5f5f4'; ctx.beginPath(); ctx.arc(-6 * s, 0, 3 * s, 0, Math.PI * 2); ctx.arc(6 * s, 0, 3 * s, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
 
