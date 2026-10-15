@@ -112,6 +112,69 @@ export type Database = {
           },
         ]
       }
+      bridge_campaign_installs: {
+        Row: {
+          actor: string
+          converted_legacy: boolean
+          created_at: string
+          guide_ids: string[]
+          host_user_id: string
+          id: string
+          input_digest: string
+          installed_map_id: string
+          new_revision: number
+          new_updated_at: string
+          original_state_data: Json
+          original_updated_at: string
+          parent_location_id: string
+          parent_map_id: string
+          party_id: string
+          payload_digest: string
+          request_id: string
+          state_row_id: string
+        }
+        Insert: {
+          actor: string
+          converted_legacy: boolean
+          created_at?: string
+          guide_ids?: string[]
+          host_user_id: string
+          id?: string
+          input_digest: string
+          installed_map_id: string
+          new_revision: number
+          new_updated_at: string
+          original_state_data: Json
+          original_updated_at: string
+          parent_location_id: string
+          parent_map_id: string
+          party_id: string
+          payload_digest: string
+          request_id: string
+          state_row_id: string
+        }
+        Update: {
+          actor?: string
+          converted_legacy?: boolean
+          created_at?: string
+          guide_ids?: string[]
+          host_user_id?: string
+          id?: string
+          input_digest?: string
+          installed_map_id?: string
+          new_revision?: number
+          new_updated_at?: string
+          original_state_data?: Json
+          original_updated_at?: string
+          parent_location_id?: string
+          parent_map_id?: string
+          party_id?: string
+          payload_digest?: string
+          request_id?: string
+          state_row_id?: string
+        }
+        Relationships: []
+      }
       campaign_analytics: {
         Row: {
           created_at: string
@@ -3069,6 +3132,40 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      bridge_atlas_location_chain: {
+        Args: { _loc: string; _state: Json }
+        Returns: Json
+      }
+      bridge_atlas_validate_full: { Args: { _a: Json }; Returns: undefined }
+      bridge_campaign_install_receipt_json: {
+        Args: {
+          _r: Database["public"]["Tables"]["bridge_campaign_installs"]["Row"]
+          _replayed: boolean
+        }
+        Returns: Json
+      }
+      bridge_get_campaign_install: {
+        Args: { _actor: string; _party_id: string; _request_id: string }
+        Returns: Json
+      }
+      bridge_install_campaign_area: {
+        Args: {
+          _actor: string
+          _area_name: string
+          _expected_host_id: string
+          _expected_legacy: boolean
+          _expected_revision: number
+          _expected_updated_at: string
+          _guides: Json
+          _map_state: Json
+          _parent_location_id: string
+          _parent_map_id: string
+          _party_id: string
+          _payload_digest: string
+          _request_id: string
+        }
+        Returns: Json
+      }
       campaign_atlas_is_envelope: { Args: { _d: Json }; Returns: boolean }
       campaign_atlas_validate: { Args: { _d: Json }; Returns: undefined }
       can_read_party_location_guides: {
