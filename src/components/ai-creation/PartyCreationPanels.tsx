@@ -87,7 +87,10 @@ function RulesList({ rules }: { rules: PartyRules | null }) {
   );
 }
 
-export function PartyBuildReview({ build, rules, issues, stale }: { build: CharacterBuildData; rules: PartyRules | null; issues: string[]; stale: boolean }) {
+export function PartyBuildReview({ build, rules, issues, stale, canJoin, joining, joinError, onJoin }: {
+  build: CharacterBuildData; rules: PartyRules | null; issues: string[]; stale: boolean;
+  canJoin: boolean; joining: boolean; joinError: string | null; onJoin: () => void;
+}) {
   const s = build.abilityScores;
   const startingGoldDefault = rules?.startingGold == null;
   return (
@@ -105,10 +108,10 @@ export function PartyBuildReview({ build, rules, issues, stale }: { build: Chara
       {build.backstory && <p className="text-xs text-foreground/80 line-clamp-4">{build.backstory}</p>}
       {stale && <p className="text-xs text-amber-400">The campaign’s rules were updated. Ask the creator to re-check your build before joining.</p>}
       {issues.map((x, i) => <p key={i} className="text-xs text-destructive">{x}</p>)}
-      <Button disabled className="w-full min-h-12 font-display tracking-wider" size="lg" style={{ touchAction: 'manipulation' }}>
-        <Swords className="w-4 h-4 mr-2" /> Join the Adventure
+      {joinError && <p className="text-xs text-destructive">{joinError}</p>}
+      <Button disabled={!canJoin || joining} onClick={onJoin} className="w-full min-h-12 font-display tracking-wider" size="lg" style={{ touchAction: 'manipulation' }}>
+        {joining ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Swords className="w-4 h-4 mr-2" />} {joining ? 'Joining…' : 'Join the Adventure'}
       </Button>
-      <p className="text-[11px] text-muted-foreground text-center">Joining opens in the next update. Your character is saved.</p>
     </div>
   );
 }
