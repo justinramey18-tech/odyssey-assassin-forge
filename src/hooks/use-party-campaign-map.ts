@@ -365,6 +365,13 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     return next;
   }), [mutate]);
   const setDefaultPace = useCallback((pace: TravelPace) => mutate(s => ({ ...s, defaultPace: pace })), [mutate]);
+  /** City vs overland rules for the map the party is on. Not while a trip is running. */
+  const setTravelScale = useCallback((scale: TravelScale) => mutate(s => {
+    if (s.activeTravel || s.journeyPlan) return 'Finish or stop the current trip before changing the travel style.';
+    const next: CampaignMapState = { ...s };
+    if (scale === 'city') next.travelScale = 'city'; else delete next.travelScale;
+    return next;
+  }), [mutate]);
 
   // ── travel ──
   const startTravel = useCallback(async (routeId: string, toLocationId: string, pace?: TravelPace): Promise<Result> => {
@@ -768,7 +775,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile,
     initialize, reset, uploadMapImage, replaceMapImage: uploadMapImage, replaceLocationsAndRoutes,
     addLocation, editLocation, removeLocation, addRoute, editRoute, removeRoute,
-    setDiscovered, setCampaignClock, setTimeCompression, setDefaultPace, setCalibration, setCurrentLocation,
+    setDiscovered, setCampaignClock, setTimeCompression, setDefaultPace, setTravelScale, setCalibration, setCurrentLocation,
     startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow, reconcileTravelIfComplete,
     planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney,
     exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext, serverNow, addAreaMap, replaceAreaImage, installAreaPack, undoAtlasInstall,
@@ -776,7 +783,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta,
   }), [rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile, initialize, reset, uploadMapImage, replaceLocationsAndRoutes,
     addLocation, editLocation, removeLocation, addRoute, editRoute, removeRoute, setDiscovered, setCampaignClock,
-    setTimeCompression, setDefaultPace, setCalibration, setCurrentLocation, startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow,
+    setTimeCompression, setDefaultPace, setTravelScale, setCalibration, setCurrentLocation, startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow,
     reconcileTravelIfComplete, planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney, exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext, serverNow, addAreaMap, replaceAreaImage, installAreaPack, undoAtlasInstall,
     atlas, isAtlasMode, activeMapId, viewedMapId, getMapState, getBreadcrumbs,
     convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta]);
