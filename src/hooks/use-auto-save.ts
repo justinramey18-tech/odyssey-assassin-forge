@@ -79,6 +79,7 @@ export interface SaveData {
   dmResponseMode?: string | null;
   empyreanStatus?: 'active' | 'fallen';
   empyreanUnbondedStatus?: boolean;
+  companionRig?: unknown;
   savedAt: string;
   version: number;
 }
