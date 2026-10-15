@@ -65,6 +65,7 @@ const App = () => {
 
                 <Route path="/install" element={<Install />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/join-party" element={<JoinParty />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/recover-account" element={<RecoverAccount />} />
                 <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />

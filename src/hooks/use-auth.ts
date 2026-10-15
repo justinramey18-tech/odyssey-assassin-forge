@@ -1,3 +1,4 @@
+import { clearOnboardingLocal } from '@/lib/party-join-intent';
 import { useState, useEffect, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -83,6 +84,7 @@ export function useAuth() {
       console.error('[Auth] Failed to clear character data on sign-out:', e);
     }
 
+    try { clearOnboardingLocal((await supabase.auth.getSession()).data.session?.user?.id); } catch { /* ignore */ }
     const { error } = await supabase.auth.signOut();
     return { error };
   }, []);

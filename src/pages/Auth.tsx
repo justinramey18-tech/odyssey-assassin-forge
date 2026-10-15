@@ -13,6 +13,7 @@ import { isThistlepigUsername } from '@/lib/thistlepig';
 import { unlockThistlepig } from '@/lib/thistlepig-unlock';
 import { toast } from 'sonner';
 import { oauthReturnPath } from '@/lib/oauth-return-path';
+import { hasJoinIntent, normalizePartyCode, readJoinIntent, saveJoinIntent, isValidPartyCode } from '@/lib/party-join-intent';
 
 const usernameSchema = z
   .string()
@@ -38,7 +39,12 @@ export default function Auth() {
   const rawNext = new URLSearchParams(window.location.search).get('next');
   const nextPath = rawNext ? (() => { const p = oauthReturnPath(rawNext); return p === '/' ? null : p; })() : null;
 
-  const [view, setView] = useState<AuthView>('login');
+  const params = new URLSearchParams(window.location.search);
+  const joinMode = params.get('join') === '1';
+  const [view, setView] = useState<AuthView>(joinMode && params.get('view') === 'signup' ? 'signup' : 'login');
+  const [partyCode, setPartyCode] = useState(() => readJoinIntent()?.code ?? '');
+  const [recoverySaved, setRecoverySaved] = useState(true);
+  const [pendingRecoveryCode, setPendingRecoveryCode] = useState<string | null>(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -92,8 +98,16 @@ export default function Auth() {
           : error.message);
       } else if (nextPath) {
         navigate(nextPath);
+      } else if (joinMode && hasJoinIntent()) {
+        navigate('/join-party');
       } else {
-        navigate('/roster', { state: { autoLoad: true } });
+        // Offer an unfinished party character before the roster.
+        let unfinished = false;
+        try {
+          const { data } = await supabase.functions.invoke('party-link', { body: { action: 'onboarding_list' } });
+          unfinished = Array.isArray(data) && data.some((r: { sessionStatus?: string }) => r?.sessionStatus === 'in_progress');
+        } catch { /* fall through to roster */ }
+        navigate(unfinished ? '/join-party' : '/roster', { state: { autoLoad: true } });
       }
     } catch {
       setError('Sign in failed. Please check your connection and try again.');
@@ -118,6 +132,11 @@ export default function Auth() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateSignup()) return;
+    if (joinMode) {
+      const c = normalizePartyCode(partyCode);
+      if (!isValidPartyCode(c)) { setError('Party codes are 6 letters or numbers.'); return; }
+      saveJoinIntent(c);
+    }
     setLoading(true); setError(null);
 
     try {
@@ -140,16 +159,24 @@ export default function Auth() {
         return;
       }
 
-      // Ensure session (auto-confirm is on, but signIn to be sure)
-      await supabase.auth.signInWithPassword({ email, password });
+      // Ensure a real session; auto-confirm is not proof of one.
+      const { data: signed, error: siErr } = await supabase.auth.signInWithPassword({ email, password });
+      if (siErr || !signed?.session) {
+        setPassword(''); setConfirmPassword('');
+        setView('login');
+        setError('Your account was created, but we couldn’t sign you in yet. Sign in with your new username and password.');
+        setLoading(false);
+        return;
+      }
 
       // Generate code, store hash via edge function
       const code = generateRecoveryCode();
       const { error: rcErr } = await supabase.functions.invoke('set-recovery-code', { body: { code } });
+      setRecoverySaved(!rcErr);
+      setPendingRecoveryCode(rcErr ? code : null);
       if (rcErr) {
-        // Account exists; surface but continue to recovery view so user has at least a chance to save it
         console.error('[Auth] set-recovery-code failed', rcErr);
-        toast.error('Could not save recovery code. You can generate one later from Account Settings.');
+        toast.error('Your recovery code wasn’t saved yet. Tap Retry, or set one later from Account Settings.');
       }
       if (isThistlepigUsername(lower)) {
         setThistlepigUnlocked(true);
@@ -163,6 +190,14 @@ export default function Auth() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const retryRecoverySave = async () => {
+    if (!pendingRecoveryCode) return;
+    const { error: rcErr } = await supabase.functions.invoke('set-recovery-code', { body: { code: pendingRecoveryCode } });
+    if (rcErr) { toast.error('Still couldn’t save it. You can set one later from Account Settings.'); return; }
+    setRecoverySaved(true); setPendingRecoveryCode(null);
+    toast.success('Recovery code saved.');
   };
 
   const copyCode = async () => {
@@ -180,6 +215,9 @@ export default function Auth() {
       toast.error('Please confirm you saved your recovery code.');
       return;
     }
+
+    // A party join goes through the party rules, review and confirmed join — never the special auto-character.
+    if (hasJoinIntent()) { navigate('/join-party'); return; }
 
     if (thistlepigUnlocked) {
       try {
@@ -276,6 +314,11 @@ export default function Auth() {
                   Create Account
                 </button>
               </div>
+              <button type="button" onClick={() => navigate('/join-party')}
+                className="w-full mt-4 min-h-12 border border-[#8b7355] text-[#d4c4a0] font-cinzel uppercase tracking-[0.15em] text-sm rounded-sm hover:border-[#d4a030]"
+                style={{ touchAction: 'manipulation' }}>
+                {joinMode ? 'Change party code' : 'Join a Campaign'}
+              </button>
             </form>
           )}
 
@@ -306,8 +349,18 @@ export default function Auth() {
                 />
               </div>
 
+              {joinMode && (
+                <div className="relative">
+                  <div className={iconBoxClass}><User className={iconClass} /></div>
+                  <input
+                    type="text" placeholder="Party code (6 characters)" value={partyCode}
+                    onChange={(e) => setPartyCode(normalizePartyCode(e.target.value))} required maxLength={6}
+                    autoComplete="off" autoCapitalize="characters" aria-label="Party code" className={inputClass}
+                  />
+                </div>
+              )}
               <button type="submit" disabled={loading} className={goldBtn} style={goldBtnStyle}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Account'}
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : joinMode ? 'Create Account & Join' : 'Create Account'}
               </button>
 
               <button type="button" onClick={() => switchView('login')}
@@ -340,6 +393,14 @@ export default function Auth() {
                 {copied ? <><Check className="w-4 h-4" /> Copied</> : <><Copy className="w-4 h-4" /> Copy Code</>}
               </button>
 
+              {!recoverySaved && (
+                <div className="space-y-2">
+                  <p className="text-sm text-red-300">This code isn’t saved to your account yet, so it won’t work until it is.</p>
+                  <button type="button" onClick={retryRecoverySave}
+                    className="w-full min-h-12 border border-[#8b7355] text-[#d4c4a0] font-cinzel text-sm rounded-sm"
+                    style={{ touchAction: 'manipulation' }}>Retry saving recovery code</button>
+                </div>
+              )}
               <label className="flex items-start gap-2 text-[#c4a96a]/80 text-sm cursor-pointer">
                 <input type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)}
                   className="mt-1 w-4 h-4 accent-[#d4a030]" />
