@@ -127,7 +127,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   }, [partyId, hostUserId, fetchState]);
 
   // ── host writes: one upsert, returns the server's updated_at ──
-  const write = useCallback(async (next: CampaignMapState): Promise<{ ok: boolean; updatedAt: number; error: string }> => {
+  const write = useCallback(async (mid: string | null, next: CampaignMapState): Promise<{ ok: boolean; updatedAt: number; error: string }> => {
     if (!partyId || !currentUserId || !canWrite) return { ok: false, updatedAt: 0, error: "Only the party host can change the campaign map." };
     const { data, error } = await (supabase.from('party_shared_state') as any)
       .upsert({ party_id: partyId, user_id: currentUserId, state_type: CAMPAIGN_MAP_STATE_TYPE, state_data: next }, { onConflict: 'party_id,user_id,state_type' })
@@ -144,19 +144,20 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
 
   /** Every host change runs on a settled state, so a finished leg is never lost. */
   const mutate = useCallback(async (fn: (s: CampaignMapState) => CampaignMapState | string): Promise<Result> => {
+    const mid = activeMapIdRef.current;
     const base = settleTravel(stateRef.current ?? emptyCampaignMapState(), serverNow());
     const next = fn(base);
     if (typeof next === 'string') return fail(next);
-    const res = await write(sanitizeCampaignMapState(next));
+    const res = await write(mid, sanitizeCampaignMapState(next));
     return res.ok ? OK : fail(res.error);
   }, [settleTravel, serverNow, write]);
 
   const reconcileTravelIfComplete = useCallback(async (): Promise<boolean> => {
-    const s = stateRef.current;
+    const s = stateRef.current; const mid = activeMapIdRef.current;
     if (!canWrite || !s?.activeTravel) return false;
     const settled = settleTravel(s, serverNow());
     if (settled === s) return false;
-    return (await write(settled)).ok;
+    return (await write(mid, settled)).ok;
   }, [canWrite, settleTravel, serverNow, write]);
 
   // The host saves a finished leg on load / reconnect.
@@ -288,6 +289,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   // ── travel ──
   const startTravel = useCallback(async (routeId: string, toLocationId: string, pace?: TravelPace): Promise<Result> => {
     if (!canWrite) return fail('Only the party host can start travel.');
+    const mid = activeMapIdRef.current;
     const base = settleTravel(stateRef.current ?? emptyCampaignMapState(), serverNow());
     if (base.activeTravel) return fail('The party is already traveling.');
     const route = base.routes.find(r => r.id === routeId);
@@ -319,70 +321,70 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     delete staged.currentRoutePosition;
     delete staged.journeyPlan; // a manual one-road trip replaces any planned journey
     // 1) write to get the server's clock, 2) anchor the leg to it.
-    const first = await write(staged);
+    const first = await write(mid, staged);
     if (!first.ok) return fail(first.error);
-    const anchored = await write({ ...staged, activeTravel: { ...travel, startedAt: first.updatedAt } });
+    const anchored = await write(mid, { ...staged, activeTravel: { ...travel, startedAt: first.updatedAt } });
     return anchored.ok ? OK : fail(anchored.error);
   }, [canWrite, settleTravel, serverNow, write]);
 
   const pauseTravel = useCallback(async (): Promise<Result> => {
-    const s = stateRef.current;
+    const s = stateRef.current; const mid = activeMapIdRef.current;
     if (!canWrite) return fail('Only the party host can pause travel.');
     if (!s?.activeTravel || s.activeTravel.startedAt === null) return fail('The party is not traveling.');
-    const touch = await write(s); // server time for the exact elapsed
+    const touch = await write(mid, s); // server time for the exact elapsed
     if (!touch.ok) return fail(touch.error);
     const settled = settleTravel(s, touch.updatedAt);
-    if (!settled.activeTravel) return (await write(settled)).ok ? OK : fail('The map could not be saved.');
+    if (!settled.activeTravel) return (await write(mid, settled)).ok ? OK : fail('The map could not be saved.');
     const frozen = freezeTravel(s.activeTravel, touch.updatedAt);
     const live = travelDetail(frozen, touch.updatedAt);
     const next: CampaignMapState = { ...s, activeTravel: frozen, currentRoutePosition: { routeId: live.routeId, progress: live.forwardProgress } };
-    const res = await write(next);
+    const res = await write(mid, next);
     return res.ok ? OK : fail(res.error);
   }, [canWrite, settleTravel, write]);
 
   const resumeTravel = useCallback(async (): Promise<Result> => {
-    const s = stateRef.current;
+    const s = stateRef.current; const mid = activeMapIdRef.current;
     if (!canWrite) return fail('Only the party host can resume travel.');
     if (!s?.activeTravel || s.activeTravel.startedAt !== null) return fail('Travel is not paused.');
     const staged: CampaignMapState = { ...s };
     delete staged.currentRoutePosition;
-    const first = await write(staged);
+    const first = await write(mid, staged);
     if (!first.ok) return fail(first.error);
-    const res = await write({ ...staged, activeTravel: { ...s.activeTravel, startedAt: first.updatedAt } });
+    const res = await write(mid, { ...staged, activeTravel: { ...s.activeTravel, startedAt: first.updatedAt } });
     return res.ok ? OK : fail(res.error);
   }, [canWrite, write]);
 
   /** Stop here: the party stays at its current point on the road, and the clock keeps the time spent. */
   const cancelTravel = useCallback(async (): Promise<Result> => {
-    const s = stateRef.current;
+    const s = stateRef.current; const mid = activeMapIdRef.current;
     if (!canWrite) return fail('Only the party host can stop travel.');
-    if (!s?.activeTravel && s?.journeyPlan) { const n = { ...s }; delete n.journeyPlan; return (await write(n)).ok ? OK : fail('The map could not be saved.'); }
+    if (!s?.activeTravel && s?.journeyPlan) { const n = { ...s }; delete n.journeyPlan; return (await write(mid, n)).ok ? OK : fail('The map could not be saved.'); }
     if (!s?.activeTravel) return fail('The party is not traveling.');
-    const touch = await write(s);
+    const touch = await write(mid, s);
     if (!touch.ok) return fail(touch.error);
     const settled = settleTravel(s, touch.updatedAt);
-    if (!settled.activeTravel) { const n = { ...settled }; delete n.journeyPlan; return (await write(n)).ok ? OK : fail('The map could not be saved.'); }
+    if (!settled.activeTravel) { const n = { ...settled }; delete n.journeyPlan; return (await write(mid, n)).ok ? OK : fail('The map could not be saved.'); }
     const live = travelDetail(s.activeTravel, touch.updatedAt);
     const next: CampaignMapState = { ...s, campaignMinute: live.campaignMinute, currentLocationId: null, currentRoutePosition: { routeId: live.routeId, progress: live.forwardProgress } };
     delete next.activeTravel;
     delete next.journeyPlan; // a stopped trip never resumes by surprise
-    const res = await write(next);
+    const res = await write(mid, next);
     return res.ok ? OK : fail(res.error);
   }, [canWrite, settleTravel, write]);
 
   /** Host override: the leg ends now and the full remaining in-world time passes. */
   const finishTravelNow = useCallback(async (): Promise<Result> => {
-    const s = stateRef.current;
+    const s = stateRef.current; const mid = activeMapIdRef.current;
     if (!canWrite) return fail('Only the party host can finish travel.');
     if (s?.journeyPlan) {
       const done = finishJourneyState(s, serverNow());
       if (typeof done === 'string') return fail(done);
-      const r = await write(done);
+      const r = await write(mid, done);
       return r.ok ? OK : fail(r.error);
     }
     if (!s?.activeTravel) return fail('The party is not traveling.');
     const done = settleTravel({ ...s, activeTravel: { ...s.activeTravel, startedAt: null, pausedFraction: 1 } }, serverNow());
-    const res = await write(done);
+    const res = await write(mid, done);
     return res.ok ? OK : fail(res.error);
   }, [canWrite, settleTravel, serverNow, write]);
 
@@ -402,7 +404,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   }, [settleTravel, serverNow, rawState]);
 
   /** Write the tranche, then anchor it to the server's returned time (never this phone's clock). */
-  const launchTranche = useCallback(async (base: CampaignMapState, plan: JourneyPlan): Promise<Result> => {
+  const launchTranche = useCallback(async (mid: string | null, base: CampaignMapState, plan: JourneyPlan): Promise<Result> => {
     const tranche = buildJourneyTranche(base, plan);
     if (!tranche) return fail('A road on this journey has no distance yet. Set its miles (or calibrate the map) first.');
     if (!tranche.segments.length) return fail('The party is already there.');
@@ -410,50 +412,52 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     const cleanPlan: JourneyPlan = { ...plan }; delete cleanPlan.dayComplete;
     const staged: CampaignMapState = { ...base, journeyPlan: cleanPlan, activeTravel: travel, currentLocationId: null };
     delete staged.currentRoutePosition;
-    const first = await write(staged);
+    const first = await write(mid, staged);
     if (!first.ok) return fail(first.error);
-    const anchored = await write({ ...staged, activeTravel: { ...travel, startedAt: first.updatedAt } });
+    const anchored = await write(mid, { ...staged, activeTravel: { ...travel, startedAt: first.updatedAt } });
     return anchored.ok ? OK : fail(anchored.error);
   }, [write]);
 
   const startJourney = useCallback(async (destinationLocationId: string, pace?: TravelPace): Promise<Result> => {
     if (!canWrite) return fail('Only the party host can start travel.');
+    const mid = activeMapIdRef.current;
     const base = settleTravel(stateRef.current ?? emptyCampaignMapState(), serverNow());
     if (base.activeTravel) return fail('The party is already traveling.');
     if (destinationLocationId === base.currentLocationId) return fail('The party is already there.');
     const plan = planJourneyRoute(base, destinationLocationId, pace ?? base.defaultPace);
     if (!plan) return fail("There's no known road there yet.");
-    return launchTranche(base, plan);
+    return launchTranche(mid, base, plan);
   }, [canWrite, settleTravel, serverNow, launchTranche]);
 
   /** Next travel day from the exact saved spot. Does not rest, heal, or change anything on the characters. */
   const continueJourney = useCallback(async (): Promise<Result> => {
     if (!canWrite) return fail('Only the party host can continue travel.');
+    const mid = activeMapIdRef.current;
     const base = settleTravel(stateRef.current ?? emptyCampaignMapState(), serverNow());
     if (base.activeTravel) return fail('The party is already traveling.');
     if (!base.journeyPlan) return fail('There is no journey to continue.');
-    return launchTranche(base, base.journeyPlan);
+    return launchTranche(mid, base, base.journeyPlan);
   }, [canWrite, settleTravel, serverNow, launchTranche]);
 
   /** Stop the journey where the party stands right now (no jump to a town). */
   const cancelJourney = useCallback(async (): Promise<Result> => {
-    const s = stateRef.current;
+    const s = stateRef.current; const mid = activeMapIdRef.current;
     if (!canWrite) return fail('Only the party host can stop travel.');
     if (!s?.journeyPlan && !s?.activeTravel) return fail('There is no journey to stop.');
     let now = serverNow();
-    if (s.activeTravel) { const touch = await write(s); if (!touch.ok) return fail(touch.error); now = touch.updatedAt; }
+    if (s.activeTravel) { const touch = await write(mid, s); if (!touch.ok) return fail(touch.error); now = touch.updatedAt; }
     const settled = settleTravel(s, now);
     const next = foldTravelToPosition(settled, now);
     if (next.currentRoutePosition) delete next.currentRoutePosition.dayComplete;
     delete next.journeyPlan;
-    const res = await write(next);
+    const res = await write(mid, next);
     return res.ok ? OK : fail(res.error);
   }, [canWrite, settleTravel, serverNow, write]);
 
   // ── campaign saves ──
   /** A save-safe copy: travel in progress is frozen at this moment. */
   const exportSaveSnapshot = useCallback((): CampaignMapState | null => {
-    const s = stateRef.current;
+    const s = stateRef.current; const mid = activeMapIdRef.current;
     if (!s) return null;
     const settled = settleTravel(s, serverNow());
     return settled.activeTravel && settled.activeTravel.startedAt !== null
@@ -465,7 +469,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   const restoreSaveSnapshot = useCallback((snapshot: unknown) => {
     const s = sanitizeCampaignMapState(snapshot);
     if (s.activeTravel && s.activeTravel.startedAt !== null) s.activeTravel = { ...s.activeTravel, startedAt: null, pausedFraction: s.activeTravel.pausedFraction ?? 0 };
-    return write(s).then(r => (r.ok ? OK : fail(r.error)));
+    return write(mid, s).then(r => (r.ok ? OK : fail(r.error)));
   }, [write]);
 
   const clearCampaignMap = useCallback(async (): Promise<Result> => {
