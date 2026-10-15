@@ -1508,6 +1508,53 @@ export type Database = {
           },
         ]
       }
+      party_location_guides: {
+        Row: {
+          content: string
+          created_at: string
+          enabled: boolean
+          id: string
+          location_id: string | null
+          map_id: string
+          name: string
+          party_id: string
+          scope: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          location_id?: string | null
+          map_id: string
+          name: string
+          party_id: string
+          scope: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          location_id?: string | null
+          map_id?: string
+          name?: string
+          party_id?: string
+          scope?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_location_guides_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       party_loot_queue: {
         Row: {
           added_by_name: string
@@ -3022,6 +3069,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      campaign_atlas_is_envelope: { Args: { _d: Json }; Returns: boolean }
+      campaign_atlas_validate: { Args: { _d: Json }; Returns: undefined }
+      can_read_party_location_guides: {
+        Args: { _party_id: string }
+        Returns: boolean
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -3062,6 +3115,19 @@ export type Database = {
       setup_telegram_cron: {
         Args: { base_url: string; service_key: string }
         Returns: undefined
+      }
+      write_campaign_atlas: {
+        Args: {
+          _envelope: Json
+          _expected_updated_at: string
+          _party_id: string
+        }
+        Returns: {
+          id: string
+          server_time: string
+          state_data: Json
+          updated_at: string
+        }[]
       }
     }
     Enums: {
