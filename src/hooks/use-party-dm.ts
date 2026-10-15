@@ -309,8 +309,8 @@ interface UsePartyDmOptions {
   campaignMapContext?: () => string;
   /** Paused Campaign Map snapshot for saves (null when no map). */
   getCampaignMapSaveSnapshot?: () => unknown;
-  restoreCampaignMapSaveSnapshot?: (snapshot: unknown) => Promise<{ ok: boolean }>;
-  clearCampaignMapState?: () => Promise<{ ok: boolean }>;
+  restoreCampaignMapSaveSnapshot?: (snapshot: unknown) => Promise<{ ok: boolean; error?: string }>;
+  clearCampaignMapState?: () => Promise<{ ok: boolean; error?: string }>;
   partyDragonConfigs?: Array<{ userId: string; characterName: string; config: { dragonName: string; signetType: string; bond: number; trust: number; mood: string; burnout: number } }>;
   myDragonName?: string;
   onBurnoutDetected?: (level: number) => void;
@@ -348,7 +348,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const mapStateField = (): { map_state?: unknown } => {
     const get = mapSaveRef.current.get;
     if (!get) return {};
-    try { return { map_state: get() ?? null }; } catch { return {}; }
+    // A failed capture aborts the save (the caller's failure path runs) instead of silently dropping the map.
+    try { return { map_state: get() ?? null }; } catch (e) { throw new Error(`Campaign map could not be captured: ${e instanceof Error ? e.message : 'unknown error'}`); }
   };
   const { user } = useAuth();
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
@@ -1087,6 +1088,23 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   const loadCampaign = useCallback(async (campaignId: string, campaignMessages: any[], campaignSummary: string | null) => {
     if (!partyId || !user || !isCreator) return;
+
+    // 0. Campaign Map belongs to this campaign. Switch it FIRST and stop if that fails, so a loaded
+    //    story never sits on top of the wrong map. An older save with no map clears the map on purpose.
+    if (mapSaveRef.current.restore || mapSaveRef.current.clear) {
+      let r: { ok: boolean; error?: string };
+      try {
+        const { data: row, error: readErr } = await (supabase.from('ai_dm_campaigns') as any).select('map_state').eq('id', campaignId).maybeSingle();
+        if (readErr) throw readErr;
+        const snap = (row as { map_state?: unknown } | null)?.map_state ?? null;
+        r = snap !== null && mapSaveRef.current.restore ? await mapSaveRef.current.restore(snap) : mapSaveRef.current.clear ? await mapSaveRef.current.clear() : { ok: true };
+      } catch (e) { r = { ok: false, error: e instanceof Error ? e.message : undefined }; }
+      if (!r.ok) {
+        toast.error(`Campaign not loaded: its map could not be restored${r.error ? ` (${r.error})` : ''}. Your current game is unchanged.`);
+        return;
+      }
+    }
+
     await (supabase.from('party_dm_messages') as any).delete().eq('party_id', partyId);
     await (supabase.from('party_dm_prompts') as any).delete().eq('party_id', partyId);
 
@@ -1123,16 +1141,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         sender_name: msg.sender_name || (msg.role === 'assistant' ? 'DM' : 'Party'),
         created_at: originalCreatedAt ?? new Date(loadStamp.getTime() - (campaignMessages.length - i) * 1000).toISOString(),
       });
-    }
-
-    // 3. Campaign Map belongs to this campaign: restore it paused, or clear it for older saves.
-    if (mapSaveRef.current.restore || mapSaveRef.current.clear) {
-      try {
-        const { data: row } = await (supabase.from('ai_dm_campaigns') as any).select('map_state').eq('id', campaignId).maybeSingle();
-        const snap = (row as { map_state?: unknown } | null)?.map_state ?? null;
-        const r = snap && mapSaveRef.current.restore ? await mapSaveRef.current.restore(snap) : mapSaveRef.current.clear ? await mapSaveRef.current.clear() : { ok: true };
-        if (!r.ok) toast.warning('The campaign loaded, but its map could not be switched.');
-      } catch { toast.warning('The campaign loaded, but its map could not be switched.'); }
     }
 
     setActiveCampaignId(campaignId);
