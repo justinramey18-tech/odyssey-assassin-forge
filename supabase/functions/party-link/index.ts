@@ -93,16 +93,60 @@ Deno.serve(async (req) => {
 
       // Add creator as first member
       const characterName = body.characterName || 'Adventurer';
-      await supabase.from('party_members').insert({
+      const { error: seatError } = await supabase.from('party_members').insert({
         party_id: party.id,
         user_id: user.id,
         character_name: characterName,
         character_status: body.characterStatus || {},
       });
+      if (seatError) {
+        return new Response(JSON.stringify({ error: seatError.message, party }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
       return new Response(JSON.stringify({ party }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // ── Party onboarding (signup + full character creation) ──
+    // The verified user id always comes from the token above, never the body.
+    if (typeof action === 'string' && action.startsWith('onboarding_')) {
+      const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), {
+        status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+      const isUuid = (v: unknown) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+      const isInt = (v: unknown) => typeof v === 'number' && Number.isInteger(v) && v >= 0;
+      const call = async (fn: string, args: Record<string, unknown>) => {
+        const { data, error } = await supabase.rpc(fn, args);
+        if (error) return json({ status: 'error', error: error.message }, 400);
+        return json(data);
+      };
+      switch (action) {
+        case 'onboarding_begin':
+          if (typeof body.linkCode !== 'string' || body.linkCode.length > 20) return json({ status: 'invalid_code' }, 400);
+          return call('onboarding_begin', { _user_id: user.id, _link_code: body.linkCode });
+        case 'onboarding_list':
+          return call('onboarding_list', { _user_id: user.id });
+        case 'onboarding_resume':
+          if (!isUuid(body.sessionId)) return json({ status: 'not_found' }, 400);
+          return call('onboarding_resume', { _user_id: user.id, _session_id: body.sessionId });
+        case 'onboarding_save_draft':
+          if (!isUuid(body.sessionId) || !isInt(body.expectedRevision)) return json({ status: 'invalid_request' }, 400);
+          return call('onboarding_save_draft', { _user_id: user.id, _session_id: body.sessionId, _expected_revision: body.expectedRevision, _draft: body.draft });
+        case 'onboarding_finalize':
+          if (!isUuid(body.sessionId) || !isInt(body.expectedDraftRevision) || !isInt(body.expectedContextRevision)) return json({ status: 'invalid_request' }, 400);
+          return call('onboarding_finalize', {
+            _user_id: user.id, _session_id: body.sessionId,
+            _expected_draft_revision: body.expectedDraftRevision,
+            _expected_context_revision: body.expectedContextRevision,
+            _payload: body.savePayload,
+          });
+        default:
+          return json({ error: 'Unknown action' }, 400);
+      }
     }
 
     if (action === 'join') {
