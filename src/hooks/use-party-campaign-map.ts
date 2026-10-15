@@ -104,7 +104,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   const toStored = (data: unknown, updatedAt: string | null): Stored => {
     if (isAtlasEnvelope(data)) {
       const p = parseAtlas(data);
-      return p.ok ? { kind: 'atlas', atlas: p.value, updatedAt: updatedAt ?? '' } : { kind: 'invalid', error: p.error, updatedAt };
+      return p.ok ? { kind: 'atlas', atlas: p.value, updatedAt: updatedAt ?? '' } : { kind: 'invalid', error: (p as { error: string }).error, updatedAt };
     }
     return { kind: 'legacy', state: sanitizeCampaignMapState(data), updatedAt };
   };
@@ -199,7 +199,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
       const patched = patchMap(cur.atlas, mid, next);
       if (typeof patched === 'string') return { ok: false, updatedAt: 0, error: patched };
       const res = await commitAtlas(applyArrivalEntry(prevActive, patched), cur.atlas.revision);
-      return res.ok ? { ok: true, updatedAt: res.updatedAt ?? serverNow(), error: '' } : { ok: false, updatedAt: 0, error: res.error };
+      return res.ok ? { ok: true, updatedAt: res.updatedAt ?? serverNow(), error: '' } : { ok: false, updatedAt: 0, error: (res as { error: string }).error };
     }
     const scope = scopeRef.current;
     const { data, error } = await (supabase.from('party_shared_state') as any)
@@ -559,7 +559,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
       st.activeTravel && st.activeTravel.startedAt !== null ? { ...st, activeTravel: { ...st.activeTravel, startedAt: null, pausedFraction: st.activeTravel.pausedFraction ?? 0 } } : st;
     if (isAtlasEnvelope(snapshot)) {
       const parsed = parseAtlas(snapshot);
-      if (!parsed.ok) return fail(parsed.error);
+      if (parsed.ok === false) return fail((parsed as { error: string }).error);
       const a = parsed.value;
       const restored = patchMap({ ...a, sourcePartyId: partyId }, a.activeMapId, pause(projectActive(a)));
       if (typeof restored === 'string') return fail(restored);
