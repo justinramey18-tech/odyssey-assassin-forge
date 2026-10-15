@@ -356,7 +356,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (!prep) return null;
     try {
       const res = await prep();
-      if (!res.ok) return res.error;
+      if (!res.ok) return (res as { error: string }).error;
       requestAreaRef.current = { guides: res.guides, mapFacts: res.mapFacts };
       return null;
     } catch {
@@ -1121,7 +1121,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         r = snap !== null && mapSaveRef.current.restore ? await mapSaveRef.current.restore(snap) : mapSaveRef.current.clear ? await mapSaveRef.current.clear() : { ok: true };
       } catch (e) { r = { ok: false, error: e instanceof Error ? e.message : undefined }; }
       if (!r.ok) {
-        toast.error(`Campaign not loaded: its map could not be restored${r.error ? ` (${r.error})` : ''}. Your current game is unchanged.`);
+        toast.error(`Campaign not loaded: its map could not be restored${(r as { error: string }).error ? ` (${(r as { error: string }).error})` : ''}. Your current game is unchanged.`);
         return;
       }
     }

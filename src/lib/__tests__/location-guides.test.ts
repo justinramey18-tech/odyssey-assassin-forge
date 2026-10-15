@@ -26,7 +26,7 @@ describe('location guide scopes', () => {
   it('orders outer to inner and skips siblings', () => {
     const a = atlas(st([loc('gate', 'Gate'), loc('inn', 'Inn')], 'inn'));
     const r = resolveGuideScopes(a as any);
-    if (!r.ok) throw new Error(r.error);
+    if (!r.ok) throw new Error((r as { error: string }).error);
     const text = composeLocationGuides(r.scopes, [
       row('world', R, 'map', null), row('cormyr', R, 'location', 'cormyr'), row('arabel', R, 'location', 'arabel'),
       row('suzail', R, 'location', 'suzail'), row('city', C, 'map', null), row('inn', C, 'location', 'inn'), row('gate', C, 'location', 'gate'),
@@ -40,7 +40,7 @@ describe('location guide scopes', () => {
   it('on a road inside a map, keeps the area guides but no local place guide', () => {
     const a = atlas(st([loc('gate', 'Gate'), loc('inn', 'Inn')], 'inn', { currentRoutePosition: { routeId: 'r', fromLocationId: 'inn', toLocationId: 'gate', progress: 0.5 } }));
     const r = resolveGuideScopes(a as any);
-    if (!r.ok) throw new Error(r.error);
+    if (!r.ok) throw new Error((r as { error: string }).error);
     const text = composeLocationGuides(r.scopes, [row('city', C, 'map', null), row('inn', C, 'location', 'inn'), row('arabel', R, 'location', 'arabel')]);
     expect(text).toContain('text city');
     expect(text).toContain('text arabel');
@@ -50,7 +50,7 @@ describe('location guide scopes', () => {
   it('a disabled guide does not hide its enabled ancestors', () => {
     const a = atlas(st([loc('gate', 'Gate')], 'gate'));
     const r = resolveGuideScopes(a as any);
-    if (!r.ok) throw new Error(r.error);
+    if (!r.ok) throw new Error((r as { error: string }).error);
     const text = composeLocationGuides(r.scopes, [row('cormyr', R, 'location', 'cormyr'), row('arabel', R, 'location', 'arabel', false)]);
     expect(text).toContain('text cormyr');
     expect(text).not.toContain('text arabel');

@@ -46,7 +46,7 @@ export function useLocationGuides(opts: {
     const raw = data?.state_data;
     if (!raw || !isAtlasEnvelope(raw)) return { ok: true, atlas: null };
     const parsed = parseAtlas(raw);
-    if (!parsed.ok) return { ok: false, error: `The campaign map is damaged: ${parsed.error}` };
+    if (!parsed.ok) return { ok: false, error: `The campaign map is damaged: ${(parsed as { error: string }).error}` };
     return { ok: true, atlas: parsed.value };
   }, []);
 
@@ -61,12 +61,12 @@ export function useLocationGuides(opts: {
     for (let attempt = 0; attempt < MAX_TRIES; attempt++) {
       const first = await readAtlas();
       if (stale()) return { ok: false, error: 'The party changed. Try again.' };
-      if (!first.ok) return first;
+      if (!first.ok) return { ok: false, error: (first as { error: string }).error };
       if (!first.atlas) return { ok: true, guides: '', mapFacts: null, pathLabel: null }; // legacy map: no scoped guides
 
       const atlas = resolveAtlasAt(first.atlas, serverNow());
       const scopes = resolveGuideScopes(atlas);
-      if (!scopes.ok) return { ok: false, error: `Can't tell which area the party is in: ${scopes.error}` };
+      if (!scopes.ok) return { ok: false, error: `Can't tell which area the party is in: ${(scopes as { error: string }).error}` };
 
       const { data: allowed, error: authErr } = await supabase.rpc('can_read_party_location_guides', { _party_id: p });
       if (stale()) return { ok: false, error: 'The party changed. Try again.' };
@@ -83,7 +83,7 @@ export function useLocationGuides(opts: {
       // Confirm the map didn't move while we were reading.
       const second = await readAtlas();
       if (stale()) return { ok: false, error: 'The party changed. Try again.' };
-      if (!second.ok) return second;
+      if (!second.ok) return { ok: false, error: (second as { error: string }).error };
       if (!second.atlas || second.atlas.revision !== first.atlas.revision) continue;
 
       const area = composeLocationGuides(scopes.scopes, (rows || []) as LocationGuideRow[]);

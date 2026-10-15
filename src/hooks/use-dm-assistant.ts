@@ -335,7 +335,7 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
       let ctx = baseCtx;
       if (baseCtx.prepareAreaGuides) {
         const area = await baseCtx.prepareAreaGuides();
-        if (!area.ok) throw new Error(area.error);
+        if (!area.ok) throw new Error((area as { error: string }).error);
         if (controller.signal.aborted) throw new DOMException('Aborted', 'AbortError');
         ctx = { ...baseCtx, guides: combineGuides(baseCtx.guides || '', area.guides), areaFacts: area.mapFacts || undefined };
       }
