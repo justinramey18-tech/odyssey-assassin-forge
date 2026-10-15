@@ -2,6 +2,7 @@ import { BAG_DISCARD_EVENT } from '@/lib/bagDiscard';
 import type { LootItem } from '@/lib/loot/types';
 import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast as sonnerToast } from 'sonner';
 import { getScopedKey, getScopedItem, setScopedItem, removeScopedItem } from '@/lib/scoped-storage';
 import { SCOPED_KEYS } from '@/lib/scoped-keys';
 import { loadTimezone, TIMEZONE_CHANGE_EVENT } from '@/lib/timezone-storage';
@@ -226,8 +227,10 @@ const Index = () => {
   const rosterState = location.state as { saveData?: SaveData; saveId?: string; newCharacter?: boolean; aiCreatedCharacter?: WizardState; partyCreationReceipt?: PartyCreationReceipt } | null;
   // Party signup hand-off: an unconsumed receipt blocks every generic restore path
   // until this exact committed save has loaded.
-  const partyReceiptRef = useRef<PartyCreationReceipt | null>(undefined as unknown as null);
-  if (partyReceiptRef.current === (undefined as unknown as null)) {
+  const partyReceiptInit = useRef(false);
+  const partyReceiptRef = useRef<PartyCreationReceipt | null>(null);
+  if (!partyReceiptInit.current) {
+    partyReceiptInit.current = true;
     const fromState = rosterState?.partyCreationReceipt;
     const stored = readReceipt();
     partyReceiptRef.current = fromState ?? (stored && !stored.consumed ? stored : null);
@@ -1964,6 +1967,15 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     }, 20000);
     return () => window.clearTimeout(t);
   }, [partyHandoff]);
+  useEffect(() => {
+    if (partyHandoff !== 'failed') return;
+    const id = sonnerToast.error(partyHandoffError || 'We couldn’t open your adventure.', {
+      description: 'Your character and seat are saved.',
+      duration: Infinity,
+      action: { label: 'Retry opening adventure', onClick: () => setPartyHandoff('loading') },
+    });
+    return () => { sonnerToast.dismiss(id); };
+  }, [partyHandoff, partyHandoffError]);
 
   // ── Hydrate from roster selection (runs once after handleLoadCloudSave is defined) ──
   const hasHydratedFromRoster = useRef(false);
