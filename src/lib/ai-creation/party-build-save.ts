@@ -186,9 +186,6 @@ export function preparePartySave(build: CharacterBuildData | null, rules: PartyR
   if (build.gender) scoped['dnd-character-gender'] = build.gender;
   if (build.race) scoped['dnd-character-race'] = build.race;
   if (build.backstory) scoped['dnd-character-backstory'] = build.backstory.slice(0, 2000);
-  if (build.alignment && Number.isFinite(build.alignment.law) && Number.isFinite(build.alignment.good)) {
-    scoped['odyssey-alignment-drift'] = JSON.stringify([{ promptId: '_ai_creation_seed', law: build.alignment.law, good: build.alignment.good, ts: now }]);
-  }
   if (spellcasting) scoped['odyssey-spellcasting'] = JSON.stringify(spellcasting);
   if (build.empyrean) scoped['empyrean-unbonded-status'] = JSON.stringify(!!build.empyrean.unbonded);
 
