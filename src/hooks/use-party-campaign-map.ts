@@ -455,34 +455,101 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   }, [canWrite, settleTravel, serverNow, write]);
 
   // ── campaign saves ──
-  /** A save-safe copy: travel in progress is frozen at this moment. */
-  const exportSaveSnapshot = useCallback((): CampaignMapState | null => {
-    const s = stateRef.current; const mid = activeMapIdRef.current;
-    if (!s) return null;
-    const settled = settleTravel(s, serverNow());
-    return settled.activeTravel && settled.activeTravel.startedAt !== null
-      ? { ...settled, activeTravel: freezeTravel(settled.activeTravel, serverNow()) }
-      : settled;
+  /** A save-safe copy: travel in progress is frozen at this moment. Nested collections export whole. */
+  const exportSaveSnapshot = useCallback((): CampaignMapState | CampaignAtlas | null => {
+    const now = serverNow();
+    const freeze = (st: CampaignMapState) => {
+      const settled = settleTravel(st, now);
+      return settled.activeTravel && settled.activeTravel.startedAt !== null
+        ? { ...settled, activeTravel: freezeTravel(settled.activeTravel, now) } : settled;
+    };
+    const stored = storedRef.current;
+    if (stored?.kind === 'atlas') {
+      const a = resolveAtlasAt(stored.atlas, now);
+      const patched = patchMap(a, a.activeMapId, freeze(projectActive(a)));
+      return typeof patched === 'string' ? a : patched;
+    }
+    const s = stateRef.current;
+    return s ? freeze(s) : null;
   }, [rawState, settleTravel, serverNow]);
 
-  /** Load a saved map. Travel comes back paused; the host resumes it. */
-  const restoreSaveSnapshot = useCallback((snapshot: unknown) => {
-    const s = sanitizeCampaignMapState(snapshot);
-    if (s.activeTravel && s.activeTravel.startedAt !== null) s.activeTravel = { ...s.activeTravel, startedAt: null, pausedFraction: s.activeTravel.pausedFraction ?? 0 };
+  /** Load a saved map. Travel comes back paused; the host resumes it. A collection is never replaced by one map. */
+  const restoreSaveSnapshot = useCallback(async (snapshot: unknown): Promise<Result> => {
+    if (!partyId || !canWrite) return fail('Only the party host can change the campaign map.');
+    const stored = storedRef.current;
+    const pause = (st: CampaignMapState): CampaignMapState =>
+      st.activeTravel && st.activeTravel.startedAt !== null ? { ...st, activeTravel: { ...st.activeTravel, startedAt: null, pausedFraction: st.activeTravel.pausedFraction ?? 0 } } : st;
+    if (isAtlasEnvelope(snapshot)) {
+      const parsed = parseAtlas(snapshot);
+      if (!parsed.ok) return fail(parsed.error);
+      const a = parsed.value;
+      const restored = patchMap({ ...a, sourcePartyId: partyId }, a.activeMapId, pause(projectActive(a)));
+      if (typeof restored === 'string') return fail(restored);
+      return commitAtlas(restored, stored?.kind === 'atlas' ? stored.atlas.revision : 0);
+    }
+    if (stored?.kind === 'atlas') return fail('This party uses nested maps. A single saved map cannot replace them.');
+    const s = pause(sanitizeCampaignMapState(snapshot));
+    const mid = activeMapIdRef.current;
     return write(mid, s).then(r => (r.ok ? OK : fail(r.error)));
-  }, [write]);
+  }, [partyId, canWrite, write, commitAtlas]);
 
   const clearCampaignMap = useCallback(async (): Promise<Result> => {
     if (!partyId || !currentUserId || !canWrite) return fail('Only the party host can clear the map.');
     const { error } = await (supabase.from('party_shared_state') as any)
       .delete().eq('party_id', partyId).eq('user_id', currentUserId).eq('state_type', CAMPAIGN_MAP_STATE_TYPE);
     if (error) return fail(error.message || 'The map could not be cleared.');
-    setRawState(null);
+    applyStored(null);
     return OK;
-  }, [partyId, currentUserId, canWrite]);
+  }, [partyId, currentUserId, canWrite, applyStored]);
 
   /** Reads the latest map at call time, so a moving dot is current even without a re-render. */
-  const getPromptContext = useCallback((): string => { const st = stateRef.current; return st && (st.imageUrl || st.locations.length) ? buildDmLogisticsContext(st, serverNow()) : ''; }, [serverNow]);
+  const getPromptContext = useCallback((): string => {
+    const stored = storedRef.current;
+    const st = stored?.kind === 'atlas' ? projectActive(resolveAtlasAt(stored.atlas, serverNow())) : stateRef.current;
+    return st && (st.imageUrl || st.locations.length) ? buildDmLogisticsContext(st, serverNow()) : '';
+  }, [serverNow]);
+
+  // ── nested maps (host-only; no UI yet — prompt 5 wires these) ──
+  const atlas = stored?.kind === 'atlas' ? stored.atlas : null;
+  const isAtlasMode = !!atlas;
+
+  /** Explicit host conversion: the whole current map becomes the top map of a collection. */
+  const convertToAtlas = useCallback(async (name?: string): Promise<Result> => {
+    if (!partyId || !canWrite) return fail('Only the party host can change the campaign map.');
+    const cur = storedRef.current;
+    if (cur?.kind === 'atlas') return fail('This party already uses nested maps.');
+    const base = settleTravel(stateRef.current ?? emptyCampaignMapState(), serverNow());
+    return commitAtlas(convertLegacyToAtlas(base, partyId, name), 0);
+  }, [partyId, canWrite, settleTravel, serverNow, commitAtlas]);
+
+  /** Run an atlas operation on the latest collection, then save with compare-and-set. */
+  const runAtlasOp = useCallback(async (op: (a: CampaignAtlas) => CampaignAtlas | string): Promise<Result> => {
+    if (!canWrite) return fail('Only the party host can change the campaign map.');
+    const cur = storedRef.current;
+    if (cur?.kind !== 'atlas') return fail('Nested maps are not set up for this party.');
+    const base = resolveAtlasAt(cur.atlas, serverNow());
+    const next = op(base);
+    if (typeof next === 'string') return fail(next);
+    return commitAtlas(next, cur.atlas.revision);
+  }, [canWrite, serverNow, commitAtlas]);
+
+  const createChild = useCallback((parentMapId: string, parentLocationId: string, opts: { name: string; navigationMode?: NavigationMode; state?: CampaignMapState; entryLocationId?: string | null }) =>
+    runAtlasOp(a => createChildMapOp(a, parentMapId, parentLocationId, opts)), [runAtlasOp]);
+  const enterChildMap = useCallback((childMapId: string) => runAtlasOp(a => enterChildOp(a, childMapId)), [runAtlasOp]);
+  const exitToParentMap = useCallback(() => runAtlasOp(a => exitToParentOp(a)), [runAtlasOp]);
+  const moveWithinLocalMap = useCallback((locationId: string) => runAtlasOp(a => moveLocalOp(a, locationId)), [runAtlasOp]);
+  /** Edit one specific map (captured id). Other maps are untouched; inactive maps can never get travel. */
+  const editMap = useCallback((mapId: string, fn: (s: CampaignMapState) => CampaignMapState | string) =>
+    runAtlasOp(a => { const st = projectMapState(a, mapId); if (!st) return 'That map no longer exists.'; const n = fn(st); return typeof n === 'string' ? n : patchMap(a, mapId, sanitizeCampaignMapState(n)); }), [runAtlasOp]);
+  const editMapMeta = useCallback((mapId: string, patch: Partial<Pick<AtlasMapNode, 'name' | 'entryLocationId' | 'navigationMode'>>) =>
+    runAtlasOp(a => setNodeMeta(a, mapId, patch)), [runAtlasOp]);
+
+  const activeMapId = atlas?.activeMapId ?? null;
+  const [viewedMapIdRaw, setViewedMapId] = useState<string | null>(null);
+  // Local browse only. Never written, never changes party position or GM context.
+  const viewedMapId = atlas && viewedMapIdRaw && getNode(atlas, viewedMapIdRaw) ? viewedMapIdRaw : activeMapId;
+  const getMapState = useCallback((mapId: string) => (atlas ? projectMapState(atlas, mapId) : null), [atlas]);
+  const getBreadcrumbs = useCallback((mapId: string) => (atlas ? breadcrumbs(atlas, mapId) : []), [atlas]);
 
   return useMemo(() => ({
     rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile,
@@ -492,10 +559,14 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow, reconcileTravelIfComplete,
     planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney,
     exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext,
+    atlas, isAtlasMode, activeMapId, viewedMapId, setViewedMapId, getMapState, getBreadcrumbs,
+    convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta,
   }), [rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile, initialize, reset, uploadMapImage, replaceLocationsAndRoutes,
     addLocation, editLocation, removeLocation, addRoute, editRoute, removeRoute, setDiscovered, setCampaignClock,
     setTimeCompression, setDefaultPace, setCalibration, setCurrentLocation, startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow,
-    reconcileTravelIfComplete, planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney, exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext]);
+    reconcileTravelIfComplete, planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney, exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext,
+    atlas, isAtlasMode, activeMapId, viewedMapId, getMapState, getBreadcrumbs,
+    convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta]);
 }
 
 export type PartyCampaignMapApi = ReturnType<typeof usePartyCampaignMap>;
