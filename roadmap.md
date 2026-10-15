@@ -26,4 +26,4 @@
 - [x] Write and install private DM guides for the 12 Arabel places that have none.
 
 - [x] Party signup 4/5: confirmed save + Live Table hand-off
-- [ ] Party signup 5/5: waiting on prompt
+- [x] Party signup 5/5: join entrance + returning players
