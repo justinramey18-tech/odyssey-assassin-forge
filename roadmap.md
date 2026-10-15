@@ -22,3 +22,5 @@
 - [x] Arena step 4: scorecard and personal bests.
 - [x] Arena step 5: Endless Gauntlet.
 - [ ] Arena step 6–7: Party Arena (server storage + screens).
+- [ ] Campaign Map Play View: tapping any discovered place shows a brief description card.
+- [ ] Write and install private DM guides for the 12 Arabel places that have none.
