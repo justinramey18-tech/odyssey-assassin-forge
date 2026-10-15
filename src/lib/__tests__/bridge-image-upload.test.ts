@@ -54,7 +54,7 @@ function mockDeps(over: Partial<ImageDeps> = {}) {
 
 async function prepared(bytes: Uint8Array, type = 'image/png', m = mockDeps()) {
   const r = await prepare({ party_id: PARTY, content_type: type, size_bytes: bytes.length, sha256: sha(bytes) }, owner, m.deps);
-  if (!r.ok) throw new Error(r.error);
+  if (!r.ok) throw new Error((r as { error: string }).error);
   return { ...m, ticket: r.data.ticket as string, path: r.data.object_path as string };
 }
 

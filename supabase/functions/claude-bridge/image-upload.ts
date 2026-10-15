@@ -133,7 +133,7 @@ export async function readTicket(ticket: string, secret: string): Promise<Ticket
   if (parts.length !== 2) return null;
   const sig = fromB64url(parts[1]);
   if (!sig) return null;
-  const valid = await crypto.subtle.verify('HMAC', await hmacKey(secret), sig, enc.encode(parts[0]));
+  const valid = await crypto.subtle.verify('HMAC', await hmacKey(secret), sig as BufferSource, enc.encode(parts[0]));
   if (!valid) return null;
   const raw = fromB64url(parts[0]);
   if (!raw) return null;
@@ -218,7 +218,7 @@ export function inspectImage(b: Uint8Array): ImageInfo | null {
 }
 
 async function sha256Hex(b: Uint8Array): Promise<string> {
-  const d = new Uint8Array(await crypto.subtle.digest('SHA-256', b));
+  const d = new Uint8Array(await crypto.subtle.digest('SHA-256', b as BufferSource));
   return Array.from(d, (x) => x.toString(16).padStart(2, '0')).join('');
 }
 
@@ -226,7 +226,7 @@ async function sha256Hex(b: Uint8Array): Promise<string> {
 
 export async function prepareCampaignImageUpload(args: unknown, actor: Actor, deps: ImageDeps): Promise<Result> {
   const parsed = validatePrepareArgs(args);
-  if (!parsed.ok) return fail(parsed.error);
+  if (!parsed.ok) return fail((parsed as { error: string }).error);
   const secret = deps.ticketSecret();
   if (!secret) return fail('Image uploads are not configured on the server.');
   const { party_id, content_type, size_bytes, sha256 } = parsed.v;
@@ -270,7 +270,7 @@ export async function prepareCampaignImageUpload(args: unknown, actor: Actor, de
 
 export async function verifyCampaignImageUpload(args: unknown, actor: Actor, deps: ImageDeps): Promise<Result> {
   const parsed = validateVerifyArgs(args);
-  if (!parsed.ok) return fail(parsed.error);
+  if (!parsed.ok) return fail((parsed as { error: string }).error);
   const secret = deps.ticketSecret();
   if (!secret) return fail('Image uploads are not configured on the server.');
 
