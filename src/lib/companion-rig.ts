@@ -100,10 +100,15 @@ export function sanitizeRig(raw: unknown): CompanionRig {
   const d = DEFAULT_RIG;
   const bondN = Number(r.bond);
   const s = (r.scars && typeof r.scars === 'object' ? r.scars : {}) as Record<string, unknown>;
+  const chassis = pick(r.chassis, ['prowler', 'behemoth', 'drake', 'automaton'] as const, d.chassis);
+  const anat = CHASSIS_ANATOMY[chassis];
   return {
     name: text(r.name, NAME_MAX, d.name),
     title: text(r.title, TITLE_MAX, d.title),
-    chassis: pick(r.chassis, ['prowler', 'behemoth', 'drake', 'automaton'] as const, d.chassis),
+    chassis,
+    head: pick(r.head, HEADS, anat.head),
+    feet: pick(r.feet, FEET, anat.feet),
+    back: pick(r.back, BACKS, anat.back),
     build: unit(r.build, d.build),
     muzzle: unit(r.muzzle, d.muzzle),
     ears: pick(r.ears, ['pricked', 'tufted', 'horns', 'frills', 'none'] as const, d.ears),
