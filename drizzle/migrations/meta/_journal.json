@@ -211,6 +211,13 @@
       "when": 1792084894679,
       "tag": "0029_fix_bridge_install_guide_alias",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792084967813,
+      "tag": "0030_fix_bridge_install_guide_alias_apply",
+      "breakpoints": true
     }
   ]
 }
