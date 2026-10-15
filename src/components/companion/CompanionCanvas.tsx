@@ -303,15 +303,15 @@ export const CompanionCanvas = forwardRef<CompanionCanvasHandle, Props>(function
       leg(shX + 6 * s, shX + 14 * s, far, true);
 
       // tail (procedural chain)
-      const tailN = 7; const tailLen = bodyL * (R.tail === 'whip' ? 0.95 : 0.75);
+      const tailN = 7; const tailLen = bodyL * (R.tail === 'whip' ? 0.8 : 0.6);
       const wagAmp = (0.15 + R.bond / 100 * 0.35 + S.purr * 0.3) * T.wag * (S.sleeping ? 0.15 : 1);
       const wagF = 2 + S.purr * 4 + S.affection * 2;
       let tx = bx - bodyL * 0.48, ty = by - bodyH * 0.12;
-      const baseA = Math.PI + (S.sleeping ? 0.45 : -0.35 + S.vigilance * -0.3);
+      const baseA = Math.PI + (S.sleeping ? 0.5 : -0.75 + (1 - S.vigilance) * 0.4);
       const pts: [number, number][] = [[tx, ty]];
       for (let i = 1; i <= tailN; i++) {
         const k = i / tailN;
-        const a = baseA + Math.sin(S.t * wagF - i * 0.55) * wagAmp * k + (S.sleeping ? k * 0.9 : k * 0.25);
+        const a = baseA + Math.sin(S.t * wagF - i * 0.55) * wagAmp * k + (S.sleeping ? k * 0.9 : -k * 1.1);
         tx += Math.cos(a) * tailLen / tailN; ty += Math.sin(a) * tailLen / tailN;
         pts.push([tx, ty]);
       }
