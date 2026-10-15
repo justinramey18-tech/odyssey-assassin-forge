@@ -3,6 +3,7 @@ import { WizardState, QUICK_START_DEFAULTS } from '@/components/wizard/types';
 import { HonestModeRules } from '@/lib/gameModes';
 import { isEmpyreanMode } from '@/lib/empyreanLabels';
 import { AI_CREATION_DRAFT_KEY } from '@/lib/creation-guard';
+import { supabase } from '@/integrations/supabase/client';
 import type { CampaignContext } from '@/lib/ai-creation/readCampaignFile';
 
 export type ChatMessage = {
@@ -162,8 +163,21 @@ export function buildDataToWizardState(data: CharacterBuildData): WizardState {
   };
 }
 
-export function useAICreationChat() {
-  const [draft] = useState(loadDraft);
+export interface PartyChatConfig {
+  sessionId: string;
+  /** Draft to start from once the server session has loaded (canonical). */
+  initialDraft: { messages: ChatMessage[]; buildData: CharacterBuildData | null } | null;
+  /** Persist after each completed turn (revision-checked by the caller). */
+  onPersist: (messages: ChatMessage[], buildData: CharacterBuildData | null) => void;
+  /** Called when the access token is missing/expired. */
+  onAuthLost: () => void;
+}
+
+export function useAICreationChat(party?: PartyChatConfig | null) {
+  const partyRef = useRef(party ?? null); partyRef.current = party ?? null;
+  const isParty = !!party;
+  // Party sessions never import the unowned device draft.
+  const [draft] = useState(() => (isParty ? null : loadDraft()));
   const [messages, setMessages] = useState<ChatMessage[]>(() => draft?.messages ?? []);
   const [isLoading, setIsLoading] = useState(false);
   const [buildData, setBuildData] = useState<CharacterBuildData | null>(() => draft?.buildData ?? null);
@@ -178,9 +192,19 @@ export function useAICreationChat() {
 
   // Keep the conversation safe on the device so a reload or tab kill doesn't lose it.
   useEffect(() => {
-    if (messages.length === 0) return;
+    if (isParty || messages.length === 0) return;
     try { localStorage.setItem(AI_CREATION_DRAFT_KEY, JSON.stringify({ messages, buildData, campaign, savedAt: Date.now() })); } catch { /* storage full */ }
-  }, [messages, buildData, campaign]);
+  }, [messages, buildData, campaign, isParty]);
+
+  // Party: hydrate from the server draft when it arrives / when the session changes.
+  const hydratedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!party || hydratedFor.current === party.sessionId || !party.initialDraft) return;
+    hydratedFor.current = party.sessionId;
+    abortRef.current?.abort();
+    setMessages(party.initialDraft.messages);
+    setBuildData(party.initialDraft.buildData);
+  }, [party?.sessionId, party?.initialDraft]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sendMessage = useCallback(async (input: string) => {
     const userMsg: ChatMessage = { role: 'user', content: input };
@@ -188,6 +212,15 @@ export function useAICreationChat() {
     setMessages(allMessages);
     setIsLoading(true);
     setError(null);
+    // Any new request invalidates the ready-to-apply build.
+    setBuildData(null);
+    const pc = partyRef.current;
+    let token: string | null = null;
+    if (pc) {
+      const { data } = await supabase.auth.getSession();
+      token = data.session?.access_token ?? null;
+      if (!token) { setIsLoading(false); pc.onAuthLost(); return; }
+    }
 
     let assistantSoFar = '';
 
@@ -208,9 +241,9 @@ export function useAICreationChat() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({
+        body: JSON.stringify(pc ? { messages: allMessages, partyCreationSessionId: pc.sessionId } : {
           messages: allMessages,
           appMode: isEmpyreanMode() ? 'empyrean' : 'standard',
           campaignContext: campaignRef.current ? { name: campaignRef.current.name, text: campaignRef.current.text } : undefined,
@@ -219,6 +252,7 @@ export function useAICreationChat() {
       });
 
       if (!resp.ok) {
+        if (pc && resp.status === 401) { setIsLoading(false); pc.onAuthLost(); return; }
         const errorData = await resp.json().catch(() => ({ error: 'Request failed' }));
         setError(errorData.error || `Error ${resp.status}`);
         setIsLoading(false);
@@ -282,6 +316,7 @@ export function useAICreationChat() {
 
       // Check if the final message contains build data
       const extractedData = tryExtractBuildData(assistantSoFar);
+      if (pc) pc.onPersist([...allMessages, { role: 'assistant', content: assistantSoFar }], extractedData);
       if (extractedData) {
         setBuildData(extractedData);
       } else if (assistantSoFar.includes('"action":"apply_character"') || assistantSoFar.includes('"action": "apply_character"')) {
@@ -304,8 +339,10 @@ export function useAICreationChat() {
     setBuildData(null);
     setError(null);
     setIsLoading(false);
+    hydratedFor.current = partyRef.current?.sessionId ?? null;
     campaignRef.current = null;
     setCampaign(null);
+    if (partyRef.current) { partyRef.current.onPersist([], null); return; }
     try { localStorage.removeItem(AI_CREATION_DRAFT_KEY); } catch { /* ignore */ }
   }, []);
 
