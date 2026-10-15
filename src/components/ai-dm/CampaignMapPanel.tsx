@@ -252,6 +252,7 @@ function partyPoint(map: PartyCampaignMapApi, state: CampaignMapState): MapPoint
 
 function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampaignMapApi; state: CampaignMapState | null; onSetup?: () => void; landscape?: boolean }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [inspected, setInspected] = useState<string | null>(null);
   const [pace, setPace] = useState<TravelPace | null>(null);
   const [busy, setBusy] = useState(false);
   if (!state || !state.imageUrl) {
@@ -264,6 +265,7 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
     );
   }
   const host = map.canWrite;
+  const inspectedLoc = inspected ? state.locations.find(l => l.id === inspected && (host || l.discovered)) ?? null : null;
   const byId = new Map(state.locations.map(l => [l.id, l]));
   const view = map.getViewState();
   const city = isCityScale(state);
