@@ -39,7 +39,7 @@ import {
   type TravelPace,
 } from '@/lib/campaign-map';
 import {
-  applyArrivalEntry, breadcrumbs, convertLegacyToAtlas, createChildMap as createChildMapOp, enterChild as enterChildOp,
+  applyArrivalEntry, installAreaPackOp, breadcrumbs, convertLegacyToAtlas, createChildMap as createChildMapOp, enterChild as enterChildOp,
   exitToParent as exitToParentOp, getNode, isAtlasEnvelope, moveLocal as moveLocalOp, parseAtlas, patchMap, projectActive,
   projectMapState, resolveAtlasAt, setNodeMeta, validateAtlasGraph, classifySnapshot, parseLegacyMap, remapAtlasIds, pauseAtlasTravel,
   type AtlasMapNode, type CampaignAtlas, type NavigationMode,
@@ -691,6 +691,72 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     return editMap(mapId, st => replaceMapImage(st, img.url, img.w, img.h));
   }, [uploadDecodedImage, editMap]);
 
+  /**
+   * Install a Map Pack as an area map at a captured map/place. Order: validate → upload image →
+   * private guide rows under the still-inactive reserved id → one compare-and-set atlas commit.
+   * Never moves the party. A retry with the same reservedId reuses identical staged guide rows.
+   */
+  const installAreaPack = useCallback(async (input: {
+    parentMapId: string | null; parentLocationId: string; reservedId: string; name: string;
+    state: CampaignMapState; image: Blob; imageType: string; replaceExisting: boolean;
+    guides: Array<{ scope: 'map' | 'location'; locationId: string | null; name: string; content: string }>;
+  }): Promise<{ ok: true; previous: CampaignAtlas | null; previousLegacy: CampaignMapState | null; revisionAfter: number } | { ok: false; error: string; guidesStaged?: boolean }> => {
+    if (!partyId || !canWrite) return { ok: false, error: 'Only the party host can change the campaign map.' };
+    const cur = storedRef.current;
+    if (cur?.kind === 'invalid') return { ok: false, error: 'The saved maps are damaged, so nothing was changed.' };
+    // Target check before any upload.
+    let baseAtlas: CampaignAtlas; let clientRev: number; let previous: CampaignAtlas | null = null; let previousLegacy: CampaignMapState | null = null;
+    if (cur?.kind === 'atlas') {
+      baseAtlas = resolveAtlasAt(cur.atlas, serverNow()); clientRev = cur.atlas.revision; previous = cur.atlas;
+    } else {
+      const legacy = settleTravel(stateRef.current ?? emptyCampaignMapState(), serverNow());
+      previousLegacy = stateRef.current;
+      baseAtlas = convertLegacyToAtlas(legacy, partyId); clientRev = 0;
+    }
+    const parentId = input.parentMapId ?? baseAtlas.rootMapId;
+    const dry = installAreaPackOp(baseAtlas, parentId, input.parentLocationId, { id: input.reservedId, name: input.name, state: input.state, replaceExisting: input.replaceExisting });
+    if (typeof dry === 'string') return { ok: false, error: dry };
+    const up = await uploadImageFile(input.image, input.imageType);
+    if (!up.ok) return { ok: false, error: (up as { error: string }).error };
+    if (input.guides.length) {
+      const { data: existing, error: readErr } = await (supabase.from('party_location_guides') as any)
+        .select('scope, location_id, name, content').eq('party_id', partyId).eq('map_id', input.reservedId);
+      if (readErr) return { ok: false, error: 'Could not check the area guides. Nothing was changed.' };
+      const key = (g: { scope: string; location_id?: string | null; locationId?: string | null; name: string; content: string }) => `${g.scope}|${g.location_id ?? g.locationId ?? ''}|${g.name}|${g.content}`;
+      const want = input.guides.map(key).sort().join('\n');
+      if (existing?.length) {
+        const have = (existing as any[]).map(key).sort().join('\n');
+        if (have !== want) return { ok: false, error: 'A different earlier attempt saved guides for this install. Start the install again.' };
+      } else {
+        const { error } = await (supabase.from('party_location_guides') as any).insert(input.guides.map(g => ({
+          party_id: partyId, map_id: input.reservedId, scope: g.scope, location_id: g.scope === 'location' ? g.locationId : null,
+          name: g.name.slice(0, 120), content: g.content, enabled: true,
+        })));
+        if (error) return { ok: false, error: 'The area guides could not be saved, so the map was not installed. Nothing else changed.' };
+      }
+    }
+    const st = { ...input.state, imageUrl: up.url };
+    // Re-run on the latest atlas so other edits since preview are kept.
+    const latest = storedRef.current;
+    const nowBase = latest?.kind === 'atlas' ? resolveAtlasAt(latest.atlas, serverNow()) : baseAtlas;
+    const rev = latest?.kind === 'atlas' ? latest.atlas.revision : clientRev;
+    const next = installAreaPackOp(nowBase, parentId, input.parentLocationId, { id: input.reservedId, name: input.name, state: st, replaceExisting: input.replaceExisting });
+    if (typeof next === 'string') return { ok: false, error: next, guidesStaged: input.guides.length > 0 };
+    const res = await commitAtlas(next, rev);
+    if (!res.ok) return { ok: false, error: (res as { error: string }).error, guidesStaged: input.guides.length > 0 };
+    const after = storedRef.current;
+    return { ok: true, previous, previousLegacy, revisionAfter: after?.kind === 'atlas' ? after.atlas.revision : rev + 1 };
+  }, [partyId, canWrite, serverNow, settleTravel, uploadImageFile, commitAtlas]);
+
+  /** Restore the full atlas from before an install, only if nothing changed since. */
+  const undoAtlasInstall = useCallback(async (prev: { previous: CampaignAtlas | null; previousLegacy: CampaignMapState | null; revisionAfter: number }): Promise<Result> => {
+    if (!partyId || !canWrite) return fail('Only the party host can change the campaign map.');
+    const cur = storedRef.current;
+    if (cur?.kind !== 'atlas' || cur.atlas.revision !== prev.revisionAfter) return fail('The map changed after the install (an edit or the party moved), so Undo was stopped. Review the Areas tab instead.');
+    if (prev.previous) return commitAtlas(prev.previous, cur.atlas.revision);
+    return fail('This install turned a single map into a collection; Undo can only restore collections. Review the Areas tab instead.');
+  }, [partyId, canWrite, commitAtlas]);
+
   const activeMapId = atlas?.activeMapId ?? null;
   const [viewedMapIdRaw, setViewedMapId] = useState<string | null>(null);
   // Local browse only. Never written, never changes party position or GM context.
@@ -705,13 +771,13 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     setDiscovered, setCampaignClock, setTimeCompression, setDefaultPace, setCalibration, setCurrentLocation,
     startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow, reconcileTravelIfComplete,
     planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney,
-    exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext, serverNow, addAreaMap, replaceAreaImage,
+    exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext, serverNow, addAreaMap, replaceAreaImage, installAreaPack, undoAtlasInstall,
     atlas, isAtlasMode, activeMapId, viewedMapId, setViewedMapId, getMapState, getBreadcrumbs,
     convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta,
   }), [rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile, initialize, reset, uploadMapImage, replaceLocationsAndRoutes,
     addLocation, editLocation, removeLocation, addRoute, editRoute, removeRoute, setDiscovered, setCampaignClock,
     setTimeCompression, setDefaultPace, setCalibration, setCurrentLocation, startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow,
-    reconcileTravelIfComplete, planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney, exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext, serverNow, addAreaMap, replaceAreaImage,
+    reconcileTravelIfComplete, planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney, exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext, serverNow, addAreaMap, replaceAreaImage, installAreaPack, undoAtlasInstall,
     atlas, isAtlasMode, activeMapId, viewedMapId, getMapState, getBreadcrumbs,
     convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta]);
 }

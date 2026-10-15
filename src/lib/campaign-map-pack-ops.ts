@@ -87,6 +87,7 @@ function applyOne(s: CampaignMapState, guides: MapPackGuide[], o: Record<string,
     }
     case 'remove_location': {
       if (!loc(o.locationId)) return 'Unknown place.';
+      if (guides.some(g => g.scope === 'location' && g.locationId === o.locationId)) return 'A place guide in this pack is for this place. Keep the place.';
       if (s.activeTravel && s.routes.some(r => r.id === s.activeTravel!.routeId && (r.fromLocationId === o.locationId || r.toLocationId === o.locationId))) return 'A paused trip uses this place.';
       return { state: { ...s,
         locations: s.locations.filter(l => l.id !== o.locationId).map(l => (l.parentLocationId === o.locationId ? (({ parentLocationId: _p, ...rest }) => rest)(l) as CampaignMapLocation : l)),
@@ -148,6 +149,9 @@ export function applyStagedOperations(base: CampaignMapState, guides: MapPackGui
     if (typeof r === 'string') { rejected.push({ label, reason: r }); continue; }
     const check = validateMapData(r.state, imageWidth, imageHeight);
     if (check.errors.length) { rejected.push({ label, reason: check.errors[0] }); continue; }
+    const ids = new Set(r.state.locations.map(l => l.id));
+    const dangling = r.guides.find(g => g.scope === 'location' && !ids.has(g.locationId!));
+    if (dangling) { rejected.push({ label, reason: `Guide "${dangling.name}" would lose its place.` }); continue; }
     // Keep the live-safety shape: sanitized, no image, no running timer.
     const clean = sanitizeCampaignMapState({ ...r.state, imageUrl: null });
     clean.imageUrl = null;
@@ -170,6 +174,6 @@ export function stagedPackForAssistant(state: CampaignMapState, guides: MapPackG
     hasPausedTrip: !!state.activeTravel,
     locations: state.locations.slice(0, 200).map(l => ({ id: l.id, name: l.name, kind: l.kind, discovered: l.discovered, pinned: l.x !== null && l.y !== null, ...(l.region ? { region: l.region } : {}), ...(l.parentLocationId ? { parentLocationId: l.parentLocationId } : {}), ...(l.description ? { description: l.description.slice(0, 300) } : {}), overlayMode: locationOverlayMode(l) })),
     routes: state.routes.slice(0, 300).map(r => ({ id: r.id, from: r.fromLocationId, to: r.toLocationId, distanceSource: r.distanceSource, distanceMiles: Math.round(r.distanceMiles * 10) / 10, terrainFactor: r.terrainFactor, traced: r.path.length >= 2, ...(r.description ? { description: r.description.slice(0, 200) } : {}), overlayMode: routeOverlayMode(r) })),
-    guides: guides.map((g, i) => ({ index: i, name: g.name, chars: g.content.length, recommendedEnabled: !!g.recommendedEnabled, preview: g.content.slice(0, 400) })),
+    guides: guides.map((g, i) => ({ index: i, name: g.name, scope: g.scope, ...(g.scope === 'location' ? { locationId: g.locationId, locationName: state.locations.find(l => l.id === g.locationId)?.name ?? null } : {}), chars: g.content.length, recommendedEnabled: !!g.recommendedEnabled, preview: g.content.slice(0, 400) })),
   };
 }

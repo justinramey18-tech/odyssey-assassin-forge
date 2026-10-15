@@ -12,17 +12,22 @@ import {
 export const MAP_PACK_FORMAT = 'odyssey-campaign-map-pack';
 export const MAP_PACK_VERSION = 1;
 export const MAX_PACK_BYTES = 25 * 1024 * 1024;
-export const MAX_PACK_FILES = 40;
+export const MAX_PACK_FILES = 540;
+export const MAX_EXPANDED_BYTES = 40 * 1024 * 1024;
 export const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 export const MAX_JSON_BYTES = 1024 * 1024;
 export const MAX_TEXT_BYTES = 256 * 1024;
 export const MAX_PACK_GUIDES = 12;
+export const MAX_PACK_LOCATION_GUIDES = 500;
+export const MAX_PACK_MAP_GUIDES = 1;
+export type MapPackGuideScope = 'campaign' | 'map' | 'location';
 
 const IMAGE_EXT: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp' };
 const TEXT_EXT = new Set(['txt', 'md']);
 const ALLOWED_EXT = new Set(['json', 'txt', 'md', 'png', 'jpg', 'jpeg', 'webp']);
 
-export interface MapPackGuideRef { name: string; file: string; customId?: string; recommendedEnabled?: boolean }
+/** scope missing = 'campaign' (old packs). 'map' links to the installed map; 'location' needs locationId from THIS pack. */
+export interface MapPackGuideRef { name: string; file: string; customId?: string; recommendedEnabled?: boolean; scope: MapPackGuideScope; locationId?: string }
 export interface MapPackManifest {
   format: typeof MAP_PACK_FORMAT;
   version: 1;
@@ -103,12 +108,24 @@ function parseManifest(raw: unknown, errors: string[]): MapPackManifest | null {
   if (raw.guides !== undefined) {
     if (!Array.isArray(raw.guides)) errors.push('guides must be a list.');
     else {
-      if (raw.guides.length > MAX_PACK_GUIDES) errors.push(`At most ${MAX_PACK_GUIDES} guides.`);
-      raw.guides.slice(0, MAX_PACK_GUIDES).forEach((g, i) => {
+      const counts = { campaign: 0, map: 0, location: 0 };
+      raw.guides.forEach((g, i) => {
         if (!isObj(g) || typeof g.name !== 'string' || !g.name.trim() || typeof g.file !== 'string') { errors.push(`Guide ${i + 1} needs a name and file.`); return; }
         if (!isSafePackPath(g.file) || !g.file.startsWith('guides/') || !TEXT_EXT.has(extOf(g.file))) { errors.push(`Guide "${g.name}" must be a .txt or .md file under guides/.`); return; }
-        guides.push({ name: g.name.trim().slice(0, 120), file: g.file, ...(typeof g.customId === 'string' && g.customId.trim() ? { customId: g.customId.trim().slice(0, 80) } : {}), ...(g.recommendedEnabled === true ? { recommendedEnabled: true } : {}) });
+        const scope = g.scope === undefined ? 'campaign' : g.scope;
+        if (scope !== 'campaign' && scope !== 'map' && scope !== 'location') { errors.push(`Guide "${g.name}" has an unknown scope.`); return; }
+        const hasLoc = g.locationId !== undefined && g.locationId !== null;
+        if (scope !== 'location' && hasLoc) { errors.push(`Guide "${g.name}" is a ${scope} guide but names a place.`); return; }
+        if (scope === 'location' && (typeof g.locationId !== 'string' || !g.locationId.trim())) { errors.push(`Guide "${g.name}" is a place guide but names no place.`); return; }
+        counts[scope]++;
+        guides.push({ name: g.name.trim().slice(0, 120), file: g.file, scope, ...(scope === 'location' ? { locationId: (g.locationId as string).trim() } : {}),
+          ...(typeof g.customId === 'string' && g.customId.trim() ? { customId: g.customId.trim().slice(0, 80) } : {}), ...(g.recommendedEnabled === true ? { recommendedEnabled: true } : {}) });
       });
+      if (counts.campaign > MAX_PACK_GUIDES) errors.push(`At most ${MAX_PACK_GUIDES} campaign guides (this pack has ${counts.campaign}).`);
+      if (counts.map > MAX_PACK_MAP_GUIDES) errors.push('At most one map-wide area guide.');
+      if (counts.location > MAX_PACK_LOCATION_GUIDES) errors.push(`At most ${MAX_PACK_LOCATION_GUIDES} place guides (this pack has ${counts.location}).`);
+      const seenLoc = new Set<string>();
+      for (const g of guides) if (g.scope === 'location') { if (seenLoc.has(g.locationId!)) errors.push(`Two guides are for the same place "${g.locationId}".`); seenLoc.add(g.locationId!); }
     }
   }
   let sha256: Record<string, string> | undefined;
@@ -232,10 +249,23 @@ export async function parseMapPack(
   if (manifests.length !== 1) errors.push('The pack needs exactly one manifest.json at the top level.');
   if (errors.length) return empty;
 
+  // Declared (uncompressed) sizes, checked before anything is expanded.
+  const declared = (f: JSZip.JSZipObject): number | null => {
+    const n = (f as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize;
+    return typeof n === 'number' && Number.isFinite(n) ? n : null;
+  };
+  const declaredTotal = entries.reduce((t, f) => t + (declared(f) ?? 0), 0);
+  if (declaredTotal > MAX_EXPANDED_BYTES) { errors.push(`The pack expands to more than ${MAX_EXPANDED_BYTES / 1024 / 1024} MB.`); return empty; }
+  let expanded = 0;
+  // One file at a time; only referenced files are ever read.
   const readBytes = async (path: string, max: number): Promise<ArrayBuffer | null> => {
     const f = zip.file(path);
     if (!f) { errors.push(`Missing file: ${path}`); return null; }
+    const d = declared(f);
+    if (d !== null && d > max) { errors.push(`${path} is too large.`); return null; }
     const buf = await f.async('arraybuffer');
+    expanded += buf.byteLength;
+    if (expanded > MAX_EXPANDED_BYTES) { errors.push(`The pack expands to more than ${MAX_EXPANDED_BYTES / 1024 / 1024} MB.`); return null; }
     if (buf.byteLength > max) { errors.push(`${path} is too large.`); return null; }
     return buf;
   };
@@ -250,7 +280,8 @@ export async function parseMapPack(
 
   const imgBuf = await readBytes(manifest.mapFile, MAX_IMAGE_BYTES);
   const dataBuf = await readBytes(manifest.dataFile, MAX_JSON_BYTES);
-  const guideBufs = await Promise.all(manifest.guides.map(g => readBytes(g.file, MAX_TEXT_BYTES)));
+  const guideBufs: Array<ArrayBuffer | null> = [];
+  for (const g of manifest.guides) { guideBufs.push(await readBytes(g.file, MAX_TEXT_BYTES)); if (expanded > MAX_EXPANDED_BYTES) return { ...empty, manifest }; }
 
   // Checksums
   if (manifest.sha256) {
@@ -258,7 +289,11 @@ export async function parseMapPack(
       if (!isSafePackPath(path)) { errors.push(`Unsafe checksum path: ${path}`); continue; }
       const f = zip.file(path);
       if (!f) { errors.push(`Checksum names a missing file: ${path}`); continue; }
-      const got = await sha256Hex(await f.async('arraybuffer'));
+      const d = declared(f);
+      if (d !== null && expanded + d > MAX_EXPANDED_BYTES) { errors.push(`The pack expands to more than ${MAX_EXPANDED_BYTES / 1024 / 1024} MB.`); break; }
+      const ab = await f.async('arraybuffer');
+      expanded += ab.byteLength;
+      const got = await sha256Hex(ab);
       if (got !== want) errors.push(`Checksum does not match for ${path}.`);
     }
   }
@@ -279,6 +314,8 @@ export async function parseMapPack(
   if (dataRaw !== null) {
     const v = validateMapData(dataRaw, imageWidth, imageHeight);
     errors.push(...v.errors); warnings.push(...v.warnings);
+    const locIds = new Set((isObj(dataRaw) && Array.isArray(dataRaw.locations) ? dataRaw.locations : []).map(l => (isObj(l) ? l.id : null)));
+    for (const g of manifest.guides) if (g.scope === 'location' && !locIds.has(g.locationId)) errors.push(`Guide "${g.name}" is for a place "${g.locationId}" that isn't in this pack.`);
   }
 
   const guides: MapPackGuide[] = manifest.guides.map((g, i) => {
@@ -292,7 +329,7 @@ export async function parseMapPack(
   let readme: string | null = null;
   for (const n of ['README.md', 'README.txt']) {
     const f = zip.file(n);
-    if (f) { const b = await f.async('arraybuffer'); if (b.byteLength <= MAX_TEXT_BYTES) readme = text(b); else warnings.push(`${n} is too large to show.`); break; }
+    if (f) { const d = declared(f); if (d !== null && d > MAX_TEXT_BYTES) { warnings.push(`${n} is too large to show.`); break; } const b = await f.async('arraybuffer'); if (b.byteLength <= MAX_TEXT_BYTES) readme = text(b); else warnings.push(`${n} is too large to show.`); break; }
   }
   const referenced = new Set(['manifest.json', manifest.mapFile, manifest.dataFile, 'README.md', 'README.txt', ...manifest.guides.map(g => g.file)]);
   const extra = entries.filter(f => !referenced.has(f.name) && !f.name.includes('__MACOSX') && !f.name.endsWith('.DS_Store'));

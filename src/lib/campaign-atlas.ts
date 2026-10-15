@@ -339,3 +339,49 @@ export function pauseAtlasTravel(a: CampaignAtlas): CampaignAtlas {
   if (!t || t.startedAt === null) return a;
   return { ...a, maps: a.maps.map(m => (m.id === a.activeMapId ? { ...m, state: { ...m.state, activeTravel: { ...t, startedAt: null, pausedFraction: t.pausedFraction ?? 0 } } } : m)) };
 }
+
+// ── area pack installs ──
+
+/** The map and every map inside it (ids). */
+export function subtreeIds(a: CampaignAtlas, mapId: string): string[] {
+  const out: string[] = []; const stack = [mapId]; const seen = new Set<string>();
+  while (stack.length) {
+    const id = stack.pop()!; if (seen.has(id)) continue; seen.add(id); out.push(id);
+    for (const c of childrenOf(a, id)) stack.push(c.id);
+  }
+  return out;
+}
+
+/** Why replacing this subtree is unsafe right now, or null. */
+export function subtreeReplaceBlocker(a: CampaignAtlas, mapId: string): string | null {
+  const ids = subtreeIds(a, mapId);
+  if (ids.includes(a.activeMapId)) return 'The party is inside this area. Leave the area first.';
+  for (const id of ids) if (busy(getNode(a, id)!.state)) return 'Travel is running inside this area. End it first.';
+  return null;
+}
+
+/**
+ * Install a pack as a NEW area map at one exact place. Optionally unlinks an existing area there
+ * (and everything inside it) — the caller must have confirmed. Never moves the party, never
+ * touches the clock, siblings or unrelated maps.
+ */
+export function installAreaPackOp(a: CampaignAtlas, parentMapId: string, parentLocationId: string, opts: {
+  id: string; name: string; state: CampaignMapState; replaceExisting: boolean;
+}): CampaignAtlas | string {
+  const parent = getNode(a, parentMapId);
+  if (!parent) return 'That map no longer exists.';
+  if (!parent.state.locations.some(l => l.id === parentLocationId)) return 'That place no longer exists.';
+  if (getNode(a, opts.id)) return 'That install was already used. Start again.';
+  let base = a;
+  const existing = childAt(a, parentMapId, parentLocationId);
+  if (existing) {
+    if (!opts.replaceExisting) return 'That place already has an area map.';
+    const blocker = subtreeReplaceBlocker(a, existing.id);
+    if (blocker) return blocker;
+    const drop = new Set(subtreeIds(a, existing.id));
+    base = { ...a, maps: a.maps.filter(m => !drop.has(m.id)) };
+  }
+  const st = stripTravel(opts.state);
+  const entry = st.currentLocationId && st.locations.some(l => l.id === st.currentLocationId) ? st.currentLocationId : null;
+  return createChildMap(base, parentMapId, parentLocationId, { id: opts.id, name: opts.name, navigationMode: 'local', state: { ...st, currentLocationId: entry }, entryLocationId: entry });
+}

@@ -298,10 +298,10 @@ export function StandalonePartyDMScreen({
     partyId, hostUserId: campaignMap.hostUserId, currentUserId: userId,
     serverNow: campaignMap.serverNow, coreGuides: gmGuides.enabledContent || '',
   });
-  const addGuideRef = useRef(gmGuides.addGuide);
-  addGuideRef.current = gmGuides.addGuide;
+  const addGuideRef = useRef(gmGuides.installGuide);
+  addGuideRef.current = gmGuides.installGuide;
   // Host-only, explicit-approval install for Map Pack guides. Never called automatically.
-  const onInstallCampaignMapGuide = useCallback((name: string, content: string, customId?: string): boolean => {
+  const onInstallCampaignMapGuide = useCallback(async (name: string, content: string, customId?: string): Promise<boolean> => {
     if (!isPartyCreator || !campaignMap.canWrite) return false;
     return addGuideRef.current(name, content, customId);
   }, [isPartyCreator, campaignMap.canWrite]);
