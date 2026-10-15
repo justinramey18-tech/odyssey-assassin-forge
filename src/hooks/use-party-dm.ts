@@ -2092,6 +2092,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
 
 
+    {
+      const areaErr = await preflightArea();
+      if (areaErr) { if (directPrompt) throw new Error(areaErr); toast.error(areaErr); return; }
+    }
     const isTurnBased = (sessionConfig.dmMode || 'ai') === 'turnBased';
     const rawReadyPrompts = directPrompt
       ? directPrompt.participants.map((p, i) => ({
@@ -2882,6 +2886,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const callDM = useCallback(async () => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
 
+    {
+      const areaErr = await preflightArea();
+      if (areaErr) { toast.error(areaErr); return; }
+    }
     setIsGenerating(true);
 
     // Atomic database lock
@@ -3135,6 +3143,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       return;
     }
 
+    {
+      const areaErr = await preflightArea();
+      if (areaErr) { toast.error(areaErr); return; }
+    }
     await (supabase.from('party_dm_messages') as any)
       .delete()
       .eq('id', messageId)
@@ -3370,6 +3382,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (!partyId || !user || !sessionConfig || isGenerating) return;
     if (!command.trim()) return;
 
+    {
+      const areaErr = await preflightArea();
+      if (areaErr) { toast.error(areaErr); return; }
+    }
     setIsGenerating(true);
 
     // Atomic lock
@@ -3576,6 +3592,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const regroupParty = useCallback(async (reunionPrompt: string) => {
     if (!partyId || !user || !isCreator || !sessionConfig || !splitState) return;
 
+    {
+      const areaErr = await preflightArea();
+      if (areaErr) { toast.error(areaErr); return; }
+    }
     setIsGenerating(true);
 
     await (supabase.from('party_shared_state') as any)
