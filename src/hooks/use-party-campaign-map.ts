@@ -389,7 +389,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     if (miles === null) return fail('This road has no distance yet. Set its miles (or calibrate the map) first.');
     const usePace = pace ?? base.defaultPace;
     const startProgress = dirProgress(startForward, reversed);
-    const leg = maxLegalLeg(miles, startProgress, usePace, route.terrainFactor, 0);
+    const leg = maxLegalLeg(miles, startProgress, usePace, route.terrainFactor, 0, base.travelScale === 'city' ? Infinity : undefined);
     if (leg.gameMinutes <= 0) return fail('The party is already there.');
     const travel: ActiveTravel = {
       routeId, reversed, pace: usePace, startProgress, endProgress: leg.endProgress,
