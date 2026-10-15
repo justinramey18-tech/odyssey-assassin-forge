@@ -695,7 +695,7 @@ export function buildDmLogisticsContext(state: CampaignMapState, nowMs: number =
       const other = byId.get(r.fromLocationId === here.id ? r.toLocationId : r.fromLocationId);
       if (!other?.discovered) return null;
       const m = effectiveRouteMiles(r, cal);
-      return m !== null ? `${other.name} (~${Math.round(m)} mi)` : other.name;
+      return m !== null ? `${other.name} (~${city ? dist(m) : `${Math.round(m)} mi`})` : other.name;
     }).filter(Boolean);
     if (known.length) lines.push(`Known roads lead to: ${known.join(', ')}. Reaching them requires the host to start travel.`);
   } else {
