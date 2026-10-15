@@ -1,3 +1,4 @@
+import { combineGuides } from '@/lib/location-guides';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
@@ -307,6 +308,8 @@ interface UsePartyDmOptions {
   worldStatePrompt?: string;
   /** Fresh Campaign Map facts, read at request time (empty when no map). */
   campaignMapContext?: () => string;
+  /** Request-time private area guides + frozen map facts (host/co-host GM only). */
+  prepareAreaContext?: () => Promise<{ ok: true; guides: string; mapFacts: string | null } | { ok: false; error: string }>;
   /** Paused Campaign Map snapshot for saves (null when no map). */
   getCampaignMapSaveSnapshot?: () => unknown;
   restoreCampaignMapSaveSnapshot?: (snapshot: unknown) => Promise<{ ok: boolean; error?: string }>;
@@ -339,9 +342,27 @@ function resolvePartyModel(sharedModelId?: string): string {
   return candidate;
 }
 
-export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, worldStatePrompt, campaignMapContext, getCampaignMapSaveSnapshot, restoreCampaignMapSaveSnapshot, clearCampaignMapState, partyDragonConfigs, myDragonName, onBurnoutDetected, onBurnoutTickDetected, onBondStrainDetected, onBondGrowthDetected, onDragonMemoryDetected, onDragonBondFormed, isSoloEmpyrean }: UsePartyDmOptions) {
+export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, worldStatePrompt, campaignMapContext, prepareAreaContext, getCampaignMapSaveSnapshot, restoreCampaignMapSaveSnapshot, clearCampaignMapState, partyDragonConfigs, myDragonName, onBurnoutDetected, onBurnoutTickDetected, onBondStrainDetected, onBondGrowthDetected, onDragonMemoryDetected, onDragonBondFormed, isSoloEmpyrean }: UsePartyDmOptions) {
   const campaignMapContextRef = useRef(campaignMapContext);
   campaignMapContextRef.current = campaignMapContext;
+  const prepareAreaRef = useRef(prepareAreaContext);
+  prepareAreaRef.current = prepareAreaContext;
+  /** Frozen for the current logical GM request; reset before every preflight. */
+  const requestAreaRef = useRef<{ guides: string; mapFacts: string | null } | null>(null);
+  /** Resolve area guides once, before any side effects. Returns an error message or null. */
+  const preflightArea = useCallback(async (): Promise<string | null> => {
+    requestAreaRef.current = null;
+    const prep = prepareAreaRef.current;
+    if (!prep) return null;
+    try {
+      const res = await prep();
+      if (!res.ok) return res.error;
+      requestAreaRef.current = { guides: res.guides, mapFacts: res.mapFacts };
+      return null;
+    } catch {
+      return 'Could not load the area guides. Try again.';
+    }
+  }, []);
   const mapSaveRef = useRef({ get: getCampaignMapSaveSnapshot, restore: restoreCampaignMapSaveSnapshot, clear: clearCampaignMapState });
   mapSaveRef.current = { get: getCampaignMapSaveSnapshot, restore: restoreCampaignMapSaveSnapshot, clear: clearCampaignMapState };
   /** { map_state } only when the map feature is wired; frozen (paused) at save time. */
@@ -1724,8 +1745,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       'Example: [VOICE:Kaelen]"You should not have come here."[/VOICE]',
       'Only spoken words go inside the tags — narration, action, and description stay outside them. Never tag a block of prose, never nest tags, and never mention the tags to the players.',
     ].join('\n');
+    if (prepareAreaRef.current && !requestAreaRef.current) throw new Error('Area guides were not loaded for this request.');
+    const area = requestAreaRef.current;
+    if (area?.guides) extraGuides = combineGuides(extraGuides, area.guides);
     let mapFacts = '';
-    try { mapFacts = campaignMapContextRef.current?.() || ''; } catch { mapFacts = ''; }
+    if (area?.mapFacts != null) mapFacts = area.mapFacts;
+    else { try { mapFacts = campaignMapContextRef.current?.() || ''; } catch { mapFacts = ''; } }
     // Map facts lead the party context so later trimming of party context can't drop them.
     const partyContextWithMap = [mapFacts, partyContext].filter(Boolean).join('\n\n') || undefined;
     const enhancedPartyContext = [canonGuardrailsContext, voiceTagDirective, partyContextWithMap, directorPrivatesContext].filter(Boolean).join('\n\n') || undefined;
