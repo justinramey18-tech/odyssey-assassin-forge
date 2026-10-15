@@ -67,16 +67,41 @@ const OK: Result = { ok: true };
 /** Route progress (forward terms) → progress in the travel direction, and back. */
 const dirProgress = (forward: number, reversed: boolean) => (reversed ? 1 - forward : forward);
 
+type Stored =
+  | { kind: 'legacy'; state: CampaignMapState; updatedAt: string | null }
+  | { kind: 'atlas'; atlas: CampaignAtlas; updatedAt: string }
+  | { kind: 'invalid'; error: string; updatedAt: string | null };
+
+const CONFLICT_MSG = 'The map changed on another screen. It has been refreshed — please try again.';
+
 export function usePartyCampaignMap(partyId: string | null | undefined, currentUserId: string | null | undefined) {
-  const [rawState, setRawState] = useState<CampaignMapState | null>(null);
+  const [stored, setStored] = useState<Stored | null>(null);
   const [loading, setLoading] = useState(true);
   const [hostUserId, setHostUserId] = useState<string | null>(null);
   /** serverNow ≈ Date.now() + skew; learned from server timestamps. */
   const skewRef = useRef(0);
+  const storedRef = useRef<Stored | null>(null);
+  storedRef.current = stored;
+  // Active-map facade for existing consumers (legacy map, or the atlas's active node with the atlas clock).
+  const rawState: CampaignMapState | null = useMemo(() =>
+    stored?.kind === 'legacy' ? stored.state : stored?.kind === 'atlas' ? projectActive(stored.atlas) : null, [stored]);
   const stateRef = useRef<CampaignMapState | null>(null);
   stateRef.current = rawState;
+  const activeMapIdRef = useRef<string | null>(null);
+  activeMapIdRef.current = stored?.kind === 'atlas' ? stored.atlas.activeMapId : null;
+  /** Bumps on party/account change so late async results are dropped. */
+  const scopeRef = useRef(0);
   const canWrite = !!currentUserId && !!hostUserId && currentUserId === hostUserId;
   const serverNow = useCallback(() => Date.now() + skewRef.current, []);
+
+  const applyStored = useCallback((next: Stored | null) => { storedRef.current = next; setStored(next); }, []);
+  const toStored = (data: unknown, updatedAt: string | null): Stored => {
+    if (isAtlasEnvelope(data)) {
+      const p = parseAtlas(data);
+      return p.ok ? { kind: 'atlas', atlas: p.value, updatedAt: updatedAt ?? '' } : { kind: 'invalid', error: p.error, updatedAt };
+    }
+    return { kind: 'legacy', state: sanitizeCampaignMapState(data), updatedAt };
+  };
 
   // ── who is the original host ──
   useEffect(() => {
@@ -93,29 +118,34 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   // ── read the host's row (errors keep the last known map) ──
   const fetchState = useCallback(async () => {
     if (!partyId || !hostUserId) return;
+    const scope = scopeRef.current;
     const { data, error } = await (supabase.from('party_shared_state') as any)
       .select('state_data, updated_at')
       .eq('party_id', partyId).eq('user_id', hostUserId).eq('state_type', CAMPAIGN_MAP_STATE_TYPE)
       .maybeSingle();
+    if (scope !== scopeRef.current) return;
     if (error) { console.warn('[campaign-map] read failed, keeping last map:', error.message); setLoading(false); return; }
-    setRawState(data ? sanitizeCampaignMapState(data.state_data) : null);
+    const next = data ? toStored(data.state_data, data.updated_at ?? null) : null;
+    if (next?.kind === 'invalid') console.warn('[campaign-map] saved nested maps are invalid:', next.error);
+    applyStored(next);
     setLoading(false);
-  }, [partyId, hostUserId]);
+  }, [partyId, hostUserId, applyStored]);
 
   useEffect(() => {
-    setRawState(null);
+    scopeRef.current += 1;
+    applyStored(null);
     setLoading(true);
     if (!partyId || !hostUserId) return;
     void fetchState();
     const channel = supabase
       .channel(`campaign-map:${partyId}:${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'party_shared_state', filter: `party_id=eq.${partyId}` }, (payload: any) => {
-        const row = (payload.eventType === 'DELETE' ? payload.old : payload.new) as { user_id?: string; state_type?: string; state_data?: unknown };
+        const row = (payload.eventType === 'DELETE' ? payload.old : payload.new) as { user_id?: string; state_type?: string; state_data?: unknown; updated_at?: string };
         if (row?.state_type !== CAMPAIGN_MAP_STATE_TYPE || row.user_id !== hostUserId) return; // only the host's row counts
         const commit = Date.parse(payload.commit_timestamp || '');
         if (Number.isFinite(commit)) skewRef.current = commit - Date.now();
-        if (payload.eventType === 'DELETE') setRawState(null);
-        else setRawState(sanitizeCampaignMapState(row.state_data));
+        if (payload.eventType === 'DELETE') applyStored(null);
+        else applyStored(toStored(row.state_data, row.updated_at ?? null));
       })
       .subscribe((status) => { if (status === 'SUBSCRIBED') void fetchState(); });
     const onVisible = () => { if (document.visibilityState === 'visible') void fetchState(); };
@@ -124,20 +154,58 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
       document.removeEventListener('visibilitychange', onVisible);
       supabase.removeChannel(channel);
     };
-  }, [partyId, hostUserId, fetchState]);
+  }, [partyId, hostUserId, currentUserId, fetchState, applyStored]);
 
-  // ── host writes: one upsert, returns the server's updated_at ──
+  /** Compare-and-set save of a whole collection. `clientRevision` must be the persisted revision (0 when none). */
+  const commitAtlas = useCallback(async (next: CampaignAtlas, clientRevision: number): Promise<Result & { updatedAt?: number }> => {
+    if (!partyId || !currentUserId || !canWrite) return fail('Only the party host can change the campaign map.');
+    const err = validateAtlasGraph(next);
+    if (err) return fail(err);
+    const scope = scopeRef.current;
+    const cur = storedRef.current;
+    const expected = cur ? cur.updatedAt || null : null;
+    const envelope: CampaignAtlas = { ...next, sourcePartyId: partyId, revision: clientRevision };
+    const { data, error } = await (supabase.rpc as any)('write_campaign_atlas', { _party_id: partyId, _envelope: envelope, _expected_updated_at: expected });
+    if (scope !== scopeRef.current) return fail('The party changed while saving.');
+    if (error) {
+      if (error.code === '40001') { void fetchState(); return fail(CONFLICT_MSG); }
+      return fail(error.message || 'The map could not be saved.');
+    }
+    const row = (Array.isArray(data) ? data[0] : data) as { state_data: unknown; updated_at: string; server_time: string } | undefined;
+    if (!row) { void fetchState(); return fail('The map could not be saved.'); }
+    const st = Date.parse(row.server_time);
+    if (Number.isFinite(st)) skewRef.current = st - Date.now();
+    const saved = toStored(row.state_data, row.updated_at);
+    applyStored(saved);
+    const updatedAt = Date.parse(row.updated_at);
+    return { ok: true, updatedAt: Number.isFinite(updatedAt) ? updatedAt : serverNow() };
+  }, [partyId, currentUserId, canWrite, fetchState, applyStored, serverNow]);
+
+  // ── host writes: returns the server's updated_at ──
+  // `mid` is the active map id captured when the edit began; in nested mode a delayed edit never lands on another map.
   const write = useCallback(async (mid: string | null, next: CampaignMapState): Promise<{ ok: boolean; updatedAt: number; error: string }> => {
     if (!partyId || !currentUserId || !canWrite) return { ok: false, updatedAt: 0, error: "Only the party host can change the campaign map." };
+    const cur = storedRef.current;
+    if (cur?.kind === 'invalid') return { ok: false, updatedAt: 0, error: `The saved nested maps can't be read (${cur.error}). Nothing was changed.` };
+    if (cur?.kind === 'atlas') {
+      if (!mid || cur.atlas.activeMapId !== mid) return { ok: false, updatedAt: 0, error: 'The party moved to another map. Please try again.' };
+      const prevActive = projectActive(cur.atlas);
+      const patched = patchMap(cur.atlas, mid, next);
+      if (typeof patched === 'string') return { ok: false, updatedAt: 0, error: patched };
+      const res = await commitAtlas(applyArrivalEntry(prevActive, patched), cur.atlas.revision);
+      return res.ok ? { ok: true, updatedAt: res.updatedAt ?? serverNow(), error: '' } : { ok: false, updatedAt: 0, error: res.error };
+    }
+    const scope = scopeRef.current;
     const { data, error } = await (supabase.from('party_shared_state') as any)
       .upsert({ party_id: partyId, user_id: currentUserId, state_type: CAMPAIGN_MAP_STATE_TYPE, state_data: next }, { onConflict: 'party_id,user_id,state_type' })
       .select('updated_at').single();
-    if (error) return { ok: false, updatedAt: 0, error: error.message || "The map could not be saved." };
-    const updatedAt = Date.parse((data as { updated_at?: string })?.updated_at || '');
+    if (error) { void fetchState(); return { ok: false, updatedAt: 0, error: error.message || "The map could not be saved." }; }
+    const updatedAtStr = (data as { updated_at?: string })?.updated_at ?? null;
+    const updatedAt = Date.parse(updatedAtStr || '');
     if (Number.isFinite(updatedAt)) skewRef.current = updatedAt - Date.now();
-    setRawState(next);
+    if (scope === scopeRef.current) applyStored({ kind: 'legacy', state: next, updatedAt: updatedAtStr });
     return { ok: true, updatedAt: Number.isFinite(updatedAt) ? updatedAt : serverNow(), error: "" };
-  }, [partyId, currentUserId, canWrite, serverNow]);
+  }, [partyId, currentUserId, canWrite, serverNow, commitAtlas, fetchState, applyStored]);
 
   /** A tranche that is finished (by server time) folded into the saved state. */
   const settleTravel = useCallback((st: CampaignMapState, now: number): CampaignMapState => settleTravelState(st, now), []);
