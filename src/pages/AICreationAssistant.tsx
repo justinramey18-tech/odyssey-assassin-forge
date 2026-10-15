@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { readCampaignFile } from '@/lib/ai-creation/readCampaignFile';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { useAICreationChat, buildDataToWizardState, CharacterBuildData } from '@/hooks/use-ai-creation-chat';
+import { useAICreationChat, buildDataToWizardState, CharacterBuildData, type ChatMessage } from '@/hooks/use-ai-creation-chat';
 import { presetToEquipment, getPresetById } from '@/components/wizard/presets/equipment-presets';
 import ReactMarkdown from 'react-markdown';
 import { setScopedItem } from '@/lib/scoped-storage';
@@ -34,7 +34,7 @@ export default function AICreationAssistant() {
   const partyConfig = useMemo(() => isParty && creationSession ? {
     sessionId: creationSession,
     initialDraft: party.initialDraft,
-    onPersist: (msgs: Parameters<NonNullable<typeof party.saveDraft>>[0]['messages'], build: CharacterBuildData | null) => {
+    onPersist: (msgs: ChatMessage[], build: CharacterBuildData | null) => {
       if (build) buildRevRef.current = partyRef.current.contextRevision;
       partyRef.current.saveDraft({ messages: msgs, buildData: build, buildContextRevision: build ? buildRevRef.current : null });
     },
@@ -105,10 +105,10 @@ export default function AICreationAssistant() {
 
   const handleSend = useCallback(() => {
     const text = input.trim();
-    if (!text || isLoading) return;
+    if (!text || isLoading || (isParty && (!partyReady || party.draftConflict))) return;
     setInput('');
     sendMessage(text);
-  }, [input, isLoading, sendMessage]);
+  }, [input, isLoading, sendMessage, isParty, partyReady, party.draftConflict]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -456,7 +456,7 @@ export default function AICreationAssistant() {
             />
             <Button
               onClick={handleSend}
-              disabled={!input.trim() || isLoading}
+              disabled={!input.trim() || isLoading || (isParty && (!partyReady || party.draftConflict))}
               size="icon"
               variant="ghost"
               className="shrink-0 text-primary hover:bg-primary/10"
