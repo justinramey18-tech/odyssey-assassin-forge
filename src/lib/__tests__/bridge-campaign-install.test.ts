@@ -103,3 +103,86 @@ describe('campaign area install', () => {
     expect(((await preview(args(), actor, deps)) as any).error).toMatch(/already has an area/);
   });
 });
+
+import { resolveGuideScopes } from '@/lib/location-guides';
+import type { CampaignAtlas } from '@/lib/campaign-atlas';
+
+describe('campaign area install — tokens and identity', () => {
+  it('rejects a tampered preview token', async () => {
+    const { deps, state } = makeDeps();
+    const p = await preview(args(), actor, deps) as any;
+    const [body, sig] = p.data.preview_token.split('.');
+    const forged = `${body.slice(0, -2)}AA.${sig}`;
+    expect((await install({ ...args(), preview_token: forged }, actor, deps)).ok).toBe(false);
+    expect(state.rpcCalls).toBe(0);
+  });
+
+  it('rejects a ticket for another party, a foreign ticket, a different party in the token, and an inactive party', async () => {
+    const other = makeDeps({ verifyImage: async () => ({ ok: true, v: { party_id: '88888888-8888-4888-8888-888888888888', public_url: 'https://cdn/x.png', object_path: 'x', sha256: 'a'.repeat(64), width: 1, height: 1 } }) });
+    expect(((await preview(args(), actor, other.deps)) as any).error).toMatch(/different party/);
+    const { deps } = makeDeps();
+    expect((await preview({ ...args(), image_ticket: 'ticket-someone-else' }, actor, deps)).ok).toBe(false);
+    const p = await preview(args(), actor, deps) as any;
+    expect((await install({ ...args(), party_id: '88888888-8888-4888-8888-888888888888', preview_token: p.data.preview_token }, actor, deps)).ok).toBe(false);
+    const inactive = makeDeps({ findParty: async () => ({ hostId: HOST, isActive: false }) });
+    expect(((await preview(args(), actor, inactive.deps)) as any).error).toMatch(/not active/);
+  });
+
+  it('rejects a host change between preview and install', async () => {
+    let host = HOST;
+    const { deps, state } = makeDeps({ findParty: async () => ({ hostId: host, isActive: true }) });
+    const p = await preview(args(), actor, deps) as any;
+    host = '99999999-9999-4999-8999-999999999999';
+    expect(((await install({ ...args(), preview_token: p.data.preview_token }, actor, deps)) as any).error).toMatch(/host changed/);
+    expect(state.rpcCalls).toBe(0);
+  });
+
+  it('a lost server response is resolved from the receipt, not by writing again', async () => {
+    const m = makeDeps();
+    const real = m.deps.installRpc;
+    m.deps.installRpc = async (p) => { await real(p); throw new Error('network'); };
+    const p = await preview(args(), actor, m.deps) as any;
+    const r = await install({ ...args(), preview_token: p.data.preview_token }, actor, m.deps) as any;
+    expect(r.data.committed).toBe(true);
+    expect(m.state.rpcCalls).toBe(1);
+  });
+
+  it('rejects over-budget guides in preview', async () => {
+    const a = args() as any;
+    a.map.locations = Array.from({ length: 7 }, (_, i) => ({ id: `p${i}`, name: `P${i}`, ...(i ? { parentLocationId: `p${i - 1}` } : {}) }));
+    a.map.currentLocationId = 'p0';
+    a.guides = a.map.locations.map((l: any) => ({ scope: 'location', location_id: l.id, name: l.name, content: 'x'.repeat(29990) }));
+    const { deps } = makeDeps();
+    expect(((await preview(a, actor, deps)) as any).error).toMatch(/200,000/);
+  });
+});
+
+describe('installed area guides follow the party position only', () => {
+  const AREA = '55555555-5555-4555-8555-555555555555';
+  const at = (activeMapId: string, rootLoc: string, areaLoc: string | null): CampaignAtlas => ({
+    format: 'odyssey-campaign-atlas', version: 2, revision: 1, sourcePartyId: PARTY, rootMapId: ROOT, activeMapId,
+    campaignMinute: 0, realMinutesPerGameHour: 5,
+    maps: [
+      { id: ROOT, name: 'World', parentMapId: null, parentLocationId: null, entryLocationId: null, navigationMode: 'regional',
+        state: { version: 1, imageUrl: null, locations: [{ id: 'arabel', name: 'Arabel', x: 0.5, y: 0.5, discovered: true, kind: 'city' }, { id: 'tilverton', name: 'Tilverton', x: 0.1, y: 0.1, discovered: true, kind: 'town' }], routes: [], currentLocationId: rootLoc, campaignMinute: 0, realMinutesPerGameHour: 5, defaultPace: 'normal' } },
+      { id: AREA, name: 'Arabel', parentMapId: ROOT, parentLocationId: 'arabel', entryLocationId: 'gate', navigationMode: 'local',
+        state: { version: 1, imageUrl: 'https://cdn/a.png', locations: [{ id: 'gate', name: 'Gate', x: 0.1, y: 0.1, discovered: true, kind: 'other' }, { id: 'inn', name: 'Inn', x: 0.2, y: 0.2, discovered: true, kind: 'other', parentLocationId: 'gate' }], routes: [], currentLocationId: areaLoc, campaignMinute: 0, realMinutesPerGameHour: 5, defaultPace: 'normal' } },
+    ],
+  });
+  const keys = (a: CampaignAtlas) => { const r = resolveGuideScopes(a); if (!r.ok) throw new Error('bad'); return r.scopes.map(s => `${s.mapId === AREA ? 'area' : 'root'}:${s.scope}:${s.locationId ?? ''}`); };
+
+  it('party elsewhere on the world map: no city or inn guidance (even if someone browses the area)', () => {
+    const k = keys(at(ROOT, 'tilverton', 'inn'));
+    expect(k.some(x => x.startsWith('area:'))).toBe(false);
+  });
+  it('party inside the city at the gate: city guide but not the inn', () => {
+    const k = keys(at(AREA, 'tilverton', 'gate'));
+    expect(k).toContain('area:map:');
+    expect(k).not.toContain('area:location:inn');
+  });
+  it('party at the inn: city and inn guidance', () => {
+    const k = keys(at(AREA, 'tilverton', 'inn'));
+    expect(k).toContain('area:map:');
+    expect(k).toContain('area:location:inn');
+  });
+});
