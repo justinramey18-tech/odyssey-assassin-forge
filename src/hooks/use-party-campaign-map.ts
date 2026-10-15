@@ -38,6 +38,12 @@ import {
   type MapPoint,
   type TravelPace,
 } from '@/lib/campaign-map';
+import {
+  applyArrivalEntry, breadcrumbs, convertLegacyToAtlas, createChildMap as createChildMapOp, enterChild as enterChildOp,
+  exitToParent as exitToParentOp, getNode, isAtlasEnvelope, moveLocal as moveLocalOp, parseAtlas, patchMap, projectActive,
+  projectMapState, resolveAtlasAt, setNodeMeta, validateAtlasGraph,
+  type AtlasMapNode, type CampaignAtlas, type NavigationMode,
+} from '@/lib/campaign-atlas';
 
 export const CAMPAIGN_MAP_STATE_TYPE = 'campaign_map';
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
@@ -233,7 +239,8 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
 
   // ── view (derived locally, never written) ──
   const getViewState = useCallback((now: number = serverNow()): CampaignMapView | null => {
-    const s = rawState;
+    const cur = storedRef.current;
+    const s = cur?.kind === 'atlas' ? projectActive(resolveAtlasAt(cur.atlas, now)) : rawState;
     if (!s) return null;
     const byId = new Map(s.locations.map(l => [l.id, l]));
     const pinned = (id: string | null | undefined): MapPoint | null => {
@@ -263,7 +270,10 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   }, [rawState, serverNow]);
 
   // ── setup ──
-  const initialize = useCallback(() => mutate(() => emptyCampaignMapState()), [mutate]);
+  const initialize = useCallback(async (): Promise<Result> => {
+    if (storedRef.current?.kind === 'atlas') return fail('This party uses nested maps. Clearing one map this way is not allowed.');
+    return mutate(() => emptyCampaignMapState());
+  }, [mutate]);
   const reset = initialize;
 
   /** Upload an image only (no map change). Used by Map Pack install before replacing state. */
