@@ -183,6 +183,13 @@
       "when": 1792077525907,
       "tag": "0025_nested_map_storage_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792077627799,
+      "tag": "0026_atlas_time_compression_range",
+      "breakpoints": true
     }
   ]
 }

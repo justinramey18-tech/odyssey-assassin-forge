@@ -38,6 +38,12 @@ import {
   type MapPoint,
   type TravelPace,
 } from '@/lib/campaign-map';
+import {
+  applyArrivalEntry, breadcrumbs, convertLegacyToAtlas, createChildMap as createChildMapOp, enterChild as enterChildOp,
+  exitToParent as exitToParentOp, getNode, isAtlasEnvelope, moveLocal as moveLocalOp, parseAtlas, patchMap, projectActive,
+  projectMapState, resolveAtlasAt, setNodeMeta, validateAtlasGraph,
+  type AtlasMapNode, type CampaignAtlas, type NavigationMode,
+} from '@/lib/campaign-atlas';
 
 export const CAMPAIGN_MAP_STATE_TYPE = 'campaign_map';
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
@@ -67,16 +73,41 @@ const OK: Result = { ok: true };
 /** Route progress (forward terms) → progress in the travel direction, and back. */
 const dirProgress = (forward: number, reversed: boolean) => (reversed ? 1 - forward : forward);
 
+type Stored =
+  | { kind: 'legacy'; state: CampaignMapState; updatedAt: string | null }
+  | { kind: 'atlas'; atlas: CampaignAtlas; updatedAt: string }
+  | { kind: 'invalid'; error: string; updatedAt: string | null };
+
+const CONFLICT_MSG = 'The map changed on another screen. It has been refreshed — please try again.';
+
 export function usePartyCampaignMap(partyId: string | null | undefined, currentUserId: string | null | undefined) {
-  const [rawState, setRawState] = useState<CampaignMapState | null>(null);
+  const [stored, setStored] = useState<Stored | null>(null);
   const [loading, setLoading] = useState(true);
   const [hostUserId, setHostUserId] = useState<string | null>(null);
   /** serverNow ≈ Date.now() + skew; learned from server timestamps. */
   const skewRef = useRef(0);
+  const storedRef = useRef<Stored | null>(null);
+  storedRef.current = stored;
+  // Active-map facade for existing consumers (legacy map, or the atlas's active node with the atlas clock).
+  const rawState: CampaignMapState | null = useMemo(() =>
+    stored?.kind === 'legacy' ? stored.state : stored?.kind === 'atlas' ? projectActive(stored.atlas) : null, [stored]);
   const stateRef = useRef<CampaignMapState | null>(null);
   stateRef.current = rawState;
+  const activeMapIdRef = useRef<string | null>(null);
+  activeMapIdRef.current = stored?.kind === 'atlas' ? stored.atlas.activeMapId : null;
+  /** Bumps on party/account change so late async results are dropped. */
+  const scopeRef = useRef(0);
   const canWrite = !!currentUserId && !!hostUserId && currentUserId === hostUserId;
   const serverNow = useCallback(() => Date.now() + skewRef.current, []);
+
+  const applyStored = useCallback((next: Stored | null) => { storedRef.current = next; setStored(next); }, []);
+  const toStored = (data: unknown, updatedAt: string | null): Stored => {
+    if (isAtlasEnvelope(data)) {
+      const p = parseAtlas(data);
+      return p.ok ? { kind: 'atlas', atlas: p.value, updatedAt: updatedAt ?? '' } : { kind: 'invalid', error: (p as { error: string }).error, updatedAt };
+    }
+    return { kind: 'legacy', state: sanitizeCampaignMapState(data), updatedAt };
+  };
 
   // ── who is the original host ──
   useEffect(() => {
@@ -93,29 +124,34 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   // ── read the host's row (errors keep the last known map) ──
   const fetchState = useCallback(async () => {
     if (!partyId || !hostUserId) return;
+    const scope = scopeRef.current;
     const { data, error } = await (supabase.from('party_shared_state') as any)
       .select('state_data, updated_at')
       .eq('party_id', partyId).eq('user_id', hostUserId).eq('state_type', CAMPAIGN_MAP_STATE_TYPE)
       .maybeSingle();
+    if (scope !== scopeRef.current) return;
     if (error) { console.warn('[campaign-map] read failed, keeping last map:', error.message); setLoading(false); return; }
-    setRawState(data ? sanitizeCampaignMapState(data.state_data) : null);
+    const next = data ? toStored(data.state_data, data.updated_at ?? null) : null;
+    if (next?.kind === 'invalid') console.warn('[campaign-map] saved nested maps are invalid:', next.error);
+    applyStored(next);
     setLoading(false);
-  }, [partyId, hostUserId]);
+  }, [partyId, hostUserId, applyStored]);
 
   useEffect(() => {
-    setRawState(null);
+    scopeRef.current += 1;
+    applyStored(null);
     setLoading(true);
     if (!partyId || !hostUserId) return;
     void fetchState();
     const channel = supabase
       .channel(`campaign-map:${partyId}:${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'party_shared_state', filter: `party_id=eq.${partyId}` }, (payload: any) => {
-        const row = (payload.eventType === 'DELETE' ? payload.old : payload.new) as { user_id?: string; state_type?: string; state_data?: unknown };
+        const row = (payload.eventType === 'DELETE' ? payload.old : payload.new) as { user_id?: string; state_type?: string; state_data?: unknown; updated_at?: string };
         if (row?.state_type !== CAMPAIGN_MAP_STATE_TYPE || row.user_id !== hostUserId) return; // only the host's row counts
         const commit = Date.parse(payload.commit_timestamp || '');
         if (Number.isFinite(commit)) skewRef.current = commit - Date.now();
-        if (payload.eventType === 'DELETE') setRawState(null);
-        else setRawState(sanitizeCampaignMapState(row.state_data));
+        if (payload.eventType === 'DELETE') applyStored(null);
+        else applyStored(toStored(row.state_data, row.updated_at ?? null));
       })
       .subscribe((status) => { if (status === 'SUBSCRIBED') void fetchState(); });
     const onVisible = () => { if (document.visibilityState === 'visible') void fetchState(); };
@@ -124,39 +160,78 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
       document.removeEventListener('visibilitychange', onVisible);
       supabase.removeChannel(channel);
     };
-  }, [partyId, hostUserId, fetchState]);
+  }, [partyId, hostUserId, currentUserId, fetchState, applyStored]);
 
-  // ── host writes: one upsert, returns the server's updated_at ──
-  const write = useCallback(async (next: CampaignMapState): Promise<{ ok: boolean; updatedAt: number; error: string }> => {
+  /** Compare-and-set save of a whole collection. `clientRevision` must be the persisted revision (0 when none). */
+  const commitAtlas = useCallback(async (next: CampaignAtlas, clientRevision: number): Promise<Result & { updatedAt?: number }> => {
+    if (!partyId || !currentUserId || !canWrite) return fail('Only the party host can change the campaign map.');
+    const err = validateAtlasGraph(next);
+    if (err) return fail(err);
+    const scope = scopeRef.current;
+    const cur = storedRef.current;
+    const expected = cur ? cur.updatedAt || null : null;
+    const envelope: CampaignAtlas = { ...next, sourcePartyId: partyId, revision: clientRevision };
+    const { data, error } = await (supabase.rpc as any)('write_campaign_atlas', { _party_id: partyId, _envelope: envelope, _expected_updated_at: expected });
+    if (scope !== scopeRef.current) return fail('The party changed while saving.');
+    if (error) {
+      if (error.code === '40001') { void fetchState(); return fail(CONFLICT_MSG); }
+      return fail(error.message || 'The map could not be saved.');
+    }
+    const row = (Array.isArray(data) ? data[0] : data) as { state_data: unknown; updated_at: string; server_time: string } | undefined;
+    if (!row) { void fetchState(); return fail('The map could not be saved.'); }
+    const st = Date.parse(row.server_time);
+    if (Number.isFinite(st)) skewRef.current = st - Date.now();
+    const saved = toStored(row.state_data, row.updated_at);
+    applyStored(saved);
+    const updatedAt = Date.parse(row.updated_at);
+    return { ok: true, updatedAt: Number.isFinite(updatedAt) ? updatedAt : serverNow() };
+  }, [partyId, currentUserId, canWrite, fetchState, applyStored, serverNow]);
+
+  // ── host writes: returns the server's updated_at ──
+  // `mid` is the active map id captured when the edit began; in nested mode a delayed edit never lands on another map.
+  const write = useCallback(async (mid: string | null, next: CampaignMapState): Promise<{ ok: boolean; updatedAt: number; error: string }> => {
     if (!partyId || !currentUserId || !canWrite) return { ok: false, updatedAt: 0, error: "Only the party host can change the campaign map." };
+    const cur = storedRef.current;
+    if (cur?.kind === 'invalid') return { ok: false, updatedAt: 0, error: `The saved nested maps can't be read (${cur.error}). Nothing was changed.` };
+    if (cur?.kind === 'atlas') {
+      if (!mid || cur.atlas.activeMapId !== mid) return { ok: false, updatedAt: 0, error: 'The party moved to another map. Please try again.' };
+      const prevActive = projectActive(cur.atlas);
+      const patched = patchMap(cur.atlas, mid, next);
+      if (typeof patched === 'string') return { ok: false, updatedAt: 0, error: patched };
+      const res = await commitAtlas(applyArrivalEntry(prevActive, patched), cur.atlas.revision);
+      return res.ok ? { ok: true, updatedAt: res.updatedAt ?? serverNow(), error: '' } : { ok: false, updatedAt: 0, error: (res as { error: string }).error };
+    }
+    const scope = scopeRef.current;
     const { data, error } = await (supabase.from('party_shared_state') as any)
       .upsert({ party_id: partyId, user_id: currentUserId, state_type: CAMPAIGN_MAP_STATE_TYPE, state_data: next }, { onConflict: 'party_id,user_id,state_type' })
       .select('updated_at').single();
-    if (error) return { ok: false, updatedAt: 0, error: error.message || "The map could not be saved." };
-    const updatedAt = Date.parse((data as { updated_at?: string })?.updated_at || '');
+    if (error) { void fetchState(); return { ok: false, updatedAt: 0, error: error.message || "The map could not be saved." }; }
+    const updatedAtStr = (data as { updated_at?: string })?.updated_at ?? null;
+    const updatedAt = Date.parse(updatedAtStr || '');
     if (Number.isFinite(updatedAt)) skewRef.current = updatedAt - Date.now();
-    setRawState(next);
+    if (scope === scopeRef.current) applyStored({ kind: 'legacy', state: next, updatedAt: updatedAtStr });
     return { ok: true, updatedAt: Number.isFinite(updatedAt) ? updatedAt : serverNow(), error: "" };
-  }, [partyId, currentUserId, canWrite, serverNow]);
+  }, [partyId, currentUserId, canWrite, serverNow, commitAtlas, fetchState, applyStored]);
 
   /** A tranche that is finished (by server time) folded into the saved state. */
   const settleTravel = useCallback((st: CampaignMapState, now: number): CampaignMapState => settleTravelState(st, now), []);
 
   /** Every host change runs on a settled state, so a finished leg is never lost. */
   const mutate = useCallback(async (fn: (s: CampaignMapState) => CampaignMapState | string): Promise<Result> => {
+    const mid = activeMapIdRef.current;
     const base = settleTravel(stateRef.current ?? emptyCampaignMapState(), serverNow());
     const next = fn(base);
     if (typeof next === 'string') return fail(next);
-    const res = await write(sanitizeCampaignMapState(next));
+    const res = await write(mid, sanitizeCampaignMapState(next));
     return res.ok ? OK : fail(res.error);
   }, [settleTravel, serverNow, write]);
 
   const reconcileTravelIfComplete = useCallback(async (): Promise<boolean> => {
-    const s = stateRef.current;
+    const s = stateRef.current; const mid = activeMapIdRef.current;
     if (!canWrite || !s?.activeTravel) return false;
     const settled = settleTravel(s, serverNow());
     if (settled === s) return false;
-    return (await write(settled)).ok;
+    return (await write(mid, settled)).ok;
   }, [canWrite, settleTravel, serverNow, write]);
 
   // The host saves a finished leg on load / reconnect.
@@ -164,7 +239,8 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
 
   // ── view (derived locally, never written) ──
   const getViewState = useCallback((now: number = serverNow()): CampaignMapView | null => {
-    const s = rawState;
+    const cur = storedRef.current;
+    const s = cur?.kind === 'atlas' ? projectActive(resolveAtlasAt(cur.atlas, now)) : rawState;
     if (!s) return null;
     const byId = new Map(s.locations.map(l => [l.id, l]));
     const pinned = (id: string | null | undefined): MapPoint | null => {
@@ -194,7 +270,10 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   }, [rawState, serverNow]);
 
   // ── setup ──
-  const initialize = useCallback(() => mutate(() => emptyCampaignMapState()), [mutate]);
+  const initialize = useCallback(async (): Promise<Result> => {
+    if (storedRef.current?.kind === 'atlas') return fail('This party uses nested maps. Clearing one map this way is not allowed.');
+    return mutate(() => emptyCampaignMapState());
+  }, [mutate]);
   const reset = initialize;
 
   /** Upload an image only (no map change). Used by Map Pack install before replacing state. */
@@ -288,6 +367,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   // ── travel ──
   const startTravel = useCallback(async (routeId: string, toLocationId: string, pace?: TravelPace): Promise<Result> => {
     if (!canWrite) return fail('Only the party host can start travel.');
+    const mid = activeMapIdRef.current;
     const base = settleTravel(stateRef.current ?? emptyCampaignMapState(), serverNow());
     if (base.activeTravel) return fail('The party is already traveling.');
     const route = base.routes.find(r => r.id === routeId);
@@ -319,70 +399,70 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     delete staged.currentRoutePosition;
     delete staged.journeyPlan; // a manual one-road trip replaces any planned journey
     // 1) write to get the server's clock, 2) anchor the leg to it.
-    const first = await write(staged);
+    const first = await write(mid, staged);
     if (!first.ok) return fail(first.error);
-    const anchored = await write({ ...staged, activeTravel: { ...travel, startedAt: first.updatedAt } });
+    const anchored = await write(mid, { ...staged, activeTravel: { ...travel, startedAt: first.updatedAt } });
     return anchored.ok ? OK : fail(anchored.error);
   }, [canWrite, settleTravel, serverNow, write]);
 
   const pauseTravel = useCallback(async (): Promise<Result> => {
-    const s = stateRef.current;
+    const s = stateRef.current; const mid = activeMapIdRef.current;
     if (!canWrite) return fail('Only the party host can pause travel.');
     if (!s?.activeTravel || s.activeTravel.startedAt === null) return fail('The party is not traveling.');
-    const touch = await write(s); // server time for the exact elapsed
+    const touch = await write(mid, s); // server time for the exact elapsed
     if (!touch.ok) return fail(touch.error);
     const settled = settleTravel(s, touch.updatedAt);
-    if (!settled.activeTravel) return (await write(settled)).ok ? OK : fail('The map could not be saved.');
+    if (!settled.activeTravel) return (await write(mid, settled)).ok ? OK : fail('The map could not be saved.');
     const frozen = freezeTravel(s.activeTravel, touch.updatedAt);
     const live = travelDetail(frozen, touch.updatedAt);
     const next: CampaignMapState = { ...s, activeTravel: frozen, currentRoutePosition: { routeId: live.routeId, progress: live.forwardProgress } };
-    const res = await write(next);
+    const res = await write(mid, next);
     return res.ok ? OK : fail(res.error);
   }, [canWrite, settleTravel, write]);
 
   const resumeTravel = useCallback(async (): Promise<Result> => {
-    const s = stateRef.current;
+    const s = stateRef.current; const mid = activeMapIdRef.current;
     if (!canWrite) return fail('Only the party host can resume travel.');
     if (!s?.activeTravel || s.activeTravel.startedAt !== null) return fail('Travel is not paused.');
     const staged: CampaignMapState = { ...s };
     delete staged.currentRoutePosition;
-    const first = await write(staged);
+    const first = await write(mid, staged);
     if (!first.ok) return fail(first.error);
-    const res = await write({ ...staged, activeTravel: { ...s.activeTravel, startedAt: first.updatedAt } });
+    const res = await write(mid, { ...staged, activeTravel: { ...s.activeTravel, startedAt: first.updatedAt } });
     return res.ok ? OK : fail(res.error);
   }, [canWrite, write]);
 
   /** Stop here: the party stays at its current point on the road, and the clock keeps the time spent. */
   const cancelTravel = useCallback(async (): Promise<Result> => {
-    const s = stateRef.current;
+    const s = stateRef.current; const mid = activeMapIdRef.current;
     if (!canWrite) return fail('Only the party host can stop travel.');
-    if (!s?.activeTravel && s?.journeyPlan) { const n = { ...s }; delete n.journeyPlan; return (await write(n)).ok ? OK : fail('The map could not be saved.'); }
+    if (!s?.activeTravel && s?.journeyPlan) { const n = { ...s }; delete n.journeyPlan; return (await write(mid, n)).ok ? OK : fail('The map could not be saved.'); }
     if (!s?.activeTravel) return fail('The party is not traveling.');
-    const touch = await write(s);
+    const touch = await write(mid, s);
     if (!touch.ok) return fail(touch.error);
     const settled = settleTravel(s, touch.updatedAt);
-    if (!settled.activeTravel) { const n = { ...settled }; delete n.journeyPlan; return (await write(n)).ok ? OK : fail('The map could not be saved.'); }
+    if (!settled.activeTravel) { const n = { ...settled }; delete n.journeyPlan; return (await write(mid, n)).ok ? OK : fail('The map could not be saved.'); }
     const live = travelDetail(s.activeTravel, touch.updatedAt);
     const next: CampaignMapState = { ...s, campaignMinute: live.campaignMinute, currentLocationId: null, currentRoutePosition: { routeId: live.routeId, progress: live.forwardProgress } };
     delete next.activeTravel;
     delete next.journeyPlan; // a stopped trip never resumes by surprise
-    const res = await write(next);
+    const res = await write(mid, next);
     return res.ok ? OK : fail(res.error);
   }, [canWrite, settleTravel, write]);
 
   /** Host override: the leg ends now and the full remaining in-world time passes. */
   const finishTravelNow = useCallback(async (): Promise<Result> => {
-    const s = stateRef.current;
+    const s = stateRef.current; const mid = activeMapIdRef.current;
     if (!canWrite) return fail('Only the party host can finish travel.');
     if (s?.journeyPlan) {
       const done = finishJourneyState(s, serverNow());
       if (typeof done === 'string') return fail(done);
-      const r = await write(done);
+      const r = await write(mid, done);
       return r.ok ? OK : fail(r.error);
     }
     if (!s?.activeTravel) return fail('The party is not traveling.');
     const done = settleTravel({ ...s, activeTravel: { ...s.activeTravel, startedAt: null, pausedFraction: 1 } }, serverNow());
-    const res = await write(done);
+    const res = await write(mid, done);
     return res.ok ? OK : fail(res.error);
   }, [canWrite, settleTravel, serverNow, write]);
 
@@ -402,7 +482,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   }, [settleTravel, serverNow, rawState]);
 
   /** Write the tranche, then anchor it to the server's returned time (never this phone's clock). */
-  const launchTranche = useCallback(async (base: CampaignMapState, plan: JourneyPlan): Promise<Result> => {
+  const launchTranche = useCallback(async (mid: string | null, base: CampaignMapState, plan: JourneyPlan): Promise<Result> => {
     const tranche = buildJourneyTranche(base, plan);
     if (!tranche) return fail('A road on this journey has no distance yet. Set its miles (or calibrate the map) first.');
     if (!tranche.segments.length) return fail('The party is already there.');
@@ -410,75 +490,144 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     const cleanPlan: JourneyPlan = { ...plan }; delete cleanPlan.dayComplete;
     const staged: CampaignMapState = { ...base, journeyPlan: cleanPlan, activeTravel: travel, currentLocationId: null };
     delete staged.currentRoutePosition;
-    const first = await write(staged);
+    const first = await write(mid, staged);
     if (!first.ok) return fail(first.error);
-    const anchored = await write({ ...staged, activeTravel: { ...travel, startedAt: first.updatedAt } });
+    const anchored = await write(mid, { ...staged, activeTravel: { ...travel, startedAt: first.updatedAt } });
     return anchored.ok ? OK : fail(anchored.error);
   }, [write]);
 
   const startJourney = useCallback(async (destinationLocationId: string, pace?: TravelPace): Promise<Result> => {
     if (!canWrite) return fail('Only the party host can start travel.');
+    const mid = activeMapIdRef.current;
     const base = settleTravel(stateRef.current ?? emptyCampaignMapState(), serverNow());
     if (base.activeTravel) return fail('The party is already traveling.');
     if (destinationLocationId === base.currentLocationId) return fail('The party is already there.');
     const plan = planJourneyRoute(base, destinationLocationId, pace ?? base.defaultPace);
     if (!plan) return fail("There's no known road there yet.");
-    return launchTranche(base, plan);
+    return launchTranche(mid, base, plan);
   }, [canWrite, settleTravel, serverNow, launchTranche]);
 
   /** Next travel day from the exact saved spot. Does not rest, heal, or change anything on the characters. */
   const continueJourney = useCallback(async (): Promise<Result> => {
     if (!canWrite) return fail('Only the party host can continue travel.');
+    const mid = activeMapIdRef.current;
     const base = settleTravel(stateRef.current ?? emptyCampaignMapState(), serverNow());
     if (base.activeTravel) return fail('The party is already traveling.');
     if (!base.journeyPlan) return fail('There is no journey to continue.');
-    return launchTranche(base, base.journeyPlan);
+    return launchTranche(mid, base, base.journeyPlan);
   }, [canWrite, settleTravel, serverNow, launchTranche]);
 
   /** Stop the journey where the party stands right now (no jump to a town). */
   const cancelJourney = useCallback(async (): Promise<Result> => {
-    const s = stateRef.current;
+    const s = stateRef.current; const mid = activeMapIdRef.current;
     if (!canWrite) return fail('Only the party host can stop travel.');
     if (!s?.journeyPlan && !s?.activeTravel) return fail('There is no journey to stop.');
     let now = serverNow();
-    if (s.activeTravel) { const touch = await write(s); if (!touch.ok) return fail(touch.error); now = touch.updatedAt; }
+    if (s.activeTravel) { const touch = await write(mid, s); if (!touch.ok) return fail(touch.error); now = touch.updatedAt; }
     const settled = settleTravel(s, now);
     const next = foldTravelToPosition(settled, now);
     if (next.currentRoutePosition) delete next.currentRoutePosition.dayComplete;
     delete next.journeyPlan;
-    const res = await write(next);
+    const res = await write(mid, next);
     return res.ok ? OK : fail(res.error);
   }, [canWrite, settleTravel, serverNow, write]);
 
   // ── campaign saves ──
-  /** A save-safe copy: travel in progress is frozen at this moment. */
-  const exportSaveSnapshot = useCallback((): CampaignMapState | null => {
+  /** A save-safe copy: travel in progress is frozen at this moment. Nested collections export whole. */
+  const exportSaveSnapshot = useCallback((): CampaignMapState | CampaignAtlas | null => {
+    const now = serverNow();
+    const freeze = (st: CampaignMapState) => {
+      const settled = settleTravel(st, now);
+      return settled.activeTravel && settled.activeTravel.startedAt !== null
+        ? { ...settled, activeTravel: freezeTravel(settled.activeTravel, now) } : settled;
+    };
+    const stored = storedRef.current;
+    if (stored?.kind === 'atlas') {
+      const a = resolveAtlasAt(stored.atlas, now);
+      const patched = patchMap(a, a.activeMapId, freeze(projectActive(a)));
+      return typeof patched === 'string' ? a : patched;
+    }
     const s = stateRef.current;
-    if (!s) return null;
-    const settled = settleTravel(s, serverNow());
-    return settled.activeTravel && settled.activeTravel.startedAt !== null
-      ? { ...settled, activeTravel: freezeTravel(settled.activeTravel, serverNow()) }
-      : settled;
+    return s ? freeze(s) : null;
   }, [rawState, settleTravel, serverNow]);
 
-  /** Load a saved map. Travel comes back paused; the host resumes it. */
-  const restoreSaveSnapshot = useCallback((snapshot: unknown) => {
-    const s = sanitizeCampaignMapState(snapshot);
-    if (s.activeTravel && s.activeTravel.startedAt !== null) s.activeTravel = { ...s.activeTravel, startedAt: null, pausedFraction: s.activeTravel.pausedFraction ?? 0 };
-    return write(s).then(r => (r.ok ? OK : fail(r.error)));
-  }, [write]);
+  /** Load a saved map. Travel comes back paused; the host resumes it. A collection is never replaced by one map. */
+  const restoreSaveSnapshot = useCallback(async (snapshot: unknown): Promise<Result> => {
+    if (!partyId || !canWrite) return fail('Only the party host can change the campaign map.');
+    const stored = storedRef.current;
+    const pause = (st: CampaignMapState): CampaignMapState =>
+      st.activeTravel && st.activeTravel.startedAt !== null ? { ...st, activeTravel: { ...st.activeTravel, startedAt: null, pausedFraction: st.activeTravel.pausedFraction ?? 0 } } : st;
+    if (isAtlasEnvelope(snapshot)) {
+      const parsed = parseAtlas(snapshot);
+      if (parsed.ok === false) return fail((parsed as { error: string }).error);
+      const a = parsed.value;
+      const restored = patchMap({ ...a, sourcePartyId: partyId }, a.activeMapId, pause(projectActive(a)));
+      if (typeof restored === 'string') return fail(restored);
+      return commitAtlas(restored, stored?.kind === 'atlas' ? stored.atlas.revision : 0);
+    }
+    if (stored?.kind === 'atlas') return fail('This party uses nested maps. A single saved map cannot replace them.');
+    const s = pause(sanitizeCampaignMapState(snapshot));
+    const mid = activeMapIdRef.current;
+    return write(mid, s).then(r => (r.ok ? OK : fail(r.error)));
+  }, [partyId, canWrite, write, commitAtlas]);
 
   const clearCampaignMap = useCallback(async (): Promise<Result> => {
     if (!partyId || !currentUserId || !canWrite) return fail('Only the party host can clear the map.');
     const { error } = await (supabase.from('party_shared_state') as any)
       .delete().eq('party_id', partyId).eq('user_id', currentUserId).eq('state_type', CAMPAIGN_MAP_STATE_TYPE);
     if (error) return fail(error.message || 'The map could not be cleared.');
-    setRawState(null);
+    applyStored(null);
     return OK;
-  }, [partyId, currentUserId, canWrite]);
+  }, [partyId, currentUserId, canWrite, applyStored]);
 
   /** Reads the latest map at call time, so a moving dot is current even without a re-render. */
-  const getPromptContext = useCallback((): string => { const st = stateRef.current; return st && (st.imageUrl || st.locations.length) ? buildDmLogisticsContext(st, serverNow()) : ''; }, [serverNow]);
+  const getPromptContext = useCallback((): string => {
+    const stored = storedRef.current;
+    const st = stored?.kind === 'atlas' ? projectActive(resolveAtlasAt(stored.atlas, serverNow())) : stateRef.current;
+    return st && (st.imageUrl || st.locations.length) ? buildDmLogisticsContext(st, serverNow()) : '';
+  }, [serverNow]);
+
+  // ── nested maps (host-only; no UI yet — prompt 5 wires these) ──
+  const atlas = stored?.kind === 'atlas' ? stored.atlas : null;
+  const isAtlasMode = !!atlas;
+
+  /** Explicit host conversion: the whole current map becomes the top map of a collection. */
+  const convertToAtlas = useCallback(async (name?: string): Promise<Result> => {
+    if (!partyId || !canWrite) return fail('Only the party host can change the campaign map.');
+    const cur = storedRef.current;
+    if (cur?.kind === 'atlas') return fail('This party already uses nested maps.');
+    const base = settleTravel(stateRef.current ?? emptyCampaignMapState(), serverNow());
+    return commitAtlas(convertLegacyToAtlas(base, partyId, name), 0);
+  }, [partyId, canWrite, settleTravel, serverNow, commitAtlas]);
+
+  /** Run an atlas operation on the latest collection, then save with compare-and-set. */
+  const runAtlasOp = useCallback(async (op: (a: CampaignAtlas) => CampaignAtlas | string): Promise<Result> => {
+    if (!canWrite) return fail('Only the party host can change the campaign map.');
+    const cur = storedRef.current;
+    if (cur?.kind !== 'atlas') return fail('Nested maps are not set up for this party.');
+    const base = resolveAtlasAt(cur.atlas, serverNow());
+    const next = op(base);
+    if (typeof next === 'string') return fail(next);
+    return commitAtlas(next, cur.atlas.revision);
+  }, [canWrite, serverNow, commitAtlas]);
+
+  const createChild = useCallback((parentMapId: string, parentLocationId: string, opts: { name: string; navigationMode?: NavigationMode; state?: CampaignMapState; entryLocationId?: string | null }) =>
+    runAtlasOp(a => createChildMapOp(a, parentMapId, parentLocationId, opts)), [runAtlasOp]);
+  const enterChildMap = useCallback((childMapId: string) => runAtlasOp(a => enterChildOp(a, childMapId)), [runAtlasOp]);
+  const exitToParentMap = useCallback(() => runAtlasOp(a => exitToParentOp(a)), [runAtlasOp]);
+  const moveWithinLocalMap = useCallback((locationId: string) => runAtlasOp(a => moveLocalOp(a, locationId)), [runAtlasOp]);
+  /** Edit one specific map (captured id). Other maps are untouched; inactive maps can never get travel. */
+  const editMap = useCallback((mapId: string, fn: (s: CampaignMapState) => CampaignMapState | string) =>
+    runAtlasOp(a => { const st = projectMapState(a, mapId); if (!st) return 'That map no longer exists.'; const n = fn(st); return typeof n === 'string' ? n : patchMap(a, mapId, sanitizeCampaignMapState(n)); }), [runAtlasOp]);
+  const editMapMeta = useCallback((mapId: string, patch: Partial<Pick<AtlasMapNode, 'name' | 'entryLocationId' | 'navigationMode'>>) =>
+    runAtlasOp(a => setNodeMeta(a, mapId, patch)), [runAtlasOp]);
+
+  const activeMapId = atlas?.activeMapId ?? null;
+  const [viewedMapIdRaw, setViewedMapId] = useState<string | null>(null);
+  // Local browse only. Never written, never changes party position or GM context.
+  const viewedMapId = atlas && viewedMapIdRaw && getNode(atlas, viewedMapIdRaw) ? viewedMapIdRaw : activeMapId;
+  const getMapState = useCallback((mapId: string) => (atlas ? projectMapState(atlas, mapId) : null), [atlas]);
+  const getBreadcrumbs = useCallback((mapId: string) => (atlas ? breadcrumbs(atlas, mapId) : []), [atlas]);
 
   return useMemo(() => ({
     rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile,
@@ -488,10 +637,14 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow, reconcileTravelIfComplete,
     planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney,
     exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext,
+    atlas, isAtlasMode, activeMapId, viewedMapId, setViewedMapId, getMapState, getBreadcrumbs,
+    convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta,
   }), [rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile, initialize, reset, uploadMapImage, replaceLocationsAndRoutes,
     addLocation, editLocation, removeLocation, addRoute, editRoute, removeRoute, setDiscovered, setCampaignClock,
     setTimeCompression, setDefaultPace, setCalibration, setCurrentLocation, startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow,
-    reconcileTravelIfComplete, planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney, exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext]);
+    reconcileTravelIfComplete, planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney, exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext,
+    atlas, isAtlasMode, activeMapId, viewedMapId, getMapState, getBreadcrumbs,
+    convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta]);
 }
 
 export type PartyCampaignMapApi = ReturnType<typeof usePartyCampaignMap>;

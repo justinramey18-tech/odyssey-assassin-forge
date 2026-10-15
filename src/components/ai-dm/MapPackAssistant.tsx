@@ -13,7 +13,7 @@ import { MapSetupChat } from './MapSetupChat';
 
 const TOUCH = { touchAction: 'manipulation' as const };
 
-export interface MapPackUndo { previous: CampaignMapState | null; packName: string; guidesInstalled: string[] }
+export interface MapPackUndo { previous: unknown; packName: string; guidesInstalled: string[] }
 
 export function MapPackAssistant({ map, current, onInstallGuide, undo, setUndo }: {
   map: PartyCampaignMapApi;
