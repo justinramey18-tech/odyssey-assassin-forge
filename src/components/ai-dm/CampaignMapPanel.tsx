@@ -48,7 +48,6 @@ function fmtGameMin(min: number): string {
   const m = Math.max(0, Math.round(min));
   return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
 }
-const miles = (n: number) => `${n < 10 ? n.toFixed(1) : Math.round(n)} mi`;
 
 /** A location's own pin, or its nearest pinned parent (sub-locations inherit). */
 function resolvePin(loc: CampaignMapLocation | undefined, byId: Map<string, CampaignMapLocation>): MapPoint | null {
@@ -605,7 +604,7 @@ function HostSetup({ map, state, onInstallGuide, packUndo, setPackUndo }: { map:
       <Section title={`${city ? 'Streets' : 'Roads'} (${s.routes.length})`}>
         {city && (suggested ? (
           <div className="rounded-lg border border-sky-400/40 bg-sky-500/10 p-2.5 space-y-2">
-            <p className="text-[12px] text-sky-100">{suggested.length} suggested street{suggested.length === 1 ? '' : 's'} (shown below the map list). Nothing is saved until you accept.</p>
+            <p className="text-[12px] text-sky-100">{suggested.length} suggested street{suggested.length === 1 ? '' : 's'} for review. Nothing is saved until you accept.</p>
             <ul className="text-[12px] text-white/75 space-y-0.5 max-h-48 overflow-y-auto">
               {suggested.map(r => <li key={r.id}>{byId.get(r.fromLocationId)?.name ?? '?'} ↔ {byId.get(r.toLocationId)?.name ?? '?'}{cal ? ` · ${dist(r.distanceMiles)}` : ''}</li>)}
             </ul>
