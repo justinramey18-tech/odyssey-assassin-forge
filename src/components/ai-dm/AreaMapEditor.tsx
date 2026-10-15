@@ -237,7 +237,7 @@ export function AreaMapEditor({ map, partyId }: { map: PartyCampaignMapApi; part
                 {host && viewedNode && (
                   <Button variant="ghost" className="min-h-[48px] text-red-300" style={TOUCH}
                     disabled={busyOp || !!child || isEntrance(l.id) || (viewedId === activeId && (activeState?.currentLocationId === l.id || !!(activeState && busy(activeState))))}
-                    onClick={() => void editViewed(s => ({ ...s, locations: s.locations.filter(x => x.id !== l.id && x.parentLocationId !== l.id ? true : x.id !== l.id).map(x => (x.parentLocationId === l.id ? { ...x, parentLocationId: undefined } : x)), routes: s.routes.filter(r => r.fromLocationId !== l.id && r.toLocationId !== l.id) }), 'Place removed')}>
+                    onClick={() => void editViewed(s => ({ ...s, locations: s.locations.filter(x => x.id !== l.id).map(x => (x.parentLocationId === l.id ? { ...x, parentLocationId: undefined } : x)), routes: s.routes.filter(r => r.fromLocationId !== l.id && r.toLocationId !== l.id) }), 'Place removed')}>
                     <Trash2 className="w-4 h-4 mr-2" /> Remove
                   </Button>
                 )}

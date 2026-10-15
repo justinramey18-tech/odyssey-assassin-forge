@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import type { PartyCampaignMapApi } from '@/hooks/use-party-campaign-map';
 import { MapPackAssistant, type MapPackUndo } from './MapPackAssistant';
+import { AreaMapEditor } from './AreaMapEditor';
 import {
   LOCATION_KINDS, TIME_COMPRESSION_PRESETS, TRAVEL_PACE_MPH,
   activeCalibration, createCalibration, effectiveRouteMiles, formatCampaignTime, gameToRealMs, TRAVEL_DAY_MINUTES,
@@ -71,10 +72,12 @@ export interface CampaignMapPanelProps {
   map: PartyCampaignMapApi;
   /** Host-only; used later by the Map Pack Assistant after explicit approval. */
   onInstallGuide?: (name: string, content: string, customId?: string) => boolean;
+  /** Party id for the host-only private area guides. */
+  partyId?: string | null;
 }
 
-export function CampaignMapPanel({ open, onOpenChange, map, onInstallGuide }: CampaignMapPanelProps) {
-  const [tab, setTab] = useState<'play' | 'setup'>('play');
+export function CampaignMapPanel({ open, onOpenChange, map, onInstallGuide, partyId }: CampaignMapPanelProps) {
+  const [tab, setTab] = useState<'play' | 'setup' | 'areas'>('play');
   const [packUndo, setPackUndo] = useState<MapPackUndo | null>(null);
   const [, setTick] = useState(0);
   const state = map.rawState;
@@ -90,7 +93,8 @@ export function CampaignMapPanel({ open, onOpenChange, map, onInstallGuide }: Ca
     return () => cancelAnimationFrame(raf);
   }, [open, traveling]);
 
-  useEffect(() => { if (!host && tab === 'setup') setTab('play'); }, [host, tab]);
+  const showAreas = host || !!map.atlas;
+  useEffect(() => { if ((!host && tab === 'setup') || (!showAreas && tab === 'areas')) setTab('play'); }, [host, tab, showAreas]);
   // Every fresh open starts on Play View; switching tabs during an open session is kept.
   useEffect(() => { if (open) setTab('play'); }, [open]);
   const landscape = usePhoneLandscape();
@@ -106,12 +110,12 @@ export function CampaignMapPanel({ open, onOpenChange, map, onInstallGuide }: Ca
           <SheetDescription className={cn('text-[12px] text-white/50 mt-0.5', landscape && 'sr-only')}>
             {host ? 'Where the party is, and where the road leads.' : 'Where the party is. The host controls travel.'}
           </SheetDescription>
-          {host && (
-            <div className={cn('grid grid-cols-2 gap-2', landscape ? 'ml-auto w-[260px]' : 'mt-2')}>
-              {(['play', 'setup'] as const).map(t => (
+          {(host || showAreas) && (
+            <div className={cn(host && showAreas ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-2 gap-2', landscape ? 'ml-auto w-[260px]' : 'mt-2')}>
+              {(['play', ...(host ? ['setup'] as const : []), ...(showAreas ? ['areas'] as const : [])] as Array<'play' | 'setup' | 'areas'>).map(t => (
                 <button key={t} onClick={() => setTab(t)} style={TOUCH}
                   className={cn('min-h-[44px] rounded-lg text-[13px] font-semibold border', tab === t ? 'bg-amber-500/20 border-amber-400/50 text-amber-200' : 'bg-white/5 border-white/10 text-white/60')}>
-                  {t === 'play' ? 'Play View' : 'Host Setup'}
+                  {t === 'play' ? 'Play View' : t === 'setup' ? 'Host Setup' : 'Areas'}
                 </button>
               ))}
             </div>
@@ -120,6 +124,8 @@ export function CampaignMapPanel({ open, onOpenChange, map, onInstallGuide }: Ca
         <div className={cn('flex-1 min-h-0 overflow-x-hidden', playLandscape ? 'overflow-hidden px-3 py-2' : 'overflow-y-auto px-4 py-3')}>
           {map.loading && !state ? (
             <p className="text-white/50 text-sm">Loading the map…</p>
+          ) : tab === 'areas' && showAreas ? (
+            <AreaMapEditor map={map} partyId={partyId ?? null} />
           ) : tab === 'setup' && host ? (
             <HostSetup map={map} state={state} onInstallGuide={onInstallGuide} packUndo={packUndo} setPackUndo={setPackUndo} />
           ) : (
