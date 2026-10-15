@@ -16,9 +16,13 @@
 
 import pg from 'npm:pg@8.13.1';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import {
+  PREPARE_TOOL, VERIFY_TOOL, prepareCampaignImageUpload, verifyCampaignImageUpload,
+  type Actor, type ImageDeps,
+} from './image-upload.ts';
 
 const PROTOCOL_VERSION = '2025-06-18';
-const SERVER_INFO = { name: 'odyssey-db-bridge', version: '1.1.0' };
+const SERVER_INFO = { name: 'odyssey-db-bridge', version: '1.2.0' };
 const MAX_ROWS = 500;
 const MAX_RESPONSE_CHARS = 500_000;
 
@@ -180,13 +184,76 @@ const TOOLS = [
       additionalProperties: false,
     },
   },
+  PREPARE_TOOL,
+  VERIFY_TOOL,
 ];
+
+// ---------- Storage access for image tools (server-only credentials) ----------
+
+function storageEnv() {
+  const url = Deno.env.get('SUPABASE_URL');
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !key) throw new Error('Image uploads are not configured on the server.');
+  return { url: url.replace(/\/$/, ''), key };
+}
+const encPath = (p: string) => p.split('/').map(encodeURIComponent).join('/');
+
+const imageDeps: ImageDeps = {
+  async findParty(partyId) {
+    return await withClient(async (c) => {
+      const r = await c.query('SELECT created_by::text AS host, is_active FROM public.parties WHERE id = $1', [partyId]);
+      if (!r.rows.length) return null;
+      return { hostId: String(r.rows[0].host ?? ''), isActive: r.rows[0].is_active === true };
+    });
+  },
+  async createSignedUpload(bucket, path) {
+    const { url, key } = storageEnv();
+    const { createClient } = await import('npm:@supabase/supabase-js@2');
+    const sb = createClient(url, key, { auth: { persistSession: false } });
+    const { data, error } = await sb.storage.from(bucket).createSignedUploadUrl(path, { upsert: false });
+    if (error || !data) throw new Error('Could not create a signed upload address.');
+    return { signedUrl: data.signedUrl, token: data.token };
+  },
+  async fetchObject(bucket, path, maxBytes) {
+    const { url, key } = storageEnv();
+    const res = await fetch(`${url}/storage/v1/object/authenticated/${bucket}/${encPath(path)}`, {
+      headers: { Authorization: `Bearer ${key}`, apikey: key },
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (res.status === 404 || res.status === 400) { await res.body?.cancel(); return { status: 'missing' }; }
+    if (!res.ok || !res.body) { await res.body?.cancel(); throw new Error(`Storage read failed (${res.status}).`); }
+    const reader = res.body.getReader();
+    const chunks: Uint8Array[] = []; let total = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.length;
+      if (total > maxBytes) { await reader.cancel(); return { status: 'too_large' }; }
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(total); let o = 0;
+    for (const ch of chunks) { bytes.set(ch, o); o += ch.length; }
+    return { status: 'ok', bytes, contentType: res.headers.get('content-type') ?? '' };
+  },
+  publicUrl(bucket, path) {
+    return `${storageEnv().url}/storage/v1/object/public/${bucket}/${encPath(path)}`;
+  },
+  async checkPublic(publicUrl) {
+    try {
+      const res = await fetch(publicUrl, { method: 'HEAD', signal: AbortSignal.timeout(10_000) });
+      return res.ok;
+    } catch { return false; }
+  },
+  ticketSecret() { return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? null; },
+  now: () => Date.now(),
+  randomId: () => crypto.randomUUID(),
+};
 
 function textResult(text: string, isError = false) {
   return { content: [{ type: 'text', text: capText(text) }], isError };
 }
 
-async function callTool(name: string, args: Record<string, unknown>) {
+async function callTool(name: string, args: Record<string, unknown>, actor: Actor) {
   try {
     if (name === 'list_tables') {
       return textResult(JSON.stringify(await listTables(), null, 1));
@@ -196,6 +263,13 @@ async function callTool(name: string, args: Record<string, unknown>) {
       if (!sql.trim()) return textResult('Missing required argument: sql.', true);
       console.log(`[claude-bridge] run_sql: ${sql.length} chars, starts: ${sql.trim().slice(0, 60)}`);
       return textResult(JSON.stringify(await runSql(sql), null, 1));
+    }
+    if (name === PREPARE_TOOL.name || name === VERIFY_TOOL.name) {
+      console.log(`[claude-bridge] ${name} called`); // never log tickets, URLs or bytes
+      const r = name === PREPARE_TOOL.name
+        ? await prepareCampaignImageUpload(args, actor, imageDeps)
+        : await verifyCampaignImageUpload(args, actor, imageDeps);
+      return r.ok ? textResult(JSON.stringify(r.data, null, 1)) : textResult(r.error, true);
     }
     return textResult(`Unknown tool: ${name}`, true);
   } catch (error) {
@@ -209,7 +283,7 @@ async function callTool(name: string, args: Record<string, unknown>) {
 
 type RpcMessage = { jsonrpc: string; id?: number | string | null; method: string; params?: Record<string, unknown> };
 
-async function handleRpc(msg: RpcMessage): Promise<unknown | undefined> {
+async function handleRpc(msg: RpcMessage, actor: Actor): Promise<unknown | undefined> {
   const { id, method, params = {} } = msg;
 
   // Notifications have no id — nothing to reply to.
@@ -236,7 +310,7 @@ async function handleRpc(msg: RpcMessage): Promise<unknown | undefined> {
   if (method === 'tools/call') {
     const name = String(params.name ?? '');
     const args = (params.arguments ?? {}) as Record<string, unknown>;
-    const result = await callTool(name, args);
+    const result = await callTool(name, args, actor);
     return { jsonrpc: '2.0', id, result };
   }
   // Resources/prompts are not offered; answer with the standard empty result
@@ -342,6 +416,7 @@ Deno.serve(async (req) => {
   ].filter((k) => k.length > 0);
   const presented = /^bearer /i.test(auth) ? auth.slice(7).trim() : auth;
   let keyOk = validKeys.some((k) => presented === k || auth === k);
+  const actor: Actor = { id: 'bridge-key' };
 
   // OAuth path: a token issued by the app's login server through the approval
   // screen. Must carry a client_id (copied app sessions are refused) and must
@@ -360,6 +435,7 @@ Deno.serve(async (req) => {
         return json({ error: 'This account is not allowed to use the bridge.' }, 403);
       } else {
         keyOk = true;
+        actor.id = sub;
       }
     } catch (e) {
       logOutcome(401, `oauth-verify-failed ${(e as Error)?.name ?? ''}`);
@@ -424,7 +500,7 @@ Deno.serve(async (req) => {
       replies.push({ jsonrpc: '2.0', id: (msg as RpcMessage)?.id ?? null, error: { code: -32600, message: 'Invalid request' } });
       continue;
     }
-    const reply = await handleRpc(msg);
+    const reply = await handleRpc(msg, actor);
     if (reply !== undefined) replies.push(reply);
   }
 
