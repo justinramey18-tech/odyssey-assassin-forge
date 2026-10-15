@@ -234,7 +234,7 @@ interface PartyDMScreenProps {
   /** Shared world map (absent in practice). */
   campaignMap?: PartyCampaignMapApi;
   /** Original host only; called only after explicit approval (Map Pack). */
-  onInstallCampaignMapGuide?: (name: string, content: string, customId?: string) => boolean;
+  onInstallCampaignMapGuide?: (name: string, content: string, customId?: string) => Promise<boolean>;
   onBack: () => void;
   /** Re-read the DM's latest response and pull quests out of it. */
   onScanQuests?: () => void;

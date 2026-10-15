@@ -71,7 +71,7 @@ export interface CampaignMapPanelProps {
   onOpenChange: (open: boolean) => void;
   map: PartyCampaignMapApi;
   /** Host-only; used later by the Map Pack Assistant after explicit approval. */
-  onInstallGuide?: (name: string, content: string, customId?: string) => boolean;
+  onInstallGuide?: (name: string, content: string, customId?: string) => Promise<boolean>;
   /** Party id for the host-only private area guides. */
   partyId?: string | null;
 }

@@ -132,6 +132,26 @@ export function useGMGuides(ownerUserId?: string, mode?: 'solo' | 'solo-empyrean
     return true;
   }, [guides, persist, persistToCloud]);
 
+  /** Awaited add: resolves true only once the guide is saved (cloud when signed in, else local). */
+  const installGuide = useCallback(async (name: string, content: string, customId?: string): Promise<boolean> => {
+    if (content.length > MAX_GUIDE_CHARS) return false;
+    if (!canAddContent(guides, content.length)) return false;
+    const now = new Date().toISOString();
+    const guide: GMGuide = { id: customId ?? crypto.randomUUID(), name: name.trim() || 'Untitled Guide', content, enabled: true, createdAt: now, updatedAt: now };
+    if (guides.some(g => g.id === guide.id)) return false;
+    if (isCloudMode) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return false;
+      const { error } = await supabase.from('gm_guides').upsert({
+        id: guide.id, user_id: ownerUserId || session.user.id, name: guide.name, content: guide.content,
+        enabled: true, mode: mode || 'party', created_at: now, updated_at: now,
+      } as any);
+      if (error) return false;
+    }
+    persist([...guides, guide]);
+    return true;
+  }, [guides, persist, isCloudMode, ownerUserId, mode]);
+
   const addGuides = useCallback((items: Array<{ name: string; content: string; customId?: string }>): { added: number; skipped: number } => {
     const prepared = items.map(item => ({
       ...item,
@@ -261,6 +281,7 @@ export function useGMGuides(ownerUserId?: string, mode?: 'solo' | 'solo-empyrean
   return {
     guides,
     addGuide,
+    installGuide,
     addGuides,
     updateGuide,
     deleteGuide,
