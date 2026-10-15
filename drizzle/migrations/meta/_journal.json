@@ -225,6 +225,13 @@
       "when": 1792102735639,
       "tag": "0031_party_onboarding_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1792102982639,
+      "tag": "0032_party_creation_context_leases",
+      "breakpoints": true
     }
   ]
 }
