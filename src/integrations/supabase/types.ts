@@ -1072,6 +1072,110 @@ export type Database = {
           },
         ]
       }
+      party_creation_contexts: {
+        Row: {
+          party_id: string
+          player_context: Json
+          private_source_manifest: Json
+          revision: number
+          source_fingerprint: string | null
+          starting_rules: Json
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          party_id: string
+          player_context?: Json
+          private_source_manifest?: Json
+          revision?: number
+          source_fingerprint?: string | null
+          starting_rules?: Json
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          party_id?: string
+          player_context?: Json
+          private_source_manifest?: Json
+          revision?: number
+          source_fingerprint?: string | null
+          starting_rules?: Json
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_creation_contexts_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: true
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      party_creation_sessions: {
+        Row: {
+          completed_at: string | null
+          completed_member_id: string | null
+          completed_save_id: string | null
+          context_revision: number
+          created_at: string
+          draft: Json
+          draft_revision: number
+          id: string
+          party_id: string
+          reserved_save_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_member_id?: string | null
+          completed_save_id?: string | null
+          context_revision?: number
+          created_at?: string
+          draft?: Json
+          draft_revision?: number
+          id?: string
+          party_id: string
+          reserved_save_id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_member_id?: string | null
+          completed_save_id?: string | null
+          context_revision?: number
+          created_at?: string
+          draft?: Json
+          draft_revision?: number
+          id?: string
+          party_id?: string
+          reserved_save_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_creation_sessions_completed_save_id_fkey"
+            columns: ["completed_save_id"]
+            isOneToOne: false
+            referencedRelation: "character_saves"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "party_creation_sessions_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       party_dice_rolls: {
         Row: {
           created_at: string
@@ -2188,6 +2292,27 @@ export type Database = {
           },
         ]
       }
+      party_onboarding_rate_events: {
+        Row: {
+          created_at: string
+          id: number
+          kind: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          kind: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          kind?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       party_onboarding_requests: {
         Row: {
           created_at: string
@@ -3198,6 +3323,70 @@ export type Database = {
           source_queue: string
         }
         Returns: number
+      }
+      onboarding_begin: {
+        Args: { _link_code: string; _user_id: string }
+        Returns: Json
+      }
+      onboarding_context_state: { Args: { _party_id: string }; Returns: string }
+      onboarding_context_update: {
+        Args: {
+          _expected_revision: number
+          _manifest: Json
+          _party_id: string
+          _player_context: Json
+          _source_fingerprint: string
+          _starting_rules: Json
+        }
+        Returns: Json
+      }
+      onboarding_finalize: {
+        Args: {
+          _expected_context_revision: number
+          _expected_draft_revision: number
+          _payload: Json
+          _session_id: string
+          _user_id: string
+        }
+        Returns: Json
+      }
+      onboarding_finite: { Args: { _v: Json }; Returns: boolean }
+      onboarding_gate: {
+        Args: { _party_id: string; _user_id: string }
+        Returns: string
+      }
+      onboarding_list: { Args: { _user_id: string }; Returns: Json }
+      onboarding_lock: {
+        Args: { _party_id: string; _user_id: string }
+        Returns: undefined
+      }
+      onboarding_mark_context_stale: {
+        Args: { _party_id: string }
+        Returns: undefined
+      }
+      onboarding_rate_ok: {
+        Args: { _kind: string; _max: number; _user_id: string; _window: string }
+        Returns: boolean
+      }
+      onboarding_resume: {
+        Args: { _session_id: string; _user_id: string }
+        Returns: Json
+      }
+      onboarding_save_draft: {
+        Args: {
+          _draft: Json
+          _expected_revision: number
+          _session_id: string
+          _user_id: string
+        }
+        Returns: Json
+      }
+      onboarding_session_json: {
+        Args: {
+          _s: Database["public"]["Tables"]["party_creation_sessions"]["Row"]
+          _status: string
+        }
+        Returns: Json
       }
       party_is_private: { Args: { _party_id: string }; Returns: boolean }
       read_email_batch: {

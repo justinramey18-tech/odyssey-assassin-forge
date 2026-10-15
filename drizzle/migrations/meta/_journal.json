@@ -218,6 +218,13 @@
       "when": 1792084967813,
       "tag": "0030_fix_bridge_install_guide_alias_apply",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1792102735639,
+      "tag": "0031_party_onboarding_foundation",
+      "breakpoints": true
     }
   ]
 }
