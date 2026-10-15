@@ -147,6 +147,62 @@ export interface CampaignMapState {
   activeTravel?: ActiveTravel;
   /** Multi-road journey in progress (optional; older saves have none). */
   journeyPlan?: JourneyPlan;
+  /** 'city' = streets: no travel-day cap, yards/minutes wording. Missing = overland. */
+  travelScale?: TravelScale;
+}
+
+export type TravelScale = 'overland' | 'city';
+export const isCityScale = (s: Pick<CampaignMapState, 'travelScale'> | null | undefined) => s?.travelScale === 'city';
+/** Shortest in-world time any city trip takes, so a street never finishes instantly. */
+export const CITY_MIN_TRIP_MINUTES = 1;
+const YARDS_PER_MILE = 1760;
+export const yardsToMiles = (y: number) => y / YARDS_PER_MILE;
+/** "340 yd" / "1.2 mi" in the city; "3.4 mi" / "12 mi" overland. */
+export function formatTravelDistance(miles: number, city: boolean): string {
+  const m = Number.isFinite(miles) && miles > 0 ? miles : 0;
+  if (city) return m < 1 ? `${Math.max(10, Math.round(m * YARDS_PER_MILE / 10) * 10)} yd` : `${m.toFixed(1)} mi`;
+  return `${m < 10 ? m.toFixed(1) : Math.round(m)} mi`;
+}
+/** Calibration from "this whole picture is N miles wide". */
+export function calibrationFromMapWidth(imageWidth: number, imageHeight: number, widthMiles: number): CampaignMapCalibration | null {
+  if (!Number.isFinite(widthMiles) || widthMiles <= 0) return null;
+  return createCalibration({ x: 0, y: 0.5 }, { x: 1, y: 0.5 }, imageWidth, imageHeight, widthMiles);
+}
+/**
+ * Suggested streets: each pinned place joined to its nearest neighbours (default 2), plus links that join
+ * any separate clusters. No duplicates, never a pair that already has a street. Distances come from the map scale.
+ */
+export function suggestStreets(state: CampaignMapState, makeId: () => string, neighbours = 2): CampaignMapRoute[] {
+  const pts = state.locations.filter(l => l.x !== null && l.y !== null);
+  const w = state.imageNaturalWidth ?? 1, h = state.imageNaturalHeight ?? 1;
+  const d = (a: CampaignMapLocation, b: CampaignMapLocation) => Math.hypot(((a.x as number) - (b.x as number)) * w, ((a.y as number) - (b.y as number)) * h);
+  const key = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+  const have = new Set(state.routes.map(r => key(r.fromLocationId, r.toLocationId)));
+  const pairs = new Map<string, [CampaignMapLocation, CampaignMapLocation]>();
+  const addPair = (a: CampaignMapLocation, b: CampaignMapLocation) => { const k = key(a.id, b.id); if (a.id !== b.id && !have.has(k)) pairs.set(k, a.id < b.id ? [a, b] : [b, a]); };
+  for (const a of pts) {
+    [...pts].filter(b => b.id !== a.id).sort((x, y) => d(a, x) - d(a, y) || x.id.localeCompare(y.id)).slice(0, neighbours).forEach(b => addPair(a, b));
+  }
+  // Join separate clusters (existing streets + suggestions) by their closest link until everything connects.
+  const parent = new Map(pts.map(p => [p.id, p.id]));
+  const find = (x: string): string => { let r = x; while (parent.get(r) !== r) r = parent.get(r)!; return r; };
+  const join = (a: string, b: string) => { if (parent.has(a) && parent.has(b)) parent.set(find(a), find(b)); };
+  state.routes.forEach(r => join(r.fromLocationId, r.toLocationId));
+  pairs.forEach(([a, b]) => join(a.id, b.id));
+  for (let guard = 0; guard < pts.length; guard++) {
+    let best: [CampaignMapLocation, CampaignMapLocation] | null = null; let bd = Infinity;
+    for (const a of pts) for (const b of pts) if (find(a.id) !== find(b.id) && d(a, b) < bd) { bd = d(a, b); best = [a, b]; }
+    if (!best) break;
+    addPair(best[0], best[1]); join(best[0].id, best[1].id);
+  }
+  const cal = activeCalibration(state);
+  return [...pairs.keys()].sort().map(k => {
+    const [a, b] = pairs.get(k)!;
+    const path = [{ x: a.x as number, y: a.y as number }, { x: b.x as number, y: b.y as number }];
+    const est = polylineMiles(path, cal);
+    return { id: makeId(), fromLocationId: a.id, toLocationId: b.id, terrainFactor: 1, path, distanceSource: 'calibrated' as const,
+      distanceMiles: est ?? 0, ...(est !== null ? { calibratedDistanceMiles: est } : {}) };
+  });
 }
 
 // ── small guards ──
@@ -266,10 +322,10 @@ export function travelGameMinutes(miles: number, pace: TravelPace, terrainFactor
  * `minutesTraveledToday` = travel already done today.
  */
 export function maxLegalLeg(
-  totalMiles: number, progress: number, pace: TravelPace, terrainFactor: number, minutesTraveledToday = 0,
+  totalMiles: number, progress: number, pace: TravelPace, terrainFactor: number, minutesTraveledToday = 0, dayMinutes: number = TRAVEL_DAY_MINUTES,
 ): { miles: number; gameMinutes: number; endProgress: number; reachesEnd: boolean } {
   const remaining = routeMilesRemaining(totalMiles, progress);
-  const left = Math.max(0, TRAVEL_DAY_MINUTES - (fin(minutesTraveledToday) ? Math.max(0, minutesTraveledToday) : 0));
+  const left = Math.max(0, dayMinutes - (fin(minutesTraveledToday) ? Math.max(0, minutesTraveledToday) : 0));
   const full = travelGameMinutes(remaining, pace, terrainFactor);
   if (remaining <= 0 || left <= 0) return { miles: 0, gameMinutes: 0, endProgress: clamp01(progress), reachesEnd: remaining <= 0 };
   if (full <= left) return { miles: remaining, gameMinutes: full, endProgress: 1, reachesEnd: true };
@@ -515,6 +571,7 @@ export function sanitizeCampaignMapState(raw: unknown): CampaignMapState {
     realMinutesPerGameHour: validRealMinutesPerGameHour(r.realMinutesPerGameHour) ?? DEFAULT_REAL_MINUTES_PER_GAME_HOUR,
     defaultPace: isPace(r.defaultPace) ? r.defaultPace : 'normal',
   };
+  if (r.travelScale === 'city') state.travelScale = 'city';
   if (fin(r.imageNaturalWidth) && r.imageNaturalWidth > 0) state.imageNaturalWidth = r.imageNaturalWidth;
   if (fin(r.imageNaturalHeight) && r.imageNaturalHeight > 0) state.imageNaturalHeight = r.imageNaturalHeight;
 
@@ -590,6 +647,9 @@ export function buildDmLogisticsContext(state: CampaignMapState, nowMs: number =
   const cal = activeCalibration(state);
   const name = (id: string | null | undefined) => (id && byId.get(id)?.name) || 'an unnamed place';
   const lines: string[] = ['[CAMPAIGN MAP — AUTHORITATIVE FACTS, set by the app. Do not contradict, move the party, or start/finish journeys yourself; the host controls travel.]'];
+  const city = isCityScale(state);
+  const dist = (m: number) => formatTravelDistance(m, city);
+  if (city) lines.push('Scale: CITY. The party moves on foot through streets; trips take minutes, not days. There are no travel days, camps or overland roads on this map.');
   const t = state.activeTravel;
   let minute = state.campaignMinute;
   const plan = state.journeyPlan;
@@ -597,7 +657,7 @@ export function buildDmLogisticsContext(state: CampaignMapState, nowMs: number =
     const sum = summarizeJourney(t ? foldTravelToPosition(state, nowMs) : state);
     const dest = name(plan.destinationLocationId);
     lines.push(`Journey: the party is bound for ${dest} (final destination) at a ${plan.pace} pace, via ${sum?.locationNames.join(' → ') ?? dest}.`);
-    if (sum) lines.push(`Journey progress: ${Math.round(sum.completedFraction * 100)}% overall; about ${Math.round(sum.remainingMiles)} mi and ${Math.round(sum.remainingMinutes / 60 * 10) / 10} in-world travel hours remain.`);
+    if (sum) lines.push(`Journey progress: ${Math.round(sum.completedFraction * 100)}% overall; about ${dist(sum.remainingMiles)} and ${city ? `${Math.max(1, Math.round(sum.remainingMinutes))} in-world minutes` : `${Math.round(sum.remainingMinutes / 60 * 10) / 10} in-world travel hours`} remain.`);
     lines.push(`Arrival at ${dest} is NOT allowed until the app reports the party has reached it. Intermediate towns are passed through, not stopped at, unless the host stops the journey.`);
   }
   if (t) {
@@ -609,16 +669,16 @@ export function buildDmLogisticsContext(state: CampaignMapState, nowMs: number =
     const miles = route ? effectiveRouteMiles(route, cal) : null;
     const status = t.startedAt === null ? 'PAUSED on the road' : now.done ? 'leg just finished (awaiting host update)' : 'MOVING';
     lines.push(`Status: en route from ${from} to ${to}${t.segments && t.segments.length > 1 ? ` (road ${now.segmentIndex + 1} of ${t.segments.length} today)` : ''} — ${status}.`);
-    lines.push(`Progress: ${Math.round(now.progress * 100)}% of the road${miles !== null ? ` (${Math.round(miles * now.progress)} mi traveled, ${Math.round(routeMilesRemaining(miles, now.progress))} mi remaining)` : ''}.`);
+    lines.push(`Progress: ${Math.round(now.progress * 100)}% of the ${city ? 'street' : 'road'}${miles !== null ? ` (${city ? dist(miles * now.progress) : `${Math.round(miles * now.progress)} mi`} traveled, ${city ? dist(routeMilesRemaining(miles, now.progress)) : `${Math.round(routeMilesRemaining(miles, now.progress))} mi`} remaining)` : ''}.`);
     lines.push(`Pace: ${t.pace}; terrain ×${route?.terrainFactor ?? 1}${route?.description ? `; road: ${route.description.slice(0, 160)}` : ''}.`);
     const last = t.segments?.length ? t.segments[t.segments.length - 1] : t;
     const lastRoute = state.routes.find(r => r.id === (t.segments?.length ? t.segments[t.segments.length - 1].routeId : t.routeId));
     const dayEnd = lastRoute ? name(last.reversed ? lastRoute.fromLocationId : lastRoute.toLocationId) : to;
     const reachesFinal = !plan || (last.endProgress >= 1 && dayEnd === name(plan.destinationLocationId));
-    if (last.endProgress < 1) lines.push(`This travel day stops partway when the 8-hour travel day ends; the party will NOT reach ${plan ? name(plan.destinationLocationId) : dayEnd} today.`);
+    if (!city && last.endProgress < 1) lines.push(`This travel day stops partway when the 8-hour travel day ends; the party will NOT reach ${plan ? name(plan.destinationLocationId) : dayEnd} today.`);
     const arrived = now.done && last.endProgress >= 1 && reachesFinal;
     const target = plan ? name(plan.destinationLocationId) : to;
-    lines.push(arrived ? `Arrival at ${target} is allowed.` : `Arrival at ${target} is NOT allowed yet — narrate the road only.`);
+    lines.push(arrived ? `Arrival at ${target} is allowed.` : `Arrival at ${target} is NOT allowed yet — narrate the ${city ? 'streets' : 'road'} only.`);
   } else if (state.currentRoutePosition) {
     const p = state.currentRoutePosition;
     const route = state.routes.find(r => r.id === p.routeId);
@@ -635,7 +695,7 @@ export function buildDmLogisticsContext(state: CampaignMapState, nowMs: number =
       const other = byId.get(r.fromLocationId === here.id ? r.toLocationId : r.fromLocationId);
       if (!other?.discovered) return null;
       const m = effectiveRouteMiles(r, cal);
-      return m !== null ? `${other.name} (~${Math.round(m)} mi)` : other.name;
+      return m !== null ? `${other.name} (~${city ? dist(m) : `${Math.round(m)} mi`})` : other.name;
     }).filter(Boolean);
     if (known.length) lines.push(`Known roads lead to: ${known.join(', ')}. Reaching them requires the host to start travel.`);
   } else {
@@ -756,19 +816,24 @@ export function buildJourneyTranche(state: CampaignMapState, plan: JourneyPlan):
   const routes = new Map(state.routes.map(r => [r.id, r]));
   const cal = activeCalibration(state);
   const segments: TravelSegment[] = [];
+  const city = isCityScale(state);
   let used = 0, miles = 0, reaches = false;
   for (let i = plan.currentLegIndex; i < plan.legs.length; i++) {
     const leg = plan.legs[i], route = routes.get(leg.routeId);
     const total = route ? effectiveRouteMiles(route, cal) : null;
     if (!route || total === null) return null;
     const start = i === plan.currentLegIndex ? journeyStartProgress(state, leg) : 0;
-    const l = maxLegalLeg(total, start, plan.pace, route.terrainFactor, used);
+    const l = maxLegalLeg(total, start, plan.pace, route.terrainFactor, used, city ? Infinity : TRAVEL_DAY_MINUTES);
     if (l.gameMinutes > 0) {
       segments.push({ routeId: leg.routeId, reversed: leg.reversed, startProgress: start, endProgress: l.endProgress, distanceMiles: l.miles, gameMinutes: l.gameMinutes, legIndex: i });
       used += l.gameMinutes; miles += l.miles;
     }
     if (!l.reachesEnd) break;
     if (i === plan.legs.length - 1) reaches = true;
+  }
+  if (city && segments.length && used > 0 && used < CITY_MIN_TRIP_MINUTES) {
+    const k = CITY_MIN_TRIP_MINUTES / used;
+    segments.forEach(x => { x.gameMinutes *= k; }); used = CITY_MIN_TRIP_MINUTES;
   }
   return { segments, gameMinutes: used, miles, reachesDestination: reaches };
 }

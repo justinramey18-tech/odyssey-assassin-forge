@@ -20,12 +20,15 @@ import {
   activeCalibration, createCalibration, effectiveRouteMiles, formatCampaignTime, gameToRealMs, TRAVEL_DAY_MINUTES,
   polylineMiles, sanitizeCampaignMapState, locationOverlayMode, routeOverlayMode, travelDetail, withRoutePath,
   listReachableDestinations, summarizeJourney, remainingJourneyRouteIds, foldTravelToPosition,
+  isCityScale, formatTravelDistance, calibrationFromMapWidth, suggestStreets, yardsToMiles,
   type CampaignMapLocation, type CampaignMapRoute, type CampaignMapState, type LocationKind, type MapPoint, type TravelPace,
 } from '@/lib/campaign-map';
 
 const TOUCH = { touchAction: 'manipulation' as const };
 const PACES: TravelPace[] = ['slow', 'normal', 'fast'];
-const PACE_LABEL: Record<TravelPace, string> = { slow: 'Slow', normal: 'Normal', fast: 'Fast' };
+const PACE_LABEL_OVERLAND: Record<TravelPace, string> = { slow: 'Slow', normal: 'Normal', fast: 'Fast' };
+const PACE_LABEL_CITY: Record<TravelPace, string> = { slow: 'Careful', normal: 'Walk', fast: 'Hurry' };
+const paceLabels = (city: boolean) => (city ? PACE_LABEL_CITY : PACE_LABEL_OVERLAND);
 const newId = (p: string) => `${p}-${crypto.randomUUID().slice(0, 8)}`;
 
 type Mode =
@@ -45,7 +48,6 @@ function fmtGameMin(min: number): string {
   const m = Math.max(0, Math.round(min));
   return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
 }
-const miles = (n: number) => `${n < 10 ? n.toFixed(1) : Math.round(n)} mi`;
 
 /** A location's own pin, or its nearest pinned parent (sub-locations inherit). */
 function resolvePin(loc: CampaignMapLocation | undefined, byId: Map<string, CampaignMapLocation>): MapPoint | null {
@@ -264,6 +266,10 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
   const host = map.canWrite;
   const byId = new Map(state.locations.map(l => [l.id, l]));
   const view = map.getViewState();
+  const city = isCityScale(state);
+  const dist = (n: number) => formatTravelDistance(n, city);
+  const PACE_LABEL = paceLabels(city);
+  const roadWord = city ? 'street' : 'road';
   const t = state.activeTravel;
   const plan = state.journeyPlan;
   const nameOf = (id: string | undefined | null) => (id && byId.get(id)?.name) || '?';
@@ -304,16 +310,16 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
         <div className="flex items-center justify-between gap-2">
           <p className="text-amber-200 text-sm font-semibold truncate">Bound for {destName}</p>
           <span className={cn('text-[11px] px-2 py-0.5 rounded-full shrink-0', dayOver ? 'bg-sky-500/20 text-sky-200' : paused ? 'bg-white/10 text-white/70' : view.legDone ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-200')}>
-            {dayOver ? 'Day complete' : paused ? 'Paused' : view.legDone ? 'Day ended' : 'On the road'}
+            {dayOver ? 'Day complete' : paused ? 'Paused' : view.legDone ? (city ? 'Arrived' : 'Day ended') : city ? 'Walking' : 'On the road'}
           </span>
         </div>
         <div className="h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-amber-400" style={{ width: `${pct}%` }} /></div>
         <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[12px] text-white/70">
-          {curRoute && <span className="col-span-2 truncate">Road: {nameOf(curRoute.fromLocationId)} – {nameOf(curRoute.toLocationId)}</span>}
-          <span>Traveled: {miles(done)}</span>
-          <span>Left: {sum ? miles(sum.remainingMiles) : '—'}</span>
+          {curRoute && <span className="col-span-2 truncate">{city ? 'Street' : 'Road'}: {nameOf(curRoute.fromLocationId)} – {nameOf(curRoute.toLocationId)}</span>}
+          <span>Traveled: {dist(done)}</span>
+          <span>Left: {sum ? dist(sum.remainingMiles) : '—'}</span>
           <span>Journey: {pct}%</span>
-          <span>Day left: {t && !paused ? fmtMs((1 - (live?.fraction ?? 0)) * t.realDurationMs) : '—'}</span>
+          <span>{city ? 'Time left' : 'Day left'}: {t && !paused ? fmtMs((1 - (live?.fraction ?? 0)) * t.realDurationMs) : '—'}</span>
           <span>Pace: {PACE_LABEL[t?.pace ?? plan?.pace ?? usePace]}</span>
           <span>Terrain: ×{curRoute?.terrainFactor ?? 1}</span>
           {sum && <span className="col-span-2">In-world travel left: {fmtGameMin(sum.remainingMinutes)}</span>}
@@ -343,13 +349,13 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
   let routeBox: ReactNode = null;
   if (preview) {
     const s = preview.summary;
-    const multiDay = s.remainingMinutes > TRAVEL_DAY_MINUTES + 1e-6;
+    const multiDay = !city && s.remainingMinutes > TRAVEL_DAY_MINUTES + 1e-6;
     routeBox = (
       <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
         <p className="text-white text-sm font-semibold flex items-center gap-1.5"><RouteIcon className="w-4 h-4 text-amber-300" />To {preview.location.name}</p>
         <p className="text-[12px] text-white/60">Via {s.locationNames.join(' → ')}</p>
         <p className="text-[12px] text-white/70">
-          {preview.plan.legs.length} road{preview.plan.legs.length === 1 ? '' : 's'} · {miles(s.remainingMiles)} · {fmtGameMin(s.remainingMinutes)} in-world travel at {PACE_LABEL[usePace].toLowerCase()} pace
+          {preview.plan.legs.length} {roadWord}{preview.plan.legs.length === 1 ? '' : 's'} · {dist(s.remainingMiles)} · {fmtGameMin(s.remainingMinutes)} in-world travel at {PACE_LABEL[usePace].toLowerCase()} pace
           ({fmtMs(gameToRealMs(s.remainingMinutes, state.realMinutesPerGameHour))} real travel time)
         </p>
         {multiDay && <p className="text-[12px] text-sky-200">Odyssey will stop the journey when the travel day ends. Continue after the party rests/chooses to press on.</p>}
@@ -378,7 +384,7 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
       style={landscape ? { gridTemplateAreas: '"map head" "map info"' } : undefined}>
       <div style={landscape ? { gridArea: 'head' } : undefined} className="flex items-center justify-between gap-2 text-[12px] text-white/70">
         <span className="font-cinzel text-amber-200 text-[13px]">{formatCampaignTime(view?.campaignMinute ?? state.campaignMinute)}</span>
-        <span>{here ? byId.get(here)?.name : onRoad ? (onRoad.dayComplete ? 'Camped on the road' : 'On the road') : t ? 'Traveling' : 'Location unknown'}</span>
+        <span>{here ? byId.get(here)?.name : onRoad ? (onRoad.dayComplete ? 'Camped on the road' : city ? 'In the streets' : 'On the road') : t ? (city ? 'Walking' : 'Traveling') : 'Location unknown'}</span>
       </div>
       <div style={landscape ? { gridArea: 'map' } : undefined} className={cn('min-w-0', landscape ? 'order-none flex items-start justify-center overflow-hidden' : 'order-2')}>
       <MapCanvas state={state} showAll={host} fitHeight={landscape ? 'calc(100dvh - 4.25rem)' : undefined} partyDot={partyPoint(map, state)} selectedId={selected}
@@ -402,13 +408,13 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
               <button key={r.location.id} type="button" onClick={() => setSelected(r.location.id)} style={TOUCH}
                 className={cn('min-h-[44px] px-3 rounded-lg border text-[12px] text-left', selected === r.location.id ? 'bg-amber-500/20 border-amber-400/50 text-amber-100' : 'bg-white/5 border-white/10 text-white/80')}>
                 <span className="font-semibold">{r.location.name}</span>
-                <span className="block text-[11px] text-white/50">{miles(r.summary.remainingMiles)} · {r.plan.legs.length} road{r.plan.legs.length === 1 ? '' : 's'}</span>
+                <span className="block text-[11px] text-white/50">{dist(r.summary.remainingMiles)} · {city ? `${Math.max(1, Math.round(r.summary.remainingMinutes))} min` : `${r.plan.legs.length} road${r.plan.legs.length === 1 ? '' : 's'}`}</span>
               </button>
             ))}
           </div>
         </div>
       )}
-      {!t && !plan && reachable.length === 0 && (here || onRoad) && <p className="text-[12px] text-white/50">No known roads lead anywhere from here yet.</p>}
+      {!t && !plan && reachable.length === 0 && (here || onRoad) && <p className="text-[12px] text-white/50">{city ? 'No streets lead anywhere from here yet.' : 'No known roads lead anywhere from here yet.'}</p>}
       </div>
     </div>
   );
@@ -434,6 +440,11 @@ function HostSetup({ map, state, onInstallGuide, packUndo, setPackUndo }: { map:
   const s = state;
   const byId = useMemo(() => new Map((s?.locations ?? []).map(l => [l.id, l])), [s?.locations]);
   const cal = s ? activeCalibration(s) : null;
+  const city = isCityScale(s);
+  const dist = (n: number) => formatTravelDistance(n, city);
+  const [mapWidth, setMapWidth] = useState('');
+  const [widthUnit, setWidthUnit] = useState<'yd' | 'mi'>('yd');
+  const [suggested, setSuggested] = useState<CampaignMapRoute[] | null>(null);
   const report = (r: { ok: boolean; error?: string }, ok?: string) => { if (!r.ok) toast.error((r as { error: string }).error); else if (ok) toast.success(ok); return r.ok; };
 
   const upload = async (file: File | undefined) => {
@@ -520,7 +531,7 @@ function HostSetup({ map, state, onInstallGuide, packUndo, setPackUndo }: { map:
           <MapCanvas state={s} showAll editor partyDot={partyPoint(map, s)} onTapMap={mode.kind === 'none' || mode.kind === 'calibMiles' ? undefined : tapMap}
             highlightRouteId={pathRoute?.id ?? null}
             extraPoints={mode.kind === 'calibB' ? [mode.a] : mode.kind === 'calibMiles' ? [mode.a, mode.b] : pathRoute ? routePath(pathRoute, byId).slice(1, -1) : undefined} />
-          {pathRoute && cal && <p className="text-[12px] text-white/60">Traced length: {miles(polylineMiles(routePath(pathRoute, byId), cal) ?? 0)}</p>}
+          {pathRoute && cal && <p className="text-[12px] text-white/60">Traced length: {dist(polylineMiles(routePath(pathRoute, byId), cal) ?? 0)}</p>}
         </div>
       )}
 
@@ -536,6 +547,24 @@ function HostSetup({ map, state, onInstallGuide, packUndo, setPackUndo }: { map:
         <Section title="Map scale">
           {cal ? <p className="text-[12px] text-emerald-300">Calibrated: {cal.knownMiles} mi between two points.</p>
             : <p className="text-[12px] text-amber-300">{s.mapCalibration ? 'The image changed, so the old scale no longer applies. Calibrate again.' : 'Not calibrated. Roads need a typed distance until you calibrate.'}</p>}
+          <div className="space-y-1">
+            <p className="text-[11px] text-white/50">Quick scale: how wide is the whole picture?</p>
+            <div className="grid grid-cols-[1fr_88px_auto] gap-2">
+              <Input inputMode="decimal" placeholder={city ? 'e.g. 2000' : 'e.g. 120'} value={mapWidth} onChange={(e) => setMapWidth(e.target.value)} className="min-h-[44px]" />
+              <Select value={widthUnit} onValueChange={(v) => setWidthUnit(v as 'yd' | 'mi')}>
+                <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                <SelectContent className="z-[200]"><SelectItem value="yd">yards</SelectItem><SelectItem value="mi">miles</SelectItem></SelectContent>
+              </Select>
+              <Button className="min-h-[44px]" style={TOUCH} onClick={async () => {
+                const n = Number(mapWidth);
+                if (!Number.isFinite(n) || n <= 0) { toast.error('Enter how wide the picture is.'); return; }
+                if (!s.imageNaturalWidth || !s.imageNaturalHeight) { toast.error('The picture size is unknown. Re-upload the image.'); return; }
+                const c = calibrationFromMapWidth(s.imageNaturalWidth, s.imageNaturalHeight, widthUnit === 'yd' ? yardsToMiles(n) : n);
+                if (!c) { toast.error('That width is not valid.'); return; }
+                if (report(await map.setCalibration(c), 'Map scale saved.')) setMapWidth('');
+              }}>Set</Button>
+            </div>
+          </div>
           {mode.kind === 'calibMiles' ? (
             <div className="flex gap-2">
               <Input inputMode="decimal" placeholder="Real miles between the points" value={calMiles} onChange={(e) => setCalMiles(e.target.value)} className="min-h-[44px]" />
@@ -548,6 +577,15 @@ function HostSetup({ map, state, onInstallGuide, packUndo, setPackUndo }: { map:
       )}
 
       <Section title="Clock and pace">
+        <label className="block text-[11px] text-white/50">Travel style on this map
+          <Select value={city ? 'city' : 'overland'} onValueChange={async (v) => report(await map.setTravelScale(v as 'city' | 'overland'), v === 'city' ? 'City streets: trips take minutes, no travel days.' : 'Wilderness travel.')}>
+            <SelectTrigger className="min-h-[44px] mt-1"><SelectValue /></SelectTrigger>
+            <SelectContent className="z-[200]">
+              <SelectItem value="overland">Wilderness (roads, miles, 8-hour travel days)</SelectItem>
+              <SelectItem value="city">City (streets, yards, minutes)</SelectItem>
+            </SelectContent>
+          </Select>
+        </label>
         <ClockEditor map={map} state={s} />
       </Section>
 
@@ -563,7 +601,25 @@ function HostSetup({ map, state, onInstallGuide, packUndo, setPackUndo }: { map:
         </Button>
       </Section>
 
-      <Section title={`Roads (${s.routes.length})`}>
+      <Section title={`${city ? 'Streets' : 'Roads'} (${s.routes.length})`}>
+        {city && (suggested ? (
+          <div className="rounded-lg border border-sky-400/40 bg-sky-500/10 p-2.5 space-y-2">
+            <p className="text-[12px] text-sky-100">{suggested.length} suggested street{suggested.length === 1 ? '' : 's'} for review. Nothing is saved until you accept.</p>
+            <ul className="text-[12px] text-white/75 space-y-0.5 max-h-48 overflow-y-auto">
+              {suggested.map(r => <li key={r.id}>{byId.get(r.fromLocationId)?.name ?? '?'} ↔ {byId.get(r.toLocationId)?.name ?? '?'}{cal ? ` · ${dist(r.distanceMiles)}` : ''}</li>)}
+            </ul>
+            <div className="grid grid-cols-2 gap-2">
+              <Button className="min-h-[44px]" style={TOUCH} onClick={async () => { if (report(await map.replaceLocationsAndRoutes(s.locations, [...s.routes, ...suggested]), 'Streets added.')) setSuggested(null); }}>Accept</Button>
+              <Button variant="outline" className="min-h-[44px]" style={TOUCH} onClick={() => setSuggested(null)}>Cancel</Button>
+            </div>
+          </div>
+        ) : (
+          <Button variant="secondary" className="w-full min-h-[48px]" style={TOUCH} onClick={() => {
+            if (!cal) { toast.error('Set the map scale first so streets get real lengths.'); return; }
+            const list = suggestStreets(s, () => newId('street'));
+            if (!list.length) toast.message('Every pinned place is already connected.'); else setSuggested(list);
+          }}><RouteIcon className="w-4 h-4 mr-2" />Suggest streets</Button>
+        ))}
         {s.routes.map(r => (
           <RouteCard key={r.id} route={r} state={s} map={map} editingPath={mode.kind === 'path' && mode.routeId === r.id}
             onEditPath={() => setMode(mode.kind === 'path' && mode.routeId === r.id ? { kind: 'none' } : { kind: 'path', routeId: r.id })} />
@@ -626,7 +682,7 @@ function ClockEditor({ map, state }: { map: PartyCampaignMapApi; state: Campaign
       <label className="block text-[11px] text-white/50">Default pace
         <Select value={state.defaultPace} onValueChange={async (v) => { const r = await map.setDefaultPace(v as TravelPace); if (!r.ok) toast.error((r as { error: string }).error); }}>
           <SelectTrigger className="min-h-[44px] mt-1"><SelectValue /></SelectTrigger>
-          <SelectContent className="z-[200]">{PACES.map(p => <SelectItem key={p} value={p}>{PACE_LABEL[p]} ({TRAVEL_PACE_MPH[p]} mph)</SelectItem>)}</SelectContent>
+          <SelectContent className="z-[200]">{PACES.map(p => <SelectItem key={p} value={p}>{paceLabels(isCityScale(state))[p]} ({TRAVEL_PACE_MPH[p]} mph)</SelectItem>)}</SelectContent>
         </Select>
       </label>
     </div>
@@ -699,6 +755,7 @@ function RouteCard({ route, state, map, editingPath, onEditPath }: { route: Camp
   useEffect(() => { setTerrain(String(route.terrainFactor)); setDesc(route.description ?? ''); }, [route.terrainFactor, route.description]);
   const edit = async (patch: Partial<CampaignMapRoute>) => { const r = await map.editRoute(route.id, patch); if (!r.ok) toast.error((r as { error: string }).error); };
   const effective = effectiveRouteMiles(route, cal);
+  const miles = (n: number) => formatTravelDistance(n, isCityScale(state));
   const waypoints = path.slice(1, -1);
   return (
     <div className={cn('rounded-lg border p-2.5 space-y-2', editingPath ? 'border-sky-400/60' : 'border-white/10')}>
@@ -785,7 +842,7 @@ function AddRoute({ map, state }: { map: PartyCampaignMapApi; state: CampaignMap
         ))}
       </div>
       <Input inputMode="decimal" placeholder={cal ? 'Miles (optional, overrides the map)' : 'Miles (required)'} value={manual} onChange={(e) => setManual(e.target.value)} className="min-h-[44px]" />
-      <Button variant="secondary" className="w-full min-h-[48px]" style={TOUCH} onClick={add}><RouteIcon className="w-4 h-4 mr-2" />Add road</Button>
+      <Button variant="secondary" className="w-full min-h-[48px]" style={TOUCH} onClick={add}><RouteIcon className="w-4 h-4 mr-2" />{isCityScale(state) ? 'Add street' : 'Add road'}</Button>
     </div>
   );
 }

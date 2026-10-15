@@ -144,11 +144,13 @@ export function AreaMapEditor({ map, partyId }: { map: PartyCampaignMapApi; part
             onBlur={e => { const v = e.target.value.trim(); if (v && v !== viewedNode.name) void run(() => map.editMapMeta(viewedNode.id, { name: v }), 'Name saved'); }} />
           <div className="grid grid-cols-1 gap-2">
             <label className="text-[13px] text-white/70">How the party moves here</label>
-            <Select value={viewedNode.navigationMode} onValueChange={v => void run(() => map.editMapMeta(viewedNode.id, { navigationMode: v as 'local' | 'regional' }))}>
+            <Select value={viewedNode.navigationMode === 'local' ? 'local' : state.travelScale === 'city' ? 'city' : 'regional'}
+              onValueChange={v => void run(() => map.setMapTravelStyle(viewedNode.id, v as 'local' | 'city' | 'regional'), v === 'city' ? 'City streets: trips take minutes, no travel days.' : undefined)}>
               <SelectTrigger className="min-h-[48px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="local">Local area (walk between rooms, no travel time)</SelectItem>
-                <SelectItem value="regional">Regional travel (roads and travel time)</SelectItem>
+                <SelectItem value="city">City streets (walk the streets; minutes, yards)</SelectItem>
+                <SelectItem value="regional">Regional travel (roads, miles, travel days)</SelectItem>
               </SelectContent>
             </Select>
             {viewedNode.parentMapId && (<>

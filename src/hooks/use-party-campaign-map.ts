@@ -36,7 +36,7 @@ import {
   type CampaignMapRoute,
   type CampaignMapState,
   type MapPoint,
-  type TravelPace,
+  type TravelPace, type TravelScale,
 } from '@/lib/campaign-map';
 import {
   applyArrivalEntry, installAreaPackOp, breadcrumbs, convertLegacyToAtlas, createChildMap as createChildMapOp, enterChild as enterChildOp,
@@ -365,6 +365,13 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     return next;
   }), [mutate]);
   const setDefaultPace = useCallback((pace: TravelPace) => mutate(s => ({ ...s, defaultPace: pace })), [mutate]);
+  /** City vs overland rules for the map the party is on. Not while a trip is running. */
+  const setTravelScale = useCallback((scale: TravelScale) => mutate(s => {
+    if (s.activeTravel || s.journeyPlan) return 'Finish or stop the current trip before changing the travel style.';
+    const next: CampaignMapState = { ...s };
+    if (scale === 'city') next.travelScale = 'city'; else delete next.travelScale;
+    return next;
+  }), [mutate]);
 
   // ── travel ──
   const startTravel = useCallback(async (routeId: string, toLocationId: string, pace?: TravelPace): Promise<Result> => {
@@ -389,7 +396,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     if (miles === null) return fail('This road has no distance yet. Set its miles (or calibrate the map) first.');
     const usePace = pace ?? base.defaultPace;
     const startProgress = dirProgress(startForward, reversed);
-    const leg = maxLegalLeg(miles, startProgress, usePace, route.terrainFactor, 0);
+    const leg = maxLegalLeg(miles, startProgress, usePace, route.terrainFactor, 0, base.travelScale === 'city' ? Infinity : undefined);
     if (leg.gameMinutes <= 0) return fail('The party is already there.');
     const travel: ActiveTravel = {
       routeId, reversed, pace: usePace, startProgress, endProgress: leg.endProgress,
@@ -641,6 +648,16 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   /** Edit one specific map (captured id). Other maps are untouched; inactive maps can never get travel. */
   const editMap = useCallback((mapId: string, fn: (s: CampaignMapState) => CampaignMapState | string) =>
     runAtlasOp(a => { const st = projectMapState(a, mapId); if (!st) return 'That map no longer exists.'; const n = fn(st); return typeof n === 'string' ? n : patchMap(a, mapId, sanitizeCampaignMapState(n)); }), [runAtlasOp]);
+  /** One save: how the party moves on a map (rooms / city streets / regional roads). */
+  const setMapTravelStyle = useCallback((mapId: string, style: 'local' | 'city' | 'regional') =>
+    runAtlasOp(a => {
+      const st = projectMapState(a, mapId); if (!st) return 'That map no longer exists.';
+      if (st.activeTravel || st.journeyPlan) return 'Finish or stop the current trip before changing the travel style.';
+      const meta = setNodeMeta(a, mapId, { navigationMode: style === 'local' ? 'local' : 'regional' });
+      if (typeof meta === 'string') return meta;
+      const next: CampaignMapState = { ...st }; if (style === 'city') next.travelScale = 'city'; else delete next.travelScale;
+      return patchMap(meta, mapId, sanitizeCampaignMapState(next));
+    }), [runAtlasOp]);
   const editMapMeta = useCallback((mapId: string, patch: Partial<Pick<AtlasMapNode, 'name' | 'entryLocationId' | 'navigationMode'>>) =>
     runAtlasOp(a => setNodeMeta(a, mapId, patch)), [runAtlasOp]);
 
@@ -768,18 +785,18 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile,
     initialize, reset, uploadMapImage, replaceMapImage: uploadMapImage, replaceLocationsAndRoutes,
     addLocation, editLocation, removeLocation, addRoute, editRoute, removeRoute,
-    setDiscovered, setCampaignClock, setTimeCompression, setDefaultPace, setCalibration, setCurrentLocation,
+    setDiscovered, setCampaignClock, setTimeCompression, setDefaultPace, setTravelScale, setCalibration, setCurrentLocation,
     startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow, reconcileTravelIfComplete,
     planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney,
     exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext, serverNow, addAreaMap, replaceAreaImage, installAreaPack, undoAtlasInstall,
     atlas, isAtlasMode, activeMapId, viewedMapId, setViewedMapId, getMapState, getBreadcrumbs,
-    convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta,
+    convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta, setMapTravelStyle,
   }), [rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile, initialize, reset, uploadMapImage, replaceLocationsAndRoutes,
     addLocation, editLocation, removeLocation, addRoute, editRoute, removeRoute, setDiscovered, setCampaignClock,
-    setTimeCompression, setDefaultPace, setCalibration, setCurrentLocation, startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow,
+    setTimeCompression, setDefaultPace, setTravelScale, setCalibration, setCurrentLocation, startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow,
     reconcileTravelIfComplete, planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney, exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext, serverNow, addAreaMap, replaceAreaImage, installAreaPack, undoAtlasInstall,
     atlas, isAtlasMode, activeMapId, viewedMapId, getMapState, getBreadcrumbs,
-    convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta]);
+    convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta, setMapTravelStyle]);
 }
 
 export type PartyCampaignMapApi = ReturnType<typeof usePartyCampaignMap>;
