@@ -1660,6 +1660,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
     // Ensure strictly alternating roles before sending to AI
     const sanitizedMessages = mergeConsecutiveRoles(apiMessages);
+    if (prepareAreaRef.current && !requestAreaRef.current) throw new Error('Area guides were not loaded for this request.');
+    const area = requestAreaRef.current;
+    if (area?.guides) extraGuides = combineGuides(extraGuides, area.guides);
 
     // Fetch recent party chat for DM awareness
     const recentPartyChat = await fetchRecentPartyChat();
@@ -1745,9 +1748,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       'Example: [VOICE:Kaelen]"You should not have come here."[/VOICE]',
       'Only spoken words go inside the tags — narration, action, and description stay outside them. Never tag a block of prose, never nest tags, and never mention the tags to the players.',
     ].join('\n');
-    if (prepareAreaRef.current && !requestAreaRef.current) throw new Error('Area guides were not loaded for this request.');
-    const area = requestAreaRef.current;
-    if (area?.guides) extraGuides = combineGuides(extraGuides, area.guides);
     let mapFacts = '';
     if (area?.mapFacts != null) mapFacts = area.mapFacts;
     else { try { mapFacts = campaignMapContextRef.current?.() || ''; } catch { mapFacts = ''; } }
