@@ -252,6 +252,7 @@ function partyPoint(map: PartyCampaignMapApi, state: CampaignMapState): MapPoint
 
 function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampaignMapApi; state: CampaignMapState | null; onSetup?: () => void; landscape?: boolean }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [inspected, setInspected] = useState<string | null>(null);
   const [pace, setPace] = useState<TravelPace | null>(null);
   const [busy, setBusy] = useState(false);
   if (!state || !state.imageUrl) {
@@ -264,6 +265,7 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
     );
   }
   const host = map.canWrite;
+  const inspectedLoc = inspected ? state.locations.find(l => l.id === inspected && (host || l.discovered)) ?? null : null;
   const byId = new Map(state.locations.map(l => [l.id, l]));
   const view = map.getViewState();
   const city = isCityScale(state);
@@ -390,12 +392,27 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
       <MapCanvas state={state} showAll={host} fitHeight={landscape ? 'calc(100dvh - 4.25rem)' : undefined} partyDot={partyPoint(map, state)} selectedId={selected}
         highlightRouteId={strong} highlightRouteIds={highlight}
         onTapPin={(id) => {
-          if (t || plan) return;
           const l = byId.get(id);
-          if (reachableIds.has(id) || (host && l)) setSelected(id); else setSelected(null);
+          if (!l || (!host && !l.discovered)) { setSelected(null); setInspected(null); return; }
+          setInspected(id);
+          if (t || plan) return;
+          if (reachableIds.has(id) || host) setSelected(id); else setSelected(null);
         }} />
       </div>
       <div style={landscape ? { gridArea: 'info' } : undefined} className={cn('space-y-3 min-h-0', landscape ? 'overflow-y-auto overflow-x-hidden pb-2 pr-0.5' : 'order-3')}>
+      {inspectedLoc && (
+        <div className="rounded-xl border border-amber-400/30 bg-black/40 p-3 space-y-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-cinzel text-amber-200 text-sm truncate">{inspectedLoc.name}</p>
+              <p className="text-[11px] text-white/50 capitalize">{inspectedLoc.kind}{inspectedLoc.region ? ` · ${inspectedLoc.region}` : ''}{inspectedLoc.id === here ? ' · Party is here' : ''}</p>
+            </div>
+            <button type="button" aria-label="Close place details" onClick={() => setInspected(null)} style={TOUCH}
+              className="shrink-0 -mr-2 -mt-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-white/50 text-lg">×</button>
+          </div>
+          <p className="text-[13px] text-white/80 leading-snug">{inspectedLoc.description?.trim() || 'No description yet.'}</p>
+        </div>
+      )}
       {onRoad?.dayComplete && !t && !plan && <p className="text-[12px] rounded-lg bg-sky-500/10 border border-sky-400/30 text-sky-200 px-3 py-2">The travel day is over. The party stopped partway along the road.</p>}
       {journeyBox}
       {routeBox}
@@ -405,7 +422,7 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
           <p className="text-[12px] text-white/50">Destinations — tap one{host ? ' to see the route and set out' : ' to see the route'}.</p>
           <div className="flex flex-wrap gap-2">
             {reachable.map(r => (
-              <button key={r.location.id} type="button" onClick={() => setSelected(r.location.id)} style={TOUCH}
+              <button key={r.location.id} type="button" onClick={() => { setSelected(r.location.id); setInspected(r.location.id); }} style={TOUCH}
                 className={cn('min-h-[44px] px-3 rounded-lg border text-[12px] text-left', selected === r.location.id ? 'bg-amber-500/20 border-amber-400/50 text-amber-100' : 'bg-white/5 border-white/10 text-white/80')}>
                 <span className="font-semibold">{r.location.name}</span>
                 <span className="block text-[11px] text-white/50">{dist(r.summary.remainingMiles)} · {city ? `${Math.max(1, Math.round(r.summary.remainingMinutes))} min` : `${r.plan.legs.length} road${r.plan.legs.length === 1 ? '' : 's'}`}</span>
