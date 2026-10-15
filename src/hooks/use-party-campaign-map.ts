@@ -41,7 +41,7 @@ import {
 import {
   applyArrivalEntry, breadcrumbs, convertLegacyToAtlas, createChildMap as createChildMapOp, enterChild as enterChildOp,
   exitToParent as exitToParentOp, getNode, isAtlasEnvelope, moveLocal as moveLocalOp, parseAtlas, patchMap, projectActive,
-  projectMapState, resolveAtlasAt, setNodeMeta, validateAtlasGraph,
+  projectMapState, resolveAtlasAt, setNodeMeta, validateAtlasGraph, classifySnapshot, parseLegacyMap, remapAtlasIds, pauseAtlasTravel,
   type AtlasMapNode, type CampaignAtlas, type NavigationMode,
 } from '@/lib/campaign-atlas';
 
@@ -77,6 +77,8 @@ type Stored =
   | { kind: 'legacy'; state: CampaignMapState; updatedAt: string | null }
   | { kind: 'atlas'; atlas: CampaignAtlas; updatedAt: string }
   | { kind: 'invalid'; error: string; updatedAt: string | null };
+
+export type RestoreMode = 'campaign' | 'undo' | 'portable';
 
 const CONFLICT_MSG = 'The map changed on another screen. It has been refreshed — please try again.';
 
