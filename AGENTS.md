@@ -9,3 +9,4 @@
 - Arena Live Table Sparring renders the real PartyDMScreen through runtimeOverrides with local Arena hooks; never rebuild a separate mock table, because a second copy drifts from the live game.
 - Party Sparring runs on the host's phone and is shared over a live broadcast channel (no database rows); members mirror the host's fight and send actions to it, because campaign tables and the fight referee must never see practice fights.
 - Campaign Map world geography lives in ai_dm_campaigns.map_state with all math in src/lib/campaign-map.ts; never reuse the combat map_markers state, because tactical positioning and world travel have different rules.
+- Custom companions are drawn in code on a canvas (src/components/companion/CompanionCanvas.tsx) from the saved look in src/lib/companion-rig.ts; never ship per-look image files, because every look must stay customizable and tiny to save.
