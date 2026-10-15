@@ -12,6 +12,7 @@ import Index from "./pages/Index";
 
 const Install = lazy(() => import("./pages/Install"));
 const Auth = lazy(() => import("./pages/Auth"));
+const JoinParty = lazy(() => import("./pages/JoinParty"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const RecoverAccount = lazy(() => import("./pages/RecoverAccount"));
 const NotFound = lazy(() => import("./pages/NotFound"));
