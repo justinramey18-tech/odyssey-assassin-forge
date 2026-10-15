@@ -18,8 +18,13 @@ import pg from 'npm:pg@8.13.1';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import {
   PREPARE_TOOL, VERIFY_TOOL, prepareCampaignImageUpload, verifyCampaignImageUpload,
+  readTicket, IMAGE_BUCKET,
   type Actor, type ImageDeps,
 } from './image-upload.ts';
+import {
+  PREVIEW_INSTALL_TOOL, INSTALL_AREA_TOOL, previewCampaignAreaInstall, installCampaignArea,
+  type InstallDeps,
+} from './campaign-install.ts';
 
 const PROTOCOL_VERSION = '2025-06-18';
 const SERVER_INFO = { name: 'odyssey-db-bridge', version: '1.2.0' };
@@ -186,6 +191,8 @@ const TOOLS = [
   },
   PREPARE_TOOL,
   VERIFY_TOOL,
+  PREVIEW_INSTALL_TOOL,
+  INSTALL_AREA_TOOL,
 ];
 
 // ---------- Storage access for image tools (server-only credentials) ----------
@@ -249,6 +256,71 @@ const imageDeps: ImageDeps = {
   randomId: () => crypto.randomUUID(),
 };
 
+// ---------- Area install deps (service-role client; never forges a host session) ----------
+
+let serviceClient: any = null;
+async function svc() {
+  if (serviceClient) return serviceClient;
+  const { url, key } = storageEnv();
+  const { createClient } = await import('npm:@supabase/supabase-js@2');
+  serviceClient = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  return serviceClient;
+}
+
+const installDeps: InstallDeps = {
+  async peekImageTicket(ticket, actor) {
+    const secret = imageDeps.ticketSecret();
+    if (!secret) return null;
+    const c = await readTicket(ticket, secret);
+    if (!c || c.ctx !== 'campaign-image' || c.actor !== actor.id || c.bucket !== IMAGE_BUCKET) return null;
+    return { party_id: c.party_id, path: c.path, sha256: c.sha256, size_bytes: c.size_bytes, content_type: c.content_type };
+  },
+  async verifyImage(ticket, actor) {
+    const r = await verifyCampaignImageUpload({ ticket }, actor, imageDeps);
+    if (!r.ok) return { ok: false, error: (r as { error: string }).error };
+    const d = r.data as Record<string, unknown>;
+    return { ok: true, v: { party_id: String(d.party_id), public_url: String(d.public_url), object_path: String(d.object_path), sha256: String(d.sha256), width: Number(d.width), height: Number(d.height) } };
+  },
+  async findParty(partyId) {
+    const { data, error } = await (await svc()).from('parties').select('created_by, is_active').eq('id', partyId).maybeSingle();
+    if (error) throw new Error('Party read failed.');
+    return data ? { hostId: String(data.created_by), isActive: data.is_active === true } : null;
+  },
+  async readMap(partyId, hostId) {
+    const { data, error } = await (await svc()).from('party_shared_state').select('state_data, updated_at')
+      .eq('party_id', partyId).eq('user_id', hostId).eq('state_type', 'campaign_map').maybeSingle();
+    if (error) throw new Error('Map read failed.');
+    return data ? { stateData: data.state_data, updatedAt: String(data.updated_at) } : null;
+  },
+  async readCoreGuides(hostId) {
+    const { data, error } = await (await svc()).from('gm_guides').select('name, content, enabled, created_at')
+      .eq('user_id', hostId).eq('mode', 'party').order('created_at', { ascending: true });
+    if (error) throw new Error('Guide read failed.');
+    return data ?? [];
+  },
+  async readAreaGuides(partyId, mapIds) {
+    if (!mapIds.length) return [];
+    const { data, error } = await (await svc()).from('party_location_guides').select('id, map_id, scope, location_id, name, content, enabled')
+      .eq('party_id', partyId).in('map_id', mapIds);
+    if (error) throw new Error('Area guide read failed.');
+    return data ?? [];
+  },
+  async installRpc(params) {
+    const { data, error } = await (await svc()).rpc('bridge_install_campaign_area', params);
+    if (error) return { error: { code: String(error.code ?? ''), message: String(error.message ?? '').slice(0, 300) } };
+    return { data: data as Record<string, unknown> };
+  },
+  async getReceipt(partyId, actor, requestId) {
+    const { data, error } = await (await svc()).rpc('bridge_get_campaign_install', { _party_id: partyId, _actor: actor, _request_id: requestId });
+    if (error) throw new Error('Receipt read failed.');
+    return (data as Record<string, unknown> | null) ?? null;
+  },
+  publicUrl: (path) => imageDeps.publicUrl(IMAGE_BUCKET, path),
+  tokenSecret: () => imageDeps.ticketSecret(),
+  now: () => Date.now(),
+  randomId: () => crypto.randomUUID(),
+};
+
 function textResult(text: string, isError = false) {
   return { content: [{ type: 'text', text: capText(text) }], isError };
 }
@@ -269,6 +341,14 @@ async function callTool(name: string, args: Record<string, unknown>, actor: Acto
       const r = name === PREPARE_TOOL.name
         ? await prepareCampaignImageUpload(args, actor, imageDeps)
         : await verifyCampaignImageUpload(args, actor, imageDeps);
+      return r.ok ? textResult(JSON.stringify(r.data, null, 1)) : textResult(r.error, true);
+    }
+    if (name === PREVIEW_INSTALL_TOOL.name || name === INSTALL_AREA_TOOL.name) {
+      console.log(`[claude-bridge] ${name} called`); // never log tokens, tickets, URLs or guide text
+      const r = name === PREVIEW_INSTALL_TOOL.name
+        ? await previewCampaignAreaInstall(args, actor, installDeps)
+        : await installCampaignArea(args, actor, installDeps);
+      console.log(`[claude-bridge] ${name} ${r.ok ? 'ok' : 'rejected'}`);
       return r.ok ? textResult(JSON.stringify(r.data, null, 1)) : textResult(r.error, true);
     }
     return textResult(`Unknown tool: ${name}`, true);
