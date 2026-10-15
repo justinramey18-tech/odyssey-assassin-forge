@@ -48,6 +48,7 @@ export function MapPackAssistant({ map, current, onInstallGuide, undo, setUndo }
   const install = async () => {
     const base = preview;
     if (!base?.installable || !base.state || !base.image || !base.imageType || !map.canWrite) return;
+    if (map.isAtlasMode) { toast.error('This party uses nested maps. Installing a Map Pack into an area is not ready yet, so nothing was changed.'); return; }
     const p = { ...base, state: staged?.state ?? base.state, guides: staged?.guides ?? base.guides };
     if (validateMapData(p.state, base.imageWidth, base.imageHeight).errors.length) { toast.error('The staged changes no longer pass the safety check. Reset to the uploaded pack.'); return; }
     setInstalling(true);
@@ -58,7 +59,7 @@ export function MapPackAssistant({ map, current, onInstallGuide, undo, setUndo }
       const up = await map.uploadImageFile(p.image, p.imageType);
       if (!up.ok) { toast.error(`Map Pack not installed: ${(up as { error: string }).error}`); return; }
       // 3–4) replace the live map
-      const res = await map.restoreSaveSnapshot({ ...p.state, imageUrl: up.url });
+      const res = await map.restoreSaveSnapshot({ ...p.state, imageUrl: up.url }, 'campaign');
       if (!res.ok) { toast.error(`Map Pack not installed: ${(res as { error: string }).error}`); return; }
       // 5) only the guides the host ticked
       const installed: string[] = [];
@@ -76,7 +77,7 @@ export function MapPackAssistant({ map, current, onInstallGuide, undo, setUndo }
 
   const undoInstall = async () => {
     if (!undo) return;
-    const r = undo.previous ? await map.restoreSaveSnapshot(undo.previous) : await map.clearCampaignMap();
+    const r = undo.previous ? await map.restoreSaveSnapshot(undo.previous, 'undo') : await map.clearCampaignMap();
     if (!r.ok) { toast.error((r as { error: string }).error); return; }
     toast.success('Previous map restored.');
     setUndo(null);
