@@ -38,22 +38,21 @@ export function useLocationGuides(opts: {
     return () => window.removeEventListener('focus', onFocus);
   }, []);
 
-  const readAtlas = useCallback(async (): Promise<{ ok: true; atlas: CampaignAtlas | null; legacyFacts: string | null } | { ok: false; error: string }> => {
-    const { partyId: p, hostUserId: h, serverNow } = optsRef.current;
+  const readAtlas = useCallback(async (): Promise<{ ok: true; atlas: CampaignAtlas | null } | { ok: false; error: string }> => {
+    const { partyId: p, hostUserId: h } = optsRef.current;
     const { data, error } = await (supabase.from('party_shared_state') as any)
       .select('state_data').eq('party_id', p).eq('user_id', h).eq('state_type', CAMPAIGN_MAP_STATE_TYPE).maybeSingle();
     if (error) return { ok: false, error: 'Could not read the campaign map. Try again.' };
     const raw = data?.state_data;
-    if (!raw || !isAtlasEnvelope(raw)) return { ok: true, atlas: null, legacyFacts: null };
+    if (!raw || !isAtlasEnvelope(raw)) return { ok: true, atlas: null };
     const parsed = parseAtlas(raw);
     if (!parsed.ok) return { ok: false, error: `The campaign map is damaged: ${parsed.error}` };
-    void serverNow;
-    return { ok: true, atlas: parsed.value, legacyFacts: null };
+    return { ok: true, atlas: parsed.value };
   }, []);
 
   /** Resolve once per GM request, before anything is consumed or posted. */
   const prepare = useCallback(async (): Promise<AreaContextResult> => {
-    const seq = ++seqRef.current;
+    ++seqRef.current;
     const scope = scopeRef.current;
     const stale = () => scope !== scopeRef.current;
     const { partyId: p, hostUserId: h, serverNow, coreGuides } = optsRef.current;
@@ -86,7 +85,6 @@ export function useLocationGuides(opts: {
       if (stale()) return { ok: false, error: 'The party changed. Try again.' };
       if (!second.ok) return second;
       if (!second.atlas || second.atlas.revision !== first.atlas.revision) continue;
-      if (seq !== seqRef.current && attempt === MAX_TRIES - 1) break;
 
       const area = composeLocationGuides(scopes.scopes, (rows || []) as LocationGuideRow[]);
       const budgetErr = checkGuideBudget(combineGuides(coreGuides, area));
