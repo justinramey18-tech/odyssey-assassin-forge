@@ -161,7 +161,7 @@ async function main() {
   const rootNow = A1.state_data.maps.find((m: any) => m.id === ROOTMAP);
   const child = A1.state_data.maps.find((m: any) => m.id === ra.mapId);
   check('revision incremented once', ra.revision === 6 && A1.state_data.revision === 6);
-  check('root geography/routes/calibration/position unchanged', JSON.stringify(rootNow.state) === JSON.stringify(atlas().maps[0].state));
+  check('root geography/routes/calibration/position unchanged', JSON.stringify(rootNow.state) === JSON.stringify(A0.state_data.maps[0].state));
   check('clock + active map unchanged', A1.state_data.campaignMinute === 777 && A1.state_data.activeMapId === ROOTMAP);
   check('child is local, attached, entry = arrival, no travel', child.navigationMode === 'local' && child.parentLocationId === 'arabel' && child.entryLocationId === 'gate' && !child.state.activeTravel);
   check('guide ids returned', ra.guideCount === 2);
