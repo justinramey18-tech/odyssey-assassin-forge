@@ -122,6 +122,10 @@ export interface AssistantLiveContext {
   sealedOrder: string[];
   /** Enabled GM guides (the World Bible), full text. */
   guides: string;
+  /** Request-time area guides for the party's current nested location (host/co-host only). */
+  prepareAreaGuides?: () => Promise<{ ok: true; guides: string; mapFacts: string | null } | { ok: false; error: string }>;
+  /** Map/area facts from the same frozen snapshot as the area guides. */
+  areaFacts?: string;
 }
 
 export interface AssistantBible {
@@ -790,6 +794,7 @@ export function buildAssistantSystemPrompt(
 
   const sections: Array<[string, string]> = [
     [bible.mode === 'full' ? 'WORLD BIBLE (full guides)' : 'WORLD BIBLE (digest of the full guides)', bibleText],
+    ['CURRENT AREA & MAP', (ctx.areaFacts || '').trim()],
     ['STORY SO FAR (running summary)', capEnd((ctx.campaignSummary || '').trim(), LIMITS.summary)],
     ['MEMORY ANCHORS', capStart((ctx.memoryAnchors || '').trim(), LIMITS.anchors)],
     ['OPEN QUESTS', questSection(ctx.quests)],

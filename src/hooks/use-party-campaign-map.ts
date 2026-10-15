@@ -658,13 +658,13 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     setDiscovered, setCampaignClock, setTimeCompression, setDefaultPace, setCalibration, setCurrentLocation,
     startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow, reconcileTravelIfComplete,
     planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney,
-    exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext,
+    exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext, serverNow,
     atlas, isAtlasMode, activeMapId, viewedMapId, setViewedMapId, getMapState, getBreadcrumbs,
     convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta,
   }), [rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile, initialize, reset, uploadMapImage, replaceLocationsAndRoutes,
     addLocation, editLocation, removeLocation, addRoute, editRoute, removeRoute, setDiscovered, setCampaignClock,
     setTimeCompression, setDefaultPace, setCalibration, setCurrentLocation, startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow,
-    reconcileTravelIfComplete, planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney, exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext,
+    reconcileTravelIfComplete, planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney, exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext, serverNow,
     atlas, isAtlasMode, activeMapId, viewedMapId, getMapState, getBreadcrumbs,
     convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta]);
 }
