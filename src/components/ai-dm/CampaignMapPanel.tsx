@@ -422,7 +422,7 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
           <p className="text-[12px] text-white/50">Destinations — tap one{host ? ' to see the route and set out' : ' to see the route'}.</p>
           <div className="flex flex-wrap gap-2">
             {reachable.map(r => (
-              <button key={r.location.id} type="button" onClick={() => setSelected(r.location.id)} style={TOUCH}
+              <button key={r.location.id} type="button" onClick={() => { setSelected(r.location.id); setInspected(r.location.id); }} style={TOUCH}
                 className={cn('min-h-[44px] px-3 rounded-lg border text-[12px] text-left', selected === r.location.id ? 'bg-amber-500/20 border-amber-400/50 text-amber-100' : 'bg-white/5 border-white/10 text-white/80')}>
                 <span className="font-semibold">{r.location.name}</span>
                 <span className="block text-[11px] text-white/50">{dist(r.summary.remainingMiles)} · {city ? `${Math.max(1, Math.round(r.summary.remainingMinutes))} min` : `${r.plan.legs.length} road${r.plan.legs.length === 1 ? '' : 's'}`}</span>
