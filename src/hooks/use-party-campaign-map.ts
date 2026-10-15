@@ -36,7 +36,7 @@ import {
   type CampaignMapRoute,
   type CampaignMapState,
   type MapPoint,
-  type TravelPace,
+  type TravelPace, type TravelScale,
 } from '@/lib/campaign-map';
 import {
   applyArrivalEntry, installAreaPackOp, breadcrumbs, convertLegacyToAtlas, createChildMap as createChildMapOp, enterChild as enterChildOp,
