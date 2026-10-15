@@ -266,10 +266,10 @@ export function travelGameMinutes(miles: number, pace: TravelPace, terrainFactor
  * `minutesTraveledToday` = travel already done today.
  */
 export function maxLegalLeg(
-  totalMiles: number, progress: number, pace: TravelPace, terrainFactor: number, minutesTraveledToday = 0,
+  totalMiles: number, progress: number, pace: TravelPace, terrainFactor: number, minutesTraveledToday = 0, dayMinutes: number = TRAVEL_DAY_MINUTES,
 ): { miles: number; gameMinutes: number; endProgress: number; reachesEnd: boolean } {
   const remaining = routeMilesRemaining(totalMiles, progress);
-  const left = Math.max(0, TRAVEL_DAY_MINUTES - (fin(minutesTraveledToday) ? Math.max(0, minutesTraveledToday) : 0));
+  const left = Math.max(0, dayMinutes - (fin(minutesTraveledToday) ? Math.max(0, minutesTraveledToday) : 0));
   const full = travelGameMinutes(remaining, pace, terrainFactor);
   if (remaining <= 0 || left <= 0) return { miles: 0, gameMinutes: 0, endProgress: clamp01(progress), reachesEnd: remaining <= 0 };
   if (full <= left) return { miles: remaining, gameMinutes: full, endProgress: 1, reachesEnd: true };
