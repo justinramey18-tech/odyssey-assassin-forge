@@ -1,32 +1,49 @@
 // Map Pack Assistant: read a Map Pack ZIP locally, preview it, and install only after
 // the host explicitly confirms. Guides install only when the host ticks each one.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AlertTriangle, CheckCircle2, Package, Undo2, Upload, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { PartyCampaignMapApi } from '@/hooks/use-party-campaign-map';
 import type { CampaignMapState } from '@/lib/campaign-map';
+import { breadcrumbs, childAt, getNode, subtreeIds, subtreeReplaceBlocker, type CampaignAtlas } from '@/lib/campaign-atlas';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { parseMapPack, revokeMapPackPreview, validateMapData, type MapPackGuide, type MapPackPreview } from '@/lib/campaign-map-pack';
 import { MapSetupChat } from './MapSetupChat';
 
 const TOUCH = { touchAction: 'manipulation' as const };
 
-export interface MapPackUndo { previous: unknown; packName: string; guidesInstalled: string[] }
+export interface MapPackUndo {
+  packName: string; guidesInstalled: string[];
+  /** Legacy single-map install: previous single map snapshot. */
+  previous?: unknown;
+  /** Atlas install: full prior atlas + the revision the install produced. */
+  atlas?: { previous: CampaignAtlas | null; previousLegacy: CampaignMapState | null; revisionAfter: number };
+}
+
+type Target = { kind: 'root' } | { kind: 'area'; mapId: string | null; locationId: string; label: string };
+type ExistingMode = 'image' | 'subtree';
+const sig = (g: MapPackGuide) => `${g.scope}|${g.locationId ?? ''}|${g.name}|${g.file}|${g.content.length}|${g.content.slice(0, 64)}`;
 
 export function MapPackAssistant({ map, current, onInstallGuide, undo, setUndo }: {
   map: PartyCampaignMapApi;
   current: CampaignMapState | null;
-  onInstallGuide?: (name: string, content: string, customId?: string) => boolean;
+  onInstallGuide?: (name: string, content: string, customId?: string) => Promise<boolean>;
   undo: MapPackUndo | null;
   setUndo: (u: MapPackUndo | null) => void;
 }) {
   const [preview, setPreview] = useState<MapPackPreview | null>(null);
-  const [approved, setApproved] = useState<Record<number, boolean>>({});
+  /** Selected guides by their exact content signature — a changed guide drops its tick. */
+  const [approved, setApproved] = useState<Record<string, boolean>>({});
   const [reading, setReading] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [target, setTarget] = useState<Target | null>(null);
+  const [existingMode, setExistingMode] = useState<ExistingMode | null>(null);
+  const [retry, setRetry] = useState<string | null>(null);
+  const reservedRef = useRef<string | null>(null);
   /** Assistant edits live only on this copy until Install. */
   const [staged, setStaged] = useState<{ state: CampaignMapState; guides: MapPackGuide[]; applied: string[] } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -35,7 +52,20 @@ export function MapPackAssistant({ map, current, onInstallGuide, undo, setUndo }
 
   useEffect(() => () => revokeMapPackPreview(previewRef.current), []);
 
-  const discard = () => { revokeMapPackPreview(preview); setPreview(null); setApproved({}); setConfirming(false); setStaged(null); };
+  const atlas = map.atlas as CampaignAtlas | null;
+  // Every place on every map, labelled with its full breadcrumb (captured ids, not the active map).
+  const places = useMemo(() => {
+    if (atlas) return atlas.maps.flatMap(m => {
+      const crumbs = breadcrumbs(atlas, m.id).map(b => b.name).join(' › ');
+      return m.state.locations.map(l => ({ mapId: m.id as string | null, locationId: l.id, label: `${crumbs} › ${l.name}` }));
+    });
+    return (current?.locations ?? []).map(l => ({ mapId: null as string | null, locationId: l.id, label: l.name }));
+  }, [atlas, current]);
+  const existingChild = target?.kind === 'area' && atlas && target.mapId ? childAt(atlas, target.mapId, target.locationId) : undefined;
+  const affected = existingChild && atlas ? subtreeIds(atlas, existingChild.id).map(id => getNode(atlas, id)?.name ?? id) : [];
+  const blocker = existingChild && atlas ? subtreeReplaceBlocker(atlas, existingChild.id) : null;
+
+  const discard = () => { revokeMapPackPreview(preview); setPreview(null); setApproved({}); setConfirming(false); setStaged(null); setTarget(null); setExistingMode(null); setRetry(null); reservedRef.current = null; };
 
   const read = async (file: File | undefined) => {
     if (!file) return;
@@ -45,41 +75,86 @@ export function MapPackAssistant({ map, current, onInstallGuide, undo, setUndo }
     finally { setReading(false); }
   };
 
+  const chooseTarget = (t: Target | null) => { setTarget(t); setExistingMode(null); setConfirming(false); setRetry(null); reservedRef.current = null; };
+
+  const installCampaignGuides = async (guides: MapPackGuide[]) => {
+    const ok: string[] = []; const failed: string[] = [];
+    for (const g of guides) {
+      const r = onInstallGuide ? await onInstallGuide(g.name, g.content, g.customId) : false;
+      (r ? ok : failed).push(g.name);
+    }
+    if (failed.length) toast.warning(`The map installed, but these campaign guides were not saved: ${failed.join(', ')}.`);
+    return ok;
+  };
+
   const install = async () => {
     const base = preview;
-    if (!base?.installable || !base.state || !base.image || !base.imageType || !map.canWrite) return;
-    if (map.isAtlasMode) { toast.error('This party uses nested maps. Installing a Map Pack into an area is not ready yet, so nothing was changed.'); return; }
+    if (!base?.installable || !base.state || !base.image || !base.imageType || !map.canWrite || !target) return;
     const p = { ...base, state: staged?.state ?? base.state, guides: staged?.guides ?? base.guides };
     if (validateMapData(p.state, base.imageWidth, base.imageHeight).errors.length) { toast.error('The staged changes no longer pass the safety check. Reset to the uploaded pack.'); return; }
+    const chosen = p.guides.filter(g => approved[sig(g)] && !g.tooLarge);
+    const campaign = chosen.filter(g => g.scope === 'campaign');
+    const area = chosen.filter(g => g.scope !== 'campaign');
+    const packName = p.manifest?.name ?? 'Map Pack';
     setInstalling(true);
     try {
-      // 1) remember the current map for Undo
+      if (target.kind === 'area' && existingChild && existingMode === 'image') {
+        const file = new File([p.image], `area.${p.imageType.split('/')[1] || 'png'}`, { type: p.imageType });
+        const r = await map.replaceAreaImage(existingChild.id, file);
+        if (!r.ok) { toast.error(`Not installed: ${(r as { error: string }).error}`); return; }
+        toast.success(`Picture replaced for ${existingChild.name}. Its places, inner areas and guides were kept; distance calibration was reset.`);
+        discard(); return;
+      }
+      if (target.kind === 'area') {
+        if (!reservedRef.current) reservedRef.current = crypto.randomUUID();
+        const res = await map.installAreaPack({
+          parentMapId: target.mapId, parentLocationId: target.locationId, reservedId: reservedRef.current,
+          name: packName, state: p.state, image: p.image, imageType: p.imageType, replaceExisting: existingMode === 'subtree',
+          guides: area.map(g => ({ scope: g.scope as 'map' | 'location', locationId: g.locationId ?? null, name: g.name, content: g.content })),
+        });
+        if (!res.ok) {
+          const e = res as { error: string; guidesStaged?: boolean };
+          if (e.guidesStaged) setRetry('The area guides are saved but not active yet. The map was not changed. Tap Install again to retry.');
+          toast.error(`Not installed: ${e.error}`); return;
+        }
+        const r = res as { previous: CampaignAtlas | null; previousLegacy: CampaignMapState | null; revisionAfter: number };
+        const okGuides = await installCampaignGuides(campaign);
+        setUndo({ packName, guidesInstalled: okGuides, atlas: r });
+        toast.success(`${packName} installed at ${target.label}. The party has not moved — use Enter location in Areas when ready.`);
+        discard(); return;
+      }
+      // New root / world.
+      if (map.isAtlasMode) {
+        const prevAtlas = atlas;
+        const up = await map.uploadImageFile(p.image, p.imageType);
+        if (!up.ok) { toast.error(`Not installed: ${(up as { error: string }).error}`); return; }
+        const res = await map.restoreSaveSnapshot({ ...p.state, imageUrl: up.url }, 'campaign');
+        if (!res.ok) { toast.error(`Not installed: ${(res as { error: string }).error}`); return; }
+        const okGuides = await installCampaignGuides(campaign);
+        const after = map.atlas as CampaignAtlas | null;
+        setUndo({ packName, guidesInstalled: okGuides, atlas: { previous: prevAtlas, previousLegacy: null, revisionAfter: after?.revision ?? -1 } });
+        toast.success(`${packName} is now the world map. The old collection is kept for Undo.`);
+        discard(); return;
+      }
       const previous = current ? map.exportSaveSnapshot() : null;
-      // 2) upload the pack's image
       const up = await map.uploadImageFile(p.image, p.imageType);
       if (!up.ok) { toast.error(`Map Pack not installed: ${(up as { error: string }).error}`); return; }
-      // 3–4) replace the live map
       const res = await map.restoreSaveSnapshot({ ...p.state, imageUrl: up.url }, 'campaign');
       if (!res.ok) { toast.error(`Map Pack not installed: ${(res as { error: string }).error}`); return; }
-      // 5) only the guides the host ticked
-      const installed: string[] = [];
-      p.guides.forEach((g, i) => {
-        if (!approved[i]) return;
-        const ok = onInstallGuide ? onInstallGuide(g.name, g.content, g.customId) : false;
-        if (ok) installed.push(g.name);
-        else toast.warning(`The map installed, but the guide "${g.name}" did not.`);
-      });
-      setUndo({ previous, packName: p.manifest?.name ?? 'Map Pack', guidesInstalled: installed });
-      toast.success(`${p.manifest?.name ?? 'Map Pack'} installed.`);
+      const okGuides = await installCampaignGuides(campaign);
+      setUndo({ previous, packName, guidesInstalled: okGuides });
+      toast.success(`${packName} installed.`);
       discard();
     } finally { setInstalling(false); }
   };
 
   const undoInstall = async () => {
     if (!undo) return;
-    const r = undo.previous ? await map.restoreSaveSnapshot(undo.previous, 'undo') : await map.clearCampaignMap();
+    const r = undo.atlas
+      ? await map.undoAtlasInstall(undo.atlas)
+      : undo.previous ? await map.restoreSaveSnapshot(undo.previous, 'undo') : await map.clearCampaignMap();
     if (!r.ok) { toast.error((r as { error: string }).error); return; }
-    toast.success('Previous map restored.');
+    toast.success('Previous maps restored. Campaign guides you added were not removed.');
     setUndo(null);
   };
 
