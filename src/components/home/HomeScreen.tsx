@@ -15,6 +15,7 @@ import {
   Settings, Coffee, Moon, TrendingUp,
   MessageCircle, Gem, Zap, BookOpen,
   Swords, Wand2, ListChecks, Users, User, Film,
+  PawPrint,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ArenaScreen } from '@/components/arena/ArenaScreen';
