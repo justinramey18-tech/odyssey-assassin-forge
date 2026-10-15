@@ -57,11 +57,12 @@ export default function AICreationAssistant() {
   const handleJoin = useCallback(async () => {
     if (joiningRef.current || !creationSession) return;
     const prepared = preparePartySave(buildData, party.rules, creationSession);
-    if (!prepared.ok) { setJoinError(prepared.issues[0]); return; }
+    if (prepared.ok === false) { setJoinError(prepared.issues[0]); return; }
     joiningRef.current = true; setJoining(true); setJoinError(null);
     try {
       const res = await party.finalize(prepared.payload);
-      if (res.ok) { openAdventure(res.receipt); return; }
+      if (res.ok === true) { openAdventure(res.receipt); return; }
+      if (res.ok !== false) return;
       setJoinError(res.message);
       if (res.reload) party.reloadFromServer();
     } catch {

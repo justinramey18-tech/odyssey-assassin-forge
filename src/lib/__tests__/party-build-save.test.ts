@@ -29,8 +29,9 @@ describe('preparePartySave', () => {
     const a = preparePartySave(build(), null, SESSION, 1000);
     const b = preparePartySave(build(), null, SESSION, 9999);
     if (!a.ok || !b.ok) throw new Error('prep failed');
-    expect(a.payload.equipment.slots.primary_weapon?.id).toBe(partyGearId(SESSION, 0));
-    expect(b.payload.equipment.slots.primary_weapon?.id).toBe(partyGearId(SESSION, 0));
+    const find = (p: typeof a.payload) => [...Object.values(p.equipment.slots), ...p.equipment.inventory].find(i => i?.name === 'Dusk Blade')?.id;
+    expect(find(a.payload)).toBe(partyGearId(SESSION, 0));
+    expect(find(b.payload)).toBe(partyGearId(SESSION, 0));
     expect(a.payload.consumables[0].consumableId).toBe(b.payload.consumables[0].consumableId);
   });
 
