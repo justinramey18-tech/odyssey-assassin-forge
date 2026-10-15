@@ -1,3 +1,4 @@
+import { combineGuides } from '@/lib/location-guides';
 // State and network for the Human DM Assistant (host only, Party DM screen).
 // The assistant talks through the shared ai-dm function using a custom
 // instruction sheet (systemPromptOverride), so the server is unchanged.
@@ -330,7 +331,14 @@ export function useDmAssistant({ partyId, partyModel, getContext }: UseDmAssista
 
     let partial = '';
     try {
-      const ctx = getContextRef.current();
+      const baseCtx = getContextRef.current();
+      let ctx = baseCtx;
+      if (baseCtx.prepareAreaGuides) {
+        const area = await baseCtx.prepareAreaGuides();
+        if (!area.ok) throw new Error(area.error);
+        if (controller.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+        ctx = { ...baseCtx, guides: combineGuides(baseCtx.guides || '', area.guides), areaFacts: area.mapFacts || undefined };
+      }
       // Rehearsal is quick back-and-forth, so it uses the fast Brainstorm model.
       const chosen = scene ? models.brainstorm : models[modeAtSend];
       const modelId = resolveAssistantModel(chosen);

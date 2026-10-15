@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import { usePartyCampaignMap } from '@/hooks/use-party-campaign-map';
+import { useLocationGuides } from '@/hooks/use-location-guides';
 import { usePartyMemoryAnchors } from '@/hooks/use-party-memory-anchors';
 import { usePartyMemoryExtraction } from '@/hooks/use-party-memory-extraction';
 import { usePartyDm } from '@/hooks/use-party-dm';
@@ -293,6 +294,10 @@ export function StandalonePartyDMScreen({
   const gmGuidesOwner = isCoHost && partyCreatorId ? partyCreatorId : undefined;
   const gmGuides = useGMGuides(gmGuidesOwner, sessionMode);
   const campaignMap = usePartyCampaignMap(partyId, userId);
+  const locationGuides = useLocationGuides({
+    partyId, hostUserId: campaignMap.hostUserId, currentUserId: userId,
+    serverNow: campaignMap.serverNow, coreGuides: gmGuides.enabledContent || '',
+  });
   const addGuideRef = useRef(gmGuides.addGuide);
   addGuideRef.current = gmGuides.addGuide;
   // Host-only, explicit-approval install for Map Pack guides. Never called automatically.
@@ -519,6 +524,7 @@ export function StandalonePartyDMScreen({
     customGuidesContent: gmGuides.enabledContent,
     memoryAnchorsContent: memoryAnchors.formattedForOracle,
     campaignMapContext: campaignMap.getPromptContext,
+    prepareAreaContext: isHost ? locationGuides.prepare : undefined,
     getCampaignMapSaveSnapshot: isPartyCreator ? campaignMap.exportSaveSnapshot : undefined,
     restoreCampaignMapSaveSnapshot: isPartyCreator ? campaignMap.restoreSaveSnapshot : undefined,
     clearCampaignMapState: isPartyCreator ? campaignMap.clearCampaignMap : undefined,
@@ -998,6 +1004,7 @@ ${truncated}`);
       )}
       <PartyDMScreen
         initialLiveTableOpen={initialLiveTableOpen}
+        prepareAreaContext={isHost ? locationGuides.prepare : undefined}
         onBack={onBack}
         partyId={partyId}
         campaignMap={campaignMap}

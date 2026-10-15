@@ -261,6 +261,8 @@ interface PartyDMScreenProps {
   guidesCount?: number;
   guides?: Array<{ id: string; name: string; content: string; enabled: boolean; createdAt?: string; updatedAt?: string }>;
   gmGuidesContent?: string;
+  /** Host/co-host only: request-time area guides for the DM Assistant. */
+  prepareAreaContext?: () => Promise<{ ok: true; guides: string; mapFacts: string | null } | { ok: false; error: string }>;
   memoryAnchorsContent?: string;
   memoryAnchors?: import('@/hooks/use-dm-game-state').MemoryAnchor[];
   onAddMemoryAnchor?: (anchor: Omit<import('@/hooks/use-dm-game-state').MemoryAnchor, 'id' | 'turn' | 'created_at'>) => void;
@@ -1344,7 +1346,7 @@ type PartyOverlays = {
   campaignMap: undefined;
 };
 
-export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, campaignMap, onInstallCampaignMapGuide, onBack, partyId: partyIdProp, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, onOpenDirector, hasPendingRedoRequest, onScanQuests, worldState = [] }: PartyDMScreenProps) {
+export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, campaignMap, onInstallCampaignMapGuide, onBack, partyId: partyIdProp, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, prepareAreaContext, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, onOpenDirector, hasPendingRedoRequest, onScanQuests, worldState = [] }: PartyDMScreenProps) {
   const practiceMode = runtimeOverrides?.practiceMode === true;
   const [sparringOpen, setSparringOpen] = useState<null | 'host' | { sessionId: string; hostName: string }>(null);
   const sparringLink = useSparringLink(practiceMode ? null : partyIdProp, currentUserId);
@@ -2396,8 +2398,9 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
       })),
       sealedOrder: rc.orderedSelected.map(m => m.id),
       guides: gmGuidesContent || '',
+      prepareAreaGuides: prepareAreaContext,
     };
-  }, [members, memoryAnchorsContent, sheetQuests.quests, worldState, chatAvatars.oocNames, gmGuidesContent]);
+  }, [members, memoryAnchorsContent, sheetQuests.quests, worldState, chatAvatars.oocNames, gmGuidesContent, prepareAreaContext]);
 
   const openDmAssistant = useCallback(() => overlays.open('dmAssistant'), [overlays]);
   const openNpcRoster = useCallback(() => overlays.open('npcRoster'), [overlays]);
