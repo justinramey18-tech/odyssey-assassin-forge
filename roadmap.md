@@ -36,3 +36,5 @@
 - [x] Live NPC server buffs: deployed validated fight-only effects, paused timers and separate temporary-HP inbox delivery; 130 focused tests plus isolated atomic inbox/rollback test passed. Standalone server check and preview build passed; real-party use remains untested and no live data was changed.
 - [x] Live NPC Combat 3: one-tap attacks, base-level spells, ally heals/buffs/potions with a picked target.
 - [x] Live NPC Combat 4: enemy/ally target rails with one-tap action tray (phone check in a real fight still pending).
+
+- [ ] Scene video 2: host-only private clip upload, safe replacement, inline playback and focused checks (real-party playback requires an existing signed-in session).

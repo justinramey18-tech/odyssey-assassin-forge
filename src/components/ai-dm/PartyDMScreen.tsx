@@ -646,7 +646,105 @@ function MessageReactions({ messageId, reactions, currentUserId, onAddReaction, 
   );
 }
 
-const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, avatars, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction, onWhisperAutoRoll, onWhisperOpenRoller, narrationMap, narrationGeneratingPart, narrationPlayingPart, narrationCastProgress, narrationSpeakingName, onNarrate, onNarrateCast, onPlayNarration, onPlayAllNarration, onDeleteNarration, onDeleteAllNarration, onRecordNarrationSegment, onRevertToCastVoice, onVoiceSegment, narrationDownloading, narrationDownloadProgress, onDownloadNarrationFile, onShareNarrationVoices, onRestoreNarrationClip, onGenerateSceneImage }: {
+// Scene clips remain private attachments, separate from the generated illustration.
+const SCENE_VIDEO_BUCKET = 'party-scene-videos';
+export function validateSceneVideo(file: Pick<File, 'name' | 'type' | 'size'>): 'mp4' | 'webm' {
+  const extension = file.name.split('.').pop()?.toLowerCase();
+  if ((extension !== 'mp4' && extension !== 'webm') ||
+      (file.type && file.type !== (extension === 'mp4' ? 'video/mp4' : 'video/webm'))) {
+    throw new Error('Choose an MP4 or WebM video.');
+  }
+  if (!Number.isFinite(file.size) || file.size <= 0 || file.size > 50 * 1024 * 1024) {
+    throw new Error('Choose a video no larger than 50 MiB.');
+  }
+  return extension;
+}
+
+export async function uploadPartySceneVideo(partyId: string, messageId: string, file: File,
+  onProgress: (stage: string) => void = () => {}) {
+  const extension = validateSceneVideo(file);
+  // Read the actual old attachment rather than a potentially stale displayed row.
+  const { data: oldRow, error: readError } = await supabase.from('party_dm_messages')
+    .select('scene_video_path').eq('party_id', partyId).eq('id', messageId).single();
+  if (readError || !oldRow) throw new Error('Could not load this scene. Please try again.');
+  const oldPath = oldRow.scene_video_path;
+  const path = `${partyId}/${messageId}/${crypto.randomUUID()}.${extension}`;
+  const bucket = supabase.storage.from(SCENE_VIDEO_BUCKET);
+  onProgress('Uploading scene video…');
+  const { error: uploadError } = await bucket.upload(path, file, {
+    contentType: extension === 'mp4' ? 'video/mp4' : 'video/webm', upsert: false,
+  });
+  if (uploadError) throw new Error('Video upload failed. Check your connection and try again.');
+  onProgress('Attaching scene video…');
+  try {
+    let update = supabase.from('party_dm_messages').update({ scene_video_path: path })
+      .eq('party_id', partyId).eq('id', messageId);
+    // A competing replacement must not delete or overwrite a newer attachment.
+    update = oldPath ? update.eq('scene_video_path', oldPath) : update.is('scene_video_path', null);
+    const { data, error } = await update.select('id').single();
+    if (error || !data) throw new Error('Could not attach the video. The previous attachment is unchanged.');
+  } catch (error) {
+    const { error: cleanupError } = await bucket.remove([path]);
+    if (cleanupError) throw new Error('Could not attach the video; the previous attachment is unchanged. Unused upload cleanup also failed.');
+    throw error;
+  }
+  if (oldPath && oldPath !== path) {
+    const { error } = await bucket.remove([oldPath]);
+    if (error) toast.warning('Video added, but the previous unused video could not be removed.');
+  }
+  return path;
+}
+
+export function SceneVideoAttachment({ path }: { path: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const retry = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    let refreshed = false;
+    setUrl(null);
+    setError(false);
+    setLoading(true);
+    const sign = async () => {
+      setLoading(true);
+      try {
+        const { data, error: signError } = await supabase.storage.from(SCENE_VIDEO_BUCKET)
+          .createSignedUrl(path, 15 * 60);
+        if (cancelled) return;
+        if (signError || !data?.signedUrl) throw new Error('No playback link');
+        setUrl(data.signedUrl);
+        setLoading(false);
+      } catch {
+        if (cancelled) return;
+        if (!refreshed) { refreshed = true; void sign(); return; }
+        setError(true);
+        setLoading(false);
+      }
+    };
+    retry.current = () => {
+      if (cancelled) return;
+      if (refreshed) { setError(true); setLoading(false); return; }
+      refreshed = true;
+      setUrl(null);
+      void sign();
+    };
+    void sign();
+    return () => { cancelled = true; retry.current = null; };
+  }, [path]);
+  return (
+    <div className="mt-2 space-y-2">
+      {loading && <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading scene video…</p>}
+      {error ? <p role="alert" className="text-sm text-destructive">This scene video could not play. Check your connection or reopen this scene; the video may not be supported on this device.</p> : url && (
+        <video key={url} src={url} controls playsInline preload="metadata" aria-label="Scene video"
+          className="w-full h-auto max-h-[70dvh] rounded-lg border border-border"
+          onError={() => retry.current?.()} />
+      )}
+    </div>
+  );
+}
+
+const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, avatars, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction, onWhisperAutoRoll, onWhisperOpenRoller, narrationMap, narrationGeneratingPart, narrationPlayingPart, narrationCastProgress, narrationSpeakingName, onNarrate, onNarrateCast, onPlayNarration, onPlayAllNarration, onDeleteNarration, onDeleteAllNarration, onRecordNarrationSegment, onRevertToCastVoice, onVoiceSegment, narrationDownloading, narrationDownloadProgress, onDownloadNarrationFile, onShareNarrationVoices, onRestoreNarrationClip, onGenerateSceneImage, onUploadSceneVideo }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -692,12 +790,20 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   onShareNarrationVoices?: (messageId: string) => void;
   onRestoreNarrationClip?: (messageId: string, part: NarrationPart, blob: Blob, voiceId: string) => Promise<void>;
   onGenerateSceneImage?: (messageId: string) => Promise<void>;
+  onUploadSceneVideo?: (messageId: string, file: File, onProgress: (stage: string) => void) => Promise<string>; 
 }) {
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [showRegenNote, setShowRegenNote] = useState(false);
   const [sceneImageBusy, setSceneImageBusy] = useState(false);
+  const savedVideoPath = (message as PartyDmMessage & { scene_video_path?: string | null }).scene_video_path ?? null;
+  const [sceneVideoPath, setSceneVideoPath] = useState(savedVideoPath);
+  const [sceneVideoBusy, setSceneVideoBusy] = useState(false);
+  const [sceneVideoProgress, setSceneVideoProgress] = useState('');
+  const [sceneVideoError, setSceneVideoError] = useState<string | null>(null);
+  const sceneVideoInput = useRef<HTMLInputElement>(null);
+  useEffect(() => { setSceneVideoPath(savedVideoPath); }, [savedVideoPath, message.id]);
   const [regenNoteText, setRegenNoteText] = useState('');
   const isAssistant = message.role === 'assistant';
   /** Story scenes (D-22): the table's exchange retold before the DM's post. Not a DM post, so it is never regenerated as one. */
@@ -871,6 +977,29 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                 className="mt-2 w-full h-auto rounded-lg border border-amber-500/20"
               />
             )}
+            {sceneVideoPath && <SceneVideoAttachment path={sceneVideoPath} />}
+            {sceneVideoBusy && <p role="status" className="mt-2 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> {sceneVideoProgress || 'Preparing scene video…'}</p>}
+            {sceneVideoError && <p role="alert" className="mt-2 text-sm text-destructive">{sceneVideoError}</p>}
+            {onUploadSceneVideo && <input ref={sceneVideoInput} type="file" accept="video/mp4,video/webm,.mp4,.webm" className="hidden"
+              aria-label="Choose scene video" onCancel={() => sessionStorage.removeItem('pending-file-picker')}
+              onChange={async (event) => {
+                sessionStorage.removeItem('pending-file-picker');
+                const file = event.target.files?.[0];
+                event.target.value = '';
+                if (!file || sceneVideoBusy) return;
+                setSceneVideoError(null);
+                setSceneVideoBusy(true);
+                try {
+                  validateSceneVideo(file);
+                  const path = await onUploadSceneVideo(message.id, file, setSceneVideoProgress);
+                  setSceneVideoPath(path);
+                  toast.success('Scene video added');
+                } catch (error) {
+                  const text = error instanceof Error ? error.message : 'Scene video upload failed. Please try again.';
+                  setSceneVideoError(text);
+                  toast.error(text);
+                } finally { setSceneVideoBusy(false); setSceneVideoProgress(''); }
+              }} />}
             {sceneImageBusy && (
               <div className="mt-2 flex items-center gap-2 text-[11px] text-amber-300/70">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" /> Painting the scene…
@@ -975,7 +1104,8 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
               <div className="relative mt-1.5">
                 <button
                   onClick={() => setShowActions(!showActions)}
-                  className="p-1 rounded text-white/20 hover:text-white/60 transition-colors opacity-0 group-hover/msg:opacity-100"
+                  className="h-12 w-12 text-muted-foreground"
+                  aria-label="Scene actions"
                   style={{ touchAction: 'manipulation' }}
                 >
                   <MoreVertical className="w-3.5 h-3.5" />
@@ -1009,6 +1139,17 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                       >
                         <ImageIcon className="w-3.5 h-3.5" />
                       </button>
+                    )}
+                    {onUploadSceneVideo && (
+                      <Button variant="ghost" size="icon" className="h-12 w-12 shrink-0" disabled={sceneVideoBusy}
+                        title="Upload Scene Video" aria-label="Upload Scene Video" style={{ touchAction: 'manipulation' }}
+                        onClick={() => {
+                          setShowActions(false);
+                          sessionStorage.setItem('pending-file-picker', 'scene-video');
+                          sceneVideoInput.current?.click();
+                        }}>
+                        <Film className="h-5 w-5" />
+                      </Button>
                     )}
                     {!isScene && (
                       <>
@@ -1329,6 +1470,8 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   return prev.message.id === next.message.id
     && prev.message.content === next.message.content
     && prev.message.role === next.message.role
+    && (prev.message as PartyDmMessage & { scene_video_path?: string | null }).scene_video_path === (next.message as PartyDmMessage & { scene_video_path?: string | null }).scene_video_path
+    && prev.onUploadSceneVideo === next.onUploadSceneVideo
     && prev.ttsSelectMode === next.ttsSelectMode
     && prev.ttsSelected === next.ttsSelected
     && prev.whisperTrayEnabled === next.whisperTrayEnabled
@@ -3007,6 +3150,11 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
     }
   }, [partyId]);
 
+  const handleUploadSceneVideo = useCallback(async (messageId: string, file: File, onProgress: (stage: string) => void) => {
+    if (!originalCreator || !partyId || !messageId || practiceMode) throw new Error('Only the original host can upload scene videos.');
+    return uploadPartySceneVideo(partyId, messageId, file, onProgress);
+  }, [originalCreator, partyId, practiceMode]);
+
   const handleDeleteMessage = useCallback((messageId: string) => {
     partyDmRef.current.deleteMessage?.(messageId);
   }, []);
@@ -4105,6 +4253,7 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
                     onCopy={handleCopyMessage}
                     onEdit={handleEditMessage}
                     onGenerateSceneImage={isCreator && partyId ? handleGenerateSceneImage : undefined}
+                    onUploadSceneVideo={originalCreator && partyId && msg.id && !practiceMode ? handleUploadSceneVideo : undefined}
                     onDelete={handleDeleteMessage}
                     onRegenerate={handleRegenerateMessage}
                     onRegenerateWhispers={handleRegenerateWhispers}
