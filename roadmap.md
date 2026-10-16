@@ -30,3 +30,4 @@
 
 - [x] Add cinematic speaking frames above full in-character portraits; 12 chat tests passed and isolated phone rendering/tap actions checked. Real-party use remains untested.
 - [x] Travel Director 1/4: private event storage and service-only atomic exact-point pause; verified permissions, stale callbacks and retries in an isolated database without changing live rows. Scheduling and actual party use await later prompts.
+- [ ] Travel Director 2/4: original-host-only hidden road planning, bounded campaign context, exact distance-based target, private writes and focused tests; no scheduler or travel changes.
