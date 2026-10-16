@@ -56,6 +56,16 @@ describe.skipIf(!isolated)('private Travel Director storage (isolated PostgreSQL
     SELECT CASE WHEN ${call}->>'reason'='changed_target' THEN 'PASS' ELSE 'FAIL' END;`));
   it('assigns an exact segment boundary to the next road', () => check(`UPDATE party_travel_events SET target_tranche_fraction=1.0/3,target_route_progress=0.8,target_campaign_minute=120;
     SELECT CASE WHEN ${call}->>'paused'='true' THEN 'PASS' ELSE 'FAIL' END;`));
+  it('supports a legacy single-road journey without converting its save', () => check(`
+    ALTER TABLE party_shared_state DISABLE TRIGGER guard_campaign_atlas_row;
+    UPDATE party_shared_state SET state_data=state_data->'maps'->0->'state';
+    UPDATE party_shared_state SET state_data=jsonb_set(state_data,'{activeTravel}',(state_data->'activeTravel')-'segments');
+    UPDATE party_travel_events SET map_id=NULL,target_leg_index=0,target_route_id='ab',target_reversed=false,target_route_progress=0.5;
+    SELECT CASE WHEN ${call}->>'paused'='true' AND (SELECT state_data->>'campaignMinute' FROM party_shared_state)='130'
+      AND NOT (SELECT state_data ? 'maps' FROM party_shared_state) THEN 'PASS' ELSE 'FAIL' END;`));
+  it('keeps paused fractions intact when an already-resumed journey is paused again', () => check(`
+    UPDATE party_shared_state SET state_data=jsonb_set(jsonb_set(state_data,'{revision}','5'),'{maps,0,state,activeTravel,pausedFraction}','0.25');
+    SELECT CASE WHEN ${call}->>'paused'='true' THEN 'PASS' ELSE 'FAIL' END;`));
   it('enforces one open event and allows historical events', () => check(`
     DO $$ BEGIN BEGIN INSERT INTO party_travel_events(party_id,created_by,destination_location_id,journey_plan_hash,has_event,status)
     SELECT party_id,created_by,'dest','none',false,'no_event' FROM party_travel_events;
