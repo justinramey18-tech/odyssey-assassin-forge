@@ -642,7 +642,7 @@ function MessageReactions({ messageId, reactions, currentUserId, onAddReaction, 
   );
 }
 
-const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, avatars, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction, onWhisperAutoRoll, onWhisperOpenRoller, narrationMap, narrationGeneratingPart, narrationPlayingPart, narrationCastProgress, narrationSpeakingName, onNarrate, onNarrateCast, onPlayNarration, onPlayAllNarration, onDeleteNarration, onDeleteAllNarration, onRecordNarrationSegment, onRevertToCastVoice, onVoiceSegment, narrationDownloading, narrationDownloadProgress, onDownloadNarrationFile, onShareNarrationVoices, onRestoreNarrationClip }: {
+const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, avatars, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage, reactions, onAddReaction, onRemoveReaction, onWhisperAutoRoll, onWhisperOpenRoller, narrationMap, narrationGeneratingPart, narrationPlayingPart, narrationCastProgress, narrationSpeakingName, onNarrate, onNarrateCast, onPlayNarration, onPlayAllNarration, onDeleteNarration, onDeleteAllNarration, onRecordNarrationSegment, onRevertToCastVoice, onVoiceSegment, narrationDownloading, narrationDownloadProgress, onDownloadNarrationFile, onShareNarrationVoices, onRestoreNarrationClip, onGenerateSceneImage }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -687,11 +687,13 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   onVoiceSegment?: (messageId: string, content: string, passage: string, voiceId: string, label?: string, spokenText?: string) => Promise<void>;
   onShareNarrationVoices?: (messageId: string) => void;
   onRestoreNarrationClip?: (messageId: string, part: NarrationPart, blob: Blob, voiceId: string) => Promise<void>;
+  onGenerateSceneImage?: (messageId: string, content: string) => Promise<void>;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [showRegenNote, setShowRegenNote] = useState(false);
+  const [sceneImageBusy, setSceneImageBusy] = useState(false);
   const [regenNoteText, setRegenNoteText] = useState('');
   const isAssistant = message.role === 'assistant';
   /** Story scenes (D-22): the table's exchange retold before the DM's post. Not a DM post, so it is never regenerated as one. */
@@ -857,6 +859,20 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
               </div>
             )}
 
+            {(message as { scene_image_url?: string | null }).scene_image_url && (
+              <img
+                src={(message as { scene_image_url?: string | null }).scene_image_url as string}
+                alt="Scene illustration"
+                loading="lazy"
+                className="mt-2 w-full h-auto rounded-lg border border-amber-500/20"
+              />
+            )}
+            {sceneImageBusy && (
+              <div className="mt-2 flex items-center gap-2 text-[11px] text-amber-300/70">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Painting the scene…
+              </div>
+            )}
+
             {showRegenNote && (
               <div className="mt-2 space-y-2 p-2 rounded-lg bg-amber-950/20 border border-amber-500/20">
                 <p className="text-[10px] text-amber-300/70">
@@ -976,6 +992,20 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
+                    {onGenerateSceneImage && (
+                      <button
+                        disabled={sceneImageBusy}
+                        onClick={async () => {
+                          setShowActions(false);
+                          setSceneImageBusy(true);
+                          try { await onGenerateSceneImage(message.id, message.content); } finally { setSceneImageBusy(false); }
+                        }}
+                        className="p-1.5 rounded hover:bg-amber-900/30 text-amber-400/60 hover:text-amber-300 transition-colors disabled:opacity-40"
+                        title="Generate Image"
+                      >
+                        <ImageIcon className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     {!isScene && (
                       <>
                         <button
@@ -2936,6 +2966,32 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
     partyDmRef.current.editMessage?.(messageId, content);
   }, []);
 
+  const handleGenerateSceneImage = useCallback(async (messageId: string, content: string) => {
+    if (!partyId) return;
+    const scene = stripCinematicTagsFromDisplay(content || '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/[*_#>`]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 1200);
+    if (!scene) { toast.error('This post has no scene to illustrate'); return; }
+    const prompt = `Cinematic fantasy scene illustration, gritty dark-frontier tone, no text or captions. Depict this moment: ${scene}`;
+    try {
+      const { data, error } = await supabase.functions.invoke('venice-image-generate', {
+        body: { mode: 'dm-scene', prompt, partyId, messageId },
+      });
+      const res = data as { imageUrl?: string; finalPrompt?: string; error?: string } | null;
+      if (error || !res?.imageUrl) throw new Error(res?.error || 'Scene image generation failed');
+      const { error: saveErr } = await (supabase.from('party_dm_messages') as any)
+        .update({ scene_image_url: res.imageUrl, scene_image_prompt: res.finalPrompt ?? prompt })
+        .eq('id', messageId);
+      if (saveErr) throw saveErr;
+      toast.success('Scene image added');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Scene image generation failed');
+    }
+  }, [partyId]);
+
   const handleDeleteMessage = useCallback((messageId: string) => {
     partyDmRef.current.deleteMessage?.(messageId);
   }, []);
@@ -3937,6 +3993,7 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
                     isCreator={isCreator}
                     onCopy={handleCopyMessage}
                     onEdit={handleEditMessage}
+                    onGenerateSceneImage={isCreator && partyId ? handleGenerateSceneImage : undefined}
                     onDelete={handleDeleteMessage}
                     onRegenerate={handleRegenerateMessage}
                     onRegenerateWhispers={handleRegenerateWhispers}
