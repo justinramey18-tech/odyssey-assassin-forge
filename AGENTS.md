@@ -1,7 +1,7 @@
 # Project Architecture Rules
 
-- The default Party home uses a dedicated paused, poster-backed Enter Story video element; other background videos stay with the existing looping background system so their behavior cannot change.
-- Dice odds are chosen as a profile (odyssey-dice-odds-profile); rollD20 resolves the mode per roll context via resolveOddsForContext, so one setting can differ between combat and roleplay.
+- Party home uses a separate paused, poster-backed Enter Story video; preserve other background loops.
+- Dice profiles use resolveOddsForContext per roll, because combat and roleplay odds can differ.
 - An overlay that must sit above an open drawer renders inside that drawer's content (inline prop, no body portal) and carries data-vaul-no-drag, because a modal drawer keeps focus and treats outside taps as close — raising its z-index alone cannot win.
 - npc-combat carries identical copies of npc-reply's handler/models/repo/prompt in npc-combat/npc-reply/, because each server function deploys only its own folder; a test fails if the copies drift, so re-copy after editing npc-reply.
 - Automatic party launch passes an explicit initial Live Table choice through the existing screen chain; drawer state remains locally owned so Return to Story cannot trigger automatic reopening.
@@ -19,3 +19,5 @@
 
 - Live Table speech artwork uses nine-slice borders and a separate tail above naturally sized portraits, because stretching a whole frame distorts corners and crops speakers.
 - Buff metadata is validated in spellResolve and deploy-local npc-combat rules; edits preserve fields. Temp HP enqueues separate deltas atomically through the existing acknowledged inbox, never ordinary HP.
+
+- Scene videos store private paths; replace by upload, conditional row update, then old-file cleanup. Sign per path with one retry, because URLs expire and stale replacements must not erase attachments.

@@ -803,6 +803,13 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   const [sceneVideoProgress, setSceneVideoProgress] = useState('');
   const [sceneVideoError, setSceneVideoError] = useState<string | null>(null);
   const sceneVideoInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const input = sceneVideoInput.current;
+    if (!input) return;
+    const clear = () => sessionStorage.removeItem('pending-file-picker');
+    input.addEventListener('cancel', clear);
+    return () => input.removeEventListener('cancel', clear);
+  }, [onUploadSceneVideo]);
   useEffect(() => { setSceneVideoPath(savedVideoPath); }, [savedVideoPath, message.id]);
   const [regenNoteText, setRegenNoteText] = useState('');
   const isAssistant = message.role === 'assistant';
@@ -981,7 +988,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
             {sceneVideoBusy && <p role="status" className="mt-2 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> {sceneVideoProgress || 'Preparing scene video…'}</p>}
             {sceneVideoError && <p role="alert" className="mt-2 text-sm text-destructive">{sceneVideoError}</p>}
             {onUploadSceneVideo && <input ref={sceneVideoInput} type="file" accept="video/mp4,video/webm,.mp4,.webm" className="hidden"
-              aria-label="Choose scene video" onCancel={() => sessionStorage.removeItem('pending-file-picker')}
+              aria-label="Choose scene video"
               onChange={async (event) => {
                 sessionStorage.removeItem('pending-file-picker');
                 const file = event.target.files?.[0];
