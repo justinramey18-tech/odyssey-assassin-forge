@@ -1,4 +1,5 @@
 import { cardSide, oneTapTargets } from '@/lib/combat/oneTapCombat';
+import type { CombatSelection, TrayEntry } from './NpcCombatOverlay';
 import type { OneTapCombat } from './PartyDMQuickActions';
 import React, { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { firePendingNat20Fanfare } from '@/lib/critSound';
@@ -3108,6 +3109,50 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
     return out;
   }, [handleHealingItemUsedBase]);
 
+  const handleTrayTap = useCallback((id: string) => {
+    const found = trayItems.find(t => t.entry.id === id);
+    const sel = combatSelection;
+    const fightNow = npcCombatRef.current;
+    if (!found || !sel?.ids.length || !qaModule) return;
+    const primary = fightNow.fighters.find(f => f.id === sel.ids[0]);
+    if (!primary) { toast.error('Pick a target first.'); return; }
+    const { item, entry } = found;
+    if (entry.row === 'item') {
+      if (primary.kind !== 'player' || primary.status === 'dead') return;
+      if (primary.id !== fightNow.myFighter?.id) {
+        // Ally potion: the referee heals them; it leaves the bag only after it lands.
+        void fightNow.givePotion(primary.id, item.name).then(r => {
+          if (!r) return;
+          const removed = onUseConsumableByName?.(item.name, 1) ?? false;
+          if (!removed) toast.warning(`${item.name} healed ${primary.name}, but it couldn't be removed from your inventory.`);
+        });
+        return;
+      }
+      const d = item.healingDice;
+      if (!d) return;
+      const roll = rollHealing(d.count, d.die, d.bonus);
+      requestDiceRoll({ title: item.name, roll, onComplete: () => {
+        const prompt = handleHealingItemUsed(item.name, roll);
+        if (prompt) void handleUsePrompt(encodeActionCard(actionCardFromRoll(item.name, roll), prompt));
+      } });
+      return;
+    }
+    const oneTap: OneTapCombat = {
+      attack: (weaponName: string) => {
+        if (primary.kind !== 'npc' || primary.status !== 'up') { toast.error('Pick an enemy to attack.'); return; }
+        // A normal attack lands on the primary target only, never on every selected enemy.
+        void fightNow.attack(primary.id, { weaponName, finish: 'knockout' });
+      },
+    };
+    trayTargetsRef.current = { ids: sel.ids };
+    qaModule.runOneTapQuickItem(item, (text) => { void handleUsePrompt(text); }, oneTap);
+  }, [trayItems, combatSelection, qaModule, onUseConsumableByName, handleHealingItemUsed, handleUsePrompt]);
+  const allyPortraits = useMemo(() => {
+    const out: Record<string, string | undefined> = {};
+    for (const [uid, a] of Object.entries(chatAvatars.avatars ?? {})) out[uid] = (a as { ic?: string })?.ic;
+    return out;
+  }, [chatAvatars.avatars]);
+
 
   // Geralt widget (momo easter egg) opens through the overlay ganglion.
   const isMomo = useMemo(() => isMomoEasterEgg(characterContext?.name || ''), [characterContext?.name]);
@@ -5865,7 +5910,7 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
         onConfirm={applyHealPick}
         onClose={() => setHealPick(null)}
       />
-      <NpcCombatOverlay combat={npcCombat} roster={npcCombatRoster} members={members} currentUserId={currentUserId || null} isHost={originalCreator} onUseConsumableByName={onUseConsumableByName} pendingCast={pendingCombatCast} onPendingCastDone={() => setPendingCombatCast(null)} onOpenSpells={(pre) => { setCombatPreTarget(pre ? { ...pre, at: Date.now() } : null); overlays.open('quickActions', ['spells', 'cantrips']); }} preTarget={combatPreTarget} onClearPreTarget={() => setCombatPreTarget(null)} />
+      <NpcCombatOverlay combat={npcCombat} roster={npcCombatRoster} members={members} currentUserId={currentUserId || null} isHost={originalCreator} onUseConsumableByName={onUseConsumableByName} pendingCast={pendingCombatCast} onPendingCastDone={() => setPendingCombatCast(null)} onOpenSpells={(pre) => { setCombatPreTarget(pre ? { ...pre, at: Date.now() } : null); overlays.open('quickActions', ['spells', 'cantrips']); }} preTarget={combatPreTarget} onClearPreTarget={() => setCombatPreTarget(null)} selection={combatSelection} onSelect={setCombatSelection} tray={combatTray} onTrayTap={handleTrayTap} allyPortraits={allyPortraits} />
       {/* Death Save Screen */}
       <DeathSaveScreen
         open={showDeathSaves}
