@@ -246,6 +246,13 @@
       "when": 1792183976853,
       "tag": "0034_private_travel_events_and_atomic_pause",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792184223833,
+      "tag": "0035_atomic_private_travel_plan_commit",
+      "breakpoints": true
     }
   ]
 }

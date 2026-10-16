@@ -3414,6 +3414,15 @@ export type Database = {
         Args: { _party_id: string }
         Returns: boolean
       }
+      commit_private_travel_plan: {
+        Args: {
+          _expected_map: Json
+          _host_id: string
+          _party_id: string
+          _plan: Json
+        }
+        Returns: boolean
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
