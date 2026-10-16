@@ -323,6 +323,692 @@ function ChatAvatar({
 }
 
 
+const noop = () => {};
+const EMPTY_SET: Set<string> = new Set();
+const noopTouch = () => () => {};
+const NO_SWIPE: { current: { x: number; y: number; locked: boolean } | null } = { current: null };
+
+export interface RoundChatMessageListProps {
+  /** The rows to draw. */
+  rows: RoundChatMessage[];
+  /** Every row, for reply lookups (defaults to rows). */
+  allMessages?: RoundChatMessage[];
+  reactions?: RoundChatReaction[];
+  currentUserId?: string;
+  avatars?: Record<string, { ic?: string; ooc?: string }>;
+  oocNames?: Record<string, string>;
+  npcs?: RoundChatDrawerProps['npcs'];
+  /** History mode: same message presentation, no live workflow controls. */
+  readOnly?: boolean;
+  inCharacter?: boolean;
+  onlineStatus?: Record<string, { isOnline: boolean }>;
+  sharedReady?: boolean;
+  sharedIds?: Set<string>;
+  actionsFor?: string | null;
+  setActionsFor?: (id: string | null) => void;
+  editingMessageId?: string | null;
+  setEditingMessageId?: (id: string | null) => void;
+  editDraft?: string;
+  setEditDraft?: (v: string) => void;
+  partyMembers?: RoundChatDrawerProps['partyMembers'];
+  readReceipts?: Record<string, string>;
+  messageRefs?: { current: Record<string, HTMLDivElement | null> };
+  onRowTouchStart?: (id: string) => (e: React.TouchEvent) => void;
+  onRowTouchMove?: (e: React.TouchEvent) => void;
+  onRowTouchEnd?: (m: RoundChatMessage) => () => void;
+  swipeStart?: { current: { x: number; y: number; locked: boolean } | null };
+  swipeId?: string | null;
+  setSwipeId?: (id: string | null) => void;
+  swipeX?: number;
+  setSwipeX?: (x: number) => void;
+  onUploadAvatar?: RoundChatDrawerProps['onUploadAvatar'];
+  setCropTarget?: (t: { kind: 'ic' | 'ooc'; file: File } | null) => void;
+  jumpToMessage?: (id: string) => void;
+  setViewingImage?: (url: string | null) => void;
+  onEditMessage?: RoundChatDrawerProps['onEditMessage'];
+  rolledNpcLineIds?: Set<string>;
+  rollingLineId?: string | null;
+  setRollingLineId?: (id: string | null) => void;
+  onNpcRoll?: RoundChatDrawerProps['onNpcRoll'];
+  onToggleSelected?: (id: string) => void;
+  nudgeMessageId?: string | null;
+  pickerFor?: string | null;
+  setPickerFor?: (id: string | null) => void;
+  onRegenerateNpcLine?: RoundChatDrawerProps['onRegenerateNpcLine'];
+  canManageNpcs?: boolean;
+  onDeleteMessage?: (id: string) => void;
+  onToggleReaction?: (id: string, emoji: string) => void;
+}
+
+/** The one Live Table message renderer: used by the live drawer and, read-only, by the scene book. */
+export function RoundChatMessageList({
+  rows,
+  allMessages = rows,
+  reactions = [],
+  currentUserId,
+  avatars,
+  oocNames,
+  npcs,
+  readOnly = false,
+  inCharacter = true,
+  onlineStatus = {},
+  sharedReady = false,
+  sharedIds = EMPTY_SET,
+  actionsFor = null,
+  setActionsFor = noop,
+  editingMessageId = null,
+  setEditingMessageId = noop,
+  editDraft = '',
+  setEditDraft = noop,
+  partyMembers,
+  readReceipts,
+  messageRefs,
+  onRowTouchStart = noopTouch,
+  onRowTouchMove = noop,
+  onRowTouchEnd = noopTouch,
+  swipeStart = NO_SWIPE,
+  swipeId = null,
+  setSwipeId = noop,
+  swipeX = 0,
+  setSwipeX = noop,
+  onUploadAvatar,
+  setCropTarget = noop,
+  jumpToMessage = noop,
+  setViewingImage = noop,
+  onEditMessage,
+  rolledNpcLineIds = EMPTY_SET,
+  rollingLineId = null,
+  setRollingLineId = noop,
+  onNpcRoll,
+  onToggleSelected = noop,
+  nudgeMessageId = null,
+  pickerFor = null,
+  setPickerFor = noop,
+  onRegenerateNpcLine,
+  canManageNpcs = false,
+  onDeleteMessage = noop,
+  onToggleReaction = noop,
+}: RoundChatMessageListProps) {
+  const npcById = useMemo(() => new Map((npcs || []).map(n => [n.id, n])), [npcs]);
+  const reactionsByMessage = useMemo(() => {
+    const map = new Map<string, RoundChatReaction[]>();
+    for (const r of reactions) {
+      if (!map.has(r.message_id)) map.set(r.message_id, []);
+      map.get(r.message_id)!.push(r);
+    }
+    return map;
+  }, [reactions]);
+  return (
+    <>
+      {rows.map((m, idx) => {
+    const isNpc = !!m.npc_id;
+    const npc = isNpc ? npcById.get(m.npc_id as string) : undefined;
+    const isSelf = !isNpc && m.user_id === currentUserId;
+    const { card, body } = parseActionCard(m.content);
+    const parsedReply = parseReply(body);
+    // v2: an NPC line may end with a roll request; it is shown as a button, not text.
+    const npcRoll = isNpc && !card ? parseNpcRoll(parsedReply.body) : null;
+    const diceRoll = !card ? parseDiceRoll(parsedReply.body) : null;
+    const quoted = parsedReply.replyToId
+      ? allMessages.find(mm => mm.id === parsedReply.replyToId)
+      : null;
+    const ownsLine = isSelf || (isNpc && !!quoted && !quoted.npc_id && quoted.user_id === currentUserId);
+    const canChange = (isSelf || (isNpc && canManageNpcs)) && !m.consumed;
+    const imageMatch = parsedReply.body.match(CHAT_IMAGE_REGEX);
+    const imageUrl = imageMatch ? imageMatch[1] : null;
+    const msgReactions = reactionsByMessage.get(m.id) || [];
+    const grouped = msgReactions.reduce<Record<string, RoundChatReaction[]>>((acc, r) => {
+      (acc[r.emoji] ||= []).push(r);
+      return acc;
+    }, {});
+    const nameColor = isNpc ? 'text-amber-200' : m.in_character ? playerColor(m.user_id) : 'text-sky-300/90';
+    // Placement follows the mode, not the sender: every in-character
+    // line (yours included) sits on the right, every table-talk
+    // line on the left. NPC lines sit on the left, facing the party.
+    const alignRight = m.in_character && !isNpc;
+    const avatarUrl = isNpc
+      ? (npc?.portrait_url || undefined)
+      : m.in_character
+        ? avatars?.[m.user_id]?.ic
+        : avatars?.[m.user_id]?.ooc;
+    const speakingPortrait = !!avatarUrl && m.in_character && !card && !diceRoll && !imageUrl;
+    const speechLength = (npcRoll ? npcRoll.body : parsedReply.body).length;
+    const modeMatch = m.in_character === inCharacter;
+    const presenceInfo = onlineStatus[m.user_id];
+    const presence = isNpc ? undefined : sharedReady
+      ? (sharedIds.has(m.user_id) ? 'online' as const : 'offline' as const)
+      : presenceInfo
+        ? (presenceInfo.isOnline ? 'online' as const : 'offline' as const)
+        : undefined;
+
+    // Alter-ego line: who is speaking, and who is playing them.
+    const icName = (m.character_name || 'Player').trim();
+    const oocName = isNpc ? '' : ((oocNames?.[m.user_id]) || '').trim();
+    const primaryName = m.in_character ? icName : (oocName || icName);
+    const secondaryName = m.in_character
+      ? (oocName && oocName.toLowerCase() !== icName.toLowerCase() ? oocName : '')
+      : (icName && icName.toLowerCase() !== (oocName || '').toLowerCase() ? icName : '');
+
+    // Collapse the header on consecutive lines from the same speaker.
+    const prev = idx > 0 ? rows[idx - 1] : null;
+    const stacked = !!prev
+      && prev.user_id === m.user_id
+      && prev.in_character === m.in_character
+      && (prev.npc_id ?? null) === (m.npc_id ?? null);
+
+    const selectable = !readOnly && !m.consumed;
+    const showActions = !readOnly && actionsFor === m.id;
+    // Sealed lines from others keep their sealed frame but are always readable (no tap to reveal).
+    const sealedForOthers = !readOnly && !!m.selected && !m.consumed && !ownsLine && !card && !diceRoll && editingMessageId !== m.id;
+    const readerNames = showActions
+      ? (partyMembers || [])
+          .filter(pm => isNpc || pm.user_id !== m.user_id)
+          .filter(pm => {
+            const seenAt = readReceipts?.[pm.user_id];
+            return !!seenAt && seenAt >= m.created_at;
+          })
+          .map(pm => pm.character_name)
+      : [];
+
+    return (
+      <div
+        key={m.id}
+        ref={(el) => { if (messageRefs) messageRefs.current[m.id] = el; }}
+        onTouchStart={readOnly ? undefined : onRowTouchStart(m.id)}
+        onTouchMove={readOnly ? undefined : onRowTouchMove}
+        onTouchEnd={readOnly ? undefined : onRowTouchEnd(m)}
+        onTouchCancel={readOnly ? undefined : () => { swipeStart.current = null; setSwipeId(null); setSwipeX(0); }}
+        className={cn(
+          "relative flex items-end gap-1.5",
+          stacked ? "mt-[3px]" : "mt-2 first:mt-0",
+          alignRight ? "flex-row-reverse" : "flex-row",
+        )}
+        style={{
+          touchAction: 'pan-y',
+          transform: swipeId === m.id && swipeX > 0 ? `translateX(${swipeX}px)` : undefined,
+          transition: swipeId === m.id ? 'none' : 'transform 160ms ease-out',
+        }}
+      >
+        {swipeId === m.id && swipeX > 8 && (
+          <span
+            aria-hidden="true"
+            className="absolute left-[-34px] top-1/2 -translate-y-1/2 flex items-center justify-center w-7 h-7 rounded-full bg-amber-500/20 text-amber-300"
+            style={{ opacity: Math.min(swipeX / SWIPE_TRIGGER, 1) }}
+          >
+            <CornerUpLeft className="w-4 h-4" />
+          </span>
+        )}
+        {speakingPortrait ? null : stacked ? (
+          <span className="shrink-0 w-10" />
+        ) : (
+          <ChatAvatar
+            url={avatarUrl}
+            label={primaryName}
+            kind={m.in_character ? 'ic' : 'ooc'}
+            editable={!readOnly && isSelf && !!onUploadAvatar}
+            onPick={(file) => setCropTarget({ kind: m.in_character ? 'ic' : 'ooc', file })}
+            active={modeMatch}
+            presence={presence}
+          />
+        )}
+
+        <div className={cn("min-w-0", speakingPortrait ? "w-[88%] max-w-[360px]" : "max-w-[78%]", alignRight ? "items-end" : "items-start", "flex flex-col")}>
+          {!stacked && (
+            <div className={cn(
+              "flex items-baseline gap-1.5 mb-0.5 px-1",
+              alignRight && "flex-row-reverse",
+            )}>
+              <span className={cn("font-body text-[12px] font-semibold truncate", nameColor)}>
+                {primaryName}
+              </span>
+              {secondaryName && (
+                <span className="font-body text-[10px] text-white/35 truncate">
+                  {secondaryName}
+                </span>
+              )}
+              {!m.in_character && (
+                <span className="font-body text-[10px] px-1.5 py-[1px] rounded-full shrink-0 bg-sky-500/15 text-sky-200/80 border border-sky-400/25">
+                  table
+                </span>
+              )}
+              {isNpc && (
+                <span className="font-body text-[10px] px-1.5 py-[1px] rounded-full shrink-0 bg-amber-500/15 text-amber-200/90 border border-amber-400/30">
+                  NPC
+                </span>
+              )}
+              {/* Live NPCs v3: the mood this line was said in. */}
+              {isNpc && (() => {
+                const mood = npcMoodOf(m.npc_mood);
+                return mood ? (
+                  <span className="shrink-0 text-[13px] leading-none" role="img" aria-label={`${m.character_name || 'The NPC'} looks ${mood.label.toLowerCase()}`} title={mood.label}>
+                    {mood.emoji}
+                  </span>
+                ) : null;
+              })()}
+            </div>
+          )}
+
+          {card ? (
+            <QuickActionLine
+              card={card}
+              actorName={icName}
+              nameClass={nameColor}
+              isSelf={isSelf}
+              alignRight={alignRight}
+            />
+          ) : diceRoll ? (
+            <button
+              onClick={readOnly ? undefined : () => setActionsFor(showActions ? null : m.id)}
+              style={{ ...PILL(homePillPlaque.url), touchAction: 'manipulation' }}
+              className={cn(
+                "inline-flex items-center gap-1.5 max-w-full whitespace-nowrap text-xs text-amber-50 active:scale-[0.98] transition-transform",
+                m.selected && "drop-shadow-[0_0_6px_rgba(52,211,153,0.8)]",
+                !modeMatch && "opacity-40",
+              )}
+            >
+              <img src={glyphD20Asset.url} alt="" className="w-3.5 h-3.5 shrink-0" />
+              <span className="font-cinzel">{diceRoll.label}</span>
+              <span className="opacity-50">·</span>
+              {diceRoll.rolls.map((r, i) => (
+                <span key={i} className={cn(r.dropped && "line-through opacity-40")}>{r.value}</span>
+              ))}
+              {diceRoll.modifier && <span>{diceRoll.modifier}</span>}
+              <span className="opacity-50">=</span>
+              <span className="font-cinzel text-[15px] text-white">{diceRoll.total}</span>
+              {diceRoll.crit === 'nat20' && (
+                <span className="text-[9px] font-semibold tracking-wider text-amber-300">NAT 20</span>
+              )}
+              {diceRoll.crit === 'nat1' && (
+                <span className="text-[9px] font-semibold tracking-wider text-red-400">NAT 1</span>
+              )}
+              {!readOnly && m.consumed && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+            </button>
+          ) : editingMessageId === m.id ? (
+            <div className="w-full space-y-1.5 text-left">
+              <textarea
+                value={editDraft}
+                onChange={(e) => setEditDraft(e.target.value)}
+                rows={3}
+                autoFocus
+                className="w-full font-body rounded-xl bg-black/40 border border-emerald-500/40 px-3 py-2 text-[15px] text-white/90 outline-none focus:border-emerald-400/70 resize-y"
+              />
+              <div className="flex items-center gap-2 justify-end">
+                <button
+                  onClick={() => { setEditingMessageId(null); setEditDraft(''); }}
+                  className="font-body px-3 py-1.5 rounded-lg text-[13px] bg-white/5 text-white/60 min-h-[36px]"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    const next = editDraft.trim();
+                    const shown = npcRoll ? npcRoll.body : parsedReply.body;
+                    if (!next || next === shown.trim()) { setEditingMessageId(null); return; }
+                    // v2: an NPC's roll request stays on the line when the host edits its words.
+                    await onEditMessage?.(m.id, formatReply(parsedReply.replyToId, npcRoll ? keepNpcRoll(next, parsedReply.body) : next));
+                    setEditingMessageId(null);
+                    setEditDraft('');
+                  }}
+                  disabled={!editDraft.trim()}
+                  className="font-body px-3 py-1.5 rounded-lg text-[13px] bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 disabled:opacity-40 min-h-[36px]"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : (() => {
+            const bubble = (
+            <Button
+              variant="ghost"
+              onClick={readOnly ? undefined : () => setActionsFor(showActions ? null : m.id)}
+              style={{ touchAction: 'manipulation', ...(speakingPortrait ? { borderImageSource: `url(${speechBorderArt})` } : {}) }}
+              className={cn(
+                "relative isolate block h-auto whitespace-normal text-left transition-colors max-w-full min-w-0",
+                speakingPortrait ? "chat-speech-frame" : "overflow-hidden rounded-2xl border px-2.5 py-1.5",
+                !speakingPortrait && (alignRight ? "rounded-br-md" : "rounded-bl-md"),
+                !speakingPortrait && (isNpc
+                  ? (modeMatch ? "bg-amber-950/50 border-amber-300/45" : "bg-amber-950/10 border-amber-300/10")
+                  : m.in_character
+                  ? (isSelf
+                      ? (modeMatch ? "bg-amber-500/25 border-amber-400/50" : "bg-amber-500/[0.06] border-amber-400/10")
+                      : (modeMatch ? "bg-white/[0.12] border-white/25" : "bg-white/[0.02] border-white/[0.05]"))
+                  : (modeMatch
+                      ? "bg-sky-500/[0.16] border-sky-300/90 border-dashed ring-1 ring-sky-400/35"
+                      : "bg-sky-500/[0.03] border-sky-400/10 border-dashed")),
+                speakingPortrait && !modeMatch && "chat-speech-muted",
+                m.selected && "ring-2 ring-emerald-400/70",
+                imageUrl && "p-1",
+              )}
+            >
+              {avatarUrl && !imageUrl && !speakingPortrait ? (
+                /* Full clarity: no blur, no scrim. Legibility is carried
+                   entirely by the text shadow stack on the paragraph below.
+                   IC and table talk resolve to different avatar slots, so the
+                   picture itself says which mode the message was sent in.
+                   bg-top keeps faces in frame rather than centring on a
+                   portrait's chest. */
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "absolute inset-0 -z-10 bg-cover bg-top transition-opacity duration-200",
+                    modeMatch ? "opacity-100" : "opacity-20"
+                  )}
+                  style={{ backgroundImage: `url(${avatarUrl})` }}
+                />
+              ) : !imageUrl && !speakingPortrait ? (
+                /* No uploaded picture: fall back to the speaker's own colour so
+                   they are still distinguishable from everyone else. */
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "absolute inset-0 -z-10 transition-opacity duration-200",
+                    modeMatch ? "opacity-20" : "opacity-[0.04]",
+                    isNpc ? 'bg-amber-600' : playerTint(m.user_id)
+                  )}
+                />
+              ) : null}
+
+              {/* Sent to the DM: a giant green check behind the words but
+                  above the background picture. It fades with the mode
+                  toggle like everything else. */}
+              {!readOnly && m.consumed && !imageUrl && (
+                <Check
+                  aria-hidden="true"
+                  strokeWidth={2.5}
+                  className={cn(
+                    // Scales with the bubble (up to a cap) so it stays
+                    // obvious even on tall multi-line messages.
+                    "absolute inset-0 m-auto w-[min(80%,140px)] h-[min(80%,140px)] min-w-9 min-h-9 text-emerald-400 pointer-events-none transition-opacity duration-200",
+                    modeMatch ? "opacity-80" : "opacity-25",
+                  )}
+                />
+              )}
+
+              {parsedReply.replyToId && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); if (!readOnly) jumpToMessage(parsedReply.replyToId!); }}
+                  className="relative block w-full min-w-0 max-w-full mb-1.5 pl-2 border-l-2 border-amber-400/60 text-left cursor-pointer overflow-hidden"
+                >
+                  <span className="block font-body text-[11px] font-semibold text-amber-300/90 truncate">
+                    {quoted?.character_name || 'Deleted message'}
+                  </span>
+                  <span className="block font-body text-[11px] text-white/50 truncate">
+                    {quoted ? quotePreview(quoted.content) : 'This message is no longer here'}
+                  </span>
+                </span>
+              )}
+
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt="Shared image"
+                  loading="lazy"
+                  onClick={(e) => { e.stopPropagation(); if (!readOnly) setViewingImage(imageUrl); }}
+                  className={cn(
+                    "relative block rounded-xl max-h-[260px] w-auto max-w-full object-contain cursor-zoom-in transition-opacity duration-200",
+                    modeMatch ? "opacity-100" : "opacity-30",
+                  )}
+                />
+              ) : (
+                <p
+                  className={cn(
+                    "relative font-body font-medium whitespace-pre-wrap break-words [overflow-wrap:anywhere] transition-colors duration-200",
+                    speakingPortrait
+                      ? cn("text-foreground leading-[1.5]", speechLength <= 80 ? "text-[20px]" : speechLength <= 240 ? "text-[17px]" : "text-[15px]")
+                      : cn("text-[13.5px] leading-[1.32]", modeMatch ? "text-white" : "text-white/45"),
+                  )}
+                  style={{
+                    ...(avatarUrl && !imageUrl && !speakingPortrait ? {
+                      textShadow: [
+                        '0 0 1px rgba(0,0,0,1)',
+                        '0 0 2px rgba(0,0,0,1)',
+                        '0 0 3px rgba(0,0,0,1)',
+                        '0 1px 2px rgba(0,0,0,1)',
+                        '0 0 8px rgba(0,0,0,0.95)',
+                        '0 0 16px rgba(0,0,0,0.9)',
+                        '0 0 28px rgba(0,0,0,0.75)',
+                      ].join(', '),
+                    } : {}),
+                    // Thin light outline on the letters of active-mode text only.
+                    ...(modeMatch && !speakingPortrait ? { WebkitTextStroke: '0.4px rgba(255,255,255,0.6)' } : {}),
+                  }}
+                >
+                  {npcRoll ? npcRoll.body : parsedReply.body}
+                </p>
+              )}
+
+              {/* Same sent check for shared pictures — drawn on top of
+                  the image so it stays visible. */}
+              {!readOnly && m.consumed && imageUrl && (
+                <Check
+                  aria-hidden="true"
+                  strokeWidth={2.5}
+                  className={cn(
+                    "absolute inset-0 m-auto w-[min(80%,140px)] h-[min(80%,140px)] min-w-9 min-h-9 text-emerald-400 pointer-events-none transition-opacity duration-200",
+                    modeMatch ? "opacity-80" : "opacity-25",
+                  )}
+                />
+              )}
+
+              {speakingPortrait && <img src={speechTailArt} alt="" aria-hidden="true" width={108} height={81} loading="lazy" className="chat-speech-tail" />}
+            </Button>
+            );
+
+            return sealedForOthers ? (
+              <div className="relative mx-4 mt-6 mb-4">
+                {bubble}
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-[18px] z-10"
+                  style={{ borderStyle: 'solid', borderWidth: 40, borderImage: `url(${sealedBorderArt}) 128 / 40px stretch` }}
+                />
+              </div>
+            ) : bubble;
+          })()}
+
+          {speakingPortrait && editingMessageId !== m.id && (
+            <Button
+              variant="ghost"
+              aria-label={`View ${primaryName}'s portrait`}
+              onClick={() => { if (avatarUrl && !readOnly) setViewingImage(avatarUrl); }}
+              className={cn("chat-speaking-portrait h-auto p-0 hover:bg-transparent", !modeMatch && "opacity-40")}
+              style={{ touchAction: 'manipulation' }}
+            >
+              <img src={avatarUrl} alt={`${primaryName}'s full portrait`} loading="lazy" className="block w-full h-auto max-h-[300px] object-contain" />
+            </Button>
+          )}
+
+          {/* v2: the roll this NPC asked for. Only the named player gets the button. */}
+          {npcRoll?.roll && (() => {
+            const request = npcRoll.roll;
+            const mine = request.to === currentUserId;
+            const rolled = rolledNpcLineIds.has(m.id);
+            const label = rollButtonLabel(request);
+            return (
+              <div className="mt-1 px-1 flex">
+                {!readOnly && mine && !rolled && !m.consumed && onNpcRoll ? (
+                  <button
+                    type="button"
+                    disabled={rollingLineId === m.id}
+                    onClick={async () => {
+                      setRollingLineId(m.id);
+                      try { await onNpcRoll(m.id, m.npc_id ?? null, request); } finally { setRollingLineId(null); }
+                    }}
+                    aria-label={`Roll ${label} for ${m.character_name || 'the NPC'}`}
+                    style={{ touchAction: 'manipulation' }}
+                    className="inline-flex items-center gap-1.5 min-h-[40px] rounded-full border border-amber-400/60 bg-gradient-to-b from-amber-500/30 to-amber-700/30 px-3.5 font-cinzel text-[12px] font-bold tracking-wide text-amber-100 shadow-[0_0_8px_rgba(245,158,11,0.35)] active:scale-95 transition-transform disabled:opacity-50"
+                  >
+                    {rollingLineId === m.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Dices className="w-4 h-4" />}
+                    Roll {label}
+                  </button>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 min-h-[28px] rounded-full border border-white/10 bg-black/40 px-2.5 font-body text-[11px] text-white/60">
+                    <Dices className="w-3.5 h-3.5 text-amber-300/70" />
+                    {mine ? (rolled ? `You rolled ${label}` : label) : `${request.name}: ${label}${rolled ? ' · rolled' : ''}`}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
+
+          {!readOnly && (selectable || m.consumed || showActions) && (
+            <div className={cn(
+              "flex items-center gap-1.5 mt-1 px-1",
+              alignRight && "flex-row-reverse",
+            )}>
+              {selectable ? (
+                <button
+                  type="button"
+                  onClick={() => onToggleSelected(m.id)}
+                  role="checkbox"
+                  aria-checked={!!m.selected}
+                  aria-label={m.selected ? 'Unseal this line. It will not go to the DM.' : 'Seal this line for the DM. The host sends sealed lines to the DM.'}
+                  style={{ touchAction: 'manipulation' }}
+                  className={cn(
+                    "relative shrink-0 inline-flex items-center gap-1.5 min-h-[32px] rounded-full border pl-1 pr-3 py-1 font-cinzel text-[11px] tracking-wide transition-all duration-150 active:scale-95",
+                    m.selected
+                      ? "border-emerald-400/70 bg-gradient-to-b from-[#0f3d22] to-[#062014] text-emerald-50 shadow-[0_0_10px_rgba(52,211,153,0.45)]"
+                      : "border-amber-500/45 bg-black/55 text-amber-200/85",
+                  )}
+                >
+                  {m.id === nudgeMessageId && (
+                    <span aria-hidden className="pointer-events-none absolute -inset-1 rounded-full ring-2 ring-amber-400/60 motion-safe:animate-pulse" />
+                  )}
+                  <motion.span
+                    key={m.selected ? 'sealed' : 'open'}
+                    initial={{ scale: 1.35 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 18 }}
+                    className="shrink-0"
+                  >
+                    {m.selected ? (
+                      SEAL_SEALED_ART ? (
+                        <img src={SEAL_SEALED_ART} alt="" draggable={false} className="h-6 w-6 shrink-0 object-contain drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]" />
+                      ) : (
+                        <Stamp className="h-6 w-6 shrink-0 text-emerald-300" />
+                      )
+                    ) : SEAL_OPEN_ART ? (
+                      <img src={SEAL_OPEN_ART} alt="" draggable={false} className="h-6 w-6 shrink-0 object-contain" />
+                    ) : (
+                      <Stamp className="h-6 w-6 shrink-0 text-amber-300/80" />
+                    )}
+                  </motion.span>
+                  {m.selected ? 'Sealed for DM' : 'Seal for DM'}
+                </button>
+              ) : (
+                <span className="font-body shrink-0 flex items-center gap-1 text-[10px] text-emerald-300/50">
+                  <Check className="w-3 h-3" /> delivered
+                </span>
+              )}
+
+              {showActions && (
+                <>
+                  <button
+                    onClick={() => setPickerFor(pickerFor === m.id ? null : m.id)}
+                    className="p-1 text-white/40 active:text-amber-300"
+                    style={{ touchAction: 'manipulation' }}
+                    aria-label="Add reaction"
+                  >
+                    <Smile className="w-4 h-4" />
+                  </button>
+                  {isNpc && canManageNpcs && !m.consumed && parsedReply.replyToId && onRegenerateNpcLine && (
+                    <button
+                      onClick={() => { onRegenerateNpcLine(m.id, m.npc_id ?? null); setActionsFor(null); }}
+                      className="p-1 text-white/40 active:text-amber-300"
+                      style={{ touchAction: 'manipulation' }}
+                      aria-label={`Ask ${m.character_name || 'the NPC'} for a new answer`}
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
+                  )}
+                  {canChange && !card && onEditMessage && (
+                    <button
+                      onClick={() => {
+                        setEditingMessageId(editingMessageId === m.id ? null : m.id);
+                        setEditDraft(npcRoll ? npcRoll.body : parsedReply.body);
+                        setActionsFor(null);
+                      }}
+                      className="p-1 text-white/40 active:text-emerald-300"
+                      style={{ touchAction: 'manipulation' }}
+                      aria-label="Edit message"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  )}
+                  {canChange && (
+                    <button
+                      onClick={() => onDeleteMessage(m.id)}
+                      className="p-1 text-white/40 active:text-red-400"
+                      style={{ touchAction: 'manipulation' }}
+                      aria-label="Delete message"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </>
+              )}
+              {showActions && (partyMembers?.length || 0) > 0 && (
+                <span className="font-body text-[10px] text-white/35 truncate min-w-0">
+                  {readerNames.length === 0
+                    ? 'Not seen yet'
+                    : readerNames.length === (partyMembers!.length - 1)
+                      ? 'Seen by everyone'
+                      : `Seen by ${readerNames.join(', ')}`}
+                </span>
+              )}
+            </div>
+          )}
+
+          {Object.keys(grouped).length > 0 && (
+            <div className={cn("flex flex-wrap gap-1 mt-1", alignRight && "justify-end")}>
+              {Object.entries(grouped).map(([emoji, list]) => {
+                const mine = list.some(r => r.user_id === currentUserId);
+                return (
+                  <button
+                    key={emoji}
+                    onClick={readOnly ? undefined : () => onToggleReaction(m.id, emoji)}
+                    disabled={readOnly}
+                    className={cn(
+                      "font-body px-2 py-0.5 rounded-full text-[12px] border transition-colors",
+                      mine
+                        ? "bg-amber-900/40 border-amber-500/40 text-amber-200"
+                        : "bg-white/5 border-white/10 text-white/60"
+                    )}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    {emoji} {list.length}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {!readOnly && pickerFor === m.id && (
+            <div className="mt-1.5 grid grid-cols-9 gap-1 p-1.5 rounded-xl bg-black/60 border border-white/10">
+              {EMOJI_SET.map(e => (
+                <button
+                  key={e}
+                  onClick={() => { onToggleReaction(m.id, e); setPickerFor(null); }}
+                  className="text-base leading-none py-1.5 rounded active:bg-white/10"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  })}
+    </>
+  );
+}
+
 export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawerProps>(function RoundChatDrawer({
   initialOpen = false,
   partyId,
@@ -818,6 +1504,21 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
     }
   }, [onUploadImage, uploadingImage, onSend, inCharacter]);
 
+  // Only the visible list is filtered: sent lines, and lines in flight to the DM, leave the table.
+  // The full messages array still drives every round, selection and reply rule.
+  const visibleRows = useMemo(
+    () => messages.filter(m => !m.consumed && !(isGenerating && m.selected)),
+    [messages, isGenerating],
+  );
+  const listProps: RoundChatMessageListProps = {
+    rows: visibleRows, allMessages: messages, reactions, currentUserId, avatars, oocNames, npcs, inCharacter,
+    onlineStatus, sharedReady, sharedIds, actionsFor, setActionsFor, editingMessageId, setEditingMessageId,
+    editDraft, setEditDraft, partyMembers, readReceipts, messageRefs, onRowTouchStart, onRowTouchMove, onRowTouchEnd,
+    swipeStart, swipeId, setSwipeId, swipeX, setSwipeX, onUploadAvatar, setCropTarget, jumpToMessage, setViewingImage,
+    onEditMessage, rolledNpcLineIds, rollingLineId, setRollingLineId, onNpcRoll, onToggleSelected, nudgeMessageId,
+    pickerFor, setPickerFor, onRegenerateNpcLine, canManageNpcs, onDeleteMessage, onToggleReaction,
+  };
+
   return (
     <div className={cn(
       "relative border-t border-amber-900/30 bg-gradient-to-b from-amber-950/25 to-black/40 overflow-hidden",
@@ -1018,7 +1719,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                 )}
                 style={fullScreen ? undefined : { maxHeight: '38vh' }}
               >
-                {messages.length === 0 ? (
+                {visibleRows.length === 0 ? (
                   <div className="py-4 px-3 text-center space-y-2">
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
                       <MessageSquare className="w-3 h-3 text-amber-300/80" />
@@ -1035,570 +1736,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                       {triggerHint}
                     </p>
                   </div>
-                ) : messages.map((m, idx) => {
-                  const isNpc = !!m.npc_id;
-                  const npc = isNpc ? npcById.get(m.npc_id as string) : undefined;
-                  const isSelf = !isNpc && m.user_id === currentUserId;
-                  const { card, body } = parseActionCard(m.content);
-                  const parsedReply = parseReply(body);
-                  // v2: an NPC line may end with a roll request; it is shown as a button, not text.
-                  const npcRoll = isNpc && !card ? parseNpcRoll(parsedReply.body) : null;
-                  const diceRoll = !card ? parseDiceRoll(parsedReply.body) : null;
-                  const quoted = parsedReply.replyToId
-                    ? messages.find(mm => mm.id === parsedReply.replyToId)
-                    : null;
-                  const ownsLine = isSelf || (isNpc && !!quoted && !quoted.npc_id && quoted.user_id === currentUserId);
-                  const canChange = (isSelf || (isNpc && canManageNpcs)) && !m.consumed;
-                  const imageMatch = parsedReply.body.match(CHAT_IMAGE_REGEX);
-                  const imageUrl = imageMatch ? imageMatch[1] : null;
-                  const msgReactions = reactionsByMessage.get(m.id) || [];
-                  const grouped = msgReactions.reduce<Record<string, RoundChatReaction[]>>((acc, r) => {
-                    (acc[r.emoji] ||= []).push(r);
-                    return acc;
-                  }, {});
-                  const nameColor = isNpc ? 'text-amber-200' : m.in_character ? playerColor(m.user_id) : 'text-sky-300/90';
-                  // Placement follows the mode, not the sender: every in-character
-                  // line (yours included) sits on the right, every table-talk
-                  // line on the left. NPC lines sit on the left, facing the party.
-                  const alignRight = m.in_character && !isNpc;
-                  const avatarUrl = isNpc
-                    ? (npc?.portrait_url || undefined)
-                    : m.in_character
-                      ? avatars?.[m.user_id]?.ic
-                      : avatars?.[m.user_id]?.ooc;
-                  const speakingPortrait = !!avatarUrl && m.in_character && !card && !diceRoll && !imageUrl;
-                  const speechLength = (npcRoll ? npcRoll.body : parsedReply.body).length;
-                  const modeMatch = m.in_character === inCharacter;
-                  const presenceInfo = onlineStatus[m.user_id];
-                  const presence = isNpc ? undefined : sharedReady
-                    ? (sharedIds.has(m.user_id) ? 'online' as const : 'offline' as const)
-                    : presenceInfo
-                      ? (presenceInfo.isOnline ? 'online' as const : 'offline' as const)
-                      : undefined;
-
-                  // Alter-ego line: who is speaking, and who is playing them.
-                  const icName = (m.character_name || 'Player').trim();
-                  const oocName = isNpc ? '' : ((oocNames?.[m.user_id]) || '').trim();
-                  const primaryName = m.in_character ? icName : (oocName || icName);
-                  const secondaryName = m.in_character
-                    ? (oocName && oocName.toLowerCase() !== icName.toLowerCase() ? oocName : '')
-                    : (icName && icName.toLowerCase() !== (oocName || '').toLowerCase() ? icName : '');
-
-                  // Collapse the header on consecutive lines from the same speaker.
-                  const prev = idx > 0 ? messages[idx - 1] : null;
-                  const stacked = !!prev
-                    && prev.user_id === m.user_id
-                    && prev.in_character === m.in_character
-                    && (prev.npc_id ?? null) === (m.npc_id ?? null);
-
-                  const selectable = !m.consumed;
-                  const showActions = actionsFor === m.id;
-                  // Sealed lines from others keep their sealed frame but are always readable (no tap to reveal).
-                  const sealedForOthers = !!m.selected && !m.consumed && !ownsLine && !card && !diceRoll && editingMessageId !== m.id;
-                  const readerNames = showActions
-                    ? (partyMembers || [])
-                        .filter(pm => isNpc || pm.user_id !== m.user_id)
-                        .filter(pm => {
-                          const seenAt = readReceipts?.[pm.user_id];
-                          return !!seenAt && seenAt >= m.created_at;
-                        })
-                        .map(pm => pm.character_name)
-                    : [];
-
-                  return (
-                    <div
-                      key={m.id}
-                      ref={(el) => { messageRefs.current[m.id] = el; }}
-                      onTouchStart={onRowTouchStart(m.id)}
-                      onTouchMove={onRowTouchMove}
-                      onTouchEnd={onRowTouchEnd(m)}
-                      onTouchCancel={() => { swipeStart.current = null; setSwipeId(null); setSwipeX(0); }}
-                      className={cn(
-                        "relative flex items-end gap-1.5",
-                        stacked ? "mt-[3px]" : "mt-2 first:mt-0",
-                        alignRight ? "flex-row-reverse" : "flex-row",
-                      )}
-                      style={{
-                        touchAction: 'pan-y',
-                        transform: swipeId === m.id && swipeX > 0 ? `translateX(${swipeX}px)` : undefined,
-                        transition: swipeId === m.id ? 'none' : 'transform 160ms ease-out',
-                      }}
-                    >
-                      {swipeId === m.id && swipeX > 8 && (
-                        <span
-                          aria-hidden="true"
-                          className="absolute left-[-34px] top-1/2 -translate-y-1/2 flex items-center justify-center w-7 h-7 rounded-full bg-amber-500/20 text-amber-300"
-                          style={{ opacity: Math.min(swipeX / SWIPE_TRIGGER, 1) }}
-                        >
-                          <CornerUpLeft className="w-4 h-4" />
-                        </span>
-                      )}
-                      {speakingPortrait ? null : stacked ? (
-                        <span className="shrink-0 w-10" />
-                      ) : (
-                        <ChatAvatar
-                          url={avatarUrl}
-                          label={primaryName}
-                          kind={m.in_character ? 'ic' : 'ooc'}
-                          editable={isSelf && !!onUploadAvatar}
-                          onPick={(file) => setCropTarget({ kind: m.in_character ? 'ic' : 'ooc', file })}
-                          active={modeMatch}
-                          presence={presence}
-                        />
-                      )}
-
-                      <div className={cn("min-w-0", speakingPortrait ? "w-[88%] max-w-[360px]" : "max-w-[78%]", alignRight ? "items-end" : "items-start", "flex flex-col")}>
-                        {!stacked && (
-                          <div className={cn(
-                            "flex items-baseline gap-1.5 mb-0.5 px-1",
-                            alignRight && "flex-row-reverse",
-                          )}>
-                            <span className={cn("font-body text-[12px] font-semibold truncate", nameColor)}>
-                              {primaryName}
-                            </span>
-                            {secondaryName && (
-                              <span className="font-body text-[10px] text-white/35 truncate">
-                                {secondaryName}
-                              </span>
-                            )}
-                            {!m.in_character && (
-                              <span className="font-body text-[10px] px-1.5 py-[1px] rounded-full shrink-0 bg-sky-500/15 text-sky-200/80 border border-sky-400/25">
-                                table
-                              </span>
-                            )}
-                            {isNpc && (
-                              <span className="font-body text-[10px] px-1.5 py-[1px] rounded-full shrink-0 bg-amber-500/15 text-amber-200/90 border border-amber-400/30">
-                                NPC
-                              </span>
-                            )}
-                            {/* Live NPCs v3: the mood this line was said in. */}
-                            {isNpc && (() => {
-                              const mood = npcMoodOf(m.npc_mood);
-                              return mood ? (
-                                <span className="shrink-0 text-[13px] leading-none" role="img" aria-label={`${m.character_name || 'The NPC'} looks ${mood.label.toLowerCase()}`} title={mood.label}>
-                                  {mood.emoji}
-                                </span>
-                              ) : null;
-                            })()}
-                          </div>
-                        )}
-
-                        {card ? (
-                          <QuickActionLine
-                            card={card}
-                            actorName={icName}
-                            nameClass={nameColor}
-                            isSelf={isSelf}
-                            alignRight={alignRight}
-                          />
-                        ) : diceRoll ? (
-                          <button
-                            onClick={() => setActionsFor(showActions ? null : m.id)}
-                            style={{ ...PILL(homePillPlaque.url), touchAction: 'manipulation' }}
-                            className={cn(
-                              "inline-flex items-center gap-1.5 max-w-full whitespace-nowrap text-xs text-amber-50 active:scale-[0.98] transition-transform",
-                              m.selected && "drop-shadow-[0_0_6px_rgba(52,211,153,0.8)]",
-                              !modeMatch && "opacity-40",
-                            )}
-                          >
-                            <img src={glyphD20Asset.url} alt="" className="w-3.5 h-3.5 shrink-0" />
-                            <span className="font-cinzel">{diceRoll.label}</span>
-                            <span className="opacity-50">·</span>
-                            {diceRoll.rolls.map((r, i) => (
-                              <span key={i} className={cn(r.dropped && "line-through opacity-40")}>{r.value}</span>
-                            ))}
-                            {diceRoll.modifier && <span>{diceRoll.modifier}</span>}
-                            <span className="opacity-50">=</span>
-                            <span className="font-cinzel text-[15px] text-white">{diceRoll.total}</span>
-                            {diceRoll.crit === 'nat20' && (
-                              <span className="text-[9px] font-semibold tracking-wider text-amber-300">NAT 20</span>
-                            )}
-                            {diceRoll.crit === 'nat1' && (
-                              <span className="text-[9px] font-semibold tracking-wider text-red-400">NAT 1</span>
-                            )}
-                            {m.consumed && <Check className="w-3.5 h-3.5 text-emerald-400" />}
-                          </button>
-                        ) : editingMessageId === m.id ? (
-                          <div className="w-full space-y-1.5 text-left">
-                            <textarea
-                              value={editDraft}
-                              onChange={(e) => setEditDraft(e.target.value)}
-                              rows={3}
-                              autoFocus
-                              className="w-full font-body rounded-xl bg-black/40 border border-emerald-500/40 px-3 py-2 text-[15px] text-white/90 outline-none focus:border-emerald-400/70 resize-y"
-                            />
-                            <div className="flex items-center gap-2 justify-end">
-                              <button
-                                onClick={() => { setEditingMessageId(null); setEditDraft(''); }}
-                                className="font-body px-3 py-1.5 rounded-lg text-[13px] bg-white/5 text-white/60 min-h-[36px]"
-                                style={{ touchAction: 'manipulation' }}
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                onClick={async () => {
-                                  const next = editDraft.trim();
-                                  const shown = npcRoll ? npcRoll.body : parsedReply.body;
-                                  if (!next || next === shown.trim()) { setEditingMessageId(null); return; }
-                                  // v2: an NPC's roll request stays on the line when the host edits its words.
-                                  await onEditMessage?.(m.id, formatReply(parsedReply.replyToId, npcRoll ? keepNpcRoll(next, parsedReply.body) : next));
-                                  setEditingMessageId(null);
-                                  setEditDraft('');
-                                }}
-                                disabled={!editDraft.trim()}
-                                className="font-body px-3 py-1.5 rounded-lg text-[13px] bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 disabled:opacity-40 min-h-[36px]"
-                                style={{ touchAction: 'manipulation' }}
-                              >
-                                Save
-                              </button>
-                            </div>
-                          </div>
-                        ) : (() => {
-                          const bubble = (
-                          <Button
-                            variant="ghost"
-                            onClick={() => setActionsFor(showActions ? null : m.id)}
-                            style={{ touchAction: 'manipulation', ...(speakingPortrait ? { borderImageSource: `url(${speechBorderArt})` } : {}) }}
-                            className={cn(
-                              "relative isolate block h-auto whitespace-normal text-left transition-colors max-w-full min-w-0",
-                              speakingPortrait ? "chat-speech-frame" : "overflow-hidden rounded-2xl border px-2.5 py-1.5",
-                              !speakingPortrait && (alignRight ? "rounded-br-md" : "rounded-bl-md"),
-                              !speakingPortrait && (isNpc
-                                ? (modeMatch ? "bg-amber-950/50 border-amber-300/45" : "bg-amber-950/10 border-amber-300/10")
-                                : m.in_character
-                                ? (isSelf
-                                    ? (modeMatch ? "bg-amber-500/25 border-amber-400/50" : "bg-amber-500/[0.06] border-amber-400/10")
-                                    : (modeMatch ? "bg-white/[0.12] border-white/25" : "bg-white/[0.02] border-white/[0.05]"))
-                                : (modeMatch
-                                    ? "bg-sky-500/[0.16] border-sky-300/90 border-dashed ring-1 ring-sky-400/35"
-                                    : "bg-sky-500/[0.03] border-sky-400/10 border-dashed")),
-                              speakingPortrait && !modeMatch && "chat-speech-muted",
-                              m.selected && "ring-2 ring-emerald-400/70",
-                              imageUrl && "p-1",
-                            )}
-                          >
-                            {avatarUrl && !imageUrl && !speakingPortrait ? (
-                              /* Full clarity: no blur, no scrim. Legibility is carried
-                                 entirely by the text shadow stack on the paragraph below.
-                                 IC and table talk resolve to different avatar slots, so the
-                                 picture itself says which mode the message was sent in.
-                                 bg-top keeps faces in frame rather than centring on a
-                                 portrait's chest. */
-                              <span
-                                aria-hidden="true"
-                                className={cn(
-                                  "absolute inset-0 -z-10 bg-cover bg-top transition-opacity duration-200",
-                                  modeMatch ? "opacity-100" : "opacity-20"
-                                )}
-                                style={{ backgroundImage: `url(${avatarUrl})` }}
-                              />
-                            ) : !imageUrl && !speakingPortrait ? (
-                              /* No uploaded picture: fall back to the speaker's own colour so
-                                 they are still distinguishable from everyone else. */
-                              <span
-                                aria-hidden="true"
-                                className={cn(
-                                  "absolute inset-0 -z-10 transition-opacity duration-200",
-                                  modeMatch ? "opacity-20" : "opacity-[0.04]",
-                                  isNpc ? 'bg-amber-600' : playerTint(m.user_id)
-                                )}
-                              />
-                            ) : null}
-
-                            {/* Sent to the DM: a giant green check behind the words but
-                                above the background picture. It fades with the mode
-                                toggle like everything else. */}
-                            {m.consumed && !imageUrl && (
-                              <Check
-                                aria-hidden="true"
-                                strokeWidth={2.5}
-                                className={cn(
-                                  // Scales with the bubble (up to a cap) so it stays
-                                  // obvious even on tall multi-line messages.
-                                  "absolute inset-0 m-auto w-[min(80%,140px)] h-[min(80%,140px)] min-w-9 min-h-9 text-emerald-400 pointer-events-none transition-opacity duration-200",
-                                  modeMatch ? "opacity-80" : "opacity-25",
-                                )}
-                              />
-                            )}
-
-                            {parsedReply.replyToId && (
-                              <span
-                                role="button"
-                                tabIndex={0}
-                                onClick={(e) => { e.stopPropagation(); jumpToMessage(parsedReply.replyToId!); }}
-                                className="relative block w-full min-w-0 max-w-full mb-1.5 pl-2 border-l-2 border-amber-400/60 text-left cursor-pointer overflow-hidden"
-                              >
-                                <span className="block font-body text-[11px] font-semibold text-amber-300/90 truncate">
-                                  {quoted?.character_name || 'Deleted message'}
-                                </span>
-                                <span className="block font-body text-[11px] text-white/50 truncate">
-                                  {quoted ? quotePreview(quoted.content) : 'This message is no longer here'}
-                                </span>
-                              </span>
-                            )}
-
-                            {imageUrl ? (
-                              <img
-                                src={imageUrl}
-                                alt="Shared image"
-                                loading="lazy"
-                                onClick={(e) => { e.stopPropagation(); setViewingImage(imageUrl); }}
-                                className={cn(
-                                  "relative block rounded-xl max-h-[260px] w-auto max-w-full object-contain cursor-zoom-in transition-opacity duration-200",
-                                  modeMatch ? "opacity-100" : "opacity-30",
-                                )}
-                              />
-                            ) : (
-                              <p
-                                className={cn(
-                                  "relative font-body font-medium whitespace-pre-wrap break-words [overflow-wrap:anywhere] transition-colors duration-200",
-                                  speakingPortrait
-                                    ? cn("text-foreground leading-[1.5]", speechLength <= 80 ? "text-[20px]" : speechLength <= 240 ? "text-[17px]" : "text-[15px]")
-                                    : cn("text-[13.5px] leading-[1.32]", modeMatch ? "text-white" : "text-white/45"),
-                                )}
-                                style={{
-                                  ...(avatarUrl && !imageUrl && !speakingPortrait ? {
-                                    textShadow: [
-                                      '0 0 1px rgba(0,0,0,1)',
-                                      '0 0 2px rgba(0,0,0,1)',
-                                      '0 0 3px rgba(0,0,0,1)',
-                                      '0 1px 2px rgba(0,0,0,1)',
-                                      '0 0 8px rgba(0,0,0,0.95)',
-                                      '0 0 16px rgba(0,0,0,0.9)',
-                                      '0 0 28px rgba(0,0,0,0.75)',
-                                    ].join(', '),
-                                  } : {}),
-                                  // Thin light outline on the letters of active-mode text only.
-                                  ...(modeMatch && !speakingPortrait ? { WebkitTextStroke: '0.4px rgba(255,255,255,0.6)' } : {}),
-                                }}
-                              >
-                                {npcRoll ? npcRoll.body : parsedReply.body}
-                              </p>
-                            )}
-
-                            {/* Same sent check for shared pictures — drawn on top of
-                                the image so it stays visible. */}
-                            {m.consumed && imageUrl && (
-                              <Check
-                                aria-hidden="true"
-                                strokeWidth={2.5}
-                                className={cn(
-                                  "absolute inset-0 m-auto w-[min(80%,140px)] h-[min(80%,140px)] min-w-9 min-h-9 text-emerald-400 pointer-events-none transition-opacity duration-200",
-                                  modeMatch ? "opacity-80" : "opacity-25",
-                                )}
-                              />
-                            )}
-
-                            {speakingPortrait && <img src={speechTailArt} alt="" aria-hidden="true" width={108} height={81} loading="lazy" className="chat-speech-tail" />}
-                          </Button>
-                          );
-
-                          return sealedForOthers ? (
-                            <div className="relative mx-4 mt-6 mb-4">
-                              {bubble}
-                              <span
-                                aria-hidden
-                                className="pointer-events-none absolute -inset-[18px] z-10"
-                                style={{ borderStyle: 'solid', borderWidth: 40, borderImage: `url(${sealedBorderArt}) 128 / 40px stretch` }}
-                              />
-                            </div>
-                          ) : bubble;
-                        })()}
-
-                        {speakingPortrait && editingMessageId !== m.id && (
-                          <Button
-                            variant="ghost"
-                            aria-label={`View ${primaryName}'s portrait`}
-                            onClick={() => { if (avatarUrl) setViewingImage(avatarUrl); }}
-                            className={cn("chat-speaking-portrait h-auto p-0 hover:bg-transparent", !modeMatch && "opacity-40")}
-                            style={{ touchAction: 'manipulation' }}
-                          >
-                            <img src={avatarUrl} alt={`${primaryName}'s full portrait`} loading="lazy" className="block w-full h-auto max-h-[300px] object-contain" />
-                          </Button>
-                        )}
-
-                        {/* v2: the roll this NPC asked for. Only the named player gets the button. */}
-                        {npcRoll?.roll && (() => {
-                          const request = npcRoll.roll;
-                          const mine = request.to === currentUserId;
-                          const rolled = rolledNpcLineIds.has(m.id);
-                          const label = rollButtonLabel(request);
-                          return (
-                            <div className="mt-1 px-1 flex">
-                              {mine && !rolled && !m.consumed && onNpcRoll ? (
-                                <button
-                                  type="button"
-                                  disabled={rollingLineId === m.id}
-                                  onClick={async () => {
-                                    setRollingLineId(m.id);
-                                    try { await onNpcRoll(m.id, m.npc_id ?? null, request); } finally { setRollingLineId(null); }
-                                  }}
-                                  aria-label={`Roll ${label} for ${m.character_name || 'the NPC'}`}
-                                  style={{ touchAction: 'manipulation' }}
-                                  className="inline-flex items-center gap-1.5 min-h-[40px] rounded-full border border-amber-400/60 bg-gradient-to-b from-amber-500/30 to-amber-700/30 px-3.5 font-cinzel text-[12px] font-bold tracking-wide text-amber-100 shadow-[0_0_8px_rgba(245,158,11,0.35)] active:scale-95 transition-transform disabled:opacity-50"
-                                >
-                                  {rollingLineId === m.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Dices className="w-4 h-4" />}
-                                  Roll {label}
-                                </button>
-                              ) : (
-                                <span className="inline-flex items-center gap-1.5 min-h-[28px] rounded-full border border-white/10 bg-black/40 px-2.5 font-body text-[11px] text-white/60">
-                                  <Dices className="w-3.5 h-3.5 text-amber-300/70" />
-                                  {mine ? (rolled ? `You rolled ${label}` : label) : `${request.name}: ${label}${rolled ? ' · rolled' : ''}`}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })()}
-
-                        {(selectable || m.consumed || showActions) && (
-                          <div className={cn(
-                            "flex items-center gap-1.5 mt-1 px-1",
-                            alignRight && "flex-row-reverse",
-                          )}>
-                            {selectable ? (
-                              <button
-                                type="button"
-                                onClick={() => onToggleSelected(m.id)}
-                                role="checkbox"
-                                aria-checked={!!m.selected}
-                                aria-label={m.selected ? 'Unseal this line. It will not go to the DM.' : 'Seal this line for the DM. The host sends sealed lines to the DM.'}
-                                style={{ touchAction: 'manipulation' }}
-                                className={cn(
-                                  "relative shrink-0 inline-flex items-center gap-1.5 min-h-[32px] rounded-full border pl-1 pr-3 py-1 font-cinzel text-[11px] tracking-wide transition-all duration-150 active:scale-95",
-                                  m.selected
-                                    ? "border-emerald-400/70 bg-gradient-to-b from-[#0f3d22] to-[#062014] text-emerald-50 shadow-[0_0_10px_rgba(52,211,153,0.45)]"
-                                    : "border-amber-500/45 bg-black/55 text-amber-200/85",
-                                )}
-                              >
-                                {m.id === nudgeMessageId && (
-                                  <span aria-hidden className="pointer-events-none absolute -inset-1 rounded-full ring-2 ring-amber-400/60 motion-safe:animate-pulse" />
-                                )}
-                                <motion.span
-                                  key={m.selected ? 'sealed' : 'open'}
-                                  initial={{ scale: 1.35 }}
-                                  animate={{ scale: 1 }}
-                                  transition={{ type: 'spring', stiffness: 500, damping: 18 }}
-                                  className="shrink-0"
-                                >
-                                  {m.selected ? (
-                                    SEAL_SEALED_ART ? (
-                                      <img src={SEAL_SEALED_ART} alt="" draggable={false} className="h-6 w-6 shrink-0 object-contain drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]" />
-                                    ) : (
-                                      <Stamp className="h-6 w-6 shrink-0 text-emerald-300" />
-                                    )
-                                  ) : SEAL_OPEN_ART ? (
-                                    <img src={SEAL_OPEN_ART} alt="" draggable={false} className="h-6 w-6 shrink-0 object-contain" />
-                                  ) : (
-                                    <Stamp className="h-6 w-6 shrink-0 text-amber-300/80" />
-                                  )}
-                                </motion.span>
-                                {m.selected ? 'Sealed for DM' : 'Seal for DM'}
-                              </button>
-                            ) : (
-                              <span className="font-body shrink-0 flex items-center gap-1 text-[10px] text-emerald-300/50">
-                                <Check className="w-3 h-3" /> delivered
-                              </span>
-                            )}
-
-                            {showActions && (
-                              <>
-                                <button
-                                  onClick={() => setPickerFor(pickerFor === m.id ? null : m.id)}
-                                  className="p-1 text-white/40 active:text-amber-300"
-                                  style={{ touchAction: 'manipulation' }}
-                                  aria-label="Add reaction"
-                                >
-                                  <Smile className="w-4 h-4" />
-                                </button>
-                                {isNpc && canManageNpcs && !m.consumed && parsedReply.replyToId && onRegenerateNpcLine && (
-                                  <button
-                                    onClick={() => { onRegenerateNpcLine(m.id, m.npc_id ?? null); setActionsFor(null); }}
-                                    className="p-1 text-white/40 active:text-amber-300"
-                                    style={{ touchAction: 'manipulation' }}
-                                    aria-label={`Ask ${m.character_name || 'the NPC'} for a new answer`}
-                                  >
-                                    <RefreshCw className="w-4 h-4" />
-                                  </button>
-                                )}
-                                {canChange && !card && onEditMessage && (
-                                  <button
-                                    onClick={() => {
-                                      setEditingMessageId(editingMessageId === m.id ? null : m.id);
-                                      setEditDraft(npcRoll ? npcRoll.body : parsedReply.body);
-                                      setActionsFor(null);
-                                    }}
-                                    className="p-1 text-white/40 active:text-emerald-300"
-                                    style={{ touchAction: 'manipulation' }}
-                                    aria-label="Edit message"
-                                  >
-                                    <Pencil className="w-4 h-4" />
-                                  </button>
-                                )}
-                                {canChange && (
-                                  <button
-                                    onClick={() => onDeleteMessage(m.id)}
-                                    className="p-1 text-white/40 active:text-red-400"
-                                    style={{ touchAction: 'manipulation' }}
-                                    aria-label="Delete message"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                )}
-                              </>
-                            )}
-                            {showActions && (partyMembers?.length || 0) > 0 && (
-                              <span className="font-body text-[10px] text-white/35 truncate min-w-0">
-                                {readerNames.length === 0
-                                  ? 'Not seen yet'
-                                  : readerNames.length === (partyMembers!.length - 1)
-                                    ? 'Seen by everyone'
-                                    : `Seen by ${readerNames.join(', ')}`}
-                              </span>
-                            )}
-                          </div>
-                        )}
-
-                        {Object.keys(grouped).length > 0 && (
-                          <div className={cn("flex flex-wrap gap-1 mt-1", alignRight && "justify-end")}>
-                            {Object.entries(grouped).map(([emoji, list]) => {
-                              const mine = list.some(r => r.user_id === currentUserId);
-                              return (
-                                <button
-                                  key={emoji}
-                                  onClick={() => onToggleReaction(m.id, emoji)}
-                                  className={cn(
-                                    "font-body px-2 py-0.5 rounded-full text-[12px] border transition-colors",
-                                    mine
-                                      ? "bg-amber-900/40 border-amber-500/40 text-amber-200"
-                                      : "bg-white/5 border-white/10 text-white/60"
-                                  )}
-                                  style={{ touchAction: 'manipulation' }}
-                                >
-                                  {emoji} {list.length}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {pickerFor === m.id && (
-                          <div className="mt-1.5 grid grid-cols-9 gap-1 p-1.5 rounded-xl bg-black/60 border border-white/10">
-                            {EMOJI_SET.map(e => (
-                              <button
-                                key={e}
-                                onClick={() => { onToggleReaction(m.id, e); setPickerFor(null); }}
-                                className="text-base leading-none py-1.5 rounded active:bg-white/10"
-                                style={{ touchAction: 'manipulation' }}
-                              >
-                                {e}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                ) : <RoundChatMessageList {...listProps} />}
                 {(npcThinking || []).map(t => (
                   <div key={t.key} className="mt-2 flex items-end gap-1.5" aria-live="polite">
                     <NpcPortrait url={npcById.get(t.npcId)?.portrait_url} name={t.name} className="w-10 h-10 text-[13px]" />
