@@ -414,6 +414,12 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     return anchored.ok ? OK : fail(anchored.error);
   }, [canWrite, settleTravel, serverNow, write]);
 
+  /** Private road-event upkeep. Sends only partyId + action; never awaited, never surfaced, failures mean "no event". */
+  const travelDirector = useCallback((action: 'plan' | 'sync' | 'cancel') => {
+    if (!partyId || !canWrite) return;
+    void supabase.functions.invoke('party-travel-director', { body: { partyId, action } }).catch(() => undefined);
+  }, [partyId, canWrite]);
+
   const pauseTravel = useCallback(async (): Promise<Result> => {
     const s = stateRef.current; const mid = activeMapIdRef.current;
     if (!canWrite) return fail('Only the party host can pause travel.');
@@ -426,8 +432,9 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     const live = travelDetail(frozen, touch.updatedAt);
     const next: CampaignMapState = { ...s, activeTravel: frozen, currentRoutePosition: { routeId: live.routeId, progress: live.forwardProgress } };
     const res = await write(mid, next);
+    if (res.ok) travelDirector('sync');
     return res.ok ? OK : fail(res.error);
-  }, [canWrite, settleTravel, write]);
+  }, [canWrite, settleTravel, write, travelDirector]);
 
   const resumeTravel = useCallback(async (): Promise<Result> => {
     const s = stateRef.current; const mid = activeMapIdRef.current;
@@ -438,26 +445,28 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     const first = await write(mid, staged);
     if (!first.ok) return fail(first.error);
     const res = await write(mid, { ...staged, activeTravel: { ...s.activeTravel, startedAt: first.updatedAt } });
+    if (res.ok && s.travelScale !== 'city') travelDirector('sync');
     return res.ok ? OK : fail(res.error);
-  }, [canWrite, write]);
+  }, [canWrite, write, travelDirector]);
 
   /** Stop here: the party stays at its current point on the road, and the clock keeps the time spent. */
   const cancelTravel = useCallback(async (): Promise<Result> => {
     const s = stateRef.current; const mid = activeMapIdRef.current;
     if (!canWrite) return fail('Only the party host can stop travel.');
-    if (!s?.activeTravel && s?.journeyPlan) { const n = { ...s }; delete n.journeyPlan; return (await write(mid, n)).ok ? OK : fail('The map could not be saved.'); }
+    if (!s?.activeTravel && s?.journeyPlan) { const n = { ...s }; delete n.journeyPlan; const r = await write(mid, n); if (r.ok) travelDirector('cancel'); return r.ok ? OK : fail('The map could not be saved.'); }
     if (!s?.activeTravel) return fail('The party is not traveling.');
     const touch = await write(mid, s);
     if (!touch.ok) return fail(touch.error);
     const settled = settleTravel(s, touch.updatedAt);
-    if (!settled.activeTravel) { const n = { ...settled }; delete n.journeyPlan; return (await write(mid, n)).ok ? OK : fail('The map could not be saved.'); }
+    if (!settled.activeTravel) { const n = { ...settled }; delete n.journeyPlan; const r = await write(mid, n); if (r.ok) travelDirector('cancel'); return r.ok ? OK : fail('The map could not be saved.'); }
     const live = travelDetail(s.activeTravel, touch.updatedAt);
     const next: CampaignMapState = { ...s, campaignMinute: live.campaignMinute, currentLocationId: null, currentRoutePosition: { routeId: live.routeId, progress: live.forwardProgress } };
     delete next.activeTravel;
     delete next.journeyPlan; // a stopped trip never resumes by surprise
     const res = await write(mid, next);
+    if (res.ok) travelDirector('cancel');
     return res.ok ? OK : fail(res.error);
-  }, [canWrite, settleTravel, write]);
+  }, [canWrite, settleTravel, write, travelDirector]);
 
   /** Host override: the leg ends now and the full remaining in-world time passes. */
   const finishTravelNow = useCallback(async (): Promise<Result> => {
@@ -467,13 +476,15 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
       const done = finishJourneyState(s, serverNow());
       if (typeof done === 'string') return fail(done);
       const r = await write(mid, done);
+      if (r.ok) travelDirector('cancel');
       return r.ok ? OK : fail(r.error);
     }
     if (!s?.activeTravel) return fail('The party is not traveling.');
     const done = settleTravel({ ...s, activeTravel: { ...s.activeTravel, startedAt: null, pausedFraction: 1 } }, serverNow());
     const res = await write(mid, done);
+    if (res.ok) travelDirector('cancel');
     return res.ok ? OK : fail(res.error);
-  }, [canWrite, settleTravel, serverNow, write]);
+  }, [canWrite, settleTravel, serverNow, write, travelDirector]);
 
   // ── multi-road journeys ──
   const planJourney = useCallback((destinationLocationId: string, pace?: TravelPace): { ok: true; plan: JourneyPlan; summary: JourneySummary } | { ok: false; error: string } => {
@@ -513,8 +524,11 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     if (destinationLocationId === base.currentLocationId) return fail('The party is already there.');
     const plan = planJourneyRoute(base, destinationLocationId, pace ?? base.defaultPace);
     if (!plan) return fail("There's no known road there yet.");
-    return launchTranche(mid, base, plan);
-  }, [canWrite, settleTravel, serverNow, launchTranche]);
+    const res = await launchTranche(mid, base, plan);
+    // One private planning decision per journey, only once travel has really started; overland only.
+    if (res.ok && base.travelScale !== 'city') travelDirector('plan');
+    return res;
+  }, [canWrite, settleTravel, serverNow, launchTranche, travelDirector]);
 
   /** Next travel day from the exact saved spot. Does not rest, heal, or change anything on the characters. */
   const continueJourney = useCallback(async (): Promise<Result> => {
@@ -523,8 +537,10 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     const base = settleTravel(stateRef.current ?? emptyCampaignMapState(), serverNow());
     if (base.activeTravel) return fail('The party is already traveling.');
     if (!base.journeyPlan) return fail('There is no journey to continue.');
-    return launchTranche(mid, base, base.journeyPlan);
-  }, [canWrite, settleTravel, serverNow, launchTranche]);
+    const res = await launchTranche(mid, base, base.journeyPlan);
+    if (res.ok && base.travelScale !== 'city') travelDirector('sync');
+    return res;
+  }, [canWrite, settleTravel, serverNow, launchTranche, travelDirector]);
 
   /** Stop the journey where the party stands right now (no jump to a town). */
   const cancelJourney = useCallback(async (): Promise<Result> => {
@@ -538,8 +554,9 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     if (next.currentRoutePosition) delete next.currentRoutePosition.dayComplete;
     delete next.journeyPlan;
     const res = await write(mid, next);
+    if (res.ok) travelDirector('cancel');
     return res.ok ? OK : fail(res.error);
-  }, [canWrite, settleTravel, serverNow, write]);
+  }, [canWrite, settleTravel, serverNow, write, travelDirector]);
 
   // ── campaign saves ──
   /** A save-safe copy: travel in progress is frozen at this moment. Nested collections export whole. */
