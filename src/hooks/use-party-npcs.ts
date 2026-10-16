@@ -28,7 +28,7 @@ export const NPC_SKILL_INFO: Record<NpcSkillType, { label: string; hint: string;
 // NPC Quick Build
 export type NpcBuildRole = 'talker' | 'minion' | 'fighter' | 'boss';
 export type NpcBuildDifficulty = 'easy' | 'medium' | 'hard' | 'deadly';
-export interface NpcBuildDraft { name: string; guide: string; secrets: string; wants: string; levers: string; hardLines: string; moodRange: string; grudgeStyle: string; attack: string; combatStats: NpcCombatStats | null; socialStats?: NpcSocialStats }
+export interface NpcBuildDraft { name: string; guide: string; secrets: string; wants: string; levers: string; hardLines: string; moodRange: string; grudgeStyle: string; attack: string; combatStats: NpcCombatStats | null; socialStats?: NpcSocialStats; /** Editable portrait description shown in Quick Build. */ imagePrompt?: string; /** Generated portrait waiting to be saved with the NPC. */ portraitUrl?: string | null }
 export interface NpcTemplate { id: string; name: string; data: NpcBuildDraft; updated_at: string }
 
 /** One NPC on the party's roster (Live NPCs, D-22). Everyone at the table can read these. */
@@ -334,12 +334,12 @@ export function usePartyNpcs(partyId: string | null) {
       throw new Error(message);
     }
     const social = quickBuildSocialStats(input.role, input.difficulty);
-    return Array.isArray(data?.drafts) ? (data.drafts as NpcBuildDraft[]).map(d => ({ ...d, socialStats: { ...social } })) : [];
+    return Array.isArray(data?.drafts) ? (data.drafts as NpcBuildDraft[]).map(d => ({ ...d, socialStats: { ...social }, imagePrompt: buildNpcImagePrompt(d) })) : [];
   }, [partyId]);
 
   const createFromDraft = useCallback(async (draft: NpcBuildDraft, opts: { onStage: boolean }): Promise<PartyNpc> => {
     const guide = draft.attack.trim() ? `${draft.guide.trim()}\n\nIn a fight: ${draft.attack.trim()}.` : draft.guide.trim();
-    const npc = await addNpc({ name: draft.name });
+    const npc = await addNpc({ name: draft.name, portraitUrl: draft.portraitUrl ?? null });
     const failed = (what: string) => new Error(`${npc.name} was added, but ${what} did not save. Open ${npc.name} and finish it there.`);
     try {
       await saveGuide(npc.id, guide, draft.secrets, {
@@ -806,3 +806,18 @@ export function usePartyNpcs(partyId: string | null) {
 }
 
 export type PartyNpcsApi = ReturnType<typeof usePartyNpcs>;
+
+/** Portrait description grounded in what Quick Build wrote for this NPC. */
+export function buildNpcImagePrompt(d: Pick<NpcBuildDraft, 'name' | 'guide' | 'attack' | 'moodRange'>): string {
+  const clip = (t: string | undefined, n: number) => (t || '').replace(/\s+/g, ' ').trim().slice(0, n);
+  const guide = clip(d.guide, 500);
+  const attack = clip(d.attack, 120);
+  const mood = clip(d.moodRange, 80);
+  return [
+    `Cinematic hyper-realistic dark fantasy portrait of ${clip(d.name, 60) || 'a stranger'}.`,
+    guide ? `Who they are: ${guide}` : '',
+    attack ? `Fights with: ${attack}.` : '',
+    mood ? `Mood: ${mood}.` : '',
+    'Head and shoulders, period-appropriate clothing or armor, dramatic lighting, detailed face, gritty frontier tone, no text.',
+  ].filter(Boolean).join(' ').slice(0, 1500);
+}
