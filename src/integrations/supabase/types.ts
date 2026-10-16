@@ -2682,6 +2682,8 @@ export type Database = {
           event_premise: string | null
           event_type: string | null
           expected_tranche_started_at: number | null
+          firing_lease_id: string | null
+          firing_lease_until: string | null
           has_event: boolean
           id: string
           journey_plan_hash: string
@@ -2709,6 +2711,8 @@ export type Database = {
           event_premise?: string | null
           event_type?: string | null
           expected_tranche_started_at?: number | null
+          firing_lease_id?: string | null
+          firing_lease_until?: string | null
           has_event: boolean
           id?: string
           journey_plan_hash: string
@@ -2736,6 +2740,8 @@ export type Database = {
           event_premise?: string | null
           event_type?: string | null
           expected_tranche_started_at?: number | null
+          firing_lease_id?: string | null
+          firing_lease_until?: string | null
           has_event?: boolean
           id?: string
           journey_plan_hash?: string
@@ -3414,6 +3420,7 @@ export type Database = {
         Args: { _party_id: string }
         Returns: boolean
       }
+      claim_travel_event_attempt: { Args: { _event_id: string }; Returns: Json }
       commit_private_travel_plan: {
         Args: {
           _expected_map: Json
@@ -3422,6 +3429,15 @@ export type Database = {
           _plan: Json
         }
         Returns: boolean
+      }
+      complete_travel_event_post: {
+        Args: {
+          _content: string
+          _event_id: string
+          _failed?: boolean
+          _lease_id: string
+        }
+        Returns: string
       }
       delete_email: {
         Args: { message_id: number; queue_name: string }
@@ -3551,6 +3567,15 @@ export type Database = {
       setup_telegram_cron: {
         Args: { base_url: string; service_key: string }
         Returns: undefined
+      }
+      sync_private_travel_event: {
+        Args: {
+          _event_id: string
+          _expected_map: Json
+          _expected_updated_at: string
+          _patch: Json
+        }
+        Returns: boolean
       }
       write_campaign_atlas: {
         Args: {
