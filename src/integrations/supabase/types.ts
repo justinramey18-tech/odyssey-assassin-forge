@@ -2672,6 +2672,105 @@ export type Database = {
           },
         ]
       }
+      party_travel_events: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          created_by: string
+          destination_location_id: string
+          dm_message_id: string | null
+          event_premise: string | null
+          event_type: string | null
+          expected_tranche_started_at: number | null
+          has_event: boolean
+          id: string
+          journey_plan_hash: string
+          last_error: string | null
+          map_id: string | null
+          party_id: string
+          qstash_message_id: string | null
+          scheduled_at: string | null
+          status: string
+          target_campaign_minute: number | null
+          target_leg_index: number | null
+          target_overall_fraction: number | null
+          target_reversed: boolean | null
+          target_route_id: string | null
+          target_route_progress: number | null
+          target_tranche_fraction: number | null
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          created_by: string
+          destination_location_id: string
+          dm_message_id?: string | null
+          event_premise?: string | null
+          event_type?: string | null
+          expected_tranche_started_at?: number | null
+          has_event: boolean
+          id?: string
+          journey_plan_hash: string
+          last_error?: string | null
+          map_id?: string | null
+          party_id: string
+          qstash_message_id?: string | null
+          scheduled_at?: string | null
+          status: string
+          target_campaign_minute?: number | null
+          target_leg_index?: number | null
+          target_overall_fraction?: number | null
+          target_reversed?: boolean | null
+          target_route_id?: string | null
+          target_route_progress?: number | null
+          target_tranche_fraction?: number | null
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          created_by?: string
+          destination_location_id?: string
+          dm_message_id?: string | null
+          event_premise?: string | null
+          event_type?: string | null
+          expected_tranche_started_at?: number | null
+          has_event?: boolean
+          id?: string
+          journey_plan_hash?: string
+          last_error?: string | null
+          map_id?: string | null
+          party_id?: string
+          qstash_message_id?: string | null
+          scheduled_at?: string | null
+          status?: string
+          target_campaign_minute?: number | null
+          target_leg_index?: number | null
+          target_overall_fraction?: number | null
+          target_reversed?: boolean | null
+          target_route_id?: string | null
+          target_route_progress?: number | null
+          target_tranche_fraction?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_travel_events_dm_message_id_fkey"
+            columns: ["dm_message_id"]
+            isOneToOne: false
+            referencedRelation: "party_dm_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "party_travel_events_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       personality_profiles: {
         Row: {
           archetype_description: string
@@ -3427,6 +3526,10 @@ export type Database = {
         Returns: Json
       }
       party_is_private: { Args: { _party_id: string }; Returns: boolean }
+      pause_campaign_travel_for_event: {
+        Args: { _event_id: string }
+        Returns: Json
+      }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
