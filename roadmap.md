@@ -29,3 +29,4 @@
 - [x] Party signup 5/5: join entrance + returning players
 
 - [x] Add cinematic speaking frames above full in-character portraits; 12 chat tests passed and isolated phone rendering/tap actions checked. Real-party use remains untested.
+- [ ] Travel Director 1/4: private event storage and service-only atomic exact-point pause; verify permissions, stale callbacks and retries without changing live rows.
