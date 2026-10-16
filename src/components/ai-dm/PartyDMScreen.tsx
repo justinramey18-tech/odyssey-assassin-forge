@@ -47,7 +47,7 @@ import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, MoreVertical, Film, Image as ImageIcon, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, ChevronRight, Timer, Ghost, Lock, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause, MessageCircle, SmilePlus, Theater, Megaphone, Swords } from 'lucide-react';
+import { Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, MoreVertical, Film, Image as ImageIcon, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, ChevronRight, Timer, Ghost, Lock, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause, MessageCircle, SmilePlus, Theater, Megaphone, Swords, ChevronLeft } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { WhisperTray } from './WhisperTray';
 import { QuickRecapDrawer, QuickRecapButton, type QuickRecapContext } from './QuickRecapDrawer';
@@ -64,7 +64,7 @@ import { useChatAvatars } from '@/hooks/use-chat-avatars';
 import { usePartyNpcs } from '@/hooks/use-party-npcs';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { usePartyPresence } from '@/hooks/use-party-presence';
-import { RoundChatDrawer, type RoundChatDrawerHandle } from './RoundChatDrawer';
+import { RoundChatDrawer, RoundChatMessageList, type RoundChatDrawerHandle } from './RoundChatDrawer';
 import type { PartyCampaignMapApi } from '@/hooks/use-party-campaign-map';
 import { OverlaySlot, useOverlayChange, useOverlayGanglion } from '@/hooks/use-overlay-ganglion';
 import type { ActionMenuChoice } from './ActionMenuSheet';
@@ -2616,6 +2616,76 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
     return covered.size > 0 ? shown.filter(m => !covered.has(m.id)) : shown;
   }, [partyDm.messages]);
 
+  // ── Scene book (presentation only) ──
+  // Pages are real DM posts. The archive under each page is the consumed Live Table rows
+  // that already exist, read on demand; nothing about the book is ever written anywhere.
+  type BookRow = ReturnType<typeof useRoundChat>['messages'][number];
+  type BookReaction = ReturnType<typeof useRoundChat>['reactions'][number];
+  const bookDmPosts = useMemo(
+    () => visibleMessages.filter(m => m.role === 'assistant' && m.sender_name === 'DM' && !!(m.content || '').trim()),
+    [visibleMessages],
+  );
+  const hasConsumedRows = roundChat.messages.some(m => m.consumed);
+  const [bookStartAt, setBookStartAt] = useState<string | null>(null);
+  useEffect(() => { setBookStartAt(null); }, [partyId]);
+  useEffect(() => {
+    if (!partyId || bookStartAt) return;
+    let cancelled = false;
+    void supabase.from('party_round_chat').select('created_at')
+      .eq('party_id', partyId).eq('consumed', true)
+      .order('created_at', { ascending: true }).limit(1)
+      .then(({ data }) => { if (!cancelled && data?.[0]?.created_at) setBookStartAt(data[0].created_at); });
+    return () => { cancelled = true; };
+  }, [partyId, bookStartAt, hasConsumedRows]);
+  const bookPages = useMemo(() => {
+    if (bookDmPosts.length === 0) return [];
+    if (!bookStartAt) return bookDmPosts.slice(-1);
+    let first = -1;
+    for (let i = 0; i < bookDmPosts.length; i++) if (bookDmPosts[i].created_at <= bookStartAt) first = i;
+    return bookDmPosts.slice(Math.max(first, 0));
+  }, [bookDmPosts, bookStartAt]);
+  const bookGenerating = partyDm.isGenerating;
+  const bookArchive = bookGenerating ? bookPages : bookPages.slice(0, -1);
+  const bookCurrent = bookGenerating ? null : (bookPages[bookPages.length - 1] ?? null);
+  const [bookCursorRaw, setBookCursor] = useState<number | null>(null);
+  const newestBookPostId = bookDmPosts[bookDmPosts.length - 1]?.id;
+  useEffect(() => { setBookCursor(null); }, [newestBookPostId, partyId]);
+  const bookCursor = bookCursorRaw !== null && bookCursorRaw < bookArchive.length ? bookCursorRaw : null;
+  const bookShownPost = bookCursor === null ? bookCurrent : bookArchive[bookCursor];
+  const bookInFlight = bookGenerating && bookCursor !== null && bookCursor === bookArchive.length - 1
+    && (roundChat.orderedSelected?.length ?? 0) > 0;
+  const bookPageEnd = bookCursor === null ? undefined : bookPages[bookCursor + 1]?.created_at;
+  const [bookArchiveRows, setBookArchiveRows] = useState<{ key: string; rows: BookRow[]; reactions: BookReaction[] } | null>(null);
+  const bookArchiveKey = bookCursor !== null && bookShownPost && !bookInFlight ? `${partyId}|${bookShownPost.created_at}|${bookPageEnd ?? ''}` : null;
+  useEffect(() => {
+    if (!bookArchiveKey || !partyId || !bookShownPost) return;
+    let cancelled = false;
+    void (async () => {
+      let q = supabase.from('party_round_chat').select('*')
+        .eq('party_id', partyId).eq('consumed', true)
+        .gte('created_at', bookShownPost.created_at);
+      if (bookPageEnd) q = q.lt('created_at', bookPageEnd);
+      const { data } = await q.order('created_at', { ascending: true });
+      const rows = (data || []) as unknown as BookRow[];
+      let reactions: BookReaction[] = [];
+      if (rows.length > 0) {
+        const { data: rx } = await supabase.from('party_round_chat_reactions')
+          .select('id, message_id, user_id, sender_name, emoji').in('message_id', rows.map(r => r.id));
+        reactions = (rx || []) as unknown as BookReaction[];
+      }
+      if (!cancelled) setBookArchiveRows({ key: bookArchiveKey, rows, reactions });
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookArchiveKey]);
+  const bookPageRows: BookRow[] = bookInFlight
+    ? [...(roundChat.orderedSelected || [])].sort((a, b) => a.created_at.localeCompare(b.created_at))
+    : bookArchiveKey && bookArchiveRows?.key === bookArchiveKey ? bookArchiveRows.rows : [];
+  const bookPageReactions: BookReaction[] = bookInFlight
+    ? roundChat.reactions
+    : bookArchiveKey && bookArchiveRows?.key === bookArchiveKey ? bookArchiveRows.reactions : [];
+  const bookShownId = bookShownPost?.id ?? null;
+
   // Story-mode masterwork pills (non-Empyrean party campaigns)
 
   /**
@@ -3797,8 +3867,39 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
               </p>
             </div>
           ) : (
+            <>
+            {/* Scene book navigation */}
+            <div className="sticky top-0 z-10 mb-2 flex items-center gap-2 rounded-xl border border-amber-500/20 bg-black/70 px-1 py-1 backdrop-blur-sm">
+              <Button
+                variant="ghost"
+                aria-label="Previous Scene"
+                disabled={(bookCursor === null ? bookArchive.length : bookCursor) <= 0}
+                onClick={() => setBookCursor(bookCursor === null ? bookArchive.length - 1 : bookCursor - 1)}
+                className="min-h-[44px] min-w-[44px] px-2 text-amber-200 disabled:opacity-30"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <ChevronLeft className="w-5 h-5" />
+                <span className="text-[11px] font-cinzel">Previous</span>
+              </Button>
+              <span className="flex-1 text-center font-cinzel text-[11px] tracking-wide text-amber-200/80 truncate">
+                {bookCursor === null ? 'Current Scene' : `Scene ${bookCursor + 1} of ${bookArchive.length + 1}`}
+              </span>
+              <Button
+                variant="ghost"
+                aria-label="Next Scene"
+                disabled={bookCursor === null}
+                onClick={() => setBookCursor(bookCursor === null || bookCursor + 1 >= bookArchive.length ? null : bookCursor + 1)}
+                className="min-h-[44px] min-w-[44px] px-2 text-amber-200 disabled:opacity-30"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <span className="text-[11px] font-cinzel">Next</span>
+                <ChevronRight className="w-5 h-5" />
+              </Button>
+            </div>
             <AnimatePresence initial={false}>
               {visibleMessages.map((msg, idx) => {
+                // Scene book: only the page being read is shown.
+                if (msg.id !== bookShownId) return null;
                 // Hide the last assistant message while slideshow is playing.
                 // A story scene (D-22) always shows: the table reads it while the DM writes.
                 if (msg.role === 'assistant' && msg.sender_name !== STORY_SCENE_SENDER && idx === visibleMessages.length - 1 && (showSlideshow || (partyDm.isGenerating && cinematicModeEnabled))) {
@@ -3881,10 +3982,24 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
                     narrationDownloadProgress={messageNarration.downloadingMessageId === msg.id ? messageNarration.downloadProgress : null}
                     onDownloadNarrationFile={messageNarration.downloadMessageFile}
                   />
+                  {bookCursor !== null && bookPageRows.length > 0 && (
+                    <div className="mt-2 px-1">
+                      <RoundChatMessageList
+                        readOnly
+                        rows={bookPageRows}
+                        reactions={bookPageReactions}
+                        currentUserId={currentUserId}
+                        avatars={chatAvatars.avatars}
+                        oocNames={chatAvatars.oocNames}
+                        npcs={npcRoster.npcs}
+                      />
+                    </div>
+                  )}
                 </React.Fragment>
                 );
               })}
             </AnimatePresence>
+            </>
           )}
 
               {dmPolls.polls.filter(p => !p.closed).map(poll => {
