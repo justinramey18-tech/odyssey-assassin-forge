@@ -2867,8 +2867,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
 
   // Combat inbox deltas are separate pools. Update the ref immediately so multiple
   // inbox entries delivered in one render cannot overwrite each other.
-  const combatHPRef = useRef(hpState);
-  combatHPRef.current = hpState;
+  const combatHPRef = useRef({ current: effectiveCurrentHP, max: effectiveMaxHP, temp: effectiveTempHP });
+  combatHPRef.current = { current: effectiveCurrentHP, max: effectiveMaxHP, temp: effectiveTempHP };
   const handleCombatHPChange = useCallback((hpDelta: number, tempDelta: number) => {
     if (!Number.isFinite(hpDelta) || !Number.isFinite(tempDelta)) return;
     const previous = combatHPRef.current;
