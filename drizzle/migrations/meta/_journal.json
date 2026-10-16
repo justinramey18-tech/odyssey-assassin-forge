@@ -267,6 +267,20 @@
       "when": 1792188948491,
       "tag": "0037_live_combat_spell_effects",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1792191591992,
+      "tag": "0038_party_dm_scene_video_path",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1792191618792,
+      "tag": "0039_private_party_scene_video_policies",
+      "breakpoints": true
     }
   ]
 }

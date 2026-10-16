@@ -1,0 +1,1 @@
+ALTER TABLE public.party_dm_messages ADD COLUMN IF NOT EXISTS scene_video_path text;
