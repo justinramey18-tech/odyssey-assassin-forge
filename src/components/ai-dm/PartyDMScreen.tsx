@@ -1377,7 +1377,7 @@ type PartyOverlays = {
   campaignMap: undefined;
 };
 
-export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, campaignMap, onInstallCampaignMapGuide, onBack, partyId: partyIdProp, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, prepareAreaContext, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, onOpenDirector, hasPendingRedoRequest, onScanQuests, worldState = [] }: PartyDMScreenProps) {
+export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, campaignMap, onInstallCampaignMapGuide, onBack, partyId: partyIdProp, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowCharacterGuideBuilder, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, guides = [], gmGuidesContent, prepareAreaContext, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, currentXP, onManualLevelUp, onAcceptItem, onOpenCharacterPicker, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid, onShowOocChat, onHPChange, onCombatHPChange, onRestOccurred, onUseConsumableByName, swipeHandlers, onRequestCharacterRedo, onOpenDirector, hasPendingRedoRequest, onScanQuests, worldState = [] }: PartyDMScreenProps) {
   const practiceMode = runtimeOverrides?.practiceMode === true;
   const [sparringOpen, setSparringOpen] = useState<null | 'host' | { sessionId: string; hostName: string }>(null);
   const sparringLink = useSparringLink(practiceMode ? null : partyIdProp, currentUserId);
@@ -1400,7 +1400,7 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
   const chatAvatars = useChatAvatars(partyId || null, currentUserId);
   // Live NPCs (D-22): the party's NPC roster, with live updates.
   const npcRoster = usePartyNpcs(partyId || null);
-  const liveNpcCombat = useNpcCombat({ partyId: partyId || null, currentUserId: currentUserId || null, isHost: originalCreator, sheetHp: characterContext?.currentHP ?? null, onHPChange, onCombatHPChange: arguments[0].onCombatHPChange });
+  const liveNpcCombat = useNpcCombat({ partyId: partyId || null, currentUserId: currentUserId || null, isHost: originalCreator, sheetHp: characterContext?.currentHP ?? null, onHPChange, onCombatHPChange });
   const roundChat = runtimeOverrides?.roundChat ?? liveRoundChat;
   const npcCombat = runtimeOverrides?.npcCombat ?? liveNpcCombat;
   const npcCombatRoster = runtimeOverrides?.npcCombatRoster ?? npcRoster;

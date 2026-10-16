@@ -1689,7 +1689,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     // (body.targetId plus body.targetIds). Numbers are capped so nothing impossible lands.
     const card = body.card && typeof body.card === 'object' ? (body.card as Record<string, unknown>) : null;
     const spellName = card && typeof card.action === 'string' ? card.action.trim().slice(0, 80) : '';
-    if (!card || !spellName) refuse(400, 'Missing spell card.');
+    if (!card || !spellName) return refuse(400, 'Missing spell card.');
     if (card?.combatEffects !== undefined) {
       const effects = R.validateCombatEffects(card.combatEffects) ?? refuse(400, 'Invalid combat effects.');
       if (fight.status !== 'active') refuse(409, 'The fight is not running.');
@@ -1736,15 +1736,15 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
       const n = Number(v);
       return v === null || v === undefined || v === '' || !Number.isFinite(n) ? null : Math.max(0, Math.min(max, Math.round(n)));
     };
-    const damage = num(card!.damageTotal, 200) ?? 0;
-    const amount = num(card!.amount, 200) ?? 0;
-    const d20 = num(card!.d20, 20);
-    const attackTotal = num(card!.attackTotal, 60);
-    const resolve = card!.resolve === 'attack' || card!.resolve === 'save' || card!.resolve === 'auto' || card!.resolve === 'utility'
-      ? card!.resolve as 'attack' | 'save' | 'auto' | 'utility'
+    const damage = num(card.damageTotal, 200) ?? 0;
+    const amount = num(card.amount, 200) ?? 0;
+    const d20 = num(card.d20, 20);
+    const attackTotal = num(card.attackTotal, 60);
+    const resolve = card.resolve === 'attack' || card.resolve === 'save' || card.resolve === 'auto' || card.resolve === 'utility'
+      ? card.resolve as 'attack' | 'save' | 'auto' | 'utility'
       : null;
     if (resolve === 'utility') refuse(400, `${spellName} has no damage or healing to land. The DM narrates it.`);
-    const area = card!.area === true;
+    const area = card.area === true;
     const wanted = [needUuid(body.targetId, 'target'), ...(area && Array.isArray(body.targetIds) ? body.targetIds.filter(isUuid) : [])];
     const ids = [...new Set(wanted)].slice(0, area ? AREA_MAX_TARGETS : 1);
     const targets = (await Promise.all(ids.map(async (id, k) => {
@@ -1797,7 +1797,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     const mode: 'attack' | 'save' | 'auto' = resolve === 'attack' || resolve === 'save' || resolve === 'auto'
       ? resolve
       : (d20 !== null && d20 >= 1 ? 'attack' : 'save');
-    const cardDc = num(card!.saveDC, 30);
+    const cardDc = num(card.saveDC, 30);
     const dc = cardDc !== null && cardDc >= 5 ? cardDc : 8 + R.proficiency(sheet.level) + R.castingMod(sheet);
     const attackBuff = mode === 'attack' ? await takeAttackBonus(db, actor, now) : 0;
     const crit = mode === 'attack' && d20 === 20;

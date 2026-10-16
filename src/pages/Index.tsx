@@ -2865,9 +2865,23 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     }
   }, [handleShortRest, handleLongRest]);
 
+  // Combat inbox deltas are separate pools. Update the ref immediately so multiple
+  // inbox entries delivered in one render cannot overwrite each other.
+  const combatHPRef = useRef(hpState);
+  combatHPRef.current = hpState;
+  const handleCombatHPChange = useCallback((hpDelta: number, tempDelta: number) => {
+    if (!Number.isFinite(hpDelta) || !Number.isFinite(tempDelta)) return;
+    const previous = combatHPRef.current;
+    const current = Math.max(0, Math.min(previous.max, previous.current + hpDelta));
+    const temp = Math.max(0, Math.min(200, previous.temp + tempDelta));
+    combatHPRef.current = { ...previous, current, temp };
+    handleHPChange(current, previous.max, temp);
+  }, [handleHPChange]);
+
   // Auto-sync callbacks for AI DM
   const autoSyncCallbacks = useMemo(() => ({
     onHPChange: handleChronicleHP,
+    onCombatHPChange: handleCombatHPChange,
     onHPSet: handleChronicleHPSet,
     onUseConsumableByName: useConsumableByName,
     onAddXP: handleAddXP,
@@ -2876,7 +2890,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     onRestOccurred: handleChronicleRest,
     getCurrentHP: () => hpState.current,
     getCurrentGold: () => shop.currentGold,
-  }), [handleChronicleHP, handleChronicleHPSet, useConsumableByName, handleAddXP, handleChronicleGold, handleChronicleConditions, handleChronicleRest, hpState.current, shop.currentGold]);
+  }), [handleCombatHPChange, handleChronicleHP, handleChronicleHPSet, useConsumableByName, handleAddXP, handleChronicleGold, handleChronicleConditions, handleChronicleRest, hpState.current, shop.currentGold]);
 
 
 
