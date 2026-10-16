@@ -121,10 +121,11 @@ Deno.serve(async req => {
   const journey = eligibleJourney(row?.state_data, Date.now());
   if (!journey) return reply(200, { ok: true, planned: false, skipped: true });
   const hash = await journeyHash(journey);
-  const { data: existing, error: existingError } = await db.from('party_travel_events').select('has_event, status')
+  let prior = db.from('party_travel_events').select('has_event, status')
     .eq('party_id',partyId).eq('journey_plan_hash',hash)
-    .in('status',['planned','scheduled','firing','posted','no_event'])
-    .is('map_id',journey.mapId).order('created_at',{ascending:false}).limit(1).maybeSingle();
+    .in('status',['planned','scheduled','firing','posted','no_event']);
+  prior = journey.mapId === null ? prior.is('map_id',null) : prior.eq('map_id',journey.mapId);
+  const { data: existing, error: existingError } = await prior.order('created_at',{ascending:false}).limit(1).maybeSingle();
   if (existingError) return reply(500,{error:'Travel planning failed.'});
   if (existing) return reply(200,{ok:true,planned:existing.has_event});
   let decision;
