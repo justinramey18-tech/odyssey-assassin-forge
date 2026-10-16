@@ -171,6 +171,8 @@ export interface CharacterContext {
       somatic?: boolean;
       material?: string;
       isHomebrew?: boolean;
+      /** Structured support effects (UI-only; validated before use). */
+      combatEffects?: unknown;
     }>;
 
     /** Full stat blocks for player-created spells. The model has never seen these,

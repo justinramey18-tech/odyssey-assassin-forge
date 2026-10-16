@@ -787,6 +787,7 @@ export function PromptDrawerProvider({
           somatic: s.components?.somatic ?? false,
           material: s.components?.material,
           isHomebrew: (s as { isHomebrew?: boolean }).isHomebrew === true ? true : undefined,
+          combatEffects: (s as { combatEffects?: unknown }).combatEffects,
         }));
 
       spellcastingContext = {
