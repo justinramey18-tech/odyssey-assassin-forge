@@ -1,7 +1,7 @@
 // Homebrew Spell Creation Sheet
 // 3-step progressive form for creating custom spells with AI assist
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Wand2, Sparkles, ChevronDown, ChevronUp, Plus, Loader2, Trash2 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
@@ -28,6 +28,8 @@ import { SpellSchool, CastingTime, SaveStat } from '@/lib/magic/types';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { toast } from 'sonner';
 import { getEverywhereKey } from '@/lib/api-keys';
+import { CombatEffectsEditor } from './CombatEffectsEditor';
+import { validateCombatEffects } from '@/lib/spellResolve';
 
 interface HomebrewSpellCreateSheetProps {
   isOpen: boolean;
@@ -52,6 +54,11 @@ export function HomebrewSpellCreateSheet({
   const [step3Open, setStep3Open] = useState(false);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+
+  // Controlled opening does not fire Sheet's onOpenChange callback.
+  useEffect(() => {
+    if (isOpen) setSpell(editSpell || createDefaultHomebrewSpell());
+  }, [isOpen, editSpell]);
 
   // Reset form when opening
   const handleOpenChange = (open: boolean) => {
@@ -142,15 +149,21 @@ export function HomebrewSpellCreateSheet({
   };
 
   const handleSave = () => {
-    const errors = validateHomebrewSpell(spell);
+    const combat = validateCombatEffects(spell.combatEffects);
+    const errors = [...validateHomebrewSpell(spell), ...combat.errors];
     if (errors.length > 0) {
       toast.error(errors[0]);
       return;
     }
 
+    const name = spell.name;
+    const description = spell.description;
+    if (!name || !description) return;
+
     const finalSpell: HomebrewSpell = {
+      ...spell,
       id: spell.id || generateHomebrewSpellId(),
-      name: spell.name!,
+      name,
       level: spell.level as HomebrewSpell['level'],
       school: spell.school as SpellSchool,
       castingTime: (spell.castingTime || 'action') as CastingTime,
@@ -159,13 +172,14 @@ export function HomebrewSpellCreateSheet({
       duration: spell.duration || 'Instantaneous',
       concentration: spell.concentration || false,
       ritual: spell.ritual || false,
-      description: spell.description!,
+      description,
       higherLevels: spell.higherLevels,
       attackType: spell.attackType,
       saveStat: spell.saveStat as SaveStat | undefined,
       damageType: spell.damageType,
       damageFormula: spell.damageFormula,
       healingFormula: spell.healingFormula,
+      combatEffects: spell.combatEffects === undefined ? undefined : combat.effects,
       iconName: spell.iconName || 'Sparkles',
       classes: spell.classes,
       personalityQuips: spell.personalityQuips || {
@@ -532,6 +546,7 @@ export function HomebrewSpellCreateSheet({
                   className="bg-background/50 border-white/10"
                 />
               </div>
+              <CombatEffectsEditor value={spell.combatEffects} onChange={effects => updateField('combatEffects', effects)} />
             </CollapsibleContent>
           </Collapsible>
 

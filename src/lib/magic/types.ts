@@ -69,6 +69,11 @@ export interface SpellComponents {
   materialCost?: number; // in gold pieces
 }
 
+/** Explicit player-configured support effects; never extracted from narrative text. */
+export type SpellCombatEffect =
+  | { kind: 'ac_bonus' | 'attack_bonus' | 'temporary_hp'; amount: number; formula?: never; durationSeconds: number }
+  | { kind: 'temporary_hp'; formula: string; amount?: never; durationSeconds: number };
+
 export interface SpellDefinition {
   id: string;
   name: string;
@@ -87,6 +92,7 @@ export interface SpellDefinition {
   damageType?: string;
   damageFormula?: string; // e.g., "1d10" or "3d8"
   healingFormula?: string;
+  combatEffects?: SpellCombatEffect[];
   iconName: string; // Lucide icon name
   pathRestrictions?: MagicPath[]; // Only these paths can learn this spell (Rogue MagicPath system)
   classes?: DnDClass[]; // Which D&D classes can learn this spell (class-based spellcasting)

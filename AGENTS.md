@@ -18,3 +18,4 @@
 - Party signup hand-off builds the new save only in the pure src/lib/ai-creation/party-build-save.ts (session-derived IDs, explicit scoped keys, never the active hero's state) and opens play through a one-shot account-level receipt that Index re-verifies with onboarding_resume before loading that exact save, because generic restore/pending-AI paths would otherwise load or overwrite the wrong character.
 
 - Live Table speech artwork uses nine-slice borders and a separate tail above naturally sized portraits, because stretching a whole frame distorts corners and crops speakers.
+- Buffs use optional manual metadata validated in spellResolve; homebrew edits spread original fields to avoid data loss.
