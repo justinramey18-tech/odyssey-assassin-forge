@@ -1343,6 +1343,8 @@ export type Database = {
           is_afk_marker: boolean
           party_id: string
           role: string
+          scene_image_prompt: string | null
+          scene_image_url: string | null
           sender_name: string
           sender_user_id: string | null
           team: string | null
@@ -1354,6 +1356,8 @@ export type Database = {
           is_afk_marker?: boolean
           party_id: string
           role: string
+          scene_image_prompt?: string | null
+          scene_image_url?: string | null
           sender_name?: string
           sender_user_id?: string | null
           team?: string | null
@@ -1365,6 +1369,8 @@ export type Database = {
           is_afk_marker?: boolean
           party_id?: string
           role?: string
+          scene_image_prompt?: string | null
+          scene_image_url?: string | null
           sender_name?: string
           sender_user_id?: string | null
           team?: string | null

@@ -1,0 +1,1 @@
+ALTER TABLE public.party_dm_messages ADD COLUMN IF NOT EXISTS scene_image_url text, ADD COLUMN IF NOT EXISTS scene_image_prompt text;
