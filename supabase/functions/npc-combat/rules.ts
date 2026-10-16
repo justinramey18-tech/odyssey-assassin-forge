@@ -447,3 +447,69 @@ export function shiftIso(at: string | null | undefined, byMs: number, notBeforeM
   const moved = t + Math.max(0, byMs);
   return new Date(notBeforeMs === undefined ? moved : Math.max(moved, notBeforeMs)).toISOString();
 }
+
+// Structured support spells. This validator deliberately has no prose fallback.
+export type CombatEffectKind = 'ac_bonus' | 'attack_bonus' | 'temporary_hp';
+export type CombatEffect = { kind: CombatEffectKind; amount?: number; formula?: string; durationSeconds: number };
+export type ActiveCombatEffect = { kind: 'ac_bonus' | 'attack_bonus'; amount: number; spell: string; until: string };
+export const COMBAT_EFFECT_LIMITS = { ac_bonus: 30, attack_bonus: 20, temporary_hp: 200, durationSeconds: 86400 } as const;
+
+/** All-or-nothing validation; reject rather than clamp an untrusted support payload. */
+export function validateCombatEffects(raw: unknown): CombatEffect[] | null {
+  if (!Array.isArray(raw) || raw.length < 1 || raw.length > 3) return null;
+  const seen = new Set<string>();
+  const effects: CombatEffect[] = [];
+  for (const value of raw) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const row = value as Record<string, unknown>;
+    const kind = row.kind;
+    if (kind !== 'ac_bonus' && kind !== 'attack_bonus' && kind !== 'temporary_hp') return null;
+    if (seen.has(kind) || Object.keys(row).some(k => !['kind', 'amount', 'formula', 'durationSeconds'].includes(k))) return null;
+    seen.add(kind);
+    const durationSeconds = row.durationSeconds;
+    if (typeof durationSeconds !== 'number' || !Number.isInteger(durationSeconds) || durationSeconds < 1 || durationSeconds > COMBAT_EFFECT_LIMITS.durationSeconds) return null;
+    if (kind === 'temporary_hp' && row.formula !== undefined) {
+      if (row.amount !== undefined || typeof row.formula !== 'string' || row.formula.length > 40) return null;
+      const formula = row.formula.replace(/\s/g, '').toLowerCase();
+      if (!/^(\d{1,2})d(\d{1,3})([+-]\d{1,3})?$/.test(formula)) return null;
+      const dice = parseDice(formula);
+      if (!dice || dice.count + dice.bonus < 1 || dice.count * dice.sides + dice.bonus > 200) return null;
+      effects.push({ kind, formula: formatDice(dice), durationSeconds });
+    } else {
+      if (row.formula !== undefined || typeof row.amount !== 'number' || !Number.isInteger(row.amount) || row.amount < 1 || row.amount > COMBAT_EFFECT_LIMITS[kind]) return null;
+      effects.push({ kind, amount: row.amount, durationSeconds });
+    }
+  }
+  return effects;
+}
+
+export function activeCombatEffects(raw: unknown, now: number): ActiveCombatEffect[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((e): e is ActiveCombatEffect => !!e && (e.kind === 'ac_bonus' || e.kind === 'attack_bonus')
+    && Number.isInteger(e.amount) && e.amount >= 1 && e.amount <= COMBAT_EFFECT_LIMITS[e.kind as 'ac_bonus' | 'attack_bonus']
+    && typeof e.spell === 'string' && e.spell.length <= 80 && typeof e.until === 'string' && Date.parse(e.until) > now);
+}
+
+export function combatBonus(raw: unknown, kind: 'ac_bonus' | 'attack_bonus', now: number): number {
+  return Math.max(0, ...activeCombatEffects(raw, now).filter(e => e.kind === kind).map(e => e.amount));
+}
+
+export function refreshCombatEffect(raw: unknown, effect: ActiveCombatEffect, now: number): ActiveCombatEffect[] {
+  return [...activeCombatEffects(raw, now).filter(e => !(e.kind === effect.kind && e.spell === effect.spell)), effect];
+}
+
+export function shiftCombatEffects(raw: unknown, by: number): ActiveCombatEffect[] {
+  return activeCombatEffects(raw, -Infinity).map(e => ({ ...e, until: shiftIso(e.until, by) ?? e.until }));
+}
+
+export function sheetTempHp(s: SheetSummary & { tempHP?: unknown }): number {
+  return clampInt(s.tempHP, 0, 200, 0);
+}
+
+/** Temporary HP absorbs damage, but never heals or increases ordinary HP. */
+export function absorbTemporaryHp(hp: number, tempHp: number, damage: number): { hp: number; tempHp: number; lost: number } {
+  const pool = Number.isFinite(tempHp) ? Math.max(0, tempHp) : 0;
+  const hit = Number.isFinite(damage) ? Math.max(0, damage) : 0;
+  const absorbed = Math.min(pool, hit);
+  return { ...applyDamage(hp, hit - absorbed), tempHp: pool - absorbed };
+}
