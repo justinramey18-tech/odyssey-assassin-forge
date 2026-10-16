@@ -20,13 +20,8 @@ export function activeMap(raw: unknown) {
 function routeMiles(route: Obj, state: Obj): number | null {
   if (route.distanceSource === 'manual') return finite(route.distanceMiles) && route.distanceMiles > 0 ? route.distanceMiles : null;
   const c = object(state.mapCalibration);
-  if (!finite(c.imageWidth) || !finite(c.imageHeight) || !finite(c.knownMiles) || !finite(c.milesPerPixel)
-    || c.imageWidth <= 0 || c.imageHeight <= 0 || c.knownMiles <= 0 || c.milesPerPixel <= 0
-    || !finite(c.a?.x) || !finite(c.a?.y) || !finite(c.b?.x) || !finite(c.b?.y)
-    || [c.a.x,c.a.y,c.b.x,c.b.y].some(v => v < 0 || v > 1)
-    || Math.hypot((c.a.x-c.b.x)*c.imageWidth,(c.a.y-c.b.y)*c.imageHeight) <= 0
-    || (finite(state.imageNaturalWidth) && state.imageNaturalWidth !== c.imageWidth)
-    || (finite(state.imageNaturalHeight) && state.imageNaturalHeight !== c.imageHeight)
+  if (!finite(c.milesPerPixel) || c.milesPerPixel <= 0 || !finite(state.imageNaturalWidth) || !finite(state.imageNaturalHeight)
+    || state.imageNaturalWidth !== c.imageWidth || state.imageNaturalHeight !== c.imageHeight
     || !Array.isArray(route.path) || route.path.length < 2) return null;
   let pixels = 0;
   for (let i = 1; i < route.path.length; i++) {
