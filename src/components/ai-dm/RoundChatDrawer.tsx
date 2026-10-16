@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronDown, Smile, Trash2, MessageSquare, Loader2, CheckCircle2, Hourglass, ImagePlus, Pencil, Check, X, Reply, CornerUpLeft, Stamp, RefreshCw, Drama, Dices } from 'lucide-react';
 import { AvatarCropDialog } from './AvatarCropDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { NpcPortrait } from './NpcPortrait';
 import { NpcSocialCheckToolbar } from './NpcSocialCheckToolbar';
 import type { SocialCheckResult } from '@/lib/npcSocialChecks';
@@ -188,6 +189,10 @@ interface RoundChatDrawerProps {
   /** Per-player avatars: { [userId]: { ic, ooc } } */
   avatars?: Record<string, { ic?: string; ooc?: string }>;
   onUploadAvatar?: (kind: 'ic' | 'ooc', file: File) => void | Promise<void>;
+  /** Generates the player's own character portrait; resolves true when it was set. */
+  onGeneratePortrait?: (prompt: string) => Promise<boolean>;
+  /** Editable starting description for a generated portrait. */
+  portraitPrompt?: string;
   /** Uploads a picture and resolves to its public URL, or null if it failed. */
   onUploadImage?: (file: File) => Promise<string | null>;
   /** Per-player table-talk (out-of-character) display names: { [userId]: name } */
@@ -247,9 +252,11 @@ function ChatAvatar({
   kind,
   editable,
   onPick,
+  onMenu,
   active,
   presence,
 }: {
+  onMenu?: () => void;
   url?: string;
   label: string;
   kind: 'ic' | 'ooc';
@@ -265,7 +272,7 @@ function ChatAvatar({
     <div className="shrink-0 relative">
       <button
         type="button"
-        onClick={() => editable && inputRef.current?.click()}
+        onClick={() => { if (!editable) return; if (onMenu) onMenu(); else inputRef.current?.click(); }}
         disabled={!editable}
         aria-label={editable ? `Change your ${kind === 'ic' ? 'character' : 'player'} picture` : label}
         style={{ touchAction: 'manipulation' }}
@@ -362,6 +369,7 @@ export interface RoundChatMessageListProps {
   swipeX?: number;
   setSwipeX?: (x: number) => void;
   onUploadAvatar?: RoundChatDrawerProps['onUploadAvatar'];
+  onOpenPortraitMenu?: () => void;
   setCropTarget?: (t: { kind: 'ic' | 'ooc'; file: File } | null) => void;
   jumpToMessage?: (id: string) => void;
   setViewingImage?: (url: string | null) => void;
@@ -412,6 +420,7 @@ export function RoundChatMessageList({
   swipeX = 0,
   setSwipeX = noop,
   onUploadAvatar,
+  onOpenPortraitMenu,
   setCropTarget = noop,
   jumpToMessage = noop,
   setViewingImage = noop,
@@ -547,6 +556,7 @@ export function RoundChatMessageList({
             kind={m.in_character ? 'ic' : 'ooc'}
             editable={!readOnly && isSelf && !!onUploadAvatar}
             onPick={(file) => setCropTarget({ kind: m.in_character ? 'ic' : 'ooc', file })}
+            onMenu={m.in_character ? onOpenPortraitMenu : undefined}
             active={modeMatch}
             presence={presence}
           />
@@ -1036,6 +1046,8 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
 
   avatars,
   onUploadAvatar,
+  onGeneratePortrait,
+  portraitPrompt,
   onUploadImage,
   oocNames,
   onSetOocName,
@@ -1510,11 +1522,15 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
     () => messages.filter(m => !m.consumed && !(isGenerating && m.selected)),
     [messages, isGenerating],
   );
+  const [portraitMenuOpen, setPortraitMenuOpen] = useState(false);
+  const [portraitDraft, setPortraitDraft] = useState('');
+  const [portraitBusy, setPortraitBusy] = useState(false);
+  const portraitFileRef = useRef<HTMLInputElement>(null);
   const listProps: RoundChatMessageListProps = {
     rows: visibleRows, allMessages: messages, reactions, currentUserId, avatars, oocNames, npcs, inCharacter,
     onlineStatus, sharedReady, sharedIds, actionsFor, setActionsFor, editingMessageId, setEditingMessageId,
     editDraft, setEditDraft, partyMembers, readReceipts, messageRefs, onRowTouchStart, onRowTouchMove, onRowTouchEnd,
-    swipeStart, swipeId, setSwipeId, swipeX, setSwipeX, onUploadAvatar, setCropTarget, jumpToMessage, setViewingImage,
+    swipeStart, swipeId, setSwipeId, swipeX, setSwipeX, onUploadAvatar, onOpenPortraitMenu: onGeneratePortrait ? () => { setPortraitDraft(portraitPrompt || ''); setPortraitMenuOpen(true); } : undefined, setCropTarget, jumpToMessage, setViewingImage,
     onEditMessage, rolledNpcLineIds, rollingLineId, setRollingLineId, onNpcRoll, onToggleSelected, nudgeMessageId,
     pickerFor, setPickerFor, onRegenerateNpcLine, canManageNpcs, onDeleteMessage, onToggleReaction,
   };
@@ -2246,6 +2262,51 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
           </motion.div>
         </div>
       )}
+
+      <Dialog open={portraitMenuOpen} onOpenChange={(o) => { if (!portraitBusy) setPortraitMenuOpen(o); }}>
+        <DialogContent className="max-w-[340px] p-4 z-[90]">
+          <DialogHeader><DialogTitle className="font-cinzel">Character portrait</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Button
+              variant="secondary" className="w-full min-h-[48px]" disabled={portraitBusy}
+              style={{ touchAction: 'manipulation' }}
+              onClick={() => portraitFileRef.current?.click()}
+            >
+              <ImagePlus className="w-4 h-4 mr-2" /> Upload a picture
+            </Button>
+            <input
+              ref={portraitFileRef} type="file" accept="image/*" className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (portraitFileRef.current) portraitFileRef.current.value = '';
+                if (f) { setPortraitMenuOpen(false); setCropTarget({ kind: 'ic', file: f }); }
+              }}
+            />
+            <div className="space-y-1">
+              <Textarea
+                value={portraitDraft}
+                onChange={(e) => setPortraitDraft(e.target.value.slice(0, 1500))}
+                rows={5} className="w-full text-sm" disabled={portraitBusy}
+                aria-label="Portrait description"
+              />
+              <p className="text-[11px] text-muted-foreground text-right">{portraitDraft.length}/1500</p>
+            </div>
+            <Button
+              className="w-full min-h-[48px]" disabled={portraitBusy || !portraitDraft.trim()}
+              style={{ touchAction: 'manipulation' }}
+              onClick={async () => {
+                if (!onGeneratePortrait) return;
+                setPortraitBusy(true);
+                const ok = await onGeneratePortrait(portraitDraft.trim()).catch(() => false);
+                setPortraitBusy(false);
+                if (ok) setPortraitMenuOpen(false);
+              }}
+            >
+              {portraitBusy ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Painting portrait…</> : 'Generate Image'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AvatarCropDialog
         open={!!cropTarget}
