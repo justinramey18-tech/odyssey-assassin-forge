@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { eligibleJourney, journeyHash, parseDecision, roadGuideScopes, targetPoint } from '../../../supabase/functions/party-travel-director/planning';
+import { eligibleJourney, isOriginalHost, journeyHash, parseDecision, roadGuideScopes, targetPoint } from '../../../supabase/functions/party-travel-director/planning';
 import { createCalibration, effectiveRouteMiles } from '../campaign-map';
 import { createHash } from 'node:crypto';
 
@@ -18,6 +18,12 @@ const journey = (r: unknown = raw(), now = 1000) => {
   const j = eligibleJourney(r, now); if (!j) throw new Error('Missing journey'); return j;
 };
 describe('hidden travel planning', () => {
+  it('allows only the original host, never a co-host or member', () => {
+    expect(isOriginalHost('host','host')).toBe(true);
+    expect(isOriginalHost('host','co-host')).toBe(false);
+    expect(isOriginalHost('host','member')).toBe(false);
+    expect(isOriginalHost(undefined,undefined)).toBe(false);
+  });
   it('uses unequal road miles and the reversed normal coordinate', () => {
     const j = journey();
     expect(j.remainingMiles).toBe(35);

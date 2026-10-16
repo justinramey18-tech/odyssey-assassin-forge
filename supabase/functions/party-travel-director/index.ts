@@ -2,7 +2,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { z } from 'npm:zod@3';
-import { eligibleJourney, journeyHash, object, parseDecision, roadGuideScopes, targetPoint, text, type Journey } from './planning.ts';
+import { eligibleJourney, isOriginalHost, journeyHash, object, parseDecision, roadGuideScopes, targetPoint, text, type Journey } from './planning.ts';
 
 const reply = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -114,7 +114,7 @@ Deno.serve(async req => {
   const { partyId } = parsed.data;
   const { data: party, error: partyError } = await db.from('parties').select('created_by, is_active').eq('id', partyId).maybeSingle();
   if (partyError || !party || party.is_active === false) return reply(404, { error: 'Party not found.' });
-  if (party.created_by !== userId) return reply(403, { error: 'Only the original host can plan travel.' });
+  if (!isOriginalHost(party.created_by,userId)) return reply(403, { error: 'Only the original host can plan travel.' });
   const read = async () => db.from('party_shared_state').select('state_data').eq('party_id', partyId).eq('user_id', userId).eq('state_type', 'campaign_map').maybeSingle();
   const { data: row, error: mapError } = await read();
   if (mapError) return reply(500, { error: 'Travel planning failed.' });

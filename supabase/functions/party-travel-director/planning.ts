@@ -2,6 +2,7 @@
 type Obj = Record<string, any>;
 export const object = (v: unknown): Obj => v && typeof v === 'object' && !Array.isArray(v) ? v as Obj : {};
 export const text = (v: unknown, cap = 400): string => typeof v === 'string' ? v.trim().slice(0, cap) : '';
+export const isOriginalHost = (host: unknown, caller: unknown): boolean => typeof host === 'string' && !!host && host === caller;
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const clamp = (v: number) => Math.max(0, Math.min(1, v));
 
