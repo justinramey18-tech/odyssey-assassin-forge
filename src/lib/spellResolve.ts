@@ -22,8 +22,8 @@ export interface SpellFacts {
   combatEffects?: unknown;
 }
 
-// Matches npc-combat/rules.ts dice envelope; flat HP maximum = 20d100+999.
-export const COMBAT_EFFECT_LIMITS = { ac_bonus: 30, attack_bonus: 20, temporary_hp: 2999, durationSeconds: 86400 } as const;
+// Matches npc-combat/rules.ts dice envelope and index.ts's 200 damage/healing cap.
+export const COMBAT_EFFECT_LIMITS = { ac_bonus: 30, attack_bonus: 20, temporary_hp: 200, durationSeconds: 86400 } as const;
 const EFFECT_DICE_SIDES = new Set([2, 3, 4, 6, 8, 10, 12, 20, 100]);
 
 /** Metadata validation only: never rolls, spends or applies a buff. */
@@ -51,8 +51,8 @@ export function validateCombatEffects(raw: unknown): { effects: SpellCombatEffec
       const cleaned = row.formula.replace(/\s/g, '').toLowerCase();
       const match = /^(\d{1,2})d(\d{1,3})([+-]\d{1,3})?$/.exec(cleaned);
       const dice = match ? parseDiceFormula(cleaned) : null;
-      if (!dice || dice.count > 20 || !EFFECT_DICE_SIDES.has(dice.die) || dice.count + dice.flat < 1) {
-        fail('use 1–20 dice (d2, d3, d4, d6, d8, d10, d12, d20 or d100), a modifier up to ±999 and a positive minimum.'); continue;
+      if (!dice || dice.count > 20 || !EFFECT_DICE_SIDES.has(dice.die) || dice.count + dice.flat < 1 || dice.count * dice.die + dice.flat > COMBAT_EFFECT_LIMITS.temporary_hp) {
+        fail('use 1–20 dice (d2, d3, d4, d6, d8, d10, d12, d20 or d100), a modifier up to ±999 and results between 1 and 200 HP.'); continue;
       }
       effects.push({ kind, formula: formatDiceFormula(dice), durationSeconds });
     } else {

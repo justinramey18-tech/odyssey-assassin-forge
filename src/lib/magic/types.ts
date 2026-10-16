@@ -71,8 +71,7 @@ export interface SpellComponents {
 
 /** Explicit player-configured support effects; never extracted from narrative text. */
 export type SpellCombatEffect =
-  | { kind: 'ac_bonus' | 'attack_bonus'; amount: number; durationSeconds: number }
-  | { kind: 'temporary_hp'; amount: number; formula?: never; durationSeconds: number }
+  | { kind: 'ac_bonus' | 'attack_bonus' | 'temporary_hp'; amount: number; formula?: never; durationSeconds: number }
   | { kind: 'temporary_hp'; formula: string; amount?: never; durationSeconds: number };
 
 export interface SpellDefinition {
