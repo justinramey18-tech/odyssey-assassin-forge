@@ -50,7 +50,7 @@ async function plan(db: any, partyId: string, hostId: string, j: Journey) {
     db.from('party_dm_messages').select('role, content, is_afk_marker').eq('party_id', partyId).order('created_at', { ascending: false }).limit(8),
   ]);
   if (guides.error || shared.error || members.error || history.error) throw new Error('Context read failed');
-  const byType = new Map((shared.data || []).map((r: any) => [r.state_type, object(r.state_data)]));
+  const byType = new Map<string, Record<string, any>>((shared.data || []).map((r: any) => [r.state_type, object(r.state_data)]));
   const scopes = roadGuideScopes(j.envelope);
   let areaGuides: string[] = [];
   if (scopes.length) {
@@ -133,10 +133,10 @@ Deno.serve(async req => {
   const record = decision.event
     ? { ...base, has_event: true, status: 'planned', event_type: decision.eventType, event_premise: decision.premise, ...targetPoint(journey, decision.targetFraction) }
     : { ...base, has_event: false, status: 'no_event' };
-  const { error: cancelError } = await db.from('party_travel_events').update({ status: 'cancelled' })
-    .eq('party_id', partyId).in('status', ['planned', 'scheduled', 'firing', 'no_event']);
-  if (cancelError) return reply(500, { error: 'Travel planning failed.' });
-  const { error: insertError } = await db.from('party_travel_events').insert(record);
-  if (insertError) return reply(500, { error: 'Travel planning failed.' });
+  const { data: committed, error: commitError } = await db.rpc('commit_private_travel_plan', {
+    _party_id: partyId, _host_id: userId, _expected_map: fresh?.state_data, _plan: record,
+  });
+  if (commitError) return reply(500, { error: 'Travel planning failed.' });
+  if (!committed) return reply(409, { error: 'The journey changed. Try again.' });
   return reply(200, { ok: true, planned: decision.event });
 });
