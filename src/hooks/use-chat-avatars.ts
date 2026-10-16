@@ -110,5 +110,16 @@ export function useChatAvatars(partyId: string | null, userId: string | undefine
     }, { onConflict: 'user_id' });
   }, [userId]);
 
-  return { avatars, oocNames, setOocName, uploadAvatar, uploading };
+  /** Points this player's own picture at an already-stored image (e.g. a generated portrait). */
+  const setAvatarUrl = useCallback(async (kind: AvatarKind, url: string) => {
+    if (!userId || !url) return;
+    const { error } = await (supabase.from('player_chat_avatars') as any).upsert({
+      user_id: userId,
+      ...(kind === 'ic' ? { ic_url: url } : { ooc_url: url }),
+    }, { onConflict: 'user_id' });
+    if (error) throw error;
+    setAvatars(prev => ({ ...prev, [userId]: { ...(prev[userId] || {}), [kind]: url } }));
+  }, [userId]);
+
+  return { avatars, oocNames, setOocName, uploadAvatar, setAvatarUrl, uploading };
 }
