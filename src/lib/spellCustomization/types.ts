@@ -6,7 +6,7 @@ import { DnDClass } from '@/lib/classes/types';
 
 /**
  * A homebrew spell created by the player.
- * Extends SpellDefinition so it can be used anywhere a standard spell is used.
+ * Extends SpellDefinition (including optional combatEffects) so it can be used anywhere a standard spell is used.
  */
 export interface HomebrewSpell extends SpellDefinition {
   isHomebrew: true;
