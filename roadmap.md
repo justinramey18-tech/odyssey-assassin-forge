@@ -37,4 +37,4 @@
 - [x] Live NPC Combat 3: one-tap attacks, base-level spells, ally heals/buffs/potions with a picked target.
 - [x] Live NPC Combat 4: enemy/ally target rails with one-tap action tray (phone check in a real fight still pending).
 
-- [ ] Scene video 2: host-only private clip upload, safe replacement, inline playback and focused checks (real-party playback requires an existing signed-in session).
+- [x] Scene video 2: host-only private uploads, safe replacement, inline signed playback and 5 focused tests passed; real-party upload/playback unverified without an existing signed-in session.
