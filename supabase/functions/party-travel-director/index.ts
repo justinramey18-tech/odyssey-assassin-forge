@@ -121,6 +121,12 @@ Deno.serve(async req => {
   const journey = eligibleJourney(row?.state_data, Date.now());
   if (!journey) return reply(200, { ok: true, planned: false, skipped: true });
   const hash = await journeyHash(journey);
+  const { data: existing, error: existingError } = await db.from('party_travel_events').select('has_event, status')
+    .eq('party_id',partyId).eq('journey_plan_hash',hash)
+    .in('status',['planned','scheduled','firing','posted','no_event'])
+    .is('map_id',journey.mapId).order('created_at',{ascending:false}).limit(1).maybeSingle();
+  if (existingError) return reply(500,{error:'Travel planning failed.'});
+  if (existing) return reply(200,{ok:true,planned:existing.has_event});
   let decision;
   try { decision = await plan(db, partyId, userId, journey); }
   catch { return reply(502, { error: 'Travel planning failed.' }); }
@@ -129,6 +135,8 @@ Deno.serve(async req => {
   const latest = freshError ? null : eligibleJourney(fresh?.state_data, Date.now());
   if (!latest || latest.mapId !== journey.mapId || await journeyHash(latest) !== hash
     || latest.plan.totalMiles !== journey.plan.totalMiles) return reply(409, { error: 'The journey changed. Try again.' });
+  if (decision.event && latest.remainingMiles <= journey.remainingMiles*(1-decision.targetFraction))
+    return reply(409,{error:'The journey advanced. Try again.'});
   const base = { party_id: partyId, created_by: userId, map_id: journey.mapId, destination_location_id: journey.plan.destinationLocationId, journey_plan_hash: hash };
   const record = decision.event
     ? { ...base, has_event: true, status: 'planned', event_type: decision.eventType, event_premise: decision.premise, ...targetPoint(journey, decision.targetFraction) }
