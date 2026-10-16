@@ -4257,6 +4257,22 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
               toast.error(err instanceof Error ? err.message : 'Upload failed');
             }
           }}
+          portraitPrompt={buildPortraitPrompt(characterContext)}
+          onGeneratePortrait={partyId && currentUserId ? async (prompt) => {
+            try {
+              const { data, error } = await supabase.functions.invoke('venice-image-generate', {
+                body: { mode: 'player-portrait', prompt, partyId },
+              });
+              const url = (data as { imageUrl?: string } | null)?.imageUrl;
+              if (error || !url) throw new Error((data as { error?: string } | null)?.error || 'Portrait generation failed');
+              await chatAvatars.setAvatarUrl('ic', url);
+              toast.success('New character portrait set');
+              return true;
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : 'Portrait generation failed');
+              return false;
+            }
+          } : undefined}
           onUploadImage={async (file) => {
             if (file.size > 10 * 1024 * 1024) {
               toast.error('Image too large (max 10MB)');
@@ -6138,4 +6154,18 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
     </div>
 
   );
+}
+
+/** Default portrait description built from the player's own character details. */
+function buildPortraitPrompt(ctx?: CharacterContext): string {
+  if (!ctx) return 'Cinematic hyper-realistic fantasy character portrait, head and shoulders, dramatic lighting.';
+  const who = [ctx.gender, ctx.race, ctx.subclass, ctx.characterClass].filter(Boolean).join(' ');
+  const gear = (ctx.equipment || []).filter(e => e?.name).slice(0, 4).map(e => e.name).join(', ');
+  const story = (ctx.backstory || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+  return [
+    `Cinematic hyper-realistic fantasy portrait of ${ctx.name || 'an adventurer'}${who ? `, a ${who}` : ''}.`,
+    gear ? `Wearing or carrying: ${gear}.` : '',
+    story ? `Character notes: ${story}` : '',
+    'Head and shoulders, dramatic lighting, detailed face, no text.',
+  ].filter(Boolean).join(' ');
 }
