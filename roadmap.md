@@ -30,3 +30,4 @@
 
 - [x] Add cinematic speaking frames above full in-character portraits; 12 chat tests passed and isolated phone rendering/tap actions checked. Real-party use remains untested.
 - [x] Travel Director 1/4: private event storage and service-only atomic exact-point pause; verified permissions, stale callbacks and retries in an isolated database without changing live rows. Scheduling and actual party use await later prompts.
+- [x] Travel Director 2/4: deployed original-host-only hidden road planning, bounded context, distance-based targets and atomic private writes. Focused tests/server check passed; unsigned access rejected. Actual signed-in Venice planning unverified; no sign-in flow used. Scheduling remains for steps 3–4.
