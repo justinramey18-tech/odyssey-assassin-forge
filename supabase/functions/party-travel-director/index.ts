@@ -76,7 +76,7 @@ async function plan(db: any, partyId: string, hostId: string, j: Journey) {
     text(byType.get('dm_session')?.campaignSummary, 2500) ? `## CAMPAIGN SUMMARY\n${text(byType.get('dm_session')?.campaignSummary, 2500)}` : '',
     block('RECENT PARTY DM NARRATIVE', recent, 4000),
     block('ENABLED GM GUIDES', (guides.data || []).map((g: any) => `### ${text(g.name, 100)}\n${text(g.content, 2500)}`), 12000),
-    block('MEMORY ANCHORS', Array.isArray(anchors) ? cap(anchors.map((a: any) => text(typeof a === 'string' ? a : a?.text || a?.content, 300)).filter(Boolean), 12) : [], 3000),
+    block('MEMORY ANCHORS', Array.isArray(anchors) ? cap(anchors.map((a: any) => typeof a === 'string' ? text(a,300) : `${text(a?.key,80)}: ${text(a?.value || a?.text || a?.content,300)}`).filter(Boolean), 12) : [], 3000),
     quests && Object.keys(quests).length ? `## QUEST AND WORLD STATE\n${JSON.stringify(quests).slice(0, 3000)}` : '',
     block('ROAD-APPLICABLE AREA GUIDES', areaGuides, 8000),
   ].filter(Boolean).join('\n\n');

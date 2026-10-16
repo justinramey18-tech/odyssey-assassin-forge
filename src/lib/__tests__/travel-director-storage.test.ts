@@ -80,4 +80,26 @@ describe.skipIf(!isolated)('private Travel Director storage (isolated PostgreSQL
     EXCEPTION WHEN check_violation THEN NULL; END;
     BEGIN UPDATE party_travel_events SET has_event=false,status='no_event'; RAISE EXCEPTION 'secret accepted';
     EXCEPTION WHEN check_violation THEN NULL; END; END $$; SELECT 'PASS';`));
+  it('atomically replaces a no-event plan without altering the map', () => check(`
+    CREATE TEMP TABLE original AS SELECT state_data FROM party_shared_state;
+    SELECT CASE WHEN commit_private_travel_plan(
+      '00000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000002',
+      (SELECT state_data FROM party_shared_state),
+      '{"destination_location_id":"dest","journey_plan_hash":"none","has_event":false,"status":"no_event"}') THEN 'PASS' ELSE 'FAIL' END;
+    SELECT CASE WHEN commit_private_travel_plan(
+      '00000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000002',
+      (SELECT state_data FROM party_shared_state),
+      '{"destination_location_id":"dest","journey_plan_hash":"none","has_event":false,"status":"no_event"}') THEN 'PASS' ELSE 'FAIL' END;
+    SELECT CASE WHEN (SELECT count(*) FROM party_travel_events WHERE status='no_event')=1
+      AND (SELECT count(*) FROM party_travel_events WHERE status='cancelled')=2
+      AND (SELECT state_data FROM party_shared_state)=(SELECT state_data FROM original) THEN 'PASS' ELSE 'FAIL' END;`));
+  it('rejects stale plan commits and keeps the existing event', () => check(`
+    SELECT CASE WHEN NOT commit_private_travel_plan(
+      '00000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000002','{}',
+      '{"destination_location_id":"dest","journey_plan_hash":"none","has_event":false,"status":"no_event"}') THEN 'PASS' ELSE 'FAIL' END;
+    SELECT CASE WHEN count(*)=1 AND min(status)='scheduled' THEN 'PASS' ELSE 'FAIL' END FROM party_travel_events;`));
+  it('denies browser access to private plan commits', () => check(`
+    SELECT CASE WHEN NOT has_function_privilege('anon','commit_private_travel_plan(uuid,uuid,jsonb,jsonb)','EXECUTE')
+      AND NOT has_function_privilege('authenticated','commit_private_travel_plan(uuid,uuid,jsonb,jsonb)','EXECUTE')
+      AND has_function_privilege('service_role','commit_private_travel_plan(uuid,uuid,jsonb,jsonb)','EXECUTE') THEN 'PASS' ELSE 'FAIL' END;`));
 });
