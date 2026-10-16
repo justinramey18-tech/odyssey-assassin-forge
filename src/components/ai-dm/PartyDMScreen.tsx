@@ -687,7 +687,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   onVoiceSegment?: (messageId: string, content: string, passage: string, voiceId: string, label?: string, spokenText?: string) => Promise<void>;
   onShareNarrationVoices?: (messageId: string) => void;
   onRestoreNarrationClip?: (messageId: string, part: NarrationPart, blob: Blob, voiceId: string) => Promise<void>;
-  onGenerateSceneImage?: (messageId: string, content: string) => Promise<void>;
+  onGenerateSceneImage?: (messageId: string) => Promise<void>;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
@@ -998,7 +998,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                         onClick={async () => {
                           setShowActions(false);
                           setSceneImageBusy(true);
-                          try { await onGenerateSceneImage(message.id, message.content); } finally { setSceneImageBusy(false); }
+                          try { await onGenerateSceneImage(message.id); } finally { setSceneImageBusy(false); }
                         }}
                         className="p-1.5 rounded hover:bg-amber-900/30 text-amber-400/60 hover:text-amber-300 transition-colors disabled:opacity-40"
                         title="Generate Image"
@@ -2966,24 +2966,16 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
     partyDmRef.current.editMessage?.(messageId, content);
   }, []);
 
-  const handleGenerateSceneImage = useCallback(async (messageId: string, content: string) => {
+  const handleGenerateSceneImage = useCallback(async (messageId: string) => {
     if (!partyId) return;
-    const scene = stripCinematicTagsFromDisplay(content || '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/[*_#>`]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 1200);
-    if (!scene) { toast.error('This post has no scene to illustrate'); return; }
-    const prompt = `Cinematic fantasy scene illustration, gritty dark-frontier tone, no text or captions. Depict this moment: ${scene}`;
     try {
       const { data, error } = await supabase.functions.invoke('venice-image-generate', {
-        body: { mode: 'dm-scene', prompt, partyId, messageId },
+        body: { mode: 'dm-scene', partyId, messageId },
       });
       const res = data as { imageUrl?: string; finalPrompt?: string; error?: string } | null;
       if (error || !res?.imageUrl) throw new Error(res?.error || 'Scene image generation failed');
       const { error: saveErr } = await (supabase.from('party_dm_messages') as any)
-        .update({ scene_image_url: res.imageUrl, scene_image_prompt: res.finalPrompt ?? prompt })
+        .update({ scene_image_url: res.imageUrl, scene_image_prompt: res.finalPrompt ?? null })
         .eq('id', messageId);
       if (saveErr) throw saveErr;
       toast.success('Scene image added');
