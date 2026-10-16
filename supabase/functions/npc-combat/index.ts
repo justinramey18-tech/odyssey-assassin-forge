@@ -105,6 +105,10 @@ interface Fighter {
   minigame: Record<string, unknown> | null;
   /** v7 Players: the Duel bar (0-100), filled by damage dealt and taken. Emptied when a duel starts. */
   duel_charge: number | null;
+  combat_effects: R.ActiveCombatEffect[];
+  temp_hp: number;
+  temp_hp_source: string | null;
+  temp_hp_until: string | null;
 }
 
 interface Seat {
@@ -126,7 +130,7 @@ interface NpcRow {
 
 const FIGHT_COLS = 'id, party_id, status, outcome, started_by, paused_at, pause_kind, paused_until, huddles_used';
 const FIGHTER_COLS =
-  'id, fight_id, party_id, kind, npc_id, user_id, name, hp, max_hp, ac, status, death_successes, death_failures, next_action_at, next_save_at, action_seq, threat, last_seen_at, last_action_at, act_every_ms, resolve, resolve_at, resolve_rate, perks, second_wind, last_stand_used, pending, strike_at, turn_no, signature_turn, ward, ward_until, pinned_until, cooldowns, minigame, duel_charge';
+  'id, fight_id, party_id, kind, npc_id, user_id, name, hp, max_hp, ac, status, death_successes, death_failures, next_action_at, next_save_at, action_seq, threat, last_seen_at, last_action_at, act_every_ms, resolve, resolve_at, resolve_rate, perks, second_wind, last_stand_used, pending, strike_at, turn_no, signature_turn, ward, ward_until, pinned_until, cooldowns, minigame, duel_charge, combat_effects, temp_hp, temp_hp_source, temp_hp_until';
 const NPC_COLS = 'id, party_id, name, on_stage, archived, player_user_id, combat_stats, combat_state';
 
 class Refusal extends Error {
@@ -414,6 +418,7 @@ async function ensurePlayer(db: Db, fight: Fight, seat: Seat, now: number): Prom
     hp,
     max_hp: R.sheetMaxHp(sheet),
     ac: R.sheetAc(sheet),
+    temp_hp: R.sheetTempHp(sheet as R.SheetSummary & { tempHP?: unknown }),
     status: hp > 0 ? 'up' : 'down',
     next_save_at: hp > 0 ? null : R.nextDeathSaveAt(now),
     last_seen_at: iso(now),
@@ -551,11 +556,11 @@ async function hitNpc(
     // A Shield ward soaks up damage first.
     const wardLeft = f.ward_until && Date.parse(f.ward_until) > now ? Math.max(0, f.ward ?? 0) : 0;
     const absorbed = Math.min(wardLeft, damage);
-    const { hp } = R.applyDamage(f.hp, damage - absorbed);
+    const { hp, tempHp } = R.absorbTemporaryHp(f.hp, temporaryHp(f, now), damage - absorbed);
     const lost = f.hp - hp;
     const threat = { ...(f.threat ?? {}) };
     threat[me.user_id as string] = (threat[me.user_id as string] ?? 0) + lost;
-    const wardPatch = wardLeft > 0 ? { ward: wardLeft - absorbed } : {};
+    const wardPatch = { ...(wardLeft > 0 ? { ward: wardLeft - absorbed } : {}), temp_hp: tempHp };
     if (hp === 0) return { hp, threat, status: finish === 'kill' ? 'dead' : 'ko', next_action_at: null, pending: null, strike_at: null, ...wardPatch };
     if (lost === 0) return { threat, ...wardPatch };
     // Stagger: the NPC acts later, and slower from now on. Mid wind-up, the announced skill is pushed back instead.
@@ -623,6 +628,34 @@ async function npcTarget(db: Db, fight: Fight, targetId: unknown, early?: Promis
   return t;
 }
 
+const effectiveAc = (f: Fighter, now: number) => f.ac + R.combatBonus(f.combat_effects, 'ac_bonus', now);
+const temporaryHp = (f: Fighter, now: number) => f.temp_hp_until && Date.parse(f.temp_hp_until) <= now ? 0 : Math.max(0, f.temp_hp ?? 0);
+
+/** A one-attack bonus is claimed with the same optimistic write as other fighter changes. */
+async function takeAttackBonus(db: Db, fighter: Fighter, now: number): Promise<number> {
+  const result = await mutate(db, fighter.id, f => {
+    if (!R.combatBonus(f.combat_effects, 'attack_bonus', now)) return null;
+    return { combat_effects: R.activeCombatEffects(f.combat_effects, now).filter(e => e.kind !== 'attack_bonus') };
+  });
+  if (!result) return 0;
+  Object.assign(fighter, result.after);
+  return R.combatBonus(result.before.combat_effects, 'attack_bonus', now);
+}
+
+/** Log only a successful expiration claim; simultaneous pings cannot expire it twice. */
+async function expireEffects(db: Db, fight: Fight, now: number): Promise<void> {
+  if (fight.status === 'paused') return;
+  for (const fighter of await fightersOf(db, fight.id)) {
+    const result = await mutate(db, fighter.id, f => {
+      const effects = fight.status === 'ended' ? [] : R.activeCombatEffects(f.combat_effects, now);
+      const expiresTemp = !!f.temp_hp_source && (fight.status === 'ended' || (!!f.temp_hp_until && Date.parse(f.temp_hp_until) <= now));
+      if (effects.length === (f.combat_effects ?? []).length && !expiresTemp) return null;
+      return { combat_effects: effects, ...(expiresTemp ? { temp_hp: 0, temp_hp_source: null, temp_hp_until: null } : {}) };
+    }, fighter);
+    if (result) await addEvent(db, fight, { kind: 'sync', target_name: fighter.name, detail: 'Spell support effect expired' });
+  }
+}
+
 async function doAttack(
   db: Db, fight: Fight, hostId: string, seat: Seat, me: Fighter | null, target: Fighter,
   weaponName: unknown, finish: Finish, now: number,
@@ -630,7 +663,7 @@ async function doAttack(
   // Speed: claiming my turn and reading the target's Speed don't depend on each other.
   const [actor, speed] = await Promise.all([startAction(db, fight, me, now), speedOfNpc(db, target.npc_id)]);
   const w = R.weaponAttack(seat.character_status ?? {}, weaponName);
-  const a = R.resolveAttack(roll, w.bonus, target.ac);
+  const a = R.resolveAttack(roll, w.bonus + await takeAttackBonus(db, actor, now), effectiveAc(target, now));
   let lost = 0;
   let hp = target.hp;
   let defeated = false;
@@ -669,7 +702,7 @@ async function npcHitsPlayer(
   db: Db, fight: Fight, hostId: string, npc: Fighter, target: Fighter, bonus: number, dice: R.Dice,
   stats: R.NpcCombatStats, now: number, scale = 1,
 ): Promise<{ hit: boolean; crit: boolean; lost: number; downed: boolean }> {
-  const a = R.resolveAttack(roll, bonus, target.ac);
+  const a = R.resolveAttack(roll, bonus + await takeAttackBonus(db, npc, now), effectiveAc(target, now));
   let lost = 0;
   let downed = false;
   let stoodHp = 0;
@@ -703,7 +736,8 @@ async function damagePlayer(
   let lastStandHp = 0;
   const result = await mutate(db, target.id, f => {
     if (f.status !== 'up') return null;
-    const { hp } = R.applyDamage(f.hp, damage);
+    const { hp, tempHp } = R.absorbTemporaryHp(f.hp, temporaryHp(f, now), damage);
+    const tempPatch = { temp_hp: tempHp };
     const perks = R.cleanPerks(f.perks);
     const resolve = Math.min(R.RESOLVE_MAX, R.resolveNow(f.resolve, f.resolve_at, f.resolve_rate, now) + R.damageResolve(f.hp - hp, f.max_hp, perks));
     // v7: taking damage fills the Duel bar by the share of max HP lost (not during a duel, and not from the duel itself).
@@ -712,12 +746,12 @@ async function damagePlayer(
       : {};
     if (hp === 0 && perks.includes('last_stand') && !f.last_stand_used && resolve >= R.RESOLVE_MAX) {
       lastStandHp = Math.min(f.max_hp, R.rollHealing(R.parseDice(f.second_wind) ?? { count: 1, sides: 8, bonus: 0 }, roll));
-      return { hp: lastStandHp, resolve: 0, resolve_at: iso(now), last_stand_used: true, ...bar };
+      return { hp: lastStandHp, resolve: 0, resolve_at: iso(now), last_stand_used: true, ...bar, ...tempPatch };
     }
     lastStandHp = 0;
     return hp === 0
-      ? { hp, status: 'down', death_successes: 0, death_failures: 0, next_save_at: R.nextDeathSaveAt(now), resolve, resolve_at: iso(now), ...bar }
-      : { hp, resolve, resolve_at: iso(now), ...bar };
+      ? { hp, status: 'down', death_successes: 0, death_failures: 0, next_save_at: R.nextDeathSaveAt(now), resolve, resolve_at: iso(now), ...bar, ...tempPatch }
+      : { hp, resolve, resolve_at: iso(now), ...bar, ...tempPatch };
   });
   if (!result) return { lost: 0, downed: false, stoodHp: 0 };
   const stood = !!result.after.last_stand_used && !result.before.last_stand_used;
@@ -1036,6 +1070,7 @@ async function tick(db: Db, fightId: string, hostId: string, now: number, known?
     if (await resumeFight(db, fight, hostId, now)) fight = await getFight(db, fightId);
   }
   if (fight.status === 'paused') return;
+  await expireEffects(db, fight, now);
   let fighters = await fightersOf(db, fight.id);
   // v7 Duel: a duel nobody sent back (the player walked away) settles as if every strike landed.
   for (const p of fighters) {
@@ -1207,6 +1242,8 @@ async function resumeFight(db: Db, fight: Fight, hostId: string, now: number): P
   for (const f of await fightersOf(db, fight.id)) {
     await mutate(db, f.id, x => {
       const patch: Partial<Fighter> = {};
+      if (x.combat_effects?.length) patch.combat_effects = R.shiftCombatEffects(x.combat_effects, by);
+      if (x.temp_hp_until) patch.temp_hp_until = R.shiftIso(x.temp_hp_until, by);
       if (x.kind === 'npc') {
         if (x.status === 'up' && x.pending && x.strike_at) {
           // Counter Clash: the first circle starts at least 1.5 s after the fight resumes.
@@ -1269,6 +1306,7 @@ async function endFight(db: Db, fight: Fight, hostId: string, outcome: 'victory'
   if (!Array.isArray(data) || data.length === 0) return;
   fight.status = 'ended';
   fight.outcome = outcome;
+  await expireEffects(db, fight, now);
   if (outcome !== 'defeat') {
     // Nobody dies after the fight is won or called off: downed players are stable.
     const { error: stableError } = await db.from('party_fight_combatants')
@@ -1630,7 +1668,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     }
     const target = await npcTarget(db, fight, body.targetId, earlyTarget);
     const [actor, speed] = await Promise.all([startAction(db, fight, me, now), speedOfNpc(db, target.npc_id)]);
-    const a = R.resolveAttack(roll, R.spellAttackBonus(sheet), target.ac);
+    const a = R.resolveAttack(roll, R.spellAttackBonus(sheet) + await takeAttackBonus(db, actor, now), effectiveAc(target, now));
     let out = { lost: 0, hp: target.hp, defeated: false };
     if (a.hit) {
       out = await hitNpc(db, fight, hostId, actor, target.id, R.rollDamage(R.spellDamageDice(spellLevel, sheet.level), roll, a.crit), finishOf(body.finish), a.crit, now, { target, speed });
@@ -1652,6 +1690,48 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     const card = body.card && typeof body.card === 'object' ? (body.card as Record<string, unknown>) : null;
     const spellName = card && typeof card.action === 'string' ? card.action.trim().slice(0, 80) : '';
     if (!card || !spellName) refuse(400, 'Missing spell card.');
+    if (card?.combatEffects !== undefined) {
+      const effects = R.validateCombatEffects(card.combatEffects) ?? refuse(400, 'Invalid combat effects.');
+      if (fight.status !== 'active') refuse(409, 'The fight is not running.');
+      if (card.resolve !== 'buff' && card.resolve !== 'utility') refuse(400, 'Support effects require a support-only card.');
+      if ((card.damageTotal !== undefined && card.damageTotal !== 0) || (card.amount !== undefined && card.amount !== 0)) refuse(400, 'Support cards cannot also change ordinary HP.');
+      if (card.targetKind !== undefined && card.targetKind !== 'ally') refuse(400, 'Support effects target allies only.');
+      if (card.area !== undefined && typeof card.area !== 'boolean') refuse(400, 'Invalid support target count.');
+      const extra = body.targetIds === undefined ? [] : body.targetIds;
+      if (!Array.isArray(extra) || extra.some(id => !isUuid(id))) refuse(400, 'Invalid support targets.');
+      const ids = [...new Set([needUuid(body.targetId, 'target'), ...extra as string[]])];
+      if (ids.length > (card.area === true ? AREA_MAX_TARGETS : 1)) refuse(400, 'Too many support targets.');
+      const targets = await Promise.all(ids.map(id => fighterById(db, id)));
+      if (targets.some(t => !t || t.fight_id !== fight.id || t.kind !== 'player' || t.status !== 'up' || t.hp <= 0)) refuse(400, 'Pick living allies in this fight.');
+      const actor = await startAction(db, fight, me, now);
+      const spell = spellName.toLowerCase();
+      const rolled = effects.map(effect => ({ ...effect, value: effect.formula ? R.rollHealing(R.parseDice(effect.formula) ?? refuse(400, 'Invalid effect dice.'), roll) : effect.amount ?? 0 }));
+      for (const target of targets) {
+        if (!target) continue;
+        const result = await mutate(db, target.id, f => {
+          if (f.status !== 'up' || f.hp <= 0) return null;
+          const patch: Partial<Fighter> = { combat_effects: R.activeCombatEffects(f.combat_effects, now) };
+          for (const effect of rolled) {
+            const until = iso(now + effect.durationSeconds * 1000);
+            if (effect.kind === 'temporary_hp') {
+              const current = temporaryHp(f, now);
+              if (effect.value >= current || f.temp_hp_source === spell) {
+                patch.temp_hp = Math.max(current, effect.value);
+                patch.temp_hp_source = spell;
+                patch.temp_hp_until = until;
+              }
+            } else {
+              patch.combat_effects = R.refreshCombatEffect(patch.combat_effects, { kind: effect.kind, amount: effect.value, spell, until }, now);
+            }
+          }
+          return patch;
+        });
+        if (!result) refuse(409, 'The ally changed. Try again.');
+        await addEvent(db, fight, { kind: 'spell', actor_name: actor.name, target_name: target.name, detail: `${spellName}: support applied (${effects.map(e => e.kind).join(', ')})` });
+      }
+      return { ok: true, applied: true, targets: targets.length };
+    }
+    if (card?.resolve === 'buff') refuse(400, 'Missing structured combat effects.');
     const num = (v: unknown, max: number): number | null => {
       const n = Number(v);
       return v === null || v === undefined || v === '' || !Number.isFinite(n) ? null : Math.max(0, Math.min(max, Math.round(n)));
@@ -1719,6 +1799,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
       : (d20 !== null && d20 >= 1 ? 'attack' : 'save');
     const cardDc = num(card!.saveDC, 30);
     const dc = cardDc !== null && cardDc >= 5 ? cardDc : 8 + R.proficiency(sheet.level) + R.castingMod(sheet);
+    const attackBuff = mode === 'attack' ? await takeAttackBonus(db, actor, now) : 0;
     const crit = mode === 'attack' && d20 === 20;
     let lost = 0;
     let anyHit = false;
@@ -1733,8 +1814,8 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
       let note = '';
       if (mode === 'attack') {
         // Spell attack: the card's own roll against each target's AC.
-        shown = attackTotal ?? d20;
-        hit = crit || (d20 !== null && d20 !== 1 && (shown ?? 0) >= target.ac);
+        shown = (attackTotal ?? d20 ?? 0) + attackBuff;
+        hit = crit || (d20 !== null && d20 !== 1 && (shown ?? 0) >= effectiveAc(target, now));
       } else if (mode === 'save') {
         // Saving-throw spell: each target saves against the caster's spell DC; a success halves the damage.
         const save = roll(20);
