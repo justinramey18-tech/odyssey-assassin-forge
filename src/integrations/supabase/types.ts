@@ -1345,6 +1345,7 @@ export type Database = {
           role: string
           scene_image_prompt: string | null
           scene_image_url: string | null
+          scene_video_path: string | null
           sender_name: string
           sender_user_id: string | null
           team: string | null
@@ -1358,6 +1359,7 @@ export type Database = {
           role: string
           scene_image_prompt?: string | null
           scene_image_url?: string | null
+          scene_video_path?: string | null
           sender_name?: string
           sender_user_id?: string | null
           team?: string | null
@@ -1371,6 +1373,7 @@ export type Database = {
           role?: string
           scene_image_prompt?: string | null
           scene_image_url?: string | null
+          scene_video_path?: string | null
           sender_name?: string
           sender_user_id?: string | null
           team?: string | null
