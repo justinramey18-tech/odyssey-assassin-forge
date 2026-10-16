@@ -260,6 +260,13 @@
       "when": 1792184540438,
       "tag": "0036_travel_event_leases_and_single_post",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1792188948491,
+      "tag": "0037_live_combat_spell_effects",
+      "breakpoints": true
     }
   ]
 }

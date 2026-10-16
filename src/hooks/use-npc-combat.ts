@@ -25,6 +25,7 @@ export interface UseNpcCombatOptions {
   isHost: boolean;
   sheetHp: number | null;
   onHPChange?: (change: number, type: 'damage' | 'healing') => void;
+  onCombatHPChange?: (hpDelta: number, tempDelta: number) => void;
 }
 
 const ENDED_GRACE_MS = 3 * 60_000;
@@ -89,7 +90,7 @@ export function duelChargeOf(f: object | null | undefined): number {
   return duelChargeNow((f as { duel_charge?: unknown } | null | undefined)?.duel_charge);
 }
 
-export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChange }: UseNpcCombatOptions) {
+export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChange, onCombatHPChange }: UseNpcCombatOptions) {
   const [fight, setFight] = useState<FightRow | null>(null);
   const [fighters, setFighters] = useState<FighterRow[]>([]);
   const [events, setEvents] = useState<FightEventRow[]>([]);
@@ -131,6 +132,8 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
   const lastSyncAtRef = useRef(0);
   const onHPChangeRef = useRef(onHPChange);
   onHPChangeRef.current = onHPChange;
+  const onCombatHPChangeRef = useRef(onCombatHPChange);
+  onCombatHPChangeRef.current = onCombatHPChange;
 
   const reload = useCallback(async () => {
     if (!partyId || !currentUserId) return;
@@ -348,12 +351,12 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
 
   // HP inbox: each hit or heal aimed at me lands on my sheet exactly once.
   const inbox = useMemo(
-    () => events.filter(e => e.target_user_id === currentUserId && e.hp_delta !== 0 && !e.applied_at),
+    () => events.filter(e => e.target_user_id === currentUserId && (e.hp_delta !== 0 || e.temp_hp_delta !== 0) && !e.applied_at),
     [events, currentUserId],
   );
   useEffect(() => {
     const apply = onHPChangeRef.current;
-    if (!apply || !currentUserId || inbox.length === 0) return;
+    if ((!apply && !onCombatHPChangeRef.current) || !currentUserId || inbox.length === 0) return;
     const appliedIds: string[] = [];
     for (const ev of inbox) {
       const key = appliedKey(ev.fight_id, currentUserId);
@@ -361,11 +364,14 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
       const list = readApplied(key);
       if (list.includes(ev.id)) { applyingRef.current.add(ev.id); continue; }
       const delta = Number(ev.hp_delta);
-      if (!Number.isFinite(delta) || delta === 0) continue;
+      const tempDelta = Number(ev.temp_hp_delta ?? 0);
+      if (!Number.isFinite(delta) || !Number.isFinite(tempDelta) || (delta === 0 && tempDelta === 0)) continue;
+      if (tempDelta !== 0 && !onCombatHPChangeRef.current) continue;
       applyingRef.current.add(ev.id);
       list.push(ev.id);
       writeApplied(key, list);
-      apply(delta, delta < 0 ? 'damage' : 'healing');
+      if (onCombatHPChangeRef.current) onCombatHPChangeRef.current(delta, tempDelta);
+      else if (delta !== 0) apply?.(delta, delta < 0 ? 'damage' : 'healing');
       appliedIds.push(ev.id);
     }
     if (appliedIds.length > 0) {
@@ -375,7 +381,7 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
   }, [inbox, currentUserId]);
 
   // Sheet HP sync: healing outside the fight (potion, rest, story) reaches the referee.
-  const hasPendingInbox = !!onHPChange && inbox.some(e => !applyingRef.current.has(e.id));
+  const hasPendingInbox = (!!onHPChange || !!onCombatHPChange) && inbox.some(e => !applyingRef.current.has(e.id));
   const canSync = !!fightId && !isEnded && !!myFighter && myFighter.status !== 'dead' && !hasPendingInbox
     && typeof sheetHp === 'number' && Number.isFinite(sheetHp) && sheetHp !== myFighter.hp;
   useEffect(() => {

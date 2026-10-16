@@ -66,6 +66,7 @@ interface StandalonePartyDMScreenProps {
   onShowChat?: () => void;
   autoSyncCallbacks?: {
     onHPChange: (change: number, type: 'damage' | 'healing') => void;
+    onCombatHPChange?: (hpDelta: number, tempDelta: number) => void;
     onHPSet?: (hp: number) => void;
     onUseConsumableByName?: (name: string, quantity?: number) => boolean;
     onAddXP: (amount: number, source: string) => void;
@@ -1050,6 +1051,7 @@ ${truncated}`);
           wildShape={wildShape}
           isMomoMoonDruid={isMomoMoonDruid}
           onHPChange={autoSyncCallbacks?.onHPChange}
+          onCombatHPChange={autoSyncCallbacks?.onCombatHPChange}
           onRestOccurred={autoSyncCallbacks?.onRestOccurred}
           onUseConsumableByName={autoSyncCallbacks?.onUseConsumableByName}
           swipeHandlers={swipeHandlers}

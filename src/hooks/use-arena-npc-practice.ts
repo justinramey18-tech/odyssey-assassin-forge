@@ -90,6 +90,8 @@ function baseRow(now: number, over: Partial<FighterRow>): FighterRow {
     party_id: PARTY, pending: null, perks: [], pinned_until: null, resolve: 0, resolve_at: iso(now), resolve_rate: 1,
     second_wind: null, signature_turn: 0, status: 'up', strike_at: null, threat: {}, turn_no: 0, updated_at: iso(now),
     user_id: null, ward: 0, ward_until: null, ...over,
+    combat_effects: over.combat_effects ?? [], temp_hp: over.temp_hp ?? 0,
+    temp_hp_source: over.temp_hp_source ?? null, temp_hp_until: over.temp_hp_until ?? null,
   };
 }
 
@@ -175,7 +177,7 @@ export function useArenaNpcPractice({ ctx, foe: oneFoe, foes: manyFoes, currentU
   }, [enabled, drillKind, isDrill, aiVoice, say, foeAt, maxHp]);
 
   const event = useCallback((e: Partial<FightEventRow> & { kind: string; detail: string }) => {
-    const row: FightEventRow = { actor_name: '', applied_at: null, created_at: iso(Date.now()), d20: null, fight_id: FIGHT_ID, hp_delta: 0, id: crypto.randomUUID(), party_id: PARTY, target_name: '', target_user_id: null, total: null, ...e };
+    const row: FightEventRow = { actor_name: '', applied_at: null, created_at: iso(Date.now()), d20: null, fight_id: FIGHT_ID, hp_delta: 0, temp_hp_delta: 0, id: crypto.randomUUID(), party_id: PARTY, target_name: '', target_user_id: null, total: null, ...e };
     setEvents((p) => [...p.slice(-59), row]);
   }, []);
 
