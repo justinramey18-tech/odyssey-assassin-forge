@@ -253,6 +253,13 @@
       "when": 1792184223833,
       "tag": "0035_atomic_private_travel_plan_commit",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1792184540438,
+      "tag": "0036_travel_event_leases_and_single_post",
+      "breakpoints": true
     }
   ]
 }

@@ -102,4 +102,17 @@ describe.skipIf(!isolated)('private Travel Director storage (isolated PostgreSQL
     SELECT CASE WHEN NOT has_function_privilege('anon','commit_private_travel_plan(uuid,uuid,jsonb,jsonb)','EXECUTE')
       AND NOT has_function_privilege('authenticated','commit_private_travel_plan(uuid,uuid,jsonb,jsonb)','EXECUTE')
       AND has_function_privilege('service_role','commit_private_travel_plan(uuid,uuid,jsonb,jsonb)','EXECUTE') THEN 'PASS' ELSE 'FAIL' END;`));
+  it('leases one firing worker and atomically posts exactly one DM beat on retries', () => check(`
+    SELECT ${call};
+    CREATE TEMP TABLE lease AS SELECT claim_travel_event_attempt('00000000-0000-4000-8000-000000000005') AS receipt;
+    SELECT CASE WHEN claim_travel_event_attempt('00000000-0000-4000-8000-000000000005')->>'busy'='true' THEN 'PASS' ELSE 'FAIL' END;
+    SELECT complete_travel_event_post('00000000-0000-4000-8000-000000000005',(receipt->>'leaseId')::uuid,'A figure steps into the road.',false) FROM lease;
+    SELECT complete_travel_event_post('00000000-0000-4000-8000-000000000005',(receipt->>'leaseId')::uuid,'Duplicate.',false) FROM lease;
+    SELECT CASE WHEN (SELECT count(*) FROM party_dm_messages)=1 AND status='posted' AND dm_message_id IS NOT NULL AND attempt_count=1 THEN 'PASS' ELSE 'FAIL' END FROM party_travel_events;`));
+  it('final failed interruption also posts at most once and leaves travel paused', () => check(`
+    SELECT ${call};
+    CREATE TEMP TABLE lease AS SELECT claim_travel_event_attempt('00000000-0000-4000-8000-000000000005') AS receipt;
+    SELECT complete_travel_event_post('00000000-0000-4000-8000-000000000005',(receipt->>'leaseId')::uuid,'Something halts the journey. What do you investigate?',true) FROM lease;
+    SELECT CASE WHEN status='failed' AND dm_message_id IS NOT NULL AND (SELECT count(*) FROM party_dm_messages)=1
+      AND (SELECT state_data->'maps'->0->'state'->'activeTravel'->'startedAt' FROM party_shared_state)='null'::jsonb THEN 'PASS' ELSE 'FAIL' END FROM party_travel_events;`));
 });
