@@ -5,7 +5,17 @@ export function eventClock(state: Row, event: Row, now: number) {
   const t = state.activeTravel, plan = state.journeyPlan;
   if (!plan || !Array.isArray(plan.legs) || state.travelScale === 'city' || state.currentLocationId === event.destination_location_id)
     return { kind: 'cancel' } as const;
-  if (!t) return { kind: 'wait' } as const;
+  if (!t) {
+    const p=state.currentRoutePosition;
+    const idx=plan.currentLegIndex;
+    if(event.target_leg_index<idx) return {kind:'cancel'} as const;
+    if(p?.routeId===event.target_route_id && event.target_leg_index===idx) {
+      const currentDir=event.target_reversed ? 1-p.progress : p.progress;
+      const targetDir=event.target_reversed ? 1-event.target_route_progress : event.target_route_progress;
+      if(currentDir>=targetDir-1e-9) return {kind:'cancel'} as const;
+    }
+    return { kind: 'wait' } as const;
+  }
   const segments: Row[] = t.segments?.length ? t.segments : [{ ...t, legIndex:plan.currentLegIndex }];
   const total = segments.reduce((n,s) => n+s.gameMinutes,0);
   if (!finite(total) || total <= 0 || !finite(t.realDurationMs) || t.realDurationMs <= 0) return {kind:'cancel'} as const;
@@ -24,7 +34,10 @@ export function eventClock(state: Row, event: Row, now: number) {
   }
   if (!target) {
     const last=segments[segments.length-1];
-    return {kind:event.target_leg_index < (last?.legIndex ?? plan.currentLegIndex) ? 'cancel' : 'wait'} as const;
+    const targetDir=event.target_reversed ? 1-event.target_route_progress : event.target_route_progress;
+    const same=segments.find(s=>s.legIndex===event.target_leg_index);
+    return {kind:event.target_leg_index < (last?.legIndex ?? plan.currentLegIndex)
+      || (same && targetDir<same.startProgress-1e-9) ? 'cancel' : 'wait'} as const;
   }
   if (target.fraction <= current+1e-9) {
     // A late sync never rewinds. Only nudge ahead on this same leg with meaningful road left.
