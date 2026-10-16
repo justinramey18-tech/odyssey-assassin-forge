@@ -1411,6 +1411,10 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
   const [combatPreTarget, setCombatPreTarget] = useState<{ targetId: string; targetName: string; finish: 'knockout' | 'kill'; at: number } | null>(null);
   const combatPreTargetRef = useRef(combatPreTarget);
   combatPreTargetRef.current = combatPreTarget;
+  // Target rails: the only copy of the picked fight targets (primary first). Kept until the player picks again.
+  const [combatSelection, setCombatSelection] = useState<CombatSelection | null>(null);
+  // Set right before a tray tap posts its card, so dispatchPrompt lands it on exactly these targets.
+  const trayTargetsRef = useRef<{ ids: string[] } | null>(null);
   // Outside a fight: a healing spell just cast, waiting for its caster to pick who it heals.
   const [healPick, setHealPick] = useState<{ spellName: string; amount: number; area: boolean } | null>(null);
   const npcCombatRef = useRef(npcCombat);
@@ -2362,7 +2366,13 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
           combatPreTargetRef.current = null;
           setCombatPreTarget(null);
         }
-        if (castCard && preFresh && spellCastName(text) && fightNow.isActive && fightNow.myFighter?.status === 'up' && cardSide(castCard)) {
+        const trayPick = trayTargetsRef.current;
+        trayTargetsRef.current = null;
+        if (castCard && trayPick && spellCastName(text) && fightNow.isActive && fightNow.myFighter?.status === 'up' && cardSide(castCard)) {
+          const picked = oneTapTargets(castCard, trayPick.ids, fightNow.fighters);
+          if (!picked.ok) toast.error(`${castCard.action} can't land on that target.`);
+          else void fightNow.castFromCard(picked.targetId, castCard, cardSide(castCard) === 'ally' ? undefined : 'knockout', picked.extraIds);
+        } else if (castCard && preFresh && spellCastName(text) && fightNow.isActive && fightNow.myFighter?.status === 'up' && cardSide(castCard)) {
           // One-tap: the target was already picked, so land on it now (area capped, one side only).
           const picked = oneTapTargets(castCard, [preFresh.targetId], fightNow.fighters);
           if (!picked.ok) {
@@ -3063,6 +3073,31 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
       } : undefined,
     };
   }, [oneTapActive, oneTapPre, oneTapTargetRow, npcCombat.myFighter?.id, onUseConsumableByName]);
+
+  // One-tap combat tray: the Quick Actions list, loaded with that drawer's own code chunk.
+  const [qaModule, setQaModule] = useState<typeof import('./PartyDMQuickActions') | null>(null);
+  useEffect(() => {
+    if (!npcCombat.isActive || qaModule) return;
+    let alive = true;
+    void import('./PartyDMQuickActions').then(m => { if (alive) setQaModule(m); }).catch(() => {});
+    return () => { alive = false; };
+  }, [npcCombat.isActive, qaModule]);
+  const trayItems = useMemo(() => {
+    if (!qaModule || !npcCombat.isActive) return [];
+    const sec = qaModule.buildQuickActionSections(characterContext, characterContext?.name || 'The Adventurer');
+    const spells = [...sec.cantrips, ...sec.spells, ...sec.homebrew.filter(i => i.rollKind === 'spell')];
+    const entries: Array<{ entry: TrayEntry; item: import('./PartyDMQuickActions').QuickActionEntry }> = [];
+    for (const w of sec.weapons) if (!w.isEmptyWeaponSlot && w.weaponSlot) entries.push({ entry: { id: w.id, name: w.name, sub: w.weaponStats?.damage, side: 'enemy', row: 'attack' }, item: w });
+    for (const sp of spells) {
+      const side = qaModule.quickSpellSide(sp);
+      if (!side) continue;
+      const buff = side === 'ally' && !sp.healingFormula;
+      entries.push({ entry: { id: sp.id, name: sp.name, sub: buff ? 'Buff' : sp.spellLevel ? `Level ${sp.spellLevel}` : 'Cantrip', side, row: 'spell' }, item: sp });
+    }
+    for (const c of sec.consumables) if (c.rollKind === 'heal' && c.healingDice) entries.push({ entry: { id: c.id, name: c.name, sub: c.healingDice.formula ?? undefined, side: 'ally', row: 'item' }, item: c });
+    return entries;
+  }, [qaModule, npcCombat.isActive, characterContext]);
+  const combatTray = useMemo(() => trayItems.map(t => t.entry), [trayItems]);
 
   const handleHealingItemUsed = useCallback((itemName: Parameters<typeof handleHealingItemUsedBase>[0], roll: Parameters<typeof handleHealingItemUsedBase>[1]) => {
     const out = handleHealingItemUsedBase(itemName, roll);
