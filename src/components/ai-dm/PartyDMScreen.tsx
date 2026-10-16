@@ -6155,3 +6155,17 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
 
   );
 }
+
+/** Default portrait description built from the player's own character details. */
+function buildPortraitPrompt(ctx?: CharacterContext): string {
+  if (!ctx) return 'Cinematic hyper-realistic fantasy character portrait, head and shoulders, dramatic lighting.';
+  const who = [ctx.gender, ctx.race, ctx.subclass, ctx.characterClass].filter(Boolean).join(' ');
+  const gear = (ctx.equipment || []).filter(e => e?.name).slice(0, 4).map(e => e.name).join(', ');
+  const story = (ctx.backstory || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+  return [
+    `Cinematic hyper-realistic fantasy portrait of ${ctx.name || 'an adventurer'}${who ? `, a ${who}` : ''}.`,
+    gear ? `Wearing or carrying: ${gear}.` : '',
+    story ? `Character notes: ${story}` : '',
+    'Head and shoulders, dramatic lighting, detailed face, no text.',
+  ].filter(Boolean).join(' ');
+}
