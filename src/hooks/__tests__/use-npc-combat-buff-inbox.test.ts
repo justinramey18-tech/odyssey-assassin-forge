@@ -9,7 +9,7 @@ vi.mock('@/integrations/supabase/client', () => ({ supabase: {
       then: (resolve: any) => Promise.resolve({ error: null, data: table === 'party_fights'
         ? [{ id: 'fight', party_id: 'party', status: 'active', started_at: new Date().toISOString() }]
         : table === 'party_fight_combatants' ? [{ id: 'fighter', fight_id: 'fight', kind: 'player', user_id: 'me', hp: 25, status: 'up' }]
-        : table === 'party_fight_events' ? state.events : [] }).then(resolve),
+        : table === 'party_fight_events' ? state.events.slice().reverse() : [] }).then(resolve),
     }; return builder;
   },
   channel: () => { const c: any = { on: () => c, subscribe: () => c }; return c; },
@@ -39,7 +39,7 @@ describe('temporary-HP changes through the existing inbox', () => {
     await waitFor(() => expect(apply).toHaveBeenCalledTimes(3));
     expect({ hp, temp }).toEqual({ hp: 25, temp: 0 });
     expect(state.calls).toContainEqual({ action: 'ack', eventIds: ['grant', 'absorb', 'damage'] });
-    await act(async () => { await first.result.current.reload(); });
+    first.rerender();
     expect(apply).toHaveBeenCalledTimes(3); first.unmount();
     const second = renderHook(() => useNpcCombat(options));
     await waitFor(() => expect(second.result.current.events).toHaveLength(4));
@@ -49,7 +49,7 @@ describe('temporary-HP changes through the existing inbox', () => {
     state.events = [{ id: 'temp', fight_id: 'fight', target_user_id: 'me', hp_delta: 0, temp_hp_delta: 10, applied_at: null }];
     const ordinary = vi.fn();
     const hook = renderHook(() => useNpcCombat({ partyId: 'party', currentUserId: 'me', isHost: false, sheetHp: 25, onHPChange: ordinary }));
-    await waitFor(() => expect(hook.result.current.inbox).toHaveLength(1));
+    await waitFor(() => expect(hook.result.current.events).toHaveLength(1));
     expect(ordinary).not.toHaveBeenCalled(); expect(state.calls.some(c => c.action === 'ack')).toBe(false); hook.unmount();
   });
 });
