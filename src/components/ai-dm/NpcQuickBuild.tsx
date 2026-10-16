@@ -10,7 +10,9 @@ import { cn } from '@/lib/utils';
 import type {
   NpcBuildDifficulty, NpcBuildDraft, NpcBuildRole, NpcCombatStats, NpcSkill, NpcSkillType, NpcSpeed, NpcTemplate, PartyNpcsApi,
 } from '@/hooks/use-party-npcs';
-import { NPC_SKILL_INFO } from '@/hooks/use-party-npcs';
+import { NPC_SKILL_INFO, buildNpcImagePrompt } from '@/hooks/use-party-npcs';
+import { supabase } from '@/integrations/supabase/client';
+import { NpcPortrait } from './NpcPortrait';
 
 const fieldClass = 'w-full rounded-lg bg-black/40 border border-white/15 px-3 py-2 text-[14px] text-white/90 placeholder:text-white/30 outline-none focus:border-amber-400/60';
 const labelClass = 'block text-[11px] uppercase tracking-wide text-white/50 mb-1';
