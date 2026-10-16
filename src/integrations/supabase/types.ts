@@ -1437,6 +1437,7 @@ export type Database = {
           ac: number
           act_every_ms: number | null
           action_seq: number
+          combat_effects: Json
           cooldowns: Json
           created_at: string
           death_failures: number
@@ -1466,6 +1467,9 @@ export type Database = {
           signature_turn: number
           status: string
           strike_at: string | null
+          temp_hp: number
+          temp_hp_source: string | null
+          temp_hp_until: string | null
           threat: Json
           turn_no: number
           updated_at: string
@@ -1477,6 +1481,7 @@ export type Database = {
           ac: number
           act_every_ms?: number | null
           action_seq?: number
+          combat_effects?: Json
           cooldowns?: Json
           created_at?: string
           death_failures?: number
@@ -1506,6 +1511,9 @@ export type Database = {
           signature_turn?: number
           status?: string
           strike_at?: string | null
+          temp_hp?: number
+          temp_hp_source?: string | null
+          temp_hp_until?: string | null
           threat?: Json
           turn_no?: number
           updated_at?: string
@@ -1517,6 +1525,7 @@ export type Database = {
           ac?: number
           act_every_ms?: number | null
           action_seq?: number
+          combat_effects?: Json
           cooldowns?: Json
           created_at?: string
           death_failures?: number
@@ -1546,6 +1555,9 @@ export type Database = {
           signature_turn?: number
           status?: string
           strike_at?: string | null
+          temp_hp?: number
+          temp_hp_source?: string | null
+          temp_hp_until?: string | null
           threat?: Json
           turn_no?: number
           updated_at?: string
@@ -1591,6 +1603,7 @@ export type Database = {
           party_id: string
           target_name: string
           target_user_id: string | null
+          temp_hp_delta: number
           total: number | null
         }
         Insert: {
@@ -1606,6 +1619,7 @@ export type Database = {
           party_id: string
           target_name?: string
           target_user_id?: string | null
+          temp_hp_delta?: number
           total?: number | null
         }
         Update: {
@@ -1621,6 +1635,7 @@ export type Database = {
           party_id?: string
           target_name?: string
           target_user_id?: string | null
+          temp_hp_delta?: number
           total?: number | null
         }
         Relationships: [
