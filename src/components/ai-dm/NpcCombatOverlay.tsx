@@ -40,6 +40,38 @@ interface Props {
   /** The target picked before choosing a spell, while it is still waiting for a cast. */
   preTarget?: { targetId: string; targetName: string; at: number } | null;
   onClearPreTarget?: () => void;
+  /** Target rails: the picked side and fighters (primary first). Owned by the Party DM screen. */
+  selection?: CombatSelection | null;
+  onSelect?: (next: CombatSelection | null) => void;
+  /** One-tap tray entries for the current selection, built from Quick Actions. */
+  tray?: CombatTray;
+  onTrayTap?: (id: string) => void;
+  /** Player portraits by user id (the in-character chat avatar). */
+  allyPortraits?: Record<string, string | undefined>;
+}
+
+export type CombatSelection = { side: 'enemy' | 'ally'; ids: string[] };
+export type TrayEntry = { id: string; name: string; sub?: string; side: 'enemy' | 'ally'; row: 'attack' | 'spell' | 'item' };
+export type CombatTray = TrayEntry[];
+
+/** Live effect chips from server fields only (buffs, temporary HP, ward), with seconds left. */
+function effectChips(f: FighterRow, now: number): string[] {
+  const out: string[] = [];
+  const secs = (until: unknown) => { const t = timeOf(until); return Number.isFinite(t) && t > now ? Math.ceil((t - now) / 1000) : 0; };
+  const fmt = (s: number) => (s >= 60 ? `${Math.ceil(s / 60)}m` : `${s}s`);
+  const list = Array.isArray(f.combat_effects) ? f.combat_effects as Array<Record<string, unknown>> : [];
+  for (const e of list) {
+    const left = secs(e?.until);
+    const amt = Number(e?.amount);
+    if (!left || !Number.isFinite(amt)) continue;
+    if (e.kind === 'ac_bonus') out.push(`🛡+${amt} AC ${fmt(left)}`);
+    else if (e.kind === 'attack_bonus') out.push(`⚔+${amt} hit ${fmt(left)}`);
+  }
+  const thp = Number(f.temp_hp); const thpLeft = secs(f.temp_hp_until);
+  if (Number.isFinite(thp) && thp > 0 && thpLeft) out.push(`✦${thp} temp ${fmt(thpLeft)}`);
+  const ward = Number(f.ward); const wardLeft = secs(f.ward_until);
+  if (Number.isFinite(ward) && ward > 0 && wardLeft) out.push(`🛡${Math.round(ward)} ward ${fmt(wardLeft)}`);
+  return out;
 }
 
 const SPEED_SECONDS: Record<string, number> = { trivial: 120, easy: 90, medium: 60, hard: 40, deadly: 20 };
@@ -226,7 +258,7 @@ type Step =
   | { kind: 'duel-confirm'; target: FighterRow }
   | null;
 
-export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHost, onUseConsumableByName, pendingCast, onPendingCastDone, onOpenSpells, preTarget, onClearPreTarget }: Props) {
+export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHost, onUseConsumableByName, pendingCast, onPendingCastDone, onOpenSpells, preTarget, onClearPreTarget, selection, onSelect, tray, onTrayTap, allyPortraits }: Props) {
   const { fight, fighters, events, fallen, myFighter, iHaveFallen, isActive, isPaused, isEnded, busy, cooldownLeft } = combat;
   const me = members.find(m => m.user_id === currentUserId);
   const qa = useMemo(() => quickActionsOf(me), [me]);
@@ -953,6 +985,110 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
   const canDuel = isActive && !busy && !amPinned && !liveDuel && !rowDuel && npcUp.length > 0;
   const recent = [...events].reverse().slice(0, 20);
 
+  // ---------- target rails + one-tap tray ----------
+  const selIds = selection?.ids ?? [];
+  const selPrimary = selIds[0] ? fighters.find(f => f.id === selIds[0]) : undefined;
+  const selValid = !!selPrimary && (selection?.side === 'enemy' ? selPrimary.kind === 'npc' && selPrimary.status === 'up' : selPrimary.kind === 'player' && selPrimary.status !== 'dead');
+  const railAllies = playerFighters.filter(f => f.status !== 'dead');
+  const pickEnemy = (f: FighterRow) => onSelect?.({ side: 'enemy', ids: [f.id] });
+  const toggleArea = (f: FighterRow) => {
+    if (selection?.side !== 'enemy' || !selIds.length) return;
+    const has = selIds.includes(f.id);
+    const next = has ? selIds.filter(id => id !== f.id) : selIds.length < 3 ? [...selIds, f.id] : selIds;
+    onSelect?.({ side: 'enemy', ids: next });
+  };
+  const trayFor = (row: TrayEntry['row'][]) => (tray ?? []).filter(t => row.includes(t.row) && t.side === selection?.side);
+  const trayRow = (entries: TrayEntry[], empty: string) => (
+    <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5 [scrollbar-width:none]">
+      {entries.length === 0 && <p className="min-h-[48px] flex items-center text-[11px] text-white/45 px-1">{empty}</p>}
+      {entries.map(t => (
+        <button key={t.id} style={tap} disabled={!canAct} onClick={() => onTrayTap?.(t.id)}
+          className={cn('min-h-[48px] shrink-0 max-w-[150px] rounded-lg border px-3 flex flex-col items-start justify-center text-left disabled:opacity-40 active:scale-[0.97]',
+            t.row === 'attack' ? 'border-red-500/50 bg-red-500/15' : t.side === 'ally' ? 'border-emerald-400/50 bg-emerald-500/15' : 'border-violet-400/50 bg-violet-500/15')}>
+          <span className="text-[12px] text-white/90 truncate max-w-full">{t.name}</span>
+          {t.sub && <span className="text-[10px] text-white/55 truncate max-w-full">{t.sub}</span>}
+        </button>
+      ))}
+    </div>
+  );
+  const railsBlock = (
+    <div className="space-y-1.5 pt-1 border-t border-white/10">
+      {selValid && selPrimary && (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] text-amber-100 truncate">🎯 {selPrimary.name}{selIds.length > 1 ? ` +${selIds.length - 1} (area)` : ''}</span>
+            <button style={tap} className="min-h-[36px] px-2 text-[11px] text-white/60" onClick={() => onSelect?.(null)}>Clear</button>
+          </div>
+          {selection?.side === 'enemy'
+            ? <>{trayRow(trayFor(['attack']), 'No weapon equipped.')}{trayRow(trayFor(['spell']), 'No attack spells.')}</>
+            : <>
+                {trayRow(trayFor(['item']), 'No healing items.')}
+                {trayRow(selPrimary.status === 'up' ? trayFor(['spell']) : trayFor(['spell']).filter(t => t.sub !== 'Buff'), 'No healing or support spells.')}
+                {(selPrimary.status === 'down') && selPrimary.id !== myFighter?.id && (
+                  <button style={tap} disabled={!canAct} className={cn(btnPlain, 'w-full')} onClick={async () => { const r = await combat.stabilize(selPrimary.id); if (r) showResult(r); }}>Stabilize (Medicine, DC 10)</button>
+                )}
+              </>}
+        </div>
+      )}
+      <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain [scrollbar-width:none]">
+        {npcFighters.filter(f => f.status === 'up').length === 0 && <p className="min-h-[48px] flex items-center text-[11px] text-white/45 px-1">No enemies standing.</p>}
+        {npcFighters.filter(f => f.status === 'up').map(f => {
+          const npc = f.npc_id ? roster.byId.get(f.npc_id) : undefined;
+          const on = selection?.side === 'enemy' && selIds.includes(f.id);
+          const primary = on && selIds[0] === f.id;
+          const pend = pendingOf(f);
+          const strikeAt = timeOf(f.strike_at);
+          const left = Number.isFinite(strikeAt) ? strikeAt - now : NaN;
+          const next = f.next_action_at ? Date.parse(f.next_action_at) : NaN;
+          const nextLeft = Number.isFinite(next) ? Math.max(0, Math.ceil((next - now) / 1000)) : null;
+          const pendT = pend ? pend.targets.map(t => fighters.find(x => x.id === t)?.name).filter(Boolean).join(', ') : '';
+          return (
+            <div key={f.id} className={cn('relative w-[132px] shrink-0 rounded-lg border p-1.5 space-y-0.5', primary ? 'border-amber-300 bg-amber-500/15' : on ? 'border-amber-300/50 bg-amber-500/10' : 'border-white/10 bg-white/[0.04]')}>
+              <button style={tap} className="w-full text-left space-y-0.5" aria-pressed={on} onClick={() => pickEnemy(f)}>
+                <div className="flex items-center gap-1.5">
+                  {npc ? <NpcPortrait url={npc.portrait_url} name={npc.name} className="w-8 h-8 text-xs shrink-0" /> : <span className="w-8 h-8 shrink-0" />}
+                  <div className="min-w-0">
+                    <p className="text-[11px] text-white/90 truncate">{f.name}</p>
+                    <p className="text-[11px] text-white/75 tabular-nums">{f.hp}/{f.max_hp}</p>
+                  </div>
+                </div>
+                <HpBar hp={f.hp} max={f.max_hp} />
+                {effectChips(f, now).map(c => <p key={c} className="text-[10px] text-sky-200 truncate">{c}</p>)}
+                {pend
+                  ? <p className="text-[10px] text-red-300 truncate">→ {pendT ? `${pendT}: ` : ''}{pend.skill}{!isPaused && Number.isFinite(left) ? (left > 0 ? ` · ${Math.ceil(left / 1000)}s` : ' · 💥') : ''}</p>
+                  : !isPaused && nextLeft !== null && <p className="text-[10px] text-white/55">Acts in {nextLeft}s</p>}
+              </button>
+              {selection?.side === 'enemy' && selIds.length > 0 && !primary && (
+                <button style={tap} className="w-full min-h-[32px] rounded border border-white/15 text-[10px] text-white/70" onClick={() => toggleArea(f)}>{on ? '− Area' : '+ Area'}</button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain [scrollbar-width:none]">
+        {railAllies.length === 0 && <p className="min-h-[48px] flex items-center text-[11px] text-white/45 px-1">No allies in the fight.</p>}
+        {railAllies.map(f => {
+          const on = selection?.side === 'ally' && selIds[0] === f.id;
+          const url = f.user_id ? allyPortraits?.[f.user_id] : undefined;
+          return (
+            <button key={f.id} style={tap} aria-pressed={on} onClick={() => onSelect?.({ side: 'ally', ids: [f.id] })}
+              className={cn('w-[112px] shrink-0 rounded-lg border p-1.5 text-left space-y-0.5', on ? 'border-emerald-300 bg-emerald-500/15' : 'border-white/10 bg-white/[0.04]')}>
+              <div className="flex items-center gap-1.5">
+                <NpcPortrait url={url ?? null} name={f.name} className="w-7 h-7 text-xs shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[11px] text-white/90 truncate">{f.id === myFighter?.id ? 'You' : f.name}</p>
+                  <p className="text-[10px] tabular-nums text-white/70">{f.status === 'down' ? <span className="text-red-300">DOWN</span> : f.status === 'stable' ? <span className="text-sky-300">STABLE</span> : `${f.hp}/${f.max_hp}`}</p>
+                </div>
+              </div>
+              <HpBar hp={f.hp} max={f.max_hp} color="bg-green-500" thin />
+              {effectChips(f, now).map(c => <p key={c} className="text-[10px] text-sky-200 truncate">{c}</p>)}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   return (
     <>
       <div className="fixed left-0 right-0 top-14 z-[56] px-2 pointer-events-none">
@@ -1160,6 +1296,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
               </button>
               {hasAllies && <button style={tap} disabled={!canAct} className={btnPlain} onClick={() => setStep({ kind: 'aid' })}>Aid Ally</button>}
             </div>}
+            {!amPinned && onSelect && railsBlock}
           </div>
         </div>
       )}
