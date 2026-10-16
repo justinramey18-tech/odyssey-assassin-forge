@@ -239,6 +239,13 @@
       "when": 1792173909821,
       "tag": "0033_dm_scene_image_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792183976853,
+      "tag": "0034_private_travel_events_and_atomic_pause",
+      "breakpoints": true
     }
   ]
 }
