@@ -1,8 +1,8 @@
-// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
-import { transformSync } from 'esbuild';
+import ts from 'typescript';
+import { webcrypto } from 'node:crypto';
 import * as R from '../../../supabase/functions/npc-combat/rules.ts';
 import * as S from '../../../supabase/functions/npc-combat/skills.ts';
 import * as M from '../../../supabase/functions/npc-combat/minigames.ts';
@@ -17,7 +17,7 @@ const effect = (kind: 'ac_bonus' | 'attack_bonus', amount: number, spell = 'shie
 // Exercise the actual deploy-local handler, with no network, auth sessions or live rows.
 const source = readFileSync('supabase/functions/npc-combat/index.ts', 'utf8')
   .replace(/^import .*;\n/gm, '').split('Deno.serve(async')[0];
-const code = transformSync(source, { loader: 'ts', target: 'es2022' }).code;
+const code = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
 function fixture() {
   const fight = { id: id(1), party_id: id(2), status: 'active', started_by: id(3), paused_at: null, pause_kind: null, paused_until: null };
   const player = (n: number) => ({ id: id(n), fight_id: fight.id, party_id: fight.party_id, kind: 'player', user_id: id(n + 100), name: `Player ${n}`, hp: 30, max_hp: 40, ac: 12, status: 'up', action_seq: 0, last_seen_at: until(0), last_action_at: null, combat_effects: [], temp_hp: 0, temp_hp_source: null, temp_hp_until: null, resolve: 0, perks: [], minigame: {} });
@@ -46,7 +46,7 @@ function fixture() {
       },
     }; return q;
   } };
-  const api = runInNewContext(code + '\n({ handle, expireEffects, resumeFight, damagePlayer, takeAttackBonus, effectiveAc })', { R, S, M, DU, crypto, console, Date, setTimeout, Response });
+  const api = runInNewContext(code + '\n({ handle, expireEffects, resumeFight, damagePlayer, takeAttackBonus, effectiveAc })', { R, S, M, DU, crypto: webcrypto, console, Date, setTimeout, Response });
   const cast = (card: any, extra: any = {}) => api.handle(db, caster.user_id, { action: 'cast_card', fightId: fight.id, targetId: ally.id, card: { action: 'Shield', resolve: 'buff', combatEffects: [ac], ...card }, ...extra }, now);
   return { api, db, tables, fight, caster, ally, cast };
 }
