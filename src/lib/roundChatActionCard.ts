@@ -8,6 +8,7 @@
 
 import type { AnyRollResult } from '@/lib/promptAutoRoll';
 import type { SpellCombatEffect } from '@/lib/magic/types';
+import { validateCombatEffects } from '@/lib/spellResolve';
 
 export interface ActionCard {
   /** Short label, e.g. "Fireball" or "Potion of Healing". */
@@ -55,12 +56,7 @@ export interface ActionCard {
 export function buffCardFromEffects(action: string, rawEffects: unknown, area: boolean, note?: string): ActionCard | null {
   const checked = validateCombatEffects(rawEffects);
   if (checked.errors.length > 0 || checked.effects.length === 0) return null;
-  const combatEffects = checked.effects.map(e => ({
-    kind: e.kind,
-    ...(e.formula ? { formula: e.formula } : { amount: e.amount }),
-    durationSeconds: e.durationSeconds,
-  })) as SpellCombatEffect[];
-  return { action, kind: 'spell', resolve: 'buff', combatEffects, targetKind: 'ally', area: area || undefined, note: note?.trim() || undefined };
+  return { action, kind: 'spell', resolve: 'buff', combatEffects: checked.effects, targetKind: 'ally', area: area || undefined, note: note?.trim() || undefined };
 }
 
 const OPEN = '\u27EAAC\u27EB';
