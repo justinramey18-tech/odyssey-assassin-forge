@@ -14,6 +14,7 @@ import { getHealingDiceForItem, type HealingDice } from '@/lib/consumables/heali
 import { requestDiceRoll } from '@/lib/diceRollBus';
 import { castSpellByName, describeSlotSpend, getMagicResources } from '@/lib/magic/castBus';
 import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic/castResolver';
+import { spellCombatModeOf } from '@/lib/spellResolve';
 import { HEAL_APPLIED_NOTE, autoSpellText, isAreaSpell, saveSpellText, saveStatOf, spellDice, spellModeOf, spellcastingMod, utilitySpellText, type SpellMode } from '@/lib/spellResolve';
 import type { ActionCard } from '@/lib/roundChatActionCard';
 import { baseSlotChoice } from '@/lib/combat/oneTapCombat';
@@ -413,23 +414,8 @@ function SpellRulesDetails({ item, expanded, onExpandedChange }: SpellRulesDetai
   );
 }
 
-function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = true, onHeal, onCloseDrawer, spentCosts, onActionSpent, drawerOpen, oneTap }: SectionProps) {
-  const medallion = SECTION_MEDALLION[title];
-  const [open, setOpen] = useState(defaultOpen);
-  const spellIds = useMemo(() => items
-    .filter(item => item.removeCategory === 'spell' || item.removeCategory === 'cantrip' || item.removeCategory === 'homebrew-spell')
-    .map(item => item.id), [items]);
-  const [expandedSpellIds, setExpandedSpellIds] = useState<Set<string>>(() => new Set(spellIds));
-  // The attack/spell about to be rolled, held while the player checks the maths.
-  const [pending, setPending] = useState<QuickActionItem | null>(null);
-
-  useEffect(() => {
-    if (drawerOpen) {
-      setOpen(true);
-      setExpandedSpellIds(new Set(spellIds));
-    }
-  }, [drawerOpen, spellIds]);
-
+/** Rolls and posts an attack or spell card (shared by the drawer and the one-tap combat tray). */
+function quickRunner(onUse: (prompt: string) => void, onCloseDrawer: (() => void) | undefined, oneTap: OneTapCombat | undefined) {
   const runAttackOrSpell = async (item: QuickActionItem, choice: RollPreviewChoice) => {
     // Casting from quick actions spends the real slot first, so a
     // spell the character can no longer afford never reaches the DM.
@@ -579,6 +565,28 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
     // Utility: no damage and no healing. The DM narrates it from the rules text.
     send({ action: item.name, kind: 'spell', resolve: 'utility', d20: tableD20, note: slotNote || undefined }, castPrompt + utilitySpellText(tableD20) + slotNote);
   };
+
+  return { runAttackOrSpell };
+}
+
+function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = true, onHeal, onCloseDrawer, spentCosts, onActionSpent, drawerOpen, oneTap }: SectionProps) {
+  const medallion = SECTION_MEDALLION[title];
+  const [open, setOpen] = useState(defaultOpen);
+  const spellIds = useMemo(() => items
+    .filter(item => item.removeCategory === 'spell' || item.removeCategory === 'cantrip' || item.removeCategory === 'homebrew-spell')
+    .map(item => item.id), [items]);
+  const [expandedSpellIds, setExpandedSpellIds] = useState<Set<string>>(() => new Set(spellIds));
+  // The attack/spell about to be rolled, held while the player checks the maths.
+  const [pending, setPending] = useState<QuickActionItem | null>(null);
+
+  useEffect(() => {
+    if (drawerOpen) {
+      setOpen(true);
+      setExpandedSpellIds(new Set(spellIds));
+    }
+  }, [drawerOpen, spellIds]);
+
+  const { runAttackOrSpell } = quickRunner(onUse, onCloseDrawer, oneTap);
 
   const handleItemUse = (item: QuickActionItem) => {
     if (item.isEmptyWeaponSlot) return;
@@ -911,44 +919,31 @@ function buildPartyDragonActions(charName: string, dragonName: string): QuickAct
   ];
 }
 
-export function PartyDMQuickActions({ open, onOpenChange, characterContext, characterName, onUsePrompt, empyreanDragonName, onHealingItemUsed, onSendPrompt, sectionFilter, sectionsToShow, spentCosts, onActionSpent, oneTapCombat }: PartyDMQuickActionsProps) {
-  const handleRemoveItem = useCallback((item: QuickActionItem) => {
-    const detail: QuickActionRemoveEvent = {
-      category: item.removeCategory,
-      name: item.name,
-      slot: item.removeSlot,
-    };
-    window.dispatchEvent(new CustomEvent('dm-quick-action-remove', { detail }));
-    toast.success(`Removed ${item.name}`);
-  }, []);
+/** Every Quick Actions item for a character (pure: same input, same lists). */
+export type QuickActionEntry = QuickActionItem;
 
-  const handleHeal = useCallback((item: QuickActionItem) => {
-    const dice = item.healingDice;
-    // One-tap in a fight with an ally picked: hand it over through the referee; it leaves the bag only on success.
-    if (oneTapCombat?.givePotion) {
-      onOpenChange(false);
-      void oneTapCombat.givePotion(item.name);
-      return;
-    }
-    if (!dice || !onHealingItemUsed) return;
-    const roll = rollHealing(dice.count, dice.die, dice.bonus);
-    // Close the drawer first so the dice animation is visible.
-    onOpenChange(false);
-    requestDiceRoll({
-      title: item.name,
-      roll,
-      onComplete: () => {
-        const prompt = onHealingItemUsed(item.name, roll);
-        if (!prompt) return;
-        const tagged = encodeActionCard(actionCardFromRoll(item.name, roll), prompt);
-        if (onSendPrompt) onSendPrompt(tagged);
-        else onUsePrompt(tagged);
-      },
-    });
-  }, [onHealingItemUsed, onSendPrompt, onUsePrompt, onOpenChange, oneTapCombat]);
+/**
+ * One tap from the combat tray: the same path as tapping the item in Quick Actions while a target is picked.
+ * Spells cast at their base level only (refused before any slot is spent when that slot is gone).
+ */
+export function runOneTapQuickItem(item: QuickActionItem, onUse: (prompt: string) => void, oneTap: OneTapCombat): void {
+  if (item.rollKind === 'attack' && item.weaponSlot && !item.isEmptyWeaponSlot) { oneTap.attack(item.name); return; }
+  if (item.rollKind !== 'spell') return;
+  const choice = baseSlotChoice(item.spellLevel, getMagicResources());
+  if (!choice) { toast.error(`No level ${item.spellLevel} spell slot left for ${item.name}.`); return; }
+  void quickRunner(onUse, undefined, oneTap).runAttackOrSpell(item, choice);
+}
 
+/** Which side a Quick Actions spell lands on in a fight, or null when it does nothing there. */
+export function quickSpellSide(item: QuickActionItem): 'enemy' | 'ally' | null {
+  if (item.rollKind !== 'spell') return null;
+  const mode = spellCombatModeOf({ attackType: item.attackType, damageFormula: item.damageFormula, healingFormula: item.healingFormula, saveStat: item.saveStat, description: item.rulesText, combatEffects: item.combatEffects });
+  if (mode === 'heal' || mode === 'buff') return 'ally';
+  if (mode === 'attack' || mode === 'save' || mode === 'auto') return 'enemy';
+  return null;
+}
 
-  const sections = useMemo(() => {
+export function buildQuickActionSections(characterContext: CharacterContext | undefined, characterName: string, empyreanDragonName?: string) {
     if (!characterContext) return { weapons: [], abilities: [], spells: [], cantrips: [], consumables: [], prestige: [], homebrew: [] };
 
     const charName = characterName || characterContext.name || 'The Adventurer';
@@ -1139,7 +1134,46 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
     const dragonActions = empyreanDragonName ? buildPartyDragonActions(charName, empyreanDragonName) : [];
 
     return { dragonActions, weapons, abilities: standardAbilities, spells, cantrips, consumables, prestige, homebrew };
-  }, [characterContext, characterName, empyreanDragonName]);
+}
+
+export function PartyDMQuickActions({ open, onOpenChange, characterContext, characterName, onUsePrompt, empyreanDragonName, onHealingItemUsed, onSendPrompt, sectionFilter, sectionsToShow, spentCosts, onActionSpent, oneTapCombat }: PartyDMQuickActionsProps) {
+  const handleRemoveItem = useCallback((item: QuickActionItem) => {
+    const detail: QuickActionRemoveEvent = {
+      category: item.removeCategory,
+      name: item.name,
+      slot: item.removeSlot,
+    };
+    window.dispatchEvent(new CustomEvent('dm-quick-action-remove', { detail }));
+    toast.success(`Removed ${item.name}`);
+  }, []);
+
+  const handleHeal = useCallback((item: QuickActionItem) => {
+    const dice = item.healingDice;
+    // One-tap in a fight with an ally picked: hand it over through the referee; it leaves the bag only on success.
+    if (oneTapCombat?.givePotion) {
+      onOpenChange(false);
+      void oneTapCombat.givePotion(item.name);
+      return;
+    }
+    if (!dice || !onHealingItemUsed) return;
+    const roll = rollHealing(dice.count, dice.die, dice.bonus);
+    // Close the drawer first so the dice animation is visible.
+    onOpenChange(false);
+    requestDiceRoll({
+      title: item.name,
+      roll,
+      onComplete: () => {
+        const prompt = onHealingItemUsed(item.name, roll);
+        if (!prompt) return;
+        const tagged = encodeActionCard(actionCardFromRoll(item.name, roll), prompt);
+        if (onSendPrompt) onSendPrompt(tagged);
+        else onUsePrompt(tagged);
+      },
+    });
+  }, [onHealingItemUsed, onSendPrompt, onUsePrompt, onOpenChange, oneTapCombat]);
+
+
+  const sections = useMemo(() => buildQuickActionSections(characterContext, characterName, empyreanDragonName), [characterContext, characterName, empyreanDragonName]);
 
   const focused = !!sectionsToShow;
   const showSection = (name: 'weapons' | 'abilities' | 'spells' | 'cantrips') => !focused || sectionsToShow.includes(name);

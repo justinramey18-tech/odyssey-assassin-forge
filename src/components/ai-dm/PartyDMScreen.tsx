@@ -1,4 +1,5 @@
 import { cardSide, oneTapTargets } from '@/lib/combat/oneTapCombat';
+import type { CombatSelection, TrayEntry } from './NpcCombatOverlay';
 import type { OneTapCombat } from './PartyDMQuickActions';
 import React, { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { firePendingNat20Fanfare } from '@/lib/critSound';
@@ -1411,6 +1412,10 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
   const [combatPreTarget, setCombatPreTarget] = useState<{ targetId: string; targetName: string; finish: 'knockout' | 'kill'; at: number } | null>(null);
   const combatPreTargetRef = useRef(combatPreTarget);
   combatPreTargetRef.current = combatPreTarget;
+  // Target rails: the only copy of the picked fight targets (primary first). Kept until the player picks again.
+  const [combatSelection, setCombatSelection] = useState<CombatSelection | null>(null);
+  // Set right before a tray tap posts its card, so dispatchPrompt lands it on exactly these targets.
+  const trayTargetsRef = useRef<{ ids: string[] } | null>(null);
   // Outside a fight: a healing spell just cast, waiting for its caster to pick who it heals.
   const [healPick, setHealPick] = useState<{ spellName: string; amount: number; area: boolean } | null>(null);
   const npcCombatRef = useRef(npcCombat);
@@ -2362,7 +2367,13 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
           combatPreTargetRef.current = null;
           setCombatPreTarget(null);
         }
-        if (castCard && preFresh && spellCastName(text) && fightNow.isActive && fightNow.myFighter?.status === 'up' && cardSide(castCard)) {
+        const trayPick = trayTargetsRef.current;
+        trayTargetsRef.current = null;
+        if (castCard && trayPick && spellCastName(text) && fightNow.isActive && fightNow.myFighter?.status === 'up' && cardSide(castCard)) {
+          const picked = oneTapTargets(castCard, trayPick.ids, fightNow.fighters);
+          if (!picked.ok) toast.error(`${castCard.action} can't land on that target.`);
+          else void fightNow.castFromCard(picked.targetId, castCard, cardSide(castCard) === 'ally' ? undefined : 'knockout', picked.extraIds);
+        } else if (castCard && preFresh && spellCastName(text) && fightNow.isActive && fightNow.myFighter?.status === 'up' && cardSide(castCard)) {
           // One-tap: the target was already picked, so land on it now (area capped, one side only).
           const picked = oneTapTargets(castCard, [preFresh.targetId], fightNow.fighters);
           if (!picked.ok) {
@@ -3064,6 +3075,31 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
     };
   }, [oneTapActive, oneTapPre, oneTapTargetRow, npcCombat.myFighter?.id, onUseConsumableByName]);
 
+  // One-tap combat tray: the Quick Actions list, loaded with that drawer's own code chunk.
+  const [qaModule, setQaModule] = useState<typeof import('./PartyDMQuickActions') | null>(null);
+  useEffect(() => {
+    if (!npcCombat.isActive || qaModule) return;
+    let alive = true;
+    void import('./PartyDMQuickActions').then(m => { if (alive) setQaModule(m); }).catch(() => {});
+    return () => { alive = false; };
+  }, [npcCombat.isActive, qaModule]);
+  const trayItems = useMemo(() => {
+    if (!qaModule || !npcCombat.isActive) return [];
+    const sec = qaModule.buildQuickActionSections(characterContext, characterContext?.name || 'The Adventurer');
+    const spells = [...sec.cantrips, ...sec.spells, ...sec.homebrew.filter(i => i.rollKind === 'spell')];
+    const entries: Array<{ entry: TrayEntry; item: import('./PartyDMQuickActions').QuickActionEntry }> = [];
+    for (const w of sec.weapons) if (!w.isEmptyWeaponSlot && w.weaponSlot) entries.push({ entry: { id: w.id, name: w.name, sub: w.weaponStats?.damage, side: 'enemy', row: 'attack' }, item: w });
+    for (const sp of spells) {
+      const side = qaModule.quickSpellSide(sp);
+      if (!side) continue;
+      const buff = side === 'ally' && !sp.healingFormula;
+      entries.push({ entry: { id: sp.id, name: sp.name, sub: buff ? 'Buff' : sp.spellLevel ? `Level ${sp.spellLevel}` : 'Cantrip', side, row: 'spell' }, item: sp });
+    }
+    for (const c of sec.consumables) if (c.rollKind === 'heal' && c.healingDice) entries.push({ entry: { id: c.id, name: c.name, sub: c.healingDice.formula ?? undefined, side: 'ally', row: 'item' }, item: c });
+    return entries;
+  }, [qaModule, npcCombat.isActive, characterContext]);
+  const combatTray = useMemo(() => trayItems.map(t => t.entry), [trayItems]);
+
   const handleHealingItemUsed = useCallback((itemName: Parameters<typeof handleHealingItemUsedBase>[0], roll: Parameters<typeof handleHealingItemUsedBase>[1]) => {
     const out = handleHealingItemUsedBase(itemName, roll);
     const fightNow = npcCombatRef.current;
@@ -3072,6 +3108,50 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
     }
     return out;
   }, [handleHealingItemUsedBase]);
+
+  const handleTrayTap = useCallback((id: string) => {
+    const found = trayItems.find(t => t.entry.id === id);
+    const sel = combatSelection;
+    const fightNow = npcCombatRef.current;
+    if (!found || !sel?.ids.length || !qaModule) return;
+    const primary = fightNow.fighters.find(f => f.id === sel.ids[0]);
+    if (!primary) { toast.error('Pick a target first.'); return; }
+    const { item, entry } = found;
+    if (entry.row === 'item') {
+      if (primary.kind !== 'player' || primary.status === 'dead') return;
+      if (primary.id !== fightNow.myFighter?.id) {
+        // Ally potion: the referee heals them; it leaves the bag only after it lands.
+        void fightNow.givePotion(primary.id, item.name).then(r => {
+          if (!r) return;
+          const removed = onUseConsumableByName?.(item.name, 1) ?? false;
+          if (!removed) toast.warning(`${item.name} healed ${primary.name}, but it couldn't be removed from your inventory.`);
+        });
+        return;
+      }
+      const d = item.healingDice;
+      if (!d) return;
+      const roll = rollHealing(d.count, d.die, d.bonus);
+      requestDiceRoll({ title: item.name, roll, onComplete: () => {
+        const prompt = handleHealingItemUsed(item.name, roll);
+        if (prompt) void handleUsePrompt(encodeActionCard(actionCardFromRoll(item.name, roll), prompt));
+      } });
+      return;
+    }
+    const oneTap: OneTapCombat = {
+      attack: (weaponName: string) => {
+        if (primary.kind !== 'npc' || primary.status !== 'up') { toast.error('Pick an enemy to attack.'); return; }
+        // A normal attack lands on the primary target only, never on every selected enemy.
+        void fightNow.attack(primary.id, { weaponName, finish: 'knockout' });
+      },
+    };
+    trayTargetsRef.current = { ids: sel.ids };
+    qaModule.runOneTapQuickItem(item, (text) => { void handleUsePrompt(text); }, oneTap);
+  }, [trayItems, combatSelection, qaModule, onUseConsumableByName, handleHealingItemUsed, handleUsePrompt]);
+  const allyPortraits = useMemo(() => {
+    const out: Record<string, string | undefined> = {};
+    for (const [uid, a] of Object.entries(chatAvatars.avatars ?? {})) out[uid] = (a as { ic?: string })?.ic;
+    return out;
+  }, [chatAvatars.avatars]);
 
 
   // Geralt widget (momo easter egg) opens through the overlay ganglion.
@@ -5830,7 +5910,7 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
         onConfirm={applyHealPick}
         onClose={() => setHealPick(null)}
       />
-      <NpcCombatOverlay combat={npcCombat} roster={npcCombatRoster} members={members} currentUserId={currentUserId || null} isHost={originalCreator} onUseConsumableByName={onUseConsumableByName} pendingCast={pendingCombatCast} onPendingCastDone={() => setPendingCombatCast(null)} onOpenSpells={(pre) => { setCombatPreTarget(pre ? { ...pre, at: Date.now() } : null); overlays.open('quickActions', ['spells', 'cantrips']); }} preTarget={combatPreTarget} onClearPreTarget={() => setCombatPreTarget(null)} />
+      <NpcCombatOverlay combat={npcCombat} roster={npcCombatRoster} members={members} currentUserId={currentUserId || null} isHost={originalCreator} onUseConsumableByName={onUseConsumableByName} pendingCast={pendingCombatCast} onPendingCastDone={() => setPendingCombatCast(null)} onOpenSpells={(pre) => { setCombatPreTarget(pre ? { ...pre, at: Date.now() } : null); overlays.open('quickActions', ['spells', 'cantrips']); }} preTarget={combatPreTarget} onClearPreTarget={() => setCombatPreTarget(null)} selection={combatSelection} onSelect={setCombatSelection} tray={combatTray} onTrayTap={handleTrayTap} allyPortraits={allyPortraits} />
       {/* Death Save Screen */}
       <DeathSaveScreen
         open={showDeathSaves}
