@@ -14,7 +14,9 @@ export async function fireTravel(db:any,partyId:string,eventId:string,generate:(
   if(pauseError) return 503;
   if(!paused?.paused) {
     if(paused?.reason==='not_due') return 503;
-    await db.from('party_travel_events').update({status:'cancelled'}).eq('id',eventId).in('status',['planned','scheduled']);
+    const {error:cancelError}=await db.from('party_travel_events').update({status:'cancelled'})
+      .eq('id',eventId).eq('updated_at',e.updated_at).in('status',['planned','scheduled','firing']);
+    if(cancelError) return 503;
     return 200;
   }
   const {data:claim,error:claimError}=await db.rpc('claim_travel_event_attempt',{_event_id:eventId});

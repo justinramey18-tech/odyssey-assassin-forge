@@ -50,7 +50,7 @@ export async function travelContext(db: any, partyId: string, hostId: string, j:
   const quests = byType.get('quest_flags');
   const dest = (j.state.locations || []).find((l: any) => l.id === j.plan.destinationLocationId);
   const recent = (history.data || []).filter((m: any) => !m.is_afk_marker && typeof m.content === 'string').reverse()
-    .map((m: any) => `${m.role === 'assistant' ? 'DM' : 'Players'}: ${text(m.content, 600)}`);
+    .map((m: any) => `DM: ${text(m.content.replace(/<!--WHISPER:[\s\S]*?<!--\/WHISPER:[^>]*-->/gi,'').replace(/\[WHISPER[^\]]*\][\s\S]*?\[\/WHISPER[^\]]*\]/gi,''), 600)}`);
   const input = [
     `## JOURNEY\nMap: ${j.name || 'World'}\nDestination: ${text(dest?.name, 100) || 'Unknown destination'}\nPace: ${j.plan.pace}\nCampaign time: ${time(Math.max(0, j.campaignMinute))}${j.remaining.length ? `\nRemaining distance: ${j.remainingMiles.toFixed(1)} miles` : ''}`,
     block('REMAINING ROADS', routeContext(j)),

@@ -51,4 +51,13 @@ describe('offline road firing',()=>{
     const x=setup();const rpc=x.db.rpc;x.db.rpc=async(name:string,args:any)=>name==='claim_travel_event_attempt'?{data:{claimed:false,busy:true}}:rpc(name,args);
     const generate=vi.fn();expect(await fireTravel(x.db,'p','e',generate)).toBe(503);expect(generate).not.toHaveBeenCalled();
   });
+  it('stale callbacks cancel without narration and return success',async()=>{
+    const x=setup();x.db.rpc=async()=>({data:{paused:false,stale:true,reason:'changed_tranche'}});
+    const generate=vi.fn();expect(await fireTravel(x.db,'p','e',generate)).toBe(200);
+    expect(x.updates[0]).toEqual({status:'cancelled'});expect(generate).not.toHaveBeenCalled();
+  });
+  it('early callback is retryable and does not cancel the event',async()=>{
+    const x=setup();x.db.rpc=async()=>({data:{paused:false,reason:'not_due'}});
+    expect(await fireTravel(x.db,'p','e',vi.fn())).toBe(503);expect(x.updates).toHaveLength(0);
+  });
 });
