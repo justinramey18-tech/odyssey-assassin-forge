@@ -9,7 +9,7 @@ Never mention scheduling, QStash, hidden plans, percentages, callbacks, or event
 export async function fireTravel(db:any,partyId:string,eventId:string,generate:(system:string,input:string,model?:string)=>Promise<string>) {
   const {data:e,error}=await db.from('party_travel_events').select('*').eq('id',eventId).eq('party_id',partyId).maybeSingle();
   if(error) return 503;
-  if(!e || ['posted','cancelled','no_event','failed'].includes(e.status)) return 200;
+  if(!e || ['planned','posted','cancelled','no_event','failed'].includes(e.status)) return 200;
   const {data:paused,error:pauseError}=await db.rpc('pause_campaign_travel_for_event',{_event_id:eventId});
   if(pauseError) return 503;
   if(!paused?.paused) {
@@ -27,7 +27,8 @@ export async function fireTravel(db:any,partyId:string,eventId:string,generate:(
     if(mapError || !map || map.state.activeTravel?.startedAt!==null) throw new Error('Paused context unavailable');
     const j={...map,plan:map.state.journeyPlan,travel:map.state.activeTravel,remaining:[],remainingMiles:0,now:Date.now(),campaignMinute:paused.campaignMinute};
     const ctx=await travelContext(db,partyId,e.created_by,j as any);
-    const input=`${ctx.input}\n\n## APP-OWNED PAUSED MAP STATE\n${JSON.stringify({map:map.name,route:paused.routeId,progress:paused.routeProgress,campaignMinute:paused.campaignMinute,destination:paused.destinationLocationId,position:map.state.currentRoutePosition})}\n\n## PRIVATE INTENT (DO NOT QUOTE)\nType: ${text(e.event_type,80)}\n${text(e.event_premise,2000)}`;
+    const road=(map.state.routes || []).find((r:any)=>r.id===paused.routeId);
+    const input=`${ctx.input}\n\n## APP-OWNED PAUSED MAP STATE\n${JSON.stringify({map:map.name,route:paused.routeId,description:text(road?.description,500),terrainFactor:road?.terrainFactor,distanceMiles:road?.distanceMiles,progress:paused.routeProgress,campaignMinute:paused.campaignMinute,destination:paused.destinationLocationId,position:map.state.currentRoutePosition})}\n\n## PRIVATE INTENT (DO NOT QUOTE)\nType: ${text(e.event_type,80)}\n${text(e.event_premise,2000)}`;
     const model=text(ctx.session.dmModel,100);
     try { content=await generate(INSTRUCTION,input,model); } catch { content=await generate(INSTRUCTION,input); }
     if(!content.trim()) throw new Error('Blank narration');
