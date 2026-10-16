@@ -100,7 +100,7 @@ function buildAfkContext(
 
 // ── Schedule next recurrence ──
 async function scheduleNextRecurrence(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReturnType<typeof createClient<any, "public">>,
   event: Record<string, unknown>,
   partyId: string
 ): Promise<void> {
@@ -185,7 +185,7 @@ async function scheduleNextRecurrence(
 
 // ── Handle scheduled narrative events ──
 async function handleScheduledEvent(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReturnType<typeof createClient<any, "public">>,
   partyId: string,
   eventId: string
 ): Promise<boolean> {
@@ -340,7 +340,7 @@ async function handleScheduledEvent(
 // ── Handle scheduled round advance ──
 // Collects all submitted prompts, fills gaps with AFK guides, and runs normal round generation
 async function handleScheduledRound(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReturnType<typeof createClient<any, "public">>,
   partyId: string,
   eventId: string,
   event: Record<string, unknown>

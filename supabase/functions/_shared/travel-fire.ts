@@ -28,7 +28,7 @@ export async function fireTravel(db:any,partyId:string,eventId:string,generate:(
     const j={...map,plan:map.state.journeyPlan,travel:map.state.activeTravel,remaining:[],remainingMiles:0,now:Date.now(),campaignMinute:paused.campaignMinute};
     const ctx=await travelContext(db,partyId,e.created_by,j as any);
     const input=`${ctx.input}\n\n## APP-OWNED PAUSED MAP STATE\n${JSON.stringify({map:map.name,route:paused.routeId,progress:paused.routeProgress,campaignMinute:paused.campaignMinute,destination:paused.destinationLocationId,position:map.state.currentRoutePosition})}\n\n## PRIVATE INTENT (DO NOT QUOTE)\nType: ${text(e.event_type,80)}\n${text(e.event_premise,2000)}`;
-    const model=text(ctx.session.aiModel || ctx.session.partyAIModel || ctx.session.model,100);
+    const model=text(ctx.session.dmModel,100);
     try { content=await generate(INSTRUCTION,input,model); } catch { content=await generate(INSTRUCTION,input); }
     if(!content.trim()) throw new Error('Blank narration');
   } catch {
