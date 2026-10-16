@@ -48,6 +48,21 @@ export interface ActionCard {
   area?: boolean;
 }
 
+/**
+ * A support-spell card for a Live NPC fight: carries only the validated structured effects (never raw
+ * spell data, never HP). Null when the spell has no valid effects, so it falls back to a utility card.
+ */
+export function buffCardFromEffects(action: string, rawEffects: unknown, area: boolean, note?: string): ActionCard | null {
+  const checked = validateCombatEffects(rawEffects);
+  if (checked.errors.length > 0 || checked.effects.length === 0) return null;
+  const combatEffects = checked.effects.map(e => ({
+    kind: e.kind,
+    ...(e.formula ? { formula: e.formula } : { amount: e.amount }),
+    durationSeconds: e.durationSeconds,
+  })) as SpellCombatEffect[];
+  return { action, kind: 'spell', resolve: 'buff', combatEffects, targetKind: 'ally', area: area || undefined, note: note?.trim() || undefined };
+}
+
 const OPEN = '\u27EAAC\u27EB';
 const CLOSE = '\u27EA/AC\u27EB';
 
