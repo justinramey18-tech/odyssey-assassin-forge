@@ -10,6 +10,9 @@ import type { CharacterContext } from '@/components/oracle/types';
 import { attitudeLevel, keepNpcRoll, npcMoodOf, npcsToAsk, parseNpcRoll, rollButtonLabel, type NpcRollRequest } from '@/lib/live-npcs';
 
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import speechBorderArt from '@/assets/chat-speech-border.png';
+import speechTailArt from '@/assets/chat-speech-tail.png';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1063,6 +1066,8 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                     : m.in_character
                       ? avatars?.[m.user_id]?.ic
                       : avatars?.[m.user_id]?.ooc;
+                  const speakingPortrait = !!avatarUrl && m.in_character && !card && !diceRoll && !imageUrl;
+                  const speechLength = (npcRoll ? npcRoll.body : parsedReply.body).length;
                   const modeMatch = m.in_character === inCharacter;
                   const presenceInfo = onlineStatus[m.user_id];
                   const presence = isNpc ? undefined : sharedReady
@@ -1128,7 +1133,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                           <CornerUpLeft className="w-4 h-4" />
                         </span>
                       )}
-                      {stacked ? (
+                      {speakingPortrait ? null : stacked ? (
                         <span className="shrink-0 w-10" />
                       ) : (
                         <ChatAvatar
@@ -1142,7 +1147,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                         />
                       )}
 
-                      <div className={cn("min-w-0 max-w-[78%]", alignRight ? "items-end" : "items-start", "flex flex-col")}>
+                      <div className={cn("min-w-0", speakingPortrait ? "w-[88%] max-w-[360px]" : "max-w-[78%]", alignRight ? "items-end" : "items-start", "flex flex-col")}>
                         {!stacked && (
                           <div className={cn(
                             "flex items-baseline gap-1.5 mb-0.5 px-1",
@@ -1250,13 +1255,15 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                           </div>
                         ) : (() => {
                           const bubble = (
-                          <button
+                          <Button
+                            variant="ghost"
                             onClick={() => setActionsFor(showActions ? null : m.id)}
-                            style={{ touchAction: 'manipulation' }}
+                            style={{ touchAction: 'manipulation', ...(speakingPortrait ? { borderImageSource: `url(${speechBorderArt})` } : {}) }}
                             className={cn(
-                              "relative isolate overflow-hidden text-left rounded-2xl border px-2.5 py-1.5 transition-colors max-w-full min-w-0",
-                              alignRight ? "rounded-br-md" : "rounded-bl-md",
-                              isNpc
+                              "relative isolate block h-auto whitespace-normal text-left transition-colors max-w-full min-w-0",
+                              speakingPortrait ? "chat-speech-frame" : "overflow-hidden rounded-2xl border px-2.5 py-1.5",
+                              !speakingPortrait && (alignRight ? "rounded-br-md" : "rounded-bl-md"),
+                              !speakingPortrait && (isNpc
                                 ? (modeMatch ? "bg-amber-950/50 border-amber-300/45" : "bg-amber-950/10 border-amber-300/10")
                                 : m.in_character
                                 ? (isSelf
@@ -1264,12 +1271,13 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                                     : (modeMatch ? "bg-white/[0.12] border-white/25" : "bg-white/[0.02] border-white/[0.05]"))
                                 : (modeMatch
                                     ? "bg-sky-500/[0.16] border-sky-300/90 border-dashed ring-1 ring-sky-400/35"
-                                    : "bg-sky-500/[0.03] border-sky-400/10 border-dashed"),
+                                    : "bg-sky-500/[0.03] border-sky-400/10 border-dashed")),
+                              speakingPortrait && !modeMatch && "chat-speech-muted",
                               m.selected && "ring-2 ring-emerald-400/70",
                               imageUrl && "p-1",
                             )}
                           >
-                            {avatarUrl && !imageUrl ? (
+                            {avatarUrl && !imageUrl && !speakingPortrait ? (
                               /* Full clarity: no blur, no scrim. Legibility is carried
                                  entirely by the text shadow stack on the paragraph below.
                                  IC and table talk resolve to different avatar slots, so the
@@ -1284,7 +1292,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                                 )}
                                 style={{ backgroundImage: `url(${avatarUrl})` }}
                               />
-                            ) : !imageUrl ? (
+                            ) : !imageUrl && !speakingPortrait ? (
                               /* No uploaded picture: fall back to the speaker's own colour so
                                  they are still distinguishable from everyone else. */
                               <span
@@ -1343,11 +1351,13 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                             ) : (
                               <p
                                 className={cn(
-                                  "relative font-body text-[13.5px] font-medium leading-[1.32] whitespace-pre-wrap break-words [overflow-wrap:anywhere] transition-colors duration-200",
-                                  modeMatch ? "text-white" : "text-white/45",
+                                  "relative font-body font-medium whitespace-pre-wrap break-words [overflow-wrap:anywhere] transition-colors duration-200",
+                                  speakingPortrait
+                                    ? cn("text-foreground leading-[1.5]", speechLength <= 80 ? "text-[20px]" : speechLength <= 240 ? "text-[17px]" : "text-[15px]")
+                                    : cn("text-[13.5px] leading-[1.32]", modeMatch ? "text-white" : "text-white/45"),
                                 )}
                                 style={{
-                                  ...(avatarUrl && !imageUrl ? {
+                                  ...(avatarUrl && !imageUrl && !speakingPortrait ? {
                                     textShadow: [
                                       '0 0 1px rgba(0,0,0,1)',
                                       '0 0 2px rgba(0,0,0,1)',
@@ -1359,7 +1369,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                                     ].join(', '),
                                   } : {}),
                                   // Thin light outline on the letters of active-mode text only.
-                                  ...(modeMatch ? { WebkitTextStroke: '0.4px rgba(255,255,255,0.6)' } : {}),
+                                  ...(modeMatch && !speakingPortrait ? { WebkitTextStroke: '0.4px rgba(255,255,255,0.6)' } : {}),
                                 }}
                               >
                                 {npcRoll ? npcRoll.body : parsedReply.body}
@@ -1379,7 +1389,8 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                               />
                             )}
 
-                          </button>
+                            {speakingPortrait && <img src={speechTailArt} alt="" aria-hidden="true" width={108} height={81} loading="lazy" className="chat-speech-tail" />}
+                          </Button>
                           );
 
                           return sealedForOthers ? (
@@ -1393,6 +1404,18 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                             </div>
                           ) : bubble;
                         })()}
+
+                        {speakingPortrait && editingMessageId !== m.id && (
+                          <Button
+                            variant="ghost"
+                            aria-label={`View ${primaryName}'s portrait`}
+                            onClick={() => { if (avatarUrl) setViewingImage(avatarUrl); }}
+                            className={cn("chat-speaking-portrait h-auto p-0 hover:bg-transparent", !modeMatch && "opacity-40")}
+                            style={{ touchAction: 'manipulation' }}
+                          >
+                            <img src={avatarUrl} alt={`${primaryName}'s full portrait`} loading="lazy" className="block w-full h-auto max-h-[300px] object-contain" />
+                          </Button>
+                        )}
 
                         {/* v2: the roll this NPC asked for. Only the named player gets the button. */}
                         {npcRoll?.roll && (() => {

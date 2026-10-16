@@ -578,3 +578,43 @@ a, button, [role="button"], input, select, textarea, label {
 @keyframes ink-flicker { 0%, 100% { opacity: 0.95; } 50% { opacity: 0.55; } }
 
 @media (prefers-reduced-motion: reduce) { .ink-sparkle::before, .ink-sparkle::after { animation: none; } }
+
+/* Live Table speaking portraits: nine-slice artwork keeps corners intact. */
+.chat-speech-frame {
+  --speech-surface: 220 18% 9%;
+  --speech-shadow: 220 20% 3%;
+  width: 100%;
+  min-height: 108px;
+  min-width: min(210px, 100%);
+  border: 18px solid transparent;
+  border-image-slice: 60 60 60 60;
+  border-image-width: 18px;
+  border-image-repeat: stretch;
+  border-radius: 8px;
+  padding: 8px 6px 12px;
+  background: hsl(var(--speech-surface) / 0.96);
+  background-clip: padding-box;
+  color: hsl(var(--foreground));
+  box-shadow: 0 8px 20px hsl(var(--speech-shadow) / 0.45);
+  overflow: visible;
+}
+.chat-speech-frame:hover { background-color: hsl(var(--speech-surface)); }
+.chat-speech-muted { opacity: 0.5; }
+.chat-speech-tail {
+  position: absolute;
+  width: 38px;
+  height: 29px;
+  bottom: -39px;
+  left: calc(50% - 19px);
+  pointer-events: none;
+  z-index: 1;
+}
+.chat-speaking-portrait {
+  display: flex;
+  align-self: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 25px;
+  border-radius: 8px;
+  overflow: hidden;
+}

@@ -27,3 +27,5 @@
 
 - [x] Party signup 4/5: confirmed save + Live Table hand-off
 - [x] Party signup 5/5: join entrance + returning players
+
+- [ ] Add cinematic speaking frames above full in-character portraits and verify existing chat actions.
