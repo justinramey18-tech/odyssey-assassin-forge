@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { eligibleJourney, isOriginalHost, journeyHash, parseDecision, roadGuideScopes, targetPoint } from '../../../supabase/functions/party-travel-director/planning';
+import { eligibleJourney, isOriginalHost, journeyHash, parseDecision, roadGuideScopes, targetPoint } from '../../../supabase/functions/_shared/travel-planning';
 import { createCalibration, effectiveRouteMiles } from '../campaign-map';
 import { createHash } from 'node:crypto';
 
