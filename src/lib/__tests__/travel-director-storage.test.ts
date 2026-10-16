@@ -61,7 +61,8 @@ describe.skipIf(!isolated)('private Travel Director storage (isolated PostgreSQL
     UPDATE party_shared_state SET state_data=state_data->'maps'->0->'state';
     UPDATE party_shared_state SET state_data=jsonb_set(state_data,'{activeTravel}',(state_data->'activeTravel')-'segments');
     UPDATE party_travel_events SET map_id=NULL,target_leg_index=0,target_route_id='ab',target_reversed=false,target_route_progress=0.5;
-    SELECT CASE WHEN ${call}->>'paused'='true' AND (SELECT state_data->>'campaignMinute' FROM party_shared_state)='130'
+    SELECT CASE WHEN ${call}->>'paused'='true' THEN 'PASS' ELSE 'FAIL' END;
+    SELECT CASE WHEN (SELECT state_data->>'campaignMinute' FROM party_shared_state)='130'
       AND NOT (SELECT state_data ? 'maps' FROM party_shared_state) THEN 'PASS' ELSE 'FAIL' END;`));
   it('keeps paused fractions intact when an already-resumed journey is paused again', () => check(`
     UPDATE party_shared_state SET state_data=jsonb_set(jsonb_set(state_data,'{revision}','5'),'{maps,0,state,activeTravel,pausedFraction}','0.25');
