@@ -2,7 +2,7 @@
 
 - Party home uses a separate paused, poster-backed Enter Story video; preserve other background loops.
 - Dice profiles use resolveOddsForContext per roll, because combat and roleplay odds can differ.
-- An overlay that must sit above an open drawer renders inside that drawer's content (inline prop, no body portal) and carries data-vaul-no-drag, because a modal drawer keeps focus and treats outside taps as close — raising its z-index alone cannot win.
+- Overlays above open drawers render inline inside drawer content, without body portals, and carry data-vaul-no-drag; modal drawers trap focus and close on outside taps, so z-index alone cannot work.
 - npc-combat carries identical copies of npc-reply's handler/models/repo/prompt in npc-combat/npc-reply/, because each server function deploys only its own folder; a test fails if the copies drift, so re-copy after editing npc-reply.
 - Automatic party launch passes an explicit initial Live Table choice through the existing screen chain; drawer state remains locally owned so Return to Story cannot trigger automatic reopening.
 - Cache Live Table rows separately from DM narration by account and party; successful server reads replace stale cached rows while in-flight live changes survive, and failed reads must retain the visible conversation.
