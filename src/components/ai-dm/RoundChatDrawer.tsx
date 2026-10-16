@@ -1794,25 +1794,41 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                             aria-label={voicing ? `Speak as ${n.name}` : `Talk to ${n.name}`}
                             style={{ touchAction: 'manipulation' }}
                             className={cn(
-                              "shrink-0 min-h-[36px] pl-0.5 pr-2.5 rounded-full border flex items-center gap-1.5 font-body text-[12px] transition-colors",
+                              "shrink-0 w-[156px] min-h-[100px] p-1.5 rounded-xl border flex flex-col items-stretch gap-1.5 font-body text-[12px] overflow-hidden transition-colors",
                               picked
                                 ? (voicing ? "border-rose-300/80 bg-rose-500/25 text-white" : "border-amber-300/80 bg-amber-500/25 text-white shadow-[0_0_8px_rgba(245,158,11,0.45)]")
                                 : "border-white/15 bg-black/50 text-white/75",
                             )}
                           >
-                            <NpcPortrait url={n.portrait_url} name={n.name} className="w-8 h-8 text-[12px]" />
-                            <span className="max-w-[110px] truncate">{n.name}</span>
-                            {!voicing && myNpcAttitudes && myNpcAttitudes[n.id] !== undefined && (() => {
-                              const level = attitudeLevel(myNpcAttitudes[n.id]);
-                              return (
-                                <span
-                                  className="shrink-0 rounded-full bg-black/50 px-1.5 py-0.5 text-[10px] text-white/75"
-                                  aria-label={`${n.name} feels ${level.label} toward you`}
-                                >
-                                  {level.emoji} {level.label}
+                            <div className="w-full aspect-[9/4] rounded-lg overflow-hidden bg-black/40 flex items-center justify-center">
+                              {n.portrait_url ? (
+                                <img
+                                  src={n.portrait_url}
+                                  alt=""
+                                  className="w-full h-full object-contain bg-black/30"
+                                  loading="lazy"
+                                  draggable={false}
+                                />
+                              ) : (
+                                <span className="text-xl font-semibold text-amber-100">
+                                  {n.name.trim().charAt(0).toUpperCase() || '?'}
                                 </span>
-                              );
-                            })()}
+                              )}
+                            </div>
+                            <div className="w-full min-w-0 flex items-center justify-center gap-1 px-1">
+                              <span className="min-w-0 flex-1 truncate text-center">{n.name}</span>
+                              {!voicing && myNpcAttitudes && myNpcAttitudes[n.id] !== undefined && (() => {
+                                const level = attitudeLevel(myNpcAttitudes[n.id]);
+                                return (
+                                  <span
+                                    className="shrink-0 rounded-full bg-black/50 px-1.5 py-0.5 text-[10px] text-white/75"
+                                    aria-label={`${n.name} feels ${level.label} toward you`}
+                                  >
+                                    {level.emoji} {level.label}
+                                  </span>
+                                );
+                              })()}
+                            </div>
                           </button>
                         );
                       })}
