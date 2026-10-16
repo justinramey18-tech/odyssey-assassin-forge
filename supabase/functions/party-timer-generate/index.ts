@@ -482,7 +482,7 @@ async function handleScheduledRound(
                 party_id: partyId,
                 state_type: "synthesis_memory",
                 state_data: { modes: updatedModes },
-                user_id: party?.created_by || event.created_by,
+                user_id: event.created_by,
               });
             }
             console.log(`[Synthesizer] Mode: ${result.mode} | Spine: ${result.spine}`);
@@ -743,9 +743,11 @@ serve(async (req) => {
       if(!targetPartyId || !uuid.test(targetPartyId) || typeof body.travelEventId!=='string' || !uuid.test(body.travelEventId))
         return new Response(JSON.stringify({error:'Invalid travel callback'}),{status:400,headers:{...corsHeaders,'Content-Type':'application/json'}});
       const generate=async (system:string,input:string,preferred?:string) => {
-        const model=preferred && /^(google|openai|anthropic)\//.test(preferred) ? preferred : DEFAULT_MODEL;
-        const response=await fetch('https://ai.gateway.lovable.dev/v1/chat/completions',{
-          method:'POST',signal:AbortSignal.timeout(55000),headers:{Authorization:`Bearer ${LOVABLE_API_KEY}`,'Content-Type':'application/json'},
+        const veniceKey=Deno.env.get('VENICE_API_KEY');
+        const useVenice=preferred?.startsWith('venice/') && !!veniceKey;
+        const model=useVenice ? preferred?.slice(7) : preferred && /^(google|openai)\//.test(preferred) ? preferred : DEFAULT_MODEL;
+        const response=await fetch(useVenice ? 'https://api.venice.ai/api/v1/chat/completions' : 'https://ai.gateway.lovable.dev/v1/chat/completions',{
+          method:'POST',signal:AbortSignal.timeout(55000),headers:{Authorization:`Bearer ${useVenice ? veniceKey : LOVABLE_API_KEY}`,'Content-Type':'application/json'},
           body:JSON.stringify({model,messages:[{role:'system',content:system},{role:'user',content:input}],stream:false,max_tokens:4000})});
         if(!response.ok) throw new Error('Road narration unavailable');
         const result=await response.json();

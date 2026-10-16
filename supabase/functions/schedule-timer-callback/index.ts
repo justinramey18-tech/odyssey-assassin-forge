@@ -88,7 +88,7 @@ serve(async (req) => {
       Authorization: `Bearer ${QSTASH_TOKEN}`,
       "Content-Type": "application/json",
       "Upstash-Url": targetUrl,
-      "Upstash-Retries": "2",
+      "Upstash-Retries": travelEventId ? "5" : "2",
     };
 
     if (hasScheduledAt) {

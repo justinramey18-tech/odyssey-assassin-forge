@@ -29,7 +29,7 @@ export async function travelContext(db: any, partyId: string, hostId: string, j:
     db.from('gm_guides').select('name, content').eq('user_id', hostId).eq('mode', 'party').eq('enabled', true).order('created_at').limit(8),
     db.from('party_shared_state').select('state_type, state_data').eq('party_id', partyId).eq('user_id', hostId).in('state_type', ['dm_session', 'party_memory_anchors', 'quest_flags']),
     db.from('party_members').select('character_name, character_status').eq('party_id', partyId).order('joined_at').limit(8),
-    db.from('party_dm_messages').select('role, content, is_afk_marker').eq('party_id', partyId).order('created_at', { ascending: false }).limit(8),
+    db.from('party_dm_messages').select('role, content, is_afk_marker').eq('party_id', partyId).eq('role','assistant').is('team',null).order('created_at', { ascending: false }).limit(8),
   ]);
   if (guides.error || shared.error || members.error || history.error) throw new Error('Context read failed');
   const byType = new Map<string, Record<string, any>>((shared.data || []).map((r: any) => [r.state_type, object(r.state_data)]));
@@ -52,7 +52,7 @@ export async function travelContext(db: any, partyId: string, hostId: string, j:
   const recent = (history.data || []).filter((m: any) => !m.is_afk_marker && typeof m.content === 'string').reverse()
     .map((m: any) => `${m.role === 'assistant' ? 'DM' : 'Players'}: ${text(m.content, 600)}`);
   const input = [
-    `## JOURNEY\nMap: ${j.name || 'World'}\nDestination: ${text(dest?.name, 100) || 'Unknown destination'}\nPace: ${j.plan.pace}\nCampaign time: ${time(Math.max(0, j.campaignMinute))}\nRemaining distance: ${j.remainingMiles.toFixed(1)} miles`,
+    `## JOURNEY\nMap: ${j.name || 'World'}\nDestination: ${text(dest?.name, 100) || 'Unknown destination'}\nPace: ${j.plan.pace}\nCampaign time: ${time(Math.max(0, j.campaignMinute))}${j.remaining.length ? `\nRemaining distance: ${j.remainingMiles.toFixed(1)} miles` : ''}`,
     block('REMAINING ROADS', routeContext(j)),
     block('PARTY', roster(members.data || [])),
     text(byType.get('dm_session')?.campaignSummary, 2500) ? `## CAMPAIGN SUMMARY\n${text(byType.get('dm_session')?.campaignSummary, 2500)}` : '',
