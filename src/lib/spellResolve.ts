@@ -8,8 +8,9 @@
 //   utility - no damage and no healing (buffs, control, tricks): no dice; the DM narrates the effect
 
 import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic/castResolver';
+import type { SpellCombatEffect } from '@/lib/magic/types';
 
-export type SpellMode = 'attack' | 'save' | 'auto' | 'heal' | 'utility';
+export type SpellMode = 'attack' | 'save' | 'auto' | 'heal' | 'utility' | 'buff';
 
 export interface SpellFacts {
   attackType?: string | null;
@@ -18,6 +19,51 @@ export interface SpellFacts {
   saveStat?: string | null;
   range?: string | null;
   description?: string | null;
+  combatEffects?: unknown;
+}
+
+// Matches npc-combat/rules.ts dice envelope; flat HP maximum = 20d100+999.
+export const COMBAT_EFFECT_LIMITS = { ac_bonus: 30, attack_bonus: 20, temporary_hp: 2999, durationSeconds: 86400 } as const;
+const EFFECT_DICE_SIDES = new Set([2, 3, 4, 6, 8, 10, 12, 20, 100]);
+
+/** Metadata validation only: never rolls, spends or applies a buff. */
+export function validateCombatEffects(raw: unknown): { effects: SpellCombatEffect[]; errors: string[] } {
+  if (raw === undefined) return { effects: [], errors: [] };
+  if (!Array.isArray(raw)) return { effects: [], errors: ['Combat effects must be a list.'] };
+  const effects: SpellCombatEffect[] = [];
+  const errors: string[] = [];
+  const seen = new Set<string>();
+  for (const [index, value] of raw.entries()) {
+    const fail = (message: string) => errors.push(`Combat effect ${index + 1}: ${message}`);
+    if (!value || typeof value !== 'object' || Array.isArray(value)) { fail('invalid effect.'); continue; }
+    const row = value as Record<string, unknown>;
+    const kind = row.kind;
+    if (kind !== 'ac_bonus' && kind !== 'attack_bonus' && kind !== 'temporary_hp') { fail('unsupported effect kind.'); continue; }
+    if (seen.has(kind)) { fail('only one effect of each kind is allowed.'); continue; }
+    seen.add(kind);
+    if (Object.keys(row).some(key => !['kind', 'amount', 'formula', 'durationSeconds'].includes(key))) { fail('unsupported effect settings.'); continue; }
+    const durationSeconds = row.durationSeconds;
+    if (typeof durationSeconds !== 'number' || !Number.isInteger(durationSeconds) || durationSeconds < 1 || durationSeconds > COMBAT_EFFECT_LIMITS.durationSeconds) {
+      fail('duration must be a whole number from 1 to 86,400 seconds.'); continue;
+    }
+    if (kind === 'temporary_hp' && row.formula !== undefined) {
+      if (row.amount !== undefined || typeof row.formula !== 'string' || row.formula.length > 40) { fail('choose either an HP amount or a dice formula.'); continue; }
+      const cleaned = row.formula.replace(/\s/g, '').toLowerCase();
+      const match = /^(\d{1,2})d(\d{1,3})([+-]\d{1,3})?$/.exec(cleaned);
+      const dice = match ? parseDiceFormula(cleaned) : null;
+      if (!dice || dice.count > 20 || !EFFECT_DICE_SIDES.has(dice.die) || dice.count + dice.flat < 1) {
+        fail('use 1–20 dice (d2, d3, d4, d6, d8, d10, d12, d20 or d100), a modifier up to ±999 and a positive minimum.'); continue;
+      }
+      effects.push({ kind, formula: formatDiceFormula(dice), durationSeconds });
+    } else {
+      const amount = row.amount;
+      if (row.formula !== undefined || typeof amount !== 'number' || !Number.isInteger(amount) || amount < 1 || amount > COMBAT_EFFECT_LIMITS[kind]) {
+        fail(`amount must be a whole number from 1 to ${COMBAT_EFFECT_LIMITS[kind]}.`); continue;
+      }
+      effects.push({ kind, amount, durationSeconds });
+    }
+  }
+  return { effects: errors.length ? [] : effects, errors };
 }
 
 /** Most enemies an area spell can hit in a Live NPC fight. */
@@ -69,7 +115,11 @@ export function saveStatOf(s: SpellFacts): string {
 export function spellModeOf(s: SpellFacts): SpellMode {
   const damage = hasDice(s.damageFormula);
   const healing = hasDice(s.healingFormula);
-  if (!damage) return healing ? 'heal' : 'utility';
+  if (!damage) {
+    if (healing) return 'heal';
+    const buffs = validateCombatEffects(s.combatEffects);
+    return buffs.effects.length > 0 && buffs.errors.length === 0 ? 'buff' : 'utility';
+  }
   const atk = String(s.attackType ?? '').trim().toLowerCase();
   if (atk === 'melee' || atk === 'ranged') return 'attack';
   if (atk === 'save') return 'save';
