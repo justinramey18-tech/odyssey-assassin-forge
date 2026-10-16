@@ -28,4 +28,4 @@
 - [x] Party signup 4/5: confirmed save + Live Table hand-off
 - [x] Party signup 5/5: join entrance + returning players
 
-- [ ] Add cinematic speaking frames above full in-character portraits and verify existing chat actions.
+- [x] Add cinematic speaking frames above full in-character portraits; 12 chat tests passed and isolated phone rendering/tap actions checked. Real-party use remains untested.
