@@ -16,6 +16,8 @@ import { castSpellByName, describeSlotSpend, getMagicResources } from '@/lib/mag
 import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic/castResolver';
 import { HEAL_APPLIED_NOTE, autoSpellText, isAreaSpell, saveSpellText, saveStatOf, spellDice, spellModeOf, spellcastingMod, utilitySpellText, type SpellMode } from '@/lib/spellResolve';
 import type { ActionCard } from '@/lib/roundChatActionCard';
+import { baseSlotChoice } from '@/lib/combat/oneTapCombat';
+import { buffCardFromEffects } from '@/lib/roundChatActionCard';
 import { RollPreviewSheet, type RollPreviewChoice } from '@/components/magic/RollPreviewSheet';
 import { COST_META, resolveActionCost, type ActionCost } from '@/lib/combat/actionCost';
 import { parseRollTable } from '@/lib/magic/parseRollTable';
@@ -164,6 +166,18 @@ interface PartyDMQuickActionsProps {
   spentCosts?: { action: boolean; bonus: boolean; reaction: boolean };
   /** Fired when an item is tapped, so the caller can spend the slot. */
   onActionSpent?: (cost: ActionCost, name: string) => void;
+  /**
+   * Set only while a Live NPC fight is running and a target is already picked. Attacks and spells then
+   * resolve from one tap (no roll preview): weapons go to the fight referee, spells cast at their base level.
+   */
+  oneTapCombat?: OneTapCombat;
+}
+
+export interface OneTapCombat {
+  /** Swing the given equipped weapon at the picked target (knockout by default). */
+  attack: (weaponName: string) => void;
+  /** Give a healing item to the picked ally through the fight referee. Resolves true only on server success. */
+  givePotion?: (itemName: string) => Promise<boolean>;
 }
 
 interface QuickActionItem {
@@ -206,6 +220,8 @@ interface QuickActionItem {
   weaponRarity?: string;
   /** The spell's own id, so guides resolve to the exact copy when two spells share a name. */
   spellId?: string;
+  /** Spells: structured support effects (validated again before any card carries them). */
+  combatEffects?: unknown;
   /** Everything needed to rebuild the spell prompt at cast time, so only the rolled table row is sent. */
   spellPromptArgs?: {
     name: string;
@@ -293,6 +309,7 @@ interface SectionProps {
   spentCosts?: { action: boolean; bonus: boolean; reaction: boolean };
   onActionSpent?: (cost: ActionCost, name: string) => void;
   drawerOpen: boolean;
+  oneTap?: OneTapCombat;
 }
 
 interface SpellRulesDetailsProps {
@@ -396,7 +413,7 @@ function SpellRulesDetails({ item, expanded, onExpandedChange }: SpellRulesDetai
   );
 }
 
-function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = true, onHeal, onCloseDrawer, spentCosts, onActionSpent, drawerOpen }: SectionProps) {
+function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = true, onHeal, onCloseDrawer, spentCosts, onActionSpent, drawerOpen, oneTap }: SectionProps) {
   const medallion = SECTION_MEDALLION[title];
   const [open, setOpen] = useState(defaultOpen);
   const spellIds = useMemo(() => items
@@ -554,16 +571,33 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, 
       }
     }
 
+    // One-tap in a fight: a spell with structured support effects lands on the picked ally via the referee.
+    if (oneTap && item.combatEffects !== undefined) {
+      const buff = buffCardFromEffects(item.name, item.combatEffects, area, slotNote);
+      if (buff) { send(buff, castPrompt + utilitySpellText(tableD20) + slotNote); return; }
+    }
     // Utility: no damage and no healing. The DM narrates it from the rules text.
     send({ action: item.name, kind: 'spell', resolve: 'utility', d20: tableD20, note: slotNote || undefined }, castPrompt + utilitySpellText(tableD20) + slotNote);
   };
 
   const handleItemUse = (item: QuickActionItem) => {
     if (item.isEmptyWeaponSlot) return;
+    // One-tap combat: refuse before anything is spent when the base-level slot is gone (never upcast).
+    let oneTapChoice: RollPreviewChoice | null = null;
+    if (oneTap && item.rollKind === 'spell') {
+      oneTapChoice = baseSlotChoice(item.spellLevel, getMagicResources());
+      if (!oneTapChoice) { toast.error(`No level ${item.spellLevel} spell slot left for ${item.name}.`); return; }
+    }
     if (item.actionCost && onActionSpent) onActionSpent(item.actionCost, item.name);
     if (item.rollKind === 'heal' && item.healingDice && onHeal) {
       onHeal(item);
     } else if (item.rollKind === 'attack' || item.rollKind === 'spell') {
+      if (oneTap && item.rollKind === 'attack' && item.weaponSlot) {
+        onCloseDrawer?.();
+        oneTap.attack(item.name);
+        return;
+      }
+      if (oneTapChoice) { void runAttackOrSpell(item, oneTapChoice); return; }
       // Show the maths first — the roll only happens on confirm.
       setPending(item);
     } else if (item.rollKind === 'check') {
@@ -877,7 +911,7 @@ function buildPartyDragonActions(charName: string, dragonName: string): QuickAct
   ];
 }
 
-export function PartyDMQuickActions({ open, onOpenChange, characterContext, characterName, onUsePrompt, empyreanDragonName, onHealingItemUsed, onSendPrompt, sectionFilter, sectionsToShow, spentCosts, onActionSpent }: PartyDMQuickActionsProps) {
+export function PartyDMQuickActions({ open, onOpenChange, characterContext, characterName, onUsePrompt, empyreanDragonName, onHealingItemUsed, onSendPrompt, sectionFilter, sectionsToShow, spentCosts, onActionSpent, oneTapCombat }: PartyDMQuickActionsProps) {
   const handleRemoveItem = useCallback((item: QuickActionItem) => {
     const detail: QuickActionRemoveEvent = {
       category: item.removeCategory,
@@ -890,6 +924,12 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
 
   const handleHeal = useCallback((item: QuickActionItem) => {
     const dice = item.healingDice;
+    // One-tap in a fight with an ally picked: hand it over through the referee; it leaves the bag only on success.
+    if (oneTapCombat?.givePotion) {
+      onOpenChange(false);
+      void oneTapCombat.givePotion(item.name);
+      return;
+    }
     if (!dice || !onHealingItemUsed) return;
     const roll = rollHealing(dice.count, dice.die, dice.bonus);
     // Close the drawer first so the dice animation is visible.
@@ -905,7 +945,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         else onUsePrompt(tagged);
       },
     });
-  }, [onHealingItemUsed, onSendPrompt, onUsePrompt, onOpenChange]);
+  }, [onHealingItemUsed, onSendPrompt, onUsePrompt, onOpenChange, oneTapCombat]);
 
 
   const sections = useMemo(() => {
@@ -1011,6 +1051,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
       const item: QuickActionItem = {
         id: `spell-${(full as { id?: string }).id ?? full.name}`,
         spellId: (full as { id?: string }).id,
+        combatEffects: (full as { combatEffects?: unknown }).combatEffects,
         name: full.name,
         detail: isUnresolved
           ? 'Custom spell • details unavailable — reopen your spellbook to reload'
@@ -1230,6 +1271,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
               {!focused && sectionFilter !== 'magic' && sections.dragonActions.length > 0 && (
                 <QuickActionSection
                   onCloseDrawer={() => onOpenChange(false)}
+                  oneTap={oneTapCombat}
                   title="Dragon Actions"
                   icon={<Flame className="w-4 h-4" />}
                   items={sections.dragonActions}
@@ -1251,6 +1293,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
               {showSection('weapons') && sectionFilter !== 'magic' && (
                 <QuickActionSection
                     onCloseDrawer={() => onOpenChange(false)}
+                  oneTap={oneTapCombat}
                   title="Weapons"
                   icon={<Sword className="w-4 h-4" />}
                   items={sections.weapons}
@@ -1266,6 +1309,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
               {showSection('abilities') && sectionFilter !== 'magic' && (
                 <QuickActionSection
                     onCloseDrawer={() => onOpenChange(false)}
+                  oneTap={oneTapCombat}
                   title="Abilities"
                   icon={<Sparkles className="w-4 h-4" />}
                   items={sections.abilities}
@@ -1280,6 +1324,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
               {showSection('spells') && sectionFilter !== 'combat' && (
                 <QuickActionSection
                     onCloseDrawer={() => onOpenChange(false)}
+                  oneTap={oneTapCombat}
                   title={isEmpyreanMode() ? 'Signets' : 'Spells'}
                   icon={<BookOpen className="w-4 h-4" />}
                   items={sections.spells}
@@ -1294,6 +1339,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
               {showSection('cantrips') && sectionFilter !== 'combat' && (
                 <QuickActionSection
                     onCloseDrawer={() => onOpenChange(false)}
+                  oneTap={oneTapCombat}
                   title={isEmpyreanMode() ? 'Minor Signets' : 'Cantrips'}
                   icon={<Star className="w-4 h-4" />}
                   items={sections.cantrips}
@@ -1308,6 +1354,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
               {!focused && sectionFilter !== 'magic' && (
                 <QuickActionSection
                     onCloseDrawer={() => onOpenChange(false)}
+                  oneTap={oneTapCombat}
                   title="Items"
                   icon={<FlaskConical className="w-4 h-4" />}
                   items={sections.consumables}
@@ -1323,6 +1370,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
               {!focused && sectionFilter !== 'magic' && (
                 <QuickActionSection
                     onCloseDrawer={() => onOpenChange(false)}
+                  oneTap={oneTapCombat}
                   title="Legacy"
                   icon={<Star className="w-4 h-4" />}
                   items={sections.prestige}
@@ -1337,6 +1385,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
               {sectionFilter !== 'magic' && homebrewForFocus.length > 0 && (
                 <QuickActionSection
                   onCloseDrawer={() => onOpenChange(false)}
+                  oneTap={oneTapCombat}
                   title="Homebrew"
                   icon={<Flame className="w-4 h-4" />}
                   items={homebrewForFocus}

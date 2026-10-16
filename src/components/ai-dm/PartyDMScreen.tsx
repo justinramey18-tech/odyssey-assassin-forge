@@ -1,3 +1,5 @@
+import { cardSide, oneTapTargets } from '@/lib/combat/oneTapCombat';
+import type { OneTapCombat } from './PartyDMQuickActions';
 import React, { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { firePendingNat20Fanfare } from '@/lib/critSound';
 import { registerTablePoster } from '@/lib/tablePostBus';
@@ -2360,7 +2362,16 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
           combatPreTargetRef.current = null;
           setCombatPreTarget(null);
         }
-        if (castCard && spellCastName(text) && fightNow.isActive && fightNow.myFighter?.status === 'up'
+        if (castCard && preFresh && spellCastName(text) && fightNow.isActive && fightNow.myFighter?.status === 'up' && cardSide(castCard)) {
+          // One-tap: the target was already picked, so land on it now (area capped, one side only).
+          const picked = oneTapTargets(castCard, [preFresh.targetId], fightNow.fighters);
+          if (!picked.ok) {
+            toast.error(`${castCard.action} can't land on ${preFresh.targetName}.`);
+          } else {
+            const heals = cardSide(castCard) === 'ally';
+            void fightNow.castFromCard(picked.targetId, castCard, heals ? undefined : preFresh.finish, picked.extraIds);
+          }
+        } else if (castCard && spellCastName(text) && fightNow.isActive && fightNow.myFighter?.status === 'up'
           && ((castCard.damageTotal ?? 0) > 0 || (castCard.amount ?? 0) > 0)) {
           setPendingCombatCast({ card: castCard, key: lineId, targetId: preFresh?.targetId, finish: preFresh?.finish });
         } else if (castCard?.kind === 'heal' && (castCard.amount ?? 0) > 0 && spellCastName(text) && !fightNow.isActive) {
@@ -3026,6 +3037,33 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
     onHPChange,
     onUseConsumableByName,
   });
+  // One-tap combat: only while a fight runs, I'm up, and a target was picked in the last 60 s.
+  const oneTapPre = combatPreTarget && Date.now() - combatPreTarget.at < 60_000 ? combatPreTarget : null;
+  const oneTapActive = !!(oneTapPre && npcCombat.isActive && npcCombat.myFighter?.status === 'up');
+  const oneTapTargetRow = oneTapActive ? npcCombat.fighters.find(f => f.id === oneTapPre!.targetId) : undefined;
+  const oneTapCombat = useMemo<OneTapCombat | undefined>(() => {
+    if (!oneTapActive || !oneTapPre || !oneTapTargetRow) return undefined;
+    const pre = oneTapPre;
+    const isAlly = oneTapTargetRow.kind === 'player' && oneTapTargetRow.id !== npcCombat.myFighter?.id;
+    const consume = () => { combatPreTargetRef.current = null; setCombatPreTarget(null); };
+    return {
+      attack: (weaponName: string) => {
+        const t = npcCombatRef.current.fighters.find(f => f.id === pre.targetId);
+        if (!t || t.kind !== 'npc' || t.status !== 'up') { toast.error(`Pick an enemy to attack.`); return; }
+        consume();
+        void npcCombatRef.current.attack(t.id, { weaponName, finish: pre.finish ?? 'knockout' });
+      },
+      givePotion: isAlly ? async (itemName: string) => {
+        consume();
+        const r = await npcCombatRef.current.givePotion(pre.targetId, itemName);
+        if (!r) return false;
+        const removed = onUseConsumableByName?.(itemName, 1) ?? false;
+        if (!removed) toast.warning(`${itemName} healed ${pre.targetName}, but it couldn't be removed from your inventory.`);
+        return true;
+      } : undefined,
+    };
+  }, [oneTapActive, oneTapPre, oneTapTargetRow, npcCombat.myFighter?.id, onUseConsumableByName]);
+
   const handleHealingItemUsed = useCallback((itemName: Parameters<typeof handleHealingItemUsedBase>[0], roll: Parameters<typeof handleHealingItemUsedBase>[1]) => {
     const out = handleHealingItemUsedBase(itemName, roll);
     const fightNow = npcCombatRef.current;
@@ -5422,6 +5460,7 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
           onHealingItemUsed={handleHealingItemUsed}
           empyreanDragonName={isEmpyrean && dragonBonds.myDragon?.dragonName ? dragonBonds.myDragon.dragonName : undefined}
           sectionsToShow={sections}
+          oneTapCombat={oneTapCombat}
         />
       )}</OverlaySlot>
       <OverlaySlot ganglion={overlays} name="actionMenu">{(open, setOpen) => (

@@ -8,6 +8,7 @@
 
 import type { AnyRollResult } from '@/lib/promptAutoRoll';
 import type { SpellCombatEffect } from '@/lib/magic/types';
+import { validateCombatEffects } from '@/lib/spellResolve';
 
 export interface ActionCard {
   /** Short label, e.g. "Fireball" or "Potion of Healing". */
@@ -46,6 +47,16 @@ export interface ActionCard {
   saveDC?: number;
   /** Spells: hits an area, so in a Live NPC fight it can land on up to 3 enemies. */
   area?: boolean;
+}
+
+/**
+ * A support-spell card for a Live NPC fight: carries only the validated structured effects (never raw
+ * spell data, never HP). Null when the spell has no valid effects, so it falls back to a utility card.
+ */
+export function buffCardFromEffects(action: string, rawEffects: unknown, area: boolean, note?: string): ActionCard | null {
+  const checked = validateCombatEffects(rawEffects);
+  if (checked.errors.length > 0 || checked.effects.length === 0) return null;
+  return { action, kind: 'spell', resolve: 'buff', combatEffects: checked.effects, targetKind: 'ally', area: area || undefined, note: note?.trim() || undefined };
 }
 
 const OPEN = '\u27EAAC\u27EB';
