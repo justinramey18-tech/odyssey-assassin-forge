@@ -20,8 +20,9 @@ serve(async (req) => {
       });
     }
 
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+    if(!SUPABASE_URL || !SUPABASE_ANON_KEY) throw new Error('Server configuration error');
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
@@ -37,7 +38,21 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { partyId, delaySeconds, scheduledAt, eventId } = body;
+    const { partyId, delaySeconds, scheduledAt, eventId, travelEventId } = body;
+    if(travelEventId !== undefined) {
+      const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if(!uuid.test(String(partyId)) || !uuid.test(String(travelEventId)) || typeof scheduledAt!=='string' || !Number.isFinite(Date.parse(scheduledAt)))
+        return new Response(JSON.stringify({error:'Invalid travel schedule'}),{status:400,headers:{...corsHeaders,'Content-Type':'application/json'}});
+      const {data:party}=await supabase.from('parties').select('created_by').eq('id',partyId).maybeSingle();
+      if(!party || party.created_by!==claimsData.claims.sub)
+        return new Response(JSON.stringify({error:'Only the original host can schedule travel'}),{status:403,headers:{...corsHeaders,'Content-Type':'application/json'}});
+      const service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if(!service) throw new Error('Server configuration error');
+      const privateDb=createClient(SUPABASE_URL,service);
+      const {data:travel}=await privateDb.from('party_travel_events').select('status,scheduled_at').eq('id',travelEventId).eq('party_id',partyId).maybeSingle();
+      if(!travel || travel.status!=='scheduled' || Date.parse(travel.scheduled_at)!==Date.parse(scheduledAt))
+        return new Response(JSON.stringify({error:'Travel schedule changed'}),{status:409,headers:{...corsHeaders,'Content-Type':'application/json'}});
+    }
 
     if (!partyId) {
       return new Response(JSON.stringify({ error: "partyId required" }), {
@@ -79,7 +94,7 @@ serve(async (req) => {
     if (hasScheduledAt) {
       // Absolute scheduling — use Not-Before header (Unix timestamp in seconds)
       const targetTime = new Date(scheduledAt).getTime();
-      const notBefore = Math.floor(targetTime / 1000);
+      const notBefore = travelEventId ? Math.ceil(targetTime / 1000) : Math.floor(targetTime / 1000);
       qstashHeaders["Upstash-Not-Before"] = String(notBefore);
     } else {
       // Relative delay
@@ -95,6 +110,7 @@ serve(async (req) => {
     if (eventId) {
       qstashBody.eventId = eventId;
     }
+    if(travelEventId) qstashBody.travelEventId=travelEventId;
 
     const qstashResponse = await fetch("https://qstash.upstash.io/v2/publish", {
       method: "POST",
@@ -104,7 +120,7 @@ serve(async (req) => {
 
     if (!qstashResponse.ok) {
       const errText = await qstashResponse.text();
-      console.error("[schedule-timer] QStash error:", qstashResponse.status, errText);
+      if(!travelEventId) console.error("[schedule-timer] QStash error:", qstashResponse.status, errText);
       return new Response(JSON.stringify({ error: `QStash scheduling failed: ${qstashResponse.status}` }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -115,7 +131,7 @@ serve(async (req) => {
     const logMsg = hasScheduledAt
       ? `Scheduled event for party ${partyId} at ${scheduledAt}, messageId: ${result.messageId}`
       : `Scheduled callback for party ${partyId} in ${delaySeconds}s, messageId: ${result.messageId}`;
-    console.log(`[schedule-timer] ${logMsg}`);
+    if(!travelEventId) console.log(`[schedule-timer] ${logMsg}`);
 
     return new Response(JSON.stringify({ ok: true, messageId: result.messageId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

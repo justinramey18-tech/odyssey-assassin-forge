@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { fireTravel } from '../_shared/travel-fire.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -722,7 +723,7 @@ serve(async (req) => {
     const triggerHeader = req.headers.get("X-Trigger-Secret");
     const bodySecret = body.triggerSecret as string | undefined;
 
-    if (triggerHeader !== TRIGGER_SECRET && bodySecret !== TRIGGER_SECRET) {
+    if (!TRIGGER_SECRET || (triggerHeader !== TRIGGER_SECRET && bodySecret !== TRIGGER_SECRET)) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -737,6 +738,25 @@ serve(async (req) => {
     const eventId = body.eventId as string | undefined;
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    if(body.travelEventId!==undefined) {
+      const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if(!targetPartyId || !uuid.test(targetPartyId) || typeof body.travelEventId!=='string' || !uuid.test(body.travelEventId))
+        return new Response(JSON.stringify({error:'Invalid travel callback'}),{status:400,headers:{...corsHeaders,'Content-Type':'application/json'}});
+      const generate=async (system:string,input:string,preferred?:string) => {
+        const model=preferred && /^(google|openai|anthropic)\//.test(preferred) ? preferred : DEFAULT_MODEL;
+        const response=await fetch('https://ai.gateway.lovable.dev/v1/chat/completions',{
+          method:'POST',signal:AbortSignal.timeout(55000),headers:{Authorization:`Bearer ${LOVABLE_API_KEY}`,'Content-Type':'application/json'},
+          body:JSON.stringify({model,messages:[{role:'system',content:system},{role:'user',content:input}],stream:false,max_tokens:4000})});
+        if(!response.ok) throw new Error('Road narration unavailable');
+        const result=await response.json();
+        const content=result.choices?.[0]?.message?.content;
+        if(typeof content!=='string' || !content.trim()) throw new Error('Blank road narration');
+        return content.trim();
+      };
+      let status=503;
+      try { status=await fireTravel(supabase,targetPartyId,body.travelEventId,generate); } catch { /* No secret diagnostics */ }
+      return new Response(JSON.stringify({ok:status===200}),{status,headers:{...corsHeaders,'Content-Type':'application/json'}});
+    }
 
     // ── Handle scheduled narrative events ──
     if (eventId && targetPartyId) {
