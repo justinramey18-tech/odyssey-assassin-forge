@@ -285,6 +285,7 @@ interface PartyDMScreenProps {
   isMomoMoonDruid?: boolean;
   onShowOocChat?: () => void;
   onHPChange?: (change: number, type: 'damage' | 'healing') => void;
+  onCombatHPChange?: (hpDelta: number, tempDelta: number) => void;
   /** Applies a short/long rest to this player's own character. */
   onRestOccurred?: (type: 'short' | 'long') => void;
   /** Decrement a consumable by name. Returns false when it is not in inventory. */
@@ -1399,7 +1400,7 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
   const chatAvatars = useChatAvatars(partyId || null, currentUserId);
   // Live NPCs (D-22): the party's NPC roster, with live updates.
   const npcRoster = usePartyNpcs(partyId || null);
-  const liveNpcCombat = useNpcCombat({ partyId: partyId || null, currentUserId: currentUserId || null, isHost: originalCreator, sheetHp: characterContext?.currentHP ?? null, onHPChange });
+  const liveNpcCombat = useNpcCombat({ partyId: partyId || null, currentUserId: currentUserId || null, isHost: originalCreator, sheetHp: characterContext?.currentHP ?? null, onHPChange, onCombatHPChange: arguments[0].onCombatHPChange });
   const roundChat = runtimeOverrides?.roundChat ?? liveRoundChat;
   const npcCombat = runtimeOverrides?.npcCombat ?? liveNpcCombat;
   const npcCombatRoster = runtimeOverrides?.npcCombatRoster ?? npcRoster;

@@ -7,6 +7,7 @@
 // sees it.
 
 import type { AnyRollResult } from '@/lib/promptAutoRoll';
+import type { SpellCombatEffect } from '@/lib/magic/types';
 
 export interface ActionCard {
   /** Short label, e.g. "Fireball" or "Potion of Healing". */
@@ -38,7 +39,9 @@ export interface ActionCard {
    * Spells: how this spell resolves. 'attack' = d20 to hit vs AC (the default when missing), 'save' = each
    * target saves vs saveDC (half damage on a success), 'auto' = always hits, 'utility' = no damage or healing.
    */
-  resolve?: 'attack' | 'save' | 'auto' | 'utility';
+  resolve?: 'attack' | 'save' | 'auto' | 'utility' | 'buff';
+  combatEffects?: SpellCombatEffect[];
+  targetKind?: 'ally';
   saveStat?: string;
   saveDC?: number;
   /** Spells: hits an area, so in a Live NPC fight it can land on up to 3 enemies. */
