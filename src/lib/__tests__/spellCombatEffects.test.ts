@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isAreaSpell, spellModeOf, validateCombatEffects } from '@/lib/spellResolve';
+import { isAreaSpell, spellCombatModeOf, spellModeOf, validateCombatEffects } from '@/lib/spellResolve';
 
 const effect = { kind: 'ac_bonus', amount: 2, durationSeconds: 60 };
 describe('explicit combat support metadata', () => {
@@ -11,11 +11,12 @@ describe('explicit combat support metadata', () => {
   it('supports only AC, attack and temporary HP effects', () => {
     const rows = [effect, { kind: 'attack_bonus', amount: 3, durationSeconds: 120 }, { kind: 'temporary_hp', formula: ' 2d8 + 3 ', durationSeconds: 600 }];
     expect(validateCombatEffects(rows)).toEqual({ effects: [effect, rows[1], { ...rows[2], formula: '2d8+3' }], errors: [] });
-    expect(spellModeOf({ combatEffects: rows })).toBe('buff');
+    expect(spellCombatModeOf({ combatEffects: rows })).toBe('buff');
+    expect(spellModeOf({ combatEffects: rows })).toBe('utility');
   });
   it.each(['save_bonus', 'damage_bonus', 'regeneration'])('rejects unsupported %s', kind => {
     expect(validateCombatEffects([{ ...effect, kind }]).errors.length).toBeGreaterThan(0);
-    expect(spellModeOf({ combatEffects: [{ ...effect, kind }] })).toBe('utility');
+    expect(spellCombatModeOf({ combatEffects: [{ ...effect, kind }] })).toBe('utility');
   });
   it.each([null, {}, 'AC +2', [null], [{ ...effect, extra: true }]])('rejects malformed settings %j', raw => {
     expect(validateCombatEffects(raw).errors.length).toBeGreaterThan(0);
@@ -51,7 +52,7 @@ describe('explicit combat support metadata', () => {
     expect(validateCombatEffects([{ kind: 'temporary_hp', amount: 5, formula: '1d4', durationSeconds: 60 }]).errors.length).toBeGreaterThan(0);
   });
   it('never derives buffs from prose', () => {
-    expect(spellModeOf({ description: 'Gain +2 AC, +3 attack and 1d8 temporary HP for 60 seconds.' })).toBe('utility');
+    expect(spellCombatModeOf({ description: 'Gain +2 AC, +3 attack and 1d8 temporary HP for 60 seconds.' })).toBe('utility');
   });
   it('preserves every existing classification even with buff metadata', () => {
     const combatEffects = [effect];

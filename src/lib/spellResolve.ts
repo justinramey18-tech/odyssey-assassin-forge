@@ -10,7 +10,7 @@
 import { parseDiceFormula, scaleForUpcast, formatDiceFormula } from '@/lib/magic/castResolver';
 import type { SpellCombatEffect } from '@/lib/magic/types';
 
-export type SpellMode = 'attack' | 'save' | 'auto' | 'heal' | 'utility' | 'buff';
+export type SpellMode = 'attack' | 'save' | 'auto' | 'heal' | 'utility';
 
 export interface SpellFacts {
   attackType?: string | null;
@@ -115,11 +115,7 @@ export function saveStatOf(s: SpellFacts): string {
 export function spellModeOf(s: SpellFacts): SpellMode {
   const damage = hasDice(s.damageFormula);
   const healing = hasDice(s.healingFormula);
-  if (!damage) {
-    if (healing) return 'heal';
-    const buffs = validateCombatEffects(s.combatEffects);
-    return buffs.effects.length > 0 && buffs.errors.length === 0 ? 'buff' : 'utility';
-  }
+  if (!damage) return healing ? 'heal' : 'utility';
   const atk = String(s.attackType ?? '').trim().toLowerCase();
   if (atk === 'melee' || atk === 'ranged') return 'attack';
   if (atk === 'save') return 'save';
@@ -129,6 +125,15 @@ export function spellModeOf(s: SpellFacts): SpellMode {
   if (TEXT_ATTACK_RE.test(text)) return 'attack';
   if (TEXT_SAVE_RE.test(text)) return 'save';
   return 'attack';
+}
+
+/** Explicit combat classification for the forthcoming buff handler. Existing
+ * casting screens keep their original utility path until application is built. */
+export function spellCombatModeOf(s: SpellFacts): SpellMode | 'buff' {
+  const mode = spellModeOf(s);
+  if (mode !== 'utility') return mode;
+  const buffs = validateCombatEffects(s.combatEffects);
+  return buffs.effects.length > 0 && buffs.errors.length === 0 ? 'buff' : mode;
 }
 
 const AREA_RE = /\b\d+[-\s]?(?:foot|feet|ft\.?)[-\s]?(?:radius|cone|line|cube|sphere|cylinder|square|emanation|wide)\b|\b(?:each|every|all)\s+(?:other\s+)?(?:creatures?|allies|ally)\b|\bcreatures?\s+of\s+your\s+choice\b|\bany\s+number\s+of\s+(?:creatures|targets|allies)\b|\bup\s+to\s+(?:two|three|four|five|six|2|3|4|5|6)\s+(?:creatures|targets|allies)\b/i;
