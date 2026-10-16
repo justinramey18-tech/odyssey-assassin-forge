@@ -247,6 +247,7 @@ export function NpcQuickBuild({ roster, onCreated }: { roster: PartyNpcsApi; onC
             <DraftCard
               key={key}
               draft={d}
+              partyId={roster.partyId ?? null}
               onChange={patch => update(key, patch)}
               onStats={patch => updateStats(key, patch)}
               onRemove={() => setDrafts(prev => prev.filter(p => p.key !== key))}
@@ -296,8 +297,9 @@ export function NpcQuickBuild({ roster, onCreated }: { roster: PartyNpcsApi; onC
   );
 }
 
-function DraftCard({ draft, onChange, onStats, onRemove, onSaveTemplate }: {
+function DraftCard({ draft, partyId, onChange, onStats, onRemove, onSaveTemplate }: {
   draft: NpcBuildDraft;
+  partyId: string | null;
   onChange: (p: Partial<NpcBuildDraft>) => void;
   onStats: (p: Partial<NpcCombatStats>) => void;
   onRemove: () => void;
@@ -305,7 +307,26 @@ function DraftCard({ draft, onChange, onStats, onRemove, onSaveTemplate }: {
 }) {
   const [more, setMore] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [painting, setPainting] = useState(false);
   const s = draft.combatStats;
+  const imagePrompt = draft.imagePrompt ?? buildNpcImagePrompt(draft);
+  const generatePortrait = async () => {
+    if (!partyId || painting || !imagePrompt.trim()) return;
+    setPainting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('venice-image-generate', {
+        body: { mode: 'npc-portrait', partyId, prompt: imagePrompt.trim() },
+      });
+      const url = (data as { imageUrl?: string } | null)?.imageUrl;
+      if (error || !url) throw new Error((data as { error?: string } | null)?.error || 'Portrait generation failed');
+      onChange({ portraitUrl: url });
+      toast.success(`Portrait ready for ${draft.name || 'this NPC'}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Portrait generation failed');
+    } finally {
+      setPainting(false);
+    }
+  };
   const num = (v: string, fallback: number) => {
     const n = Number(v);
     return Number.isFinite(n) ? Math.round(n) : fallback;
@@ -327,6 +348,32 @@ function DraftCard({ draft, onChange, onStats, onRemove, onSaveTemplate }: {
       <input value={draft.name} onChange={e => onChange({ name: e.target.value.slice(0, 60) })} className={cn(fieldClass, 'font-cinzel text-amber-100')} aria-label="Name" />
       {area('Guide', 'guide', 3)}
       {area('Attack style', 'attack', 1)}
+      <div className="space-y-2">
+        <label className={labelClass}>Portrait description</label>
+        <div className="flex gap-3 items-start">
+          <NpcPortrait url={draft.portraitUrl ?? null} name={draft.name || '?'} className="w-16 h-16 text-xl shrink-0" />
+          <div className="flex-1 min-w-0">
+            <textarea
+              value={imagePrompt}
+              onChange={e => onChange({ imagePrompt: e.target.value.slice(0, 1500) })}
+              rows={4}
+              disabled={painting}
+              className={cn(fieldClass, 'resize-none')}
+              aria-label="Portrait description"
+            />
+            <p className="text-[11px] text-white/40 text-right">{imagePrompt.length}/1500</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={generatePortrait}
+          disabled={!partyId || painting || !imagePrompt.trim()}
+          style={tm}
+          className="w-full min-h-[48px] rounded-lg border border-amber-400/40 bg-amber-500/10 text-[14px] text-amber-100 flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          {painting ? <><Loader2 className="w-4 h-4 animate-spin" /> Painting portrait…</> : (draft.portraitUrl ? 'Generate a new image' : 'Generate Image')}
+        </button>
+      </div>
       {s && (
         <div className="space-y-2">
           <div className="grid grid-cols-4 gap-2">
