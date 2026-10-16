@@ -80,7 +80,7 @@ function formatPartyMemberDetail(status: Record<string, unknown>): string[] {
 
   const backstory = typeof status.backstory === 'string' ? status.backstory.trim() : '';
   if (backstory) {
-    lines.push(`  Who they are: ${backstory.slice(0, 600)}`);
+    lines.push(`  Who they are: ${backstory.slice(0, 2000)}`);
   }
 
   return lines;
