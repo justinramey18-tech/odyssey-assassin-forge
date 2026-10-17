@@ -152,6 +152,14 @@ export interface RoundChatDrawerHandle {
   close: () => void;
   /** Adds text to the composer (as the character) and opens the table. */
   openWithDraft: (text: string) => void;
+  /** The NPCs currently picked to answer (chips, @mention, or reply), id and name only. */
+  getSelectedNpcTargets: () => Array<{ id: string; name: string }>;
+  /**
+   * Posts a prepared in-character player line through the exact same pathway as
+   * Send (selected NPCs answer when picked; otherwise the ordinary send). Never
+   * touches the composer, never speaks as an NPC, never fakes a reply link.
+   */
+  sendPreparedPlayerLine: (text: string) => Promise<boolean>;
 }
 
 interface RoundChatDrawerProps {
