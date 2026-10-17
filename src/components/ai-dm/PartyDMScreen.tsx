@@ -2998,7 +2998,11 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
           const raw = stripActionCard(parseReply(m.content).body).trim();
           if (!raw) return '';
           const text = raw.length > 400 ? `${raw.slice(0, 400)}…` : raw;
-          const who = m.user_id === currentUserId ? 'You' : (m.character_name || 'Player');
+          const who = m.npc_id
+            ? `${m.character_name || 'NPC'} (NPC)`
+            : m.user_id === currentUserId
+              ? 'You'
+              : `${m.character_name || 'Player'} (PLAYER)`;
           return `[${who}]: ${text}`;
         })
         .filter(Boolean)
