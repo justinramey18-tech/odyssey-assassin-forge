@@ -42,11 +42,11 @@ export function eligibleJourney(raw: unknown, now: number) {
     || !Array.isArray(plan.legs) || !plan.legs.length || plan.legs.length > 1000
     || !Number.isInteger(plan.currentLegIndex) || plan.currentLegIndex < 0 || plan.currentLegIndex >= plan.legs.length
     || !['slow','normal','fast'].includes(plan.pace) || travel.pace !== plan.pace
-    || !finite(travel.startedAt) || !finite(travel.realDurationMs) || travel.realDurationMs <= 0
+    || (travel.startedAt !== null && !finite(travel.startedAt)) || !finite(travel.realDurationMs) || travel.realDurationMs <= 0
     || !finite(travel.gameMinutes) || travel.gameMinutes <= 0 || !finite(travel.startCampaignMinute)
     || (travel.pausedFraction !== undefined && (!finite(travel.pausedFraction) || travel.pausedFraction < 0 || travel.pausedFraction >= 1))) return null;
   const base = travel.pausedFraction ?? 0;
-  const fraction = clamp(base + Math.max(0, now-travel.startedAt)/travel.realDurationMs*(1-base));
+  const fraction = travel.startedAt === null ? base : clamp(base + Math.max(0, now-travel.startedAt)/travel.realDurationMs*(1-base));
   if (fraction >= 1 || !Array.isArray(state.routes) || !Array.isArray(state.locations)) return null;
   const segments = Array.isArray(travel.segments) && travel.segments.length ? travel.segments : [travel];
   if (segments.some((s: Obj) => !finite(s.gameMinutes) || s.gameMinutes <= 0 || !finite(s.startProgress)

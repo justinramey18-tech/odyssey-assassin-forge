@@ -3,12 +3,13 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { travelContext } from '../_shared/travel-context.ts';
 import { syncTravel } from '../_shared/travel-sync.ts';
+import { launchTravel } from '../_shared/travel-launch.ts';
 import { z } from 'npm:zod@3';
 import { eligibleJourney, isOriginalHost, journeyHash, object, parseDecision, roadGuideScopes, targetPoint, text, type Journey } from '../_shared/travel-planning.ts';
 
 const reply = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-const Body = z.object({ partyId: z.string().uuid(), action: z.enum(['plan','sync','cancel']) }).strict();
+const Body = z.object({ partyId: z.string().uuid(), action: z.enum(['plan','sync','cancel','launch']) }).strict();
 const MODEL = 'qwen-3-6-plus';
 const SYSTEM = `You privately plan the road for a tabletop RPG journey. You are NOT narrating to players.
 Return strict JSON only: {"event":false} OR {"event":true,"eventType":"short category","premise":"private encounter premise","targetFraction":0.42}.
@@ -55,7 +56,8 @@ Deno.serve(async req => {
   const { data: party, error: partyError } = await db.from('parties').select('created_by, is_active').eq('id', partyId).maybeSingle();
   if (partyError || !party || party.is_active === false) return reply(404, { error: 'Party not found.' });
   if (!isOriginalHost(party.created_by,userId)) return reply(403, { error: 'Only the original host can plan travel.' });
-  if(parsed.data.action!=='plan') {
+  const launching = parsed.data.action === 'launch';
+  if(parsed.data.action==='sync' || parsed.data.action==='cancel') {
     try { await syncTravel(db,partyId,userId,token,parsed.data.action==='cancel'); return reply(200,{ok:true}); }
     catch { return reply(503,{error:'Travel scheduling unavailable.'}); }
   }
@@ -63,15 +65,24 @@ Deno.serve(async req => {
   const { data: row, error: mapError } = await read();
   if (mapError) return reply(500, { error: 'Travel planning failed.' });
   const journey = eligibleJourney(row?.state_data, Date.now());
-  if (!journey) return reply(200, { ok: true, planned: false, skipped: true });
+  if (!journey || (launching ? journey.travel.startedAt !== null : journey.travel.startedAt === null))
+    return launching ? reply(409, { error: 'A staged overland journey is required.' }) : reply(200, { ok: true, planned: false, skipped: true });
   const hash = await journeyHash(journey);
-  let prior = db.from('party_travel_events').select('has_event, status')
+  const findExisting = async () => {
+  let prior = db.from('party_travel_events').select('*')
     .eq('party_id',partyId).eq('journey_plan_hash',hash)
     .in('status',['planned','scheduled','firing','posted','no_event']);
   prior = journey.mapId === null ? prior.is('map_id',null) : prior.eq('map_id',journey.mapId);
-  const { data: existing, error: existingError } = await prior.order('created_at',{ascending:false}).limit(1).maybeSingle();
+  return await prior.order('created_at',{ascending:false}).limit(1).maybeSingle();
+  };
+  const arm = async (j: Journey, expected: unknown, event: Record<string, any>) => {
+    try { return reply(200, await launchTravel(db,partyId,token,j,expected,event)); }
+    catch (error) { return reply(503, { error: error instanceof Error ? error.message : 'Travel launch unavailable.' }); }
+  };
+  const { data: existing, error: existingError } = await findExisting();
   if (existingError) return reply(500,{error:'Travel planning failed.'});
   if (existing) {
+    if (launching) return await arm(journey,row?.state_data,existing);
     try { await syncTravel(db,partyId,userId,token); } catch { return reply(503,{error:'Travel scheduling unavailable.'}); }
     return reply(200,{ok:true,planned:existing.has_event});
   }
@@ -81,7 +92,7 @@ Deno.serve(async req => {
   // Planning may take time; never save a secret for a journey that changed meanwhile.
   const { data: fresh, error: freshError } = await read();
   const latest = freshError ? null : eligibleJourney(fresh?.state_data, Date.now());
-  if (!latest || latest.mapId !== journey.mapId || await journeyHash(latest) !== hash
+  if (!latest || (launching && latest.travel.startedAt !== null) || latest.mapId !== journey.mapId || await journeyHash(latest) !== hash
     || latest.plan.totalMiles !== journey.plan.totalMiles) return reply(409, { error: 'The journey changed. Try again.' });
   if (decision.event && latest.remainingMiles <= journey.remainingMiles*(1-decision.targetFraction))
     return reply(409,{error:'The journey advanced. Try again.'});
@@ -89,11 +100,21 @@ Deno.serve(async req => {
   const record = decision.event
     ? { ...base, has_event: true, status: 'planned', event_type: decision.eventType, event_premise: decision.premise, ...targetPoint(journey, decision.targetFraction) }
     : { ...base, has_event: false, status: 'no_event' };
+  if (launching) {
+    const { data: reused, error: reuseError } = await findExisting();
+    if (reuseError) return reply(500, { error: 'Travel planning failed.' });
+    if (reused) return await arm(latest,fresh?.state_data,reused);
+  }
   const { data: committed, error: commitError } = await db.rpc('commit_private_travel_plan', {
     _party_id: partyId, _host_id: userId, _expected_map: fresh?.state_data, _plan: record,
   });
   if (commitError) return reply(500, { error: 'Travel planning failed.' });
   if (!committed) return reply(409, { error: 'The journey changed. Try again.' });
+  if (launching) {
+    const { data: durable, error: durableError } = await findExisting();
+    if (durableError || !durable) return reply(500, { error: 'Travel planning failed.' });
+    return await arm(latest,fresh?.state_data,durable);
+  }
   try { await syncTravel(db,partyId,userId,token); } catch { return reply(503,{error:'Travel scheduling unavailable.'}); }
   return reply(200, { ok: true, planned: decision.event });
 });
