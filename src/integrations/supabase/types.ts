@@ -3398,6 +3398,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      arm_private_travel_launch: {
+        Args: {
+          _event_id: string
+          _expected_map: Json
+          _schedule?: Json
+          _started_at: number
+        }
+        Returns: boolean
+      }
       bridge_atlas_location_chain: {
         Args: { _loc: string; _state: Json }
         Returns: Json
