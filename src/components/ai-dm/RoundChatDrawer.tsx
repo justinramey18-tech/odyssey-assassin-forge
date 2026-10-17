@@ -1522,6 +1522,29 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
     requestAnimationFrame(() => scrollToLatest('smooth'));
   };
 
+  // Prepared player lines (e.g. Masterwork roleplay) go through the exact same
+  // send pathway as manual Send, minus speak-as and any reply link. The composer
+  // is never read or touched.
+  preparedRef.current = {
+    getTargets: () =>
+      npcsToAsk({ text: '', onStage: stageNpcs, chosenIds: talkTo, replyToNpcId: null })
+        .map(n => ({ id: n.id, name: n.name })),
+    send: async (line: string) => {
+      const trimmed = line.trim();
+      if (!trimmed || sending || socialBusy) return false;
+      const asking = npcsToAsk({ text: '', onStage: stageNpcs, chosenIds: talkTo, replyToNpcId: null }).map(n => n.id);
+      const stored = formatReply(null, trimmed);
+      pinnedRef.current = true;
+      setPinned(true);
+      const posted = asking.length > 0 && onSendToNpcs
+        ? await onSendToNpcs(stored, asking)
+        : await onSend(stored, true);
+      if (posted === false) return false;
+      requestAnimationFrame(() => scrollToLatest('smooth'));
+      return true;
+    },
+  };
+
   const sendImage = useCallback(async (file: File) => {
     if (!onUploadImage || uploadingImage) return;
     setUploadingImage(true);
