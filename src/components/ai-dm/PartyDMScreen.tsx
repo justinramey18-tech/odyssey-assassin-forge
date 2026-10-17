@@ -5820,6 +5820,7 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
           onOpenChange={setOpen}
           characterName={characterContext?.name || 'The Adventurer'}
           onUsePrompt={handleUsePrompt}
+          onUseRolledMasterwork={handleUseRolledMasterwork}
         />
       )}</OverlaySlot>
 
