@@ -1316,6 +1316,13 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   }, [open]);
 
 
+  // Latest send-pathway values for the imperative handle (which is bound once,
+  // so it must never close over stale state).
+  const preparedRef = useRef<{
+    getTargets: () => Array<{ id: string; name: string }>;
+    send: (text: string) => Promise<boolean>;
+  }>({ getTargets: () => [], send: async () => false });
+
   // Commands for the Party DM screen. Outside suggestions land in the composer so
   // the player can edit before sending.
   useImperativeHandle(ref, () => ({
@@ -1325,9 +1332,11 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
       if (draft) {
         setText(prev => (prev.trim() ? `${prev.trim()} ${draft}` : draft));
         setInCharacter(true);
-      }
+       }
       setOpen(true);
     },
+    getSelectedNpcTargets: () => preparedRef.current.getTargets(),
+    sendPreparedPlayerLine: (line: string) => preparedRef.current.send(line),
   }), []);
 
   const scrollToLatest = (behavior: ScrollBehavior = 'smooth') => {
