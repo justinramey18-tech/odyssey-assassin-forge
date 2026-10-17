@@ -55,7 +55,7 @@ describe('launch request routing',()=>{
     expect(y.rpc.mock.calls[0][0]).toBe('commit_private_travel_plan');
     expect(y.rpc.mock.calls[0][1]._plan).toMatchObject({has_event:false,status:'no_event'});
     expect(y.launchTravel).toHaveBeenCalledOnce();
-    expect(y.launchTravel.mock.calls[0][4]).toMatchObject({has_event:false,status:'no_event'});
+    expect(y.launchTravel.mock.calls[0][5]).toMatchObject({has_event:false,status:'no_event'});
   });
   it('never launches or syncs after a rejected plan commit',async()=>{
     const x=await run(null,false);
