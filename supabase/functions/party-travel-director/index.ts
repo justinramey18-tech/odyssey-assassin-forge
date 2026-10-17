@@ -100,6 +100,11 @@ Deno.serve(async req => {
   const record = decision.event
     ? { ...base, has_event: true, status: 'planned', event_type: decision.eventType, event_premise: decision.premise, ...targetPoint(journey, decision.targetFraction) }
     : { ...base, has_event: false, status: 'no_event' };
+  if (launching) {
+    const { data: reused, error: reuseError } = await findExisting();
+    if (reuseError) return reply(500, { error: 'Travel planning failed.' });
+    if (reused) return await arm(latest,fresh?.state_data,reused);
+  }
   const { data: committed, error: commitError } = await db.rpc('commit_private_travel_plan', {
     _party_id: partyId, _host_id: userId, _expected_map: fresh?.state_data, _plan: record,
   });
