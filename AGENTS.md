@@ -4,8 +4,8 @@
 - Dice profiles use resolveOddsForContext per roll, because combat and roleplay odds can differ.
 - Overlays above open drawers render inline inside drawer content, without body portals, and carry data-vaul-no-drag; modal drawers trap focus and close on outside taps, so z-index alone cannot work.
 - npc-combat carries identical copies of npc-reply's handler/models/repo/prompt in npc-combat/npc-reply/, because each server function deploys only its own folder; a test fails if the copies drift, so re-copy after editing npc-reply.
-- Automatic party launch passes an explicit initial Live Table choice through the existing screen chain; drawer state remains locally owned so Return to Story cannot trigger automatic reopening.
-- Cache Live Table rows separately from DM narration by account and party; successful server reads replace stale cached rows while in-flight live changes survive, and failed reads must retain the visible conversation.
+- Party launch forwards an explicit initial Live Table choice through the screen chain; locally owned drawer state prevents Return to Story reopening it.
+- Cache Live Table separately from DM narration by account and party; successful reads replace stale rows but preserve in-flight changes; failed reads retain visible conversation.
 - Arena Live Table Sparring renders the real PartyDMScreen through runtimeOverrides with local Arena hooks; never rebuild a separate mock table, because a second copy drifts from the live game.
 - Party Sparring runs on the host's phone and is shared over a live broadcast channel (no database rows); members mirror the host's fight and send actions to it, because campaign tables and the fight referee must never see practice fights.
 - Campaign Map world geography lives in ai_dm_campaigns.map_state with all math in src/lib/campaign-map.ts; never reuse the combat map_markers state, because tactical positioning and world travel have different rules.
