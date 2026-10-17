@@ -11,7 +11,7 @@ const route = (over: Partial<CampaignMapRoute> = {}): CampaignMapRoute => ({
 });
 
 describe('campaign map rules', () => {
-  it('paces are 2 / 3 / 4 mph', () => expect(TRAVEL_PACE_MPH).toEqual({ slow: 2, normal: 3, fast: 4 }));
+  it('sustained paces are 2 / 3 / 4 / 8 / 40 mph', () => expect(TRAVEL_PACE_MPH).toEqual({ slow: 2, normal: 3, fast: 4, horseback: 8, flying: 40 }));
   it('travel day is 8 hours', () => expect(TRAVEL_DAY_MINUTES).toBe(480));
   it('presets are 1, 5, 15, 60 real minutes per game hour', () =>
     expect(TIME_COMPRESSION_PRESETS.map(p => p.realMinutesPerGameHour)).toEqual([1, 5, 15, 60]));
