@@ -16,6 +16,8 @@ function mentions(text: string): string[] {
   return (text.match(/@[A-Za-z0-9_'-]+/g) || []).map(m => m.toLowerCase());
 }
 
+const VALID_OUTCOMES = new Set(["critical failure", "failure", "mixed success", "success", "critical success"]);
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -31,10 +33,63 @@ serve(async (req) => {
     const abilities = asList(body?.abilities);
     const spells = asList(body?.spells);
 
+    const isMasterwork = body?.mode === "masterwork";
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const systemPrompt = `You rewrite a player's rough notes into ONE cohesive first-person action statement for a single turn of a tabletop RPG.
+    let systemPrompt: string;
+    let userContent: string;
+
+    if (isMasterwork) {
+      const masterworkTitle = typeof body?.masterworkTitle === "string" ? body.masterworkTitle.slice(0, 120) : "";
+      const d20 = typeof body?.d20 === "number" && Number.isFinite(body.d20) ? Math.round(body.d20) : null;
+      const outcome = typeof body?.outcome === "string" && VALID_OUTCOMES.has(body.outcome) ? body.outcome : null;
+      const recentNarrative = typeof body?.recentNarrative === "string" ? body.recentNarrative.slice(0, 2000) : "";
+      const recentLiveTable = typeof body?.recentLiveTable === "string" ? body.recentLiveTable.slice(0, 2000) : "";
+      const selectedNpcNames = asList(body?.selectedNpcNames);
+
+      systemPrompt = `You convert a Masterwork roleplay prompt — a meta instruction describing a style or approach — into the player's ACTUAL roleplay for this exact moment of a tabletop RPG. Do not describe how someone should roleplay; perform the roleplay itself.
+
+HARD RULES. Breaking any of these ruins the game:
+
+1. First person, present tense, spoken and acted as the player's character. Write what the character says and attempts right now.
+
+2. One to four concise sentences, suitable to appear directly as a single Live Table line. Never longer.
+
+3. Embody the Masterwork concept strongly enough that the result feels distinctive rather than generic. The style the prompt asks for must be unmistakable in the prose.
+
+4. Use the recent narrative and Live Table excerpt only for immediate scene grounding. Newer context wins over older context.
+
+5. If NPC names are listed as currently addressed, the character may speak to or physically orient toward them. NEVER write their dialogue, thoughts, reactions, decisions, emotions, or outcomes.
+
+6. The supplied d20 and outcome tier are FINAL. Never roll, reroll, replace, reinterpret, hide, or contradict them. Never mention the number or tier mechanically.
+
+7. Let the quality and style of the attempt fit the tier WITHOUT declaring any external consequence: critical failure may be an overreach or a badly executed attempt; failure may be flawed or unconvincing; mixed success may feel uncertain or costly in presentation; success may be sharp and competent; critical success may be exceptional. Never state that an NPC is persuaded, an attack lands, a clue is found, a lock opens, or any other world result occurs — the Dungeon Master decides all of that.
+
+8. Never invent damage, DCs, saves, HP, XP, gold, items, spell expenditure, movement, hidden information, or state changes.
+
+9. Never emit any [DICE] suffix or dice notation.
+
+10. Preserve every @Name token EXACTLY as written, including the @ and spelling. They are functional tags, not decoration.
+
+11. Preserve exact named abilities, spells, items and proper nouns from the prompt and context verbatim.
+
+12. No headings, bullets, markdown, commentary, explanation, or quotation wrapper around the whole response. Return only the roleplay prose.`;
+
+      const contextBits: string[] = [];
+      if (masterworkTitle) contextBits.push(`Masterwork: ${masterworkTitle}`);
+      if (characterName) contextBits.push(`Character: ${characterName}`);
+      if (d20 !== null && outcome) contextBits.push(`FINAL roll context (never mention or contradict): d20 ${d20} → ${outcome.toUpperCase()}`);
+      if (selectedNpcNames.length) contextBits.push(`Currently addressed NPCs (speak to them, never for them): ${selectedNpcNames.join(", ")}`);
+      if (recentNarrative) contextBits.push(`Newest story beat (for grounding only):\n${recentNarrative}`);
+      if (recentLiveTable) contextBits.push(`Recent Live Table excerpt (for grounding only):\n${recentLiveTable}`);
+      if (abilities.length) contextBits.push(`Equipped abilities (use these names exactly if referenced): ${abilities.join(", ")}`);
+      if (spells.length) contextBits.push(`Prepared spells (use these names exactly if referenced): ${spells.join(", ")}`);
+      const contextBlock = contextBits.length ? `${contextBits.join("\n")}\n\n` : "";
+      userContent = `${contextBlock}MASTERWORK PROMPT:\n${clipped}`;
+    } else {
+      systemPrompt = `You rewrite a player's rough notes into ONE cohesive first-person action statement for a single turn of a tabletop RPG.
 
 The player has tapped several action buttons and typed fragments, so the draft arrives as a stack of disconnected lines. Weave them into a single sequential declaration of what the character ATTEMPTS this turn.
 
@@ -62,11 +117,13 @@ HARD RULES. Breaking any of these ruins the game:
 
 If the draft is already one clean action, return it with only light polish. If part of the draft is ambiguous, keep the player's original wording for that part verbatim rather than guessing at it.`;
 
-    const contextBits: string[] = [];
-    if (characterName) contextBits.push(`Character: ${characterName}`);
-    if (abilities.length) contextBits.push(`Equipped abilities (use these names exactly if referenced): ${abilities.join(", ")}`);
-    if (spells.length) contextBits.push(`Prepared spells (use these names exactly if referenced): ${spells.join(", ")}`);
-    const contextBlock = contextBits.length ? `${contextBits.join("\n")}\n\n` : "";
+      const contextBits: string[] = [];
+      if (characterName) contextBits.push(`Character: ${characterName}`);
+      if (abilities.length) contextBits.push(`Equipped abilities (use these names exactly if referenced): ${abilities.join(", ")}`);
+      if (spells.length) contextBits.push(`Prepared spells (use these names exactly if referenced): ${spells.join(", ")}`);
+      const contextBlock = contextBits.length ? `${contextBits.join("\n")}\n\n` : "";
+      userContent = `${contextBlock}PLAYER DRAFT:\n${clipped}`;
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -78,7 +135,7 @@ If the draft is already one clean action, return it with only light polish. If p
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `${contextBlock}PLAYER DRAFT:\n${clipped}` },
+          { role: "user", content: userContent },
         ],
         tools: [
           {
