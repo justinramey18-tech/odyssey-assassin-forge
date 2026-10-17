@@ -1,13 +1,12 @@
-// @vitest-environment node
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
-import { transformSync } from 'esbuild';
+import { transpileModule, ModuleKind } from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 
 // Execute the actual entrypoint with synthetic auth, storage and QStash responses.
 const source = readFileSync('supabase/functions/schedule-timer-callback/index.ts', 'utf8')
   .replace(/^import .*;\r?\n/gm, '');
-const compiled = transformSync(source, { loader: 'ts', format: 'cjs' }).code;
+const compiled = transpileModule(source, { compilerOptions: { module: ModuleKind.CommonJS } }).outputText;
 const partyId = '00000000-0000-4000-8000-000000000001';
 const travelEventId = '00000000-0000-4000-8000-000000000005';
 const scheduledAt = '2099-01-01T00:00:00.000Z';
