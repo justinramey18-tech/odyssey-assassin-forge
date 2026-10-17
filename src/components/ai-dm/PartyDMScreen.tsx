@@ -3011,8 +3011,10 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
       synergyTargets = Array.from(
         new Set(
           sourceLines
-            .filter(m => idSet.has(m.user_id))
-            .map(m => m.character_name || 'Player'),
+            .filter(m => idSet.has(m.npc_id ? `npc:${m.npc_id}` : `player:${m.user_id}`))
+            .map(m => m.npc_id
+              ? `${m.character_name || 'NPC'} (NPC)`
+              : `${m.character_name || 'Player'} (PLAYER)`),
         ),
       );
     }
