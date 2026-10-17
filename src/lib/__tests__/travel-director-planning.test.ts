@@ -46,13 +46,22 @@ describe('hidden travel planning', () => {
     expect(j.remainingMiles).toBeCloseTo(15);
     expect(targetPoint(j,0.5).target_route_progress).toBeCloseTo(0.25);
   });
-  it('city, paused, arrived, local, and ended journeys do not plan', () => {
+  it('city, arrived, local, and ended journeys do not plan', () => {
     const r = raw();
     expect(eligibleJourney({ ...r,travelScale:'city' },1000)).toBeNull();
-    expect(eligibleJourney({ ...r,activeTravel:{...r.activeTravel,startedAt:null} },1000)).toBeNull();
     expect(eligibleJourney({ ...r,currentLocationId:'end' },1000)).toBeNull();
     expect(eligibleJourney(r,200000)).toBeNull();
     expect(eligibleJourney({format:'odyssey-campaign-atlas',version:2,activeMapId:'x',maps:[{id:'x',navigationMode:'local',state:r}]},1000)).toBeNull();
+  });
+  it('staged travel stays at zero elapsed regardless of wall time', () => {
+    const r = raw();
+    const j = journey({ ...r, activeTravel: { ...r.activeTravel, startedAt: null } },999999999);
+    expect(j.remainingMiles).toBe(35); expect(j.campaignMinute).toBe(0);
+  });
+  it('staged travel respects its saved paused fraction', () => {
+    const r = raw();
+    const j = journey({ ...r, activeTravel: { ...r.activeTravel, startedAt: null, pausedFraction: 0.5 } },999999999);
+    expect(j.remainingMiles).toBe(32.5); expect(j.campaignMinute).toBe(50);
   });
   it('hash exactly matches PostgreSQL jsonb spacing and key ordering', async () => {
     const expected = '{"legs": [{"routeId": "a", "reversed": false, "toLocationId": "middle", "fromLocationId": "start"}, {"routeId": "b", "reversed": true, "toLocationId": "end", "fromLocationId": "middle"}], "pace": "normal", "destinationLocationId": "end"}';
