@@ -47,6 +47,16 @@ describe('launch request routing',()=>{
     expect(x.rpc.mock.invocationCallOrder[0]).toBeLessThan(x.launchTravel.mock.invocationCallOrder[0]);
     expect(x.syncTravel).not.toHaveBeenCalled();
   });
+  it('a planner failure still launches through a durable no-event row',async()=>{
+    const x=await run(null);
+    x.fetch.mockImplementation(async()=>new Response('planner down',{status:500}));
+    const y=await run(null);
+    expect(y.response.status).toBe(200); expect(y.data).toEqual({ok:true,planned:false});
+    expect(y.rpc.mock.calls[0][0]).toBe('commit_private_travel_plan');
+    expect(y.rpc.mock.calls[0][1]._plan).toMatchObject({has_event:false,status:'no_event'});
+    expect(y.launchTravel).toHaveBeenCalledOnce();
+    expect(y.launchTravel.mock.calls[0][4]).toMatchObject({has_event:false,status:'no_event'});
+  });
   it('never launches or syncs after a rejected plan commit',async()=>{
     const x=await run(null,false);
     expect(x.response.status).toBe(409); expect(x.launchTravel).not.toHaveBeenCalled(); expect(x.syncTravel).not.toHaveBeenCalled();
