@@ -36,7 +36,8 @@ describe('mounted and air private travel', () => {
   it('schedules and freezes at the exact halfway point of the straight path', () => {
     const state = staged(), j = required(state), target = targetPoint(j, 0.5);
     expect(target.target_route_progress).toBe(0.5);
-    const moving = { ...state, activeTravel: { ...j.travel, startedAt: 1000 } };
+    if (!state.activeTravel) throw new Error('Expected staged flight');
+    const moving = { ...state, activeTravel: { ...state.activeTravel, startedAt: 1000 } };
     expect(eventClock(moving, { ...target, destination_location_id: 'b' }, 1000)).toMatchObject({
       kind: 'schedule', target_tranche_fraction: 0.5, target_campaign_minute: 160, scheduled_at: new Date(61000).toISOString() });
     expect(campaignMapPosition({ ...state, activeTravel: freezeTravel(moving.activeTravel, 61000) }, 61000)).toEqual({ x: 0.5, y: 0 });
