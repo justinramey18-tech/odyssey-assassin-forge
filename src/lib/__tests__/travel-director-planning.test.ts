@@ -79,6 +79,37 @@ describe('hidden travel planning', () => {
     expect(() => parseDecision('```json\n{"event":false}\n```')).toThrow();
     expect(parseDecision('{"event":true,"eventType":" social ","premise":" road ","targetFraction":0.15}')).toEqual({event:true,eventType:'social',premise:'road',targetFraction:0.15});
   });
+  it('accepts the fixed-shape nullable no-event decision', () => {
+    expect(parseDecision('{"event":false,"eventType":null,"premise":null,"targetFraction":null}')).toEqual({event:false});
+  });
+  it.each([
+    { event: false, eventType: 'social', premise: null, targetFraction: null },
+    { event: false, eventType: null, premise: 'road', targetFraction: null },
+    { event: false, eventType: null, premise: null, targetFraction: 0.5 },
+    { event: false, eventType: null, premise: null },
+    { event: false, eventType: null, premise: null, targetFraction: null, extra: true },
+    { event: true, eventType: null, premise: 'road', targetFraction: 0.5 },
+    { event: true, eventType: 'social', premise: null, targetFraction: 0.5 },
+    { event: true, eventType: 'social', premise: 'road', targetFraction: 0.5, extra: true },
+    { event: true, eventType: ' ', premise: 'road', targetFraction: 0.5 },
+    { event: true, eventType: 'social', premise: ' ', targetFraction: 0.5 },
+  ])('rejects contradictory or incomplete fixed shapes %#', decision => {
+    expect(() => parseDecision(JSON.stringify(decision))).toThrow('Invalid decision');
+  });
+  it('enforces the 80-character event type bound', () => {
+    const decision = {event:true, eventType:'a'.repeat(80), premise:'road', targetFraction:0.5};
+    expect(parseDecision(JSON.stringify(decision))).toEqual(decision);
+    expect(() => parseDecision(JSON.stringify({...decision,eventType:'a'.repeat(81)}))).toThrow();
+  });
+  it('enforces the 2000-character premise bound', () => {
+    const decision = {event:true, eventType:'social', premise:'a'.repeat(2000), targetFraction:0.5};
+    expect(parseDecision(JSON.stringify(decision))).toEqual(decision);
+    expect(() => parseDecision(JSON.stringify({...decision,premise:'a'.repeat(2001)}))).toThrow();
+  });
+  it('accepts the inclusive upper target fraction of 0.85', () => {
+    const decision = {event:true, eventType:'social', premise:'road', targetFraction:0.85};
+    expect(parseDecision(JSON.stringify(decision))).toEqual(decision);
+  });
   it('includes enclosing entrance and map-wide guides, never destination guides', () => {
     expect(roadGuideScopes({format:'odyssey-campaign-atlas',rootMapId:'world',activeMapId:'area',maps:[
       {id:'world',state:{locations:[{id:'town',parentLocationId:'region'},{id:'region'}]}},
