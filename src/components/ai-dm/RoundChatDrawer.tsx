@@ -152,6 +152,14 @@ export interface RoundChatDrawerHandle {
   close: () => void;
   /** Adds text to the composer (as the character) and opens the table. */
   openWithDraft: (text: string) => void;
+  /** The NPCs currently picked to answer (chips, @mention, or reply), id and name only. */
+  getSelectedNpcTargets: () => Array<{ id: string; name: string }>;
+  /**
+   * Posts a prepared in-character player line through the exact same pathway as
+   * Send (selected NPCs answer when picked; otherwise the ordinary send). Never
+   * touches the composer, never speaks as an NPC, never fakes a reply link.
+   */
+  sendPreparedPlayerLine: (text: string) => Promise<boolean>;
 }
 
 interface RoundChatDrawerProps {
@@ -1308,6 +1316,13 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   }, [open]);
 
 
+  // Latest send-pathway values for the imperative handle (which is bound once,
+  // so it must never close over stale state).
+  const preparedRef = useRef<{
+    getTargets: () => Array<{ id: string; name: string }>;
+    send: (text: string) => Promise<boolean>;
+  }>({ getTargets: () => [], send: async () => false });
+
   // Commands for the Party DM screen. Outside suggestions land in the composer so
   // the player can edit before sending.
   useImperativeHandle(ref, () => ({
@@ -1317,9 +1332,11 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
       if (draft) {
         setText(prev => (prev.trim() ? `${prev.trim()} ${draft}` : draft));
         setInCharacter(true);
-      }
+       }
       setOpen(true);
     },
+    getSelectedNpcTargets: () => preparedRef.current.getTargets(),
+    sendPreparedPlayerLine: (line: string) => preparedRef.current.send(line),
   }), []);
 
   const scrollToLatest = (behavior: ScrollBehavior = 'smooth') => {
@@ -1503,6 +1520,29 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
     }
     setReplyTo(null);
     requestAnimationFrame(() => scrollToLatest('smooth'));
+  };
+
+  // Prepared player lines (e.g. Masterwork roleplay) go through the exact same
+  // send pathway as manual Send, minus speak-as and any reply link. The composer
+  // is never read or touched.
+  preparedRef.current = {
+    getTargets: () =>
+      npcsToAsk({ text: '', onStage: stageNpcs, chosenIds: talkTo, replyToNpcId: null })
+        .map(n => ({ id: n.id, name: n.name })),
+    send: async (line: string) => {
+      const trimmed = line.trim();
+      if (!trimmed || sending || socialBusy) return false;
+      const asking = npcsToAsk({ text: '', onStage: stageNpcs, chosenIds: talkTo, replyToNpcId: null }).map(n => n.id);
+      const stored = formatReply(null, trimmed);
+      pinnedRef.current = true;
+      setPinned(true);
+      const posted = asking.length > 0 && onSendToNpcs
+        ? await onSendToNpcs(stored, asking)
+        : await onSend(stored, true);
+      if (posted === false) return false;
+      requestAnimationFrame(() => scrollToLatest('smooth'));
+      return true;
+    },
   };
 
   const sendImage = useCallback(async (file: File) => {
