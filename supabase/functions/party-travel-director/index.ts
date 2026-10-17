@@ -100,8 +100,14 @@ Deno.serve(async req => {
     return reply(200,{ok:true,planned:existing.has_event});
   }
   let decision;
+  let plannerError: string | null = null;
   try { decision = await plan(db, partyId, userId, journey); }
-  catch { return reply(502, { error: 'Travel planning failed.' }); }
+  catch (error) {
+    if (!launching) return reply(502, { error: 'Travel planning failed.' });
+    plannerError = plannerKind(error);
+    console.warn('Travel planner failed:', plannerError, 'party:', partyId);
+    decision = { event: false as const };
+  }
   // Planning may take time; never save a secret for a journey that changed meanwhile.
   const { data: fresh, error: freshError } = await read();
   const latest = freshError ? null : eligibleJourney(fresh?.state_data, Date.now());
