@@ -115,7 +115,7 @@ import { resolveWhisperAutoRoll, performWhisperRoll } from '@/lib/whisperAutoRol
 import type { SocialCheckResult } from '@/lib/npcSocialChecks';
 import { actionCardFromRoll, encodeActionCard, parseActionCard, stripActionCard, type ActionCard } from '@/lib/roundChatActionCard';
 import { getHealingDiceForItem } from '@/lib/consumables/healing';
-import { rollHealing } from '@/lib/promptAutoRoll';
+import { rollHealing, rollSuffix, type CheckRollResult } from '@/lib/promptAutoRoll';
 import { requestDiceRoll } from '@/lib/diceRollBus';
 import { parseReply } from '@/lib/chatReply';
 import { useHealingItemAction } from '@/hooks/use-healing-item';
@@ -3191,6 +3191,59 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
     return true;
   }, [dispatchPrompt]);
 
+  // Rolled Masterwork prompts: in Live Table the AI action writer turns the rolled
+  // instruction into first-person roleplay around the already-final roll, then the
+  // finished line posts through the drawer's current selected-NPC send path.
+  const handleUseRolledMasterwork = useCallback(async (info: { id: string; title: string; prompt: string; roll: CheckRollResult }) => {
+    const suffix = rollSuffix(info.roll);
+    if (!chatRoundsOnRef.current) {
+      return handleUsePrompt(info.prompt + suffix);
+    }
+    const drawer = roundChatDrawerRef.current;
+    if (!drawer) {
+      return handleUsePrompt(info.prompt + suffix);
+    }
+    const targets = drawer.getSelectedNpcTargets?.() ?? [];
+    const recentNarrative = partyDmRef.current.messages
+      .filter((m: any) => m.role === 'assistant' && m.content?.trim())
+      .slice(-2)
+      .map((m: any) => m.content)
+      .join('\n\n')
+      .slice(0, 1800);
+    const recentLiveTable = roundChatRef.current.messages
+      .filter((m: any) => m.content?.trim() && (m as any).is_afk_marker !== true)
+      .slice(-8)
+      .map((m: any) => `${m.character_name || 'Player'}: ${String(m.content).slice(0, 220)}`)
+      .join('\n')
+      .slice(0, 1800);
+    let line = info.prompt;
+    const toastId = toast.loading('Writing your move…');
+    try {
+      const { data, error } = await supabase.functions.invoke('enhance-player-action', {
+        body: {
+          mode: 'masterwork',
+          draft: info.prompt,
+          masterworkTitle: info.title,
+          characterName: characterContext?.name || 'The Adventurer',
+          d20: info.roll.d20,
+          outcome: info.roll.outcome,
+          recentNarrative,
+          recentLiveTable,
+          selectedNpcNames: targets.map(t => t.name),
+        },
+      });
+      const enhanced = !error && typeof (data as any)?.enhanced === 'string' ? (data as any).enhanced.trim() : '';
+      if (enhanced) line = enhanced;
+    } catch {
+      // Safe fallback: the processed Masterwork prompt itself.
+    } finally {
+      toast.dismiss(toastId);
+    }
+    const posted = await drawer.sendPreparedPlayerLine(line + suffix);
+    if (!posted) toast.error('Your line could not be posted. Nothing was sent.');
+    return posted;
+  }, [handleUsePrompt, characterContext?.name]);
+
   // Shared "post to the table" channel — the spellbook and other screens send casts
   // through here while this DM screen is open.
   useEffect(() => registerTablePoster((text) => handleUsePrompt(text)), [handleUsePrompt]);
@@ -5767,6 +5820,7 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
           onOpenChange={setOpen}
           characterName={characterContext?.name || 'The Adventurer'}
           onUsePrompt={handleUsePrompt}
+          onUseRolledMasterwork={handleUseRolledMasterwork}
         />
       )}</OverlaySlot>
 
