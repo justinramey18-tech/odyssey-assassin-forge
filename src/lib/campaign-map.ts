@@ -504,6 +504,7 @@ function locationOf(raw: unknown): CampaignMapLocation | null {
 function routeOf(raw: unknown, ids: Set<string>): CampaignMapRoute | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
+  if (r.kind === 'direct-flight' || (typeof r.id === 'string' && r.id.startsWith(FLIGHT_PREFIX))) return null;
   const id = str(r.id, 80), from = str(r.fromLocationId, 80), to = str(r.toLocationId, 80);
   if (!id || !ids.has(from) || !ids.has(to) || from === to) return null;
   const path = (Array.isArray(r.path) ? r.path : []).map(pointOf).filter((p): p is MapPoint => !!p).slice(0, 200);
@@ -535,7 +536,8 @@ function flightOf(raw: unknown, locations: CampaignMapLocation[], permanentIds: 
     if (!fin(p.x) || !fin(p.y) || p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) return undefined;
     points.push({ x: p.x, y: p.y });
   }
-  if (points[0].x === points[1].x && points[0].y === points[1].y) return undefined;
+  if ((points[0].x === points[1].x && points[0].y === points[1].y)
+    || points[1].x !== dest.x || points[1].y !== dest.y) return undefined;
   return { kind: 'direct-flight', id, fromLocationId: from, toLocationId: to,
     distanceMiles: r.distanceMiles, distanceSource: 'manual', terrainFactor: 1, path: [points[0], points[1]] };
 }
@@ -629,7 +631,10 @@ export function sanitizeCampaignMapState(raw: unknown): CampaignMapState {
     realMinutesPerGameHour: validRealMinutesPerGameHour(r.realMinutesPerGameHour) ?? DEFAULT_REAL_MINUTES_PER_GAME_HOUR,
     defaultPace: isPace(r.defaultPace) ? r.defaultPace : 'normal',
   };
-  if (r.travelScale === 'city') state.travelScale = 'city';
+  if (r.travelScale === 'city') {
+    state.travelScale = 'city';
+    if (state.defaultPace === 'horseback' || state.defaultPace === 'flying') state.defaultPace = 'normal';
+  }
   if (fin(r.imageNaturalWidth) && r.imageNaturalWidth > 0) state.imageNaturalWidth = r.imageNaturalWidth;
   if (fin(r.imageNaturalHeight) && r.imageNaturalHeight > 0) state.imageNaturalHeight = r.imageNaturalHeight;
 
@@ -648,9 +653,11 @@ export function sanitizeCampaignMapState(raw: unknown): CampaignMapState {
     state.currentRoutePosition = { routeId: pos.routeId as string, progress: clamp01(pos.progress), ...(pos.reversed === true ? { reversed: true } : {}), ...(pos.dayComplete === true ? { dayComplete: true } : {}) };
   }
   let travel = travelOf(r.activeTravel, flightIds);
+  if (travel && state.travelScale === 'city' && (travel.pace === 'horseback' || travel.pace === 'flying')) travel = undefined;
   if (travel && (travel.pace === 'flying' ? !flight || travel.routeId !== flight.id || travel.reversed || travel.segments?.some(x => x.routeId !== flight.id || x.reversed) : travel.routeId === flight?.id || travel.segments?.some(x => x.routeId === flight?.id))) travel = undefined;
   if (travel) state.activeTravel = travel;
-  const plan = journeyPlanOf(r.journeyPlan, routes, ids, flight);
+  let plan = journeyPlanOf(r.journeyPlan, routes, ids, flight);
+  if (plan && state.travelScale === 'city' && (plan.pace === 'horseback' || plan.pace === 'flying')) plan = undefined;
   if (plan) {
     state.journeyPlan = plan;
     if (travel?.segments?.some(x => x.legIndex !== undefined && (x.legIndex >= plan.legs.length || plan.legs[x.legIndex].routeId !== x.routeId))) delete state.journeyPlan;
