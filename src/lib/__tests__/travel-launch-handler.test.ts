@@ -46,7 +46,7 @@ describe('launch request routing',()=>{
   it('plans once, commits, reads the durable row and then launches',async()=>{
     const x=await run(null);
     expect(x.response.status).toBe(200); expect(x.fetch).toHaveBeenCalledOnce(); expect(x.rpc).toHaveBeenCalledOnce();
-    expect(x.launchTravel.mock.calls[0]).toContainEqual({id:'durable',has_event:false,status:'no_event'});
+    expect(x.launchTravel.mock.calls[0][5]).toMatchObject({id:'durable',has_event:false,status:'no_event'});
     expect(x.rpc.mock.invocationCallOrder[0]).toBeLessThan(x.launchTravel.mock.invocationCallOrder[0]);
     expect(x.syncTravel).not.toHaveBeenCalled();
   });
