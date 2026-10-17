@@ -2895,15 +2895,17 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
    * Players with an unsent, in-character line right now — the people you can
    * ask the suggestion helper to play off. Table talk never qualifies.
    */
+  // NPC lines are stored under the host account's user_id, so identity must be
+  // checked per-kind: an NPC row is never the current player's own line.
   const pendingSynergyMessages = useMemo(
-    () => roundChat.pendingMessages.filter(m => m.in_character && m.user_id !== currentUserId),
+    () => roundChat.pendingMessages.filter(m => m.in_character && (!!m.npc_id || m.user_id !== currentUserId)),
     [roundChat.pendingMessages, currentUserId],
   );
 
   const lastRoundSynergyMessages = useMemo(() => {
     const latestOtherLine = [...roundChat.messages]
       .reverse()
-      .find(m => m.consumed && m.in_character && m.user_id !== currentUserId && stripActionCard(parseReply(m.content).body).trim());
+      .find(m => m.consumed && m.in_character && (!!m.npc_id || m.user_id !== currentUserId) && stripActionCard(parseReply(m.content).body).trim());
     if (!latestOtherLine) return [];
     return roundChat.messages.filter(m => m.consumed && m.in_character && m.round_id === latestOtherLine.round_id);
   }, [roundChat.messages, currentUserId]);
@@ -2914,23 +2916,28 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
   const usingLastRoundSynergy = pendingSynergyMessages.length === 0 && lastRoundSynergyMessages.length > 0;
 
   const liveTableCandidates = useMemo(() => {
-    const byUser = new Map<string, { userId: string; name: string; preview: string; avatarUrl?: string; fromLastRound?: boolean }>();
+    const byTarget = new Map<string, { targetId: string; kind: 'player' | 'npc'; name: string; preview: string; avatarUrl?: string; fromLastRound?: boolean }>();
     for (const m of synergyMessages) {
       if (!m.in_character) continue;
-      if (m.user_id === currentUserId) continue;
+      const isNpc = !!m.npc_id;
+      if (!isNpc && m.user_id === currentUserId) continue;
       const text = stripActionCard(parseReply(m.content).body).trim();
       if (!text) continue;
-      // Later messages overwrite earlier ones, so each player shows their latest line.
-      byUser.set(m.user_id, {
-        userId: m.user_id,
-        name: m.character_name || 'Player',
+      const targetId = isNpc ? `npc:${m.npc_id}` : `player:${m.user_id}`;
+      // Later messages overwrite earlier ones, so each target shows their latest line.
+      byTarget.set(targetId, {
+        targetId,
+        kind: isNpc ? 'npc' : 'player',
+        name: m.character_name || (isNpc ? 'NPC' : 'Player'),
         preview: text.length > 90 ? `${text.slice(0, 90)}…` : text,
-        avatarUrl: chatAvatars.avatars[m.user_id]?.ic,
+        avatarUrl: isNpc
+          ? npcRoster.byId.get(m.npc_id as string)?.portrait_url || undefined
+          : chatAvatars.avatars[m.user_id]?.ic,
         fromLastRound: usingLastRoundSynergy,
       });
     }
-    return Array.from(byUser.values());
-  }, [synergyMessages, currentUserId, chatAvatars.avatars, usingLastRoundSynergy]);
+    return Array.from(byTarget.values());
+  }, [synergyMessages, currentUserId, chatAvatars.avatars, npcRoster.byId, usingLastRoundSynergy]);
 
   const handleFetchStoryPills = useCallback(async (flavorId?: string, mode?: 'solo' | 'sync', targetIds?: string[], customIntent?: string) => {
     // Include the recent back-and-forth (DM + this player + other players), not just DM replies,
@@ -2991,7 +2998,11 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
           const raw = stripActionCard(parseReply(m.content).body).trim();
           if (!raw) return '';
           const text = raw.length > 400 ? `${raw.slice(0, 400)}…` : raw;
-          const who = m.user_id === currentUserId ? 'You' : (m.character_name || 'Player');
+          const who = m.npc_id
+            ? `${m.character_name || 'NPC'} (NPC)`
+            : m.user_id === currentUserId
+              ? 'You'
+              : `${m.character_name || 'Player'} (PLAYER)`;
           return `[${who}]: ${text}`;
         })
         .filter(Boolean)
@@ -3000,8 +3011,10 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
       synergyTargets = Array.from(
         new Set(
           sourceLines
-            .filter(m => idSet.has(m.user_id))
-            .map(m => m.character_name || 'Player'),
+            .filter(m => idSet.has(m.npc_id ? `npc:${m.npc_id}` : `player:${m.user_id}`))
+            .map(m => m.npc_id
+              ? `${m.character_name || 'NPC'} (NPC)`
+              : `${m.character_name || 'Player'} (PLAYER)`),
         ),
       );
     }

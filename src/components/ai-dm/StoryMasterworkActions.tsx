@@ -82,7 +82,9 @@ interface ActionItem {
 }
 
 export interface LiveTableCandidate {
-  userId: string;
+  /** Identity-safe key: `player:<user_id>` or `npc:<npc_id>`. */
+  targetId: string;
+  kind: 'player' | 'npc';
   name: string;
   preview: string;
   avatarUrl?: string;
@@ -203,7 +205,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
   const showTargets = mode === 'sync' && !targetsDone && !flavorId;
   const showFlavors = mode !== null && !showTargets && !flavorId;
   const canContinue = targetIds.length > 0;
-  const selectedCandidates = liveTableCandidates.filter(candidate => targetIds.includes(candidate.userId));
+  const selectedCandidates = liveTableCandidates.filter(candidate => targetIds.includes(candidate.targetId));
   const selectedNames = selectedCandidates.map(candidate => candidate.name).join(', ');
   const contextLabel = mode === 'sync' && selectedNames ? `Reacting to: ${selectedNames}` : 'Your own move';
   const showContext = showFlavors || !!flavorId;
@@ -328,7 +330,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
             ) : showTargets ? (
               <div className="space-y-3">
                 <button
-                  onClick={() => setTargetIds(liveTableCandidates.map(c => c.userId))}
+                  onClick={() => setTargetIds(liveTableCandidates.map(c => c.targetId))}
                   style={{ touchAction: 'manipulation' }}
                   className="block w-[84%] max-w-[340px] mx-auto active:scale-[0.98] transition-transform"
                   aria-label="Everyone who spoke"
@@ -336,11 +338,11 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
                   <img src={moveBtnEveryone} alt="" draggable={false} className="block w-full" />
                 </button>
                 {liveTableCandidates.map((c) => {
-                  const selected = targetIds.includes(c.userId);
+const selected = targetIds.includes(c.targetId);
                   return (
                     <button
-                      key={c.userId}
-                      onClick={() => toggleTarget(c.userId)}
+                      key={c.targetId}
+                      onClick={() => toggleTarget(c.targetId)}
                       style={{ ...PANEL_FRAME_STYLE, touchAction: 'manipulation' }}
                       className={`relative w-full flex items-start gap-3 text-left min-h-[104px] active:scale-[0.98] transition-transform ${selected ? 'shadow-[0_0_18px_rgba(251,191,36,0.35)]' : ''}`}
                       aria-pressed={selected}
@@ -352,7 +354,12 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-2 min-w-0">
-                          <span className="block min-w-0 truncate text-sm font-cinzel text-amber-200">{c.name}</span>
+<span className="block min-w-0 truncate text-sm font-cinzel text-amber-200">{c.name}</span>
+                          {c.kind === 'npc' && (
+                            <span className="shrink-0 rounded border border-purple-400/30 bg-purple-950/50 px-1.5 py-0.5 text-[9px] uppercase text-purple-200/80">
+                              NPC
+                            </span>
+                          )}
                           {c.fromLastRound && (
                             <span className="shrink-0 rounded border border-sky-500/25 bg-sky-950/40 px-1.5 py-0.5 text-[9px] uppercase text-sky-200/70">
                               from last round
@@ -384,7 +391,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
                     <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
                     <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
                     {mode === 'sync' && selectedCandidates.slice(0, 2).map(candidate => (
-                      <span key={candidate.userId} className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-amber-500/70 bg-muted text-xs text-muted-foreground">
+<span key={candidate.targetId} className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-amber-500/70 bg-muted text-xs text-muted-foreground">
                         {candidate.avatarUrl
                           ? <img src={candidate.avatarUrl} alt="" className="h-full w-full object-cover" />
                           : (candidate.name.charAt(0).toUpperCase() || '?')}
@@ -437,7 +444,7 @@ export function StoryMasterworkActions({ disabled, onSelect, fetchStoryPills, li
                     <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
                     <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
                     {mode === 'sync' && selectedCandidates.slice(0, 2).map(candidate => (
-                      <span key={candidate.userId} className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-amber-500/70 bg-muted text-xs text-muted-foreground">
+                      <span key={candidate.targetId} className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-amber-500/70 bg-muted text-xs text-muted-foreground">
                         {candidate.avatarUrl
                           ? <img src={candidate.avatarUrl} alt="" className="h-full w-full object-cover" />
                           : (candidate.name.charAt(0).toUpperCase() || '?')}
