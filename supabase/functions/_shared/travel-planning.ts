@@ -87,6 +87,12 @@ export function eligibleJourney(raw: unknown, now: number) {
   const segments = Array.isArray(travel.segments) && travel.segments.length ? travel.segments : [travel];
   if (segments.some((s: Obj) => !finite(s.gameMinutes) || s.gameMinutes <= 0 || !finite(s.startProgress)
     || !finite(s.endProgress) || s.startProgress < 0 || s.endProgress > 1 || s.endProgress <= s.startProgress)) return null;
+  if (segments.some((s: Obj, index: number) => {
+    const i = s.legIndex ?? plan.currentLegIndex;
+    const leg = plan.legs[i];
+    return !Number.isInteger(i) || i < plan.currentLegIndex || !leg || s.routeId !== leg.routeId
+      || s.reversed !== leg.reversed || (index > 0 && i !== (segments[index - 1].legIndex ?? plan.currentLegIndex) + 1);
+  })) return null;
   let want = segments.reduce((n: number,s: Obj) => n+s.gameMinutes,0)*fraction, segmentIndex = 0;
   while (segmentIndex < segments.length-1 && want >= segments[segmentIndex].gameMinutes) {
     want -= segments[segmentIndex].gameMinutes; segmentIndex++;
