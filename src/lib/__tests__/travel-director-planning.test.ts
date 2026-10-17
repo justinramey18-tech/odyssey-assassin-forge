@@ -72,11 +72,16 @@ describe('hidden travel planning', () => {
     changed.journeyPlan.currentLegIndex = 1; changed.activeTravel.routeId = 'b'; changed.activeTravel.reversed = true;
     expect(await journeyHash(journey(r))).toBe(await journeyHash(journey(changed,2000)));
   });
-  it('only accepts strict decision shapes with target 0.15 to 0.85', () => {
+  it('preserves the legacy no-event decision', () => {
     expect(parseDecision('{"event":false}')).toEqual({event:false});
-    for (const targetFraction of [0.14,0.86,'0.5',null]) expect(() => parseDecision(JSON.stringify({event:true,eventType:'social',premise:'road',targetFraction}))).toThrow();
-    expect(() => parseDecision('{"event":false,"premise":"secret"}')).toThrow();
+  });
+  it.each([0.14, 0.86, '0.5', null])('rejects an invalid event target fraction (%s)', targetFraction => {
+    expect(() => parseDecision(JSON.stringify({event:true,eventType:'social',premise:'road',targetFraction}))).toThrow('Invalid decision');
+  });
+  it('rejects markdown-wrapped decisions', () => {
     expect(() => parseDecision('```json\n{"event":false}\n```')).toThrow();
+  });
+  it('accepts a valid four-field event and the inclusive lower fraction of 0.15', () => {
     expect(parseDecision('{"event":true,"eventType":" social ","premise":" road ","targetFraction":0.15}')).toEqual({event:true,eventType:'social',premise:'road',targetFraction:0.15});
   });
   it('accepts the fixed-shape nullable no-event decision', () => {
@@ -90,6 +95,9 @@ describe('hidden travel planning', () => {
     { event: false, eventType: null, premise: null, targetFraction: null, extra: true },
     { event: true, eventType: null, premise: 'road', targetFraction: 0.5 },
     { event: true, eventType: 'social', premise: null, targetFraction: 0.5 },
+    { event: true, eventType: 'social', premise: 'road', targetFraction: null },
+    { event: true, eventType: null, premise: null, targetFraction: null },
+    { event: false, extra: true },
     { event: true, eventType: 'social', premise: 'road', targetFraction: 0.5, extra: true },
     { event: true, eventType: ' ', premise: 'road', targetFraction: 0.5 },
     { event: true, eventType: 'social', premise: ' ', targetFraction: 0.5 },
