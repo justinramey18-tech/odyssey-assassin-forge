@@ -278,7 +278,7 @@ If the stated intent is vague, interpret it in the most entertaining way the cur
       ? (isSynergy
         ? `## TONE FOR THIS SET — NON-NEGOTIABLE
 
-Every one of the 4 suggestions must be a ${story_flavor_label} move, and every one must engage directly with what ${targetList} ${targets.length > 1 ? 'are' : 'is'} attempting right now.
+Every one of the 4 suggestions must be a ${story_flavor_label} move, and every one must engage directly with ${targetList}: for a target labelled "(NPC)" respond to what that NPC just said or did (current fiction), and for a target labelled "(PLAYER)" engage with that player's attempted move without treating it as resolved.
 ${story_flavor_guidance ? String(story_flavor_guidance).slice(0, 600) : ''}
 
 All 4 suggestions share ONE central idea. They differ only in stance and intensity:
