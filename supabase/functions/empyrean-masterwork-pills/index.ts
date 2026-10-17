@@ -247,11 +247,18 @@ ${latestBeat}`;
     const targetList = targets.join(', ');
 
     const liveTableBlock = liveLines
-      ? `## AT THE TABLE RIGHT NOW (unsent, unresolved)
+      ? `## AT THE TABLE RIGHT NOW
 
-These lines have been typed by other players this moment but have NOT been given to the Dungeon Master yet. Nothing in them has happened or succeeded — they are attempts in progress. Never treat them as resolved outcomes.
+This is the current Live Table context. Each line is labelled by its speaker with a kind tag:
 
-${liveLines}${isSynergy ? `\n\nThe suggestions must react specifically to what ${targetList} ${targets.length > 1 ? 'are' : 'is'} attempting. Other lines here are background only.` : ''}`
+- Lines labelled "(PLAYER)" are other players' declarations — attempts in progress that may not be resolved yet. Do NOT assume an attempted outcome succeeded unless the text is itself only speech or an observable action that clearly occurred.
+- Lines labelled "(NPC)" are Live NPC dialogue or actions already spoken or performed at the table. Treat the explicit content of those lines as current fiction the player's next move may directly answer or react to. Do NOT infer hidden NPC thoughts, secrets, success, unseen actions, or consequences beyond what the NPC line itself says. If the NPC is named DM, treat the explicit line as a table-facing DM statement or ruling rather than an in-world character personality; suggestions may respond to the situation or ruling but must never invent actions or dialogue for DM.
+
+The newest lines are the most current — when older context conflicts, the newest beat wins.
+
+The generated suggestions always belong to the current player. Never write an NPC's next reply, never choose for an NPC, and never resolve the player's own response.
+
+${liveLines}${isSynergy ? `\n\nThe suggestions must react specifically to ${targetList}. For each selected target labelled "(NPC)", the moves must be plausible responses to what that NPC just said or did. For each selected target labelled "(PLAYER)", build moves that coordinate with or react to that player's attempted move without treating its outcome as resolved. When selected targets mix NPCs and players, each suggestion must meaningfully incorporate every selected target whenever the fiction allows — do not ignore either kind. Other lines here are background only.` : ''}`
       : '';
 
     const customIntent = typeof custom_intent === 'string' ? custom_intent.slice(0, 300).trim() : '';
@@ -271,7 +278,7 @@ If the stated intent is vague, interpret it in the most entertaining way the cur
       ? (isSynergy
         ? `## TONE FOR THIS SET — NON-NEGOTIABLE
 
-Every one of the 4 suggestions must be a ${story_flavor_label} move, and every one must engage directly with what ${targetList} ${targets.length > 1 ? 'are' : 'is'} attempting right now.
+Every one of the 4 suggestions must be a ${story_flavor_label} move, and every one must engage directly with ${targetList}: for a target labelled "(NPC)" respond to what that NPC just said or did (current fiction), and for a target labelled "(PLAYER)" engage with that player's attempted move without treating it as resolved.
 ${story_flavor_guidance ? String(story_flavor_guidance).slice(0, 600) : ''}
 
 All 4 suggestions share ONE central idea. They differ only in stance and intensity:
@@ -279,7 +286,7 @@ All 4 suggestions share ONE central idea. They differ only in stance and intensi
 - Pill 2: the SAME opposing idea, full send — the boldest, most committed version of going against ${targetList}.
 - Pill 3: works WITH ${targetList} — supports, reinforces or completes what ${targets.length > 1 ? 'they are' : 'they are'} doing, built on the same central idea. Mild, restrained version.
 - Pill 4: the SAME supporting idea, full send — the boldest, most committed version of going with ${targetList}.
-${targets.length > 1 ? `\nEvery suggestion must involve ALL of these players: ${targetList}. Do not pick just one of them.` : ''}
+${targets.length > 1 ? `\nEvery suggestion must involve ALL of these targets: ${targetList}. Do not pick just one of them.` : ''}
 
 All four must stay ${story_flavor_label}. Do NOT drift toward a different alignment as intensity rises.
 
