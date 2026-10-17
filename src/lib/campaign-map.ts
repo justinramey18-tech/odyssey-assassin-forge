@@ -3,9 +3,9 @@
 
 export const CAMPAIGN_MAP_VERSION = 1;
 
-export type TravelPace = 'slow' | 'normal' | 'fast';
+export type TravelPace = 'slow' | 'normal' | 'fast' | 'horseback' | 'flying';
 /** Miles per in-world hour. */
-export const TRAVEL_PACE_MPH: Record<TravelPace, number> = { slow: 2, normal: 3, fast: 4 };
+export const TRAVEL_PACE_MPH: Record<TravelPace, number> = { slow: 2, normal: 3, fast: 4, horseback: 8, flying: 40 };
 /** A normal overland travel day: this many in-world hours of travel, then the party must stop. */
 export const TRAVEL_DAY_HOURS = 8;
 export const TRAVEL_DAY_MINUTES = TRAVEL_DAY_HOURS * 60;
@@ -128,6 +128,8 @@ export interface JourneyPlan {
   totalMiles?: number;
   /** The last tranche stopped because the 8-hour travel day ended. */
   dayComplete?: boolean;
+  /** Preview geometry, copied into state when this flight is staged. Never a ground road. */
+  temporaryFlight?: TemporaryFlight;
 }
 
 export interface CampaignMapState {
@@ -138,6 +140,8 @@ export interface CampaignMapState {
   mapCalibration?: CampaignMapCalibration;
   locations: CampaignMapLocation[];
   routes: CampaignMapRoute[];
+  /** One bounded travel-only straight line, including a cancelled midair position. */
+  temporaryFlight?: TemporaryFlight;
   currentLocationId: string | null;
   currentRoutePosition?: RoutePosition;
   /** Absolute in-world minute counter (0 = Day 1, 00:00). */
@@ -149,6 +153,36 @@ export interface CampaignMapState {
   journeyPlan?: JourneyPlan;
   /** 'city' = streets: no travel-day cap, yards/minutes wording. Missing = overland. */
   travelScale?: TravelScale;
+}
+
+export interface TemporaryFlight extends CampaignMapRoute {
+  kind: 'direct-flight';
+  path: [MapPoint, MapPoint];
+}
+const FLIGHT_ORIGIN = '__flight_origin__';
+const FLIGHT_PREFIX = '__flight__';
+
+/** Resolve travel-only geometry without exposing it to the permanent road graph. */
+export function travelRoute(state: CampaignMapState, routeId: string, plan: JourneyPlan | undefined = state.journeyPlan): CampaignMapRoute | undefined {
+  const flight = plan?.temporaryFlight ?? state.temporaryFlight;
+  return flight?.id === routeId ? flight : state.routes.find(r => r.id === routeId);
+}
+
+/** Exact stopped/moving map position, shared by flight planning and marker rendering. */
+export function campaignMapPosition(state: CampaignMapState, nowMs: number = Date.now()): MapPoint | null {
+  const detail = state.activeTravel ? travelDetail(state.activeTravel, nowMs) : null;
+  const routeId = detail?.routeId ?? state.currentRoutePosition?.routeId;
+  if (routeId) {
+    const route = travelRoute(state, routeId);
+    if (!route) return null;
+    const from = state.locations.find(l => l.id === route.fromLocationId);
+    const to = state.locations.find(l => l.id === route.toLocationId);
+    const path = route.path.length >= 2 ? route.path : from?.x != null && from.y != null && to?.x != null && to.y != null
+      ? [{ x: from.x, y: from.y }, { x: to.x, y: to.y }] : [];
+    return pointAlong(path, detail?.forwardProgress ?? state.currentRoutePosition?.progress ?? 0);
+  }
+  const here = state.locations.find(l => l.id === state.currentLocationId);
+  return here?.x != null && here.y != null ? { x: here.x, y: here.y } : null;
 }
 
 export type TravelScale = 'overland' | 'city';
@@ -211,7 +245,7 @@ const fin = (v: unknown): v is number => typeof v === 'number' && Number.isFinit
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const optStr = (v: unknown, max: number): string | undefined => str(v, max) || undefined;
-const isPace = (v: unknown): v is TravelPace => v === 'slow' || v === 'normal' || v === 'fast';
+const isPace = (v: unknown): v is TravelPace => v === 'slow' || v === 'normal' || v === 'fast' || v === 'horseback' || v === 'flying';
 
 function pointOf(raw: unknown): MapPoint | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -313,7 +347,7 @@ export function routeMilesRemaining(totalMiles: number, progress: number): numbe
 /** In-world minutes to cover these miles at this pace over this terrain. */
 export function travelGameMinutes(miles: number, pace: TravelPace, terrainFactor = 1): number {
   if (!fin(miles) || miles <= 0) return 0;
-  const tf = fin(terrainFactor) && terrainFactor > 0 ? terrainFactor : 1;
+  const tf = pace === 'flying' ? 1 : fin(terrainFactor) && terrainFactor > 0 ? terrainFactor : 1;
   return (miles / TRAVEL_PACE_MPH[pace]) * 60 * tf;
 }
 
@@ -484,6 +518,28 @@ function routeOf(raw: unknown, ids: Set<string>): CampaignMapRoute | null {
   return route;
 }
 
+function flightOf(raw: unknown, locations: CampaignMapLocation[], permanentIds: Set<string>): TemporaryFlight | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const r = raw as Record<string, unknown>;
+  const id = str(r.id, 80), from = str(r.fromLocationId, 80), to = str(r.toLocationId, 80);
+  const dest = locations.find(l => l.id === to);
+  if (r.kind !== 'direct-flight' || !id.startsWith(FLIGHT_PREFIX) || permanentIds.has(id)
+    || !dest?.discovered || dest.x === null || dest.y === null || from === to
+    || (from !== FLIGHT_ORIGIN && !locations.some(l => l.id === from))
+    || !fin(r.distanceMiles) || r.distanceMiles <= 0 || r.distanceMiles > 1_000_000_000
+    || !Array.isArray(r.path) || r.path.length !== 2) return undefined;
+  const points: MapPoint[] = [];
+  for (const rawPoint of r.path) {
+    if (!rawPoint || typeof rawPoint !== 'object') return undefined;
+    const p = rawPoint as Record<string, unknown>;
+    if (!fin(p.x) || !fin(p.y) || p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) return undefined;
+    points.push({ x: p.x, y: p.y });
+  }
+  if (points[0].x === points[1].x && points[0].y === points[1].y) return undefined;
+  return { kind: 'direct-flight', id, fromLocationId: from, toLocationId: to,
+    distanceMiles: r.distanceMiles, distanceSource: 'manual', terrainFactor: 1, path: [points[0], points[1]] };
+}
+
 function travelOf(raw: unknown, routeIds: Set<string>): ActiveTravel | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const r = raw as Record<string, unknown>;
@@ -520,30 +576,32 @@ function segmentsOf(raw: unknown, routeIds: Set<string>): TravelSegment[] | null
   return out;
 }
 
-function journeyPlanOf(raw: unknown, routes: CampaignMapRoute[], ids: Set<string>): JourneyPlan | undefined {
+function journeyPlanOf(raw: unknown, routes: CampaignMapRoute[], ids: Set<string>, flight?: TemporaryFlight): JourneyPlan | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const r = raw as Record<string, unknown>;
   const dest = str(r.destinationLocationId, 80);
   if (!ids.has(dest) || !isPace(r.pace) || !Array.isArray(r.legs) || r.legs.length === 0 || r.legs.length > 200) return undefined;
   const byId = new Map(routes.map(x => [x.id, x]));
+  if (r.pace === 'flying' && flight) byId.set(flight.id, flight);
   const legs: JourneyLeg[] = [];
   for (const x of r.legs) {
     if (!x || typeof x !== 'object') return undefined;
     const l = x as Record<string, unknown>;
     const route = byId.get(str(l.routeId, 80));
-    if (!route) return undefined;
+    if (!route || (r.pace === 'flying' ? route.id !== flight?.id : route.id === flight?.id)) return undefined;
     const reversed = l.reversed === true;
     const from = reversed ? route.toLocationId : route.fromLocationId, to = reversed ? route.fromLocationId : route.toLocationId;
     if (l.fromLocationId !== from || l.toLocationId !== to) return undefined;
     if (legs.length && legs[legs.length - 1].toLocationId !== from) return undefined;
     legs.push({ routeId: route.id, fromLocationId: from, toLocationId: to, reversed });
   }
-  if (legs[legs.length - 1].toLocationId !== dest) return undefined;
+  if (legs[legs.length - 1].toLocationId !== dest || (r.pace === 'flying' && (legs.length !== 1 || legs[0].reversed))) return undefined;
   const idx = fin(r.currentLegIndex) && Number.isInteger(r.currentLegIndex) ? r.currentLegIndex : 0;
   if (idx < 0 || idx >= legs.length) return undefined;
   const plan: JourneyPlan = { destinationLocationId: dest, pace: r.pace, legs, currentLegIndex: idx };
   if (fin(r.totalMiles) && r.totalMiles > 0) plan.totalMiles = r.totalMiles;
   if (r.dayComplete === true) plan.dayComplete = true;
+  if (r.pace === 'flying' && flight) plan.temporaryFlight = flight;
   return plan;
 }
 
@@ -582,17 +640,22 @@ export function sanitizeCampaignMapState(raw: unknown): CampaignMapState {
     if (cal && isCalibrationValid(cal, state.imageNaturalWidth, state.imageNaturalHeight)) state.mapCalibration = cal;
   }
 
+  const flight = state.travelScale !== 'city' ? flightOf(r.temporaryFlight, locations, routeIds) : undefined;
+  const flightIds = new Set(routeIds);
+  if (flight) flightIds.add(flight.id);
   const pos = r.currentRoutePosition as Record<string, unknown> | undefined;
-  if (pos && typeof pos === 'object' && routeIds.has(pos.routeId as string) && fin(pos.progress)) {
+  if (pos && typeof pos === 'object' && flightIds.has(pos.routeId as string) && fin(pos.progress)) {
     state.currentRoutePosition = { routeId: pos.routeId as string, progress: clamp01(pos.progress), ...(pos.reversed === true ? { reversed: true } : {}), ...(pos.dayComplete === true ? { dayComplete: true } : {}) };
   }
-  const travel = travelOf(r.activeTravel, routeIds);
+  let travel = travelOf(r.activeTravel, flightIds);
+  if (travel && (travel.pace === 'flying' ? !flight || travel.routeId !== flight.id || travel.reversed || travel.segments?.some(x => x.routeId !== flight.id || x.reversed) : travel.routeId === flight?.id || travel.segments?.some(x => x.routeId === flight?.id))) travel = undefined;
   if (travel) state.activeTravel = travel;
-  const plan = journeyPlanOf(r.journeyPlan, routes, ids);
+  const plan = journeyPlanOf(r.journeyPlan, routes, ids, flight);
   if (plan) {
     state.journeyPlan = plan;
     if (travel?.segments?.some(x => x.legIndex !== undefined && (x.legIndex >= plan.legs.length || plan.legs[x.legIndex].routeId !== x.routeId))) delete state.journeyPlan;
   }
+  if (flight && (state.currentRoutePosition?.routeId === flight.id || state.activeTravel?.routeId === flight.id || state.journeyPlan?.pace === 'flying')) state.temporaryFlight = flight;
   return state;
 }
 
@@ -605,8 +668,9 @@ export function buildGeographicContext(state: CampaignMapState, nowMs: number = 
   const lines: string[] = [];
   let minute = state.campaignMinute;
   const t = state.activeTravel;
+  const flight = t?.pace === 'flying' || state.currentRoutePosition?.routeId === state.temporaryFlight?.id;
   if (t) {
-    const route = state.routes.find(r => r.id === t.routeId);
+    const route = travelRoute(state, t.routeId);
     const now = travelNow(t, nowMs);
     minute = now.campaignMinute;
     if (route) {
@@ -614,13 +678,13 @@ export function buildGeographicContext(state: CampaignMapState, nowMs: number = 
       const to = byId.get(t.reversed ? route.fromLocationId : route.toLocationId)?.name ?? 'somewhere';
       const miles = effectiveRouteMiles(route, cal);
       const left = miles !== null ? ` (about ${Math.round(routeMilesRemaining(miles, now.progress))} miles to go)` : '';
-      lines.push(`The party is traveling from ${from} to ${to} at a ${t.pace} pace${left}${t.startedAt === null ? ', paused' : ''}.`);
+      lines.push(`The party is traveling from ${from} to ${to} ${t.pace === 'flying' ? 'by direct air travel' : t.pace === 'horseback' ? 'mounted on horseback' : `at a ${t.pace} pace`}${left}${t.startedAt === null ? ', paused' : ''}.`);
     }
   } else if (state.currentRoutePosition) {
-    const route = state.routes.find(r => r.id === state.currentRoutePosition!.routeId);
+    const route = travelRoute(state, state.currentRoutePosition.routeId);
     if (route) {
       const a = byId.get(route.fromLocationId)?.name ?? 'somewhere', b = byId.get(route.toLocationId)?.name ?? 'somewhere';
-      lines.push(`The party is stopped on the road between ${a} and ${b}.`);
+      lines.push(`The party is stopped ${flight ? 'along a direct air route' : 'on the road'} between ${a} and ${b}.`);
     }
   } else if (state.currentLocationId && byId.get(state.currentLocationId)) {
     const here = byId.get(state.currentLocationId)!;
@@ -653,37 +717,39 @@ export function buildDmLogisticsContext(state: CampaignMapState, nowMs: number =
   const t = state.activeTravel;
   let minute = state.campaignMinute;
   const plan = state.journeyPlan;
+  const flight = t?.pace === 'flying' || plan?.pace === 'flying' || (!!state.temporaryFlight && state.currentRoutePosition?.routeId === state.temporaryFlight.id);
+  const corridor = flight ? 'direct air route' : city ? 'street' : 'road';
   if (plan) {
     const sum = summarizeJourney(t ? foldTravelToPosition(state, nowMs) : state);
     const dest = name(plan.destinationLocationId);
-    lines.push(`Journey: the party is bound for ${dest} (final destination) at a ${plan.pace} pace, via ${sum?.locationNames.join(' → ') ?? dest}.`);
+    lines.push(`Journey: the party is bound for ${dest} (final destination) ${plan.pace === 'flying' ? 'by direct air travel' : plan.pace === 'horseback' ? 'mounted on horseback' : `at a ${plan.pace} pace`}, via ${sum?.locationNames.join(' → ') ?? dest}.`);
     if (sum) lines.push(`Journey progress: ${Math.round(sum.completedFraction * 100)}% overall; about ${dist(sum.remainingMiles)} and ${city ? `${Math.max(1, Math.round(sum.remainingMinutes))} in-world minutes` : `${Math.round(sum.remainingMinutes / 60 * 10) / 10} in-world travel hours`} remain.`);
-    lines.push(`Arrival at ${dest} is NOT allowed until the app reports the party has reached it. Intermediate towns are passed through, not stopped at, unless the host stops the journey.`);
+    lines.push(`Arrival at ${dest} is NOT allowed until the app reports the party has reached it. ${flight ? 'Flight is direct, with no intermediate town visits.' : 'Intermediate towns are passed through, not stopped at, unless the host stops the journey.'}`);
   }
   if (t) {
     const now = travelDetail(t, nowMs);
-    const route = state.routes.find(r => r.id === now.routeId);
+    const route = travelRoute(state, now.routeId);
     minute = now.campaignMinute;
     const from = route ? name(now.reversed ? route.toLocationId : route.fromLocationId) : 'somewhere';
     const to = route ? name(now.reversed ? route.fromLocationId : route.toLocationId) : 'somewhere';
     const miles = route ? effectiveRouteMiles(route, cal) : null;
-    const status = t.startedAt === null ? 'PAUSED on the road' : now.done ? 'leg just finished (awaiting host update)' : 'MOVING';
+    const status = t.startedAt === null ? `PAUSED along the ${corridor}` : now.done ? 'leg just finished (awaiting host update)' : 'MOVING';
     lines.push(`Status: en route from ${from} to ${to}${t.segments && t.segments.length > 1 ? ` (road ${now.segmentIndex + 1} of ${t.segments.length} today)` : ''} — ${status}.`);
-    lines.push(`Progress: ${Math.round(now.progress * 100)}% of the ${city ? 'street' : 'road'}${miles !== null ? ` (${city ? dist(miles * now.progress) : `${Math.round(miles * now.progress)} mi`} traveled, ${city ? dist(routeMilesRemaining(miles, now.progress)) : `${Math.round(routeMilesRemaining(miles, now.progress))} mi`} remaining)` : ''}.`);
-    lines.push(`Pace: ${t.pace}; terrain ×${route?.terrainFactor ?? 1}${route?.description ? `; road: ${route.description.slice(0, 160)}` : ''}.`);
+    lines.push(`Progress: ${Math.round(now.progress * 100)}% of the ${corridor}${miles !== null ? ` (${city ? dist(miles * now.progress) : `${Math.round(miles * now.progress)} mi`} traveled, ${city ? dist(routeMilesRemaining(miles, now.progress)) : `${Math.round(routeMilesRemaining(miles, now.progress))} mi`} remaining)` : ''}.`);
+    lines.push(`Method: ${t.pace === 'flying' ? 'direct air travel' : t.pace === 'horseback' ? 'mounted travel' : t.pace}; terrain ×${flight ? 1 : route?.terrainFactor ?? 1}${route?.description ? `; road: ${route.description.slice(0, 160)}` : ''}.`);
     const last = t.segments?.length ? t.segments[t.segments.length - 1] : t;
-    const lastRoute = state.routes.find(r => r.id === (t.segments?.length ? t.segments[t.segments.length - 1].routeId : t.routeId));
+    const lastRoute = travelRoute(state, t.segments?.length ? t.segments[t.segments.length - 1].routeId : t.routeId);
     const dayEnd = lastRoute ? name(last.reversed ? lastRoute.fromLocationId : lastRoute.toLocationId) : to;
     const reachesFinal = !plan || (last.endProgress >= 1 && dayEnd === name(plan.destinationLocationId));
     if (!city && last.endProgress < 1) lines.push(`This travel day stops partway when the 8-hour travel day ends; the party will NOT reach ${plan ? name(plan.destinationLocationId) : dayEnd} today.`);
     const arrived = now.done && last.endProgress >= 1 && reachesFinal;
     const target = plan ? name(plan.destinationLocationId) : to;
-    lines.push(arrived ? `Arrival at ${target} is allowed.` : `Arrival at ${target} is NOT allowed yet — narrate the ${city ? 'streets' : 'road'} only.`);
+    lines.push(arrived ? `Arrival at ${target} is allowed.` : `Arrival at ${target} is NOT allowed yet — narrate the ${corridor} only.`);
   } else if (state.currentRoutePosition) {
     const p = state.currentRoutePosition;
-    const route = state.routes.find(r => r.id === p.routeId);
+    const route = travelRoute(state, p.routeId);
     const miles = route ? effectiveRouteMiles(route, cal) : null;
-    lines.push(`Status: stopped on the road between ${route ? name(route.fromLocationId) : '?'} and ${route ? name(route.toLocationId) : '?'}${p.dayComplete ? ' — the 8-hour travel day has ended' : ''}.`);
+    lines.push(`Status: stopped along the ${corridor} between ${route ? name(route.fromLocationId) : '?'} and ${route ? name(route.toLocationId) : '?'}${p.dayComplete ? ' — the 8-hour travel day has ended' : ''}.`);
     if (miles !== null) lines.push(`Position: ${Math.round(miles * p.progress)} mi from ${route ? name(route.fromLocationId) : '?'}, ${Math.round(miles * (1 - p.progress))} mi from ${route ? name(route.toLocationId) : '?'}.`);
     lines.push('Arrival at either end is NOT allowed until the host continues travel.');
     if (plan) lines.push(`The party is still en route to ${name(plan.destinationLocationId)}; the journey continues when the host continues it.`);
@@ -731,7 +797,26 @@ export function planJourneyRoute(state: CampaignMapState, destinationLocationId:
   const byId = new Map(state.locations.map(l => [l.id, l]));
   const dest = byId.get(destinationLocationId);
   if (!dest || !dest.discovered) return null;
+  if (isCityScale(state) && (pace === 'horseback' || pace === 'flying')) return null;
+  if (pace === 'flying') {
+    const start = campaignMapPosition(state);
+    if (!start || dest.x === null || dest.y === null) return null;
+    const end = { x: dest.x, y: dest.y };
+    const distanceMiles = polylineMiles([start, end], activeCalibration(state));
+    if (distanceMiles === null || distanceMiles > 1_000_000_000) return null;
+    const fromLocationId = state.currentLocationId ?? FLIGHT_ORIGIN;
+    // Stable, bounded preview id; coordinates preserve exact mid-route starts.
+    let hash = 2166136261;
+    for (const c of JSON.stringify([start, end, destinationLocationId])) hash = Math.imul(hash ^ c.charCodeAt(0), 16777619) >>> 0;
+    const id = `${FLIGHT_PREFIX}${hash.toString(16)}`;
+    if (state.routes.some(r => r.id === id)) return null;
+    const flight: TemporaryFlight = { kind: 'direct-flight', id, fromLocationId, toLocationId: dest.id,
+      distanceMiles, distanceSource: 'manual', terrainFactor: 1, path: [start, end] };
+    return { destinationLocationId, pace, legs: [{ routeId: id, fromLocationId, toLocationId: dest.id, reversed: false }],
+      currentLegIndex: 0, totalMiles: distanceMiles, temporaryFlight: flight };
+  }
   const pos = state.currentRoutePosition;
+  if (pos && !state.routes.some(r => r.id === pos.routeId)) return null;
   const startNode = pos ? HERE : state.currentLocationId;
   if (!startNode || (!pos && !byId.has(startNode))) return null;
   if (!pos && destinationLocationId === state.currentLocationId) return null;
@@ -794,6 +879,8 @@ export function summarizeJourney(state: CampaignMapState, plan: JourneyPlan | un
   if (!plan) return null;
   const byId = new Map(state.locations.map(l => [l.id, l]));
   const routes = new Map(state.routes.map(r => [r.id, r]));
+  const flight = plan.temporaryFlight ?? state.temporaryFlight;
+  if (plan.pace === 'flying' && flight) routes.set(flight.id, flight);
   const cal = activeCalibration(state);
   let miles = 0, minutes = 0;
   for (let i = plan.currentLegIndex; i < plan.legs.length; i++) {
@@ -803,7 +890,7 @@ export function summarizeJourney(state: CampaignMapState, plan: JourneyPlan | un
     const left = routeMilesRemaining(m, i === plan.currentLegIndex ? journeyStartProgress(state, leg) : 0);
     miles += left; minutes += travelGameMinutes(left, plan.pace, route.terrainFactor);
   }
-  const names = [plan.legs[0].fromLocationId, ...plan.legs.map(l => l.toLocationId)].map(id => byId.get(id)?.name ?? '?');
+  const names = [plan.legs[0].fromLocationId, ...plan.legs.map(l => l.toLocationId)].map(id => byId.get(id)?.name ?? (id === FLIGHT_ORIGIN ? 'current position' : '?'));
   const total = plan.totalMiles && plan.totalMiles > 0 ? plan.totalMiles : miles;
   return { remainingMiles: miles, remainingMinutes: minutes, locationNames: names, roadIds: plan.legs.map(l => l.routeId),
     completedFraction: total > 0 ? clamp01(1 - miles / total) : 1 };
@@ -814,6 +901,8 @@ export interface JourneyTranche { segments: TravelSegment[]; gameMinutes: number
 /** The next legal travel day: consecutive roads until the destination or the 8-hour cap. Null if a road has no distance. */
 export function buildJourneyTranche(state: CampaignMapState, plan: JourneyPlan): JourneyTranche | null {
   const routes = new Map(state.routes.map(r => [r.id, r]));
+  const flight = plan.temporaryFlight ?? state.temporaryFlight;
+  if (plan.pace === 'flying' && flight) routes.set(flight.id, flight);
   const cal = activeCalibration(state);
   const segments: TravelSegment[] = [];
   const city = isCityScale(state);
@@ -864,8 +953,10 @@ export function foldTravelToPosition(state: CampaignMapState, nowMs: number, day
   const d = travelDetail(t, nowMs);
   const next: CampaignMapState = { ...state, campaignMinute: d.campaignMinute };
   delete next.activeTravel;
-  placeAt(next, state.routes.find(r => r.id === d.routeId), d, dayComplete);
+  placeAt(next, travelRoute(state, d.routeId), d, dayComplete);
   const plan = state.journeyPlan;
+  const flight = t?.pace === 'flying' || plan?.pace === 'flying' || (!!state.temporaryFlight && state.currentRoutePosition?.routeId === state.temporaryFlight.id);
+  const corridor = flight ? 'direct air route' : city ? 'street' : 'road';
   if (plan) {
     let idx = d.legIndex ?? plan.currentLegIndex;
     if (d.progress >= 1 - EPS) idx += 1;
@@ -877,6 +968,7 @@ export function foldTravelToPosition(state: CampaignMapState, nowMs: number, day
       next.journeyPlan = { ...plan, currentLegIndex: idx, ...(dayComplete ? { dayComplete: true } : {}) };
     }
   }
+  if (next.currentLocationId && !next.activeTravel && !next.journeyPlan) delete next.temporaryFlight;
   return next;
 }
 
@@ -891,7 +983,7 @@ export function settleTravelState(s: CampaignMapState, now: number): CampaignMap
     const last = t.segments[t.segments.length - 1];
     return foldTravelToPosition(finished, now, last.endProgress < 1 - EPS || !!s.journeyPlan);
   }
-  const route = s.routes.find(r => r.id === t.routeId);
+  const route = travelRoute(s, t.routeId);
   const next: CampaignMapState = { ...s, campaignMinute: t.startCampaignMinute + t.gameMinutes };
   delete next.activeTravel;
   if (!route) return next;
@@ -902,6 +994,7 @@ export function settleTravelState(s: CampaignMapState, now: number): CampaignMap
     next.currentLocationId = null;
     next.currentRoutePosition = { routeId: route.id, progress: t.reversed ? 1 - t.endProgress : t.endProgress, dayComplete: true };
   }
+  if (next.currentLocationId) delete next.temporaryFlight;
   return next;
 }
 
@@ -913,7 +1006,7 @@ export function finishJourneyState(s: CampaignMapState, now: number): CampaignMa
   const sum = summarizeJourney(stopped, plan);
   if (!sum) return 'A road on this journey has no distance. Set its miles first.';
   const next: CampaignMapState = { ...stopped, campaignMinute: stopped.campaignMinute + sum.remainingMinutes, currentLocationId: plan.destinationLocationId };
-  delete next.currentRoutePosition; delete next.journeyPlan; delete next.activeTravel;
+  delete next.currentRoutePosition; delete next.journeyPlan; delete next.activeTravel; delete next.temporaryFlight;
   return next;
 }
 
