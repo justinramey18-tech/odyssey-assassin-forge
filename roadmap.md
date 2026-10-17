@@ -38,4 +38,4 @@
 - [x] Live NPC Combat 4: enemy/ally target rails with one-tap action tray (phone check in a real fight still pending).
 
 - [x] Scene video 2: host-only private uploads, safe replacement, inline signed playback and 5 focused tests passed; real-party upload/playback unverified without an existing signed-in session.
-- [ ] Durable travel launch 1/7: add and verify the protected launch foundation only; leave launch callers and live journeys unchanged.
+- [x] Durable travel launch 1/7: protected atomic foundation installed; 39 launch/travel checks passed, service-only access verified, preview build OK. Launch callers and live journeys unchanged; full launch hookup awaits later steps.
