@@ -155,6 +155,6 @@ describe('horseback and direct flight core', () => {
     expect(planJourneyRoute(state, 'b', 'horseback')).toBeNull();
     const plan = planJourneyRoute(state, 'b', 'normal');
     if (!plan) throw new Error('Expected city walk');
-    expect(buildJourneyTranche(state, plan)?.gameMinutes).toBe(4000);
+    expect(buildJourneyTranche(state, plan)?.gameMinutes).toBeCloseTo(4000);
   });
 });

@@ -668,7 +668,7 @@ export function buildGeographicContext(state: CampaignMapState, nowMs: number = 
   const lines: string[] = [];
   let minute = state.campaignMinute;
   const t = state.activeTravel;
-  const flight = t?.pace === 'flying' || state.currentRoutePosition?.routeId === state.temporaryFlight?.id;
+  const flight = t?.pace === 'flying' || (!!state.temporaryFlight && state.currentRoutePosition?.routeId === state.temporaryFlight.id);
   if (t) {
     const route = travelRoute(state, t.routeId);
     const now = travelNow(t, nowMs);
