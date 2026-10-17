@@ -58,11 +58,12 @@ async function open() {
 }
 type ActionResult = { ok: true } | { ok: false; error: string };
 beforeEach(() => {
+  vi.spyOn(Date, 'now').mockReturnValue(ANCHOR);
   mock.row = initialMap(); mock.writes = []; mock.reads = 0; mock.writeError = false;
   mock.invoke.mockReset();
   mock.invoke.mockImplementation(async () => ({ data: { ok: true }, error: null }));
 });
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('durable overland client launch', () => {
   it.each(['begin', 'continue', 'resume'] as const)('%s stages only once and waits for launch confirmation', async (action) => {
@@ -92,7 +93,7 @@ describe('durable overland client launch', () => {
     const reads = mock.reads;
     if (!resolveLaunch || !pending) throw new Error('Expected pending launch');
     let outcome: ActionResult | undefined;
-    await act(async () => { resolveLaunch?.({ data: { ok: true, privatePlan: 'must never escape' }, error: null }); outcome = await pending; });
+    await act(async () => { resolveLaunch?.({ data: { ok: true, planned: action === 'begin', privatePlan: 'must never escape' }, error: null }); outcome = await pending; });
     expect(outcome).toEqual({ ok: true });
     expect(mock.reads).toBe(reads + 1);
     expect(mock.writes).toHaveLength(1);
