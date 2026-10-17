@@ -20,12 +20,13 @@ import {
   activeCalibration, createCalibration, effectiveRouteMiles, formatCampaignTime, gameToRealMs, TRAVEL_DAY_MINUTES,
   polylineMiles, sanitizeCampaignMapState, locationOverlayMode, routeOverlayMode, travelDetail, withRoutePath,
   listReachableDestinations, summarizeJourney, remainingJourneyRouteIds, foldTravelToPosition,
-  isCityScale, formatTravelDistance, calibrationFromMapWidth, suggestStreets, yardsToMiles,
+  isCityScale, formatTravelDistance, calibrationFromMapWidth, suggestStreets, yardsToMiles, travelRoute,
   type CampaignMapLocation, type CampaignMapRoute, type CampaignMapState, type LocationKind, type MapPoint, type TravelPace,
 } from '@/lib/campaign-map';
 
 const TOUCH = { touchAction: 'manipulation' as const };
 const PACES: TravelPace[] = ['slow', 'normal', 'fast'];
+const OVERLAND_PACES: TravelPace[] = [...PACES, 'horseback', 'flying'];
 const PACE_LABEL_OVERLAND: Record<TravelPace, string> = { slow: 'Slow', normal: 'Normal', fast: 'Fast', horseback: 'Horseback', flying: 'Flying' };
 const PACE_LABEL_CITY: Record<TravelPace, string> = { slow: 'Careful', normal: 'Walk', fast: 'Hurry', horseback: 'Horseback', flying: 'Flying' };
 const paceLabels = (city: boolean) => (city ? PACE_LABEL_CITY : PACE_LABEL_OVERLAND);
@@ -285,7 +286,10 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
 
   const here = state.currentLocationId;
   const onRoad = state.currentRoutePosition;
-  const usePace = pace ?? plan?.pace ?? state.defaultPace;
+  const chosenPace = pace ?? plan?.pace ?? state.defaultPace;
+  const usePace = city && !PACES.includes(chosenPace) ? state.defaultPace : chosenPace;
+  const method = t?.pace ?? plan?.pace ?? usePace;
+  const flying = !city && (method === 'flying' || (!!state.temporaryFlight && onRoad?.routeId === state.temporaryFlight.id));
   // Whole discovered map: any reachable place, however many roads away. Only when not on a trip.
   const reachable = !t && !plan ? listReachableDestinations(state, usePace) : [];
   const reachableIds = new Set(reachable.map(r => r.location.id));
@@ -298,7 +302,7 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
     const live = t ? travelDetail(t, Date.now()) : null;
     const stopped = t ? foldTravelToPosition(state, Date.now()) : state;
     const sum = plan ? summarizeJourney(stopped, plan) : null;
-    const curRoute = state.routes.find(r => r.id === (live?.routeId ?? onRoad?.routeId));
+    const curRoute = travelRoute(state, live?.routeId ?? onRoad?.routeId ?? '');
     const total = plan?.totalMiles ?? (sum ? sum.remainingMiles : 0);
     const done = sum ? Math.max(0, total - sum.remainingMiles) : 0;
     const pct = sum ? Math.round(sum.completedFraction * 100) : live ? Math.round(live.progress * 100) : 0;
@@ -312,21 +316,21 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
         <div className="flex items-center justify-between gap-2">
           <p className="text-amber-200 text-sm font-semibold truncate">Bound for {destName}</p>
           <span className={cn('text-[11px] px-2 py-0.5 rounded-full shrink-0', dayOver ? 'bg-sky-500/20 text-sky-200' : paused ? 'bg-white/10 text-white/70' : view.legDone ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-200')}>
-            {dayOver ? 'Day complete' : paused ? 'Paused' : view.legDone ? (city ? 'Arrived' : 'Day ended') : city ? 'Walking' : 'On the road'}
+            {dayOver ? 'Day complete' : paused ? 'Paused' : view.legDone ? (city ? 'Arrived' : 'Day ended') : city ? 'Walking' : flying ? 'Airborne' : method === 'horseback' ? 'Mounted' : 'On the road'}
           </span>
         </div>
         <div className="h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-amber-400" style={{ width: `${pct}%` }} /></div>
         <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[12px] text-white/70">
-          {curRoute && <span className="col-span-2 truncate">{city ? 'Street' : 'Road'}: {nameOf(curRoute.fromLocationId)} – {nameOf(curRoute.toLocationId)}</span>}
+          {curRoute && <span className="col-span-2 break-words">{flying ? 'Direct flight' : city ? 'Street' : 'Road'}: {curRoute.fromLocationId === '__flight_origin__' ? 'Takeoff position' : nameOf(curRoute.fromLocationId)} – {nameOf(curRoute.toLocationId)}</span>}
           <span>Traveled: {dist(done)}</span>
           <span>Left: {sum ? dist(sum.remainingMiles) : '—'}</span>
           <span>Journey: {pct}%</span>
           <span>{city ? 'Time left' : 'Day left'}: {t && !paused ? fmtMs((1 - (live?.fraction ?? 0)) * t.realDurationMs) : '—'}</span>
           <span>Pace: {PACE_LABEL[t?.pace ?? plan?.pace ?? usePace]}</span>
-          <span>Terrain: ×{curRoute?.terrainFactor ?? 1}</span>
+          <span>{flying ? 'Terrain ignored' : `Terrain: ×${curRoute?.terrainFactor ?? 1}`}</span>
           {sum && <span className="col-span-2">In-world travel left: {fmtGameMin(sum.remainingMinutes)}</span>}
         </div>
-        {ahead.length > 0 && <p className="text-[12px] text-white/60">Ahead: {ahead.join(' → ')}</p>}
+        {!flying && ahead.length > 0 && <p className="text-[12px] text-white/60">Ahead: {ahead.join(' → ')}</p>}
         {dayOver && (
           <p className="text-[12px] rounded-lg bg-sky-500/10 border border-sky-400/30 text-sky-200 px-3 py-2">
             The travel day is over. {host ? 'Continue Journey starts the next travel day. It does not rest or heal anyone; handle rests at the table.' : 'The host decides when the party presses on.'}
@@ -335,12 +339,12 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
         {host && (
           <div className="grid grid-cols-3 gap-2 pt-1">
             {dayOver
-              ? <Button disabled={busy} onClick={() => run(map.continueJourney, 'The party presses on.')} className="min-h-[44px]" style={TOUCH}><Play className="w-4 h-4 mr-1" />Continue</Button>
+              ? <Button disabled={busy} onClick={() => run(map.continueJourney, 'The party presses on.')} className="min-h-[48px] px-2" style={TOUCH}><Play className="w-4 h-4 mr-1 shrink-0" />Continue</Button>
               : paused
-                ? <Button disabled={busy} onClick={() => run(map.resumeTravel)} className="min-h-[44px]" style={TOUCH}><Play className="w-4 h-4 mr-1" />Resume</Button>
-                : <Button disabled={busy} variant="secondary" onClick={() => run(map.pauseTravel)} className="min-h-[44px]" style={TOUCH}><Pause className="w-4 h-4 mr-1" />Pause</Button>}
-            <Button disabled={busy} variant="outline" onClick={() => run(plan ? map.cancelJourney : map.cancelTravel, 'The party stops where it is.')} className="min-h-[44px]" style={TOUCH}><Square className="w-4 h-4 mr-1" />Stop</Button>
-            <Button disabled={busy} variant="outline" onClick={() => run(map.finishTravelNow)} className="min-h-[44px]" style={TOUCH}><FastForward className="w-4 h-4 mr-1" />Finish</Button>
+                ? <Button disabled={busy} onClick={() => run(map.resumeTravel)} className="min-h-[48px] px-2" style={TOUCH}><Play className="w-4 h-4 mr-1 shrink-0" />Resume</Button>
+                : <Button disabled={busy} variant="secondary" onClick={() => run(map.pauseTravel)} className="min-h-[48px] px-2" style={TOUCH}><Pause className="w-4 h-4 mr-1 shrink-0" />Pause</Button>}
+            <Button disabled={busy} variant="outline" onClick={() => run(plan ? map.cancelJourney : map.cancelTravel, 'The party stops where it is.')} className="min-h-[48px] px-2" style={TOUCH}><Square className="w-4 h-4 mr-1 shrink-0" />Stop</Button>
+            <Button disabled={busy} variant="outline" onClick={() => run(map.finishTravelNow)} className="min-h-[48px] px-2" style={TOUCH}><FastForward className="w-4 h-4 mr-1 shrink-0" />Finish</Button>
           </div>
         )}
       </div>
@@ -355,19 +359,15 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
     routeBox = (
       <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
         <p className="text-white text-sm font-semibold flex items-center gap-1.5"><RouteIcon className="w-4 h-4 text-amber-300" />To {preview.location.name}</p>
-        <p className="text-[12px] text-white/60">Via {s.locationNames.join(' → ')}</p>
+        <p className="text-[12px] text-white/60">{usePace === 'flying' ? 'Direct flight · terrain ignored' : usePace === 'horseback' ? `Horseback · follows roads and terrain · ${s.locationNames.join(' → ')}` : `Via ${s.locationNames.join(' → ')}`}</p>
         <p className="text-[12px] text-white/70">
-          {preview.plan.legs.length} {roadWord}{preview.plan.legs.length === 1 ? '' : 's'} · {dist(s.remainingMiles)} · {fmtGameMin(s.remainingMinutes)} in-world travel at {PACE_LABEL[usePace].toLowerCase()} pace
+          {usePace === 'flying' ? 'Straight-line' : `${preview.plan.legs.length} ${roadWord}${preview.plan.legs.length === 1 ? '' : 's'}`} · {dist(s.remainingMiles)} · {fmtGameMin(s.remainingMinutes)} in-world travel {usePace === 'flying' ? 'flying' : usePace === 'horseback' ? 'on horseback' : `at ${PACE_LABEL[usePace].toLowerCase()} pace`}
           ({fmtMs(gameToRealMs(s.remainingMinutes, state.realMinutesPerGameHour))} real travel time)
         </p>
         {multiDay && <p className="text-[12px] text-sky-200">Odyssey will stop the journey when the travel day ends. Continue after the party rests/chooses to press on.</p>}
         {host ? (
           <div className="flex gap-2">
-            <Select value={usePace} onValueChange={(v) => setPace(v as TravelPace)}>
-              <SelectTrigger className="min-h-[44px] flex-1"><SelectValue /></SelectTrigger>
-              <SelectContent className="z-[200]">{PACES.map(p => <SelectItem key={p} value={p}>{PACE_LABEL[p]} ({TRAVEL_PACE_MPH[p]} mph)</SelectItem>)}</SelectContent>
-            </Select>
-            <Button disabled={busy} className="min-h-[44px] flex-1" style={TOUCH}
+            <Button disabled={busy} className="min-h-[48px] w-full" style={TOUCH}
               onClick={() => run(() => map.startJourney(preview.location.id, usePace), 'The party sets out.').then(ok => { if (ok) setSelected(null); })}>Begin Journey</Button>
           </div>
         ) : <p className="text-[11px] text-white/50">The host starts the journey.</p>}
@@ -386,7 +386,7 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
       style={landscape ? { gridTemplateAreas: '"map head" "map info"' } : undefined}>
       <div style={landscape ? { gridArea: 'head' } : undefined} className="flex items-center justify-between gap-2 text-[12px] text-white/70">
         <span className="font-cinzel text-amber-200 text-[13px]">{formatCampaignTime(view?.campaignMinute ?? state.campaignMinute)}</span>
-        <span>{here ? byId.get(here)?.name : onRoad ? (onRoad.dayComplete ? 'Camped on the road' : city ? 'In the streets' : 'On the road') : t ? (city ? 'Walking' : 'Traveling') : 'Location unknown'}</span>
+        <span className="min-w-0 text-right break-words">{here ? byId.get(here)?.name : flying ? (t?.startedAt === null ? 'Paused in flight' : onRoad ? 'Stopped along air route' : 'Airborne') : onRoad ? (onRoad.dayComplete ? 'Camped on the road' : city ? 'In the streets' : 'On the road') : t ? (city ? 'Walking' : method === 'horseback' ? 'Mounted' : 'Traveling') : 'Location unknown'}</span>
       </div>
       <div style={landscape ? { gridArea: 'map' } : undefined} className={cn('min-w-0', landscape ? 'order-none flex items-start justify-center overflow-hidden' : 'order-2')}>
       <MapCanvas state={state} showAll={host} fitHeight={landscape ? 'calc(100dvh - 4.25rem)' : undefined} partyDot={partyPoint(map, state)} selectedId={selected}
@@ -400,6 +400,14 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
         }} />
       </div>
       <div style={landscape ? { gridArea: 'info' } : undefined} className={cn('space-y-3 min-h-0', landscape ? 'overflow-y-auto overflow-x-hidden pb-2 pr-0.5' : 'order-3')}>
+      {host && !t && !plan && (
+        <label className="block text-xs text-muted-foreground">{city ? 'Pace' : 'Travel method'}
+          <Select value={usePace} disabled={busy} onValueChange={(v) => setPace(v as TravelPace)}>
+            <SelectTrigger aria-label={city ? 'Pace' : 'Travel method'} className="mt-1 min-h-[48px] w-full" style={TOUCH}><SelectValue /></SelectTrigger>
+            <SelectContent className="z-[200]">{(city ? PACES : OVERLAND_PACES).map(p => <SelectItem className="min-h-[48px]" style={TOUCH} key={p} value={p}>{PACE_LABEL[p]} — {TRAVEL_PACE_MPH[p]} mph</SelectItem>)}</SelectContent>
+          </Select>
+        </label>
+      )}
       {inspectedLoc && (
         <div className="rounded-xl border border-amber-400/30 bg-black/40 p-3 space-y-1">
           <div className="flex items-start justify-between gap-2">
@@ -413,7 +421,7 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
           <p className="text-[13px] text-white/80 leading-snug">{inspectedLoc.description?.trim() || 'No description yet.'}</p>
         </div>
       )}
-      {onRoad?.dayComplete && !t && !plan && <p className="text-[12px] rounded-lg bg-sky-500/10 border border-sky-400/30 text-sky-200 px-3 py-2">The travel day is over. The party stopped partway along the road.</p>}
+      {onRoad?.dayComplete && !t && !plan && <p className="text-[12px] rounded-lg bg-sky-500/10 border border-sky-400/30 text-sky-200 px-3 py-2">The travel day is over. The party stopped partway along {flying ? 'the air route' : 'the road'}.</p>}
       {journeyBox}
       {routeBox}
       {selectedUnreachable && <p className="text-[12px] rounded-lg bg-white/5 border border-white/10 text-white/70 px-3 py-2">{nameOf(selected)}: No known route.</p>}
@@ -423,15 +431,15 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
           <div className="flex flex-wrap gap-2">
             {reachable.map(r => (
               <button key={r.location.id} type="button" onClick={() => { setSelected(r.location.id); setInspected(r.location.id); }} style={TOUCH}
-                className={cn('min-h-[44px] px-3 rounded-lg border text-[12px] text-left', selected === r.location.id ? 'bg-amber-500/20 border-amber-400/50 text-amber-100' : 'bg-white/5 border-white/10 text-white/80')}>
+                className={cn('min-h-[48px] px-3 rounded-lg border text-[12px] text-left', selected === r.location.id ? 'bg-amber-500/20 border-amber-400/50 text-amber-100' : 'bg-white/5 border-white/10 text-white/80')}>
                 <span className="font-semibold">{r.location.name}</span>
-                <span className="block text-[11px] text-white/50">{dist(r.summary.remainingMiles)} · {city ? `${Math.max(1, Math.round(r.summary.remainingMinutes))} min` : `${r.plan.legs.length} road${r.plan.legs.length === 1 ? '' : 's'}`}</span>
+                <span className="block text-[11px] text-white/50">{dist(r.summary.remainingMiles)} · {city ? `${Math.max(1, Math.round(r.summary.remainingMinutes))} min` : usePace === 'flying' ? 'Direct flight' : `${r.plan.legs.length} road${r.plan.legs.length === 1 ? '' : 's'}`}</span>
               </button>
             ))}
           </div>
         </div>
       )}
-      {!t && !plan && reachable.length === 0 && (here || onRoad) && <p className="text-[12px] text-white/50">{city ? 'No streets lead anywhere from here yet.' : 'No known roads lead anywhere from here yet.'}</p>}
+      {!t && !plan && reachable.length === 0 && (here || onRoad) && <p className="text-[12px] text-white/50">{city ? 'No streets lead anywhere from here yet.' : usePace === 'flying' ? 'No direct flight available. A calibrated map and known destination pins are required.' : 'No known roads lead anywhere from here yet.'}</p>}
       </div>
     </div>
   );
