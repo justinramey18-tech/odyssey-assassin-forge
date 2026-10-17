@@ -23,7 +23,7 @@ async function run(existing: Record<string, unknown> | null, commit = true, cont
       q.maybeSingle=async()=>({data:table==='parties' ? {created_by:'host',is_active:true} : table==='party_shared_state' ? {state_data:map} : stored,error:null});
       return q;
     } };
-  const fetch = vi.fn(async (..._args: any[])=>new Response(JSON.stringify({choices:[{message:{content}]}),{status:providerStatus}));
+  const fetch = vi.fn(async (..._args: any[])=>new Response(JSON.stringify({choices:[{message:{content}}]}),{status:providerStatus}));
   const launchTravel = vi.fn(async(..._args: any[])=>({ok:true,planned:stored?.has_event===true}));
   const syncTravel = vi.fn();
   let handler: ((req: Request)=>Promise<Response>) | undefined;
