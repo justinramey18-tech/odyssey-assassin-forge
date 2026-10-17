@@ -39,3 +39,4 @@
 
 - [x] Scene video 2: host-only private uploads, safe replacement, inline signed playback and 5 focused tests passed; real-party upload/playback unverified without an existing signed-in session.
 - [x] Durable travel launch 1/7: protected atomic foundation installed; 39 launch/travel checks passed, service-only access verified, preview build OK. Launch callers and live journeys unchanged; full launch hookup awaits later steps.
+- [x] Durable travel launch 2/7: deployed original-host pre-arm QStash publication for untouched planned events, without storage writes; 25 synthetic scheduling/firing checks passed. Real signed-in QStash launch awaits later hookup; existing timers and live travel data unchanged.

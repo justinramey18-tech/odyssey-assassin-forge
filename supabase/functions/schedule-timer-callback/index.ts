@@ -38,10 +38,12 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { partyId, delaySeconds, scheduledAt, eventId, travelEventId } = body;
+    const { partyId, delaySeconds, scheduledAt, eventId, travelEventId, launchTravelEvent } = body;
     if(travelEventId !== undefined) {
       const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if(!uuid.test(String(partyId)) || !uuid.test(String(travelEventId)) || typeof scheduledAt!=='string' || !Number.isFinite(Date.parse(scheduledAt)))
+      if(!uuid.test(String(partyId)) || !uuid.test(String(travelEventId)) || typeof scheduledAt!=='string' || !Number.isFinite(Date.parse(scheduledAt))
+        || (launchTravelEvent !== undefined && typeof launchTravelEvent !== 'boolean')
+        || (launchTravelEvent === true && Date.parse(scheduledAt) <= Date.now()))
         return new Response(JSON.stringify({error:'Invalid travel schedule'}),{status:400,headers:{...corsHeaders,'Content-Type':'application/json'}});
       const {data:party}=await supabase.from('parties').select('created_by').eq('id',partyId).maybeSingle();
       if(!party || party.created_by!==claimsData.claims.sub)
@@ -49,8 +51,11 @@ serve(async (req) => {
       const service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
       if(!service) throw new Error('Server configuration error');
       const privateDb=createClient(SUPABASE_URL,service);
-      const {data:travel}=await privateDb.from('party_travel_events').select('status,scheduled_at').eq('id',travelEventId).eq('party_id',partyId).maybeSingle();
-      if(!travel || travel.status!=='scheduled' || Date.parse(travel.scheduled_at)!==Date.parse(scheduledAt))
+      const {data:travel,error:travelError}=await privateDb.from('party_travel_events').select('status,scheduled_at,has_event,qstash_message_id').eq('id',travelEventId).eq('party_id',partyId).maybeSingle();
+      const scheduleMatches = launchTravelEvent === true
+        ? travel?.has_event === true && travel.status === 'planned' && travel.scheduled_at === null && travel.qstash_message_id === null
+        : travel?.status === 'scheduled' && Date.parse(travel.scheduled_at) === Date.parse(scheduledAt);
+      if(travelError || !scheduleMatches)
         return new Response(JSON.stringify({error:'Travel schedule changed'}),{status:409,headers:{...corsHeaders,'Content-Type':'application/json'}});
     }
 
