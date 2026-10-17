@@ -162,10 +162,13 @@ export async function journeyHash(j: Journey): Promise<string> {
 
 export function parseDecision(raw: string) {
   const v = object(JSON.parse(raw));
+  const fixedShape = Object.keys(v).sort().join(',') === 'event,eventType,premise,targetFraction';
   if (v.event === false && Object.keys(v).length === 1) return { event:false } as const;
-  if (v.event !== true || Object.keys(v).sort().join(',') !== 'event,eventType,premise,targetFraction'
+  if (v.event === false && fixedShape && v.eventType === null && v.premise === null && v.targetFraction === null)
+    return { event:false } as const;
+  if (v.event !== true || !fixedShape
     || typeof v.eventType !== 'string' || typeof v.premise !== 'string'
-    || !v.eventType.trim() || !v.premise.trim() || v.eventType.length > 200 || v.premise.length > 8000
+    || !v.eventType.trim() || !v.premise.trim() || v.eventType.length > 80 || v.premise.length > 2000
     || !finite(v.targetFraction) || v.targetFraction < 0.15 || v.targetFraction > 0.85) throw new Error('Invalid decision');
   return { event:true, eventType:text(v.eventType,80), premise:text(v.premise,2000), targetFraction:v.targetFraction } as const;
 }
