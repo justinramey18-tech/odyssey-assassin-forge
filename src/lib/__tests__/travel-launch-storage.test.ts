@@ -36,7 +36,7 @@ function check(sql: string, legacy = false, noEvent = false) {
     INSERT INTO party_travel_events(id,party_id,created_by,map_id,destination_location_id,journey_plan_hash,has_event,status,
       event_type,event_premise,target_leg_index,target_route_id,target_route_progress,target_reversed,target_overall_fraction)
     SELECT '${event}',party_id,user_id,${legacy ? 'NULL' : `'${map}'::uuid`},'dest',
-      encode(sha256(convert_to((${plan} - 'currentLegIndex' - 'totalMiles')::text,'UTF8')),'hex'),
+      encode(sha256(convert_to(((${plan}) - 'currentLegIndex' - 'totalMiles')::text,'UTF8')),'hex'),
       ${noEvent ? "false,'no_event',NULL,NULL,NULL,NULL,NULL,NULL,NULL" : "true,'planned','social','Private premise',1,'bc',0.6,true,0.5"} FROM party_shared_state;
     CREATE TEMP TABLE original AS SELECT state_data FROM party_shared_state;
     CREATE TEMP TABLE original_event AS SELECT to_jsonb(e) AS data FROM party_travel_events e;`;
