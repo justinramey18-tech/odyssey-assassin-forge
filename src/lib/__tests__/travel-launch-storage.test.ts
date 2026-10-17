@@ -55,7 +55,7 @@ describe.skipIf(!isolated)('durable launch (isolated PostgreSQL)', () => {
     has_function_privilege('service_role','arm_private_travel_launch(uuid,jsonb,bigint,jsonb)','EXECUTE') THEN 'PASS' ELSE 'FAIL' END;`));
   it('anchors the atlas and schedules the durable event together', () => check(`SET LOCAL ROLE service_role;
     SELECT CASE WHEN ${call()} THEN 'PASS' ELSE 'FAIL' END; RESET ROLE;
-    SELECT CASE WHEN state_data=jsonb_set(jsonb_set(o.state_data,'{maps,0,state,activeTravel,startedAt}','1000'),'{revision}','5')
+    SELECT CASE WHEN s.state_data=jsonb_set(jsonb_set(o.state_data,'{maps,0,state,activeTravel,startedAt}','1000'),'{revision}','5')
       AND e.status='scheduled' AND e.expected_tranche_started_at=1000 AND e.target_campaign_minute=130
       AND e.target_tranche_fraction=0.5 AND e.qstash_message_id='queue-receipt' THEN 'PASS' ELSE 'FAIL' END
       FROM party_shared_state s,original o,party_travel_events e;`));
