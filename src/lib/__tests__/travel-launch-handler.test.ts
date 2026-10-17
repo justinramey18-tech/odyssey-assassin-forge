@@ -13,7 +13,7 @@ async function run(existing: Record<string, unknown> | null, commit = true) {
     activeTravel:{routeId:'road',reversed:false,startProgress:0,endProgress:1,startedAt:null,
       realDurationMs:60000,gameMinutes:60,startCampaignMinute:0,pace:'normal'} };
   let stored = existing;
-  const rpc = vi.fn(async () => { if(commit) stored = { id:'durable',has_event:false,status:'no_event' }; return { data:commit,error:null }; });
+  const rpc = vi.fn(async (..._args: any[]) => { if(commit) stored = { id:'durable',has_event:false,status:'no_event' }; return { data:commit,error:null }; });
   const db = { auth:{getUser:async()=>({data:{user:{id:'host'}},error:null})}, rpc,
     from: (table:string) => {
       const q: Record<string, any> = {};
@@ -22,7 +22,7 @@ async function run(existing: Record<string, unknown> | null, commit = true) {
       return q;
     } };
   const fetch = vi.fn(async()=>new Response(JSON.stringify({choices:[{message:{content:'{"event":false}'}}]})));
-  const launchTravel = vi.fn(async()=>({ok:true,planned:stored?.has_event===true}));
+  const launchTravel = vi.fn(async(..._args: any[])=>({ok:true,planned:stored?.has_event===true}));
   const syncTravel = vi.fn();
   let handler: ((req: Request)=>Promise<Response>) | undefined;
   runInNewContext(code, { createClient:()=>db, corsHeaders:{},
