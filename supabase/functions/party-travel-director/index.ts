@@ -132,6 +132,7 @@ Deno.serve(async req => {
   if (launching) {
     const { data: durable, error: durableError } = await findExisting();
     if (durableError || !durable) return reply(500, { error: 'Travel planning failed.' });
+    if (plannerError) await db.from('party_travel_events').update({ last_error: plannerError }).eq('id', durable.id);
     return await arm(latest,fresh?.state_data,durable);
   }
   try { await syncTravel(db,partyId,userId,token); } catch { return reply(503,{error:'Travel scheduling unavailable.'}); }
