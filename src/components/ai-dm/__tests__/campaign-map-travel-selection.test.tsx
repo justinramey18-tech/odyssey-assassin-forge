@@ -34,9 +34,9 @@ describe('campaign map travel selection', () => {
     const { startJourney, state } = setup();
     const choice = screen.getByRole('combobox', { name: 'Travel choice' });
     expect(Array.from(choice.querySelectorAll('option')).map(o => o.value)).toEqual(['slow', 'normal', 'fast', 'horseback', 'flying']);
-    expect(screen.queryByRole('button', { name: /Roadless peak/ })).toBeNull();
+    expect(screen.getAllByRole('button', { name: /Roadless peak/ })).toHaveLength(1);
     fireEvent.change(choice, { target: { value: 'flying' satisfies TravelPace } });
-    fireEvent.click(screen.getByRole('button', { name: /Roadless peak/ }));
+    fireEvent.click(screen.getAllByRole('button', { name: /Roadless peak/ })[1]);
     fireEvent.click(screen.getByRole('button', { name: 'Begin Journey' }));
     await waitFor(() => expect(startJourney).toHaveBeenCalledWith('b', 'flying'));
     expect(state.currentLocationId).toBe('a');
