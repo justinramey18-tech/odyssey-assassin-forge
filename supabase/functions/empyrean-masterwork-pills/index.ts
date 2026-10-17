@@ -286,7 +286,7 @@ All 4 suggestions share ONE central idea. They differ only in stance and intensi
 - Pill 2: the SAME opposing idea, full send — the boldest, most committed version of going against ${targetList}.
 - Pill 3: works WITH ${targetList} — supports, reinforces or completes what ${targets.length > 1 ? 'they are' : 'they are'} doing, built on the same central idea. Mild, restrained version.
 - Pill 4: the SAME supporting idea, full send — the boldest, most committed version of going with ${targetList}.
-${targets.length > 1 ? `\nEvery suggestion must involve ALL of these players: ${targetList}. Do not pick just one of them.` : ''}
+${targets.length > 1 ? `\nEvery suggestion must involve ALL of these targets: ${targetList}. Do not pick just one of them.` : ''}
 
 All four must stay ${story_flavor_label}. Do NOT drift toward a different alignment as intensity rises.
 
