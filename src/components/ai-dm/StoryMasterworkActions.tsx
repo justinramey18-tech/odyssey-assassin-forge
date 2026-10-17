@@ -444,7 +444,7 @@ const selected = targetIds.includes(c.targetId);
                     <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
                     <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
                     {mode === 'sync' && selectedCandidates.slice(0, 2).map(candidate => (
-                      <span key={candidate.userId} className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-amber-500/70 bg-muted text-xs text-muted-foreground">
+                      <span key={candidate.targetId} className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-amber-500/70 bg-muted text-xs text-muted-foreground">
                         {candidate.avatarUrl
                           ? <img src={candidate.avatarUrl} alt="" className="h-full w-full object-cover" />
                           : (candidate.name.charAt(0).toUpperCase() || '?')}
