@@ -17,7 +17,7 @@ function roster(rows: any[]): string[] {
 
 function routeContext(j: Journey): string[] {
   const names = new Map((j.state.locations || []).map((l: any) => [l.id, text(l.name, 80)]));
-  return cap(j.remaining.map(r => `- ${names.get(r.leg.fromLocationId) || 'Unknown'} to ${names.get(r.leg.toLocationId) || 'Unknown'}: ${r.miles.toFixed(1)} mi remaining of ${r.fullMiles.toFixed(1)} mi; terrain x${Number.isFinite(r.route.terrainFactor) ? r.route.terrainFactor : 1}${text(r.route.description, 260) ? `; ${text(r.route.description, 260)}` : ''}`), 12);
+  return cap(j.remaining.map(r => `- ${names.get(r.leg.fromLocationId) || (r.leg.fromLocationId === '__flight_origin__' ? 'Exact takeoff position' : 'Unknown')} to ${names.get(r.leg.toLocationId) || 'Unknown'}: ${r.miles.toFixed(1)} mi remaining of ${r.fullMiles.toFixed(1)} mi; ${j.plan.pace === 'flying' ? 'direct air route; ground terrain does not apply' : `terrain x${Number.isFinite(r.route.terrainFactor) ? r.route.terrainFactor : 1}`}${text(r.route.description, 260) ? `; ${text(r.route.description, 260)}` : ''}`), 12);
 }
 
 function block(title: string, rows: string[], total = 7000): string {
@@ -52,15 +52,15 @@ export async function travelContext(db: any, partyId: string, hostId: string, j:
   const recent = (history.data || []).filter((m: any) => !m.is_afk_marker && typeof m.content === 'string').reverse()
     .map((m: any) => `DM: ${text(m.content.replace(/<!--WHISPER:[\s\S]*?<!--\/WHISPER:[^>]*-->/gi,'').replace(/\[WHISPER[^\]]*\][\s\S]*?\[\/WHISPER[^\]]*\]/gi,''), 600)}`);
   const input = [
-    `## JOURNEY\nMap: ${j.name || 'World'}\nDestination: ${text(dest?.name, 100) || 'Unknown destination'}\nPace: ${j.plan.pace}\nCampaign time: ${time(Math.max(0, j.campaignMinute))}${j.remaining.length ? `\nRemaining distance: ${j.remainingMiles.toFixed(1)} miles` : ''}`,
-    block('REMAINING ROADS', routeContext(j)),
+    `## JOURNEY\nMap: ${j.name || 'World'}\nDestination: ${text(dest?.name, 100) || 'Unknown destination'}\nMethod: ${j.plan.pace === 'flying' ? 'Direct air travel, 40 mph; no ground terrain or intermediate towns' : j.plan.pace === 'horseback' ? 'Mounted road travel, 8 mph before terrain penalties' : `${j.plan.pace} walking pace`}\nCampaign time: ${time(Math.max(0, j.campaignMinute))}${j.remaining.length ? `\nRemaining distance: ${j.remainingMiles.toFixed(1)} miles` : ''}`,
+    block(j.plan.pace === 'flying' ? 'DIRECT AIR ROUTE' : 'REMAINING ROADS', routeContext(j)),
     block('PARTY', roster(members.data || [])),
     text(byType.get('dm_session')?.campaignSummary, 2500) ? `## CAMPAIGN SUMMARY\n${text(byType.get('dm_session')?.campaignSummary, 2500)}` : '',
     block('RECENT PARTY DM NARRATIVE', recent, 4000),
     block('ENABLED GM GUIDES', (guides.data || []).map((g: any) => `### ${text(g.name, 100)}\n${text(g.content, 2500)}`), 12000),
     block('MEMORY ANCHORS', Array.isArray(anchors) ? cap(anchors.map((a: any) => typeof a === 'string' ? text(a,300) : `${text(a?.key,80)}: ${text(a?.value || a?.text || a?.content,300)}`).filter(Boolean), 12) : [], 3000),
     quests && Object.keys(quests).length ? `## QUEST AND WORLD STATE\n${JSON.stringify(quests).slice(0, 3000)}` : '',
-    block('ROAD-APPLICABLE AREA GUIDES', areaGuides, 8000),
+    block('TRAVEL-APPLICABLE AREA GUIDES', areaGuides, 8000),
   ].filter(Boolean).join('\n\n');
 
   return { input, session: byType.get('dm_session') || {} };
