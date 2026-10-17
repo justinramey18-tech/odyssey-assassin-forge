@@ -34,6 +34,41 @@ function routeMiles(route: Obj, state: Obj): number | null {
   return finite(miles) && miles > 0 ? miles : null;
 }
 
+/** Resolve only the saved flight; never fabricate geometry or add it to the ground graph. */
+export function savedTravelRoute(state: Obj, routeId: string): Obj | undefined {
+  if (state.temporaryFlight?.id === routeId) return state.temporaryFlight;
+  return Array.isArray(state.routes) ? state.routes.find((r: Obj) => r.id === routeId) : undefined;
+}
+
+function validFlight(state: Obj, plan: Obj, travel: Obj): boolean {
+  const r = object(state.temporaryFlight);
+  const destination = state.locations?.find((l: Obj) => l.id === plan.destinationLocationId);
+  if (r.kind !== 'direct-flight' || typeof r.id !== 'string' || r.id.length > 80 || !r.id.startsWith('__flight__')
+    || state.routes?.some((road: Obj) => road.id === r.id)
+    || !destination?.discovered || !finite(destination.x) || !finite(destination.y)
+    || r.toLocationId !== destination.id || r.fromLocationId === r.toLocationId
+    || (r.fromLocationId !== '__flight_origin__' && !state.locations?.some((l: Obj) => l.id === r.fromLocationId))
+    || r.distanceSource !== 'manual' || r.terrainFactor !== 1
+    || !finite(r.distanceMiles) || r.distanceMiles <= 0 || r.distanceMiles > 1_000_000_000
+    || !Array.isArray(r.path) || r.path.length !== 2
+    || r.path.some((p: Obj) => !p || !finite(p.x) || !finite(p.y) || p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1)
+    || (r.path[0].x === r.path[1].x && r.path[0].y === r.path[1].y)
+    || r.path[1].x !== destination.x || r.path[1].y !== destination.y
+    || plan.legs.length !== 1 || plan.currentLegIndex !== 0
+    || plan.legs[0]?.routeId !== r.id || plan.legs[0]?.reversed !== false
+    || travel.routeId !== r.id || travel.reversed !== false
+    || !Array.isArray(travel.segments) || travel.segments.length !== 1) return false;
+  const seg = object(travel.segments[0]);
+  const miles = r.distanceMiles * (seg.endProgress - seg.startProgress);
+  const minutes = miles / 40 * 60;
+  const close = (a: unknown, b: number) => finite(a) && Math.abs(a - b) <= Math.max(1e-6, Math.abs(b) * 1e-9);
+  return seg.routeId === r.id && seg.reversed === false && seg.legIndex === 0
+    && close(travel.startProgress, seg.startProgress) && close(travel.endProgress, seg.endProgress)
+    && close(seg.distanceMiles, miles) && close(seg.gameMinutes, minutes)
+    && close(travel.gameMinutes, minutes) && minutes > 0 && minutes <= 480 + 1e-6
+    && close(plan.totalMiles, r.distanceMiles);
+}
+
 export function eligibleJourney(raw: unknown, now: number) {
   const map = activeMap(raw);
   if (!map || map.state.travelScale === 'city') return null;
@@ -41,16 +76,23 @@ export function eligibleJourney(raw: unknown, now: number) {
   if (!text(plan.destinationLocationId) || state.currentLocationId === plan.destinationLocationId
     || !Array.isArray(plan.legs) || !plan.legs.length || plan.legs.length > 1000
     || !Number.isInteger(plan.currentLegIndex) || plan.currentLegIndex < 0 || plan.currentLegIndex >= plan.legs.length
-    || !['slow','normal','fast'].includes(plan.pace) || travel.pace !== plan.pace
+    || !['slow','normal','fast','horseback','flying'].includes(plan.pace) || travel.pace !== plan.pace
     || (travel.startedAt !== null && !finite(travel.startedAt)) || !finite(travel.realDurationMs) || travel.realDurationMs <= 0
     || !finite(travel.gameMinutes) || travel.gameMinutes <= 0 || !finite(travel.startCampaignMinute)
     || (travel.pausedFraction !== undefined && (!finite(travel.pausedFraction) || travel.pausedFraction < 0 || travel.pausedFraction >= 1))) return null;
   const base = travel.pausedFraction ?? 0;
   const fraction = travel.startedAt === null ? base : clamp(base + Math.max(0, now-travel.startedAt)/travel.realDurationMs*(1-base));
   if (fraction >= 1 || !Array.isArray(state.routes) || !Array.isArray(state.locations)) return null;
+  if (plan.pace === 'flying' && !validFlight(state, plan, travel)) return null;
   const segments = Array.isArray(travel.segments) && travel.segments.length ? travel.segments : [travel];
   if (segments.some((s: Obj) => !finite(s.gameMinutes) || s.gameMinutes <= 0 || !finite(s.startProgress)
     || !finite(s.endProgress) || s.startProgress < 0 || s.endProgress > 1 || s.endProgress <= s.startProgress)) return null;
+  if (segments.some((s: Obj, index: number) => {
+    const i = s.legIndex ?? plan.currentLegIndex;
+    const leg = plan.legs[i];
+    return !Number.isInteger(i) || i < plan.currentLegIndex || !leg || s.routeId !== leg.routeId
+      || s.reversed !== leg.reversed || (index > 0 && i !== (segments[index - 1].legIndex ?? plan.currentLegIndex) + 1);
+  })) return null;
   let want = segments.reduce((n: number,s: Obj) => n+s.gameMinutes,0)*fraction, segmentIndex = 0;
   while (segmentIndex < segments.length-1 && want >= segments[segmentIndex].gameMinutes) {
     want -= segments[segmentIndex].gameMinutes; segmentIndex++;
@@ -61,7 +103,8 @@ export function eligibleJourney(raw: unknown, now: number) {
   const directionProgress = seg.startProgress+(seg.endProgress-seg.startProgress)*clamp(want/seg.gameMinutes);
   const remaining: { legIndex: number; route: Obj; leg: Obj; fullMiles: number; start: number; miles: number }[] = [];
   for (let i = legIndex; i < plan.legs.length; i++) {
-    const leg = plan.legs[i], route = state.routes.find((r: Obj) => r.id === leg.routeId);
+    const leg = plan.legs[i], route = plan.pace === 'flying' ? savedTravelRoute(state, leg.routeId)
+      : state.routes.find((r: Obj) => r.id === leg.routeId && r.kind !== 'direct-flight' && !String(r.id).startsWith('__flight__'));
     if (!route || typeof leg.reversed !== 'boolean'
       || leg.fromLocationId !== (leg.reversed ? route.toLocationId : route.fromLocationId)
       || leg.toLocationId !== (leg.reversed ? route.fromLocationId : route.toLocationId)) return null;
@@ -87,7 +130,7 @@ export function targetPoint(journey: Journey, fraction: number) {
     if (miles < r.miles) break;
     miles -= r.miles;
   }
-  if (!selected) throw new Error('Missing road');
+  if (!selected) throw new Error('Missing travel route');
   const progress = clamp(selected.start+miles/selected.fullMiles);
   return { target_leg_index:selected.legIndex, target_route_id:selected.route.id,
     target_route_progress:selected.leg.reversed ? 1-progress : progress,
