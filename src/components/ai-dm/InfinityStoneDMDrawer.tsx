@@ -56,9 +56,12 @@ interface InfinityStoneDMDrawerProps {
   onOpenChange: (open: boolean) => void;
   characterName: string;
   onUsePrompt: (prompt: string) => void;
+  // Rolled Masterwork prompts can opt into AI-written roleplay instead of posting
+  // the raw instruction. Carries the already-final roll; never reroll.
+  onUseRolledMasterwork?: (info: { id: string; title: string; prompt: string; roll: CheckRollResult }) => void;
 }
 
-export function InfinityStoneDMDrawer({ open, onOpenChange, characterName, onUsePrompt }: InfinityStoneDMDrawerProps) {
+export function InfinityStoneDMDrawer({ open, onOpenChange, characterName, onUsePrompt, onUseRolledMasterwork }: InfinityStoneDMDrawerProps) {
   const [expandedStone, setExpandedStone] = useState<string | undefined>(undefined);
   const [selectedIntensity, setSelectedIntensity] = useState<IntensityLevel>('all');
   const [view, setView] = useState<'moods' | 'browse'>('moods');
@@ -97,13 +100,17 @@ export function InfinityStoneDMDrawer({ open, onOpenChange, characterName, onUse
       title: prompt.title,
       roll,
       onComplete: () => {
-        onUsePrompt(applyTimePrefix(processed) + rollSuffix(roll));
+        if (prompt.category === 'Masterwork' && onUseRolledMasterwork) {
+          onUseRolledMasterwork({ id: prompt.id, title: prompt.title, prompt: applyTimePrefix(processed), roll });
+        } else {
+          onUsePrompt(applyTimePrefix(processed) + rollSuffix(roll));
+        }
         toast.success(`${prompt.icon} ${prompt.title}`, {
           description: `d20: ${roll.d20} — ${roll.outcome}`,
         });
       },
     });
-  }, [characterName, logPromptUsage, onUsePrompt, onOpenChange]);
+  }, [characterName, logPromptUsage, onUsePrompt, onUseRolledMasterwork, onOpenChange]);
 
   const pickRandom = useCallback(() => {
     if (allFilteredPrompts.length === 0) { toast.error('No prompts available'); return; }
