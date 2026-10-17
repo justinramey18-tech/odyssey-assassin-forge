@@ -115,7 +115,7 @@ import { resolveWhisperAutoRoll, performWhisperRoll } from '@/lib/whisperAutoRol
 import type { SocialCheckResult } from '@/lib/npcSocialChecks';
 import { actionCardFromRoll, encodeActionCard, parseActionCard, stripActionCard, type ActionCard } from '@/lib/roundChatActionCard';
 import { getHealingDiceForItem } from '@/lib/consumables/healing';
-import { rollHealing } from '@/lib/promptAutoRoll';
+import { rollHealing, rollSuffix, type CheckRollResult } from '@/lib/promptAutoRoll';
 import { requestDiceRoll } from '@/lib/diceRollBus';
 import { parseReply } from '@/lib/chatReply';
 import { useHealingItemAction } from '@/hooks/use-healing-item';
