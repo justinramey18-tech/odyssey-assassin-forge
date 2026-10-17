@@ -1,6 +1,21 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { launchTravel } from '../../../supabase/functions/_shared/travel-launch';
-import { eligibleJourney } from '../../../supabase/functions/_shared/travel-planning';
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
+import { transpileModule, ModuleKind } from 'typescript';
+import { eventClock } from '../../../supabase/functions/_shared/travel-event-clock';
+import { eligibleJourney, object, type Journey } from '../../../supabase/functions/_shared/travel-planning';
+const compile = (path: string) => transpileModule(readFileSync(path, 'utf8').replace(/^import .*;\r?\n/gm, ''),
+  { compilerOptions: { module: ModuleKind.CommonJS } }).outputText;
+const launchCode = compile('supabase/functions/_shared/travel-launch.ts');
+const syncCode = compile('supabase/functions/_shared/travel-sync.ts');
+async function launchTravel(db: unknown, partyId: string, token: string, journey: Journey, expected: unknown, event: Record<string, unknown>) {
+  const syncExports: Record<string, any> = {};
+  const env = { fetch: globalThis.fetch, Date, Deno: { env: { get: (key: string) => key === 'SUPABASE_URL' ? 'https://synthetic.invalid' : 'synthetic-only' } } };
+  runInNewContext(syncCode, { ...env, exports: syncExports });
+  const exports: Record<string, any> = {};
+  runInNewContext(launchCode, { ...env, exports, eventClock, object, cancelQstash: syncExports.cancelQstash });
+  return await exports.launchTravel(db,partyId,token,journey,expected,event);
+}
 
 const staged = () => ({
   routes: [{ id: 'road', fromLocationId: 'start', toLocationId: 'end', distanceSource: 'manual', distanceMiles: 10 }],
