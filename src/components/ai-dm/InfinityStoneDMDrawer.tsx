@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { characterPrompts, CharacterPrompt, DEADPOOL_PROMPT_IDS, PROMPT_HINTS } from '@/lib/characterPrompts';
 import { groupBySubcategory, isMasterworkStone } from '@/lib/masterworkGrouping';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
-import { rollCheck, rollSuffix } from '@/lib/promptAutoRoll';
+import { rollCheck, rollSuffix, type CheckRollResult } from '@/lib/promptAutoRoll';
 import { requestDiceRoll } from '@/lib/diceRollBus';
 import { useFavoritePrompts } from '@/hooks/use-favorite-prompts';
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
