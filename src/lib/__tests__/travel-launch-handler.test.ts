@@ -13,7 +13,7 @@ async function run(existing: Record<string, unknown> | null, commit = true) {
     activeTravel:{routeId:'road',reversed:false,startProgress:0,endProgress:1,startedAt:null,
       realDurationMs:60000,gameMinutes:60,startCampaignMinute:0,pace:'normal'} };
   let stored = existing;
-  const rpc = vi.fn(async () => { if(commit) stored = { id:'durable',has_event:false,status:'no_event' }; return { data:commit,error:null }; });
+  const rpc = vi.fn(async (..._args: any[]) => { if(commit) stored = { id:'durable',has_event:false,status:'no_event' }; return { data:commit,error:null }; });
   const db = { auth:{getUser:async()=>({data:{user:{id:'host'}},error:null})}, rpc,
     from: (table:string) => {
       const q: Record<string, any> = {};
@@ -22,7 +22,7 @@ async function run(existing: Record<string, unknown> | null, commit = true) {
       return q;
     } };
   const fetch = vi.fn(async()=>new Response(JSON.stringify({choices:[{message:{content:'{"event":false}'}}]})));
-  const launchTravel = vi.fn(async()=>({ok:true,planned:stored?.has_event===true}));
+  const launchTravel = vi.fn(async(..._args: any[])=>({ok:true,planned:stored?.has_event===true}));
   const syncTravel = vi.fn();
   let handler: ((req: Request)=>Promise<Response>) | undefined;
   runInNewContext(code, { createClient:()=>db, corsHeaders:{},
@@ -46,6 +46,16 @@ describe('launch request routing',()=>{
     expect(x.launchTravel.mock.calls[0]).toContainEqual({id:'durable',has_event:false,status:'no_event'});
     expect(x.rpc.mock.invocationCallOrder[0]).toBeLessThan(x.launchTravel.mock.invocationCallOrder[0]);
     expect(x.syncTravel).not.toHaveBeenCalled();
+  });
+  it('a planner failure still launches through a durable no-event row',async()=>{
+    const x=await run(null);
+    x.fetch.mockImplementation(async()=>new Response('planner down',{status:500}));
+    const y=await run(null);
+    expect(y.response.status).toBe(200); expect(y.data).toEqual({ok:true,planned:false});
+    expect(y.rpc.mock.calls[0][0]).toBe('commit_private_travel_plan');
+    expect(y.rpc.mock.calls[0][1]._plan).toMatchObject({has_event:false,status:'no_event'});
+    expect(y.launchTravel).toHaveBeenCalledOnce();
+    expect(y.launchTravel.mock.calls[0][5]).toMatchObject({has_event:false,status:'no_event'});
   });
   it('never launches or syncs after a rejected plan commit',async()=>{
     const x=await run(null,false);
