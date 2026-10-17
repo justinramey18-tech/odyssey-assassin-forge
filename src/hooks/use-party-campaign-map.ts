@@ -18,6 +18,7 @@ import {
   summarizeJourney,
   trancheToTravel,
   travelDetail,
+  travelRoute,
   type JourneyPlan,
   type JourneySummary,
   effectiveRouteMiles,
@@ -260,7 +261,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     const journey = s.journeyPlan ? { plan: s.journeyPlan, summary: summarizeJourney(t ? foldTravelToPosition(s, now) : s) } : undefined;
     if (t) {
       const live = travelDetail(t, now);
-      const route = s.routes.find(r => r.id === live.routeId);
+      const route = travelRoute(s, live.routeId);
       return {
         state: s, position: routePoint(route, live.forwardProgress), campaignMinute: live.campaignMinute,
         traveling: !live.done && t.startedAt !== null, paused: t.startedAt === null, legFraction: live.fraction, legDone: live.done,
@@ -268,7 +269,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
       };
     }
     const pos = s.currentRoutePosition;
-    const position = pos ? routePoint(s.routes.find(r => r.id === pos.routeId), pos.progress) : pinned(s.currentLocationId);
+    const position = pos ? routePoint(travelRoute(s, pos.routeId), pos.progress) : pinned(s.currentLocationId);
     return { state: s, position, campaignMinute: s.campaignMinute, traveling: false, paused: false, legFraction: 0, legDone: false, ...(journey ? { journey } : {}) };
   }, [rawState, serverNow]);
 
@@ -524,6 +525,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     const travel = trancheToTravel(tranche, plan.pace, base.campaignMinute, base.realMinutesPerGameHour);
     const cleanPlan: JourneyPlan = { ...plan }; delete cleanPlan.dayComplete;
     const staged: CampaignMapState = { ...base, journeyPlan: cleanPlan, activeTravel: travel, currentLocationId: null };
+    if (plan.temporaryFlight) staged.temporaryFlight = plan.temporaryFlight;
     delete staged.currentRoutePosition;
     const first = await write(mid, staged);
     if (!first.ok) return fail(first.error);

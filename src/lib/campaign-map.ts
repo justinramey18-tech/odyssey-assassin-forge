@@ -955,8 +955,6 @@ export function foldTravelToPosition(state: CampaignMapState, nowMs: number, day
   delete next.activeTravel;
   placeAt(next, travelRoute(state, d.routeId), d, dayComplete);
   const plan = state.journeyPlan;
-  const flight = t?.pace === 'flying' || plan?.pace === 'flying' || (!!state.temporaryFlight && state.currentRoutePosition?.routeId === state.temporaryFlight.id);
-  const corridor = flight ? 'direct air route' : city ? 'street' : 'road';
   if (plan) {
     let idx = d.legIndex ?? plan.currentLegIndex;
     if (d.progress >= 1 - EPS) idx += 1;

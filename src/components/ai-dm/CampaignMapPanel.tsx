@@ -26,8 +26,8 @@ import {
 
 const TOUCH = { touchAction: 'manipulation' as const };
 const PACES: TravelPace[] = ['slow', 'normal', 'fast'];
-const PACE_LABEL_OVERLAND: Record<TravelPace, string> = { slow: 'Slow', normal: 'Normal', fast: 'Fast' };
-const PACE_LABEL_CITY: Record<TravelPace, string> = { slow: 'Careful', normal: 'Walk', fast: 'Hurry' };
+const PACE_LABEL_OVERLAND: Record<TravelPace, string> = { slow: 'Slow', normal: 'Normal', fast: 'Fast', horseback: 'Horseback', flying: 'Flying' };
+const PACE_LABEL_CITY: Record<TravelPace, string> = { slow: 'Careful', normal: 'Walk', fast: 'Hurry', horseback: 'Horseback', flying: 'Flying' };
 const paceLabels = (city: boolean) => (city ? PACE_LABEL_CITY : PACE_LABEL_OVERLAND);
 const newId = (p: string) => `${p}-${crypto.randomUUID().slice(0, 8)}`;
 
