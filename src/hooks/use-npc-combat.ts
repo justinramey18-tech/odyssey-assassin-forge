@@ -90,6 +90,15 @@ export function duelChargeOf(f: object | null | undefined): number {
   return duelChargeNow((f as { duel_charge?: unknown } | null | undefined)?.duel_charge);
 }
 
+/** D-24: an NPC fighting on the party's side (party_fight_combatants.ally). Enemies and players are false. */
+export function isAllyRow(f: object | null | undefined): boolean {
+  return (f as { kind?: unknown; ally?: unknown } | null | undefined)?.kind === 'npc' && (f as { ally?: unknown }).ally === true;
+}
+/** D-24: an NPC fighting against the party. */
+export function isEnemyRow(f: object | null | undefined): boolean {
+  return (f as { kind?: unknown } | null | undefined)?.kind === 'npc' && !isAllyRow(f);
+}
+
 export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChange, onCombatHPChange }: UseNpcCombatOptions) {
   const [fight, setFight] = useState<FightRow | null>(null);
   const [fighters, setFighters] = useState<FighterRow[]>([]);
