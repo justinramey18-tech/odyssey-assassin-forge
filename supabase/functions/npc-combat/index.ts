@@ -20,8 +20,12 @@
 // POST { action: "ack", eventIds }                                   these HP changes are on my sheet now
 // Host only:
 // POST { action: "pause" | "resume" | "end", fightId }
-// POST { action: "add_npc", fightId, npcId }
+// POST { action: "add_npc", fightId, npcId }                       an enemy joins; an NPC ally (D-24) joins on the party's side
 // POST { action: "revive", partyId, userId? , npcId? }
+//
+// D-24 NPC allies: an NPC the party recruited (party_npcs.ally_since) joins every new fight on the party's side
+// (party_fight_combatants.ally = true), acts on its own timer against the enemies, heals and shields the party,
+// can be hit and knocked out by enemies, and never dies. Players can heal allies but never attack them.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import * as R from './rules.ts';
@@ -66,6 +70,8 @@ interface Fighter {
   kind: 'npc' | 'player';
   npc_id: string | null;
   user_id: string | null;
+  /** D-24: true for an NPC fighting on the party's side. Enemies and players are false. */
+  ally: boolean;
   name: string;
   hp: number;
   max_hp: number;
@@ -126,12 +132,14 @@ interface NpcRow {
   player_user_id: string | null;
   combat_stats: unknown;
   combat_state: string | null;
+  /** D-24: set while the NPC travels with the party. */
+  ally_since: string | null;
 }
 
 const FIGHT_COLS = 'id, party_id, status, outcome, started_by, paused_at, pause_kind, paused_until, huddles_used';
 const FIGHTER_COLS =
-  'id, fight_id, party_id, kind, npc_id, user_id, name, hp, max_hp, ac, status, death_successes, death_failures, next_action_at, next_save_at, action_seq, threat, last_seen_at, last_action_at, act_every_ms, resolve, resolve_at, resolve_rate, perks, second_wind, last_stand_used, pending, strike_at, turn_no, signature_turn, ward, ward_until, pinned_until, cooldowns, minigame, duel_charge, combat_effects, temp_hp, temp_hp_source, temp_hp_until';
-const NPC_COLS = 'id, party_id, name, on_stage, archived, player_user_id, combat_stats, combat_state';
+  'id, fight_id, party_id, kind, npc_id, user_id, ally, name, hp, max_hp, ac, status, death_successes, death_failures, next_action_at, next_save_at, action_seq, threat, last_seen_at, last_action_at, act_every_ms, resolve, resolve_at, resolve_rate, perks, second_wind, last_stand_used, pending, strike_at, turn_no, signature_turn, ward, ward_until, pinned_until, cooldowns, minigame, duel_charge, combat_effects, temp_hp, temp_hp_source, temp_hp_until';
+const NPC_COLS = 'id, party_id, name, on_stage, archived, player_user_id, combat_stats, combat_state, ally_since';
 
 class Refusal extends Error {
   constructor(public status: number, message: string) {
@@ -150,6 +158,17 @@ const must = (what: string, error: { message?: string } | null) => {
 };
 const iso = (ms: number) => new Date(ms).toISOString();
 const due = (at: string | null, now: number) => !!at && Date.parse(at) <= now;
+// D-24: sides. An NPC fighter is an enemy unless it joined on the party's side (ally).
+const isEnemy = (f: Pick<Fighter, 'kind' | 'ally'>) => f.kind === 'npc' && !f.ally;
+const isAlly = (f: Pick<Fighter, 'kind' | 'ally'>) => f.kind === 'npc' && !!f.ally;
+/** The party's side: players and NPC allies. */
+const isFriend = (f: Pick<Fighter, 'kind' | 'ally'>) => f.kind === 'player' || isAlly(f);
+/** The key an enemy's threat map uses for whoever hurt it: a player's user id, or an ally's fighter id. */
+const threatKey = (f: Pick<Fighter, 'kind' | 'user_id' | 'id'>) => (f.kind === 'player' ? (f.user_id as string) : `ally:${f.id}`);
+/** A fighter on the party's side an enemy can hit right now: a present, standing player, or a standing ally. */
+const hittable = (f: Fighter, now: number) => (f.kind === 'player' ? isPresent(f, now) : isAlly(f) && f.status === 'up');
+/** A player whose phone is in the fight, up or down (an ally's heal can reach them). */
+const atTable = (f: Fighter, now: number) => !!f.last_seen_at && (now - Date.parse(f.last_seen_at)) / 1000 <= R.PRESENT_S;
 /** Speed: a check-in this early waits for the moment something is due, so NPC hits and death saves happen on time. */
 const EARLY_WINDOW_MS = 800;
 const ON_TIME_MARGIN_MS = 15;
@@ -442,8 +461,9 @@ async function ensurePlayer(db: Db, fight: Fight, seat: Seat, now: number): Prom
 async function rescaleNpcs(db: Db, fight: Fight, joinerName: string): Promise<void> {
   if (fight.status === 'ended') return;
   const fighters = await fightersOf(db, fight.id);
-  const players = fighters.filter(f => f.kind === 'player').length;
-  const npcs = fighters.filter(f => f.kind === 'npc' && f.status === 'up' && f.npc_id);
+  // D-24: an NPC ally counts as one more member of the party; allies themselves are never scaled.
+  const players = fighters.filter(f => f.kind === 'player' || (isAlly(f) && f.status === 'up')).length;
+  const npcs = fighters.filter(f => isEnemy(f) && f.status === 'up' && f.npc_id);
   if (npcs.length === 0) return;
   const { data, error } = await db.from('party_npcs').select('id, combat_stats').in('id', npcs.map(f => f.npc_id as string));
   must('read NPC stats for scaling', error);
@@ -475,14 +495,19 @@ async function ensureNpc(db: Db, fight: Fight, npc: NpcRow, now: number): Promis
   const { data, error } = await db.from('party_fight_combatants').select(FIGHTER_COLS)
     .eq('fight_id', fight.id).eq('npc_id', npc.id).limit(1);
   must('read NPC fighter', error);
-  if (data?.[0]) return { fighter: data[0] as Fighter, joined: false };
+  if (data?.[0]) {
+    // D-24: already in the fight. On the party's side, it can't be attacked.
+    if (isAlly(data[0] as Fighter)) refuse(409, `${npc.name} is on your side.`);
+    return { fighter: data[0] as Fighter, joined: false };
+  }
   if (npc.archived || !npc.on_stage) refuse(409, `${npc.name} is not on stage.`);
   if (npc.player_user_id) refuse(409, `${npc.name} is standing in for a player and can't be fought.`);
+  if (npc.ally_since) refuse(409, `${npc.name} travels with the party and can't be fought.`);
   if (npc.combat_state) refuse(409, `${npc.name} is already ${npc.combat_state === 'dead' ? 'dead' : 'knocked out'}.`);
   const stats = R.cleanCombatStats(npc.combat_stats) ??
     refuse(409, `${npc.name} has no combat stats yet. The host can add them on its Mind screen.`);
-  // v2: sized for the players already in the fight (at least 1: the attacker joins right after).
-  const playersIn = (await fightersOf(db, fight.id)).filter(f => f.kind === 'player').length;
+  // v2: sized for the players already in the fight (at least 1: the attacker joins right after). D-24: allies count too.
+  const playersIn = (await fightersOf(db, fight.id)).filter(f => f.kind === 'player' || (isAlly(f) && f.status === 'up')).length;
   const startHp = R.scaledMaxHp(stats.maxHp, playersIn, stats.designedFor);
   const row = {
     fight_id: fight.id,
@@ -501,6 +526,59 @@ async function ensureNpc(db: Db, fight: Fight, npc: NpcRow, now: number): Promis
   if (insertError?.code === '23505') return ensureNpc(db, fight, npc, now);
   must('add NPC to fight', insertError);
   return { fighter: inserted[0] as Fighter, joined: true };
+}
+
+/**
+ * D-24: puts an NPC ally in the fight on the party's side. 'in' when it already was; 'skipped' when it
+ * can't fight (off stage, knocked out, a stand-in, or no fight stats: then the table is told once).
+ */
+async function ensureAlly(db: Db, fight: Fight, npc: NpcRow, hostId: string, now: number): Promise<'joined' | 'in' | 'skipped'> {
+  if (npc.party_id !== fight.party_id) refuse(403, 'That NPC is not at this table.');
+  const { data, error } = await db.from('party_fight_combatants').select('id')
+    .eq('fight_id', fight.id).eq('npc_id', npc.id).limit(1);
+  must('read ally fighter', error);
+  if (data?.[0]) return 'in';
+  if (fight.status === 'ended' || npc.player_user_id || npc.archived || !npc.on_stage || npc.combat_state) return 'skipped';
+  const stats = R.cleanCombatStats(npc.combat_stats);
+  if (!stats) {
+    await postLine(db, fight.party_id, hostId, `${npc.name} has no fight stats and stays out of this fight.`);
+    return 'skipped';
+  }
+  // Allies fight at their own stats: they count as members, so the enemy scales up instead.
+  const row = {
+    fight_id: fight.id,
+    party_id: fight.party_id,
+    kind: 'npc',
+    npc_id: npc.id,
+    ally: true,
+    name: npc.name,
+    hp: stats.maxHp,
+    max_hp: stats.maxHp,
+    ac: stats.ac,
+    status: 'up',
+    next_action_at: R.nextActionAt(now, stats.speed),
+    act_every_ms: R.baseIntervalMs(stats.speed),
+  };
+  const { error: insertError } = await db.from('party_fight_combatants').insert(row);
+  if (insertError?.code === '23505') return 'in';
+  must('add ally to fight', insertError);
+  await addEvent(db, fight, { kind: 'join', actor_name: npc.name, detail: 'ally: fights beside the party' });
+  await postLine(db, fight.party_id, hostId, `🤝 ${npc.name} fights beside the party!`);
+  return 'joined';
+}
+
+/** D-24: every on-stage ally with fight stats joins a new fight. The enemy then scales up for them. */
+async function ensureAllies(db: Db, fight: Fight, hostId: string, now: number): Promise<number> {
+  const { data, error } = await db.from('party_npcs').select(NPC_COLS)
+    .eq('party_id', fight.party_id).eq('archived', false).eq('on_stage', true).not('ally_since', 'is', null)
+    .order('sort_order', { ascending: true });
+  must('read allies', error);
+  const joined: string[] = [];
+  for (const npc of (data || []) as NpcRow[]) {
+    if ((await ensureAlly(db, fight, npc, hostId, now)) === 'joined') joined.push(npc.name);
+  }
+  if (joined.length) await rescaleNpcs(db, fight, joined.join(' and '));
+  return joined.length;
 }
 
 // ── Player actions ────────────────────────────────────────────────────────────
@@ -552,14 +630,15 @@ async function hitNpc(
   const current = pre?.target && pre.target.id === targetId ? pre.target : await fighterById(db, targetId);
   const speed = pre?.speed ?? await speedOfNpc(db, current?.npc_id ?? null);
   const result = await mutate(db, targetId, f => {
-    if (f.kind !== 'npc' || f.status !== 'up') return null;
+    // D-24: only an enemy takes this damage; the party's allies are never a target.
+    if (!isEnemy(f) || f.status !== 'up') return null;
     // A Shield ward soaks up damage first.
     const wardLeft = f.ward_until && Date.parse(f.ward_until) > now ? Math.max(0, f.ward ?? 0) : 0;
     const absorbed = Math.min(wardLeft, damage);
     const { hp, tempHp } = R.absorbTemporaryHp(f.hp, temporaryHp(f, now), damage - absorbed);
     const lost = f.hp - hp;
     const threat = { ...(f.threat ?? {}) };
-    threat[me.user_id as string] = (threat[me.user_id as string] ?? 0) + lost;
+    threat[threatKey(me)] = (threat[threatKey(me)] ?? 0) + lost;
     const wardPatch = { ...(wardLeft > 0 ? { ward: wardLeft - absorbed } : {}), temp_hp: tempHp };
     if (hp === 0) return { hp, threat, status: finish === 'kill' ? 'dead' : 'ko', next_action_at: null, pending: null, strike_at: null, ...wardPatch };
     if (lost === 0) return { threat, ...wardPatch };
@@ -581,7 +660,8 @@ async function hitNpc(
   const defeated = after.status !== 'up';
   // Speed: the attacker's Resolve and the knockout's writes don't depend on each other, so they run side by side.
   const fillResolve = async () => {
-    if (before.hp <= after.hp) return;
+    // D-24: an NPC ally's hits fill no Resolve or Duel bar (those are the players').
+    if (me.kind !== 'player' || before.hp <= after.hp) return;
     // Landing a hit fills the attacker's Resolve, and (v7) their Duel bar by the share of the NPC's HP it took.
     const charge = pre?.noCharge ? 0 : DU.duelChargeGain(before.hp - after.hp, after.max_hp);
     const r = await mutate(db, me.id, f => (f.status === 'dead' ? null : {
@@ -624,6 +704,7 @@ async function npcTarget(db: Db, fight: Fight, targetId: unknown, early?: Promis
   const id = needUuid(targetId, 'target');
   const t = (early ? await early : null) ?? await fighterById(db, id);
   if (!t || t.id !== id || t.fight_id !== fight.id || t.kind !== 'npc') return refuse(404, 'That target is not an NPC in this fight.');
+  if (isAlly(t)) refuse(409, `${t.name} is on your side.`);
   if (t.status !== 'up') refuse(409, `${t.name} is already down.`);
   return t;
 }
@@ -709,21 +790,79 @@ async function npcHitsPlayer(
   if (a.hit) {
     const damage = Math.max(scale < 1 ? 0 : 1, Math.floor(R.rollDamage(dice, roll, a.crit) * scale));
     ({ lost, downed, stoodHp } = await damagePlayer(db, target, damage, now, true));
-    if (lost > 0) {
-      // Rage: the NPC speeds up. Its next turn is already scheduled; it moves closer with the new pace.
-      await mutate(db, npc.id, f => {
-        if (f.status !== 'up') return null;
-        const current = R.currentIntervalMs(f.act_every_ms, stats.speed);
-        const faster = R.rageIntervalMs(current, stats.speed, lost, target.max_hp);
-        const next = f.next_action_at ? Math.min(Date.parse(f.next_action_at), now + faster) : null;
-        return next === null ? { act_every_ms: faster } : { act_every_ms: faster, next_action_at: iso(next) };
-      });
-    }
+    if (lost > 0) await rageAfterHit(db, npc, stats, lost, target.max_hp, now);
   }
   await reportPlayerHit(db, fight, hostId, npc.name, target, { lost, downed, stoodHp }, {
     d20: a.d20, total: a.total, detail: a.hit ? `${lost} damage${a.crit ? ' (critical!)' : ''}` : 'miss',
   });
   return { hit: a.hit, crit: a.crit, lost, downed };
+}
+
+/** Rage: the NPC speeds up after hurting someone. Its next turn is already scheduled; it moves closer with the new pace. */
+async function rageAfterHit(db: Db, npc: Fighter, stats: R.NpcCombatStats, lost: number, targetMaxHp: number, now: number): Promise<void> {
+  await mutate(db, npc.id, f => {
+    if (f.status !== 'up') return null;
+    const current = R.currentIntervalMs(f.act_every_ms, stats.speed);
+    const faster = R.rageIntervalMs(current, stats.speed, lost, targetMaxHp);
+    const next = f.next_action_at ? Math.min(Date.parse(f.next_action_at), now + faster) : null;
+    return next === null ? { act_every_ms: faster } : { act_every_ms: faster, next_action_at: iso(next) };
+  });
+}
+
+/**
+ * D-24: one enemy attack roll against an NPC ally. Wards and temporary HP soak first; at 0 HP the ally is
+ * knocked out of the fight (never killed) and gets back up when the fight ends.
+ */
+async function npcHitsAlly(
+  db: Db, fight: Fight, hostId: string, npc: Fighter, target: Fighter, bonus: number, dice: R.Dice,
+  stats: R.NpcCombatStats, now: number, scale = 1,
+): Promise<{ hit: boolean; crit: boolean; lost: number; downed: boolean }> {
+  const a = R.resolveAttack(roll, bonus + await takeAttackBonus(db, npc, now), effectiveAc(target, now));
+  let lost = 0;
+  let downed = false;
+  if (a.hit) {
+    const damage = Math.max(scale < 1 ? 0 : 1, Math.floor(R.rollDamage(dice, roll, a.crit) * scale));
+    ({ lost, downed } = await damageAlly(db, target, damage, now));
+    if (lost > 0) await rageAfterHit(db, npc, stats, lost, target.max_hp, now);
+  }
+  await addEvent(db, fight, {
+    kind: 'attack', actor_name: npc.name, target_name: target.name, hp_delta: -lost, d20: a.d20, total: a.total,
+    detail: a.hit ? `${lost} damage${a.crit ? ' (critical!)' : ''}` : 'miss',
+  });
+  if (downed) await allyFalls(db, fight, hostId, npc.name, target);
+  else if (lost > 0 && target.npc_id) {
+    speak(db, { partyId: fight.party_id, hostId, npcId: target.npc_id, turn: { move: 'hit', attacker: withLook(npc), crit: a.crit, damage: lost }, fallback: null });
+  }
+  return { hit: a.hit, crit: a.crit, lost, downed };
+}
+
+/** Damage on an NPC ally: ward, then temporary HP, then HP. At 0 it is knocked out ('ko'). */
+async function damageAlly(db: Db, target: Fighter, damage: number, now: number): Promise<{ lost: number; downed: boolean }> {
+  const result = await mutate(db, target.id, f => {
+    if (!isAlly(f) || f.status !== 'up') return null;
+    const wardLeft = f.ward_until && Date.parse(f.ward_until) > now ? Math.max(0, f.ward ?? 0) : 0;
+    const absorbed = Math.min(wardLeft, damage);
+    const { hp, tempHp } = R.absorbTemporaryHp(f.hp, temporaryHp(f, now), damage - absorbed);
+    const wardPatch = { ...(wardLeft > 0 ? { ward: wardLeft - absorbed } : {}), temp_hp: tempHp };
+    if (hp === 0) return { hp, status: 'ko', next_action_at: null, pending: null, strike_at: null, ...wardPatch };
+    return { hp, ...wardPatch };
+  }, target);
+  if (!result) return { lost: 0, downed: false };
+  Object.assign(target, result.after);
+  return { lost: result.before.hp - result.after.hp, downed: result.after.status === 'ko' };
+}
+
+/** An NPC ally goes down: out of this fight, quiet until it ends, with its last words as it falls. */
+async function allyFalls(db: Db, fight: Fight, hostId: string, byName: string, ally: Fighter): Promise<void> {
+  if (ally.npc_id) {
+    const { error } = await db.from('party_npcs').update({ combat_state: 'ko' }).eq('id', ally.npc_id);
+    must('mark ally knocked out', error);
+  }
+  await addEvent(db, fight, { kind: 'defeat_npc', actor_name: byName, target_name: ally.name, detail: 'knocked out (ally)' });
+  await postLine(db, fight.party_id, hostId, `${byName} knocks ${ally.name} out!`);
+  if (ally.npc_id) {
+    speak(db, { partyId: fight.party_id, hostId, npcId: ally.npc_id, turn: { move: 'fall', attacker: byName, killed: false }, fallback: null });
+  }
 }
 
 /**
@@ -941,13 +1080,18 @@ async function resolveSkill(
   const byId = new Map(fresh.map(f => [f.id, f]));
   const players = fresh.filter(f => f.kind === 'player');
   const present = players.filter(f => isPresent(f, now));
+  // D-24: the party's standing allies can be hit too.
+  const alliesUp = fresh.filter(f => isAlly(f) && f.status === 'up');
   const line = (text: string) => postLine(db, fight.party_id, hostId, text);
 
   if (S.OFFENSE.includes(sk.type)) {
-    let targets = p.targets.map(id => byId.get(id)).filter((f): f is Fighter => !!f && isPresent(f, now));
+    let targets = p.targets.map(id => byId.get(id)).filter((f): f is Fighter => !!f && hittable(f, now));
     if (targets.length === 0) {
       // The target went down or left during the wind-up: the NPC turns on someone else.
-      const id = R.pickTarget(present.map(f => ({ id: f.id, status: f.status, threat: npc.threat?.[f.user_id as string] ?? 0, idleSeconds: 0 })), roll);
+      const id = R.pickTarget([
+        ...present.map(f => ({ id: f.id, status: f.status, threat: npc.threat?.[threatKey(f)] ?? 0, idleSeconds: 0 })),
+        ...alliesUp.map(f => ({ id: f.id, status: f.status, threat: npc.threat?.[threatKey(f)] ?? 0, idleSeconds: 0 })),
+      ], roll);
       const other = id ? byId.get(id) : undefined;
       targets = other ? [other] : [];
     }
@@ -960,6 +1104,14 @@ async function resolveSkill(
     // Counter Clash (heavy, signature, sweep): each target's own taps on the chain decide how much lands.
     const chain = M.cleanClash(p.clash);
     for (const t of targets.slice(0, S.SWEEP_MAX)) {
+      if (t.kind === 'npc') {
+        // D-24: an NPC ally takes the hit plainly (no Counter Clash: that is the players' game).
+        const r = await npcHitsAlly(db, fight, hostId, npc, t, sk.bonus, sk.dice, stats, now);
+        parts.push(r.hit
+          ? `${t.name} ${r.lost} damage${r.crit ? ' (critical!)' : ''}${r.downed ? ', and goes down' : ''}`
+          : `${t.name} dodges`);
+        continue;
+      }
       // A pinned player can't clash: they take the normal hit.
       const c = chain && !isPinned(t, now) ? await settleClash(db, t, chain) : null;
       if (chain && c?.perfect) {
@@ -982,7 +1134,7 @@ async function resolveSkill(
 
   if (sk.type === 'mend') {
     const t = byId.get(p.targets[0]);
-    const target = t && t.kind === 'npc' && t.status === 'up' ? t : byId.get(npc.id);
+    const target = t && isEnemy(t) && t.status === 'up' ? t : byId.get(npc.id);
     if (!target || target.status !== 'up') return;
     const r = await mutate(db, target.id, f => (f.status !== 'up' ? null : { hp: R.applyHealing(f.hp, f.max_hp, sk.power).hp }));
     const gained = r ? r.after.hp - r.before.hp : 0;
@@ -993,7 +1145,7 @@ async function resolveSkill(
 
   if (sk.type === 'shield') {
     const t = byId.get(p.targets[0]);
-    const target = t && t.kind === 'npc' && t.status === 'up' ? t : byId.get(npc.id);
+    const target = t && isEnemy(t) && t.status === 'up' ? t : byId.get(npc.id);
     if (!target || target.status !== 'up') return;
     await mutate(db, target.id, f => (f.status !== 'up' ? null : { ward: sk.power, ward_until: iso(now + S.WARD_MS) }));
     await addEvent(db, fight, { kind: 'shield', actor_name: npc.name, target_name: target.name, detail: `${sk.name}: absorbs ${sk.power}` });
@@ -1002,7 +1154,7 @@ async function resolveSkill(
   }
 
   if (sk.type === 'rally') {
-    const allies = fresh.filter(f => f.kind === 'npc' && f.status === 'up' && f.id !== npc.id && !f.pending && f.next_action_at);
+    const allies = fresh.filter(f => isEnemy(f) && f.status === 'up' && f.id !== npc.id && !f.pending && f.next_action_at);
     for (const a of allies) {
       await mutate(db, a.id, f => {
         if (f.status !== 'up' || f.pending || !f.next_action_at) return null;
@@ -1052,6 +1204,117 @@ async function resolveSkill(
     }
     await addEvent(db, fight, { kind: 'retreat', actor_name: npc.name, detail: sk.name });
     await line(`${npc.name} flees the fight!`);
+  }
+}
+
+// ── D-24: NPC allies' turns ──────────────────────────────────────────────────
+
+/** An NPC ally's turn: finish an announced skill, or pick one and announce it. Same clock and wind-ups as enemies. */
+async function allyTurn(
+  db: Db, fight: Fight, hostId: string, ally: Fighter, skills: S.Skill[], stats: R.NpcCombatStats, fighters: Fighter[], now: number,
+): Promise<void> {
+  if (ally.pending) {
+    if (due(ally.strike_at, now)) await resolveAllySkill(db, fight, hostId, ally, skills, stats, now);
+    return;
+  }
+  if (!due(ally.next_action_at, now)) return;
+  const interval = R.currentIntervalMs(ally.act_every_ms, stats.speed);
+  const cd = S.cleanCooldowns(ally.cooldowns);
+  // Allies never retreat. (Their healing, wards, rallies and pins come with the next prompt.)
+  const ready = S.readySkills(skills, cd, now, stats).filter(k => S.OFFENSE.includes(k.type));
+  const turnNo = (ally.turn_no ?? 0) + 1;
+  const choice = S.chooseAllySkill({
+    skills: ready,
+    selfId: ally.id,
+    turnNo,
+    signatureTurn: ally.signature_turn ?? -99,
+    friends: fighters.filter(f => isFriend(f)).map(f => ({
+      id: f.id, hp: f.hp, maxHp: f.max_hp, status: f.status, player: f.kind === 'player',
+      ward: f.kind === 'player' ? temporaryHp(f, now) : (f.ward_until && Date.parse(f.ward_until) > now ? (f.ward ?? 0) : 0),
+      present: f.kind === 'player' ? atTable(f, now) : f.status === 'up',
+    })),
+    enemies: fighters.filter(f => isEnemy(f)).map(f => ({ id: f.id, hp: f.hp, maxHp: f.max_hp, status: f.status })),
+  }, roll);
+  if (choice.kind === 'idle') {
+    await claim(db, ally, { next_action_at: iso(now + interval) });
+    return;
+  }
+  if (choice.kind === 'beat') {
+    if (await claim(db, ally, { next_action_at: iso(now + interval), turn_no: turnNo })) {
+      speak(db, { partyId: fight.party_id, hostId, npcId: ally.npc_id as string, turn: { move: 'beat' }, fallback: null });
+    }
+    return;
+  }
+  const sk = choice.skill;
+  const claimed = await claim(db, ally, {
+    pending: { skill: sk.name, type: sk.type, targets: choice.targetIds, windup_ms: sk.windupMs },
+    strike_at: iso(now + sk.windupMs),
+    next_action_at: null,
+    cooldowns: S.afterUse(cd, sk, now, choice.targetIds),
+    turn_no: turnNo,
+    ...(sk.type === 'signature' ? { signature_turn: turnNo } : {}),
+  });
+  if (!claimed) return;
+  const names = choice.targetIds.filter(id => id !== ally.id).map(id => fighters.find(f => f.id === id)?.name).filter((n): n is string => !!n);
+  await addEvent(db, fight, {
+    kind: 'intent', actor_name: ally.name, target_name: names.join(', '),
+    detail: `${sk.name} (${S.SKILL_LABEL[sk.type]}) in ${Math.round(sk.windupMs / 1000)}s`,
+  });
+  speak(db, {
+    partyId: fight.party_id, hostId, npcId: ally.npc_id as string,
+    turn: {
+      move: 'intent', skill: sk.name, skillType: sk.type,
+      targets: choice.targetIds.filter(id => id !== ally.id)
+        .map(id => fighters.find(x => x.id === id))
+        .filter((x): x is Fighter => !!x)
+        .map(x => (isFriend(x) ? withLook(x) : x.name)),
+    },
+    fallback: `${ally.name} readies ${sk.name}${names.length ? ` ${S.OFFENSE.includes(sk.type) ? 'against' : 'for'} ${names.join(' and ')}` : ''}!`,
+  });
+}
+
+/** An ally's announced skill happens: one claim so only one phone's ping runs it, then its effect and a ⚔ line. */
+async function resolveAllySkill(
+  db: Db, fight: Fight, hostId: string, ally: Fighter, skills: S.Skill[], stats: R.NpcCombatStats, now: number,
+): Promise<void> {
+  const p = ally.pending;
+  if (!p) return;
+  const interval = R.currentIntervalMs(ally.act_every_ms, stats.speed);
+  if (!(await claim(db, ally, { pending: null, strike_at: null, next_action_at: iso(now + interval) }))) return;
+  const sk = skills.find(k => k.name === p.skill && k.type === p.type) ?? skills.find(k => k.type === p.type)
+    ?? (p.type === 'strike' ? S.basicStrike(stats) : skills[0]);
+  const fresh = await fightersOf(db, fight.id);
+  const byId = new Map(fresh.map(f => [f.id, f]));
+  const line = (text: string) => postLine(db, fight.party_id, hostId, text);
+
+  if (S.OFFENSE.includes(sk.type)) {
+    let targets = p.targets.map(id => byId.get(id)).filter((f): f is Fighter => !!f && isEnemy(f) && f.status === 'up');
+    if (targets.length === 0) {
+      // The enemy went down during the wind-up: the ally turns on another one.
+      const up = fresh.filter(f => isEnemy(f) && f.status === 'up');
+      if (up.length) targets = [up[roll(up.length) - 1]];
+    }
+    if (targets.length === 0) {
+      await line(`${ally.name}'s ${sk.name} finds no one to hit.`);
+      return;
+    }
+    const parts: string[] = [];
+    for (const t of targets.slice(0, S.SWEEP_MAX)) {
+      const a = R.resolveAttack(roll, sk.bonus, effectiveAc(t, now));
+      let out = { lost: 0, hp: t.hp, defeated: false };
+      if (a.hit) {
+        out = await hitNpc(db, fight, hostId, ally, t.id, R.rollDamage(sk.dice, roll, a.crit), 'knockout', a.crit, now, { target: t, speed: await speedOfNpc(db, t.npc_id) });
+      }
+      await addEvent(db, fight, {
+        kind: 'attack', actor_name: ally.name, target_name: t.name, hp_delta: -out.lost, d20: a.d20, total: a.total,
+        detail: a.hit ? `${sk.name}: ${out.lost} damage${a.crit ? ' (critical!)' : ''}` : `${sk.name}: miss`,
+      });
+      parts.push(a.hit
+        ? `${t.name} ${out.lost} damage${a.crit ? ' (critical!)' : ''}${out.defeated ? ', and goes down' : ''}`
+        : `${t.name} dodges`);
+    }
+    await line(`${ally.name}'s ${sk.name}: ${parts.join('; ')}.`);
+    return;
   }
 }
 
@@ -1117,6 +1380,12 @@ async function tick(db: Db, fightId: string, hostId: string, now: number, known?
       const skills = S.skillsOf(rawById.get(npc.npc_id as string), stats);
       const interval = R.currentIntervalMs(npc.act_every_ms, stats.speed);
 
+      // D-24: an NPC ally takes its turn on the party's side.
+      if (npc.ally) {
+        await allyTurn(db, fight, hostId, npc, skills, stats, fighters, now);
+        continue;
+      }
+
       // 1. An announced skill whose wind-up is over happens now.
       if (npc.pending) {
         if (due(npc.strike_at, now)) await resolveSkill(db, fight, hostId, npc, skills, stats, fighters, now);
@@ -1136,11 +1405,15 @@ async function tick(db: Db, fightId: string, hostId: string, now: number, known?
         signatureTurn: npc.signature_turn ?? -99,
         lastPinned: cd.lastPinned ?? null,
         canRetreat: ready.some(k => k.type === 'retreat') ? await canRetreat(db, npc.npc_id as string) : false,
-        npcs: fighters.filter(f => f.kind === 'npc').map(f => ({
+        npcs: fighters.filter(f => isEnemy(f)).map(f => ({
           id: f.id, hp: f.hp, maxHp: f.max_hp, status: f.status,
           ward: f.ward_until && Date.parse(f.ward_until) > now ? (f.ward ?? 0) : 0,
         })),
-        players: players.map(p => ({ id: p.id, status: p.status, present: isPresent(p, now), threat: npc.threat?.[p.user_id as string] ?? 0 })),
+        // D-24: the party's allies are targets too, but never pinned.
+        players: [
+          ...players.map(p => ({ id: p.id, status: p.status, present: isPresent(p, now), threat: npc.threat?.[threatKey(p)] ?? 0 })),
+          ...fighters.filter(f => isAlly(f)).map(a => ({ id: a.id, status: a.status, present: a.status === 'up', threat: npc.threat?.[threatKey(a)] ?? 0, pinnable: false })),
+        ],
       }, roll);
       if (choice.kind === 'idle') {
         await claim(db, npc, { next_action_at: iso(now + interval) });
@@ -1182,7 +1455,7 @@ async function tick(db: Db, fightId: string, hostId: string, now: number, known?
           targets: choice.targetIds.filter(id => id !== npc.id)
             .map(id => fighters.find(x => x.id === id))
             .filter((x): x is Fighter => !!x)
-            .map(x => (x.kind === 'player' ? withLook(x) : x.name)),
+            .map(x => (isFriend(x) ? withLook(x) : x.name)),
         },
         fallback: `${npc.name} readies ${sk.name}${names.length ? ` against ${names.join(' and ')}` : ''}!`,
       });
@@ -1282,12 +1555,15 @@ async function checkEnd(db: Db, fightId: string, hostId: string, now: number): P
   const fight = await getFight(db, fightId);
   if (fight.status !== 'active') return;
   const all = await fightersOf(db, fight.id);
-  const npcs = all.filter(f => f.kind === 'npc');
+  // D-24: victory is every ENEMY beaten; the party's allies don't count against it.
+  const npcs = all.filter(f => isEnemy(f));
   const pcs = all.filter(f => f.kind === 'player');
   if (npcs.length > 0 && npcs.every(f => f.status === 'ko' || f.status === 'dead' || f.status === 'fled')) {
     await endFight(db, fight, hostId, 'victory', now);
   } else if (pcs.length > 0 && pcs.every(f => f.status !== 'up')) {
-    await endFight(db, fight, hostId, 'defeat', now);
+    // D-24: an ally still standing drags the fallen clear. The party lost, but nobody dies.
+    const rescuer = all.find(f => isAlly(f) && f.status === 'up');
+    await endFight(db, fight, hostId, 'defeat', now, rescuer?.name ?? null);
   }
 }
 
@@ -1298,7 +1574,7 @@ function withLook(f: Pick<Fighter, 'name' | 'hp' | 'max_hp'>): string {
   return `${f.name} (${look})`;
 }
 
-async function endFight(db: Db, fight: Fight, hostId: string, outcome: 'victory' | 'defeat' | 'host_ended', now: number) {
+async function endFight(db: Db, fight: Fight, hostId: string, outcome: 'victory' | 'defeat' | 'host_ended', now: number, rescuer: string | null = null) {
   const { data, error } = await db.from('party_fights')
     .update({ status: 'ended', outcome, ended_at: iso(now) })
     .eq('id', fight.id).neq('status', 'ended').select('id');
@@ -1307,21 +1583,29 @@ async function endFight(db: Db, fight: Fight, hostId: string, outcome: 'victory'
   fight.status = 'ended';
   fight.outcome = outcome;
   await expireEffects(db, fight, now);
-  if (outcome !== 'defeat') {
-    // Nobody dies after the fight is won or called off: downed players are stable.
+  if (outcome !== 'defeat' || rescuer) {
+    // Nobody dies after the fight is won or called off (or an ally drags the fallen clear): downed players are stable.
     const { error: stableError } = await db.from('party_fight_combatants')
       .update({ status: 'stable', next_save_at: null })
       .eq('fight_id', fight.id).eq('status', 'down');
     must('stabilize after fight', stableError);
   }
   const fighters = await fightersOf(db, fight.id);
+  // D-24: knocked-out allies get back up now (they never die).
+  const koAllies = fighters.filter(f => isAlly(f) && f.status === 'ko' && f.npc_id);
+  if (koAllies.length) {
+    const { error: upError } = await db.from('party_npcs').update({ combat_state: null }).in('id', koAllies.map(f => f.npc_id as string)).eq('combat_state', 'ko');
+    must('allies back up', upError);
+  }
   const names = (s: string) => fighters.filter(f => f.kind === 'player' && f.status === s).map(f => f.name);
   const label = outcome === 'victory' ? 'the party wins' : outcome === 'defeat' ? 'the party is defeated' : 'the host ended the fight';
   const parts = [`Combat over: ${label}.`];
+  if (rescuer) parts.push(`${rescuer} drags the fallen clear.`);
   const fallen = names('dead');
   const downed = [...names('down'), ...names('stable')];
   if (fallen.length) parts.push(`Fallen: ${fallen.join(', ')}.`);
   if (downed.length) parts.push(`Down: ${downed.join(', ')}.`);
+  if (koAllies.length) parts.push(`Back on their feet: ${koAllies.map(f => f.name).join(', ')}.`);
   await addEvent(db, fight, { kind: 'end', detail: parts.join(' ') });
   await postLine(db, fight.party_id, hostId, parts.join(' '));
 }
@@ -1359,6 +1643,8 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     if (created) {
       await addEvent(db, fight, { kind: 'start', actor_name: seat.character_name, target_name: npc.name });
       await postLine(db, partyId, hostId, `${seat.character_name} attacks ${npc.name}! Combat begins.`);
+      // D-24: the party's allies join on its side.
+      await ensureAllies(db, fight, hostId, now);
     } else if (joined) {
       await postLine(db, partyId, hostId, `${seat.character_name} attacks ${npc.name}, who joins the fight!`);
     }
@@ -1485,6 +1771,13 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
   if (action === 'add_npc') {
     if (fight.status === 'ended') refuse(409, 'This fight is over.');
     const npc = await getNpc(db, needUuid(body.npcId, 'NPC'));
+    if (npc.ally_since) {
+      // D-24: an ally joins on the party's side (and the enemy scales up for one more member).
+      const r = await ensureAlly(db, fight, npc, hostId, now);
+      if (r === 'skipped') refuse(409, `${npc.name} can't fight right now (off stage, knocked out, or no fight stats).`);
+      if (r === 'joined') await rescaleNpcs(db, fight, npc.name);
+      return { ok: true, ally: true };
+    }
     const { joined } = await ensureNpc(db, fight, npc, now);
     if (joined) await postLine(db, fight.party_id, hostId, `${npc.name} joins the fight!`);
     return { ok: true };
@@ -1523,7 +1816,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     if (isPinned(me, now)) refuse(409, "You're pinned and can't clash.");
     if (duelOf(me)) refuse(409, "You're in a duel.");
     const npc = await fighterById(db, needUuid(body.npcId, 'NPC'));
-    const chain = npc && npc.fight_id === fight.id && npc.kind === 'npc' && npc.status === 'up' && npc.strike_at && npc.pending
+    const chain = npc && npc.fight_id === fight.id && isEnemy(npc) && npc.status === 'up' && npc.strike_at && npc.pending
       ? M.cleanClash(npc.pending.clash) : null;
     if (!npc || !chain || !npc.strike_at) return refuse(409, 'Nothing to clash.');
     if (!npc.pending?.targets.includes(me.id)) refuse(409, "That move isn't aimed at you.");
