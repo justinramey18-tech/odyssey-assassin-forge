@@ -408,10 +408,42 @@ export function parseNpcRoll(text: string): { body: string; roll: NpcRollRequest
   }
 }
 
-/** After the host edits an NPC line's words, put its roll request (if any) back on the end. */
+/** After the host edits an NPC line's words, put its roll request or join offer (if any) back on the end. */
 export function keepNpcRoll(newText: string, originalText: string): string {
-  const m = ROLL_MARKER_RE.exec(originalText || '');
+  const m = ROLL_MARKER_RE.exec(originalText || '') ?? JOIN_MARKER_RE.exec(originalText || '');
   return m ? `${newText}\n${m[0].replace(/^\n/, '')}` : newText;
+}
+
+// ── D-24: offers to join the party ──
+
+/** An NPC's offer to travel with the party. The server writes it at the end of the NPC's line. */
+export interface NpcJoinOffer {
+  /** The player who may accept. */
+  to: string;
+  /** Their character's name. */
+  name: string;
+}
+
+const JOIN_MARKER_RE = /\n?⟪JOIN⟫([\s\S]*?)⟪\/JOIN⟫/;
+
+/** An NPC line's words without the join marker, and the offer it makes (or null). */
+export function parseNpcJoin(text: string): { body: string; join: NpcJoinOffer | null } {
+  const raw = text || '';
+  const m = JOIN_MARKER_RE.exec(raw);
+  if (!m) return { body: raw, join: null };
+  const body = raw.replace(JOIN_MARKER_RE, '').trimEnd();
+  try {
+    const r = JSON.parse(m[1]);
+    if (typeof r?.to !== 'string' || typeof r?.name !== 'string') return { body, join: null };
+    return { body, join: { to: r.to, name: r.name } };
+  } catch {
+    return { body, join: null };
+  }
+}
+
+/** The pill text under an NPC line that offers to join: "Add Wulfgar to the party". */
+export function joinButtonLabel(npcName: string): string {
+  return `Add ${npcName.trim() || 'them'} to the party`;
 }
 
 /** "Insight check", "Wisdom saving throw". */
@@ -424,11 +456,13 @@ export function rollButtonLabel(r: NpcRollRequest): string {
   return `${r.check}${r.save ? ' save' : ''} · DC ${r.dc}`;
 }
 
-/** An NPC line as the DM reads it: the roll marker becomes plain words. */
+/** An NPC line as the DM reads it: the roll marker or join offer becomes plain words. */
 export function npcLineForDm(text: string): string {
-  const { body, roll } = parseNpcRoll(text);
+  const { body: afterRoll, roll } = parseNpcRoll(text);
+  const { body, join } = parseNpcJoin(afterRoll);
   const words = body.trim();
-  return roll ? `${words} (asks ${roll.name} for a DC ${roll.dc} ${rollCheckName(roll)})`.trim() : words;
+  if (roll) return `${words} (asks ${roll.name} for a DC ${roll.dc} ${rollCheckName(roll)})`.trim();
+  return join ? `${words} (offers to join the party with ${join.name})`.trim() : words;
 }
 
 const ABILITY_KEYS = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const;
