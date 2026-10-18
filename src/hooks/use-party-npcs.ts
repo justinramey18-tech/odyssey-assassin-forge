@@ -55,6 +55,10 @@ export interface PartyNpc {
   combat_state?: 'ko' | 'dead' | null;
   /** Persistent social opposition modifiers (always sanitized on the phone). */
   social_stats: NpcSocialStats;
+  /** D-24: set while this NPC travels and fights with the party. */
+  ally_since?: string | null;
+  /** D-24: the player who accepted the offer, or the host who added it. */
+  ally_of?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -226,6 +230,8 @@ export function usePartyNpcs(partyId: string | null) {
 
   const active = useMemo(() => npcs.filter(n => !n.archived), [npcs]);
   const onStage = useMemo(() => npcs.filter(n => n.on_stage && !n.archived), [npcs]);
+  /** D-24: the NPCs travelling with the party. */
+  const allies = useMemo(() => npcs.filter(n => !!n.ally_since && !n.archived), [npcs]);
   const byId = useMemo(() => new Map(npcs.map(n => [n.id, n])), [npcs]);
   const thinking = useMemo(() => {
     const keys = new Set(localThinking.map(t => t.key));
@@ -684,6 +690,44 @@ export function usePartyNpcs(partyId: string | null) {
     }
   }, [startThinking, stopThinking]);
 
+  // ── D-24: NPC allies ──
+
+  /** A player accepts an NPC's offer to join (the pill under its line). Resolves true when it joined. */
+  const joinParty = useCallback(async (npcLineId: string, npcId: string | null): Promise<boolean> => {
+    const name = (npcId && npcsRef.current.find(n => n.id === npcId)?.name) || 'The NPC';
+    const { data, error } = await supabase.functions.invoke('npc-reply', { body: { action: 'join', messageId: npcLineId } });
+    if (!error) {
+      requestRoundChatRefresh(partyIdRef.current);
+      toast.success(data?.already ? `${name} is already in the party.` : `${name} joins the party!`);
+      return true;
+    }
+    const { message } = await readableFunctionError(error, `${name} couldn't join right now. Try again.`);
+    toast.error(message, { duration: 10000 });
+    return false;
+  }, []);
+
+  /** Host: put an NPC in the party. Throws a plain-language Error when it can't. */
+  const addToParty = useCallback(async (npcId: string): Promise<void> => {
+    const name = npcsRef.current.find(n => n.id === npcId)?.name || 'The NPC';
+    const { error } = await supabase.functions.invoke('npc-reply', { body: { action: 'add', npcId } });
+    if (error) {
+      const { message } = await readableFunctionError(error, `${name} couldn't join the party right now.`);
+      throw new Error(message);
+    }
+    requestRoundChatRefresh(partyIdRef.current);
+  }, []);
+
+  /** Host: take an NPC out of the party. Nothing is deleted. Throws a plain-language Error when it can't. */
+  const partWays = useCallback(async (npcId: string): Promise<void> => {
+    const name = npcsRef.current.find(n => n.id === npcId)?.name || 'The NPC';
+    const { error } = await supabase.functions.invoke('npc-reply', { body: { action: 'part', npcId } });
+    if (error) {
+      const { message } = await readableFunctionError(error, `${name} couldn't leave the party right now.`);
+      throw new Error(message);
+    }
+    requestRoundChatRefresh(partyIdRef.current);
+  }, []);
+
   // ── v2: spells, scenes, memory ──
 
   /**
@@ -802,6 +846,11 @@ export function usePartyNpcs(partyId: string | null) {
     runScene,
     sceneRunning,
     rememberScene,
+    // D-24
+    allies,
+    joinParty,
+    addToParty,
+    partWays,
   };
 }
 
