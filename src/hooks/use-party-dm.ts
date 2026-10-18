@@ -1742,6 +1742,24 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     })();
 
     const canonGuardrailsContext = buildCanonGuardrailContext(sanitizedMessages, extraGuides, currentOocDirectives);
+    // D-24: the NPCs travelling with the party. Read fresh for each post; a failure never blocks the DM.
+    const alliesContext = await (async () => {
+      try {
+        if (!partyId) return '';
+        const { data } = await (supabase.from('party_npcs') as any)
+          .select('name').eq('party_id', partyId).eq('archived', false).not('ally_since', 'is', null)
+          .order('sort_order', { ascending: true }).limit(6);
+        const names = ((data || []) as Array<{ name: string }>).map(r => (r.name || '').trim()).filter(Boolean);
+        if (names.length === 0) return '';
+        return [
+          '### ALLIED NPCs TRAVELLING WITH THE PARTY',
+          ...names.map(n => `- ${n}: an NPC ally who travels and fights beside the party (voiced by the app at the Live Table; its spoken lines reach you as NPC lines).`),
+          'Keep them present in scenes and consistent with their lines. Give them actions and reactions, but keep their spoken words to what the Live Table already gave you, the same as any other NPC line. Never kill them, write them out, or turn them against the party on your own: only the host decides that.',
+        ].join('\n');
+      } catch {
+        return '';
+      }
+    })();
     const voiceTagDirective = [
       'SPEAKER TAGS FOR NARRATION (formatting only):',
       'Wrap every line of spoken dialogue in [VOICE:Name] ... [/VOICE], where Name is the exact speaker (an NPC, a player character, or the narrator persona speaking aloud).',
@@ -1753,7 +1771,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     else { try { mapFacts = campaignMapContextRef.current?.() || ''; } catch { mapFacts = ''; } }
     // Map facts lead the party context so later trimming of party context can't drop them.
     const partyContextWithMap = [mapFacts, partyContext].filter(Boolean).join('\n\n') || undefined;
-    const enhancedPartyContext = [canonGuardrailsContext, voiceTagDirective, partyContextWithMap, directorPrivatesContext].filter(Boolean).join('\n\n') || undefined;
+    const enhancedPartyContext = [canonGuardrailsContext, alliesContext, voiceTagDirective, partyContextWithMap, directorPrivatesContext].filter(Boolean).join('\n\n') || undefined;
 
     const narrationStyleBlock = buildNarrationStyleBlock(await fetchPartyNarrationStyle(partyId));
 
