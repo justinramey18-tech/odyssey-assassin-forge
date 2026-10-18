@@ -158,6 +158,8 @@ export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBatt
   const active = roster.active;
   const archived = roster.npcs.filter(n => n.archived);
   const onStageNames = roster.onStage.map(n => n.name);
+  // D-24: the NPCs travelling with the party.
+  const allyNames = roster.npcs.filter(n => !!n.ally_since && !n.archived).map(n => n.name);
   const nameProblem = draft ? npcNameProblem(draft.name, roster.npcs, draft.id) : null;
   const modelInfo = draft ? choices.find(c => c.id === draft.model) : undefined;
   const mindNpc = mindId ? roster.npcs.find(n => n.id === mindId) ?? null : null;
@@ -310,6 +312,9 @@ export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBatt
           <p className="mt-1.5 text-[12px] text-white/70">
             {onStageNames.length ? <>On stage now: <span className="text-amber-200">{onStageNames.join(', ')}</span></> : 'Nobody is on stage.'}
           </p>
+          {allyNames.length > 0 && (
+            <p className="mt-0.5 text-[12px] text-muted-foreground">🤝 In the party: <span className="text-primary">{allyNames.join(', ')}</span></p>
+          )}
           {!draft && !mindNpc && (
             <div role="tablist" aria-label="NPC Roster view" className="mt-2 grid grid-cols-3 rounded-lg border border-white/10 bg-white/5 p-0.5">
               {(['roster', 'scores', 'build'] as const).map(v => (
@@ -619,7 +624,7 @@ export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBatt
                       <NpcPortrait url={npc.portrait_url} name={npc.name} className="w-12 h-12 text-lg" />
                       <div className="min-w-0 flex-1">
                         <p className="text-[14px] font-semibold text-white truncate">{npc.name}</p>
-                        <p className="text-[11px] text-white/45 truncate">{npc.player_user_id ? 'Player stand-in · ' : ''}{npcModelLabel(npc.model)}</p>
+                        <p className="text-[11px] text-white/45 truncate">{npc.player_user_id ? 'Player stand-in · ' : ''}{npc.ally_since ? <span className="text-primary">🤝 In the party · </span> : null}{npcModelLabel(npc.model)}</p>
                         <div className="mt-1 flex items-center gap-1">
                           <button
                             onClick={() => startEdit(npc)}
