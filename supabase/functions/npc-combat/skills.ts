@@ -198,8 +198,8 @@ export interface ChoiceContext {
   canRetreat: boolean;
   /** NPC fighters in the fight, this one included. */
   npcs: Array<{ id: string; hp: number; maxHp: number; status: string; ward: number }>;
-  /** Player fighters; `present` = their phone is in the fight. */
-  players: Array<{ id: string; status: string; present: boolean; threat: number }>;
+  /** Player fighters; `present` = their phone is in the fight. NPC allies (D-24) are listed here too, with pinnable false. */
+  players: Array<{ id: string; status: string; present: boolean; threat: number; pinnable?: boolean }>;
   /** v2: the player this NPC pinned last time (never pinned twice in a row). */
   lastPinned?: string | null;
 }
@@ -255,7 +255,8 @@ export function chooseSkill(ctx: ChoiceContext, roll: R.Roller): Choice {
     return { kind: 'skill', skill: signature, targetIds: single() };
   }
   const pin = has('pin');
-  const pinnable = present.filter(p => p.id !== ctx.lastPinned);
+  // D-24: only players can be pinned (Tug & Slip is theirs); an NPC ally is never pinned.
+  const pinnable = present.filter(p => p.id !== ctx.lastPinned && p.pinnable !== false);
   if (pin && pinnable.length && roll(5) === 1) {
     const top = Math.max(...pinnable.map(p => p.threat));
     const pool = pinnable.filter(p => p.threat === top);
@@ -286,6 +287,100 @@ export function chooseSkill(ctx: ChoiceContext, roll: R.Roller): Choice {
       [order[i], order[j]] = [order[j], order[i]];
     }
     return { kind: 'skill', skill: chosen, targetIds: order.slice(0, SWEEP_MAX).map(p => p.id) };
+  }
+  return { kind: 'skill', skill: chosen, targetIds: single() };
+}
+
+// ── NPC allies (D-24): an NPC that fights beside the party ───────────────────
+
+/** An ally's Pin holds an enemy's next move back this long. */
+export const ALLY_PIN_DELAY_MS = 8_000;
+/** An ally's Rally gives every present player this much Resolve. */
+export const ALLY_RALLY_RESOLVE = 15;
+/** How many NPC allies a party can have at once (the same number lives in npc-reply/prompt.ts). */
+export const MAX_ALLIES = 3;
+
+export interface AllyChoiceContext {
+  skills: Skill[];
+  selfId: string;
+  turnNo: number;
+  signatureTurn: number;
+  /** The party's side: players and NPC allies (this ally included). `present` = a player's phone is in the fight (allies: always). */
+  friends: Array<{ id: string; hp: number; maxHp: number; status: string; ward: number; player: boolean; present: boolean }>;
+  /** The enemies this ally can hit. */
+  enemies: Array<{ id: string; hp: number; maxHp: number; status: string }>;
+}
+
+/**
+ * What an NPC ally does this turn. Help first (wake a downed player, mend the most hurt friend, ward a
+ * focused one, rally), then its signature move when ready, a pin now and then, else a weighted attack
+ * on an enemy. Never retreats. About 1 turn in 5 it only talks. Idle when no player is present or no
+ * enemy stands.
+ */
+export function chooseAllySkill(ctx: AllyChoiceContext, roll: R.Roller): Choice {
+  const has = (t: SkillType) => ctx.skills.find(s => s.type === t);
+  const here = ctx.friends.filter(f => !f.player || f.present);
+  const standing = here.filter(f => f.status === 'up');
+  const enemies = ctx.enemies.filter(e => e.status === 'up');
+  if (!here.some(f => f.player) || enemies.length === 0) return { kind: 'idle' };
+
+  const mend = has('mend');
+  if (mend) {
+    // A player on the ground comes first; then whoever is most hurt.
+    const downed = here.filter(f => f.player && (f.status === 'down' || f.status === 'stable'));
+    if (downed.length) return { kind: 'skill', skill: mend, targetIds: [(downed.find(f => f.status === 'down') ?? downed[0]).id] };
+    const hurt = standing.filter(f => ratio(f) < 0.5).sort((a, b) => ratio(a) - ratio(b));
+    if (hurt.length) return { kind: 'skill', skill: mend, targetIds: [hurt[0].id] };
+  }
+  const shield = has('shield');
+  const wardsLive = standing.filter(f => f.ward > 0).length;
+  if (shield && wardsLive < Math.max(1, Math.floor(standing.length / 2)) && roll(2) === 1) {
+    const focused = standing.filter(f => ratio(f) < 0.75 && f.ward <= 0).sort((a, b) => ratio(a) - ratio(b));
+    if (focused.length) return { kind: 'skill', skill: shield, targetIds: [focused[0].id] };
+  }
+  const rally = has('rally');
+  const others = standing.filter(f => f.id !== ctx.selfId);
+  if (rally && others.length >= 1 && roll(4) === 1) {
+    return { kind: 'skill', skill: rally, targetIds: others.map(f => f.id) };
+  }
+
+  if (roll(5) === 1) return { kind: 'beat' };
+
+  // Focus fire: usually the enemy closest to falling, sometimes any enemy.
+  const single = (): string[] => {
+    const weakest = [...enemies].sort((a, b) => ratio(a) - ratio(b))[0];
+    return [roll(5) <= 3 ? weakest.id : enemies[roll(enemies.length) - 1].id];
+  };
+  const signature = has('signature');
+  if (signature && ctx.turnNo - ctx.signatureTurn >= SIGNATURE_EVERY && roll(2) === 1) {
+    return { kind: 'skill', skill: signature, targetIds: single() };
+  }
+  const pin = has('pin');
+  if (pin && roll(5) === 1) return { kind: 'skill', skill: pin, targetIds: [enemies[roll(enemies.length) - 1].id] };
+
+  const weighted: Array<{ skill: Skill; w: number }> = [];
+  for (const s of ctx.skills) {
+    if (s.type === 'strike') weighted.push({ skill: s, w: 3 });
+    else if (s.type === 'heavy') weighted.push({ skill: s, w: 1 });
+    else if (s.type === 'sweep' && enemies.length >= 2) weighted.push({ skill: s, w: 1 });
+  }
+  if (weighted.length === 0) {
+    if (signature && ctx.turnNo - ctx.signatureTurn >= SIGNATURE_EVERY) return { kind: 'skill', skill: signature, targetIds: single() };
+    return { kind: 'beat' };
+  }
+  let pick = roll(weighted.reduce((sum, x) => sum + x.w, 0));
+  let chosen = weighted[weighted.length - 1].skill;
+  for (const x of weighted) {
+    pick -= x.w;
+    if (pick <= 0) { chosen = x.skill; break; }
+  }
+  if (chosen.type === 'sweep') {
+    const order = [...enemies];
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = roll(i + 1) - 1;
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    return { kind: 'skill', skill: chosen, targetIds: order.slice(0, SWEEP_MAX).map(e => e.id) };
   }
   return { kind: 'skill', skill: chosen, targetIds: single() };
 }
