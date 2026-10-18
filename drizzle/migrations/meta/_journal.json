@@ -288,6 +288,13 @@
       "when": 1792243655608,
       "tag": "0040_arm_private_travel_launch",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1792354074708,
+      "tag": "0041_npc_allies_columns",
+      "breakpoints": true
     }
   ]
 }
