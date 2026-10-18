@@ -8,7 +8,7 @@ import { NpcPortrait } from './NpcPortrait';
 import { NpcSocialCheckToolbar } from './NpcSocialCheckToolbar';
 import type { SocialCheckResult } from '@/lib/npcSocialChecks';
 import type { CharacterContext } from '@/components/oracle/types';
-import { attitudeLevel, keepNpcRoll, npcMoodOf, npcsToAsk, parseNpcRoll, rollButtonLabel, type NpcRollRequest } from '@/lib/live-npcs';
+import { attitudeLevel, joinButtonLabel, keepNpcRoll, npcMoodOf, npcsToAsk, parseNpcJoin, parseNpcRoll, rollButtonLabel, type NpcRollRequest } from '@/lib/live-npcs';
 
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -225,7 +225,7 @@ interface RoundChatDrawerProps {
 
   // ── Live NPCs (D-22) ──
   /** Every NPC on the party's roster (archived ones too, so their old lines keep a face). */
-  npcs?: Array<{ id: string; name: string; portrait_url: string | null; on_stage: boolean; archived: boolean; social_stats?: import('@/lib/live-npcs').NpcSocialStats }>;
+  npcs?: Array<{ id: string; name: string; portrait_url: string | null; on_stage: boolean; archived: boolean; social_stats?: import('@/lib/live-npcs').NpcSocialStats; ally_since?: string | null }>;
   /** Live social rolls: this player's character (for their skill modifiers). */
   characterContext?: CharacterContext;
   /** Live social rolls: post the line with its resolved roll and let that one NPC answer. Resolve false if the line was not posted. */
@@ -247,6 +247,8 @@ interface RoundChatDrawerProps {
   myNpcAttitudes?: Record<string, number>;
   /** Roll the check an NPC asked this player for, then let the NPC react. */
   onNpcRoll?: (npcLineId: string, npcId: string | null, request: NpcRollRequest) => Promise<void>;
+  /** D-24: accept an NPC's offer to join the party (the pill under its line). */
+  onNpcJoin?: (npcLineId: string, npcId: string | null) => Promise<void>;
   /** Original host only: 2 or 3 on-stage NPCs talk to each other. Resolves false if it did not start. */
   onStartScene?: (npcIds: string[], topic: string, turns: number) => Promise<boolean>;
   /** True while an NPC scene is being written. */
@@ -386,6 +388,7 @@ export interface RoundChatMessageListProps {
   rollingLineId?: string | null;
   setRollingLineId?: (id: string | null) => void;
   onNpcRoll?: RoundChatDrawerProps['onNpcRoll'];
+  onNpcJoin?: RoundChatDrawerProps['onNpcJoin'];
   onToggleSelected?: (id: string) => void;
   nudgeMessageId?: string | null;
   pickerFor?: string | null;
@@ -437,6 +440,7 @@ export function RoundChatMessageList({
   rollingLineId = null,
   setRollingLineId = noop,
   onNpcRoll,
+  onNpcJoin,
   onToggleSelected = noop,
   nudgeMessageId = null,
   pickerFor = null,
@@ -464,7 +468,12 @@ export function RoundChatMessageList({
     const { card, body } = parseActionCard(m.content);
     const parsedReply = parseReply(body);
     // v2: an NPC line may end with a roll request; it is shown as a button, not text.
-    const npcRoll = isNpc && !card ? parseNpcRoll(parsedReply.body) : null;
+    // D-24: or with an offer to join the party, shown as a pill the same way.
+    const npcRoll = isNpc && !card ? (() => {
+      const r = parseNpcRoll(parsedReply.body);
+      const j = parseNpcJoin(r.body);
+      return { body: j.body, roll: r.roll, join: j.join };
+    })() : null;
     const diceRoll = !card ? parseDiceRoll(parsedReply.body) : null;
     const quoted = parsedReply.replyToId
       ? allMessages.find(mm => mm.id === parsedReply.replyToId)
@@ -873,6 +882,40 @@ export function RoundChatMessageList({
             );
           })()}
 
+          {/* D-24: the NPC offers to join the party. Only the player it was offered to gets the pill. */}
+          {npcRoll?.join && (() => {
+            const offer = npcRoll.join;
+            const mine = offer.to === currentUserId;
+            const joined = !!npc?.ally_since;
+            const who = m.character_name || npc?.name || 'them';
+            const label = joinButtonLabel(who);
+            return (
+              <div className="mt-1 px-1 flex">
+                {!readOnly && mine && !joined && !m.consumed && onNpcJoin ? (
+                  <Button
+                    type="button"
+                    disabled={rollingLineId === m.id}
+                    onClick={async () => {
+                      setRollingLineId(m.id);
+                      try { await onNpcJoin(m.id, m.npc_id ?? null); } finally { setRollingLineId(null); }
+                    }}
+                    aria-label={label}
+                    style={{ touchAction: 'manipulation' }}
+                    className="inline-flex items-center gap-1.5 min-h-[48px] h-auto max-w-full whitespace-normal rounded-full border border-primary/60 bg-primary/20 px-3.5 py-2 font-cinzel text-[12px] font-bold text-foreground shadow-sm active:scale-95 motion-reduce:transform-none transition-transform disabled:opacity-50"
+                  >
+                    {rollingLineId === m.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <span aria-hidden="true">🤝</span>}
+                    {label}
+                  </Button>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 min-h-[28px] rounded-full border border-border bg-muted/40 px-2.5 font-body text-[11px] text-muted-foreground">
+                    <span aria-hidden="true">🤝</span>
+                    {joined ? `${who} joined the party` : mine ? label : `${who} offers to join · ${offer.name}`}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
+
           {!readOnly && (selectable || m.consumed || showActions) && (
             <div className={cn(
               "flex items-center gap-1.5 mt-1 px-1",
@@ -1079,6 +1122,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   onOpenNpcRoster,
   myNpcAttitudes,
   onNpcRoll,
+  onNpcJoin,
   onStartScene,
   sceneRunning = false,
 }, ref) {
@@ -1571,7 +1615,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
     onlineStatus, sharedReady, sharedIds, actionsFor, setActionsFor, editingMessageId, setEditingMessageId,
     editDraft, setEditDraft, partyMembers, readReceipts, messageRefs, onRowTouchStart, onRowTouchMove, onRowTouchEnd,
     swipeStart, swipeId, setSwipeId, swipeX, setSwipeX, onUploadAvatar, onOpenPortraitMenu: onGeneratePortrait ? () => { setPortraitDraft(portraitPrompt || ''); setPortraitMenuOpen(true); } : undefined, setCropTarget, jumpToMessage, setViewingImage,
-    onEditMessage, rolledNpcLineIds, rollingLineId, setRollingLineId, onNpcRoll, onToggleSelected, nudgeMessageId,
+    onEditMessage, rolledNpcLineIds, rollingLineId, setRollingLineId, onNpcRoll, onNpcJoin, onToggleSelected, nudgeMessageId,
     pickerFor, setPickerFor, onRegenerateNpcLine, canManageNpcs, onDeleteMessage, onToggleReaction,
   };
 
@@ -2033,7 +2077,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                               )}
                             </div>
                             <div className="w-full min-w-0 flex items-center justify-center gap-1 px-1">
-                              <span className="min-w-0 flex-1 truncate text-center">{n.name}</span>
+                              <span className="min-w-0 flex-1 truncate text-center">{n.ally_since ? '🤝 ' : ''}{n.name}</span>
                               {!voicing && myNpcAttitudes && myNpcAttitudes[n.id] !== undefined && (() => {
                                 const level = attitudeLevel(myNpcAttitudes[n.id]);
                                 return (
