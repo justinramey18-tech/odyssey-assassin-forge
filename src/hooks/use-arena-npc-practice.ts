@@ -90,7 +90,7 @@ function baseRow(now: number, over: Partial<FighterRow>): FighterRow {
     party_id: PARTY, pending: null, perks: [], pinned_until: null, resolve: 0, resolve_at: iso(now), resolve_rate: 1,
     second_wind: null, signature_turn: 0, status: 'up', strike_at: null, threat: {}, turn_no: 0, updated_at: iso(now),
     user_id: null, ward: 0, ward_until: null, ...over,
-    combat_effects: over.combat_effects ?? [], temp_hp: over.temp_hp ?? 0,
+    ally: over.ally ?? false, combat_effects: over.combat_effects ?? [], temp_hp: over.temp_hp ?? 0,
     temp_hp_source: over.temp_hp_source ?? null, temp_hp_until: over.temp_hp_until ?? null,
   };
 }
