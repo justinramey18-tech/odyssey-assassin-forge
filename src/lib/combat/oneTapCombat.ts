@@ -26,7 +26,10 @@ export function baseSlotChoice(baseLevel: number | undefined, res: Pick<MagicRes
   return null;
 }
 
-export interface OneTapFighter { id: string; kind: 'player' | 'npc' | string; status: string; hp: number }
+export interface OneTapFighter { id: string; kind: 'player' | 'npc' | string; status: string; hp: number; ally?: boolean | null }
+
+/** D-24: an NPC fighting on the party's side. */
+const isNpcAlly = (f: OneTapFighter) => f.kind === 'npc' && f.ally === true;
 
 /** Which side a card lands on: allies for healing and support, enemies for damage. Null when it lands on nobody. */
 export function cardSide(card: ActionCard): 'ally' | 'enemy' | null {
@@ -54,8 +57,10 @@ export function oneTapTargets(
   if (ids.length === 0) return { ok: false, reason: 'no-target' };
   const fits = (f: OneTapFighter | undefined) => {
     if (!f) return false;
-    if (side === 'enemy') return f.kind === 'npc' && f.status === 'up';
-    if (card.resolve === 'buff') return f.kind === 'player' && f.status === 'up' && f.hp > 0;
+    if (side === 'enemy') return f.kind === 'npc' && !isNpcAlly(f) && f.status === 'up';
+    // D-24: NPC allies take heals and support while they are standing (a knocked-out ally is out of the fight).
+    if (card.resolve === 'buff') return (f.kind === 'player' || isNpcAlly(f)) && f.status === 'up' && f.hp > 0;
+    if (isNpcAlly(f)) return f.status === 'up';
     return f.kind === 'player' && f.status !== 'dead';
   };
   const primary = fighters.find(f => f.id === ids[0]);
