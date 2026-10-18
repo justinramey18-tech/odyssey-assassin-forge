@@ -5,7 +5,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
-import { Archive, ArchiveRestore, Brain, Drama, ImagePlus, Loader2, Pencil, Plus, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { supabase } from '@/integrations/supabase/client';
+import { buildNpcImagePrompt } from '@/hooks/use-party-npcs';
+import { Archive, ArchiveRestore, Brain, Drama, ImagePlus, Loader2, Pencil, Plus, Wand2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AvatarCropDialog } from './AvatarCropDialog';
@@ -121,6 +125,22 @@ export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBatt
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [imagePrompt, setImagePrompt] = useState('');
+  const [painting, setPainting] = useState(false);
+  const promptEditedRef = useRef(false);
+  const editSessionRef = useRef(0);
+  const paintingSessionRef = useRef<number | null>(null);
+  const openRef = useRef(open);
+  openRef.current = open;
+
+  const closeEdit = () => {
+    editSessionRef.current += 1;
+    paintingSessionRef.current = null;
+    setPainting(false);
+    setDraft(null);
+  };
+
+  useEffect(() => () => { editSessionRef.current += 1; }, []);
 
   const choices = useMemo(() => npcModelChoices(), []);
   const groups = useMemo(() => {
@@ -133,7 +153,7 @@ export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBatt
   }, [choices]);
 
   // Closing the roster drops an unsaved edit.
-  useEffect(() => { if (!open) { setDraft(null); setCropFile(null); setMindId(null); } }, [open]);
+  useEffect(() => { if (!open) { closeEdit(); setCropFile(null); setMindId(null); } }, [open]);
 
   const active = roster.active;
   const archived = roster.npcs.filter(n => n.archived);
@@ -143,9 +163,14 @@ export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBatt
   const mindNpc = mindId ? roster.npcs.find(n => n.id === mindId) ?? null : null;
 
   const loadGuideInto = async (npcId: string) => {
+    const session = editSessionRef.current;
     setGuideState('loading');
     try {
       const g = await roster.loadGuide(npcId);
+      if (openRef.current && editSessionRef.current === session && !promptEditedRef.current) {
+        const npc = roster.npcs.find(n => n.id === npcId);
+        setImagePrompt(buildNpcImagePrompt({ name: npc?.name ?? '', guide: g.guide, moodRange: g.moodRange, attack: '' }));
+      }
       setDraft(prev => (prev && prev.id === npcId ? {
         ...prev,
         guide: g.guide,
@@ -164,17 +189,21 @@ export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBatt
   };
 
   const startNew = () => {
+    closeEdit();
     setGuideState('ready');
     setDraft({ id: null, name: '', model: NPC_DEFAULT_MODEL, portraitUrl: null, guide: '', secrets: '', wants: '', levers: '', hardLines: '', moodRange: '', grudgeStyle: 'normal', socialStats: { ...DEFAULT_NPC_SOCIAL_STATS } });
   };
 
   const startEdit = (npc: PartyNpc) => {
+    closeEdit();
+    promptEditedRef.current = false;
+    setImagePrompt(buildNpcImagePrompt({ name: npc.name, guide: '', moodRange: '', attack: '' }));
     setDraft({ id: npc.id, name: npc.name, model: npc.model, portraitUrl: npc.portrait_url, guide: '', secrets: '', wants: '', levers: '', hardLines: '', moodRange: '', grudgeStyle: 'normal', socialStats: sanitizeNpcSocialStats(npc.social_stats) });
     void loadGuideInto(npc.id);
   };
 
   const save = async () => {
-    if (!draft || nameProblem || saving || uploading) return;
+    if (!draft || nameProblem || saving || uploading || paintingSessionRef.current !== null) return;
     setSaving(true);
     try {
       if (!draft.id) {
@@ -203,7 +232,7 @@ export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBatt
         }
         toast.success(guideState === 'ready' ? `${cleanNpcName(draft.name)} saved` : `${cleanNpcName(draft.name)} saved (the guide was not loaded, so it was left as it was)`);
       }
-      setDraft(null);
+      closeEdit();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not save.');
     } finally {
@@ -232,6 +261,35 @@ export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBatt
       toast.error(err instanceof Error ? err.message : 'Upload failed.');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const generatePortrait = async () => {
+    if (!draft?.id || !roster.partyId || paintingSessionRef.current !== null || saving || uploading || !imagePrompt.trim()) return;
+    const npcId = draft.id;
+    const name = draft.name;
+    const session = editSessionRef.current;
+    paintingSessionRef.current = session;
+    setPainting(true);
+    const isCurrent = () => openRef.current && editSessionRef.current === session;
+    try {
+      const { data, error } = await supabase.functions.invoke('venice-image-generate', {
+        body: { mode: 'npc-portrait', partyId: roster.partyId, npcId, prompt: imagePrompt.trim().slice(0, 1500) },
+      });
+      if (!isCurrent()) return;
+      const url = (data as { imageUrl?: string } | null)?.imageUrl;
+      if (error || typeof url !== 'string' || !url.trim()) {
+        throw new Error((data as { error?: string } | null)?.error || 'Portrait generation failed. Try again.');
+      }
+      setDraft(prev => (isCurrent() && prev?.id === npcId ? { ...prev, portraitUrl: url } : prev));
+      toast.success(`Portrait ready for ${name || 'this NPC'}`);
+    } catch (err) {
+      if (isCurrent()) toast.error(err instanceof Error ? err.message : 'Portrait generation failed. Try again.');
+    } finally {
+      if (isCurrent()) {
+        paintingSessionRef.current = null;
+        setPainting(false);
+      }
     }
   };
 
@@ -281,7 +339,7 @@ export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBatt
               <div className="flex items-center justify-between">
                 <h3 className="font-cinzel text-[14px] text-amber-200">{draft.id ? `Edit ${draft.name || 'NPC'}` : 'New NPC'}</h3>
                 <button
-                  onClick={() => setDraft(null)}
+                  onClick={closeEdit}
                   aria-label="Close without saving"
                   style={{ touchAction: 'manipulation' }}
                   className="w-10 h-10 flex items-center justify-center rounded-md text-white/50 active:bg-white/10"
@@ -308,7 +366,7 @@ export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBatt
                   <NpcPortrait url={draft.portraitUrl} name={draft.name || '?'} className="w-14 h-14 text-xl" />
                   <button
                     onClick={() => fileRef.current?.click()}
-                    disabled={uploading}
+                    disabled={uploading || painting}
                     style={{ touchAction: 'manipulation' }}
                     className="min-h-[44px] px-3 rounded-lg border border-white/15 bg-white/5 text-[13px] text-white/80 flex items-center gap-1.5 disabled:opacity-50"
                   >
@@ -318,6 +376,7 @@ export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBatt
                   {draft.portraitUrl && !uploading && (
                     <button
                       onClick={() => setDraft({ ...draft, portraitUrl: null })}
+                      disabled={painting}
                       style={{ touchAction: 'manipulation' }}
                       className="min-h-[44px] px-3 rounded-lg text-[13px] text-white/50"
                     >
@@ -336,6 +395,37 @@ export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBatt
                     }}
                   />
                 </div>
+                {draft.id && (
+                  <div className="space-y-2 pt-2">
+                    <label className="block space-y-1">
+                      <span className="text-xs text-muted-foreground">Portrait description</span>
+                      <Textarea
+                        aria-label="Portrait description"
+                        value={imagePrompt}
+                        maxLength={1500}
+                        rows={4}
+                        disabled={painting || saving}
+                        onChange={e => {
+                          promptEditedRef.current = true;
+                          setImagePrompt(e.target.value.slice(0, 1500));
+                        }}
+                        className="min-h-[48px] w-full resize-y"
+                      />
+                      <span className="block text-right text-xs text-muted-foreground">{imagePrompt.length} / 1,500</span>
+                    </label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => { void generatePortrait(); }}
+                      disabled={!roster.partyId || painting || saving || uploading || !!cropFile || !imagePrompt.trim()}
+                      style={{ touchAction: 'manipulation' }}
+                      className="min-h-[48px] w-full gap-2"
+                    >
+                      {painting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                      {painting ? 'Painting portrait…' : 'Generate Image'}
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <label className="block space-y-1">
@@ -460,7 +550,7 @@ export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBatt
 
               <div className="flex gap-2 pt-1 pb-4">
                 <button
-                  onClick={() => setDraft(null)}
+                  onClick={closeEdit}
                   style={{ touchAction: 'manipulation' }}
                   className="flex-1 min-h-[48px] rounded-lg bg-white/5 text-[14px] text-white/60"
                 >
@@ -468,7 +558,7 @@ export function NpcRosterPanel({ open, onOpenChange, roster, battleModel, onBatt
                 </button>
                 <button
                   onClick={() => { void save(); }}
-                  disabled={!!nameProblem || saving || uploading || guideState === 'loading'}
+                  disabled={!!nameProblem || saving || uploading || painting || guideState === 'loading'}
                   style={{ touchAction: 'manipulation' }}
                   className="flex-1 min-h-[48px] rounded-lg border border-amber-400/50 bg-amber-500/20 text-[14px] text-amber-100 font-cinzel flex items-center justify-center gap-2 disabled:opacity-40"
                 >
