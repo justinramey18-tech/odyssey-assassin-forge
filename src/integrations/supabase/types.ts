@@ -1440,6 +1440,7 @@ export type Database = {
           ac: number
           act_every_ms: number | null
           action_seq: number
+          ally: boolean
           combat_effects: Json
           cooldowns: Json
           created_at: string
@@ -1484,6 +1485,7 @@ export type Database = {
           ac: number
           act_every_ms?: number | null
           action_seq?: number
+          ally?: boolean
           combat_effects?: Json
           cooldowns?: Json
           created_at?: string
@@ -1528,6 +1530,7 @@ export type Database = {
           ac?: number
           act_every_ms?: number | null
           action_seq?: number
+          ally?: boolean
           combat_effects?: Json
           cooldowns?: Json
           created_at?: string
@@ -2262,6 +2265,8 @@ export type Database = {
       }
       party_npcs: {
         Row: {
+          ally_of: string | null
+          ally_since: string | null
           archived: boolean
           combat_state: string | null
           combat_stats: Json | null
@@ -2281,6 +2286,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ally_of?: string | null
+          ally_since?: string | null
           archived?: boolean
           combat_state?: string | null
           combat_stats?: Json | null
@@ -2300,6 +2307,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ally_of?: string | null
+          ally_since?: string | null
           archived?: boolean
           combat_state?: string | null
           combat_stats?: Json | null
