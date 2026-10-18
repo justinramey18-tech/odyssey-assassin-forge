@@ -22,7 +22,7 @@ describe('NPC ally offer eligibility', () => {
   it('allows volunteers only at Friendly or Loyal standing', async () => {
     for (const score of [-2, -1, 0, 1, 2]) {
       const c = { ...ctx, mind: { memory: [], attitudes: [{ user_id: seat.user_id, character_name: seat.character_name, score, last_seen_at: new Date(now).toISOString() }] } };
-      expect((await gate(npc, c, undefined)).names).toEqual(score >= 1 ? ['Anduril'] : []);
+      expect((await joinGateFor(npc, null, c, undefined, { user_id: seat.user_id }, repo, now)).names).toEqual(score >= 1 ? ['Anduril'] : []);
     }
   });
   it('blocks an offer when three allies already travel with the party', async () => {
