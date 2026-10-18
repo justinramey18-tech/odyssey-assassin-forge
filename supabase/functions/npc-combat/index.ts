@@ -1220,8 +1220,8 @@ async function allyTurn(
   if (!due(ally.next_action_at, now)) return;
   const interval = R.currentIntervalMs(ally.act_every_ms, stats.speed);
   const cd = S.cleanCooldowns(ally.cooldowns);
-  // Allies never retreat. (Their healing, wards, rallies and pins come with the next prompt.)
-  const ready = S.readySkills(skills, cd, now, stats).filter(k => S.OFFENSE.includes(k.type));
+  // Allies never retreat.
+  const ready = S.readySkills(skills, cd, now, stats).filter(k => k.type !== 'retreat');
   const turnNo = (ally.turn_no ?? 0) + 1;
   const choice = S.chooseAllySkill({
     skills: ready,
@@ -1315,6 +1315,104 @@ async function resolveAllySkill(
     }
     await line(`${ally.name}'s ${sk.name}: ${parts.join('; ')}.`);
     return;
+  }
+
+  // Help skills land on the party's side: a player (their sheet gets it through the fight inbox) or an ally.
+  const friend = (id: string | undefined): Fighter | undefined => {
+    const f = id ? byId.get(id) : undefined;
+    if (!f || !isFriend(f)) return undefined;
+    return f.kind === 'player' ? (f.status !== 'dead' ? f : undefined) : (f.status === 'up' ? f : undefined);
+  };
+
+  if (sk.type === 'mend') {
+    const target = friend(p.targets[0]) ?? byId.get(ally.id);
+    if (!target || (target.kind === 'npc' && target.status !== 'up')) return;
+    if (target.kind === 'player') {
+      // A downed player wakes up at the healed amount; the phone applies it from the heal event.
+      const r = await mutate(db, target.id, f => {
+        if (f.status === 'dead') return null;
+        const { hp } = R.applyHealing(f.hp, f.max_hp, sk.power);
+        return hp > 0 && f.status !== 'up'
+          ? { hp, status: 'up', death_successes: 0, death_failures: 0, next_save_at: null }
+          : { hp };
+      });
+      const gained = r ? r.after.hp - r.before.hp : 0;
+      await addEvent(db, fight, { kind: 'heal', actor_name: ally.name, target_name: target.name, target_user_id: target.user_id, hp_delta: gained, detail: `${sk.name}: +${gained} HP` });
+      await line(r && r.before.status !== 'up' && r.after.status === 'up'
+        ? `${ally.name}'s ${sk.name} brings ${target.name} back to their feet!`
+        : `${ally.name}'s ${sk.name} restores ${gained} HP to ${target.name}.`);
+      return;
+    }
+    const r = await mutate(db, target.id, f => (f.status !== 'up' ? null : { hp: R.applyHealing(f.hp, f.max_hp, sk.power).hp }));
+    const gained = r ? r.after.hp - r.before.hp : 0;
+    await addEvent(db, fight, { kind: 'mend', actor_name: ally.name, target_name: target.name, hp_delta: gained, detail: `${sk.name}: +${gained} HP` });
+    await line(`${ally.name}'s ${sk.name} restores ${gained} HP to ${target.id === ally.id ? 'themself' : target.name}.`);
+    return;
+  }
+
+  if (sk.type === 'shield') {
+    const target = friend(p.targets[0]) ?? byId.get(ally.id);
+    if (!target || target.status !== 'up') return;
+    if (target.kind === 'player') {
+      // Temporary HP on a player: the sheet gets it through the fight inbox (the database writes the sync event).
+      const spell = sk.name.toLowerCase();
+      await mutate(db, target.id, f => {
+        if (f.status !== 'up') return null;
+        const current = temporaryHp(f, now);
+        if (sk.power < current && f.temp_hp_source !== spell) return null;
+        return { temp_hp: Math.max(current, sk.power), temp_hp_source: spell, temp_hp_until: iso(now + S.WARD_MS) };
+      });
+      await addEvent(db, fight, { kind: 'shield', actor_name: ally.name, target_name: target.name, detail: `${sk.name}: ${sk.power} temporary HP` });
+      await line(`${ally.name}'s ${sk.name} shields ${target.name} (${sk.power} temporary HP).`);
+      return;
+    }
+    await mutate(db, target.id, f => (f.status !== 'up' ? null : { ward: sk.power, ward_until: iso(now + S.WARD_MS) }));
+    await addEvent(db, fight, { kind: 'shield', actor_name: ally.name, target_name: target.name, detail: `${sk.name}: absorbs ${sk.power}` });
+    await line(`${ally.name}'s ${sk.name} wards ${target.id === ally.id ? 'themself' : target.name} (absorbs ${sk.power}).`);
+    return;
+  }
+
+  if (sk.type === 'rally') {
+    // The other allies act sooner; every present player gets a burst of Resolve.
+    const others = fresh.filter(f => isAlly(f) && f.status === 'up' && f.id !== ally.id && !f.pending && f.next_action_at);
+    for (const a of others) {
+      await mutate(db, a.id, f => {
+        if (f.status !== 'up' || f.pending || !f.next_action_at) return null;
+        const left = Math.max(0, Date.parse(f.next_action_at) - now);
+        return { next_action_at: iso(now + Math.round(left * (1 - S.RALLY_SHARE))) };
+      });
+    }
+    const cheered = fresh.filter(f => f.kind === 'player' && f.status === 'up' && atTable(f, now));
+    for (const pl of cheered) {
+      await mutate(db, pl.id, f => (f.status !== 'up' ? null : {
+        resolve: Math.min(R.RESOLVE_MAX, R.resolveNow(f.resolve, f.resolve_at, f.resolve_rate, now) + S.ALLY_RALLY_RESOLVE),
+        resolve_at: iso(now),
+      }));
+    }
+    const names = [...others, ...cheered].map(f => f.name);
+    await addEvent(db, fight, { kind: 'rally', actor_name: ally.name, target_name: names.join(', '), detail: `${sk.name}: +${S.ALLY_RALLY_RESOLVE} Resolve` });
+    await line(`${ally.name}'s ${sk.name} spurs ${names.length ? names.join(' and ') : 'no one'} on!`);
+    return;
+  }
+
+  if (sk.type === 'pin') {
+    // Holds one enemy back: its next move waits a few seconds longer (a chain already on the ring can't be moved).
+    const t = p.targets[0] ? byId.get(p.targets[0]) : undefined;
+    const up = fresh.filter(f => isEnemy(f) && f.status === 'up');
+    const target = t && isEnemy(t) && t.status === 'up' ? t : up[0];
+    if (!target) return;
+    const held = await mutate(db, target.id, f => {
+      if (!isEnemy(f) || f.status !== 'up') return null;
+      if (f.pending && f.strike_at) {
+        const chain = M.cleanClash(f.pending.clash);
+        if (chain && M.clashUnderWay(chain, Date.parse(f.strike_at), now)) return null;
+        return { strike_at: iso(Math.max(Date.parse(f.strike_at), now) + S.ALLY_PIN_DELAY_MS) };
+      }
+      const next = f.next_action_at ? Math.max(Date.parse(f.next_action_at), now) : now;
+      return { next_action_at: iso(next + S.ALLY_PIN_DELAY_MS) };
+    }, target);
+    await addEvent(db, fight, { kind: 'pin', actor_name: ally.name, target_name: target.name, detail: held ? `${sk.name}: held back ${S.ALLY_PIN_DELAY_MS / 1000}s` : `${sk.name}: too late to hold` });
+    await line(held ? `${ally.name}'s ${sk.name} holds ${target.name} back!` : `${ally.name}'s ${sk.name} can't hold ${target.name}: the blow is already coming.`);
   }
 }
 
@@ -1937,8 +2035,9 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     if (body.intent === 'heal') {
       const dice = R.spellHealDice(spellLevel, sheet) ?? refuse(400, "Cantrips can't heal in a fight. Pick a spell of level 1 or higher.");
       const target = await fighterById(db, needUuid(body.targetId, 'target'));
-      if (!target || target.fight_id !== fight.id || target.kind !== 'player') return refuse(404, 'That ally is not in this fight.');
+      if (!target || target.fight_id !== fight.id || !isFriend(target)) return refuse(404, 'That ally is not in this fight.');
       if (target.status === 'dead') refuse(409, `${target.name} has fallen. Only the host can revive them.`);
+      if (isAlly(target) && target.status !== 'up') refuse(409, `${target.name} is out of this fight.`);
       const actor = await startAction(db, fight, me, now);
       const amount = R.rollHealing(dice, roll);
       const r = await mutate(db, target.id, f => {
@@ -1995,7 +2094,7 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
       const ids = [...new Set([needUuid(body.targetId, 'target'), ...extra as string[]])];
       if (ids.length > (card.area === true ? AREA_MAX_TARGETS : 1)) refuse(400, 'Too many support targets.');
       const targets = await Promise.all(ids.map(id => fighterById(db, id)));
-      if (targets.some(t => !t || t.fight_id !== fight.id || t.kind !== 'player' || t.status !== 'up' || t.hp <= 0)) refuse(400, 'Pick living allies in this fight.');
+      if (targets.some(t => !t || t.fight_id !== fight.id || !isFriend(t) || t.status !== 'up' || t.hp <= 0)) refuse(400, 'Pick living allies in this fight.');
       const actor = await startAction(db, fight, me, now);
       const spell = spellName.toLowerCase();
       const rolled = effects.map(effect => ({ ...effect, value: effect.formula ? R.rollHealing(R.parseDice(effect.formula) ?? refuse(400, 'Invalid effect dice.'), roll) : effect.amount ?? 0 }));
@@ -2045,12 +2144,13 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
       return early && early.id === id ? early : fighterById(db, id);
     }))).filter((t): t is Fighter => !!t && t.fight_id === fight.id);
     if (targets.length === 0) return refuse(404, 'That target is not in this fight.');
-    const heals = targets[0].kind === 'player';
-    if (targets.some(t => (t.kind === 'player') !== heals)) refuse(400, 'Pick only allies for a heal, or only enemies for an attack.');
+    const heals = isFriend(targets[0]);
+    if (targets.some(t => isFriend(t) !== heals)) refuse(400, 'Pick only allies for a heal, or only enemies for an attack.');
 
     if (heals) {
       if (amount < 1) refuse(400, `${spellName} has no healing to give.`);
-      const living = targets.filter(t => t.status !== 'dead');
+      // D-24: a player can be healed down or up; an NPC ally only while it is still standing.
+      const living = targets.filter(t => (t.kind === 'player' ? t.status !== 'dead' : t.status === 'up'));
       if (living.length === 0) refuse(409, `${targets[0].name} has fallen. Only the host can revive them.`);
       const actor = await startAction(db, fight, me, now);
       let healed = 0;
@@ -2203,9 +2303,10 @@ async function handle(db: Db, userId: string, body: Record<string, unknown>, now
     const itemName = typeof body.itemName === 'string' ? body.itemName.trim().slice(0, 80) : '';
     const dice = potionHealDice(itemName) ?? refuse(400, 'Pick a healing potion.');
     const target = await fighterById(db, needUuid(body.targetId, 'target'));
-    if (!target || target.fight_id !== fight.id || target.kind !== 'player') return refuse(404, 'That ally is not in this fight.');
+    if (!target || target.fight_id !== fight.id || !isFriend(target)) return refuse(404, 'That ally is not in this fight.');
     if (target.user_id === userId) refuse(400, 'Drink it yourself from your inventory instead.');
     if (target.status === 'dead') refuse(409, `${target.name} has fallen. Only the host can revive them.`);
+    if (isAlly(target) && target.status !== 'up') refuse(409, `${target.name} is out of this fight.`);
     const actor = await startAction(db, fight, me, now);
     const amount = R.rollHealing(dice, roll);
     const r = await mutate(db, target.id, f => {
