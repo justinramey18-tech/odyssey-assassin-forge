@@ -172,6 +172,8 @@ Deno.serve(async (req) => {
   } else {
     if (!prompt) return json(400, { error: 'Prompt is required.' });
     finalPrompt = prompt.replace(/\s+/g, ' ').trim().slice(0, MAX_PROMPT);
+    // NPC portraits fill the wide Talk to card (21:9): keep the character centered so small round avatars crop well.
+    if (mode === 'npc-portrait') finalPrompt = `${finalPrompt} Wide banner framing: the character centered, head and shoulders in the middle of the frame.`;
     if (!finalPrompt) return json(400, { error: 'Prompt is empty.' });
   }
 
@@ -183,7 +185,8 @@ Deno.serve(async (req) => {
       headers: { Authorization: `Bearer ${VENICE}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'recraft-v4-pro', prompt: finalPrompt, style_preset: 'Cinematic',
-        aspect_ratio: '1:1', width: 1024, height: 1024, format: 'png', return_binary: false, safe_mode: false,
+        ...(mode === 'npc-portrait' ? { aspect_ratio: '21:9' } : { aspect_ratio: '1:1', width: 1024, height: 1024 }),
+        format: 'png', return_binary: false, safe_mode: false,
       }),
     });
     if (!res.ok) {
