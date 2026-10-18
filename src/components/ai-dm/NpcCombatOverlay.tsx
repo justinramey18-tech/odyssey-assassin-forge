@@ -18,7 +18,7 @@ import { DuelWheel, type DuelVerdict } from './DuelWheel';
 import * as M from '@/lib/combatMinigames';
 import * as DU from '@/lib/combatDuel';
 import { preloadCombatArt } from '@/lib/combatArt';
-import { duelChargeOf, resolveOf, type FighterRow, type FightEventRow, type NpcCombatApi } from '@/hooks/use-npc-combat';
+import { duelChargeOf, isAllyRow, isEnemyRow, resolveOf, type FighterRow, type FightEventRow, type NpcCombatApi } from '@/hooks/use-npc-combat';
 import { NPC_SKILL_INFO, type NpcSkillType, type PartyNpc, type PartyNpcsApi } from '@/hooks/use-party-npcs';
 import type { ActionCard } from '@/lib/roundChatActionCard';
 
@@ -306,17 +306,22 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
   const [now, setNow] = useState(() => Date.now() + combat.clockOffset);
 
   const open = !!fight && !isEnded;
-  const npcFighters = fighters.filter(f => f.kind === 'npc');
+  // D-24: enemies, the party's NPC allies, and players. "Friends" are everyone on the party's side a heal can reach.
+  const npcFighters = fighters.filter(f => isEnemyRow(f));
+  const allyFighters = fighters.filter(f => isAllyRow(f));
   const playerFighters = fighters.filter(f => f.kind === 'player');
   const npcUp = npcFighters.filter(f => f.status === 'up');
+  const alliesUp = allyFighters.filter(f => f.status === 'up');
+  const friendsAlive = [...playerFighters.filter(f => f.status !== 'dead'), ...alliesUp];
+  const isFriend = (f: FighterRow) => f.kind === 'player' ? f.status !== 'dead' : isAllyRow(f) && f.status === 'up';
 
   const attackable = useMemo(
-    () => roster.onStage.filter(n => n.combat_stats && !n.combat_state && !n.player_user_id),
+    () => roster.onStage.filter(n => n.combat_stats && !n.combat_state && !n.player_user_id && !n.ally_since),
     [roster.onStage],
   );
 
   // Countdowns tick every 500 ms while a wind-up or huddle is counting down, otherwise once a second (lighter on the phone).
-  const fastTick = combat.pauseKind === 'huddle' || npcUp.some(f => !!pendingOf(f));
+  const fastTick = combat.pauseKind === 'huddle' || npcUp.some(f => !!pendingOf(f)) || alliesUp.some(f => !!pendingOf(f));
   const offset = combat.clockOffset;
   useEffect(() => {
     if (!isActive && !isPaused) return;
@@ -325,7 +330,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
     return () => clearInterval(t);
   }, [isActive, isPaused, fastTick, offset]);
   // Speed: one extra redraw at the exact moment the next NPC attack lands, so its countdown hits zero on time.
-  const nextStrikeAt = npcUp.reduce((soonest, f) => {
+  const nextStrikeAt = [...npcUp, ...alliesUp].reduce((soonest, f) => {
     const at = pendingOf(f) ? timeOf((f as unknown as { strike_at?: unknown }).strike_at) : NaN;
     return Number.isFinite(at) && !(at >= soonest) ? at : soonest;
   }, NaN);
@@ -424,7 +429,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
         const dmg = Number(card.damageTotal);
         const amt = Number(card.amount);
         const heals = card.kind === 'heal' || (Number.isFinite(amt) && amt > 0 && !(Number.isFinite(dmg) && dmg > 0));
-        const fits = heals ? pre.kind === 'player' && pre.status !== 'dead' : pre.kind === 'npc' && pre.status === 'up';
+        const fits = heals ? isFriend(pre) : isEnemyRow(pre) && pre.status === 'up';
         if (fits && card.area) setPicked([pre.id]);
         if (fits && !card.area && cooldownLeft <= 0 && !busy) {
           void combat.castFromCard(pre.id, card, heals ? undefined : fin).then(r => {
@@ -467,7 +472,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
         {npc && <NpcPortrait url={npc.portrait_url} name={npc.name} className="w-9 h-9 text-sm" />}
         <span className="flex-1 min-w-0 text-left">
           <span className="block truncate">{f.name}</span>
-          <HpBar hp={f.hp} max={f.max_hp} color={f.kind === 'npc' ? 'bg-red-500' : 'bg-green-500'} thin />
+          <HpBar hp={f.hp} max={f.max_hp} color={isEnemyRow(f) ? 'bg-red-500' : isAllyRow(f) ? 'bg-emerald-500' : 'bg-green-500'} thin />
         </span>
         <span className="text-[11px] text-white/60">{f.hp}/{f.max_hp}</span>
       </button>
@@ -564,7 +569,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
   } else if (step?.kind === 'cast-target') {
     const { spell, intent } = step;
     title = intent === 'heal' ? `Heal who with ${spell.name}?` : `${spell.name} at who?`;
-    const list = intent === 'heal' ? playerFighters.filter(f => f.status !== 'dead') : npcUp;
+    const list = intent === 'heal' ? friendsAlive : npcUp;
     body = (
       <div className="space-y-2">
         {list.map(f => fighterButton(f, async () => {
@@ -610,7 +615,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
           ? `${dmgText} · ${card.saveStat ?? 'DEX'} save DC ${card.saveDC ?? '?'}, half on a save${area ? ' · up to 3 enemies' : ''}`
           : `d20 ${card.d20} → ${card.attackTotal ?? '?'} · ${dmgText}${area ? ' · up to 3 enemies' : ''}`;
     const targets = isHeal
-      ? playerFighters.filter(f => f.status !== 'dead')
+      ? friendsAlive
       : (Number.isFinite(dmg) && dmg > 0 ? npcUp : []);
     const pick = async (t: FighterRow, fin?: Finish) => {
       const r = await combat.castFromCard(t.id, card, fin);
@@ -704,7 +709,8 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
     );
   } else if (step?.kind === 'aid') {
     title = 'Aid who?';
-    const allies = playerFighters.filter(f => f.status !== 'dead' && f.user_id !== currentUserId);
+    // D-24: NPC allies can take a potion too (not Stabilize: they never make death saves).
+    const allies = [...playerFighters.filter(f => f.status !== 'dead' && f.user_id !== currentUserId), ...alliesUp];
     body = (
       <div className="space-y-2">
         {allies.length === 0 && <p className="text-[13px] text-white/50">No allies to aid.</p>}
@@ -718,7 +724,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
       </div>
     );
   } else if (step?.kind === 'aid-ally') {
-    const live = playerFighters.find(f => f.id === step.target.id) ?? step.target;
+    const live = fighters.find(f => f.id === step.target.id) ?? step.target;
     const potions = qa.items.filter(i => /heal/i.test(i.name) && /potion|elixir|draught|philter/i.test(i.name));
     const waiting = cooldownLeft > 0 || busy;
     title = `Aid ${live.name}`;
@@ -751,7 +757,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
   } else if (step?.kind === 'cast-first') {
     // Target-first casting: pick who the spell lands on, then pick the spell in Quick Actions.
     title = 'Cast at who?';
-    const allies = playerFighters.filter(f => f.status !== 'dead');
+    const allies = friendsAlive;
     const begin = (t: FighterRow, fin: Finish) => {
       close();
       onOpenSpells?.({ targetId: t.id, targetName: t.name, finish: fin });
@@ -976,7 +982,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
   const aimingAtMe = myFighter
     ? npcFighters.map(f => ({ f, p: pendingOf(f) })).find(x => x.f.status === 'up' && x.p?.targets.includes(myFighter.id)) ?? null
     : null;
-  const hasAllies = playerFighters.some(f => f.status !== 'dead' && f.user_id !== currentUserId);
+  const hasAllies = playerFighters.some(f => f.status !== 'dead' && f.user_id !== currentUserId) || alliesUp.length > 0;
   const canAct = isActive && !busy && cooldownLeft <= 0 && !amPinned;
   const myResolve = resolveOf(myFighter, clock);
   // v7 Duel bar: full = the Duel button. Free (no action timer), but not while pinned or already dueling.
@@ -988,8 +994,8 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
   // ---------- target rails + one-tap tray ----------
   const selIds = selection?.ids ?? [];
   const selPrimary = selIds[0] ? fighters.find(f => f.id === selIds[0]) : undefined;
-  const selValid = !!selPrimary && (selection?.side === 'enemy' ? selPrimary.kind === 'npc' && selPrimary.status === 'up' : selPrimary.kind === 'player' && selPrimary.status !== 'dead');
-  const railAllies = playerFighters.filter(f => f.status !== 'dead');
+  const selValid = !!selPrimary && (selection?.side === 'enemy' ? isEnemyRow(selPrimary) && selPrimary.status === 'up' : isFriend(selPrimary));
+  const railAllies = friendsAlive;
   const pickEnemy = (f: FighterRow) => onSelect?.({ side: 'enemy', ids: [f.id] });
   const toggleArea = (f: FighterRow) => {
     if (selection?.side !== 'enemy' || !selIds.length) return;
@@ -1069,18 +1075,18 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
         {railAllies.length === 0 && <p className="min-h-[48px] flex items-center text-[11px] text-white/45 px-1">No allies in the fight.</p>}
         {railAllies.map(f => {
           const on = selection?.side === 'ally' && selIds[0] === f.id;
-          const url = f.user_id ? allyPortraits?.[f.user_id] : undefined;
+          const url = f.user_id ? allyPortraits?.[f.user_id] : (f.npc_id ? roster.byId.get(f.npc_id)?.portrait_url ?? undefined : undefined);
           return (
             <button key={f.id} style={tap} aria-pressed={on} onClick={() => onSelect?.({ side: 'ally', ids: [f.id] })}
               className={cn('w-[112px] shrink-0 rounded-lg border p-1.5 text-left space-y-0.5', on ? 'border-emerald-300 bg-emerald-500/15' : 'border-white/10 bg-white/[0.04]')}>
               <div className="flex items-center gap-1.5">
                 <NpcPortrait url={url ?? null} name={f.name} className="w-7 h-7 text-xs shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-[11px] text-white/90 truncate">{f.id === myFighter?.id ? 'You' : f.name}</p>
+                  <p className="text-[11px] text-white/90 truncate">{f.id === myFighter?.id ? 'You' : isAllyRow(f) ? `🤝 ${f.name}` : f.name}</p>
                   <p className="text-[10px] tabular-nums text-white/70">{f.status === 'down' ? <span className="text-red-300">DOWN</span> : f.status === 'stable' ? <span className="text-sky-300">STABLE</span> : `${f.hp}/${f.max_hp}`}</p>
                 </div>
               </div>
-              <HpBar hp={f.hp} max={f.max_hp} color="bg-green-500" thin />
+              <HpBar hp={f.hp} max={f.max_hp} color={isAllyRow(f) ? 'bg-emerald-500' : 'bg-green-500'} thin />
               {effectChips(f, now).map(c => <p key={c} className="text-[10px] text-sky-200 truncate">{c}</p>)}
             </button>
           );
@@ -1201,6 +1207,28 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
                     <HpBar hp={f.hp} max={f.max_hp} color="bg-green-500" thin />
                   </div>
                 ); })}
+                {/* D-24: the party's NPC allies, with what they are winding up. */}
+                {allyFighters.map(f => {
+                  const pend = f.status === 'up' ? pendingOf(f) : null;
+                  const strikeAt = timeOf((f as unknown as { strike_at?: unknown }).strike_at);
+                  const strikeLeft = Number.isFinite(strikeAt) ? strikeAt - now : NaN;
+                  const pendTargets = pend ? pend.targets.filter(t => t !== f.id).map(t => fighters.find(x => x.id === t)?.name).filter(Boolean) as string[] : [];
+                  return (
+                    <div key={f.id} className={cn('min-w-[96px] flex-1 max-w-[50%] rounded-lg border border-emerald-400/25 bg-emerald-500/[0.06] px-2 py-1', f.status !== 'up' && 'opacity-50 grayscale')}>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[11px] text-white/85 truncate">🤝 {f.name}</span>
+                        {f.status === 'ko' ? <span className="text-[11px] text-red-300">💤 KO</span> : <span className="text-[11px] text-white/60 tabular-nums">{f.hp}/{f.max_hp}</span>}
+                      </div>
+                      <HpBar hp={f.hp} max={f.max_hp} color="bg-emerald-500" thin />
+                      {pend && (
+                        <p className="text-[10px] text-emerald-200 truncate">
+                          → {pendTargets.length ? `${pendTargets.join(', ')}: ${pend.skill}` : pend.skill}
+                          {!isPaused && Number.isFinite(strikeLeft) ? (strikeLeft > 0 ? ` · ${Math.ceil(strikeLeft / 1000)}s` : ' · 💥') : ''}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
 
               {npcLine && <p className="text-[12px] text-red-200">{npcLine}</p>}
