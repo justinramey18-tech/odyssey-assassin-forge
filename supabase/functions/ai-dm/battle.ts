@@ -88,6 +88,8 @@ export interface DossierFighter {
   npc_id?: string | null;
   user_id?: string | null;
   status?: string;
+  /** D-24: an NPC fighting on the party's side. */
+  ally?: boolean | null;
 }
 
 /** One beat of the fight in plain words, and whether it is a KEY BEAT. Null for bookkeeping events. */
@@ -101,6 +103,8 @@ export function beatOf(e: DossierEvent, maxHpOf: (name: string) => number): { te
   switch (e.kind) {
     case 'start':
       return { text: `${actor} opens the fight by attacking ${target}.`, key: true };
+    case 'join':
+      return /ally/i.test(detail) ? { text: `${actor} steps in on the party's side.`, key: false } : null;
     case 'intent':
       return { text: `${actor} announces ${label.replace(/\s*\([^)]*\)\s*in \d+s$/, '') || 'an attack'}${target ? ` aimed at ${target}` : ''}.`, key: false };
     case 'attack':
@@ -137,7 +141,9 @@ export function beatOf(e: DossierEvent, maxHpOf: (name: string) => number): { te
     case 'rally':
       return { text: `${actor} rallies their allies (${label}).`, key: false };
     case 'pin':
-      return { text: `${actor} pins ${target} down (${label}).`, key: false };
+      return /held back|too late/i.test(detail)
+        ? { text: `${actor} ${/too late/i.test(detail) ? 'tries and fails to hold' : 'holds'} ${target} back (${label}).`, key: false }
+        : { text: `${actor} pins ${target} down (${label}).`, key: false };
     case 'retreat':
       return { text: `${actor} flees the fight.`, key: true };
     case 'defeat_npc':
@@ -176,7 +182,9 @@ export function buildDossier(input: DossierInput): string {
       const info = f.npc_id ? npcInfo.get(f.npc_id) : undefined;
       const bits = [info?.guide ? info.guide : '', info?.skills.length ? `Fights with: ${info.skills.join(', ')}.` : '']
         .filter(Boolean).join(' ');
-      who.push(`- ${f.name} (NPC)${bits ? `: ${bits}` : ''}${f.status === 'ko' ? ' Ends the fight knocked out.' : f.status === 'dead' ? ' Ends the fight dead.' : f.status === 'fled' ? ' Flees before the end.' : ''}`);
+      // D-24: an ally fights beside the party and is knocked out at worst, never killed.
+      const side = f.ally ? 'NPC ally, fighting beside the party' : 'NPC';
+      who.push(`- ${f.name} (${side})${bits ? `: ${bits}` : ''}${f.status === 'ko' ? (f.ally ? ' Is knocked out before the end and gets back up after.' : ' Ends the fight knocked out.') : f.status === 'dead' ? ' Ends the fight dead.' : f.status === 'fled' ? ' Flees before the end.' : ''}`);
     } else {
       const p = f.user_id ? playerInfo.get(f.user_id) : undefined;
       const desc = [p?.race, p?.className].filter(Boolean).join(' ');
@@ -252,7 +260,7 @@ export async function loadBattleDossier(
     if (ids.length === 0) return '';
 
     const [fighters, events, members] = await Promise.all([
-      db.from('party_fight_combatants').select('kind, name, max_hp, npc_id, user_id, status').in('fight_id', ids),
+      db.from('party_fight_combatants').select('kind, name, max_hp, npc_id, user_id, status, ally').in('fight_id', ids),
       db.from('party_fight_events').select('kind, actor_name, target_name, hp_delta, d20, detail, created_at')
         .in('fight_id', ids).gte('created_at', from).lte('created_at', to)
         .order('created_at', { ascending: true }).limit(400),
