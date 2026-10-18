@@ -36,6 +36,10 @@ export interface NpcRow {
   player_user_id?: string | null;
   /** Persistent social opposition modifiers (may be missing or malformed on old rows). */
   social_stats?: unknown;
+  /** D-24: set while this NPC travels and fights with the party. */
+  ally_since?: string | null;
+  /** D-24: the player who accepted the offer (or the host who added it). */
+  ally_of?: string | null;
 }
 
 export interface NpcSocialStats { wisdom: number; charisma: number; insight: number; deception: number; perception: number; wisdomSave: number }
@@ -109,6 +113,8 @@ export interface NpcContext {
   /** v3: emoji reactions to this NPC's lines in the table above. */
   reactions?: Array<{ message_id: string; emoji: string }>;
   fight?: { hp: number; maxHp: number } | null;
+  /** D-24: names of the NPCs that travel with the party right now (on stage or not). */
+  allies?: string[];
 }
 
 export interface ClaimRow {
@@ -161,13 +167,22 @@ export interface NpcRepo {
   latestLine?(partyId: string): Promise<RoundLine | null>;
   /** v3: save the NPC's mood after it speaks. */
   setNpcMood?(npcId: string, mood: string): Promise<void>;
+  // ── D-24: NPC allies (optional so older test doubles still work) ──
+  /** True when this NPC is fighting AGAINST the party in a fight that has not ended. */
+  enemyInOpenFight?(npcId: string): Promise<boolean>;
+  /** How many NPCs travel with the party right now (archived ones don't count). */
+  countAllies?(partyId: string): Promise<number>;
+  /** Put an NPC in the party (allyOf = who accepted or added it) or take it out (null). Returns the row. */
+  setAlly?(npcId: string, allyOf: string | null, nowIso: string): Promise<NpcRow | null>;
+  /** A short party line in the Live Table ("🤝 Wulfgar joins the party."), ticked for the next Send to DM. */
+  postPartyLine?(partyId: string, hostId: string, text: string): Promise<void>;
 }
 
 /** A claim with no answer that hasn't changed in this long is treated as abandoned. */
 export const STALE_CLAIM_MS = 120_000;
 
 const LINE_COLUMNS = 'id, party_id, user_id, character_name, content, in_character, round_id, consumed, selected, created_at, npc_id';
-const NPC_COLUMNS = 'id, party_id, name, model, on_stage, archived, reacts_to_spells, mood, on_stage_since, player_user_id, combat_state, social_stats';
+const NPC_COLUMNS = 'id, party_id, name, model, on_stage, archived, reacts_to_spells, mood, on_stage_since, player_user_id, combat_state, social_stats, ally_since, ally_of';
 const GUIDE_COLUMNS = 'guide, secrets, wants, levers, hard_lines, mood_range, grudge_style';
 
 // deno-lint-ignore no-explicit-any
@@ -216,7 +231,7 @@ export function createRepo(db: any): NpcRepo {
     },
 
     async loadContext(partyId, hostId, until, npcId) {
-      const [guides, anchors, session, posts, roster, table, memory, attitudes] = await Promise.all([
+      const [guides, anchors, session, posts, roster, table, memory, attitudes, allies] = await Promise.all([
         db.from('gm_guides').select('name, content')
           .eq('user_id', hostId).eq('mode', 'party').eq('enabled', true)
           .order('created_at', { ascending: true }),
@@ -245,6 +260,9 @@ export function createRepo(db: any): NpcRepo {
         npcId
           ? db.from('party_npc_attitudes').select('user_id, character_name, score, knows_name, last_seen_at, updated_at').eq('npc_id', npcId)
           : Promise.resolve({ data: [], error: null }),
+        // D-24: who travels with the party right now.
+        db.from('party_npcs').select('name').eq('party_id', partyId).eq('archived', false).not('ally_since', 'is', null)
+          .order('sort_order', { ascending: true }),
       ]);
       fail('read guides', guides.error);
       fail('read memory anchors', anchors.error);
@@ -254,6 +272,7 @@ export function createRepo(db: any): NpcRepo {
       fail('read table', table.error);
       fail('read NPC memory', memory.error);
       fail('read NPC attitudes', attitudes.error);
+      fail('read allies', allies.error);
 
       const post = (posts.data ?? []).find((p: { team: string | null; is_afk_marker: boolean }) =>
         !p.is_afk_marker && !(p.team || '').startsWith('whisper:'));
@@ -296,6 +315,7 @@ export function createRepo(db: any): NpcRepo {
           }
           : undefined,
         reactions,
+        allies: (allies.data ?? []).map((r: { name: string }) => r.name),
       };
     },
 
@@ -413,6 +433,46 @@ export function createRepo(db: any): NpcRepo {
         .eq('party_id', partyId).order('created_at', { ascending: false }).limit(1);
       fail('read latest line', error);
       return data?.[0] ?? null;
+    },
+
+    // ── D-24: NPC allies ──
+
+    async enemyInOpenFight(npcId) {
+      const { data, error } = await db.from('party_fight_combatants').select('id, party_fights!inner(status)')
+        .eq('npc_id', npcId).eq('ally', false).neq('party_fights.status', 'ended').limit(1);
+      fail('read open fights', error);
+      return Array.isArray(data) && data.length > 0;
+    },
+
+    async countAllies(partyId) {
+      const { data, error } = await db.from('party_npcs').select('id')
+        .eq('party_id', partyId).eq('archived', false).not('ally_since', 'is', null);
+      fail('count allies', error);
+      return Array.isArray(data) ? data.length : 0;
+    },
+
+    async setAlly(npcId, allyOf, nowIso) {
+      const patch = allyOf ? { ally_since: nowIso, ally_of: allyOf, on_stage: true } : { ally_since: null, ally_of: null };
+      const { data, error } = await db.from('party_npcs').update(patch).eq('id', npcId).select(NPC_COLUMNS).maybeSingle();
+      fail('save ally', error);
+      return data ?? null;
+    },
+
+    async postPartyLine(partyId, hostId, text) {
+      const { data } = await db.from('party_round_chat').select('round_id')
+        .eq('party_id', partyId).order('created_at', { ascending: false }).limit(1);
+      const roundId = (data?.[0]?.round_id as string | undefined) ?? crypto.randomUUID();
+      const { error } = await db.from('party_round_chat').insert({
+        party_id: partyId,
+        user_id: hostId,
+        character_name: '🤝 Party',
+        content: text,
+        in_character: true,
+        round_id: roundId,
+        selected: true,
+        npc_id: null,
+      });
+      fail('post party line', error);
     },
   };
 }
