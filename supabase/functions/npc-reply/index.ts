@@ -7,6 +7,9 @@
 // POST { action: "banter", partyId, npcIds, topic?, turns? }   the host starts an NPC scene (v2)
 // POST { action: "social", messageId, npcId, skill, playerRoll, npcRoll }  a direct opposed social roll
 // POST { action: "regenerate", replyMessageId }     the host asks for a new version of an NPC line
+// POST { action: "join", messageId }                 D-24: the player named in an NPC line's offer accepts it
+// POST { action: "add", npcId }                      D-24: the host puts an NPC in the party
+// POST { action: "part", npcId }                     D-24: the host takes an NPC out of the party
 //
 // The caller must be signed in. Replies are written with the server's keys; if the NPC's
 // own model fails (no key, out of credit, down), Gemini 2.5 Flash answers instead and the
@@ -16,6 +19,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createModelCaller } from './models.ts';
 import { createRepo } from './repo.ts';
 import { banter, regenerate, socialCheck, speak, spell, type Deps } from './handler.ts';
+import { add as addAlly, join as joinParty, part as partWays } from './allies.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -64,6 +68,12 @@ Deno.serve(async (req) => {
   try {
     const result = body.action === 'regenerate'
       ? await regenerate({ userId, replyMessageId: body.replyMessageId }, deps)
+      : body.action === 'join'
+        ? await joinParty({ userId, messageId: body.messageId }, deps)
+      : body.action === 'add'
+        ? await addAlly({ userId, npcId: body.npcId }, deps)
+      : body.action === 'part'
+        ? await partWays({ userId, npcId: body.npcId }, deps)
       : body.action === 'spell'
         ? await spell({ userId, messageId: body.messageId }, deps)
         : body.action === 'banter'
