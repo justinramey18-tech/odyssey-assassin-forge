@@ -2685,6 +2685,11 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
     void npcRosterRef.current.askNpc(id, npcId, 'roll');
   }, [characterContext, members, currentUserId]);
 
+  /** D-24: this player accepts an NPC's offer to join the party (the pill under its line). */
+  const joinNpcParty = useCallback(async (npcLineId: string, npcId: string | null) => {
+    await npcRosterRef.current.joinParty(npcLineId, npcId);
+  }, []);
+
   /** How each NPC feels about this player's character (only NPCs with an opinion). */
   const myNpcAttitudes = useMemo(() => {
     const out: Record<string, number> = {};
@@ -4709,6 +4714,7 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
           onOpenNpcRoster={originalCreator ? openNpcRoster : undefined}
           myNpcAttitudes={myNpcAttitudes}
           onNpcRoll={rollForNpc}
+          onNpcJoin={joinNpcParty}
           onStartScene={originalCreator ? npcRoster.runScene : undefined}
           sceneRunning={npcRoster.sceneRunning}
         /></>
