@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -135,6 +136,34 @@ export function NpcMindPanel({ npc, roster, onBack }: NpcMindPanelProps) {
           aria-label={`${npc.name} reacts to spells`}
         />
       </label>
+
+      {/* D-24: in the party. Players win NPCs over with a social roll; the host can add or remove them here. */}
+      {!npc.player_user_id && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-y border-border py-3">
+          <span className="min-w-0 flex-1 basis-40">
+            <span className="block text-[14px] text-foreground">{npc.ally_since ? '🤝 In the party' : 'Not in the party'}</span>
+            <span className="block text-[11px] text-muted-foreground">
+              {npc.ally_since
+                ? `Travels and fights with the party since ${new Date(npc.ally_since).toLocaleDateString()}.${npc.combat_stats ? '' : ' No fight stats yet: add them below, or they sit fights out.'}`
+                : 'Players can win them over with a Persuasion, Intimidation or Deception roll, or add them here.'}
+            </span>
+          </span>
+          <Button type="button" variant="outline"
+            onClick={() => {
+              void act('ally', () => (npc.ally_since ? roster.partWays(npc.id) : roster.addToParty(npc.id)), npc.ally_since ? `${npc.name} parts ways with the party.` : `${npc.name} joins the party!`);
+            }}
+            disabled={busy === 'ally'}
+            style={{ touchAction: 'manipulation' }}
+            className={cn(
+              'shrink-0 min-h-[48px] h-auto px-3 rounded-lg border text-[13px] flex items-center gap-1.5 disabled:opacity-40',
+              npc.ally_since ? 'border-border text-foreground' : 'border-primary/50 bg-primary/15 text-foreground',
+            )}
+          >
+            {busy === 'ally' ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {npc.ally_since ? 'Part ways' : 'Add to party'}
+          </Button>
+        </div>
+      )}
 
       {!npc.player_user_id && (
         <NpcCombatSection
