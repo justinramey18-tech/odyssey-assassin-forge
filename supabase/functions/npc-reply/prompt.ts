@@ -8,6 +8,10 @@
 export const NPC_FALLBACK_MODEL = 'google/gemini-2.5-flash';
 /** Lines NPCs say during a Live NPC fight: a fast model, so the warning lands before the hit. Falls back to NPC_FALLBACK_MODEL. */
 export const NPC_FIGHT_VOICE_MODEL = 'google/gemini-2.5-flash-lite';
+/** D-24: how many NPC allies a party can have at once (the same number lives in npc-combat/skills.ts). */
+export const MAX_ALLIES = 3;
+/** D-24: the social checks a won roll on which lets an NPC offer to join the party. */
+export const JOIN_CHECKS = ['Persuasion', 'Intimidation', 'Deception'] as const;
 
 export const NPC_LIMITS = {
   guide: 20_000,
@@ -193,6 +197,12 @@ export interface NpcPromptInput {
   standIn?: boolean;
   /** v3: the NPC came on stage partway through; THE TABLE starts when it arrived. */
   joinedLate?: boolean;
+  /** D-24: this NPC travels and fights with the party. */
+  ally?: boolean;
+  /** D-24: names of the NPCs that travel with the party (this one included, if it does). */
+  allies?: string[];
+  /** D-24: the NPC may offer to join the party in this reply, to these characters. `won` names the character who just won it over, or null when it would be volunteering. */
+  joinOffer?: { names: string[]; won: string | null };
 }
 
 /** Keep the start of a long text. */
@@ -210,6 +220,7 @@ export function capEnd(text: string, max: number): string {
 const ACTION_CARD_RE = /^⟪AC⟫[\s\S]*?⟪\/AC⟫\n?/;
 const ACTION_CARD_JSON_RE = /^⟪AC⟫([\s\S]*?)⟪\/AC⟫\n?/;
 const NPC_ROLL_RE = /\n?⟪ROLL⟫([\s\S]*?)⟪\/ROLL⟫/g;
+const NPC_JOIN_RE = /\n?⟪JOIN⟫([\s\S]*?)⟪\/JOIN⟫/g;
 const REPLY_RE = /^\s*\[reply:[0-9a-fA-F-]{8,}\]\s*\n?/;
 const REPLY_ID_RE = /^\s*\[reply:([0-9a-fA-F-]{8,})\]/;
 const PAIRED_BLOCK_RE = /<!--(ACTION|TACTICS|WHISPER:[^>]+?)-->[\s\S]*?<!--\/\1-->/g;
@@ -224,7 +235,7 @@ const IMAGE_RE = /^\s*\[image:[^\]]*\]\s*$/i;
  * tags, no voice tags.
  */
 export function readableText(stored: string): string {
-  let t = (stored || '').replace(ACTION_CARD_RE, '').replace(REPLY_RE, '').replace(NPC_ROLL_RE, '');
+  let t = (stored || '').replace(ACTION_CARD_RE, '').replace(REPLY_RE, '').replace(NPC_ROLL_RE, '').replace(NPC_JOIN_RE, '');
   if (IMAGE_RE.test(t)) return '(shares a picture)';
   t = t.replace(PAIRED_BLOCK_RE, '').replace(COMMENT_RE, '').replace(VOICE_TAG_RE, '').replace(BLOCK_TAG_RE, '');
   return t.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
@@ -467,6 +478,70 @@ export function rollRequestOf(stored: string): NpcRollRequest | null {
   }
 }
 
+// ── D-24: offers to join the party ──
+
+/** An offer to join the party, stored at the end of an NPC line. Only the named player can accept it. */
+export interface NpcJoinOffer {
+  /** The player who may accept. */
+  to: string;
+  /** Their character's name. */
+  name: string;
+}
+
+const JOIN_TAG_RE = /\[\s*JOIN\s*:\s*([^\]|]{1,60})\s*\]/gi;
+
+/** Split a model's raw answer into its words and the first [JOIN: Name] tag in it. */
+export function splitJoinTag(raw: string): { text: string; tag: { name: string } | null } {
+  let tag: { name: string } | null = null;
+  const text = (raw || '').replace(JOIN_TAG_RE, (_m, name: string) => {
+    if (!tag) tag = { name: name.trim() };
+    return '';
+  });
+  return { text, tag };
+}
+
+/**
+ * Check a join tag against the characters the NPC was allowed to offer to (the server decides
+ * that list before the NPC speaks: a won social roll, or Friendly-or-better for a volunteer).
+ */
+export function validateJoinTag(
+  tag: { name: string } | null,
+  allowed: Array<{ user_id: string; character_name: string }>,
+): NpcJoinOffer | null {
+  if (!tag || allowed.length === 0) return null;
+  const who = tag.name.replace(/^@/, '').trim().toLowerCase();
+  if (!who) return null;
+  const seat = allowed.find(s => (s.character_name || '').trim().toLowerCase() === who)
+    || allowed.find(s => (s.character_name || '').trim().toLowerCase().split(/\s+/)[0] === who.split(/\s+/)[0] && who.length >= 3);
+  return seat ? { to: seat.user_id, name: seat.character_name.trim() } : null;
+}
+
+/** The marker stored at the end of an NPC line that offers to join the party. */
+export function formatJoinMarker(o: NpcJoinOffer): string {
+  return `\n⟪JOIN⟫${JSON.stringify({ to: o.to, name: o.name })}⟪/JOIN⟫`;
+}
+
+/** The join offer stored in an NPC line, or null. */
+export function joinOfferOf(stored: string): NpcJoinOffer | null {
+  const m = /⟪JOIN⟫([\s\S]*?)⟪\/JOIN⟫/.exec(stored || '');
+  if (!m) return null;
+  try {
+    const r = JSON.parse(m[1]);
+    if (typeof r?.to !== 'string' || typeof r?.name !== 'string') return null;
+    return { to: r.to, name: r.name };
+  } catch {
+    return null;
+  }
+}
+
+/** True when this situation is a won Persuasion, Intimidation or Deception against the NPC (D-24: it may offer to join). */
+export function wonOver(s: NpcSituation | null | undefined): boolean {
+  if (!s) return false;
+  if (s.kind === 'roll') return s.success && !s.save && (JOIN_CHECKS as readonly string[]).includes(s.check);
+  if (s.kind === 'social') return s.outcome === 'success' && (JOIN_CHECKS as readonly string[]).includes(s.skill);
+  return false;
+}
+
 export function checkLabel(check: string, save: boolean): string {
   return save ? `${check} saving throw` : SKILLS.includes(check) ? `${check} check` : `${check} check`;
 }
@@ -499,7 +574,8 @@ export function tableText(stored: string): string {
     extras.push(`(rolls ${card.action}: ${card.total} against DC ${card.dc}, ${card.success ? 'success' : 'failure'})`);
   }
   const ask = rollRequestOf(stored);
-  const tail = ask ? ` (asks ${ask.name} for a DC ${ask.dc} ${checkLabel(ask.check, ask.save)})` : '';
+  const offer = joinOfferOf(stored);
+  const tail = ask ? ` (asks ${ask.name} for a DC ${ask.dc} ${checkLabel(ask.check, ask.save)})` : offer ? ` (offers to join the party with ${offer.name})` : '';
   return `${extras.join(' ')}${extras.length && text ? ' ' : ''}${text}${tail}`.trim();
 }
 
@@ -628,7 +704,7 @@ export function buildNpcSystemPrompt(input: NpcPromptInput): string {
       '- No game mechanics in your spoken words: no dice, DCs, hit points, stats or rules talk. Never write tags, markup or notes, except the roll tag and the mood tag described below.',
       `- ${name} can offer, promise, threaten, refuse, bargain or lie, but cannot hand over items or gold, move the party or end quests alone. The Dungeon Master decides what actually happens.`,
       combatTurn
-        ? `- This is ${name}'s moment in a fight that is already on. The app's dice already decided what happens: describe exactly that result and nothing more.`
+        ? `- This is ${name}'s moment in a fight that is already on${input.ally ? `, fighting BESIDE the party's characters against their enemies` : ''}. The app's dice already decided what happens: describe exactly that result and nothing more.`
         : `- ${name} may warn, threaten, reach for a weapon or signal others, but never starts a fight, attacks, orders an attack or says what harm happens to anyone. Whether a fight starts is the Dungeon Master's call.`,
       `- Lines marked (table talk) are the players chatting out of character: ${name} did not hear them.`,
       `- ${name} only knows what ${name} would plausibly know. Stay consistent with the guide below, with what ${name} remembers, and with what ${name} already said at the table.`,
@@ -664,6 +740,26 @@ export function buildNpcSystemPrompt(input: NpcPromptInput): string {
       `- No roll ever makes ${name} cross a HARD LINE or do something outside ${name}'s actual power. If what they want is impossible, refuse in character without asking for a roll.`,
       '- At most one roll per reply, only for a player character in that list, and only when it matters. Never for something trivial, and never twice in a row for the same thing.',
       '- The app shows the player the DC, rolls their dice from their character sheet and tells you the result. Do not invent results.',
+    ].join('\n'));
+  }
+
+  const offer = input.joinOffer;
+  if (!banter && !combatTurn && offer && offer.names.length) {
+    parts.push([
+      'JOINING THE PARTY (D-24)',
+      `${name} may offer to travel and fight alongside the party's characters from now on. ${offer.won
+        ? `${offer.won} just won ${name} over. If coming along fits who ${name} is and what ${name} wants, offer it now, in character; if a hard line or ${name}'s own plans rule it out, say no and stay.`
+        : `Only if ${name} has grown friendly toward them and has a reason of ${name}'s own to come along. Do not offer for free or out of politeness.`}`,
+      `${name} may offer only to: ${offer.names.join(', ')}. To offer, end the reply with ONE line exactly like this, using the character's name as written: [JOIN: ${offer.names[0]}]`,
+      'The app shows that player a button to accept. Do not say or assume they accepted, and never write the tag without meaning it.',
+    ].join('\n'));
+  }
+
+  if (input.ally && !banter) {
+    const others = (input.allies || []).filter(n => n.trim() && n.trim().toLowerCase() !== name.toLowerCase());
+    parts.push([
+      'TRAVELLING WITH THE PARTY',
+      `${name} travels with the party's characters now and fights beside them. ${name} keeps ${name}'s own will, wants, opinions and hard lines, and can speak up, warn, argue or refuse, but never makes the party's decisions, never leads their quest and never speaks for them.${others.length ? ` ${others.join(' and ')} travel${others.length === 1 ? 's' : ''} with the party too.` : ''}`,
     ].join('\n'));
   }
 
@@ -734,7 +830,11 @@ export function buildNpcSystemPrompt(input: NpcPromptInput): string {
     ].join('\n'));
   }
 
-  if (input.cast.length) parts.push(`OTHER NPCs PRESENT\n${input.cast.join(', ')}. You speak only as ${name}; never write their lines.`);
+  if (input.cast.length) {
+    const allyNames = new Set((input.allies || []).map(n => n.trim().toLowerCase()));
+    const cast = input.cast.map(n => (allyNames.has(n.trim().toLowerCase()) ? `${n} (travels with the party)` : n));
+    parts.push(`OTHER NPCs PRESENT\n${cast.join(', ')}. You speak only as ${name}; never write their lines.`);
+  }
   if (input.roster.length && !people.length) parts.push(`THE PARTY (player characters)\n${input.roster.map(rosterLine).join('\n')}`);
   const reactions = (input.reactions || []).filter(Boolean);
   if (reactions.length) parts.push(`HOW THE TABLE REACTED TO YOUR RECENT LINES\n${reactions.map(r => `- ${r}`).join('\n')}`);
@@ -814,7 +914,7 @@ export function buildNpcUserMessage(input: NpcPromptInput): string {
   const recent = input.table.slice(-NPC_LIMITS.tableLines).map(l => tableLine(l, name)).filter(Boolean);
   const baseTable = recent.length ? `THE TABLE (most recent lines, oldest first)\n${recent.join('\n')}` : 'THE TABLE\n(nothing said yet)';
   const s = input.situation;
-  const tableBlock = input.fight ? `${baseTable}\n\n${combatBlock(input.fight, s?.kind === 'combat')}` : baseTable;
+  const tableBlock = input.fight ? `${baseTable}\n\n${combatBlock(input.fight, s?.kind === 'combat', !!input.ally)}` : baseTable;
   // The guide again, last, so the NPC's personality outweighs the mood of the scene.
   const guide = capStart(input.guide, NPC_LIMITS.voiceReminder);
   const f = input.fields || {};
@@ -874,7 +974,7 @@ export function buildNpcUserMessage(input: NpcPromptInput): string {
       ].filter(Boolean).join('\n\n');
     }
     if (s.move === 'intent') {
-      const who = s.targets.length ? s.targets.join(' and ') : '';
+      const who = s.targets.length ? `${s.targets.join(' and ')}${input.ally && (s.skillType === 'mend' || s.skillType === 'shield' || s.skillType === 'rally') ? ' (on your side)' : input.ally ? ' (an enemy of the party)' : ''}` : '';
       const aim = s.skillType === 'retreat' ? 'You are about to flee the fight.'
         : s.skillType === 'rally' ? `You are about to use ${s.skill} (${INTENT_MEANING[s.skillType]}).`
           : `You are about to use ${s.skill} (${INTENT_MEANING[s.skillType] || 'an attack'})${who ? ` on ${who}` : ''}.`;
@@ -1000,15 +1100,16 @@ export function joinGuides(rows: Array<{ name?: string | null; content?: string 
     .join('\n\n---\n\n');
 }
 
-function combatBlock(f: { hp: number; maxHp: number }, turn = false): string {
+function combatBlock(f: { hp: number; maxHp: number }, turn = false, ally = false): string {
   const pct = f.maxHp > 0 ? f.hp / f.maxHp : 1;
   const state = pct > 0.75 ? 'barely scratched' : pct > 0.5 ? 'hurt' : pct > 0.25 ? 'badly hurt' : 'close to collapse';
   return [
     'YOU ARE IN A FIGHT RIGHT NOW',
     `Your health: ${f.hp} of ${f.maxHp} (${state}).`,
+    ally ? "You fight on the party's side, against the other NPCs in this fight. The party's characters are your companions, never your targets." : '',
     'Lines marked ⚔ in the table are real blows and real results. Speak like someone in the middle of a fight: short, urgent, physical.',
     turn
       ? 'This line narrates a moment the app\'s dice already decided. Describe exactly that result, nothing more. A name followed by (...) tells you how that person looks right now: taunt the weak, gloat, or worry about the strong, but never repeat the brackets.'
       : 'Never say who gets hurt or by how much, and never describe a hit landing: the dice decide that. You can threaten, taunt, plead, bargain, call for help or try to talk your way out.',
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 }

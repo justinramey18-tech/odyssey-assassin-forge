@@ -19,6 +19,7 @@ import {
   formatAnchors,
   formatReplyContent,
   formatRollMarker,
+  formatJoinMarker,
   joinGuides,
   daysSince,
   describeLooks,
@@ -29,7 +30,11 @@ import {
   splitMoodTag,
   spellCastOf,
   splitRollTag,
+  splitJoinTag,
   validateRollTag,
+  validateJoinTag,
+  wonOver,
+  MAX_ALLIES,
   SOCIAL_CHECKS,
   socialIntentOf,
   replyTargetOf,
@@ -37,6 +42,7 @@ import {
   type NpcPerson,
   type NpcPromptInput,
   type NpcRollRequest,
+  type NpcJoinOffer,
   type NpcSituation,
 } from './prompt.ts';
 import type { CallModel } from './models.ts';
@@ -88,6 +94,8 @@ export interface Generated {
   error?: string;
   /** v2: the [ROLL: …] tag the NPC wrote, not yet checked. */
   rollTag?: { name: string; check: string; dc: number } | null;
+  /** D-24: the [JOIN: Name] tag the NPC wrote, not yet checked. */
+  joinTag?: { name: string } | null;
   /** v3: the mood the NPC tagged its answer with, or null. */
   mood?: string | null;
 }
@@ -102,22 +110,23 @@ export async function generateWithFallback(
 ): Promise<Generated> {
   const read = (raw: string) => {
     const split = splitRollTag(raw);
-    const moodSplit = splitMoodTag(split.text);
-    return { text: cleanNpcReply(moodSplit.text, npcName), tag: split.tag, mood: moodSplit.mood as string | null };
+    const join = splitJoinTag(split.text);
+    const moodSplit = splitMoodTag(join.text);
+    return { text: cleanNpcReply(moodSplit.text, npcName), tag: split.tag, join: join.tag, mood: moodSplit.mood as string | null };
   };
   const primary = (model || '').trim() || NPC_FALLBACK_MODEL;
   const first = await callModel(primary, system, user);
-  const firstOut = first.ok ? read(first.text || '') : { text: '', tag: null, mood: null };
+  const firstOut = first.ok ? read(first.text || '') : { text: '', tag: null, join: null, mood: null };
   if (firstOut.text) {
-    return { ok: true, text: firstOut.text, rollTag: firstOut.tag, mood: firstOut.mood, modelUsed: primary, fellBack: false, fallbackReason: null, costUsd: first.costUsd ?? null };
+    return { ok: true, text: firstOut.text, rollTag: firstOut.tag, joinTag: firstOut.join, mood: firstOut.mood, modelUsed: primary, fellBack: false, fallbackReason: null, costUsd: first.costUsd ?? null };
   }
   const reason = first.ok ? `${primary} gave an empty answer` : first.reason || `${primary} failed`;
   if (primary === NPC_FALLBACK_MODEL) return { ok: false, error: reason };
 
   const second = await callModel(NPC_FALLBACK_MODEL, system, user);
-  const secondOut = second.ok ? read(second.text || '') : { text: '', tag: null, mood: null };
+  const secondOut = second.ok ? read(second.text || '') : { text: '', tag: null, join: null, mood: null };
   if (secondOut.text) {
-    return { ok: true, text: secondOut.text, rollTag: secondOut.tag, mood: secondOut.mood, modelUsed: NPC_FALLBACK_MODEL, fellBack: true, fallbackReason: reason, costUsd: second.costUsd ?? null };
+    return { ok: true, text: secondOut.text, rollTag: secondOut.tag, joinTag: secondOut.join, mood: secondOut.mood, modelUsed: NPC_FALLBACK_MODEL, fellBack: true, fallbackReason: reason, costUsd: second.costUsd ?? null };
   }
   return { ok: false, error: `${reason}; the backup model also failed (${second.ok ? 'empty answer' : second.reason || 'no answer'})` };
 }
@@ -143,6 +152,7 @@ function promptInput(
   leaveOut: string[] = [],
   situation?: NpcSituation,
   now: number = Date.now(),
+  joinOffer?: JoinGate,
 ): NpcPromptInput {
   const npcName = npc.name.trim().toLowerCase();
   const skip = new Set([line.id, ...leaveOut].filter(Boolean));
@@ -226,7 +236,55 @@ function promptInput(
     reactions,
     standIn,
     joinedLate,
+    // D-24: allies know they travel with the party; a reply may carry an offer to join.
+    ally: !!npc.ally_since,
+    allies: ctx.allies ?? [],
+    joinOffer: joinOffer && joinOffer.names.length ? { names: joinOffer.names, won: joinOffer.won } : undefined,
   };
+}
+
+// ── D-24: offers to join the party ──
+
+/** Who the NPC may offer to join in this reply (empty = no offer allowed). */
+export interface JoinGate {
+  names: string[];
+  /** The character who just won the NPC over, or null for a volunteer. */
+  won: string | null;
+  /** The seats an offer may name. */
+  seats: Array<{ user_id: string; character_name: string }>;
+}
+
+const NO_JOIN: JoinGate = { names: [], won: null, seats: [] };
+
+/**
+ * D-24: whether this reply may offer to join the party, and to whom. A won Persuasion, Intimidation or
+ * Deception lets the NPC offer to that character; otherwise it may only volunteer to characters it is
+ * already Friendly or Loyal toward. Never while it is an ally, a stand-in, knocked out, fighting the
+ * party, or when the party already has its 3 allies.
+ */
+export async function joinGateFor(
+  npc: NpcRow,
+  guide: NpcGuideRow | null,
+  ctx: NpcContext,
+  situation: NpcSituation | undefined,
+  line: { user_id?: string },
+  repo: NpcRepo,
+  now: number,
+): Promise<JoinGate> {
+  if (npc.ally_since || npc.player_user_id || npc.combat_state) return NO_JOIN;
+  if ((ctx.allies ?? []).length >= MAX_ALLIES) return NO_JOIN;
+  if (repo.enemyInOpenFight && (await repo.enemyInOpenFight(npc.id))) return NO_JOIN;
+  const seats = seatsOf(ctx);
+  if (wonOver(situation)) {
+    const seat = seats.find(s => s.user_id === line.user_id);
+    return seat ? { names: [seat.character_name], won: seat.character_name, seats: [seat] } : NO_JOIN;
+  }
+  const feel = new Map((ctx.mind?.attitudes ?? []).map(a => [a.user_id, a]));
+  const friendly = seats.filter(s => {
+    const a = feel.get(s.user_id);
+    return !!a && fadeAttitude(a.score ?? 0, a.last_seen_at ?? a.updated_at, guide?.grudge_style, now) >= 1;
+  });
+  return friendly.length ? { names: friendly.map(s => s.character_name), won: null, seats: friendly } : NO_JOIN;
 }
 
 /** v3: the mood to save with an answer (the tagged one, else the NPC's current one), and saves a change. */
@@ -304,9 +362,10 @@ export function socialOutcomeNote(situation: NpcSituation | null | undefined, np
   return note.slice(0, 300);
 }
 
-/** The stored content of an NPC answer, with its roll request (if any) at the end. */
-function answerContent(replyToId: string | null, text: string, request: NpcRollRequest | null): string {
+/** The stored content of an NPC answer, with its roll request or join offer (if any) at the end. */
+function answerContent(replyToId: string | null, text: string, request: NpcRollRequest | null, offer: NpcJoinOffer | null = null): string {
   const body = replyToId ? formatReplyContent(replyToId, text) : text;
+  if (offer) return `${body}${formatJoinMarker(offer)}`;
   return request ? `${body}${formatRollMarker(request)}` : body;
 }
 
@@ -364,15 +423,18 @@ export async function speak(req: { userId: string; messageId: unknown; npcId: un
       repo.listStageNames(line.party_id),
       repo.loadContext(line.party_id, hostId, undefined, npc.id),
     ]);
-    const input = promptInput(npc, guide, cast, ctx, line, [], situation ?? undefined, deps.now());
+    const gate = await joinGateFor(npc, guide, ctx, situation ?? undefined, line, repo, deps.now());
+    const input = promptInput(npc, guide, cast, ctx, line, [], situation ?? undefined, deps.now(), gate);
     const result = await generateWithFallback(npc.model, buildNpcSystemPrompt(input), buildNpcUserMessage(input), npc.name, deps.callModel);
     if (!result.ok) {
       await repo.finish(line.id, npc.id, { error: result.error, latency_ms: deps.now() - started });
       return refuse(502, `${npc.name} couldn't answer right now (${result.error}). Try again in a moment.`);
     }
 
-    // A roll request only counts in a normal answer, and only for a seated character.
-    const request = kind === 'reply' ? validateRollTag(result.rollTag ?? null, seatsOf(ctx)) : null;
+    // D-24: an offer to join counts only for a character the gate allowed. A roll request only counts
+    // in a normal answer, and only for a seated character. An offer and a roll never share one line.
+    const offer = validateJoinTag(result.joinTag ?? null, gate.seats);
+    const request = !offer && kind === 'reply' ? validateRollTag(result.rollTag ?? null, seatsOf(ctx)) : null;
     const mood = await moodAfter(npc, result.mood, repo);
     // A won social roll is remembered BEFORE the answer is posted, so later turns can't forget it.
     // If this write fails, the attempt fails and can be retried (the write is idempotent).
@@ -382,7 +444,7 @@ export async function speak(req: { userId: string; messageId: unknown; npcId: un
       party_id: line.party_id,
       user_id: hostId,
       character_name: npc.name,
-      content: answerContent(line.id, result.text ?? '', request),
+      content: answerContent(line.id, result.text ?? '', request, offer),
       in_character: true,
       round_id: line.round_id,
       selected: line.selected,
@@ -406,6 +468,7 @@ export async function speak(req: { userId: string; messageId: unknown; npcId: un
       fellBack: result.fellBack,
       fallbackReason: result.fallbackReason,
       rollRequest: request ? { name: request.name, check: request.check, save: request.save, dc: request.dc } : null,
+      joinOffer: offer ? { name: offer.name } : null,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'unexpected error';
@@ -519,13 +582,16 @@ export async function socialCheck(
       repo.listStageNames(line.party_id),
       repo.loadContext(line.party_id, hostId, undefined, npc.id),
     ]);
-    const input = promptInput(npc, guide, cast, ctx, line, [], situation, deps.now());
+    const gate = await joinGateFor(npc, guide, ctx, situation, line, repo, deps.now());
+    const input = promptInput(npc, guide, cast, ctx, line, [], situation, deps.now(), gate);
     const result = await generateWithFallback(npc.model, buildNpcSystemPrompt(input), buildNpcUserMessage(input), npc.name, deps.callModel);
     if (!result.ok) {
       await repo.finish(line.id, npc.id, { error: result.error, latency_ms: deps.now() - started });
       return refuse(502, `${npc.name} couldn't answer right now (${result.error}). Try again in a moment.`);
     }
     const text = result.text ?? '';
+    // D-24: a won check may come with an offer to join the party.
+    const offer = validateJoinTag(result.joinTag ?? null, gate.seats);
     const mood = await moodAfter(npc, result.mood, repo);
     // A won check is remembered BEFORE the answer is posted; if this fails, the whole attempt fails and can be retried.
     const note = directSocialNote(situation, npc.name, text);
@@ -534,7 +600,7 @@ export async function socialCheck(
       party_id: line.party_id,
       user_id: hostId,
       character_name: npc.name,
-      content: answerContent(line.id, text, null),
+      content: answerContent(line.id, text, null, offer),
       in_character: true,
       round_id: line.round_id,
       selected: line.selected,
@@ -562,6 +628,7 @@ export async function socialCheck(
       playerRoll,
       npcRoll,
       outcome,
+      joinOffer: offer ? { name: offer.name } : null,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'unexpected error';
@@ -904,15 +971,17 @@ export async function regenerate(req: { userId: string; replyMessageId: unknown 
     repo.listStageNames(line.party_id),
     repo.loadContext(line.party_id, hostId, line.created_at, npc.id),
   ]);
-  const input = promptInput(npc, guide, cast, ctx, line, [req.replyMessageId], situation, deps.now());
+  const gate = await joinGateFor(npc, guide, ctx, situation, line, repo, deps.now());
+  const input = promptInput(npc, guide, cast, ctx, line, [req.replyMessageId], situation, deps.now(), gate);
   const result = await generateWithFallback(npc.model, buildNpcSystemPrompt(input), buildNpcUserMessage(input), npc.name, deps.callModel);
   if (!result.ok) {
     return refuse(502, `${npc.name} couldn't answer right now (${result.error}). The old line was kept.`);
   }
 
-  const request = kind === 'reply' ? validateRollTag(result.rollTag ?? null, seatsOf(ctx)) : null;
+  const offer = validateJoinTag(result.joinTag ?? null, gate.seats);
+  const request = !offer && kind === 'reply' ? validateRollTag(result.rollTag ?? null, seatsOf(ctx)) : null;
   const mood = await moodAfter(npc, result.mood, repo);
-  await repo.updateNpcLine(req.replyMessageId, answerContent(line.id, result.text ?? '', request), mood);
+  await repo.updateNpcLine(req.replyMessageId, answerContent(line.id, result.text ?? '', request, offer), mood);
   await repo.finish(line.id, npc.id, {
     model_used: result.modelUsed ?? null,
     fell_back: !!result.fellBack,
