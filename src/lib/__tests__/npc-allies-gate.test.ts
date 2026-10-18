@@ -7,7 +7,7 @@ const now = Date.parse('2026-10-18T20:00:00Z');
 const seat = { user_id: 'player-one', character_name: 'Anduril', character_status: null };
 const npc: NpcRow = { id: 'npc-one', party_id: 'party', name: 'Mira', model: '', on_stage: true, archived: false };
 const ctx: NpcContext = { guides: [], anchors: [], summary: '', latestPost: '', roster: [seat], table: [] };
-const repo = { enemyInOpenFight: async () => false } as NpcRepo;
+const repo = { enemyInOpenFight: async () => false } as unknown as NpcRepo;
 const win: NpcSituation = { kind: 'roll', roller: 'Anduril', check: 'Persuasion', save: false, total: 18, dc: 15, success: true, natural: null };
 const gate = (n = npc, c = ctx, s: NpcSituation | undefined = win, r = repo) => joinGateFor(n, null, c, s, { user_id: seat.user_id }, r, now);
 
@@ -33,7 +33,7 @@ describe('NPC ally offer eligibility', () => {
     expect((await gate({ ...npc, ...patch })).names).toEqual([]);
   });
   it('blocks an enemy in an unfinished fight', async () => {
-    expect((await gate(npc, ctx, win, { enemyInOpenFight: async () => true } as NpcRepo)).names).toEqual([]);
+    expect((await gate(npc, ctx, win, { enemyInOpenFight: async () => true } as unknown as NpcRepo)).names).toEqual([]);
   });
   it('rejects offers naming someone outside the allowed seats', () => {
     expect(validateJoinTag({ name: 'Phoenix' }, [seat])).toBeNull();
