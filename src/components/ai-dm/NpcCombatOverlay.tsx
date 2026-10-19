@@ -45,13 +45,14 @@ interface Props {
   onSelect?: (next: CombatSelection | null) => void;
   /** One-tap tray entries for the current selection, built from Quick Actions. */
   tray?: CombatTray;
-  onTrayTap?: (id: string) => void;
+  /** targetIds: the battle screen picks the move first, then passes its targets with the tap. */
+  onTrayTap?: (id: string, targetIds?: string[]) => void;
   /** Player portraits by user id (the in-character chat avatar). */
   allyPortraits?: Record<string, string | undefined>;
 }
 
 export type CombatSelection = { side: 'enemy' | 'ally'; ids: string[] };
-export type TrayEntry = { id: string; name: string; sub?: string; side: 'enemy' | 'ally'; row: 'attack' | 'spell' | 'item' };
+export type TrayEntry = { id: string; name: string; sub?: string; side: 'enemy' | 'ally'; row: 'attack' | 'spell' | 'item'; level?: number | null; school?: string | null; area?: boolean };
 export type CombatTray = TrayEntry[];
 
 /** Live effect chips from server fields only (buffs, temporary HP, ward), with seconds left. */

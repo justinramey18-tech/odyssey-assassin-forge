@@ -143,7 +143,8 @@ import { useXPSnapshot } from '@/hooks/use-xp-snapshot';
 import { loadPendingDmItems } from '@/lib/pendingDmItems';
 import { DiceRollOverlay } from '@/components/ai-dm/DiceRollOverlay';
 import { stripTableTalkTags, type NarrationSegment } from '@/lib/tts-utils';
-import { useNpcCombat, type NpcCombatApi } from '@/hooks/use-npc-combat';
+import { useNpcCombat, isAllyRow, type NpcCombatApi } from '@/hooks/use-npc-combat';
+import { isAreaSpell } from '@/lib/spellResolve';
 import { NpcCombatOverlay } from '@/components/ai-dm/NpcCombatOverlay';
 import { lazyPanel } from '@/lib/lazyPanel';
 
@@ -3319,7 +3320,7 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
       const side = qaModule.quickSpellSide(sp);
       if (!side) continue;
       const buff = side === 'ally' && !sp.healingFormula;
-      entries.push({ entry: { id: sp.id, name: sp.name, sub: buff ? 'Buff' : sp.spellLevel ? `Level ${sp.spellLevel}` : 'Cantrip', side, row: 'spell' }, item: sp });
+      entries.push({ entry: { id: sp.id, name: sp.name, sub: buff ? 'Buff' : sp.spellLevel ? `Level ${sp.spellLevel}` : 'Cantrip', side, row: 'spell', level: sp.spellLevel ?? 0, school: sp.spellSchool ?? null, area: isAreaSpell({ range: sp.spellRange, description: sp.rulesText }) }, item: sp });
     }
     for (const c of sec.consumables) if (c.rollKind === 'heal' && c.healingDice) entries.push({ entry: { id: c.id, name: c.name, sub: c.healingDice.formula ?? undefined, side: 'ally', row: 'item' }, item: c });
     return entries;
@@ -3335,16 +3336,19 @@ export function PartyDMScreen({ initialLiveTableOpen = false, runtimeOverrides, 
     return out;
   }, [handleHealingItemUsedBase]);
 
-  const handleTrayTap = useCallback((id: string) => {
+  const handleTrayTap = useCallback((id: string, targetIds?: string[]) => {
     const found = trayItems.find(t => t.entry.id === id);
-    const sel = combatSelection;
+    // The battle screen passes the move's targets with the tap (move first, then target), so it never waits on combatSelection.
+    const sel = targetIds?.length ? { side: found?.entry.side ?? 'enemy', ids: targetIds } : combatSelection;
     const fightNow = npcCombatRef.current;
     if (!found || !sel?.ids.length || !qaModule) return;
     const primary = fightNow.fighters.find(f => f.id === sel.ids[0]);
     if (!primary) { toast.error('Pick a target first.'); return; }
     const { item, entry } = found;
     if (entry.row === 'item') {
-      if (primary.kind !== 'player' || primary.status === 'dead') return;
+      // D-24: an NPC ally standing in the fight can take a potion too.
+      const npcAlly = isAllyRow(primary);
+      if ((primary.kind !== 'player' && !npcAlly) || primary.status === 'dead' || (npcAlly && primary.status !== 'up')) return;
       if (primary.id !== fightNow.myFighter?.id) {
         // Ally potion: the referee heals them; it leaves the bag only after it lands.
         void fightNow.givePotion(primary.id, item.name).then(r => {
