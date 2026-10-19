@@ -33,10 +33,21 @@ export interface DiceRollRequest {
 
 type Listener = (req: DiceRollRequest) => void;
 let listener: Listener | null = null;
+let bypass: (() => boolean) | null = null;
 
 export function requestDiceRoll(req: DiceRollRequest): void {
+  if (bypass?.()) { req.onComplete(); return; }
   if (listener) listener(req);
   else req.onComplete();
+}
+
+/**
+ * While set and returning true, rolls skip the 3D dice and finish at once. The Pokémon-style battle
+ * screen sets it during a fight, because it shows every roll in its own text box.
+ * Pass null to clear. Last caller wins.
+ */
+export function setDiceRollBypass(fn: (() => boolean) | null): void {
+  bypass = fn;
 }
 
 /** The overlay registers itself here. Returns an unsubscribe. Last mount wins. */

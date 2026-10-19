@@ -10,6 +10,7 @@ import { readableFunctionError } from '@/lib/live-npcs';
 import { castSpellByName } from '@/lib/magic/castBus';
 import type { ActionCard } from '@/lib/roundChatActionCard';
 import { duelChargeNow, type DuelFeel, type DuelInput } from '@/lib/combatDuel';
+import { npcSpeech } from '@/lib/battle-feed';
 
 type Tables = Database['public']['Tables'];
 export type FightRow = Tables['party_fights']['Row'];
@@ -227,6 +228,11 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
 
   // NPC lines in the Live Table: when each NPC (by npc_id) last spoke, so the fight bar can show "typing…" until the line arrives.
   const [lastLineAt, setLastLineAt] = useState<Record<string, number>>({});
+  // Battle screen: each NPC's latest Live Table line (its fight speech), and a count of table lines from others (unread badge).
+  const [npcLines, setNpcLines] = useState<Record<string, { text: string; at: number }>>({});
+  const [chatSeq, setChatSeq] = useState(0);
+  const meRef = useRef(currentUserId);
+  meRef.current = currentUserId;
 
   // Load, live changes, and coming back to the page.
   useEffect(() => {
@@ -244,11 +250,14 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
       .on('postgres_changes', { event: '*', schema: 'public', table: 'party_fight_events', filter }, p => onEventChange(p as unknown as Change))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'party_character_deaths', filter }, () => scheduleReload())
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'party_round_chat', filter }, p => {
-        const row = (p as unknown as Change).new as { npc_id?: string | null; created_at?: string };
+        const row = (p as unknown as Change).new as { npc_id?: string | null; created_at?: string; content?: string | null; user_id?: string | null };
         const npcId = row?.npc_id;
+        if (!(row?.user_id && row.user_id === meRef.current && !npcId)) setChatSeq(n => n + 1);
         if (npcId) {
           const at = row.created_at ? Date.parse(row.created_at) : NaN;
           setLastLineAt(prev => ({ ...prev, [npcId]: Number.isFinite(at) ? at : serverTime() }));
+          const text = npcSpeech(row.content);
+          if (text) setNpcLines(prev => ({ ...prev, [npcId]: { text, at: Number.isFinite(at) ? at : serverTime() } }));
         }
       })
       .subscribe(status => {
@@ -572,6 +581,8 @@ export function useNpcCombat({ partyId, currentUserId, isHost, sheetHp, onHPChan
     clockOffset,
     connection,
     lastLineAt,
+    npcLines,
+    chatSeq,
     cooldownLeft,
     pauseKind,
     pausedAtMs,

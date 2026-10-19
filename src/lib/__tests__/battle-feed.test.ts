@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { caps, hpBand, linesForEvent, mergeFeed, parseStrike, pickDefaultTarget, type FeedEvent, type FeedLine } from '@/lib/battle-feed';
+import { caps, hpBand, linesForEvent, mergeFeed, npcSpeech, parseStrike, pickDefaultTarget, type FeedEvent, type FeedLine } from '@/lib/battle-feed';
 
 // Detail strings below are copied from real party_fight_events rows (2026-10-19).
 const ev = (kind: string, actor: string, target: string, detail: string, extra: Partial<FeedEvent> = {}): FeedEvent => ({
@@ -116,6 +116,13 @@ describe('pickDefaultTarget', () => {
   it('prefers the enemy aiming at me', () => expect(pickDefaultTarget([e('a', 5), e('b', 30, 'up', true)])).toBe('b'));
   it('else the weakest', () => expect(pickDefaultTarget([e('a', 20), e('b', 4), e('c', 10)])).toBe('b'));
   it('null when no enemy stands', () => expect(pickDefaultTarget([e('a', 0, 'dead')])).toBeNull());
+});
+
+describe('npcSpeech', () => {
+  it('drops the reply header', () => expect(npcSpeech('[reply:3f2a9c1e-1111-2222-3333-444455556666]\nYou will bleed for that, elf!')).toBe('You will bleed for that, elf!'));
+  it('drops hidden roll and join markers', () => expect(npcSpeech('Prove it. ⟪ROLL⟫{"check":"Persuasion","dc":14}⟪/ROLL⟫ ⟪JOIN⟫{"to":"u1","name":"Grog"}⟪/JOIN⟫')).toBe('Prove it.'));
+  it('shortens long lines', () => expect(npcSpeech('a'.repeat(200), 20)).toHaveLength(20));
+  it('handles empty content', () => expect(npcSpeech(null)).toBe(''));
 });
 
 describe('helpers', () => {
