@@ -266,6 +266,16 @@ export function pickDefaultTarget(enemies: TargetCandidate[], currentId?: string
   return [...up].sort((a, b) => pct(a) - pct(b))[0].id;
 }
 
+/**
+ * An NPC's Live Table line as plain speech for the text box: drops the "[reply:<id>]" header and the
+ * hidden ⟪ROLL⟫…⟪/ROLL⟫ / ⟪JOIN⟫…⟪/JOIN⟫ markers, and shortens very long lines.
+ */
+export function npcSpeech(content: string | null | undefined, max = 140): string {
+  let t = (content ?? '').replace(/^\s*\[reply:[^\]]*\]\s*/i, '');
+  t = t.replace(/⟪([A-Z_]+)⟫[\s\S]*?⟪\/\1⟫/g, '').replace(/\s+/g, ' ').trim();
+  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+}
+
 /** HP bar color band, as in the classic battle screens. */
 export function hpBand(hp: number, max: number): 'green' | 'yellow' | 'red' {
   const p = max > 0 ? (hp / max) * 100 : 0;
