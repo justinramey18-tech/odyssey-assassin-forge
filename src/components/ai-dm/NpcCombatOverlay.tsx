@@ -21,6 +21,11 @@ import { preloadCombatArt } from '@/lib/combatArt';
 import { duelChargeOf, isAllyRow, isEnemyRow, resolveOf, type FighterRow, type FightEventRow, type NpcCombatApi } from '@/hooks/use-npc-combat';
 import { NPC_SKILL_INFO, type NpcSkillType, type PartyNpc, type PartyNpcsApi } from '@/hooks/use-party-npcs';
 import type { ActionCard } from '@/lib/roundChatActionCard';
+import { BattleScreen } from './battle/BattleScreen';
+import { BattleEndCard } from './battle/BattleEndCard';
+
+/** The Pokémon-style battle screen (claude/POKEMON_BATTLE_PLAN.md). false = the old fight bar. */
+const BATTLE_SCREEN = true;
 
 type Member = { user_id: string; character_name: string; character_status?: Record<string, unknown>; updated_at?: string };
 type Finish = 'knockout' | 'kill';
@@ -916,6 +921,24 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
     const endEv = [...events].reverse().find(e => e.kind === 'end');
     const label = fight.outcome === 'victory' ? 'Victory' : fight.outcome === 'defeat' ? 'Defeat' : 'Fight ended';
     const tone = fight.outcome === 'victory' ? 'border-green-500/40 text-green-200' : fight.outcome === 'defeat' ? 'border-red-500/40 text-red-200' : 'border-white/15 text-white/70';
+    if (BATTLE_SCREEN) {
+      return (
+        <>
+          <div aria-hidden className="fixed inset-0 z-[55]" style={{ background: 'rgba(16, 19, 31, 0.9)' }} />
+          <BattleEndCard
+            outcome={fight.outcome === 'victory' ? 'victory' : fight.outcome === 'defeat' ? 'defeat' : 'ended'}
+            summary={endEv?.detail ?? null}
+            fallen={fallen.map(f => ({ userId: f.user_id, name: f.character_name }))}
+            canRevive={isHost}
+            busy={busy}
+            onRevive={uid => { void combat.revivePlayer(uid); }}
+            onClose={() => setHiddenEnd(fight.id)}
+          />
+          {sheet}
+          {duelLayer}
+        </>
+      );
+    }
     return (
       <>
         <div className={cn('fixed left-2 right-2 top-16 z-[56] rounded-xl border bg-black/90 p-3 space-y-2', tone)}>
@@ -1098,7 +1121,40 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
 
   return (
     <>
-      <div className="fixed left-0 right-0 top-14 z-[56] px-2 pointer-events-none">
+      {BATTLE_SCREEN && (
+        <BattleScreen
+          combat={combat}
+          roster={roster}
+          members={members}
+          currentUserId={currentUserId}
+          isHost={isHost}
+          now={now}
+          clock={clock}
+          tray={tray ?? []}
+          onTrayTap={onTrayTap}
+          selection={selection ?? null}
+          onSelect={onSelect}
+          allyPortraits={allyPortraits}
+          weapons={qa.weapons}
+          healItems={qa.items}
+          onUseConsumableByName={onUseConsumableByName}
+          onOpenSpells={onOpenSpells}
+          onHuddle={() => setStep({ kind: 'huddle-confirm' })}
+          onDuel={() => {
+            setFinish('knockout');
+            if (npcUp.length === 1) setStep({ kind: 'duel-confirm', target: npcUp[0] });
+            else setStep({ kind: 'duel-target' });
+          }}
+          onSecondWind={async () => {
+            if (myFighter?.perks?.includes('battle_medic')) { setStep({ kind: 'second-wind-target' }); return; }
+            await combat.secondWind();
+          }}
+          onHostAdd={() => setStep({ kind: 'host-add' })}
+          onEndFight={() => setConfirmEnd(true)}
+          amPinned={amPinned}
+        />
+      )}
+      <div className={BATTLE_SCREEN ? 'hidden' : 'fixed left-0 right-0 top-14 z-[56] px-2 pointer-events-none'}>
         <div className="pointer-events-auto rounded-xl border border-red-500/30 bg-black/90 max-h-[45vh] overflow-y-auto">
           <div className="flex items-center gap-2 px-3 py-1">
             <span className={cn('font-cinzel text-[14px] flex-1', isPaused ? 'text-amber-300' : 'text-red-300')}>{isPaused ? (isHuddle ? '🤝 HUDDLE' : '⏸ PAUSED') : '⚔ COMBAT'}</span>
@@ -1245,7 +1301,7 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
         </div>
       </div>
 
-      {myFighter?.status === 'up' && (
+      {!BATTLE_SCREEN && myFighter?.status === 'up' && (
         <div className="fixed left-0 right-0 z-[56] px-2" style={{ bottom: 'calc(8px + env(safe-area-inset-bottom))' }}>
           <div className="rounded-xl border border-white/15 bg-black/95 p-2 space-y-1">
             {aimingAtMe?.p && (() => {
@@ -1385,8 +1441,8 @@ export function NpcCombatOverlay({ combat, roster, members, currentUserId, isHos
       })()}
       {duelLayer}
       {burst && <CombatBurst key={burst.key} kind={burst.kind} sub={burst.sub} />}
-      {rolling && !result && <RollingCard />}
-      {resultCard}
+      {!BATTLE_SCREEN && rolling && !result && <RollingCard />}
+      {!BATTLE_SCREEN && resultCard}
       {flashLayer}
       {sheet}
     </>
