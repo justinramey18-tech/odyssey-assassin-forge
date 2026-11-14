@@ -1746,6 +1746,71 @@ ${oocLines}`;
         </div>
       )}
 
+      {/* Embedded tools row — the header is hidden inside the Empyrean container (Home's "Empyrean Awaits"),
+          so its tools live here: OOC notes, narrator, and the DM tools drawer (Saves, World State, NPC scene,
+          OOC chat, prompts, Authorize Threshing). Shown bonded or not. */}
+      {embedded && (
+        <div className="flex items-center justify-between gap-2 pl-4 pr-2 py-0.5 bg-black/30 border-b border-purple-500/15 shrink-0">
+          <span className="text-[11px] text-muted-foreground truncate min-w-0">
+            {characterName}{!isUnbonded && config.dragonName ? ` & ${config.dragonName}` : ''}
+            {isUnbonded && <span className="ml-2 text-[10px]">No signet</span>}
+          </span>
+          <div className="flex items-center gap-1 shrink-0">
+            {activeOOCNotes.length > 0 && (
+              <button
+                onClick={() => setOOCNotesSheetOpen(true)}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border bg-cyan-500/10 border-cyan-500/30 text-cyan-300 text-[10px] font-semibold uppercase tracking-wider hover:bg-cyan-500/20 active:bg-cyan-500/30 transition-colors"
+                style={{ touchAction: 'manipulation' }}
+                aria-label={`${activeOOCNotes.length} active OOC ${activeOOCNotes.length === 1 ? 'note' : 'notes'}`}
+              >
+                <Eye className="w-3 h-3" />
+                <span>{activeOOCNotes.length} active</span>
+              </button>
+            )}
+            {narrator.hasTTSKey && (
+              <>
+                <button
+                  onClick={() => {
+                    if (narrator.isPlaying) {
+                      narrator.stop();
+                    }
+                  }}
+                  className={cn(
+                    "p-2 rounded-lg transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center",
+                    narrator.isPlaying
+                      ? "bg-purple-900/40 hover:bg-purple-900/60"
+                      : "hover:bg-muted/50"
+                  )}
+                  style={{ touchAction: 'manipulation' }}
+                  title={narrator.isPlaying ? "Stop narration" : "Narrator available"}
+                >
+                  {narrator.isLoading ? (
+                    <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+                  ) : narrator.isPlaying ? (
+                    <VolumeX className="w-5 h-5 text-purple-400" />
+                  ) : (
+                    <Volume2 className="w-5 h-5 text-muted-foreground" />
+                  )}
+                </button>
+                <NarrationSpeedPopover iconSize="w-5 h-5" />
+              </>
+            )}
+            <button
+              onClick={() => setShowToolsDrawer(true)}
+              className="relative p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
+              style={{ touchAction: 'manipulation' }}
+              aria-label="DM tools"
+              title="DM tools"
+            >
+              <BookOpen className="w-5 h-5 text-purple-400" />
+              {isUnbonded && !threshingAuthorized && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-400" aria-hidden="true" />
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Floating burnout indicator — shown in embedded mode when header is hidden */}
       {embedded && !isUnbonded && maxBurnout > 0 && (
         <div className="flex items-center justify-between px-4 py-1.5 bg-black/40 border-b border-purple-500/15 shrink-0">
