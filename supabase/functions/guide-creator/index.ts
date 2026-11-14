@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { CLAUDE_MODEL_IDS, claudeModelOptions, claudeText } from "../_shared/claude.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -48,12 +49,9 @@ const LOVABLE_MODELS = new Set([
   'openai/chat-latest',
 ]);
 
-const ANTHROPIC_MODELS: Record<string, string> = {
-  'anthropic/claude-sonnet-4': 'claude-sonnet-4-20250514',
-  'anthropic/claude-sonnet-4-5': 'claude-sonnet-4-5-20250929',
-  'anthropic/claude-sonnet-4-6': 'claude-sonnet-4-6',
-  'anthropic/claude-haiku-4-5': 'claude-haiku-4-5-20251001',
-};
+// App model ids -> Claude ids; retired ids move forward to Claude Sonnet 5.5 (CL-047, _shared/claude.ts).
+// If Claude can't answer, the Lovable AI default model answers instead.
+const ANTHROPIC_MODELS: Record<string, string> = CLAUDE_MODEL_IDS;
 
 const PERPLEXITY_MODELS: Record<string, string> = {
   'perplexity/sonar': 'sonar',
@@ -142,6 +140,7 @@ async function callAnthropicStreaming(
       stream: true,
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
+      ...claudeModelOptions(anthropicModelId),
     }),
   });
 
@@ -181,6 +180,7 @@ async function callAnthropicNonStreaming(
       max_tokens: 5000,
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
+      ...claudeModelOptions(anthropicModelId),
     }),
   });
 
@@ -193,7 +193,7 @@ async function callAnthropicNonStreaming(
   }
 
   const data = await response.json();
-  return data.content?.[0]?.text ?? '';
+  return claudeText(data);
 }
 
 // Transform Anthropic SSE into our unified SSE format
@@ -319,19 +319,24 @@ serve(async (req) => {
 
     // === STREAMING MODE ===
     if (stream) {
-      let sseStream: ReadableStream;
+      let sseStream: ReadableStream | null = null;
 
       if (anthropicModelId) {
         try {
           const rawStream = await callAnthropicStreaming(anthropicModelId, systemPrompt, userPrompt, user_api_key);
           sseStream = transformAnthropicStream(rawStream);
         } catch (e: any) {
-          const status = e?.status || 500;
-          const message = e?.message || "Anthropic error";
-          return new Response(JSON.stringify({ error: message }), {
-            status, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+          // A player's own key that Claude rejects is reported; any other failure falls back to Lovable AI.
+          if (e?.status === 401 && typeof user_api_key === 'string' && user_api_key.trim()) {
+            return new Response(JSON.stringify({ error: e?.message || "Invalid Anthropic API key." }), {
+              status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          console.warn("[guide-creator] Claude failed; using Lovable AI:", e?.message ?? e);
         }
+      }
+      if (sseStream) {
+        // Claude answered.
       } else if (perplexityModelId) {
         const perplexityKey = (typeof user_perplexity_key === 'string' && user_perplexity_key.trim())
           ? user_perplexity_key.trim()
@@ -426,18 +431,23 @@ serve(async (req) => {
     }
 
     // === NON-STREAMING MODE (legacy) ===
-    let guideContent: string;
+    let guideContent = '';
 
     if (anthropicModelId) {
       try {
         guideContent = await callAnthropicNonStreaming(anthropicModelId, systemPrompt, userPrompt, user_api_key);
       } catch (e: any) {
-        const status = e?.status || 500;
-        const message = e?.message || "Anthropic error";
-        return new Response(JSON.stringify({ error: message }), {
-          status, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        // A player's own key that Claude rejects is reported; any other failure falls back to Lovable AI.
+        if (e?.status === 401 && typeof user_api_key === 'string' && user_api_key.trim()) {
+          return new Response(JSON.stringify({ error: e?.message || "Invalid Anthropic API key." }), {
+            status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        console.warn("[guide-creator] Claude failed; using Lovable AI:", e?.message ?? e);
       }
+    }
+    if (guideContent.trim()) {
+      // Claude answered.
     } else if (perplexityModelId) {
       const perplexityKey = (typeof user_perplexity_key === 'string' && user_perplexity_key.trim())
         ? user_perplexity_key.trim()
