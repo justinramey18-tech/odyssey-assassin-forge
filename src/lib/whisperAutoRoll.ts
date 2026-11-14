@@ -271,6 +271,21 @@ function getAbilityScore(ctx: CharacterContext, ability: AbilityScore): number {
     scores[ability.toUpperCase()] ??
     scores[fullAbilityName(ability)] ??
     10;
+  return toScoreNumber(raw);
+}
+
+// A score arrives either as a plain number or as { base, modifier, final }
+// (the solo character context and the party seat both send the object form).
+// Use the final score (gear and bonuses included), then base, else 10.
+function toScoreNumber(raw: unknown): number {
+  if (raw && typeof raw === 'object') {
+    const o = raw as { final?: unknown; total?: unknown; base?: unknown };
+    for (const v of [o.final, o.total, o.base]) {
+      const n = typeof v === 'number' ? v : parseInt(String(v), 10);
+      if (Number.isFinite(n)) return n;
+    }
+    return 10;
+  }
   const n = typeof raw === 'number' ? raw : parseInt(String(raw), 10);
   return Number.isFinite(n) ? n : 10;
 }
