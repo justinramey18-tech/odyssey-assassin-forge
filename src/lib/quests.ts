@@ -34,6 +34,8 @@ export interface Quest {
   key: string;
   status: QuestStatus;
   title?: string;
+  /** Quest hub category (Empyrean quest hub). Optional; other boards ignore it. */
+  category?: string;
   description?: string;
   notes?: string;
   questType?: QuestType;
@@ -174,6 +176,7 @@ export function normalizeQuest(key: string, raw: any): Quest {
     key,
     status,
     title: raw?.title ? String(raw.title).slice(0, 120) : undefined,
+    category: raw?.category ? String(raw.category).slice(0, 40) : undefined,
     description: raw?.description ? String(raw.description).slice(0, 600) : undefined,
     notes: raw?.notes ? String(raw.notes).slice(0, 600) : undefined,
     questType: type,
@@ -200,6 +203,8 @@ export function normalizeQuestMap(raw: Record<string, any> | undefined | null): 
 export interface RawQuestOffer {
   key?: string;
   title?: string;
+  /** Quest hub category, when the offer came from a hub "Seek a quest" call. */
+  category?: string;
   description?: string;
   quest_type?: string;
   challenge_rating?: string;
@@ -222,6 +227,7 @@ export function questFromOffer(offer: RawQuestOffer): Quest | null {
   const quest = normalizeQuest(key, {
     status: 'offered',
     title,
+    category: offer.category,
     description: offer.description,
     questType: offer.quest_type === 'main' ? 'main' : 'side',
     challengeRating: CR_VALUES.includes(offer.challenge_rating as QuestCR) ? offer.challenge_rating : 'moderate',
