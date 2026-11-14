@@ -1,4 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { CLAUDE_MODEL, streamClaudeThenLovable } from "../_shared/claude.ts";
+
+// Claude Sonnet 5.5 (CL-047); a Lovable AI model answers when Claude can't.
+const BUILDER_FALLBACK_MODEL = "google/gemini-2.5-pro";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -169,8 +173,8 @@ serve(async (req) => {
     const { messages } = body;
     const mode: 'solo' | 'standalone-party' | 'party-host' = body.mode || 'solo';
     const systemPrompt = buildSystemPrompt(mode);
+    // No Anthropic key: a Lovable AI model answers instead (_shared/claude.ts).
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
 
     // Anthropic Messages API requires system prompt separate from messages
     const userMessages = messages.map((m: { role: string; content: string }) => ({
@@ -192,39 +196,29 @@ serve(async (req) => {
       );
     }
 
-    const response = await fetch(
-      "https://api.anthropic.com/v1/messages",
-      {
-        method: "POST",
-        headers: {
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5-20250929",
-          max_tokens: 16384,
-          system: systemPrompt,
-          messages: userMessages,
-          stream: true,
-        }),
-      }
-    );
+    const opened = await streamClaudeThenLovable({
+      claudeKey: ANTHROPIC_API_KEY,
+      model: CLAUDE_MODEL,
+      fallbackModel: BUILDER_FALLBACK_MODEL,
+      system: systemPrompt,
+      messages: userMessages,
+      maxTokens: 16384,
+      tag: "[ai-campaign-builder]",
+    });
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const t = await response.text();
-      console.error("Anthropic API error:", response.status, t);
+    if (opened.kind === "error") {
       return new Response(
-        JSON.stringify({ error: "AI service error" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: opened.status === 429 ? "Rate limit exceeded. Please try again in a moment." : opened.error }),
+        { status: opened.status === 429 ? 429 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    // A Lovable AI stream is already in the OpenAI-compatible format the app reads.
+    if (opened.kind === "lovable") {
+      return new Response(opened.response.body, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
+    }
+    const response = opened.response;
 
     // Transform Anthropic SSE stream to OpenAI-compatible SSE format
     const { readable, writable } = new TransformStream();
